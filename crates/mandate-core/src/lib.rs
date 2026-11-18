@@ -6,6 +6,7 @@ pub mod ids;
 pub mod math;
 pub mod money;
 pub mod rng;
+pub mod serde_util;
 pub mod time;
 
 pub use hash::{StableHash, stable_hash_json};

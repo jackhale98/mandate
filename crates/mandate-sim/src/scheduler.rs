@@ -10,6 +10,9 @@ use crate::economy::EconomyState;
 use crate::environment::EnvironmentState;
 use crate::events::{EventId, EventLog};
 use crate::finance::FinanceState;
+use crate::player::PlayerState;
+use crate::policy::PolicyState;
+use crate::politics::PoliticsState;
 use crate::population::PopulationState;
 use crate::state::{Calendar, State, WorldMeta};
 use crate::world::World;
@@ -94,6 +97,10 @@ pub struct Reads<'a> {
     economy: Option<&'a EconomyState>,
     finance: Option<&'a FinanceState>,
     environment: Option<&'a EnvironmentState>,
+    politics: Option<&'a PoliticsState>,
+    policy: Option<&'a PolicyState>,
+    /// The player, if one exists (lab runs may have none).
+    pub player: Option<&'a PlayerState>,
 }
 
 // The scheduler always provides every domain except the one being written;
@@ -116,6 +123,14 @@ impl<'a> Reads<'a> {
         self.environment
             .expect("environment is not readable from its own systems")
     }
+    pub fn politics(&self) -> &'a PoliticsState {
+        self.politics
+            .expect("politics is not readable from its own systems")
+    }
+    pub fn policy(&self) -> &'a PolicyState {
+        self.policy
+            .expect("policy is not readable from its own systems")
+    }
 }
 
 /// Shared outputs every system may use.
@@ -132,6 +147,10 @@ pub enum SystemFn {
     Economy(fn(&mut EconomyState, &Reads<'_>, &mut Outs<'_>)),
     Finance(fn(&mut FinanceState, &Reads<'_>, &mut Outs<'_>)),
     Environment(fn(&mut EnvironmentState, &Reads<'_>, &mut Outs<'_>)),
+    Politics(fn(&mut PoliticsState, &Reads<'_>, &mut Outs<'_>)),
+    Policy(fn(&mut PolicyState, &Reads<'_>, &mut Outs<'_>)),
+    /// Runs only when a player exists.
+    Player(fn(&mut PlayerState, &Reads<'_>, &mut Outs<'_>)),
     /// Writes nothing but the event log.
     Log(fn(&Reads<'_>, &mut Outs<'_>)),
 }
@@ -213,52 +232,133 @@ fn run_one(
         economy,
         finance,
         environment,
+        politics,
+        policy,
+        player,
     } = state;
     let mut outs = Outs {
         rng,
         events,
         effects,
     };
-    let base = |p, e, f, v| Reads {
-        content,
-        date,
-        meta,
-        calendar,
-        world,
-        population: p,
-        economy: e,
-        finance: f,
-        environment: v,
-    };
+    // Each arm leaves its own domain out of `Reads` statically, so the borrow
+    // checker proves a system cannot read-and-write its own state through two paths.
+    macro_rules! reads {
+        ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr) => {
+            Reads {
+                content,
+                date,
+                meta,
+                calendar,
+                world,
+                population: $pop,
+                economy: $eco,
+                finance: $fin,
+                environment: $env,
+                politics: $pol,
+                policy: $poly,
+                player: $ply,
+            }
+        };
+    }
     match f {
-        SystemFn::Population(g) => g(
-            population,
-            &base(None, Some(economy), Some(finance), Some(environment)),
-            &mut outs,
-        ),
-        SystemFn::Economy(g) => g(
-            economy,
-            &base(Some(population), None, Some(finance), Some(environment)),
-            &mut outs,
-        ),
-        SystemFn::Finance(g) => g(
-            finance,
-            &base(Some(population), Some(economy), None, Some(environment)),
-            &mut outs,
-        ),
-        SystemFn::Environment(g) => g(
-            environment,
-            &base(Some(population), Some(economy), Some(finance), None),
-            &mut outs,
-        ),
-        SystemFn::Log(g) => g(
-            &base(
-                Some(population),
-                Some(economy),
-                Some(finance),
-                Some(environment),
-            ),
-            &mut outs,
-        ),
+        SystemFn::Population(g) => {
+            let r = reads!(
+                None,
+                Some(&*economy),
+                Some(&*finance),
+                Some(&*environment),
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref()
+            );
+            g(population, &r, &mut outs)
+        }
+        SystemFn::Economy(g) => {
+            let r = reads!(
+                Some(&*population),
+                None,
+                Some(&*finance),
+                Some(&*environment),
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref()
+            );
+            g(economy, &r, &mut outs)
+        }
+        SystemFn::Finance(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                None,
+                Some(&*environment),
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref()
+            );
+            g(finance, &r, &mut outs)
+        }
+        SystemFn::Environment(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                Some(&*finance),
+                None,
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref()
+            );
+            g(environment, &r, &mut outs)
+        }
+        SystemFn::Politics(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                Some(&*finance),
+                Some(&*environment),
+                None,
+                Some(&*policy),
+                player.as_ref()
+            );
+            g(politics, &r, &mut outs)
+        }
+        SystemFn::Policy(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                Some(&*finance),
+                Some(&*environment),
+                Some(&*politics),
+                None,
+                player.as_ref()
+            );
+            g(policy, &r, &mut outs)
+        }
+        SystemFn::Player(g) => {
+            if let Some(p) = player.as_mut() {
+                let r = reads!(
+                    Some(&*population),
+                    Some(&*economy),
+                    Some(&*finance),
+                    Some(&*environment),
+                    Some(&*politics),
+                    Some(&*policy),
+                    None
+                );
+                g(p, &r, &mut outs)
+            }
+        }
+        SystemFn::Log(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                Some(&*finance),
+                Some(&*environment),
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref()
+            );
+            g(&r, &mut outs)
+        }
     }
 }

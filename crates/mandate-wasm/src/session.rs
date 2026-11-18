@@ -136,6 +136,7 @@ impl Session {
                 let command = match c {
                     CommandDto::EndTurn => Command::EndTurn,
                     CommandDto::AdvanceDays { days } => Command::AdvanceDays { days },
+                    other => Command::Player(player_command(other)),
                 };
                 let engine = self.engine_mut()?;
                 let outcome = engine
@@ -144,10 +145,18 @@ impl Session {
                 Ok(ResponseBody::CommandApplied(CommandAppliedView {
                     days_advanced: outcome.days_advanced,
                     overview: overview(engine),
+                    result: outcome.result.map(|r| ActionResultView {
+                        created: r.created,
+                        outcome_key: r.outcome_key,
+                        args: r.args,
+                    }),
                 }))
             }
             RequestBody::Query(q) => match q {
                 QueryDto::Overview => Ok(ResponseBody::Overview(overview(self.engine_mut()?))),
+                QueryDto::Office => office_view(self.engine_mut()?)
+                    .map(ResponseBody::Office)
+                    .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
                 QueryDto::Diagnostics => {
                     Ok(ResponseBody::Diagnostics(diagnostics(self.engine_mut()?)))
                 }
@@ -221,4 +230,71 @@ pub fn read_save_meta(bytes: &[u8]) -> Result<SaveMetaDto, String> {
         date: DateView::of(mandate_core::SimDate(m.sim_date)),
         turn: m.turn,
     })
+}
+
+fn params(v: Vec<ParamValue>) -> std::collections::BTreeMap<String, f64> {
+    v.into_iter().map(|p| (p.id, p.value)).collect()
+}
+
+/// Protocol DTO → simulation command (the protocol never exposes lab commands).
+fn player_command(c: CommandDto) -> mandate_sim::actions::PlayerCommand {
+    use mandate_sim::actions::{Action, PlayerCommand as P};
+    use mandate_sim::policy::Clause;
+    use mandate_sim::world::ConstituencyId;
+    match c {
+        CommandDto::DraftPolicy {
+            template,
+            params: p,
+        } => P::DraftPolicy {
+            template,
+            params: params(p),
+        },
+        CommandDto::AmendPolicy {
+            policy,
+            params: p,
+            clauses,
+        } => P::AmendPolicy {
+            policy,
+            params: params(p),
+            clauses: clauses
+                .into_iter()
+                .map(|c| match c {
+                    ClauseDto::Earmark { ward } => Clause::Earmark {
+                        ward: ConstituencyId(ward),
+                    },
+                    ClauseDto::Sunset { years } => Clause::Sunset {
+                        years: years.min(255) as u8,
+                    },
+                    ClauseDto::Pilot { neighborhood } => Clause::Pilot { neighborhood },
+                })
+                .collect(),
+        },
+        CommandDto::IntroducePolicy { policy } => P::IntroducePolicy { policy },
+        CommandDto::WithdrawPolicy { policy } => P::WithdrawPolicy { policy },
+        CommandDto::Act { action, late_night } => P::Act {
+            late_night,
+            action: match action {
+                ActionDto::Lobby { politician, policy } => Action::Lobby { politician, policy },
+                ActionDto::TradeFavor { politician, policy } => {
+                    Action::TradeFavor { politician, policy }
+                }
+                ActionDto::TownHall {
+                    neighborhood,
+                    policy,
+                } => Action::TownHall {
+                    neighborhood,
+                    policy,
+                },
+                ActionDto::Press { policy } => Action::Press { policy },
+                ActionDto::Canvass { neighborhood } => Action::Canvass { neighborhood },
+                ActionDto::Fundraise => Action::Fundraise,
+                ActionDto::Rest => Action::Rest,
+            },
+        },
+        // EndTurn and AdvanceDays are handled before this conversion.
+        CommandDto::EndTurn | CommandDto::AdvanceDays { .. } => P::Act {
+            action: Action::Rest,
+            late_night: false,
+        },
+    }
 }

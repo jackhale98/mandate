@@ -9,7 +9,8 @@
 | M1 World and lab | **Done**, 2026-11-18 |
 | M1s Rendering spikes | Map: Canvas 2D in production (fast, pixel-art); hub spike with M6 |
 | M2 Society, economy, environment | **Done**, 2026-11-18 |
-| M3 Local government and policy | Next (owner checkpoint at the end) |
+| M3 Local government and policy | **Done**, 2026-11-18 (owner checkpoint) |
+| M4 Elections, parties, NPC AI | Next (owner checkpoint: a local election) |
 
 ## M0 summary
 - **Rust workspace:** 8 crates, with determinism lints enforced (banned `HashMap`, `std` float transcendentals, wall clock).
@@ -46,6 +47,25 @@
   - an unemployment map layer with a legend;
   - Fluent text for all new events.
 - **Saves:** format v3.
+
+## M3 summary
+- **Constitution primitives** with the Federal Presidential archetype. Each town has a council elected by ward and a mayor. Ordinances and budgets pass by council vote, then mayoral signature, with a two-thirds override.
+- **Policy:** 11 local templates over 8 typed mechanisms. A 5-state lifecycle, staged procedures with deliberation periods, an implementation gap, and appropriations-driven funding. Laws keep a ledger of what they have done.
+- **Opinion:** anticipated support by income class before a vote; experienced effects after enactment. Government approval and the player's awareness and approval per neighbourhood.
+- **Player:** a seat on the council of the largest town; slots, late-night slot, Mandate, pressure tracks, and campaign funds; seven actions; draft, amend (riders: ward project, sunset, pilot), introduce, and withdraw.
+- **UI:**
+  - **Office tab:** player card, agenda, bills with "Why?" (support by class, side effects, ledger, vote record), policy catalogue with parameter sliders, and town opinion.
+  - **Council tab:** whip list with lobbying odds, late-night and favour options, and members' convictions.
+  - HUD slot pips and an action-result toast.
+- **Saves:** format v4. Every player command is journalled, so a reload mid-turn resumes exactly (tested end-to-end).
+- **Tests:**
+  - a bill goes from draft to law;
+  - a housing programme adds homes compared with a control world;
+  - slots are spent and validated;
+  - player commands are deterministic;
+  - state with lobbying round-trips through JSON;
+  - favour debt is capped;
+  - Playwright: draft → introduce → lobby → reload mid-turn → identical state hash.
 
 ## M1 summary
 - **World generation pipeline:**

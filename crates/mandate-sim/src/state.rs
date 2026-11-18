@@ -5,6 +5,9 @@ use crate::economy::EconomyState;
 use crate::environment::EnvironmentState;
 use crate::events::EventLog;
 use crate::finance::FinanceState;
+use crate::player::PlayerState;
+use crate::policy::PolicyState;
+use crate::politics::PoliticsState;
 use crate::population::PopulationState;
 use crate::world::World;
 use mandate_core::{RngStreams, SimDate};
@@ -37,6 +40,8 @@ pub struct WorldParams {
 pub struct WorldMeta {
     pub seed: u64,
     pub params: WorldParams,
+    /// Content key of the constitutional archetype in force (DEC-007).
+    pub constitution: String,
     pub content_hash: String,
     pub engine_version: String,
     pub start_date: SimDate,
@@ -71,13 +76,21 @@ pub struct State {
     pub economy: EconomyState,
     pub finance: FinanceState,
     pub environment: EnvironmentState,
+    pub politics: PoliticsState,
+    pub policy: PolicyState,
+    pub player: Option<PlayerState>,
 }
 
 impl State {
     /// Canonical state hash (DEC-041 rule 7).
     pub fn hash(&self) -> String {
-        mandate_core::stable_hash_json(self)
-            .map(|h| h.hex())
-            .unwrap_or_default()
+        match mandate_core::stable_hash_json(self) {
+            Ok(h) => h.hex(),
+            Err(e) => {
+                // Unserialisable state would also break saves: fail loudly in tests.
+                debug_assert!(false, "state is not serialisable: {e}");
+                String::new()
+            }
+        }
     }
 }

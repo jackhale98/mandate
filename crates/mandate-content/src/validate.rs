@@ -201,6 +201,128 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         }
     }
 
+    // Constitutions: every procedure stage references a real body or office,
+    // and the local tier can propose and approve ordinances (playability).
+    for c in b.constitutions.values() {
+        let Some(local) = c.tier(crate::types::TierKey::Local) else {
+            issues.push(Issue::error(&c.id, "constitution has no local tier"));
+            continue;
+        };
+        for t in &c.tiers {
+            for p in &t.procedures {
+                if p.stages.is_empty() {
+                    issues.push(Issue::error(
+                        &c.id,
+                        &format!("procedure `{}` has no stages", p.id),
+                    ));
+                }
+                for st in &p.stages {
+                    match st {
+                        crate::types::StageDef::Vote { body, .. } => {
+                            if t.body(body).is_none() {
+                                issues.push(Issue::error(
+                                    &c.id,
+                                    &format!("procedure `{}` votes in unknown body `{body}`", p.id),
+                                ));
+                            }
+                        }
+                        crate::types::StageDef::Sign {
+                            office,
+                            override_body,
+                            ..
+                        } => {
+                            if t.office(office).is_none() {
+                                issues.push(Issue::error(
+                                    &c.id,
+                                    &format!(
+                                        "procedure `{}` needs unknown office `{office}`",
+                                        p.id
+                                    ),
+                                ));
+                            }
+                            if let Some(ob) = override_body
+                                && t.body(ob).is_none()
+                            {
+                                issues.push(Issue::error(
+                                    &c.id,
+                                    &format!("override body `{ob}` unknown"),
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for needed in ["ordinance", "budget"] {
+            if local.procedure(needed).is_none() {
+                issues.push(Issue::error(
+                    &c.id,
+                    &format!("local tier lacks the `{needed}` procedure"),
+                ));
+            }
+        }
+        if local
+            .holder_of(crate::types::Power::ProposeOrdinance)
+            .is_none()
+        {
+            issues.push(Issue::error(
+                &c.id,
+                "no local holder of propose_ordinance (unplayable)",
+            ));
+        }
+    }
+    if b.constitutions.is_empty() {
+        issues.push(Issue::error("<content>", "no constitution defined"));
+    }
+    // Policies: referenced parameters exist; ranges are sane (REQ-006).
+    for p in b.policies.values() {
+        let has = |id: &str| p.params.iter().any(|x| x.id == id);
+        for prm in &p.params {
+            if !(prm.min <= prm.default && prm.default <= prm.max && prm.step > 0.0) {
+                issues.push(Issue::error(
+                    &p.id,
+                    &format!("parameter `{}` has an invalid range", prm.id),
+                ));
+            }
+        }
+        use crate::types::MechanismDef as M;
+        for m in &p.mechanisms {
+            let param = match m {
+                M::Service { param, .. }
+                | M::Transfer { param, .. }
+                | M::HousingSupply { param }
+                | M::Zoning { param, .. }
+                | M::SectorSubsidy { param, .. }
+                | M::WageFloor { param }
+                | M::HazardProtection { param, .. }
+                | M::LocalTaxRate { param } => param,
+            };
+            if !has(param) {
+                issues.push(Issue::error(
+                    &p.id,
+                    &format!("mechanism references unknown parameter `{param}`"),
+                ));
+            }
+        }
+        if let Some(cp) = &p.cost.param
+            && !has(cp)
+        {
+            issues.push(Issue::error(
+                &p.id,
+                &format!("cost references unknown parameter `{cp}`"),
+            ));
+        }
+        if p.mechanisms.is_empty() {
+            issues.push(Issue::error(&p.id, "policy needs at least one mechanism"));
+        }
+        if p.secondary_keys.is_empty() {
+            issues.push(Issue::error(
+                &p.id,
+                "policy needs at least one secondary effect (REQ-006)",
+            ));
+        }
+    }
+
     // Every referenced Fluent key must exist in English (the reference locale).
     let en = fluent_keys(&b.locale_text("en"));
     let mut referenced: Vec<(&str, &str)> = Vec::new();
@@ -209,6 +331,28 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     }
     for s in b.sectors.values() {
         referenced.push((&s.id, &s.name_key));
+    }
+    for c in b.constitutions.values() {
+        referenced.push((&c.id, &c.name_key));
+        for t in &c.tiers {
+            for x in &t.bodies {
+                referenced.push((&c.id, &x.name_key));
+            }
+            for x in &t.offices {
+                referenced.push((&c.id, &x.name_key));
+            }
+        }
+    }
+    for p in b.policies.values() {
+        referenced.push((&p.id, &p.name_key));
+        referenced.push((&p.id, &p.desc_key));
+        for k in &p.secondary_keys {
+            referenced.push((&p.id, k));
+        }
+        for prm in &p.params {
+            referenced.push((&p.id, &prm.name_key));
+            referenced.push((&p.id, &prm.unit_key));
+        }
     }
     for (owner, key) in referenced {
         if !en.contains(key) {

@@ -40,6 +40,12 @@ pub struct Cohort {
     pub attitudes: [f32; ATTITUDES],
     pub trust: f32,
     pub turnout: f32,
+    /// Approval of the local government (0..1).
+    pub gov_approval: f32,
+    /// How well this cohort knows the player (0..1).
+    pub player_awareness: f32,
+    /// Opinion of the player among those aware (−1..1).
+    pub player_approval: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -216,6 +222,9 @@ pub fn init(world: &World, totals: &[u64], world_seed: u64, wealthy: bool) -> Po
                         1.0,
                     ) as f32,
                     turnout: clamp(turnout + rng.normal(0.0, 0.03), 0.05, 0.98) as f32,
+                    gov_approval: clamp(0.5 + rng.normal(0.0, 0.08), 0.0, 1.0) as f32,
+                    player_awareness: 0.0,
+                    player_approval: 0.0,
                 });
             }
         }
@@ -247,8 +256,12 @@ fn shift(h: &mut HoodPop, from: usize, to: usize, n: u32) {
         dst.attitudes[k] =
             (dst.attitudes[k] as f64 * (1.0 - w_new) + src.attitudes[k] as f64 * w_new) as f32;
     }
-    dst.trust = (dst.trust as f64 * (1.0 - w_new) + src.trust as f64 * w_new) as f32;
-    dst.turnout = (dst.turnout as f64 * (1.0 - w_new) + src.turnout as f64 * w_new) as f32;
+    let mix = |a: f32, b: f32| (a as f64 * (1.0 - w_new) + b as f64 * w_new) as f32;
+    dst.trust = mix(dst.trust, src.trust);
+    dst.turnout = mix(dst.turnout, src.turnout);
+    dst.gov_approval = mix(dst.gov_approval, src.gov_approval);
+    dst.player_awareness = mix(dst.player_awareness, src.player_awareness);
+    dst.player_approval = mix(dst.player_approval, src.player_approval);
     dst.count += n;
     h.cohorts[from].count -= n;
 }
@@ -485,7 +498,85 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 for (a, v) in c.attitudes.iter_mut().zip(&att) {
                     *a = (*a as f64 * (1.0 - w) + *v as f64 * w) as f32;
                 }
+                // Newcomers do not know local politicians yet.
+                c.player_awareness = (c.player_awareness as f64 * (1.0 - w)) as f32;
                 c.count += n as u32;
+            }
+        }
+    }
+}
+
+/// Monthly opinion (DEC-025): experienced conditions and anticipated reactions
+/// to policies shape approval of the local government and of the player.
+pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
+    use crate::policy::PolicyStatus;
+    use crate::politics::alignment;
+    let econ = r.economy();
+    let policy = r.policy();
+    let fin = r.finance();
+    let pol = r.politics();
+    for (m, mu) in r.world.municipalities.iter().enumerate() {
+        let Some(e) = econ.munis.get(m) else { continue };
+        let du = match (
+            e.history.last(),
+            e.history.get(e.history.len().saturating_sub(13)),
+        ) {
+            (Some(now), Some(then)) => (now.unemployment - then.unemployment) as f64,
+            _ => 0.0,
+        };
+        let rent_growth = match (
+            e.history.last(),
+            e.history.get(e.history.len().saturating_sub(13)),
+        ) {
+            (Some(now), Some(then)) if then.rent > 0.0 => {
+                (now.rent / then.rent) as f64 - 1.0 - econ.national.inflation
+            }
+            _ => 0.0,
+        };
+        let mods = crate::policy::mods_for(policy, r.content, m as u32, &|id| fin.funded_share(id));
+        let services: f64 = mods.services.iter().sum();
+        let disaster = if e.months_since_disaster < 6 {
+            0.3
+        } else {
+            0.0
+        };
+        let experienced = -8.0 * du - 2.0 * rent_growth + 2.0 * services - disaster;
+        let relevant: Vec<_> = policy
+            .in_municipality(m as u32)
+            .filter(|p| {
+                matches!(
+                    p.status,
+                    PolicyStatus::UnderConsideration
+                        | PolicyStatus::Enacted
+                        | PolicyStatus::InEffect
+                )
+            })
+            .filter_map(|p| r.content.policies.get(&p.template).map(|t| (p, t)))
+            .collect();
+        for h in &mu.neighborhoods {
+            for c in pop.hoods[h.index()].cohorts.iter_mut() {
+                let mut gov_react = 0.0;
+                let mut player_react = 0.0;
+                for (p, t) in &relevant {
+                    let a = alignment(&t.signature, &c.attitudes) * p.awareness as f64;
+                    if p.status != PolicyStatus::UnderConsideration {
+                        gov_react += a;
+                    }
+                    if p.sponsor
+                        .and_then(|s| pol.get(s))
+                        .is_some_and(|s| s.is_player)
+                    {
+                        player_react += a;
+                    }
+                }
+                let target = 0.5 + 0.5 * tanh(experienced + 0.6 * gov_react);
+                c.gov_approval = (c.gov_approval as f64 * 0.92 + target * 0.08) as f32;
+                c.player_approval = clamp(
+                    c.player_approval as f64 * 0.9 + 0.1 * tanh(player_react * 1.5),
+                    -1.0,
+                    1.0,
+                ) as f32;
+                c.player_awareness = (c.player_awareness as f64 * 0.985) as f32;
             }
         }
     }

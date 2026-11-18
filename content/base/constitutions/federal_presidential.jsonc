@@ -1,0 +1,127 @@
+// Federal Presidential Republic (DEC-015 archetype 1; MVP default, DEC-016).
+// Built from primitives (DEC-017): the engine reads these rules; nothing is hardcoded.
+{
+  "kind": "constitution",
+  "value": {
+    "id": "constitution.federal_presidential",
+    "name_key": "constitution-federal_presidential",
+    "tiers": [
+      {
+        "tier": "local",
+        "balanced_budget": true,
+        "bodies": [
+          {
+            "id": "council", "name_key": "body-council",
+            "selection": { "type": "election", "rule": "plurality", "constituency": "ward" },
+            "term_years": 4, "decision": { "type": "majority" },
+            "powers": ["propose_ordinance", "approve_ordinance", "override", "approve_budget", "set_local_taxes"],
+          },
+        ],
+        "offices": [
+          {
+            "id": "mayor", "name_key": "office-mayor",
+            "selection": { "type": "election", "rule": "plurality", "constituency": "at_large" },
+            "term_years": 4, "term_limit": 2,
+            "powers": ["propose_ordinance", "veto", "propose_budget", "appoint"],
+          },
+        ],
+        "procedures": [
+          {
+            "id": "ordinance", "deliberation_days": 21,
+            "stages": [
+              { "type": "vote", "body": "council", "rule": { "type": "majority" } },
+              { "type": "sign", "office": "mayor", "override_body": "council", "override_rule": { "type": "supermajority", "num": 2, "den": 3 } },
+            ],
+          },
+          {
+            "id": "budget", "deliberation_days": 14,
+            "stages": [
+              { "type": "vote", "body": "council", "rule": { "type": "majority" } },
+              { "type": "sign", "office": "mayor", "override_body": "council", "override_rule": { "type": "supermajority", "num": 2, "den": 3 } },
+            ],
+          },
+        ],
+      },
+      {
+        "tier": "regional",
+        "balanced_budget": true,
+        "bodies": [
+          {
+            "id": "assembly", "name_key": "body-regional-assembly",
+            "selection": { "type": "election", "rule": "plurality", "constituency": "ward" },
+            "term_years": 4, "decision": { "type": "majority" },
+            "powers": ["propose_ordinance", "approve_ordinance", "override", "approve_budget"],
+          },
+        ],
+        "offices": [
+          {
+            "id": "governor", "name_key": "office-governor",
+            "selection": { "type": "election", "rule": "plurality", "constituency": "at_large" },
+            "term_years": 4, "term_limit": 2,
+            "powers": ["propose_ordinance", "veto", "propose_budget", "appoint"],
+          },
+        ],
+        "procedures": [
+          {
+            "id": "ordinance", "deliberation_days": 42,
+            "stages": [
+              { "type": "vote", "body": "assembly", "rule": { "type": "majority" } },
+              { "type": "sign", "office": "governor", "override_body": "assembly", "override_rule": { "type": "supermajority", "num": 2, "den": 3 } },
+            ],
+          },
+          {
+            "id": "budget", "deliberation_days": 28,
+            "stages": [
+              { "type": "vote", "body": "assembly", "rule": { "type": "majority" } },
+              { "type": "sign", "office": "governor", "override_body": "assembly", "override_rule": { "type": "supermajority", "num": 2, "den": 3 } },
+            ],
+          },
+        ],
+      },
+      {
+        "tier": "national",
+        "balanced_budget": false,
+        "bodies": [
+          {
+            "id": "house", "name_key": "body-house",
+            "selection": { "type": "election", "rule": "plurality", "constituency": "ward" },
+            "term_years": 2, "decision": { "type": "majority" },
+            "powers": ["propose_ordinance", "approve_ordinance", "override", "approve_budget"],
+          },
+          {
+            "id": "senate", "name_key": "body-senate",
+            "selection": { "type": "election", "rule": "plurality", "constituency": "at_large" },
+            "term_years": 6, "decision": { "type": "majority" },
+            "powers": ["approve_ordinance", "override", "approve_budget"],
+          },
+        ],
+        "offices": [
+          {
+            "id": "president", "name_key": "office-president",
+            "selection": { "type": "election", "rule": "plurality", "constituency": "at_large" },
+            "term_years": 4, "term_limit": 2,
+            "powers": ["veto", "propose_budget", "appoint"],
+          },
+        ],
+        "procedures": [
+          {
+            "id": "ordinance", "deliberation_days": 60,
+            "stages": [
+              { "type": "vote", "body": "house", "rule": { "type": "majority" } },
+              { "type": "vote", "body": "senate", "rule": { "type": "majority" } },
+              { "type": "sign", "office": "president", "override_body": "house", "override_rule": { "type": "supermajority", "num": 2, "den": 3 } },
+            ],
+          },
+          {
+            "id": "budget", "deliberation_days": 45,
+            "stages": [
+              { "type": "vote", "body": "house", "rule": { "type": "majority" } },
+              { "type": "vote", "body": "senate", "rule": { "type": "majority" } },
+              { "type": "sign", "office": "president", "override_body": "house", "override_rule": { "type": "supermajority", "num": 2, "den": 3 } },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+}

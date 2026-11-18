@@ -81,6 +81,7 @@ pub struct NationalView {
 pub struct CommandAppliedView {
     pub days_advanced: u32,
     pub overview: OverviewView,
+    pub result: Option<crate::ActionResultView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -124,6 +125,19 @@ fn snake_debug<T: std::fmt::Debug>(v: &T) -> String {
         }
     }
     out
+}
+
+fn put_policy(put: &mut dyn FnMut(&str, String), engine: &Engine, policy: u32, municipality: u32) {
+    let st = engine.state();
+    let key = st
+        .policy
+        .instances
+        .get(policy as usize)
+        .and_then(|p| engine.content().policies.get(&p.template))
+        .map(|t| t.name_key.clone())
+        .unwrap_or_default();
+    put("policy_key", key);
+    put("town", muni_name(engine, municipality));
 }
 
 pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
@@ -208,6 +222,60 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             put("hazard_key", format!("hazard-{}", snake_debug(hazard)));
             put("severity", severity_pct.to_string());
             "event-disaster"
+        }
+        EventKind::PolicyIntroduced {
+            policy,
+            municipality,
+            ..
+        } => {
+            put_policy(&mut put, engine, *policy, *municipality);
+            "event-policy-introduced"
+        }
+        EventKind::PolicyEnacted {
+            policy,
+            municipality,
+            yes,
+            no,
+            overrode_veto,
+        } => {
+            put_policy(&mut put, engine, *policy, *municipality);
+            put("yes", yes.to_string());
+            put("no", no.to_string());
+            if *overrode_veto {
+                "event-policy-override"
+            } else {
+                "event-policy-enacted"
+            }
+        }
+        EventKind::PolicyFailed {
+            policy,
+            municipality,
+            vetoed,
+            yes,
+            no,
+        } => {
+            put_policy(&mut put, engine, *policy, *municipality);
+            put("yes", yes.to_string());
+            put("no", no.to_string());
+            if *vetoed {
+                "event-policy-vetoed"
+            } else {
+                "event-policy-defeated"
+            }
+        }
+        EventKind::PolicyExpired {
+            policy,
+            municipality,
+        } => {
+            put_policy(&mut put, engine, *policy, *municipality);
+            "event-policy-expired"
+        }
+        EventKind::PolicyWithdrawn {
+            policy,
+            municipality,
+        } => {
+            put_policy(&mut put, engine, *policy, *municipality);
+            "event-policy-withdrawn"
         }
         EventKind::NationalBudget {
             year,

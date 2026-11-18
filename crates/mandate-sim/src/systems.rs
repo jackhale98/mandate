@@ -3,13 +3,37 @@
 
 use crate::events::EventKind;
 use crate::scheduler::{Outs, Phase, Reads, SystemDef, SystemFn};
-use crate::{economy, environment, finance, population};
+use crate::{economy, environment, finance, player, policy, population};
 use mandate_core::Cadence;
 
 pub fn default_systems() -> Vec<SystemDef> {
     use Cadence::*;
     use Phase as P;
     vec![
+        SystemDef {
+            name: "policy.procedures",
+            phase: P::Institutions,
+            cadence: Weekly,
+            run: SystemFn::Policy(policy::procedures),
+        },
+        SystemDef {
+            name: "policy.implementation",
+            phase: P::PolicyImplementation,
+            cadence: Monthly,
+            run: SystemFn::Policy(policy::implementation),
+        },
+        SystemDef {
+            name: "population.opinion",
+            phase: P::Opinion,
+            cadence: Monthly,
+            run: SystemFn::Population(population::opinion),
+        },
+        SystemDef {
+            name: "player.monthly",
+            phase: P::Characters,
+            cadence: Monthly,
+            run: SystemFn::Player(player::monthly),
+        },
         SystemDef {
             name: "environment.drift",
             phase: P::Environment,

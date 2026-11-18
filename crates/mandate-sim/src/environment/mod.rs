@@ -147,6 +147,9 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
         let Some(e) = env.regions.get(mu.region.index()) else {
             continue;
         };
+        let fin = r.finance();
+        let mods =
+            crate::policy::mods_for(r.policy(), r.content, m as u32, &|id| fin.funded_share(id));
         let rng = out.rng.get(Stream::Environment);
         let checks = [
             (HazardKind::Flood, 0.0035 * g.flood * e.storm_multiplier),
@@ -191,7 +194,14 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
             let municipality = m as u32;
             match kind {
                 HazardKind::Flood | HazardKind::Storm | HazardKind::Earthquake => {
-                    let damage = severity
+                    // Protective policies (flood defences) reduce the damage.
+                    let protection = match kind {
+                        HazardKind::Flood => mods.flood_protection,
+                        HazardKind::Storm => mods.storm_protection,
+                        _ => 0.0,
+                    };
+                    let damage = (1.0 - protection)
+                        * severity
                         * if kind == HazardKind::Earthquake {
                             0.04
                         } else {
@@ -227,7 +237,7 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 HazardKind::Wildfire => {
                     out.effects.push(Effect::HousingDamage {
                         municipality,
-                        fraction: severity * 0.008,
+                        fraction: severity * 0.008 * (1.0 - mods.wildfire_protection),
                         cause,
                     });
                     out.effects.push(Effect::SectorShock {

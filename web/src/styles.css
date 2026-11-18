@@ -206,3 +206,58 @@ h2 { font-size: 1.1rem; }
 .segmented-sm .seg { min-height: 36px; min-width: 96px; font-size: 0.85rem; }
 .legend { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); }
 .legend-ramp { width: 90px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--ramp-lo), var(--ramp-hi)); }
+
+/* M3: office, bills, council */
+.small { font-size: 0.875rem; }
+.hud-right { display: flex; gap: 6px; align-items: center; }
+.chip-muted { border-color: var(--border); color: var(--muted); }
+.btn-sm { min-height: 40px; padding: 0 12px; font-size: 0.875rem; }
+.tabs { overflow-x: auto; scrollbar-width: none; }
+.tab { white-space: nowrap; }
+.bill-list { display: flex; flex-direction: column; gap: 12px; }
+.bill { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); }
+.bill-title { font-size: 1rem; margin: 0; }
+.bill-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.bill-edit, .why, .template-body { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.plain { margin: 0; padding-left: 18px; font-size: 0.9rem; }
+.ledger { margin: 0; display: grid; gap: 4px; font-size: 0.9rem; }
+.ledger div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); padding: 2px 0; }
+.ledger dd { margin: 0; }
+.params { display: flex; flex-direction: column; gap: 10px; }
+.param { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+.param-head { display: flex; justify-content: space-between; gap: 8px; }
+.param input[type="range"] { width: 100%; min-height: 32px; accent-color: var(--accent); }
+.clause-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.clause-list li { display: flex; gap: 8px; align-items: center; }
+.clause-list .input { flex: 1; min-width: 0; }
+.check { display: flex; gap: 10px; align-items: center; min-height: 44px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.agenda-kinds .seg { min-width: 120px; }
+.template-list > li { flex-direction: column; align-items: stretch; }
+/* Diverging support bars: two hues around a neutral midline, values always printed. */
+:root { --pos: #3f7fbf; --neg: #c0603a; }
+.diverge { list-style: none; margin: 0; padding: 0; }
+.diverge li { display: grid; grid-template-columns: minmax(7rem, 9rem) 1fr 3rem; gap: 8px; align-items: center; padding: 3px 0; font-size: 0.9rem; }
+.dv-track { position: relative; height: 8px; border-radius: 4px; background: var(--surface); }
+.dv-track::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+.dv-fill { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+.dv-pos { background: var(--pos); }
+.dv-neg { background: var(--neg); }
+.diverge .num { text-align: right; }
+.whip-list, .member-list { list-style: none; margin: 0; padding: 0; }
+.whip-row, .member { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.whip-row:last-child, .member:last-child { border-bottom: 0; }
+.whip-who { display: flex; flex-direction: column; min-width: 0; }
+.whip-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.lean { font-weight: 600; }
+.lean-yes::before, .lean-lean_yes::before { content: "▲ "; }
+.lean-no::before, .lean-lean_no::before { content: "▼ "; }
+.lean-undecided::before { content: "◆ "; }
+.member-side { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.toast {
+  position: fixed; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 6;
+  max-width: 520px; margin: 0 auto; display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  padding: 8px 8px 8px 14px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--accent);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+.seg { padding: 4px 10px; text-align: center; line-height: 1.2; }

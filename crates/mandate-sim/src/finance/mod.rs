@@ -155,9 +155,22 @@ pub struct TaxRates {
     pub business: f64,
 }
 
+/// Funding for an enacted policy (authorization and appropriation are distinct, DEC-024).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Appropriation {
+    pub municipality: u32,
+    pub category: usize,
+    /// Annual cost (nominal).
+    pub annual_cost: f64,
+    /// Share of the cost actually funded (0..1).
+    pub funded_share: f64,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct FinanceState {
     pub taxes: TaxRates,
+    /// Keyed by policy instance id.
+    pub appropriations: std::collections::BTreeMap<u32, Appropriation>,
     pub local: Vec<Treasury>,
     pub regional: Vec<Treasury>,
     pub national: Option<Treasury>,
@@ -173,6 +186,22 @@ pub struct FinanceState {
 }
 
 impl FinanceState {
+    pub fn funded_share(&self, policy: u32) -> f64 {
+        self.appropriations
+            .get(&policy)
+            .map(|a| a.funded_share)
+            .unwrap_or(0.0)
+    }
+
+    /// Annual cost of funded programmes in a municipality.
+    pub fn programmes_cost(&self, m: u32) -> f64 {
+        self.appropriations
+            .values()
+            .filter(|a| a.municipality == m)
+            .map(|a| a.annual_cost * a.funded_share)
+            .sum()
+    }
+
     /// Public spending relative to baseline, averaged over the three tiers
     /// serving a municipality (drives public-sector jobs).
     pub fn public_spending_index(&self, m: usize) -> f64 {
@@ -208,6 +237,7 @@ fn annual_flows(
     econ: &EconomyState,
     e: &EconomyParams,
     tax: &TaxRates,
+    tax_delta: &dyn Fn(usize) -> f64,
 ) -> Flows {
     let nm = world.municipalities.len().min(econ.munis.len());
     let mut f = Flows {
@@ -229,7 +259,8 @@ fn annual_flows(
         f.population_by_region[region] += people;
         f.property[m] = mu.housing.stock
             * mu.housing.price
-            * tax.property.get(m).copied().unwrap_or(e.taxes.property);
+            * tax.property.get(m).copied().unwrap_or(e.taxes.property)
+            + mu.housing.stock * mu.housing.price * tax_delta(m);
         f.sales_by_region[region] +=
             mu.consumption * tax.sales.get(region).copied().unwrap_or(e.taxes.sales);
         f.business_tax += mu.output * tax.business;
@@ -263,7 +294,7 @@ pub fn init(
     e: &EconomyParams,
 ) -> FinanceState {
     let taxes = default_taxes(world, e);
-    let f = annual_flows(world, pop, econ, e, &taxes);
+    let f = annual_flows(world, pop, econ, e, &taxes, &|_| 0.0);
     let (g_nr, g_nl, g_rl) = (900.0, 120.0, 200.0);
     let local = (0..f.property.len())
         .map(|m| {
@@ -284,6 +315,7 @@ pub fn init(
     .max(0.0);
     FinanceState {
         taxes,
+        appropriations: Default::default(),
         local,
         regional,
         national: Some(Treasury::new(
@@ -314,7 +346,17 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
     let world = r.world;
     let econ = r.economy();
     let e = &r.content.economy;
-    let f = annual_flows(world, r.population(), econ, e, &fin.taxes);
+    let policy_state = r.policy();
+    let content = r.content;
+    let funded = |id: u32| fin.funded_share(id);
+    let deltas: Vec<f64> = (0..world.municipalities.len())
+        .map(|m| {
+            crate::policy::mods_for(policy_state, content, m as u32, &funded).property_tax_delta
+        })
+        .collect();
+    let f = annual_flows(world, r.population(), econ, e, &fin.taxes, &|m| {
+        deltas.get(m).copied().unwrap_or(0.0)
+    });
     let rate = econ.national.policy_rate;
     let m12 = |v: f64| Money::from_units((v / 12.0) as i64);
     // Grants are indexed to prices × productivity so they keep their real value.
@@ -357,6 +399,67 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
     } else {
         reserve_n = Money::ZERO;
     }
+    // Programme appropriations for enacted local policies (DEC-024: funding is
+    // a status distinct from enactment).
+    let policy = r.policy();
+    let price = econ.national.price_level;
+    let active: std::collections::BTreeSet<u32> = policy
+        .instances
+        .iter()
+        .filter(|p| p.active())
+        .map(|p| p.id.0)
+        .collect();
+    fin.appropriations.retain(|id, _| active.contains(id));
+    for p in policy.instances.iter().filter(|p| p.active()) {
+        let Some(t) = r.content.policies.get(&p.template) else {
+            continue;
+        };
+        let m = p.jurisdiction as usize;
+        let residents = f.population_by_muni.get(m).copied().unwrap_or(0.0);
+        let cost = crate::policy::annual_cost(t, p, residents, price);
+        let category = t.category as usize;
+        if let Some(a) = fin.appropriations.get_mut(&p.id.0) {
+            a.annual_cost = cost;
+        } else if let Some(treasury) = fin.local.get(m) {
+            // New law: fund what fits in last year's room plus a 3% contingency.
+            let budget = treasury.budget_total().units() as f64;
+            let room = (treasury.last_year.revenue.units() as f64
+                - treasury.last_year.interest.units() as f64
+                - budget)
+                .max(0.0)
+                + budget * 0.03;
+            let existing: f64 = fin
+                .appropriations
+                .values()
+                .filter(|a| a.municipality == p.jurisdiction)
+                .map(|a| a.annual_cost * a.funded_share)
+                .sum();
+            let share = if cost <= 0.0 {
+                1.0
+            } else {
+                clamp((room - existing) / cost, 0.0, 1.0)
+            };
+            fin.appropriations.insert(
+                p.id.0,
+                Appropriation {
+                    municipality: p.jurisdiction,
+                    category,
+                    annual_cost: cost,
+                    funded_share: share,
+                },
+            );
+        }
+    }
+    for a in fin.appropriations.values() {
+        if let Some(t) = fin.local.get_mut(a.municipality as usize) {
+            let spend = Money::from_units((a.annual_cost * a.funded_share / 12.0) as i64);
+            t.spend(
+                Category::ALL[a.category.min(Category::ALL.len() - 1)],
+                spend,
+            );
+        }
+    }
+
     let spreads = [
         (TierKind::Local, 0.012),
         (TierKind::Regional, 0.008),
@@ -404,6 +507,9 @@ pub fn new_budget_year(fin: &mut FinanceState, r: &Reads<'_>, out: &mut Outs<'_>
     // Real public services held constant: index to prices × productivity.
     let wage_index = (econ.national.price_level * econ.national.productivity_index).max(0.1);
     let pop_index = (r.population().total() as f64 / fin.base_population.max(1.0)).max(0.1);
+    let programme_cost_by_idx: std::collections::BTreeMap<usize, f64> = (0..fin.local.len())
+        .map(|m| (m, fin.programmes_cost(m as u32)))
+        .collect();
     let mut national_gap: Option<f64> = None;
     let mut local_short: Vec<(TierKind, usize, f64)> = Vec::new();
     let n_local = fin.local.len();
@@ -476,7 +582,17 @@ pub fn new_budget_year(fin: &mut FinanceState, r: &Reads<'_>, out: &mut Outs<'_>
         if matches!(t.tier, TierKind::Local | TierKind::Regional) {
             // Balanced-budget baseline: spend no more than revenue after
             // interest and a 5% debt paydown; shortfalls raise local taxes.
-            let cap = revenue - t.interest_ytd - t.debt.scale(0.05) - pass_through_estimate(t);
+            let programmes = if t.tier == TierKind::Local {
+                Money::from_units(programme_cost_by_idx.get(&idx).copied().unwrap_or(0.0) as i64)
+            } else {
+                Money::ZERO
+            };
+            // Funded programmes crowd out baseline services (a real tradeoff).
+            let cap = revenue
+                - t.interest_ytd
+                - t.debt.scale(0.05)
+                - pass_through_estimate(t)
+                - programmes;
             if cap < goal {
                 local_short.push((
                     t.tier,

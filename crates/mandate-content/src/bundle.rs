@@ -22,6 +22,8 @@ pub struct ContentBundle {
     pub sectors: BTreeMap<ContentKey, SectorDef>,
     pub name_pools: BTreeMap<ContentKey, NamePoolDef>,
     pub economy: EconomyParams,
+    pub constitutions: BTreeMap<ContentKey, ConstitutionDef>,
+    pub policies: BTreeMap<ContentKey, PolicyTemplate>,
     /// Fluent sources by language, then by file path.
     pub locales: BTreeMap<String, BTreeMap<String, String>>,
     /// Hash over every source path and text, in path order (DEC-053).
@@ -65,6 +67,8 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut packs = Vec::new();
     let mut tuning: Option<(Tuning, String)> = None;
     let mut economy: Option<(EconomyParams, String)> = None;
+    let mut constitutions: BTreeMap<ContentKey, ConstitutionDef> = BTreeMap::new();
+    let mut policies: BTreeMap<ContentKey, PolicyTemplate> = BTreeMap::new();
     let mut sectors: BTreeMap<ContentKey, SectorDef> = BTreeMap::new();
     let mut name_pools: BTreeMap<ContentKey, NamePoolDef> = BTreeMap::new();
     let mut locales: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
@@ -131,6 +135,18 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     tuning = Some((value, src.path.clone()));
                 }
             }
+            ContentFile::Constitution { value } => {
+                if claim(&value.id, &mut issues) {
+                    constitutions.insert(value.id.clone(), value);
+                }
+            }
+            ContentFile::Policies { items } => {
+                for p in items {
+                    if claim(&p.id, &mut issues) {
+                        policies.insert(p.id.clone(), p);
+                    }
+                }
+            }
             ContentFile::Economy { value } => {
                 if let Some((_, prev)) = &economy {
                     issues.push(Issue::error(
@@ -174,6 +190,8 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         sectors,
         name_pools,
         economy,
+        constitutions,
+        policies,
         locales,
         content_hash,
     };

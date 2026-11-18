@@ -39,6 +39,7 @@ test("map renders and a town can be inspected from the list", async ({ page }) =
   await page.goto("./");
   await page.getByPlaceholder("e.g. 20260").fill("777");
   await page.getByRole("button", { name: "Begin" }).click();
+  await page.getByRole("tab", { name: "Map" }).click();
   const canvas = page.getByRole("img", { name: /Drag to pan/ });
   await expect(canvas).toBeVisible();
   const box = await canvas.boundingBox();
@@ -48,4 +49,34 @@ test("map renders and a town can be inspected from the list", async ({ page }) =
   await page.locator(".town-list .row-btn").first().click();
   await expect(page.getByRole("heading", { name: "Resources" })).toBeVisible();
   await expect(page.getByText("Town hall")).toBeVisible();
+});
+
+// M3: propose a policy, put it before the council, lobby, and survive a reload
+// mid-turn (Ironman journal replays player commands deterministically, DEC-044).
+test("draft, introduce, lobby and resume mid-turn", async ({ page }) => {
+  await page.goto("./");
+  await page.getByPlaceholder("e.g. 20260").fill("31337");
+  await page.getByRole("button", { name: "Begin" }).click();
+  await expect(page.getByTestId("player-card")).toBeVisible();
+  await expect(page.getByTestId("slots")).toHaveText("3 slots left this turn");
+
+  const catalog = page.getByTestId("catalog");
+  await catalog.getByRole("button", { name: /Neighbourhood parks|Parks/ }).first().click();
+  await catalog.getByRole("button", { name: "Create draft" }).click();
+  await expect(page.getByTestId("toast")).toHaveText(/Draft created/);
+  await page.getByTestId("bills").getByRole("button", { name: "Introduce to council" }).click();
+  await expect(page.getByTestId("toast")).toHaveText(/Bill introduced/);
+
+  await page.getByRole("tab", { name: "Council" }).click();
+  const whip = page.getByTestId("whip");
+  await expect(whip.getByText(/Expected yes/)).toBeVisible();
+  await whip.getByRole("button", { name: /^Lobby/ }).first().click();
+  await expect(page.getByTestId("toast")).toHaveText(/persuaded|not convinced/);
+  await expect(whip.getByText("1 slot left this turn")).toBeVisible();
+
+  const hash = await stateHash(page);
+  await page.reload();
+  await page.getByRole("button", { name: "Continue" }).first().click();
+  await expect(page.getByTestId("slots")).toHaveText("1 slot left this turn");
+  expect(await stateHash(page)).toBe(hash);
 });

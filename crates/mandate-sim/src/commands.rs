@@ -9,6 +9,8 @@ pub enum Command {
     EndTurn,
     /// Lab/debug: advance an exact number of days.
     AdvanceDays { days: u32 },
+    /// A player command (Commands phase).
+    Player(crate::actions::PlayerCommand),
     /// Lab only (never exposed to players): inject a sector demand shock.
     LabSectorShock {
         municipality: u32,
@@ -22,6 +24,7 @@ pub enum Command {
 pub struct CommandOutcome {
     pub days_advanced: u32,
     pub turn: u32,
+    pub result: Option<crate::actions::ActionResult>,
 }
 
 #[derive(Clone, Debug, PartialEq, thiserror::Error, Serialize, Deserialize)]

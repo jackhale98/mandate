@@ -1,5 +1,189 @@
 {
   "$defs": {
+    "BodyDef": {
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "$ref": "#/$defs/DecisionRule"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "powers": {
+          "items": {
+            "$ref": "#/$defs/Power"
+          },
+          "type": "array"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "term_years": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "selection",
+        "term_years",
+        "decision",
+        "powers"
+      ],
+      "type": "object"
+    },
+    "BudgetCategory": {
+      "description": "Budget categories (mirror the finance domain's categories).",
+      "enum": [
+        "administration",
+        "education",
+        "health",
+        "safety",
+        "infrastructure",
+        "social",
+        "housing",
+        "environment",
+        "economic_development"
+      ],
+      "type": "string"
+    },
+    "ClassKey": {
+      "enum": [
+        "low",
+        "middle",
+        "high"
+      ],
+      "type": "string"
+    },
+    "Constituency": {
+      "oneOf": [
+        {
+          "const": "ward",
+          "description": "One seat per generated ward / district.",
+          "type": "string"
+        },
+        {
+          "const": "at_large",
+          "description": "The whole jurisdiction.",
+          "type": "string"
+        }
+      ]
+    },
+    "ConstitutionDef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "tiers": {
+          "items": {
+            "$ref": "#/$defs/TierDef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "tiers"
+      ],
+      "type": "object"
+    },
+    "CostDef": {
+      "additionalProperties": false,
+      "properties": {
+        "param": {
+          "default": null,
+          "description": "The parameter the per-unit costs multiply.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "per_capita": {
+          "default": 0.0,
+          "description": "Fixed annual cost per resident (price level 1).",
+          "format": "double",
+          "type": "number"
+        },
+        "per_capita_per_unit": {
+          "default": 0.0,
+          "description": "Annual cost per resident per parameter unit.",
+          "format": "double",
+          "type": "number"
+        },
+        "per_unit": {
+          "default": 0.0,
+          "description": "Annual cost per parameter unit (e.g. per dwelling).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "DecisionRule": {
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "majority",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "den": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "num": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "supermajority",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "num",
+            "den"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "unanimity",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "EconomyParams": {
       "additionalProperties": false,
       "description": "Economy and demography parameters (REQ-005).",
@@ -115,6 +299,191 @@
       ],
       "type": "object"
     },
+    "HazardKey": {
+      "enum": [
+        "flood",
+        "storm",
+        "wildfire"
+      ],
+      "type": "string"
+    },
+    "MechanismDef": {
+      "description": "Typed mechanism primitives (DEC-024). Policies never write outcomes\ndirectly; the domain models compute consequences from these.",
+      "oneOf": [
+        {
+          "description": "Raise a service level; `per_unit` = index gain per parameter unit.",
+          "properties": {
+            "category": {
+              "$ref": "#/$defs/BudgetCategory"
+            },
+            "param": {
+              "type": "string"
+            },
+            "per_unit": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "service",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "category",
+            "param",
+            "per_unit"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Annual cash transfer per adult in a class, in currency at price level 1.",
+          "properties": {
+            "class": {
+              "$ref": "#/$defs/ClassKey"
+            },
+            "param": {
+              "type": "string"
+            },
+            "type": {
+              "const": "transfer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "class",
+            "param"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Extra dwellings built per year.",
+          "properties": {
+            "param": {
+              "type": "string"
+            },
+            "type": {
+              "const": "housing_supply",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "param"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Multiplies private housing starts by (1 + per_unit × param).",
+          "properties": {
+            "param": {
+              "type": "string"
+            },
+            "per_unit": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "zoning",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "param",
+            "per_unit"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Subsidy as a share of a sector's wage bill; jobs respond with `elasticity`.",
+          "properties": {
+            "elasticity": {
+              "format": "double",
+              "type": "number"
+            },
+            "param": {
+              "type": "string"
+            },
+            "sector": {
+              "$ref": "#/$defs/SectorKind"
+            },
+            "type": {
+              "const": "sector_subsidy",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "sector",
+            "param",
+            "elasticity"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Wage floor as a share above the low-class market wage.",
+          "properties": {
+            "param": {
+              "type": "string"
+            },
+            "type": {
+              "const": "wage_floor",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "param"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Reduces damage from a hazard by `per_unit` × param (capped at 0.9).",
+          "properties": {
+            "hazard": {
+              "$ref": "#/$defs/HazardKey"
+            },
+            "param": {
+              "type": "string"
+            },
+            "per_unit": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "hazard_protection",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "hazard",
+            "param",
+            "per_unit"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Changes the local property tax by `param` percentage points of value.",
+          "properties": {
+            "param": {
+              "type": "string"
+            },
+            "type": {
+              "const": "local_tax_rate",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "param"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "NamePoolDef": {
       "additionalProperties": false,
       "description": "Syllable-based name generator pool.",
@@ -170,6 +539,209 @@
         "neighborhood"
       ],
       "type": "string"
+    },
+    "OfficeDef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "powers": {
+          "items": {
+            "$ref": "#/$defs/Power"
+          },
+          "type": "array"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "term_limit": {
+          "default": null,
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "term_years": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "selection",
+        "term_years",
+        "powers"
+      ],
+      "type": "object"
+    },
+    "ParamDef": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "format": "double",
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "max": {
+          "format": "double",
+          "type": "number"
+        },
+        "min": {
+          "format": "double",
+          "type": "number"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "step": {
+          "format": "double",
+          "type": "number"
+        },
+        "unit_key": {
+          "description": "Fluent key for the unit label.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "min",
+        "max",
+        "default",
+        "step",
+        "unit_key"
+      ],
+      "type": "object"
+    },
+    "PolicyTemplate": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/BudgetCategory"
+        },
+        "cost": {
+          "$ref": "#/$defs/CostDef"
+        },
+        "desc_key": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "implementation_months": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mechanisms": {
+          "items": {
+            "$ref": "#/$defs/MechanismDef"
+          },
+          "type": "array"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/ParamDef"
+          },
+          "type": "array"
+        },
+        "requires": {
+          "$ref": "#/$defs/Power",
+          "description": "Power required to propose it."
+        },
+        "secondary_keys": {
+          "description": "Fluent keys for at least one secondary effect (REQ-006).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "signature": {
+          "description": "Value alignment over the 8 attitude dimensions (DEC-025 anticipated channel).",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 8,
+          "minItems": 8,
+          "type": "array"
+        },
+        "tier": {
+          "$ref": "#/$defs/TierKey"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "desc_key",
+        "tier",
+        "category",
+        "params",
+        "cost",
+        "mechanisms",
+        "implementation_months",
+        "signature",
+        "secondary_keys",
+        "requires"
+      ],
+      "type": "object"
+    },
+    "Power": {
+      "enum": [
+        "propose_ordinance",
+        "approve_ordinance",
+        "veto",
+        "override",
+        "propose_budget",
+        "approve_budget",
+        "appoint",
+        "set_local_taxes"
+      ],
+      "type": "string"
+    },
+    "ProcedureDef": {
+      "additionalProperties": false,
+      "properties": {
+        "deliberation_days": {
+          "description": "Days between introduction and the first stage (deliberation).",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "description": "`ordinance` or `budget`.",
+          "type": "string"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/$defs/StageDef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "deliberation_days",
+        "stages"
+      ],
+      "type": "object"
     },
     "SectorClass": {
       "enum": [
@@ -242,6 +814,120 @@
       ],
       "type": "string"
     },
+    "Selection": {
+      "oneOf": [
+        {
+          "properties": {
+            "constituency": {
+              "$ref": "#/$defs/Constituency"
+            },
+            "rule": {
+              "$ref": "#/$defs/VotingRule"
+            },
+            "type": {
+              "const": "election",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "rule",
+            "constituency"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "office": {
+              "type": "string"
+            },
+            "type": {
+              "const": "appointed_by",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "office"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "body": {
+              "type": "string"
+            },
+            "type": {
+              "const": "elected_by_body",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "body"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "StageDef": {
+      "oneOf": [
+        {
+          "description": "A vote of a body under a decision rule.",
+          "properties": {
+            "body": {
+              "type": "string"
+            },
+            "rule": {
+              "$ref": "#/$defs/DecisionRule"
+            },
+            "type": {
+              "const": "vote",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "body",
+            "rule"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An office signs or vetoes; a veto may be overridden by a body.",
+          "properties": {
+            "office": {
+              "type": "string"
+            },
+            "override_body": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "override_rule": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DecisionRule"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": {
+              "const": "sign",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "office"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "TaxParams": {
       "additionalProperties": false,
       "properties": {
@@ -278,6 +964,52 @@
         "business"
       ],
       "type": "object"
+    },
+    "TierDef": {
+      "additionalProperties": false,
+      "properties": {
+        "balanced_budget": {
+          "default": false,
+          "description": "Sub-national balanced-budget rule.",
+          "type": "boolean"
+        },
+        "bodies": {
+          "items": {
+            "$ref": "#/$defs/BodyDef"
+          },
+          "type": "array"
+        },
+        "offices": {
+          "items": {
+            "$ref": "#/$defs/OfficeDef"
+          },
+          "type": "array"
+        },
+        "procedures": {
+          "items": {
+            "$ref": "#/$defs/ProcedureDef"
+          },
+          "type": "array"
+        },
+        "tier": {
+          "$ref": "#/$defs/TierKey"
+        }
+      },
+      "required": [
+        "tier",
+        "bodies",
+        "offices",
+        "procedures"
+      ],
+      "type": "object"
+    },
+    "TierKey": {
+      "enum": [
+        "local",
+        "regional",
+        "national"
+      ],
+      "type": "string"
     },
     "Tuning": {
       "additionalProperties": false,
@@ -364,6 +1096,15 @@
         "governing_national"
       ],
       "type": "object"
+    },
+    "VotingRule": {
+      "enum": [
+        "plurality",
+        "two_round",
+        "ranked_choice",
+        "list_pr"
+      ],
+      "type": "string"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -477,6 +1218,45 @@
       "required": [
         "kind",
         "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "A constitutional archetype built from primitives (DEC-017).",
+      "properties": {
+        "kind": {
+          "const": "constitution",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/ConstitutionDef"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Policy templates (DEC-024, DEC-026).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PolicyTemplate"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "policies",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
       ],
       "type": "object"
     }

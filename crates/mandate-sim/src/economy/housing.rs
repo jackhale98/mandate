@@ -63,6 +63,8 @@ pub fn step(
     inflation: f64,
     price_level: f64,
     e: &EconomyParams,
+    public_units_per_year: f64,
+    starts_multiplier: f64,
 ) {
     // Completions arrive; new starts join the back of the pipeline.
     if !h.pipeline.is_empty() {
@@ -80,7 +82,12 @@ pub fn step(
     let neutral_rate = e.neutral_real_rate + e.inflation_target;
     let rate_factor = clamp(1.0 - (policy_rate - neutral_rate) * 8.0, 0.3, 1.6);
     // At the starting equilibrium (profit ≈ 1/0.85) starts equal the baseline.
-    let starts = h.base_starts * clamp(1.0 + (profit - 1.0 / 0.85) * 4.0, 0.0, 3.0) * rate_factor;
+    // Zoning scales private building; public programmes add homes directly.
+    let starts = h.base_starts
+        * clamp(1.0 + (profit - 1.0 / 0.85) * 4.0, 0.0, 3.0)
+        * rate_factor
+        * starts_multiplier
+        + public_units_per_year / 12.0;
     h.pipeline.push(starts);
     h.last_starts = starts;
 }

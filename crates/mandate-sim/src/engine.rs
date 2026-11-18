@@ -116,9 +116,22 @@ impl Engine {
                     EventKind::TurnEnded { turn },
                     vec![],
                 );
+                if let Some(p) = self.state.player.as_mut() {
+                    p.slots_used = 0;
+                    p.late_night_used = false;
+                }
                 CommandOutcome {
                     days_advanced: days,
                     turn,
+                    result: None,
+                }
+            }
+            Command::Player(cmd) => {
+                let result = crate::actions::apply(&mut self.state, &self.content, cmd)?;
+                CommandOutcome {
+                    days_advanced: 0,
+                    turn: self.state.calendar.turn,
+                    result: Some(result),
                 }
             }
             Command::LabSectorShock {
@@ -142,6 +155,7 @@ impl Engine {
                 CommandOutcome {
                     days_advanced: 0,
                     turn: self.state.calendar.turn,
+                    result: None,
                 }
             }
             Command::AdvanceDays { days } => {
@@ -161,6 +175,7 @@ impl Engine {
                 CommandOutcome {
                     days_advanced: *days,
                     turn: self.state.calendar.turn,
+                    result: None,
                 }
             }
         };

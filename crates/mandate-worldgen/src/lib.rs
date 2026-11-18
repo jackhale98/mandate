@@ -765,6 +765,12 @@ pub fn generate_with_progress(
         content_hash: content.content_hash.clone(),
         engine_version: ENGINE_VERSION.to_string(),
         start_date,
+        constitution: content
+            .constitutions
+            .keys()
+            .next()
+            .cloned()
+            .unwrap_or_default(),
     };
     let mut rng = RngStreams::new(config.seed);
     let population = mandate_sim::population::init(
@@ -776,6 +782,28 @@ pub fn generate_with_progress(
     let economy = mandate_sim::economy::init(&world, &population, &content, &meta);
     let finance = mandate_sim::finance::init(&world, &population, &economy, &content.economy);
     let environment = mandate_sim::environment::init(&world, &meta, rng.get(Stream::Environment));
+    // Politics after the population exists: councils reflect their wards.
+    let given_names: Vec<String> = content
+        .name_pools
+        .get("names.given")
+        .map(|p| p.prefixes.clone())
+        .unwrap_or_default();
+    let family_names: Vec<String> = content
+        .name_pools
+        .get("names.family")
+        .map(|p| p.prefixes.clone())
+        .unwrap_or_default();
+    let mut politics = mandate_sim::politics::init(
+        &world,
+        &population,
+        rng.get(Stream::Npc),
+        &given_names,
+        &family_names,
+        content.tuning.start_year,
+    );
+    let policy = mandate_sim::policy::init(&world, rng.get(Stream::Npc));
+    let mut population = population;
+    let player = place_player(&world, &mut politics, &mut population, &content);
     let mut events = EventLog::default();
     let began = events.record(
         start_date,
@@ -801,6 +829,9 @@ pub fn generate_with_progress(
         economy,
         finance,
         environment,
+        politics,
+        policy,
+        player,
     };
     let years = content.tuning.burn_in_years as u32;
     let mut engine = Engine::from_state(state, content)?;
@@ -815,6 +846,70 @@ pub fn generate_with_progress(
     engine.mark_started();
     progress("progress-done", 1.0);
     Ok(engine)
+}
+
+/// The player starts as a sitting ward councillor in the largest town (or a
+/// city if there is no town), never the capital. M6's draft will replace this.
+fn place_player(
+    world: &World,
+    politics: &mut mandate_sim::politics::PoliticsState,
+    population: &mut mandate_sim::population::PopulationState,
+    content: &ContentBundle,
+) -> Option<mandate_sim::player::PlayerState> {
+    use mandate_sim::politics::Role;
+    let home = world
+        .municipalities
+        .iter()
+        .skip(1)
+        .find(|m| m.class == SettlementClass::Town)
+        .or_else(|| {
+            world
+                .municipalities
+                .iter()
+                .skip(1)
+                .find(|m| m.class == SettlementClass::City)
+        })
+        .or(world.municipalities.first())?;
+    let council = politics.councils.get(home.id.index())?;
+    let seat = *council.members.get(council.members.len() / 2)?;
+    let me = politics.get_mut(seat)?;
+    me.is_player = true;
+    me.opinion_of_player = 0.0;
+    me.oratory = 0.6;
+    me.negotiation = 0.6;
+    let Role::Councillor { ward, .. } = me.role else {
+        return None;
+    };
+    for h in world
+        .constituencies
+        .get(ward.index())
+        .map(|c| c.neighborhoods.clone())
+        .unwrap_or_default()
+    {
+        for c in population.hoods[h.index()].cohorts.iter_mut() {
+            c.player_awareness = 0.3;
+            c.player_approval = 0.1;
+        }
+    }
+    Some(mandate_sim::player::PlayerState {
+        politician: seat,
+        municipality: home.id,
+        ward,
+        standard_slots: content.tuning.standard_slots,
+        slots_used: 0,
+        late_night_used: false,
+        mandate: 50.0,
+        money: mandate_core::Money::from_units(5_000),
+        staff: 1,
+        tracks: mandate_sim::player::Tracks {
+            viability: 50.0,
+            legal_jeopardy: 0.0,
+            threat: 5.0,
+            standing: 60.0,
+            health: 85.0,
+        },
+        actions: Vec::new(),
+    })
 }
 
 /// Regenerate the derived terrain for a loaded state. Returns the terrain and

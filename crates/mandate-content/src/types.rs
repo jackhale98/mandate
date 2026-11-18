@@ -21,6 +21,299 @@ pub enum ContentFile {
     NamePools { items: Vec<NamePoolDef> },
     /// Economy and demography parameters (REQ-005).
     Economy { value: EconomyParams },
+    /// A constitutional archetype built from primitives (DEC-017).
+    Constitution { value: ConstitutionDef },
+    /// Policy templates (DEC-024, DEC-026).
+    Policies { items: Vec<PolicyTemplate> },
+}
+
+// --- Constitution primitives (DEC-017) -----------------------------------------
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum TierKey {
+    Local,
+    Regional,
+    National,
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum Power {
+    ProposeOrdinance,
+    ApproveOrdinance,
+    Veto,
+    Override,
+    ProposeBudget,
+    ApproveBudget,
+    Appoint,
+    SetLocalTaxes,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum DecisionRule {
+    Majority,
+    Supermajority { num: u8, den: u8 },
+    Unanimity,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VotingRule {
+    Plurality,
+    TwoRound,
+    RankedChoice,
+    ListPr,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Constituency {
+    /// One seat per generated ward / district.
+    Ward,
+    /// The whole jurisdiction.
+    AtLarge,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum Selection {
+    Election {
+        rule: VotingRule,
+        constituency: Constituency,
+    },
+    AppointedBy {
+        office: String,
+    },
+    ElectedByBody {
+        body: String,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BodyDef {
+    pub id: String,
+    pub name_key: String,
+    pub selection: Selection,
+    pub term_years: u8,
+    pub decision: DecisionRule,
+    pub powers: Vec<Power>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OfficeDef {
+    pub id: String,
+    pub name_key: String,
+    pub selection: Selection,
+    pub term_years: u8,
+    #[serde(default)]
+    pub term_limit: Option<u8>,
+    pub powers: Vec<Power>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum StageDef {
+    /// A vote of a body under a decision rule.
+    Vote { body: String, rule: DecisionRule },
+    /// An office signs or vetoes; a veto may be overridden by a body.
+    Sign {
+        office: String,
+        override_body: Option<String>,
+        override_rule: Option<DecisionRule>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProcedureDef {
+    /// `ordinance` or `budget`.
+    pub id: String,
+    /// Days between introduction and the first stage (deliberation).
+    pub deliberation_days: u16,
+    pub stages: Vec<StageDef>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TierDef {
+    pub tier: TierKey,
+    pub bodies: Vec<BodyDef>,
+    pub offices: Vec<OfficeDef>,
+    pub procedures: Vec<ProcedureDef>,
+    /// Sub-national balanced-budget rule.
+    #[serde(default)]
+    pub balanced_budget: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConstitutionDef {
+    pub id: ContentKey,
+    pub name_key: String,
+    pub tiers: Vec<TierDef>,
+}
+
+impl ConstitutionDef {
+    pub fn tier(&self, t: TierKey) -> Option<&TierDef> {
+        self.tiers.iter().find(|x| x.tier == t)
+    }
+}
+
+impl TierDef {
+    pub fn procedure(&self, id: &str) -> Option<&ProcedureDef> {
+        self.procedures.iter().find(|p| p.id == id)
+    }
+    pub fn body(&self, id: &str) -> Option<&BodyDef> {
+        self.bodies.iter().find(|b| b.id == id)
+    }
+    pub fn office(&self, id: &str) -> Option<&OfficeDef> {
+        self.offices.iter().find(|o| o.id == id)
+    }
+    /// Which body or office holds a power (first match; REQ-009: no archetype names).
+    pub fn holder_of(&self, p: Power) -> Option<&str> {
+        self.offices
+            .iter()
+            .find(|o| o.powers.contains(&p))
+            .map(|o| o.id.as_str())
+            .or_else(|| {
+                self.bodies
+                    .iter()
+                    .find(|b| b.powers.contains(&p))
+                    .map(|b| b.id.as_str())
+            })
+    }
+}
+
+// --- Policy templates (DEC-024, DEC-026) --------------------------------------
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ParamDef {
+    pub id: String,
+    pub name_key: String,
+    pub min: f64,
+    pub max: f64,
+    pub default: f64,
+    pub step: f64,
+    /// Fluent key for the unit label.
+    pub unit_key: String,
+}
+
+/// Budget categories (mirror the finance domain's categories).
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum BudgetCategory {
+    Administration,
+    Education,
+    Health,
+    Safety,
+    Infrastructure,
+    Social,
+    Housing,
+    Environment,
+    EconomicDevelopment,
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ClassKey {
+    Low,
+    Middle,
+    High,
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum HazardKey {
+    Flood,
+    Storm,
+    Wildfire,
+}
+
+/// Typed mechanism primitives (DEC-024). Policies never write outcomes
+/// directly; the domain models compute consequences from these.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum MechanismDef {
+    /// Raise a service level; `per_unit` = index gain per parameter unit.
+    Service {
+        category: BudgetCategory,
+        param: String,
+        per_unit: f64,
+    },
+    /// Annual cash transfer per adult in a class, in currency at price level 1.
+    Transfer { class: ClassKey, param: String },
+    /// Extra dwellings built per year.
+    HousingSupply { param: String },
+    /// Multiplies private housing starts by (1 + per_unit × param).
+    Zoning { param: String, per_unit: f64 },
+    /// Subsidy as a share of a sector's wage bill; jobs respond with `elasticity`.
+    SectorSubsidy {
+        sector: SectorKind,
+        param: String,
+        elasticity: f64,
+    },
+    /// Wage floor as a share above the low-class market wage.
+    WageFloor { param: String },
+    /// Reduces damage from a hazard by `per_unit` × param (capped at 0.9).
+    HazardProtection {
+        hazard: HazardKey,
+        param: String,
+        per_unit: f64,
+    },
+    /// Changes the local property tax by `param` percentage points of value.
+    LocalTaxRate { param: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CostDef {
+    /// Fixed annual cost per resident (price level 1).
+    #[serde(default)]
+    pub per_capita: f64,
+    /// Annual cost per resident per parameter unit.
+    #[serde(default)]
+    pub per_capita_per_unit: f64,
+    /// Annual cost per parameter unit (e.g. per dwelling).
+    #[serde(default)]
+    pub per_unit: f64,
+    /// The parameter the per-unit costs multiply.
+    #[serde(default)]
+    pub param: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PolicyTemplate {
+    pub id: ContentKey,
+    pub name_key: String,
+    pub desc_key: String,
+    pub tier: TierKey,
+    pub category: BudgetCategory,
+    pub params: Vec<ParamDef>,
+    pub cost: CostDef,
+    pub mechanisms: Vec<MechanismDef>,
+    pub implementation_months: u16,
+    /// Value alignment over the 8 attitude dimensions (DEC-025 anticipated channel).
+    pub signature: [f64; 8],
+    /// Fluent keys for at least one secondary effect (REQ-006).
+    pub secondary_keys: Vec<String>,
+    /// Power required to propose it.
+    pub requires: Power,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -253,6 +546,12 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "economy" => ContentFile::Economy {
             value: serde_json::from_str::<ValueFile<EconomyParams>>(json)?.value,
+        },
+        "constitution" => ContentFile::Constitution {
+            value: serde_json::from_str::<ValueFile<ConstitutionDef>>(json)?.value,
+        },
+        "policies" => ContentFile::Policies {
+            items: serde_json::from_str::<ItemsFile<PolicyTemplate>>(json)?.items,
         },
         other => {
             use serde::de::Error;

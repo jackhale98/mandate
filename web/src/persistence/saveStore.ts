@@ -25,6 +25,10 @@ export interface SaveStore {
   /** Story-mode chapter checkpoints (DEC-008). */
   putCheckpoint(runId: string, revision: number, bytes: Uint8Array): Promise<void>;
   listCheckpoints(runId: string): Promise<number[]>;
+  /** Commands since the last snapshot (DEC-044): replayed deterministically on load. */
+  appendJournal(runId: string, revision: number, commandJson: string): Promise<void>;
+  getJournal(runId: string, revision: number): Promise<string[]>;
+  clearJournal(runId: string): Promise<void>;
   getSetting<T>(key: string): Promise<T | undefined>;
   putSetting<T>(key: string, value: T): Promise<void>;
 }

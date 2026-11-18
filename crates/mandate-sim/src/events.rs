@@ -51,6 +51,33 @@ pub enum EventKind {
         balance: i64,
         debt_pct_gdp: u32,
     },
+    PolicyIntroduced {
+        policy: u32,
+        municipality: u32,
+        sponsor: u32,
+    },
+    PolicyEnacted {
+        policy: u32,
+        municipality: u32,
+        yes: u32,
+        no: u32,
+        overrode_veto: bool,
+    },
+    PolicyFailed {
+        policy: u32,
+        municipality: u32,
+        vetoed: bool,
+        yes: u32,
+        no: u32,
+    },
+    PolicyExpired {
+        policy: u32,
+        municipality: u32,
+    },
+    PolicyWithdrawn {
+        policy: u32,
+        municipality: u32,
+    },
 }
 
 /// How long an event is kept in full detail.

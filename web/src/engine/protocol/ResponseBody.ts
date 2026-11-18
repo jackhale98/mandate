@@ -4,6 +4,7 @@ import type { DiagnosticsView } from "./DiagnosticsView";
 import type { LocaleView } from "./LocaleView";
 import type { MapView } from "./MapView";
 import type { MunicipalityView } from "./MunicipalityView";
+import type { OfficeView } from "./OfficeView";
 import type { OverviewView } from "./OverviewView";
 
-export type ResponseBody = { "kind": "game_started", "payload": OverviewView } | { "kind": "command_applied", "payload": CommandAppliedView } | { "kind": "overview", "payload": OverviewView } | { "kind": "map", "payload": MapView } | { "kind": "municipality", "payload": MunicipalityView } | { "kind": "locale", "payload": LocaleView } | { "kind": "diagnostics", "payload": DiagnosticsView };
+export type ResponseBody = { "kind": "game_started", "payload": OverviewView } | { "kind": "command_applied", "payload": CommandAppliedView } | { "kind": "overview", "payload": OverviewView } | { "kind": "office", "payload": OfficeView } | { "kind": "map", "payload": MapView } | { "kind": "municipality", "payload": MunicipalityView } | { "kind": "locale", "payload": LocaleView } | { "kind": "diagnostics", "payload": DiagnosticsView };

@@ -5,6 +5,8 @@ import { engine, expectKind } from "../engine/client";
 import type { OverviewView } from "../engine/protocol/OverviewView";
 import type { MapView } from "../engine/protocol/MapView";
 import type { PresetDto } from "../engine/protocol/PresetDto";
+import type { OfficeView } from "../engine/protocol/OfficeView";
+import type { CommandDto } from "../engine/protocol/CommandDto";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
 import { EMPTY_TRANSLATOR, Translator } from "../i18n/fluent";
@@ -27,6 +29,8 @@ interface GameState {
   tr: Translator;
   overview: OverviewView | null;
   map: MapView | null;
+  office: OfficeView | null;
+  toast: { key: string; args: Record<string, string> } | null;
   progress: { stage: string; fraction: number } | null;
   run: ActiveRun | null;
   runs: RunSummary[];
@@ -34,6 +38,10 @@ interface GameState {
   refreshRuns(): Promise<void>;
   newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; preset: PresetDto | null }): Promise<void>;
   loadMap(): Promise<void>;
+  loadOffice(): Promise<void>;
+  /** Run a player command; journals it (Ironman) and refreshes views. */
+  command(cmd: CommandDto): Promise<number | null>;
+  dismissToast(): void;
   endTurn(): Promise<void>;
   saveAndQuit(): Promise<void>;
   continueRun(runId: string): Promise<void>;
@@ -74,6 +82,7 @@ export const useGame = create<GameState>((set, get) => {
       bytes,
       updatedAt: meta.saved_at,
     });
+    await store.clearJournal(run.runId);
     set({ run: { ...run, revision } });
   }
 
@@ -85,6 +94,8 @@ export const useGame = create<GameState>((set, get) => {
     tr: EMPTY_TRANSLATOR,
     overview: null,
     map: null,
+    office: null,
+    toast: null,
     progress: null,
     run: null,
     runs: [],
@@ -116,14 +127,49 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, preset } });
         const overview = expectKind(body, "game_started");
-        set({ overview, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
+        await get().loadOffice();
       } catch (e) {
         set({ error: errText(e) });
       } finally {
         off();
         set({ busy: false, progress: null });
       }
+    },
+
+    async loadOffice() {
+      try {
+        set({ office: expectKind(await engine().request({ kind: "query", payload: { type: "office" } }), "office") });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async command(cmd) {
+      const run = get().run;
+      if (!run || get().busy) return null;
+      set({ busy: true, error: null });
+      try {
+        const body = await engine().request({ kind: "command", payload: cmd });
+        const applied = expectKind(body, "command_applied");
+        await saveStore().appendJournal(run.runId, run.revision, JSON.stringify(cmd));
+        set({
+          overview: applied.overview,
+          toast: applied.result ? { key: applied.result.outcome_key, args: applied.result.args } : null,
+        });
+        await get().loadOffice();
+        return applied.result?.created ?? null;
+      } catch (e) {
+        set({ error: errText(e) });
+        return null;
+      } finally {
+        set({ busy: false });
+      }
+    },
+
+    dismissToast() {
+      set({ toast: null });
     },
 
     async loadMap() {
@@ -139,8 +185,9 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true, error: null });
       try {
         const body = await engine().request({ kind: "command", payload: { type: "end_turn" } });
-        set({ overview: expectKind(body, "command_applied").overview });
+        set({ overview: expectKind(body, "command_applied").overview, toast: null });
         await persist();
+        await get().loadOffice();
       } catch (e) {
         set({ error: errText(e) });
       } finally {
@@ -152,7 +199,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -166,8 +213,14 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
-        const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        let overview = await engine().importSave(rec.bytes);
+        // Replay commands made since the snapshot (deterministic: same outcomes).
+        for (const json of await saveStore().getJournal(runId, rec.revision)) {
+          const body = await engine().request({ kind: "command", payload: JSON.parse(json) as CommandDto });
+          overview = expectKind(body, "command_applied").overview;
+        }
+        set({ overview, map: null, office: null, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        await get().loadOffice();
       } catch (e) {
         set({ error: errText(e) });
       } finally {

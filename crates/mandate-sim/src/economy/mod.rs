@@ -299,6 +299,7 @@ pub fn init(
             pop,
             content,
             content.economy.taxes.income,
+            &crate::policy::PolicyMods::default(),
         );
         let c = st.munis[m].consumption;
         st.munis[m].base_consumption = c;
@@ -386,6 +387,7 @@ fn settle_labour_and_incomes(
     pop: &PopulationState,
     content: &ContentBundle,
     income_tax: [f64; CLASSES],
+    mods: &crate::policy::PolicyMods,
 ) {
     let e = &content.economy;
     let price = econ.national.price_level.max(0.01);
@@ -409,9 +411,16 @@ fn settle_labour_and_incomes(
     let scale = employed / implied;
     let rates = raw.map(|x| clamp(x * scale, 0.1, 1.0));
     let knowledge = mu.knowledge_share();
-    let class_wage = [0.6 * mean_wage, mean_wage, (2.0 + knowledge) * mean_wage];
+    // A local wage floor lifts low-paid wages (its job cost is applied to sector demand).
+    let class_wage = [
+        0.6 * mean_wage * (1.0 + mods.wage_floor),
+        mean_wage,
+        (2.0 + knowledge) * mean_wage,
+    ];
     let class_income: [f64; CLASSES] = std::array::from_fn(|c| {
-        rates[c] * class_wage[c] + (1.0 - rates[c]) * e.unemployment_replacement * mean_wage
+        rates[c] * class_wage[c]
+            + (1.0 - rates[c]) * e.unemployment_replacement * mean_wage
+            + mods.transfer[c] * price
     });
     // Consumption: working-age by class plus pensioners.
     let mut consumption = 0.0;
@@ -440,8 +449,10 @@ fn settle_labour_and_incomes(
     } else {
         0.0
     };
+    let services: f64 = mods.services.iter().sum();
     mu.attractiveness = -4.0 * u + 0.5 * ln((mean_wage / price) / 45_000.0) - 1.5 * rent_burden
         + 0.3 * world.municipalities[m].geo.scenic
+        + 0.8 * services
         + capital_bonus
         - disaster;
 }
@@ -500,6 +511,8 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         let mineral_stock = renv.map(|x| x.mineral_stock).unwrap_or(1.0);
         let water = renv.map(|x| x.water).unwrap_or(1.0);
         let public_index = fin.public_spending_index(m);
+        let mods =
+            crate::policy::mods_for(r.policy(), content, m as u32, &|id| fin.funded_share(id));
         let lf: f64 = pop
             .labour_force_by_class(world, MunicipalityId(m as u32))
             .iter()
@@ -566,6 +579,15 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 .filter(|s| s.sector == *kind)
                 .map(|s| s.factor)
                 .product();
+            // Policy: wage subsidies add jobs; a wage floor costs some low-paid jobs.
+            let subsidy = 1.0 + mods.subsidy_elasticity[k] * mods.subsidy[k];
+            let floor_cost = match kind {
+                SectorKind::Retail | SectorKind::Tourism | SectorKind::Agriculture => {
+                    1.0 - 0.4 * mods.wage_floor
+                }
+                _ => 1.0,
+            };
+            let shock = shock * subsidy * floor_cost;
             let s = &mut mu.sectors[k];
             // Local services scale with the labour force; tradables drift with trends.
             match kind {
@@ -648,6 +670,8 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             nat.inflation,
             nat.price_level,
             &content.economy,
+            mods.housing_units_per_year,
+            mods.starts_multiplier,
         );
     }
     for m in 0..nm {
@@ -656,7 +680,9 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             .iter()
             .sum();
         econ.munis[m].housing.households = adults / housing::ADULTS_PER_HOUSEHOLD;
-        settle_labour_and_incomes(econ, m, world, pop, content, fin.taxes.income);
+        let mods =
+            crate::policy::mods_for(r.policy(), content, m as u32, &|id| fin.funded_share(id));
+        settle_labour_and_incomes(econ, m, world, pop, content, fin.taxes.income, &mods);
         let mu = &mut econ.munis[m];
         mu.history.push(MuniSnapshot {
             day: r.date.0,

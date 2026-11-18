@@ -3,9 +3,11 @@
 //! `web/src/engine/protocol/*.ts`.
 
 pub mod map;
+pub mod office;
 pub mod views;
 
 pub use map::*;
+pub use office::*;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 pub use views::*;
@@ -67,7 +69,62 @@ pub enum PresetDto {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CommandDto {
     EndTurn,
-    AdvanceDays { days: u32 },
+    AdvanceDays {
+        days: u32,
+    },
+    DraftPolicy {
+        template: String,
+        params: Vec<ParamValue>,
+    },
+    AmendPolicy {
+        policy: u32,
+        params: Vec<ParamValue>,
+        clauses: Vec<ClauseDto>,
+    },
+    IntroducePolicy {
+        policy: u32,
+    },
+    WithdrawPolicy {
+        policy: u32,
+    },
+    Act {
+        action: ActionDto,
+        late_night: bool,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ActionDto {
+    Lobby {
+        politician: u32,
+        policy: u32,
+    },
+    TradeFavor {
+        politician: u32,
+        policy: u32,
+    },
+    TownHall {
+        neighborhood: u32,
+        policy: Option<u32>,
+    },
+    Press {
+        policy: Option<u32>,
+    },
+    Canvass {
+        neighborhood: u32,
+    },
+    Fundraise,
+    Rest,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ActionResultView {
+    pub created: Option<u32>,
+    pub outcome_key: String,
+    pub args: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -75,6 +132,7 @@ pub enum CommandDto {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum QueryDto {
     Overview,
+    Office,
     Map,
     Municipality {
         id: u32,
@@ -119,6 +177,7 @@ pub enum ResponseBody {
     GameStarted(OverviewView),
     CommandApplied(CommandAppliedView),
     Overview(OverviewView),
+    Office(OfficeView),
     Map(MapView),
     Municipality(MunicipalityView),
     Locale(LocaleView),
