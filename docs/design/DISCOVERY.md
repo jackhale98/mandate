@@ -148,7 +148,7 @@ One consequential question per exchange. Tightly coupled decisions are presented
 | D9 ✅ | NPCs, narrative, media (DEC-031–035) | 10, 11 | NPC tiers, memory model, quest model, director budgets, media/perception split | D1, D3, D5 | NARRATIVE.md |
 | D10 ✅ | Player character & difficulty (DEC-036–039) | 3.2, 3.5 | Backgrounds, personal life scope, difficulty levers, complexity layers | D2, D8, D9 | GAMEPLAY.md §character |
 | D11 ✅ | Technical architecture (DEC-040–046, `architecture/OVERVIEW.md`) | 13, 14, 20–22 | Crate layout, protocol, scheduling, RNG streams, numerics | D3, D5, D9 | architecture/*.md |
-| D12 | UI, rendering, mobile | 15 | Screen map, mobile strategy, map renderer prototype plan | D2, D3, D6 | UI.md |
+| D12 ✅ | UI, rendering, mobile (DEC-047–051, `UI.md`) | 15 | Screen map, mobile strategy, map renderer prototype plan | D2, D3, D6 | UI.md |
 | D13 | Saves, content, modding | 16, 17 | Save schema and migration, content format, validation | D9, D11 | SAVE_FORMAT.md, CONTENT.md |
 | D14 | Testing & sim lab | 18 | Test strategy, lab CLI scope, canonical worlds, quality gates | D11 | TEST_STRATEGY.md |
 | D15 | MVP, milestones, backlog | 19, 26–29 | MVP scope, milestone reorder (C5), backlog, deployment | all | ROADMAP.md, backlog |

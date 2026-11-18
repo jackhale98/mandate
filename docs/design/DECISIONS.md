@@ -53,11 +53,15 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-044 | Persistence | Accepted |
 | DEC-045 | Frontend stack: React + TypeScript | Accepted |
 | DEC-046 | Initial performance budgets | Accepted (assumptions to validate) |
-| DEC-047 | Screen architecture: hub-centred | Proposed (D12) |
-| DEC-048 | Responsive & mobile strategy | Proposed (D12) |
-| DEC-049 | Visual style & camera | Proposed (awaiting owner, D12) |
-| DEC-050 | Rendering prototype spikes | Proposed (D12) |
-| DEC-051 | Accessibility & explainability UI | Proposed (D12) |
+| DEC-047 | Screen architecture: hub-centred | Accepted |
+| DEC-048 | Responsive & mobile strategy | Accepted |
+| DEC-049 | Visual style & camera: top-down pixel art | Accepted |
+| DEC-050 | Rendering prototype spikes | Accepted (each spike needs go-ahead) |
+| DEC-051 | Accessibility & explainability UI | Accepted |
+| DEC-052 | Save sync readiness (future cloud sync) | Proposed (D13) |
+| DEC-053 | Content authoring format & pipeline | Proposed (D13) |
+| DEC-054 | Text & localization pipeline | Proposed (D13) |
+| DEC-055 | Modding scope | Proposed (awaiting owner, D13) |
 
 ---
 
@@ -981,7 +985,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-047 — Screen architecture: hub-centred
 
-- **Status:** Proposed (D12). Detail in `docs/design/UI.md` §1–2.
+- **Status:** Accepted (owner, 2026-11-18; no objection raised). Detail in `docs/design/UI.md` §1–2.
 - **Proposed decision:** the hub scene is the single primary screen.
   - All other screens are panels, overlays, or flow screens around it.
   - In-world portals (desk, news, map room, phone, campaign HQ) are mirrored in a global menu.
@@ -990,7 +994,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-048 — Responsive & mobile strategy
 
-- **Status:** Proposed (D12).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:**
   - **Mobile-first, not desktop-shrunk** (brief §15.4).
   - **Phone:**
@@ -1006,7 +1010,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-049 — Visual style & camera
 
-- **Status:** Proposed. Awaiting owner (D12).
+- **Status:** Accepted (owner, 2026-11-18): option A. **Open:** the source of the final art (owner, commissioned, or licensed pack) has not been answered yet.
 - **Options:**
   - A. Top-down three-quarter pixel art (Stardew Valley, Eastward), 16–32 px tiles.
   - B. Isometric pixel art.
@@ -1026,7 +1030,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-050 — Rendering prototype spikes
 
-- **Status:** Proposed (D12). These are throwaway prototypes under DEC-003; each needs owner approval before it starts.
+- **Status:** Accepted (owner, 2026-11-18; no objection raised). These are throwaway prototypes under DEC-003; each needs owner approval before it starts.
 - **Proposed spikes:**
   1. **Hub spike:**
      - PixiJS scene;
@@ -1041,7 +1045,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-051 — Accessibility & explainability UI
 
-- **Status:** Proposed (D12). Brief §15.5.
+- **Status:** Accepted (owner, 2026-11-18; no objection raised). Brief §15.5.
 - **Proposed decision:**
   - **The hub is never the only way to reach anything.** An accessible DOM layer mirrors the scene: a list of "places here" and "people here" with actions. The Agenda can perform any located action.
   - Full keyboard navigation and screen-reader labels.
@@ -1049,3 +1053,72 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Text scaling, reduced motion, and a high-contrast theme.
   - Charts and maps have tabular alternatives.
   - **"Why?" breakdowns** are built from the event log and causal records (OVERVIEW §4.4) and from per-factor decompositions (DEC-028 elections, DEC-024 policy attribution).
+
+### DEC-052 — Save sync readiness (future cloud sync)
+
+- **Status:** Proposed (D13). Requested by the owner: hooks for future account sync of saves, through a database or through Dropbox or OneDrive.
+- **Context:** TECH-006 (offline-first) and TECH-007 (no backend for single-player). Sync must be an optional future layer that never makes the game depend on a network.
+- **Options for the eventual provider:**
+  - A. **User-owned cloud storage.** Dropbox, OneDrive (Microsoft Graph), or Google Drive's app-data folder, using browser OAuth with PKCE. These work from a static site with **no backend of ours**; saves live in the user's own app folder.
+  - B. Our own sync service with accounts and a database. This needs a backend, so it is a separate future capability (and a TECH-007 revision).
+  - C. Platform sync (e.g. Steam Cloud) if a desktop wrapper ships.
+- **Proposed decision:** build the **hooks now** and ship **no provider** in the MVP. A is the first provider candidate. B and C stay possible.
+  - **Storage abstraction:** the frontend persistence layer sits behind a `SaveStore` interface. The MVP implements `IndexedDbStore`; providers are added later as additional stores plus a sync coordinator. File export and import remain the manual fallback.
+  - **Sync-ready save identity and metadata.** Every run save carries:
+    - `run_id`: a random 128-bit ID. Globally unique; it lives outside simulation state, so DEC-041 is unaffected.
+    - `revision`: monotonic, incremented on every save.
+    - `parent_revision`.
+    - `device_id`.
+    - `saved_at` (wall clock: metadata only, never simulation input).
+    - `content_hash`.
+    - engine, content, and protocol versions.
+  - Save blobs are **self-contained** (one file per run plus a small manifest), so any file-based provider can carry them.
+  - **Conflict policy for Ironman runs** (at most one continuous timeline): when two devices diverge from the same parent, the higher revision wins. The other branch is kept as an archived fork flagged "diverged". It is never silently merged.
+  - **Meta save designed to merge** (DEC-039): unlocks are a grow-only set, and the Hall of Legacies is an append-only log keyed by `run_id`. Merging is then a union with no conflicts.
+  - **Settings** are split into synced settings (preferences) and device-local settings (graphics, input).
+  - **Not a security boundary:** sync is not anti-cheat. Copying an old save back is possible and acceptable for a single-player game without leaderboards.
+- **Consequences:**
+  - Adds fields to the DEC-044 save format.
+  - Adds a requirement (TECH-009).
+  - A provider later needs a registered OAuth client ID per provider and a privacy notice. No server is needed.
+- **Dependencies:** DEC-008, DEC-039, DEC-044.
+
+### DEC-053 — Content authoring format & pipeline
+
+- **Status:** Proposed (D13). Technical.
+- **Options:**
+  - A. JSON.
+  - B. TOML.
+  - C. RON (Rust-native).
+  - D. YAML with JSON Schemas generated from Rust types.
+- **Proposed decision:** D.
+  - **Authoring:** content is written in YAML: policies, constitutions and quirks, roles and backgrounds, events, storylines, scene and dialogue templates, sectors, cohorts, tuning parameters.
+  - **Schemas:** JSON Schemas are generated from the Rust content types (e.g. `schemars`). Editors validate and autocomplete as you type, and agents get a precise contract.
+  - **Validation:** `mandate-cli content validate` runs in CI and checks schemas, references, duplicate IDs, value ranges, constitution playability (DEC-017), required policy fields (REQ-006), and missing localization keys.
+  - **Build:** a build step compiles validated content into a compact bundle. The bundle is shipped with the app and stamped with a **content hash**; the hash is part of save metadata and determinism.
+- **Rationale:**
+  - YAML is readable, supports comments, and is written fluently by agents and modders.
+  - Generated schemas remove the format's typo risk.
+  - Rust types remain the single source of truth.
+- **Risk:** the long-standing `serde_yaml` crate is no longer maintained. At Milestone 0, choose a maintained YAML parser, or fall back to JSON5 or TOML with the same schema approach.
+- **Dependencies:** DEC-017, DEC-024, DEC-041, DEC-044, REQ-006.
+
+### DEC-054 — Text & localization pipeline
+
+- **Status:** Proposed (D13).
+- **Proposed decision:**
+  - **The engine never produces prose.** It emits structured facts and template keys with arguments.
+  - Player-facing text is rendered in the frontend from **Fluent** (`.ftl`) message files. Fluent handles plurals, grammatical variants, and NPC pronouns properly.
+  - Dialogue and narrative templates reference message keys.
+  - This keeps localization possible later, and keeps any future LLM text layer purely presentational (§10.7).
+- **Dependencies:** DEC-035, DEC-053.
+
+### DEC-055 — Modding scope
+
+- **Status:** Proposed. Awaiting owner (D13). Brief §17.3.
+- **Options:**
+  - A. No modding intent. Content is data-driven only for internal productivity.
+  - B. **Mod-ready, no mod support in the MVP.** Content is organized as packs (base pack plus optional packs) with ID-based overrides and load order. Pack lists feed the content hash. Schemas and the validator are published as-is. A mod loader UI and sharing are deferred.
+  - C. First-class modding at launch: a loader UI, documentation, and a sharing workflow.
+- **Proposed decision:** B. It costs little beyond what DEC-053 already requires, and keeps C open.
+- **Dependencies:** DEC-053, DEC-054, D15.
