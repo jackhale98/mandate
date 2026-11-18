@@ -569,10 +569,9 @@ fn offer_view(engine: &Engine, loc: Location, key: &str, late_night: bool) -> Of
     let st = engine.state();
     let cost = engine.content().tuning.action_cost(key);
     let risk = match key {
-        "press" => Some(mandate_sim::actions::press_gaffe_risk(st)),
-        "town_hall" => {
-            places::hood_of(st, loc).map(|h| mandate_sim::actions::town_hall_risk(st, h.0))
-        }
+        "press" => Some(mandate_sim::actions::press_gaffe_risk(st, engine.content())),
+        "town_hall" => places::hood_of(st, loc)
+            .map(|h| mandate_sim::actions::town_hall_risk(st, engine.content(), h.0)),
         _ => None,
     };
     // Free commands (votes, drafting, filing) take no slot.
@@ -639,7 +638,7 @@ fn town_data(engine: &Engine) -> Option<TownDataView> {
                     gov_approval: weighted(st, &[h], |c| c.gov_approval as f64),
                     player_awareness: weighted(st, &[h], |c| c.player_awareness as f64),
                     player_approval: weighted(st, &[h], |c| c.player_approval as f64),
-                    town_hall_risk: mandate_sim::actions::town_hall_risk(st, h as u32),
+                    town_hall_risk: mandate_sim::actions::town_hall_risk(st, content, h as u32),
                     top_concern: concerns_for(st, content, m, &[h])
                         .first()
                         .map(|c| c.key.clone()),

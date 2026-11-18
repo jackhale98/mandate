@@ -1075,7 +1075,14 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         .and_then(|p| pol.get(p.politician))
         .map(|p| p.record as f64)
         .unwrap_or(0.5);
-    let awareness_keep = if player_record < 0.25 { 0.96 } else { 0.985 };
+    let career = &r.content.career;
+    let awareness_keep = if player_record < career.invisible_record {
+        career.awareness_keep_invisible
+    } else {
+        career.awareness_keep
+    };
+    let op = &r.content.opinion;
+    let habit = &params.turnout;
     // Party attachment moves slowly: once a year is enough (and cheap).
     let january = r.date.calendar().month == 1;
     // Fold the last election's turnout into habits once.
@@ -1086,8 +1093,11 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             if let Some(hp) = pop.hoods.get_mut(*h as usize) {
                 for c in hp.cohorts.iter_mut() {
                     // Cohorts differ around the neighbourhood mean by their own propensity.
-                    c.last_turnout =
-                        clamp(*t as f64 * (0.6 + 0.8 * c.turnout as f64), 0.02, 0.95) as f32;
+                    c.last_turnout = clamp(
+                        *t as f64 * (habit.habit_base + habit.habit_propensity * c.turnout as f64),
+                        0.02,
+                        0.95,
+                    ) as f32;
                 }
             }
         }
@@ -1119,14 +1129,16 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         };
         let mods = crate::policy::mods_for(policy, r.content, m as u32, &|id| fin.funded_share(id));
         let services: f64 = mods.services.iter().sum();
-        let disaster = if e.months_since_disaster < 6 {
-            0.3
+        let x = &op.experience;
+        let disaster = if e.months_since_disaster < x.disaster_months {
+            x.disaster
         } else {
             0.0
         };
-        let experienced = -8.0 * (du - dn) - 2.0 * rent_growth + 2.0 * services
+        let experienced = -x.unemployment * (du - dn) - x.rent_growth * rent_growth
+            + x.services * services
             - disaster
-            - 1.5 * mods.disruption;
+            - x.disruption * mods.disruption;
         // Reactions to laws and bills, pre-summed into one weighted signature
         // per town (linear in attitudes, so each cohort needs one dot product).
         let na = pop.attitude_count();
@@ -1149,7 +1161,7 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             if norm <= 0.0 {
                 continue;
             }
-            let w = 2.0 * p.awareness as f64 / norm;
+            let w = op.policy_reaction * p.awareness as f64 / norm;
             let mine = p
                 .sponsor
                 .and_then(|s| pol.get(s))
@@ -1204,10 +1216,12 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                 let class = class_of(ci);
                 let gov_react = clamp(gov_react * gov_scale - grievance[a][class], -2.0, 2.0);
                 let player_react = clamp(player_react - player_grievance[a][class], -2.0, 2.0);
-                let target = 0.5 + 0.5 * tanh(experienced + 0.6 * gov_react);
-                c.gov_approval = (c.gov_approval as f64 * 0.92 + target * 0.08) as f32;
+                let target = 0.5 + 0.5 * tanh(experienced + op.law_reaction_weight * gov_react);
+                c.gov_approval = (c.gov_approval as f64 * (1.0 - op.gov_approval_rate)
+                    + target * op.gov_approval_rate) as f32;
                 c.player_approval = clamp(
-                    c.player_approval as f64 * 0.9 + 0.1 * tanh(player_react * 1.5),
+                    c.player_approval as f64 * (1.0 - op.player_approval_rate)
+                        + op.player_approval_rate * tanh(player_react * op.player_reaction_scale),
                     -1.0,
                     1.0,
                 ) as f32;
@@ -1240,7 +1254,7 @@ fn update_party_id(
         && let Some(t) = target.get_mut(g.index())
     {
         *t = clamp(
-            *t as f64 * (1.0 + (c.gov_approval as f64 - 0.5) * 0.6),
+            *t as f64 * (1.0 + (c.gov_approval as f64 - 0.5) * p.governing_credit),
             0.0,
             1.0,
         ) as f32;

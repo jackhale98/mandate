@@ -1,0 +1,23 @@
+// NPC AI balance numbers (DEC-030, DEC-078 decision 1). Action scores and
+// response curves are in politics.jsonc (`ai`).
+{
+  "kind": "npc",
+  "value": {
+    "ideologue_below": 0.4,        // pragmatism below this: an ideologue
+    "populist_above": 0.75,        // else ambition above this: a populist
+    "close_margin": 0.4,           // poll margin at which a race is no longer close
+    "funds_in_ads": 4.0,           // funds count as full at this many ad buys
+    "busy_pending": 3.0,           // the council is busy at this many pending bills
+    "busy_laws": 5.0,              // or this many laws in force
+    "bill_interval_days": 365,     // at most one bill of one's own per this many days
+    "insurance_votes": 1.0,        // whip counts: votes wanted beyond the threshold
+    "safe_gap": 2.5,               // a gap this large is no longer close
+    "comfortable_weight": 0.6,     // weight of a count already on the right side
+    "lobby_closeness_keep": 0.7,   // planning: closeness left after lobbying
+    "contact_unknown_keep": 0.9,   // planning: unknown share left after a contact
+    "two_ads_above": 0.5,          // ad score for two buys
+    "one_ad_above": 0.25,          // ad score for one buy
+    "ad_reserve": 1.5,             // ad costs kept in reserve
+    "bill_sunset_years": [4, 8],   // NPC programmes are time-limited
+  },
+}

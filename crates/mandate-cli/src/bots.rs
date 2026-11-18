@@ -111,6 +111,7 @@ fn legislate(e: &mut Engine, content: &ContentBundle) {
             let inst = &st.policy.instances[bill as usize];
             content.policies.get(&inst.template).and_then(|t| {
                 mandate_sim::policy::council_leans(
+                    &content.council,
                     &st.world,
                     &st.population,
                     &st.politics,

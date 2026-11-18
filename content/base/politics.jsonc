@@ -40,12 +40,33 @@
       "record_bonus": 0.15,
       "record_baseline": 0.35,
       "renomination_standing": 25.0,
+      // Perceived position on a partisan ballot: own views and party platform.
+      "perceived_own_weight": 0.6,
+      "perceived_party_weight": 0.4,
+      // Valence: oratory and integrity, each around its midpoint.
+      "valence_oratory": 0.5,
+      "valence_integrity": 0.5,
+      "governing_party_record": 0.4,   // the governing party's new nominee carries this share of the record
+      "retro_economy_weight": 0.5,     // the benchmarked economy beside approval of the government
+      "retro_unemployment_scale": 10.0, // per point of unemployment change beyond the national change
+      "media_base": 0.5,               // media attention: base + share of the region's people
+      "media_town_share": 0.5,
+      "player_approval_weight": 1.2,
+      "independent_viability": 0.3,
+      // Starting awareness (shares of incumbent_awareness), home bonus, cap.
+      "player_incumbent_awareness": 0.8,
+      "officeholder_awareness": 0.6,
+      "home_awareness_bonus": 0.15,
+      "awareness_cap": 0.95,
     },
     "turnout": {
       "standalone": 0.55,
       "concurrent": 0.95,
       "habit": 0.3,
       "mobilisation_max": 0.08,
+      // A cohort's habit: the neighbourhood's turnout × (base + propensity × its own).
+      "habit_base": 0.6,
+      "habit_propensity": 0.8,
     },
     "polls": {
       "pollsters": ["Civic Pulse", "Northgate Research", "Ledger & Co."],
@@ -64,6 +85,10 @@
       "ad_cost": 1500,
       "awareness_per_ad": 0.12,
       "npc_contacts_per_week": 1.5,
+      "npc_effort_base": 0.5,          // abstracted effort × (base + oratory)
+      "contact_memory": 0.8,           // share of recent contacts remembered each week
+      "ad_saturation": 0.7,            // each further ad in a turn is worth this much of the last
+      "ad_persuasion_share": 0.25,     // an ad persuades this share of a canvass contact
     },
     "ai": {
       // Utility AI (DEC-030, DEC-071 §8). Score = weight × profile × Π curve(input).
@@ -114,6 +139,7 @@
       "stayer_share": 0.6,
       "mover_rate": 0.08,
       "sharpness": 4.0,
+      "governing_credit": 0.6,         // attachment to the town hall's party × (1 + (approval − 0.5) × this)
     },
   },
 }

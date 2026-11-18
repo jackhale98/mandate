@@ -1,0 +1,23 @@
+// Opinion dynamics (DEC-025, DEC-078 decision 1): how what residents live
+// through, and the laws and bills they hear about, move approval of the local
+// government and of the player each month. Tune via sweeps; record changes in
+// docs/development/BALANCE_LOG.md.
+{
+  "kind": "opinion",
+  "value": {
+    // Experienced conditions, in approval units (tanh scale).
+    "experience": {
+      "unemployment": 8.0,     // per point of local unemployment rise beyond the national rise (a year)
+      "rent_growth": 2.0,      // per point of real rent growth (a year)
+      "services": 2.0,         // per unit of service improvement from laws in effect
+      "disaster": 0.3,         // while a disaster is recent
+      "disaster_months": 6,
+      "disruption": 1.5,       // per unit of construction disruption
+    },
+    "policy_reaction": 2.0,        // a bill or law's anticipated reaction per unit of awareness
+    "law_reaction_weight": 0.6,    // laws beside experience in government approval
+    "gov_approval_rate": 0.08,     // monthly pull of government approval toward its target
+    "player_approval_rate": 0.1,   // monthly pull of approval of the player toward reactions to their bills
+    "player_reaction_scale": 1.5,
+  },
+}

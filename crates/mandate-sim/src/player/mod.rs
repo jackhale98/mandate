@@ -101,26 +101,29 @@ pub fn monthly(pl: &mut PlayerState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             w += weight;
         }
     }
+    let k = &r.content.career;
     let net = if w > 0.0 { acc / w } else { 0.0 };
-    let target = clamp(50.0 + 100.0 * net, 0.0, 100.0);
-    pl.mandate = (pl.mandate as f64 * 0.8 + target * 0.2) as f32;
+    let target = clamp(50.0 + k.mandate_per_net_approval * net, 0.0, 100.0);
+    pl.mandate = (pl.mandate as f64 * (1.0 - k.mandate_rate) + target * k.mandate_rate) as f32;
     pl.tracks.viability = clamp(
-        pl.tracks.viability as f64 * 0.9
-            + (pl.mandate as f64 * 0.7 + pl.tracks.standing as f64 * 0.3) * 0.1,
+        pl.tracks.viability as f64 * (1.0 - k.viability_rate)
+            + (pl.mandate as f64 * (1.0 - k.viability_standing_share)
+                + pl.tracks.standing as f64 * k.viability_standing_share)
+                * k.viability_rate,
         0.0,
         100.0,
     ) as f32;
-    pl.tracks.health = (pl.tracks.health + 2.0).min(100.0);
+    pl.tracks.health = (pl.tracks.health + k.health_recovery as f32).min(100.0);
     // The party notices a passenger, and rewards a worker (DEC-076).
     let record = r
         .politics()
         .get(pl.politician)
         .map(|p| p.record as f64)
         .unwrap_or(0.0);
-    let d = if record < 0.2 {
-        -1.5
-    } else if record > 0.5 {
-        0.5
+    let d = if record < k.thin_record {
+        k.thin_record_standing
+    } else if record > k.strong_record {
+        k.strong_record_standing
     } else {
         0.0
     };
@@ -152,16 +155,25 @@ pub fn monthly(pl: &mut PlayerState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                 .fold(0.0, f64::max);
             let margin = mine - best_other;
             if res.winner == pl.politician {
-                pl.mandate = clamp(55.0 + 150.0 * margin, 40.0, 100.0) as f32;
-                pl.tracks.viability = clamp(pl.tracks.viability as f64 + 10.0, 0.0, 100.0) as f32;
-                pl.tracks.standing = clamp(pl.tracks.standing as f64 + 5.0, 0.0, 100.0) as f32;
+                pl.mandate = clamp(
+                    k.win_mandate_base + k.win_mandate_per_margin * margin,
+                    k.win_mandate_min,
+                    100.0,
+                ) as f32;
+                pl.tracks.viability =
+                    clamp(pl.tracks.viability as f64 + k.win_viability, 0.0, 100.0) as f32;
+                pl.tracks.standing =
+                    clamp(pl.tracks.standing as f64 + k.win_standing, 0.0, 100.0) as f32;
             } else {
                 pl.tracks.viability = clamp(
-                    pl.tracks.viability as f64 - 25.0 + 50.0 * margin.max(-0.5),
+                    pl.tracks.viability as f64
+                        + k.loss_viability
+                        + k.loss_viability_per_margin * margin.max(-0.5),
                     0.0,
                     100.0,
                 ) as f32;
-                pl.tracks.standing = clamp(pl.tracks.standing as f64 - 10.0, 0.0, 100.0) as f32;
+                pl.tracks.standing =
+                    clamp(pl.tracks.standing as f64 + k.loss_standing, 0.0, 100.0) as f32;
             }
         }
         // A new cycle: by default the player defends whatever they hold.

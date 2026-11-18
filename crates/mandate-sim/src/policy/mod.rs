@@ -9,8 +9,8 @@ use crate::population::PopulationState;
 use crate::scheduler::{Outs, Reads};
 use crate::world::{ConstituencyId, MunicipalityId, World};
 use mandate_content::{
-    BudgetCategory, ClassKey, ContentBundle, DecisionRule, HazardKey, MechanismDef, PolicyTemplate,
-    StageDef, TierKey,
+    BudgetCategory, ClassKey, ContentBundle, CouncilParams, DecisionRule, HazardKey, MechanismDef,
+    PolicyTemplate, StageDef, TierKey,
 };
 use mandate_core::math::{clamp, sigmoid};
 use mandate_core::{IdAllocator, SimDate, Stream, define_id};
@@ -359,7 +359,7 @@ pub struct VoteInputs<'a> {
     pub noise: f64,
 }
 
-pub fn vote_lean(p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
+pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
     let own = alignment(&v.template.signature_weights, &p.attitudes);
     let earmark = v
         .instance
@@ -367,7 +367,7 @@ pub fn vote_lean(p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
         .iter()
         .any(|c| matches!((c, p.role), (Clause::Earmark { ward }, Role::Councillor { ward: w, .. }) if *ward == w));
     let player = if v.sponsor_is_player {
-        p.opinion_of_player as f64 / 100.0 * 0.4
+        p.opinion_of_player as f64 / 100.0 * k.player_opinion
     } else {
         0.0
     };
@@ -379,8 +379,8 @@ pub fn vote_lean(p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
     let mut riders = 0.0;
     for c in &v.instance.clauses {
         riders += match c {
-            Clause::Sunset { .. } => 0.08,
-            Clause::Pilot { .. } => 0.12,
+            Clause::Sunset { .. } => k.sunset,
+            Clause::Pilot { .. } => k.pilot,
             Clause::Earmark { .. } => 0.0,
         };
     }
@@ -390,36 +390,37 @@ pub fn vote_lean(p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
         .iter()
         .filter(|c| matches!((c, p.role), (Clause::Earmark { ward }, Role::Councillor { ward: w, .. }) if *ward != w))
         .count() as f64;
-    riders -= 0.04 * foreign_earmarks;
+    riders += k.foreign_earmark * foreign_earmarks;
     let discipline = match (v.sponsor_party, p.party) {
-        (Some(a), Some(b)) if a == b => 0.15,
-        (Some(_), Some(_)) => -0.08,
+        (Some(a), Some(b)) if a == b => k.same_party,
+        (Some(_), Some(_)) => k.rival_party,
         _ => 0.0,
     };
     // Pragmatists weigh constituents and deals; ideologues their own values.
     let prag = p.pragmatism as f64;
-    0.55 * (1.0 - prag) * own
-        + 0.35 * prag * v.ward_support
-        + 0.15 * v.mayor_lean
+    k.own_values * (1.0 - prag) * own
+        + k.ward_support * prag * v.ward_support
+        + k.mayor * v.mayor_lean
         + v.sway
         + player
         + discipline
         + riders
-        + if earmark { 0.3 } else { 0.0 }
+        + if earmark { k.own_earmark } else { 0.0 }
         + v.noise
 }
 
-fn noise_for(seed: u64, politician: u32, policy: u32) -> f64 {
+fn noise_for(k: &CouncilParams, seed: u64, politician: u32, policy: u32) -> f64 {
     mandate_core::rng::keyed(
         seed,
         Stream::Npc,
         &[0xB111, politician as u64, policy as u64],
     )
-    .normal(0.0, 0.12)
+    .normal(0.0, k.noise_sd)
 }
 
 /// Lean of every council member for a policy (also used for whip counts).
 pub fn council_leans(
+    k: &CouncilParams,
     r_world: &World,
     pop: &PopulationState,
     pol: &PoliticsState,
@@ -437,7 +438,8 @@ pub fn council_leans(
         .mayor
         .and_then(|m| pol.get(m))
         .map(|m| {
-            alignment(&t.signature_weights, &m.attitudes) * 0.6 + public_support(t, pop, &all) * 0.4
+            alignment(&t.signature_weights, &m.attitudes) * k.mayor_own
+                + public_support(t, pop, &all) * k.mayor_public
         })
         .unwrap_or(0.0);
     let sponsor_is_player = inst
@@ -464,6 +466,7 @@ pub fn council_leans(
                 1.0
             } else {
                 vote_lean(
+                    k,
                     p,
                     &VoteInputs {
                         template: t,
@@ -474,7 +477,7 @@ pub fn council_leans(
                         sponsor_is_player,
                         sponsor_party: inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party),
                         declared: pol.declared_votes.get(&(p.id.0, inst.id.0)).copied(),
-                        noise: noise_for(seed, p.id.0, inst.id.0),
+                        noise: noise_for(k, seed, p.id.0, inst.id.0),
                     },
                 )
             };
@@ -484,6 +487,7 @@ pub fn council_leans(
 }
 
 pub fn mayor_lean(
+    k: &CouncilParams,
     r_world: &World,
     pop: &PopulationState,
     pol: &PoliticsState,
@@ -508,6 +512,7 @@ pub fn mayor_lean(
         .and_then(|s| pol.get(s))
         .is_some_and(|s| s.is_player);
     vote_lean(
+        k,
         m,
         &VoteInputs {
             template: t,
@@ -518,14 +523,19 @@ pub fn mayor_lean(
             sponsor_is_player,
             sponsor_party: inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party),
             declared: pol.declared_votes.get(&(m.id.0, inst.id.0)).copied(),
-            noise: noise_for(seed, m.id.0, inst.id.0),
+            noise: noise_for(k, seed, m.id.0, inst.id.0),
         },
     )
 }
 
 /// Probability that a lean turns into a yes vote (shown as whip-count odds).
-pub fn yes_probability(lean: f64) -> f64 {
-    sigmoid(lean * 8.0)
+pub fn yes_probability(k: &CouncilParams, lean: f64) -> f64 {
+    sigmoid(lean * k.vote_sharpness)
+}
+
+/// Probability that the mayor signs a bill, given their lean.
+pub fn sign_probability(k: &CouncilParams, lean: f64) -> f64 {
+    yes_probability(k, lean + k.sign_bias)
 }
 
 fn passes(rule: DecisionRule, yes: u32, total: u32) -> bool {
@@ -571,11 +581,12 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             continue;
         };
         let rng = out.rng.get(Stream::Npc);
-        let leans = council_leans(r.world, pop, pol, seed, t, &inst);
+        let k = &r.content.council;
+        let leans = council_leans(k, r.world, pop, pol, seed, t, &inst);
         let tally = |rng: &mut mandate_core::SimRng, leans: &[(PoliticianId, f64)]| -> u32 {
             leans
                 .iter()
-                .filter(|(_, l)| rng.chance(yes_probability(*l)))
+                .filter(|(_, l)| rng.chance(yes_probability(k, *l)))
                 .count() as u32
         };
         let total = leans.len() as u32;
@@ -596,8 +607,8 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 )
             }
             StageDef::Sign { override_rule, .. } => {
-                let lean = mayor_lean(r.world, pop, pol, seed, t, &inst);
-                if rng.chance(yes_probability(lean + 0.15)) {
+                let lean = mayor_lean(k, r.world, pop, pol, seed, t, &inst);
+                if rng.chance(sign_probability(k, lean)) {
                     (
                         true,
                         VoteRecord {
@@ -670,7 +681,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             p.status = PolicyStatus::Enacted;
             p.next_stage_on = None;
             p.enacted_on = Some(r.date);
-            p.awareness = (p.awareness + 0.25).min(1.0);
+            p.awareness = (p.awareness + r.content.council.enactment_awareness as f32).min(1.0);
             let ev = out.events.record(
                 r.date,
                 EventKind::PolicyEnacted {
@@ -699,7 +710,7 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         let Some(t) = r.content.policies.get(&p.template) else {
             continue;
         };
-        p.awareness = (p.awareness * 0.97).max(0.0);
+        p.awareness = (p.awareness * (1.0 - r.content.council.awareness_fade) as f32).max(0.0);
         match p.status {
             PolicyStatus::Enacted | PolicyStatus::InEffect => {
                 let funded = fin.funded_share(p.id.0);

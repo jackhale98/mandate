@@ -1,0 +1,42 @@
+// Council leans, mayoral signatures, and lobbying (DEC-026, DEC-071 §7,
+// DEC-078 decision 1). The player and NPCs use the same numbers.
+{
+  "kind": "council",
+  "value": {
+    // A member's lean (positive = yes): own values × (1 − pragmatism) + ward × pragmatism + mayor.
+    "own_values": 0.55,
+    "ward_support": 0.35,
+    "mayor": 0.15,
+    "player_opinion": 0.4,         // goodwill toward the player as sponsor, per 100 points of opinion
+    "same_party": 0.15,            // party discipline
+    "rival_party": -0.08,
+    // Riders.
+    "sunset": 0.08,
+    "pilot": 0.12,
+    "foreign_earmark": -0.04,      // per other ward's earmark
+    "own_earmark": 0.3,
+    "noise_sd": 0.12,              // each member's idiosyncrasy per bill
+    "mayor_own": 0.6,              // the mayor's lean: own values and the town's support
+    "mayor_public": 0.4,
+    "vote_sharpness": 8.0,         // lean → chance of a yes (logistic slope)
+    "sign_bias": 0.15,             // mayors sign unless their lean is below −sign_bias
+    "enactment_awareness": 0.25,
+    "awareness_fade": 0.03,        // monthly
+    "lobby": {
+      // Logit: skill_scale × (skill − 0.5) + pragmatism × target's pragmatism + bias + ties (+ late_night).
+      "skill_negotiation": 0.6,
+      "skill_oratory": 0.4,
+      "skill_scale": 3.0,
+      "pragmatism": 1.5,
+      "bias": -0.6,
+      "opinion_scale": 50.0,       // ties with the player: their opinion / this
+      "same_party": 0.3,           // ties between NPCs
+      "other_party": -0.1,
+      "late_night": 0.35,
+      "odds_min": 0.08,
+      "odds_max": 0.92,
+      "gain": [0.2, 0.35],         // sway on success, × (0.5 + negotiation)
+      "fail_gain": 0.04,
+    },
+  },
+}

@@ -20,6 +20,53 @@
       ],
       "type": "object"
     },
+    "ActionParams": {
+      "additionalProperties": false,
+      "description": "Player action effects and risks (DEC-073). Time and health costs are in\n`tuning.action_costs`; record gains in `career.record_gain`.",
+      "properties": {
+        "amend": {
+          "$ref": "#/$defs/AmendEffects"
+        },
+        "canvass": {
+          "$ref": "#/$defs/CanvassEffects"
+        },
+        "fundraise": {
+          "$ref": "#/$defs/FundraiseEffects"
+        },
+        "introduce": {
+          "$ref": "#/$defs/IntroduceEffects"
+        },
+        "late_night_health": {
+          "description": "Health a late-night action costs on top of its own cost.",
+          "format": "double",
+          "type": "number"
+        },
+        "lobby": {
+          "$ref": "#/$defs/LobbyEffects"
+        },
+        "press": {
+          "$ref": "#/$defs/PressEffects"
+        },
+        "town_hall": {
+          "$ref": "#/$defs/TownHallEffects"
+        },
+        "vote": {
+          "$ref": "#/$defs/CouncilVoteEffects"
+        }
+      },
+      "required": [
+        "late_night_health",
+        "vote",
+        "amend",
+        "introduce",
+        "lobby",
+        "town_hall",
+        "press",
+        "canvass",
+        "fundraise"
+      ],
+      "type": "object"
+    },
     "AiAction": {
       "enum": [
         "canvass",
@@ -180,6 +227,20 @@
       "required": [
         "action",
         "mult"
+      ],
+      "type": "object"
+    },
+    "AmendEffects": {
+      "additionalProperties": false,
+      "properties": {
+        "sway_keep": {
+          "description": "Share of the goodwill already built on a bill that survives an amendment.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "sway_keep"
       ],
       "type": "object"
     },
@@ -378,11 +439,26 @@
           "format": "int64",
           "type": "integer"
         },
+        "ad_persuasion_share": {
+          "description": "Persuasion of one ad buy, as a share of one canvass contact's.",
+          "format": "double",
+          "type": "number"
+        },
+        "ad_saturation": {
+          "description": "Each further ad in a turn is worth this fraction of the last.",
+          "format": "double",
+          "type": "number"
+        },
         "awareness_per_ad": {
           "format": "double",
           "type": "number"
         },
         "awareness_per_canvass": {
+          "format": "double",
+          "type": "number"
+        },
+        "contact_memory": {
+          "description": "Share of recent contacts remembered each week (diminishing returns recover).",
           "format": "double",
           "type": "number"
         },
@@ -397,6 +473,11 @@
         },
         "npc_contacts_per_week": {
           "description": "NPC campaign effort in abstracted races (contacts per week per candidate).",
+          "format": "double",
+          "type": "number"
+        },
+        "npc_effort_base": {
+          "description": "Abstracted NPC effort scales with `npc_effort_base` + oratory.",
           "format": "double",
           "type": "number"
         },
@@ -417,7 +498,197 @@
         "diminishing",
         "ad_cost",
         "awareness_per_ad",
-        "npc_contacts_per_week"
+        "npc_contacts_per_week",
+        "npc_effort_base",
+        "contact_memory",
+        "ad_saturation",
+        "ad_persuasion_share"
+      ],
+      "type": "object"
+    },
+    "CanvassEffects": {
+      "additionalProperties": false,
+      "properties": {
+        "approval": {
+          "description": "Approval gained per unit of room.",
+          "format": "double",
+          "type": "number"
+        },
+        "awareness": {
+          "description": "Share of the remaining awareness gap closed.",
+          "format": "double",
+          "type": "number"
+        },
+        "contact": {
+          "description": "Campaign contact scale (a full day on the doorsteps).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "awareness",
+        "approval",
+        "contact"
+      ],
+      "type": "object"
+    },
+    "CareerParams": {
+      "additionalProperties": false,
+      "description": "Careers (DEC-011, DEC-076): the record of visible work, the party's\npatience, Mandate and viability, name recognition, and election results.",
+      "properties": {
+        "awareness_keep": {
+          "format": "double",
+          "type": "number"
+        },
+        "awareness_keep_invisible": {
+          "format": "double",
+          "type": "number"
+        },
+        "diligence_ambition": {
+          "format": "double",
+          "type": "number"
+        },
+        "diligence_integrity": {
+          "format": "double",
+          "type": "number"
+        },
+        "health_recovery": {
+          "description": "Health recovered each month.",
+          "format": "double",
+          "type": "number"
+        },
+        "invisible_record": {
+          "description": "Name recognition kept each month, and while the record is below\n`invisible_record`.",
+          "format": "double",
+          "type": "number"
+        },
+        "loss_standing": {
+          "format": "double",
+          "type": "number"
+        },
+        "loss_viability": {
+          "description": "After a loss: viability changes by `loss_viability` +\n`loss_viability_per_margin` × margin (margin ≥ −0.5), and Standing.",
+          "format": "double",
+          "type": "number"
+        },
+        "loss_viability_per_margin": {
+          "format": "double",
+          "type": "number"
+        },
+        "mandate_per_net_approval": {
+          "format": "double",
+          "type": "number"
+        },
+        "mandate_rate": {
+          "description": "Mandate: monthly pull toward 50 + `mandate_per_net_approval` × net\napproval among the ward's voters.",
+          "format": "double",
+          "type": "number"
+        },
+        "npc_diligence_rate": {
+          "description": "NPC officeholders' monthly record gain per unit of diligence, and the\nweights of integrity and ambition in diligence.",
+          "format": "double",
+          "type": "number"
+        },
+        "officeholder_funds": {
+          "description": "Officeholders' yearly war-chest income: base + per unit of oratory.",
+          "format": "double",
+          "type": "number"
+        },
+        "officeholder_funds_oratory": {
+          "format": "double",
+          "type": "number"
+        },
+        "record_fade": {
+          "description": "Share of every record lost each month.",
+          "format": "double",
+          "type": "number"
+        },
+        "record_gain": {
+          "$ref": "#/$defs/RecordGains",
+          "description": "Record gained per piece of visible work (the player and NPCs)."
+        },
+        "scandal_keep_yearly": {
+          "description": "Share of scandal damage kept each year.",
+          "format": "double",
+          "type": "number"
+        },
+        "strong_record": {
+          "format": "double",
+          "type": "number"
+        },
+        "strong_record_standing": {
+          "format": "double",
+          "type": "number"
+        },
+        "thin_record": {
+          "description": "Party patience: monthly Standing change below a thin record and above\na strong one.",
+          "format": "double",
+          "type": "number"
+        },
+        "thin_record_standing": {
+          "format": "double",
+          "type": "number"
+        },
+        "viability_rate": {
+          "description": "Viability: monthly pull toward a mix of Mandate and Standing (this\nshare Standing).",
+          "format": "double",
+          "type": "number"
+        },
+        "viability_standing_share": {
+          "format": "double",
+          "type": "number"
+        },
+        "win_mandate_base": {
+          "description": "After a win: Mandate = `win_mandate_base` + `win_mandate_per_margin` ×\nmargin (at least `win_mandate_min`), and track gains.",
+          "format": "double",
+          "type": "number"
+        },
+        "win_mandate_min": {
+          "format": "double",
+          "type": "number"
+        },
+        "win_mandate_per_margin": {
+          "format": "double",
+          "type": "number"
+        },
+        "win_standing": {
+          "format": "double",
+          "type": "number"
+        },
+        "win_viability": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "record_gain",
+        "record_fade",
+        "npc_diligence_rate",
+        "diligence_integrity",
+        "diligence_ambition",
+        "thin_record",
+        "thin_record_standing",
+        "strong_record",
+        "strong_record_standing",
+        "invisible_record",
+        "awareness_keep",
+        "awareness_keep_invisible",
+        "mandate_rate",
+        "mandate_per_net_approval",
+        "viability_rate",
+        "viability_standing_share",
+        "health_recovery",
+        "win_mandate_base",
+        "win_mandate_per_margin",
+        "win_mandate_min",
+        "win_viability",
+        "win_standing",
+        "loss_viability",
+        "loss_viability_per_margin",
+        "loss_standing",
+        "scandal_keep_yearly",
+        "officeholder_funds",
+        "officeholder_funds_oratory"
       ],
       "type": "object"
     },
@@ -595,6 +866,166 @@
           "type": "number"
         }
       },
+      "type": "object"
+    },
+    "CouncilParams": {
+      "additionalProperties": false,
+      "description": "How council members lean on bills, how mayors sign, and lobbying odds\n(DEC-026, DEC-071 §7). Shared by the player and NPCs.",
+      "properties": {
+        "awareness_fade": {
+          "format": "double",
+          "type": "number"
+        },
+        "enactment_awareness": {
+          "description": "Public awareness a bill gains at enactment, and the share it loses each month.",
+          "format": "double",
+          "type": "number"
+        },
+        "foreign_earmark": {
+          "format": "double",
+          "type": "number"
+        },
+        "lobby": {
+          "$ref": "#/$defs/LobbyParams"
+        },
+        "mayor": {
+          "format": "double",
+          "type": "number"
+        },
+        "mayor_own": {
+          "description": "The mayor's lean on a bill: own values and the town's support.",
+          "format": "double",
+          "type": "number"
+        },
+        "mayor_public": {
+          "format": "double",
+          "type": "number"
+        },
+        "noise_sd": {
+          "description": "Standard deviation of each member's idiosyncrasy per bill.",
+          "format": "double",
+          "type": "number"
+        },
+        "own_earmark": {
+          "format": "double",
+          "type": "number"
+        },
+        "own_values": {
+          "description": "A member's lean: own values (weighted by 1 − pragmatism), the ward's\nsupport (by pragmatism), and the mayor's lean.",
+          "format": "double",
+          "type": "number"
+        },
+        "pilot": {
+          "format": "double",
+          "type": "number"
+        },
+        "player_opinion": {
+          "description": "Goodwill toward the player as sponsor, per 100 points of opinion.",
+          "format": "double",
+          "type": "number"
+        },
+        "rival_party": {
+          "format": "double",
+          "type": "number"
+        },
+        "same_party": {
+          "description": "Party discipline: the sponsor's party, and a rival party.",
+          "format": "double",
+          "type": "number"
+        },
+        "sign_bias": {
+          "description": "Mayors sign unless their lean is below −`sign_bias`.",
+          "format": "double",
+          "type": "number"
+        },
+        "sunset": {
+          "description": "Riders: a sunset, a pilot, each other ward's earmark, and an earmark\nfor the member's own ward.",
+          "format": "double",
+          "type": "number"
+        },
+        "vote_sharpness": {
+          "description": "Logistic slope from a lean to the chance of a yes vote.",
+          "format": "double",
+          "type": "number"
+        },
+        "ward_support": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "own_values",
+        "ward_support",
+        "mayor",
+        "player_opinion",
+        "same_party",
+        "rival_party",
+        "sunset",
+        "pilot",
+        "foreign_earmark",
+        "own_earmark",
+        "noise_sd",
+        "mayor_own",
+        "mayor_public",
+        "vote_sharpness",
+        "sign_bias",
+        "enactment_awareness",
+        "awareness_fade",
+        "lobby"
+      ],
+      "type": "object"
+    },
+    "CouncilVoteEffects": {
+      "additionalProperties": false,
+      "description": "The player's declared council vote.",
+      "properties": {
+        "sponsor_no": {
+          "format": "double",
+          "type": "number"
+        },
+        "sponsor_no_owed": {
+          "format": "double",
+          "type": "number"
+        },
+        "sponsor_yes": {
+          "description": "The sponsor's opinion of the player: a yes, a no, and a no while they\nare owed a favour.",
+          "format": "double",
+          "type": "number"
+        },
+        "standing_abstain": {
+          "format": "double",
+          "type": "number"
+        },
+        "standing_defy": {
+          "format": "double",
+          "type": "number"
+        },
+        "standing_loyal": {
+          "description": "Standing for voting with the party line, against it, and abstaining.",
+          "format": "double",
+          "type": "number"
+        },
+        "ward_abstain": {
+          "description": "Ward approval change for abstaining.",
+          "format": "double",
+          "type": "number"
+        },
+        "ward_reaction": {
+          "description": "Ward approval per unit of alignment × (0.5 + bill awareness) × room.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "standing_loyal",
+        "standing_defy",
+        "standing_abstain",
+        "ward_reaction",
+        "ward_abstain",
+        "sponsor_yes",
+        "sponsor_no",
+        "sponsor_no_owed"
+      ],
       "type": "object"
     },
     "Curve": {
@@ -899,6 +1330,89 @@
       ],
       "type": "string"
     },
+    "ExperienceWeights": {
+      "additionalProperties": false,
+      "properties": {
+        "disaster": {
+          "description": "While a disaster is recent.",
+          "format": "double",
+          "type": "number"
+        },
+        "disaster_months": {
+          "description": "Months a disaster stays recent.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "disruption": {
+          "description": "Per unit of construction disruption.",
+          "format": "double",
+          "type": "number"
+        },
+        "rent_growth": {
+          "description": "Per point of real rent growth (a year).",
+          "format": "double",
+          "type": "number"
+        },
+        "services": {
+          "description": "Per unit of service improvement from laws in effect.",
+          "format": "double",
+          "type": "number"
+        },
+        "unemployment": {
+          "description": "Per point of local unemployment rise beyond the national rise (a year).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "unemployment",
+        "rent_growth",
+        "services",
+        "disaster",
+        "disaster_months",
+        "disruption"
+      ],
+      "type": "object"
+    },
+    "FundraiseEffects": {
+      "additionalProperties": false,
+      "properties": {
+        "donor_ties": {
+          "description": "Approval lost among low-income voters, per unit of awareness.",
+          "format": "double",
+          "type": "number"
+        },
+        "late_night_legal": {
+          "description": "Legal jeopardy of late-night fundraising.",
+          "format": "double",
+          "type": "number"
+        },
+        "raised": {
+          "description": "Money raised: uniform in [min, max] × (0.5 + oratory). NPCs too.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "standing": {
+          "description": "Standing gained (the party likes a fundraiser).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "raised",
+        "standing",
+        "late_night_legal",
+        "donor_ties"
+      ],
+      "type": "object"
+    },
     "HazardKey": {
       "enum": [
         "flood",
@@ -906,6 +1420,137 @@
         "wildfire"
       ],
       "type": "string"
+    },
+    "IntroduceEffects": {
+      "additionalProperties": false,
+      "properties": {
+        "awareness": {
+          "description": "Public awareness of a bill when it is introduced (player and NPCs).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "awareness"
+      ],
+      "type": "object"
+    },
+    "LobbyEffects": {
+      "additionalProperties": false,
+      "description": "The player's lobbying (the odds and the sway gained are in `council.lobby`).",
+      "properties": {
+        "late_night_legal": {
+          "description": "Legal jeopardy of a late-night deal.",
+          "format": "double",
+          "type": "number"
+        },
+        "opinion_fail": {
+          "format": "double",
+          "type": "number"
+        },
+        "opinion_success": {
+          "description": "The target's opinion of the player after a success and a failure.",
+          "format": "double",
+          "type": "number"
+        },
+        "trade_gain": {
+          "description": "Sway bought by trading a favour.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "trade_gain",
+        "opinion_success",
+        "opinion_fail",
+        "late_night_legal"
+      ],
+      "type": "object"
+    },
+    "LobbyParams": {
+      "additionalProperties": false,
+      "description": "Lobbying odds and sway (player and NPCs alike).",
+      "properties": {
+        "bias": {
+          "format": "double",
+          "type": "number"
+        },
+        "fail_gain": {
+          "description": "Sway gained on failure.",
+          "format": "double",
+          "type": "number"
+        },
+        "gain": {
+          "description": "Sway gained on success: uniform in [min, max] × (0.5 + negotiation).",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "late_night": {
+          "format": "double",
+          "type": "number"
+        },
+        "odds_max": {
+          "format": "double",
+          "type": "number"
+        },
+        "odds_min": {
+          "format": "double",
+          "type": "number"
+        },
+        "opinion_scale": {
+          "description": "Ties with the player: the target's opinion of them divided by this.",
+          "format": "double",
+          "type": "number"
+        },
+        "other_party": {
+          "format": "double",
+          "type": "number"
+        },
+        "pragmatism": {
+          "format": "double",
+          "type": "number"
+        },
+        "same_party": {
+          "description": "Ties between NPCs: the same party, or not.",
+          "format": "double",
+          "type": "number"
+        },
+        "skill_negotiation": {
+          "description": "Skill = `skill_negotiation` × negotiation + `skill_oratory` × oratory.",
+          "format": "double",
+          "type": "number"
+        },
+        "skill_oratory": {
+          "format": "double",
+          "type": "number"
+        },
+        "skill_scale": {
+          "description": "Logit of success: `skill_scale` × (skill − 0.5) + `pragmatism` × the\ntarget's pragmatism + `bias` + ties (+ `late_night`).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "skill_negotiation",
+        "skill_oratory",
+        "skill_scale",
+        "pragmatism",
+        "bias",
+        "opinion_scale",
+        "same_party",
+        "other_party",
+        "late_night",
+        "odds_min",
+        "odds_max",
+        "gain",
+        "fail_gain"
+      ],
+      "type": "object"
     },
     "MechanismDef": {
       "description": "Typed mechanism primitives (DEC-024). Policies never write outcomes\ndirectly; the domain models compute consequences from these.",
@@ -1178,6 +1823,112 @@
       },
       "type": "object"
     },
+    "NpcParams": {
+      "additionalProperties": false,
+      "description": "NPC AI balance numbers (DEC-030). Scores and curves are in `politics.ai`.",
+      "properties": {
+        "ad_reserve": {
+          "format": "double",
+          "type": "number"
+        },
+        "bill_interval_days": {
+          "description": "At most one bill of one's own in this many days.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "bill_sunset_years": {
+          "description": "NPC bills sunset after this many years, [min, max].",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "busy_laws": {
+          "format": "double",
+          "type": "number"
+        },
+        "busy_pending": {
+          "description": "The council is busy at this many pending bills, or this many laws in force.",
+          "format": "double",
+          "type": "number"
+        },
+        "close_margin": {
+          "description": "A race is a dead heat at 0 and not close at this poll margin.",
+          "format": "double",
+          "type": "number"
+        },
+        "comfortable_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "contact_unknown_keep": {
+          "format": "double",
+          "type": "number"
+        },
+        "funds_in_ads": {
+          "description": "Funds count as full at this many ad buys.",
+          "format": "double",
+          "type": "number"
+        },
+        "ideologue_below": {
+          "description": "Strategic profile from traits: an ideologue below this pragmatism,\nelse a populist above this ambition, else a pragmatist.",
+          "format": "double",
+          "type": "number"
+        },
+        "insurance_votes": {
+          "description": "Whip counts: yes votes of insurance wanted beyond the threshold, the\ngap at which a count stops being close, and the weight of a count\nalready on the right side.",
+          "format": "double",
+          "type": "number"
+        },
+        "lobby_closeness_keep": {
+          "description": "Planning within a turn: closeness kept after lobbying, and the unknown\nshare kept after a contact.",
+          "format": "double",
+          "type": "number"
+        },
+        "one_ad_above": {
+          "format": "double",
+          "type": "number"
+        },
+        "populist_above": {
+          "format": "double",
+          "type": "number"
+        },
+        "safe_gap": {
+          "format": "double",
+          "type": "number"
+        },
+        "two_ads_above": {
+          "description": "Ads: two buys above this ad score, one above this, and the reserve\n(in ad costs) a candidate keeps.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ideologue_below",
+        "populist_above",
+        "close_margin",
+        "funds_in_ads",
+        "busy_pending",
+        "busy_laws",
+        "bill_interval_days",
+        "insurance_votes",
+        "safe_gap",
+        "comfortable_weight",
+        "lobby_closeness_keep",
+        "contact_unknown_keep",
+        "two_ads_above",
+        "one_ad_above",
+        "ad_reserve",
+        "bill_sunset_years"
+      ],
+      "type": "object"
+    },
     "OfficeDef": {
       "additionalProperties": false,
       "properties": {
@@ -1219,6 +1970,50 @@
         "selection",
         "term_years",
         "powers"
+      ],
+      "type": "object"
+    },
+    "OpinionParams": {
+      "additionalProperties": false,
+      "description": "Monthly opinion dynamics (DEC-025): experienced conditions and reactions\nto laws and bills move approval of the local government and the player.",
+      "properties": {
+        "experience": {
+          "$ref": "#/$defs/ExperienceWeights",
+          "description": "What residents experience, in approval units (tanh scale)."
+        },
+        "gov_approval_rate": {
+          "description": "Monthly pull of government approval toward its target.",
+          "format": "double",
+          "type": "number"
+        },
+        "law_reaction_weight": {
+          "description": "Weight of reactions to laws in government approval, beside experience.",
+          "format": "double",
+          "type": "number"
+        },
+        "player_approval_rate": {
+          "description": "Monthly pull of approval of the player toward reactions to their bills.",
+          "format": "double",
+          "type": "number"
+        },
+        "player_reaction_scale": {
+          "description": "Sharpness of reactions to the player's bills.",
+          "format": "double",
+          "type": "number"
+        },
+        "policy_reaction": {
+          "description": "Weight of a bill or law's anticipated reaction per unit of awareness.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "experience",
+        "policy_reaction",
+        "law_reaction_weight",
+        "gov_approval_rate",
+        "player_approval_rate",
+        "player_reaction_scale"
       ],
       "type": "object"
     },
@@ -1277,6 +2072,11 @@
           "minItems": 4,
           "type": "array"
         },
+        "governing_credit": {
+          "description": "Credit or blame for the party running the town hall: attachment to it\nscales by 1 + (approval − 0.5) × this.",
+          "format": "double",
+          "type": "number"
+        },
         "mover_rate": {
           "description": "Yearly pull of the mover share toward current evaluations.",
           "format": "double",
@@ -1297,7 +2097,8 @@
         "attached_by_age",
         "stayer_share",
         "mover_rate",
-        "sharpness"
+        "sharpness",
+        "governing_credit"
       ],
       "type": "object"
     },
@@ -1565,6 +2366,59 @@
       ],
       "type": "string"
     },
+    "PressEffects": {
+      "additionalProperties": false,
+      "properties": {
+        "awareness": {
+          "description": "Town-wide awareness gained.",
+          "format": "double",
+          "type": "number"
+        },
+        "bill_awareness": {
+          "description": "Bill awareness gained.",
+          "format": "double",
+          "type": "number"
+        },
+        "contact": {
+          "description": "Campaign contact scale (everywhere in the race), unless there was a gaffe.",
+          "format": "double",
+          "type": "number"
+        },
+        "gaffe_approval": {
+          "description": "Approval lost to a gaffe, per unit of awareness.",
+          "format": "double",
+          "type": "number"
+        },
+        "gaffe_base": {
+          "description": "Gaffe risk: `gaffe_base` + `gaffe_oratory` × (1 − oratory), within\n[`gaffe_min`, `gaffe_max`].",
+          "format": "double",
+          "type": "number"
+        },
+        "gaffe_max": {
+          "format": "double",
+          "type": "number"
+        },
+        "gaffe_min": {
+          "format": "double",
+          "type": "number"
+        },
+        "gaffe_oratory": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "awareness",
+        "gaffe_approval",
+        "bill_awareness",
+        "contact",
+        "gaffe_base",
+        "gaffe_oratory",
+        "gaffe_min",
+        "gaffe_max"
+      ],
+      "type": "object"
+    },
     "ProcedureDef": {
       "additionalProperties": false,
       "properties": {
@@ -1590,6 +2444,49 @@
         "id",
         "deliberation_days",
         "stages"
+      ],
+      "type": "object"
+    },
+    "RecordGains": {
+      "additionalProperties": false,
+      "properties": {
+        "amend": {
+          "format": "double",
+          "type": "number"
+        },
+        "canvass": {
+          "format": "double",
+          "type": "number"
+        },
+        "introduce": {
+          "format": "double",
+          "type": "number"
+        },
+        "lobby": {
+          "format": "double",
+          "type": "number"
+        },
+        "press": {
+          "format": "double",
+          "type": "number"
+        },
+        "town_hall": {
+          "format": "double",
+          "type": "number"
+        },
+        "vote": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "introduce",
+        "amend",
+        "vote",
+        "lobby",
+        "town_hall",
+        "canvass",
+        "press"
       ],
       "type": "object"
     },
@@ -2008,6 +2905,90 @@
       ],
       "type": "string"
     },
+    "TownHallEffects": {
+      "additionalProperties": false,
+      "properties": {
+        "awareness": {
+          "description": "Awareness gained: `awareness` × (`awareness_oratory_base` + oratory).",
+          "format": "double",
+          "type": "number"
+        },
+        "awareness_oratory_base": {
+          "format": "double",
+          "type": "number"
+        },
+        "bill_awareness": {
+          "description": "Bill awareness gained: `bill_awareness` × (0.5 + oratory).",
+          "format": "double",
+          "type": "number"
+        },
+        "bill_nudge": {
+          "description": "Approval nudge per unit of alignment with the bill discussed, and\nwithout a bill.",
+          "format": "double",
+          "type": "number"
+        },
+        "contact_base": {
+          "description": "Campaign contact: (`contact_base` + `contact_oratory` × oratory), ×\n`hostile_contact` when hostile. NPC town halls use the same scale.",
+          "format": "double",
+          "type": "number"
+        },
+        "contact_oratory": {
+          "format": "double",
+          "type": "number"
+        },
+        "hostile_contact": {
+          "format": "double",
+          "type": "number"
+        },
+        "hostile_nudge": {
+          "description": "Approval nudge from a hostile crowd.",
+          "format": "double",
+          "type": "number"
+        },
+        "nudge": {
+          "format": "double",
+          "type": "number"
+        },
+        "risk_approval": {
+          "format": "double",
+          "type": "number"
+        },
+        "risk_base": {
+          "description": "Chance of a hostile crowd: `risk_base` − `risk_approval` × the\nplayer's net approval − `risk_government` × (government approval −\n0.5), within [`risk_min`, `risk_max`].",
+          "format": "double",
+          "type": "number"
+        },
+        "risk_government": {
+          "format": "double",
+          "type": "number"
+        },
+        "risk_max": {
+          "format": "double",
+          "type": "number"
+        },
+        "risk_min": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "awareness",
+        "awareness_oratory_base",
+        "bill_nudge",
+        "nudge",
+        "hostile_nudge",
+        "bill_awareness",
+        "contact_base",
+        "contact_oratory",
+        "hostile_contact",
+        "risk_base",
+        "risk_approval",
+        "risk_government",
+        "risk_min",
+        "risk_max"
+      ],
+      "type": "object"
+    },
     "Tuning": {
       "additionalProperties": false,
       "description": "Data-driven tuning parameters (REQ-005).",
@@ -2114,6 +3095,15 @@
           "format": "double",
           "type": "number"
         },
+        "habit_base": {
+          "description": "After an election, each cohort's habit is its neighbourhood's turnout ×\n(`habit_base` + `habit_propensity` × its own turnout propensity).",
+          "format": "double",
+          "type": "number"
+        },
+        "habit_propensity": {
+          "format": "double",
+          "type": "number"
+        },
         "mobilisation_max": {
           "description": "Extra turnout from a fully mobilised neighbourhood.",
           "format": "double",
@@ -2129,7 +3119,9 @@
         "standalone",
         "concurrent",
         "habit",
-        "mobilisation_max"
+        "mobilisation_max",
+        "habit_base",
+        "habit_propensity"
       ],
       "type": "object"
     },
@@ -2137,6 +3129,10 @@
       "additionalProperties": false,
       "description": "Per-cohort vote utility (DEC-028, DEC-071 §1–2).",
       "properties": {
+        "awareness_cap": {
+          "format": "double",
+          "type": "number"
+        },
         "beta_high": {
           "format": "double",
           "type": "number"
@@ -2156,6 +3152,15 @@
           "format": "double",
           "type": "number"
         },
+        "governing_party_record": {
+          "description": "Share of the incumbent's record carried by the governing party's new nominee.",
+          "format": "double",
+          "type": "number"
+        },
+        "home_awareness_bonus": {
+          "format": "double",
+          "type": "number"
+        },
         "home_ward_bonus": {
           "format": "double",
           "type": "number"
@@ -2165,7 +3170,21 @@
           "format": "double",
           "type": "number"
         },
+        "independent_viability": {
+          "description": "Local viability of a candidate without a party.",
+          "format": "double",
+          "type": "number"
+        },
         "issue_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "media_base": {
+          "description": "Media attention on a town's record: a base, plus its share of the region's people.",
+          "format": "double",
+          "type": "number"
+        },
+        "media_town_share": {
           "format": "double",
           "type": "number"
         },
@@ -2179,12 +3198,35 @@
           "format": "double",
           "type": "number"
         },
+        "officeholder_awareness": {
+          "format": "double",
+          "type": "number"
+        },
         "partisan_discount": {
           "description": "Share of retrospective blame partisans forgive their own side.",
           "format": "double",
           "type": "number"
         },
         "party_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "perceived_own_weight": {
+          "description": "Perceived position on a partisan ballot: the candidate's own views and\ntheir party's platform, blended with these weights.",
+          "format": "double",
+          "type": "number"
+        },
+        "perceived_party_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "player_approval_weight": {
+          "description": "Weight of voters' approval of the player in the player's own races.",
+          "format": "double",
+          "type": "number"
+        },
+        "player_incumbent_awareness": {
+          "description": "Starting awareness: the player as incumbent and other sitting\nofficeholders in town (shares of `incumbent_awareness`), the bonus in a\ncandidate's home neighbourhood, and the cap.",
           "format": "double",
           "type": "number"
         },
@@ -2220,12 +3262,31 @@
           "format": "double",
           "type": "number"
         },
+        "retro_economy_weight": {
+          "description": "Weight of the town's benchmarked economy in retrospection, beside\napproval of the local government.",
+          "format": "double",
+          "type": "number"
+        },
+        "retro_unemployment_scale": {
+          "description": "Retrospective signal per point of local unemployment change beyond the\nnational change over a year (clamped to ±1).",
+          "format": "double",
+          "type": "number"
+        },
         "retrospective_weight": {
           "format": "double",
           "type": "number"
         },
         "strategic_weight": {
           "description": "Wasted-vote penalty for candidates whose party is weak locally (Duverger).",
+          "format": "double",
+          "type": "number"
+        },
+        "valence_integrity": {
+          "format": "double",
+          "type": "number"
+        },
+        "valence_oratory": {
+          "description": "Valence: weight of oratory and of integrity (each around its midpoint).",
           "format": "double",
           "type": "number"
         },
@@ -2255,7 +3316,22 @@
         "record_penalty",
         "record_bonus",
         "record_baseline",
-        "renomination_standing"
+        "renomination_standing",
+        "perceived_own_weight",
+        "perceived_party_weight",
+        "valence_oratory",
+        "valence_integrity",
+        "governing_party_record",
+        "retro_economy_weight",
+        "retro_unemployment_scale",
+        "media_base",
+        "media_town_share",
+        "player_approval_weight",
+        "independent_viability",
+        "player_incumbent_awareness",
+        "officeholder_awareness",
+        "home_awareness_bonus",
+        "awareness_cap"
       ],
       "type": "object"
     },
@@ -2495,6 +3571,96 @@
         },
         "value": {
           "$ref": "#/$defs/PoliticsParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Opinion dynamics: how conditions and laws move approval (DEC-025, DEC-078).",
+      "properties": {
+        "kind": {
+          "const": "opinion",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/OpinionParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Player action effects and risks (DEC-073, DEC-078).",
+      "properties": {
+        "kind": {
+          "const": "actions",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/ActionParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Council leans, mayoral signatures, and lobbying odds (DEC-026, DEC-078).",
+      "properties": {
+        "kind": {
+          "const": "council",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/CouncilParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Records, Standing, Mandate, and name recognition (DEC-011, DEC-076, DEC-078).",
+      "properties": {
+        "kind": {
+          "const": "career",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/CareerParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "NPC AI balance numbers beside the utility curves in `politics.ai` (DEC-030, DEC-078).",
+      "properties": {
+        "kind": {
+          "const": "npc",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/NpcParams"
         }
       },
       "required": [

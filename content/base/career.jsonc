@@ -1,0 +1,48 @@
+// Careers (DEC-011, DEC-076, DEC-078 decision 1): the record of visible work,
+// the party's patience, Mandate and viability, name recognition, and what an
+// election result does to a career.
+{
+  "kind": "career",
+  "value": {
+    // Record per piece of visible work (the player and NPCs alike).
+    "record_gain": {
+      "introduce": 0.12,
+      "amend": 0.02,
+      "vote": 0.04,
+      "lobby": 0.03,
+      "town_hall": 0.06,
+      "canvass": 0.06,
+      "press": 0.03,
+    },
+    "record_fade": 0.08,           // monthly
+    "npc_diligence_rate": 0.08,    // NPC officeholders drift toward their diligence
+    "diligence_integrity": 0.5,
+    "diligence_ambition": 0.5,
+    // Party patience: monthly Standing below a thin record and above a strong one.
+    "thin_record": 0.2,
+    "thin_record_standing": -1.5,
+    "strong_record": 0.5,
+    "strong_record_standing": 0.5,
+    // Name recognition kept each month (less while the record is invisible).
+    "invisible_record": 0.25,
+    "awareness_keep": 0.985,
+    "awareness_keep_invisible": 0.96,
+    "mandate_rate": 0.2,           // monthly pull toward 50 + this × net approval
+    "mandate_per_net_approval": 100.0,
+    "viability_rate": 0.1,         // monthly pull toward Mandate and Standing
+    "viability_standing_share": 0.3,
+    "health_recovery": 2.0,        // monthly
+    // Election results.
+    "win_mandate_base": 55.0,      // + per_margin × margin, at least min
+    "win_mandate_per_margin": 150.0,
+    "win_mandate_min": 40.0,
+    "win_viability": 10.0,
+    "win_standing": 5.0,
+    "loss_viability": -25.0,       // + per_margin × margin (margin ≥ −0.5)
+    "loss_viability_per_margin": 50.0,
+    "loss_standing": -10.0,
+    "scandal_keep_yearly": 0.6,
+    "officeholder_funds": 2000,    // yearly war chest: base + oratory × this
+    "officeholder_funds_oratory": 3000,
+  },
+}

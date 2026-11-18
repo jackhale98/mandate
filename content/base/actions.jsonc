@@ -1,0 +1,67 @@
+// Player action effects and risks (DEC-073, DEC-078 decision 1). Time and
+// health costs are in tuning.jsonc (`action_costs`); record gains are in
+// career.jsonc; lobbying odds and sway are in council.jsonc.
+{
+  "kind": "actions",
+  "value": {
+    "late_night_health": 8.0,      // on top of the action's own cost
+    // Declaring a council vote.
+    "vote": {
+      "standing_loyal": 1.0,       // with the party line
+      "standing_defy": -6.0,       // against it
+      "standing_abstain": -1.0,
+      "ward_reaction": 0.06,       // × alignment × (0.5 + bill awareness) × room
+      "ward_abstain": -0.01,
+      "sponsor_yes": 5.0,          // the sponsor's opinion of the player
+      "sponsor_no": 5.0,
+      "sponsor_no_owed": 15.0,     // a no while the player owes them
+    },
+    "amend": { "sway_keep": 0.5 }, // goodwill already built survives an amendment at this share
+    "introduce": { "awareness": 0.15 }, // public awareness of a new bill (NPC bills too)
+    "lobby": {
+      "trade_gain": 0.35,          // sway bought with a favour
+      "opinion_success": 3.0,
+      "opinion_fail": -2.0,
+      "late_night_legal": 1.5,     // legal jeopardy of a back-room deal
+    },
+    "town_hall": {
+      "awareness": 0.25,           // × (awareness_oratory_base + oratory)
+      "awareness_oratory_base": 0.6,
+      "bill_nudge": 0.05,          // approval per unit of alignment with the bill discussed
+      "nudge": 0.02,               // approval without a bill
+      "hostile_nudge": -0.04,
+      "bill_awareness": 0.12,      // × (0.5 + oratory)
+      "contact_base": 0.8,         // campaign contact: base + oratory × contact_oratory (NPCs too)
+      "contact_oratory": 0.6,
+      "hostile_contact": 0.4,
+      // Hostile-crowd risk: base − approval × net approval − government × (gov approval − 0.5).
+      "risk_base": 0.2,
+      "risk_approval": 0.8,
+      "risk_government": 0.4,
+      "risk_min": 0.05,
+      "risk_max": 0.6,
+    },
+    "press": {
+      "awareness": 0.06,           // town-wide
+      "gaffe_approval": 0.03,      // per unit of awareness
+      "bill_awareness": 0.15,
+      "contact": 0.25,             // everywhere in the race, unless there was a gaffe
+      // Gaffe risk: base + oratory × (1 − oratory skill).
+      "gaffe_base": 0.05,
+      "gaffe_oratory": 0.3,
+      "gaffe_min": 0.05,
+      "gaffe_max": 0.35,
+    },
+    "canvass": {
+      "awareness": 0.45,           // share of the awareness gap closed
+      "approval": 0.02,            // per unit of room
+      "contact": 1.6,              // a full day on the doorsteps
+    },
+    "fundraise": {
+      "raised": [1500, 6000],      // × (0.5 + oratory); NPCs too
+      "standing": 0.5,
+      "late_night_legal": 1.0,
+      "donor_ties": 0.01,          // low-income approval lost per unit of awareness
+    },
+  },
+}

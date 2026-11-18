@@ -578,7 +578,10 @@ fn new_race(
                         });
                         let own = (s / n.max(1.0)) as f32;
                         return if is_incumbent {
-                            own.max(params.vote.incumbent_awareness as f32 * 0.8)
+                            own.max(
+                                params.vote.incumbent_awareness as f32
+                                    * params.vote.player_incumbent_awareness as f32,
+                            )
                         } else {
                             own.max(params.vote.challenger_awareness as f32)
                         };
@@ -586,12 +589,18 @@ fn new_race(
                     let base = if is_incumbent {
                         params.vote.incumbent_awareness
                     } else if in_office_here {
-                        params.vote.incumbent_awareness * 0.6
+                        params.vote.incumbent_awareness * params.vote.officeholder_awareness
                     } else {
                         params.vote.challenger_awareness
                     };
                     let home = p.is_some_and(|p| p.home == *h);
-                    (base + if home { 0.15 } else { 0.0 }).min(0.95) as f32
+                    (base
+                        + if home {
+                            params.vote.home_awareness_bonus
+                        } else {
+                            0.0
+                        })
+                    .min(params.vote.awareness_cap) as f32
                 })
                 .collect();
             Candidate {
@@ -643,7 +652,7 @@ fn campaign_week(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 *v *= decay;
             }
             for v in c.contacts.iter_mut() {
-                *v *= 0.8;
+                *v *= params.contact_memory as f32;
             }
             // The player campaigns with commands; NPCs in the player's town use
             // the full AI (npc.rs). Everyone else is abstracted here.
@@ -654,7 +663,7 @@ fn campaign_week(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
             // they are least known in (DEC-030: the same contact rules as the player).
             let skill = politicians
                 .get(c.politician.index())
-                .map(|p| 0.5 + p.oratory as f64)
+                .map(|p| params.npc_effort_base + p.oratory as f64)
                 .unwrap_or(1.0);
             let effort = params.npc_contacts_per_week * skill;
             let mut whole = effort.floor() as u32;
@@ -706,14 +715,14 @@ pub fn contact(c: &mut Candidate, i: usize, params: &mandate_content::CampaignPa
 /// recognition everywhere in the race, persuades a little, mobilises nobody,
 /// and saturates within a turn (`nth` = buys already made this turn).
 pub fn advertise(c: &mut Candidate, params: &mandate_content::CampaignParams, nth: u8) {
-    let f = mandate_core::math::pow(0.7, nth as f64);
+    let f = mandate_core::math::pow(params.ad_saturation, nth as f64);
     for i in 0..c.awareness.len() {
         c.awareness[i] = clamp(
             c.awareness[i] as f64 + params.awareness_per_ad * f * (1.0 - c.awareness[i] as f64),
             0.0,
             1.0,
         ) as f32;
-        c.persuasion[i] += (0.25 * params.persuasion_per_canvass * f) as f32;
+        c.persuasion[i] += (params.ad_persuasion_share * params.persuasion_per_canvass * f) as f32;
     }
     c.spent += params.ad_cost as f64;
 }
@@ -810,7 +819,7 @@ fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> Race
         })
         .unwrap_or(1);
     let own = pop.municipality_total(world, MunicipalityId(m as u32));
-    let media = 0.5 + 0.5 * own as f64 / region_pop.max(1) as f64;
+    let media = v.media_base + v.media_town_share * own as f64 / region_pop.max(1) as f64;
     // Benchmarked retrospective: local unemployment change against national (DEC-071 §2).
     let econ = r.economy();
     let retro = econ
@@ -829,7 +838,7 @@ fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> Race
                 (Some(a), Some(b)) => (a.unemployment - b.unemployment) as f64,
                 _ => 0.0,
             };
-            clamp(-(du - dn) * 10.0, -1.0, 1.0)
+            clamp(-(du - dn) * v.retro_unemployment_scale, -1.0, 1.0)
         })
         .unwrap_or(0.0);
     let strength = party_strength(pop, &race.hoods, st.parties.len());
@@ -839,7 +848,7 @@ fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> Race
         .iter()
         .map(|c| match c.party.and_then(|p| strength.get(p.index())) {
             Some(s) => (s / top).min(1.0),
-            None => 0.3,
+            None => v.independent_viability,
         })
         .collect();
     RaceCtx {
@@ -880,7 +889,10 @@ impl RaceCtx<'_> {
                 for a in 0..na {
                     let x = c.attitudes[a] as f64;
                     let q = match blend {
-                        Some(pt) => 0.6 * p.attitudes[a] + 0.4 * pt.platform[a],
+                        Some(pt) => {
+                            v.perceived_own_weight as f32 * p.attitudes[a]
+                                + v.perceived_party_weight as f32 * pt.platform[a]
+                        }
                         None => p.attitudes[a],
                     } as f64;
                     prox -= (x - q) * (x - q);
@@ -900,7 +912,8 @@ impl RaceCtx<'_> {
                     0.0
                 };
                 let quality = v.valence_weight
-                    * (0.5 * (p.oratory as f64 - 0.5) + 0.5 * (p.integrity as f64 - 0.5)
+                    * (v.valence_oratory * (p.oratory as f64 - 0.5)
+                        + v.valence_integrity * (p.integrity as f64 - 0.5)
                         - p.scandal as f64)
                     + if p.home == h { v.home_ward_bonus } else { 0.0 }
                     // An incumbent's good record helps with voters who know them.
@@ -925,7 +938,7 @@ impl RaceCtx<'_> {
                 let record_weight = if incumbent {
                     1.0
                 } else if cand.party.is_some() && cand.party == gov_party {
-                    0.4
+                    v.governing_party_record
                 } else {
                     0.0
                 };
@@ -939,12 +952,12 @@ impl RaceCtx<'_> {
                     * 0.1
                     * exec
                     * self.media
-                    * ((c.gov_approval as f64 - 0.5) + 0.5 * self.retro);
+                    * ((c.gov_approval as f64 - 0.5) + v.retro_economy_weight * self.retro);
                 if record < 0.0 && self.race.partisan {
                     record *= 1.0 - v.partisan_discount * pid_share / 0.7;
                 }
                 if Some(cand.politician) == self.player {
-                    record += c.player_approval as f64 * 1.2;
+                    record += c.player_approval as f64 * v.player_approval_weight;
                 }
                 let aw = if terms.campaign {
                     cand.awareness[i] as f64
@@ -1389,26 +1402,31 @@ fn set_role(st: &mut PoliticsState, id: PoliticianId, role: Role) {
     }
 }
 
-/// Monthly: records fade (8%), and NPC officeholders' records drift toward
-/// their own diligence. The player has no baseline: their record is earned.
-pub fn monthly(st: &mut PoliticsState, _r: &Reads<'_>, _out: &mut Outs<'_>) {
+/// Monthly: records fade (`career.record_fade`), and NPC officeholders'
+/// records drift toward their own diligence. The player has no baseline:
+/// their record is earned.
+pub fn monthly(st: &mut PoliticsState, r: &Reads<'_>, _out: &mut Outs<'_>) {
+    let c = &r.content.career;
+    let keep = (1.0 - c.record_fade) as f32;
     for p in st.politicians.iter_mut() {
-        p.record *= 0.92;
+        p.record *= keep;
         if p.in_office() && !p.is_player {
-            let diligence = 0.5 * p.integrity + 0.5 * p.ambition;
-            p.record = (p.record + 0.08 * diligence).min(1.0);
+            let diligence = c.diligence_integrity as f32 * p.integrity
+                + c.diligence_ambition as f32 * p.ambition;
+            p.record = (p.record + c.npc_diligence_rate as f32 * diligence).min(1.0);
         }
     }
 }
 
 /// Yearly upkeep: time in office, scandal decay, and war chests.
-pub fn yearly(st: &mut PoliticsState, _r: &Reads<'_>, _out: &mut Outs<'_>) {
+pub fn yearly(st: &mut PoliticsState, r: &Reads<'_>, _out: &mut Outs<'_>) {
+    let c = &r.content.career;
     for p in st.politicians.iter_mut() {
         if p.in_office() {
             p.years_in_office = p.years_in_office.saturating_add(1);
-            p.funds += 2_000.0 + 3_000.0 * p.oratory as f64;
+            p.funds += c.officeholder_funds + c.officeholder_funds_oratory * p.oratory as f64;
         }
-        p.scandal *= 0.6;
+        p.scandal *= c.scandal_keep_yearly as f32;
     }
 }
 

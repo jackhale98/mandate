@@ -76,10 +76,11 @@ pub fn curve(c: Curve, x: f64) -> f64 {
 }
 
 /// The strategic profile implied by a politician's traits.
-pub fn profile_of(p: &crate::politics::Politician) -> &'static str {
-    if p.pragmatism < 0.4 {
+pub fn profile_of(content: &ContentBundle, p: &crate::politics::Politician) -> &'static str {
+    let n = &content.npc;
+    if p.pragmatism < n.ideologue_below as f32 {
         "ideologue"
-    } else if p.ambition > 0.75 {
+    } else if p.ambition > n.populist_above as f32 {
         "populist"
     } else {
         "pragmatist"
@@ -154,6 +155,7 @@ fn inputs_memo(
     };
     let m = me.municipality();
     let params = &content.politics;
+    let n = &content.npc;
     // Campaign.
     for (ri, race) in state.politics.elections.races.iter().enumerate() {
         if let Some(ci) = race.candidates.iter().position(|c| c.politician == id) {
@@ -178,11 +180,11 @@ fn inputs_memo(
                 .filter(|(k, _)| *k != ci)
                 .map(|(_, v)| *v)
                 .fold(0.0, f64::max);
-            x.race_closeness = clamp(1.0 - (own - best_other).abs() / 0.4, 0.0, 1.0);
+            x.race_closeness = clamp(1.0 - (own - best_other).abs() / n.close_margin, 0.0, 1.0);
         }
     }
     x.funds = clamp(
-        me.funds / (params.campaign.ad_cost as f64 * 4.0).max(1.0),
+        me.funds / (params.campaign.ad_cost as f64 * n.funds_in_ads).max(1.0),
         0.0,
         1.0,
     );
@@ -199,7 +201,7 @@ fn inputs_memo(
         .filter(|p| matches!(p.status, PolicyStatus::Enacted | PolicyStatus::InEffect))
         .count();
     x.council_free = clamp(
-        1.0 - pending.len() as f64 / 3.0 - active as f64 / 5.0,
+        1.0 - pending.len() as f64 / n.busy_pending - active as f64 / n.busy_laws,
         0.0,
         1.0,
     );
@@ -210,7 +212,9 @@ fn inputs_memo(
             && (matches!(
                 p.status,
                 PolicyStatus::Draft | PolicyStatus::UnderConsideration
-            ) || p.introduced_on.is_some_and(|d| d.days_until(today) < 365))
+            ) || p
+                .introduced_on
+                .is_some_and(|d| d.days_until(today) < n.bill_interval_days))
     }) {
         0.0
     } else {
@@ -243,6 +247,7 @@ fn inputs_memo(
                 let inst = state.policy.instances.get(bill as usize)?;
                 let t = content.policies.get(&inst.template)?;
                 let leans = crate::policy::council_leans(
+                    &content.council,
                     &state.world,
                     &state.population,
                     &state.politics,
@@ -253,7 +258,7 @@ fn inputs_memo(
                 let v = (
                     leans
                         .iter()
-                        .map(|(_, l)| crate::policy::yes_probability(*l))
+                        .map(|(_, l)| crate::policy::yes_probability(&content.council, *l))
                         .sum(),
                     leans.len().max(1) as f64,
                 );
@@ -264,12 +269,12 @@ fn inputs_memo(
                 let needed = (seats / 2.0).floor() + 1.0;
                 // Coalition-builders want insurance above the threshold (DEC-071 §7).
                 let gap = if dir > 0.0 {
-                    yes - (needed + 1.0)
+                    yes - (needed + n.insurance_votes)
                 } else {
-                    (needed - 1.0) - yes
+                    (needed - n.insurance_votes) - yes
                 };
-                x.bill_closeness =
-                    clamp(1.0 - gap.max(0.0) / 2.5, 0.0, 1.0) * if gap < 0.0 { 1.0 } else { 0.6 };
+                x.bill_closeness = clamp(1.0 - gap.max(0.0) / n.safe_gap, 0.0, 1.0)
+                    * if gap < 0.0 { 1.0 } else { n.comfortable_weight };
             }
         }
         if holds_power(state, content, id, Power::ProposeOrdinance) {
@@ -413,7 +418,7 @@ pub fn take_turn(state: &mut State, content: &ContentBundle, m: u32, full: bool)
         let profile = state
             .politics
             .get(id)
-            .map(profile_of)
+            .map(|p| profile_of(content, p))
             .unwrap_or("pragmatist");
         if full {
             buy_ads(state, content, id, profile, &mut memo);
@@ -444,10 +449,12 @@ pub fn take_turn(state: &mut State, content: &ContentBundle, m: u32, full: bool)
             };
             act(state, content, id, action, &x, &mut rng);
             // The same visible work counts toward NPC records.
+            let g = &content.career.record_gain;
             let rec = match action {
-                AiAction::ProposeBill => 0.12,
-                AiAction::TownHall | AiAction::Canvass => 0.06,
-                AiAction::Lobby => 0.03,
+                AiAction::ProposeBill => g.introduce as f32,
+                AiAction::TownHall => g.town_hall as f32,
+                AiAction::Canvass => g.canvass as f32,
+                AiAction::Lobby => g.lobby as f32,
                 _ => 0.0,
             };
             crate::politics::add_record(&mut state.politics, id, rec);
@@ -460,13 +467,17 @@ pub fn take_turn(state: &mut State, content: &ContentBundle, m: u32, full: bool)
                 AiAction::Fundraise | AiAction::Advertise => {
                     let funds = state.politics.get(id).map(|p| p.funds).unwrap_or(0.0);
                     x.funds = clamp(
-                        funds / (content.politics.campaign.ad_cost as f64 * 4.0).max(1.0),
+                        funds
+                            / (content.politics.campaign.ad_cost as f64 * content.npc.funds_in_ads)
+                                .max(1.0),
                         0.0,
                         1.0,
                     );
                 }
-                AiAction::Lobby => x.bill_closeness *= 0.7,
-                AiAction::Canvass | AiAction::TownHall => x.unknown *= 0.9,
+                AiAction::Lobby => x.bill_closeness *= content.npc.lobby_closeness_keep,
+                AiAction::Canvass | AiAction::TownHall => {
+                    x.unknown *= content.npc.contact_unknown_keep
+                }
                 AiAction::Rest => {}
             }
         }
@@ -510,8 +521,9 @@ fn act(
                 .max_by(|a, b| a.1.total_cmp(&b.1))
                 .map(|(i, _)| i);
             if let Some(i) = best {
+                let th = &content.actions.town_hall;
                 let scale = if action == AiAction::TownHall {
-                    0.8 + 0.6 * oratory
+                    th.contact_base + th.contact_oratory * oratory
                 } else {
                     1.0
                 };
@@ -537,7 +549,8 @@ fn act(
             }
         }
         AiAction::Fundraise => {
-            let raised = rng.range_f64(1_500.0, 6_000.0) * (0.5 + oratory);
+            let [lo, hi] = content.actions.fundraise.raised;
+            let raised = rng.range_f64(lo, hi) * (0.5 + oratory);
             if let Some(p) = state.politics.get_mut(id) {
                 p.funds += raised;
             }
@@ -553,6 +566,7 @@ fn act(
                 return;
             };
             let leans = crate::policy::council_leans(
+                &content.council,
                 &state.world,
                 &state.population,
                 &state.politics,
@@ -565,24 +579,25 @@ fn act(
                 .iter()
                 .filter(|(p, _)| *p != id && state.politics.get(*p).is_some_and(|q| !q.is_player))
                 .map(|(p, l)| {
-                    let y = crate::policy::yes_probability(*l);
+                    let y = crate::policy::yes_probability(&content.council, *l);
                     let room = if dir > 0.0 { 1.0 - y } else { y };
                     (*p, room * (1.0 - (y - 0.5).abs()))
                 })
                 .max_by(|a, b| a.1.total_cmp(&b.1))
                 .map(|(p, _)| p);
             let Some(target) = target else { return };
-            let odds = lobby_odds_between(state, id, target, false);
+            let odds = lobby_odds_between(state, content, id, target, false);
             let negotiation = state
                 .politics
                 .get(id)
                 .map(|p| p.negotiation as f64)
                 .unwrap_or(0.5);
             let success = rng.chance(odds);
+            let lp = &content.council.lobby;
             let gain = if success {
-                rng.range_f64(0.2, 0.35) * (0.5 + negotiation)
+                rng.range_f64(lp.gain[0], lp.gain[1]) * (0.5 + negotiation)
             } else {
-                0.04
+                lp.fail_gain
             };
             *state.politics.sway.entry((target.0, bill)).or_default() += (gain * dir) as f32;
         }
@@ -626,7 +641,10 @@ fn act(
                 params,
                 // NPC programmes are time-limited, so towns' agendas turn over.
                 clauses: vec![crate::policy::Clause::Sunset {
-                    years: 4 + rng.below(5) as u8,
+                    years: {
+                        let [lo, hi] = content.npc.bill_sunset_years;
+                        lo + rng.below((hi - lo) as u64 + 1) as u8
+                    },
                 }],
                 status: PolicyStatus::UnderConsideration,
                 stage: 0,
@@ -635,7 +653,7 @@ fn act(
                 introduced_on: Some(date),
                 enacted_on: None,
                 progress: 0.0,
-                awareness: 0.15,
+                awareness: content.actions.introduce.awareness as f32,
                 end_reason: None,
                 cause: Some(ev),
                 ledger: BTreeMap::new(),
@@ -675,15 +693,20 @@ fn buy_ads(
             .map(|c| curve(c.curve, x.get(c.input)))
             .product::<f64>();
     let cost = content.politics.campaign.ad_cost as f64;
-    let buys = if score > 0.5 {
+    let np = &content.npc;
+    let buys = if score > np.two_ads_above {
         2
-    } else if score > 0.25 {
+    } else if score > np.one_ad_above {
         1
     } else {
         0
     };
     for n in 0..buys.min(crate::actions::MAX_ADS_PER_TURN) {
-        if state.politics.get(id).is_none_or(|p| p.funds < cost * 1.5) {
+        if state
+            .politics
+            .get(id)
+            .is_none_or(|p| p.funds < cost * np.ad_reserve)
+        {
             break;
         }
         if let Some(p) = state.politics.get_mut(id) {
@@ -705,6 +728,7 @@ fn buy_ads(
 /// of the player's personal standing for NPC-to-NPC deals).
 pub fn lobby_odds_between(
     state: &State,
+    content: &ContentBundle,
     actor: PoliticianId,
     target: PoliticianId,
     late_night: bool,
@@ -712,18 +736,21 @@ pub fn lobby_odds_between(
     let (Some(me), Some(t)) = (state.politics.get(actor), state.politics.get(target)) else {
         return 0.0;
     };
-    let skill = me.negotiation as f64 * 0.6 + me.oratory as f64 * 0.4;
+    let l = &content.council.lobby;
+    let skill = me.negotiation as f64 * l.skill_negotiation + me.oratory as f64 * l.skill_oratory;
     let ties = if me.is_player {
-        t.opinion_of_player as f64 / 50.0
+        t.opinion_of_player as f64 / l.opinion_scale
     } else if me.party.is_some() && me.party == t.party {
-        0.3
+        l.same_party
     } else {
-        -0.1
+        l.other_party
     };
-    let x = (skill - 0.5) * 3.0 + t.pragmatism as f64 * 1.5 - 0.6
+    let x = (skill - 0.5) * l.skill_scale
+        + t.pragmatism as f64 * l.pragmatism
+        + l.bias
         + ties
-        + if late_night { 0.35 } else { 0.0 };
-    clamp(sigmoid(x), 0.08, 0.92)
+        + if late_night { l.late_night } else { 0.0 };
+    clamp(sigmoid(x), l.odds_min, l.odds_max)
 }
 
 /// Every municipality's NPCs (burn-in and abstracted towns).

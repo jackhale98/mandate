@@ -34,6 +34,16 @@ pub enum ContentFile {
     Policies { items: Vec<PolicyTemplate> },
     /// Parties, elections, polls, campaigns, and NPC AI (DEC-027 to DEC-030, DEC-071).
     Politics { value: Box<PoliticsParams> },
+    /// Opinion dynamics: how conditions and laws move approval (DEC-025, DEC-078).
+    Opinion { value: OpinionParams },
+    /// Player action effects and risks (DEC-073, DEC-078).
+    Actions { value: Box<ActionParams> },
+    /// Council leans, mayoral signatures, and lobbying odds (DEC-026, DEC-078).
+    Council { value: CouncilParams },
+    /// Records, Standing, Mandate, and name recognition (DEC-011, DEC-076, DEC-078).
+    Career { value: CareerParams },
+    /// NPC AI balance numbers beside the utility curves in `politics.ai` (DEC-030, DEC-078).
+    Npc { value: NpcParams },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -983,6 +993,35 @@ pub struct VoteParams {
     pub record_baseline: f64,
     /// Below this Standing the party will not renominate its own officeholder.
     pub renomination_standing: f64,
+    /// Perceived position on a partisan ballot: the candidate's own views and
+    /// their party's platform, blended with these weights.
+    pub perceived_own_weight: f64,
+    pub perceived_party_weight: f64,
+    /// Valence: weight of oratory and of integrity (each around its midpoint).
+    pub valence_oratory: f64,
+    pub valence_integrity: f64,
+    /// Share of the incumbent's record carried by the governing party's new nominee.
+    pub governing_party_record: f64,
+    /// Weight of the town's benchmarked economy in retrospection, beside
+    /// approval of the local government.
+    pub retro_economy_weight: f64,
+    /// Retrospective signal per point of local unemployment change beyond the
+    /// national change over a year (clamped to ±1).
+    pub retro_unemployment_scale: f64,
+    /// Media attention on a town's record: a base, plus its share of the region's people.
+    pub media_base: f64,
+    pub media_town_share: f64,
+    /// Weight of voters' approval of the player in the player's own races.
+    pub player_approval_weight: f64,
+    /// Local viability of a candidate without a party.
+    pub independent_viability: f64,
+    /// Starting awareness: the player as incumbent and other sitting
+    /// officeholders in town (shares of `incumbent_awareness`), the bonus in a
+    /// candidate's home neighbourhood, and the cap.
+    pub player_incumbent_awareness: f64,
+    pub officeholder_awareness: f64,
+    pub home_awareness_bonus: f64,
+    pub awareness_cap: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -995,6 +1034,10 @@ pub struct TurnoutParams {
     pub habit: f64,
     /// Extra turnout from a fully mobilised neighbourhood.
     pub mobilisation_max: f64,
+    /// After an election, each cohort's habit is its neighbourhood's turnout ×
+    /// (`habit_base` + `habit_propensity` × its own turnout propensity).
+    pub habit_base: f64,
+    pub habit_propensity: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -1024,6 +1067,14 @@ pub struct CampaignParams {
     pub awareness_per_ad: f64,
     /// NPC campaign effort in abstracted races (contacts per week per candidate).
     pub npc_contacts_per_week: f64,
+    /// Abstracted NPC effort scales with `npc_effort_base` + oratory.
+    pub npc_effort_base: f64,
+    /// Share of recent contacts remembered each week (diminishing returns recover).
+    pub contact_memory: f64,
+    /// Each further ad in a turn is worth this fraction of the last.
+    pub ad_saturation: f64,
+    /// Persuasion of one ad buy, as a share of one canvass contact's.
+    pub ad_persuasion_share: f64,
 }
 
 /// Mover–stayer party attachment (DEC-071 §3).
@@ -1038,6 +1089,350 @@ pub struct PartyIdParams {
     pub mover_rate: f64,
     /// Sharpness of attachment by ideological distance.
     pub sharpness: f64,
+    /// Credit or blame for the party running the town hall: attachment to it
+    /// scales by 1 + (approval − 0.5) × this.
+    pub governing_credit: f64,
+}
+
+// --- Balance parameter blocks (DEC-078 decision 1) ---------------------------
+// Numbers we expect to tune live here, one block per system; structural
+// constants (midpoints, unit conversions, array sizes) stay in code. Ranges
+// are validated in `validate::param_ranges`. The lab overrides any of them
+// with `mandate-cli sweep|bots --set <kind>.<path>=<value>`.
+
+/// Monthly opinion dynamics (DEC-025): experienced conditions and reactions
+/// to laws and bills move approval of the local government and the player.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OpinionParams {
+    /// What residents experience, in approval units (tanh scale).
+    pub experience: ExperienceWeights,
+    /// Weight of a bill or law's anticipated reaction per unit of awareness.
+    pub policy_reaction: f64,
+    /// Weight of reactions to laws in government approval, beside experience.
+    pub law_reaction_weight: f64,
+    /// Monthly pull of government approval toward its target.
+    pub gov_approval_rate: f64,
+    /// Monthly pull of approval of the player toward reactions to their bills.
+    pub player_approval_rate: f64,
+    /// Sharpness of reactions to the player's bills.
+    pub player_reaction_scale: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExperienceWeights {
+    /// Per point of local unemployment rise beyond the national rise (a year).
+    pub unemployment: f64,
+    /// Per point of real rent growth (a year).
+    pub rent_growth: f64,
+    /// Per unit of service improvement from laws in effect.
+    pub services: f64,
+    /// While a disaster is recent.
+    pub disaster: f64,
+    /// Months a disaster stays recent.
+    pub disaster_months: u16,
+    /// Per unit of construction disruption.
+    pub disruption: f64,
+}
+
+/// Player action effects and risks (DEC-073). Time and health costs are in
+/// `tuning.action_costs`; record gains in `career.record_gain`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ActionParams {
+    /// Health a late-night action costs on top of its own cost.
+    pub late_night_health: f64,
+    pub vote: CouncilVoteEffects,
+    pub amend: AmendEffects,
+    pub introduce: IntroduceEffects,
+    pub lobby: LobbyEffects,
+    pub town_hall: TownHallEffects,
+    pub press: PressEffects,
+    pub canvass: CanvassEffects,
+    pub fundraise: FundraiseEffects,
+}
+
+/// The player's declared council vote.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CouncilVoteEffects {
+    /// Standing for voting with the party line, against it, and abstaining.
+    pub standing_loyal: f64,
+    pub standing_defy: f64,
+    pub standing_abstain: f64,
+    /// Ward approval per unit of alignment × (0.5 + bill awareness) × room.
+    pub ward_reaction: f64,
+    /// Ward approval change for abstaining.
+    pub ward_abstain: f64,
+    /// The sponsor's opinion of the player: a yes, a no, and a no while they
+    /// are owed a favour.
+    pub sponsor_yes: f64,
+    pub sponsor_no: f64,
+    pub sponsor_no_owed: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AmendEffects {
+    /// Share of the goodwill already built on a bill that survives an amendment.
+    pub sway_keep: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct IntroduceEffects {
+    /// Public awareness of a bill when it is introduced (player and NPCs).
+    pub awareness: f64,
+}
+
+/// The player's lobbying (the odds and the sway gained are in `council.lobby`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LobbyEffects {
+    /// Sway bought by trading a favour.
+    pub trade_gain: f64,
+    /// The target's opinion of the player after a success and a failure.
+    pub opinion_success: f64,
+    pub opinion_fail: f64,
+    /// Legal jeopardy of a late-night deal.
+    pub late_night_legal: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TownHallEffects {
+    /// Awareness gained: `awareness` × (`awareness_oratory_base` + oratory).
+    pub awareness: f64,
+    pub awareness_oratory_base: f64,
+    /// Approval nudge per unit of alignment with the bill discussed, and
+    /// without a bill.
+    pub bill_nudge: f64,
+    pub nudge: f64,
+    /// Approval nudge from a hostile crowd.
+    pub hostile_nudge: f64,
+    /// Bill awareness gained: `bill_awareness` × (0.5 + oratory).
+    pub bill_awareness: f64,
+    /// Campaign contact: (`contact_base` + `contact_oratory` × oratory), ×
+    /// `hostile_contact` when hostile. NPC town halls use the same scale.
+    pub contact_base: f64,
+    pub contact_oratory: f64,
+    pub hostile_contact: f64,
+    /// Chance of a hostile crowd: `risk_base` − `risk_approval` × the
+    /// player's net approval − `risk_government` × (government approval −
+    /// 0.5), within [`risk_min`, `risk_max`].
+    pub risk_base: f64,
+    pub risk_approval: f64,
+    pub risk_government: f64,
+    pub risk_min: f64,
+    pub risk_max: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PressEffects {
+    /// Town-wide awareness gained.
+    pub awareness: f64,
+    /// Approval lost to a gaffe, per unit of awareness.
+    pub gaffe_approval: f64,
+    /// Bill awareness gained.
+    pub bill_awareness: f64,
+    /// Campaign contact scale (everywhere in the race), unless there was a gaffe.
+    pub contact: f64,
+    /// Gaffe risk: `gaffe_base` + `gaffe_oratory` × (1 − oratory), within
+    /// [`gaffe_min`, `gaffe_max`].
+    pub gaffe_base: f64,
+    pub gaffe_oratory: f64,
+    pub gaffe_min: f64,
+    pub gaffe_max: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CanvassEffects {
+    /// Share of the remaining awareness gap closed.
+    pub awareness: f64,
+    /// Approval gained per unit of room.
+    pub approval: f64,
+    /// Campaign contact scale (a full day on the doorsteps).
+    pub contact: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FundraiseEffects {
+    /// Money raised: uniform in [min, max] × (0.5 + oratory). NPCs too.
+    pub raised: [f64; 2],
+    /// Standing gained (the party likes a fundraiser).
+    pub standing: f64,
+    /// Legal jeopardy of late-night fundraising.
+    pub late_night_legal: f64,
+    /// Approval lost among low-income voters, per unit of awareness.
+    pub donor_ties: f64,
+}
+
+/// How council members lean on bills, how mayors sign, and lobbying odds
+/// (DEC-026, DEC-071 §7). Shared by the player and NPCs.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CouncilParams {
+    /// A member's lean: own values (weighted by 1 − pragmatism), the ward's
+    /// support (by pragmatism), and the mayor's lean.
+    pub own_values: f64,
+    pub ward_support: f64,
+    pub mayor: f64,
+    /// Goodwill toward the player as sponsor, per 100 points of opinion.
+    pub player_opinion: f64,
+    /// Party discipline: the sponsor's party, and a rival party.
+    pub same_party: f64,
+    pub rival_party: f64,
+    /// Riders: a sunset, a pilot, each other ward's earmark, and an earmark
+    /// for the member's own ward.
+    pub sunset: f64,
+    pub pilot: f64,
+    pub foreign_earmark: f64,
+    pub own_earmark: f64,
+    /// Standard deviation of each member's idiosyncrasy per bill.
+    pub noise_sd: f64,
+    /// The mayor's lean on a bill: own values and the town's support.
+    pub mayor_own: f64,
+    pub mayor_public: f64,
+    /// Logistic slope from a lean to the chance of a yes vote.
+    pub vote_sharpness: f64,
+    /// Mayors sign unless their lean is below −`sign_bias`.
+    pub sign_bias: f64,
+    /// Public awareness a bill gains at enactment, and the share it loses each month.
+    pub enactment_awareness: f64,
+    pub awareness_fade: f64,
+    pub lobby: LobbyParams,
+}
+
+/// Lobbying odds and sway (player and NPCs alike).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LobbyParams {
+    /// Skill = `skill_negotiation` × negotiation + `skill_oratory` × oratory.
+    pub skill_negotiation: f64,
+    pub skill_oratory: f64,
+    /// Logit of success: `skill_scale` × (skill − 0.5) + `pragmatism` × the
+    /// target's pragmatism + `bias` + ties (+ `late_night`).
+    pub skill_scale: f64,
+    pub pragmatism: f64,
+    pub bias: f64,
+    /// Ties with the player: the target's opinion of them divided by this.
+    pub opinion_scale: f64,
+    /// Ties between NPCs: the same party, or not.
+    pub same_party: f64,
+    pub other_party: f64,
+    pub late_night: f64,
+    pub odds_min: f64,
+    pub odds_max: f64,
+    /// Sway gained on success: uniform in [min, max] × (0.5 + negotiation).
+    pub gain: [f64; 2],
+    /// Sway gained on failure.
+    pub fail_gain: f64,
+}
+
+/// Careers (DEC-011, DEC-076): the record of visible work, the party's
+/// patience, Mandate and viability, name recognition, and election results.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CareerParams {
+    /// Record gained per piece of visible work (the player and NPCs).
+    pub record_gain: RecordGains,
+    /// Share of every record lost each month.
+    pub record_fade: f64,
+    /// NPC officeholders' monthly record gain per unit of diligence, and the
+    /// weights of integrity and ambition in diligence.
+    pub npc_diligence_rate: f64,
+    pub diligence_integrity: f64,
+    pub diligence_ambition: f64,
+    /// Party patience: monthly Standing change below a thin record and above
+    /// a strong one.
+    pub thin_record: f64,
+    pub thin_record_standing: f64,
+    pub strong_record: f64,
+    pub strong_record_standing: f64,
+    /// Name recognition kept each month, and while the record is below
+    /// `invisible_record`.
+    pub invisible_record: f64,
+    pub awareness_keep: f64,
+    pub awareness_keep_invisible: f64,
+    /// Mandate: monthly pull toward 50 + `mandate_per_net_approval` × net
+    /// approval among the ward's voters.
+    pub mandate_rate: f64,
+    pub mandate_per_net_approval: f64,
+    /// Viability: monthly pull toward a mix of Mandate and Standing (this
+    /// share Standing).
+    pub viability_rate: f64,
+    pub viability_standing_share: f64,
+    /// Health recovered each month.
+    pub health_recovery: f64,
+    /// After a win: Mandate = `win_mandate_base` + `win_mandate_per_margin` ×
+    /// margin (at least `win_mandate_min`), and track gains.
+    pub win_mandate_base: f64,
+    pub win_mandate_per_margin: f64,
+    pub win_mandate_min: f64,
+    pub win_viability: f64,
+    pub win_standing: f64,
+    /// After a loss: viability changes by `loss_viability` +
+    /// `loss_viability_per_margin` × margin (margin ≥ −0.5), and Standing.
+    pub loss_viability: f64,
+    pub loss_viability_per_margin: f64,
+    pub loss_standing: f64,
+    /// Share of scandal damage kept each year.
+    pub scandal_keep_yearly: f64,
+    /// Officeholders' yearly war-chest income: base + per unit of oratory.
+    pub officeholder_funds: f64,
+    pub officeholder_funds_oratory: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RecordGains {
+    pub introduce: f64,
+    pub amend: f64,
+    pub vote: f64,
+    pub lobby: f64,
+    pub town_hall: f64,
+    pub canvass: f64,
+    pub press: f64,
+}
+
+/// NPC AI balance numbers (DEC-030). Scores and curves are in `politics.ai`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct NpcParams {
+    /// Strategic profile from traits: an ideologue below this pragmatism,
+    /// else a populist above this ambition, else a pragmatist.
+    pub ideologue_below: f64,
+    pub populist_above: f64,
+    /// A race is a dead heat at 0 and not close at this poll margin.
+    pub close_margin: f64,
+    /// Funds count as full at this many ad buys.
+    pub funds_in_ads: f64,
+    /// The council is busy at this many pending bills, or this many laws in force.
+    pub busy_pending: f64,
+    pub busy_laws: f64,
+    /// At most one bill of one's own in this many days.
+    pub bill_interval_days: u32,
+    /// Whip counts: yes votes of insurance wanted beyond the threshold, the
+    /// gap at which a count stops being close, and the weight of a count
+    /// already on the right side.
+    pub insurance_votes: f64,
+    pub safe_gap: f64,
+    pub comfortable_weight: f64,
+    /// Planning within a turn: closeness kept after lobbying, and the unknown
+    /// share kept after a contact.
+    pub lobby_closeness_keep: f64,
+    pub contact_unknown_keep: f64,
+    /// Ads: two buys above this ad score, one above this, and the reserve
+    /// (in ad costs) a candidate keeps.
+    pub two_ads_above: f64,
+    pub one_ad_above: f64,
+    pub ad_reserve: f64,
+    /// NPC bills sunset after this many years, [min, max].
+    pub bill_sunset_years: [u8; 2],
 }
 
 // ---- Position-preserving file wrappers -------------------------------------
@@ -1119,6 +1514,21 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "policies" => ContentFile::Policies {
             items: serde_json::from_str::<ItemsFile<PolicyTemplate>>(json)?.items,
+        },
+        "opinion" => ContentFile::Opinion {
+            value: serde_json::from_str::<ValueFile<OpinionParams>>(json)?.value,
+        },
+        "actions" => ContentFile::Actions {
+            value: Box::new(serde_json::from_str::<ValueFile<ActionParams>>(json)?.value),
+        },
+        "council" => ContentFile::Council {
+            value: serde_json::from_str::<ValueFile<CouncilParams>>(json)?.value,
+        },
+        "career" => ContentFile::Career {
+            value: serde_json::from_str::<ValueFile<CareerParams>>(json)?.value,
+        },
+        "npc" => ContentFile::Npc {
+            value: serde_json::from_str::<ValueFile<NpcParams>>(json)?.value,
         },
         other => {
             use serde::de::Error;

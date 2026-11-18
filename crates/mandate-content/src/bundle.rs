@@ -37,6 +37,12 @@ pub struct ContentBundle {
     pub constitutions: BTreeMap<ContentKey, ConstitutionDef>,
     pub policies: BTreeMap<ContentKey, PolicyTemplate>,
     pub politics: PoliticsParams,
+    /// Balance parameter blocks (DEC-078 decision 1), one file each.
+    pub opinion: OpinionParams,
+    pub actions: ActionParams,
+    pub council: CouncilParams,
+    pub career: CareerParams,
+    pub npc: NpcParams,
     /// Fluent sources by language, then by file path.
     pub locales: BTreeMap<String, BTreeMap<String, String>>,
     /// Hash over every source path and text, in path order (DEC-053).
@@ -129,6 +135,11 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut tuning: Option<(Tuning, String)> = None;
     let mut economy: Option<(EconomyParams, String)> = None;
     let mut politics: Option<(PoliticsParams, String)> = None;
+    let mut opinion: Option<(OpinionParams, String)> = None;
+    let mut actions: Option<(ActionParams, String)> = None;
+    let mut council: Option<(CouncilParams, String)> = None;
+    let mut career: Option<(CareerParams, String)> = None;
+    let mut npc: Option<(NpcParams, String)> = None;
     let mut constitutions: BTreeMap<ContentKey, ConstitutionDef> = BTreeMap::new();
     let mut policies: BTreeMap<ContentKey, PolicyTemplate> = BTreeMap::new();
     let mut sectors: Vec<SectorDef> = Vec::new();
@@ -184,7 +195,37 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                 true
             }
         };
+        // Single-value kinds (parameter blocks) may be defined once across packs.
+        fn once<T>(
+            slot: &mut Option<(T, String)>,
+            v: T,
+            kind: &str,
+            path: &str,
+            issues: &mut Vec<Issue>,
+        ) {
+            if let Some((_, prev)) = slot {
+                issues.push(Issue::error(
+                    path,
+                    &format!("{kind} defined twice (first in {prev})"),
+                ));
+            } else {
+                *slot = Some((v, path.to_string()));
+            }
+        }
         match file {
+            ContentFile::Opinion { value } => {
+                once(&mut opinion, value, "opinion", &src.path, &mut issues)
+            }
+            ContentFile::Actions { value } => {
+                once(&mut actions, *value, "actions", &src.path, &mut issues)
+            }
+            ContentFile::Council { value } => {
+                once(&mut council, value, "council", &src.path, &mut issues)
+            }
+            ContentFile::Career { value } => {
+                once(&mut career, value, "career", &src.path, &mut issues)
+            }
+            ContentFile::Npc { value } => once(&mut npc, value, "npc", &src.path, &mut issues),
             ContentFile::Pack(p) => {
                 if claim(&p.id, &mut issues) {
                     packs.push(p);
@@ -282,6 +323,20 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         issues.push(Issue::error("<content>", "no politics file found"));
         return Err(issues);
     };
+    let (
+        Some((opinion, _)),
+        Some((actions, _)),
+        Some((council, _)),
+        Some((career, _)),
+        Some((npc, _)),
+    ) = (opinion, actions, council, career, npc)
+    else {
+        issues.push(Issue::error(
+            "<content>",
+            "the opinion, actions, council, career, and npc parameter files are all required",
+        ));
+        return Err(issues);
+    };
     packs.sort_by(|a, b| (a.load_order, &a.id).cmp(&(b.load_order, &b.id)));
     // Resolve keyed policy signatures to dense registry order (unknown keys
     // are reported by validation).
@@ -311,6 +366,11 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         constitutions,
         policies,
         politics,
+        opinion,
+        actions,
+        council,
+        career,
+        npc,
         locales,
         content_hash,
     };

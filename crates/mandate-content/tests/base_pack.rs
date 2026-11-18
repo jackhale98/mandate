@@ -149,3 +149,71 @@ fn embedded_matches_disk() {
         assert_eq!(disk, emb);
     }
 }
+
+/// Errors from loading `sources`, as one string.
+fn errors(sources: &[Source]) -> String {
+    match load(sources) {
+        Ok(_) => String::new(),
+        Err(issues) => issues
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join("\n"),
+    }
+}
+
+/// Replace `from` with `to` in the base file at `path` (exactly once).
+fn edited(path: &str, from: &str, to: &str) -> Vec<Source> {
+    let mut s = base_sources();
+    let f = s.iter_mut().find(|x| x.path == path).unwrap();
+    assert_eq!(f.text.matches(from).count(), 1, "{from}");
+    f.text = f.text.replace(from, to);
+    s
+}
+
+#[test]
+fn balance_parameter_blocks_are_validated() {
+    // DEC-078 decision 1: every block is required, and out-of-range values
+    // are reported with their path.
+    let b = load(&base_sources()).unwrap().0;
+    assert_eq!(b.opinion.gov_approval_rate, 0.08);
+    assert_eq!(b.council.lobby.gain, [0.2, 0.35]);
+    assert_eq!(b.career.record_gain.introduce, 0.12);
+    assert_eq!(b.npc.bill_sunset_years, [4, 8]);
+
+    let e = errors(&edited(
+        "base/opinion.jsonc",
+        "\"gov_approval_rate\": 0.08",
+        "\"gov_approval_rate\": 1.5",
+    ));
+    assert!(
+        e.contains("opinion.gov_approval_rate = 1.5 outside [0, 1]"),
+        "{e}"
+    );
+    let e = errors(&edited(
+        "base/council.jsonc",
+        "\"gain\": [0.2, 0.35]",
+        "\"gain\": [0.35, 0.2]",
+    ));
+    assert!(e.contains("council.lobby.gain must be [min, max]"), "{e}");
+    let e = errors(&edited(
+        "base/actions.jsonc",
+        "\"contact\": 1.6,",
+        "\"contact\": 1.6, \"contakt\": 2,",
+    ));
+    assert!(e.contains("unknown field `contakt`"), "{e}");
+    let mut s = base_sources();
+    s.retain(|x| x.path != "base/career.jsonc");
+    assert!(errors(&s).contains("parameter files are all required"));
+    let mut s = base_sources();
+    let npc = s
+        .iter()
+        .find(|x| x.path == "base/npc.jsonc")
+        .unwrap()
+        .clone();
+    s.push(Source {
+        path: "zz/npc.jsonc".into(),
+        text: npc.text,
+    });
+    assert!(errors(&s).contains("npc defined twice"));
+}

@@ -7,7 +7,7 @@ use mandate_content::{ParamDef, TierKey};
 use mandate_sim::actions::{lobby_odds, player_powers};
 use mandate_sim::policy::{
     Clause, PolicyInstance, PolicyStatus, council_leans, mayor_lean, public_support,
-    support_by_class, yes_probability,
+    sign_probability, support_by_class, yes_probability,
 };
 use mandate_sim::politics::{Politician, Role};
 use mandate_sim::world::{ConstituencyId, MunicipalityId};
@@ -424,7 +424,15 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let hoods: Vec<usize> = st.world.hoods_of(MunicipalityId(p.jurisdiction)).collect();
     let pending = p.status == PolicyStatus::UnderConsideration || p.status == PolicyStatus::Draft;
     let leans = if pending {
-        council_leans(&st.world, &st.population, &st.politics, st.meta.seed, t, p)
+        council_leans(
+            &content.council,
+            &st.world,
+            &st.population,
+            &st.politics,
+            st.meta.seed,
+            t,
+            p,
+        )
     } else {
         Vec::new()
     };
@@ -432,7 +440,7 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
         .iter()
         .filter_map(|(id, lean)| {
             let m = st.politics.get(*id)?;
-            let prob = yes_probability(*lean);
+            let prob = yes_probability(&content.council, *lean);
             Some(WhipView {
                 politician: id.0,
                 name: full_name(m),
@@ -446,12 +454,12 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
                 lobby_odds: if m.is_player {
                     0.0
                 } else {
-                    lobby_odds(st, *id, false)
+                    lobby_odds(st, content, *id, false)
                 },
                 lobby_odds_late: if m.is_player {
                     0.0
                 } else {
-                    lobby_odds(st, *id, true)
+                    lobby_odds(st, content, *id, true)
                 },
                 is_player: m.is_player,
             })
@@ -475,8 +483,17 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
         None
     };
     let mayor = if pending {
-        yes_probability(
-            mayor_lean(&st.world, &st.population, &st.politics, st.meta.seed, t, p) + 0.15,
+        sign_probability(
+            &content.council,
+            mayor_lean(
+                &content.council,
+                &st.world,
+                &st.population,
+                &st.politics,
+                st.meta.seed,
+                t,
+                p,
+            ),
         )
     } else {
         1.0
@@ -717,7 +734,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
             },
             can_propose,
             slot_cap: pl.slot_cap() as u32,
-            press_gaffe_risk: mandate_sim::actions::press_gaffe_risk(st),
+            press_gaffe_risk: mandate_sim::actions::press_gaffe_risk(st, content),
             ads_left: mandate_sim::actions::MAX_ADS_PER_TURN.saturating_sub(pl.ads_this_turn)
                 as u32,
             ad_cost: content.politics.campaign.ad_cost as f64,
@@ -805,7 +822,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
             town_hall_risk: mu
                 .neighborhoods
                 .iter()
-                .map(|h| mandate_sim::actions::town_hall_risk(st, h.0))
+                .map(|h| mandate_sim::actions::town_hall_risk(st, content, h.0))
                 .collect(),
         },
         date: DateView::of(st.calendar.date),

@@ -9,7 +9,7 @@ use crate::politics::{PoliticianId, Role};
 use crate::state::State;
 use crate::world::{ConstituencyId, MunicipalityId, Tier};
 use mandate_content::{Constituency, ContentBundle, Power, Selection, TierKey};
-use mandate_core::math::{clamp, sigmoid};
+use mandate_core::math::clamp;
 use mandate_core::{Money, Stream};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -156,19 +156,18 @@ pub fn player_powers(state: &State, content: &ContentBundle) -> Vec<Power> {
     }
 }
 
-/// Lobbying success odds shown to the player before acting.
-pub fn lobby_odds(state: &State, target: PoliticianId, late_night: bool) -> f64 {
-    let (Some(pl), Some(t)) = (state.player.as_ref(), state.politics.get(target)) else {
+/// Lobbying success odds shown to the player before acting (the same
+/// formula as NPC deals, `npc::lobby_odds_between`).
+pub fn lobby_odds(
+    state: &State,
+    content: &ContentBundle,
+    target: PoliticianId,
+    late_night: bool,
+) -> f64 {
+    let Some(pl) = state.player.as_ref() else {
         return 0.0;
     };
-    let Some(me) = state.politics.get(pl.politician) else {
-        return 0.0;
-    };
-    let skill = me.negotiation as f64 * 0.6 + me.oratory as f64 * 0.4;
-    let x = (skill - 0.5) * 3.0 + t.pragmatism as f64 * 1.5 - 0.6
-        + t.opinion_of_player as f64 / 50.0
-        + if late_night { 0.35 } else { 0.0 };
-    clamp(sigmoid(x), 0.08, 0.92)
+    crate::npc::lobby_odds_between(state, content, pl.politician, target, late_night)
 }
 
 fn validate_params(
@@ -207,7 +206,7 @@ fn spend(
             return Err(bad("late night already used this turn"));
         }
         pl.late_night_used = true;
-        pl.tracks.health = (pl.tracks.health - 8.0).max(0.0);
+        pl.tracks.health = (pl.tracks.health - content.actions.late_night_health as f32).max(0.0);
     } else {
         if pl.slots_left() < cost.slots {
             return Err(bad("not enough time left this turn"));
@@ -219,19 +218,24 @@ fn spend(
 }
 
 /// Chance a press statement turns into a gaffe (shown before acting).
-pub fn press_gaffe_risk(state: &State) -> f64 {
+pub fn press_gaffe_risk(state: &State, content: &ContentBundle) -> f64 {
     let oratory = state
         .player
         .as_ref()
         .and_then(|p| state.politics.get(p.politician))
         .map(|p| p.oratory as f64)
         .unwrap_or(0.5);
-    clamp(0.05 + 0.3 * (1.0 - oratory), 0.05, 0.35)
+    let p = &content.actions.press;
+    clamp(
+        p.gaffe_base + p.gaffe_oratory * (1.0 - oratory),
+        p.gaffe_min,
+        p.gaffe_max,
+    )
 }
 
 /// Chance a town hall turns hostile in a neighbourhood: likelier where the
 /// player and the town hall are unpopular (shown before acting).
-pub fn town_hall_risk(state: &State, hood: u32) -> f64 {
+pub fn town_hall_risk(state: &State, content: &ContentBundle, hood: u32) -> f64 {
     let Some(h) = state.population.hoods.get(hood as usize) else {
         return 0.0;
     };
@@ -244,7 +248,12 @@ pub fn town_hall_risk(state: &State, hood: u32) -> f64 {
     }
     let ap = ap / n.max(1.0);
     let gov = gov / n.max(1.0);
-    clamp(0.2 - 0.8 * ap - 0.4 * (gov - 0.5), 0.05, 0.6)
+    let t = &content.actions.town_hall;
+    clamp(
+        t.risk_base - t.risk_approval * ap - t.risk_government * (gov - 0.5),
+        t.risk_min,
+        t.risk_max,
+    )
 }
 
 /// What the player's party expects on a bill: +1 yes, −1 no, 0 free vote.
@@ -423,15 +432,24 @@ pub fn apply(
                 Vote::Abstain => 0.0,
             };
             state.politics.declared_votes.insert(key, sign as i8);
-            crate::politics::add_record(&mut state.politics, pl.politician, 0.04);
+            let fx = &content.actions.vote;
+            crate::politics::add_record(
+                &mut state.politics,
+                pl.politician,
+                content.career.record_gain.vote as f32,
+            );
             // Party: loyalty is noticed a little, rebellion a lot.
             if let Some(pls) = state.player.as_mut() {
                 let d = if line == 0 || *vote == Vote::Abstain {
-                    if *vote == Vote::Abstain { -1.0 } else { 0.0 }
+                    if *vote == Vote::Abstain {
+                        fx.standing_abstain
+                    } else {
+                        0.0
+                    }
                 } else if (line as f64) == sign {
-                    1.0
+                    fx.standing_loyal
                 } else {
-                    -6.0
+                    fx.standing_defy
                 };
                 pls.tracks.standing = clamp(pls.tracks.standing as f64 + d, 0.0, 100.0) as f32;
             }
@@ -441,9 +459,9 @@ pub fn apply(
                     let a = crate::politics::alignment(&sig, &c.attitudes);
                     let room = 1.0 - (c.player_approval as f64).abs();
                     let delta = if *vote == Vote::Abstain {
-                        -0.01
+                        fx.ward_abstain
                     } else {
-                        0.06 * a * sign * (0.5 + awareness) * room
+                        fx.ward_reaction * a * sign * (0.5 + awareness) * room
                     };
                     c.player_approval = clamp(c.player_approval as f64 + delta, -1.0, 1.0) as f32;
                 }
@@ -456,14 +474,19 @@ pub fn apply(
                 match vote {
                     Vote::Yes => {
                         sp.opinion_of_player =
-                            clamp(sp.opinion_of_player as f64 + 5.0, -100.0, 100.0) as f32;
+                            clamp(sp.opinion_of_player as f64 + fx.sponsor_yes, -100.0, 100.0)
+                                as f32;
                         if sp.favors < 0 {
                             sp.favors += 1;
                             res.args.insert("repaid".into(), sp.full_name());
                         }
                     }
                     Vote::No => {
-                        let hit = if sp.favors < 0 { 15.0 } else { 5.0 };
+                        let hit = if sp.favors < 0 {
+                            fx.sponsor_no_owed
+                        } else {
+                            fx.sponsor_no
+                        };
                         sp.opinion_of_player =
                             clamp(sp.opinion_of_player as f64 - hit, -100.0, 100.0) as f32;
                     }
@@ -544,11 +567,16 @@ pub fn apply(
             validate_clauses(state, m, clauses)?;
             if status == PolicyStatus::UnderConsideration {
                 spend(state, content, "amend", false)?;
-                crate::politics::add_record(&mut state.politics, pl.politician, 0.02);
-                // Amendments cost goodwill already built: halve existing sway.
+                crate::politics::add_record(
+                    &mut state.politics,
+                    pl.politician,
+                    content.career.record_gain.amend as f32,
+                );
+                // Amendments cost goodwill already built.
+                let keep = content.actions.amend.sway_keep as f32;
                 for (k, v) in state.politics.sway.iter_mut() {
                     if k.1 == *policy {
-                        *v *= 0.5;
+                        *v *= keep;
                     }
                 }
             }
@@ -571,7 +599,11 @@ pub fn apply(
                 .map(|p| p.deliberation_days)
                 .unwrap_or(21);
             spend(state, content, "introduce", false)?;
-            crate::politics::add_record(&mut state.politics, pl.politician, 0.12);
+            crate::politics::add_record(
+                &mut state.politics,
+                pl.politician,
+                content.career.record_gain.introduce as f32,
+            );
             let ev = state.events.record(
                 date,
                 EventKind::PolicyIntroduced {
@@ -585,7 +617,7 @@ pub fn apply(
                 p.status = PolicyStatus::UnderConsideration;
                 p.introduced_on = Some(date);
                 p.next_stage_on = Some(date.add_days(days as u32));
-                p.awareness = 0.15;
+                p.awareness = content.actions.introduce.awareness as f32;
                 p.cause = Some(ev);
             }
             res.outcome_key = "outcome-introduced".into();
@@ -646,7 +678,7 @@ pub fn apply(
                     if matches!(action, Action::TradeFavor { .. }) && t.favors <= -MAX_FAVOR_DEBT {
                         return Err(bad("you already owe them too much"));
                     }
-                    let odds = lobby_odds(state, target, *late_night);
+                    let odds = lobby_odds(state, content, target, *late_night);
                     let negotiation = state
                         .politics
                         .get(pl.politician)
@@ -662,16 +694,22 @@ pub fn apply(
                         },
                         *late_night,
                     )?;
-                    crate::politics::add_record(&mut state.politics, pl.politician, 0.03);
+                    crate::politics::add_record(
+                        &mut state.politics,
+                        pl.politician,
+                        content.career.record_gain.lobby as f32,
+                    );
                     let rng = state.rng.get(Stream::Player);
                     let trade = matches!(action, Action::TradeFavor { .. });
                     let success = trade || rng.chance(odds);
+                    let lp = &content.council.lobby;
+                    let fx = &content.actions.lobby;
                     let gain = if trade {
-                        0.35
+                        fx.trade_gain
                     } else if success {
-                        rng.range_f64(0.2, 0.35) * (0.5 + negotiation)
+                        rng.range_f64(lp.gain[0], lp.gain[1]) * (0.5 + negotiation)
                     } else {
-                        0.04
+                        lp.fail_gain
                     };
                     *state
                         .politics
@@ -683,14 +721,20 @@ pub fn apply(
                             t.favors -= 1;
                         }
                         t.opinion_of_player = clamp(
-                            t.opinion_of_player as f64 + if success { 3.0 } else { -2.0 },
+                            t.opinion_of_player as f64
+                                + if success {
+                                    fx.opinion_success
+                                } else {
+                                    fx.opinion_fail
+                                },
                             -100.0,
                             100.0,
                         ) as f32;
                     }
                     if *late_night && let Some(p) = state.player.as_mut() {
                         // Back-room deals carry legal exposure (DEC-006).
-                        p.tracks.legal_jeopardy = (p.tracks.legal_jeopardy + 1.5).min(100.0);
+                        p.tracks.legal_jeopardy =
+                            (p.tracks.legal_jeopardy + fx.late_night_legal as f32).min(100.0);
                     }
                     res.outcome_key = if trade {
                         "outcome-favor-traded"
@@ -722,9 +766,14 @@ pub fn apply(
                     if let Some(id) = policy {
                         local_policy(state, *id)?;
                     }
-                    let risk = town_hall_risk(state, *neighborhood);
+                    let risk = town_hall_risk(state, content, *neighborhood);
                     spend(state, content, "town_hall", false)?;
-                    crate::politics::add_record(&mut state.politics, pl.politician, 0.06);
+                    crate::politics::add_record(
+                        &mut state.politics,
+                        pl.politician,
+                        content.career.record_gain.town_hall as f32,
+                    );
+                    let fx = &content.actions.town_hall;
                     let hostile = state.rng.get(Stream::Player).chance(risk);
                     let oratory = state
                         .politics
@@ -739,26 +788,33 @@ pub fn apply(
                         .cohorts
                         .iter_mut()
                     {
-                        c.player_awareness =
-                            clamp(c.player_awareness as f64 + 0.25 * (0.6 + oratory), 0.0, 1.0)
-                                as f32;
+                        c.player_awareness = clamp(
+                            c.player_awareness as f64
+                                + fx.awareness * (fx.awareness_oratory_base + oratory),
+                            0.0,
+                            1.0,
+                        ) as f32;
                         let nudge = sig
                             .as_ref()
-                            .map(|s| crate::politics::alignment(s, &c.attitudes) * 0.05)
-                            .unwrap_or(0.02);
+                            .map(|s| crate::politics::alignment(s, &c.attitudes) * fx.bill_nudge)
+                            .unwrap_or(fx.nudge);
                         let room = 1.0 - (c.player_approval as f64).abs();
                         // A hostile crowd: people still learn your name, but not kindly.
-                        let nudge = if hostile { -0.04 } else { nudge };
+                        let nudge = if hostile { fx.hostile_nudge } else { nudge };
                         c.player_approval =
                             clamp(c.player_approval as f64 + nudge * room, -1.0, 1.0) as f32;
                     }
                     if let Some(id) = policy
                         && let Some(p) = state.policy.instances.get_mut(*id as usize)
                     {
-                        p.awareness =
-                            clamp(p.awareness as f64 + 0.12 * (0.5 + oratory), 0.0, 1.0) as f32;
+                        p.awareness = clamp(
+                            p.awareness as f64 + fx.bill_awareness * (0.5 + oratory),
+                            0.0,
+                            1.0,
+                        ) as f32;
                     }
-                    let scale = (0.8 + 0.6 * oratory) * if hostile { 0.4 } else { 1.0 };
+                    let scale = (fx.contact_base + fx.contact_oratory * oratory)
+                        * if hostile { fx.hostile_contact } else { 1.0 };
                     campaign_contact(state, content, Some(*neighborhood), scale);
                     res.outcome_key = if hostile {
                         "outcome-town-hall-hostile"
@@ -777,18 +833,24 @@ pub fn apply(
                     if let Some(id) = policy {
                         local_policy(state, *id)?;
                     }
-                    let risk = press_gaffe_risk(state);
+                    let risk = press_gaffe_risk(state, content);
                     spend(state, content, "press", false)?;
-                    crate::politics::add_record(&mut state.politics, pl.politician, 0.03);
+                    crate::politics::add_record(
+                        &mut state.politics,
+                        pl.politician,
+                        content.career.record_gain.press as f32,
+                    );
+                    let fx = &content.actions.press;
                     let gaffe = state.rng.get(Stream::Player).chance(risk);
                     let hoods: Vec<usize> = state.world.hoods_of(MunicipalityId(m)).collect();
                     for h in hoods {
                         for c in state.population.hoods[h].cohorts.iter_mut() {
                             c.player_awareness =
-                                clamp(c.player_awareness as f64 + 0.06, 0.0, 1.0) as f32;
+                                clamp(c.player_awareness as f64 + fx.awareness, 0.0, 1.0) as f32;
                             if gaffe {
                                 c.player_approval = clamp(
-                                    c.player_approval as f64 - 0.03 * c.player_awareness as f64,
+                                    c.player_approval as f64
+                                        - fx.gaffe_approval * c.player_awareness as f64,
                                     -1.0,
                                     1.0,
                                 ) as f32;
@@ -798,10 +860,11 @@ pub fn apply(
                     if let Some(id) = policy
                         && let Some(p) = state.policy.instances.get_mut(*id as usize)
                     {
-                        p.awareness = clamp(p.awareness as f64 + 0.15, 0.0, 1.0) as f32;
+                        p.awareness =
+                            clamp(p.awareness as f64 + fx.bill_awareness, 0.0, 1.0) as f32;
                     }
                     if !gaffe {
-                        campaign_contact(state, content, None, 0.25);
+                        campaign_contact(state, content, None, fx.contact);
                     }
                     res.outcome_key = if gaffe {
                         "outcome-press-gaffe"
@@ -820,7 +883,12 @@ pub fn apply(
                         return Err(bad("that neighbourhood is not in your town"));
                     }
                     spend(state, content, "canvass", false)?;
-                    crate::politics::add_record(&mut state.politics, pl.politician, 0.06);
+                    crate::politics::add_record(
+                        &mut state.politics,
+                        pl.politician,
+                        content.career.record_gain.canvass as f32,
+                    );
+                    let fx = &content.actions.canvass;
                     for c in state.population.hoods[*neighborhood as usize]
                         .cohorts
                         .iter_mut()
@@ -828,13 +896,13 @@ pub fn apply(
                         // Contact mostly builds recognition; persuasion is small,
                         // saturating, and decays (DEC-071 §5).
                         let aw = c.player_awareness as f64;
-                        c.player_awareness = clamp(aw + 0.45 * (1.0 - aw), 0.0, 1.0) as f32;
+                        c.player_awareness = clamp(aw + fx.awareness * (1.0 - aw), 0.0, 1.0) as f32;
                         let room = 1.0 - (c.player_approval as f64).abs();
                         c.player_approval =
-                            clamp(c.player_approval as f64 + 0.02 * room, -1.0, 1.0) as f32;
+                            clamp(c.player_approval as f64 + fx.approval * room, -1.0, 1.0) as f32;
                     }
                     // A full day on the doorsteps: deeper than any other contact.
-                    campaign_contact(state, content, Some(*neighborhood), 1.6);
+                    campaign_contact(state, content, Some(*neighborhood), fx.contact);
                     res.outcome_key = "outcome-canvass".into();
                     res.args.insert(
                         "place".into(),
@@ -850,15 +918,20 @@ pub fn apply(
                         .get(pl.politician)
                         .map(|x| x.oratory)
                         .unwrap_or(0.5) as f64;
-                    let raised =
-                        state.rng.get(Stream::Player).range_f64(1_500.0, 6_000.0) * (0.5 + oratory);
+                    let fx = &content.actions.fundraise;
+                    let raised = state
+                        .rng
+                        .get(Stream::Player)
+                        .range_f64(fx.raised[0], fx.raised[1])
+                        * (0.5 + oratory);
                     let money = Money::from_units(raised as i64);
                     if let Some(p) = state.player.as_mut() {
                         p.money += money;
                         // The party likes a fundraiser; late-night money invites scrutiny.
-                        p.tracks.standing = (p.tracks.standing + 0.5).min(100.0);
+                        p.tracks.standing = (p.tracks.standing + fx.standing as f32).min(100.0);
                         if *late_night {
-                            p.tracks.legal_jeopardy = (p.tracks.legal_jeopardy + 1.0).min(100.0);
+                            p.tracks.legal_jeopardy =
+                                (p.tracks.legal_jeopardy + fx.late_night_legal as f32).min(100.0);
                         }
                     }
                     // Donor ties: low-income voters who know you notice who you court.
@@ -871,7 +944,8 @@ pub fn apply(
                             .filter(|(ci, _)| crate::population::class_of(*ci) == 0)
                         {
                             c.player_approval = clamp(
-                                c.player_approval as f64 - 0.01 * c.player_awareness as f64,
+                                c.player_approval as f64
+                                    - fx.donor_ties * c.player_awareness as f64,
                                 -1.0,
                                 1.0,
                             ) as f32;
