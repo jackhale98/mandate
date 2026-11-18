@@ -16,8 +16,10 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-007 | Constitution variability per run | Accepted |
 | DEC-008 | Save model: ironman vs. reloadable | Accepted |
 | DEC-009 | Presence model: embodied scenes + strategic layer | Accepted |
-| DEC-010 | Player role: politician first, administration mediated | Proposed (awaiting owner) |
-| DEC-011 | Player power & resource model | Proposed |
+| DEC-010 | Player role: politician first, administration mediated | Accepted |
+| DEC-011 | Player power & resource model | Accepted |
+| DEC-012 | Time model: discrete turns, phase-based cadence, time skips | Proposed (awaiting owner, D3) |
+| DEC-013 | Action economy: representative day, slots, delegation, commitments | Proposed (awaiting owner, D3) |
 
 ---
 
@@ -211,7 +213,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-010 — Player role: politician first, administration mediated
 
-- **Status:** Proposed. Awaiting owner.
+- **Status:** Accepted (owner, 2026-11-18): option A.
 - **Context:** Brief §3.1 and §4.4. Is the player a politician who persuades, an administrator who allocates, or both? This determines how direct policy control is at every level, and so the policy layer's design.
 - **Options:**
   - A. Politician first: power flows through people at every level. Even in executive office, policy goes through legislatures, agencies, and appointees, as set by the constitution.
@@ -228,7 +230,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-011 — Player power & resource model
 
-- **Status:** Proposed
+- **Status:** Accepted (owner, 2026-11-18), including the merge of legitimacy and political capital into Mandate
 - **Context:** Brief §4.2 and §4.4 list authority, influence, resources, legitimacy, and political capital, and warn against them becoming interchangeable currencies.
 - **Proposed decision:** Four distinct kinds of power, plus the risk side (DEC-006 pressure tracks).
 
@@ -243,3 +245,55 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Rationale:** Each kind of power answers a different question (may I, will the public back me, will *they* help me, can I afford it). Kinds do not convert one-to-one, though actions can trade between them with friction. Using the name "Mandate" ties the main meter to the game's title.
 - **Deviation from the brief:** "legitimacy" and "political capital" are merged into Mandate to reduce cognitive load. Elite acceptance is carried by Relationships.
 - **Dependencies:** DEC-006, DEC-010, D3 (action economy), D4, D8, D9.
+
+### DEC-012 — Time model: discrete turns, phase-based cadence, time skips
+
+- **Status:** Proposed. Awaiting owner (D3).
+- **Context:** DEC-005 sets real-time targets (turn 1–3 min, chapter 25–45 min). This decision sets how much calendar time a turn represents, and how skipped time works.
+- **Options:**
+  - A. Real-time with pause (RimWorld / Paradox).
+  - B. Discrete player-ended turns, fixed length throughout.
+  - C. Discrete turns whose calendar length depends on the phase, plus summarized time skips.
+- **Proposed decision:** C.
+  - **Discrete, player-ended turns.** Nothing happens while the player thinks. This suits mobile, determinism, and deliberate roguelike decisions.
+  - **Turn length by phase** (numbers are assumptions, to be tuned in the prototype):
+
+    | Phase | Turn spans | Notes |
+    |---|---|---|
+    | Campaign | 1 week | Final stretch: the last ~3 turns before election day become daily (tension ramp) |
+    | Governing (local/regional) | 2 weeks | A budget year or legislative session is one chapter |
+    | Governing (national/presidency) | 2–4 weeks | Crisis events can temporarily force shorter turns |
+
+  - **Resolution:** WEGO. Player actions spend slots during the turn. Conversations and other immediate effects resolve at once. Scheduled actions resolve at end of turn, together with NPC and institutional actions, then the system cadences run (brief §12.1 table).
+  - **Time skips** between chapters ("term in review"):
+    - The player sets standing directives (focus issues, voting stance, staff priorities, how cautious to be).
+    - The simulation fast-forwards with a player-proxy following those directives.
+    - **Interrupts** pull the player back in when a pressure track crosses a threshold, or when a critical event or decision occurs.
+    - A summary and the hub's visible changes show what happened.
+  - **Career clock:** roughly 4–8 in-game years per act, plus years lost to defeats or prison. A career spans ~25–35 years; with a start age of ~30–40, the player is ~55–70 at the presidency. This feeds the Age track (DEC-006).
+- **Rationale:** Compression where nothing is happening, detail where drama is. A tension ramp before elections. Interrupts keep skips from hiding run-ending events, which honors the DEC-006 fairness rules.
+- **Consequences:**
+  - The engine scheduler must support a variable turn length, with cadences expressed in calendar time, not turns.
+  - A player-proxy AI is required for skips (it can share logic with NPC politician AI).
+  - The narrative director must budget events per chapter, not per turn.
+- **Dependencies:** DEC-005, DEC-006, DEC-013, D5, D9, D11.
+
+### DEC-013 — Action economy: representative day, slots, delegation, commitments
+
+- **Status:** Proposed. Awaiting owner (D3).
+- **Context:** The brief (§4.2) asks for limited actions per turn, without tedium. DEC-009 requires actions to happen at places in the hub. DEC-011 lists time as a resource.
+- **Options:**
+  - A. Abstract action points per turn.
+  - B. Full calendar scheduling (week grid).
+  - C. A "representative day": each turn plays in the hub as one stylized day, with day-part slots, plus delegation and multi-turn commitments.
+- **Proposed decision:** C.
+  - **Slots:** Morning, Afternoon, Evening (standard), plus an optional **Late Night** slot. Late Night costs Health and raises the risk of some actions (private deals, off-record meetings), which suits backroom politics.
+  - Typical actions cost 1 slot; major ones cost 2. The hub's lighting and its NPC schedules follow the day-part: different people are at different places at different times.
+  - **Delegation:** staff provide extra delegated slots for suitable actions (canvassing, research, routine casework), with reduced effectiveness and their own risks (a staffer's mistake, or loyalty). Staff capacity is a Resource (DEC-011).
+  - **Commitments:** multi-turn efforts (drafting a bill, building a coalition, running an investigation) reserve slots in future turns until complete or abandoned.
+  - Slots per turn stay roughly constant across acts. What changes is what each slot can accomplish and which actions are available (Authority).
+- **Rationale:** Integrates time pressure with the walkable hub. A small, stable number of decisions per turn fits the 1–3 min turn target. Delegation scales with office without inflating micromanagement. Late Night gives a natural, risky source of extra effort.
+- **Consequences:**
+  - The engine needs an NPC schedule or availability model by day-part.
+  - Action definitions need slot cost, location, eligible participants, whether the action can be delegated, and duration (feeds the D7 and D9 content schemas).
+- **Dependencies:** DEC-009, DEC-011, DEC-012, D9, D12.
