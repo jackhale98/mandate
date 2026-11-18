@@ -11,9 +11,10 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-002 | Baseline non-negotiable constraints (brief §31) | Accepted |
 | DEC-003 | Discovery-before-implementation process | Accepted |
 | DEC-004 | Run shape & career structure: career in acts | Accepted |
-| DEC-005 | Nested time structure & target lengths | Proposed |
-| DEC-006 | Endings & victory structure | Proposed |
-| DEC-007 | Constitution variability per run | Proposed (awaiting owner) |
+| DEC-005 | Nested time structure & target lengths | Accepted |
+| DEC-006 | Endings, victory & run termination (rev. 2) | Proposed |
+| DEC-007 | Constitution variability per run | Accepted |
+| DEC-008 | Save model: ironman vs. reloadable | Proposed (awaiting owner) |
 
 ---
 
@@ -55,7 +56,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-005 — Nested time structure & target lengths
 
-- **Status:** Proposed
+- **Status:** Accepted (owner, 2026-11-18; no objection raised)
 - **Context:** Research (`research/RUN_PACING.md`) shows that retry motivation depends on how much a failure costs, and that session-sized resolution points matter. A career of 8–12 hours is long by roguelike standards.
 - **Options:**
   - A. One long run of 8–12 h with no inner structure.
@@ -83,24 +84,51 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Dependencies:** DEC-004, D3, D9.
 - **Revisit criteria:** Prototype playtests miss chapter or act timing by more than 50%.
 
-### DEC-006 — Endings & victory structure
+### DEC-006 — Endings, victory & run termination (revision 2)
 
-- **Status:** Proposed. The owner is open to alternatives to "win the midterms".
+- **Status:** Proposed. Revision 1 (layered endings with "no bare game over") drew an owner concern: a roguelike needs real, final failure. This revision adds terminal endings.
 - **Options:**
   - A. Single win: hold the legislature at the midterms.
   - B. Legacy score only.
   - C. Agenda/pledge completion.
-  - D. Layered: every run ends in a Legacy epilogue, and the summit victory is the **Mandate Test**, the first national verdict on your presidency as scheduled by the constitution.
-- **Proposed decision:** D. The Mandate Test is whichever national electoral event the constitution places first in the presidency: midterms in a staggered presidential system, the next general election or a confidence vote in a parliamentary one. "Mandate renewed" is the top ending.
-  - The Legacy epilogue scores offices reached, pledges kept, measured outcomes of enacted policies, relationships, and reputation, and grades the career. No run ends in a bare "game over".
-  - Pledges, meaning campaign promises tracked as measurable objectives, are a candidate mechanic (D2/D3). They tie Legacy to the game's name.
-- **Rationale:** Keeps a dramatic summit. Gives every failed career a meaningful conclusion (needed given DEC-005 run lengths). Separates the victory condition from any single constitutional system (resolves DISCOVERY C3).
-- **Dependencies:** DEC-007, D2, D4, D8.
-- **Revisit criteria:** Playtests show Legacy endings feel like consolation prizes, or the Mandate Test is too swingy.
+  - D1. Layered, with soft endings only (revision 1).
+  - D2. Layered, with hard terminal endings driven by visible pressure tracks (this revision).
+- **Proposed decision:** D2.
+  - **Summit:** the Mandate Test, the first national electoral verdict on the presidency, as scheduled by the constitution. Passing it is "Mandate renewed". Failing it ends the run.
+  - **Terminal endings (the run is over):**
+    - Death: assassination, or health.
+    - Long or life imprisonment, or legal disqualification from office (e.g. impeachment with a ban).
+    - Career-ending disgrace.
+    - Political wilderness: Viability exhausted by a landslide wipeout or repeated defeats.
+    - Time: age or the career clock runs out.
+    - Voluntary retirement.
+  - **Setbacks (survivable):**
+    - An election loss with Viability remaining. It costs years, because the player ages.
+    - A short prison sentence: out of politics for N years, reputation damage, a possible comeback arc.
+    - A scandal that is survived.
+    - Party expulsion: go independent or switch parties, if the constitution allows it.
+  - **Pressure tracks** act as the roguelike "hit points". Each terminal ending is the end state of a visible track. Candidate tracks:
+    - **Viability:** electability and party willingness to back you.
+    - **Legal Jeopardy:** investigations, evidence, prosecutor and court state.
+    - **Threat:** personal security risk, driven by polarization, enemies, and exposure.
+    - **Standing:** scandal exposure and public trust.
+    - **Age / career clock**, plus health.
+  - **Fairness rules:**
+    - No terminal ending without (1) a visible, elevated track, (2) at least one prior warning with a chance to respond, and (3) a causal explanation afterwards.
+    - No random "bolt from the blue" deaths by default. An optional hard modifier may relax this later.
+  - **Legacy epilogue:** still shown at every ending, as the run-summary screen. It grades the career and feeds meta-progression. It reports a failure; it does not soften it.
+- **Rationale:** Real stakes and final loss (roguelike identity). Failures are fair and readable (FTL-style visible hull). Real careers survive single defeats, so that alone is not terminal, but a landslide or repeated losses are. The aging clock adds mounting pressure, as the storm does in Against the Storm.
+- **Consequences:**
+  - The player character needs age and health.
+  - Justice-system and security models are needed (at least as abstracted tracks).
+  - The narrative director must escalate tracks with warning events.
+  - Balance targets are needed for how often each ending occurs (simulation lab).
+- **Dependencies:** DEC-005, DEC-007, DEC-008, D2, D4, D8, D9, D10.
+- **Revisit criteria:** Playtests show terminal endings feel unfair or arbitrary, or so rare that tension is absent.
 
 ### DEC-007 — Constitution variability per run
 
-- **Status:** Proposed. Awaiting owner.
+- **Status:** Accepted (owner, 2026-11-18): option D, staged as below.
 - **Context:** The owner suggested procedurally generating the constitution each run, so that political and legal mechanics differ between runs, provided it stays reviewable at a high level.
 - **Options:**
   - A. One fixed constitution.
@@ -121,3 +149,18 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Quirk combinations are validated by Monte Carlo runs in the simulation lab.
 - **Dependencies:** D4, D8, D11, D13, D14, DEC-006.
 - **Revisit criteria:** The cost of supporting a second archetype exceeds its gameplay value in prototype evaluation.
+
+### DEC-008 — Save model: ironman vs. reloadable
+
+- **Status:** Proposed. Awaiting owner.
+- **Context:** Final failure (DEC-006) is meaningless if the player can reload. The brief (§16.1) asks for manual saves and multiple slots, which conflicts with a roguelike structure.
+- **Options:**
+  - A. Ironman only: one continuous save per run, save-and-quit.
+  - B. Ironman by default, plus an opt-in "Story mode" that allows reloading chapter checkpoints, with runs flagged as such.
+  - C. Free saving.
+- **Proposed decision:** B.
+  - Multiple slots means multiple concurrent runs, not multiple saves of the same run.
+  - Determinism helps here. Reloading and repeating the same actions reproduces the same outcome (persisted RNG streams), so reloading cannot fish for a different dice roll.
+  - Developer and simulation-lab builds keep arbitrary snapshots.
+- **Consequences:** Revises §16.1 (manual saves become save-and-quit). Story-mode runs may be excluded from some unlocks.
+- **Dependencies:** DEC-006, D13.

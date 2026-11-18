@@ -7,10 +7,11 @@
 - D1: career in acts accepted (DEC-004).
 - Pacing research (`docs/design/research/RUN_PACING.md`).
 
+- DEC-005 time structure and DEC-007 constitution as data: accepted.
+
 ## Current (awaiting owner)
-- DEC-007: Constitution variability (archetypes plus quirks, with constitution as data from day 1).
-- DEC-005: Nested time targets (turn, chapter, act, career). Proposed.
-- DEC-006: Layered endings (Legacy epilogue plus a Mandate Test summit). Proposed.
+- DEC-006 rev. 2: terminal endings and pressure tracks.
+- DEC-008: Ironman save model (conflicts with brief §16.1).
 
 ## Next
 - D2: Player role & agency.
