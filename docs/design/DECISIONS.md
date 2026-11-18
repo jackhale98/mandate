@@ -46,13 +46,18 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-037 | Personal life scope | Accepted |
 | DEC-038 | Difficulty & complexity layers | Accepted |
 | DEC-039 | Meta-progression | Accepted |
-| DEC-040 | Crate structure (8 crates) | Proposed (D11 baseline) |
-| DEC-041 | Determinism rules | Proposed (D11 baseline) |
-| DEC-042 | Engine: calendar, turn order, effect requests, event log | Proposed (D11 baseline) |
-| DEC-043 | Worker protocol | Proposed (D11 baseline) |
-| DEC-044 | Persistence | Proposed (D11 baseline) |
-| DEC-045 | Frontend stack | Proposed (awaiting owner, D11) |
-| DEC-046 | Initial performance budgets | Proposed (D11 baseline) |
+| DEC-040 | Crate structure (8 crates) | Accepted |
+| DEC-041 | Determinism rules | Accepted |
+| DEC-042 | Engine: calendar, turn order, effect requests, event log | Accepted |
+| DEC-043 | Worker protocol | Accepted |
+| DEC-044 | Persistence | Accepted |
+| DEC-045 | Frontend stack: React + TypeScript | Accepted |
+| DEC-047 | Screen architecture: hub-centred | Proposed (D12) |
+| DEC-048 | Responsive & mobile strategy | Proposed (D12) |
+| DEC-049 | Visual style & camera | Proposed (awaiting owner, D12) |
+| DEC-050 | Rendering prototype spikes | Proposed (D12) |
+| DEC-051 | Accessibility & explainability UI | Proposed (D12) |
+| DEC-046 | Initial performance budgets | Accepted (assumptions to validate) |
 
 ---
 
@@ -954,7 +959,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-040 to DEC-046 — Technical architecture baseline
 
-- **Status:** Proposed as a package. The owner approves the architecture baseline as a whole (brief §26.1).
+- **Status:** Accepted by the owner (2026-11-18) as a package. The pre-implementation architecture review (brief §26.1) is still required after D15.
 - **Where the content lives:** `docs/architecture/OVERVIEW.md`. Sections map to decisions as follows:
   - §2: DEC-040, crates
   - §3: DEC-041, determinism
@@ -965,4 +970,82 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - §8: DEC-046, budgets
 - **Revisions to the brief:** the brief's original proposals that this baseline changes are listed in OVERVIEW §10.
 - **DEC-017** (constitution primitives) is confirmed as part of this baseline.
-- **Open item:** DEC-045 frontend framework (React assumed). Ask the owner about preferences.
+- **DEC-045 resolution:** the owner has no framework preference. Criteria: fast, robust, responsive, maintainable by AI agents. Decision: **React + TypeScript (strict)**.
+  - **AI maintainability:** React has by far the largest corpus of idiomatic code. Svelte 5 changed its reactivity syntax (runes), and agents frequently mix old and new syntax. Solid's look-alike JSX invites React habits that silently break its reactivity (e.g. destructuring props).
+  - **Speed:** the heavy work runs in the Worker (simulation) and in PixiJS (scenes), so the UI framework is not the performance bottleneck.
+  - **Guardrails:**
+    - a small, fixed set of state patterns (Zustand for UI state; worker queries through one typed hook layer);
+    - no ad-hoc global stores;
+    - lint rules for hooks;
+    - evaluate the React Compiler at Milestone 0 to remove manual memoization.
+
+### DEC-047 — Screen architecture: hub-centred
+
+- **Status:** Proposed (D12). Detail in `docs/design/UI.md` §1–2.
+- **Proposed decision:** the hub scene is the single primary screen.
+  - All other screens are panels, overlays, or flow screens around it.
+  - In-world portals (desk, news, map room, phone, campaign HQ) are mirrored in a global menu.
+  - Turn, chapter, and act flows have dedicated resolution screens.
+  - Every important figure has a "Why?" breakdown.
+
+### DEC-048 — Responsive & mobile strategy
+
+- **Status:** Proposed (D12).
+- **Proposed decision:**
+  - **Mobile-first, not desktop-shrunk** (brief §15.4).
+  - **Phone:**
+    - the hub fills the screen;
+    - a minimal HUD;
+    - panels open as bottom sheets or full-screen sheets;
+    - tap-to-move;
+    - large touch targets.
+    - Both orientations are supported. The hub camera and HUD adapt; portrait gives a narrower slice of the hub, with the camera following the player.
+  - **Tablet and desktop:** panels dock as side drawers with the hub still visible. Keyboard shortcuts and optional WASD movement.
+  - **One component library with responsive variants**, not two separate UIs.
+  - Breakpoints and orientation priority are confirmed by the DEC-050 hub spike on real devices.
+
+### DEC-049 — Visual style & camera
+
+- **Status:** Proposed. Awaiting owner (D12).
+- **Options:**
+  - A. Top-down three-quarter pixel art (Stardew Valley, Eastward), 16–32 px tiles.
+  - B. Isometric pixel art.
+  - C. Flat illustrated / vector style.
+  - D. Low-poly 3D.
+- **Proposed decision:** A.
+  - The brief proposes lightweight pixel art (§5.5).
+  - Grid tiles suit procedural district layouts best.
+  - Layered "paper-doll" character sprites need only 4 facing directions (isometric needs more angles and more complex depth sorting).
+  - Small art budget; crisp at any scale with integer scaling.
+  - Day-part lighting via tinting and lightmaps.
+  - National and regional maps use the same palette in a stylized cartographic look.
+- **Consequences:**
+  - The art pipeline is a tileset plus building and interior templates, plus layered character parts (bodies, heads, hair, clothing, accessories) composed procedurally from NPC appearance parameters (DEC-031).
+  - Art is the area where AI agents are weakest. Plan for owner-sourced or commissioned art, or a licensed asset pack, with placeholder art during development.
+- **Dependencies:** DEC-009, DEC-021, DEC-031, DEC-050.
+
+### DEC-050 — Rendering prototype spikes
+
+- **Status:** Proposed (D12). These are throwaway prototypes under DEC-003; each needs owner approval before it starts.
+- **Proposed spikes:**
+  1. **Hub spike:**
+     - PixiJS scene;
+     - a procedurally generated district (~64×64 tiles, ~15 points of interest);
+     - ~30 layered NPC sprites following day-part schedules;
+     - tap-to-move with pathfinding;
+     - day-part lighting.
+
+     Measure frame rate, memory, and bundle size on a mid-range Android phone and on desktop. Check that portrait and landscape both work.
+  2. **Map spike:** a national map with ~500 neighborhood polygons, ~60 municipalities, and overlays (choropleth, districts), with pan, zoom, and hit-testing. Compare PixiJS with SVG/Canvas.
+- **Exit criteria:** budgets in OVERVIEW §8 are met, or the renderer choice is revised.
+
+### DEC-051 — Accessibility & explainability UI
+
+- **Status:** Proposed (D12). Brief §15.5.
+- **Proposed decision:**
+  - **The hub is never the only way to reach anything.** An accessible DOM layer mirrors the scene: a list of "places here" and "people here" with actions. The Agenda can perform any located action.
+  - Full keyboard navigation and screen-reader labels.
+  - Colour-independent indicators (icons and patterns on gauges and maps).
+  - Text scaling, reduced motion, and a high-contrast theme.
+  - Charts and maps have tabular alternatives.
+  - **"Why?" breakdowns** are built from the event log and causal records (OVERVIEW §4.4) and from per-factor decompositions (DEC-028 elections, DEC-024 policy attribution).

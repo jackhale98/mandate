@@ -1,6 +1,6 @@
 # Mandate — Technical Architecture Baseline (D11)
 
-**Status:** Proposed baseline. It must be approved by the owner before implementation (DEC-003).
+**Status:** Accepted by the owner (2026-11-18). A final architecture review takes place after D15 (brief §26.1).
 **Scope:** Validates brief §13–14 and §20–22 against the accepted design decisions (DEC-001 to DEC-039). Decision IDs for this document are DEC-040 to DEC-046 in `docs/design/DECISIONS.md`.
 **Note:** Crate and library versions are verified at Milestone 0 (brief §20.1), not here.
 
@@ -153,7 +153,7 @@ This order is a baseline. Changes must be recorded in this document, with a dete
 | Concern | Choice | Note |
 |---|---|---|
 | Language and build | TypeScript (strict), Vite | |
-| UI | React | Framework preference to be confirmed with the owner |
+| UI | React | Chosen for AI-agent maintainability (DEC-045) |
 | UI state | Zustand (UI-only state) | The simulation is the source of truth. No mirrored simulation state |
 | Scenes and maps | **PixiJS** (provisional) | Pending the hub and map prototype benchmark on mid-range mobile (D12) |
 | Persistence | Dexie (IndexedDB) | |

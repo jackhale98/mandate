@@ -7,16 +7,16 @@
 - D1: career in acts accepted (DEC-004).
 - Pacing research (`docs/design/research/RUN_PACING.md`).
 
-- DEC-005 time structure, DEC-006 endings and pressure tracks, DEC-007 constitution as data, DEC-008 ironman with Story mode, DEC-009 walkable hubs (persistent, changed on return), DEC-010 politician first, DEC-011 power model, DEC-012 time model, DEC-013 action economy, DEC-014–016 government tiers, constitution, and default archetype, DEC-018 population, DEC-019 economy, DEC-020 career detours, DEC-021–023 world generation, DEC-024–026 policy (5-state lifecycle), DEC-027–030 parties, elections, polling, NPC AI, DEC-031–035 characters, storylines, director (B), media, dialogue, DEC-036 character draft of 3, DEC-037–039 personal life, difficulty, meta-progression: accepted.
+- DEC-005 time structure, DEC-006 endings and pressure tracks, DEC-007 constitution as data, DEC-008 ironman with Story mode, DEC-009 walkable hubs (persistent, changed on return), DEC-010 politician first, DEC-011 power model, DEC-012 time model, DEC-013 action economy, DEC-014–016 government tiers, constitution, and default archetype, DEC-018 population, DEC-019 economy, DEC-020 career detours, DEC-021–023 world generation, DEC-024–026 policy (5-state lifecycle), DEC-027–030 parties, elections, polling, NPC AI, DEC-031–035 characters, storylines, director (B), media, dialogue, DEC-036 character draft of 3, DEC-037–039 personal life, difficulty, meta-progression, DEC-040–046 architecture baseline (React chosen): accepted.
 - Curveball research (`docs/design/research/GOVERNANCE_CURVEBALLS.md`).
 - Draft `docs/design/GAME_VISION.md`.
 
 ## Current (awaiting owner)
-- D11: architecture baseline, `docs/architecture/OVERVIEW.md` (DEC-040–046). Awaiting owner review; frontend framework preference open.
+- D12: `docs/design/UI.md`; DEC-047–051 (visual style awaiting owner).
 - Proposed (technical): DEC-017 constitution primitives.
 
 ## Open UX items (for D12)
 - Turn framing: a "representative day" covering a week; show the calendar span in the header.
 
 ## Next
-- D12: UI, rendering, mobile (including the hub/map prototype plan).
+- D13: Saves, content format, modding.
