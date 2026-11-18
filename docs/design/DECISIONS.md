@@ -89,7 +89,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-080 | Hub renderer: Canvas 2D (revises the provisional PixiJS choice) | Accepted |
 | DEC-081 | Logo (poll-line M) and loading animation (career ladder) | Accepted |
 | DEC-082 | Save export and import (`.mandate` files; light Ironman rule) | Accepted |
-| DEC-083 | Landing page at the site root; the game moves to `play/` | Proposed |
+| DEC-083 | Landing page at the site root; the game moves to `play/` | Accepted |
 
 ---
 
@@ -1690,7 +1690,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-083 — Landing page at the site root; the game moves to `play/`
 
-- **Status:** Proposed (2026-11-18). Requested by the owner: a public page that sells the game to new players without looking like a template site. Research: `docs/design/research/LANDING_PAGE.md`.
+- **Status:** Accepted (owner, 2026-11-18: "It can go live. We'll want to update once we have actual towns to walk around so it's closer to the real final gameplay"). Requested by the owner: a public page that sells the game to new players without looking like a template site. Research: `docs/design/research/LANDING_PAGE.md`. After review the copy was rewritten in plain language (the first draft read as machine-written), and a desktop screenshot was added beside the phone ones.
+- **Follow-up (owner):** refresh the page's screenshots and copy when the walkable pixel-art town lands (M6), so the page shows gameplay close to the final game. Re-run `web/landing/scripts/capture.mjs`, `encode.py` and `og.mjs`, and update the hard-coded election-night figures.
 - **Decision:**
   - The site base serves a **landing page**; the game is served at **`<base>play/`**. `MANDATE_BASE` stays the single deploy variable (DEC-064): `/mandate/` gives the landing page at `/mandate/` and the game at `/mandate/play/`; `/` gives `/` and `/play/`. The hub spike stays at `<base>spike-hub/`.
   - The landing page is plain HTML, CSS, and about 1 KB of TypeScript, with no framework and no web fonts (Georgia and the system font, as in the app). It has its own Vite build (`web/landing/vite.config.ts`) into `dist/`; the app builds into `dist/play/`. `npm run build` runs both; `npm run preview` serves the whole site.

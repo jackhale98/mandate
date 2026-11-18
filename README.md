@@ -18,7 +18,7 @@ Prerequisites: Rust (the toolchain is pinned by `rust-toolchain.toml`), Node 22,
 
 ```bash
 ./scripts/build-wasm.sh                 # engine → web/src/engine/pkg
-cd web && npm ci && npm run dev         # http://localhost:5173/mandate/
+cd web && npm ci && npm run dev         # http://localhost:5173/mandate/play/ (the game); landing page: npm run build && npm run preview
 cargo test --workspace                  # engine tests
 cargo run -p mandate-cli -- --help      # simulation lab
 cd web && npm test && npx playwright test --trace off
