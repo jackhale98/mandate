@@ -1642,6 +1642,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - a pinch zooms about the midpoint between the fingers, so the point under them stays put;
   - when one finger lifts or a pointer is cancelled, the gesture re-baselines from the remaining finger instead of jumping;
   - limits are eased in when zoomed past them, never snapped.
+- **M6 movement module (status, 2026-11-18):** the pathfinding and zoom requirements above are built as a renderer-independent module, `web/src/hub/` (`pathfinding.ts`: 8-direction A*, pedestrian costs, string-pulling, tap-to-target, smooth movement; `camera.ts`: pinch, pan, wheel, eased limits), with unit and seeded property tests. The hub spike uses it for routing and the camera, so `/mandate/spike-hub/` shows the new routes. The app does not import it yet: M6 will.
 
 ### DEC-081 — Logo and loading animation
 
