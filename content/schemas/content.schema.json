@@ -2306,7 +2306,7 @@
           "type": "number"
         },
         "crisis_agenda": {
-          "description": "Agendas follow the town's character (DEC-077 §1): a template that\nanswers the live crisis scores + this × severity; one that addresses\nthe town's top concerns + this × fit (alignment with the concerns'\nattitudes, weighted by their levels).",
+          "description": "Agendas follow the town's character (DEC-077 §1): ranking its ideas, an\nNPC adds this × severity to a template that answers the live crisis,\nand `concern_agenda` × fit to one that addresses the town's concerns\n(alignment with the concerns' attitudes, weighted by their levels).\nThe bonus changes which idea comes first, not how keen it is.",
           "format": "double",
           "type": "number"
         },

@@ -18,13 +18,13 @@
       "promised_favour": { "sentiment": 0.3,  "magnitude": 0.6,  "decay": 0.15, "opinion": 0.0,   "trust": 0.0,   "tags": ["promise", "favour"] },
       "kept_promise":    { "sentiment": 0.9,  "magnitude": 0.85, "decay": 0.05, "opinion": 0.0,   "trust": 0.15,  "tags": ["promise", "favour"] },
       "broke_promise":   { "sentiment": -1.0, "magnitude": 1.0,  "decay": 0.03, "opinion": 0.0,   "trust": -0.3,  "tags": ["promise", "betrayal"] },
-      "broke_ranks":     { "sentiment": -0.5, "magnitude": 0.45, "decay": 0.4,  "opinion": 0.0,   "trust": -0.05, "tags": ["party", "vote"] },
-      "lobbied_me":      { "sentiment": 0.2,  "magnitude": 0.15, "decay": 1.5,  "opinion": 0.0,   "trust": 0.0,   "tags": ["lobby"] },
-      "pressed_me":      { "sentiment": -0.2, "magnitude": 0.15, "decay": 1.5,  "opinion": 0.0,   "trust": 0.0,   "tags": ["lobby"] },
-      "defeated_me":     { "sentiment": -0.7, "magnitude": 0.6,  "decay": 0.15, "opinion": 0.0,   "trust": -0.05, "tags": ["election", "rivalry"] },
+      "broke_ranks":     { "sentiment": -0.5, "magnitude": 0.45, "decay": 0.4,  "opinion": -3.0,   "trust": -0.05, "tags": ["party", "vote"] },
+      "lobbied_me":      { "sentiment": 0.2,  "magnitude": 0.15, "decay": 1.5,  "opinion": 2.0,   "trust": 0.0,   "tags": ["lobby"] },
+      "pressed_me":      { "sentiment": -0.2, "magnitude": 0.15, "decay": 1.5,  "opinion": -1.0,   "trust": 0.0,   "tags": ["lobby"] },
+      "defeated_me":     { "sentiment": -0.7, "magnitude": 0.6,  "decay": 0.15, "opinion": -15.0,   "trust": -0.05, "tags": ["election", "rivalry"] },
       "lost_to_me":      { "sentiment": 0.3,  "magnitude": 0.3,  "decay": 0.5,  "opinion": 0.0,   "trust": 0.0,   "tags": ["election"] },
-      "vetoed_my_bill":  { "sentiment": -0.7, "magnitude": 0.55, "decay": 0.3,  "opinion": 0.0,   "trust": -0.05, "tags": ["vote"] },
-      "signed_my_bill":  { "sentiment": 0.4,  "magnitude": 0.25, "decay": 0.8,  "opinion": 0.0,   "trust": 0.02,  "tags": ["vote"] },
+      "vetoed_my_bill":  { "sentiment": -0.7, "magnitude": 0.55, "decay": 0.3,  "opinion": -10.0,   "trust": -0.05, "tags": ["vote"] },
+      "signed_my_bill":  { "sentiment": 0.4,  "magnitude": 0.25, "decay": 0.8,  "opinion": 4.0,   "trust": 0.02,  "tags": ["vote"] },
       "met":             { "sentiment": 0.1,  "magnitude": 0.1,  "decay": 2.0,  "opinion": 0.0,   "trust": 0.0,   "tags": ["meeting"] },
       "scandal":         { "sentiment": -0.6, "magnitude": 0.6,  "decay": 0.3,  "opinion": -10.0, "trust": -0.1,  "tags": ["scandal"] },
     },
@@ -44,7 +44,7 @@
     // Personality in opinion changes (DEC-030: the same rules for the player).
     // Loyalty in votes and integrity against lobbying are in council.jsonc.
     "ai": {
-      "warmth_opinion": 0.0,        // opinion gains × (1 + w × (2 × warmth − 1))
+      "warmth_opinion": 0.3,        // opinion gains × (1 + w × (2 × warmth − 1))
     },
     "ambient": {
       "present": [1, 2],            // passers-by at a public place

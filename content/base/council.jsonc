@@ -22,7 +22,7 @@
     "sign_bias": 0.15,             // mayors sign unless their lean is below −sign_bias
     "enactment_awareness": 0.25,
     "awareness_fade": 0.03,        // monthly
-    "loyalty_discipline": 0.0,     // personality: discipline × (1 + w × (2 × loyalty − 1))
+    "loyalty_discipline": 1.0,     // personality: discipline × (1 + w × (2 × loyalty − 1))
     "lobby": {
       // Logit: skill_scale × (skill − 0.5) + pragmatism × target's pragmatism + bias + ties (+ late_night).
       "skill_negotiation": 0.6,
@@ -34,7 +34,7 @@
       "same_party": 0.3,           // ties between NPCs
       "other_party": -0.1,
       "late_night": 0.35,
-      "integrity": 0.0,            // personality: − w × (target's integrity − 0.5)
+      "integrity": 1.0,            // personality: − w × (target's integrity − 0.5)
       "odds_min": 0.08,
       "odds_max": 0.92,
       "gain": [0.2, 0.35],         // sway on success, × (0.5 + negotiation)

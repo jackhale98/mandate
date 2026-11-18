@@ -138,7 +138,10 @@ fn opinion_and_favours_live_on_relationship_edges() {
     assert_eq!(f.context, "favour-bill");
     assert_eq!(f.subject, Some(Subject::Policy { id: bill }));
     let edge = pol.characters.edge(cc, me).unwrap();
-    let expected = (first as f64 + c.actions.lobby.opinion_success).clamp(-100.0, 100.0) as f32;
+    // The colleague's warmth and traits scale the goodwill (DEC-031).
+    let d = c.actions.lobby.opinion_success;
+    let scaled = d * characters::opinion_scale(pol, &c, cc, d);
+    let expected = (first as f64 + scaled).clamp(-100.0, 100.0) as f32;
     assert_eq!(edge.opinion, expected);
     let mem = characters::salient_memories(pol, cc, Some(me), e.state().calendar.date, 3);
     assert_eq!(mem[0].kind, MemoryKind::PromisedFavour);
@@ -615,4 +618,99 @@ fn an_expansion_adds_a_trait_an_occupation_and_a_crisis() {
             "{needle}: {text:?}"
         );
     }
+}
+
+/// Personality reaches the NPC AI with the same rules for everyone (DEC-030):
+/// integrity resists lobbying, loyalty weighs the party line, and agendas
+/// follow the town's live crisis (DEC-077 §1).
+#[test]
+fn personality_and_town_character_reach_the_npc_ai() {
+    let c = base();
+    let e = engine(&c, 19);
+    let st = e.state();
+    let pl = st.player.as_ref().unwrap();
+    let m = pl.municipality.index();
+    let target = *st.politics.councils[m]
+        .members
+        .iter()
+        .find(|id| **id != pl.politician)
+        .unwrap();
+    // Integrity: the same pitch works less on the principled.
+    let odds = |integrity: f32| {
+        let mut s = st.clone();
+        s.politics.get_mut(target).unwrap().integrity = integrity;
+        mandate_sim::npc::lobby_odds_between(&s, &c, pl.politician, target, false)
+    };
+    assert!(odds(0.9) < odds(0.2), "{} vs {}", odds(0.9), odds(0.2));
+    // Loyalty: party discipline counts for more with the loyal.
+    let p = st.politics.get(target).unwrap();
+    let t = c.policies.values().next().unwrap();
+    let inst = st.policy.instances.first().unwrap();
+    let lean = |loyalty: f64| {
+        mandate_sim::policy::vote_lean(
+            &c.council,
+            p,
+            &mandate_sim::policy::VoteInputs {
+                template: t,
+                instance: inst,
+                ward_support: 0.0,
+                mayor_lean: 0.0,
+                sway: 0.0,
+                sponsor_is_player: false,
+                player_opinion: 0.0,
+                loyalty,
+                sponsor_party: p.party,
+                declared: None,
+                noise: 0.0,
+            },
+        )
+    };
+    if p.party.is_some() {
+        assert!(lean(0.9) > lean(0.1));
+    }
+    // A live crisis favours the templates that answer it.
+    let grants = c.policies.get("policy.small_business_grants").unwrap();
+    let calm = mandate_sim::npc::agenda_bonus(st, &c, m as u32, grants);
+    let mut s = st.clone();
+    s.politics.characters.towns[m].crises = vec![characters::ActiveCrisis {
+        kind: "crisis.plant_closure".into(),
+        severity: 1.0,
+        since: s.calendar.date,
+        history: vec![1.0],
+    }];
+    let hit = mandate_sim::npc::agenda_bonus(&s, &c, m as u32, grants);
+    assert!(
+        (hit - calm - c.npc.crisis_agenda).abs() < 1e-9,
+        "{calm} → {hit}"
+    );
+    let parks = c.policies.get("policy.parks").unwrap();
+    assert_eq!(
+        mandate_sim::npc::agenda_bonus(&s, &c, m as u32, parks),
+        mandate_sim::npc::agenda_bonus(st, &c, m as u32, parks)
+    );
+}
+
+/// Warmth and traits scale opinion changes (DEC-031).
+#[test]
+fn warmth_and_traits_scale_opinion_changes() {
+    let c = base();
+    let e = engine(&c, 29);
+    let st = e.state();
+    let me = player_char(&e);
+    let pl = st.player.as_ref().unwrap();
+    let who = st.politics.councils[pl.municipality.index()]
+        .members
+        .iter()
+        .find(|id| **id != pl.politician)
+        .map(|id| st.politics.get(*id).unwrap().character)
+        .unwrap();
+    let gain = |warmth: f32, traits: Vec<String>| {
+        let mut s = st.clone();
+        let ch = s.politics.characters.get_mut(who).unwrap();
+        ch.warmth = warmth;
+        ch.traits = traits;
+        characters::change_opinion(&mut s.politics, &c, who, me, 5.0)
+    };
+    assert!(gain(0.9, vec![]) > gain(0.1, vec![]));
+    assert!(gain(0.5, vec!["trait.grudge_holder".into()]) < gain(0.5, vec![]));
 }

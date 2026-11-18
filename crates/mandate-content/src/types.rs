@@ -1674,10 +1674,11 @@ pub struct NpcParams {
     pub ad_reserve: f64,
     /// NPC bills sunset after this many years, [min, max].
     pub bill_sunset_years: [u8; 2],
-    /// Agendas follow the town's character (DEC-077 §1): a template that
-    /// answers the live crisis scores + this × severity; one that addresses
-    /// the town's top concerns + this × fit (alignment with the concerns'
-    /// attitudes, weighted by their levels).
+    /// Agendas follow the town's character (DEC-077 §1): ranking its ideas, an
+    /// NPC adds this × severity to a template that answers the live crisis,
+    /// and `concern_agenda` × fit to one that addresses the town's concerns
+    /// (alignment with the concerns' attitudes, weighted by their levels).
+    /// The bonus changes which idea comes first, not how keen it is.
     pub crisis_agenda: f64,
     pub concern_agenda: f64,
 }

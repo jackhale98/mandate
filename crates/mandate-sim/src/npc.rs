@@ -136,6 +136,7 @@ fn holds_power(state: &State, content: &ContentBundle, id: PoliticianId, power: 
 pub struct Memo {
     leans: BTreeMap<u32, (f64, f64)>,
     support: BTreeMap<(u32, String), f64>,
+    agenda: BTreeMap<(u32, String), f64>,
 }
 
 /// Compute an NPC's decision inputs (from polls and public knowledge only).
@@ -284,7 +285,7 @@ fn inputs_memo(
                 }
                 _ => (u32::MAX, state.world.hoods_of(MunicipalityId(m)).collect()),
             };
-            let mut best_t: Option<(&str, f64)> = None;
+            let mut best_t: Option<(&str, f64, f64)> = None;
             for t in content
                 .policies
                 .values()
@@ -304,12 +305,19 @@ fn inputs_memo(
                     .entry((key, t.id.clone()))
                     .or_insert_with(|| crate::policy::public_support(t, &state.population, &hoods));
                 let prag = me.pragmatism as f64;
-                let score = (1.0 - prag) * own + prag * public + agenda_bonus(state, content, m, t);
-                if best_t.is_none_or(|b| score > b.1) {
-                    best_t = Some((t.id.as_str(), score));
+                let agenda = *memo
+                    .agenda
+                    .entry((m, t.id.clone()))
+                    .or_insert_with(|| agenda_bonus(state, content, m, t));
+                // The town's character shapes which idea comes first, not
+                // how keen the NPC is to legislate at all.
+                let score = (1.0 - prag) * own + prag * public;
+                let ranked = score + agenda;
+                if best_t.is_none_or(|b| ranked > b.1) {
+                    best_t = Some((t.id.as_str(), ranked, score));
                 }
             }
-            if let Some((t, s)) = best_t {
+            if let Some((t, _, s)) = best_t {
                 x.agenda = clamp(0.5 + s, 0.0, 1.0);
                 x.best_template = Some(t.to_string());
             }
@@ -318,8 +326,9 @@ fn inputs_memo(
     x
 }
 
-/// Agendas follow the town's character (DEC-077 §1): a template that answers
-/// the live crisis gains `npc.crisis_agenda` × severity; one that addresses
+/// Agendas follow the town's character (DEC-077 §1). When an NPC ranks its
+/// policy ideas, a template that answers the live crisis gains
+/// `npc.crisis_agenda` × severity; one that addresses
 /// the town's concerns gains `npc.concern_agenda` × fit (its alignment with
 /// each concern's attitudes, weighted by the concern's level). Public facts
 /// only: the town's crisis and worries are common knowledge.
@@ -354,8 +363,18 @@ pub fn agenda_bonus(
             if level <= 0.0 {
                 continue;
             }
-            let weights: Vec<f32> = c.attitude_weights.iter().map(|x| *x as f32).collect();
-            fit += level * alignment(&t.signature_weights, &weights);
+            // `alignment` of the template with the concern's attitudes.
+            let (mut dot, mut norm) = (0.0, 0.0);
+            for (s, a) in t.signature_weights.iter().zip(&c.attitude_weights) {
+                dot += s * (*a as f32) as f64;
+                norm += s.abs();
+            }
+            let a = if norm > 0.0 {
+                clamp(dot / norm * 2.0, -1.0, 1.0)
+            } else {
+                0.0
+            };
+            fit += level * a;
             w += level;
         }
         if w > 0.0 {
