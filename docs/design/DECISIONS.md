@@ -20,9 +20,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-011 | Player power & resource model | Accepted |
 | DEC-012 | Time model: discrete turns, phase-based cadence, time skips | Accepted |
 | DEC-013 | Action economy: representative day, slots, delegation, commitments | Accepted |
-| DEC-014 | Government tiers & office ladder | Proposed (D4) |
-| DEC-015 | Constitution parameter space & archetypes | Proposed (D4) |
-| DEC-016 | Default / MVP constitutional archetype | Proposed (awaiting owner, D4) |
+| DEC-014 | Government tiers & office ladder | Accepted |
+| DEC-015 | Constitution parameter space & archetypes | Accepted |
+| DEC-016 | Default / MVP constitutional archetype | Accepted |
+| DEC-017 | Constitution primitives (engine model) | Proposed |
+| DEC-018 | Population model & level of detail | Proposed (D5) |
+| DEC-019 | Economy fidelity | Proposed (awaiting owner, D5) |
 
 ---
 
@@ -305,7 +308,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-014 — Government tiers & office ladder
 
-- **Status:** Proposed (D4).
+- **Status:** Accepted (owner, 2026-11-18).
 - **Context:** Brief §3.3 lists 8 levels. DEC-004 has 4 acts. Offices, and how one reaches them, must come from constitution data (DEC-007).
 - **Proposed decision:**
   - **Three tiers of government:** Local (municipality, divided into wards), Regional (state or province), and National. County and district governments are dropped for scope; they could return later as a constitutional quirk.
@@ -328,7 +331,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-015 — Constitution parameter space & archetypes
 
-- **Status:** Proposed (D4).
+- **Status:** Accepted (owner, 2026-11-18). The owner asked for unusual real or proposed systems as curveballs; see `research/GOVERNANCE_CURVEBALLS.md`. The parameter table above is a starting set; DEC-017 generalizes it into primitives so curveballs are mostly configuration.
 - **Context:** DEC-007 requires a defined parameter space that the engine reads, and authored archetypes made from it.
 - **Proposed parameter space** (each parameter takes a small set of values that are each fully supported):
 
@@ -366,7 +369,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-016 — Default / MVP constitutional archetype
 
-- **Status:** Proposed. Awaiting owner.
+- **Status:** Accepted (owner, 2026-11-18). The MVP/demo uses the Federal Presidential Republic; the engine must handle variable constitutions from the start.
 - **Options:** any archetype in DEC-015.
 - **Proposed decision:** Archetype 1, **Federal Presidential Republic**, for the MVP and the first-run default. Candidate selection in the MVP is by local party nomination (a light phase inside the campaign chapter), not full primaries, to save scope.
 - **Rationale:**
@@ -376,3 +379,93 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Midterms give a clean Mandate Test.
   - Parliamentary and PR archetypes emphasize party-internal play and coalitions, which need deeper AI first.
 - **Dependencies:** DEC-006, DEC-015, D8, D15.
+
+### DEC-017 — Constitution primitives (engine model)
+
+- **Status:** Proposed. Technical; to be confirmed in D11.
+- **Context:** A fixed enum of parameters (DEC-015) cannot express curveballs such as collegial executives, sortition chambers, functional seats, or concurrent majorities. The engine needs composable building blocks so that archetypes and quirks are data.
+- **Proposed decision:** a constitution is a validated assembly of these primitives:
+  - **Office:** a single holder. Fields: selection method, term, limits, powers, removal procedures.
+  - **Body:** a collective (legislature, council, assembly, court, directorate). Fields: seats, composition rules, selection method, term, internal leadership, decision rule, powers.
+  - **SelectionMethod:**
+    - `Election { voting_rule, constituency, candidate_selection }`
+    - `Appointment { by, confirmation }`
+    - `Sortition { pool, size }`
+    - `Rotation { among, period }`
+    - `ElectedByBody { body, rule }`
+    - `ExOfficio`
+  - **VotingRule:** plurality, two-round, ranked-choice (IRV), STV, approval, list PR (D'Hondt / Sainte-Laguë), mixed-member, quadratic (internal bodies only). Implemented as pluggable tabulators that share a ballot model.
+  - **Constituency:** geographic district, region-at-large, national list, or functional (sector or occupation from the economy model).
+  - **DecisionRule:** simple majority, supermajority(x), consensus, unanimity, concurrent majorities across blocs.
+  - **Power:** a typed capability. Examples: propose_law, approve_law, veto, override, appoint(office), confirm, remove(office), propose_budget, approve_budget, decree, dissolve / call_election, call_referendum, judicial_review, initiative.
+  - **Procedure:** an ordered pipeline of stages for laws, budgets, and constitutional amendments. Each stage references a Body or Office, a DecisionRule, and timing. Bicameralism, vetoes, overrides, referendums, and court review are all just stages.
+  - **Trigger:** recalls, no-confidence votes, snap elections, sunset expiry.
+  - **Validation (content CI):**
+    - Every office is reachable.
+    - Every procedure terminates.
+    - Powers do not conflict.
+    - The player has a viable path to the summit.
+    - The Mandate Test event is defined.
+- **Consequences:**
+  - Election, policy, and AI systems must query powers and procedures rather than branch on archetype names.
+  - Archetypes and quirks become content files (D13).
+- **Dependencies:** DEC-007, DEC-015, D7, D8, D11, D13, D14.
+
+### DEC-018 — Population model & level of detail
+
+- **Status:** Proposed (D5).
+- **Context:** H4 (hybrid population) and the DEC-009 persistent-hub requirement. Hubs keep simulating while the player is away and must be consistent when the player returns.
+- **Key observation:** aggregate cohorts are computationally cheap. A country of ~10 regions, ~60 municipalities, and ~500 neighborhoods with 12 cohorts each is ~6,000 cohort cells, trivial to update monthly in Rust/WASM. The expensive things are *individuals*: NPC goals, schedules, AI, memory, and event generation.
+- **Proposed decision:** **aggregate everywhere, individuals where it matters.**
+  - **Cohorts** are simulated at neighborhood resolution across the whole country at all times (no aggregation level of detail). Each neighborhood has 12 cohorts: age band (18–29, 30–44, 45–64, 65+) × economic position (low, middle, high).
+  - Other characteristics are distributions inside a cohort, not extra dimensions:
+    - employment by sector,
+    - housing tenure,
+    - education,
+    - household type.
+  - Political state per cohort:
+    - an attitude vector (~8 dimensions),
+    - issue salience,
+    - party identification distribution,
+    - turnout propensity,
+    - institutional trust,
+    - awareness of and perception of officials.
+  - **Individuals use tiered level of detail:**
+
+    | Tier | Count | Simulation |
+    |---|---|---|
+    | Principal | ~50–150 active | Full: goals, schedules, AI decisions, rich memory |
+    | Named | Hundreds to low thousands | Persistent identity, stats, relationships, summarized memory; updated lazily |
+    | Ambient | Unbounded, not stored | Generated on demand from cohort samples (seed + place + date); promoted to Named if they become relevant |
+
+    - Promotion and demotion are driven by relevance to the player and to storylines.
+    - Dormant Named NPCs catch up on re-activation, using cohort transition history (ageing, job changes, moves).
+  - **Determinism under lazy evaluation:** randomness for lazily evaluated entities is derived from keyed, counter-based RNG (seed, entity ID, period), not from sequential streams. Results are therefore identical regardless of *when* or *whether* they are evaluated. (Confirm in D11.)
+- **Rationale:**
+  - Returning to an old hub is automatically consistent, because its population never stopped being simulated.
+  - Elections are computed bottom-up everywhere.
+  - Cost is concentrated in characters, where it matters.
+- **Consequences:**
+  - The world-generation scale (D6) must stay within roughly these magnitudes.
+  - Named-NPC catch-up rules are needed.
+  - Ambient generation must be a pure function.
+- **Dependencies:** DEC-009, DEC-019, D6, D8, D9, D11.
+
+### DEC-019 — Economy fidelity
+
+- **Status:** Proposed. Awaiting owner (D5).
+- **Options:**
+  - A. Light: sectors, jobs, wages, housing, and public budgets per municipality and region. National macro conditions are exogenous "weather" (scripted or random shocks).
+  - B. Layered: A, plus an endogenous national macro loop (inflation, interest rates set by a central bank actor, national debt dynamics, simple inter-regional trade). The loop always runs, but the player can only influence it in Acts 3–4.
+  - C. Deep: input-output matrices, firm-level agents, full markets.
+- **Proposed decision:** B, with these components:
+  - ~8 sectors: agriculture; resources (mining, forestry, energy); manufacturing; construction; retail and services; tourism and hospitality; knowledge and tech; public sector.
+  - Municipal housing markets: supply, demand, rents, and prices. Housing is a primary local political issue.
+  - Per-tier public finance with the brief's §7.3 elements.
+  - Integer fixed-point money.
+  - The global economy as exogenous shocks: commodity prices, external demand.
+- **Rationale:**
+  - Local acts feel real economic pressure (closures, housing, tax base) without needing macro control.
+  - National acts gain real macro levers and tradeoffs.
+  - Option C adds cost and opacity with little gameplay return. It conflicts with explainability (§1.3).
+- **Dependencies:** DEC-010, DEC-018, D6, D7, D11.
