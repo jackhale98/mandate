@@ -1,5 +1,195 @@
 {
   "$defs": {
+    "AiAction": {
+      "enum": [
+        "canvass",
+        "town_hall",
+        "advertise",
+        "fundraise",
+        "lobby",
+        "propose_bill",
+        "rest"
+      ],
+      "type": "string"
+    },
+    "AiActionDef": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/AiAction"
+        },
+        "considerations": {
+          "items": {
+            "$ref": "#/$defs/Consideration"
+          },
+          "type": "array"
+        },
+        "weight": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "action",
+        "weight",
+        "considerations"
+      ],
+      "type": "object"
+    },
+    "AiInput": {
+      "description": "Normalised (0..1) inputs the engine computes for an NPC each decision.",
+      "oneOf": [
+        {
+          "const": "campaigning",
+          "description": "1 while the NPC is a candidate in an open race.",
+          "type": "string"
+        },
+        {
+          "const": "election_near",
+          "description": "0 at the start of the campaign, 1 on election eve.",
+          "type": "string"
+        },
+        {
+          "const": "race_closeness",
+          "description": "1 for a dead heat (from polls when published, else party strength).",
+          "type": "string"
+        },
+        {
+          "const": "unknown",
+          "description": "1 − the NPC's mean awareness among the race's voters.",
+          "type": "string"
+        },
+        {
+          "const": "funds",
+          "description": "Campaign funds relative to a few weeks of advertising.",
+          "type": "string"
+        },
+        {
+          "const": "bill_stake",
+          "description": "Strength of the NPC's view on the most important pending bill.",
+          "type": "string"
+        },
+        {
+          "const": "bill_closeness",
+          "description": "1 when that bill's vote is on a knife edge.",
+          "type": "string"
+        },
+        {
+          "const": "agenda",
+          "description": "Appeal of the NPC's best policy idea (own values and constituents).",
+          "type": "string"
+        },
+        {
+          "const": "no_own_bill",
+          "description": "1 if the NPC has no bill of their own pending.",
+          "type": "string"
+        },
+        {
+          "const": "council_free",
+          "description": "1 when the council has few bills pending.",
+          "type": "string"
+        },
+        {
+          "const": "constant",
+          "description": "Always 1.",
+          "type": "string"
+        }
+      ]
+    },
+    "AiParams": {
+      "additionalProperties": false,
+      "properties": {
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/AiActionDef"
+          },
+          "type": "array"
+        },
+        "profiles": {
+          "items": {
+            "$ref": "#/$defs/AiProfile"
+          },
+          "type": "array"
+        },
+        "top_n": {
+          "description": "Choose by weighted chance among the best `top_n` scores.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "top_n",
+        "actions",
+        "profiles"
+      ],
+      "type": "object"
+    },
+    "AiProfile": {
+      "additionalProperties": false,
+      "description": "Strategic profile (brief §9.4): multiplies action scores.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "mults": {
+          "items": {
+            "$ref": "#/$defs/AiProfileMult"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "mults"
+      ],
+      "type": "object"
+    },
+    "AiProfileMult": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/AiAction"
+        },
+        "mult": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "action",
+        "mult"
+      ],
+      "type": "object"
+    },
+    "AttitudeWords": {
+      "additionalProperties": false,
+      "properties": {
+        "anti": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "attitude": {
+          "description": "An attitude key, e.g. `redistribution`.",
+          "type": "string"
+        },
+        "pro": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "attitude",
+        "pro",
+        "anti"
+      ],
+      "type": "object"
+    },
     "BodyDef": {
       "additionalProperties": false,
       "properties": {
@@ -53,6 +243,56 @@
       ],
       "type": "string"
     },
+    "CampaignParams": {
+      "additionalProperties": false,
+      "properties": {
+        "ad_cost": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "awareness_per_ad": {
+          "format": "double",
+          "type": "number"
+        },
+        "awareness_per_canvass": {
+          "format": "double",
+          "type": "number"
+        },
+        "diminishing": {
+          "description": "Each repeated contact in a neighbourhood is worth this fraction of the last.",
+          "format": "double",
+          "type": "number"
+        },
+        "mobilisation_per_canvass": {
+          "format": "double",
+          "type": "number"
+        },
+        "npc_contacts_per_week": {
+          "description": "NPC campaign effort in abstracted races (contacts per week per candidate).",
+          "format": "double",
+          "type": "number"
+        },
+        "persuasion_half_life_days": {
+          "format": "double",
+          "type": "number"
+        },
+        "persuasion_per_canvass": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "persuasion_half_life_days",
+        "awareness_per_canvass",
+        "persuasion_per_canvass",
+        "mobilisation_per_canvass",
+        "diminishing",
+        "ad_cost",
+        "awareness_per_ad",
+        "npc_contacts_per_week"
+      ],
+      "type": "object"
+    },
     "ClassKey": {
       "enum": [
         "low",
@@ -60,6 +300,22 @@
         "high"
       ],
       "type": "string"
+    },
+    "Consideration": {
+      "additionalProperties": false,
+      "properties": {
+        "curve": {
+          "$ref": "#/$defs/Curve"
+        },
+        "input": {
+          "$ref": "#/$defs/AiInput"
+        }
+      },
+      "required": [
+        "input",
+        "curve"
+      ],
+      "type": "object"
     },
     "Constituency": {
       "oneOf": [
@@ -129,6 +385,85 @@
         }
       },
       "type": "object"
+    },
+    "Curve": {
+      "description": "Response curve mapping an input (0..1) to a score (0..1).",
+      "oneOf": [
+        {
+          "description": "m·x + b, clamped to 0..1.",
+          "properties": {
+            "b": {
+              "format": "double",
+              "type": "number"
+            },
+            "m": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "linear",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "m",
+            "b"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "1 / (1 + e^(−k (x − x0))).",
+          "properties": {
+            "k": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "logistic",
+              "type": "string"
+            },
+            "x0": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "k",
+            "x0"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "`lo` below `x`, `hi` at or above.",
+          "properties": {
+            "hi": {
+              "format": "double",
+              "type": "number"
+            },
+            "lo": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "step",
+              "type": "string"
+            },
+            "x": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "x",
+            "lo",
+            "hi"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "DecisionRule": {
       "oneOf": [
@@ -298,6 +633,60 @@
         "pension_replacement"
       ],
       "type": "object"
+    },
+    "ElectionCalendarDef": {
+      "additionalProperties": false,
+      "properties": {
+        "campaign_weeks": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cycle_offset": {
+          "description": "Elections fall in years where `year % term_years == cycle_offset`.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "day": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "month": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "partisan_ballot": {
+          "description": "Party labels appear on the ballot (otherwise a nonpartisan race).",
+          "type": "boolean"
+        },
+        "timing": {
+          "$ref": "#/$defs/ElectionTiming"
+        }
+      },
+      "required": [
+        "month",
+        "day",
+        "cycle_offset",
+        "campaign_weeks",
+        "timing",
+        "partisan_ballot"
+      ],
+      "type": "object"
+    },
+    "ElectionTiming": {
+      "description": "Whether a tier votes on the same day as a higher tier (DEC-071: turnout).",
+      "enum": [
+        "concurrent",
+        "standalone"
+      ],
+      "type": "string"
     },
     "HazardKey": {
       "enum": [
@@ -625,6 +1014,67 @@
       ],
       "type": "object"
     },
+    "PartyIdParams": {
+      "additionalProperties": false,
+      "description": "Mover–stayer party attachment (DEC-071 §3).",
+      "properties": {
+        "attached_by_age": {
+          "description": "Share of adults attached to any party, by age band (young → old).",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "mover_rate": {
+          "description": "Yearly pull of the mover share toward current evaluations.",
+          "format": "double",
+          "type": "number"
+        },
+        "sharpness": {
+          "description": "Sharpness of attachment by ideological distance.",
+          "format": "double",
+          "type": "number"
+        },
+        "stayer_share": {
+          "description": "Durable share of attachment.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "attached_by_age",
+        "stayer_share",
+        "mover_rate",
+        "sharpness"
+      ],
+      "type": "object"
+    },
+    "PartyNameParts": {
+      "additionalProperties": false,
+      "description": "Words for generated party names: an attitude-led adjective plus a noun.",
+      "properties": {
+        "by_attitude": {
+          "items": {
+            "$ref": "#/$defs/AttitudeWords"
+          },
+          "type": "array"
+        },
+        "nouns": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "nouns",
+        "by_attitude"
+      ],
+      "type": "object"
+    },
     "PolicyTemplate": {
       "additionalProperties": false,
       "properties": {
@@ -699,6 +1149,96 @@
         "signature",
         "secondary_keys",
         "requires"
+      ],
+      "type": "object"
+    },
+    "PoliticsParams": {
+      "additionalProperties": false,
+      "properties": {
+        "ai": {
+          "$ref": "#/$defs/AiParams"
+        },
+        "campaign": {
+          "$ref": "#/$defs/CampaignParams"
+        },
+        "party_count": {
+          "description": "Parties generated per world under plurality rules (two majors plus minors).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "party_id": {
+          "$ref": "#/$defs/PartyIdParams"
+        },
+        "party_names": {
+          "$ref": "#/$defs/PartyNameParts"
+        },
+        "polls": {
+          "$ref": "#/$defs/PollParams"
+        },
+        "turnout": {
+          "$ref": "#/$defs/TurnoutParams"
+        },
+        "vote": {
+          "$ref": "#/$defs/VoteParams"
+        }
+      },
+      "required": [
+        "party_count",
+        "party_names",
+        "vote",
+        "turnout",
+        "polls",
+        "campaign",
+        "party_id",
+        "ai"
+      ],
+      "type": "object"
+    },
+    "PollParams": {
+      "additionalProperties": false,
+      "properties": {
+        "early_multiplier": {
+          "description": "Shared error multiplier at the start of the campaign.",
+          "format": "double",
+          "type": "number"
+        },
+        "every_days": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "house_sd": {
+          "description": "House-effect standard deviation (share points, 0..1 scale).",
+          "format": "double",
+          "type": "number"
+        },
+        "pollsters": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "sample_size": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "shared_sd": {
+          "description": "Election-wide shared error on election eve (share, 0..1 scale).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "pollsters",
+        "sample_size",
+        "house_sd",
+        "shared_sd",
+        "early_multiplier",
+        "every_days"
       ],
       "type": "object"
     },
@@ -979,6 +1519,18 @@
           },
           "type": "array"
         },
+        "elections": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ElectionCalendarDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When this tier's elections happen (all elected bodies and offices share it)."
+        },
         "offices": {
           "items": {
             "$ref": "#/$defs/OfficeDef"
@@ -1094,6 +1646,141 @@
         "governing_local",
         "governing_regional",
         "governing_national"
+      ],
+      "type": "object"
+    },
+    "TurnoutParams": {
+      "additionalProperties": false,
+      "properties": {
+        "concurrent": {
+          "format": "double",
+          "type": "number"
+        },
+        "habit": {
+          "description": "Weight on last election's turnout (habit).",
+          "format": "double",
+          "type": "number"
+        },
+        "mobilisation_max": {
+          "description": "Extra turnout from a fully mobilised neighbourhood.",
+          "format": "double",
+          "type": "number"
+        },
+        "standalone": {
+          "description": "Turnout multiplier for a standalone local election.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "standalone",
+        "concurrent",
+        "habit",
+        "mobilisation_max"
+      ],
+      "type": "object"
+    },
+    "VoteParams": {
+      "additionalProperties": false,
+      "description": "Per-cohort vote utility (DEC-028, DEC-071 §1–2).",
+      "properties": {
+        "beta_high": {
+          "format": "double",
+          "type": "number"
+        },
+        "beta_low": {
+          "description": "Directional share β at low and high polarisation.",
+          "format": "double",
+          "type": "number"
+        },
+        "challenger_awareness": {
+          "description": "Awareness of a fresh challenger before campaigning.",
+          "format": "double",
+          "type": "number"
+        },
+        "executive_multiplier": {
+          "description": "Retrospective weight multiplier for executive offices.",
+          "format": "double",
+          "type": "number"
+        },
+        "home_ward_bonus": {
+          "format": "double",
+          "type": "number"
+        },
+        "incumbent_awareness": {
+          "description": "Awareness floor for an incumbent within their constituency.",
+          "format": "double",
+          "type": "number"
+        },
+        "issue_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "minor_party_threshold": {
+          "description": "Minor parties contest only where their attachment share reaches this.",
+          "format": "double",
+          "type": "number"
+        },
+        "national_swing_sd": {
+          "description": "National swing per party shared by every race in an election.",
+          "format": "double",
+          "type": "number"
+        },
+        "partisan_discount": {
+          "description": "Share of retrospective blame partisans forgive their own side.",
+          "format": "double",
+          "type": "number"
+        },
+        "party_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "polarization_high": {
+          "format": "double",
+          "type": "number"
+        },
+        "polarization_low": {
+          "description": "Mean attitude standard deviation mapped to β_low and β_high.",
+          "format": "double",
+          "type": "number"
+        },
+        "race_shock_sd": {
+          "description": "Per-candidate race shock (utility units).",
+          "format": "double",
+          "type": "number"
+        },
+        "retrospective_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "strategic_weight": {
+          "description": "Wasted-vote penalty for candidates whose party is weak locally (Duverger).",
+          "format": "double",
+          "type": "number"
+        },
+        "valence_weight": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "issue_weight",
+        "beta_low",
+        "beta_high",
+        "polarization_low",
+        "polarization_high",
+        "party_weight",
+        "valence_weight",
+        "retrospective_weight",
+        "executive_multiplier",
+        "home_ward_bonus",
+        "partisan_discount",
+        "incumbent_awareness",
+        "challenger_awareness",
+        "race_shock_sd",
+        "national_swing_sd",
+        "strategic_weight",
+        "minor_party_threshold"
       ],
       "type": "object"
     },
@@ -1257,6 +1944,24 @@
       "required": [
         "kind",
         "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Parties, elections, polls, campaigns, and NPC AI (DEC-027 to DEC-030, DEC-071).",
+      "properties": {
+        "kind": {
+          "const": "politics",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/PoliticsParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
       ],
       "type": "object"
     }
