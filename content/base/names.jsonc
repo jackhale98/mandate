@@ -1,0 +1,34 @@
+// Name pools for the fictional world (REQ-001: no real places or people).
+{
+  "kind": "name_pools",
+  "items": [
+    {
+      "id": "names.place",
+      "kind": "place",
+      "prefixes": ["Ash", "Bel", "Bram", "Cal", "Corr", "Dun", "Eld", "Fen", "Gar", "Hal", "Hollin", "Kes", "Lark", "Mar", "Nor", "Oak", "Pell", "Quarr", "Ros", "Sel", "Thorn", "Vell", "Wex", "Yar", "Brin", "Tal", "Mire", "Strath"],
+      "middles": ["", "", "", "en", "er", "a", "i", "o"],
+      "suffixes": ["ford", "by", "wick", "mouth", "ton", "dale", "haven", "field", "bridge", "moor", "gate", "stead", "holm", "port", "well", "ridge"],
+    },
+    {
+      "id": "names.region",
+      "kind": "region",
+      "prefixes": ["Al", "Bor", "Cael", "Dor", "Ester", "Ferr", "Gal", "Hest", "Iver", "Lor", "Mer", "Nar", "Or", "Sar", "Tor", "Val", "Wen"],
+      "middles": ["a", "e", "i", "o", ""],
+      "suffixes": ["mark", "land", "shire", "ia", "mere", "ward", "vale", "march"],
+    },
+    {
+      "id": "names.given",
+      "kind": "given_name",
+      "prefixes": ["Ada", "Bram", "Cora", "Dal", "Edda", "Fen", "Greta", "Hal", "Ines", "Jory", "Kit", "Lena", "Milo", "Nell", "Otto", "Pia", "Rafe", "Sana", "Tam", "Una", "Vic", "Wren", "Yusuf", "Zia"],
+      "middles": [""],
+      "suffixes": ["", "", "", "n", "a", "ie"],
+    },
+    {
+      "id": "names.family",
+      "kind": "family_name",
+      "prefixes": ["Ash", "Black", "Brook", "Carr", "Dell", "Ever", "Fair", "Gold", "Hart", "Iron", "Kemp", "Lang", "Moss", "North", "Oak", "Pryce", "Quill", "Rook", "Stone", "Thorne", "Vane", "West", "Yates"],
+      "middles": [""],
+      "suffixes": ["", "wood", "field", "ley", "son", "er", "well", "by", "ridge"],
+    },
+  ],
+}

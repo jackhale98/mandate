@@ -1,0 +1,278 @@
+{
+  "$defs": {
+    "NamePoolDef": {
+      "additionalProperties": false,
+      "description": "Syllable-based name generator pool.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/NamePoolKind"
+        },
+        "middles": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "prefixes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "suffixes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "words": {
+          "default": [],
+          "description": "Optional whole-word list mixed in with generated names.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "prefixes",
+        "suffixes"
+      ],
+      "type": "object"
+    },
+    "NamePoolKind": {
+      "enum": [
+        "place",
+        "region",
+        "given_name",
+        "family_name"
+      ],
+      "type": "string"
+    },
+    "SectorClass": {
+      "enum": [
+        "primary",
+        "secondary",
+        "tertiary",
+        "public"
+      ],
+      "type": "string"
+    },
+    "SectorDef": {
+      "additionalProperties": false,
+      "properties": {
+        "base_weight": {
+          "description": "Relative weight of this sector's base presence in a generic economy.",
+          "format": "double",
+          "type": "number"
+        },
+        "class": {
+          "$ref": "#/$defs/SectorClass"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "class",
+        "base_weight"
+      ],
+      "type": "object"
+    },
+    "Tuning": {
+      "additionalProperties": false,
+      "description": "Data-driven tuning parameters (REQ-005).",
+      "properties": {
+        "burn_in_years": {
+          "description": "Years of NPC-only simulation before the player starts (DEC-022).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "late_night_enabled": {
+          "description": "Whether the optional Late Night slot is offered.",
+          "type": "boolean"
+        },
+        "standard_slots": {
+          "description": "Standard day-part slots per turn (Morning, Afternoon, Evening).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "start_year": {
+          "description": "Calendar year the history begins.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "turn_days": {
+          "$ref": "#/$defs/TurnDays",
+          "description": "Turn lengths in days by phase (DEC-012)."
+        }
+      },
+      "required": [
+        "standard_slots",
+        "late_night_enabled",
+        "turn_days",
+        "burn_in_years",
+        "start_year"
+      ],
+      "type": "object"
+    },
+    "TurnDays": {
+      "additionalProperties": false,
+      "properties": {
+        "campaign": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "final_stretch": {
+          "description": "Days before an election that switch to daily turns.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "governing_local": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "governing_national": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "governing_regional": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "campaign",
+        "final_stretch",
+        "governing_local",
+        "governing_regional",
+        "governing_national"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One content file. The `kind` field selects the variant.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "description": "Pack manifest (exactly one per pack).",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "pack",
+          "type": "string"
+        },
+        "load_order": {
+          "default": 0,
+          "description": "Load order: lower first. The base pack is 0.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "name_key": {
+          "description": "Fluent key for the pack's display name.",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "version",
+        "name_key"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Tuning parameters (REQ-005).",
+      "properties": {
+        "kind": {
+          "const": "tuning",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/Tuning"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Economic sectors (DEC-019).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/SectorDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "sectors",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Name-generation pools for places and people.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/NamePoolDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "name_pools",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "ContentFile"
+}

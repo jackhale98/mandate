@@ -50,7 +50,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-041 | Determinism rules | Accepted |
 | DEC-042 | Engine: calendar, turn order, effect requests, event log | Accepted |
 | DEC-043 | Worker protocol | Accepted |
-| DEC-044 | Persistence | Accepted |
+| DEC-044 | Persistence (rev. 2: versioned JSON snapshot plus migrations) | Accepted |
 | DEC-045 | Frontend stack: React + TypeScript | Accepted |
 | DEC-046 | Initial performance budgets | Accepted (assumptions to validate) |
 | DEC-047 | Screen architecture: hub-centred | Accepted |
@@ -70,6 +70,10 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-061 | Tone: heightened realism | Accepted |
 | DEC-062 | MVP scope (vertical slice) | Accepted |
 | DEC-063 | Milestone order: real systems first, with early playable checkpoints | Accepted |
+| DEC-064 | Hosting: GitHub Pages first, portable to a Cloudflare domain | Accepted |
+| DEC-065 | Initial art: Kenney CC0 asset packs | Accepted |
+| DEC-066 | CI: build once, cache WASM by source hash | Accepted |
+| DEC-067 | System plan approved; implementation begins | Accepted |
 
 ---
 
@@ -1184,3 +1188,60 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Bot players (DEC-060) give early balance signals from M4 on.
   - Mechanics are data-driven (DEC-053, REQ-005), so design changes found at checkpoints are mostly content and tuning changes.
 - **Consequences:** milestones as in `docs/development/ROADMAP.md` §2.
+
+### DEC-064 — Hosting: GitHub Pages first, portable to a Cloudflare domain
+
+- **Status:** Accepted (owner, 2026-11-18). The owner enabled GitHub Actions for deploys. The repository is public.
+- **Decision:**
+  - Deploy the static PWA to **GitHub Pages** from `main` with an Actions workflow.
+  - The site initially serves at a project sub-path (`/mandate/`). The Vite `base`, the PWA manifest `start_url`/`scope`, and the service-worker scope all come from one build variable, `MANDATE_BASE` (default `/mandate/`).
+- **Moving to Cloudflare later is supported.** Either:
+  - point a custom domain (managed in Cloudflare DNS) at GitHub Pages; or
+  - deploy the same `dist/` to Cloudflare Pages.
+
+  In both cases, rebuild with `MANDATE_BASE=/`.
+- **Caveats:**
+  - Changing origin (domain) means IndexedDB saves do not carry over automatically. Before switching, ship file export/import and tell players to export (DEC-052).
+  - GitHub Pages cannot set custom headers, which rules out cross-origin isolation. This is acceptable, because multithreaded WASM is deferred (TECH-008).
+
+### DEC-065 — Initial art: Kenney CC0 asset packs
+
+- **Status:** Accepted (owner, 2026-11-18). This resolves DEC-049's open item for the initial phase.
+- **Decision:**
+  - Use Kenney (kenney.nl) top-down packs. They are CC0 (public domain); for example, Tiny Town and RPG Urban Pack. They serve as the initial art for hubs, characters, and UI icons.
+- **Sourcing:**
+  - kenney.nl blocks automated downloads from the build environment. Fetch the packs from the official OpenGameArt mirrors, or have the owner add them to the repo.
+  - Store them under `web/public/assets/kenney/` with license notes in `ASSETS.md`.
+- **Later:** the owner will provide a logo and a loading animation.
+- **Consequences:** sprite tile size follows the chosen pack (16 px). The layered character generator adapts to the pack's character parts, or uses tinting where parts are unavailable.
+
+### DEC-066 — CI: build once, cache WASM by source hash
+
+- **Status:** Accepted (owner, 2026-11-18).
+- **Decision:**
+  - A `wasm` job builds `mandate-wasm` and runs `wasm-bindgen`.
+  - Its output (`web/src/engine/pkg/`) is cached with a key that hashes `Cargo.lock`, `rust-toolchain.toml`, and every `crates/**` source file. A cache hit skips the Rust build entirely.
+  - The output is uploaded as an artifact for the web, E2E, and deploy jobs.
+  - Rust build caching uses `Swatinem/rust-cache`. The `wasm-bindgen-cli` binary is cached and pinned to the `wasm-bindgen` crate version.
+  - npm is cached through `setup-node`.
+
+### DEC-067 — System plan approved; implementation begins
+
+- **Status:** Accepted (owner, 2026-11-18).
+- **Owner instructions:**
+  - Proceed through all milestones.
+  - Push to `main` when ready so Pages builds and the owner can test on a phone.
+  - Ask if questions remain.
+- **Decision:**
+  - `SYSTEM_PLAN.md` is the implementation baseline. DEC-003 is satisfied.
+  - The owner-checkpoint gates (M3, M4, M6) remain: report at each one, and continue unless the owner objects.
+
+### DEC-044 revision 2 — Save format compatibility mechanism
+
+- **Status:** Accepted (agent technical decision during M0, 2026-11-18; within the owner's delegated technical authority).
+- **Change:** revision 1 specified separate save DTO structs mirroring every entity. Duplicating every simulation type would double maintenance across all milestones. Revision 2 achieves the same goal, a stored format independent of internal refactors, through a different mechanism:
+  - **The stored payload is a versioned JSON snapshot** of the serialized state, DEFLATE-compressed, with a BLAKE3 integrity hash. It has a binary header (`MNDT`, format version, metadata length, metadata JSON) so metadata can be read without inflating the payload.
+  - **Compatibility comes from JSON-level migrations** (`vN → vN+1` functions on `serde_json::Value`) plus a fixture corpus.
+  - **A shape-fingerprint test** (`mandate-save/tests/saves.rs`) fails whenever the serialized state shape changes without a `SAVE_FORMAT_VERSION` bump. Refactors can never silently break saves.
+  - **Pre-release policy:** development builds may bump the version without a migration. Such saves are rejected with a clear message. From the first public release, every bump requires a migration and a fixture.
+- **Protocol DTOs remain separate** from internal types (DEC-043). Only the save payload uses this mechanism.

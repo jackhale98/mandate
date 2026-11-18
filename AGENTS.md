@@ -3,7 +3,7 @@
 A political career roguelike: a deterministic Rust simulation compiled to WASM, running in a Web Worker behind a React/TypeScript PWA. Offline-first, no backend.
 
 ## Status
-Discovery is complete and awaiting owner approval of the final system plan (`docs/design/SYSTEM_PLAN.md`). **Do not write substantive implementation code until `docs/development/PROGRESS.md` says the plan is approved** (DEC-003).
+The system plan (`docs/design/SYSTEM_PLAN.md`) is **approved** (DEC-067). Implementation follows `docs/development/ROADMAP.md`. Current status is in `docs/development/PROGRESS.md`.
 
 ## Read first (only what your task needs)
 - Your task brief, written to the template in `docs/development/WORKFLOW.md`.

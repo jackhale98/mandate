@@ -1,0 +1,23 @@
+# Determinism lints (DEC-041). Engine crates must not use these.
+disallowed-types = [
+  { path = "std::collections::HashMap", reason = "nondeterministic iteration; use BTreeMap or Vec (DEC-041)" },
+  { path = "std::collections::HashSet", reason = "nondeterministic iteration; use BTreeSet (DEC-041)" },
+  { path = "std::time::Instant", reason = "no wall clock in simulation (DEC-041)" },
+  { path = "std::time::SystemTime", reason = "no wall clock in simulation (DEC-041)" },
+]
+disallowed-methods = [
+  { path = "f64::sin", reason = "use mandate_core::math (libm) for cross-platform determinism" },
+  { path = "f64::cos", reason = "use mandate_core::math (libm)" },
+  { path = "f64::tan", reason = "use mandate_core::math (libm)" },
+  { path = "f64::exp", reason = "use mandate_core::math (libm)" },
+  { path = "f64::ln", reason = "use mandate_core::math (libm)" },
+  { path = "f64::log10", reason = "use mandate_core::math (libm)" },
+  { path = "f64::log2", reason = "use mandate_core::math (libm)" },
+  { path = "f64::powf", reason = "use mandate_core::math (libm)" },
+  { path = "f64::atan2", reason = "use mandate_core::math (libm)" },
+  { path = "f64::tanh", reason = "use mandate_core::math (libm)" },
+  { path = "f64::mul_add", reason = "fused multiply-add is not portable-deterministic" },
+]
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+allow-print-in-tests = true

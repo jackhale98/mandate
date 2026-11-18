@@ -1,0 +1,213 @@
+//! Versioned run saves (DEC-044 rev. 2, DEC-052, TECH-009).
+//!
+//! File layout: `b"MNDT"` | format version (u16 LE) | meta length (u32 LE) |
+//! meta JSON | DEFLATE-compressed payload JSON.
+//!
+//! The metadata can be read without decompressing the payload (save lists,
+//! sync). The payload's BLAKE3 hash is stored in the metadata (integrity).
+//! Compatibility across versions uses JSON-level migrations (`migrate`) and a
+//! fixture corpus; any change to the serialized state shape must bump
+//! `SAVE_FORMAT_VERSION` (enforced by the shape-fingerprint test).
+
+use mandate_core::hash::StableHash;
+use mandate_sim::State;
+use serde::{Deserialize, Serialize};
+
+pub const MAGIC: &[u8; 4] = b"MNDT";
+pub const SAVE_FORMAT_VERSION: u16 = 1;
+/// Refuse to inflate payloads larger than this (corrupt or hostile files).
+pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RunMode {
+    Ironman,
+    Story,
+}
+
+/// Sync-ready save metadata (DEC-052). Wall-clock fields are metadata only.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SaveMeta {
+    pub format_version: u16,
+    /// Random 128-bit run identifier, hex (outside simulation state).
+    pub run_id: String,
+    pub revision: u64,
+    pub parent_revision: Option<u64>,
+    pub device_id: String,
+    /// ISO-8601 wall-clock time supplied by the client.
+    pub saved_at: String,
+    pub engine_version: String,
+    pub content_hash: String,
+    pub protocol_version: u32,
+    pub run_mode: RunMode,
+    pub seed: u64,
+    /// Simulation day number at save time.
+    pub sim_date: u32,
+    pub turn: u32,
+    /// Hex BLAKE3 hash of the uncompressed payload.
+    pub payload_hash: String,
+}
+
+/// Client-supplied fields for a new save.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SaveRequest {
+    pub run_id: String,
+    pub revision: u64,
+    pub parent_revision: Option<u64>,
+    pub device_id: String,
+    pub saved_at: String,
+    pub protocol_version: u32,
+    pub run_mode: RunMode,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Payload {
+    state: State,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SaveError {
+    #[error("not a Mandate save file")]
+    BadMagic,
+    #[error("save file is truncated or malformed")]
+    Malformed,
+    #[error("save format v{0} is newer than this build supports (v{SAVE_FORMAT_VERSION})")]
+    TooNew(u16),
+    #[error("save integrity check failed")]
+    Integrity,
+    #[error("save data error: {0}")]
+    Data(String),
+}
+
+/// Encode a save file from the current state.
+pub fn encode(state: &State, req: &SaveRequest) -> Result<(Vec<u8>, SaveMeta), SaveError> {
+    let payload =
+        serde_json::to_vec(&PayloadRef { state }).map_err(|e| SaveError::Data(e.to_string()))?;
+    let meta = SaveMeta {
+        format_version: SAVE_FORMAT_VERSION,
+        run_id: req.run_id.clone(),
+        revision: req.revision,
+        parent_revision: req.parent_revision,
+        device_id: req.device_id.clone(),
+        saved_at: req.saved_at.clone(),
+        engine_version: state.meta.engine_version.clone(),
+        content_hash: state.meta.content_hash.clone(),
+        protocol_version: req.protocol_version,
+        run_mode: req.run_mode,
+        seed: state.meta.seed,
+        sim_date: state.calendar.date.0,
+        turn: state.calendar.turn,
+        payload_hash: StableHash::of_bytes(&payload).hex(),
+    };
+    let meta_json = serde_json::to_vec(&meta).map_err(|e| SaveError::Data(e.to_string()))?;
+    let compressed = miniz_oxide::deflate::compress_to_vec(&payload, 6);
+    let mut out = Vec::with_capacity(10 + meta_json.len() + compressed.len());
+    out.extend_from_slice(MAGIC);
+    out.extend_from_slice(&SAVE_FORMAT_VERSION.to_le_bytes());
+    out.extend_from_slice(&(meta_json.len() as u32).to_le_bytes());
+    out.extend_from_slice(&meta_json);
+    out.extend_from_slice(&compressed);
+    Ok((out, meta))
+}
+
+#[derive(Serialize)]
+struct PayloadRef<'a> {
+    state: &'a State,
+}
+
+fn split(bytes: &[u8]) -> Result<(u16, &[u8], &[u8]), SaveError> {
+    if bytes.len() < 10 {
+        return Err(SaveError::Malformed);
+    }
+    if &bytes[..4] != MAGIC {
+        return Err(SaveError::BadMagic);
+    }
+    let version = u16::from_le_bytes([bytes[4], bytes[5]]);
+    let meta_len = u32::from_le_bytes([bytes[6], bytes[7], bytes[8], bytes[9]]) as usize;
+    let meta_end = 10usize.checked_add(meta_len).ok_or(SaveError::Malformed)?;
+    if meta_end > bytes.len() {
+        return Err(SaveError::Malformed);
+    }
+    Ok((version, &bytes[10..meta_end], &bytes[meta_end..]))
+}
+
+/// Read only the metadata (cheap; used for save lists and sync).
+pub fn read_meta(bytes: &[u8]) -> Result<SaveMeta, SaveError> {
+    let (version, meta, _) = split(bytes)?;
+    if version > SAVE_FORMAT_VERSION {
+        return Err(SaveError::TooNew(version));
+    }
+    serde_json::from_slice(meta).map_err(|e| SaveError::Data(e.to_string()))
+}
+
+/// Decode, verify, and migrate a save file to the current format.
+pub fn decode(bytes: &[u8]) -> Result<(State, SaveMeta), SaveError> {
+    let meta = read_meta(bytes)?;
+    let (version, _, compressed) = split(bytes)?;
+    let payload = miniz_oxide::inflate::decompress_to_vec_with_limit(compressed, MAX_PAYLOAD_BYTES)
+        .map_err(|_| SaveError::Malformed)?;
+    if StableHash::of_bytes(&payload).hex() != meta.payload_hash {
+        return Err(SaveError::Integrity);
+    }
+    let value: serde_json::Value =
+        serde_json::from_slice(&payload).map_err(|e| SaveError::Data(e.to_string()))?;
+    let value = migrate(version, value)?;
+    let p: Payload = serde_json::from_value(value).map_err(|e| SaveError::Data(e.to_string()))?;
+    Ok((p.state, meta))
+}
+
+/// One migration step from format `vN` to `vN+1`.
+pub type MigrationStep = fn(serde_json::Value) -> Result<serde_json::Value, SaveError>;
+
+/// JSON-level migration chain `vN → vN+1`. Add one arm per format bump.
+pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    // One step per format bump, applied in order. None exist yet (v1).
+    // Pre-release policy: development builds may bump the version without a
+    // migration; such saves are rejected with a clear error instead.
+    let steps: &[(u16, MigrationStep)] = &[];
+    let mut value = value;
+    let mut v = from;
+    while v < SAVE_FORMAT_VERSION {
+        let Some((_, step)) = steps.iter().find(|(at, _)| *at == v) else {
+            return Err(SaveError::Data(format!(
+                "this save is from an older development build (format v{v}) and cannot be migrated"
+            )));
+        };
+        value = step(value)?;
+        v += 1;
+    }
+    Ok(value)
+}
+
+/// Structural fingerprint of a JSON value: object keys and value kinds, with
+/// array contents collapsed to their first element's shape.
+pub fn shape_fingerprint(value: &serde_json::Value) -> String {
+    fn walk(v: &serde_json::Value, out: &mut String) {
+        match v {
+            serde_json::Value::Null => out.push('n'),
+            serde_json::Value::Bool(_) => out.push('b'),
+            serde_json::Value::Number(_) => out.push('#'),
+            serde_json::Value::String(_) => out.push('s'),
+            serde_json::Value::Array(a) => {
+                out.push('[');
+                if let Some(first) = a.first() {
+                    walk(first, out);
+                }
+                out.push(']');
+            }
+            serde_json::Value::Object(o) => {
+                out.push('{');
+                for (k, val) in o {
+                    out.push_str(k);
+                    out.push(':');
+                    walk(val, out);
+                    out.push(',');
+                }
+                out.push('}');
+            }
+        }
+    }
+    let mut s = String::new();
+    walk(value, &mut s);
+    StableHash::of_bytes(s.as_bytes()).short()
+}

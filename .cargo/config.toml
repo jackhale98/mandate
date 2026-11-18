@@ -1,0 +1,4 @@
+[env]
+# Generated TypeScript protocol types (DEC-043). Regenerate with:
+#   cargo test -p mandate-protocol
+TS_RS_EXPORT_DIR = { value = "web/src/engine/protocol", relative = true }

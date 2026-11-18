@@ -1,0 +1,6 @@
+{
+  "files.associations": { "*.jsonc": "jsonc" },
+  "json.schemas": [
+    { "fileMatch": ["/content/**/*.jsonc"], "url": "./content/schemas/content.schema.json" }
+  ]
+}

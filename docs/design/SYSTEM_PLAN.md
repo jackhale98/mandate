@@ -1,6 +1,6 @@
 # Mandate — Definitive System Plan
 
-**Status:** Final baseline, **awaiting owner approval** (brief §30 Step 6; DEC-003). Once it is approved, implementation begins at M0.
+**Status:** Final baseline, **approved by the owner on 2026-11-18** (DEC-067). Hosting, art, and CI follow DEC-064 to DEC-066.
 **How to read it:** this is the single entry point. Each section summarizes the accepted design and links to the authoritative decision (DEC) or spec. Where this document and a DEC entry disagree, the DEC entry wins and this document gets fixed.
 
 ---

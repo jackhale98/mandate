@@ -1,0 +1,14 @@
+// Economic sectors (DEC-019). base_weight is the generic share before geography.
+{
+  "kind": "sectors",
+  "items": [
+    { "id": "sector.agriculture",   "name_key": "sector-agriculture",   "class": "primary",   "base_weight": 0.06 },
+    { "id": "sector.resources",     "name_key": "sector-resources",     "class": "primary",   "base_weight": 0.04 },
+    { "id": "sector.manufacturing", "name_key": "sector-manufacturing", "class": "secondary", "base_weight": 0.14 },
+    { "id": "sector.construction",  "name_key": "sector-construction",  "class": "secondary", "base_weight": 0.07 },
+    { "id": "sector.retail",        "name_key": "sector-retail",        "class": "tertiary",  "base_weight": 0.24 },
+    { "id": "sector.tourism",       "name_key": "sector-tourism",       "class": "tertiary",  "base_weight": 0.06 },
+    { "id": "sector.knowledge",     "name_key": "sector-knowledge",     "class": "tertiary",  "base_weight": 0.17 },
+    { "id": "sector.public",        "name_key": "sector-public",        "class": "public",    "base_weight": 0.22 },
+  ],
+}

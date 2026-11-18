@@ -1,0 +1,10 @@
+/target
+node_modules/
+/web/dist/
+/web/dev-dist/
+# Generated WASM bindings (built by scripts/build-wasm.sh; cached in CI, DEC-066)
+/web/src/engine/pkg/
+/web/test-results/
+/web/playwright-report/
+*.mndt
+.DS_Store

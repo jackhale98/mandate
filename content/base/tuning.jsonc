@@ -1,0 +1,17 @@
+// Tuning parameters (REQ-005). Change values here, not in code.
+{
+  "kind": "tuning",
+  "value": {
+    "standard_slots": 3,          // Morning, Afternoon, Evening (DEC-013)
+    "late_night_enabled": true,   // optional risky fourth slot
+    "turn_days": {                // DEC-012
+      "campaign": 7,
+      "final_stretch": 3,
+      "governing_local": 14,
+      "governing_regional": 14,
+      "governing_national": 21,
+    },
+    "burn_in_years": 20,          // DEC-022
+    "start_year": 2000,
+  },
+}

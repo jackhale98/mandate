@@ -1,0 +1,8 @@
+// Base content pack for Mandate (DEC-055: packs with load order).
+{
+  "kind": "pack",
+  "id": "base",
+  "version": "0.1.0",
+  "name_key": "pack-base",
+  "load_order": 0,
+}
