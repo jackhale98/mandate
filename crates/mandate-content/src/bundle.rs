@@ -26,6 +26,9 @@ pub struct ContentBundle {
     /// politicians, parties, and policy signatures are dense in this order.
     pub attitudes: Vec<AttitudeDef>,
     pub name_pools: BTreeMap<ContentKey, NamePoolDef>,
+    /// The place-kind registry (DEC-079), in load order.
+    #[serde(default)]
+    pub places: Vec<PlaceKindDef>,
     pub economy: EconomyParams,
     pub constitutions: BTreeMap<ContentKey, ConstitutionDef>,
     pub policies: BTreeMap<ContentKey, PolicyTemplate>,
@@ -70,6 +73,11 @@ impl ContentBundle {
         self.attitudes.iter().map(|a| &a.key)
     }
 
+    /// A place kind by its snake-case key (e.g. `council_chamber`).
+    pub fn place_kind(&self, key: &str) -> Option<&PlaceKindDef> {
+        self.places.iter().find(|p| p.key == key)
+    }
+
     /// All Fluent text for a language, concatenated in path order.
     pub fn locale_text(&self, lang: &str) -> String {
         self.locales
@@ -103,6 +111,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut sectors: Vec<SectorDef> = Vec::new();
     let mut attitudes: Vec<AttitudeDef> = Vec::new();
     let mut name_pools: BTreeMap<ContentKey, NamePoolDef> = BTreeMap::new();
+    let mut places: Vec<PlaceKindDef> = Vec::new();
     let mut locales: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
     let mut origin: BTreeMap<String, String> = BTreeMap::new();
 
@@ -213,6 +222,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Places { items } => {
+                for p in items {
+                    if claim(&p.id, &mut issues) {
+                        places.push(p);
+                    }
+                }
+            }
             ContentFile::NamePools { items } => {
                 for n in items {
                     if claim(&n.id, &mut issues) {
@@ -251,6 +267,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         sectors,
         attitudes,
         name_pools,
+        places,
         economy,
         constitutions,
         policies,

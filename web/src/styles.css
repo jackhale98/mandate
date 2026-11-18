@@ -313,3 +313,77 @@ h2 { font-size: 1.1rem; }
 .tradeoff strong { color: var(--text); font-weight: 600; }
 .ad-buy { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
 .your-vote { border: 1px solid var(--accent); border-radius: 10px; padding: 10px; margin: 8px 0; }
+
+/* M5a: places as the interface (DEC-079). The town is a list of
+   neighbourhood sections with place buttons; it reads as a schematic. */
+.actionbar { z-index: 7; align-items: center; justify-content: space-between; }
+.actionbar .btn-primary { flex: 0 1 auto; min-width: 120px; }
+.pocket-btn { display: inline-flex; align-items: center; gap: 6px; }
+.badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
+.where { flex: 1; min-width: 0; text-align: center; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewbar { display: flex; align-items: center; gap: 10px; padding: 4px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.town { max-width: 1100px; }
+.town-title { font-size: 1.15rem; margin: 0; }
+.town-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 700px) { .town-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .town-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.hood {
+  border: 1px dashed var(--border); border-radius: var(--radius); padding: 12px;
+  background: repeating-linear-gradient(45deg, var(--surface), var(--surface) 10px, color-mix(in srgb, var(--surface-2) 55%, var(--surface)) 10px, color-mix(in srgb, var(--surface-2) 55%, var(--surface)) 20px);
+}
+.hood-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: 10px; }
+.hood-head h2 { margin: 0; font-size: 1rem; }
+.spots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.spot {
+  width: 100%; height: 100%; min-height: 64px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 10px; border-radius: 10px; border: 1px solid var(--border); border-bottom-width: 3px;
+  background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; position: relative;
+}
+.spot:hover { border-color: var(--accent); }
+.spot:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.spot:disabled { cursor: progress; }
+.spot-here { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+.spot-icon { font-size: 1.4rem; line-height: 1; }
+.spot-text { display: flex; flex-direction: column; min-width: 0; width: 100%; }
+.spot-name { font-size: 0.92rem; overflow-wrap: anywhere; }
+.spot-what { color: var(--muted); line-height: 1.3; }
+.spot-marker { margin-top: 4px; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
+.hood-quiet { margin: 8px 0 0; }
+.sheet-tools { display: flex; gap: 8px; align-items: center; }
+.place-body, .pocket-body { gap: 12px; }
+.pocket { z-index: 6; }
+.place-panel { z-index: 5; }
+@media (min-width: 900px) {
+  .pocket { right: auto; left: 0; border-left: 0; border-right: 1px solid var(--border); }
+}
+.pocket-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.pocket-links .btn { flex: 1 1 120px; }
+.plain-list { list-style: none; margin: 0; padding: 0; }
+.pocket-bill { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.alerts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.route { margin: 0; color: var(--muted); }
+.route::before { content: "→ "; }
+.action-form { display: flex; flex-direction: column; gap: 4px; }
+.quotes li { font-style: italic; margin: 4px 0; }
+.table-scroll { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.data-table th, .data-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.data-table td.num { text-align: right; }
+.walking { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 55%, transparent); padding: 16px; }
+.walking-card {
+  width: min(360px, 100%); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px;
+  border-radius: var(--radius); border: 1px solid var(--accent); background: var(--surface); color: var(--text); font: inherit; cursor: pointer;
+}
+.walking-icon { font-size: 2rem; }
+.walking-text { font-weight: 600; text-align: center; }
+.walking-track { position: relative; width: 100%; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.walking-dot { position: absolute; top: 0; left: 0; height: 100%; width: 30%; border-radius: 3px; background: var(--accent); animation: walk 0.6s ease-in-out forwards; }
+@keyframes walk { from { left: 0; } to { left: 70%; } }
+@media (prefers-reduced-motion: reduce) { .walking-dot { animation: none; left: 70%; } }
+.sheet-head { position: sticky; top: -16px; z-index: 1; background: var(--surface); margin: -16px -16px 8px; padding: 16px 16px 8px; border-bottom: 1px solid var(--border); }
+.pocket { max-height: 85vh; }
+@media (min-width: 900px) {
+  .pocket, .place-panel { top: 63px; bottom: 0; padding-top: 16px; max-height: none; }
+  .with-panel .game-body { padding-right: 416px; max-width: none; }
+  .with-pocket .game-body { padding-left: 416px; max-width: none; }
+}

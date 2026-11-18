@@ -39,6 +39,8 @@ pub fn plan(rng: &mut SimRng, c: &Ctx<'_>) -> Vec<PlacePlan> {
     let mut add = |kind, area, name: String| out.push(PlacePlan { kind, area, name });
     add(K::TownHall, A::Core, String::new());
     add(K::CouncilChamber, A::Core, String::new());
+    // The player's party keeps a local office in every town (DEC-079): no draw.
+    add(K::PartyOffice, A::Core, String::new());
     let diner = rng
         .pick(c.given_names)
         .cloned()

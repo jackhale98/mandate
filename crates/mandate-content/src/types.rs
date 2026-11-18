@@ -22,6 +22,8 @@ pub enum ContentFile {
     Attitudes { items: Vec<AttitudeDef> },
     /// Name-generation pools for places and people.
     NamePools { items: Vec<NamePoolDef> },
+    /// Place kinds: what the player can do and learn at each kind of place (DEC-079).
+    Places { items: Vec<PlaceKindDef> },
     /// Economy and demography parameters (REQ-005).
     Economy { value: EconomyParams },
     /// A constitutional archetype built from primitives (DEC-017).
@@ -691,6 +693,71 @@ pub struct NamePoolDef {
     pub words: Vec<String>,
 }
 
+// --- Place kinds (DEC-078 decision 6, DEC-079) --------------------------------
+
+/// The player actions a place can offer. The kinds of action stay in code
+/// (DEC-078 decision 7); these keys match the action-cost keys in tuning
+/// where an action costs time. `vote`, `draft`, `file`, and `withdraw` are free.
+pub const PLACE_ACTIONS: [&str; 14] = [
+    "canvass",
+    "town_hall",
+    "press",
+    "fundraise",
+    "lobby",
+    "trade_favor",
+    "advertise",
+    "rest",
+    "introduce",
+    "amend",
+    "vote",
+    "draft",
+    "file",
+    "withdraw",
+];
+
+/// Actions with a late-night variant (the optional fourth slot).
+pub const LATE_NIGHT_ACTIONS: [&str; 3] = ["lobby", "trade_favor", "fundraise"];
+
+/// Information services a place can offer: precise data the pocket only has
+/// in coarse form (DEC-079 rule 4).
+pub const PLACE_SERVICES: [&str; 5] = [
+    "whip_exact",
+    "town_data_detailed",
+    "budget_papers",
+    "internal_polls",
+    "overheard",
+];
+
+/// Pseudo-locations that are not generated places: the player's home, and
+/// the streets of each neighbourhood.
+pub const PSEUDO_PLACES: [&str; 2] = ["home", "streets"];
+
+/// One kind of place and what it offers (DEC-079). Worldgen decides which
+/// places exist; this registry supplies their behaviour.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PlaceKindDef {
+    /// Content id, e.g. `place.council_chamber`.
+    pub id: ContentKey,
+    /// Snake-case place kind, as worldgen names it (e.g. `council_chamber`),
+    /// or a pseudo-location (`home`, `streets`).
+    pub key: String,
+    pub name_key: String,
+    /// Actions offered here (keys from the action list).
+    #[serde(default)]
+    pub actions: Vec<String>,
+    /// Actions that may also be taken here late at night (a subset of `actions`).
+    #[serde(default)]
+    pub late_night: Vec<String>,
+    /// Information services offered here.
+    #[serde(default)]
+    pub services: Vec<String>,
+    /// Where this kind's actions and services move in a town (or, for
+    /// neighbourhood actions, a neighbourhood) that has no such place.
+    #[serde(default)]
+    pub fallback: Option<String>,
+}
+
 // --- Politics parameters (DEC-027 to DEC-030, DEC-071) -----------------------
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -977,6 +1044,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "name_pools" => ContentFile::NamePools {
             items: serde_json::from_str::<ItemsFile<NamePoolDef>>(json)?.items,
+        },
+        "places" => ContentFile::Places {
+            items: serde_json::from_str::<ItemsFile<PlaceKindDef>>(json)?.items,
         },
         "economy" => ContentFile::Economy {
             value: serde_json::from_str::<ValueFile<EconomyParams>>(json)?.value,

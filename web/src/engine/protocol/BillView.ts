@@ -20,7 +20,13 @@ end_reason: string | null, params: Array<ParamValue>, clauses: Array<ClauseDto>,
 /**
  * Fluent key of the next stage, e.g. `stage-vote-council`.
  */
-next_stage_key: string | null, est_annual_cost: number, funded_pct: number, progress: number, awareness: number, whip: Array<WhipView>, expected_yes: number, seats: number, needed: number, 
+next_stage_key: string | null, est_annual_cost: number, funded_pct: number, progress: number, awareness: number, 
+/**
+ * Member by member, with yes chances and lobbying odds: only in the
+ * council chamber (DEC-079 rule 4). Elsewhere it is empty and
+ * `expected_yes` is rounded ("about N of M").
+ */
+whip: Array<WhipView>, whip_exact: boolean, expected_yes: number, seats: number, needed: number, 
 /**
  * Mayor's inclination: `sign` | `lean_sign` | `undecided` | `lean_veto` | `veto`.
  */

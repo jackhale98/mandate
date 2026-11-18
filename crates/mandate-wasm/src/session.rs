@@ -136,7 +136,7 @@ impl Session {
                 let command = match c {
                     CommandDto::EndTurn => Command::EndTurn,
                     CommandDto::AdvanceDays { days } => Command::AdvanceDays { days },
-                    other => Command::Player(player_command(other)),
+                    other => Command::Player(player_command(other)?),
                 };
                 let engine = self.engine_mut()?;
                 let outcome = engine
@@ -169,6 +169,15 @@ impl Session {
                 QueryDto::Municipality { id } => municipality_view(self.engine_mut()?, id)
                     .map(ResponseBody::Municipality)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no municipality {id}"))),
+                QueryDto::Pocket => pocket_view(self.engine_mut()?)
+                    .map(ResponseBody::Pocket)
+                    .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
+                QueryDto::Town => town_places_view(self.engine_mut()?)
+                    .map(ResponseBody::Town)
+                    .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
+                QueryDto::Place { location } => place_panel_view(self.engine_mut()?, location)
+                    .map(ResponseBody::Place)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, "no such place in your town")),
                 QueryDto::Locale { lang } => Ok(ResponseBody::Locale(LocaleView {
                     ftl: self.content.locale_text(&lang),
                     lang,
@@ -240,11 +249,21 @@ fn params(v: Vec<ParamValue>) -> std::collections::BTreeMap<String, f64> {
 }
 
 /// Protocol DTO → simulation command (the protocol never exposes lab commands).
-fn player_command(c: CommandDto) -> mandate_sim::actions::PlayerCommand {
+fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, ProtocolError> {
     use mandate_sim::actions::{Action, PlayerCommand as P};
     use mandate_sim::policy::Clause;
     use mandate_sim::world::ConstituencyId;
-    match c {
+    Ok(match c {
+        CommandDto::MoveTo { location } => P::MoveTo {
+            location: location.to_sim(),
+        },
+        CommandDto::Go { location, then } => P::Go {
+            location: location.to_sim(),
+            then: match then {
+                Some(c) => Some(Box::new(player_command(*c)?)),
+                None => None,
+            },
+        },
         CommandDto::DraftPolicy {
             template,
             params: p,
@@ -310,10 +329,13 @@ fn player_command(c: CommandDto) -> mandate_sim::actions::PlayerCommand {
                 ActionDto::Advertise => Action::Advertise,
             },
         },
-        // EndTurn and AdvanceDays are handled before this conversion.
-        CommandDto::EndTurn | CommandDto::AdvanceDays { .. } => P::Act {
-            action: Action::Rest,
-            late_night: false,
-        },
-    }
+        // EndTurn and AdvanceDays are handled before this conversion; they
+        // cannot follow a move.
+        CommandDto::EndTurn | CommandDto::AdvanceDays { .. } => {
+            return Err(err(
+                ErrorCode::InvalidCommand,
+                "time cannot pass as part of a move",
+            ));
+        }
+    })
 }

@@ -2,7 +2,12 @@
 import type { ConcernView } from "./ConcernView";
 import type { PlaceRef } from "./PlaceRef";
 
-export type TownView = { gov_approval: number, player_awareness_ward: number, player_approval_ward: number, player_awareness_town: number, player_approval_town: number, concerns: Array<ConcernView>, neighborhoods: Array<PlaceRef>, wards: Array<PlaceRef>, 
+export type TownView = { 
+/**
+ * Precise figures (at the town hall's statistics desk); otherwise the
+ * opinion figures are rounded to 5 points and concerns to 10 (DEC-079).
+ */
+detailed: boolean, gov_approval: number, player_awareness_ward: number, player_approval_ward: number, player_awareness_town: number, player_approval_town: number, concerns: Array<ConcernView>, neighborhoods: Array<PlaceRef>, wards: Array<PlaceRef>, 
 /**
  * Chance of a hostile town hall, aligned with `neighborhoods`.
  */

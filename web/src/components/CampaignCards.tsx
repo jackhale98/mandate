@@ -4,17 +4,16 @@ import type { RaceView } from "../engine/protocol/RaceView";
 import type { ResultView } from "../engine/protocol/ResultView";
 import { useGame } from "../state/gameStore";
 import { formatDate } from "../i18n/format";
-import { PartyChip, PollChart, ResultBars, WhyBars } from "../components/ElectionCharts";
-import { Agenda } from "./Office";
+import { PartyChip, PollChart, ResultBars, WhyBars } from "./ElectionCharts";
 
 function seatTitle(tr: ReturnType<typeof useGame.getState>["tr"], seat: string, ward: number | null): string {
   return seat === "mayor" ? tr.t("ui-race-mayor") : tr.t("ui-race-ward", { n: ward ?? 0 });
 }
 
-function Calendar({ c }: { c: CampaignView }) {
+export function Calendar({ c }: { c: CampaignView }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
-  const command = useGame((s) => s.command);
+  const perform = useGame((s) => s.perform);
   const options: { id: FilingDto; key: string; disabled: boolean }[] = [
     { id: "council", key: c.player_in_office ? "ui-file-defend" : "ui-file-council", disabled: false },
     { id: "mayor", key: "ui-file-mayor", disabled: !c.mayor_nomination_open },
@@ -50,7 +49,7 @@ function Calendar({ c }: { c: CampaignView }) {
                 name="filing"
                 checked={current === o.id}
                 disabled={o.disabled}
-                onChange={() => void command({ type: "file", filing: o.id })}
+                onChange={() => void perform({ type: "file", filing: o.id })}
               />
               {tr.t(o.key)}
             </label>
@@ -62,7 +61,7 @@ function Calendar({ c }: { c: CampaignView }) {
   );
 }
 
-function RaceCard({ race, c }: { race: RaceView; c: CampaignView }) {
+export function RaceCard({ race, c }: { race: RaceView; c: CampaignView }) {
   const tr = useGame((s) => s.tr);
   const avg = race.poll_average;
   return (
@@ -127,19 +126,17 @@ export function ResultCard({ r, c, headline = false }: { r: ResultView; c: Campa
   );
 }
 
-export function Campaign() {
+/** The campaign at the party office: your race (public polls), the other races, results, parties. */
+export function CampaignHub() {
   const tr = useGame((s) => s.tr);
   const c = useGame((s) => s.campaign);
-  const o = useGame((s) => s.office);
-  if (!c || !o) return null;
+  if (!c) return null;
   const mine = c.races.find((r) => r.is_player_race);
   const others = c.races.filter((r) => !r.is_player_race);
   return (
-    <main className="game-body">
-      <Calendar c={c} />
+    <>
       {c.in_campaign && !mine && <p className="note">{tr.t("ui-not-running")}</p>}
       {mine && <RaceCard race={mine} c={c} />}
-      {mine && <Agenda o={o} campaigning />}
       {others.length > 0 && (
         <section className="card">
           <h2>{tr.t("ui-other-races")}</h2>
@@ -181,7 +178,7 @@ export function Campaign() {
           ))}
         </ul>
       </section>
-    </main>
+    </>
   );
 }
 

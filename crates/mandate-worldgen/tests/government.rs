@@ -27,7 +27,7 @@ fn world(seed: u64) -> Engine {
 fn draft(e: &mut Engine, template: &str, params: &[(&str, f64)]) -> u32 {
     let params: BTreeMap<String, f64> = params.iter().map(|(k, v)| (k.to_string(), *v)).collect();
     let out = e
-        .apply(Command::Player(PlayerCommand::DraftPolicy {
+        .apply(e.route(PlayerCommand::DraftPolicy {
             template: template.into(),
             params,
         }))
@@ -51,7 +51,7 @@ fn whip_hard(e: &mut Engine, policy: u32) {
         if e.state().player.as_ref().unwrap().slots_left() == 0 {
             break;
         }
-        let _ = e.apply(Command::Player(PlayerCommand::Act {
+        let _ = e.apply(e.route(PlayerCommand::Act {
             action: Action::TradeFavor {
                 politician: id,
                 policy,
@@ -69,10 +69,8 @@ fn bill_journey_draft_to_law() {
         e.state().policy.instances[id as usize].status,
         PolicyStatus::Draft
     );
-    e.apply(Command::Player(PlayerCommand::IntroducePolicy {
-        policy: id,
-    }))
-    .unwrap();
+    e.apply(e.route(PlayerCommand::IntroducePolicy { policy: id }))
+        .unwrap();
     assert_eq!(
         e.state().policy.instances[id as usize].status,
         PolicyStatus::UnderConsideration
@@ -115,10 +113,8 @@ fn housing_programme_adds_homes_versus_control() {
     let mut a = world(32);
     let mut b = world(32);
     let id = draft(&mut b, "policy.affordable_housing", &[("units", 200.0)]);
-    b.apply(Command::Player(PlayerCommand::IntroducePolicy {
-        policy: id,
-    }))
-    .unwrap();
+    b.apply(b.route(PlayerCommand::IntroducePolicy { policy: id }))
+        .unwrap();
     for _ in 0..4 {
         whip_hard(&mut b, id);
         b.apply(Command::EndTurn).unwrap();
@@ -158,7 +154,7 @@ fn actions_spend_slots_and_validate() {
     let pl = e.state().player.clone().unwrap();
     let hood = e.state().world.municipalities[pl.municipality.index()].neighborhoods[0].0;
     // Canvassing takes two slots (a long day), press one: three in all.
-    e.apply(Command::Player(PlayerCommand::Act {
+    e.apply(e.route(PlayerCommand::Act {
         action: Action::Canvass { neighborhood: hood },
         late_night: false,
     }))
@@ -168,33 +164,33 @@ fn actions_spend_slots_and_validate() {
         pl.standard_slots - 2
     );
     assert!(
-        e.apply(Command::Player(PlayerCommand::Act {
+        e.apply(e.route(PlayerCommand::Act {
             action: Action::Canvass { neighborhood: hood },
             late_night: false,
         }))
         .is_err(),
         "a second canvass needs two free slots"
     );
-    e.apply(Command::Player(PlayerCommand::Act {
+    e.apply(e.route(PlayerCommand::Act {
         action: Action::Press { policy: None },
         late_night: false,
     }))
     .unwrap();
     assert_eq!(e.state().player.as_ref().unwrap().slots_left(), 0);
-    let err = e.apply(Command::Player(PlayerCommand::Act {
+    let err = e.apply(e.route(PlayerCommand::Act {
         action: Action::Rest,
         late_night: false,
     }));
     assert!(err.is_err(), "no slots left");
     // Late night is only for private meetings and fundraising.
     assert!(
-        e.apply(Command::Player(PlayerCommand::Act {
+        e.apply(e.route(PlayerCommand::Act {
             action: Action::Canvass { neighborhood: hood },
             late_night: true
         }))
         .is_err()
     );
-    e.apply(Command::Player(PlayerCommand::Act {
+    e.apply(e.route(PlayerCommand::Act {
         action: Action::Fundraise,
         late_night: true,
     }))
@@ -226,7 +222,7 @@ fn actions_spend_slots_and_validate() {
         .id
         .0;
     assert!(
-        e.apply(Command::Player(PlayerCommand::Act {
+        e.apply(e.route(PlayerCommand::Act {
             action: Action::Canvass {
                 neighborhood: other
             },
@@ -241,13 +237,11 @@ fn player_commands_are_deterministic() {
     let run = || {
         let mut e = world(34);
         let id = draft(&mut e, "policy.transit_frequency", &[("level", 3.0)]);
-        e.apply(Command::Player(PlayerCommand::IntroducePolicy {
-            policy: id,
-        }))
-        .unwrap();
+        e.apply(e.route(PlayerCommand::IntroducePolicy { policy: id }))
+            .unwrap();
         let m = e.state().player.as_ref().unwrap().municipality;
         let target = e.state().politics.councils[m.index()].mayor.unwrap().0;
-        let _ = e.apply(Command::Player(PlayerCommand::Act {
+        let _ = e.apply(e.route(PlayerCommand::Act {
             action: Action::Lobby {
                 politician: target,
                 policy: id,
@@ -268,10 +262,8 @@ fn state_with_lobbying_round_trips_through_json() {
     // silently broke the state hash and saves after the first lobby action.
     let mut e = world(34);
     let id = draft(&mut e, "policy.parks", &[]);
-    e.apply(Command::Player(PlayerCommand::IntroducePolicy {
-        policy: id,
-    }))
-    .unwrap();
+    e.apply(e.route(PlayerCommand::IntroducePolicy { policy: id }))
+        .unwrap();
     let me = e.state().player.as_ref().unwrap().politician;
     let m = e.state().player.as_ref().unwrap().municipality;
     let target = *e.state().politics.councils[m.index()]
@@ -279,7 +271,7 @@ fn state_with_lobbying_round_trips_through_json() {
         .iter()
         .find(|p| **p != me)
         .unwrap();
-    e.apply(Command::Player(PlayerCommand::Act {
+    e.apply(e.route(PlayerCommand::Act {
         action: Action::Lobby {
             politician: target.0,
             policy: id,
@@ -299,10 +291,8 @@ fn state_with_lobbying_round_trips_through_json() {
 fn favour_debt_is_capped() {
     let mut e = world(35);
     let id = draft(&mut e, "policy.parks", &[]);
-    e.apply(Command::Player(PlayerCommand::IntroducePolicy {
-        policy: id,
-    }))
-    .unwrap();
+    e.apply(e.route(PlayerCommand::IntroducePolicy { policy: id }))
+        .unwrap();
     let me = e.state().player.as_ref().unwrap().politician;
     let m = e.state().player.as_ref().unwrap().municipality;
     let target = *e.state().politics.councils[m.index()]
@@ -310,20 +300,18 @@ fn favour_debt_is_capped() {
         .iter()
         .find(|p| **p != me)
         .unwrap();
-    let trade = || {
-        Command::Player(PlayerCommand::Act {
-            action: Action::TradeFavor {
-                politician: target.0,
-                policy: id,
-            },
-            late_night: false,
-        })
+    let trade = || PlayerCommand::Act {
+        action: Action::TradeFavor {
+            politician: target.0,
+            policy: id,
+        },
+        late_night: false,
     };
-    e.apply(trade()).unwrap();
-    e.apply(trade()).unwrap();
+    e.apply(e.route(trade())).unwrap();
+    e.apply(e.route(trade())).unwrap();
     // Two favours owed: the third trade is refused (slots remain from the late-night allowance aside).
     e.apply(Command::EndTurn).unwrap();
-    assert!(e.apply(trade()).is_err());
+    assert!(e.apply(e.route(trade())).is_err());
 }
 
 #[test]
@@ -332,10 +320,8 @@ fn saves_survive_a_balance_patch_but_not_missing_rules() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
     let mut e = world(36);
     let id = draft(&mut e, "policy.parks", &[]);
-    e.apply(Command::Player(PlayerCommand::IntroducePolicy {
-        policy: id,
-    }))
-    .unwrap();
+    e.apply(e.route(PlayerCommand::IntroducePolicy { policy: id }))
+        .unwrap();
     let state = e.state().clone();
 
     // A balance patch: one tuning number changes, every id still exists.
@@ -417,7 +403,7 @@ fn the_players_vote_has_consequences() {
     });
     let standing = e.state().player.as_ref().unwrap().tracks.standing;
     let r = e
-        .apply(Command::Player(PlayerCommand::CastVote {
+        .apply(e.route(PlayerCommand::CastVote {
             policy: bill,
             vote: Vote::Yes,
         }))
@@ -436,7 +422,7 @@ fn the_players_vote_has_consequences() {
     }
     // Final: no second declaration, and the declared vote drives the count.
     assert!(
-        e.apply(Command::Player(PlayerCommand::CastVote {
+        e.apply(e.route(PlayerCommand::CastVote {
             policy: bill,
             vote: Vote::No
         }))

@@ -1,7 +1,9 @@
 //! Bot players (M4, TEST_STRATEGY): scripted strategies play the player's
 //! first local election through the same commands as the UI, across many
 //! seeds. A strategy that wins far more often than the others is a balance
-//! bug ("no dominant strategy", owner checkpoint M4).
+//! bug ("no dominant strategy", owner checkpoint M4). Bots go where each
+//! action is done before doing it, through the same auto-routing `Go`
+//! command as the UI's agenda (DEC-079).
 
 use mandate_content::{AiAction, ContentBundle};
 use mandate_sim::actions::{Action, PlayerCommand};
@@ -27,7 +29,7 @@ fn campaigning(e: &Engine) -> bool {
 }
 
 fn act(e: &mut Engine, a: Action) -> bool {
-    e.apply(Command::Player(PlayerCommand::Act {
+    e.apply(e.route(PlayerCommand::Act {
         action: a,
         late_night: false,
     }))
@@ -92,14 +94,12 @@ fn legislate(e: &mut Engine, content: &ContentBundle) {
                 .map(|t| t.id.clone())
         };
         if let Some(t) = best {
-            let r = e.apply(Command::Player(PlayerCommand::DraftPolicy {
+            let r = e.apply(e.route(PlayerCommand::DraftPolicy {
                 template: t,
                 params: BTreeMap::new(),
             }));
             if let Some(id) = r.ok().and_then(|r| r.result).and_then(|x| x.created) {
-                let _ = e.apply(Command::Player(PlayerCommand::IntroducePolicy {
-                    policy: id,
-                }));
+                let _ = e.apply(e.route(PlayerCommand::IntroducePolicy { policy: id }));
             }
         }
     }

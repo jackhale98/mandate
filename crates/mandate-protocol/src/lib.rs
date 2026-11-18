@@ -5,11 +5,13 @@
 pub mod campaign;
 pub mod map;
 pub mod office;
+pub mod places;
 pub mod views;
 
 pub use campaign::*;
 pub use map::*;
 pub use office::*;
+pub use places::*;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 pub use views::*;
@@ -102,6 +104,16 @@ pub enum CommandDto {
         policy: u32,
         vote: VoteDto,
     },
+    /// Move within the player's town: free (DEC-079).
+    MoveTo {
+        location: LocationDto,
+    },
+    /// Move, then do a command there, in one request (auto-routing). If the
+    /// command fails, the move still stands.
+    Go {
+        location: LocationDto,
+        then: Option<Box<CommandDto>>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -168,6 +180,14 @@ pub enum QueryDto {
     Municipality {
         id: u32,
     },
+    /// The pocket: always-available, coarse information and the agenda's routes.
+    Pocket,
+    /// The player's town as places, grouped by neighbourhood.
+    Town,
+    /// A place panel: what can be done and learned at a location.
+    Place {
+        location: LocationDto,
+    },
     /// Fluent sources for a language (DEC-054).
     Locale {
         lang: String,
@@ -214,6 +234,9 @@ pub enum ResponseBody {
     Campaign(CampaignView),
     Map(MapView),
     Municipality(MunicipalityView),
+    Pocket(PocketView),
+    Town(TownPlacesView),
+    Place(PlacePanelView),
     Locale(LocaleView),
     Diagnostics(DiagnosticsView),
 }

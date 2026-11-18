@@ -205,7 +205,22 @@ impl Engine {
                 }
             }
             Command::Player(cmd) => {
-                let result = crate::actions::apply(&mut self.state, &self.content, cmd)?;
+                let before = self.state.player.as_ref().map(|p| p.location);
+                let result = match crate::actions::apply(&mut self.state, &self.content, cmd) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        // A failed `Go` keeps its move (DEC-079): log it so a
+                        // replay reproduces the new location.
+                        if self.state.player.as_ref().map(|p| p.location) != before {
+                            self.command_log.push(LoggedCommand {
+                                index: self.next_command,
+                                command,
+                            });
+                            self.next_command += 1;
+                        }
+                        return Err(e);
+                    }
+                };
                 CommandOutcome {
                     days_advanced: 0,
                     turn: self.state.calendar.turn,
@@ -322,6 +337,12 @@ impl Engine {
         } else {
             GamePhase::Governing
         };
+    }
+
+    /// A player command routed to where it is done (DEC-079 auto-routing):
+    /// a `Go` to the best place for it when the player is elsewhere.
+    pub fn route(&self, cmd: crate::actions::PlayerCommand) -> Command {
+        Command::Player(crate::places::routed(&self.state, &self.content, cmd))
     }
 
     pub fn system_names(&self) -> Vec<&'static str> {

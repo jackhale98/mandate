@@ -49,6 +49,9 @@ function LocalEconomy({ e }: { e: MuniEconomyView }) {
         <StatTile label={tr.t("ui-rent")} value={formatMoney(e.monthly_rent)} />
         <StatTile label={tr.t("ui-home-price")} value={formatMoney(e.home_price)} />
       </div>
+      {!e.detailed && <p className="note">{tr.t("ui-detail-at-town-hall")}</p>}
+      {e.detailed && (
+        <>
       <h3 className="sub">{tr.t("ui-jobs-by-sector")}</h3>
       <ul className="meters">
         {e.sectors.map((x) => (
@@ -67,6 +70,8 @@ function LocalEconomy({ e }: { e: MuniEconomyView }) {
         <StatTile label={tr.t("ui-local-debt")} value={formatMoney(e.debt)} />
         <StatTile label={tr.t("ui-last-balance")} value={formatMoney(e.last_balance)} />
       </div>
+        </>
+      )}
     </>
   );
 }

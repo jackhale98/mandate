@@ -970,6 +970,7 @@ fn place_player(
         filing: None,
         ads_this_turn: 0,
         last_election_seen: None,
+        location: mandate_sim::places::Location::Home,
     })
 }
 

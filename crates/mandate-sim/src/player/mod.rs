@@ -58,6 +58,9 @@ pub struct PlayerState {
     /// The last election whose result has been applied to the tracks.
     #[serde(default)]
     pub last_election_seen: Option<SimDate>,
+    /// Where the player is in their town (DEC-079). Moving is free.
+    #[serde(default)]
+    pub location: crate::places::Location,
 }
 
 impl PlayerState {

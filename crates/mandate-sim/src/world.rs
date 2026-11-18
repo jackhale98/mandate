@@ -232,6 +232,63 @@ pub enum PlaceKind {
     ExecutiveResidence,
 }
 
+impl PlaceKind {
+    pub const ALL: [PlaceKind; 23] = [
+        PlaceKind::TownHall,
+        PlaceKind::CouncilChamber,
+        PlaceKind::Diner,
+        PlaceKind::Market,
+        PlaceKind::School,
+        PlaceKind::Clinic,
+        PlaceKind::CommunityCentre,
+        PlaceKind::Park,
+        PlaceKind::NewsOffice,
+        PlaceKind::PartyOffice,
+        PlaceKind::UnionHall,
+        PlaceKind::BusinessAssociation,
+        PlaceKind::Factory,
+        PlaceKind::Port,
+        PlaceKind::Farm,
+        PlaceKind::Mine,
+        PlaceKind::Mill,
+        PlaceKind::Hotel,
+        PlaceKind::University,
+        PlaceKind::TechCampus,
+        PlaceKind::RegionalAssembly,
+        PlaceKind::Parliament,
+        PlaceKind::ExecutiveResidence,
+    ];
+
+    /// Snake-case key: the place-kind registry key (DEC-079) and Fluent suffix.
+    pub fn key(self) -> &'static str {
+        match self {
+            PlaceKind::TownHall => "town_hall",
+            PlaceKind::CouncilChamber => "council_chamber",
+            PlaceKind::Diner => "diner",
+            PlaceKind::Market => "market",
+            PlaceKind::School => "school",
+            PlaceKind::Clinic => "clinic",
+            PlaceKind::CommunityCentre => "community_centre",
+            PlaceKind::Park => "park",
+            PlaceKind::NewsOffice => "news_office",
+            PlaceKind::PartyOffice => "party_office",
+            PlaceKind::UnionHall => "union_hall",
+            PlaceKind::BusinessAssociation => "business_association",
+            PlaceKind::Factory => "factory",
+            PlaceKind::Port => "port",
+            PlaceKind::Farm => "farm",
+            PlaceKind::Mine => "mine",
+            PlaceKind::Mill => "mill",
+            PlaceKind::Hotel => "hotel",
+            PlaceKind::University => "university",
+            PlaceKind::TechCampus => "tech_campus",
+            PlaceKind::RegionalAssembly => "regional_assembly",
+            PlaceKind::Parliament => "parliament",
+            PlaceKind::ExecutiveResidence => "executive_residence",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Place {
     pub id: PlaceId,

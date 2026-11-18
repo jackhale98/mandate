@@ -78,6 +78,16 @@ pub enum PlayerCommand {
         action: Action,
         late_night: bool,
     },
+    /// Move within the player's town (DEC-079): free, no slot.
+    MoveTo {
+        location: crate::places::Location,
+    },
+    /// Move, then do a command there, in one request (auto-routing). If the
+    /// command fails, the move still stands.
+    Go {
+        location: crate::places::Location,
+        then: Option<Box<PlayerCommand>>,
+    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -362,6 +372,25 @@ pub fn apply(
     let m = pl.municipality.0;
     let mut res = ActionResult::default();
     match cmd {
+        PlayerCommand::MoveTo { location } => return move_to(state, *location),
+        PlayerCommand::Go { location, then } => {
+            if then.as_deref().is_some_and(|c| {
+                matches!(c, PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. })
+            }) {
+                return Err(bad("a move cannot be followed by another move"));
+            }
+            let moved = move_to(state, *location)?;
+            return match then {
+                Some(c) => apply(state, content, c),
+                None => Ok(moved),
+            };
+        }
+        _ => {}
+    }
+    // Located actions (DEC-079): each is done at a place that offers it.
+    crate::places::check_at(state, content, cmd)?;
+    match cmd {
+        PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. } => {}
         PlayerCommand::CastVote { policy, vote } => {
             use crate::politics::Vote;
             let p = local_policy(state, *policy)?;
@@ -910,6 +939,24 @@ pub fn apply(
             }
         }
     }
+    Ok(res)
+}
+
+/// Move within the town: free (DEC-079 rule 1).
+fn move_to(
+    state: &mut State,
+    location: crate::places::Location,
+) -> Result<ActionResult, EngineError> {
+    crate::places::validate_move(state, location)?;
+    let kind = crate::places::kind_key(state, location);
+    if let Some(p) = state.player.as_mut() {
+        p.location = location;
+    }
+    let mut res = ActionResult {
+        outcome_key: "outcome-moved".into(),
+        ..Default::default()
+    };
+    res.args.insert("kind".into(), kind.into());
     Ok(res)
 }
 

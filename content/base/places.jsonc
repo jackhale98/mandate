@@ -1,0 +1,86 @@
+// Place kinds (DEC-078 decision 6, DEC-079): what the player can do and learn
+// at each kind of place. Worldgen decides which places a town has; this
+// registry supplies their behaviour. Moving within the town is free; only
+// actions cost time.
+//
+// `actions` are action keys (the action-cost keys in tuning.jsonc, plus the
+// free `vote`, `draft`, `file`, and `withdraw`). `late_night` lists the
+// actions that may also be taken here in the late-night slot. `services` are
+// information services: precise data the pocket only shows in coarse form.
+// `fallback` names the kind that hosts this kind's offerings in a town (or,
+// for neighbourhood actions, a neighbourhood) without one.
+{
+  "kind": "places",
+  "items": [
+    // Pseudo-locations: always present.
+    { "id": "place.home", "key": "home", "name_key": "place-home", "actions": ["rest"] },
+    { "id": "place.streets", "key": "streets", "name_key": "place-streets", "actions": ["canvass"] },
+
+    // Civic places.
+    {
+      "id": "place.council_chamber", "key": "council_chamber", "name_key": "place-council_chamber",
+      "actions": ["vote", "introduce", "amend", "withdraw", "lobby", "trade_favor"],
+      "services": ["whip_exact"],
+    },
+    {
+      // The clerk's office, the mayor's office, and the statistics desk.
+      "id": "place.town_hall", "key": "town_hall", "name_key": "place-town_hall",
+      "actions": ["draft", "file", "withdraw"],
+      "services": ["town_data_detailed", "budget_papers"],
+    },
+    {
+      // Public meetings; a neighbourhood without one meets on its streets.
+      "id": "place.community_centre", "key": "community_centre", "name_key": "place-community_centre",
+      "actions": ["town_hall"],
+      "fallback": "streets",
+    },
+    {
+      // Small towns without a paper: the press room at the town hall.
+      "id": "place.news_office", "key": "news_office", "name_key": "place-news_office",
+      "actions": ["press", "advertise"],
+      "fallback": "town_hall",
+    },
+    {
+      "id": "place.party_office", "key": "party_office", "name_key": "place-party_office",
+      "actions": ["fundraise"],
+      "late_night": ["fundraise"],
+      "services": ["internal_polls"],
+      "fallback": "town_hall",
+    },
+
+    // Where people talk: private meetings and overheard concerns.
+    {
+      "id": "place.diner", "key": "diner", "name_key": "place-diner",
+      "actions": ["lobby", "trade_favor"],
+      "late_night": ["lobby", "trade_favor"],
+      "services": ["overheard"],
+    },
+    {
+      "id": "place.market", "key": "market", "name_key": "place-market",
+      "actions": ["lobby", "trade_favor"],
+      "services": ["overheard"],
+    },
+    {
+      "id": "place.union_hall", "key": "union_hall", "name_key": "place-union_hall",
+      "actions": ["lobby", "trade_favor"],
+      "services": ["overheard"],
+    },
+
+    // Places with nothing to do yet (M6 adds scenes and interactions).
+    { "id": "place.school", "key": "school", "name_key": "place-school" },
+    { "id": "place.clinic", "key": "clinic", "name_key": "place-clinic" },
+    { "id": "place.park", "key": "park", "name_key": "place-park" },
+    { "id": "place.business_association", "key": "business_association", "name_key": "place-business_association" },
+    { "id": "place.factory", "key": "factory", "name_key": "place-factory" },
+    { "id": "place.port", "key": "port", "name_key": "place-port" },
+    { "id": "place.farm", "key": "farm", "name_key": "place-farm" },
+    { "id": "place.mine", "key": "mine", "name_key": "place-mine" },
+    { "id": "place.mill", "key": "mill", "name_key": "place-mill" },
+    { "id": "place.hotel", "key": "hotel", "name_key": "place-hotel" },
+    { "id": "place.university", "key": "university", "name_key": "place-university" },
+    { "id": "place.tech_campus", "key": "tech_campus", "name_key": "place-tech_campus" },
+    { "id": "place.regional_assembly", "key": "regional_assembly", "name_key": "place-regional_assembly" },
+    { "id": "place.parliament", "key": "parliament", "name_key": "place-parliament" },
+    { "id": "place.executive_residence", "key": "executive_residence", "name_key": "place-executive_residence" },
+  ],
+}

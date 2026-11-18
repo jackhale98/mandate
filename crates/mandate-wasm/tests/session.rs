@@ -155,3 +155,123 @@ fn map_and_municipality_queries_survive_save_load() {
         }
     ));
 }
+
+fn send(s: &mut Session, id: u32, body: RequestBody) -> ResponseBody {
+    let r: Response = serde_json::from_str(&s.handle_json(&req(id, body))).unwrap();
+    match r.result {
+        ResponseResult::Ok { body } => body,
+        ResponseResult::Err { error } => panic!("request {id} failed: {}", error.message),
+    }
+}
+
+fn spot_of(town: &TownPlacesView, kind: &str) -> LocationDto {
+    town.neighborhoods
+        .iter()
+        .flat_map(|h| &h.spots)
+        .find(|s| s.location.kind_key == kind)
+        .map(|s| s.location.location)
+        .unwrap()
+}
+
+fn office(s: &mut Session, id: u32) -> OfficeView {
+    match send(s, id, RequestBody::Query(QueryDto::Office)) {
+        ResponseBody::Office(o) => o,
+        _ => panic!("not an office view"),
+    }
+}
+
+/// DEC-079 rule 4: places give depth, not access. The exact whip count is
+/// only in the council chamber; detailed town data only at the town hall.
+#[test]
+fn information_depth_depends_on_where_the_player_is() {
+    let mut s = Session::new().unwrap();
+    send(
+        &mut s,
+        1,
+        RequestBody::NewGame(NewGameParams {
+            seed: 31337,
+            size: WorldSizeDto::Small,
+            preset: None,
+        }),
+    );
+    let ResponseBody::Town(town) = send(&mut s, 2, RequestBody::Query(QueryDto::Town)) else {
+        panic!("not a town view");
+    };
+    assert_eq!(town.location, LocationDto::Home);
+    let hall = spot_of(&town, "town_hall");
+    let chamber = spot_of(&town, "council_chamber");
+    // The pocket routes drafting to the town hall.
+    let ResponseBody::Pocket(pocket) = send(&mut s, 3, RequestBody::Query(QueryDto::Pocket)) else {
+        panic!("not a pocket view");
+    };
+    let draft = pocket.routes.iter().find(|r| r.action == "draft").unwrap();
+    assert_eq!(draft.to.as_ref().unwrap().location, hall);
+    assert!(!draft.here);
+    // Draft and introduce through auto-routing (one request each).
+    let template = office(&mut s, 4).catalog[0].id.clone();
+    let ResponseBody::CommandApplied(r) = send(
+        &mut s,
+        5,
+        RequestBody::Command(CommandDto::Go {
+            location: hall,
+            then: Some(Box::new(CommandDto::DraftPolicy {
+                template,
+                params: vec![],
+            })),
+        }),
+    ) else {
+        panic!("not applied");
+    };
+    let bill = r.result.unwrap().created.unwrap();
+    // At the town hall: detailed data; the chamber's whip stays coarse.
+    let ResponseBody::Place(panel) = send(
+        &mut s,
+        6,
+        RequestBody::Query(QueryDto::Place { location: hall }),
+    ) else {
+        panic!("not a place view");
+    };
+    assert!(panel.here && panel.town_data.is_some() && panel.budget.is_some());
+    assert!(office(&mut s, 7).town.detailed);
+    send(
+        &mut s,
+        8,
+        RequestBody::Command(CommandDto::Go {
+            location: chamber,
+            then: Some(Box::new(CommandDto::IntroducePolicy { policy: bill })),
+        }),
+    );
+    let o = office(&mut s, 9);
+    let b = o.bills.iter().find(|b| b.id == bill).unwrap();
+    assert!(b.whip_exact && !b.whip.is_empty(), "exact in the chamber");
+    assert!(!o.town.detailed);
+    // Back home: "about N of M", no per-member odds.
+    send(
+        &mut s,
+        10,
+        RequestBody::Command(CommandDto::MoveTo {
+            location: LocationDto::Home,
+        }),
+    );
+    let o = office(&mut s, 11);
+    let b = o.bills.iter().find(|b| b.id == bill).unwrap();
+    assert!(!b.whip_exact && b.whip.is_empty());
+    assert_eq!(b.expected_yes, b.expected_yes.round());
+    // Away from the town hall its panel lists services but holds no data.
+    let ResponseBody::Place(panel) = send(
+        &mut s,
+        12,
+        RequestBody::Query(QueryDto::Place { location: hall }),
+    ) else {
+        panic!("not a place view");
+    };
+    assert!(!panel.here && panel.town_data.is_none());
+    assert!(panel.services.iter().any(|x| x == "town_data_detailed"));
+    // Voting from home is refused with a pointer to the chamber.
+    let r: Response = serde_json::from_str(&s.handle_json(&req(
+        13,
+        RequestBody::Command(CommandDto::IntroducePolicy { policy: bill }),
+    )))
+    .unwrap();
+    assert!(matches!(r.result, ResponseResult::Err { .. }));
+}

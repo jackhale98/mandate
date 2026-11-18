@@ -233,7 +233,11 @@ pub struct BillView {
     pub funded_pct: f64,
     pub progress: f64,
     pub awareness: f64,
+    /// Member by member, with yes chances and lobbying odds: only in the
+    /// council chamber (DEC-079 rule 4). Elsewhere it is empty and
+    /// `expected_yes` is rounded ("about N of M").
     pub whip: Vec<WhipView>,
+    pub whip_exact: bool,
     pub expected_yes: f64,
     pub seats: u32,
     pub needed: u32,
@@ -290,6 +294,9 @@ pub struct ConcernView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct TownView {
+    /// Precise figures (at the town hall's statistics desk); otherwise the
+    /// opinion figures are rounded to 5 points and concerns to 10 (DEC-079).
+    pub detailed: bool,
     pub gov_approval: f64,
     pub player_awareness_ward: f64,
     pub player_approval_ward: f64,
@@ -314,7 +321,12 @@ pub struct OfficeView {
     pub date: DateView,
 }
 
-fn snake<T: std::fmt::Debug>(v: &T) -> String {
+/// Round to a step: the pocket's coarse figures (DEC-079 rule 4).
+pub fn coarse(v: f64, step: f64) -> f64 {
+    (v / step).round() * step
+}
+
+pub(crate) fn snake<T: std::fmt::Debug>(v: &T) -> String {
     let s = format!("{v:?}");
     let mut out = String::new();
     for (i, ch) in s.chars().enumerate() {
@@ -405,7 +417,7 @@ fn support_view(c: [f64; 3], overall: f64) -> SupportView {
     }
 }
 
-fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
+pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
     let st = engine.state();
     let content = engine.content();
     let t = content.policies.get(&p.template)?;
@@ -446,6 +458,8 @@ fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
         })
         .collect();
     let seats = whip.len() as u32;
+    let expected_yes: f64 = whip.iter().map(|w| w.yes_probability).sum();
+    let whip_exact = mandate_sim::places::player_has_service(st, content, "whip_exact");
     let constitution = content.constitutions.get(&st.meta.constitution);
     let stages = constitution
         .and_then(|c| c.tier(p.tier))
@@ -552,10 +566,15 @@ fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
         funded_pct: st.finance.funded_share(p.id.0) * 100.0,
         progress: p.progress as f64,
         awareness: p.awareness as f64,
-        expected_yes: whip.iter().map(|w| w.yes_probability).sum(),
+        expected_yes: if whip_exact {
+            expected_yes
+        } else {
+            expected_yes.round()
+        },
         seats,
         needed: seats / 2 + 1,
-        whip,
+        whip: if whip_exact { whip } else { Vec::new() },
+        whip_exact,
         mayor: mayor_label.into(),
         votes: p
             .votes
@@ -663,43 +682,9 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
         .collect();
     bills.sort_by_key(|b| (b.status == "ended", std::cmp::Reverse(b.id)));
     let council = st.politics.councils.get(m.index());
-    let econ = st.economy.munis.get(m.index());
-    // Issue concerns read attitudes by key; content without one reads neutral.
-    let attitude = |key: &str| {
-        content
-            .attitude_index(key)
-            .map(|i| {
-                weighted(st, &hoods, |c| {
-                    c.attitudes.get(i).copied().unwrap_or(0.0) as f64
-                })
-            })
-            .unwrap_or(0.0)
-    };
-    let mut concerns = vec![
-        ConcernView {
-            key: "jobs".into(),
-            weight: econ.map(|e| (e.unemployment * 8.0).min(1.0)).unwrap_or(0.3),
-        },
-        ConcernView {
-            key: "housing".into(),
-            weight: econ
-                .map(|e| (e.housing.rent * 12.0 / e.class_income[1].max(1.0) * 2.5).min(1.0))
-                .unwrap_or(0.3),
-        },
-        ConcernView {
-            key: "safety".into(),
-            weight: (0.3 + attitude("law_and_order") * 0.5).clamp(0.0, 1.0),
-        },
-        ConcernView {
-            key: "environment".into(),
-            weight: (0.3 + attitude("environment") * 0.5).clamp(0.0, 1.0),
-        },
-        ConcernView {
-            key: "taxes".into(),
-            weight: (0.3 - attitude("tax_tolerance") * 0.5).clamp(0.0, 1.0),
-        },
-    ];
-    concerns.sort_by(|a, b| b.weight.total_cmp(&a.weight));
+    let detailed = mandate_sim::places::player_has_service(st, content, "town_data_detailed");
+    let concerns = concerns_for(st, content, m, &hoods);
+    let fine = |v: f64| if detailed { v } else { coarse(v, 0.05) };
     let can_propose =
         player_powers(st, content).contains(&mandate_content::Power::ProposeOrdinance);
     Some(OfficeView {
@@ -777,12 +762,23 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
             .and_then(|id| st.politics.get(id))
             .map(|p| member_view(st, content, p)),
         town: TownView {
-            gov_approval: weighted(st, &hoods, |c| c.gov_approval as f64),
-            player_awareness_ward: weighted(st, &ward_hoods, |c| c.player_awareness as f64),
-            player_approval_ward: weighted(st, &ward_hoods, |c| c.player_approval as f64),
-            player_awareness_town: weighted(st, &hoods, |c| c.player_awareness as f64),
-            player_approval_town: weighted(st, &hoods, |c| c.player_approval as f64),
-            concerns,
+            detailed,
+            gov_approval: fine(weighted(st, &hoods, |c| c.gov_approval as f64)),
+            player_awareness_ward: fine(weighted(st, &ward_hoods, |c| c.player_awareness as f64)),
+            player_approval_ward: fine(weighted(st, &ward_hoods, |c| c.player_approval as f64)),
+            player_awareness_town: fine(weighted(st, &hoods, |c| c.player_awareness as f64)),
+            player_approval_town: fine(weighted(st, &hoods, |c| c.player_approval as f64)),
+            concerns: concerns
+                .into_iter()
+                .map(|c| ConcernView {
+                    weight: if detailed {
+                        c.weight
+                    } else {
+                        coarse(c.weight, 0.1)
+                    },
+                    ..c
+                })
+                .collect(),
             neighborhoods: mu
                 .neighborhoods
                 .iter()
@@ -814,6 +810,54 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
         },
         date: DateView::of(st.calendar.date),
     })
+}
+
+/// The concern model: what worries residents of some neighbourhoods of a
+/// town, strongest first (jobs and housing read the town's economy; the
+/// rest read attitudes by key, neutral when content lacks one).
+pub fn concerns_for(
+    st: &State,
+    content: &mandate_content::ContentBundle,
+    m: MunicipalityId,
+    hoods: &[usize],
+) -> Vec<ConcernView> {
+    let econ = st.economy.munis.get(m.index());
+    let attitude = |key: &str| {
+        content
+            .attitude_index(key)
+            .map(|i| {
+                weighted(st, hoods, |c| {
+                    c.attitudes.get(i).copied().unwrap_or(0.0) as f64
+                })
+            })
+            .unwrap_or(0.0)
+    };
+    let mut concerns = vec![
+        ConcernView {
+            key: "jobs".into(),
+            weight: econ.map(|e| (e.unemployment * 8.0).min(1.0)).unwrap_or(0.3),
+        },
+        ConcernView {
+            key: "housing".into(),
+            weight: econ
+                .map(|e| (e.housing.rent * 12.0 / e.class_income[1].max(1.0) * 2.5).min(1.0))
+                .unwrap_or(0.3),
+        },
+        ConcernView {
+            key: "safety".into(),
+            weight: (0.3 + attitude("law_and_order") * 0.5).clamp(0.0, 1.0),
+        },
+        ConcernView {
+            key: "environment".into(),
+            weight: (0.3 + attitude("environment") * 0.5).clamp(0.0, 1.0),
+        },
+        ConcernView {
+            key: "taxes".into(),
+            weight: (0.3 - attitude("tax_tolerance") * 0.5).clamp(0.0, 1.0),
+        },
+    ];
+    concerns.sort_by(|a, b| b.weight.total_cmp(&a.weight));
+    concerns
 }
 
 fn param_view(p: &ParamDef) -> ParamView {

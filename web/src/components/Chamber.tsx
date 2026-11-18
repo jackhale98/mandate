@@ -38,7 +38,7 @@ function Member({ m }: { m: MemberView }) {
 function YourVote({ bill }: { bill: BillView }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
-  const command = useGame((s) => s.command);
+  const perform = useGame((s) => s.perform);
   if (!bill.can_vote && !bill.my_vote) return null;
   const ward = Math.round(bill.ward_support * 100);
   return (
@@ -55,7 +55,7 @@ function YourVote({ bill }: { bill: BillView }) {
         <>
           <div className="bill-actions">
             {(["yes", "no", "abstain"] as VoteDto[]).map((v) => (
-              <button key={v} type="button" className={v === "yes" ? "btn btn-sm btn-primary" : "btn btn-sm"} disabled={busy} onClick={() => void command({ type: "cast_vote", policy: bill.id, vote: v })}>
+              <button key={v} type="button" className={v === "yes" ? "btn btn-sm btn-primary" : "btn btn-sm"} disabled={busy} onClick={() => void perform({ type: "cast_vote", policy: bill.id, vote: v })}>
                 {tr.t(`ui-vote-${v}`)}
               </button>
             ))}
@@ -67,11 +67,12 @@ function YourVote({ bill }: { bill: BillView }) {
   );
 }
 
-export function Council() {
+/** The exact whip count, member by member, with lobbying (council chamber only, DEC-079). */
+export function ChamberWhip() {
   const tr = useGame((s) => s.tr);
   const o = useGame((s) => s.office);
   const busy = useGame((s) => s.busy);
-  const command = useGame((s) => s.command);
+  const perform = useGame((s) => s.perform);
   const pending = (o?.bills ?? []).filter((b) => b.status === "under_consideration");
   const [sel, setSel] = useState<number | null>(null);
   if (!o) return null;
@@ -80,11 +81,10 @@ export function Council() {
   const p = o.player;
 
   return (
-    <main className="game-body">
+    <>
       <section className="card" data-testid="whip">
         <div className="card-head">
           <h2>{tr.t("ui-council")}</h2>
-          <span className="chip">{tr.t("ui-slots", { left: p.slots_left })}</span>
         </div>
         {!bill ? (
           <p className="muted">{tr.t("ui-no-pending")}</p>
@@ -107,7 +107,7 @@ export function Council() {
               <p className="small">{tr.t("ui-next-vote", { stage: tr.t(bill.next_stage_key), date: formatDate(tr, bill.next_vote) })}</p>
             )}
             <p className="small">
-              <strong>{tr.t("ui-whip", { yes: bill.expected_yes.toFixed(1), seats: bill.seats, needed: bill.needed })}</strong> ·{" "}
+              <strong>{bill.whip_exact ? tr.t("ui-whip", { yes: bill.expected_yes.toFixed(1), seats: bill.seats, needed: bill.needed }) : tr.t("ui-whip-about", { yes: bill.expected_yes, seats: bill.seats, needed: bill.needed })}</strong> ·{" "}
               {tr.t("ui-mayor-lean", { lean: tr.t(`mayor-${bill.mayor}`) })}
             </p>
             <YourVote bill={bill} />
@@ -131,7 +131,7 @@ export function Council() {
                           type="button"
                           className="btn btn-sm"
                           disabled={busy || p.slots_left === 0}
-                          onClick={() => void command({ type: "act", action: { type: "lobby", politician: w.politician, policy: bill.id }, late_night: false })}
+                          onClick={() => void perform({ type: "act", action: { type: "lobby", politician: w.politician, policy: bill.id }, late_night: false })}
                         >
                           {tr.t("action-lobby")} · {tr.t("ui-odds", { pct: Math.round(w.lobby_odds * 100) })}
                         </button>
@@ -139,16 +139,16 @@ export function Council() {
                           type="button"
                           className="btn btn-sm btn-ghost"
                           disabled={busy || !p.late_night_available}
-                          onClick={() => void command({ type: "act", action: { type: "lobby", politician: w.politician, policy: bill.id }, late_night: true })}
+                          onClick={() => void perform({ type: "act", action: { type: "lobby", politician: w.politician, policy: bill.id }, late_night: true })}
                         >
-                          {tr.t("ui-late-night-short")} · {tr.t("ui-odds", { pct: Math.round(w.lobby_odds_late * 100) })}
+                          {tr.t("ui-late-at-diner")} · {tr.t("ui-odds", { pct: Math.round(w.lobby_odds_late * 100) })}
                         </button>
                         {owed > -2 && (
                           <button
                             type="button"
                             className="btn btn-sm btn-ghost"
                             disabled={busy || p.slots_left === 0}
-                            onClick={() => void command({ type: "act", action: { type: "trade_favor", politician: w.politician, policy: bill.id }, late_night: false })}
+                            onClick={() => void perform({ type: "act", action: { type: "trade_favor", politician: w.politician, policy: bill.id }, late_night: false })}
                           >
                             {tr.t("action-trade-favor")}
                           </button>
@@ -162,7 +162,7 @@ export function Council() {
           </>
         )}
       </section>
-      <section className="card">
+      <section className="card" data-testid="members">
         <h2>{tr.t("ui-members")}</h2>
         <ul className="member-list">
           {o.mayor && <Member m={o.mayor} />}
@@ -171,6 +171,6 @@ export function Council() {
           ))}
         </ul>
       </section>
-    </main>
+    </>
   );
 }

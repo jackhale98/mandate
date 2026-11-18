@@ -238,6 +238,14 @@ fn run(cli: Cli) -> Result<(), String> {
                     for w in &warnings {
                         eprintln!("{w}");
                     }
+                    // Every place kind worldgen can generate needs behaviour (DEC-079).
+                    let places = mandate_sim::places::registry_issues(&b);
+                    if !places.is_empty() {
+                        for p in &places {
+                            eprintln!("error: places: {p}");
+                        }
+                        return Err(format!("{} content error(s)", places.len()));
+                    }
                     out(
                         serde_json::json!({ "ok": true, "files": n, "content_hash": b.content_hash, "warnings": warnings.len() }),
                     );

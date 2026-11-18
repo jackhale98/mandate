@@ -1,0 +1,162 @@
+import { useState } from "react";
+import type { ActionDto } from "../engine/protocol/ActionDto";
+import type { CommandDto } from "../engine/protocol/CommandDto";
+import { useGame } from "../state/gameStore";
+import { routeFor } from "../state/routing";
+import { formatMoney } from "../i18n/format";
+import { placeName } from "../places/labels";
+
+export type FormAction = "canvass" | "town_hall" | "press" | "fundraise" | "rest" | "advertise" | "lobby" | "trade_favor";
+
+const LATE: ReadonlySet<FormAction> = new Set(["lobby", "trade_favor", "fundraise"]);
+
+/**
+ * One action with its choices, cost, and risks (DEC-073). Choosing it
+ * auto-routes the player to where it is done (DEC-079); `hood` fixes the
+ * neighbourhood when the form sits in a place panel.
+ */
+export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLate = true, showRoute = false }: { action: FormAction; hood?: number | null; lateOnly?: boolean; allowLate?: boolean; showRoute?: boolean }) {
+  const tr = useGame((s) => s.tr);
+  const busy = useGame((s) => s.busy);
+  const o = useGame((s) => s.office);
+  const pocket = useGame((s) => s.pocket);
+  const perform = useGame((s) => s.perform);
+  const [hoodSel, setHood] = useState<number | null>(null);
+  const [bill, setBill] = useState<number | null>(null);
+  const [member, setMember] = useState<number | null>(null);
+  const [late, setLate] = useState(lateOnly);
+  if (!o || !pocket) return null;
+  const p = o.player;
+  const hood = fixedHood ?? hoodSel ?? o.town.neighborhoods[0]?.id ?? 0;
+  const live = o.bills.filter((b) => b.status === "under_consideration" || b.status === "enacted" || b.status === "in_effect");
+  const pending = o.bills.filter((b) => b.status === "under_consideration");
+  const lobbyBill = action === "lobby" || action === "trade_favor" ? (pending.find((b) => b.id === bill) ?? pending[0]) : undefined;
+  const colleagues = o.council.filter((m) => !m.is_player).concat(o.mayor && !o.mayor.is_player ? [o.mayor] : []);
+  const target = colleagues.find((m) => m.id === member) ?? colleagues[0];
+  const lateAllowed = allowLate && LATE.has(action);
+  const useLate = (late || lateOnly) && lateAllowed;
+  const cost = p.action_costs.find((c) => c.action === action) ?? { action, slots: 1, health: 0 };
+  const hoodScoped = action === "canvass" || action === "town_hall";
+  const route = routeFor(pocket, { action, lateNight: useLate, neighborhood: hoodScoped ? hood : null });
+  const hoodIndex = o.town.neighborhoods.findIndex((h) => h.id === hood);
+  const pct = (v: number) => Math.round(v * 100);
+
+  let act: ActionDto | null;
+  switch (action) {
+    case "canvass":
+      act = { type: "canvass", neighborhood: hood };
+      break;
+    case "town_hall":
+      act = { type: "town_hall", neighborhood: hood, policy: bill };
+      break;
+    case "press":
+      act = { type: "press", policy: bill };
+      break;
+    case "fundraise":
+      act = { type: "fundraise" };
+      break;
+    case "rest":
+      act = { type: "rest" };
+      break;
+    case "advertise":
+      act = { type: "advertise" };
+      break;
+    case "lobby":
+    case "trade_favor":
+      act = lobbyBill && target ? { type: action, politician: target.id, policy: lobbyBill.id } : null;
+      break;
+  }
+  const cmd: CommandDto | null = act ? { type: "act", action: act, late_night: useLate } : null;
+  const enough = action === "advertise" ? p.ads_left > 0 && p.money >= p.ad_cost : useLate ? p.late_night_available : p.slots_left >= cost.slots;
+  const exactOdds = lobbyBill?.whip_exact ? lobbyBill.whip.find((w) => w.politician === target?.id) : undefined;
+
+  return (
+    <div className="action-form" data-testid={`form-${action}`}>
+      {hoodScoped && fixedHood == null && (
+        <label className="field">
+          <span>{tr.t("ui-neighbourhood")}</span>
+          <select className="input" value={hood} onChange={(e) => setHood(Number(e.target.value))}>
+            {o.town.neighborhoods.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {(action === "town_hall" || action === "press") && (
+        <label className="field">
+          <span>{tr.t("ui-about-bill")}</span>
+          <select className="input" value={bill ?? ""} onChange={(e) => setBill(e.target.value === "" ? null : Number(e.target.value))}>
+            <option value="">{tr.t("ui-none")}</option>
+            {live.map((b) => (
+              <option key={b.id} value={b.id}>
+                {tr.t(b.name_key)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {(action === "lobby" || action === "trade_favor") &&
+        (pending.length === 0 ? (
+          <p className="muted small">{tr.t("ui-no-pending")}</p>
+        ) : (
+          <>
+            <label className="field">
+              <span>{tr.t("ui-select-bill")}</span>
+              <select className="input" value={lobbyBill?.id ?? ""} onChange={(e) => setBill(Number(e.target.value))}>
+                {pending.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {tr.t(b.name_key)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>{tr.t("ui-colleague")}</span>
+              <select className="input" value={target?.id ?? ""} onChange={(e) => setMember(Number(e.target.value))}>
+                {colleagues.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                    {m.favors < 0 ? ` · ${tr.t("ui-owe", { n: -m.favors })}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        ))}
+      {/* Every option shows what it costs and what it risks before you commit (DEC-073). */}
+      <p className="tradeoff" data-testid="tradeoff">
+        {action === "advertise" ? (
+          tr.t("tradeoff-advertise", { cost: formatMoney(p.ad_cost) })
+        ) : (
+          <>
+            {useLate ? tr.t("ui-cost-late", { health: Math.max(0, cost.health) + 8 }) : tr.t("ui-cost-line", { slots: cost.slots, health: Math.max(0, cost.health) })} {tr.t(`tradeoff-${action.replace(/_/g, "-")}`)}
+          </>
+        )}
+        {action === "town_hall" && <strong> {tr.t("ui-risk-hostile", { pct: pct(o.town.town_hall_risk[hoodIndex] ?? 0) })}</strong>}
+        {action === "press" && <strong> {tr.t("ui-risk-gaffe", { pct: pct(p.press_gaffe_risk) })}</strong>}
+        {action === "fundraise" && useLate && <strong> {tr.t("ui-risk-late-money")}</strong>}
+        {(action === "lobby" || action === "trade_favor") && useLate && <strong> {tr.t("ui-risk-late-deal")}</strong>}
+        {action === "lobby" && (exactOdds ? <strong> {tr.t("ui-odds", { pct: pct(useLate ? exactOdds.lobby_odds_late : exactOdds.lobby_odds) })}</strong> : <span> {tr.t("ui-odds-in-chamber")}</span>)}
+      </p>
+      {lateAllowed && !lateOnly && (
+        <label className="check">
+          <input type="checkbox" checked={late} disabled={!p.late_night_available} onChange={(e) => setLate(e.target.checked)} />
+          {tr.t("ui-late-night-meeting")}
+        </label>
+      )}
+      {showRoute && route?.to && (
+        <p className="route small" data-testid="route">
+          {route.here ? tr.t("ui-route-here") : tr.t("ui-route-to", { place: placeName(tr, route.to) })}
+        </p>
+      )}
+      <button type="button" className="btn btn-primary btn-block" disabled={busy || !enough || !cmd} onClick={() => cmd && void perform(cmd)}>
+        {action === "advertise" ? tr.t("ui-buy-ads", { cost: formatMoney(p.ad_cost), left: p.ads_left }) : route?.here ? tr.t("ui-do-here") : tr.t("ui-do")}
+      </button>
+    </div>
+  );
+}
+
+/** The agenda kinds, in the order the pocket lists them. */
+export const AGENDA: FormAction[] = ["canvass", "town_hall", "press", "fundraise", "lobby", "trade_favor", "rest", "advertise"];

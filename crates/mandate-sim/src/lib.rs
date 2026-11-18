@@ -13,6 +13,7 @@ pub mod environment;
 pub mod events;
 pub mod finance;
 pub mod npc;
+pub mod places;
 pub mod player;
 pub mod policy;
 pub mod politics;

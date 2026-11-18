@@ -51,7 +51,7 @@ function clauseLabel(tr: ReturnType<typeof useGame.getState>["tr"], c: ClauseDto
 export function BillCard({ bill, template, town }: { bill: BillView; template: TemplateView | undefined; town: TownView }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
-  const command = useGame((s) => s.command);
+  const perform = useGame((s) => s.perform);
   const [why, setWhy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [params, setParams] = useState<ParamValue[]>(bill.params);
@@ -77,7 +77,7 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
         <p className="small">
           {tr.t("ui-next-vote", { stage: tr.t(bill.next_stage_key), date: formatDate(tr, bill.next_vote) })}
           <br />
-          <strong>{tr.t("ui-whip", { yes: bill.expected_yes.toFixed(1), seats: bill.seats, needed: bill.needed })}</strong> ·{" "}
+          <strong>{bill.whip_exact ? tr.t("ui-whip", { yes: bill.expected_yes.toFixed(1), seats: bill.seats, needed: bill.needed }) : tr.t("ui-whip-about", { yes: bill.expected_yes, seats: bill.seats, needed: bill.needed })}</strong> ·{" "}
           {tr.t("ui-mayor-lean", { lean: tr.t(`mayor-${bill.mayor}`) })}
         </p>
       )}
@@ -119,12 +119,12 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
           </button>
         )}
         {mine && bill.status === "draft" && (
-          <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => void command({ type: "introduce_policy", policy: bill.id })}>
+          <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => void perform({ type: "introduce_policy", policy: bill.id })}>
             {tr.t("ui-introduce")}
           </button>
         )}
         {editable && (
-          <button type="button" className="btn btn-sm btn-ghost" disabled={busy} onClick={() => void command({ type: "withdraw_policy", policy: bill.id })}>
+          <button type="button" className="btn btn-sm btn-ghost" disabled={busy} onClick={() => void perform({ type: "withdraw_policy", policy: bill.id })}>
             {tr.t("ui-withdraw")}
           </button>
         )}
@@ -191,7 +191,7 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
             className="btn btn-primary btn-block"
             disabled={busy}
             onClick={() => {
-              void command({ type: "amend_policy", policy: bill.id, params, clauses }).then(() => setEditing(false));
+              void perform({ type: "amend_policy", policy: bill.id, params, clauses }).then(() => setEditing(false));
             }}
           >
             {tr.t("ui-amend")}

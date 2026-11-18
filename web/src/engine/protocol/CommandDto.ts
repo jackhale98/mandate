@@ -2,7 +2,8 @@
 import type { ActionDto } from "./ActionDto";
 import type { ClauseDto } from "./ClauseDto";
 import type { FilingDto } from "./FilingDto";
+import type { LocationDto } from "./LocationDto";
 import type { ParamValue } from "./ParamValue";
 import type { VoteDto } from "./VoteDto";
 
-export type CommandDto = { "type": "end_turn" } | { "type": "advance_days", days: number, } | { "type": "draft_policy", template: string, params: Array<ParamValue>, } | { "type": "amend_policy", policy: number, params: Array<ParamValue>, clauses: Array<ClauseDto>, } | { "type": "introduce_policy", policy: number, } | { "type": "withdraw_policy", policy: number, } | { "type": "act", action: ActionDto, late_night: boolean, } | { "type": "file", filing: FilingDto, } | { "type": "cast_vote", policy: number, vote: VoteDto, };
+export type CommandDto = { "type": "end_turn" } | { "type": "advance_days", days: number, } | { "type": "draft_policy", template: string, params: Array<ParamValue>, } | { "type": "amend_policy", policy: number, params: Array<ParamValue>, clauses: Array<ClauseDto>, } | { "type": "introduce_policy", policy: number, } | { "type": "withdraw_policy", policy: number, } | { "type": "act", action: ActionDto, late_night: boolean, } | { "type": "file", filing: FilingDto, } | { "type": "cast_vote", policy: number, vote: VoteDto, } | { "type": "move_to", location: LocationDto, } | { "type": "go", location: LocationDto, then: CommandDto | null, };

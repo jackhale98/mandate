@@ -253,6 +253,11 @@ pub struct SectorJobsView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct MuniEconomyView {
+    /// For the player's own town the precise figures (sectors, budget, the
+    /// trend) are at the town hall; elsewhere in town they are rounded and
+    /// the detail is empty (DEC-079 rule 4). Other towns show their public
+    /// figures (visiting them is a later milestone).
+    pub detailed: bool,
     pub unemployment: f64,
     pub mean_wage: f64,
     /// Middle-class gross income per working-age adult.
@@ -351,29 +356,64 @@ pub fn municipality_view(engine: &Engine, id: u32) -> Option<MunicipalityView> {
             .collect(),
         economy: st.economy.munis.get(id as usize).map(|e| {
             let t = st.finance.local.get(id as usize);
+            let home = st.player.as_ref().is_some_and(|p| p.municipality.0 == id);
+            let detailed = !home
+                || mandate_sim::places::player_has_service(
+                    st,
+                    engine.content(),
+                    "town_data_detailed",
+                );
+            let c = |v: f64, step: f64| {
+                if detailed {
+                    v
+                } else {
+                    crate::office::coarse(v, step)
+                }
+            };
             MuniEconomyView {
-                unemployment: e.unemployment,
-                mean_wage: e.mean_wage,
-                typical_income: e.class_income[1],
-                monthly_rent: e.housing.rent,
-                home_price: e.housing.price,
-                vacancy: e.housing.vacancy,
-                sectors: engine
-                    .content()
-                    .sectors
-                    .iter()
-                    .zip(&e.sectors)
-                    .map(|(d, s)| SectorJobsView {
-                        id: d.id.clone(),
-                        name_key: d.name_key.clone(),
-                        jobs: s.jobs.round(),
-                        wage: s.wage.round(),
-                    })
-                    .collect(),
-                budget: t.map(|t| t.budget_total().units() as f64).unwrap_or(0.0),
-                debt: t.map(|t| t.debt.units() as f64).unwrap_or(0.0),
-                last_balance: t.map(|t| t.last_year.balance.units() as f64).unwrap_or(0.0),
-                unemployment_history: e.history.iter().map(|h| h.unemployment as f64).collect(),
+                detailed,
+                unemployment: c(e.unemployment, 0.01),
+                mean_wage: c(e.mean_wage, 1000.0),
+                typical_income: c(e.class_income[1], 1000.0),
+                monthly_rent: c(e.housing.rent, 10.0),
+                home_price: c(e.housing.price, 10_000.0),
+                vacancy: c(e.housing.vacancy, 0.01),
+                sectors: if detailed {
+                    engine
+                        .content()
+                        .sectors
+                        .iter()
+                        .zip(&e.sectors)
+                        .map(|(d, s)| SectorJobsView {
+                            id: d.id.clone(),
+                            name_key: d.name_key.clone(),
+                            jobs: s.jobs.round(),
+                            wage: s.wage.round(),
+                        })
+                        .collect()
+                } else {
+                    Vec::new()
+                },
+                budget: if detailed {
+                    t.map(|t| t.budget_total().units() as f64).unwrap_or(0.0)
+                } else {
+                    0.0
+                },
+                debt: if detailed {
+                    t.map(|t| t.debt.units() as f64).unwrap_or(0.0)
+                } else {
+                    0.0
+                },
+                last_balance: if detailed {
+                    t.map(|t| t.last_year.balance.units() as f64).unwrap_or(0.0)
+                } else {
+                    0.0
+                },
+                unemployment_history: if detailed {
+                    e.history.iter().map(|h| h.unemployment as f64).collect()
+                } else {
+                    Vec::new()
+                },
             }
         }),
     })

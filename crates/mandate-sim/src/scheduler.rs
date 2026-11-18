@@ -108,6 +108,25 @@ pub struct Reads<'a> {
 // a system asking for its own domain through `Reads` is a programming error.
 #[allow(clippy::expect_used)]
 impl<'a> Reads<'a> {
+    /// Read-only access to every domain of a whole state, for views and tools
+    /// outside the scheduler (nothing is written through it).
+    pub fn of_state(state: &'a State, content: &'a ContentBundle) -> Self {
+        Reads {
+            content,
+            date: state.calendar.date,
+            meta: &state.meta,
+            calendar: &state.calendar,
+            world: &state.world,
+            population: Some(&state.population),
+            economy: Some(&state.economy),
+            finance: Some(&state.finance),
+            environment: Some(&state.environment),
+            politics: Some(&state.politics),
+            policy: Some(&state.policy),
+            player: state.player.as_ref(),
+        }
+    }
+
     pub fn population(&self) -> &'a PopulationState {
         self.population
             .expect("population is not readable from its own systems")

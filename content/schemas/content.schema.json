@@ -1241,6 +1241,61 @@
       ],
       "type": "object"
     },
+    "PlaceKindDef": {
+      "additionalProperties": false,
+      "description": "One kind of place and what it offers (DEC-079). Worldgen decides which\nplaces exist; this registry supplies their behaviour.",
+      "properties": {
+        "actions": {
+          "default": [],
+          "description": "Actions offered here (keys from the action list).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fallback": {
+          "default": null,
+          "description": "Where this kind's actions and services move in a town (or, for\nneighbourhood actions, a neighbourhood) that has no such place.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Content id, e.g. `place.council_chamber`.",
+          "type": "string"
+        },
+        "key": {
+          "description": "Snake-case place kind, as worldgen names it (e.g. `council_chamber`),\nor a pseudo-location (`home`, `streets`).",
+          "type": "string"
+        },
+        "late_night": {
+          "default": [],
+          "description": "Actions that may also be taken here late at night (a subset of `actions`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "services": {
+          "default": [],
+          "description": "Information services offered here.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "key",
+        "name_key"
+      ],
+      "type": "object"
+    },
     "PolicyTemplate": {
       "additionalProperties": false,
       "properties": {
@@ -2239,6 +2294,27 @@
         },
         "kind": {
           "const": "name_pools",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Place kinds: what the player can do and learn at each kind of place (DEC-079).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PlaceKindDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "places",
           "type": "string"
         }
       },
