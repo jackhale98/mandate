@@ -191,8 +191,10 @@ function update(dt: number) {
   const hh = cssH / 2 / cam.zoom;
   const ww = W * TILE;
   const wh = H * TILE;
-  cam.x = hw * 2 >= ww ? ww / 2 : Math.min(ww - hw, Math.max(hw, cam.x));
-  cam.y = hh * 2 >= wh ? wh / 2 : Math.min(wh - hh, Math.max(hh, cam.y));
+  // Zoomed out wider than the block: ease toward its centre instead of snapping.
+  const ease = Math.min(1, dt * 8);
+  cam.x = hw * 2 >= ww ? cam.x + (ww / 2 - cam.x) * ease : Math.min(ww - hw, Math.max(hw, cam.x));
+  cam.y = hh * 2 >= wh ? cam.y + (wh / 2 - cam.y) * ease : Math.min(wh - hh, Math.max(hh, cam.y));
 }
 
 // ---------------------------------------------------------------- places (DEC-079)
@@ -309,7 +311,15 @@ stage.addEventListener("pointermove", (e) => {
   pointers.set(e.pointerId, p);
   if (pointers.size === 2 && gesture.startDist > 0) {
     const [a, b] = [...pointers.values()] as [{ x: number; y: number }, { x: number; y: number }];
+    // Zoom about the point between the fingers, so the town stays under them.
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    const before = toWorld(mx, my);
     cam.zoom = clampZoom((gesture.startZoom * Math.hypot(a.x - b.x, a.y - b.y)) / gesture.startDist);
+    const after = toWorld(mx, my);
+    cam.follow = false;
+    cam.x += before.x - after.x;
+    cam.y += before.y - after.y;
     return;
   }
   const dx = p.x - gesture.lastX;
@@ -322,16 +332,30 @@ stage.addEventListener("pointermove", (e) => {
   gesture.lastX = p.x;
   gesture.lastY = p.y;
 });
+// When a finger lifts mid-gesture, the remaining finger pans from where it
+// is now (not from where the first finger started), so the view never lurches.
+const rebaseline = () => {
+  const rest = [...pointers.values()][0];
+  if (rest) {
+    gesture.lastX = rest.x;
+    gesture.lastY = rest.y;
+  }
+  gesture.startDist = 0;
+};
 const endPointer = (e: PointerEvent) => {
   if (!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
+  rebaseline();
   if (pointers.size === 0 && !gesture.moved) {
     const p = local(e);
     tap(p.x, p.y);
   }
 };
 stage.addEventListener("pointerup", endPointer);
-stage.addEventListener("pointercancel", (e) => pointers.delete(e.pointerId));
+stage.addEventListener("pointercancel", (e) => {
+  pointers.delete(e.pointerId);
+  rebaseline();
+});
 stage.addEventListener(
   "wheel",
   (e) => {
