@@ -70,6 +70,15 @@ pub fn indicator(r: &Reads<'_>, m: usize, which: Indicator) -> f64 {
             .map(|t| t.debt.units() as f64 / (t.budget_total().units() as f64).max(1.0))
             .unwrap_or(0.0),
         Indicator::RecentDisaster => (1.0 - e.months_since_disaster as f64 / 24.0).max(0.0),
+        Indicator::JobLoss => match (
+            e.history.last(),
+            e.history.get(e.history.len().saturating_sub(13)),
+        ) {
+            (Some(now), Some(then)) if then.jobs > 0.0 => {
+                ((then.jobs - now.jobs) as f64 / then.jobs as f64).max(0.0)
+            }
+            _ => 0.0,
+        },
     }
 }
 

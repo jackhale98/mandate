@@ -23,7 +23,27 @@ pub struct RunMetrics {
     pub disasters: u32,
     pub major_disasters: u32,
     pub plant_closures: u32,
+    /// Town character (DEC-077 §1) at the end of the run: shares of towns
+    /// with a defining industry, a power broker, and a rival.
+    pub towns_with_industry: f64,
+    pub towns_with_broker: f64,
+    pub towns_with_rival: f64,
+    /// Crises seen beginning and ending (sampled yearly) across all towns.
+    pub crises_begun: u32,
+    pub crises_ended: u32,
     pub state_hash: String,
+}
+
+/// (town, crisis kind) pairs in progress.
+fn crises_now(e: &mandate_sim::Engine) -> Vec<(usize, String)> {
+    e.state()
+        .politics
+        .characters
+        .towns
+        .iter()
+        .enumerate()
+        .flat_map(|(m, t)| t.crises.iter().map(move |c| (m, c.kind.clone())))
+        .collect()
 }
 
 fn median(mut v: Vec<f64>) -> f64 {
@@ -71,8 +91,22 @@ pub fn run_one(
         .unwrap_or(mandate_sim::events::EventId(0));
     let pop0 = e.state().population.total() as f64;
     let debt0 = debt_ratio(&e);
-    let _ = e.apply(Command::AdvanceDays { days: years * 365 });
+    // A year at a time (the same result as one long advance) to watch
+    // town crises begin and end.
+    let (mut begun, mut ended) = (0u32, 0u32);
+    let mut before = crises_now(&e);
+    for _ in 0..years {
+        let _ = e.apply(Command::AdvanceDays { days: 365 });
+        let now = crises_now(&e);
+        begun += now.iter().filter(|c| !before.contains(c)).count() as u32;
+        ended += before.iter().filter(|c| !now.contains(c)).count() as u32;
+        before = now;
+    }
     let s = e.state();
+    let towns = &s.politics.characters.towns;
+    let share = |f: &dyn Fn(&mandate_sim::characters::TownCharacter) -> bool| {
+        towns.iter().filter(|t| f(t)).count() as f64 / towns.len().max(1) as f64
+    };
     let pop1 = s.population.total() as f64;
     let hist = &s.economy.national.history;
     let window = (years as usize * 12).min(hist.len());
@@ -116,6 +150,11 @@ pub fn run_one(
         disasters,
         major_disasters: major,
         plant_closures: closures,
+        towns_with_industry: share(&|t| t.industry.is_some()),
+        towns_with_broker: share(&|t| t.broker.is_some()),
+        towns_with_rival: share(&|t| t.rival.is_some()),
+        crises_begun: begun,
+        crises_ended: ended,
         state_hash: e.state_hash(),
     }
 }
@@ -180,6 +219,20 @@ pub fn report(rows: &[RunMetrics], years: u32) -> serde_json::Value {
             .map(|o| o.values().all(|x| x["pass"].as_bool().unwrap_or(false)))
             .unwrap_or(false)
     };
-    let pass = all(&bands) && all(&floors);
-    serde_json::json!({ "pass": pass, "seeds": rows.len(), "years": years, "bands": bands, "drama_floors": floors, "runs": rows })
+    // Town character (DEC-077 §1): every town has a defining industry; most
+    // have a power broker and a rival; crises come and go.
+    let industry_min = rows
+        .iter()
+        .map(|r| r.towns_with_industry)
+        .fold(1.0, f64::min);
+    let town = serde_json::json!({
+        "industry_min": industry_min,
+        "broker_median": med(&|r| r.towns_with_broker),
+        "rival_median": med(&|r| r.towns_with_rival),
+        "crises_begun_median": med(&|r| r.crises_begun as f64) * scale30,
+        "crises_ended_median": med(&|r| r.crises_ended as f64) * scale30,
+        "pass": industry_min >= 1.0,
+    });
+    let pass = all(&bands) && all(&floors) && town["pass"].as_bool().unwrap_or(false);
+    serde_json::json!({ "pass": pass, "seeds": rows.len(), "years": years, "bands": bands, "drama_floors": floors, "town_character": town, "runs": rows })
 }

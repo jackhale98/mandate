@@ -304,7 +304,7 @@ fn inputs_memo(
                     .entry((key, t.id.clone()))
                     .or_insert_with(|| crate::policy::public_support(t, &state.population, &hoods));
                 let prag = me.pragmatism as f64;
-                let score = (1.0 - prag) * own + prag * public;
+                let score = (1.0 - prag) * own + prag * public + agenda_bonus(state, content, m, t);
                 if best_t.is_none_or(|b| score > b.1) {
                     best_t = Some((t.id.as_str(), score));
                 }
@@ -316,6 +316,53 @@ fn inputs_memo(
         }
     }
     x
+}
+
+/// Agendas follow the town's character (DEC-077 §1): a template that answers
+/// the live crisis gains `npc.crisis_agenda` × severity; one that addresses
+/// the town's concerns gains `npc.concern_agenda` × fit (its alignment with
+/// each concern's attitudes, weighted by the concern's level). Public facts
+/// only: the town's crisis and worries are common knowledge.
+pub fn agenda_bonus(
+    state: &State,
+    content: &ContentBundle,
+    m: u32,
+    t: &mandate_content::PolicyTemplate,
+) -> f64 {
+    let n = &content.npc;
+    let mut bonus = 0.0;
+    if n.crisis_agenda != 0.0
+        && let Some(c) = state
+            .politics
+            .characters
+            .towns
+            .get(m as usize)
+            .and_then(|tc| tc.crisis())
+        && content
+            .crises
+            .iter()
+            .any(|d| d.id == c.kind && d.policies.contains(&t.id))
+    {
+        bonus += n.crisis_agenda * c.severity as f64;
+    }
+    if n.concern_agenda != 0.0
+        && let Some(tc) = state.population.town_concerns.get(m as usize)
+    {
+        let (mut fit, mut w) = (0.0, 0.0);
+        for (c, level) in content.concerns.iter().zip(&tc.levels) {
+            let level = *level as f64;
+            if level <= 0.0 {
+                continue;
+            }
+            let weights: Vec<f32> = c.attitude_weights.iter().map(|x| *x as f32).collect();
+            fit += level * alignment(&t.signature_weights, &weights);
+            w += level;
+        }
+        if w > 0.0 {
+            bonus += n.concern_agenda * fit / w;
+        }
+    }
+    bonus
 }
 
 /// Party-strength shares for a race's candidates (the NPC's prior before polls).
@@ -600,6 +647,26 @@ fn act(
                 lp.fail_gain
             };
             *state.politics.sway.entry((target.0, bill)).or_default() += (gain * dir) as f32;
+            // The colleague remembers being worked on (DEC-031).
+            if let (Some(h), Some(a)) = (
+                state.politics.get(target).map(|p| p.character),
+                state.politics.get(id).map(|p| p.character),
+            ) {
+                crate::characters::remember(
+                    &mut state.politics,
+                    content,
+                    date,
+                    h,
+                    a,
+                    if success {
+                        crate::characters::MemoryKind::LobbiedMe
+                    } else {
+                        crate::characters::MemoryKind::PressedMe
+                    },
+                    Some(crate::characters::Subject::Policy { id: bill }),
+                    None,
+                );
+            }
         }
         AiAction::ProposeBill => {
             let Some(template) = x.best_template.clone() else {
@@ -739,16 +806,14 @@ pub fn lobby_odds_between(
     let l = &content.council.lobby;
     let skill = me.negotiation as f64 * l.skill_negotiation + me.oratory as f64 * l.skill_oratory;
     let ties = if me.is_player {
-        t.opinion_of_player as f64 / l.opinion_scale
+        crate::characters::opinion_between(&state.politics, target, actor) as f64 / l.opinion_scale
     } else if me.party.is_some() && me.party == t.party {
         l.same_party
     } else {
         l.other_party
     };
-    let x = (skill - 0.5) * l.skill_scale
-        + t.pragmatism as f64 * l.pragmatism
-        + l.bias
-        + ties
+    let x = (skill - 0.5) * l.skill_scale + t.pragmatism as f64 * l.pragmatism + l.bias + ties
+        - l.integrity * (t.integrity as f64 - 0.5)
         + if late_night { l.late_night } else { 0.0 };
     clamp(sigmoid(x), l.odds_min, l.odds_max)
 }

@@ -1,0 +1,39 @@
+// Character trait tags (DEC-031): 0–3 per character, drawn at generation.
+// Each is a name plus data-driven modifiers:
+//   personality     added to the axes (ambition, integrity, warmth, boldness,
+//                   loyalty), clamped to 0..1;
+//   memory_decay    multiplies how fast good (positive) and bad (negative)
+//                   memories fade;
+//   opinion_change  multiplies opinion gains (positive) and losses (negative);
+//   excludes        traits that cannot be held together with this one.
+// `chance` is per character, before the three-trait cap. Registry order is
+// load order.
+{
+  "kind": "traits",
+  "items": [
+    { "id": "trait.grudge_holder", "name_key": "trait-grudge_holder", "chance": 0.12,
+      "personality": { "warmth": -0.1 },
+      "memory_decay": { "negative": 0.3 },
+      "excludes": ["trait.forgiving"] },
+    { "id": "trait.forgiving", "name_key": "trait-forgiving", "chance": 0.08,
+      "personality": { "warmth": 0.1 },
+      "memory_decay": { "negative": 1.8 } },
+    { "id": "trait.vain", "name_key": "trait-vain", "chance": 0.1,
+      "personality": { "boldness": 0.1 } },
+    { "id": "trait.zealous", "name_key": "trait-zealous", "chance": 0.08,
+      "personality": { "loyalty": 0.15, "integrity": 0.05 } },
+    { "id": "trait.reformer", "name_key": "trait-reformer", "chance": 0.1,
+      "personality": { "boldness": 0.15, "ambition": 0.05 } },
+    { "id": "trait.loyal_soldier", "name_key": "trait-loyal_soldier", "chance": 0.1,
+      "personality": { "loyalty": 0.25 },
+      "excludes": ["trait.maverick"] },
+    { "id": "trait.maverick", "name_key": "trait-maverick", "chance": 0.08,
+      "personality": { "loyalty": -0.25, "boldness": 0.15 } },
+    { "id": "trait.charmer", "name_key": "trait-charmer", "chance": 0.1,
+      "personality": { "warmth": 0.2 } },
+    { "id": "trait.schemer", "name_key": "trait-schemer", "chance": 0.08,
+      "personality": { "integrity": -0.2, "ambition": 0.1 } },
+    { "id": "trait.cautious", "name_key": "trait-cautious", "chance": 0.1,
+      "personality": { "boldness": -0.25 } },
+  ],
+}

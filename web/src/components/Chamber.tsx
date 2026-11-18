@@ -7,10 +7,13 @@ import { formatDate } from "../i18n/format";
 
 function Member({ m }: { m: MemberView }) {
   const tr = useGame((s) => s.tr);
+  const openCharacter = useGame((s) => s.openCharacter);
   return (
     <li className="member">
       <div>
-        <strong>{m.name}</strong>
+        <button type="button" className="link-btn" onClick={() => void openCharacter(m.character)} data-testid="member-name">
+          <strong>{m.name}</strong>
+        </button>
         {m.is_player && <span className="chip chip-muted"> {tr.t("ui-you")}</span>}
         <div className="muted small">
           {tr.t(m.role_key)}

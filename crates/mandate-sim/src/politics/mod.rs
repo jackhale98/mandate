@@ -1,13 +1,15 @@
-//! Politicians, parties, and local bodies (DEC-027, DEC-031 subset): council
-//! members and mayors generated from their wards' opinions, each belonging to
-//! a party generated from the society's cleavages. Elections live in
-//! `elections`; full character simulation arrives in M5.
+//! Politicians, parties, and local bodies (DEC-027): council members and
+//! mayors generated from their wards' opinions, each belonging to a party
+//! generated from the society's cleavages. Elections live in `elections`.
+//! Politicians are characters (DEC-031): their relationships, favours, and
+//! memory live in `characters` (`PoliticsState::characters`).
 
 pub mod elections;
 pub mod parties;
 
 pub use parties::{Party, PartyId};
 
+use crate::characters::{CharacterId, CharactersState};
 use crate::population::PopulationState;
 use crate::world::{ConstituencyId, MunicipalityId, Tier, World};
 use mandate_core::math::clamp;
@@ -50,10 +52,9 @@ pub struct Politician {
     pub integrity: f32,
     pub oratory: f32,
     pub negotiation: f32,
-    /// Opinion of the player, −100..100.
-    pub opinion_of_player: f32,
-    /// Favours: positive = they owe the player; negative = the player owes them.
-    pub favors: i32,
+    /// Their character record (DEC-031): personality, relationships
+    /// (including their opinion of the player), favours, and memory.
+    pub character: CharacterId,
     pub party: Option<PartyId>,
     /// Drive to seek office (0..1).
     pub ambition: f32,
@@ -113,6 +114,10 @@ pub struct PoliticsState {
     /// Publicly declared votes: (politician, policy) → +1 yes, −1 no, 0 abstain.
     #[serde(with = "mandate_core::serde_util::map_as_pairs")]
     pub declared_votes: BTreeMap<(u32, u32), i8>,
+    /// Characters (DEC-031): every politician's character record, Named
+    /// characters, relationships, favours, memory, and town characters.
+    #[serde(default)]
+    pub characters: CharactersState,
 }
 
 /// A declared vote on a bill (for a mayor: sign or veto).
@@ -162,7 +167,8 @@ pub fn mean_attitudes(pop: &PopulationState, hoods: &[usize]) -> Vec<f32> {
     acc.iter().map(|a| (a / w.max(1.0)) as f32).collect()
 }
 
-fn name(rng: &mut SimRng, given: &[String], family: &[String]) -> (String, String) {
+/// A generated person's (given, family) name from the name pools.
+pub fn person_name(rng: &mut SimRng, given: &[String], family: &[String]) -> (String, String) {
     let g = rng.pick(given).cloned().unwrap_or_else(|| "Alex".into());
     let f1 = rng.pick(family).cloned().unwrap_or_else(|| "Smith".into());
     let f2 = if rng.chance(0.5) {
@@ -174,6 +180,7 @@ fn name(rng: &mut SimRng, given: &[String], family: &[String]) -> (String, Strin
 }
 
 /// Councils and mayors for every municipality, reflecting their voters (with noise).
+#[allow(clippy::too_many_arguments)]
 pub fn init(
     world: &World,
     pop: &PopulationState,
@@ -182,6 +189,8 @@ pub fn init(
     family: &[String],
     year: u32,
     parties: Vec<Party>,
+    content: &mandate_content::ContentBundle,
+    seed: u64,
 ) -> PoliticsState {
     let mut st = PoliticsState {
         parties,
@@ -198,7 +207,9 @@ pub fn init(
             *a = clamp(*a as f64 + rng.normal(0.0, 0.18), -1.0, 1.0) as f32;
         }
         let party = parties::nearest_party(&attitudes, &st.parties);
-        new_politician(st, rng, given, family, role, attitudes, party, home, year)
+        new_politician(
+            st, rng, given, family, role, attitudes, party, home, year, content, seed,
+        )
     };
     let _ = &make;
     for m in &world.municipalities {
@@ -250,8 +261,10 @@ pub fn init(
     st
 }
 
-/// Create a politician (NPC) and register them. Used at generation and for
-/// new challengers at each election.
+/// Create a politician (NPC) and register them, with their character
+/// (DEC-031). Used at generation and for new challengers at each election.
+/// The draws from `rng` are as before characters existed; the character's
+/// own draws come from a stream keyed by the politician's id.
 #[allow(clippy::too_many_arguments)]
 pub fn new_politician(
     st: &mut PoliticsState,
@@ -263,35 +276,44 @@ pub fn new_politician(
     party: Option<PartyId>,
     home: u32,
     year: u32,
+    content: &mandate_content::ContentBundle,
+    seed: u64,
 ) -> PoliticianId {
-    {
-        let id: PoliticianId = st.ids.alloc();
-        let (g, f) = name(rng, given, family);
-        st.politicians.push(Politician {
-            id,
-            given: g,
-            family: f,
-            role,
-            is_player: false,
-            birth_year: year.saturating_sub(rng.range_i64(30, 68) as u32),
-            attitudes,
-            pragmatism: rng.range_f64(0.2, 0.9) as f32,
-            integrity: rng.range_f64(0.2, 0.95) as f32,
-            oratory: rng.range_f64(0.2, 0.9) as f32,
-            negotiation: rng.range_f64(0.2, 0.9) as f32,
-            opinion_of_player: rng.normal(0.0, 12.0).clamp(-40.0, 40.0) as f32,
-            favors: 0,
-            party,
-            ambition: rng.range_f64(0.2, 0.95) as f32,
-            home,
-            scandal: 0.0,
-            funds: rng.range_f64(2_000.0, 12_000.0),
-            years_in_office: 0,
-            terms_in_office: 0,
-            record: 0.0,
-        });
-        id
-    }
+    let id: PoliticianId = st.ids.alloc();
+    let (g, f) = person_name(rng, given, family);
+    let birth_year = year.saturating_sub(rng.range_i64(30, 68) as u32);
+    let pragmatism = rng.range_f64(0.2, 0.9) as f32;
+    let integrity = rng.range_f64(0.2, 0.95) as f32;
+    let oratory = rng.range_f64(0.2, 0.9) as f32;
+    let negotiation = rng.range_f64(0.2, 0.9) as f32;
+    // How they take to a newcomer (the player): their first impression.
+    let first_impression = rng.normal(0.0, 12.0).clamp(-40.0, 40.0) as f32;
+    let ambition = rng.range_f64(0.2, 0.95) as f32;
+    let funds = rng.range_f64(2_000.0, 12_000.0);
+    st.politicians.push(Politician {
+        id,
+        given: g,
+        family: f,
+        role,
+        is_player: false,
+        birth_year,
+        attitudes,
+        pragmatism,
+        integrity,
+        oratory,
+        negotiation,
+        character: CharacterId(u32::MAX),
+        party,
+        ambition,
+        home,
+        scandal: 0.0,
+        funds,
+        years_in_office: 0,
+        terms_in_office: 0,
+        record: 0.0,
+    });
+    crate::characters::add_politician(st, content, seed, id, first_impression);
+    id
 }
 
 /// Cosine-style alignment between a policy signature and an attitude vector, in [-1, 1].

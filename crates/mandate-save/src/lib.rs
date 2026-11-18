@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 10;
+pub const SAVE_FORMAT_VERSION: u16 = 11;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -164,7 +164,7 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
     // One step per format bump, applied in order. Pre-release policy:
     // development builds may bump the version without a migration; such
     // saves are rejected with a clear error instead.
-    let steps: &[(u16, MigrationStep)] = &[(9, v9_scenario_ids)];
+    let steps: &[(u16, MigrationStep)] = &[(9, v9_scenario_ids), (10, v10_characters)];
     let mut value = value;
     let mut v = from;
     while v < SAVE_FORMAT_VERSION {
@@ -204,6 +204,67 @@ fn v9_scenario_ids(mut value: serde_json::Value) -> Result<serde_json::Value, Sa
         Some(_) => return Err(SaveError::Malformed),
     };
     params.insert("scenario".into(), scenario);
+    Ok(value)
+}
+
+/// v10 → v11 (DEC-031): politicians became characters. Each politician's
+/// opinion of the player and favours move onto relationship edges and the
+/// favour ledger; their character id is their politician id. The character
+/// records themselves (personality, traits, competencies) are generated on
+/// load from the world seed (`characters::on_load`), as are the towns' Named
+/// characters and town characters.
+fn v10_characters(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::{Value, json};
+    let date = value
+        .pointer("/state/calendar/date")
+        .cloned()
+        .unwrap_or(Value::from(0));
+    let pol = value
+        .pointer_mut("/state/politics")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    let list = pol
+        .get_mut("politicians")
+        .and_then(|p| p.as_array_mut())
+        .ok_or(SaveError::Malformed)?;
+    let player = list
+        .iter()
+        .position(|p| p.get("is_player").and_then(Value::as_bool) == Some(true));
+    let mut edges = Vec::new();
+    let mut favours = Vec::new();
+    let n = list.len();
+    for (i, p) in list.iter_mut().enumerate() {
+        let obj = p.as_object_mut().ok_or(SaveError::Malformed)?;
+        let opinion = obj
+            .remove("opinion_of_player")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+        let favors = obj.remove("favors").and_then(|v| v.as_i64()).unwrap_or(0);
+        obj.insert("character".into(), Value::from(i as u64));
+        let Some(pc) = player.filter(|pc| *pc != i) else {
+            continue;
+        };
+        edges.push(json!([[i, pc], { "opinion": opinion, "trust": 0.5, "bonds": [] }]));
+        if favors != 0 {
+            let (debtor, creditor) = if favors < 0 { (pc, i) } else { (i, pc) };
+            favours.push(json!({
+                "debtor": debtor, "creditor": creditor, "count": favors.unsigned_abs().min(255),
+                "context": "favour-bill", "subject": null, "since": date,
+            }));
+        }
+    }
+    pol.insert(
+        "characters".into(),
+        json!({
+            "ids": { "next": n },
+            "people": [],
+            "edges": edges,
+            "favours": favours,
+            "towns": [],
+            "named_seeded": false,
+            "crisis_keys": [],
+        }),
+    );
     Ok(value)
 }
 

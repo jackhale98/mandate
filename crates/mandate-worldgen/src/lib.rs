@@ -811,6 +811,8 @@ pub fn generate_with_progress(
         &family_names,
         content.tuning.start_year,
         parties,
+        &content,
+        config.seed,
     );
     let policy = mandate_sim::policy::init(&world, rng.get(Stream::Npc));
     let mut events = EventLog::default();
@@ -875,6 +877,19 @@ pub fn generate_with_progress(
             me.record = 0.3;
         }
         state.player = player;
+        // The people of the towns, now that history has run (DEC-018), and
+        // each town's character as play begins (DEC-077).
+        let date = state.calendar.date;
+        let seed = state.meta.seed;
+        mandate_sim::characters::seed_named(
+            &mut state.politics,
+            &state.world,
+            &state.population,
+            &content2,
+            seed,
+            date,
+        );
+        mandate_sim::characters::refresh_towns(state, &content2);
     });
     engine.mark_started();
     progress("progress-done", 1.0);
@@ -933,7 +948,6 @@ fn place_player(
         .or_else(|| council.members.get(council.members.len() / 2).copied())?;
     let me = politics.get_mut(seat)?;
     me.is_player = true;
-    me.opinion_of_player = 0.0;
     me.oratory = 0.6;
     me.negotiation = 0.6;
     let Role::Councillor { ward, .. } = me.role else {

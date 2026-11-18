@@ -736,3 +736,138 @@ short-town_data_detailed = Statistics
 short-budget_papers = Budget papers
 short-internal_polls = Internal polls
 short-overheard = Overheard talk
+
+# Characters (DEC-031): traits, occupations, and memories.
+trait-grudge_holder = Holds grudges
+trait-forgiving = Forgiving
+trait-vain = Vain
+trait-zealous = Zealous
+trait-reformer = Reformer
+trait-loyal_soldier = Loyal soldier
+trait-maverick = Maverick
+trait-charmer = Charmer
+trait-schemer = Schemer
+trait-cautious = Cautious
+occupation-union_steward = Union steward
+occupation-business_leader = Business association chair
+occupation-editor = Newspaper editor
+occupation-party_chair = Party branch chair
+occupation-plant_manager = Plant manager
+occupation-farmer = Farmer
+occupation-journalist = Journalist
+occupation-shopkeeper = Shopkeeper
+occupation-diner_owner = Diner owner
+occupation-organiser = Community organiser
+occupation-clergy = Minister
+occupation-teacher = Teacher
+occupation-nurse = Nurse
+occupation-resident = Local resident
+occupation-retiree = Retiree
+# A character's memories of the player, quoted on their sheet. $subject is a
+# bill or seat (may be empty), $year the year it happened.
+memory-backed-my-bill = You backed { $subject } ({ $year }).
+memory-opposed-my-bill = You voted against { $subject } ({ $year }).
+memory-promised-favour = You promised a favour for { $subject } ({ $year }).
+memory-kept-promise = You kept your promise on { $subject } ({ $year }).
+memory-broke-promise = You broke your promise on { $subject } ({ $year }).
+memory-broke-ranks = You broke ranks with the party on { $subject } ({ $year }).
+memory-lobbied-me = You talked them round on { $subject } ({ $year }).
+memory-pressed-me = You pressed them on { $subject } and got nowhere ({ $year }).
+memory-defeated-me = You beat them at the polls ({ $year }).
+memory-lost-to-me = They beat you at the polls ({ $year }).
+memory-vetoed-my-bill = You vetoed { $subject } ({ $year }).
+memory-signed-my-bill = You signed { $subject } into law ({ $year }).
+memory-met = You first met ({ $year }).
+memory-scandal = The scandal ({ $year }).
+
+# Town character (DEC-077 §1): live crises.
+crisis-plant_closure = Jobs disappearing
+crisis-disaster_recovery = Recovering from disaster
+crisis-housing_squeeze = Housing squeeze
+crisis-fiscal_hole = Fiscal hole
+# Issues, as a character's area of expertise (one per attitude).
+issue-redistribution = Inequality and welfare
+issue-tax_tolerance = Taxes and spending
+issue-social_liberalism = Social questions
+issue-environment = The environment
+issue-law_and_order = Policing and safety
+issue-localism = Local self-reliance
+issue-tradition = Tradition and community
+issue-reform_appetite = Reforming government
+
+# Character sheets (DEC-031).
+role-candidate = Candidate
+subject-mayoralty = the mayoralty
+subject-ward = Ward { $n }
+favour-bill = Support on { $subject }
+personality-ambition-high = Ambitious
+personality-ambition-low = Content where they are
+personality-integrity-high = Principled
+personality-integrity-low = Flexible with the truth
+personality-warmth-high = Warm
+personality-warmth-low = Cold
+personality-boldness-high = Bold
+personality-boldness-low = Cautious by nature
+personality-loyalty-high = Loyal
+personality-loyalty-low = A free agent
+opinion-hostile = Hostile to you
+opinion-cool = Cool toward you
+opinion-neutral = Neutral about you
+opinion-warm = Warm toward you
+opinion-friendly = Firmly on your side
+trust-low = Doesn't trust you
+trust-some = Trusts you a little
+trust-high = Trusts you
+bond-family = Family
+bond-friend = Friend
+bond-ally = Ally
+bond-rival = Rival
+bond-mentor = Mentor
+bond-employer = Works for them
+bond-patron = Patron
+tier-principal = Major figure
+tier-named = Local figure
+tier-ambient = Passer-by
+ui-people-here = People here
+ui-people-here-none = Nobody you could stop for a word right now.
+ui-meet = Say hello
+ui-character = Who they are
+ui-personality = Character
+ui-traits = Known for
+ui-expertise = Knows about
+ui-relationship = With you
+ui-favours = Favours
+ui-owes-you = { $n ->
+    [one] Owes you a favour
+   *[other] Owes you { $n } favours
+}
+ui-you-owe-them = { $n ->
+    [one] You owe them a favour
+   *[other] You owe them { $n } favours
+}
+ui-remembers = Remembers
+ui-remembers-nothing = Nothing about you yet.
+ui-age-home = { $age }, lives in { $hood }
+ui-found-at = Found at { $place }
+ui-ward-n = Ward { $n }
+ui-your-rival = Your rival
+ui-power-broker = Power broker
+outcome-met = You introduced yourself to { $name }.
+
+# Town character (DEC-077 §1).
+ui-town-card = The town
+ui-defining-industry = Defining industry
+ui-industry-share = { $pct }% of jobs
+ui-live-crisis = Live crisis
+ui-no-crisis = No crisis right now
+crisis-severity-mild = mild
+crisis-severity-serious = serious
+crisis-severity-severe = severe
+crisis-trend-worsening = worsening
+crisis-trend-easing = easing
+crisis-trend-steady = steady
+ui-crisis-since = since { $month }/{ $year }
+ui-power-broker-line = Power broker
+ui-rival-line = Your rival
+ui-priorities = Local priorities
+ui-nobody = —

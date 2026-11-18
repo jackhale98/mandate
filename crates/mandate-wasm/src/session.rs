@@ -179,6 +179,9 @@ impl Session {
                 QueryDto::Place { location } => place_panel_view(self.engine_mut()?, location)
                     .map(ResponseBody::Place)
                     .ok_or_else(|| err(ErrorCode::BadRequest, "no such place in your town")),
+                QueryDto::Character { id } => character_view(self.engine_mut()?, id)
+                    .map(ResponseBody::Character)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, format!("no character {id}"))),
                 QueryDto::Scenarios => Ok(ResponseBody::Scenarios(scenario_list(&self.content))),
                 QueryDto::Locale { lang } => Ok(ResponseBody::Locale(LocaleView {
                     ftl: self.content.locale_text(&lang),
@@ -259,6 +262,7 @@ fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, 
         CommandDto::MoveTo { location } => P::MoveTo {
             location: location.to_sim(),
         },
+        CommandDto::Meet { slot } => P::Meet { slot },
         CommandDto::Go { location, then } => P::Go {
             location: location.to_sim(),
             then: match then {

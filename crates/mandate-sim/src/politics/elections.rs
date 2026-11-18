@@ -390,7 +390,9 @@ fn open_campaign(
                     leaving_council.push(id);
                     id
                 }
-                None => recruit(st, &mut rng, &given, &family, pop, &all_hoods, pid, m, year),
+                None => recruit(
+                    st, &mut rng, &given, &family, pop, &all_hoods, pid, m, year, r.content, seed,
+                ),
             };
             mayor_candidates.push(id);
         }
@@ -471,7 +473,9 @@ fn open_campaign(
                     .find(|id| !mayor_candidates.contains(id));
                 let id = match former {
                     Some(id) if rng.chance(0.6) => id,
-                    _ => recruit(st, &mut rng, &given, &family, pop, &hoods, pid, m, year),
+                    _ => recruit(
+                        st, &mut rng, &given, &family, pop, &hoods, pid, m, year, r.content, seed,
+                    ),
                 };
                 cands.push(id);
             }
@@ -510,6 +514,8 @@ fn recruit(
     party: PartyId,
     municipality: u32,
     year: u32,
+    content: &mandate_content::ContentBundle,
+    seed: u64,
 ) -> PoliticianId {
     let hs: Vec<usize> = hoods.iter().map(|h| *h as usize).collect();
     let local = mean_attitudes(pop, &hs);
@@ -536,9 +542,31 @@ fn recruit(
         Some(party),
         home,
         year,
+        content,
+        seed,
     );
     if let Some(p) = st.get_mut(id) {
         p.birth_year = year.saturating_sub(rng.range_i64(26, 62) as u32);
+    }
+    // The party's longest-serving local officeholder takes them under their wing.
+    let mentor = st
+        .politicians
+        .iter()
+        .filter(|p| {
+            p.id != id
+                && !p.is_player
+                && p.in_office()
+                && p.party == Some(party)
+                && p.municipality() == municipality
+        })
+        .max_by(|a, b| {
+            a.years_in_office
+                .cmp(&b.years_in_office)
+                .then(b.id.cmp(&a.id))
+        })
+        .map(|p| p.character);
+    if let (Some(m), Some(me)) = (mentor, st.get(id).map(|p| p.character)) {
+        crate::characters::bond(st, content, me, m, crate::characters::Bond::Mentor, true);
     }
     id
 }
@@ -1387,6 +1415,45 @@ fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>, _cal: &Electi
         },
         vec![],
     );
+    // Characters remember who beat them (DEC-031): a loser the winner (a
+    // rival from then on), a winner the losers, briefly.
+    for res in &results {
+        let Some(wc) = st.get(res.winner).map(|p| p.character) else {
+            continue;
+        };
+        let subject = Some(crate::characters::Subject::Seat { seat: res.seat });
+        for c in res.candidates.iter().filter(|c| c.politician != res.winner) {
+            let Some(lc) = st.get(c.politician).map(|p| p.character) else {
+                continue;
+            };
+            use crate::characters::{Bond, MemoryKind, bond, remember};
+            if player != Some(c.politician) {
+                remember(
+                    st,
+                    r.content,
+                    r.date,
+                    lc,
+                    wc,
+                    MemoryKind::DefeatedMe,
+                    subject,
+                    None,
+                );
+                bond(st, r.content, lc, wc, Bond::Rival, true);
+            }
+            if player != Some(res.winner) {
+                remember(
+                    st,
+                    r.content,
+                    r.date,
+                    wc,
+                    lc,
+                    MemoryKind::LostToMe,
+                    subject,
+                    None,
+                );
+            }
+        }
+    }
     // Keep the last few cycles only.
     st.elections.results.extend(results);
     let dates: Vec<SimDate> = {

@@ -3,7 +3,7 @@
 
 use crate::bundle::ContentBundle;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Severity {
@@ -243,6 +243,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     validate_communities(b, &mut issues);
     validate_scenarios(b, &mut issues);
     validate_concerns(b, &mut issues);
+    validate_characters(b, &mut issues);
     for (name, v, lo, hi) in param_ranges(b) {
         if !(v.is_finite() && (lo..=hi).contains(&v)) {
             let kind = name.split('.').next().unwrap_or("parameters").to_string();
@@ -517,6 +518,23 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     for p in &b.places {
         referenced.push((&p.id, &p.name_key));
     }
+    for t in &b.traits {
+        referenced.push((&t.id, &t.name_key));
+    }
+    for o in &b.occupations {
+        referenced.push((&o.id, &o.name_key));
+    }
+    for c in &b.crises {
+        referenced.push((&c.id, &c.name_key));
+    }
+    // Memories are quoted through `memory-<kind>`.
+    let memory_keys: Vec<String> = crate::types::MEMORY_KINDS
+        .iter()
+        .map(|k| format!("memory-{}", k.replace('_', "-")))
+        .collect();
+    for key in &memory_keys {
+        referenced.push(("characters", key));
+    }
     for p in b.policies.values() {
         referenced.push((&p.id, &p.name_key));
         referenced.push((&p.id, &p.desc_key));
@@ -535,6 +553,12 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         .flat_map(|a| {
             ["pro", "anti"].map(|side| (a.id.as_str(), format!("conviction-{side}-{}", a.key)))
         })
+        // A character's expertise names the issue (DEC-031).
+        .chain(
+            b.attitudes
+                .iter()
+                .map(|a| (a.id.as_str(), format!("issue-{}", a.key))),
+        )
         .collect();
     for (owner, key) in &convictions {
         referenced.push((owner, key));
@@ -944,7 +968,295 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
     ] {
         r(&format!("npc.{name}"), x, lo, hi);
     }
+    r("npc.crisis_agenda", n.crisis_agenda, 0.0, 5.0);
+    r("npc.concern_agenda", n.concern_agenda, 0.0, 5.0);
+
+    let ch = &b.characters;
+    r(
+        "characters.memory.principal",
+        ch.memory.principal.into(),
+        1.0,
+        100.0,
+    );
+    r(
+        "characters.memory.named",
+        ch.memory.named.into(),
+        1.0,
+        100.0,
+    );
+    r(
+        "characters.memory.forget_below",
+        ch.memory.forget_below,
+        0.0,
+        1.0,
+    );
+    for (k, m) in &ch.memories {
+        let p = format!("characters.memories.{k}");
+        r(&format!("{p}.sentiment"), m.sentiment, -1.0, 1.0);
+        r(&format!("{p}.magnitude"), m.magnitude, 0.0, 1.0);
+        r(&format!("{p}.decay"), m.decay, 0.0, 20.0);
+        r(&format!("{p}.opinion"), m.opinion, -100.0, 100.0);
+        r(&format!("{p}.trust"), m.trust, -1.0, 1.0);
+    }
+    let g = &ch.generation;
+    for (name, [lo, hi]) in [("personality", g.personality), ("competency", g.competency)] {
+        r(&format!("characters.generation.{name}[0]"), lo, 0.0, 1.0);
+        r(&format!("characters.generation.{name}[1]"), hi, lo, 1.0);
+    }
+    r("characters.generation.values_sd", g.values_sd, 0.0, 1.0);
+    r(
+        "characters.generation.first_impression_sd",
+        g.first_impression_sd,
+        0.0,
+        100.0,
+    );
+    r(
+        "characters.generation.family_chance",
+        g.family_chance,
+        0.0,
+        1.0,
+    );
+    r("characters.generation.drift_sd", g.drift_sd, 0.0, 1.0);
+    r(
+        "characters.generation.trust_initial",
+        g.trust_initial,
+        0.0,
+        1.0,
+    );
+    r(
+        "characters.bonds.ally_above",
+        ch.bonds.ally_above,
+        -100.0,
+        100.0,
+    );
+    r(
+        "characters.bonds.rival_below",
+        ch.bonds.rival_below,
+        -100.0,
+        ch.bonds.ally_above,
+    );
+    r(
+        "council.loyalty_discipline",
+        b.council.loyalty_discipline,
+        0.0,
+        5.0,
+    );
+    r(
+        "council.lobby.integrity",
+        b.council.lobby.integrity,
+        0.0,
+        10.0,
+    );
+    r(
+        "characters.ai.warmth_opinion",
+        ch.ai.warmth_opinion,
+        0.0,
+        1.0,
+    );
+    let a = &ch.ambient;
+    r(
+        "characters.ambient.present[0]",
+        a.present[0].into(),
+        0.0,
+        10.0,
+    );
+    r(
+        "characters.ambient.present[1]",
+        a.present[1].into(),
+        a.present[0].into(),
+        10.0,
+    );
+    r(
+        "characters.ambient.period_days",
+        a.period_days.into(),
+        1.0,
+        366.0,
+    );
+    r(
+        "characters.ambient.max_listed",
+        a.max_listed.into(),
+        1.0,
+        20.0,
+    );
+    r(
+        "characters.town.trend_months",
+        ch.town.trend_months.into(),
+        1.0,
+        36.0,
+    );
+    r(
+        "characters.town.broker_seniority",
+        ch.town.broker_seniority,
+        0.0,
+        10.0,
+    );
+    r(
+        "characters.town.broker_stake",
+        ch.town.broker_stake,
+        0.0,
+        10.0,
+    );
     out
+}
+
+/// Characters (DEC-031): known memory kinds, each with a parameter row;
+/// traits, occupations, and crisis kinds with sane values and known
+/// references. Ids are unique (claimed on load).
+fn validate_characters(b: &ContentBundle, issues: &mut Vec<Issue>) {
+    use crate::types::{COMPETENCIES, MEMORY_KINDS, PERSONALITY_AXES};
+    let in_range = |v: f64, lo: f64, hi: f64| v.is_finite() && (lo..=hi).contains(&v);
+    let ch = &b.characters;
+    for k in MEMORY_KINDS {
+        if !ch.memories.contains_key(k) {
+            issues.push(Issue::error(
+                "characters",
+                &format!("memories needs a row for `{k}`"),
+            ));
+        }
+    }
+    for k in ch.memories.keys() {
+        if !MEMORY_KINDS.contains(&k.as_str()) {
+            issues.push(Issue::error(
+                "characters",
+                &format!(
+                    "unknown memory kind `{k}` (known: {})",
+                    MEMORY_KINDS.join(", ")
+                ),
+            ));
+        }
+    }
+    let axes =
+        |owner: &str, map: &BTreeMap<String, f64>, known: &[&str], issues: &mut Vec<Issue>| {
+            for (k, v) in map {
+                if !known.contains(&k.as_str()) {
+                    issues.push(Issue::error(
+                        owner,
+                        &format!("unknown key `{k}` (known: {})", known.join(", ")),
+                    ));
+                }
+                if !in_range(*v, -1.0, 1.0) {
+                    issues.push(Issue::error(owner, &format!("`{k}` = {v} outside [-1, 1]")));
+                }
+            }
+        };
+    for t in &b.traits {
+        if !valid_key(&t.id) {
+            issues.push(Issue::error(&t.id, "trait ids look like `trait.name`"));
+        }
+        if !in_range(t.chance, 0.0, 1.0) {
+            issues.push(Issue::error(&t.id, "chance must be in [0, 1]"));
+        }
+        axes(&t.id, &t.personality, &PERSONALITY_AXES, issues);
+        for (name, v) in [
+            ("memory_decay.positive", t.memory_decay.positive),
+            ("memory_decay.negative", t.memory_decay.negative),
+            ("opinion_change.positive", t.opinion_change.positive),
+            ("opinion_change.negative", t.opinion_change.negative),
+        ] {
+            if !in_range(v, 0.0, 10.0) {
+                issues.push(Issue::error(
+                    &t.id,
+                    &format!("{name} = {v} outside [0, 10]"),
+                ));
+            }
+        }
+        for x in &t.excludes {
+            if b.trait_def(x).is_none() {
+                issues.push(Issue::error(
+                    &t.id,
+                    &format!("excludes unknown trait `{x}`"),
+                ));
+            }
+        }
+    }
+    let place_keys: Vec<&str> = b.places.iter().map(|p| p.key.as_str()).collect();
+    for o in &b.occupations {
+        if !valid_key(&o.id) {
+            issues.push(Issue::error(
+                &o.id,
+                "occupation ids look like `occupation.name`",
+            ));
+        }
+        if o.places.is_empty() {
+            issues.push(Issue::error(
+                &o.id,
+                "an occupation needs at least one place",
+            ));
+        }
+        for k in &o.places {
+            if k == "home" || !place_keys.contains(&k.as_str()) {
+                issues.push(Issue::error(
+                    &o.id,
+                    &format!("places references unknown place kind `{k}`"),
+                ));
+            }
+        }
+        if !in_range(o.chance, 0.0, 1.0) || !in_range(o.influence, 0.0, 1.0) {
+            issues.push(Issue::error(
+                &o.id,
+                "chance and influence must be in [0, 1]",
+            ));
+        }
+        if o.class.iter().any(|w| !in_range(*w, 0.0, 100.0)) || o.class.iter().sum::<f64>() <= 0.0 {
+            issues.push(Issue::error(
+                &o.id,
+                "class weights must be non-negative, not all 0",
+            ));
+        }
+        if o.age[0] < 18 || o.age[0] > o.age[1] || o.age[1] > 100 {
+            issues.push(Issue::error(&o.id, "age must be [min, max] within 18..100"));
+        }
+        axes(&o.id, &o.personality, &PERSONALITY_AXES, issues);
+        axes(&o.id, &o.competencies, &COMPETENCIES, issues);
+        if let Some(e) = &o.expertise
+            && b.attitude_index(e).is_none()
+        {
+            issues.push(Issue::error(
+                &o.id,
+                &format!("expertise names unknown attitude `{e}`"),
+            ));
+        }
+        for c in &o.stake.crises {
+            if b.crisis_index(c).is_none() {
+                issues.push(Issue::error(
+                    &o.id,
+                    &format!("stake names unknown crisis `{c}`"),
+                ));
+            }
+        }
+    }
+    for c in &b.crises {
+        if !valid_key(&c.id) {
+            issues.push(Issue::error(&c.id, "crisis ids look like `crisis.name`"));
+        }
+        let ok = [c.begin, c.end, c.severe]
+            .iter()
+            .all(|v| in_range(*v, -1000.0, 1000.0));
+        if !ok || c.end > c.begin || c.severe < c.begin {
+            issues.push(Issue::error(
+                &c.id,
+                "thresholds must be finite with end ≤ begin ≤ severe",
+            ));
+        }
+        // The link is informational: a pack that removes the concern keeps
+        // a working crisis.
+        if let Some(k) = &c.concern
+            && b.concern_index(k).is_none()
+        {
+            issues.push(Issue::warning(
+                &c.id,
+                &format!("concern names unknown concern `{k}`"),
+            ));
+        }
+        for p in &c.policies {
+            if !b.policies.contains_key(p) {
+                issues.push(Issue::error(
+                    &c.id,
+                    &format!("policies names unknown policy `{p}`"),
+                ));
+            }
+        }
+    }
 }
 
 /// Place-kind registry (DEC-079): known actions and services, pseudo-locations

@@ -377,8 +377,13 @@ fn the_players_vote_has_consequences() {
         .unwrap();
     let same_party = e.state().politics.get(sponsor).unwrap().party == my_party;
     let bill = e.state().policy.instances.len() as u32;
+    let (sc, mc) = (
+        e.state().politics.get(sponsor).unwrap().character,
+        e.state().politics.get(me).unwrap().character,
+    );
     e.setup(|st| {
-        st.politics.get_mut(sponsor).unwrap().favors = -1;
+        let date = st.calendar.date;
+        mandate_sim::characters::owe(&mut st.politics, mc, sc, "favour-bill", None, date);
         st.policy.ids.alloc_raw();
         st.policy.instances.push(PolicyInstance {
             id: PolicyInstanceId(bill),
@@ -410,9 +415,21 @@ fn the_players_vote_has_consequences() {
         .unwrap();
     assert_eq!(r.result.unwrap().outcome_key, "outcome-vote-yes");
     assert_eq!(
-        e.state().politics.get(sponsor).unwrap().favors,
+        mandate_sim::characters::favour_balance(&e.state().politics, sc, mc),
         0,
         "the owed favour is repaid"
+    );
+    let kept = mandate_sim::characters::salient_memories(
+        &e.state().politics,
+        sc,
+        Some(mc),
+        e.state().calendar.date,
+        5,
+    );
+    assert!(
+        kept.iter()
+            .any(|m| m.kind == mandate_sim::characters::MemoryKind::KeptPromise),
+        "the sponsor remembers the promise kept"
     );
     if same_party {
         assert!(

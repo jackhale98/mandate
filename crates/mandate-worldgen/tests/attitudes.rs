@@ -49,7 +49,7 @@ fn content_with_land_rights() -> Arc<ContentBundle> {
     src.push(Source {
         path: "land/locale/en/land.ftl".into(),
         text:
-            "conviction-pro-land_rights = Land back\nconviction-anti-land_rights = Settled title\n"
+            "conviction-pro-land_rights = Land back\nconviction-anti-land_rights = Settled title\nissue-land_rights = Land rights\n"
                 .into(),
     });
     Arc::new(load(&src).unwrap().0)

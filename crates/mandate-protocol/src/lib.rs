@@ -3,12 +3,14 @@
 //! `web/src/engine/protocol/*.ts`.
 
 pub mod campaign;
+pub mod characters;
 pub mod map;
 pub mod office;
 pub mod places;
 pub mod views;
 
 pub use campaign::*;
+pub use characters::*;
 pub use map::*;
 pub use office::*;
 pub use places::*;
@@ -132,6 +134,11 @@ pub enum CommandDto {
         location: LocationDto,
         then: Option<Box<CommandDto>>,
     },
+    /// Meet a passer-by where the player is (free): they become a Named
+    /// character, whose id is the result's `created`.
+    Meet {
+        slot: u8,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -206,6 +213,10 @@ pub enum QueryDto {
     Place {
         location: LocationDto,
     },
+    /// A character sheet (DEC-031).
+    Character {
+        id: u32,
+    },
     /// Fluent sources for a language (DEC-054).
     Locale {
         lang: String,
@@ -257,6 +268,7 @@ pub enum ResponseBody {
     Pocket(PocketView),
     Town(TownPlacesView),
     Place(PlacePanelView),
+    Character(CharacterView),
     Locale(LocaleView),
     Scenarios(ScenarioListView),
     Diagnostics(DiagnosticsView),

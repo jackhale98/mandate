@@ -599,6 +599,19 @@ pub fn remap_attitudes(
         };
         p.attitudes = remap(&p.attitudes, &|i| local[i]);
     }
+    // Named characters' values likewise (DEC-031).
+    for c in politics.characters.people.iter_mut() {
+        let Some(n) = c.named.as_deref_mut() else {
+            continue;
+        };
+        let home = n.home as usize;
+        let local = if home < pop.hoods.len() {
+            crate::politics::mean_attitudes(pop, &[home])
+        } else {
+            vec![0.0; pop.attitude_count()]
+        };
+        n.values = remap(&n.values, &|i| local[i]);
+    }
     for party in politics.parties.iter_mut() {
         party.platform = remap(&party.platform, &|_| 0.0);
         for f in party.factions.iter_mut() {

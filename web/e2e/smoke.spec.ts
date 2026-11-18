@@ -146,3 +146,37 @@ test("a full local election", async ({ page }) => {
   await night.getByRole("button", { name: "Continue" }).last().click();
   await expect(night).toHaveCount(0);
 });
+
+// M5b: the town card shows the town's character (DEC-077 §1); a place lists
+// who is there; meeting a passer-by opens their character sheet (DEC-031).
+test("town character, people at a place, and a character sheet", async ({ page }) => {
+  await page.goto("./");
+  await page.getByPlaceholder("e.g. 20260").fill("2718");
+  await page.getByRole("button", { name: "Begin" }).click();
+  await expect(page.getByTestId("town")).toBeVisible();
+  const card = page.getByTestId("town-card");
+  await expect(card).toBeVisible();
+  await expect(card.getByTestId("town-industry")).not.toHaveText("—");
+  await expect(card.getByTestId("town-rival")).not.toHaveText("—");
+
+  await page.getByTestId("spot-market").first().click();
+  const panel = page.getByTestId("place-panel");
+  await expect(panel.getByTestId("you-are-here-panel")).toBeVisible();
+  const people = panel.getByTestId("people-here");
+  await expect(people).toBeVisible();
+  // Someone who works here (the shopkeeper) has a sheet already.
+  await people.getByTestId("person").first().click();
+  const sheet = page.getByTestId("character-sheet");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByTestId("character-relationship")).toBeVisible();
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toHaveCount(0);
+  // A passer-by becomes someone you know.
+  const meet = people.getByTestId("meet");
+  if ((await meet.count()) > 0) {
+    await meet.first().click();
+    await expect(page.getByTestId("toast")).toHaveText(/You introduced yourself/);
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId("character-memories")).toContainText("first met");
+  }
+});

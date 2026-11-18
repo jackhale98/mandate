@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (10, "af3ee7da03d75b42");
+    const EXPECTED: (u16, &str) = (11, "e3ba25a6f947e2d2");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -234,7 +234,7 @@ fn content_with_land_rights() -> Arc<mandate_content::ContentBundle> {
     src.push(mandate_content::Source {
         path: "aa_land/locale/en/land.ftl".into(),
         text:
-            "conviction-pro-land_rights = Land back\nconviction-anti-land_rights = Settled title\n"
+            "conviction-pro-land_rights = Land back\nconviction-anti-land_rights = Settled title\nissue-land_rights = Land rights\n"
                 .into(),
     });
     Arc::new(load(&src).unwrap().0)
@@ -462,7 +462,7 @@ fn v9_saves_migrate_their_preset_to_a_scenario_id() {
         content(),
     )
     .unwrap();
-    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    let mut v = v10_payload(e.state());
     // Rewrite the payload into the v9 shape.
     let params = v.pointer_mut("/state/meta/params").unwrap();
     let obj = params.as_object_mut().unwrap();
@@ -474,11 +474,14 @@ fn v9_saves_migrate_their_preset_to_a_scenario_id() {
         state.meta.params.scenario.as_deref(),
         Some("scenario.wealthy_coast")
     );
-    assert_eq!(state.hash(), e.state_hash());
+    assert_eq!(
+        state.world.municipalities.len(),
+        e.state().world.municipalities.len()
+    );
     let mut e2 = mandate_sim::Engine::from_state(state, content()).unwrap();
     e2.apply(Command::EndTurn).unwrap();
     // A random country and an unknown preset.
-    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    let mut v = v10_payload(e.state());
     let obj = v
         .pointer_mut("/state/meta/params")
         .unwrap()
@@ -583,5 +586,215 @@ fn save_loads_into_content_that_adds_or_removes_a_concern() {
             .town_concerns
             .iter()
             .all(|t| t.levels.len() == 1)
+    );
+}
+
+/// A v10 save held each politician's opinion of the player and favours on the
+/// politician; v11 keeps them on relationship edges and the favour ledger
+/// (DEC-031). The migration moves them, and loading generates the character
+/// records, the towns' Named characters, and town characters.
+#[test]
+fn v10_saves_migrate_to_characters() {
+    let c = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 53,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    for _ in 0..8 {
+        e.apply(Command::EndTurn).unwrap();
+    }
+    let st = e.state();
+    let me = mandate_sim::characters::player_character(st).unwrap();
+    // Give the player a debt to someone, so favours migrate too.
+    let creditor = st
+        .politics
+        .politicians
+        .iter()
+        .find(|p| !p.is_player)
+        .unwrap()
+        .character;
+    let mut e = e;
+    e.setup(|s| {
+        let d = s.calendar.date;
+        mandate_sim::characters::owe(&mut s.politics, me, creditor, "favour-bill", None, d);
+    });
+    let st = e.state();
+    let expected: Vec<(f32, i32)> = st
+        .politics
+        .politicians
+        .iter()
+        .map(|p| {
+            if p.is_player {
+                return (0.0, 0);
+            }
+            (
+                mandate_sim::characters::opinion(&st.politics, p.character, me),
+                mandate_sim::characters::favour_balance(&st.politics, p.character, me),
+            )
+        })
+        .collect();
+    // Rewrite the payload into the v10 shape.
+    let v = v10_payload(st);
+    let migrated = mandate_save::migrate(10, v).unwrap();
+    let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    let mut e2 = mandate_sim::Engine::from_state(state, c.clone()).unwrap();
+    let s2 = e2.state();
+    let me2 = mandate_sim::characters::player_character(s2).unwrap();
+    assert_eq!(
+        s2.politics.characters.people.len(),
+        s2.politics.politicians.len() + named_count(s2)
+    );
+    for (p, (op, fav)) in s2.politics.politicians.iter().zip(&expected) {
+        assert_eq!(p.character.index(), p.id.index());
+        if p.is_player {
+            continue;
+        }
+        assert_eq!(
+            mandate_sim::characters::opinion(&s2.politics, p.character, me2),
+            *op
+        );
+        assert_eq!(
+            mandate_sim::characters::favour_balance(&s2.politics, p.character, me2),
+            *fav
+        );
+    }
+    assert!(s2.politics.characters.named_seeded);
+    assert_eq!(
+        s2.politics.characters.towns.len(),
+        s2.world.municipalities.len()
+    );
+    for _ in 0..5 {
+        e2.apply(Command::EndTurn).unwrap();
+    }
+    let (bytes, _) = encode(e2.state(), &req()).unwrap();
+    let (back, _) = decode(&bytes).unwrap();
+    assert_eq!(back.hash(), e2.state_hash());
+}
+
+/// A save payload in the v10 shape (before characters): each politician's
+/// opinion of the player and favours on the politician.
+fn v10_payload(st: &mandate_sim::State) -> serde_json::Value {
+    let me = mandate_sim::characters::player_character(st);
+    let mut v = serde_json::json!({ "state": serde_json::to_value(st).unwrap() });
+    let pols = v
+        .pointer_mut("/state/politics/politicians")
+        .unwrap()
+        .as_array_mut()
+        .unwrap();
+    for (p, sp) in pols.iter_mut().zip(&st.politics.politicians) {
+        let (op, fav) = match me {
+            Some(me) if !sp.is_player => (
+                mandate_sim::characters::opinion(&st.politics, sp.character, me),
+                mandate_sim::characters::favour_balance(&st.politics, sp.character, me),
+            ),
+            _ => (0.0, 0),
+        };
+        let o = p.as_object_mut().unwrap();
+        o.remove("character");
+        o.insert("opinion_of_player".into(), serde_json::json!(op));
+        o.insert("favors".into(), serde_json::json!(fav));
+    }
+    v.pointer_mut("/state/politics")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .remove("characters");
+    v
+}
+
+fn named_count(s: &mandate_sim::State) -> usize {
+    s.politics
+        .characters
+        .people
+        .iter()
+        .filter(|c| c.named.is_some())
+        .count()
+}
+
+/// Characters keep their traits and occupations: content that removes one
+/// the save uses is refused; content that adds or removes a crisis kind just
+/// recomputes town characters.
+#[test]
+fn saves_and_the_character_registries() {
+    let c = content();
+    let e = generate(
+        &WorldConfig {
+            seed: 57,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let load_with = |edit: &dyn Fn(&mut Vec<mandate_content::Source>)| {
+        let mut src =
+            read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
+        edit(&mut src);
+        let bundle = Arc::new(load(&src).unwrap().0);
+        let (state, _) = decode(&bytes).unwrap();
+        mandate_sim::Engine::from_state(state, bundle)
+    };
+    // A used occupation removed: refused, naming it.
+    let used = e
+        .state()
+        .politics
+        .characters
+        .people
+        .iter()
+        .find_map(|p| p.named.as_deref().map(|n| n.occupation.clone()))
+        .unwrap();
+    let r = load_with(&|src| {
+        let f = src
+            .iter_mut()
+            .find(|s| s.path == "base/occupations.jsonc")
+            .unwrap();
+        let mut v: serde_json::Value =
+            serde_json::from_str(&mandate_content::jsonc::to_strict_json(&f.text)).unwrap();
+        v["items"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|o| o["id"] != serde_json::json!(used));
+        f.text = v.to_string();
+    });
+    match r {
+        Err(err) => assert!(err.to_string().contains(&used), "{err}"),
+        Ok(_) => panic!("a removed occupation must be refused"),
+    }
+    // Crisis kinds are derived: removing them all loads and recomputes.
+    let e2 = load_with(&|src| {
+        let f = src
+            .iter_mut()
+            .find(|s| s.path == "base/crises.jsonc")
+            .unwrap();
+        f.text = r#"{"kind":"crises","items":[]}"#.into();
+        // Occupations name crisis kinds in their stakes.
+        let o = src
+            .iter_mut()
+            .find(|s| s.path == "base/occupations.jsonc")
+            .unwrap();
+        let mut v: serde_json::Value =
+            serde_json::from_str(&mandate_content::jsonc::to_strict_json(&o.text)).unwrap();
+        for item in v["items"].as_array_mut().unwrap() {
+            if let Some(st) = item.get_mut("stake") {
+                st["crises"] = serde_json::json!([]);
+            }
+        }
+        o.text = v.to_string();
+    })
+    .unwrap();
+    assert!(e2.state().politics.characters.crisis_keys.is_empty());
+    assert!(
+        e2.state()
+            .politics
+            .characters
+            .towns
+            .iter()
+            .all(|t| t.crises.is_empty())
     );
 }

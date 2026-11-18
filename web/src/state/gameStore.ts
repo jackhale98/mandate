@@ -11,6 +11,7 @@ import type { CommandDto } from "../engine/protocol/CommandDto";
 import type { PocketView } from "../engine/protocol/PocketView";
 import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 import type { PlacePanelView } from "../engine/protocol/PlacePanelView";
+import type { CharacterView } from "../engine/protocol/CharacterView";
 import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { LocationView } from "../engine/protocol/LocationView";
 import type { QueryDto } from "../engine/protocol/QueryDto";
@@ -49,6 +50,8 @@ interface GameState {
   /** The open place panel (follows the player when an action routes them). */
   openPlace: LocationDto | null;
   place: PlacePanelView | null;
+  /** The open character sheet (DEC-031), over the place panel. */
+  character: CharacterView | null;
   pocketOpen: boolean;
   view: GameView;
   /** Auto-routing in progress: where the player is walking to. */
@@ -78,6 +81,10 @@ interface GameState {
   visit(location: LocationDto): Promise<void>;
   /** Open a location's panel without moving. */
   openPanel(location: LocationDto | null): Promise<void>;
+  /** Open (or close, with null) a character's sheet. */
+  openCharacter(id: number | null): Promise<void>;
+  /** Meet a passer-by where the player is, then open their sheet. */
+  meet(slot: number): Promise<void>;
   skipWalk(): void;
   setPocketOpen(open: boolean): void;
   setView(view: GameView): void;
@@ -143,6 +150,7 @@ export const useGame = create<GameState>((set, get) => {
     town: null,
     openPlace: null,
     place: null,
+    character: null,
     pocketOpen: false,
     view: "town",
     walking: null,
@@ -182,7 +190,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, openPlace: null, view: "town", run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, openPlace: null, view: "town", run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -207,7 +215,10 @@ export const useGame = create<GameState>((set, get) => {
         const [office, campaign, pocket, town] = await Promise.all([q({ type: "office" }), q({ type: "campaign" }), q({ type: "pocket" }), q({ type: "town" })]);
         const open = get().openPlace;
         const place = open ? expectKind(await q({ type: "place", location: open }), "place") : null;
+        const who = get().character;
+        const character = who ? expectKind(await q({ type: "character", id: who.id }), "character") : null;
         set({
+          character,
           office: expectKind(office, "office"),
           campaign: expectKind(campaign, "campaign"),
           pocket: expectKind(pocket, "pocket"),
@@ -299,6 +310,23 @@ export const useGame = create<GameState>((set, get) => {
       }
     },
 
+    async openCharacter(id) {
+      if (id === null) {
+        set({ character: null });
+        return;
+      }
+      try {
+        set({ character: expectKind(await engine().request({ kind: "query", payload: { type: "character", id } }), "character") });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async meet(slot) {
+      const id = await get().command({ type: "meet", slot });
+      if (id !== null) await get().openCharacter(id);
+    },
+
     skipWalk() {
       skipResolve?.();
     },
@@ -348,7 +376,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, openPlace: null, pocketOpen: false, view: "town", electionNight: false, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, openPlace: null, pocketOpen: false, view: "town", electionNight: false, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -363,7 +391,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, openPlace: null, view: "town", run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, openPlace: null, view: "town", run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });

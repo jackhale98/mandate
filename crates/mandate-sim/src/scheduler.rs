@@ -63,6 +63,13 @@ pub enum Effect {
         fraction: f64,
         cause: Option<EventId>,
     },
+    /// A politician remembers what another did (politics applies, DEC-031).
+    Memory {
+        holder: crate::politics::PoliticianId,
+        actor: crate::politics::PoliticianId,
+        kind: crate::characters::MemoryKind,
+        subject: Option<crate::characters::Subject>,
+    },
 }
 
 #[derive(Clone, Debug, Default)]

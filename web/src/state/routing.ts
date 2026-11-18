@@ -55,6 +55,7 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "advance_days":
     case "move_to":
     case "go":
+    case "meet":
       return null;
   }
 }

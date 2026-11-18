@@ -10,7 +10,7 @@
 | Unit | Rust test harness; Vitest | Formulas and rules: tax, budgets, voting tabulators, opinion updates, relationship and memory changes, mechanism effects |
 | Property | `proptest` | Invariants: no negative populations; budgets reconcile; IDs unique and never reused; probabilities in [0,1]; no NaN in state; calendar monotonic; vote shares sum to 1; seats allocated equal seats available; every constitution procedure terminates |
 | Integration / scenario | Rust scenario tests over canonical worlds (§3) | Cross-system chains: policy → economy → cohorts → opinion → election; factory closure chain (brief §7.2); authority gating; storyline grounded in state; hub "homecoming" consistency after a long absence |
-| Determinism | CI suite (DEC-041) | Same seed and command log run twice give equal state hashes; native and WASM give equal hashes; save → load → continue equals an uninterrupted run; lazy-evaluation order independence |
+| Determinism | CI suite (DEC-041) | Same seed and command log run twice give equal state hashes; native and WASM give equal hashes; save → load → continue equals an uninterrupted run; lazy-evaluation order independence (Named characters caught up in either order, or in steps, give the same state: `worldgen/tests/characters.rs`) |
 | Replay regression | Recorded `(seed, content hash, command log)` fixtures | Every significant bug gets a replay fixture. Re-recording a fixture requires a stated reason in the PR |
 | Save compatibility | Save fixture corpus | Every released save version loads, migrates, and continues deterministically |
 | Content | `mandate-cli content validate` | Schemas, references, duplicate IDs, ranges, constitution playability, REQ-006 fields, localization keys |
@@ -72,6 +72,7 @@ The owner asked whether real-world-aligned ranges would make the game boring. Re
 | Incumbent re-election rate | 55–85% | Over- or under-rewarding office |
 | Terminal-ending mix | No single cause > 50% | Degenerate failure modes |
 | Determinism and invariant violations | 0 | Correctness |
+| Towns with a defining industry (DEC-077 §1) | 100% (every seed) | Town character broken; broker and rival shares and crises begun/ended are reported alongside (`town_character`) |
 
 **Drama floors** (detect boring worlds; minimum frequency per 30-year baseline run, as the median across seeds):
 
