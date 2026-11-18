@@ -12,7 +12,7 @@
 - Draft `docs/design/GAME_VISION.md`.
 
 ## Current (awaiting owner)
-- D13: DEC-052 save sync hooks, DEC-053 content format, DEC-054 localization, DEC-055 modding scope (awaiting).
+- D13: DEC-053 content format, revised YAML → JSONC (awaiting owner). DEC-052, DEC-054, DEC-055 (mod-ready) accepted.
 - Open: source of the final art (DEC-049).
 - Proposed (technical): DEC-017 constitution primitives.
 

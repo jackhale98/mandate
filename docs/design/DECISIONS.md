@@ -58,10 +58,10 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-049 | Visual style & camera: top-down pixel art | Accepted |
 | DEC-050 | Rendering prototype spikes | Accepted (each spike needs go-ahead) |
 | DEC-051 | Accessibility & explainability UI | Accepted |
-| DEC-052 | Save sync readiness (future cloud sync) | Proposed (D13) |
-| DEC-053 | Content authoring format & pipeline | Proposed (D13) |
-| DEC-054 | Text & localization pipeline | Proposed (D13) |
-| DEC-055 | Modding scope | Proposed (awaiting owner, D13) |
+| DEC-052 | Save sync readiness (future cloud sync) | Accepted |
+| DEC-053 | Content authoring format & pipeline (rev. 2: JSONC) | Proposed (awaiting owner, D13) |
+| DEC-054 | Text & localization pipeline | Accepted |
+| DEC-055 | Modding scope | Accepted |
 
 ---
 
@@ -1056,7 +1056,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-052 — Save sync readiness (future cloud sync)
 
-- **Status:** Proposed (D13). Requested by the owner: hooks for future account sync of saves, through a database or through Dropbox or OneDrive.
+- **Status:** Accepted (owner, 2026-11-18; no objection raised). Requested by the owner: hooks for future account sync of saves, through a database or through Dropbox or OneDrive.
 - **Context:** TECH-006 (offline-first) and TECH-007 (no backend for single-player). Sync must be an optional future layer that never makes the game depend on a network.
 - **Options for the eventual provider:**
   - A. **User-owned cloud storage.** Dropbox, OneDrive (Microsoft Graph), or Google Drive's app-data folder, using browser OAuth with PKCE. These work from a static site with **no backend of ours**; saves live in the user's own app folder.
@@ -1083,29 +1083,40 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - A provider later needs a registered OAuth client ID per provider and a privacy notice. No server is needed.
 - **Dependencies:** DEC-008, DEC-039, DEC-044.
 
-### DEC-053 — Content authoring format & pipeline
+### DEC-053 — Content authoring format & pipeline (revision 2)
 
-- **Status:** Proposed (D13). Technical.
+- **Status:** Proposed. Awaiting owner (D13).
+- **History:** revision 1 chose YAML. The owner questioned YAML's significant whitespace, and on review the concern holds.
+- **YAML problems found:**
+  - Indentation errors can silently re-parent data. Strict schemas catch most of these, but not all; a mis-indented list item can still be valid.
+  - Implicit typing: `no`/`yes` read as booleans in YAML 1.1 parsers (the "Norway problem"), and `1.10` reads as a float.
+  - Anchors and merge keys add complexity.
+  - Agents editing deeply nested files by text replacement tend to break indentation.
+  - The standard Rust crate, `serde_yaml`, is no longer maintained.
 - **Options:**
-  - A. JSON.
-  - B. TOML.
-  - C. RON (Rust-native).
-  - D. YAML with JSON Schemas generated from Rust types.
-- **Proposed decision:** D.
-  - **Authoring:** content is written in YAML: policies, constitutions and quirks, roles and backgrounds, events, storylines, scene and dialogue templates, sectors, cohorts, tuning parameters.
-  - **Schemas:** JSON Schemas are generated from the Rust content types (e.g. `schemars`). Editors validate and autocomplete as you type, and agents get a precise contract.
-  - **Validation:** `mandate-cli content validate` runs in CI and checks schemas, references, duplicate IDs, value ranges, constitution playability (DEC-017), required policy fields (REQ-006), and missing localization keys.
-  - **Build:** a build step compiles validated content into a compact bundle. The bundle is shipped with the app and stamped with a **content hash**; the hash is part of save metadata and determinism.
-- **Rationale:**
-  - YAML is readable, supports comments, and is written fluently by agents and modders.
-  - Generated schemas remove the format's typo risk.
-  - Rust types remain the single source of truth.
-- **Risk:** the long-standing `serde_yaml` crate is no longer maintained. At Milestone 0, choose a maintained YAML parser, or fall back to JSON5 or TOML with the same schema approach.
-- **Dependencies:** DEC-017, DEC-024, DEC-041, DEC-044, REQ-006.
+
+  | Format | Whitespace-safe | Comments | Deep nesting and enums | Editor schema validation | Agent fluency | Rust parsing health |
+  |---|---|---|---|---|---|---|
+  | YAML | ✗ | ✓ | ✓ | ✓ | Good, but indentation errors | ✗ unmaintained `serde_yaml` |
+  | TOML | ✓ | ✓ | ✗ awkward beyond 2 levels | Partial | Good | ✓ excellent (`toml`, used by Cargo) |
+  | RON | ✓ | ✓ | ✓ very natural for Rust enums | ✗ weak | Fair (Rust-like syntax) | ✓ |
+  | **JSONC** (JSON plus comments and trailing commas) | ✓ | ✓ | ✓ | ✓ native in VS Code and other editors | Excellent | ✓ via a JSONC parser, then serde |
+
+- **Proposed decision:** **JSONC**, validated against JSON Schemas generated from the Rust content types.
+  - Prose never lives in content files; it lives in Fluent `.ftl` files (DEC-054). This removes JSON's main ergonomic weakness, multi-line strings.
+  - Enums are internally tagged: `{ "kind": "transfer", ... }`.
+  - A formatter enforces consistent layout in CI (e.g. dprint or prettier).
+  - **Runner-up:** RON, if mod-facing editor tooling turns out not to matter.
+- **Unchanged from revision 1:**
+  - `mandate-cli content validate` in CI;
+  - compiled content bundle with a content hash;
+  - Rust types as the single source of truth.
+- **Verification at Milestone 0:** pick the JSONC parser crate (candidates: `jsonc-parser`, or strip comments and trailing commas and then use `serde_json`); confirm maintenance and WASM build.
+- **Dependencies:** DEC-017, DEC-024, DEC-041, DEC-044, DEC-054, DEC-055, REQ-006.
 
 ### DEC-054 — Text & localization pipeline
 
-- **Status:** Proposed (D13).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:**
   - **The engine never produces prose.** It emits structured facts and template keys with arguments.
   - Player-facing text is rendered in the frontend from **Fluent** (`.ftl`) message files. Fluent handles plurals, grammatical variants, and NPC pronouns properly.
@@ -1115,7 +1126,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-055 — Modding scope
 
-- **Status:** Proposed. Awaiting owner (D13). Brief §17.3.
+- **Status:** Accepted (owner, 2026-11-18): option B. Brief §17.3.
 - **Options:**
   - A. No modding intent. Content is data-driven only for internal productivity.
   - B. **Mod-ready, no mod support in the MVP.** Content is organized as packs (base pack plus optional packs) with ID-based overrides and load order. Pack lists feed the content hash. Schemas and the validator are published as-is. A mod loader UI and sharing are deferred.
