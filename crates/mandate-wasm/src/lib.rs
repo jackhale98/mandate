@@ -19,6 +19,18 @@ impl WasmSession {
             .map_err(|e| JsError::new(&e))
     }
 
+    /// Register a progress callback `(stageKey: string, fraction: number)`.
+    #[wasm_bindgen(js_name = setProgress)]
+    pub fn set_progress(&mut self, f: js_sys::Function) {
+        self.inner.set_progress(Box::new(move |stage, fraction| {
+            let _ = f.call2(
+                &JsValue::NULL,
+                &JsValue::from_str(stage),
+                &JsValue::from_f64(fraction),
+            );
+        }));
+    }
+
     /// Handle one JSON protocol request; returns a JSON response.
     pub fn handle(&mut self, request_json: &str) -> String {
         self.inner.handle_json(request_json)

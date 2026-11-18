@@ -19,6 +19,7 @@ fn new_game_end_turn_save_load() {
         RequestBody::NewGame(NewGameParams {
             seed: 42,
             size: WorldSizeDto::Small,
+            preset: None,
         }),
     )))
     .unwrap();
@@ -100,4 +101,57 @@ fn every_event_key_has_english_text() {
     ] {
         assert!(keys.contains(k), "missing {k}");
     }
+}
+
+#[test]
+fn map_and_municipality_queries_survive_save_load() {
+    let mut s = Session::new().unwrap();
+    s.handle_json(&req(
+        1,
+        RequestBody::NewGame(NewGameParams {
+            seed: 5,
+            size: WorldSizeDto::Small,
+            preset: None,
+        }),
+    ));
+    let map = |s: &mut Session| -> MapView {
+        let r: Response =
+            serde_json::from_str(&s.handle_json(&req(2, RequestBody::Query(QueryDto::Map))))
+                .unwrap();
+        match r.result {
+            ResponseResult::Ok {
+                body: ResponseBody::Map(m),
+            } => m,
+            other => panic!("{other:?}"),
+        }
+    };
+    let before = map(&mut s);
+    assert_eq!(
+        before.biome_b64.len(),
+        (before.width * before.height).div_ceil(3) as usize * 4
+    );
+    let save = s
+        .export_save(&SaveRequestDto {
+            run_id: "cd".repeat(16),
+            revision: 1,
+            parent_revision: None,
+            device_id: "d".into(),
+            saved_at: "2026-11-18T00:00:00Z".into(),
+            run_mode: RunModeDto::Story,
+        })
+        .unwrap();
+    let mut s2 = Session::new().unwrap();
+    s2.import_save(&save).unwrap();
+    assert_eq!(map(&mut s2), before);
+    let r: Response = serde_json::from_str(&s2.handle_json(&req(
+        3,
+        RequestBody::Query(QueryDto::Municipality { id: 0 }),
+    )))
+    .unwrap();
+    assert!(matches!(
+        r.result,
+        ResponseResult::Ok {
+            body: ResponseBody::Municipality(_)
+        }
+    ));
 }

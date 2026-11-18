@@ -5,12 +5,17 @@ use mandate_content::ContentBundle;
 use mandate_protocol::*;
 use mandate_save::{RunMode, SaveRequest};
 use mandate_sim::{Command, Engine};
-use mandate_worldgen::{WorldConfig, WorldSize, generate};
+use mandate_worldgen::{Preset, WorldConfig, WorldSize, generate_with_progress, rebuild_terrain};
 use std::sync::Arc;
+
+/// Progress callback: (Fluent stage key, fraction 0..1).
+pub type ProgressFn = Box<dyn FnMut(&str, f64)>;
 
 pub struct Session {
     content: Arc<ContentBundle>,
     engine: Option<Engine>,
+    /// Called with (stage key, fraction) during long operations.
+    progress: Option<ProgressFn>,
 }
 
 fn err(code: ErrorCode, message: impl Into<String>) -> ProtocolError {
@@ -34,7 +39,12 @@ impl Session {
         Ok(Session {
             content: Arc::new(content),
             engine: None,
+            progress: None,
         })
+    }
+
+    pub fn set_progress(&mut self, f: ProgressFn) {
+        self.progress = Some(f);
     }
 
     pub fn content(&self) -> &ContentBundle {
@@ -96,8 +106,28 @@ impl Session {
                     WorldSizeDto::Medium => WorldSize::Medium,
                     WorldSizeDto::Large => WorldSize::Large,
                 };
-                let engine = generate(&WorldConfig { seed: p.seed, size }, self.content.clone())
-                    .map_err(|e| err(ErrorCode::Content, e.to_string()))?;
+                let preset = p.preset.map(|x| match x {
+                    PresetDto::IndustrialDecline => Preset::IndustrialDecline,
+                    PresetDto::WealthyCoast => Preset::WealthyCoast,
+                    PresetDto::TechGrowth => Preset::TechGrowth,
+                    PresetDto::DroughtFarmland => Preset::DroughtFarmland,
+                    PresetDto::ResourceFrontier => Preset::ResourceFrontier,
+                });
+                let mut noop = |_: &str, _: f64| {};
+                let progress: &mut dyn FnMut(&str, f64) = match self.progress.as_mut() {
+                    Some(f) => f.as_mut(),
+                    None => &mut noop,
+                };
+                let engine = generate_with_progress(
+                    &WorldConfig {
+                        seed: p.seed,
+                        size,
+                        preset,
+                    },
+                    self.content.clone(),
+                    progress,
+                )
+                .map_err(|e| err(ErrorCode::Content, e.to_string()))?;
                 let view = overview(&engine);
                 self.engine = Some(engine);
                 Ok(ResponseBody::GameStarted(view))
@@ -121,6 +151,12 @@ impl Session {
                 QueryDto::Diagnostics => {
                     Ok(ResponseBody::Diagnostics(diagnostics(self.engine_mut()?)))
                 }
+                QueryDto::Map => map_view(self.engine_mut()?)
+                    .map(ResponseBody::Map)
+                    .ok_or_else(|| err(ErrorCode::Internal, "terrain unavailable")),
+                QueryDto::Municipality { id } => municipality_view(self.engine_mut()?, id)
+                    .map(ResponseBody::Municipality)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, format!("no municipality {id}"))),
                 QueryDto::Locale { lang } => Ok(ResponseBody::Locale(LocaleView {
                     ftl: self.content.locale_text(&lang),
                     lang,
@@ -152,7 +188,12 @@ impl Session {
     /// Replace the running game with a decoded save; returns its overview.
     pub fn import_save(&mut self, bytes: &[u8]) -> Result<OverviewView, String> {
         let (state, _) = mandate_save::decode(bytes).map_err(|e| e.to_string())?;
-        let engine = Engine::from_state(state, self.content.clone()).map_err(|e| e.to_string())?;
+        // The terrain raster is derived from the seed (DEC-044 rev. 2 keeps saves small).
+        let (terrain, _matches) =
+            rebuild_terrain(&state, &self.content).map_err(|e| e.to_string())?;
+        let mut engine =
+            Engine::from_state(state, self.content.clone()).map_err(|e| e.to_string())?;
+        engine.set_terrain(Arc::new(terrain));
         let view = overview(&engine);
         self.engine = Some(engine);
         Ok(view)

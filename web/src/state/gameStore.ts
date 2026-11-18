@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { engine, expectKind } from "../engine/client";
 import type { OverviewView } from "../engine/protocol/OverviewView";
+import type { MapView } from "../engine/protocol/MapView";
+import type { PresetDto } from "../engine/protocol/PresetDto";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
 import { EMPTY_TRANSLATOR, Translator } from "../i18n/fluent";
@@ -24,11 +26,14 @@ interface GameState {
   error: string | null;
   tr: Translator;
   overview: OverviewView | null;
+  map: MapView | null;
+  progress: { stage: string; fraction: number } | null;
   run: ActiveRun | null;
   runs: RunSummary[];
   boot(): Promise<void>;
   refreshRuns(): Promise<void>;
-  newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto }): Promise<void>;
+  newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; preset: PresetDto | null }): Promise<void>;
+  loadMap(): Promise<void>;
   endTurn(): Promise<void>;
   saveAndQuit(): Promise<void>;
   continueRun(runId: string): Promise<void>;
@@ -79,6 +84,8 @@ export const useGame = create<GameState>((set, get) => {
     error: null,
     tr: EMPTY_TRANSLATOR,
     overview: null,
+    map: null,
+    progress: null,
     run: null,
     runs: [],
 
@@ -103,17 +110,27 @@ export const useGame = create<GameState>((set, get) => {
       }
     },
 
-    async newGame({ seed, size, mode }) {
-      set({ busy: true, error: null });
+    async newGame({ seed, size, mode, preset }) {
+      set({ busy: true, error: null, map: null, progress: { stage: "progress-terrain", fraction: 0 } });
+      const off = engine().onProgress((stage, fraction) => set({ progress: { stage, fraction } }));
       try {
-        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size } });
+        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, preset } });
         const overview = expectKind(body, "game_started");
         set({ overview, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
       } catch (e) {
         set({ error: errText(e) });
       } finally {
-        set({ busy: false });
+        off();
+        set({ busy: false, progress: null });
+      }
+    },
+
+    async loadMap() {
+      try {
+        set({ map: expectKind(await engine().request({ kind: "query", payload: { type: "map" } }), "map") });
+      } catch (e) {
+        set({ error: errText(e) });
       }
     },
 
@@ -135,7 +152,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, run: null });
+        set({ screen: "title", overview: null, map: null, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -150,7 +167,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
       } catch (e) {
         set({ error: errText(e) });
       } finally {

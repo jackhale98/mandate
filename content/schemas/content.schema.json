@@ -51,7 +51,8 @@
         "place",
         "region",
         "given_name",
-        "family_name"
+        "family_name",
+        "neighborhood"
       ],
       "type": "string"
     },

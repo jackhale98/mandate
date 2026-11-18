@@ -6,9 +6,33 @@ use crate::world::World;
 use mandate_core::{RngStreams, SimDate};
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WorldSize {
+    Small,
+    Medium,
+    Large,
+}
+
+/// Canonical test-world presets (TEST_STRATEGY §3, DEC-058).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Preset {
+    IndustrialDecline,
+    WealthyCoast,
+    TechGrowth,
+    DroughtFarmland,
+    ResourceFrontier,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorldParams {
+    pub size: WorldSize,
+    pub preset: Option<Preset>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorldMeta {
     pub seed: u64,
+    pub params: WorldParams,
     pub content_hash: String,
     pub engine_version: String,
     pub start_date: SimDate,

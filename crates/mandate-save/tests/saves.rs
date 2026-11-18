@@ -31,6 +31,7 @@ fn round_trip_preserves_state() {
         &WorldConfig {
             seed: 11,
             size: WorldSize::Small,
+            preset: None,
         },
         c.clone(),
     )
@@ -50,6 +51,7 @@ fn save_load_continue_matches_uninterrupted() {
     let cfg = WorldConfig {
         seed: 12345,
         size: WorldSize::Medium,
+        preset: None,
     };
     let mut a = generate(&cfg, c.clone()).unwrap();
     let mut b = generate(&cfg, c.clone()).unwrap();
@@ -74,6 +76,7 @@ fn rejects_corruption() {
         &WorldConfig {
             seed: 1,
             size: WorldSize::Small,
+            preset: None,
         },
         c,
     )
@@ -92,12 +95,13 @@ fn rejects_corruption() {
 /// add a migration in `migrate`, add a fixture, then update EXPECTED.
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (1, "b0ec6471cda8bc08");
+    const EXPECTED: (u16, &str) = (2, "1730f895d8bc9a9b");
     let c = content();
     let mut e = generate(
         &WorldConfig {
             seed: 3,
             size: WorldSize::Small,
+            preset: None,
         },
         c,
     )

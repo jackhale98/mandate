@@ -45,7 +45,10 @@ fn regional_shocks(ctx: &mut SystemCtx<'_>) {
     let rng = ctx.state.rng.get(Stream::Environment);
     if rng.chance(0.05) {
         let region = rng.below(n) as u32;
-        let pop = ctx.state.world.regions[region as usize].population as f64;
+        let pop = ctx
+            .state
+            .world
+            .region_population(crate::world::RegionId(region)) as f64;
         let delta = -(pop * rng.range_f64(0.002, 0.01)) as i64;
         let ev = ctx.state.events.record(
             ctx.date,
@@ -68,16 +71,37 @@ fn population_growth(ctx: &mut SystemCtx<'_>) {
     let shocks = ctx
         .effects
         .take(|e| matches!(e, Effect::PopulationShock { .. }));
+    let world = &mut ctx.state.world;
     for e in shocks {
         let Effect::PopulationShock { region, delta, .. } = e;
-        if let Some(r) = ctx.state.world.regions.get_mut(region as usize) {
-            r.population = (r.population as i64 + delta).max(0) as u64;
+        // Spread the shock across the region's neighbourhoods by population.
+        let total = world
+            .region_population(crate::world::RegionId(region))
+            .max(1) as f64;
+        let Some(r) = world.regions.get(region as usize) else {
+            continue;
+        };
+        let hoods: Vec<usize> = r
+            .municipalities
+            .iter()
+            .flat_map(|m| {
+                world.municipalities[m.index()]
+                    .neighborhoods
+                    .iter()
+                    .map(|n| n.index())
+            })
+            .collect();
+        for h in hoods {
+            let n = &mut world.neighborhoods[h];
+            let share = (delta as f64 * n.population as f64 / total) as i64;
+            n.population = (n.population as i64 + share).max(0) as u64;
         }
     }
+    // Placeholder demography until the cohort model lands (M2).
     let rng = ctx.state.rng.get(Stream::Population);
-    for r in &mut ctx.state.world.regions {
+    for n in &mut world.neighborhoods {
         let rate = rng.normal(0.0006, 0.0004);
-        let delta = (r.population as f64 * rate) as i64;
-        r.population = (r.population as i64 + delta).max(0) as u64;
+        let delta = (n.population as f64 * rate) as i64;
+        n.population = (n.population as i64 + delta).max(0) as u64;
     }
 }

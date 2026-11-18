@@ -18,6 +18,8 @@ pub struct LoggedCommand {
 
 pub struct Engine {
     state: State,
+    /// Derived terrain raster (not serialized; rebuilt from the seed).
+    terrain: Option<Arc<crate::world::TerrainData>>,
     content: Arc<ContentBundle>,
     schedule: Schedule,
     command_log: Vec<LoggedCommand>,
@@ -36,6 +38,7 @@ impl Engine {
         }
         Ok(Engine {
             state,
+            terrain: None,
             content,
             schedule: Schedule::new(default_systems()),
             command_log: Vec::new(),
@@ -52,6 +55,14 @@ impl Engine {
             vec![],
         );
         self.state.events.pin(id);
+    }
+
+    pub fn set_terrain(&mut self, t: Arc<crate::world::TerrainData>) {
+        self.terrain = Some(t);
+    }
+
+    pub fn terrain(&self) -> Option<&crate::world::TerrainData> {
+        self.terrain.as_deref()
     }
 
     pub fn state(&self) -> &State {

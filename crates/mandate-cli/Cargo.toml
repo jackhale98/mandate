@@ -11,6 +11,7 @@ mandate-protocol = { version = "0.1.0", path = "../mandate-protocol" }
 mandate-save = { version = "0.1.0", path = "../mandate-save" }
 mandate-sim = { version = "0.1.0", path = "../mandate-sim" }
 mandate-worldgen = { version = "0.1.0", path = "../mandate-worldgen" }
+miniz_oxide = "0.9.1"
 serde_json = "1.0.154"
 
 [lints]

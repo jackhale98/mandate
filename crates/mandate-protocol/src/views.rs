@@ -149,7 +149,7 @@ pub fn overview(engine: &Engine) -> OverviewView {
             .map(|r| RegionView {
                 id: r.id.0,
                 name: r.name.clone(),
-                population: r.population as f64,
+                population: s.world.region_population(r.id) as f64,
             })
             .collect(),
         recent_events,

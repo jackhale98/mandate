@@ -90,6 +90,7 @@ pub enum NamePoolKind {
     Region,
     GivenName,
     FamilyName,
+    Neighborhood,
 }
 
 /// Syllable-based name generator pool.

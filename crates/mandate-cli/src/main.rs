@@ -1,5 +1,8 @@
 //! Mandate simulation lab CLI (DEC-058). Output is JSON for scripting.
 
+mod mapimg;
+mod png;
+
 use clap::{Parser, Subcommand, ValueEnum};
 use mandate_content::{ContentBundle, Severity, bundle::read_dir_sources};
 use mandate_sim::{Command, Engine};
@@ -70,6 +73,56 @@ enum Cmd {
     },
     /// Inspect a save file's metadata.
     SaveInfo { path: PathBuf },
+    /// Generate a world; print a summary and optionally export a map PNG.
+    Gen {
+        #[arg(long, default_value_t = 1)]
+        seed: u64,
+        #[arg(long, value_enum, default_value_t = Size::Medium)]
+        size: Size,
+        #[arg(long, value_enum)]
+        preset: Option<PresetArg>,
+        /// Write a map image here.
+        #[arg(long)]
+        png: Option<PathBuf>,
+        #[arg(long, default_value_t = 3)]
+        scale: usize,
+        /// Print the full world JSON instead of a summary.
+        #[arg(long)]
+        full: bool,
+    },
+    /// Show details for one municipality or region of a generated world.
+    Inspect {
+        #[arg(long, default_value_t = 1)]
+        seed: u64,
+        #[arg(long, value_enum, default_value_t = Size::Medium)]
+        size: Size,
+        #[arg(long)]
+        municipality: Option<u32>,
+        #[arg(long)]
+        region: Option<u32>,
+    },
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum PresetArg {
+    IndustrialDecline,
+    WealthyCoast,
+    TechGrowth,
+    DroughtFarmland,
+    ResourceFrontier,
+}
+
+impl From<PresetArg> for mandate_worldgen::Preset {
+    fn from(p: PresetArg) -> Self {
+        use mandate_worldgen::Preset as P;
+        match p {
+            PresetArg::IndustrialDecline => P::IndustrialDecline,
+            PresetArg::WealthyCoast => P::WealthyCoast,
+            PresetArg::TechGrowth => P::TechGrowth,
+            PresetArg::DroughtFarmland => P::DroughtFarmland,
+            PresetArg::ResourceFrontier => P::ResourceFrontier,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -112,7 +165,15 @@ fn play(
     turns: u32,
     days: u32,
 ) -> Result<Engine, String> {
-    let mut e = generate(&WorldConfig { seed, size }, content).map_err(|e| e.to_string())?;
+    let mut e = generate(
+        &WorldConfig {
+            seed,
+            size,
+            preset: None,
+        },
+        content,
+    )
+    .map_err(|e| e.to_string())?;
     for _ in 0..turns {
         e.apply(Command::EndTurn).map_err(|e| e.to_string())?;
     }
@@ -227,6 +288,78 @@ fn run(cli: Cli) -> Result<(), String> {
                 Err("determinism violation".into())
             }
         }
+        Cmd::Gen {
+            seed,
+            size,
+            preset,
+            png: png_path,
+            scale,
+            full,
+        } => {
+            let content = load_content(&cli.content)?;
+            let cfg = WorldConfig {
+                seed,
+                size: size.into(),
+                preset: preset.map(Into::into),
+            };
+            let mut timings: Vec<(String, f64)> = Vec::new();
+            let mut last = 0.0;
+            let (world, terrain) =
+                mandate_worldgen::generate_world(&cfg, &content, &mut |stage, f| {
+                    timings.push((stage.to_string(), f - last));
+                    last = f;
+                })
+                .map_err(|e| e.to_string())?;
+            if let Some(path) = png_path {
+                let (w, h, rgb) = mapimg::render(&terrain, &world, scale.max(1));
+                std::fs::write(&path, png::encode_rgb(w, h, &rgb)).map_err(|e| e.to_string())?;
+                eprintln!("wrote {}", path.display());
+            }
+            if full {
+                out(serde_json::to_value(&world).map_err(|e| e.to_string())?);
+            } else {
+                out(summary(&world));
+            }
+            Ok(())
+        }
+        Cmd::Inspect {
+            seed,
+            size,
+            municipality,
+            region,
+        } => {
+            let content = load_content(&cli.content)?;
+            let cfg = WorldConfig {
+                seed,
+                size: size.into(),
+                preset: None,
+            };
+            let (world, _) = mandate_worldgen::generate_world(&cfg, &content, &mut |_, _| {})
+                .map_err(|e| e.to_string())?;
+            if let Some(m) = municipality {
+                let mu = world
+                    .municipalities
+                    .get(m as usize)
+                    .ok_or("no such municipality")?;
+                let hoods: Vec<_> = mu
+                    .neighborhoods
+                    .iter()
+                    .map(|h| &world.neighborhoods[h.index()])
+                    .collect();
+                let places: Vec<_> = mu.places.iter().map(|p| &world.places[p.index()]).collect();
+                out(
+                    serde_json::json!({ "municipality": mu, "neighborhoods": hoods, "places": places }),
+                );
+            } else if let Some(r) = region {
+                let re = world.regions.get(r as usize).ok_or("no such region")?;
+                out(
+                    serde_json::json!({ "region": re, "population": world.region_population(re.id) }),
+                );
+            } else {
+                out(summary(&world));
+            }
+            Ok(())
+        }
         Cmd::SaveInfo { path } => {
             let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
             let meta = mandate_save::read_meta(&bytes).map_err(|e| e.to_string())?;
@@ -234,6 +367,34 @@ fn run(cli: Cli) -> Result<(), String> {
             Ok(())
         }
     }
+}
+
+fn summary(world: &mandate_sim::world::World) -> serde_json::Value {
+    use mandate_sim::world::Tier;
+    let classes = |c| world.municipalities.iter().filter(|m| m.class == c).count();
+    use mandate_sim::world::SettlementClass as S;
+    serde_json::json!({
+        "population": world.total_population(),
+        "regions": world.regions.iter().map(|r| serde_json::json!({
+            "name": r.name, "municipalities": r.municipalities.len(), "population": world.region_population(r.id),
+            "capital": world.municipalities[r.capital.index()].name,
+        })).collect::<Vec<_>>(),
+        "municipalities": world.municipalities.len(),
+        "classes": { "metro": classes(S::Metro), "city": classes(S::City), "town": classes(S::Town), "rural": classes(S::Rural) },
+        "capital": world.capital.map(|c| world.municipalities[c.index()].name.clone()),
+        "neighborhoods": world.neighborhoods.len(),
+        "constituencies": {
+            "local": world.constituencies.iter().filter(|c| c.tier == Tier::Local).count(),
+            "regional": world.constituencies.iter().filter(|c| c.tier == Tier::Regional).count(),
+            "national": world.constituencies.iter().filter(|c| c.tier == Tier::National).count(),
+        },
+        "links": world.links.len(),
+        "ports": world.municipalities.iter().filter(|m| m.port).count(),
+        "places": world.places.len(),
+        "largest": world.municipalities.iter().take(5).map(|m| serde_json::json!({
+            "name": m.name, "class": m.class, "population": world.municipality_population(m.id), "biome": m.geo.dominant_biome,
+        })).collect::<Vec<_>>(),
+    })
 }
 
 fn main() -> ExitCode {

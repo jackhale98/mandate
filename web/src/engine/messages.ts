@@ -10,6 +10,7 @@ export type ToWorker =
 
 export type FromWorker =
   | { type: "ready" }
+  | { type: "progress"; stage: string; fraction: number }
   | { type: "fatal"; message: string }
   | { type: "response"; json: string }
   | { type: "save_bytes"; id: number; bytes: Uint8Array }

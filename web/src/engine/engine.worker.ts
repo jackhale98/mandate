@@ -46,6 +46,7 @@ self.onmessage = (ev: MessageEvent<ToWorker>) => {
 init({ module_or_path: wasmUrl })
   .then(() => {
     session = new WasmSession();
+    session.setProgress((stage: string, fraction: number) => post({ type: "progress", stage, fraction }));
     post({ type: "ready" });
     for (const m of queue.splice(0)) handle(m);
   })

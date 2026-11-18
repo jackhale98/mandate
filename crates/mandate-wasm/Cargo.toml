@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 console_error_panic_hook = "0.1.7"
+js-sys = "0.3.107"
 mandate-content = { version = "0.1.0", path = "../mandate-content", features = ["embedded"] }
 mandate-core = { version = "0.1.0", path = "../mandate-core" }
 mandate-protocol = { version = "0.1.0", path = "../mandate-protocol" }

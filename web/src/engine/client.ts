@@ -33,6 +33,13 @@ export class EngineClient {
   private pending = new Map<number, Pending>();
   readonly ready: Promise<void>;
   private fatal: Error | null = null;
+  private progressListeners = new Set<(stage: string, fraction: number) => void>();
+
+  /** Subscribe to progress events; returns an unsubscribe function. */
+  onProgress(f: (stage: string, fraction: number) => void): () => void {
+    this.progressListeners.add(f);
+    return () => this.progressListeners.delete(f);
+  }
 
   constructor(private worker: WorkerLike) {
     let markReady: () => void = () => {};
@@ -46,6 +53,9 @@ export class EngineClient {
       switch (m.type) {
         case "ready":
           markReady();
+          break;
+        case "progress":
+          for (const f of this.progressListeners) f(m.stage, m.fraction);
           break;
         case "fatal":
           this.fatal = new Error(m.message);

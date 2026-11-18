@@ -30,5 +30,12 @@
       "middles": [""],
       "suffixes": ["", "wood", "field", "ley", "son", "er", "well", "by", "ridge"],
     },
+    {
+      "id": "names.neighborhood",
+      "kind": "neighborhood",
+      "prefixes": ["North", "South", "East", "West", "Upper", "Lower", "Old", "New", "Mill", "Church", "Market", "Castle", "Station", "Bridge", "Harbour", "Park", "Green", "Hill", "Kings", "Queens", "Abbey", "Cross", "Wharf", "Orchard", "Foundry", "Quarry"],
+      "middles": [""],
+      "suffixes": ["side", "field", "gate", "end", "town", "row", " Cross", "heath", "wood", "vale", " Hill", " Green", "lands", " Quarter"],
+    },
   ],
 }
