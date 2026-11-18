@@ -88,6 +88,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-079 | Places as the interface: go somewhere to do something, with convenience | Accepted |
 | DEC-080 | Hub renderer: Canvas 2D (revises the provisional PixiJS choice) | Accepted |
 | DEC-081 | Logo (poll-line M) and loading animation (career ladder) | Accepted |
+| DEC-082 | Save export and import (`.mandate` files; no Ironman rewinding) | Proposed |
 
 ---
 
@@ -1654,3 +1655,24 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Component: `web/src/components/Brand.tsx` (`LogoMark`, `Loader`).
 - **Open:** the owner may still send their own logo and loading animation. If so, they replace these through the same component, and the icons are re-rendered.
 
+
+### DEC-082 — Save export and import
+
+- **Status:** Proposed (agent, 2026-11-18; needs the owner's approval for the Ironman rule).
+- **Context:** DEC-052 keeps file export and import as the manual fallback for moving saves until a sync provider exists. Players need to back up a run, move it to another device, or restore it after clearing the browser. An import is also a way to put an old save back, which would undo Ironman (DEC-008).
+- **File:** one `.mandate` file per run, named `mandate-<town>-<YYYY-MM-DD>.mandate` (or `mandate-run-<id>-…` before the town is known). It is UTF-8 text in three lines:
+  - the magic line `MANDATE RUN EXPORT`;
+  - a JSON header: file format (1), app version, export time, and the run's metadata (run id, mode, status, revision, town name, saved-at time, save format version, engine version, content hash, turn, game date), plus the save's length and CRC-32;
+  - the engine save bytes exactly as stored (DEC-044 rev. 2: versioned, compressed, BLAKE3-hashed), in base64.
+
+  Text was chosen over a binary frame so a file survives e-mail, chat apps, and cloud drives that mangle unknown binaries, and so its header can be read by eye. Base64 adds about a third to the size (saves are small).
+- **Validation, in order:** the magic line (otherwise "not a Mandate file"); the header format (a newer one: "made by a newer version"); the header shape, length, and checksum ("damaged or incomplete"); then the engine loads the save through the normal worker path, under the current rules (DEC-074). The engine's errors map to "newer version", "damaged", or "can't be loaded under the current rules". Nothing is stored until all of this passes.
+- **Import rule:**
+  - A run with no local counterpart (same run id) is added as it is.
+  - A file whose revision is greater than or equal to the local revision replaces the local run.
+  - An older revision of an **Ironman** run that exists here is refused with an explanation: Ironman runs cannot go back in time. If either the file or the local run is Ironman, the rule applies.
+  - An older revision of a **Story** run is added as a separate run (a new run id), next to the current one.
+- **Trade-off:** this stops casual rewinding, not all cheating. A determined player can keep copies of files, delete the local run, and import an old copy, or clear the browser first. This matches DEC-052 ("sync is not anti-cheat"): the game has no leaderboards, and the rule exists so a player cannot undo a bad election with two taps, not to police them. A stronger option, not implemented, keeps a tombstone of the highest revision seen for each deleted Ironman run and refuses older imports of it too. It costs a little storage and still fails after clearing site data.
+- **Phones:** export downloads through a Blob, an object URL, and `<a download>`. On touch devices that can share files, the share sheet is offered first, with the download as the fallback. The file picker has no `accept` filter, because phones grey out unknown extensions. Desktop browsers also take a file dropped anywhere on the title screen.
+- **Where:** `web/src/persistence/runFile.ts` (format and rules, over any `SaveStore`), `web/src/components/RunTransfer.tsx` (browser wiring), on the title screen's saved-runs list. There is no in-game export yet: the pocket has only "Save & quit", and the run can be exported from the title screen after it.
+- **Dependencies:** DEC-008, DEC-044, DEC-052, DEC-074, DEC-048, DEC-051.
