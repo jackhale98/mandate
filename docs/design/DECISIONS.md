@@ -33,10 +33,15 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-024 | Policy model: pipeline, mechanisms, implementation (rev. 2: 5 lifecycle states) | Accepted |
 | DEC-025 | Public response: anticipated vs. experienced | Accepted |
 | DEC-026 | Bill composition & customization | Accepted |
-| DEC-027 | Parties & factions: dynamism | Proposed (awaiting owner, D8) |
-| DEC-028 | Election model | Proposed (D8) |
-| DEC-029 | Polling & imperfect information | Proposed (D8) |
-| DEC-030 | NPC political AI: rule symmetry | Proposed (D8) |
+| DEC-027 | Parties & factions: dynamism | Accepted |
+| DEC-028 | Election model | Accepted |
+| DEC-029 | Polling & imperfect information | Accepted |
+| DEC-030 | NPC political AI: rule symmetry | Accepted |
+| DEC-031 | Character model, relationships & memory | Proposed (D9) |
+| DEC-032 | NPC goals & storylines | Proposed (D9) |
+| DEC-033 | Narrative director: authority & pacing | Proposed (awaiting owner, D9) |
+| DEC-034 | Media & information model | Proposed (D9) |
+| DEC-035 | Conversations & dialogue | Proposed (D9) |
 
 ---
 
@@ -665,7 +670,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-027 — Parties & factions: dynamism
 
-- **Status:** Proposed. Awaiting owner (D8).
+- **Status:** Accepted (owner, 2026-11-18): option B.
 - **Context:** Brief §9.1. Careers span 25–35 years, long enough for realignments. The number of parties should follow the electoral system: plurality voting tends toward two major parties, proportional voting toward several.
 - **Model (common to all options):**
   - **Factions are the fundamental unit.** Each has an ideological position (attitude vector), a leader NPC, member politicians, and a regional and cohort base.
@@ -683,7 +688,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-028 — Election model
 
-- **Status:** Proposed (D8).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:** a bottom-up, deterministic-expectation model computed per neighborhood cohort. Stages:
   1. **Candidacy.** NPCs decide whether to run (ambition, opportunity, Viability). Nomination follows the constitution's candidate-selection rule; the MVP uses local party nomination.
   2. **Campaign** (weekly turns, DEC-012). Money, volunteers, staff, ads, canvassing, events, debates, and endorsements change *awareness* and *perceived positions and valence* per neighborhood and cohort.
@@ -704,7 +709,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-029 — Polling & imperfect information
 
-- **Status:** Proposed (D8).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:**
   - The player never sees the true electoral state, only **polls**. Pollsters are NPC organizations that sample the true model with sampling noise, house effects, and occasional systematic error.
   - Private polling costs money and gives better precision.
@@ -715,7 +720,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-030 — NPC political AI: rule symmetry
 
-- **Status:** Proposed (D8).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:**
   - **NPC politicians play by the player's rules.** They have the same action set, authority, slots and resources (abstracted), and the same pressure tracks. They get no hidden bonuses.
   - They plan with utility-based AI that evaluates actions using **polls, not truth**. Strategic profiles weight the utilities (brief §9.4): ideologue, pragmatist, populist, insider, local advocate, wealthy outsider.
@@ -725,3 +730,127 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - The action system must be actor-agnostic.
   - Simplified ("abstracted") NPC turns are needed for performance, but they must use the same rules.
 - **Dependencies:** DEC-011, DEC-012, DEC-022, DEC-028, DEC-029, D9, D10.
+
+### DEC-031 — Character model, relationships & memory
+
+- **Status:** Proposed (D9).
+- **Proposed decision** (applies to Principal and Named NPCs, DEC-018):
+  - **Identity:**
+    - name,
+    - age,
+    - home neighborhood,
+    - appearance parameters (for the layered sprite generator, DEC-009),
+    - background or role (shared with DEC-020 role data),
+    - occupation and organization memberships.
+  - **Personality:** 5 continuous axes plus 0–3 trait tags.
+    - Axes: ambition, integrity, warmth, boldness, loyalty.
+    - Tags: e.g. vain, zealous, grudge-holder, reformer.
+  - **Values:** an attitude vector in the same space as cohorts. Generation is *conditioned on* cohort context, not determined by it (brief §6.4).
+  - **Competencies:** oratory, negotiation, administration, organizing, intrigue, and expertise (one domain).
+  - **State:** resources, schedule (by day-part, DEC-013), and pressure tracks if the character is a politician (DEC-030).
+  - **Relationships:** directed edges with:
+    - opinion (−100..100),
+    - trust,
+    - typed bonds (family, friend, ally, rival, mentor, employer, patron),
+    - a **favor ledger** (favors owed, with context).
+  - **Memory:** bounded, about 20 salient memories per Principal NPC and about 5 per Named NPC. Each memory records:
+    - the event it refers to,
+    - the actor,
+    - sentiment and magnitude,
+    - the date,
+    - a decay rate,
+    - tags.
+
+    Low-salience memories decay into the relationship baseline. Strong ones (betrayals, kept promises) persist and are quotable in dialogue ("You promised the bridge in '31").
+- **Dependencies:** DEC-009, DEC-011, DEC-018, DEC-020, DEC-030.
+
+### DEC-032 — NPC goals & storylines
+
+- **Status:** Proposed (D9).
+- **Proposed decision:**
+  - **Goals emerge from circumstances.** Goal templates trigger on simulation conditions plus personality. Examples:
+    - laid off and high warmth → organize the workers;
+    - journalist and an anomaly in procurement data → investigate;
+    - ambition and an open seat → run.
+  - Goals drive NPC actions through the DEC-030 utility AI.
+  - When a goal needs the player, it surfaces as a **request**.
+  - **Storylines** are multi-stage arcs instantiated from authored templates. Each defines:
+    - **roles** cast from existing simulation actors (originator, antagonist, affected place);
+    - **stages** that advance on simulation conditions or player actions;
+    - **branches and outcomes** that write back only through engine commands;
+    - **follow-up hooks**.
+  - Every stage must reference live simulation state. There are no fetch quests (brief §10.5).
+  - Storylines persist across acts and level-of-detail changes. The rival arc follows you up the ladder.
+- **Dependencies:** DEC-024, DEC-030, DEC-031, DEC-033.
+
+### DEC-033 — Narrative director: authority & pacing
+
+- **Status:** Proposed. Awaiting owner (D9).
+- **Context:** Brief §10.6 and §31.11 say narrative must present, not invent. Yet a pure observer cannot prevent dull stretches or crisis pile-ups, and RimWorld's storytellers work precisely by modulating event generation.
+- **Options:**
+  - A. **Pure observer.** All events come from simulation processes. The director only selects which situations are spotlighted (scenes, decisions) and which become news or ambient detail.
+  - B. **Storyteller of chance, not of consequence.** A plus limited authority over *exogenous* randomness, within plausible bounds:
+    - timing and severity of hazards (drawn from the regional hazard model),
+    - external economic shocks,
+    - discovery timing of hidden facts, within evidence-based windows,
+    - arrival of opportunities.
+
+    It can **never** alter endogenous consequences (outcomes of actions, policies, elections, NPC decisions).
+  - C. A free storyteller that can invent events. This violates §31.11.
+- **Proposed decision:** B.
+  - The director is a deterministic part of the simulation, with its own RNG stream, and everything it does is logged.
+  - **Pacing model:**
+    - Each chapter has a tension curve rising to one climax.
+    - Event budgets per chapter (targets, to be tuned): ~1 climax, 2–4 significant decisions, ~5–10 minor developments.
+    - Category frequencies follow the brief (minor frequent → career-defining very rare).
+    - Cooldowns and repetition penalties apply.
+    - There is a cap on simultaneous unresolved crises.
+  - **Relevance scoring:** connection to the player, their constituency, past decisions, active storylines, pressure tracks, and upcoming elections.
+  - **Enforces the DEC-006 fairness rules:** warning events before any terminal ending.
+- **Rationale:** RimWorld-grade pacing without the player ever being able to say "the game decided my policy failed". Chance is shaped; consequences are honest.
+- **Dependencies:** DEC-005, DEC-006, DEC-012, DEC-023, DEC-032, DEC-034.
+
+### DEC-034 — Media & information model
+
+- **Status:** Proposed (D9).
+- **Proposed decision:**
+  - **Four information layers** (brief §11):
+
+    | Layer | What it holds |
+    |---|---|
+    | Facts | What actually happened, recorded as fact records |
+    | Knowledge | Which actors know which facts, and with what evidence |
+    | Coverage | What outlets report and with what framing |
+    | Perception | What cohorts and NPCs believe |
+
+  - **Outlets** are organizations with:
+    - audience by cohort,
+    - reach by region,
+    - editorial lean (attitude vector),
+    - credibility,
+    - issue interests,
+    - finances,
+    - journalists (NPCs).
+  - Outlets select stories by newsworthiness × editorial interest × access. Social platforms are a high-reach, low-credibility, viral outlet type.
+  - **Scandals:** hidden facts with evidence and exposure risk. Investigators and journalists discover them over time; this drives Legal Jeopardy and Standing (DEC-006).
+  - **Rumors:** unverified or false beliefs can spread and be corrected.
+  - **Player communication** changes framing and salience. Outlets respond according to their own incentives; they do not repeat the player's message.
+- **Dependencies:** DEC-006, DEC-025, DEC-029, DEC-031, DEC-033.
+
+### DEC-035 — Conversations & dialogue
+
+- **Status:** Proposed (D9).
+- **Proposed decision:**
+  - Conversations are sequences of beats drawn from authored, parameterized dialogue templates. Option types:
+    - persuade,
+    - promise (which may create a pledge or favor),
+    - trade a favor,
+    - pressure or threaten,
+    - ask,
+    - concede.
+  - Options map to engine actions.
+  - Contested options show their odds, computed from competencies, relationship, Mandate, and context, then roll on the NPC RNG stream.
+  - Memories and facts fill template slots, so dialogue references real history.
+  - All text goes through localization keys.
+  - An LLM text layer is **deferred**. If ever added, it only rewrites already-validated facts (§10.7).
+- **Dependencies:** DEC-011, DEC-013, DEC-031, DEC-034, D12, D13.

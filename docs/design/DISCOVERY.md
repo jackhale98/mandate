@@ -144,7 +144,7 @@ One consequential question per exchange. Tightly coupled decisions are presented
 | D5 ✅ | Simulation fidelity & LOD (DEC-018, DEC-019) | 6, 7 | Cohort dimensions, economy model, LOD transitions, numeric representation | D3, D4 | SIMULATION.md |
 | D6 ✅ | World & geography (DEC-021–023) | 5 | Scale (regions, municipalities, neighborhoods), generation pipeline, map role | D4, D5 | WORLDGEN.md |
 | D7 ✅ | Policy & legislation (DEC-024–026) | 8 | Policy schema, effect mechanism model, implementation gap | D4, D5 | POLICY.md |
-| D8 | Parties, elections, opponents | 9 | Party model, election pipeline, opponent AI profiles | D4, D5 | ELECTIONS.md |
+| D8 ✅ | Parties, elections, opponents (DEC-027–030) | 9 | Party model, election pipeline, opponent AI profiles | D4, D5 | ELECTIONS.md |
 | D9 | NPCs, narrative, media | 10, 11 | NPC tiers, memory model, quest model, director budgets, media/perception split | D1, D3, D5 | NARRATIVE.md |
 | D10 | Player character & difficulty | 3.2, 3.5 | Backgrounds, personal life scope, difficulty levers, complexity layers | D2, D8, D9 | GAMEPLAY.md §character |
 | D11 | Technical architecture | 13, 14, 20–22 | Crate layout, protocol, scheduling, RNG streams, numerics | D3, D5, D9 | architecture/*.md |
