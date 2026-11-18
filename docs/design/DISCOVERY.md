@@ -49,7 +49,7 @@
 |---|---|---|---|
 | C1 | "Roguelike replayability" vs. "a full career from local office to the presidency" | Roguelike runs are usually hours long. A literal career is decades and many elections. | Compress the career into acts with time skips (see D1). |
 | C2 | One deep simulation vs. a scale that changes from neighborhood to nation | Neighborhood fidelity nationwide is expensive and mostly invisible. Coarse fidelity locally is shallow. | Level-of-detail simulation: fidelity follows the player's scope. It has to be designed into the data model from the start. |
-| C3 | "Fictional institutions" vs. a midterm victory condition | Midterms imply a presidential system with fixed, staggered legislative terms. | Accept a presidential system as the national baseline, or redefine the victory condition. Decide in D4. |
+| C3 | "Fictional institutions" vs. a midterm victory condition | Midterms imply a presidential system with fixed, staggered legislative terms. | Proposed resolution: DEC-006 (Mandate Test defined by the constitution) and DEC-007 (constitution as data, archetypes plus quirks). |
 | C4 | Deep economy vs. very limited agency at the local level | A local politician cannot move most economic variables, so national-scale depth may be invisible early on. | Local play is about pressures arriving from the wider economy, not about controlling it. Show the causal chains. |
 | C5 | Milestones M1–M2 (world generation, economy) come before any gameplay (M3+) | This is the exact failure §32 warns about: systems first, fun later. | Add a throwaway gameplay prototype of the local loop before or alongside M1. Revisit in D15. |
 | C6 | Local slice as the quality gate vs. the climb as the core fantasy | The local slice may feel small without the promise of progression. | Judge M6 on loop quality and story generation, and include a "next rung" teaser. |
@@ -137,10 +137,10 @@ One consequential question per exchange. Tightly coupled decisions are presented
 
 | # | Topic | Brief § | Key decisions | Depends on | Outputs |
 |---|---|---|---|---|---|
-| D1 | **Run shape & career structure** | 1.2, 3.3, 3.4 | Act structure, target run length, failure/continuation, victory definition (first pass) | — | DEC entries; GAME_VISION.md draft |
+| D1 ✅ | **Run shape & career structure** (DEC-004 accepted; DEC-005/006 proposed) | 1.2, 3.3, 3.4 | Act structure, target run length, failure/continuation, victory definition (first pass) | — | DEC entries; GAME_VISION.md draft |
 | D2 | Player role & agency | 3.1, 4.4 | Politician vs. administrator balance; authority/influence/resources/legitimacy/capital model; what makes a run memorable | D1 | GAMEPLAY.md §role |
 | D3 | Time model & core loop | 4.1–4.3, 12 | Turn length per act, time skips, action economy, action taxonomy skeleton | D1, D2 | GAMEPLAY.md §loop; cadence table |
-| D4 | Institutions & office ladder | 3.3, 8.3, 9.2 | Fictional constitution, electoral systems per level, appointments, party switching, final victory definition | D1, D2 | POLITICAL_SYSTEMS.md |
+| D4 | Institutions & office ladder (constitution variability pulled forward: DEC-007) | 3.3, 8.3, 9.2 | Fictional constitution, electoral systems per level, appointments, party switching, final victory definition | D1, D2 | POLITICAL_SYSTEMS.md |
 | D5 | Simulation fidelity & LOD | 6, 7 | Cohort dimensions, economy model, LOD transitions, numeric representation | D3, D4 | SIMULATION.md |
 | D6 | World & geography | 5 | Scale (regions, municipalities, neighborhoods), generation pipeline, map role | D4, D5 | WORLDGEN.md |
 | D7 | Policy & legislation | 8 | Policy schema, effect mechanism model, implementation gap | D4, D5 | POLICY.md |
