@@ -1,23 +1,27 @@
 # Progress
 
-**Phase:** Discovery (DEC-003). No implementation yet.
+**Phase:** Discovery **complete**. The final system plan is **awaiting owner approval** (DEC-003). No implementation code exists yet.
 
 ## Done
-- §30 Steps 1–3: synthesis, dependency map, and roadmap (`docs/design/DISCOVERY.md`).
-- D1: career in acts accepted (DEC-004).
-- Pacing research (`docs/design/research/RUN_PACING.md`).
+- Discovery topics D1–D15: 63 decisions recorded in `docs/design/DECISIONS.md`.
+- Research:
+  - `docs/design/research/RUN_PACING.md`
+  - `docs/design/research/GOVERNANCE_CURVEBALLS.md`
+- Specs:
+  - `docs/design/GAME_VISION.md`
+  - `docs/design/UI.md`
+  - `docs/architecture/OVERVIEW.md`
+  - `docs/architecture/DATA_MODEL.md`
+  - `docs/development/TEST_STRATEGY.md`
+  - `docs/development/WORKFLOW.md`
+  - `docs/development/ROADMAP.md`
+  - `AGENTS.md`
+- Final plan: `docs/design/SYSTEM_PLAN.md`, including the architecture review (brief §26.1).
+- Requirements register expanded (REQ-001–013, SIM-001–007, TECH-001–009, UI-001–003, TEST-001–002, PROC-001–003).
 
-- DEC-005 time structure, DEC-006 endings and pressure tracks, DEC-007 constitution as data, DEC-008 ironman with Story mode, DEC-009 walkable hubs (persistent, changed on return), DEC-010 politician first, DEC-011 power model, DEC-012 time model, DEC-013 action economy, DEC-014–016 government tiers, constitution, and default archetype, DEC-018 population, DEC-019 economy, DEC-020 career detours, DEC-021–023 world generation, DEC-024–026 policy (5-state lifecycle), DEC-027–030 parties, elections, polling, NPC AI, DEC-031–035 characters, storylines, director (B), media, dialogue, DEC-036 character draft of 3, DEC-037–039 personal life, difficulty, meta-progression, DEC-040–046 architecture baseline (React chosen), DEC-047–051 UI (top-down pixel art), DEC-052–055 sync hooks, JSONC content, Fluent text, mod-ready, DEC-056–060 testing (DEC-059 rev. 2 drama floors): accepted.
-- Curveball research (`docs/design/research/GOVERNANCE_CURVEBALLS.md`).
-- Draft `docs/design/GAME_VISION.md`.
+## Awaiting owner
+- Approval of `docs/design/SYSTEM_PLAN.md` as the implementation baseline.
+- Source of final art (DEC-049). Not blocking until M6.
 
-## Current (awaiting owner)
-- D15: `docs/development/ROADMAP.md`, DEC-062 MVP scope, DEC-063 milestone order (awaiting owner). DEC-061 tone: heightened realism (proposed).
-- Open: source of the final art (DEC-049).
-- Proposed (technical): DEC-017 constitution primitives.
-
-## Open UX items (for D12)
-- Turn framing: a "representative day" covering a week; show the calendar span in the header.
-
-## Next
-- Architecture review (§26.1), then the final system plan and backlog (§30 Step 6), then owner approval.
+## Next (after approval)
+- M0 Foundation: tasks M0-01 to M0-13 (`docs/development/ROADMAP.md` §3).

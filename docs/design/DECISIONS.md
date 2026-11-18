@@ -67,9 +67,9 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-058 | Simulation lab & canonical worlds | Accepted |
 | DEC-059 | Monte Carlo health metrics (rev. 2: baseline-only bands plus drama floors) | Accepted |
 | DEC-060 | Game-quality validation & playtesting | Accepted |
-| DEC-061 | Tone: heightened realism | Proposed |
-| DEC-062 | MVP scope (vertical slice) | Proposed (D15) |
-| DEC-063 | Milestone order: thin playable loop first | Proposed (awaiting owner, D15) |
+| DEC-061 | Tone: heightened realism | Accepted |
+| DEC-062 | MVP scope (vertical slice) | Accepted |
+| DEC-063 | Milestone order: real systems first, with early playable checkpoints | Accepted |
 
 ---
 
@@ -1161,7 +1161,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-061 — Tone: heightened realism
 
-- **Status:** Proposed. Prompted by the owner's question about whether realism makes the game boring.
+- **Status:** Accepted (owner, 2026-11-18; no objection raised). Prompted by the owner's question about whether realism makes the game boring.
 - **Proposed decision:** Mandate aims for **heightened realism**, in the register of a political drama series rather than a civics textbook.
   - Institutions, economics, and causality are believable and consistent.
   - Drama is concentrated at the human and narrative scale (scandals, betrayals, upsets, crises, comebacks). The director compresses and spotlights it (DEC-033), and every chapter has a climax (DEC-005).
@@ -1171,14 +1171,16 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-062 — MVP scope (vertical slice)
 
-- **Status:** Proposed (D15). Detail in `docs/development/ROADMAP.md`.
+- **Status:** Accepted (owner, 2026-11-18; no objection raised). Detail in `docs/development/ROADMAP.md`.
 
-### DEC-063 — Milestone order: thin playable loop first
+### DEC-063 — Milestone order: real systems first, with early playable checkpoints
 
-- **Status:** Proposed. Awaiting owner (D15). This resolves DISCOVERY C5. Detail in `docs/development/ROADMAP.md`.
-- **Options:**
-  - A. The brief's order: systems first (worldgen → population/economy → policy → elections → NPCs → slice).
-  - B. Thin loop first. After the foundation, build a crude but complete Act 1 loop on a **hand-authored micro-town**, with a panel UI and no generated world, and playtest it before deepening the systems. World generation and rendering then build *under* a loop that is already fun. Rendering spikes run in parallel.
-- **Proposed decision:** B.
-- **Rationale:** tests the fun hypothesis (the action economy, power through people, Mandate and pressure tracks, the director's pacing) within weeks instead of months. This is the brief's §32 primary risk.
-- **Consequences:** the micro-town must use the real engine, data model, and protocol, so the thin loop is not throwaway code. Only its hand-authored world is temporary, and it becomes a test fixture.
+- **Status:** Accepted (owner, 2026-11-18): option A, the brief's systems-first order, adapted to the accepted decisions. Option B (a thin loop on a hand-authored micro-town first) was **rejected**.
+- **Owner's rationale:** AI agents can build the real structure quickly, so validating on a temporary world saves little time. Building the real architecture from the start avoids technical debt.
+- **Residual risk (DISCOVERY C5):** fun is validated later than under B.
+- **Mitigation (no extra code):**
+  - Each milestone ends with a playable or inspectable increment in the *real* game.
+  - Lightweight owner checkpoints at **M3** (a policy loop in a generated town, panel UI) and **M4** (a full local election) come before the M6 tester gate.
+  - Bot players (DEC-060) give early balance signals from M4 on.
+  - Mechanics are data-driven (DEC-053, REQ-005), so design changes found at checkpoints are mostly content and tuning changes.
+- **Consequences:** milestones as in `docs/development/ROADMAP.md` §2.
