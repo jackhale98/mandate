@@ -86,6 +86,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-077 | Run-to-run variety: town character, varied openings, situational policies, variety check | Accepted |
 | DEC-078 | Data-driven tuning and further registries | Accepted |
 | DEC-079 | Places as the interface: go somewhere to do something, with convenience | Accepted |
+| DEC-080 | Hub renderer: Canvas 2D (revises the provisional PixiJS choice) | Accepted |
 
 ---
 
@@ -1590,3 +1591,24 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Information depth:** the engine decides precision. Away from the chamber a bill's whip is "about N of M" (rounded, no per-member chances or lobbying odds). Town opinion and the home town's economy are rounded (5 points, whole percent, no sectors, budget, or trend) except at the town hall. Internal polls (party office) are the model's expected shares plus noise (SD 1.5 points) from a keyed `Polling` RNG per week; views never advance a stream. Overheard lines (diner, market, union hall) are Fluent keys for the top two concerns of the place's neighbourhood. New queries: `Pocket` (`PocketView`), `Town` (`TownPlacesView`), and `Place { location }` (`PlacePanelView`; the names avoid clashing with the existing map `PlaceView` and office `TownView`).
   - **Interface:** the town screen (neighbourhood sections with place buttons) replaces the tabs; tapping a place walks there and opens its panel; the pocket drawer holds the coarse figures, alerts, bills, and the agenda (auto-routed, with a skippable walk of at most 600 ms), and links to the map and national overview.
   - **Deferred:** NPC locations (DEC-030 symmetry for location), travel between towns, other towns' detailed data (still public on the map), opening hours, commissioned polls (rule 5).
+
+### DEC-080 — Hub renderer: Canvas 2D
+
+- **Status:** Accepted (owner, 2026-11-18: "Canvas 2D is fine if you think we can still make the final game beautiful with it"). This revises the provisional PixiJS choice in DEC-009 and OVERVIEW §10. Evidence: the hub spike (DEC-050) on branch `spike/hub-render`, `web/spikes/hub/RESULTS.md`.
+- **Findings:**
+  - Frame cost depends on pixels drawn, not sprite count. Scene script time stays under 3 ms per frame with 150 townsfolk.
+  - Canvas 2D held 40–48 fps at full device resolution and 60 fps at CSS resolution on an emulated mid-range phone (CPU slowed 4×).
+  - PixiJS adds 145 KB gzipped (more than the whole app), with twice the time to first frame and twice the memory, plus WebGL context-loss handling.
+  - The test machine has no GPU, so the spike's PixiJS frame rates are not representative.
+- **Decision:**
+  - The M6 hub uses Canvas 2D, like the strategic map: static layers pre-rendered, sprites from one atlas, the whole view redrawn per frame.
+  - Draw at CSS resolution or lower and let the browser upscale with `image-rendering: pixelated`.
+  - Zoom snaps to whole-number steps.
+  - Pause when nothing moves, when a panel is open, or when the page is hidden; consider a 30 fps cap for ambient scenes.
+  - Text and UI are HTML over the canvas (sharp, translatable, accessible).
+- **Beauty:** the look is carried by the art itself, which Canvas draws cheaply. Day and night grading, light pools, weather particles, animated tiles, and palette moods are pre-rendered or drawn at pixel-art resolution. Heavy per-pixel shader effects (bloom, dynamic lighting, distortion) would need WebGL. If wanted, they are added later as a separate effects layer, not by switching renderers. The renderer stays behind a small interface.
+- **Revisit if:**
+  - a real phone misses 30 fps with Canvas at CSS resolution;
+  - M6 needs per-pixel lighting or weather shaders;
+  - scenes exceed about 1,000 moving sprites.
+- **Real-device check:** the spike is published unlinked at `/mandate/spike-hub/` (`?r=canvas|pixi&n=20|60|150&res=device|css|low&light=dusk`) for the owner to try on a phone. The app's service worker excludes `/spike-` paths.

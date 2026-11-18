@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: key
-        run: echo "key=engine-pkg-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'crates/**', 'content/**', 'scripts/build-wasm.sh') }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=engine-pkg-v2-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'crates/**', 'content/**', 'scripts/build-wasm.sh') }}" >> "$GITHUB_OUTPUT"
       - id: cache
         uses: actions/cache@v4
         with:
@@ -31,16 +31,27 @@ jobs:
             web/src/engine/pkg
             target/wasm-node
           key: ${{ steps.key.outputs.key }}
-      - if: steps.cache.outputs.cache-hit != 'true'
+      # Rebuild on a miss, or if a restored cache lacks either output (both the
+      # web package and the Node build used by the parity check are required).
+      - id: need
+        run: |
+          if [ "${{ steps.cache.outputs.cache-hit }}" != "true" ] \
+            || [ ! -f web/src/engine/pkg/mandate_wasm.js ] \
+            || [ ! -f target/wasm-node/mandate_wasm.js ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.need.outputs.build == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           key: wasm
-      - if: steps.cache.outputs.cache-hit != 'true'
+      - if: steps.need.outputs.build == 'true'
         uses: taiki-e/install-action@v2
         with:
           tool: wasm-bindgen@${{ env.WASM_BINDGEN_VERSION }}
-      - if: steps.cache.outputs.cache-hit != 'true'
+      - if: steps.need.outputs.build == 'true'
         run: ./scripts/build-wasm.sh
+      - name: Both engine builds are present
+        run: test -f web/src/engine/pkg/mandate_wasm.js && test -f target/wasm-node/mandate_wasm.js
       - uses: actions/upload-artifact@v4
         with:
           name: engine-pkg
@@ -103,6 +114,9 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      # Throwaway rendering prototype (DEC-050), published unlinked at /spike-hub/
+      # for checks on a real phone. Built after the app so it is never precached.
+      - run: npx vite build --config spikes/hub/vite.config.ts --outDir ../../dist/spike-hub --emptyOutDir
       - name: Playwright browsers (cached)
         id: pw
         uses: actions/cache@v4
