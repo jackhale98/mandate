@@ -52,12 +52,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-043 | Worker protocol | Accepted |
 | DEC-044 | Persistence | Accepted |
 | DEC-045 | Frontend stack: React + TypeScript | Accepted |
+| DEC-046 | Initial performance budgets | Accepted (assumptions to validate) |
 | DEC-047 | Screen architecture: hub-centred | Proposed (D12) |
 | DEC-048 | Responsive & mobile strategy | Proposed (D12) |
 | DEC-049 | Visual style & camera | Proposed (awaiting owner, D12) |
 | DEC-050 | Rendering prototype spikes | Proposed (D12) |
 | DEC-051 | Accessibility & explainability UI | Proposed (D12) |
-| DEC-046 | Initial performance budgets | Accepted (assumptions to validate) |
 
 ---
 
