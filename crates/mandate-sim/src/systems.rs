@@ -113,6 +113,18 @@ pub fn default_systems() -> Vec<SystemDef> {
             run: SystemFn::Politics(politics::elections::yearly),
         },
         SystemDef {
+            name: "characters.effects",
+            phase: P::Characters,
+            cadence: Daily,
+            run: SystemFn::Politics(crate::characters::apply_effects),
+        },
+        SystemDef {
+            name: "characters.monthly",
+            phase: P::Characters,
+            cadence: Monthly,
+            run: SystemFn::Politics(crate::characters::monthly),
+        },
+        SystemDef {
             name: "calendar.year",
             phase: P::Commit,
             cadence: Yearly,

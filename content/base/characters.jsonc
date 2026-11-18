@@ -1,0 +1,60 @@
+// Characters, memory, relationships, and town character (DEC-031, DEC-018,
+// DEC-077 §1). One file across all packs; every field is required.
+{
+  "kind": "characters",
+  "value": {
+    "memory": {
+      "principal": 20,              // memories kept per Principal character
+      "named": 5,                   // and per Named character
+      "forget_below": 0.05,         // salience below which a memory fades into the relationship
+    },
+    // One row per kind the engine records. Salience = magnitude × e^(−decay ×
+    // years): a decay near 0 persists (a betrayal, a promise kept). `opinion`
+    // is the change applied when the engine does not set one itself (the
+    // player's actions take theirs from actions.jsonc); `trust` is 0..1.
+    "memories": {
+      "backed_my_bill":  { "sentiment": 0.6,  "magnitude": 0.35, "decay": 0.6,  "opinion": 0.0,   "trust": 0.02,  "tags": ["vote"] },
+      "opposed_my_bill": { "sentiment": -0.6, "magnitude": 0.4,  "decay": 0.5,  "opinion": 0.0,   "trust": -0.02, "tags": ["vote"] },
+      "promised_favour": { "sentiment": 0.3,  "magnitude": 0.6,  "decay": 0.15, "opinion": 0.0,   "trust": 0.0,   "tags": ["promise", "favour"] },
+      "kept_promise":    { "sentiment": 0.9,  "magnitude": 0.85, "decay": 0.05, "opinion": 0.0,   "trust": 0.15,  "tags": ["promise", "favour"] },
+      "broke_promise":   { "sentiment": -1.0, "magnitude": 1.0,  "decay": 0.03, "opinion": 0.0,   "trust": -0.3,  "tags": ["promise", "betrayal"] },
+      "broke_ranks":     { "sentiment": -0.5, "magnitude": 0.45, "decay": 0.4,  "opinion": -3.0,   "trust": -0.05, "tags": ["party", "vote"] },
+      "lobbied_me":      { "sentiment": 0.2,  "magnitude": 0.15, "decay": 1.5,  "opinion": 2.0,   "trust": 0.0,   "tags": ["lobby"] },
+      "pressed_me":      { "sentiment": -0.2, "magnitude": 0.15, "decay": 1.5,  "opinion": -1.0,   "trust": 0.0,   "tags": ["lobby"] },
+      "defeated_me":     { "sentiment": -0.7, "magnitude": 0.6,  "decay": 0.15, "opinion": -15.0,   "trust": -0.05, "tags": ["election", "rivalry"] },
+      "lost_to_me":      { "sentiment": 0.3,  "magnitude": 0.3,  "decay": 0.5,  "opinion": 0.0,   "trust": 0.0,   "tags": ["election"] },
+      "vetoed_my_bill":  { "sentiment": -0.7, "magnitude": 0.55, "decay": 0.3,  "opinion": -10.0,   "trust": -0.05, "tags": ["vote"] },
+      "signed_my_bill":  { "sentiment": 0.4,  "magnitude": 0.25, "decay": 0.8,  "opinion": 4.0,   "trust": 0.02,  "tags": ["vote"] },
+      "met":             { "sentiment": 0.1,  "magnitude": 0.1,  "decay": 2.0,  "opinion": 0.0,   "trust": 0.0,   "tags": ["meeting"] },
+      "scandal":         { "sentiment": -0.6, "magnitude": 0.6,  "decay": 0.3,  "opinion": -10.0, "trust": -0.1,  "tags": ["scandal"] },
+    },
+    "generation": {
+      "personality": [0.15, 0.85],  // axes drawn uniformly here, plus trait and occupation offsets
+      "competency": [0.2, 0.9],
+      "values_sd": 0.15,            // Named: home cohort's view plus this noise
+      "first_impression_sd": 12.0,  // Named: first opinion of the player (politicians: as before)
+      "family_chance": 0.15,        // a Named character is family of a local politician
+      "drift_sd": 0.02,             // Named: yearly drift of values (lazy, keyed by year)
+      "trust_initial": 0.5,
+    },
+    "bonds": {
+      "ally_above": 50.0,           // opinion at which someone counts as an ally
+      "rival_below": -50.0,         // and as a rival
+    },
+    // Personality in opinion changes (DEC-030: the same rules for the player).
+    // Loyalty in votes and integrity against lobbying are in council.jsonc.
+    "ai": {
+      "warmth_opinion": 0.3,        // opinion gains × (1 + w × (2 × warmth − 1))
+    },
+    "ambient": {
+      "present": [1, 2],            // passers-by at a public place
+      "period_days": 7,             // who is around changes weekly
+      "max_listed": 4,              // people listed at a place
+    },
+    "town": {
+      "trend_months": 6,            // crisis severity history kept for the trend
+      "broker_seniority": 0.05,     // per year in office, for officeholders
+      "broker_stake": 1.0,          // a leader's stake in the defining industry or crisis
+    },
+  },
+}

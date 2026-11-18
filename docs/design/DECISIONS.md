@@ -811,6 +811,13 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
     Low-salience memories decay into the relationship baseline. Strong ones (betrayals, kept promises) persist and are quotable in dialogue ("You promised the bridge in '31").
 - **Dependencies:** DEC-009, DEC-011, DEC-018, DEC-020, DEC-030.
+- **Implemented (M5b, 2026-11-18):**
+  - `mandate_sim::characters`, stored in the politics domain (`PoliticsState::characters`), because politics systems create politicians and read relationships on their hot paths. Every politician is a Principal character: `Politician::character` names a record holding warmth, boldness, loyalty, 0–3 traits, administration, organising, intrigue, an expertise issue, a first impression, and memory. Identity, values, ambition, integrity, oratory, and negotiation stay on `Politician`; `characters::profile` resolves anyone. Character draws use keyed RNG (seed, politician id), so no earlier stream shifts.
+  - Named characters come from an occupation registry (`occupations.jsonc`: places, chance, class and age, leader, influence, stake, offsets, expertise, ambient). They are generated once when play begins, with values conditioned on their home cohort, and updated lazily one keyed step per year (order-independent, tested). Ambient passers-by are generated per place and week and never stored; meeting one (`Meet`) promotes them. Tiers are derived (`tier_of`). Not yet: appearance parameters, schedules, and organisation memberships beyond a leader's workplace.
+  - Relationships are directed edges (opinion, trust, typed bonds) in a `BTreeMap`, with a favour ledger (debtor, creditor, count, Fluent context, subject). The player's `opinion_of_player`/`favors` became these, with identical results (normalised state dumps, sweeps, bots, trace-econ).
+  - Memory: 20 per Principal and 5 per Named (`characters.jsonc`); kinds with sentiment, magnitude, decay, opinion and trust change, tags; traits (`traits.jsonc`) scale memory decay and opinion changes. Recorded from votes on a sponsor's bill, broken party lines, favours promised, kept, and broken, lobbying (player and NPC), election defeats (rival bonds), and a mayor's signature or veto. Faded memories are forgotten monthly; their opinion change stays. No scandal source exists yet, so the `scandal` kind is a hook.
+  - NPC AI reads personality (DEC-030, the same rules for the player): loyalty scales party discipline (`council.loyalty_discipline`), integrity resists lobbying (`council.lobby.integrity`), warmth and traits scale opinion changes. A politician who becomes the player keeps the relationships their seat-holder had with colleagues.
+  - Protocol `CharacterView` (facts and keys: role, tier, personality labels, opinion and trust bands, bonds, favours, three most salient memories); character sheets in the web. Save format v11 with a v10 migration.
 
 ### DEC-032 — NPC goals & storylines
 
@@ -1528,6 +1535,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      - local priorities that change which issues voters weigh.
 
      The town's policy emphasis and NPC agendas follow from it.
+
+     **Implemented (M5b, 2026-11-18):** `characters::town`, recomputed monthly and stored per town: the defining industry (share × location quotient, public sector aside), live crises from a crisis registry (`crises.jsonc`: indicator, begin/end hysteresis, severity, trend; base: jobs disappearing via the new `job_loss` indicator, disaster recovery, housing squeeze, fiscal hole), a power broker (the organisation leader with the biggest stake in the industry or crisis, else the senior officeholder), the player's rival (recomputed when they file), and the top three concerns. NPCs rank bills that answer the live crisis and the town's concerns higher (`npc.crisis_agenda`, `npc.concern_agenda`). A Town card on the town screen shows it.
   2. **Varied openings (M6, with the draft of three).** Candidates differ in situation as well as background:
      - challenger or incumbent;
      - a safe or a marginal seat;

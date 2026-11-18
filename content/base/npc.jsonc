@@ -19,5 +19,7 @@
     "one_ad_above": 0.25,          // ad score for one buy
     "ad_reserve": 1.5,             // ad costs kept in reserve
     "bill_sunset_years": [4, 8],   // NPC programmes are time-limited
+    "crisis_agenda": 0.4,          // agendas favour templates that answer the live crisis (× severity)
+    "concern_agenda": 0.3,         // and templates that address the town's top concerns (× fit)
   },
 }

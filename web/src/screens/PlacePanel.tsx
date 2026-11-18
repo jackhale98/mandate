@@ -14,6 +14,7 @@ import { Catalog, MyBills, RecentActions, TownOpinion } from "../components/Desk
 import { useSheetClose } from "../components/useSheetClose";
 import { Calendar, CampaignHub } from "../components/CampaignCards";
 import { PartyChip } from "../components/ElectionCharts";
+import { roleText } from "../components/CharacterSheet";
 
 function signed(v: number): string {
   const n = Math.round(v * 100);
@@ -166,6 +167,53 @@ function Overheard({ o }: { o: OverheardView }) {
   );
 }
 
+/** Who is here (DEC-018): characters who work or sit here, and passers-by to meet. */
+function People({ v }: { v: PlacePanelView }) {
+  const tr = useGame((s) => s.tr);
+  const busy = useGame((s) => s.busy);
+  const openCharacter = useGame((s) => s.openCharacter);
+  const meet = useGame((s) => s.meet);
+  // The chamber's members are in the whip list.
+  if (v.services.includes("whip_exact") && v.here) return null;
+  if (v.people.length === 0 && v.location.kind_key === "home") return null;
+  return (
+    <section className="card" data-testid="people-here">
+      <h2>{tr.t("ui-people-here")}</h2>
+      {v.people.length === 0 ? (
+        <p className="muted small">{tr.t("ui-people-here-none")}</p>
+      ) : (
+        <ul className="people">
+          {v.people.map((p, i) => (
+            <li key={p.id ?? `a${p.ambient_slot ?? i}`}>
+              {p.id !== null ? (
+                <button type="button" className="row-btn person" disabled={busy} onClick={() => p.id !== null && void openCharacter(p.id)} data-testid="person">
+                  <span>
+                    <strong>{p.name}</strong>
+                    <span className="muted small"> · {roleText(tr, p)}</span>
+                  </span>
+                  <span className="muted small">{tr.t(`tier-${p.tier}`)}</span>
+                </button>
+              ) : (
+                <div className="row-btn person person-ambient">
+                  <span>
+                    <strong>{p.name}</strong>
+                    <span className="muted small"> · {roleText(tr, p)}</span>
+                  </span>
+                  {v.here && p.ambient_slot !== null && (
+                    <button type="button" className="btn btn-sm" disabled={busy} onClick={() => p.ambient_slot !== null && void meet(p.ambient_slot)} data-testid="meet">
+                      {tr.t("ui-meet")}
+                    </button>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /** Generic actions a place offers, each with its costs and risks. */
 function Actions({ v, skip }: { v: PlacePanelView; skip: Set<string> }) {
   const tr = useGame((s) => s.tr);
@@ -276,6 +324,7 @@ export function PlacePanel() {
           {v.internal_poll && <InternalPoll p={v.internal_poll} />}
           {has("internal_polls") && v.here && <CampaignHub />}
           {v.overheard && <Overheard o={v.overheard} />}
+          <People v={v} />
           <Actions v={v} skip={skip} />
           {offers("rest") && <RecentActions />}
         </div>

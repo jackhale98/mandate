@@ -187,6 +187,9 @@ pub struct TownPlacesView {
     pub location: LocationDto,
     pub home_neighborhood: Option<u32>,
     pub neighborhoods: Vec<TownHoodView>,
+    /// The town's character (DEC-077 §1): industry, crisis, broker, rival,
+    /// priorities.
+    pub character: Option<crate::characters::TownCharacterView>,
 }
 
 /// An action offered at a place, with its cost and risk (DEC-073).
@@ -308,6 +311,10 @@ pub struct PlacePanelView {
     pub budget: Option<BudgetPapersView>,
     pub internal_poll: Option<InternalPollView>,
     pub overheard: Option<OverheardView>,
+    /// Who is here (DEC-018): characters who work or sit here, then
+    /// passers-by. Listed wherever the panel is opened; meeting someone
+    /// needs the player there.
+    pub people: Vec<crate::characters::PersonRefView>,
 }
 
 pub fn location_view(st: &State, loc: Location) -> LocationView {
@@ -563,6 +570,7 @@ pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
         location: LocationDto::of(pl.location),
         home_neighborhood: home.map(|h| h.0),
         neighborhoods,
+        character: crate::characters::town_character_view(engine, pl.municipality.index()),
     })
 }
 
@@ -809,6 +817,7 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
         } else {
             None
         },
+        people: crate::characters::people_at(engine, loc),
         services,
     })
 }

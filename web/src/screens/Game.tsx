@@ -11,6 +11,7 @@ import { Pocket } from "../components/Pocket";
 import { Walking } from "../components/Walking";
 import { Town } from "./Town";
 import { PlacePanel } from "./PlacePanel";
+import { CharacterSheet } from "../components/CharacterSheet";
 import { placeIcon, placeName } from "../places/labels";
 import { Loader } from "../components/Brand";
 
@@ -171,6 +172,7 @@ export function Game() {
       <Toast />
       <ElectionNight />
       <PlacePanel />
+      <CharacterSheet />
       <Pocket />
       <Walking />
       {selected !== null && <MunicipalityPanel id={selected} onClose={() => setSelected(null)} />}

@@ -136,6 +136,7 @@ fn holds_power(state: &State, content: &ContentBundle, id: PoliticianId, power: 
 pub struct Memo {
     leans: BTreeMap<u32, (f64, f64)>,
     support: BTreeMap<(u32, String), f64>,
+    agenda: BTreeMap<(u32, String), f64>,
 }
 
 /// Compute an NPC's decision inputs (from polls and public knowledge only).
@@ -284,7 +285,7 @@ fn inputs_memo(
                 }
                 _ => (u32::MAX, state.world.hoods_of(MunicipalityId(m)).collect()),
             };
-            let mut best_t: Option<(&str, f64)> = None;
+            let mut best_t: Option<(&str, f64, f64)> = None;
             for t in content
                 .policies
                 .values()
@@ -304,18 +305,83 @@ fn inputs_memo(
                     .entry((key, t.id.clone()))
                     .or_insert_with(|| crate::policy::public_support(t, &state.population, &hoods));
                 let prag = me.pragmatism as f64;
+                let agenda = *memo
+                    .agenda
+                    .entry((m, t.id.clone()))
+                    .or_insert_with(|| agenda_bonus(state, content, m, t));
+                // The town's character shapes which idea comes first, not
+                // how keen the NPC is to legislate at all.
                 let score = (1.0 - prag) * own + prag * public;
-                if best_t.is_none_or(|b| score > b.1) {
-                    best_t = Some((t.id.as_str(), score));
+                let ranked = score + agenda;
+                if best_t.is_none_or(|b| ranked > b.1) {
+                    best_t = Some((t.id.as_str(), ranked, score));
                 }
             }
-            if let Some((t, s)) = best_t {
+            if let Some((t, _, s)) = best_t {
                 x.agenda = clamp(0.5 + s, 0.0, 1.0);
                 x.best_template = Some(t.to_string());
             }
         }
     }
     x
+}
+
+/// Agendas follow the town's character (DEC-077 §1). When an NPC ranks its
+/// policy ideas, a template that answers the live crisis gains
+/// `npc.crisis_agenda` × severity; one that addresses
+/// the town's concerns gains `npc.concern_agenda` × fit (its alignment with
+/// each concern's attitudes, weighted by the concern's level). Public facts
+/// only: the town's crisis and worries are common knowledge.
+pub fn agenda_bonus(
+    state: &State,
+    content: &ContentBundle,
+    m: u32,
+    t: &mandate_content::PolicyTemplate,
+) -> f64 {
+    let n = &content.npc;
+    let mut bonus = 0.0;
+    if n.crisis_agenda != 0.0
+        && let Some(c) = state
+            .politics
+            .characters
+            .towns
+            .get(m as usize)
+            .and_then(|tc| tc.crisis())
+        && content
+            .crises
+            .iter()
+            .any(|d| d.id == c.kind && d.policies.contains(&t.id))
+    {
+        bonus += n.crisis_agenda * c.severity as f64;
+    }
+    if n.concern_agenda != 0.0
+        && let Some(tc) = state.population.town_concerns.get(m as usize)
+    {
+        let (mut fit, mut w) = (0.0, 0.0);
+        for (c, level) in content.concerns.iter().zip(&tc.levels) {
+            let level = *level as f64;
+            if level <= 0.0 {
+                continue;
+            }
+            // `alignment` of the template with the concern's attitudes.
+            let (mut dot, mut norm) = (0.0, 0.0);
+            for (s, a) in t.signature_weights.iter().zip(&c.attitude_weights) {
+                dot += s * (*a as f32) as f64;
+                norm += s.abs();
+            }
+            let a = if norm > 0.0 {
+                clamp(dot / norm * 2.0, -1.0, 1.0)
+            } else {
+                0.0
+            };
+            fit += level * a;
+            w += level;
+        }
+        if w > 0.0 {
+            bonus += n.concern_agenda * fit / w;
+        }
+    }
+    bonus
 }
 
 /// Party-strength shares for a race's candidates (the NPC's prior before polls).
@@ -600,6 +666,26 @@ fn act(
                 lp.fail_gain
             };
             *state.politics.sway.entry((target.0, bill)).or_default() += (gain * dir) as f32;
+            // The colleague remembers being worked on (DEC-031).
+            if let (Some(h), Some(a)) = (
+                state.politics.get(target).map(|p| p.character),
+                state.politics.get(id).map(|p| p.character),
+            ) {
+                crate::characters::remember(
+                    &mut state.politics,
+                    content,
+                    date,
+                    h,
+                    a,
+                    if success {
+                        crate::characters::MemoryKind::LobbiedMe
+                    } else {
+                        crate::characters::MemoryKind::PressedMe
+                    },
+                    Some(crate::characters::Subject::Policy { id: bill }),
+                    None,
+                );
+            }
         }
         AiAction::ProposeBill => {
             let Some(template) = x.best_template.clone() else {
@@ -739,16 +825,14 @@ pub fn lobby_odds_between(
     let l = &content.council.lobby;
     let skill = me.negotiation as f64 * l.skill_negotiation + me.oratory as f64 * l.skill_oratory;
     let ties = if me.is_player {
-        t.opinion_of_player as f64 / l.opinion_scale
+        crate::characters::opinion_between(&state.politics, target, actor) as f64 / l.opinion_scale
     } else if me.party.is_some() && me.party == t.party {
         l.same_party
     } else {
         l.other_party
     };
-    let x = (skill - 0.5) * l.skill_scale
-        + t.pragmatism as f64 * l.pragmatism
-        + l.bias
-        + ties
+    let x = (skill - 0.5) * l.skill_scale + t.pragmatism as f64 * l.pragmatism + l.bias + ties
+        - l.integrity * (t.integrity as f64 - 0.5)
         + if late_night { l.late_night } else { 0.0 };
     clamp(sigmoid(x), l.odds_min, l.odds_max)
 }

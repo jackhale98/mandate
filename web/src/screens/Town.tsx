@@ -2,6 +2,61 @@ import type { SpotView } from "../engine/protocol/SpotView";
 import { useGame } from "../state/gameStore";
 import { placeIcon, placeName } from "../places/labels";
 import { Loader } from "../components/Brand";
+import type { TownCharacterView } from "../engine/protocol/TownCharacterView";
+import type { PersonRefView } from "../engine/protocol/PersonRefView";
+import { roleText } from "../components/CharacterSheet";
+
+function Who({ p }: { p: PersonRefView }) {
+  const tr = useGame((s) => s.tr);
+  const busy = useGame((s) => s.busy);
+  const openCharacter = useGame((s) => s.openCharacter);
+  return (
+    <button type="button" className="link-btn" disabled={busy || p.id === null} onClick={() => p.id !== null && void openCharacter(p.id)}>
+      {p.name}
+      <span className="muted small"> · {roleText(tr, p)}</span>
+    </button>
+  );
+}
+
+/** The town's character (DEC-077 §1): what it lives on, what it is going through, and who matters. */
+function TownCard({ c }: { c: TownCharacterView }) {
+  const tr = useGame((s) => s.tr);
+  return (
+    <section className="card town-card" data-testid="town-card" aria-labelledby="town-card-title">
+      <h2 id="town-card-title">{tr.t("ui-town-card")}</h2>
+      <dl className="facts">
+        <div>
+          <dt>{tr.t("ui-defining-industry")}</dt>
+          <dd data-testid="town-industry">{c.industry ? `${tr.t(c.industry.name_key)} · ${tr.t("ui-industry-share", { pct: Math.round(c.industry_share * 100) })}` : tr.t("ui-nobody")}</dd>
+        </div>
+        <div>
+          <dt>{tr.t("ui-live-crisis")}</dt>
+          <dd data-testid="town-crisis">
+            {c.crisis ? (
+              <>
+                <strong>{tr.t(c.crisis.name_key)}</strong> · {tr.t(`crisis-severity-${c.crisis.severity_band}`)}, {tr.t(`crisis-trend-${c.crisis.trend}`)} <span className="muted small">({tr.t("ui-crisis-since", { month: c.crisis.since.month, year: String(c.crisis.since.year) })})</span>
+              </>
+            ) : (
+              <span className="muted">{tr.t("ui-no-crisis")}</span>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>{tr.t("ui-power-broker-line")}</dt>
+          <dd>{c.broker ? <Who p={c.broker} /> : tr.t("ui-nobody")}</dd>
+        </div>
+        <div>
+          <dt>{tr.t("ui-rival-line")}</dt>
+          <dd data-testid="town-rival">{c.rival ? <Who p={c.rival} /> : tr.t("ui-nobody")}</dd>
+        </div>
+        <div>
+          <dt>{tr.t("ui-priorities")}</dt>
+          <dd>{c.priorities.length > 0 ? c.priorities.map((p) => tr.t(p.name_key)).join(" · ") : tr.t("ui-nobody")}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
 
 function Spot({ s }: { s: SpotView }) {
   const tr = useGame((st) => st.tr);
@@ -62,6 +117,7 @@ export function Town() {
       <h1 className="town-title">
         {town.municipality} <span className="muted small">· {tr.t("ui-town-help")}</span>
       </h1>
+      {town.character && <TownCard c={town.character} />}
       <div className="town-grid">
         {town.neighborhoods.map((h) => {
           const active = h.spots.filter((s) => s.actions.length + s.services.length > 0);

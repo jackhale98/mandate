@@ -8,6 +8,8 @@ describe("auto-routing", () => {
     expect(routeKey({ type: "act", action: { type: "canvass", neighborhood: 4 }, late_night: false }, null)).toEqual({ action: "canvass", lateNight: false, neighborhood: 4 });
     expect(routeKey({ type: "act", action: { type: "lobby", politician: 1, policy: 2 }, late_night: true }, null)).toEqual({ action: "lobby", lateNight: true, neighborhood: null });
     expect(routeKey({ type: "end_turn" }, null)).toBeNull();
+    // Meeting someone happens where the player already is.
+    expect(routeKey({ type: "meet", slot: 0 }, null)).toBeNull();
   });
 
   it("finds the engine's route for a command", () => {

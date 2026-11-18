@@ -449,6 +449,30 @@ h2 { font-size: 1.1rem; }
   .with-panel .game-body { padding-right: 416px; max-width: none; }
   .with-pocket .game-body { padding-left: 416px; max-width: none; }
 }
+/* Characters (DEC-031): people at places, character sheets over the place panel. */
+.link-btn { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
+.link-btn:hover:not(:disabled) { text-decoration-color: currentColor; }
+.link-btn:focus-visible { outline: 3px solid var(--info); }
+.link-btn:disabled { cursor: default; text-decoration: none; }
+.people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.person { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; }
+.person-ambient { cursor: default; }
+.character-scrim { z-index: 5; }
+.sheet.character-sheet { z-index: 6; }
+@media (min-width: 900px) {
+  .character-scrim { display: block; background: transparent; }
+}
+.memory-bad { border-left: 3px solid var(--bad); padding-left: 6px; }
+.memory-good { border-left: 3px solid var(--good); padding-left: 6px; }
+.memory-mixed { border-left: 3px solid var(--border); padding-left: 6px; }
+.town-card { margin-bottom: 12px; }
+.facts { margin: 0; display: grid; gap: 6px; }
+.facts > div { display: grid; grid-template-columns: minmax(7rem, 11rem) 1fr; gap: 8px; align-items: baseline; }
+.facts dt { color: var(--muted); font-size: 0.85rem; }
+.facts dd { margin: 0; }
+@media (max-width: 480px) {
+  .facts > div { grid-template-columns: 1fr; gap: 0; }
+}
 /* Run export and import (DEC-082) */
 .run-actions { flex-wrap: wrap; }
 .import-run { margin-top: 12px; padding: 12px; border: 1px dashed var(--border); border-radius: 10px; }

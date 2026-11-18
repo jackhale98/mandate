@@ -230,6 +230,43 @@
       ],
       "type": "object"
     },
+    "AmbientParams": {
+      "additionalProperties": false,
+      "description": "Ambient people: generated on demand at places, never stored (DEC-018).",
+      "properties": {
+        "max_listed": {
+          "description": "Most people listed at a place, Named and Ambient together.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "period_days": {
+          "description": "Who is around changes every this many days.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "present": {
+          "description": "People present at a public place, [min, max].",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "present",
+        "period_days",
+        "max_listed"
+      ],
+      "type": "object"
+    },
     "AmendEffects": {
       "additionalProperties": false,
       "properties": {
@@ -414,6 +451,26 @@
         "term_years",
         "decision",
         "powers"
+      ],
+      "type": "object"
+    },
+    "BondParams": {
+      "additionalProperties": false,
+      "description": "Bonds that follow from opinion.",
+      "properties": {
+        "ally_above": {
+          "description": "An ally at or above this opinion; a rival at or below `rival_below`.",
+          "format": "double",
+          "type": "number"
+        },
+        "rival_below": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ally_above",
+        "rival_below"
       ],
       "type": "object"
     },
@@ -692,6 +749,108 @@
       ],
       "type": "object"
     },
+    "CharacterGenParams": {
+      "additionalProperties": false,
+      "description": "Generation of characters (DEC-031): personality and competency ranges.",
+      "properties": {
+        "competency": {
+          "description": "Competencies likewise.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "drift_sd": {
+          "description": "Lazy yearly updates of Named characters: value drift (SD per year).",
+          "format": "double",
+          "type": "number"
+        },
+        "family_chance": {
+          "description": "Chance a Named character is family of a local politician.",
+          "format": "double",
+          "type": "number"
+        },
+        "first_impression_sd": {
+          "description": "A Named character's first impression of the player: normal, this SD.",
+          "format": "double",
+          "type": "number"
+        },
+        "personality": {
+          "description": "Personality axes are drawn uniformly in this range, plus offsets.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "trust_initial": {
+          "description": "Trust in someone they have no history with (0..1).",
+          "format": "double",
+          "type": "number"
+        },
+        "values_sd": {
+          "description": "Named characters' values: their home cohort's view plus noise of this SD.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "personality",
+        "competency",
+        "values_sd",
+        "first_impression_sd",
+        "family_chance",
+        "drift_sd",
+        "trust_initial"
+      ],
+      "type": "object"
+    },
+    "CharacterParams": {
+      "additionalProperties": false,
+      "description": "Characters, memory, relationships, and town character (DEC-031, DEC-077).",
+      "properties": {
+        "ai": {
+          "$ref": "#/$defs/PersonalityAiParams"
+        },
+        "ambient": {
+          "$ref": "#/$defs/AmbientParams"
+        },
+        "bonds": {
+          "$ref": "#/$defs/BondParams"
+        },
+        "generation": {
+          "$ref": "#/$defs/CharacterGenParams"
+        },
+        "memories": {
+          "additionalProperties": {
+            "$ref": "#/$defs/MemoryKindParams"
+          },
+          "description": "One row per memory kind (`MEMORY_KINDS`).",
+          "type": "object"
+        },
+        "memory": {
+          "$ref": "#/$defs/MemoryCaps"
+        },
+        "town": {
+          "$ref": "#/$defs/TownCharacterParams"
+        }
+      },
+      "required": [
+        "memory",
+        "memories",
+        "generation",
+        "bonds",
+        "ai",
+        "ambient",
+        "town"
+      ],
+      "type": "object"
+    },
     "ClassKey": {
       "enum": [
         "low",
@@ -962,6 +1121,11 @@
         "lobby": {
           "$ref": "#/$defs/LobbyParams"
         },
+        "loyalty_discipline": {
+          "description": "Personality (DEC-031): party discipline × (1 + this × (2 × loyalty − 1)).",
+          "format": "double",
+          "type": "number"
+        },
         "mayor": {
           "format": "double",
           "type": "number"
@@ -1045,7 +1209,8 @@
         "sign_bias",
         "enactment_awareness",
         "awareness_fade",
-        "lobby"
+        "lobby",
+        "loyalty_discipline"
       ],
       "type": "object"
     },
@@ -1099,6 +1264,59 @@
         "sponsor_yes",
         "sponsor_no",
         "sponsor_no_owed"
+      ],
+      "type": "object"
+    },
+    "CrisisDef": {
+      "additionalProperties": false,
+      "description": "A kind of live local crisis (DEC-077 §1), read from an indicator with\nhysteresis: it begins at `begin`, ends below `end`, and its severity runs\nfrom 0 at `end` to 1 at `severe`. Registry order is load order and breaks\nties between equally severe crises.",
+      "properties": {
+        "begin": {
+          "format": "double",
+          "type": "number"
+        },
+        "concern": {
+          "default": null,
+          "description": "The concern it sharpens (a concern id), if any.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "end": {
+          "format": "double",
+          "type": "number"
+        },
+        "id": {
+          "description": "Content id, e.g. `crisis.plant_closure`.",
+          "type": "string"
+        },
+        "indicator": {
+          "$ref": "#/$defs/Indicator"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "policies": {
+          "default": [],
+          "description": "Policy templates that answer it: NPC agendas favour them while the\ncrisis lasts.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "severe": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "indicator",
+        "begin",
+        "end",
+        "severe"
       ],
       "type": "object"
     },
@@ -1543,6 +1761,11 @@
           "const": "recent_disaster",
           "description": "1 just after a disaster, fading to 0 over two years.",
           "type": "string"
+        },
+        {
+          "const": "job_loss",
+          "description": "Share of the town's jobs lost over the last year (0 when jobs grew):\na plant closure or a failing industry.",
+          "type": "string"
         }
       ]
     },
@@ -1615,6 +1838,11 @@
           "minItems": 2,
           "type": "array"
         },
+        "integrity": {
+          "description": "Personality (DEC-031): − this × (target's integrity − 0.5) in the logit.",
+          "format": "double",
+          "type": "number"
+        },
         "late_night": {
           "format": "double",
           "type": "number"
@@ -1670,6 +1898,7 @@
         "same_party",
         "other_party",
         "late_night",
+        "integrity",
         "odds_min",
         "odds_max",
         "gain",
@@ -1855,6 +2084,82 @@
         }
       ]
     },
+    "MemoryCaps": {
+      "additionalProperties": false,
+      "properties": {
+        "forget_below": {
+          "description": "A memory whose salience falls below this has faded into the\nrelationship baseline and is forgotten.",
+          "format": "double",
+          "type": "number"
+        },
+        "named": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "principal": {
+          "description": "Memories kept per Principal and per Named character.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "principal",
+        "named",
+        "forget_below"
+      ],
+      "type": "object"
+    },
+    "MemoryKindParams": {
+      "additionalProperties": false,
+      "description": "Parameters of one memory kind.",
+      "properties": {
+        "decay": {
+          "description": "Fading per year (salience × e^(−decay × years)); near 0 persists.",
+          "format": "double",
+          "type": "number"
+        },
+        "magnitude": {
+          "description": "How much it mattered (0..1): its salience when fresh.",
+          "format": "double",
+          "type": "number"
+        },
+        "opinion": {
+          "description": "Opinion change (−100..100) when the engine does not set one itself\n(the player's actions take theirs from `actions.jsonc`).",
+          "format": "double",
+          "type": "number"
+        },
+        "sentiment": {
+          "description": "How the holder felt about it (−1..1).",
+          "format": "double",
+          "type": "number"
+        },
+        "tags": {
+          "default": [],
+          "description": "Free-form tags for queries (`promise`, `vote`, `election`, …).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "trust": {
+          "description": "Trust change (−1..1).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "sentiment",
+        "magnitude",
+        "decay",
+        "opinion",
+        "trust"
+      ],
+      "type": "object"
+    },
     "NamePoolDef": {
       "additionalProperties": false,
       "description": "Syllable-based name generator pool.",
@@ -1992,7 +2297,16 @@
           "format": "double",
           "type": "number"
         },
+        "concern_agenda": {
+          "format": "double",
+          "type": "number"
+        },
         "contact_unknown_keep": {
+          "format": "double",
+          "type": "number"
+        },
+        "crisis_agenda": {
+          "description": "Agendas follow the town's character (DEC-077 §1): ranking its ideas, an\nNPC adds this × severity to a template that answers the live crisis,\nand `concern_agenda` × fit to one that addresses the town's concerns\n(alignment with the concerns' attitudes, weighted by their levels).\nThe bonus changes which idea comes first, not how keen it is.",
           "format": "double",
           "type": "number"
         },
@@ -2050,8 +2364,138 @@
         "two_ads_above",
         "one_ad_above",
         "ad_reserve",
-        "bill_sunset_years"
+        "bill_sunset_years",
+        "crisis_agenda",
+        "concern_agenda"
       ],
+      "type": "object"
+    },
+    "OccupationDef": {
+      "additionalProperties": false,
+      "description": "An occupation or role of Named characters (DEC-018): shopkeepers,\norganisers, journalists, clergy, union stewards. Registry order is load order.",
+      "properties": {
+        "age": {
+          "description": "Age range, [min, max].",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "ambient": {
+          "default": false,
+          "description": "Passers-by (Ambient people) may have this occupation.",
+          "type": "boolean"
+        },
+        "chance": {
+          "description": "Chance that one such person is generated per place (or neighbourhood).",
+          "format": "double",
+          "type": "number"
+        },
+        "class": {
+          "description": "Weights of the income classes they come from: [low, middle, high].",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "competencies": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Added to competencies (`oratory`, `negotiation`, `administration`,\n`organising`, `intrigue`).",
+          "type": "object"
+        },
+        "expertise": {
+          "default": null,
+          "description": "The issue they know best (an attitude key); random when omitted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Content id, e.g. `occupation.shopkeeper`.",
+          "type": "string"
+        },
+        "influence": {
+          "default": 0.0,
+          "description": "How much weight a leader carries in town (0..1; power broker choice).",
+          "format": "double",
+          "type": "number"
+        },
+        "leader": {
+          "default": false,
+          "description": "Organisation leaders (stewards, editors, chairs) are Principal\ncharacters and can be a town's power broker.",
+          "type": "boolean"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "personality": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Added to personality axes (see `TraitDef::personality`).",
+          "type": "object"
+        },
+        "places": {
+          "description": "Place kinds where they work and can be met (or `streets`, one per\nneighbourhood).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "stake": {
+          "$ref": "#/$defs/OccupationStake",
+          "default": {
+            "crises": [],
+            "drivers": []
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "places",
+        "chance",
+        "class",
+        "age"
+      ],
+      "type": "object"
+    },
+    "OccupationStake": {
+      "additionalProperties": false,
+      "description": "What an occupation has a stake in: the power broker of a town is the\nleader with the biggest stake in its defining industry or live crisis.",
+      "properties": {
+        "crises": {
+          "default": [],
+          "description": "Crisis kinds (content ids) the occupation is drawn into.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "drivers": {
+          "default": [],
+          "description": "Sector drivers (`industrial`, `extraction`, …) the occupation speaks for.",
+          "items": {
+            "$ref": "#/$defs/SectorDriver"
+          },
+          "type": "array"
+        }
+      },
       "type": "object"
     },
     "OfficeDef": {
@@ -2247,6 +2691,21 @@
       "required": [
         "nouns",
         "by_attitude"
+      ],
+      "type": "object"
+    },
+    "PersonalityAiParams": {
+      "additionalProperties": false,
+      "description": "Personality in opinion changes (DEC-031): the same rules for the player\nand NPCs. (Loyalty in votes is `council.loyalty_discipline`; integrity\nagainst lobbying is `council.lobby.integrity`.)",
+      "properties": {
+        "warmth_opinion": {
+          "description": "Opinion gains × (1 + w × (2 × warmth − 1)) of the holder.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "warmth_opinion"
       ],
       "type": "object"
     },
@@ -3250,6 +3709,35 @@
       ],
       "type": "string"
     },
+    "TownCharacterParams": {
+      "additionalProperties": false,
+      "description": "Town character (DEC-077 §1).",
+      "properties": {
+        "broker_seniority": {
+          "description": "Power broker: weight of an officeholder's seniority (per year in\noffice) against a leader's influence and stake.",
+          "format": "double",
+          "type": "number"
+        },
+        "broker_stake": {
+          "description": "Stake weight of a leader whose stake matches the defining industry\nor the live crisis.",
+          "format": "double",
+          "type": "number"
+        },
+        "trend_months": {
+          "description": "Months of crisis severity kept for the trend.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "trend_months",
+        "broker_seniority",
+        "broker_stake"
+      ],
+      "type": "object"
+    },
     "TownHallEffects": {
       "additionalProperties": false,
       "properties": {
@@ -3332,6 +3820,80 @@
         "risk_min",
         "risk_max"
       ],
+      "type": "object"
+    },
+    "TraitDef": {
+      "additionalProperties": false,
+      "description": "A character trait tag (DEC-031): a name plus data-driven modifiers.\nCharacters get 0–3 traits at generation. Registry order is load order.",
+      "properties": {
+        "chance": {
+          "description": "Chance a generated character has this trait (before the three-trait cap).",
+          "format": "double",
+          "type": "number"
+        },
+        "excludes": {
+          "default": [],
+          "description": "Traits that cannot be held together with this one.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Content id, e.g. `trait.grudge_holder`.",
+          "type": "string"
+        },
+        "memory_decay": {
+          "$ref": "#/$defs/TraitScale",
+          "default": {
+            "negative": 1.0,
+            "positive": 1.0
+          },
+          "description": "Multiplies how fast memories fade: good ones (`positive`) and bad\nones (`negative`). A grudge-holder's bad memories fade slowly."
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "opinion_change": {
+          "$ref": "#/$defs/TraitScale",
+          "default": {
+            "negative": 1.0,
+            "positive": 1.0
+          },
+          "description": "Multiplies opinion changes toward others: gains and losses."
+        },
+        "personality": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Added to personality axes (`ambition`, `integrity`, `warmth`,\n`boldness`, `loyalty`), clamped to 0..1.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "chance"
+      ],
+      "type": "object"
+    },
+    "TraitScale": {
+      "additionalProperties": false,
+      "description": "A multiplier pair for good and bad news.",
+      "properties": {
+        "negative": {
+          "default": 1.0,
+          "format": "double",
+          "type": "number"
+        },
+        "positive": {
+          "default": 1.0,
+          "format": "double",
+          "type": "number"
+        }
+      },
       "type": "object"
     },
     "Tuning": {
@@ -4054,6 +4616,87 @@
         },
         "value": {
           "$ref": "#/$defs/NpcParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Character trait tags with data-driven modifiers (DEC-031).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TraitDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "traits",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Occupations and roles of Named characters (DEC-018, DEC-031).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/OccupationDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "occupations",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Kinds of live local crisis a town can have (DEC-077 §1).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/CrisisDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "crises",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Character, memory, relationship, and town-character numbers (DEC-031, DEC-077).",
+      "properties": {
+        "kind": {
+          "const": "characters",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/CharacterParams"
         }
       },
       "required": [

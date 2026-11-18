@@ -351,6 +351,11 @@ pub struct VoteInputs<'a> {
     pub mayor_lean: f64,
     pub sway: f64,
     pub sponsor_is_player: bool,
+    /// The member's opinion of the sponsor when the sponsor is the player
+    /// (−100..100; DEC-031 relationship).
+    pub player_opinion: f64,
+    /// The member's loyalty (DEC-031): how much party discipline weighs.
+    pub loyalty: f64,
     /// The sponsor's party (party discipline: members back their own side).
     pub sponsor_party: Option<crate::politics::PartyId>,
     /// A publicly declared vote overrides the model (+1 yes, −1 no, 0 abstain).
@@ -367,7 +372,7 @@ pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInp
         .iter()
         .any(|c| matches!((c, p.role), (Clause::Earmark { ward }, Role::Councillor { ward: w, .. }) if *ward == w));
     let player = if v.sponsor_is_player {
-        p.opinion_of_player as f64 / 100.0 * k.player_opinion
+        v.player_opinion / 100.0 * k.player_opinion
     } else {
         0.0
     };
@@ -395,7 +400,7 @@ pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInp
         (Some(a), Some(b)) if a == b => k.same_party,
         (Some(_), Some(_)) => k.rival_party,
         _ => 0.0,
-    };
+    } * (1.0 + k.loyalty_discipline * (2.0 * v.loyalty - 1.0));
     // Pragmatists weigh constituents and deals; ideologues their own values.
     let prag = p.pragmatism as f64;
     k.own_values * (1.0 - prag) * own
@@ -407,6 +412,27 @@ pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInp
         + riders
         + if earmark { k.own_earmark } else { 0.0 }
         + v.noise
+}
+
+/// A member's opinion of a bill's sponsor when the sponsor is the player.
+fn player_opinion(
+    pol: &PoliticsState,
+    member: PoliticianId,
+    sponsor: Option<PoliticianId>,
+    sponsor_is_player: bool,
+) -> f64 {
+    match sponsor {
+        Some(s) if sponsor_is_player => crate::characters::opinion_between(pol, member, s) as f64,
+        _ => 0.0,
+    }
+}
+
+/// A politician's loyalty (their character's), 0.5 if unknown.
+fn loyalty(pol: &PoliticsState, p: &crate::politics::Politician) -> f64 {
+    pol.characters
+        .get(p.character)
+        .map(|c| c.loyalty as f64)
+        .unwrap_or(0.5)
 }
 
 fn noise_for(k: &CouncilParams, seed: u64, politician: u32, policy: u32) -> f64 {
@@ -475,6 +501,8 @@ pub fn council_leans(
                         mayor_lean,
                         sway: pol.sway(p.id, inst.id.0) as f64,
                         sponsor_is_player,
+                        player_opinion: player_opinion(pol, p.id, inst.sponsor, sponsor_is_player),
+                        loyalty: loyalty(pol, p),
                         sponsor_party: inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party),
                         declared: pol.declared_votes.get(&(p.id.0, inst.id.0)).copied(),
                         noise: noise_for(k, seed, p.id.0, inst.id.0),
@@ -521,6 +549,8 @@ pub fn mayor_lean(
             mayor_lean: 0.0,
             sway: pol.sway(m.id, inst.id.0) as f64,
             sponsor_is_player,
+            player_opinion: player_opinion(pol, m.id, inst.sponsor, sponsor_is_player),
+            loyalty: loyalty(pol, m),
             sponsor_party: inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party),
             declared: pol.declared_votes.get(&(m.id.0, inst.id.0)).copied(),
             noise: noise_for(k, seed, m.id.0, inst.id.0),
@@ -649,6 +679,28 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 }
             }
         };
+        // A mayor's signature or veto is personal: the sponsor remembers it
+        // (DEC-031; the politics domain applies it).
+        if matches!(stage, StageDef::Sign { .. })
+            && let (Some(sponsor), Some(mayor)) = (
+                inst.sponsor,
+                pol.councils
+                    .get(inst.jurisdiction as usize)
+                    .and_then(|c| c.mayor),
+            )
+            && sponsor != mayor
+        {
+            out.effects.push(crate::scheduler::Effect::Memory {
+                holder: sponsor,
+                actor: mayor,
+                kind: if record.veto {
+                    crate::characters::MemoryKind::VetoedMyBill
+                } else {
+                    crate::characters::MemoryKind::SignedMyBill
+                },
+                subject: Some(crate::characters::Subject::Policy { id: inst.id.0 }),
+            });
+        }
         let p = &mut st.instances[i];
         let veto = record.veto;
         p.votes.push(record.clone());

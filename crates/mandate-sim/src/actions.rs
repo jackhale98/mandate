@@ -2,6 +2,7 @@
 //! Authority (constitution powers), slots, and preconditions, then applied
 //! with immediate effects. Outcomes are seeded from the Player RNG stream.
 
+use crate::characters::{self, MemoryKind, Subject};
 use crate::commands::EngineError;
 use crate::events::EventKind;
 use crate::policy::{Clause, PolicyInstance, PolicyStatus, annual_cost};
@@ -87,6 +88,11 @@ pub enum PlayerCommand {
     Go {
         location: crate::places::Location,
         then: Option<Box<PlayerCommand>>,
+    },
+    /// Introduce yourself to someone here (free). Meeting a passer-by
+    /// (Ambient, `slot`) makes them a Named character (DEC-018).
+    Meet {
+        slot: u8,
     },
 }
 
@@ -400,6 +406,27 @@ pub fn apply(
     crate::places::check_at(state, content, cmd)?;
     match cmd {
         PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. } => {}
+        PlayerCommand::Meet { slot } => {
+            let id = characters::ambient::promote(state, content, pl.location, *slot)
+                .ok_or_else(|| bad("nobody like that is here now"))?;
+            if let Some(me) = characters::player_character(state) {
+                characters::remember(
+                    &mut state.politics,
+                    content,
+                    date,
+                    id,
+                    me,
+                    MemoryKind::Met,
+                    None,
+                    None,
+                );
+            }
+            res.created = Some(id.0);
+            res.outcome_key = "outcome-met".into();
+            if let Some(p) = characters::profile(&state.politics, &state.world, id) {
+                res.args.insert("name".into(), p.full_name());
+            }
+        }
         PlayerCommand::CastVote { policy, vote } => {
             use crate::politics::Vote;
             let p = local_policy(state, *policy)?;
@@ -466,31 +493,90 @@ pub fn apply(
                     c.player_approval = clamp(c.player_approval as f64 + delta, -1.0, 1.0) as f32;
                 }
             }
-            // The sponsor: support earns goodwill and repays an owed favour.
+            // The sponsor: support earns goodwill and repays an owed favour;
+            // voting against them while owing them is a broken promise.
+            let me = state.politics.get(pl.politician).map(|p| p.character);
+            let subject = Some(Subject::Policy { id: *policy });
             if let Some(sid) = sponsor
-                && let Some(sp) = state.politics.get_mut(sid)
+                && let Some(sp) = state.politics.get(sid)
                 && !sp.is_player
+                && let Some(me) = me
             {
+                let (sc, name) = (sp.character, sp.full_name());
+                let owed = characters::favours_owed(&state.politics, me, sc) > 0;
+                let pol = &mut state.politics;
                 match vote {
                     Vote::Yes => {
-                        sp.opinion_of_player =
-                            clamp(sp.opinion_of_player as f64 + fx.sponsor_yes, -100.0, 100.0)
-                                as f32;
-                        if sp.favors < 0 {
-                            sp.favors += 1;
-                            res.args.insert("repaid".into(), sp.full_name());
+                        characters::remember(
+                            pol,
+                            content,
+                            date,
+                            sc,
+                            me,
+                            MemoryKind::BackedMyBill,
+                            subject,
+                            Some(fx.sponsor_yes),
+                        );
+                        if owed && let Some(f) = characters::repay(pol, me, sc) {
+                            characters::remember(
+                                pol,
+                                content,
+                                date,
+                                sc,
+                                me,
+                                MemoryKind::KeptPromise,
+                                f.subject.or(subject),
+                                None,
+                            );
+                            res.args.insert("repaid".into(), name);
                         }
                     }
                     Vote::No => {
-                        let hit = if sp.favors < 0 {
-                            fx.sponsor_no_owed
+                        let (kind, hit) = if owed {
+                            (MemoryKind::BrokePromise, fx.sponsor_no_owed)
                         } else {
-                            fx.sponsor_no
+                            (MemoryKind::OpposedMyBill, fx.sponsor_no)
                         };
-                        sp.opinion_of_player =
-                            clamp(sp.opinion_of_player as f64 - hit, -100.0, 100.0) as f32;
+                        characters::remember(pol, content, date, sc, me, kind, subject, Some(-hit));
                     }
                     Vote::Abstain => {}
+                }
+            }
+            // Breaking with the party line is noticed by party colleagues.
+            if line != 0
+                && *vote != Vote::Abstain
+                && (line as f64) != sign
+                && let Some(me) = me
+            {
+                let party = state.politics.get(pl.politician).and_then(|p| p.party);
+                let colleagues: Vec<_> = state
+                    .politics
+                    .councils
+                    .get(m as usize)
+                    .map(|c| {
+                        c.members
+                            .iter()
+                            .chain(c.mayor.iter())
+                            .copied()
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(|id| state.politics.get(id))
+                    .filter(|p| !p.is_player && p.party.is_some() && p.party == party)
+                    .map(|p| p.character)
+                    .collect();
+                for c in colleagues {
+                    characters::remember(
+                        &mut state.politics,
+                        content,
+                        date,
+                        c,
+                        me,
+                        MemoryKind::BrokeRanks,
+                        subject,
+                        None,
+                    );
                 }
             }
             res.outcome_key = match vote {
@@ -504,6 +590,8 @@ pub fn apply(
             if let Some(p) = state.player.as_mut() {
                 p.filing = Some(*filing);
             }
+            // New plans, new rival (DEC-077 §1).
+            characters::refresh_rival(state);
             res.outcome_key = match filing {
                 crate::politics::elections::Filing::Council => "outcome-filed-council",
                 crate::politics::elections::Filing::Mayor => "outcome-filed-mayor",
@@ -675,7 +763,18 @@ pub fn apply(
                     if t.municipality() != m || t.is_player {
                         return Err(bad("you can only lobby colleagues in your town"));
                     }
-                    if matches!(action, Action::TradeFavor { .. }) && t.favors <= -MAX_FAVOR_DEBT {
+                    let (tc, me) = (
+                        t.character,
+                        state
+                            .politics
+                            .get(pl.politician)
+                            .map(|p| p.character)
+                            .ok_or_else(|| bad("no player"))?,
+                    );
+                    if matches!(action, Action::TradeFavor { .. })
+                        && characters::favours_owed(&state.politics, me, tc) as i32
+                            >= MAX_FAVOR_DEBT
+                    {
                         return Err(bad("you already owe them too much"));
                     }
                     let odds = lobby_odds(state, content, target, *late_night);
@@ -716,21 +815,32 @@ pub fn apply(
                         .sway
                         .entry((*politician, *policy))
                         .or_default() += gain as f32;
-                    if let Some(t) = state.politics.get_mut(target) {
-                        if trade {
-                            t.favors -= 1;
-                        }
-                        t.opinion_of_player = clamp(
-                            t.opinion_of_player as f64
-                                + if success {
-                                    fx.opinion_success
-                                } else {
-                                    fx.opinion_fail
-                                },
-                            -100.0,
-                            100.0,
-                        ) as f32;
+                    let subject = Some(Subject::Policy { id: *policy });
+                    if trade {
+                        // A promise: the player owes them one (DEC-031 favour ledger).
+                        characters::owe(&mut state.politics, me, tc, "favour-bill", subject, date);
                     }
+                    let kind = if trade {
+                        MemoryKind::PromisedFavour
+                    } else if success {
+                        MemoryKind::LobbiedMe
+                    } else {
+                        MemoryKind::PressedMe
+                    };
+                    characters::remember(
+                        &mut state.politics,
+                        content,
+                        date,
+                        tc,
+                        me,
+                        kind,
+                        subject,
+                        Some(if success {
+                            fx.opinion_success
+                        } else {
+                            fx.opinion_fail
+                        }),
+                    );
                     if *late_night && let Some(p) = state.player.as_mut() {
                         // Back-room deals carry legal exposure (DEC-006).
                         p.tracks.legal_jeopardy =

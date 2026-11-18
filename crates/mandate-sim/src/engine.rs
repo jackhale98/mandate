@@ -67,6 +67,12 @@ pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String>
             out.push(k.clone());
         }
     }
+    // Nor can characters keep traits or occupations that were removed.
+    for k in crate::characters::missing_references(&state.politics, content) {
+        if !out.contains(&k) {
+            out.push(k);
+        }
+    }
     out
 }
 
@@ -139,6 +145,10 @@ impl Engine {
             state.population.town_concerns = towns;
             state.population.concern_keys = keys;
         }
+        // Characters (DEC-031): records for politicians from older saves,
+        // Named characters for a game in play, and town characters for a
+        // changed crisis registry (derived state, recomputed).
+        crate::characters::on_load(&mut state, &content);
         Ok(Engine {
             state,
             terrain: None,

@@ -50,6 +50,17 @@ pub struct ContentBundle {
     pub council: CouncilParams,
     pub career: CareerParams,
     pub npc: NpcParams,
+    /// Character trait tags (DEC-031), in load order.
+    #[serde(default)]
+    pub traits: Vec<TraitDef>,
+    /// Occupations of Named characters (DEC-018), in load order.
+    #[serde(default)]
+    pub occupations: Vec<OccupationDef>,
+    /// Kinds of live local crisis (DEC-077 §1), in load order.
+    #[serde(default)]
+    pub crises: Vec<CrisisDef>,
+    /// Character, memory, and town-character numbers (DEC-031, DEC-077).
+    pub characters: CharacterParams,
     /// Fluent sources by language, then by file path.
     pub locales: BTreeMap<String, BTreeMap<String, String>>,
     /// Hash over every source path and text, in path order (DEC-053).
@@ -137,6 +148,26 @@ impl ContentBundle {
         self.places.iter().find(|p| p.key == key)
     }
 
+    /// A trait by content id.
+    pub fn trait_def(&self, id: &str) -> Option<&TraitDef> {
+        self.traits.iter().find(|t| t.id == id)
+    }
+
+    /// An occupation by content id.
+    pub fn occupation(&self, id: &str) -> Option<&OccupationDef> {
+        self.occupations.iter().find(|o| o.id == id)
+    }
+
+    /// Registry index of a crisis kind by content id.
+    pub fn crisis_index(&self, id: &str) -> Option<usize> {
+        self.crises.iter().position(|c| c.id == id)
+    }
+
+    /// Crisis ids in registry order.
+    pub fn crisis_keys(&self) -> impl Iterator<Item = &ContentKey> {
+        self.crises.iter().map(|c| &c.id)
+    }
+
     /// All Fluent text for a language, concatenated in path order.
     pub fn locale_text(&self, lang: &str) -> String {
         self.locales
@@ -170,6 +201,10 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut council: Option<(CouncilParams, String)> = None;
     let mut career: Option<(CareerParams, String)> = None;
     let mut npc: Option<(NpcParams, String)> = None;
+    let mut characters: Option<(CharacterParams, String)> = None;
+    let mut traits: Vec<TraitDef> = Vec::new();
+    let mut occupations: Vec<OccupationDef> = Vec::new();
+    let mut crises: Vec<CrisisDef> = Vec::new();
     let mut constitutions: BTreeMap<ContentKey, ConstitutionDef> = BTreeMap::new();
     let mut policies: BTreeMap<ContentKey, PolicyTemplate> = BTreeMap::new();
     let mut sectors: Vec<SectorDef> = Vec::new();
@@ -258,6 +293,34 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                 once(&mut career, value, "career", &src.path, &mut issues)
             }
             ContentFile::Npc { value } => once(&mut npc, value, "npc", &src.path, &mut issues),
+            ContentFile::Characters { value } => once(
+                &mut characters,
+                *value,
+                "characters",
+                &src.path,
+                &mut issues,
+            ),
+            ContentFile::Traits { items } => {
+                for t in items {
+                    if claim(&t.id, &mut issues) {
+                        traits.push(t);
+                    }
+                }
+            }
+            ContentFile::Occupations { items } => {
+                for o in items {
+                    if claim(&o.id, &mut issues) {
+                        occupations.push(o);
+                    }
+                }
+            }
+            ContentFile::Crises { items } => {
+                for c in items {
+                    if claim(&c.id, &mut issues) {
+                        crises.push(c);
+                    }
+                }
+            }
             ContentFile::Pack(p) => {
                 if claim(&p.id, &mut issues) {
                     packs.push(p);
@@ -375,11 +438,12 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         Some((council, _)),
         Some((career, _)),
         Some((npc, _)),
-    ) = (opinion, actions, council, career, npc)
+        Some((characters, _)),
+    ) = (opinion, actions, council, career, npc, characters)
     else {
         issues.push(Issue::error(
             "<content>",
-            "the opinion, actions, council, career, and npc parameter files are all required",
+            "the opinion, actions, council, career, npc, and characters parameter files are all required",
         ));
         return Err(issues);
     };
@@ -426,6 +490,10 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         council,
         career,
         npc,
+        traits,
+        occupations,
+        crises,
+        characters,
         locales,
         content_hash,
     };

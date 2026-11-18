@@ -186,7 +186,9 @@ pub fn locations_for(
 /// command (`None` for movement).
 pub fn action_of(state: &State, cmd: &PlayerCommand) -> Option<(&'static str, bool, Option<u32>)> {
     Some(match cmd {
-        PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. } => return None,
+        PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. } | PlayerCommand::Meet { .. } => {
+            return None;
+        }
         PlayerCommand::CastVote { .. } => ("vote", false, None),
         PlayerCommand::File { .. } => ("file", false, None),
         PlayerCommand::DraftPolicy { .. } => ("draft", false, None),

@@ -268,7 +268,11 @@ pub struct MemberView {
     pub role_key: String,
     pub ward_number: Option<u32>,
     pub is_player: bool,
+    /// Their character (open their sheet with `QueryDto::Character`).
+    pub character: u32,
+    /// Their opinion of the player (−100..100; DEC-031 relationship).
     pub opinion_of_player: f64,
+    /// Favours: positive = they owe the player; negative = the player owes them.
     pub favors: i32,
     /// The member's two strongest convictions (attitude keys with sign).
     pub convictions: Vec<String>,
@@ -369,6 +373,7 @@ fn lean_label(p: f64) -> &'static str {
 }
 
 fn member_view(st: &State, content: &mandate_content::ContentBundle, p: &Politician) -> MemberView {
+    let player = mandate_sim::characters::player_character(st);
     // Convictions iterate the attitude registry (DEC-075).
     let n = p.attitudes.len().min(content.attitudes.len());
     let mut idx: Vec<usize> = (0..n).collect();
@@ -405,8 +410,13 @@ fn member_view(st: &State, content: &mandate_content::ContentBundle, p: &Politic
         role_key: role_key.into(),
         ward_number: ward,
         is_player: p.is_player,
-        opinion_of_player: p.opinion_of_player as f64,
-        favors: p.favors,
+        character: p.character.0,
+        opinion_of_player: player
+            .map(|me| mandate_sim::characters::opinion(&st.politics, p.character, me) as f64)
+            .unwrap_or(0.0),
+        favors: player
+            .map(|me| mandate_sim::characters::favour_balance(&st.politics, p.character, me))
+            .unwrap_or(0),
         convictions,
         pragmatism: p.pragmatism as f64,
     }
@@ -537,10 +547,12 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
             )
         })
         .unwrap_or(0.0);
-    let owe_sponsor = p
-        .sponsor
-        .and_then(|s| st.politics.get(s))
-        .is_some_and(|s| !s.is_player && s.favors < 0);
+    let owe_sponsor = p.sponsor.and_then(|s| st.politics.get(s)).is_some_and(|s| {
+        !s.is_player
+            && mandate_sim::characters::player_character(st).is_some_and(|me| {
+                mandate_sim::characters::favours_owed(&st.politics, me, s.character) > 0
+            })
+    });
     Some(BillView {
         side_effects: side_effects_view(t, p),
         my_vote,
