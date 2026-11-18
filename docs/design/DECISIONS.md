@@ -84,6 +84,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-075 | Extensibility: registries over hard-coded dimensions | Accepted |
 | DEC-076 | Difficulty target: rare wins, rich stories | Accepted |
 | DEC-077 | Run-to-run variety: town character, varied openings, situational policies, variety check | Accepted |
+| DEC-078 | Data-driven tuning and further registries | Accepted |
 
 ---
 
@@ -1509,3 +1510,23 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   4. **Dilemma events (M5, through the director, DEC-033).** These are moments where every option costs someone. They are built from live state, warned in advance, and explained afterwards.
   5. **A variety check in the lab (M5).** Beyond "no dominant strategy" (DEC-072), the bot tournament reports the best strategy per world. It must differ across worlds and situations, so that no single routine wins everywhere. It becomes a CI gate alongside the DEC-076 story targets.
 - **Dependencies:** DEC-032, DEC-033, DEC-036, DEC-073, DEC-075, DEC-076.
+
+### DEC-078 — Data-driven tuning and further registries
+
+- **Status:** Accepted (owner, 2026-11-18). This extends DEC-075, after the owner asked what else should become data while the game is small.
+- **Context:** besides the attitudes, sectors, and cohorts covered by DEC-075, the simulation code holds about 1,200 numeric literals. Many of them are balance numbers inside formulas: opinion weights, action effect sizes, risk odds, council lean weights, the rate a record fades. Several fixed lists are also enums.
+- **Decisions:**
+  1. **Tuning numbers move to content, one system at a time.** These are the numbers we expect to tune: opinion and retrospection weights; action effects and risks; council lean weights and lobbying odds; record, Standing, and recognition dynamics; and then economy formula coefficients. Structural constants (midpoints, unit conversions) stay in code. Each system gets a parameter block in content with a schema and validation.
+  2. **Lab parameter overrides.** `mandate-cli` sweep and bot commands accept overrides such as `--set politics.vote.party_weight=1.6`, and grid sweeps over one or two parameters, so DEC-076 targets can be tuned from data.
+  3. **Concern registry (now).** Voter concerns (jobs, housing, safety, environment, taxes, …) become content. Each concern names its indicator (an engine-provided measure such as unemployment, rent burden, crime, pollution, or tax burden), the attitudes behind it, and how it feeds issue salience in the vote model (which today weighs every issue the same). Town character (DEC-077) builds on it.
+  4. **Scenario registry (now).** The five world presets become content scenario definitions. These are biases on geography, economy, era, and politics, so new starting worlds are content.
+  5. **Before national play (M7):**
+     - budget categories, revenue and tax types become registries (the national tier adds categories such as defence and foreign affairs);
+     - hazards become a registry with behaviour drivers, like sectors (a heatwave, an epidemic);
+     - commodities are derived from extraction-driver sectors.
+  6. **With the walkable town screens (M6):** place kinds become a registry carrying art and interaction data.
+  7. **Kept in code:**
+     - the pressure tracks and core rules (they are the game's identity);
+     - income classes and age bands (communities, DEC-075 stage 3, provide the flexible dimension);
+     - the kinds of player action (their costs are already data, and a new kind is a small coded extension point).
+- **Order:** finish DEC-075 stages 2–3, then decisions 3, 4, 1 (starting with politics, opinion, and actions), and 2. Then decision 6 with M6 and decision 5 before M7.
