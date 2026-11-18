@@ -1,3 +1,4 @@
+import { Fragment, useLayoutEffect, useRef } from "react";
 import type { TownDataView } from "../engine/protocol/TownDataView";
 import type { BudgetPapersView } from "../engine/protocol/BudgetPapersView";
 import type { InternalPollView } from "../engine/protocol/InternalPollView";
@@ -10,6 +11,7 @@ import { StatTile } from "../components/StatTile";
 import { ActionForm, type FormAction } from "../components/ActionForm";
 import { ChamberWhip } from "../components/Chamber";
 import { Catalog, MyBills, RecentActions, TownOpinion } from "../components/Desk";
+import { useSheetClose } from "../components/useSheetClose";
 import { Calendar, CampaignHub } from "../components/CampaignCards";
 import { PartyChip } from "../components/ElectionCharts";
 
@@ -194,6 +196,13 @@ export function PlacePanel() {
   const busy = useGame((s) => s.busy);
   const o = useGame((s) => s.office);
   const c = useGame((s) => s.campaign);
+  const [closing, requestClose] = useSheetClose(() => void close(null));
+  const sheet = useRef<HTMLElement>(null);
+  const where = open ? JSON.stringify(open) : "";
+  // A new place starts at the top of the sheet; the sheet itself stays (no replayed slide-in).
+  useLayoutEffect(() => {
+    if (sheet.current) sheet.current.scrollTop = 0;
+  }, [where]);
   if (!open) return null;
   const has = (s: string) => v?.services.includes(s) ?? false;
   const offers = (a: string) => v?.actions.some((x) => x.action === a) ?? false;
@@ -201,8 +210,14 @@ export function PlacePanel() {
   // Lobbying in the chamber is done from the whip list.
   const skip = new Set<string>(chamber ? ["lobby", "trade_favor"] : []);
   return (
-    // Keyed by location: a new place starts at the top of the sheet.
-    <aside key={JSON.stringify(open)} className="sheet place-panel" aria-labelledby="place-title" data-testid="place-panel">
+    <aside
+      ref={sheet}
+      className={closing ? "sheet place-panel sheet-closing" : "sheet place-panel"}
+      aria-labelledby="place-title"
+      data-testid="place-panel"
+    >
+      {/* Keyed by location: a new place starts fresh. */}
+      <Fragment key={where}>
       <div className="sheet-head">
         <div>
           <h2 id="place-title">
@@ -222,7 +237,7 @@ export function PlacePanel() {
               {tr.t("ui-slots", { left: o.player.slots_left })}
             </span>
           )}
-          <button type="button" className="btn btn-ghost" onClick={() => void close(null)} aria-label={tr.t("ui-close")}>
+          <button type="button" className="btn btn-ghost" onClick={requestClose} aria-label={tr.t("ui-close")}>
             ✕
           </button>
         </div>
@@ -263,6 +278,7 @@ export function PlacePanel() {
           {offers("rest") && <RecentActions />}
         </div>
       )}
+      </Fragment>
     </aside>
   );
 }

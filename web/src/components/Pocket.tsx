@@ -7,6 +7,7 @@ import { formatDate, formatMoney, formatPct } from "../i18n/format";
 import { StatTile } from "./StatTile";
 import { ActionForm, AGENDA, type FormAction } from "./ActionForm";
 import { placeIcon, placeName } from "../places/labels";
+import { useSheetClose } from "./useSheetClose";
 
 const TRACKS = ["record", "viability", "standing", "health", "legal_jeopardy", "threat"] as const;
 /** Tracks where a high value is bad (shown with a "risk" bar plus the text label). */
@@ -111,10 +112,11 @@ export function Pocket() {
   const setView = useGame((s) => s.setView);
   const busy = useGame((s) => s.busy);
   const saveAndQuit = useGame((s) => s.saveAndQuit);
+  const [closing, requestClose] = useSheetClose(() => setOpen(false));
   if (!open || !p) return null;
   const h = p.headlines;
   return (
-    <aside className="sheet pocket" aria-label={tr.t("ui-pocket")} data-testid="pocket">
+    <aside className={closing ? "sheet pocket sheet-closing" : "sheet pocket"} aria-label={tr.t("ui-pocket")} data-testid="pocket">
       <div className="sheet-head">
         <div>
           <h2>{tr.t("ui-pocket")}</h2>
@@ -124,7 +126,7 @@ export function Pocket() {
             </p>
           )}
         </div>
-        <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)} aria-label={tr.t("ui-close")}>
+        <button type="button" className="btn btn-ghost" onClick={requestClose} aria-label={tr.t("ui-close")}>
           ✕
         </button>
       </div>
