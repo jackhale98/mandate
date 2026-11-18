@@ -11,7 +11,17 @@
 | M2 Society, economy, environment | **Done**, 2026-11-18 |
 | M3 Local government and policy | **Done**, 2026-11-18 (owner checkpoint) |
 | M4 Elections, parties, NPC AI | **Done**, 2026-11-18 (owner checkpoint) |
-| M5 Characters, places, and narrative | **In progress** (plan: ROADMAP, DEC-079). M5a done: places as the interface (located actions, auto-routing, pocket, information depth). DEC-078 decisions 1–4 done: balance numbers in content parameter blocks, lab `--set`/`--grid`, the concern registry with issue salience, and the scenario registry. |
+| M5 Characters, places, and narrative | **In progress** (plan: ROADMAP, DEC-079). M5a done: places as the interface (located actions, auto-routing, pocket, information depth). DEC-078 decisions 1–4 done: balance numbers in content parameter blocks, lab `--set`/`--grid`, the concern registry with issue salience, and the scenario registry. M5b done: characters (DEC-031) and town character (DEC-077 §1). Next: the director (DEC-033). |
+
+## M5b summary (characters and town character)
+- **Characters (DEC-031, DEC-018):** every politician is a Principal character; Named people from an occupation registry (shopkeepers, organisers, journalists, clergy, union stewards, editors, party chairs, plant managers, farmers, …) are generated when play begins and update lazily, order-independently; Ambient passers-by are generated per place and week and promoted when met. Personality (five axes, 0–3 traits from `traits.jsonc`), values conditioned on the home cohort, competencies.
+- **Relationships, favours, memory:** directed edges (opinion, trust, bonds) and a favour ledger replace the player's `opinion_of_player`/`favors` with identical results. Bounded memory (20/5) from votes, party lines, favours, lobbying, elections, and mayoral signatures and vetoes; betrayals persist, trivia fades.
+- **NPC AI reads personality:** loyalty weighs the party line, integrity resists lobbying, warmth and traits scale opinion changes.
+- **Town character (DEC-077 §1):** defining industry, live crises from `crises.jsonc` (new `job_loss` indicator), power broker, the player's rival, priorities; NPC agendas favour bills that answer them.
+- **Protocol and web:** `CharacterView`, `TownCharacterView`, people at places, `Meet`; a Town card, "People here" on place panels, and character sheets (also from the whip list).
+- **Saves:** format v11, with a migration from v10.
+- **Balance:** see BALANCE_LOG (bots and sweeps pass; generation +8–10%).
+- **Director hooks:** `salient_memories`, `relationship_delta`, `TownCharacter::crisis()` with severity history, broker and rival ids (EXTENDING.md).
 
 ## M0 summary
 - **Rust workspace:** 8 crates, with determinism lints enforced (banned `HashMap`, `std` float transcendentals, wall clock).

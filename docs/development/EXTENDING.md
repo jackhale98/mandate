@@ -93,7 +93,7 @@ Each month (and on load when the crisis registry changed) every town gets a `Tow
 - **Rival:** whoever competes with the town's leading figure (the player in their town, by their filing; elsewhere the mayor) for the next seat: the strongest opponent in a running race, else the seat's holder, else last time's runner-up, else the most ambitious officeholder of another party. Filing recomputes it at once.
 - **Priorities:** the town's top three concerns.
 
-NPC agendas follow it: a template listed in the live crisis's `policies` scores `npc.crisis_agenda` × severity more, and one aligned with the town's concerns `npc.concern_agenda` × fit (`npc::agenda_bonus`).
+NPC agendas follow it: when an NPC picks its next bill, a template listed in the live crisis's `policies` ranks `npc.crisis_agenda` × severity higher, and one aligned with the town's concerns `npc.concern_agenda` × fit (`npc::agenda_bonus`). The bonus changes which idea comes first, not how keen the NPC is to legislate.
 
 Example crisis kind:
 
