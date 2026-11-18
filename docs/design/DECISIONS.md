@@ -37,11 +37,11 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-028 | Election model | Accepted |
 | DEC-029 | Polling & imperfect information | Accepted |
 | DEC-030 | NPC political AI: rule symmetry | Accepted |
-| DEC-031 | Character model, relationships & memory | Proposed (D9) |
-| DEC-032 | NPC goals & storylines | Proposed (D9) |
-| DEC-033 | Narrative director: authority & pacing | Proposed (awaiting owner, D9) |
-| DEC-034 | Media & information model | Proposed (D9) |
-| DEC-035 | Conversations & dialogue | Proposed (D9) |
+| DEC-031 | Character model, relationships & memory | Accepted |
+| DEC-032 | NPC goals & storylines | Accepted |
+| DEC-033 | Narrative director: authority & pacing | Accepted |
+| DEC-034 | Media & information model | Accepted |
+| DEC-035 | Conversations & dialogue | Accepted |
 
 ---
 
@@ -733,7 +733,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-031 — Character model, relationships & memory
 
-- **Status:** Proposed (D9).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision** (applies to Principal and Named NPCs, DEC-018):
   - **Identity:**
     - name,
@@ -766,7 +766,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-032 — NPC goals & storylines
 
-- **Status:** Proposed (D9).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:**
   - **Goals emerge from circumstances.** Goal templates trigger on simulation conditions plus personality. Examples:
     - laid off and high warmth → organize the workers;
@@ -785,7 +785,17 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-033 — Narrative director: authority & pacing
 
-- **Status:** Proposed. Awaiting owner (D9).
+- **Status:** Accepted (owner, 2026-11-18): option B.
+- **Precedent** (agent's knowledge, not re-verified this session):
+  - Classic roguelikes (Rogue, NetHack, Brogue) are effectively A, with pacing coming only from depth-scaled generation.
+  - Modern roguelites pace mainly through *structure* (act maps, guaranteed rest and shop nodes, bosses) plus luck-smoothing. Slay the Spire raises rare-card and potion odds after misses; XCOM 2 adds hidden aim assistance on lower difficulties.
+  - Reactive directors (Left 4 Dead's AI Director, RimWorld's storytellers) are B-like and belong to long-form emergent-story games, Mandate's closest cousins. Over a 6–10 h career, an unlucky pile-up is a ruined run rather than a funny story.
+- **Addendum (proposed, post-MVP):** selectable **storyteller profiles**, following RimWorld:
+  - "Classic": B with a rising-tension curve. This is the default.
+  - "Unfiltered": A-like pure chance, for purists.
+  - "Steady": lower crisis rate.
+
+  Profiles are a transparent difficulty and flavor lever (brief §3.5). They never touch consequences.
 - **Context:** Brief §10.6 and §31.11 say narrative must present, not invent. Yet a pure observer cannot prevent dull stretches or crisis pile-ups, and RimWorld's storytellers work precisely by modulating event generation.
 - **Options:**
   - A. **Pure observer.** All events come from simulation processes. The director only selects which situations are spotlighted (scenes, decisions) and which become news or ambient detail.
@@ -812,7 +822,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-034 — Media & information model
 
-- **Status:** Proposed (D9).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:**
   - **Four information layers** (brief §11):
 
@@ -839,7 +849,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-035 — Conversations & dialogue
 
-- **Status:** Proposed (D9).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:**
   - Conversations are sequences of beats drawn from authored, parameterized dialogue templates. Option types:
     - persuade,

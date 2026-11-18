@@ -7,16 +7,16 @@
 - D1: career in acts accepted (DEC-004).
 - Pacing research (`docs/design/research/RUN_PACING.md`).
 
-- DEC-005 time structure, DEC-006 endings and pressure tracks, DEC-007 constitution as data, DEC-008 ironman with Story mode, DEC-009 walkable hubs (persistent, changed on return), DEC-010 politician first, DEC-011 power model, DEC-012 time model, DEC-013 action economy, DEC-014–016 government tiers, constitution, and default archetype, DEC-018 population, DEC-019 economy, DEC-020 career detours, DEC-021–023 world generation, DEC-024–026 policy (5-state lifecycle), DEC-027–030 parties, elections, polling, NPC AI: accepted.
+- DEC-005 time structure, DEC-006 endings and pressure tracks, DEC-007 constitution as data, DEC-008 ironman with Story mode, DEC-009 walkable hubs (persistent, changed on return), DEC-010 politician first, DEC-011 power model, DEC-012 time model, DEC-013 action economy, DEC-014–016 government tiers, constitution, and default archetype, DEC-018 population, DEC-019 economy, DEC-020 career detours, DEC-021–023 world generation, DEC-024–026 policy (5-state lifecycle), DEC-027–030 parties, elections, polling, NPC AI, DEC-031–035 characters, storylines, director (B), media, dialogue: accepted.
 - Curveball research (`docs/design/research/GOVERNANCE_CURVEBALLS.md`).
 - Draft `docs/design/GAME_VISION.md`.
 
 ## Current (awaiting owner)
-- D9: DEC-031 characters and memory, DEC-032 goals and storylines, DEC-033 director authority, DEC-034 media, DEC-035 dialogue.
+- D10: player character creation, personal life, difficulty.
 - Proposed (technical): DEC-017 constitution primitives.
 
 ## Open UX items (for D12)
 - Turn framing: a "representative day" covering a week; show the calendar span in the header.
 
 ## Next
-- D10: Player character, backgrounds, difficulty.
+- D11: Technical architecture validation.
