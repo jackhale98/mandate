@@ -4,6 +4,19 @@
   "value": {
     "standard_slots": 3,          // Morning, Afternoon, Evening (DEC-013)
     "late_night_enabled": true,   // optional risky fourth slot
+    // What each action costs in time and health (DEC-073). Negative health is recovery.
+    "action_costs": {
+      "canvass": { "slots": 2, "health": 4 },   // a long day on doorsteps
+      "town_hall": { "slots": 1, "health": 1 },
+      "press": { "slots": 1 },
+      "fundraise": { "slots": 1, "health": 2 },
+      "lobby": { "slots": 1 },
+      "trade_favor": { "slots": 1 },
+      "advertise": { "slots": 0 },              // money, not time
+      "rest": { "slots": 1, "health": -12 },
+      "introduce": { "slots": 1 },
+      "amend": { "slots": 1 },
+    },
     "turn_days": {                // DEC-012
       "campaign": 7,
       "final_stretch": 3,

@@ -16,6 +16,63 @@ use mandate_sim::{Engine, State};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// A simulated downside of a policy (DEC-073), for display.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SideEffectView {
+    /// `disruption` | `grievance` | `labour_supply`
+    pub kind: String,
+    /// Who it touches: `low` | `middle` | `high` | `all`.
+    pub group: String,
+    /// Only older residents (45+).
+    pub older: bool,
+    /// Size at these parameters (positive = harm).
+    pub amount: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ActionCostView {
+    pub action: String,
+    pub slots: u32,
+    pub health: f64,
+}
+
+pub fn side_effects_view(
+    t: &mandate_content::PolicyTemplate,
+    p: &PolicyInstance,
+) -> Vec<SideEffectView> {
+    use mandate_content::{ClassKey, SideEffectDef as S};
+    let class = |c: Option<ClassKey>| match c {
+        Some(ClassKey::Low) => "low",
+        Some(ClassKey::Middle) => "middle",
+        Some(ClassKey::High) => "high",
+        None => "all",
+    };
+    t.side_effects
+        .iter()
+        .map(|fx| {
+            let amount = mandate_sim::policy::side_effect_amount(fx, p);
+            let (group, older, amount) = match fx {
+                S::Disruption { .. } => ("all", false, amount),
+                S::Grievance {
+                    class: c,
+                    min_age_band,
+                    ..
+                } => (class(*c), *min_age_band >= 2, amount),
+                // Fewer people working is the harm.
+                S::LabourSupply { class: c, .. } => (class(Some(*c)), false, -amount),
+            };
+            SideEffectView {
+                kind: fx.key().into(),
+                group: group.into(),
+                older,
+                amount,
+            }
+        })
+        .collect()
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct TracksView {
@@ -61,6 +118,7 @@ pub struct PlayerView {
     pub press_gaffe_risk: f64,
     pub ads_left: u32,
     pub ad_cost: f64,
+    pub action_costs: Vec<ActionCostView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -98,6 +156,7 @@ pub struct TemplateView {
     pub secondary_keys: Vec<String>,
     pub support: SupportView,
     pub est_cost_default: f64,
+    pub side_effects: Vec<SideEffectView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -190,6 +249,7 @@ pub struct BillView {
     pub ward_support: f64,
     /// The player owes the sponsor a favour.
     pub owe_sponsor: bool,
+    pub side_effects: Vec<SideEffectView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -442,6 +502,7 @@ fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
         .and_then(|s| st.politics.get(s))
         .is_some_and(|s| !s.is_player && s.favors < 0);
     Some(BillView {
+        side_effects: side_effects_view(t, p),
         my_vote,
         can_vote,
         party_line: match mandate_sim::actions::party_line(st, p.id.0) {
@@ -586,6 +647,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
                     public_support(t, &st.population, &hoods),
                 ),
                 est_cost_default: mandate_sim::policy::annual_cost(t, &probe, residents, price),
+                side_effects: side_effects_view(t, &probe),
             }
         })
         .collect();
@@ -658,6 +720,16 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
             ads_left: mandate_sim::actions::MAX_ADS_PER_TURN.saturating_sub(pl.ads_this_turn)
                 as u32,
             ad_cost: content.politics.campaign.ad_cost as f64,
+            action_costs: content
+                .tuning
+                .action_costs
+                .iter()
+                .map(|(k, c)| ActionCostView {
+                    action: k.clone(),
+                    slots: c.slots as u32,
+                    health: c.health,
+                })
+                .collect(),
             recent_actions: pl
                 .actions
                 .iter()

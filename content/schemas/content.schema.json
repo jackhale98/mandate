@@ -1,5 +1,25 @@
 {
   "$defs": {
+    "ActionCost": {
+      "additionalProperties": false,
+      "properties": {
+        "health": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        },
+        "slots": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "slots"
+      ],
+      "type": "object"
+    },
     "AiAction": {
       "enum": [
         "canvass",
@@ -1122,6 +1142,14 @@
           },
           "type": "array"
         },
+        "side_effects": {
+          "default": [],
+          "description": "Simulated downsides (DEC-073): every policy costs something besides money.",
+          "items": {
+            "$ref": "#/$defs/SideEffectDef"
+          },
+          "type": "array"
+        },
         "signature": {
           "description": "Value alignment over the 8 attitude dimensions (DEC-025 anticipated channel).",
           "items": {
@@ -1410,6 +1438,109 @@
         }
       ]
     },
+    "SideEffectDef": {
+      "description": "A simulated downside of a policy (DEC-073). The amount is `per_unit`\ntimes the named parameter (or 1 without one), scaled by implementation\nprogress, funding, and pilot size like the mechanisms.",
+      "oneOf": [
+        {
+          "description": "Disruption while the programme is being built (roadworks, construction):\nlowers the town's appeal and residents' approval until complete.",
+          "properties": {
+            "param": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "per_unit": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "disruption",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "per_unit"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A lasting grievance among a group the policy hurts materially (approval\nof the government, and of the sponsor). Negative amounts are relief.",
+          "properties": {
+            "class": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ClassKey"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "min_age_band": {
+              "default": 0,
+              "description": "Only adults in this age band or older (0 = 18–29 … 3 = 65+).",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "param": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "per_unit": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "grievance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "per_unit"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Changes how much a class works (share of its labour force).",
+          "properties": {
+            "class": {
+              "$ref": "#/$defs/ClassKey"
+            },
+            "param": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "per_unit": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "labour_supply",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "class",
+            "per_unit"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "StageDef": {
       "oneOf": [
         {
@@ -1567,6 +1698,14 @@
       "additionalProperties": false,
       "description": "Data-driven tuning parameters (REQ-005).",
       "properties": {
+        "action_costs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ActionCost"
+          },
+          "default": {},
+          "description": "Time and health each action costs (DEC-073). Missing actions cost one\nslot and no health; negative health is recovery.",
+          "type": "object"
+        },
         "burn_in_years": {
           "description": "Years of NPC-only simulation before the player starts (DEC-022).",
           "format": "uint8",

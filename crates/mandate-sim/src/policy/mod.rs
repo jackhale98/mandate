@@ -195,6 +195,29 @@ pub struct PolicyMods {
     pub wildfire_protection: f64,
     /// Change to the local property tax rate (share of value per year).
     pub property_tax_delta: f64,
+    /// Disruption from programmes under construction (DEC-073 side effects).
+    pub disruption: f64,
+    /// Change in labour-force participation by class (share).
+    pub labour_supply: [f64; 3],
+}
+
+/// A side effect's size for an instance: `per_unit` × its parameter (or 1).
+pub fn side_effect_amount(fx: &mandate_content::SideEffectDef, p: &PolicyInstance) -> f64 {
+    use mandate_content::SideEffectDef as S;
+    let per_unit = match fx {
+        S::Disruption { per_unit, .. }
+        | S::Grievance { per_unit, .. }
+        | S::LabourSupply { per_unit, .. } => *per_unit,
+    };
+    per_unit * fx.param().map(|k| p.param(k)).unwrap_or(1.0)
+}
+
+pub fn class_index(c: ClassKey) -> usize {
+    match c {
+        ClassKey::Low => 0,
+        ClassKey::Middle => 1,
+        ClassKey::High => 2,
+    }
 }
 
 /// `funded(id)` returns the funded share (0..1) from finance.
@@ -216,6 +239,18 @@ pub fn mods_for(
             continue;
         };
         let k = p.progress as f64 * p.pilot_scale() * funded(p.id.0);
+        // Side effects (DEC-073): disruption while building, labour supply once running.
+        let building = (1.0 - p.progress as f64).max(0.0) * p.pilot_scale() * funded(p.id.0);
+        for fx in &t.side_effects {
+            let a = side_effect_amount(fx, p);
+            match fx {
+                mandate_content::SideEffectDef::Disruption { .. } => out.disruption += a * building,
+                mandate_content::SideEffectDef::LabourSupply { class, .. } => {
+                    out.labour_supply[class_index(*class)] += a * k
+                }
+                mandate_content::SideEffectDef::Grievance { .. } => {}
+            }
+        }
         for mech in &t.mechanisms {
             match mech {
                 MechanismDef::Service {

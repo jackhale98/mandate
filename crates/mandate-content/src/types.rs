@@ -338,6 +338,9 @@ pub struct PolicyTemplate {
     pub signature: [f64; 8],
     /// Fluent keys for at least one secondary effect (REQ-006).
     pub secondary_keys: Vec<String>,
+    /// Simulated downsides (DEC-073): every policy costs something besides money.
+    #[serde(default)]
+    pub side_effects: Vec<SideEffectDef>,
     /// Power required to propose it.
     pub requires: Power,
 }
@@ -354,6 +357,78 @@ pub struct PackManifest {
     pub load_order: i32,
 }
 
+/// A simulated downside of a policy (DEC-073). The amount is `per_unit`
+/// times the named parameter (or 1 without one), scaled by implementation
+/// progress, funding, and pilot size like the mechanisms.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum SideEffectDef {
+    /// Disruption while the programme is being built (roadworks, construction):
+    /// lowers the town's appeal and residents' approval until complete.
+    Disruption {
+        per_unit: f64,
+        #[serde(default)]
+        param: Option<String>,
+    },
+    /// A lasting grievance among a group the policy hurts materially (approval
+    /// of the government, and of the sponsor). Negative amounts are relief.
+    Grievance {
+        #[serde(default)]
+        class: Option<ClassKey>,
+        /// Only adults in this age band or older (0 = 18–29 … 3 = 65+).
+        #[serde(default)]
+        min_age_band: u8,
+        per_unit: f64,
+        #[serde(default)]
+        param: Option<String>,
+    },
+    /// Changes how much a class works (share of its labour force).
+    LabourSupply {
+        class: ClassKey,
+        per_unit: f64,
+        #[serde(default)]
+        param: Option<String>,
+    },
+}
+
+impl SideEffectDef {
+    pub fn param(&self) -> Option<&str> {
+        match self {
+            SideEffectDef::Disruption { param, .. }
+            | SideEffectDef::Grievance { param, .. }
+            | SideEffectDef::LabourSupply { param, .. } => param.as_deref(),
+        }
+    }
+    /// Fluent key suffix describing the effect (`sidefx-…`).
+    pub fn key(&self) -> &'static str {
+        match self {
+            SideEffectDef::Disruption { .. } => "disruption",
+            SideEffectDef::Grievance { .. } => "grievance",
+            SideEffectDef::LabourSupply { .. } => "labour_supply",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ActionCost {
+    pub slots: u8,
+    #[serde(default)]
+    pub health: f64,
+}
+
+impl Tuning {
+    pub fn action_cost(&self, action: &str) -> ActionCost {
+        self.action_costs
+            .get(action)
+            .copied()
+            .unwrap_or(ActionCost {
+                slots: 1,
+                health: 0.0,
+            })
+    }
+}
+
 /// Data-driven tuning parameters (REQ-005).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -368,6 +443,10 @@ pub struct Tuning {
     pub burn_in_years: u8,
     /// Calendar year the history begins.
     pub start_year: u32,
+    /// Time and health each action costs (DEC-073). Missing actions cost one
+    /// slot and no health; negative health is recovery.
+    #[serde(default)]
+    pub action_costs: std::collections::BTreeMap<String, ActionCost>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]

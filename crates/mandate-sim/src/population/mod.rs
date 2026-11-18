@@ -669,12 +669,16 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         } else {
             0.0
         };
-        let experienced = -8.0 * (du - dn) - 2.0 * rent_growth + 2.0 * services - disaster;
+        let experienced = -8.0 * (du - dn) - 2.0 * rent_growth + 2.0 * services
+            - disaster
+            - 1.5 * mods.disruption;
         // Reactions to laws and bills, pre-summed into one weighted signature
         // per town (linear in attitudes, so each cohort needs one dot product).
         let mut gov_vec = [0.0f64; ATTITUDES];
         let mut player_vec = [0.0f64; ATTITUDES];
         let mut n_gov = 0usize;
+        let mut grievance = [[0.0f64; CLASSES]; AGE_BANDS];
+        let mut player_grievance = [[0.0f64; CLASSES]; AGE_BANDS];
         for p in policy.in_municipality(m as u32).filter(|p| {
             matches!(
                 p.status,
@@ -704,6 +708,30 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             if p.status != PolicyStatus::UnderConsideration {
                 n_gov += 1;
             }
+            // Grievances (DEC-073): groups a law hurts materially, while it runs.
+            if p.status == PolicyStatus::InEffect {
+                let k = p.progress as f64 * p.pilot_scale() * fin.funded_share(p.id.0);
+                for fx in &t.side_effects {
+                    if let mandate_content::SideEffectDef::Grievance {
+                        class,
+                        min_age_band,
+                        ..
+                    } = fx
+                    {
+                        let a = crate::policy::side_effect_amount(fx, p) * k;
+                        for age in (*min_age_band as usize).min(AGE_BANDS - 1)..AGE_BANDS {
+                            for c in 0..CLASSES {
+                                if class.is_none_or(|x| crate::policy::class_index(x) == c) {
+                                    grievance[age][c] += a;
+                                    if mine {
+                                        player_grievance[age][c] += a;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         // Many laws should not saturate opinion: scale by √n.
         let gov_scale = 1.0 / mandate_core::math::sqrt(n_gov.max(1) as f64);
@@ -716,8 +744,9 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                     gov_react += gov_vec[k] * c.attitudes[k] as f64;
                     player_react += player_vec[k] * c.attitudes[k] as f64;
                 }
-                let gov_react = clamp(gov_react * gov_scale, -2.0, 2.0);
-                let player_react = clamp(player_react, -2.0, 2.0);
+                let class = ci % CLASSES;
+                let gov_react = clamp(gov_react * gov_scale - grievance[a][class], -2.0, 2.0);
+                let player_react = clamp(player_react - player_grievance[a][class], -2.0, 2.0);
                 let target = 0.5 + 0.5 * tanh(experienced + 0.6 * gov_react);
                 c.gov_approval = (c.gov_approval as f64 * 0.92 + target * 0.08) as f32;
                 c.player_approval = clamp(

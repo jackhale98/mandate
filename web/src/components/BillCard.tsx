@@ -8,6 +8,7 @@ import type { TownView } from "../engine/protocol/TownView";
 import { useGame } from "../state/gameStore";
 import { formatDate, formatMoney } from "../i18n/format";
 import { ParamSliders } from "./ParamSliders";
+import { TradeOffs } from "./TradeOffs";
 
 /** Signed −1..1 score shown as −100..+100 with a text label (never colour alone, DEC-051). */
 export function SupportBars({ s }: { s: SupportView }) {
@@ -202,6 +203,7 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
         <div className="why">
           <h4 className="sub">{tr.t("ui-support")}</h4>
           <SupportBars s={bill.support} />
+          <TradeOffs effects={bill.side_effects} />
           {template && template.secondary_keys.length > 0 && (
             <>
               <h4 className="sub">{tr.t("ui-secondary")}</h4>

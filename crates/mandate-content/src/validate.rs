@@ -315,6 +315,29 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         if p.mechanisms.is_empty() {
             issues.push(Issue::error(&p.id, "policy needs at least one mechanism"));
         }
+        for fx in &p.side_effects {
+            if let Some(param) = fx.param()
+                && !has(param)
+            {
+                issues.push(Issue::error(
+                    &p.id,
+                    &format!("side effect references unknown parameter `{param}`"),
+                ));
+            }
+        }
+        // DEC-073: every decision is a trade-off. Money alone is not enough: a
+        // policy needs a simulated downside (a side effect, or a mechanism with
+        // one built in, such as a wage floor's job losses).
+        let inherent = p
+            .mechanisms
+            .iter()
+            .any(|m| matches!(m, M::WageFloor { .. }));
+        if p.side_effects.is_empty() && !inherent {
+            issues.push(Issue::error(
+                &p.id,
+                "policy has no simulated trade-off: add a side effect (DEC-073)",
+            ));
+        }
         if p.secondary_keys.is_empty() {
             issues.push(Issue::error(
                 &p.id,

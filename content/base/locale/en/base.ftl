@@ -335,7 +335,7 @@ concern-safety = Safety
 concern-environment = Environment
 concern-taxes = Taxes
 ui-agenda = Agenda
-ui-agenda-help = Each action uses one slot. Late-night meetings use your extra slot but cost health and carry legal risk.
+ui-agenda-help = You have three slots a turn. Each action shows what it costs in time and health. A late-night meeting uses an extra slot but costs health and carries legal risk.
 action-canvass = Canvass a neighbourhood
 action-town-hall = Hold a town hall
 action-press = Talk to the press
@@ -561,11 +561,11 @@ ui-continue-game = Continue
 ui-parties = Parties
 
 ## Trade-offs (DEC-073)
-tradeoff-canvass = 1 slot · −3 health. Builds name recognition and turnout in one neighbourhood; slow but lasting.
-tradeoff-town-hall = 1 slot. Reaches a neighbourhood and puts a bill in the spotlight, for better or worse.
-tradeoff-press = 1 slot. Reaches the whole town a little, but a gaffe costs goodwill.
-tradeoff-fundraise = 1 slot · −2 health. Money and party goodwill, but low-income voters notice who you court.
-tradeoff-rest = 1 slot. Recovers health; below 35 health you lose a slot each turn.
+tradeoff-canvass = A long day on doorsteps: the deepest contact there is. Builds name recognition and turnout in one neighbourhood; slow but lasting.
+tradeoff-town-hall = Reaches a neighbourhood and puts a bill in the spotlight, for better or worse.
+tradeoff-press = Reaches the whole town a little, but a gaffe costs goodwill.
+tradeoff-fundraise = Money and party goodwill, but low-income voters notice who you court.
+tradeoff-rest = Recovers health; below 35 health you lose a slot each turn.
 tradeoff-advertise = Costs { $cost } per buy, no time. Reaches every neighbourhood thinly; the effect fades and does little for turnout.
 ui-risk-hostile = Hostile-crowd risk { $pct }%.
 ui-risk-gaffe = Gaffe risk { $pct }%.
@@ -594,3 +594,26 @@ outcome-vote-yes = You declared your vote: yes.
 outcome-vote-no = You declared your vote: no.
 outcome-vote-abstain = You declared you will abstain.
 event-rules-updated = The game was updated (version { $version }). New rules apply from today.
+ui-cost-line = { $slots ->
+    [one] 1 slot
+   *[other] { $slots } slots
+}{ $health ->
+    [0] .
+   *[other] , −{ $health } health.
+}
+ui-tradeoffs = Trade-offs
+sidefx-disruption = Disruption while it is built ({ $size }).
+sidefx-grievance = Resented by { $group } ({ $size }).
+sidefx-labour_supply = { $group } work a little less ({ $size }).
+sidefx-group-low = low-income residents
+sidefx-group-low-older = older low-income residents
+sidefx-group-middle = middle-income residents
+sidefx-group-middle-older = older middle-income residents
+sidefx-group-high = better-off residents
+sidefx-group-high-older = older, better-off homeowners
+sidefx-group-all = residents
+sidefx-group-all-older = older residents and homeowners
+sidefx-size-small = small
+sidefx-size-moderate = moderate
+sidefx-size-large = large
+sidefx-size-relief = welcomed instead

@@ -3,6 +3,7 @@ import type { ClauseDto } from "./ClauseDto";
 import type { DateView } from "./DateView";
 import type { LedgerEntry } from "./LedgerEntry";
 import type { ParamValue } from "./ParamValue";
+import type { SideEffectView } from "./SideEffectView";
 import type { SupportView } from "./SupportView";
 import type { VoteView } from "./VoteView";
 import type { WhipView } from "./WhipView";
@@ -43,4 +44,4 @@ ward_support: number,
 /**
  * The player owes the sponsor a favour.
  */
-owe_sponsor: boolean, };
+owe_sponsor: boolean, side_effects: Array<SideEffectView>, };

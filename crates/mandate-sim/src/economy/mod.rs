@@ -313,7 +313,13 @@ pub fn init(
 /// Monthly: global demand cycle, recessions, and commodity prices.
 pub fn global(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let p = &r.content.economy;
-    let rng = out.rng.get(Stream::Economy);
+    // The world economy is exogenous: its draws are keyed by month so nothing
+    // that happens in any town (or a balance change to local systems) can
+    // reshuffle when global recessions arrive.
+    let _ = &out.rng;
+    let mut keyed =
+        mandate_core::rng::keyed(r.meta.seed, Stream::Economy, &[0x6C0B, r.date.0 as u64]);
+    let rng = &mut keyed;
     let g = &mut econ.global;
     let target = match &mut g.recession {
         Some(rec) => {
@@ -395,7 +401,10 @@ fn settle_labour_and_incomes(
     let neutral = e.neutral_real_rate + e.inflation_target;
     let propensity = clamp(1.0 - 2.5 * (econ.national.policy_rate - neutral), 0.85, 1.1);
     let mid = MunicipalityId(m as u32);
-    let lf_c = pop.labour_force_by_class(world, mid);
+    let mut lf_c = pop.labour_force_by_class(world, mid);
+    for (c, v) in lf_c.iter_mut().enumerate() {
+        *v *= (1.0 + mods.labour_supply[c]).max(0.5);
+    }
     let cohorts = pop.municipality_cohorts(world, mid);
     let mu = &mut econ.munis[m];
     let lf: f64 = lf_c.iter().sum::<f64>().max(1.0);
@@ -454,7 +463,8 @@ fn settle_labour_and_incomes(
         + 0.3 * world.municipalities[m].geo.scenic
         + 0.8 * services
         + capital_bonus
-        - disaster;
+        - disaster
+        - mods.disruption;
 }
 
 /// Monthly: sector demand, jobs, closures, wages, housing, incomes.

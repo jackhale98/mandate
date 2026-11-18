@@ -1375,7 +1375,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
   | Decision | Gains | Costs / risks |
   |---|---|---|
-  | Canvass | Name recognition and turnout in one neighbourhood; lasting | 1 slot, −3 health; slow; diminishing returns |
+  | Canvass | The deepest contact: name recognition and turnout in one neighbourhood; lasting | **2 slots** (a long day), −4 health; slow; diminishing returns |
   | Town hall | Reach plus a spotlight on a bill | 1 slot; hostile-crowd risk where you or the town hall are unpopular (odds shown) |
   | Press | Town-wide reach | 1 slot; gaffe risk falling with oratory (odds shown) |
   | Fundraise | Money, +Standing | 1 slot, −2 health; low-income voters cool on you; late at night adds legal risk |
@@ -1386,6 +1386,14 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   | Riders | Ward project buys a vote; sunsets and pilots make bills easier to pass | Ward projects cost money and irritate other wards' councillors; sunsets expire; pilots are small |
   | Run for mayor | A bigger office | You give up your council seat; a bigger, riskier race |
 
+- **Policies too:**
+  - Every policy template declares simulated side effects (`side_effects` in content). There are three primitives:
+    - **disruption** while it is built (lowers the town's appeal and residents' approval);
+    - **grievance** among a group it hurts (approval of the government and the sponsor, by class and age);
+    - **labour supply** (people work less or more).
+  - Content validation rejects a policy whose only cost is money, unless one of its mechanisms carries a built-in downside (a wage floor's job losses).
+  - The catalogue and "Why?" panels list each policy's trade-offs with a size in words.
+- **Action costs are data:** `tuning.jsonc` → `action_costs` (slots, and health where negative values are recovery). NPCs pay the same costs (DEC-030).
 - **Health is a resource:** below 35 health the player has one fewer slot, and below 15 two fewer. Recovery comes from rest and slow monthly recovery.
 - **Verification:** the bot tournament (DEC-072) must show mixed approaches beating single-lever strategies, with no dominant strategy. Each new action added to content must list its costs here.
 - **Deferred:** NPC health and exhaustion (NPCs remain symmetric in slots and odds, but their health is abstracted).

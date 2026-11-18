@@ -91,11 +91,15 @@ fn rejects_corruption() {
     assert!(decode(&bytes).is_err());
 }
 
-/// If this fails, the serialized state shape changed: bump SAVE_FORMAT_VERSION,
-/// add a migration in `migrate`, add a fixture, then update EXPECTED.
+/// If this fails, the serialized state shape may have changed: if any
+/// serialized struct or enum changed, bump SAVE_FORMAT_VERSION, add a
+/// migration in `migrate`, add a fixture, then update EXPECTED. The
+/// fingerprint is taken from a sample game, so a content or balance change can
+/// alter it with no struct change; then (and only then, after checking the
+/// diff) update the hash without bumping the version.
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (5, "31b296c4d596af1b");
+    const EXPECTED: (u16, &str) = (5, "d5465d43a755f2b8");
     let c = content();
     let mut e = generate(
         &WorldConfig {

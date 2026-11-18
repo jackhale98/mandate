@@ -8,6 +8,7 @@ import { formatDate, formatMoney } from "../i18n/format";
 import { StatTile } from "../components/StatTile";
 import { BillCard, SupportBars } from "../components/BillCard";
 import { ParamSliders } from "../components/ParamSliders";
+import { TradeOffs } from "../components/TradeOffs";
 
 const TRACKS = ["viability", "standing", "health", "legal_jeopardy", "threat"] as const;
 /** Tracks where a high value is bad (shown with a "risk" bar plus the text label). */
@@ -104,7 +105,9 @@ export function Agenda({ o, campaigning = false }: { o: OfficeView; campaigning?
   const live = o.bills.filter((b) => b.status !== "ended" && b.status !== "draft");
   const lateAllowed = kind === "fundraise";
   const useLate = late && lateAllowed;
-  const canAct = useLate ? p.late_night_available : p.slots_left > 0;
+  const costOf = (k: string) => p.action_costs.find((c) => c.action === k) ?? { action: k, slots: 1, health: 0 };
+  const cost = costOf(kind);
+  const canAct = useLate ? p.late_night_available : p.slots_left >= cost.slots;
 
   const action = (): ActionDto => {
     switch (kind) {
@@ -164,7 +167,7 @@ export function Agenda({ o, campaigning = false }: { o: OfficeView; campaigning?
       )}
       {/* Every option shows what it costs and what it risks before you commit (DEC-073). */}
       <p className="tradeoff" data-testid="tradeoff">
-        {tr.t(`tradeoff-${kind.replace("_", "-")}`)}
+        {tr.t("ui-cost-line", { slots: cost.slots, health: Math.max(0, cost.health) })} {tr.t(`tradeoff-${kind.replace("_", "-")}`)}
         {kind === "town_hall" && <strong> {tr.t("ui-risk-hostile", { pct: pct(hallRisk) })}</strong>}
         {kind === "press" && <strong> {tr.t("ui-risk-gaffe", { pct: pct(p.press_gaffe_risk) })}</strong>}
         {kind === "fundraise" && useLate && <strong> {tr.t("ui-risk-late-money")}</strong>}
@@ -232,6 +235,7 @@ function TemplateCard({ t }: { t: TemplateView }) {
           <ParamSliders defs={t.params} values={params} onChange={setParams} />
           <h4 className="sub">{tr.t("ui-support")}</h4>
           <SupportBars s={t.support} />
+          <TradeOffs effects={t.side_effects} />
           {t.secondary_keys.length > 0 && (
             <>
               <h4 className="sub">{tr.t("ui-secondary")}</h4>

@@ -182,7 +182,15 @@ fn validate_params(
     Ok(out)
 }
 
-fn use_slot(state: &mut State, late_night: bool) -> Result<(), EngineError> {
+/// Pay an action's time and health (from content, DEC-073). Late-night work
+/// uses the extra slot instead and costs health on top.
+fn spend(
+    state: &mut State,
+    content: &ContentBundle,
+    action: &str,
+    late_night: bool,
+) -> Result<(), EngineError> {
+    let cost = content.tuning.action_cost(action);
     let pl = state.player.as_mut().ok_or_else(|| bad("no player"))?;
     if late_night {
         if pl.late_night_used {
@@ -191,11 +199,12 @@ fn use_slot(state: &mut State, late_night: bool) -> Result<(), EngineError> {
         pl.late_night_used = true;
         pl.tracks.health = (pl.tracks.health - 8.0).max(0.0);
     } else {
-        if pl.slots_left() == 0 {
-            return Err(bad("no slots left this turn"));
+        if pl.slots_left() < cost.slots {
+            return Err(bad("not enough time left this turn"));
         }
-        pl.slots_used += 1;
+        pl.slots_used += cost.slots;
     }
+    pl.tracks.health = clamp(pl.tracks.health as f64 - cost.health, 0.0, 100.0) as f32;
     Ok(())
 }
 
@@ -504,7 +513,7 @@ pub fn apply(
             let params = validate_params(content, &template, params)?;
             validate_clauses(state, m, clauses)?;
             if status == PolicyStatus::UnderConsideration {
-                use_slot(state, false)?;
+                spend(state, content, "amend", false)?;
                 // Amendments cost goodwill already built: halve existing sway.
                 for (k, v) in state.politics.sway.iter_mut() {
                     if k.1 == *policy {
@@ -530,7 +539,7 @@ pub fn apply(
                 .and_then(|t| t.procedure("ordinance"))
                 .map(|p| p.deliberation_days)
                 .unwrap_or(21);
-            use_slot(state, false)?;
+            spend(state, content, "introduce", false)?;
             let ev = state.events.record(
                 date,
                 EventKind::PolicyIntroduced {
@@ -611,7 +620,16 @@ pub fn apply(
                         .get(pl.politician)
                         .map(|x| x.negotiation)
                         .unwrap_or(0.5) as f64;
-                    use_slot(state, *late_night)?;
+                    spend(
+                        state,
+                        content,
+                        if matches!(action, Action::TradeFavor { .. }) {
+                            "trade_favor"
+                        } else {
+                            "lobby"
+                        },
+                        *late_night,
+                    )?;
                     let rng = state.rng.get(Stream::Player);
                     let trade = matches!(action, Action::TradeFavor { .. });
                     let success = trade || rng.chance(odds);
@@ -672,7 +690,7 @@ pub fn apply(
                         local_policy(state, *id)?;
                     }
                     let risk = town_hall_risk(state, *neighborhood);
-                    use_slot(state, false)?;
+                    spend(state, content, "town_hall", false)?;
                     let hostile = state.rng.get(Stream::Player).chance(risk);
                     let oratory = state
                         .politics
@@ -725,7 +743,7 @@ pub fn apply(
                         local_policy(state, *id)?;
                     }
                     let risk = press_gaffe_risk(state);
-                    use_slot(state, false)?;
+                    spend(state, content, "press", false)?;
                     let gaffe = state.rng.get(Stream::Player).chance(risk);
                     let hoods: Vec<usize> = state.world.hoods_of(MunicipalityId(m)).collect();
                     for h in hoods {
@@ -765,7 +783,7 @@ pub fn apply(
                     if h.municipality.0 != m {
                         return Err(bad("that neighbourhood is not in your town"));
                     }
-                    use_slot(state, false)?;
+                    spend(state, content, "canvass", false)?;
                     for c in state.population.hoods[*neighborhood as usize]
                         .cohorts
                         .iter_mut()
@@ -773,16 +791,13 @@ pub fn apply(
                         // Contact mostly builds recognition; persuasion is small,
                         // saturating, and decays (DEC-071 §5).
                         let aw = c.player_awareness as f64;
-                        c.player_awareness = clamp(aw + 0.3 * (1.0 - aw), 0.0, 1.0) as f32;
+                        c.player_awareness = clamp(aw + 0.45 * (1.0 - aw), 0.0, 1.0) as f32;
                         let room = 1.0 - (c.player_approval as f64).abs();
                         c.player_approval =
-                            clamp(c.player_approval as f64 + 0.015 * room, -1.0, 1.0) as f32;
+                            clamp(c.player_approval as f64 + 0.02 * room, -1.0, 1.0) as f32;
                     }
-                    campaign_contact(state, content, Some(*neighborhood), 1.0);
-                    // Door-knocking is the slow, tiring way to win (time and health).
-                    if let Some(p) = state.player.as_mut() {
-                        p.tracks.health = (p.tracks.health - 3.0).max(0.0);
-                    }
+                    // A full day on the doorsteps: deeper than any other contact.
+                    campaign_contact(state, content, Some(*neighborhood), 1.6);
                     res.outcome_key = "outcome-canvass".into();
                     res.args.insert(
                         "place".into(),
@@ -792,7 +807,7 @@ pub fn apply(
                     );
                 }
                 Action::Fundraise => {
-                    use_slot(state, *late_night)?;
+                    spend(state, content, "fundraise", *late_night)?;
                     let oratory = state
                         .politics
                         .get(pl.politician)
@@ -805,7 +820,6 @@ pub fn apply(
                         p.money += money;
                         // The party likes a fundraiser; late-night money invites scrutiny.
                         p.tracks.standing = (p.tracks.standing + 0.5).min(100.0);
-                        p.tracks.health = (p.tracks.health - 2.0).max(0.0);
                         if *late_night {
                             p.tracks.legal_jeopardy = (p.tracks.legal_jeopardy + 1.0).min(100.0);
                         }
@@ -861,10 +875,7 @@ pub fn apply(
                     res.args.insert("amount".into(), cost.units().to_string());
                 }
                 Action::Rest => {
-                    use_slot(state, false)?;
-                    if let Some(p) = state.player.as_mut() {
-                        p.tracks.health = (p.tracks.health + 12.0).min(100.0);
-                    }
+                    spend(state, content, "rest", false)?;
                     res.outcome_key = "outcome-rest".into();
                 }
             }

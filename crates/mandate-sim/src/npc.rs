@@ -379,6 +379,19 @@ fn feasible(a: AiAction, x: &Inputs) -> bool {
     }
 }
 
+/// The content key of an AI action's time cost (shared with the player).
+pub fn cost_key(a: AiAction) -> &'static str {
+    match a {
+        AiAction::Canvass => "canvass",
+        AiAction::TownHall => "town_hall",
+        AiAction::Advertise => "advertise",
+        AiAction::Fundraise => "fundraise",
+        AiAction::Lobby => "lobby",
+        AiAction::ProposeBill => "introduce",
+        AiAction::Rest => "rest",
+    }
+}
+
 /// Weighted chance among the best `top_n` (seeded).
 fn choose(scored: &[(AiAction, f64)], top_n: usize, rng: &mut SimRng) -> Option<AiAction> {
     let top: Vec<&(AiAction, f64)> = scored
@@ -411,8 +424,16 @@ pub fn take_turn(state: &mut State, content: &ContentBundle, m: u32, full: bool)
         if !full && x.campaigning > 0.5 {
             continue;
         }
+        // The same time budget and action costs as the player (DEC-030, DEC-073).
+        let mut left = slots;
         for slot in 0..slots {
-            let scored = score(content, profile, &x);
+            if left == 0 {
+                break;
+            }
+            let scored: Vec<(AiAction, f64)> = score(content, profile, &x)
+                .into_iter()
+                .filter(|(a, _)| content.tuning.action_cost(cost_key(*a)).slots <= left)
+                .collect();
             let mut rng = mandate_core::rng::keyed(
                 state.meta.seed,
                 Stream::Npc,
@@ -422,6 +443,7 @@ pub fn take_turn(state: &mut State, content: &ContentBundle, m: u32, full: bool)
                 break;
             };
             act(state, content, id, action, &x, &mut rng);
+            left = left.saturating_sub(content.tuning.action_cost(cost_key(action)).slots.max(1));
             match action {
                 AiAction::ProposeBill => {
                     x.no_own_bill = 0.0;

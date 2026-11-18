@@ -157,13 +157,26 @@ fn actions_spend_slots_and_validate() {
     let mut e = world(33);
     let pl = e.state().player.clone().unwrap();
     let hood = e.state().world.municipalities[pl.municipality.index()].neighborhoods[0].0;
-    for _ in 0..pl.standard_slots {
+    // Canvassing takes two slots (a long day), press one: three in all.
+    e.apply(Command::Player(PlayerCommand::Act {
+        action: Action::Canvass { neighborhood: hood },
+        late_night: false,
+    }))
+    .unwrap();
+    assert_eq!(e.state().player.as_ref().unwrap().slots_left(), pl.standard_slots - 2);
+    assert!(
         e.apply(Command::Player(PlayerCommand::Act {
             action: Action::Canvass { neighborhood: hood },
             late_night: false,
         }))
-        .unwrap();
-    }
+        .is_err(),
+        "a second canvass needs two free slots"
+    );
+    e.apply(Command::Player(PlayerCommand::Act {
+        action: Action::Press { policy: None },
+        late_night: false,
+    }))
+    .unwrap();
     assert_eq!(e.state().player.as_ref().unwrap().slots_left(), 0);
     let err = e.apply(Command::Player(PlayerCommand::Act {
         action: Action::Rest,
