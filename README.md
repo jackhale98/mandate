@@ -1,6 +1,6 @@
 # Mandate
 
-A political career roguelike set in a procedurally generated fictional country. Start in local politics, climb toward the presidency, and try to hold power through your first midterms.
+A political career roguelike set in a procedurally generated fictional country. Start in local politics, climb toward head of government, and try to win the Mandate Test: the first national verdict on your rule.
 
 **Status:** Design complete. The final system plan is awaiting approval; there is no code yet.
 
