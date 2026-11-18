@@ -71,6 +71,9 @@ export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
   const fitScale = Math.min(size.w / view.width, size.h / view.height);
   const portrait = size.h > size.w * 1.2;
   const cam = useRef<Camera | null>(null);
+  const lastSize = useRef<{ w: number; h: number } | null>(null);
+  // Once the player pans or zooms, resizes keep their view.
+  const touched = useRef(false);
   const frame = useRef(0);
   const camera = (): Camera => {
     if (!cam.current) {
@@ -166,7 +169,25 @@ export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(size.w * dpr);
     canvas.height = Math.round(size.h * dpr);
-    cam.current = null; // re-fit for the new size
+    // Keep the player's view on resize: mobile browsers resize the page when
+    // the address bar shows or hides mid-gesture, and re-fitting here made
+    // the map jump. Only re-clamp the zoom to the new bounds.
+    // The canvas's top-left corner stays put when the height changes, so keep
+    // the map point under it fixed (no nudge when the address bar moves).
+    const prev = lastSize.current;
+    lastSize.current = size;
+    if (!touched.current) {
+      cam.current = null; // still the automatic view: fit the new size
+    } else if (cam.current && prev) {
+      const fit = Math.min(size.w / view.width, size.h / view.height);
+      const c = cam.current;
+      const scale = Math.min(Math.max(c.scale, fit * 0.8), fit * 10);
+      cam.current = {
+        scale,
+        x: c.x - prev.w / (2 * c.scale) + size.w / (2 * scale),
+        y: c.y - prev.h / (2 * c.scale) + size.h / (2 * scale),
+      };
+    }
     requestDraw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size]);
@@ -191,6 +212,7 @@ export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
 
   /** Zoom to an absolute scale, keeping the cell under (sx, sy) fixed. */
   const zoomTo = (target: number, sx: number, sy: number) => {
+    touched.current = true;
     const c = camera();
     const s1 = Math.min(Math.max(target, fitScale * 0.8), fitScale * 10);
     const mx = c.x + (sx - size.w / 2) / c.scale;
@@ -228,6 +250,7 @@ export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
     const dx = cur.x - prev.x;
     const dy = cur.y - prev.y;
     if (Math.abs(dx) + Math.abs(dy) > 2) gesture.current.moved = true;
+    touched.current = true;
     const c = camera();
     cam.current = clampCam({ scale: c.scale, x: c.x - dx / c.scale, y: c.y - dy / c.scale });
     requestDraw();
