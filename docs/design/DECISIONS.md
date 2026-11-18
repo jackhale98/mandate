@@ -83,6 +83,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-074 | Saves across app updates | Accepted |
 | DEC-075 | Extensibility: registries over hard-coded dimensions | Accepted |
 | DEC-076 | Difficulty target: rare wins, rich stories | Accepted |
+| DEC-077 | Run-to-run variety: town character, varied openings, situational policies, variety check | Accepted |
 
 ---
 
@@ -1484,3 +1485,27 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
   Per-tier NPC competence and poll noise are the tuning levers (DEC-038). The target is that each step up wins less often, with the overall win rate landing at 5–10%.
 - **When:** metrics are added to the lab (story-beat counter, ending distribution, full-career bots) as Acts 2–4 come online. Gates go into CI and the nightly runs from M6. No tuning toward these targets before then.
+
+### DEC-077 — Run-to-run variety
+
+- **Status:** Accepted (owner, 2026-11-18). Context: the owner asked whether runs will vary enough to stay interesting. The assessment: variety in the world itself (geography, history, parties, shocks, NPCs) is strong. Variety in decisions is the risk: every run opens the same way, with the same policy menu and actions, and an optimal routine is easy to find.
+- **Decisions:**
+  1. **Town character (M5).** Each town takes on a character that the player sees and feels, derived from simulation state rather than authored per run:
+     - a defining industry (from the sector registry, DEC-075);
+     - a live local crisis (for example a plant at risk, a housing squeeze, a flood-prone district, or a fiscal hole);
+     - a power broker (an organisation or a named NPC with a stake);
+     - a named rival;
+     - local priorities that change which issues voters weigh.
+
+     The town's policy emphasis and NPC agendas follow from it.
+  2. **Varied openings (M6, with the draft of three).** Candidates differ in situation as well as background:
+     - challenger or incumbent;
+     - a safe or a marginal seat;
+     - an inherited scandal;
+     - a town in crisis;
+     - a hostile or a friendly council;
+     - a party in or out of power.
+  3. **Situational policies (M5).** Some policy templates unlock only when circumstances call for them: a closure-response package after a plant shuts, a rebuild fund after a disaster, an emergency rent measure in a housing crisis. They are content templates with unlock conditions, validated like all policies (DEC-073 trade-offs apply).
+  4. **Dilemma events (M5, through the director, DEC-033).** These are moments where every option costs someone. They are built from live state, warned in advance, and explained afterwards.
+  5. **A variety check in the lab (M5).** Beyond "no dominant strategy" (DEC-072), the bot tournament reports the best strategy per world. It must differ across worlds and situations, so that no single routine wins everywhere. It becomes a CI gate alongside the DEC-076 story targets.
+- **Dependencies:** DEC-032, DEC-033, DEC-036, DEC-073, DEC-075, DEC-076.
