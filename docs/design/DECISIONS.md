@@ -18,8 +18,11 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-009 | Presence model: embodied scenes + strategic layer | Accepted |
 | DEC-010 | Player role: politician first, administration mediated | Accepted |
 | DEC-011 | Player power & resource model | Accepted |
-| DEC-012 | Time model: discrete turns, phase-based cadence, time skips | Proposed (awaiting owner, D3) |
-| DEC-013 | Action economy: representative day, slots, delegation, commitments | Proposed (awaiting owner, D3) |
+| DEC-012 | Time model: discrete turns, phase-based cadence, time skips | Accepted |
+| DEC-013 | Action economy: representative day, slots, delegation, commitments | Accepted |
+| DEC-014 | Government tiers & office ladder | Proposed (D4) |
+| DEC-015 | Constitution parameter space & archetypes | Proposed (D4) |
+| DEC-016 | Default / MVP constitutional archetype | Proposed (awaiting owner, D4) |
 
 ---
 
@@ -248,7 +251,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-012 — Time model: discrete turns, phase-based cadence, time skips
 
-- **Status:** Proposed. Awaiting owner (D3).
+- **Status:** Accepted (owner, 2026-11-18): option C.
 - **Context:** DEC-005 sets real-time targets (turn 1–3 min, chapter 25–45 min). This decision sets how much calendar time a turn represents, and how skipped time works.
 - **Options:**
   - A. Real-time with pause (RimWorld / Paradox).
@@ -280,7 +283,9 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-013 — Action economy: representative day, slots, delegation, commitments
 
-- **Status:** Proposed. Awaiting owner (D3).
+- **Status:** Accepted (owner, 2026-11-18): option C, with two notes:
+  - **Framing risk.** The owner is concerned that "one day" stands for a week or more. UX mitigation (resolve in D12): the turn header shows the calendar span (e.g. "Week of 3 March"), and slots are presented as agenda blocks for that span ("this week's mornings"). The hub keeps day-part lighting as a stylization.
+  - **Slot count is a tuning parameter** (REQ-005). Three standard slots is a starting value. Levers: base slots, Late Night, delegated staff slots, and slot cost per action.
 - **Context:** The brief (§4.2) asks for limited actions per turn, without tedium. DEC-009 requires actions to happen at places in the hub. DEC-011 lists time as a resource.
 - **Options:**
   - A. Abstract action points per turn.
@@ -297,3 +302,77 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - The engine needs an NPC schedule or availability model by day-part.
   - Action definitions need slot cost, location, eligible participants, whether the action can be delegated, and duration (feeds the D7 and D9 content schemas).
 - **Dependencies:** DEC-009, DEC-011, DEC-012, D9, D12.
+
+### DEC-014 — Government tiers & office ladder
+
+- **Status:** Proposed (D4).
+- **Context:** Brief §3.3 lists 8 levels. DEC-004 has 4 acts. Offices, and how one reaches them, must come from constitution data (DEC-007).
+- **Proposed decision:**
+  - **Three tiers of government:** Local (municipality, divided into wards), Regional (state or province), and National. County and district governments are dropped for scope; they could return later as a constitutional quirk.
+  - **Acts follow the scope of the office held or sought**, not a fixed sequence:
+
+    | Act | Tier | Typical offices (actual offices come from the constitution) |
+    |---|---|---|
+    | 1 | Local | Ward councillor → mayor (or council leader) |
+    | 2 | Regional | Regional legislator → regional executive (governor or premier) |
+    | 3 | National | National legislator, minister, party leadership |
+    | 4 | Head of government | President or prime minister (whichever the constitution provides) |
+
+  - **Ladder rules:**
+    - Skipping a tier is allowed but harder, e.g. a big-city mayor running directly for the national legislature with lower name recognition and Viability. This gives shorter, riskier runs.
+    - Moving down the ladder is allowed (DEC-009 persistent hubs).
+    - Appointed offices (minister, agency head) are reachable through Relationships rather than elections.
+    - Losing office means a "between offices" state: private sector, party work, an appointment, or out of politics. Time passes, and Viability and Age apply.
+  - "Presidency" in player-facing text becomes **"Head of Government"** wherever the archetype is parliamentary.
+- **Dependencies:** DEC-004, DEC-006, DEC-007, DEC-015, D8.
+
+### DEC-015 — Constitution parameter space & archetypes
+
+- **Status:** Proposed (D4).
+- **Context:** DEC-007 requires a defined parameter space that the engine reads, and authored archetypes made from it.
+- **Proposed parameter space** (each parameter takes a small set of values that are each fully supported):
+
+  | Parameter | Values |
+  |---|---|
+  | Executive model | Presidential · Parliamentary · Semi-presidential |
+  | National legislature | Unicameral · Bicameral (upper house elected or regional) |
+  | Electoral system (per tier) | Single-member plurality · Two-round · Proportional list · Mixed-member |
+  | Candidate selection | Open primaries · Party members · Party leadership |
+  | Territorial structure | Unitary (weak regions) · Federal (strong regions) |
+  | Election timing | Fixed terms · Staggered (midterms) · Flexible (snap elections) |
+  | Terms & limits | Term length per office; limits none / 2 / 1 |
+  | Executive checks | Veto plus override threshold · Confirmation of appointments · Decree power (none / limited) |
+  | Removal | Impeachment · No-confidence vote · Recall (quirk) |
+  | Judicial review | Weak · Strong |
+  | Direct democracy | None · Referendums · Citizen initiatives (quirk) |
+  | Local government form | Strong mayor · Council-manager · Council-elected leader |
+  | Fiscal rules | None · Balanced-budget rule · Debt ceiling (quirk) |
+
+- **Proposed archetypes:**
+  1. **Federal Presidential Republic:** presidential, bicameral, plurality, primaries, staggered midterms, veto, strong regions.
+  2. **Unitary Parliamentary (majoritarian):** PM from the legislature, plurality, party-selected candidates, flexible elections, no-confidence.
+  3. **Parliamentary Proportional:** list PR, coalition governments, multiparty.
+  4. **Semi-Presidential:** elected president plus PM, two-round elections, possible "cohabitation".
+- **Gameplay impact:** archetypes change *who you must win over*:
+  - In 1, the voters (primaries and elections).
+  - In 2, the party and then the voters.
+  - In 3, party list rank and coalition partners.
+  - In 4, both voters and the legislature.
+  This is the source of meaningful variation between runs.
+- **Consequences:**
+  - The election model (D8) must support plurality, two-round, and list PR from the start of its design, even if only one ships first.
+  - Each archetype is a canonical test configuration (D14).
+- **Dependencies:** DEC-007, DEC-014, DEC-016, D7, D8.
+
+### DEC-016 — Default / MVP constitutional archetype
+
+- **Status:** Proposed. Awaiting owner.
+- **Options:** any archetype in DEC-015.
+- **Proposed decision:** Archetype 1, **Federal Presidential Republic**, for the MVP and the first-run default. Candidate selection in the MVP is by local party nomination (a light phase inside the campaign chapter), not full primaries, to save scope.
+- **Rationale:**
+  - Matches the brief's original vision (presidency, midterms).
+  - The player's personal campaign matters most when elections are candidate-centered.
+  - Strong regions make Act 2 meaningful.
+  - Midterms give a clean Mandate Test.
+  - Parliamentary and PR archetypes emphasize party-internal play and coalitions, which need deeper AI first.
+- **Dependencies:** DEC-006, DEC-015, D8, D15.
