@@ -321,6 +321,21 @@ main > aside.notices { border-top: 0; padding: 0; margin: 28px 0; background: va
 .colophon { margin: 28px 0 0; text-align: center; font-size: 0.85rem; color: var(--ink-2); }
 .colophon a { display: inline-block; padding: 12px 4px; }
 
+/* ---- Phones: a full-width button, tighter text ---- */
+@media (max-width: 599px) {
+  .deck { font-size: 1.15rem; line-height: 1.35; margin: 12px 0; text-wrap: pretty; }
+  .standfirst { font-size: 1.05rem; line-height: 1.5; text-wrap: pretty; }
+  .cta { margin: 20px 4px 12px 0; }
+  .button {
+    display: flex; width: 100%; justify-content: center; gap: 10px;
+    min-height: 54px; padding: 0 16px; font-size: 1.1rem;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .button .tick { width: 20px; height: 20px; }
+  .cta-note { margin-top: 12px; font-size: 0.9rem; line-height: 1.4; min-height: 3.9rem; }
+  .button-ballot { justify-content: space-between; font-size: 1.2rem; }
+}
+
 /* ---- Wider screens: a broadsheet grid ---- */
 @media (min-width: 600px) {
   .strip { display: flex; }
