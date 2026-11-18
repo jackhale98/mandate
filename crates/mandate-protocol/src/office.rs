@@ -56,6 +56,11 @@ pub struct PlayerView {
     pub tracks: TracksView,
     pub can_propose: bool,
     pub recent_actions: Vec<ActionLogView>,
+    /// Slots this turn after exhaustion (health below 35 / 15 costs a slot).
+    pub slot_cap: u32,
+    pub press_gaffe_risk: f64,
+    pub ads_left: u32,
+    pub ad_cost: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -175,6 +180,16 @@ pub struct BillView {
     pub votes: Vec<VoteView>,
     pub ledger: Vec<LedgerEntry>,
     pub support: SupportView,
+    /// The player's declared vote: `yes` | `no` | `abstain`.
+    pub my_vote: Option<String>,
+    /// Whether the player may declare a vote now.
+    pub can_vote: bool,
+    /// The party line for the player: `yes` | `no` | `free`.
+    pub party_line: String,
+    /// Support for the bill among the player's ward voters (−1..1).
+    pub ward_support: f64,
+    /// The player owes the sponsor a favour.
+    pub owe_sponsor: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -220,6 +235,8 @@ pub struct TownView {
     pub concerns: Vec<ConcernView>,
     pub neighborhoods: Vec<PlaceRef>,
     pub wards: Vec<PlaceRef>,
+    /// Chance of a hostile town hall, aligned with `neighborhoods`.
+    pub town_hall_risk: Vec<f64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -393,7 +410,48 @@ fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
         _ => "veto",
     };
     let sponsor = p.sponsor.and_then(|s| st.politics.get(s));
+    let me = st.player.as_ref();
+    let my_vote = me
+        .and_then(|pl| st.politics.declared_votes.get(&(pl.politician.0, p.id.0)))
+        .map(|d| {
+            match d {
+                1 => "yes",
+                -1 => "no",
+                _ => "abstain",
+            }
+            .to_string()
+        });
+    let powers = player_powers(st, content);
+    let can_vote = p.status == PolicyStatus::UnderConsideration
+        && p.sponsor != me.map(|pl| pl.politician)
+        && p.jurisdiction == me.map(|pl| pl.municipality.0).unwrap_or(u32::MAX)
+        && my_vote.is_none()
+        && (powers.contains(&mandate_content::Power::ApproveOrdinance)
+            || powers.contains(&mandate_content::Power::Veto));
+    let ward_support = me
+        .map(|pl| {
+            public_support(
+                t,
+                &st.population,
+                &mandate_sim::policy::ward_hoods(&st.world, pl.ward),
+            )
+        })
+        .unwrap_or(0.0);
+    let owe_sponsor = p
+        .sponsor
+        .and_then(|s| st.politics.get(s))
+        .is_some_and(|s| !s.is_player && s.favors < 0);
     Some(BillView {
+        my_vote,
+        can_vote,
+        party_line: match mandate_sim::actions::party_line(st, p.id.0) {
+            1 => "yes",
+            -1 => "no",
+            _ => "free",
+        }
+        .into(),
+        ward_support,
+        owe_sponsor,
         id: p.id.0,
         template: p.template.clone(),
         name_key: t.name_key.clone(),
@@ -595,6 +653,11 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
                 health: pl.tracks.health as f64,
             },
             can_propose,
+            slot_cap: pl.slot_cap() as u32,
+            press_gaffe_risk: mandate_sim::actions::press_gaffe_risk(st),
+            ads_left: mandate_sim::actions::MAX_ADS_PER_TURN.saturating_sub(pl.ads_this_turn)
+                as u32,
+            ad_cost: content.politics.campaign.ad_cost as f64,
             recent_actions: pl
                 .actions
                 .iter()
@@ -652,6 +715,11 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
                     name: c.number.to_string(),
                     kind: "ward".into(),
                 })
+                .collect(),
+            town_hall_risk: mu
+                .neighborhoods
+                .iter()
+                .map(|h| mandate_sim::actions::town_hall_risk(st, h.0))
                 .collect(),
         },
         date: DateView::of(st.calendar.date),

@@ -559,4 +559,38 @@ ui-you-lost = You lost.
 ui-election-night = Election night
 ui-continue-game = Continue
 ui-parties = Parties
-ui-advertise-help = Local ads reach every neighbourhood a little. They cost campaign funds.
+
+## Trade-offs (DEC-073)
+tradeoff-canvass = 1 slot · −3 health. Builds name recognition and turnout in one neighbourhood; slow but lasting.
+tradeoff-town-hall = 1 slot. Reaches a neighbourhood and puts a bill in the spotlight, for better or worse.
+tradeoff-press = 1 slot. Reaches the whole town a little, but a gaffe costs goodwill.
+tradeoff-fundraise = 1 slot · −2 health. Money and party goodwill, but low-income voters notice who you court.
+tradeoff-rest = 1 slot. Recovers health; below 35 health you lose a slot each turn.
+tradeoff-advertise = Costs { $cost } per buy, no time. Reaches every neighbourhood thinly; the effect fades and does little for turnout.
+ui-risk-hostile = Hostile-crowd risk { $pct }%.
+ui-risk-gaffe = Gaffe risk { $pct }%.
+ui-risk-late-money = Late-night money adds legal risk.
+ui-buy-ads = Buy ads ({ $cost }) · { $left } left this turn
+ui-tired = { $n ->
+    [one] You are worn out: one fewer slot until you recover.
+   *[other] You are exhausted: { $n } fewer slots until you recover.
+}
+outcome-town-hall-hostile = The town hall in { $place } turned hostile.
+outcome-press-gaffe = Your remarks were taken badly. The clip is everywhere.
+ui-your-vote = Your vote
+ui-party-line-yes = Your party expects you to vote yes.
+ui-party-line-no = Your party expects you to vote no.
+ui-party-line-free = A free vote: your party has no line.
+ui-ward-view = Your ward's view: { $n }
+ui-owe-sponsor = You owe { $name } a favour: voting yes repays it; voting no will be remembered.
+ui-vote-yes = Vote yes
+ui-vote-no = Vote no
+ui-vote-abstain = Abstain
+ui-vote-help = Your vote is public and final. Defying the party costs Standing; your ward will remember.
+ui-voted-yes = You voted yes
+ui-voted-no = You voted no
+ui-voted-abstain = You abstained
+outcome-vote-yes = You declared your vote: yes.
+outcome-vote-no = You declared your vote: no.
+outcome-vote-abstain = You declared you will abstain.
+event-rules-updated = The game was updated (version { $version }). New rules apply from today.

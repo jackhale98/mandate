@@ -105,6 +105,18 @@ pub struct PoliticsState {
     pub sway: BTreeMap<(u32, u32), f32>,
     pub parties: Vec<Party>,
     pub elections: elections::ElectionState,
+    /// Publicly declared votes: (politician, policy) → +1 yes, −1 no, 0 abstain.
+    #[serde(with = "mandate_core::serde_util::map_as_pairs")]
+    pub declared_votes: BTreeMap<(u32, u32), i8>,
+}
+
+/// A declared vote on a bill (for a mayor: sign or veto).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Vote {
+    Yes,
+    No,
+    Abstain,
 }
 
 impl PoliticsState {

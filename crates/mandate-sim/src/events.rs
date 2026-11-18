@@ -96,6 +96,13 @@ pub enum EventKind {
     ElectionHeld {
         races: u32,
     },
+    /// The game's rules were updated under a running career (an app update).
+    RulesUpdated {
+        from_content: String,
+        to_content: String,
+        from_engine: String,
+        to_engine: String,
+    },
 }
 
 /// How long an event is kept in full detail.

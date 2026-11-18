@@ -273,6 +273,14 @@ fn player_command(c: CommandDto) -> mandate_sim::actions::PlayerCommand {
                 .collect(),
         },
         CommandDto::IntroducePolicy { policy } => P::IntroducePolicy { policy },
+        CommandDto::CastVote { policy, vote } => P::CastVote {
+            policy,
+            vote: match vote {
+                VoteDto::Yes => mandate_sim::politics::Vote::Yes,
+                VoteDto::No => mandate_sim::politics::Vote::No,
+                VoteDto::Abstain => mandate_sim::politics::Vote::Abstain,
+            },
+        },
         CommandDto::File { filing } => P::File {
             filing: match filing {
                 FilingDto::Council => mandate_sim::politics::elections::Filing::Council,

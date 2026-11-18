@@ -6,4 +6,8 @@ export type PlayerView = { politician: number, name: string, party: number | nul
 /**
  * Fluent key, e.g. `role-councillor`.
  */
-role_key: string, municipality: string, municipality_id: number, ward_number: number, ward_id: number, slots_total: number, slots_left: number, late_night_available: boolean, mandate: number, money: number, staff: number, tracks: TracksView, can_propose: boolean, recent_actions: Array<ActionLogView>, };
+role_key: string, municipality: string, municipality_id: number, ward_number: number, ward_id: number, slots_total: number, slots_left: number, late_night_available: boolean, mandate: number, money: number, staff: number, tracks: TracksView, can_propose: boolean, recent_actions: Array<ActionLogView>, 
+/**
+ * Slots this turn after exhaustion (health below 35 / 15 costs a slot).
+ */
+slot_cap: number, press_gaffe_risk: number, ads_left: number, ad_cost: number, };

@@ -691,6 +691,22 @@ pub fn contact(c: &mut Candidate, i: usize, params: &mandate_content::CampaignPa
     c.contacts[i] += 1.0;
 }
 
+/// One ad buy: broad, shallow reach (money instead of time). Raises name
+/// recognition everywhere in the race, persuades a little, mobilises nobody,
+/// and saturates within a turn (`nth` = buys already made this turn).
+pub fn advertise(c: &mut Candidate, params: &mandate_content::CampaignParams, nth: u8) {
+    let f = mandate_core::math::pow(0.7, nth as f64);
+    for i in 0..c.awareness.len() {
+        c.awareness[i] = clamp(
+            c.awareness[i] as f64 + params.awareness_per_ad * f * (1.0 - c.awareness[i] as f64),
+            0.0,
+            1.0,
+        ) as f32;
+        c.persuasion[i] += (0.25 * params.persuasion_per_canvass * f) as f32;
+    }
+    c.spent += params.ad_cost as f64;
+}
+
 // --- Vote model ------------------------------------------------------------------
 
 /// Which utility terms to include (all for the real count; one off for decomposition).

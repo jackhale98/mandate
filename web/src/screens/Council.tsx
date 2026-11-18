@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { MemberView } from "../engine/protocol/MemberView";
+import type { BillView } from "../engine/protocol/BillView";
+import type { VoteDto } from "../engine/protocol/VoteDto";
 import { useGame } from "../state/gameStore";
 import { formatDate } from "../i18n/format";
 
@@ -29,6 +31,39 @@ function Member({ m }: { m: MemberView }) {
         </div>
       )}
     </li>
+  );
+}
+
+/** The player's own vote: public, final, and weighed against party, ward, and favours (DEC-073). */
+function YourVote({ bill }: { bill: BillView }) {
+  const tr = useGame((s) => s.tr);
+  const busy = useGame((s) => s.busy);
+  const command = useGame((s) => s.command);
+  if (!bill.can_vote && !bill.my_vote) return null;
+  const ward = Math.round(bill.ward_support * 100);
+  return (
+    <div className="your-vote" data-testid="your-vote">
+      <h4 className="sub">{tr.t("ui-your-vote")}</h4>
+      <ul className="plain small">
+        <li>{tr.t(`ui-party-line-${bill.party_line}`)}</li>
+        <li>{tr.t("ui-ward-view", { n: ward > 0 ? `+${ward}` : String(ward) })}</li>
+        {bill.owe_sponsor && <li>{tr.t("ui-owe-sponsor", { name: bill.sponsor_name })}</li>}
+      </ul>
+      {bill.my_vote ? (
+        <p className="chip">{tr.t(`ui-voted-${bill.my_vote}`)}</p>
+      ) : (
+        <>
+          <div className="bill-actions">
+            {(["yes", "no", "abstain"] as VoteDto[]).map((v) => (
+              <button key={v} type="button" className={v === "yes" ? "btn btn-sm btn-primary" : "btn btn-sm"} disabled={busy} onClick={() => void command({ type: "cast_vote", policy: bill.id, vote: v })}>
+                {tr.t(`ui-vote-${v}`)}
+              </button>
+            ))}
+          </div>
+          <p className="hint">{tr.t("ui-vote-help")}</p>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -75,6 +110,7 @@ export function Council() {
               <strong>{tr.t("ui-whip", { yes: bill.expected_yes.toFixed(1), seats: bill.seats, needed: bill.needed })}</strong> ·{" "}
               {tr.t("ui-mayor-lean", { lean: tr.t(`mayor-${bill.mayor}`) })}
             </p>
+            <YourVote bill={bill} />
             <p className="hint">{tr.t("ui-whip-help")}</p>
             <ul className="whip-list">
               {bill.whip.map((w) => {

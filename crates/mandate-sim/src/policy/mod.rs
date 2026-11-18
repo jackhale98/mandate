@@ -313,6 +313,8 @@ pub struct VoteInputs<'a> {
     pub sponsor_is_player: bool,
     /// The sponsor's party (party discipline: members back their own side).
     pub sponsor_party: Option<crate::politics::PartyId>,
+    /// A publicly declared vote overrides the model (+1 yes, −1 no, 0 abstain).
+    pub declared: Option<i8>,
     /// Bill-specific idiosyncrasy (keyed RNG, stable per member and bill).
     pub noise: f64,
 }
@@ -329,6 +331,26 @@ pub fn vote_lean(p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
     } else {
         0.0
     };
+    if let Some(d) = v.declared {
+        // Abstaining is not a yes.
+        return if d > 0 { 3.0 } else { -3.0 };
+    }
+    // Riders: sunsets and pilots lower the stakes; others' ward projects grate.
+    let mut riders = 0.0;
+    for c in &v.instance.clauses {
+        riders += match c {
+            Clause::Sunset { .. } => 0.08,
+            Clause::Pilot { .. } => 0.12,
+            Clause::Earmark { .. } => 0.0,
+        };
+    }
+    let foreign_earmarks = v
+        .instance
+        .clauses
+        .iter()
+        .filter(|c| matches!((c, p.role), (Clause::Earmark { ward }, Role::Councillor { ward: w, .. }) if *ward != w))
+        .count() as f64;
+    riders -= 0.04 * foreign_earmarks;
     let discipline = match (v.sponsor_party, p.party) {
         (Some(a), Some(b)) if a == b => 0.15,
         (Some(_), Some(_)) => -0.08,
@@ -342,6 +364,7 @@ pub fn vote_lean(p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
         + v.sway
         + player
         + discipline
+        + riders
         + if earmark { 0.3 } else { 0.0 }
         + v.noise
 }
@@ -408,6 +431,7 @@ pub fn council_leans(
                         sway: pol.sway(p.id, inst.id.0) as f64,
                         sponsor_is_player,
                         sponsor_party: inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party),
+                        declared: pol.declared_votes.get(&(p.id.0, inst.id.0)).copied(),
                         noise: noise_for(seed, p.id.0, inst.id.0),
                     },
                 )
@@ -451,6 +475,7 @@ pub fn mayor_lean(
             sway: pol.sway(m.id, inst.id.0) as f64,
             sponsor_is_player,
             sponsor_party: inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party),
+            declared: pol.declared_votes.get(&(m.id.0, inst.id.0)).copied(),
             noise: noise_for(seed, m.id.0, inst.id.0),
         },
     )

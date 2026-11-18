@@ -318,6 +318,10 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             put("races", races.to_string());
             "event-election-held"
         }
+        EventKind::RulesUpdated { to_engine, .. } => {
+            put("version", to_engine.clone());
+            "event-rules-updated"
+        }
         EventKind::NationalBudget {
             year,
             balance,

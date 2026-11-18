@@ -28,15 +28,57 @@ pub struct Engine {
     pending_effects: Vec<crate::scheduler::Effect>,
 }
 
+fn short(h: &str) -> String {
+    h.chars().take(12).collect()
+}
+
+/// Content ids a state refers to that the loaded content lacks.
+pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String> {
+    let mut out = Vec::new();
+    if !content.constitutions.contains_key(&state.meta.constitution) {
+        out.push(state.meta.constitution.clone());
+    }
+    for p in &state.policy.instances {
+        if !content.policies.contains_key(&p.template) && !out.contains(&p.template) {
+            out.push(p.template.clone());
+        }
+    }
+    out
+}
+
 impl Engine {
     /// Wrap an existing state (from worldgen or a save).
-    pub fn from_state(state: State, content: Arc<ContentBundle>) -> Result<Self, EngineError> {
-        if state.meta.content_hash != content.content_hash {
-            return Err(EngineError::Content(format!(
-                "state was created with content {} but {} is loaded",
-                &state.meta.content_hash[..12.min(state.meta.content_hash.len())],
-                &content.content_hash[..12]
-            )));
+    pub fn from_state(mut state: State, content: Arc<ContentBundle>) -> Result<Self, EngineError> {
+        // A save from another content or engine version (a balance patch or an
+        // app update) loads if every rule it refers to still exists; the new
+        // rules apply from here on and the run's history records the change.
+        // Determinism holds within one (engine, content) version.
+        if state.meta.content_hash != content.content_hash
+            || state.meta.engine_version != mandate_core::ENGINE_VERSION
+        {
+            let missing = missing_references(&state, &content);
+            if !missing.is_empty() {
+                return Err(EngineError::Content(format!(
+                    "this save needs rules that no longer exist: {}",
+                    missing.join(", ")
+                )));
+            }
+            let from = short(&state.meta.content_hash);
+            let to = short(&content.content_hash);
+            let date = state.calendar.date;
+            let id = state.events.record(
+                date,
+                EventKind::RulesUpdated {
+                    from_content: from,
+                    to_content: to,
+                    from_engine: state.meta.engine_version.clone(),
+                    to_engine: mandate_core::ENGINE_VERSION.to_string(),
+                },
+                vec![],
+            );
+            state.events.pin(id);
+            state.meta.content_hash = content.content_hash.clone();
+            state.meta.engine_version = mandate_core::ENGINE_VERSION.to_string();
         }
         Ok(Engine {
             state,
@@ -131,6 +173,7 @@ impl Engine {
                 if let Some(p) = self.state.player.as_mut() {
                     p.slots_used = 0;
                     p.late_night_used = false;
+                    p.ads_this_turn = 0;
                 }
                 self.update_phase();
                 CommandOutcome {

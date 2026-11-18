@@ -23,4 +23,24 @@ next_stage_key: string | null, est_annual_cost: number, funded_pct: number, prog
 /**
  * Mayor's inclination: `sign` | `lean_sign` | `undecided` | `lean_veto` | `veto`.
  */
-mayor: string, votes: Array<VoteView>, ledger: Array<LedgerEntry>, support: SupportView, };
+mayor: string, votes: Array<VoteView>, ledger: Array<LedgerEntry>, support: SupportView, 
+/**
+ * The player's declared vote: `yes` | `no` | `abstain`.
+ */
+my_vote: string | null, 
+/**
+ * Whether the player may declare a vote now.
+ */
+can_vote: boolean, 
+/**
+ * The party line for the player: `yes` | `no` | `free`.
+ */
+party_line: string, 
+/**
+ * Support for the bill among the player's ward voters (−1..1).
+ */
+ward_support: number, 
+/**
+ * The player owes the sponsor a favour.
+ */
+owe_sponsor: boolean, };

@@ -49,6 +49,17 @@
   - Fluent text for all new events.
 - **Saves:** format v3.
 
+## After M4 (owner feedback)
+- **Every decision is a trade-off (DEC-073):**
+  - ads buy reach with money instead of time;
+  - canvassing costs health;
+  - fundraising courts donors;
+  - press and town halls carry visible risks;
+  - the player now casts their own council vote, weighing party, ward, and favours;
+  - riders trade cost for passage;
+  - exhaustion costs slots.
+- **Saves survive app updates (DEC-074):** a full save after every action (no replay), and saves load under updated rules when nothing they need was removed.
+
 ## M4 summary
 - **Research pass** before building: `docs/design/research/SIMULATION_MODELS.md` (DEC-071).
 - **Parties** generated from cleavages (two competitive majors and a minor party); mover–stayer party attachment; gravity-model migration.

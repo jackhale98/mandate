@@ -29,6 +29,11 @@ function PlayerCard({ o }: { o: OfficeView }) {
           {tr.t("ui-slots", { left: p.slots_left })}
         </span>
       </div>
+      {p.slot_cap < p.slots_total && (
+        <p className="note" data-testid="tired">
+          {tr.t("ui-tired", { n: p.slots_total - p.slot_cap })}
+        </p>
+      )}
       <div className="stats stats-3">
         <StatTile label={tr.t("ui-mandate")} value={String(Math.round(p.mandate))} />
         <StatTile label={tr.t("ui-money")} value={formatMoney(p.money)} />
@@ -85,7 +90,7 @@ function TownOpinion({ o }: { o: OfficeView }) {
   );
 }
 
-type AgendaKind = "canvass" | "town_hall" | "press" | "fundraise" | "rest" | "advertise";
+type AgendaKind = "canvass" | "town_hall" | "press" | "fundraise" | "rest";
 
 export function Agenda({ o, campaigning = false }: { o: OfficeView; campaigning?: boolean }) {
   const tr = useGame((s) => s.tr);
@@ -113,13 +118,12 @@ export function Agenda({ o, campaigning = false }: { o: OfficeView; campaigning?
         return { type: "fundraise" };
       case "rest":
         return { type: "rest" };
-      case "advertise":
-        return { type: "advertise" };
     }
   };
-  const kinds: AgendaKind[] = campaigning
-    ? ["canvass", "town_hall", "advertise", "press", "fundraise", "rest"]
-    : ["canvass", "town_hall", "press", "fundraise", "rest"];
+  const kinds: AgendaKind[] = ["canvass", "town_hall", "press", "fundraise", "rest"];
+  const hoodIndex = o.town.neighborhoods.findIndex((h) => h.id === hood);
+  const hallRisk = o.town.town_hall_risk[hoodIndex] ?? 0;
+  const pct = (v: number) => Math.round(v * 100);
 
   return (
     <section className="card" data-testid="agenda">
@@ -158,7 +162,13 @@ export function Agenda({ o, campaigning = false }: { o: OfficeView; campaigning?
           </select>
         </label>
       )}
-      {kind === "advertise" && <p className="hint">{tr.t("ui-advertise-help")}</p>}
+      {/* Every option shows what it costs and what it risks before you commit (DEC-073). */}
+      <p className="tradeoff" data-testid="tradeoff">
+        {tr.t(`tradeoff-${kind.replace("_", "-")}`)}
+        {kind === "town_hall" && <strong> {tr.t("ui-risk-hostile", { pct: pct(hallRisk) })}</strong>}
+        {kind === "press" && <strong> {tr.t("ui-risk-gaffe", { pct: pct(p.press_gaffe_risk) })}</strong>}
+        {kind === "fundraise" && useLate && <strong> {tr.t("ui-risk-late-money")}</strong>}
+      </p>
       {lateAllowed && (
         <label className="check">
           <input type="checkbox" checked={late} disabled={!p.late_night_available} onChange={(e) => setLate(e.target.checked)} />
@@ -168,6 +178,20 @@ export function Agenda({ o, campaigning = false }: { o: OfficeView; campaigning?
       <button type="button" className="btn btn-primary btn-block" disabled={busy || !canAct} onClick={() => void command({ type: "act", action: action(), late_night: useLate })}>
         {tr.t("ui-do")}
       </button>
+      {campaigning && (
+        <div className="ad-buy">
+          <p className="tradeoff">{tr.t("tradeoff-advertise", { cost: formatMoney(p.ad_cost) })}</p>
+          <button
+            type="button"
+            className="btn btn-block"
+            data-testid="buy-ads"
+            disabled={busy || p.ads_left === 0 || p.money < p.ad_cost}
+            onClick={() => void command({ type: "act", action: { type: "advertise" }, late_night: false })}
+          >
+            {tr.t("ui-buy-ads", { cost: formatMoney(p.ad_cost), left: p.ads_left })}
+          </button>
+        </div>
+      )}
       {p.recent_actions.length > 0 && (
         <>
           <h3 className="sub">{tr.t("ui-recent-actions")}</h3>

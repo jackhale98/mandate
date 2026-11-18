@@ -97,6 +97,20 @@ pub enum CommandDto {
     File {
         filing: FilingDto,
     },
+    /// Declare the player's vote on a bill (public and final).
+    CastVote {
+        policy: u32,
+        vote: VoteDto,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum VoteDto {
+    Yes,
+    No,
+    Abstain,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -190,6 +204,8 @@ pub enum ResponseResult {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(tag = "kind", content = "payload", rename_all = "snake_case")]
+// One response per request; boxing views would only add indirection.
+#[allow(clippy::large_enum_variant)]
 pub enum ResponseBody {
     GameStarted(OverviewView),
     CommandApplied(CommandAppliedView),

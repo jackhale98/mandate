@@ -1362,3 +1362,44 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - NPC favour calls;
   - the budget-procedure screen;
   - the "Why did they do that?" NPC inspector (traces are available in the engine).
+
+### DEC-073 — Every decision is a trade-off
+
+- **Status:** Accepted (owner direction, 2026-11-18: "all decisions … should have some trade-off that makes it feel more like a decision").
+- **Rule:**
+  - Every player choice has a real cost and a real benefit.
+  - No option is free, and none is best in every situation.
+  - Costs come from a small set of currencies: **time** (slots), **money**, **health**, **Standing** (party), **goodwill** (a group of voters or a colleague), **legal risk**, and **risk of failure** (shown as odds).
+  - The UI states each option's costs and risks *before* the player commits.
+- **Applied in M4:**
+
+  | Decision | Gains | Costs / risks |
+  |---|---|---|
+  | Canvass | Name recognition and turnout in one neighbourhood; lasting | 1 slot, −3 health; slow; diminishing returns |
+  | Town hall | Reach plus a spotlight on a bill | 1 slot; hostile-crowd risk where you or the town hall are unpopular (odds shown) |
+  | Press | Town-wide reach | 1 slot; gaffe risk falling with oratory (odds shown) |
+  | Fundraise | Money, +Standing | 1 slot, −2 health; low-income voters cool on you; late at night adds legal risk |
+  | Ads | Thin reach everywhere with **no time** | Money; fades fast; little turnout; at most 3 a turn |
+  | Rest | Health | 1 slot |
+  | Lobby / late night / trade favour | A colleague's vote | Slot; failure costs their opinion; late nights cost health and add legal risk; favours become debts |
+  | Your council vote (new) | Party Standing (loyalty), ward approval, repaying favours | Defying your party costs Standing (−6); your ward reacts to your stand; voting against someone you owe is remembered; abstaining pleases no one |
+  | Riders | Ward project buys a vote; sunsets and pilots make bills easier to pass | Ward projects cost money and irritate other wards' councillors; sunsets expire; pilots are small |
+  | Run for mayor | A bigger office | You give up your council seat; a bigger, riskier race |
+
+- **Health is a resource:** below 35 health the player has one fewer slot, and below 15 two fewer. Recovery comes from rest and slow monthly recovery.
+- **Verification:** the bot tournament (DEC-072) must show mixed approaches beating single-lever strategies, with no dominant strategy. Each new action added to content must list its costs here.
+- **Deferred:** NPC health and exhaustion (NPCs remain symmetric in slots and odds, but their health is abstracted).
+
+### DEC-074 — Saves across app updates (revises DEC-044 and DEC-070)
+
+- **Status:** Accepted (owner question, 2026-11-18: "is there a risk … a web update to the engine would make it not deterministic?").
+- **Save after every action:**
+  - The game is saved in full after every player command (about 90 ms) and at every turn end.
+  - The command journal and its replay are removed (Dexie schema v3 drops the table).
+  - Nothing is ever replayed, so an update cannot re-roll an outcome the player has seen. Ironman integrity is unchanged.
+- **Loading under new rules:**
+  - A save from another content or engine version loads if every rule it refers to still exists (the constitution and every policy template).
+  - The new rules apply from that day, and a pinned "the game was updated" event records it.
+  - A save that needs removed rules is refused with a message naming them. A future migration step can map them instead.
+- **Determinism** is guaranteed within one (engine, content) version and tested: two runs, plus save, load, and continue, natively and in WASM.
+- **Save-format changes:** before release, they still reject old saves with a clear message. From M6 (testers), format changes ship with JSON migrations.

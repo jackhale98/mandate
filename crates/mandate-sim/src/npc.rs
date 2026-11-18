@@ -371,7 +371,8 @@ pub fn score(content: &ContentBundle, profile: &str, x: &Inputs) -> Vec<(AiActio
 fn feasible(a: AiAction, x: &Inputs) -> bool {
     match a {
         AiAction::Canvass | AiAction::TownHall => x.race.is_some(),
-        AiAction::Advertise => x.race.is_some() && x.funds > 0.25,
+        // Ads are bought with money, outside the slot loop (see `buy_ads`).
+        AiAction::Advertise => false,
         AiAction::Lobby => x.focus_bill.is_some(),
         AiAction::ProposeBill => x.best_template.is_some() && x.no_own_bill > 0.5,
         AiAction::Fundraise | AiAction::Rest => true,
@@ -401,6 +402,9 @@ pub fn take_turn(state: &mut State, content: &ContentBundle, m: u32, full: bool)
             .get(id)
             .map(profile_of)
             .unwrap_or("pragmatist");
+        if full {
+            buy_ads(state, content, id, profile, &mut memo);
+        }
         // Inputs are read once per turn (the NPC plans its week), then updated
         // for the obvious consequences of its own actions.
         let mut x = inputs_memo(state, content, id, &mut memo);
@@ -608,6 +612,62 @@ fn act(
             });
         }
         AiAction::Rest => {}
+    }
+}
+
+/// Money, not time: candidates with funds buy ads (up to the same per-turn
+/// limit as the player) when the utility of advertising is high enough.
+fn buy_ads(
+    state: &mut State,
+    content: &ContentBundle,
+    id: PoliticianId,
+    profile: &str,
+    memo: &mut Memo,
+) {
+    let x = inputs_memo(state, content, id, memo);
+    let Some((ri, ci)) = x.race else { return };
+    let ai = &content.politics.ai;
+    let Some(def) = ai.actions.iter().find(|a| a.action == AiAction::Advertise) else {
+        return;
+    };
+    let mult = ai
+        .profiles
+        .iter()
+        .find(|p| p.id == profile)
+        .and_then(|p| p.mults.iter().find(|m| m.action == AiAction::Advertise))
+        .map(|m| m.mult)
+        .unwrap_or(1.0);
+    let score = def.weight
+        * mult
+        * def
+            .considerations
+            .iter()
+            .map(|c| curve(c.curve, x.get(c.input)))
+            .product::<f64>();
+    let cost = content.politics.campaign.ad_cost as f64;
+    let buys = if score > 0.5 {
+        2
+    } else if score > 0.25 {
+        1
+    } else {
+        0
+    };
+    for n in 0..buys.min(crate::actions::MAX_ADS_PER_TURN) {
+        if state.politics.get(id).is_none_or(|p| p.funds < cost * 1.5) {
+            break;
+        }
+        if let Some(p) = state.politics.get_mut(id) {
+            p.funds -= cost;
+        }
+        if let Some(c) = state
+            .politics
+            .elections
+            .races
+            .get_mut(ri)
+            .and_then(|r| r.candidates.get_mut(ci))
+        {
+            crate::politics::elections::advertise(c, &content.politics.campaign, n);
+        }
     }
 }
 

@@ -49,6 +49,12 @@ pub enum Action {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PlayerCommand {
+    /// Declare how the player will vote on (or, as mayor, act on) a bill.
+    /// Public and final: party, ward, and colleagues react now (no slot).
+    CastVote {
+        policy: u32,
+        vote: crate::politics::Vote,
+    },
     /// Declare the player's intention for the next local election (no slot).
     File {
         filing: crate::politics::elections::Filing,
@@ -81,6 +87,9 @@ pub struct ActionResult {
     pub outcome_key: String,
     pub args: BTreeMap<String, String>,
 }
+
+/// Ad buys allowed per turn (the local market saturates).
+pub const MAX_ADS_PER_TURN: u8 = 3;
 
 /// How many favours the player may owe one colleague at once.
 pub const MAX_FAVOR_DEBT: i32 = 2;
@@ -190,6 +199,53 @@ fn use_slot(state: &mut State, late_night: bool) -> Result<(), EngineError> {
     Ok(())
 }
 
+/// Chance a press statement turns into a gaffe (shown before acting).
+pub fn press_gaffe_risk(state: &State) -> f64 {
+    let oratory = state
+        .player
+        .as_ref()
+        .and_then(|p| state.politics.get(p.politician))
+        .map(|p| p.oratory as f64)
+        .unwrap_or(0.5);
+    clamp(0.05 + 0.3 * (1.0 - oratory), 0.05, 0.35)
+}
+
+/// Chance a town hall turns hostile in a neighbourhood: likelier where the
+/// player and the town hall are unpopular (shown before acting).
+pub fn town_hall_risk(state: &State, hood: u32) -> f64 {
+    let Some(h) = state.population.hoods.get(hood as usize) else {
+        return 0.0;
+    };
+    let (mut ap, mut gov, mut n) = (0.0, 0.0, 0.0);
+    for c in &h.cohorts {
+        let w = c.count as f64;
+        ap += c.player_approval as f64 * c.player_awareness as f64 * w;
+        gov += c.gov_approval as f64 * w;
+        n += w;
+    }
+    let ap = ap / n.max(1.0);
+    let gov = gov / n.max(1.0);
+    clamp(0.2 - 0.8 * ap - 0.4 * (gov - 0.5), 0.05, 0.6)
+}
+
+/// What the player's party expects on a bill: +1 yes, −1 no, 0 free vote.
+pub fn party_line(state: &State, policy: u32) -> i8 {
+    let Some(pl) = &state.player else { return 0 };
+    let mine = state.politics.get(pl.politician).and_then(|p| p.party);
+    let sponsor = state
+        .policy
+        .instances
+        .get(policy as usize)
+        .and_then(|p| p.sponsor)
+        .and_then(|s| state.politics.get(s))
+        .and_then(|s| s.party);
+    match (mine, sponsor) {
+        (Some(a), Some(b)) if a == b => 1,
+        (Some(_), Some(_)) => -1,
+        _ => 0,
+    }
+}
+
 /// Apply campaign contact to the player's candidacy, if a race is running and
 /// covers the neighbourhood (`None` = every neighbourhood in the race).
 fn campaign_contact(
@@ -297,6 +353,91 @@ pub fn apply(
     let m = pl.municipality.0;
     let mut res = ActionResult::default();
     match cmd {
+        PlayerCommand::CastVote { policy, vote } => {
+            use crate::politics::Vote;
+            let p = local_policy(state, *policy)?;
+            if p.status != PolicyStatus::UnderConsideration {
+                return Err(bad("only bills before the council can be voted on"));
+            }
+            if p.sponsor == Some(pl.politician) {
+                return Err(bad("sponsors vote for their own bills"));
+            }
+            let powers = player_powers(state, content);
+            if !powers.contains(&Power::ApproveOrdinance) && !powers.contains(&Power::Veto) {
+                return Err(bad("you have no vote on this bill"));
+            }
+            let key = (pl.politician.0, *policy);
+            if state.politics.declared_votes.contains_key(&key) {
+                return Err(bad("you have already declared your vote"));
+            }
+            let template = p.template.clone();
+            let sponsor = p.sponsor;
+            let awareness = p.awareness as f64;
+            let sig = content
+                .policies
+                .get(&template)
+                .map(|t| t.signature)
+                .unwrap_or([0.0; 8]);
+            let line = party_line(state, *policy);
+            let sign = match vote {
+                Vote::Yes => 1.0,
+                Vote::No => -1.0,
+                Vote::Abstain => 0.0,
+            };
+            state.politics.declared_votes.insert(key, sign as i8);
+            // Party: loyalty is noticed a little, rebellion a lot.
+            if let Some(pls) = state.player.as_mut() {
+                let d = if line == 0 || *vote == Vote::Abstain {
+                    if *vote == Vote::Abstain { -1.0 } else { 0.0 }
+                } else if (line as f64) == sign {
+                    1.0
+                } else {
+                    -6.0
+                };
+                pls.tracks.standing = clamp(pls.tracks.standing as f64 + d, 0.0, 100.0) as f32;
+            }
+            // The ward: voters who care reward or punish the stand; dodging costs a little.
+            for h in crate::policy::ward_hoods(&state.world, pl.ward) {
+                for c in state.population.hoods[h].cohorts.iter_mut() {
+                    let a = crate::politics::alignment(&sig, &c.attitudes);
+                    let room = 1.0 - (c.player_approval as f64).abs();
+                    let delta = if *vote == Vote::Abstain {
+                        -0.01
+                    } else {
+                        0.06 * a * sign * (0.5 + awareness) * room
+                    };
+                    c.player_approval = clamp(c.player_approval as f64 + delta, -1.0, 1.0) as f32;
+                }
+            }
+            // The sponsor: support earns goodwill and repays an owed favour.
+            if let Some(sid) = sponsor
+                && let Some(sp) = state.politics.get_mut(sid)
+                && !sp.is_player
+            {
+                match vote {
+                    Vote::Yes => {
+                        sp.opinion_of_player =
+                            clamp(sp.opinion_of_player as f64 + 5.0, -100.0, 100.0) as f32;
+                        if sp.favors < 0 {
+                            sp.favors += 1;
+                            res.args.insert("repaid".into(), sp.full_name());
+                        }
+                    }
+                    Vote::No => {
+                        let hit = if sp.favors < 0 { 15.0 } else { 5.0 };
+                        sp.opinion_of_player =
+                            clamp(sp.opinion_of_player as f64 - hit, -100.0, 100.0) as f32;
+                    }
+                    Vote::Abstain => {}
+                }
+            }
+            res.outcome_key = match vote {
+                Vote::Yes => "outcome-vote-yes",
+                Vote::No => "outcome-vote-no",
+                Vote::Abstain => "outcome-vote-abstain",
+            }
+            .into();
+        }
         PlayerCommand::File { filing } => {
             if let Some(p) = state.player.as_mut() {
                 p.filing = Some(*filing);
@@ -436,6 +577,9 @@ pub fn apply(
             res.outcome_key = "outcome-withdrawn".into();
         }
         PlayerCommand::Act { action, late_night } => {
+            if *late_night && matches!(action, Action::Advertise) {
+                return Err(bad("ads are bought, not held late at night"));
+            }
             if *late_night
                 && !matches!(
                     action,
@@ -527,7 +671,9 @@ pub fn apply(
                     if let Some(id) = policy {
                         local_policy(state, *id)?;
                     }
+                    let risk = town_hall_risk(state, *neighborhood);
                     use_slot(state, false)?;
+                    let hostile = state.rng.get(Stream::Player).chance(risk);
                     let oratory = state
                         .politics
                         .get(pl.politician)
@@ -548,6 +694,8 @@ pub fn apply(
                             .map(|s| crate::politics::alignment(&s, &c.attitudes) * 0.05)
                             .unwrap_or(0.02);
                         let room = 1.0 - (c.player_approval as f64).abs();
+                        // A hostile crowd: people still learn your name, but not kindly.
+                        let nudge = if hostile { -0.04 } else { nudge };
                         c.player_approval =
                             clamp(c.player_approval as f64 + nudge * room, -1.0, 1.0) as f32;
                     }
@@ -557,8 +705,14 @@ pub fn apply(
                         p.awareness =
                             clamp(p.awareness as f64 + 0.12 * (0.5 + oratory), 0.0, 1.0) as f32;
                     }
-                    campaign_contact(state, content, Some(*neighborhood), 0.8 + 0.6 * oratory);
-                    res.outcome_key = "outcome-town-hall".into();
+                    let scale = (0.8 + 0.6 * oratory) * if hostile { 0.4 } else { 1.0 };
+                    campaign_contact(state, content, Some(*neighborhood), scale);
+                    res.outcome_key = if hostile {
+                        "outcome-town-hall-hostile"
+                    } else {
+                        "outcome-town-hall"
+                    }
+                    .into();
                     res.args.insert(
                         "place".into(),
                         state.world.neighborhoods[*neighborhood as usize]
@@ -570,12 +724,21 @@ pub fn apply(
                     if let Some(id) = policy {
                         local_policy(state, *id)?;
                     }
+                    let risk = press_gaffe_risk(state);
                     use_slot(state, false)?;
+                    let gaffe = state.rng.get(Stream::Player).chance(risk);
                     let hoods: Vec<usize> = state.world.hoods_of(MunicipalityId(m)).collect();
                     for h in hoods {
                         for c in state.population.hoods[h].cohorts.iter_mut() {
                             c.player_awareness =
                                 clamp(c.player_awareness as f64 + 0.06, 0.0, 1.0) as f32;
+                            if gaffe {
+                                c.player_approval = clamp(
+                                    c.player_approval as f64 - 0.03 * c.player_awareness as f64,
+                                    -1.0,
+                                    1.0,
+                                ) as f32;
+                            }
                         }
                     }
                     if let Some(id) = policy
@@ -583,8 +746,15 @@ pub fn apply(
                     {
                         p.awareness = clamp(p.awareness as f64 + 0.15, 0.0, 1.0) as f32;
                     }
-                    campaign_contact(state, content, None, 0.25);
-                    res.outcome_key = "outcome-press".into();
+                    if !gaffe {
+                        campaign_contact(state, content, None, 0.25);
+                    }
+                    res.outcome_key = if gaffe {
+                        "outcome-press-gaffe"
+                    } else {
+                        "outcome-press"
+                    }
+                    .into();
                 }
                 Action::Canvass { neighborhood } => {
                     let h = state
@@ -609,6 +779,10 @@ pub fn apply(
                             clamp(c.player_approval as f64 + 0.015 * room, -1.0, 1.0) as f32;
                     }
                     campaign_contact(state, content, Some(*neighborhood), 1.0);
+                    // Door-knocking is the slow, tiring way to win (time and health).
+                    if let Some(p) = state.player.as_mut() {
+                        p.tracks.health = (p.tracks.health - 3.0).max(0.0);
+                    }
                     res.outcome_key = "outcome-canvass".into();
                     res.args.insert(
                         "place".into(),
@@ -629,7 +803,27 @@ pub fn apply(
                     let money = Money::from_units(raised as i64);
                     if let Some(p) = state.player.as_mut() {
                         p.money += money;
-                        p.tracks.standing = (p.tracks.standing - 0.5).max(0.0);
+                        // The party likes a fundraiser; late-night money invites scrutiny.
+                        p.tracks.standing = (p.tracks.standing + 0.5).min(100.0);
+                        p.tracks.health = (p.tracks.health - 2.0).max(0.0);
+                        if *late_night {
+                            p.tracks.legal_jeopardy = (p.tracks.legal_jeopardy + 1.0).min(100.0);
+                        }
+                    }
+                    // Donor ties: low-income voters who know you notice who you court.
+                    let hoods: Vec<usize> = state.world.hoods_of(MunicipalityId(m)).collect();
+                    for h in hoods {
+                        for c in state.population.hoods[h]
+                            .cohorts
+                            .iter_mut()
+                            .step_by(crate::population::CLASSES)
+                        {
+                            c.player_approval = clamp(
+                                c.player_approval as f64 - 0.01 * c.player_awareness as f64,
+                                -1.0,
+                                1.0,
+                            ) as f32;
+                        }
                     }
                     res.outcome_key = "outcome-fundraise".into();
                     res.args.insert("amount".into(), money.units().to_string());
@@ -649,13 +843,20 @@ pub fn apply(
                     {
                         return Err(bad("you are not running in a campaign"));
                     }
-                    use_slot(state, false)?;
+                    // Money, not time: no slot, but at most three buys a turn.
+                    let n = state.player.as_ref().map(|p| p.ads_this_turn).unwrap_or(0);
+                    if n >= MAX_ADS_PER_TURN {
+                        return Err(bad("the ad market is saturated this turn"));
+                    }
                     if let Some(p) = state.player.as_mut() {
                         p.money -= cost;
+                        p.ads_this_turn += 1;
                     }
-                    let per = content.politics.campaign.awareness_per_ad
-                        / content.politics.campaign.awareness_per_canvass.max(1e-6);
-                    campaign_contact(state, content, None, per);
+                    for race in state.politics.elections.races.iter_mut() {
+                        if let Some(c) = race.candidates.iter_mut().find(|c| c.politician == me) {
+                            crate::politics::elections::advertise(c, &content.politics.campaign, n);
+                        }
+                    }
                     res.outcome_key = "outcome-advertise".into();
                     res.args.insert("amount".into(), cost.units().to_string());
                 }

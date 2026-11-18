@@ -52,14 +52,23 @@ pub struct PlayerState {
     /// What the player intends at the next local election (default: defend their seat).
     #[serde(default)]
     pub filing: Option<crate::politics::elections::Filing>,
+    /// Ad buys this turn (the local market saturates).
+    #[serde(default)]
+    pub ads_this_turn: u8,
     /// The last election whose result has been applied to the tracks.
     #[serde(default)]
     pub last_election_seen: Option<SimDate>,
 }
 
 impl PlayerState {
+    /// Slots available this turn: exhaustion costs time (health is a resource).
+    pub fn slot_cap(&self) -> u8 {
+        let tired = (self.tracks.health < 35.0) as u8 + (self.tracks.health < 15.0) as u8;
+        self.standard_slots.saturating_sub(tired).max(1)
+    }
+
     pub fn slots_left(&self) -> u8 {
-        self.standard_slots.saturating_sub(self.slots_used)
+        self.slot_cap().saturating_sub(self.slots_used)
     }
 
     pub fn log(&mut self, date: SimDate, action: &str, outcome: &str, args: Vec<(String, String)>) {

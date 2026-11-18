@@ -2,4 +2,8 @@
 import type { ConcernView } from "./ConcernView";
 import type { PlaceRef } from "./PlaceRef";
 
-export type TownView = { gov_approval: number, player_awareness_ward: number, player_approval_ward: number, player_awareness_town: number, player_approval_town: number, concerns: Array<ConcernView>, neighborhoods: Array<PlaceRef>, wards: Array<PlaceRef>, };
+export type TownView = { gov_approval: number, player_awareness_ward: number, player_approval_ward: number, player_awareness_town: number, player_approval_town: number, concerns: Array<ConcernView>, neighborhoods: Array<PlaceRef>, wards: Array<PlaceRef>, 
+/**
+ * Chance of a hostile town hall, aligned with `neighborhoods`.
+ */
+town_hall_risk: Array<number>, };

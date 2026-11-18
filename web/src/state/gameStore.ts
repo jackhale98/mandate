@@ -47,7 +47,7 @@ interface GameState {
   /** Refresh the office and campaign views together. */
   refreshDesk(): Promise<void>;
   closeElectionNight(): void;
-  /** Run a player command; journals it (Ironman) and refreshes views. */
+  /** Run a player command, save the whole game (Ironman), and refresh views. */
   command(cmd: CommandDto): Promise<number | null>;
   dismissToast(): void;
   endTurn(): Promise<void>;
@@ -90,7 +90,6 @@ export const useGame = create<GameState>((set, get) => {
       bytes,
       updatedAt: meta.saved_at,
     });
-    await store.clearJournal(run.runId);
     set({ run: { ...run, revision } });
   }
 
@@ -180,7 +179,9 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "command", payload: cmd });
         const applied = expectKind(body, "command_applied");
-        await saveStore().appendJournal(run.runId, run.revision, JSON.stringify(cmd));
+        // A full save after every action (about 90 ms). Nothing is ever replayed,
+        // so an app update can never re-roll an outcome the player already saw.
+        await persist();
         set({
           overview: applied.overview,
           toast: applied.result ? { key: applied.result.outcome_key, args: applied.result.args } : null,
@@ -246,12 +247,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
-        let overview = await engine().importSave(rec.bytes);
-        // Replay commands made since the snapshot (deterministic: same outcomes).
-        for (const json of await saveStore().getJournal(runId, rec.revision)) {
-          const body = await engine().request({ kind: "command", payload: JSON.parse(json) as CommandDto });
-          overview = expectKind(body, "command_applied").overview;
-        }
+        const overview = await engine().importSave(rec.bytes);
         set({ overview, map: null, office: null, campaign: null, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {

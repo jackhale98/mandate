@@ -309,3 +309,125 @@ fn favour_debt_is_capped() {
     e.apply(Command::EndTurn).unwrap();
     assert!(e.apply(trade()).is_err());
 }
+
+#[test]
+fn saves_survive_a_balance_patch_but_not_missing_rules() {
+    use mandate_sim::events::EventKind;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+    let mut e = world(36);
+    let id = draft(&mut e, "policy.parks", &[]);
+    e.apply(Command::Player(PlayerCommand::IntroducePolicy {
+        policy: id,
+    }))
+    .unwrap();
+    let state = e.state().clone();
+
+    // A balance patch: one tuning number changes, every id still exists.
+    let mut sources = read_dir_sources(&root).unwrap();
+    let pol = sources
+        .iter_mut()
+        .find(|s| s.path.ends_with("politics.jsonc"))
+        .unwrap();
+    pol.text = pol.text.replace("\"ad_cost\": 1500", "\"ad_cost\": 1600");
+    let patched = Arc::new(load(&sources).unwrap().0);
+    assert_ne!(patched.content_hash, content().content_hash);
+    let mut e2 = Engine::from_state(state.clone(), patched.clone()).expect("a balance patch loads");
+    assert!(
+        e2.state()
+            .events
+            .iter()
+            .any(|ev| matches!(ev.kind, EventKind::RulesUpdated { .. }))
+    );
+    assert_eq!(e2.state().meta.content_hash, patched.content_hash);
+    e2.apply(Command::EndTurn).unwrap();
+
+    // A rule the save depends on is gone: refuse with a clear message.
+    let mut missing = (*content()).clone();
+    missing.policies.remove("policy.parks");
+    missing.content_hash = "different".into();
+    let err = Engine::from_state(state, Arc::new(missing))
+        .err()
+        .expect("missing rules refuse");
+    assert!(err.to_string().contains("policy.parks"));
+}
+
+#[test]
+fn the_players_vote_has_consequences() {
+    use mandate_sim::policy::{PolicyInstance, PolicyInstanceId};
+    use mandate_sim::politics::Vote;
+    let mut e = world(37);
+    let (me, m) = {
+        let p = e.state().player.as_ref().unwrap();
+        (p.politician, p.municipality.0)
+    };
+    let my_party = e.state().politics.get(me).unwrap().party;
+    // A colleague from the player's own party sponsors a bill; the player owes them.
+    let sponsor = *e.state().politics.councils[m as usize]
+        .members
+        .iter()
+        .find(|id| **id != me && e.state().politics.get(**id).unwrap().party == my_party)
+        .or_else(|| {
+            e.state().politics.councils[m as usize]
+                .members
+                .iter()
+                .find(|id| **id != me)
+        })
+        .unwrap();
+    let same_party = e.state().politics.get(sponsor).unwrap().party == my_party;
+    let bill = e.state().policy.instances.len() as u32;
+    e.setup(|st| {
+        st.politics.get_mut(sponsor).unwrap().favors = -1;
+        st.policy.ids.alloc_raw();
+        st.policy.instances.push(PolicyInstance {
+            id: PolicyInstanceId(bill),
+            template: "policy.parks".into(),
+            tier: mandate_content::TierKey::Local,
+            jurisdiction: m,
+            sponsor: Some(sponsor),
+            params: Default::default(),
+            clauses: Vec::new(),
+            status: PolicyStatus::UnderConsideration,
+            stage: 0,
+            next_stage_on: Some(st.calendar.date.add_days(21)),
+            votes: Vec::new(),
+            introduced_on: Some(st.calendar.date),
+            enacted_on: None,
+            progress: 0.0,
+            awareness: 0.3,
+            end_reason: None,
+            cause: None,
+            ledger: Default::default(),
+        });
+    });
+    let standing = e.state().player.as_ref().unwrap().tracks.standing;
+    let r = e
+        .apply(Command::Player(PlayerCommand::CastVote {
+            policy: bill,
+            vote: Vote::Yes,
+        }))
+        .unwrap();
+    assert_eq!(r.result.unwrap().outcome_key, "outcome-vote-yes");
+    assert_eq!(
+        e.state().politics.get(sponsor).unwrap().favors,
+        0,
+        "the owed favour is repaid"
+    );
+    if same_party {
+        assert!(
+            e.state().player.as_ref().unwrap().tracks.standing > standing,
+            "loyalty is noticed"
+        );
+    }
+    // Final: no second declaration, and the declared vote drives the count.
+    assert!(
+        e.apply(Command::Player(PlayerCommand::CastVote {
+            policy: bill,
+            vote: Vote::No
+        }))
+        .is_err()
+    );
+    assert_eq!(
+        e.state().politics.declared_votes.get(&(me.0, bill)),
+        Some(&1)
+    );
+}

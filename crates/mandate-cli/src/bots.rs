@@ -145,8 +145,27 @@ fn legislate(e: &mut Engine, content: &ContentBundle) {
     }
 }
 
+fn tired(e: &Engine) -> bool {
+    e.state()
+        .player
+        .as_ref()
+        .is_some_and(|p| p.tracks.health < 40.0)
+}
+
+fn buy_ads(e: &mut Engine, n: usize) {
+    for _ in 0..n {
+        if !act(e, Action::Advertise) {
+            break;
+        }
+    }
+}
+
 fn play_turn(e: &mut Engine, content: &ContentBundle, strategy: &str) {
     let camp = campaigning(e);
+    // Money, not time: ads take no slot.
+    if camp && matches!(strategy, "media" | "mixed") {
+        buy_ads(e, 3);
+    }
     for _ in 0..3 {
         let slots = e
             .state()
@@ -160,15 +179,13 @@ fn play_turn(e: &mut Engine, content: &ContentBundle, strategy: &str) {
         let ok = match strategy {
             "idle" => false,
             "canvass" => {
-                coldest_hood(e).is_some_and(|h| act(e, Action::Canvass { neighborhood: h }))
-            }
-            "media" => {
-                if camp {
-                    act(e, Action::Advertise) || act(e, Action::Press { policy: None })
+                if tired(e) {
+                    act(e, Action::Rest)
                 } else {
-                    act(e, Action::Fundraise)
+                    coldest_hood(e).is_some_and(|h| act(e, Action::Canvass { neighborhood: h }))
                 }
             }
+            "media" => act(e, Action::Fundraise),
             "legislator" => {
                 legislate(e, content);
                 coldest_hood(e).is_some_and(|h| {
@@ -182,10 +199,10 @@ fn play_turn(e: &mut Engine, content: &ContentBundle, strategy: &str) {
                 })
             }
             "mixed" => {
-                if camp {
-                    act(e, Action::Advertise)
-                        || coldest_hood(e)
-                            .is_some_and(|h| act(e, Action::Canvass { neighborhood: h }))
+                if tired(e) {
+                    act(e, Action::Rest)
+                } else if camp {
+                    coldest_hood(e).is_some_and(|h| act(e, Action::Canvass { neighborhood: h }))
                 } else {
                     legislate(e, content);
                     act(e, Action::Fundraise)
@@ -211,7 +228,6 @@ fn play_turn(e: &mut Engine, content: &ContentBundle, strategy: &str) {
                             },
                         )
                     }),
-                    Some(AiAction::Advertise) => act(e, Action::Advertise),
                     Some(AiAction::Fundraise) => act(e, Action::Fundraise),
                     Some(AiAction::ProposeBill) | Some(AiAction::Lobby) => {
                         legislate(e, content);

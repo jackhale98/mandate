@@ -965,6 +965,7 @@ fn place_player(
         },
         actions: Vec::new(),
         filing: None,
+        ads_this_turn: 0,
         last_election_seen: None,
     })
 }
