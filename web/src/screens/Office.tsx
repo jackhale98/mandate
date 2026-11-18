@@ -11,6 +11,7 @@ import { ParamSliders } from "../components/ParamSliders";
 import { TradeOffs } from "../components/TradeOffs";
 
 const TRACKS = ["viability", "standing", "health", "legal_jeopardy", "threat"] as const;
+type TrackKey = (typeof TRACKS)[number] | "record";
 /** Tracks where a high value is bad (shown with a "risk" bar plus the text label). */
 const RISK = new Set<string>(["legal_jeopardy", "threat"]);
 
@@ -41,9 +42,14 @@ function PlayerCard({ o }: { o: OfficeView }) {
         <StatTile label={tr.t("ui-late-night-short")} value={tr.t(p.late_night_available ? "ui-yes" : "ui-no")} />
       </div>
       <h3 className="sub">{tr.t("ui-tracks")}</h3>
+      {p.tracks.standing < p.renomination_standing + 10 && (
+        <p className="note" data-testid="party-patience">
+          {tr.t("ui-party-patience", { n: p.renomination_standing })}
+        </p>
+      )}
       <ul className="bars">
-        {TRACKS.map((k) => {
-          const v = Math.round(p.tracks[k]);
+        {(["record", ...TRACKS] as TrackKey[]).map((k) => {
+          const v = Math.round(k === "record" ? p.record : p.tracks[k]);
           return (
             <li key={k}>
               <span>{tr.t(`track-${k}`)}</span>

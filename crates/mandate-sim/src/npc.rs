@@ -443,6 +443,14 @@ pub fn take_turn(state: &mut State, content: &ContentBundle, m: u32, full: bool)
                 break;
             };
             act(state, content, id, action, &x, &mut rng);
+            // The same visible work counts toward NPC records.
+            let rec = match action {
+                AiAction::ProposeBill => 0.12,
+                AiAction::TownHall | AiAction::Canvass => 0.06,
+                AiAction::Lobby => 0.03,
+                _ => 0.0,
+            };
+            crate::politics::add_record(&mut state.politics, id, rec);
             left = left.saturating_sub(content.tuning.action_cost(cost_key(action)).slots.max(1));
             match action {
                 AiAction::ProposeBill => {

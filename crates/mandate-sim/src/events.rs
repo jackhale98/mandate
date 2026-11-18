@@ -97,6 +97,8 @@ pub enum EventKind {
     ElectionHeld {
         races: u32,
     },
+    /// The player's party refused to renominate them (Standing too low).
+    PlayerDeselected,
     /// The game's rules were updated under a running career (an app update).
     RulesUpdated {
         from_content: String,

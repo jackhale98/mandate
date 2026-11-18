@@ -11,4 +11,12 @@ role_key: string, municipality: string, municipality_id: number, ward_number: nu
 /**
  * Slots this turn after exhaustion (health below 35 / 15 costs a slot).
  */
-slot_cap: number, press_gaffe_risk: number, ads_left: number, ad_cost: number, action_costs: Array<ActionCostView>, };
+slot_cap: number, press_gaffe_risk: number, ads_left: number, ad_cost: number, action_costs: Array<ActionCostView>, 
+/**
+ * Visible work in office (0..100), DEC-076.
+ */
+record: number, 
+/**
+ * Below this Standing the party will not renominate the player.
+ */
+renomination_standing: number, };

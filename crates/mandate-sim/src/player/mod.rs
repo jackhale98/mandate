@@ -108,6 +108,20 @@ pub fn monthly(pl: &mut PlayerState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         100.0,
     ) as f32;
     pl.tracks.health = (pl.tracks.health + 2.0).min(100.0);
+    // The party notices a passenger, and rewards a worker (DEC-076).
+    let record = r
+        .politics()
+        .get(pl.politician)
+        .map(|p| p.record as f64)
+        .unwrap_or(0.0);
+    let d = if record < 0.2 {
+        -1.5
+    } else if record > 0.5 {
+        0.5
+    } else {
+        0.0
+    };
+    pl.tracks.standing = clamp(pl.tracks.standing as f64 + d, 0.0, 100.0) as f32;
     // An election result lands on the career: margins become Mandate (DEC-011).
     let pol = r.politics();
     if pol.elections.last_election.is_some() && pol.elections.last_election != pl.last_election_seen

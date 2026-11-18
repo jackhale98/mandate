@@ -318,6 +318,7 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             put("races", races.to_string());
             "event-election-held"
         }
+        EventKind::PlayerDeselected => "event-player-deselected",
         EventKind::RulesUpdated { to_engine, .. } => {
             put("version", to_engine.clone());
             "event-rules-updated"

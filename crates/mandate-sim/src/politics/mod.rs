@@ -66,6 +66,10 @@ pub struct Politician {
     pub years_in_office: u8,
     /// Terms served in the current office (term limits).
     pub terms_in_office: u8,
+    /// Visible work in office (0..1): bills, votes, meetings, doorsteps. Fades
+    /// monthly; a thin record is an opponent's best attack (DEC-076).
+    #[serde(default)]
+    pub record: f32,
 }
 
 impl Politician {
@@ -117,6 +121,13 @@ pub enum Vote {
     Yes,
     No,
     Abstain,
+}
+
+/// Add visible work to a politician's record (DEC-076: inactivity is punished).
+pub fn add_record(st: &mut PoliticsState, id: PoliticianId, amount: f32) {
+    if let Some(p) = st.get_mut(id) {
+        p.record = (p.record + amount).min(1.0);
+    }
 }
 
 impl PoliticsState {
@@ -235,6 +246,7 @@ pub fn init(
     }
     // Sitting officials have served some years already.
     for p in st.politicians.iter_mut() {
+        p.record = 0.4;
         p.years_in_office = rng.range_i64(0, 12) as u8;
         p.terms_in_office = 1 + p.years_in_office / 4;
     }
@@ -279,6 +291,7 @@ pub fn new_politician(
             funds: rng.range_f64(2_000.0, 12_000.0),
             years_in_office: 0,
             terms_in_office: 0,
+            record: 0.0,
         });
         id
     }

@@ -1469,4 +1469,18 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   | Skill matters | The best strategy clearly beats random play, and no strategy dominates (DEC-072) |
 
 - **How difficulty is reached:** through honest levers only (DEC-038): world conditions, storyteller tension, NPC competence, and information quality. NPCs never get hidden bonuses.
+- **Doing nothing should rarely work** (owner, 2026-11-18). Implemented in three parts:
+  1. **A record of visible work.** Each politician has a record (0–1) that fades 8% a month and grows with bills (+0.12), town halls and canvassing (+0.06), declared votes (+0.04), lobbying and press (+0.03), and amendments (+0.02). NPCs earn it the same way; NPC officeholders elsewhere drift toward their own diligence. An incumbent whose record is below 0.35 is attacked in the campaign, which costs utility with every voter (×4 per point, not discounted by awareness). A strong record earns a small bonus with voters who know the incumbent.
+  2. **Party patience.** A thin record drains Standing (−1.5 a month), and a strong one adds +0.5. Below 25 Standing the party will not renominate the player (a "deselected" event, warned in advance on the Office card).
+  3. **Visibility.** The player's name recognition fades faster (4% rather than 1.5% a month) while their record is thin.
+
+  Bots, first re-election, 32 seeds: idle 9%, ads-only 22%, active strategies 75–84%. CI gate: idle ≤ 15%.
+- **Harder as you climb** (owner, 2026-11-18; tune with Acts 2–4). Difficulty should rise by tier mostly through structure:
+  - bigger constituencies, where personal contact matters less;
+  - better-funded and more competent opponents (higher NPC competence and campaign budgets per tier);
+  - heavier media scrutiny, so scandals surface more easily;
+  - more veto players: legislatures, courts, and coalition partners;
+  - national shocks that voters blame on the incumbent.
+
+  Per-tier NPC competence and poll noise are the tuning levers (DEC-038). The target is that each step up wins less often, with the overall win rate landing at 5–10%.
 - **When:** metrics are added to the lab (story-beat counter, ending distribution, full-career bots) as Acts 2–4 come online. Gates go into CI and the nightly runs from M6. No tuning toward these targets before then.

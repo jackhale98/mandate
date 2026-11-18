@@ -95,6 +95,12 @@ pub fn default_systems() -> Vec<SystemDef> {
             run: SystemFn::Politics(politics::elections::daily),
         },
         SystemDef {
+            name: "politics.monthly",
+            phase: P::Characters,
+            cadence: Monthly,
+            run: SystemFn::Politics(politics::elections::monthly),
+        },
+        SystemDef {
             name: "politics.yearly",
             phase: P::Characters,
             cadence: Yearly,

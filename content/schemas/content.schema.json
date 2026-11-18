@@ -1921,6 +1921,24 @@
           "format": "double",
           "type": "number"
         },
+        "record_baseline": {
+          "format": "double",
+          "type": "number"
+        },
+        "record_bonus": {
+          "format": "double",
+          "type": "number"
+        },
+        "record_penalty": {
+          "description": "An incumbent's record of visible work (DEC-076). Below the baseline,\nopponents campaign on it and every voter hears (`record_penalty` per\npoint, not discounted by awareness); above it, voters who know the\nincumbent reward it a little (`record_bonus`).",
+          "format": "double",
+          "type": "number"
+        },
+        "renomination_standing": {
+          "description": "Below this Standing the party will not renominate its own officeholder.",
+          "format": "double",
+          "type": "number"
+        },
         "retrospective_weight": {
           "format": "double",
           "type": "number"
@@ -1952,7 +1970,11 @@
         "race_shock_sd",
         "national_swing_sd",
         "strategic_weight",
-        "minor_party_threshold"
+        "minor_party_threshold",
+        "record_penalty",
+        "record_bonus",
+        "record_baseline",
+        "renomination_standing"
       ],
       "type": "object"
     },

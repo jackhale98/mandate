@@ -621,6 +621,13 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
     };
     let params = &r.content.politics;
     let parties = &pol.parties;
+    // Name recognition fades faster for an invisible officeholder (DEC-076).
+    let player_record = r
+        .player
+        .and_then(|p| pol.get(p.politician))
+        .map(|p| p.record as f64)
+        .unwrap_or(0.5);
+    let awareness_keep = if player_record < 0.25 { 0.96 } else { 0.985 };
     // Party attachment moves slowly: once a year is enough (and cheap).
     let january = r.date.calendar().month == 1;
     // Fold the last election's turnout into habits once.
@@ -754,7 +761,7 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                     -1.0,
                     1.0,
                 ) as f32;
-                c.player_awareness = (c.player_awareness as f64 * 0.985) as f32;
+                c.player_awareness = (c.player_awareness as f64 * awareness_keep) as f32;
                 if january {
                     update_party_id(c, a, parties, params, mayor_party);
                 }

@@ -119,6 +119,10 @@ pub struct PlayerView {
     pub ads_left: u32,
     pub ad_cost: f64,
     pub action_costs: Vec<ActionCostView>,
+    /// Visible work in office (0..100), DEC-076.
+    pub record: f64,
+    /// Below this Standing the party will not renominate the player.
+    pub renomination_standing: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -720,6 +724,8 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
             ads_left: mandate_sim::actions::MAX_ADS_PER_TURN.saturating_sub(pl.ads_this_turn)
                 as u32,
             ad_cost: content.politics.campaign.ad_cost as f64,
+            record: me.record as f64 * 100.0,
+            renomination_standing: content.politics.vote.renomination_standing,
             action_costs: content
                 .tuning
                 .action_costs

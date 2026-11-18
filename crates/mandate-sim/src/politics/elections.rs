@@ -307,6 +307,14 @@ fn open_campaign(
     st.elections.polls.clear();
     let player = r.player.map(|p| p.politician);
     let filing = r.player.and_then(|p| p.filing);
+    // A party will not renominate an officeholder it has lost patience with.
+    let renominated = r
+        .player
+        .is_none_or(|p| p.tracks.standing as f64 >= params.vote.renomination_standing);
+    if !renominated && !matches!(filing, Some(Filing::Retire)) {
+        out.events
+            .record(r.date, EventKind::PlayerDeselected, vec![]);
+    }
 
     let mut races = Vec::new();
     for (mi, mu) in world.municipalities.iter().enumerate() {
@@ -323,7 +331,7 @@ fn open_campaign(
             let p = st.get(id);
             let limited = term_limit.is_some_and(|l| p.is_some_and(|p| p.terms_in_office >= l));
             if Some(id) == player {
-                return matches!(filing, Some(Filing::Mayor) | None) && !limited;
+                return matches!(filing, Some(Filing::Mayor) | None) && !limited && renominated;
             }
             !limited && age(st, id, year) < 74 && rng.chance(0.85)
         });
@@ -413,7 +421,7 @@ fn open_campaign(
                     return false;
                 }
                 if Some(id) == player {
-                    return matches!(filing, Some(Filing::Council) | None);
+                    return matches!(filing, Some(Filing::Council) | None) && renominated;
                 }
                 age(st, id, year) < 76 && rng.chance(0.82)
             });
@@ -892,7 +900,19 @@ impl RaceCtx<'_> {
                 let quality = v.valence_weight
                     * (0.5 * (p.oratory as f64 - 0.5) + 0.5 * (p.integrity as f64 - 0.5)
                         - p.scandal as f64)
-                    + if p.home == h { v.home_ward_bonus } else { 0.0 };
+                    + if p.home == h { v.home_ward_bonus } else { 0.0 }
+                    // An incumbent's good record helps with voters who know them.
+                    + if Some(cand.politician) == self.race.incumbent {
+                        v.record_bonus * (p.record as f64 - v.record_baseline).max(0.0)
+                    } else {
+                        0.0
+                    };
+                // A thin record is attacked in the campaign: every voter hears.
+                let absentee = if Some(cand.politician) == self.race.incumbent {
+                    v.record_penalty * (p.record as f64 - v.record_baseline).min(0.0)
+                } else {
+                    0.0
+                };
                 // Record: incumbents (and the governing party's nominee, at half weight).
                 let incumbent = Some(cand.politician) == self.race.incumbent;
                 let gov_party = self
@@ -958,7 +978,10 @@ impl RaceCtx<'_> {
                     0.0
                 };
                 let wasted = v.strategic_weight * (1.0 - self.viability[k]).powi(2);
-                aw * known + if terms.party { partisan - wasted } else { 0.0 } + shock
+                aw * known
+                    + if terms.party { partisan - wasted } else { 0.0 }
+                    + if terms.record { absentee } else { 0.0 }
+                    + shock
             })
             .collect()
     }
@@ -1361,6 +1384,18 @@ fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>, _cal: &Electi
 fn set_role(st: &mut PoliticsState, id: PoliticianId, role: Role) {
     if let Some(p) = st.get_mut(id) {
         p.role = role;
+    }
+}
+
+/// Monthly: records fade (8%), and NPC officeholders' records drift toward
+/// their own diligence. The player has no baseline: their record is earned.
+pub fn monthly(st: &mut PoliticsState, _r: &Reads<'_>, _out: &mut Outs<'_>) {
+    for p in st.politicians.iter_mut() {
+        p.record *= 0.92;
+        if p.in_office() && !p.is_player {
+            let diligence = 0.5 * p.integrity + 0.5 * p.ambition;
+            p.record = (p.record + 0.08 * diligence).min(1.0);
+        }
     }
 }
 

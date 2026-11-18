@@ -96,10 +96,12 @@ fn rejects_corruption() {
 /// migration in `migrate`, add a fixture, then update EXPECTED. The
 /// fingerprint is taken from a sample game, so a content or balance change can
 /// alter it with no struct change; then (and only then, after checking the
-/// diff) update the hash without bumping the version.
+/// diff) update the hash without bumping the version. A purely additive field
+/// marked `#[serde(default)]` also keeps older saves loadable, so it may keep
+/// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (6, "060579902307894c");
+    const EXPECTED: (u16, &str) = (6, "2b1b391969488e0e");
     let c = content();
     let mut e = generate(
         &WorldConfig {

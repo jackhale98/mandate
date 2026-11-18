@@ -869,6 +869,8 @@ pub fn generate_with_progress(
             me.years_in_office = 3;
             me.terms_in_office = 1;
             me.scandal = 0.0;
+            // A modest first-term record: the player must build their own.
+            me.record = 0.3;
         }
         state.player = player;
     });

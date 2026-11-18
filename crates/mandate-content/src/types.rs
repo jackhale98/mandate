@@ -765,6 +765,15 @@ pub struct VoteParams {
     pub strategic_weight: f64,
     /// Minor parties contest only where their attachment share reaches this.
     pub minor_party_threshold: f64,
+    /// An incumbent's record of visible work (DEC-076). Below the baseline,
+    /// opponents campaign on it and every voter hears (`record_penalty` per
+    /// point, not discounted by awareness); above it, voters who know the
+    /// incumbent reward it a little (`record_bonus`).
+    pub record_penalty: f64,
+    pub record_bonus: f64,
+    pub record_baseline: f64,
+    /// Below this Standing the party will not renominate its own officeholder.
+    pub renomination_standing: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]

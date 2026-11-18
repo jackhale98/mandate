@@ -320,6 +320,9 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
         "strategies": rows,
         "best_minus_median": best - median,
         "no_dominant_strategy": best - median <= 0.3,
+        "idle_win_rate": rows.get("idle").and_then(|v| v["win_rate"].as_f64()).unwrap_or(1.0),
+        // DEC-076: doing nothing should rarely work.
+        "idle_rarely_wins": rows.get("idle").and_then(|v| v["win_rate"].as_f64()).unwrap_or(1.0) <= 0.15,
         "effort_matters": rates.iter().cloned().fold(0.0, f64::max)
             > rows.get("idle").and_then(|v| v["win_rate"].as_f64()).unwrap_or(0.0),
     })

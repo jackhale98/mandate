@@ -438,12 +438,16 @@ fn run(cli: Cli) -> Result<(), String> {
             }
             let report = bots::run(&content, seeds);
             let ok = report["no_dominant_strategy"].as_bool().unwrap_or(false)
-                && report["effort_matters"].as_bool().unwrap_or(false);
+                && report["effort_matters"].as_bool().unwrap_or(false)
+                && report["idle_rarely_wins"].as_bool().unwrap_or(false);
             out(report);
             if ok {
                 Ok(())
             } else {
-                Err("a dominant strategy exists, or effort does not matter".into())
+                Err(
+                    "a dominant strategy exists, effort does not matter, or idling wins too often"
+                        .into(),
+                )
             }
         }
         Cmd::TraceEcon { seed, years, size } => {

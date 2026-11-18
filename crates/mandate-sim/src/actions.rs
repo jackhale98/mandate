@@ -394,6 +394,7 @@ pub fn apply(
                 Vote::Abstain => 0.0,
             };
             state.politics.declared_votes.insert(key, sign as i8);
+            crate::politics::add_record(&mut state.politics, pl.politician, 0.04);
             // Party: loyalty is noticed a little, rebellion a lot.
             if let Some(pls) = state.player.as_mut() {
                 let d = if line == 0 || *vote == Vote::Abstain {
@@ -514,6 +515,7 @@ pub fn apply(
             validate_clauses(state, m, clauses)?;
             if status == PolicyStatus::UnderConsideration {
                 spend(state, content, "amend", false)?;
+                crate::politics::add_record(&mut state.politics, pl.politician, 0.02);
                 // Amendments cost goodwill already built: halve existing sway.
                 for (k, v) in state.politics.sway.iter_mut() {
                     if k.1 == *policy {
@@ -540,6 +542,7 @@ pub fn apply(
                 .map(|p| p.deliberation_days)
                 .unwrap_or(21);
             spend(state, content, "introduce", false)?;
+            crate::politics::add_record(&mut state.politics, pl.politician, 0.12);
             let ev = state.events.record(
                 date,
                 EventKind::PolicyIntroduced {
@@ -630,6 +633,7 @@ pub fn apply(
                         },
                         *late_night,
                     )?;
+                    crate::politics::add_record(&mut state.politics, pl.politician, 0.03);
                     let rng = state.rng.get(Stream::Player);
                     let trade = matches!(action, Action::TradeFavor { .. });
                     let success = trade || rng.chance(odds);
@@ -691,6 +695,7 @@ pub fn apply(
                     }
                     let risk = town_hall_risk(state, *neighborhood);
                     spend(state, content, "town_hall", false)?;
+                    crate::politics::add_record(&mut state.politics, pl.politician, 0.06);
                     let hostile = state.rng.get(Stream::Player).chance(risk);
                     let oratory = state
                         .politics
@@ -744,6 +749,7 @@ pub fn apply(
                     }
                     let risk = press_gaffe_risk(state);
                     spend(state, content, "press", false)?;
+                    crate::politics::add_record(&mut state.politics, pl.politician, 0.03);
                     let gaffe = state.rng.get(Stream::Player).chance(risk);
                     let hoods: Vec<usize> = state.world.hoods_of(MunicipalityId(m)).collect();
                     for h in hoods {
@@ -784,6 +790,7 @@ pub fn apply(
                         return Err(bad("that neighbourhood is not in your town"));
                     }
                     spend(state, content, "canvass", false)?;
+                    crate::politics::add_record(&mut state.politics, pl.politician, 0.06);
                     for c in state.population.hoods[*neighborhood as usize]
                         .cohorts
                         .iter_mut()
