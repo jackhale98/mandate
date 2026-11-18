@@ -62,6 +62,9 @@ test("map renders and a town can be inspected from the list", async ({ page }) =
   await page.locator(".town-list .row-btn").first().click();
   await expect(page.getByRole("heading", { name: "Resources" })).toBeVisible();
   await expect(page.getByText("Town hall", { exact: true })).toBeVisible();
+  // The sheet is modal on phones (the screen behind is dimmed): close it first.
+  await page.locator("aside.sheet").getByRole("button", { name: "Close" }).click();
+  await expect(page.locator("aside.sheet")).toHaveCount(0);
   await page.getByRole("button", { name: /Back to town/ }).click();
   await expect(page.getByTestId("town")).toBeVisible();
 });

@@ -6,6 +6,7 @@ import { useGame } from "../state/gameStore";
 import { formatCount, formatMoney, formatPct } from "../i18n/format";
 import { StatTile } from "./StatTile";
 import type { MuniEconomyView } from "../engine/protocol/MuniEconomyView";
+import { useSheetClose } from "./useSheetClose";
 
 function IndexBars({ items, tone }: { items: GeoIndexView[]; tone: "good" | "risk" }) {
   const tr = useGame((s) => s.tr);
@@ -80,6 +81,7 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
   const tr = useGame((s) => s.tr);
   const [view, setView] = useState<MunicipalityView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [closing, requestClose] = useSheetClose(onClose);
 
   useEffect(() => {
     let live = true;
@@ -93,7 +95,9 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
   }, [id]);
 
   return (
-    <aside className="sheet" aria-label={view?.name ?? ""}>
+    <>
+      <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />
+    <aside className={closing ? "sheet sheet-closing" : "sheet"} aria-label={view?.name ?? ""}>
       <div className="sheet-head">
         <div>
           <h2>{view?.name ?? "…"}</h2>
@@ -103,7 +107,7 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
             </p>
           )}
         </div>
-        <button type="button" className="btn btn-ghost" onClick={onClose} aria-label={tr.t("ui-close")}>
+        <button type="button" className="btn btn-ghost" onClick={requestClose} aria-label={tr.t("ui-close")}>
           ✕
         </button>
       </div>
@@ -156,5 +160,6 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
         </div>
       )}
     </aside>
+    </>
   );
 }

@@ -279,17 +279,24 @@ export const useGame = create<GameState>((set, get) => {
 
     async visit(location) {
       const here = get().pocket?.location.location;
-      set({ openPlace: location, pocketOpen: false, view: "town" });
-      if (here && sameLocation(here, location)) {
-        await get().refreshDesk();
-        return;
-      }
-      await get().command({ type: "move_to", location });
+      set({ pocketOpen: false, view: "town" });
+      if (!here || !sameLocation(here, location)) await get().command({ type: "move_to", location });
+      await get().openPanel(location);
     },
 
     async openPanel(location) {
-      set({ openPlace: location, place: null });
-      if (location) await get().refreshDesk();
+      if (!location) {
+        set({ openPlace: null, place: null });
+        return;
+      }
+      // Load first, then open: the sheet slides up at its full height instead of
+      // growing once its contents arrive.
+      try {
+        const place = expectKind(await engine().request({ kind: "query", payload: { type: "place", location } }), "place");
+        set({ openPlace: location, place });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
     },
 
     skipWalk() {
