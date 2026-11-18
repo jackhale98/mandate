@@ -34,7 +34,8 @@ pub enum EventKind {
     },
     PlantClosure {
         municipality: u32,
-        sector: mandate_content::SectorKind,
+        /// Content key of the sector (events are long-lived, so never an index).
+        sector: mandate_content::ContentKey,
         jobs: u32,
     },
     InterestRateMove {

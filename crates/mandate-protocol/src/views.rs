@@ -198,7 +198,7 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
                 "sector_key",
                 engine
                     .content()
-                    .sector(*sector)
+                    .sector(sector)
                     .map(|d| d.name_key.clone())
                     .unwrap_or_default(),
             );

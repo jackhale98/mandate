@@ -50,7 +50,7 @@ fn detects_duplicates_and_missing_locale_keys() {
     let mut s = base_sources();
     s.push(Source {
         path: "dup/sectors.jsonc".into(),
-        text: r#"{"kind":"sectors","items":[{"id":"sector.retail","name_key":"nope","class":"tertiary","kind":"retail","base_weight":0.1,"base_wage":1,"cyclicality":0,"productivity_growth":0},{"id":"sector.new","name_key":"missing-key","class":"tertiary","kind":"retail","base_weight":0.1,"base_wage":1,"cyclicality":0,"productivity_growth":0}]}"#.into(),
+        text: r#"{"kind":"sectors","items":[{"id":"sector.retail","name_key":"nope","class":"tertiary","driver":"local_services","base_weight":0.1,"base_wage":1,"cyclicality":0,"productivity_growth":0},{"id":"sector.new","name_key":"missing-key","class":"tertiary","driver":"local_services","base_weight":0.1,"base_wage":1,"cyclicality":0,"productivity_growth":0}]}"#.into(),
     });
     let errs = load(&s).unwrap_err();
     assert!(
@@ -58,9 +58,59 @@ fn detects_duplicates_and_missing_locale_keys() {
             .any(|i| i.message.contains("duplicate content id `sector.retail`"))
     );
     assert!(errs.iter().any(|i| i.message.contains("missing-key")));
+}
+
+#[test]
+fn sectors_are_a_registry_in_load_order() {
+    let (bundle, _) = load(&base_sources()).unwrap();
+    let keys: Vec<&str> = bundle.sector_keys().map(|k| k.as_str()).collect();
+    assert_eq!(keys[0], "sector.agriculture");
+    assert_eq!(keys[7], "sector.public");
+    assert_eq!(bundle.sector_index("sector.retail"), Some(4));
+
+    // Several sectors may share a driver; an expansion adds one in content.
+    let mut s = base_sources();
+    s.push(Source {
+        path: "zz_fish/sectors.jsonc".into(),
+        text: r#"{"kind":"sectors","items":[{"id":"sector.fishing","name_key":"sector-agriculture","class":"primary","driver":"land_based","base_weight":0.02,"base_wage":30000,"cyclicality":0.4,"productivity_growth":0.01}]}"#.into(),
+    });
+    let (b, _) = load(&s).unwrap();
+    assert_eq!(b.sectors.len(), 9);
+    assert_eq!(b.sector_index("sector.fishing"), Some(8));
+    assert_eq!(
+        b.sectors_with(mandate_content::SectorDriver::LandBased)
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn requires_core_sector_drivers_and_known_sector_references() {
+    let mut s = base_sources();
+    let sec = s
+        .iter_mut()
+        .find(|x| x.path.ends_with("sectors.jsonc"))
+        .unwrap();
+    sec.text = sec
+        .text
+        .lines()
+        .filter(|l| !l.contains("\"sector.public\""))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let pol = s
+        .iter_mut()
+        .find(|x| x.path.ends_with("policies/local.jsonc"))
+        .unwrap();
+    pol.text = pol.text.replace("\"sector.retail\"", "\"sector.nowhere\"");
+    let errs = load(&s).unwrap_err();
     assert!(
         errs.iter()
-            .any(|i| i.message.contains("exactly one sector of kind Retail"))
+            .any(|i| i.message.contains("at least one sector with driver Public")),
+        "{errs:?}"
+    );
+    assert!(
+        errs.iter()
+            .any(|i| i.message.contains("unknown sector `sector.nowhere`"))
     );
 }
 

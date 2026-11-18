@@ -52,7 +52,7 @@ function LocalEconomy({ e }: { e: MuniEconomyView }) {
       <h3 className="sub">{tr.t("ui-jobs-by-sector")}</h3>
       <ul className="meters">
         {e.sectors.map((x) => (
-          <li key={x.name_key}>
+          <li key={x.id}>
             <span>{tr.t(x.name_key)}</span>
             <span className="meter" aria-hidden="true">
               <span className="meter-fill" style={{ width: `${(x.jobs / maxJobs) * 100}%` }} />

@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 //! M2 integration tests: accounting invariants, causal chains, determinism.
 
-use mandate_content::{ContentBundle, SectorKind, bundle::read_dir_sources, load};
+use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
 use mandate_sim::{Command, Engine};
 use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use std::path::Path;
@@ -15,6 +15,10 @@ fn content() -> Arc<ContentBundle> {
         Arc::new(load(&src).unwrap().0)
     })
     .clone()
+}
+
+fn sector(key: &str) -> usize {
+    content().sector_index(key).unwrap()
 }
 
 fn world(seed: u64) -> Engine {
@@ -103,16 +107,16 @@ fn factory_closure_causal_chain() {
         .iter()
         .enumerate()
         .max_by(|a, b| {
-            a.1.sectors[SectorKind::Manufacturing.index()]
+            a.1.sectors[sector("sector.manufacturing")]
                 .jobs
-                .total_cmp(&b.1.sectors[SectorKind::Manufacturing.index()].jobs)
+                .total_cmp(&b.1.sectors[sector("sector.manufacturing")].jobs)
         })
         .map(|(i, _)| i)
         .unwrap();
     shocked
         .apply(Command::LabSectorShock {
             municipality: m as u32,
-            sector: SectorKind::Manufacturing,
+            sector: "sector.manufacturing".into(),
             factor: 0.3,
             months: 24,
         })
@@ -135,7 +139,7 @@ fn factory_closure_causal_chain() {
     );
     assert!(b.consumption < a.consumption, "spending should fall");
     assert!(
-        b.sectors[SectorKind::Retail.index()].jobs < a.sectors[SectorKind::Retail.index()].jobs,
+        b.sectors[sector("sector.retail")].jobs < a.sectors[sector("sector.retail")].jobs,
         "retail follows"
     );
     assert!(b.attractiveness < a.attractiveness);

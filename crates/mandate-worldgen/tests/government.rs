@@ -163,7 +163,10 @@ fn actions_spend_slots_and_validate() {
         late_night: false,
     }))
     .unwrap();
-    assert_eq!(e.state().player.as_ref().unwrap().slots_left(), pl.standard_slots - 2);
+    assert_eq!(
+        e.state().player.as_ref().unwrap().slots_left(),
+        pl.standard_slots - 2
+    );
     assert!(
         e.apply(Command::Player(PlayerCommand::Act {
             action: Action::Canvass { neighborhood: hood },

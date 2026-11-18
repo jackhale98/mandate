@@ -16,7 +16,7 @@ use crate::politics::PoliticsState;
 use crate::population::PopulationState;
 use crate::state::{Calendar, State, WorldMeta};
 use crate::world::World;
-use mandate_content::{ContentBundle, SectorKind};
+use mandate_content::{ContentBundle, ContentKey};
 use mandate_core::{Cadence, RngStreams, SimDate};
 use serde::{Deserialize, Serialize};
 
@@ -51,7 +51,8 @@ pub enum Effect {
     /// Temporarily scale a sector's demand in a municipality (economy applies).
     SectorShock {
         municipality: u32,
-        sector: SectorKind,
+        /// Content key of the sector.
+        sector: ContentKey,
         factor: f64,
         months: u16,
         cause: Option<EventId>,

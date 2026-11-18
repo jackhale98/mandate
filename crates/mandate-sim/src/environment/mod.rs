@@ -2,10 +2,10 @@
 //! drying, storminess), resource stocks, pollution, and hazard events.
 
 use crate::events::EventKind;
-use crate::scheduler::{Effect, Outs, Reads};
+use crate::scheduler::{Effect, EffectQueue, Outs, Reads};
 use crate::state::{Preset, WorldMeta};
 use crate::world::World;
-use mandate_content::SectorKind;
+use mandate_content::{ContentBundle, SectorDriver};
 use mandate_core::math::clamp;
 use mandate_core::{SimRng, Stream};
 use serde::{Deserialize, Serialize};
@@ -108,9 +108,9 @@ pub fn drift(env: &mut EnvironmentState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         let (mut resource_jobs, mut industry) = (0.0, 0.0);
         for m in &reg.municipalities {
             if let Some(me) = econ.munis.get(m.index()) {
-                resource_jobs += me.sectors[SectorKind::Resources.index()].jobs;
-                industry += me.sectors[SectorKind::Manufacturing.index()].jobs
-                    + me.sectors[SectorKind::Resources.index()].jobs;
+                let extraction = me.jobs_with(r.content, SectorDriver::Extraction);
+                resource_jobs += extraction;
+                industry += me.jobs_with(r.content, SectorDriver::Industrial) + extraction;
             }
         }
         let scale = 1.0 / 60_000.0;
@@ -217,22 +217,26 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         fraction: damage * 0.25,
                         cause,
                     });
-                    out.effects.push(Effect::SectorShock {
+                    sector_shock(
+                        out.effects,
+                        r.content,
+                        SectorDriver::Visitor,
                         municipality,
-                        sector: SectorKind::Tourism,
-                        factor: 1.0 - 0.4 * severity,
-                        months: 6,
+                        1.0 - 0.4 * severity,
+                        6,
                         cause,
-                    });
+                    );
                 }
                 HazardKind::Drought => {
-                    out.effects.push(Effect::SectorShock {
+                    sector_shock(
+                        out.effects,
+                        r.content,
+                        SectorDriver::LandBased,
                         municipality,
-                        sector: SectorKind::Agriculture,
-                        factor: 1.0 - 0.45 * severity,
-                        months: 12,
+                        1.0 - 0.45 * severity,
+                        12,
                         cause,
-                    });
+                    );
                 }
                 HazardKind::Wildfire => {
                     out.effects.push(Effect::HousingDamage {
@@ -240,20 +244,24 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         fraction: severity * 0.008 * (1.0 - mods.wildfire_protection),
                         cause,
                     });
-                    out.effects.push(Effect::SectorShock {
+                    sector_shock(
+                        out.effects,
+                        r.content,
+                        SectorDriver::Visitor,
                         municipality,
-                        sector: SectorKind::Tourism,
-                        factor: 1.0 - 0.5 * severity,
-                        months: 9,
+                        1.0 - 0.5 * severity,
+                        9,
                         cause,
-                    });
-                    out.effects.push(Effect::SectorShock {
+                    );
+                    sector_shock(
+                        out.effects,
+                        r.content,
+                        SectorDriver::Extraction,
                         municipality,
-                        sector: SectorKind::Resources,
-                        factor: 1.0 - 0.3 * severity,
-                        months: 12,
+                        1.0 - 0.3 * severity,
+                        12,
                         cause,
-                    });
+                    );
                 }
             }
         }
@@ -295,14 +303,37 @@ fn regional_droughts(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'
         for m in &reg.municipalities {
             let g = &r.world.municipalities[m.index()].geo;
             if g.drought >= 0.25 {
-                out.effects.push(Effect::SectorShock {
-                    municipality: m.0,
-                    sector: SectorKind::Agriculture,
-                    factor: 1.0 - 0.45 * severity * g.drought.min(1.0),
-                    months: 12,
-                    cause: Some(ev),
-                });
+                sector_shock(
+                    out.effects,
+                    r.content,
+                    SectorDriver::LandBased,
+                    m.0,
+                    1.0 - 0.45 * severity * g.drought.min(1.0),
+                    12,
+                    Some(ev),
+                );
             }
         }
+    }
+}
+
+/// Shock every sector with a driver in a municipality (economy applies).
+fn sector_shock(
+    effects: &mut EffectQueue,
+    content: &ContentBundle,
+    driver: SectorDriver,
+    municipality: u32,
+    factor: f64,
+    months: u16,
+    cause: Option<crate::events::EventId>,
+) {
+    for (_, def) in content.sectors_with(driver) {
+        effects.push(Effect::SectorShock {
+            municipality,
+            sector: def.id.clone(),
+            factor,
+            months,
+            cause,
+        });
     }
 }

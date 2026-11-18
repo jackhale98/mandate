@@ -289,7 +289,8 @@ pub enum MechanismDef {
     Zoning { param: String, per_unit: f64 },
     /// Subsidy as a share of a sector's wage bill; jobs respond with `elasticity`.
     SectorSubsidy {
-        sector: SectorKind,
+        /// Content key of the sector, e.g. `sector.retail`.
+        sector: ContentKey,
         param: String,
         elasticity: f64,
     },
@@ -471,36 +472,50 @@ pub enum SectorClass {
     Public,
 }
 
-/// Behavioural kind of a sector; exactly one sector per kind (validated).
+/// Behaviour driver of a sector (DEC-075): the closed set of economic
+/// behaviours implemented in code. Sectors themselves are content; several
+/// sectors may share a driver, and a new driver needs a code change.
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
-pub enum SectorKind {
-    Agriculture,
-    Resources,
-    Manufacturing,
-    Construction,
-    Retail,
-    Tourism,
+pub enum SectorDriver {
+    /// Farming and other land-based output: fertility, crop prices, water.
+    LandBased,
+    /// Mining, energy, timber: commodity prices and finite stocks; plant closures.
+    Extraction,
+    /// Manufacturing: national competitiveness and unit labour costs; plant closures.
+    Industrial,
+    /// Construction: housing starts and public spending.
+    Building,
+    /// Retail and local services: household consumption.
+    LocalServices,
+    /// Tourism and hospitality: scenery, coasts, disasters.
+    Visitor,
+    /// Knowledge and technology: productivity follows the technology trend.
     Knowledge,
+    /// Public employment: funded by government spending.
     Public,
 }
 
-impl SectorKind {
-    pub const ALL: [SectorKind; 8] = [
-        SectorKind::Agriculture,
-        SectorKind::Resources,
-        SectorKind::Manufacturing,
-        SectorKind::Construction,
-        SectorKind::Retail,
-        SectorKind::Tourism,
-        SectorKind::Knowledge,
-        SectorKind::Public,
+impl SectorDriver {
+    pub const ALL: [SectorDriver; 8] = [
+        SectorDriver::LandBased,
+        SectorDriver::Extraction,
+        SectorDriver::Industrial,
+        SectorDriver::Building,
+        SectorDriver::LocalServices,
+        SectorDriver::Visitor,
+        SectorDriver::Knowledge,
+        SectorDriver::Public,
     ];
-    pub fn index(self) -> usize {
-        self as usize
-    }
+    /// Drivers the base economy cannot run without (validated: at least one
+    /// sector each). The others are optional.
+    pub const REQUIRED: [SectorDriver; 3] = [
+        SectorDriver::Building,
+        SectorDriver::LocalServices,
+        SectorDriver::Public,
+    ];
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -509,7 +524,8 @@ pub struct SectorDef {
     pub id: ContentKey,
     pub name_key: String,
     pub class: SectorClass,
-    pub kind: SectorKind,
+    /// Which coded behaviour this sector follows.
+    pub driver: SectorDriver,
     /// Relative weight of this sector's base presence in a generic economy.
     pub base_weight: f64,
     /// Mean annual wage per worker at price level 1.0 (currency units).

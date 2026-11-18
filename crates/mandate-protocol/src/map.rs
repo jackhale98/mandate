@@ -242,6 +242,8 @@ pub struct MunicipalityView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct SectorJobsView {
+    /// Sector content key, e.g. `sector.manufacturing` (registry order, DEC-075).
+    pub id: String,
     /// Fluent key, e.g. `sector-manufacturing`.
     pub name_key: String,
     pub jobs: f64,
@@ -356,15 +358,14 @@ pub fn municipality_view(engine: &Engine, id: u32) -> Option<MunicipalityView> {
                 monthly_rent: e.housing.rent,
                 home_price: e.housing.price,
                 vacancy: e.housing.vacancy,
-                sectors: mandate_content::SectorKind::ALL
+                sectors: engine
+                    .content()
+                    .sectors
                     .iter()
                     .zip(&e.sectors)
-                    .map(|(k, s)| SectorJobsView {
-                        name_key: engine
-                            .content()
-                            .sector(*k)
-                            .map(|d| d.name_key.clone())
-                            .unwrap_or_default(),
+                    .map(|(d, s)| SectorJobsView {
+                        id: d.id.clone(),
+                        name_key: d.name_key.clone(),
                         jobs: s.jobs.round(),
                         wage: s.wage.round(),
                     })

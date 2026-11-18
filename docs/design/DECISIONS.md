@@ -1447,6 +1447,13 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      - save-format migrations.
   5. **Pack patches:** an expansion pack can add to or override entries from earlier packs by id (today duplicates are an error).
 - **Cost:** a one-time refactor touching the economy, population, politics, and protocol, plus a save-format bump. It is done before testers arrive (M6) so post-release saves never need that migration.
+- **Stage 1 implemented (sectors as a registry, 2026-11-18):**
+  - The closed `SectorKind` enum became `SectorDriver`, the coded behaviours: `land_based` (agriculture), `extraction` (resources), `industrial` (manufacturing), `building` (construction), `local_services` (retail), `visitor` (tourism), `knowledge`, and `public`. Code branches on a sector's driver; several sectors may share one.
+  - Sectors are content entries (`content/base/sectors.jsonc`) with `driver` and the existing traits. Validation requires unique ids, sane traits, and at least one sector each for `building`, `local_services`, and `public`. The other drivers are optional.
+  - The registry order is load order: files by path, then item order. The engine indexes sector data densely in that order, with `Vec`s sized to the registry instead of `[_; 8]` arrays.
+  - Content, commands, events, and effects name sectors by content key: `sector_subsidy.sector`, `LabSectorShock`, `PlantClosure`, `SectorShock`, and active shocks. Map views list sectors from the registry, with `id` and `name_key`.
+  - Saves record `economy.sector_keys`. `Engine::from_state` remaps sector data by key when the content's registry differs. Matching keys keep their data. A new sector starts with no jobs and a capacity from its endowment, so it grows in over the following months. A removed sector is reported by `missing_references`, and the save is refused.
+  - The save format moved to v6. Base-content results are unchanged: sweep metrics, bot win rates, and the economic trace are identical.
 
 ### DEC-076 — Difficulty target: rare wins, rich stories
 

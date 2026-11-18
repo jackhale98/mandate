@@ -19,7 +19,9 @@ pub struct Source {
 pub struct ContentBundle {
     pub packs: Vec<PackManifest>,
     pub tuning: Tuning,
-    pub sectors: BTreeMap<ContentKey, SectorDef>,
+    /// The sector registry (DEC-075), in load order: files by path, then
+    /// item order. The engine indexes sector data densely in this order.
+    pub sectors: Vec<SectorDef>,
     pub name_pools: BTreeMap<ContentKey, NamePoolDef>,
     pub economy: EconomyParams,
     pub constitutions: BTreeMap<ContentKey, ConstitutionDef>,
@@ -32,13 +34,27 @@ pub struct ContentBundle {
 }
 
 impl ContentBundle {
-    /// The sector definition for a kind (validated to exist exactly once).
-    pub fn sector(&self, kind: SectorKind) -> Option<&SectorDef> {
-        self.sectors.values().find(|s| s.kind == kind)
+    /// Registry index of a sector by content key.
+    pub fn sector_index(&self, key: &str) -> Option<usize> {
+        self.sectors.iter().position(|s| s.id == key)
     }
 
+    /// A sector definition by content key.
+    pub fn sector(&self, key: &str) -> Option<&SectorDef> {
+        self.sectors.iter().find(|s| s.id == key)
+    }
+
+    /// Sector keys in registry order.
     pub fn sector_keys(&self) -> impl Iterator<Item = &ContentKey> {
-        self.sectors.keys()
+        self.sectors.iter().map(|s| &s.id)
+    }
+
+    /// Registry indices and definitions of the sectors with a driver.
+    pub fn sectors_with(&self, driver: SectorDriver) -> impl Iterator<Item = (usize, &SectorDef)> {
+        self.sectors
+            .iter()
+            .enumerate()
+            .filter(move |(_, s)| s.driver == driver)
     }
 
     /// All Fluent text for a language, concatenated in path order.
@@ -71,7 +87,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut politics: Option<(PoliticsParams, String)> = None;
     let mut constitutions: BTreeMap<ContentKey, ConstitutionDef> = BTreeMap::new();
     let mut policies: BTreeMap<ContentKey, PolicyTemplate> = BTreeMap::new();
-    let mut sectors: BTreeMap<ContentKey, SectorDef> = BTreeMap::new();
+    let mut sectors: Vec<SectorDef> = Vec::new();
     let mut name_pools: BTreeMap<ContentKey, NamePoolDef> = BTreeMap::new();
     let mut locales: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
     let mut origin: BTreeMap<String, String> = BTreeMap::new();
@@ -172,7 +188,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             ContentFile::Sectors { items } => {
                 for s in items {
                     if claim(&s.id, &mut issues) {
-                        sectors.insert(s.id.clone(), s);
+                        sectors.push(s);
                     }
                 }
             }

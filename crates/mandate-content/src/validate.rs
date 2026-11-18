@@ -136,8 +136,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     range(&mut issues, "burn_in_years", t.burn_in_years.into(), 0, 60);
 
     for id in b
-        .sectors
-        .keys()
+        .sector_keys()
         .chain(b.name_pools.keys())
         .chain(b.packs.iter().map(|p| &p.id))
     {
@@ -148,17 +147,30 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
             ));
         }
     }
-    for s in b.sectors.values() {
+    // Sector registry (DEC-075): sane traits, and every driver the base
+    // economy needs has at least one sector. Ids are unique (claimed on load).
+    for s in &b.sectors {
         if !(s.base_weight.is_finite() && s.base_weight >= 0.0) {
             issues.push(Issue::error(&s.id, "base_weight must be finite and >= 0"));
         }
+        if !(s.base_wage.is_finite() && s.base_wage > 0.0) {
+            issues.push(Issue::error(&s.id, "base_wage must be finite and > 0"));
+        }
+        if !(s.cyclicality.is_finite() && (0.0..=3.0).contains(&s.cyclicality)) {
+            issues.push(Issue::error(&s.id, "cyclicality must be in [0, 3]"));
+        }
+        if !(s.productivity_growth.is_finite() && (-0.1..=0.2).contains(&s.productivity_growth)) {
+            issues.push(Issue::error(
+                &s.id,
+                "productivity_growth must be in [-0.1, 0.2]",
+            ));
+        }
     }
-    for kind in crate::types::SectorKind::ALL {
-        let n = b.sectors.values().filter(|s| s.kind == kind).count();
-        if n != 1 {
+    for driver in crate::types::SectorDriver::REQUIRED {
+        if b.sectors_with(driver).next().is_none() {
             issues.push(Issue::error(
                 "sectors",
-                &format!("expected exactly one sector of kind {kind:?}, found {n}"),
+                &format!("the economy needs at least one sector with driver {driver:?}"),
             ));
         }
     }
@@ -303,6 +315,14 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
                     &format!("mechanism references unknown parameter `{param}`"),
                 ));
             }
+            if let M::SectorSubsidy { sector, .. } = m
+                && b.sector_index(sector).is_none()
+            {
+                issues.push(Issue::error(
+                    &p.id,
+                    &format!("mechanism references unknown sector `{sector}`"),
+                ));
+            }
         }
         if let Some(cp) = &p.cost.param
             && !has(cp)
@@ -352,7 +372,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     for p in &b.packs {
         referenced.push((&p.id, &p.name_key));
     }
-    for s in b.sectors.values() {
+    for s in &b.sectors {
         referenced.push((&s.id, &s.name_key));
     }
     for c in b.constitutions.values() {

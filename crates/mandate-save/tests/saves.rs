@@ -99,7 +99,7 @@ fn rejects_corruption() {
 /// diff) update the hash without bumping the version.
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (5, "d5465d43a755f2b8");
+    const EXPECTED: (u16, &str) = (6, "060579902307894c");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -119,4 +119,102 @@ fn state_shape_matches_format_version() {
         EXPECTED,
         "state shape changed"
     );
+}
+
+/// Base content plus an expansion that adds a fishing industry. The pack path
+/// sorts before `base/`, so the new sector comes first in the registry and
+/// every existing sector's index shifts (DEC-075).
+fn content_with_fishing() -> Arc<mandate_content::ContentBundle> {
+    let mut src =
+        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
+    src.push(mandate_content::Source {
+        path: "aa_fishing/sectors.jsonc".into(),
+        text: r#"{"kind":"sectors","items":[{"id":"sector.fishing","name_key":"sector-fishing","class":"primary","driver":"land_based","base_weight":0.03,"base_wage":34000,"cyclicality":0.5,"productivity_growth":0.01}]}"#.into(),
+    });
+    src.push(mandate_content::Source {
+        path: "aa_fishing/locale/en/fishing.ftl".into(),
+        text: "sector-fishing = Fishing\n".into(),
+    });
+    Arc::new(load(&src).unwrap().0)
+}
+
+#[test]
+fn save_loads_into_content_that_adds_a_sector() {
+    let base = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 41,
+            size: WorldSize::Small,
+            preset: None,
+        },
+        base.clone(),
+    )
+    .unwrap();
+    for _ in 0..5 {
+        e.apply(Command::EndTurn).unwrap();
+    }
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    let before = state.economy.clone();
+
+    let fishing = content_with_fishing();
+    assert_eq!(fishing.sector_index("sector.fishing"), Some(0));
+    let mut e2 =
+        mandate_sim::Engine::from_state(state, fishing.clone()).expect("extra sector loads");
+    let econ = &e2.state().economy;
+    let keys: Vec<String> = fishing.sector_keys().cloned().collect();
+    assert_eq!(econ.sector_keys, keys);
+    for (m, mu) in econ.munis.iter().enumerate() {
+        assert_eq!(mu.sectors.len(), keys.len());
+        // Existing sectors keep their data under their key.
+        for (old_i, k) in before.sector_keys.iter().enumerate() {
+            let new_i = fishing.sector_index(k).unwrap();
+            assert_eq!(mu.sectors[new_i], before.munis[m].sectors[old_i], "{k}");
+        }
+        let fish = &mu.sectors[0];
+        assert_eq!(fish.jobs, 0.0);
+        assert!(fish.capacity > 0.0);
+    }
+    assert!(
+        e2.state()
+            .events
+            .iter()
+            .any(|ev| matches!(ev.kind, mandate_sim::events::EventKind::RulesUpdated { .. }))
+    );
+
+    e2.apply(Command::AdvanceDays { days: 365 }).unwrap();
+    let s = e2.state();
+    let fish_jobs: f64 = s.economy.munis.iter().map(|m| m.sectors[0].jobs).sum();
+    assert!(fish_jobs > 0.0, "the new industry grows in");
+    for m in &s.economy.munis {
+        assert!(m.unemployment.is_finite());
+        assert!(
+            m.sectors
+                .iter()
+                .all(|x| x.jobs.is_finite() && x.wage.is_finite())
+        );
+    }
+    // Saves of the remapped run round-trip.
+    let (bytes, _) = encode(s, &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    assert_eq!(state.hash(), e2.state_hash());
+}
+
+#[test]
+fn save_refuses_content_that_removes_a_sector() {
+    let e = generate(
+        &WorldConfig {
+            seed: 42,
+            size: WorldSize::Small,
+            preset: None,
+        },
+        content_with_fishing(),
+    )
+    .unwrap();
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    let err = mandate_sim::Engine::from_state(state, content())
+        .err()
+        .expect("a removed sector refuses to load");
+    assert!(err.to_string().contains("sector.fishing"), "{err}");
 }

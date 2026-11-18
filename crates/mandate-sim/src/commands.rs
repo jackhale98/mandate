@@ -14,7 +14,8 @@ pub enum Command {
     /// Lab only (never exposed to players): inject a sector demand shock.
     LabSectorShock {
         municipality: u32,
-        sector: mandate_content::SectorKind,
+        /// Content key of the sector, e.g. `sector.manufacturing`.
+        sector: mandate_content::ContentKey,
         factor: f64,
         months: u16,
     },

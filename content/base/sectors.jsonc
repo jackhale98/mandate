@@ -1,15 +1,17 @@
-// Economic sectors (DEC-019). Exactly one sector per `kind`.
+// Economic sectors (DEC-019, DEC-075). Sectors are a registry: an expansion
+// adds industries here. `driver` picks the coded behaviour; several sectors may
+// share one. Registry order is load order (files by path, then item order).
 // base_wage: annual wage at price level 1.0; cyclicality: elasticity to the global cycle.
 {
   "kind": "sectors",
   "items": [
-    { "id": "sector.agriculture",   "name_key": "sector-agriculture",   "class": "primary",   "kind": "agriculture",   "base_weight": 0.05, "base_wage": 31000, "cyclicality": 0.3, "productivity_growth": 0.015 },
-    { "id": "sector.resources",     "name_key": "sector-resources",     "class": "primary",   "kind": "resources",     "base_weight": 0.03, "base_wage": 52000, "cyclicality": 0.6, "productivity_growth": 0.012 },
-    { "id": "sector.manufacturing", "name_key": "sector-manufacturing", "class": "secondary", "kind": "manufacturing", "base_weight": 0.12, "base_wage": 46000, "cyclicality": 0.8, "productivity_growth": 0.02 },
-    { "id": "sector.construction",  "name_key": "sector-construction",  "class": "secondary", "kind": "construction",  "base_weight": 0.07, "base_wage": 44000, "cyclicality": 0.7, "productivity_growth": 0.008 },
-    { "id": "sector.retail",        "name_key": "sector-retail",        "class": "tertiary",  "kind": "retail",        "base_weight": 0.25, "base_wage": 33000, "cyclicality": 0.4, "productivity_growth": 0.01 },
-    { "id": "sector.tourism",       "name_key": "sector-tourism",       "class": "tertiary",  "kind": "tourism",       "base_weight": 0.05, "base_wage": 29000, "cyclicality": 0.9, "productivity_growth": 0.008 },
-    { "id": "sector.knowledge",     "name_key": "sector-knowledge",     "class": "tertiary",  "kind": "knowledge",     "base_weight": 0.18, "base_wage": 68000, "cyclicality": 0.4, "productivity_growth": 0.025 },
-    { "id": "sector.public",        "name_key": "sector-public",        "class": "public",    "kind": "public",        "base_weight": 0.25, "base_wage": 47000, "cyclicality": 0.0, "productivity_growth": 0.008 },
+    { "id": "sector.agriculture",   "name_key": "sector-agriculture",   "class": "primary",   "driver": "land_based",     "base_weight": 0.05, "base_wage": 31000, "cyclicality": 0.3, "productivity_growth": 0.015 },
+    { "id": "sector.resources",     "name_key": "sector-resources",     "class": "primary",   "driver": "extraction",     "base_weight": 0.03, "base_wage": 52000, "cyclicality": 0.6, "productivity_growth": 0.012 },
+    { "id": "sector.manufacturing", "name_key": "sector-manufacturing", "class": "secondary", "driver": "industrial",     "base_weight": 0.12, "base_wage": 46000, "cyclicality": 0.8, "productivity_growth": 0.02 },
+    { "id": "sector.construction",  "name_key": "sector-construction",  "class": "secondary", "driver": "building",       "base_weight": 0.07, "base_wage": 44000, "cyclicality": 0.7, "productivity_growth": 0.008 },
+    { "id": "sector.retail",        "name_key": "sector-retail",        "class": "tertiary",  "driver": "local_services", "base_weight": 0.25, "base_wage": 33000, "cyclicality": 0.4, "productivity_growth": 0.01 },
+    { "id": "sector.tourism",       "name_key": "sector-tourism",       "class": "tertiary",  "driver": "visitor",        "base_weight": 0.05, "base_wage": 29000, "cyclicality": 0.9, "productivity_growth": 0.008 },
+    { "id": "sector.knowledge",     "name_key": "sector-knowledge",     "class": "tertiary",  "driver": "knowledge",      "base_weight": 0.18, "base_wage": 68000, "cyclicality": 0.4, "productivity_growth": 0.025 },
+    { "id": "sector.public",        "name_key": "sector-public",        "class": "public",    "driver": "public",         "base_weight": 0.25, "base_wage": 47000, "cyclicality": 0.0, "productivity_growth": 0.008 },
   ],
 }

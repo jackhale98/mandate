@@ -465,8 +465,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 }
                 let st = e.state();
                 let ec = &st.economy;
-                let mut jobs = [0.0f64; 8];
-                let mut cap = [0.0f64; 8];
+                let n = ec.sector_keys.len();
+                let mut jobs = vec![0.0f64; n];
+                let mut cap = vec![0.0f64; n];
                 for m in &ec.munis {
                     for (k, sct) in m.sectors.iter().enumerate() {
                         jobs[k] += sct.jobs;

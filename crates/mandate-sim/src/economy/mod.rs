@@ -10,12 +10,11 @@ use crate::scheduler::{Effect, Outs, Reads};
 use crate::state::{Preset, WorldMeta};
 use crate::world::{MunicipalityId, NeighborhoodKind, PlaceKind, SettlementClass, World};
 use housing::Housing;
-use mandate_content::{ContentBundle, SectorKind};
+use mandate_content::{ContentBundle, ContentKey, SectorDriver};
 use mandate_core::math::{clamp, exp, ln, pow};
 use mandate_core::{SimRng, Stream};
 use serde::{Deserialize, Serialize};
 
-pub const SECTORS: usize = 8;
 /// Commodities: agriculture, minerals, energy.
 pub const COMMODITIES: usize = 3;
 
@@ -82,13 +81,15 @@ pub struct SectorState {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ActiveShock {
-    pub sector: SectorKind,
+    /// Content key of the shocked sector.
+    pub sector: ContentKey,
     pub factor: f64,
     pub months_left: u16,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct MuniEcon {
+    /// One entry per sector, in `EconomyState::sector_keys` order.
     pub sectors: Vec<SectorState>,
     pub labour_force: f64,
     pub employed: f64,
@@ -118,12 +119,18 @@ impl MuniEcon {
     pub fn total_jobs(&self) -> f64 {
         self.sectors.iter().map(|s| s.jobs).sum()
     }
-    pub fn knowledge_share(&self) -> f64 {
+    /// Share of jobs in knowledge-driven sectors.
+    pub fn knowledge_share(&self, content: &ContentBundle) -> f64 {
         let t = self.total_jobs().max(1.0);
-        self.sectors
-            .get(SectorKind::Knowledge.index())
-            .map(|s| s.jobs / t)
-            .unwrap_or(0.0)
+        self.jobs_with(content, SectorDriver::Knowledge) / t
+    }
+    /// Jobs in all sectors with a driver.
+    pub fn jobs_with(&self, content: &ContentBundle, driver: SectorDriver) -> f64 {
+        content
+            .sectors_with(driver)
+            .filter_map(|(k, _)| self.sectors.get(k))
+            .map(|s| s.jobs)
+            .sum()
     }
 }
 
@@ -137,6 +144,10 @@ pub struct MuniSnapshot {
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct EconomyState {
+    /// Sector content keys this state was built with (DEC-074, DEC-075): the
+    /// order of every per-municipality sector list. On load the engine remaps
+    /// sector data by key when the content's registry differs.
+    pub sector_keys: Vec<ContentKey>,
     pub global: Global,
     pub national: National,
     pub munis: Vec<MuniEcon>,
@@ -152,7 +163,7 @@ fn local_wage_factor(c: SettlementClass) -> f64 {
 }
 
 /// Relative structural presence of each sector in a municipality.
-fn endowment(world: &World, m: usize, kind: SectorKind, preset: Option<Preset>) -> f64 {
+fn endowment(world: &World, m: usize, driver: SectorDriver, preset: Option<Preset>) -> f64 {
     let mu = &world.municipalities[m];
     let g = &mu.geo;
     let class = mu.class;
@@ -167,34 +178,34 @@ fn endowment(world: &World, m: usize, kind: SectorKind, preset: Option<Preset>) 
         SettlementClass::Rural => 0,
     };
     let p = |x: Preset, f: f64| if preset == Some(x) { f } else { 1.0 };
-    match kind {
-        SectorKind::Agriculture => {
+    match driver {
+        SectorDriver::LandBased => {
             (0.2 + 2.5 * g.fertility)
                 * [1.6, 1.0, 0.3, 0.08][size]
                 * p(Preset::DroughtFarmland, 1.5)
         }
-        SectorKind::Resources => {
+        SectorDriver::Extraction => {
             (g.minerals + 0.6 * g.timber + 0.5 * g.energy + 0.3 * g.fishing)
                 * [1.6, 1.2, 0.5, 0.2][size]
                 * p(Preset::ResourceFrontier, 2.2)
         }
-        SectorKind::Manufacturing => {
+        SectorDriver::Industrial => {
             (if industrial { 1.6 } else { 0.5 })
                 * [0.6, 1.0, 1.2, 1.1][size]
                 * p(Preset::IndustrialDecline, 1.6)
         }
-        SectorKind::Construction => 1.0,
-        SectorKind::Retail => [0.85, 1.0, 1.05, 1.1][size],
-        SectorKind::Tourism => {
+        SectorDriver::Building => 1.0,
+        SectorDriver::LocalServices => [0.85, 1.0, 1.05, 1.1][size],
+        SectorDriver::Visitor => {
             (0.2 + 2.0 * pow(g.scenic, 1.5) + if mu.coastal { 0.3 } else { 0.0 })
                 * p(Preset::WealthyCoast, 1.5)
         }
-        SectorKind::Knowledge => {
+        SectorDriver::Knowledge => {
             ([0.3, 0.6, 1.4, 2.2][size] + if has(PlaceKind::University) { 0.4 } else { 0.0 })
                 * p(Preset::TechGrowth, 1.5)
                 * p(Preset::WealthyCoast, 1.2)
         }
-        SectorKind::Public => {
+        SectorDriver::Public => {
             1.0 + if has(PlaceKind::RegionalAssembly) {
                 0.2
             } else {
@@ -221,25 +232,23 @@ pub fn init(
     };
     for (m, mu) in world.municipalities.iter().enumerate() {
         let lf: f64 = pop.labour_force_by_class(world, mu.id).iter().sum();
-        let weights: Vec<f64> = SectorKind::ALL
+        let weights: Vec<f64> = content
+            .sectors
             .iter()
-            .map(|k| {
-                content.sector(*k).map(|s| s.base_weight).unwrap_or(0.0)
-                    * endowment(world, m, *k, preset)
-            })
+            .map(|s| s.base_weight * endowment(world, m, s.driver, preset))
             .collect();
         let wsum: f64 = weights.iter().sum::<f64>().max(1e-9);
         let target_jobs = lf * (1.0 - e.natural_unemployment);
-        let sectors: Vec<SectorState> = SectorKind::ALL
+        let sectors: Vec<SectorState> = content
+            .sectors
             .iter()
             .zip(&weights)
-            .map(|(k, w)| {
+            .map(|(def, w)| {
                 let jobs = target_jobs * w / wsum;
-                let base_wage = content.sector(*k).map(|s| s.base_wage).unwrap_or(40_000.0);
                 SectorState {
                     capacity: jobs,
                     jobs,
-                    wage: base_wage * local_wage_factor(mu.class) * wealth,
+                    wage: def.base_wage * local_wage_factor(mu.class) * wealth,
                     productivity: 1.0,
                 }
             })
@@ -271,6 +280,7 @@ pub fn init(
         _ => (0.02, -0.008),
     };
     let mut st = EconomyState {
+        sector_keys: content.sector_keys().cloned().collect(),
         global: Global {
             demand: 1.0,
             recession: None,
@@ -306,6 +316,63 @@ pub fn init(
         st.munis[m].base_mean_wage = st.munis[m].mean_wage;
     }
     st
+}
+
+/// Re-key per-municipality sector data to the content's sector registry
+/// (DEC-074, DEC-075). Data for matching keys is kept (in the new order); a
+/// sector the content adds starts with no jobs and a structural capacity from
+/// its endowment, so it grows in over the following months. Sectors the state
+/// has but the content lacks are dropped here: callers refuse such loads first
+/// (see `engine::missing_references`). Returns whether anything changed.
+pub fn remap_sectors(
+    econ: &mut EconomyState,
+    world: &World,
+    meta: &WorldMeta,
+    content: &ContentBundle,
+) -> bool {
+    let keys: Vec<ContentKey> = content.sector_keys().cloned().collect();
+    if econ.sector_keys == keys {
+        return false;
+    }
+    let preset = meta.params.preset;
+    let price = econ.national.price_level.max(0.01);
+    let productivity = econ.national.productivity_index.max(0.01);
+    let old: Vec<Option<usize>> = keys
+        .iter()
+        .map(|k| econ.sector_keys.iter().position(|o| o == k))
+        .collect();
+    for (m, mu) in econ.munis.iter_mut().enumerate() {
+        if m >= world.municipalities.len() {
+            break;
+        }
+        let class = world.municipalities[m].class;
+        let weights: Vec<f64> = content
+            .sectors
+            .iter()
+            .map(|s| s.base_weight * endowment(world, m, s.driver, preset))
+            .collect();
+        let wsum: f64 = weights.iter().sum::<f64>().max(1e-9);
+        let jobs = mu.total_jobs();
+        let sectors = content
+            .sectors
+            .iter()
+            .zip(&old)
+            .zip(&weights)
+            .map(|((def, o), w)| match o.and_then(|i| mu.sectors.get(i)) {
+                Some(s) => s.clone(),
+                None => SectorState {
+                    capacity: jobs * w / wsum,
+                    jobs: 0.0,
+                    wage: def.base_wage * local_wage_factor(class) * price * productivity,
+                    productivity,
+                },
+            })
+            .collect();
+        mu.sectors = sectors;
+        mu.shocks.retain(|s| keys.contains(&s.sector));
+    }
+    econ.sector_keys = keys;
+    true
 }
 
 // --- Systems --------------------------------------------------------------------
@@ -419,7 +486,7 @@ fn settle_labour_and_incomes(
     let implied: f64 = (0..CLASSES).map(|c| raw[c] * lf_c[c]).sum::<f64>().max(1.0);
     let scale = employed / implied;
     let rates = raw.map(|x| clamp(x * scale, 0.1, 1.0));
-    let knowledge = mu.knowledge_share();
+    let knowledge = mu.knowledge_share(content);
     // A local wage floor lifts low-paid wages (its job cost is applied to sector demand).
     let class_wage = [
         0.6 * mean_wage * (1.0 + mods.wage_floor),
@@ -553,25 +620,26 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         let competitive = |elasticity: f64| pow(ulc, -elasticity);
         let construction_driver =
             pow(housing::starts_index(&mu.housing).max(0.1), 0.6) * pow(public_index.max(0.1), 0.3);
-        for (k, kind) in SectorKind::ALL.iter().enumerate() {
-            let def = content.sector(*kind);
-            let cyc = def.map(|d| d.cyclicality).unwrap_or(0.5);
-            let gcyc = pow(g.demand, cyc);
-            let driver = match kind {
-                SectorKind::Agriculture => {
+        for (k, def) in content.sectors.iter().enumerate() {
+            if k >= mu.sectors.len() {
+                break;
+            }
+            let gcyc = pow(g.demand, def.cyclicality);
+            let driver = match def.driver {
+                SectorDriver::LandBased => {
                     gcyc * pow(g.commodities[0], 0.4) * pow(water.max(0.2), 0.5)
                 }
-                SectorKind::Resources => {
+                SectorDriver::Extraction => {
                     gcyc * pow(g.commodities[1] * 0.6 + g.commodities[2] * 0.4, 0.6)
                         * pow(mineral_stock.max(0.05), 0.5)
                         * competitive(0.3)
                 }
-                SectorKind::Manufacturing => {
+                SectorDriver::Industrial => {
                     gcyc * nat.manufacturing_competitiveness * competitive(1.0)
                 }
-                SectorKind::Construction => gcyc * construction_driver,
-                SectorKind::Retail => retail_driver,
-                SectorKind::Tourism => {
+                SectorDriver::Building => gcyc * construction_driver,
+                SectorDriver::LocalServices => retail_driver,
+                SectorDriver::Visitor => {
                     gcyc * competitive(0.8)
                         * if mu.months_since_disaster < 12 {
                             0.75
@@ -580,19 +648,21 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         }
                 }
                 // Technology raises knowledge-sector productivity, not headcount.
-                SectorKind::Knowledge => gcyc * competitive(0.8),
-                SectorKind::Public => public_index,
+                SectorDriver::Knowledge => gcyc * competitive(0.8),
+                SectorDriver::Public => public_index,
             };
             let shock: f64 = mu
                 .shocks
                 .iter()
-                .filter(|s| s.sector == *kind)
+                .filter(|s| s.sector == def.id)
                 .map(|s| s.factor)
                 .product();
             // Policy: wage subsidies add jobs; a wage floor costs some low-paid jobs.
-            let subsidy = 1.0 + mods.subsidy_elasticity[k] * mods.subsidy[k];
-            let floor_cost = match kind {
-                SectorKind::Retail | SectorKind::Tourism | SectorKind::Agriculture => {
+            let subsidy = 1.0
+                + mods.subsidy_elasticity.get(k).copied().unwrap_or(0.0)
+                    * mods.subsidy.get(k).copied().unwrap_or(0.0);
+            let floor_cost = match def.driver {
+                SectorDriver::LocalServices | SectorDriver::Visitor | SectorDriver::LandBased => {
                     1.0 - 0.4 * mods.wage_floor
                 }
                 _ => 1.0,
@@ -600,27 +670,28 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             let shock = shock * subsidy * floor_cost;
             let s = &mut mu.sectors[k];
             // Local services scale with the labour force; tradables drift with trends.
-            match kind {
-                SectorKind::Retail | SectorKind::Public | SectorKind::Construction => {
+            match def.driver {
+                SectorDriver::LocalServices | SectorDriver::Public | SectorDriver::Building => {
                     s.capacity *= 1.0 + clamp((lf / mu.labour_force.max(1.0)) - 1.0, -0.02, 0.02);
                 }
-                SectorKind::Manufacturing => s.capacity *= 1.0 + nat.manufacturing_trend / 12.0,
-                SectorKind::Agriculture => s.capacity *= 1.0 - 0.004 / 12.0,
+                SectorDriver::Industrial => s.capacity *= 1.0 + nat.manufacturing_trend / 12.0,
+                SectorDriver::LandBased => s.capacity *= 1.0 - 0.004 / 12.0,
                 _ => {}
             }
             let target = s.capacity * driver * shock;
             let speed = if target < s.jobs { 0.16 } else { 0.1 };
             s.jobs = (s.jobs + (target - s.jobs) * speed).max(0.0);
-            let extra = if *kind == SectorKind::Knowledge {
+            let extra = if def.driver == SectorDriver::Knowledge {
                 nat.tech_growth - 0.02
             } else {
                 0.0
             };
-            s.productivity *=
-                1.0 + (def.map(|d| d.productivity_growth).unwrap_or(0.01) + extra) / 12.0;
+            s.productivity *= 1.0 + (def.productivity_growth + extra) / 12.0;
             // Plant closures in tradable sectors under sustained weak demand.
-            if matches!(kind, SectorKind::Manufacturing | SectorKind::Resources)
-                && driver < 0.85
+            if matches!(
+                def.driver,
+                SectorDriver::Industrial | SectorDriver::Extraction
+            ) && driver < 0.85
                 && s.capacity > 200.0
                 && rng.chance(0.03 * (0.85 - driver) * 10.0)
             {
@@ -631,7 +702,7 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     r.date,
                     EventKind::PlantClosure {
                         municipality: m as u32,
-                        sector: *kind,
+                        sector: def.id.clone(),
                         jobs: jobs as u32,
                     },
                     recession_cause.into_iter().collect(),
@@ -644,14 +715,17 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         // hurts for years but is not permanent.
         let slack = mu.unemployment - content.economy.natural_unemployment;
         let adjust = clamp(slack * 0.25, -0.01, 0.04) / 12.0;
-        for kind in [
-            SectorKind::Retail,
-            SectorKind::Knowledge,
-            SectorKind::Tourism,
-            SectorKind::Manufacturing,
-            SectorKind::Construction,
-        ] {
-            mu.sectors[kind.index()].capacity *= 1.0 + adjust;
+        for (s, def) in mu.sectors.iter_mut().zip(&content.sectors) {
+            if matches!(
+                def.driver,
+                SectorDriver::LocalServices
+                    | SectorDriver::Knowledge
+                    | SectorDriver::Visitor
+                    | SectorDriver::Industrial
+                    | SectorDriver::Building
+            ) {
+                s.capacity *= 1.0 + adjust;
+            }
         }
         mu.shocks.retain_mut(|s| {
             s.months_left = s.months_left.saturating_sub(1);
@@ -664,13 +738,8 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             0.1,
         );
         let class = world.municipalities[m].class;
-        for (k, kind) in SectorKind::ALL.iter().enumerate() {
-            let base = content
-                .sector(*kind)
-                .map(|d| d.base_wage)
-                .unwrap_or(40_000.0)
-                * local_wage_factor(class);
-            let s = &mut mu.sectors[k];
+        for (s, def) in mu.sectors.iter_mut().zip(&content.sectors) {
+            let base = def.base_wage * local_wage_factor(class);
             let target = base * nat.price_level * s.productivity * (1.0 + 2.0 * tight);
             s.wage += (target - s.wage) * 0.08;
         }

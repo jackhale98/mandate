@@ -43,6 +43,12 @@ pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String>
             out.push(p.template.clone());
         }
     }
+    // Sector data cannot be carried into content that removed the sector.
+    for k in &state.economy.sector_keys {
+        if content.sector_index(k).is_none() && !out.contains(k) {
+            out.push(k.clone());
+        }
+    }
     out
 }
 
@@ -80,6 +86,9 @@ impl Engine {
             state.meta.content_hash = content.content_hash.clone();
             state.meta.engine_version = mandate_core::ENGINE_VERSION.to_string();
         }
+        // New content may add or reorder sectors: re-key sector data. (Content
+        // that removed one of the save's sectors was refused above.)
+        crate::economy::remap_sectors(&mut state.economy, &state.world, &state.meta, &content);
         Ok(Engine {
             state,
             terrain: None,
@@ -199,9 +208,14 @@ impl Engine {
                 if *municipality as usize >= self.state.world.municipalities.len() {
                     return Err(EngineError::InvalidCommand("no such municipality".into()));
                 }
+                if self.content.sector_index(sector).is_none() {
+                    return Err(EngineError::InvalidCommand(format!(
+                        "no such sector `{sector}`"
+                    )));
+                }
                 let effect = crate::scheduler::Effect::SectorShock {
                     municipality: *municipality,
-                    sector: *sector,
+                    sector: sector.clone(),
                     factor: *factor,
                     months: *months,
                     cause: None,

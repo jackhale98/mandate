@@ -305,7 +305,7 @@ pub fn demography(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) 
         let knowledge = econ
             .munis
             .get(m)
-            .map(|e| e.knowledge_share())
+            .map(|e| e.knowledge_share(r.content))
             .unwrap_or(0.1);
         let class = r.world.municipalities[m].class;
         let h = &mut pop.hoods[i];

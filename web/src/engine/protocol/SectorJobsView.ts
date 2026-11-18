@@ -2,6 +2,10 @@
 
 export type SectorJobsView = { 
 /**
+ * Sector content key, e.g. `sector.manufacturing` (registry order, DEC-075).
+ */
+id: string, 
+/**
  * Fluent key, e.g. `sector-manufacturing`.
  */
 name_key: string, jobs: number, wage: number, };

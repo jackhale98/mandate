@@ -816,7 +816,8 @@
               "type": "string"
             },
             "sector": {
-              "$ref": "#/$defs/SectorKind"
+              "description": "Content key of the sector, e.g. `sector.retail`.",
+              "type": "string"
             },
             "type": {
               "const": "sector_subsidy",
@@ -1341,11 +1342,12 @@
           "format": "double",
           "type": "number"
         },
+        "driver": {
+          "$ref": "#/$defs/SectorDriver",
+          "description": "Which coded behaviour this sector follows."
+        },
         "id": {
           "type": "string"
-        },
-        "kind": {
-          "$ref": "#/$defs/SectorKind"
         },
         "name_key": {
           "type": "string"
@@ -1360,7 +1362,7 @@
         "id",
         "name_key",
         "class",
-        "kind",
+        "driver",
         "base_weight",
         "base_wage",
         "cyclicality",
@@ -1368,19 +1370,50 @@
       ],
       "type": "object"
     },
-    "SectorKind": {
-      "description": "Behavioural kind of a sector; exactly one sector per kind (validated).",
-      "enum": [
-        "agriculture",
-        "resources",
-        "manufacturing",
-        "construction",
-        "retail",
-        "tourism",
-        "knowledge",
-        "public"
-      ],
-      "type": "string"
+    "SectorDriver": {
+      "description": "Behaviour driver of a sector (DEC-075): the closed set of economic\nbehaviours implemented in code. Sectors themselves are content; several\nsectors may share a driver, and a new driver needs a code change.",
+      "oneOf": [
+        {
+          "const": "land_based",
+          "description": "Farming and other land-based output: fertility, crop prices, water.",
+          "type": "string"
+        },
+        {
+          "const": "extraction",
+          "description": "Mining, energy, timber: commodity prices and finite stocks; plant closures.",
+          "type": "string"
+        },
+        {
+          "const": "industrial",
+          "description": "Manufacturing: national competitiveness and unit labour costs; plant closures.",
+          "type": "string"
+        },
+        {
+          "const": "building",
+          "description": "Construction: housing starts and public spending.",
+          "type": "string"
+        },
+        {
+          "const": "local_services",
+          "description": "Retail and local services: household consumption.",
+          "type": "string"
+        },
+        {
+          "const": "visitor",
+          "description": "Tourism and hospitality: scenery, coasts, disasters.",
+          "type": "string"
+        },
+        {
+          "const": "knowledge",
+          "description": "Knowledge and technology: productivity follows the technology trend.",
+          "type": "string"
+        },
+        {
+          "const": "public",
+          "description": "Public employment: funded by government spending.",
+          "type": "string"
+        }
+      ]
     },
     "Selection": {
       "oneOf": [

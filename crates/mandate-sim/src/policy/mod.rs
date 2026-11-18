@@ -10,7 +10,7 @@ use crate::scheduler::{Outs, Reads};
 use crate::world::{ConstituencyId, MunicipalityId, World};
 use mandate_content::{
     BudgetCategory, ClassKey, ContentBundle, DecisionRule, HazardKey, MechanismDef, PolicyTemplate,
-    SectorKind, StageDef, TierKey,
+    StageDef, TierKey,
 };
 use mandate_core::math::{clamp, sigmoid};
 use mandate_core::{IdAllocator, SimDate, Stream, define_id};
@@ -185,9 +185,10 @@ pub struct PolicyMods {
     pub transfer: [f64; 3],
     pub housing_units_per_year: f64,
     pub starts_multiplier: f64,
-    /// Wage subsidy share and job elasticity by sector.
-    pub subsidy: [f64; 8],
-    pub subsidy_elasticity: [f64; 8],
+    /// Wage subsidy share and job elasticity by sector, in registry order
+    /// (empty when no policy applies).
+    pub subsidy: Vec<f64>,
+    pub subsidy_elasticity: Vec<f64>,
     /// Wage floor uplift for low-paid work (share).
     pub wage_floor: f64,
     pub flood_protection: f64,
@@ -229,6 +230,8 @@ pub fn mods_for(
 ) -> PolicyMods {
     let mut out = PolicyMods {
         starts_multiplier: 1.0,
+        subsidy: vec![0.0; content.sectors.len()],
+        subsidy_elasticity: vec![0.0; content.sectors.len()],
         ..Default::default()
     };
     for p in st
@@ -277,8 +280,10 @@ pub fn mods_for(
                     param,
                     elasticity,
                 } => {
-                    out.subsidy[sector.index()] += p.param(param) / 100.0 * k;
-                    out.subsidy_elasticity[sector.index()] = *elasticity;
+                    if let Some(i) = content.sector_index(sector) {
+                        out.subsidy[i] += p.param(param) / 100.0 * k;
+                        out.subsidy_elasticity[i] = *elasticity;
+                    }
                 }
                 MechanismDef::WageFloor { param } => out.wage_floor += p.param(param) / 100.0 * k,
                 MechanismDef::LocalTaxRate { param } => {
@@ -742,9 +747,14 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                             param,
                             elasticity,
                         } => {
-                            let base = e.map(|x| x.sectors[sector.index()].capacity).unwrap_or(0.0);
+                            let base = r
+                                .content
+                                .sector_index(sector)
+                                .and_then(|i| e.and_then(|x| x.sectors.get(i)))
+                                .map(|x| x.capacity)
+                                .unwrap_or(0.0);
                             p.ledger.insert(
-                                format!("jobs_supported_{}", sector_key(*sector)),
+                                format!("jobs_supported_{}", sector_key(sector)),
                                 base * elasticity * p.param(param) / 100.0 * k,
                             );
                         }
@@ -790,17 +800,10 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
     }
 }
 
-pub fn sector_key(s: SectorKind) -> &'static str {
-    match s {
-        SectorKind::Agriculture => "agriculture",
-        SectorKind::Resources => "resources",
-        SectorKind::Manufacturing => "manufacturing",
-        SectorKind::Construction => "construction",
-        SectorKind::Retail => "retail",
-        SectorKind::Tourism => "tourism",
-        SectorKind::Knowledge => "knowledge",
-        SectorKind::Public => "public",
-    }
+/// Short form of a sector's content key for ledger keys:
+/// `sector.retail` → `retail`, `sector.fish.farm` → `fish_farm`.
+pub fn sector_key(key: &str) -> String {
+    key.strip_prefix("sector.").unwrap_or(key).replace('.', "_")
 }
 
 /// Ward neighbourhoods as indices.
