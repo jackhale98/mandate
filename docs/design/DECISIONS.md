@@ -1411,3 +1411,32 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - A save that needs removed rules is refused with a message naming them. A future migration step can map them instead.
 - **Determinism** is guaranteed within one (engine, content) version and tested: two runs, plus save, load, and continue, natively and in WASM.
 - **Save-format changes:** before release, they still reject old saves with a clear message. From M6 (testers), format changes ship with JSON migrations.
+
+### DEC-075 — Extensibility: registries over hard-coded dimensions (proposed)
+
+- **Status:** Proposed (owner question, 2026-11-18: the game should stay easy to expand after release, for example with new policy types, industries with their own quirks, and new demographic groups such as Indigenous communities).
+- **Already data-driven:**
+  - policy templates and their parameters, costs, and side effects;
+  - constitutions (bodies, offices, procedures, election calendars);
+  - party naming;
+  - election, poll, and campaign tuning;
+  - NPC AI considerations and profiles;
+  - action costs;
+  - names and all text (Fluent).
+  - Content packs load in order with schemas and validation.
+- **Still fixed in code:**
+  - 8 attitude dimensions, a fixed array in cohorts, politicians, parties, and policy signatures;
+  - 8 economic sectors (an enum with arrays sized 8);
+  - 12 cohorts (4 age bands × 3 income classes);
+  - neighbourhood kinds and hazard types (enums);
+  - policy mechanisms and side-effect primitives (closed enums by design, since new behaviour needs code).
+- **Proposal** (an extensibility pass before M5, while there are few saves and little code depends on the fixed shapes):
+  1. **Sectors as a registry:** sectors are content entries with traits (tradable, cyclicality, wage level, resource input, automation exposure, pollution, seasonality, unionisation). Code iterates the registry instead of 8 fixed slots. "Quirks" are trait combinations plus optional typed behaviours (for example `boom_bust` for extraction, `seasonal` for tourism, `public_funded` for health).
+  2. **Communities as a cohort dimension:** cohorts are keyed by age × class × community. Communities are content: region shares, attitude offsets, turnout, language, institutions and rights hooks (for example a treaty council as a constitution body). The base pack ships one community, so there is no cost now; an expansion adds Indigenous nations or immigrant communities.
+  3. **Attitudes as a registry:** the attitude list moves to content and is stored as vectors, so an expansion can add an issue (for example land rights). Signatures name attitudes by key, not by position.
+  4. **An extension guide** (`docs/development/EXTENDING.md`) covering three kinds of change:
+     - pure content: a new policy, sector, community, attitude, constitution, or language;
+     - a code extension point: a new mechanism, side-effect primitive, action, or sector behaviour, each a single enum variant plus one handler and a test;
+     - save-format migrations.
+  5. **Pack patches:** an expansion pack can add to or override entries from earlier packs by id (today duplicates are an error).
+- **Cost:** a one-time refactor touching the economy, population, politics, and protocol, plus a save-format bump. It is done before testers arrive (M6) so post-release saves never need that migration.
