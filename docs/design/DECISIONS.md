@@ -1612,3 +1612,10 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - M6 needs per-pixel lighting or weather shaders;
   - scenes exceed about 1,000 moving sprites.
 - **Real-device check:** the spike is published unlinked at `/mandate/spike-hub/` (`?r=canvas|pixi&n=20|60|150&res=device|css|low&light=dusk`) for the owner to try on a phone. The app's service worker excludes `/spike-` paths.
+- **Real-device result (owner, 2026-11-18):** Canvas 2D "worked well" on the owner's phone. The owner found the routes to places "a little strange". The causes in the spike are 4-neighbour A* (staircase zig-zags), road tiles costing four times as much as pavement (long detours to avoid short crossings), and taps snapping to the nearest walkable tile (which can be behind a building).
+- **M6 pathfinding requirements:**
+  - 8-direction A* with an octile heuristic and no corner-cutting past obstacles;
+  - path straightening (string-pulling with line-of-sight checks);
+  - pedestrian costs that prefer pavements and crossings but allow short road crossings;
+  - a tap on a building routes to its door, and a tap on open ground goes to the nearest reachable cell on the player's side;
+  - smooth sub-tile movement with interpolation.
