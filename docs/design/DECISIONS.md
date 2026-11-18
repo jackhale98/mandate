@@ -42,6 +42,10 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-033 | Narrative director: authority & pacing | Accepted |
 | DEC-034 | Media & information model | Accepted |
 | DEC-035 | Conversations & dialogue | Accepted |
+| DEC-036 | Character creation: draft of 3 | Accepted |
+| DEC-037 | Personal life scope | Proposed (awaiting owner, D10) |
+| DEC-038 | Difficulty & complexity layers | Proposed (D10) |
+| DEC-039 | Meta-progression | Proposed (D10) |
 
 ---
 
@@ -864,3 +868,79 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - All text goes through localization keys.
   - An LLM text layer is **deferred**. If ever added, it only rewrites already-validated facts (§10.7).
 - **Dependencies:** DEC-011, DEC-013, DEC-031, DEC-034, D12, D13.
+
+### DEC-036 — Character creation: draft of 3
+
+- **Status:** Accepted (owner, 2026-11-18).
+- **Options:**
+  - A. Full custom creation.
+  - B. Draft: pick one of 3 generated candidates.
+  - C. A single generated character.
+- **Decision:** B.
+  - Each run offers 3 candidates generated for *this* world. Each candidate has:
+    - a background (shared role data with DEC-020),
+    - a hometown,
+    - personality,
+    - one notable strength and one flaw,
+    - starting relationships,
+    - starting resources,
+    - a situation hook.
+  - Rerolls are allowed (count to be tuned). Name and appearance are editable.
+  - Backgrounds grant **different opportunities and constraints**, not stat inflation (brief §3.2).
+- **Consequences:**
+  - Candidate generation runs after the burn-in (DEC-022), so candidates are embedded in real local history.
+  - The three candidates should differ in background, region, and strength.
+
+### DEC-037 — Personal life scope
+
+- **Status:** Proposed. Awaiting owner (D10).
+- **Options:**
+  - A. None: the character is purely a political avatar.
+  - B. Light but consequential: household, health, and personal finances, included only where they create decisions.
+  - C. Deep life simulation (Crusader Kings-style family management, romance, dynasties).
+- **Proposed decision:** B.
+  - **Household:** an optional partner and children (as drafted), as Named NPCs. They provide:
+    - support: a campaign surrogate, morale;
+    - strain: family time competes for slots, and neglect leads to relationship decline, which can end in separation and becomes a Standing hit;
+    - vulnerability: a partner's business conflicts, or a child's trouble, raise Legal Jeopardy and Standing exposure;
+    - a family section in the Legacy epilogue.
+  - **Health:** part of the Age/Health track. Late Night slots, crises, and stress wear it down. Rest restores it. Illness events come with warnings (DEC-006 fairness).
+  - **Personal finances:** wealth and income. These affect self-funding, vulnerability to bribes, and financial-disclosure scandals. Detour roles pay differently.
+  - **Skill growth:** competencies improve through use and detours. This is the main in-run character progression.
+  - **Excluded:** romance and dating mechanics, and explicit content.
+- **Dependencies:** DEC-006, DEC-013, DEC-020, DEC-031, DEC-036.
+
+### DEC-038 — Difficulty & complexity layers
+
+- **Status:** Proposed (D10).
+- **Proposed decision:** difficulty and complexity are separate settings. Neither makes the simulation dishonest (brief §3.5).
+  - **Difficulty levers**, bundled into presets plus a custom option:
+    1. Storyteller profile (DEC-033).
+    2. Starting world conditions: economic outlook, polarization, institutional trust, corruption baseline.
+    3. Draft candidate strength.
+    4. NPC competence (DEC-030).
+    5. Information quality: poll precision and analyst accuracy (DEC-029).
+    6. Save mode: Ironman or Story (DEC-008).
+  - **Complexity layers** (UI only, changeable at any time):
+    - Casual: summaries and recommended actions.
+    - Standard.
+    - Advanced: demographics and causal breakdowns.
+    - Simulation: diagnostics.
+
+    The underlying simulation is identical across layers.
+- **Dependencies:** DEC-008, DEC-029, DEC-030, DEC-033, D12.
+
+### DEC-039 — Meta-progression
+
+- **Status:** Proposed (D10). Brief §19: keep it separate from run state; no permanent stat inflation.
+- **Proposed decision:**
+  - **Unlocks of new possibilities only:**
+    - constitutional archetypes and quirks,
+    - backgrounds and detour roles,
+    - storyteller profiles,
+    - starting scenarios (late starts, DEC-005),
+    - challenge modifiers (opt-in "heat"-style handicaps for experienced players).
+  - Unlocks are earned through Legacy milestones.
+  - A **Hall of Legacies** records past careers.
+- **Parking-lot idea (unratified):** **Legacy worlds.** A new run starts in the *same* world decades after a previous career ends, as a protégé or descendant, with the old career's laws, institutions, and grudges still in place (in the spirit of Rogue Legacy). The burn-in (DEC-022) makes this feasible. Evaluate after the MVP.
+- **Dependencies:** DEC-005, DEC-006, DEC-007, DEC-020, DEC-033, D13 (meta-save separate from run saves).
