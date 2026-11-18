@@ -49,6 +49,12 @@ pub struct PlayerState {
     pub staff: u8,
     pub tracks: Tracks,
     pub actions: Vec<ActionRecord>,
+    /// What the player intends at the next local election (default: defend their seat).
+    #[serde(default)]
+    pub filing: Option<crate::politics::elections::Filing>,
+    /// The last election whose result has been applied to the tracks.
+    #[serde(default)]
+    pub last_election_seen: Option<SimDate>,
 }
 
 impl PlayerState {
@@ -93,5 +99,47 @@ pub fn monthly(pl: &mut PlayerState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         100.0,
     ) as f32;
     pl.tracks.health = (pl.tracks.health + 2.0).min(100.0);
+    // An election result lands on the career: margins become Mandate (DEC-011).
+    let pol = r.politics();
+    if pol.elections.last_election.is_some() && pol.elections.last_election != pl.last_election_seen
+    {
+        pl.last_election_seen = pol.elections.last_election;
+        let date = pol.elections.last_election;
+        if let Some(res) = pol
+            .elections
+            .results
+            .iter()
+            .filter(|x| Some(x.date) == date)
+            .find(|x| x.candidates.iter().any(|c| c.politician == pl.politician))
+        {
+            let mine = res
+                .candidates
+                .iter()
+                .find(|c| c.politician == pl.politician)
+                .map(|c| c.share)
+                .unwrap_or(0.0) as f64;
+            let best_other = res
+                .candidates
+                .iter()
+                .filter(|c| c.politician != pl.politician)
+                .map(|c| c.share as f64)
+                .fold(0.0, f64::max);
+            let margin = mine - best_other;
+            if res.winner == pl.politician {
+                pl.mandate = clamp(55.0 + 150.0 * margin, 40.0, 100.0) as f32;
+                pl.tracks.viability = clamp(pl.tracks.viability as f64 + 10.0, 0.0, 100.0) as f32;
+                pl.tracks.standing = clamp(pl.tracks.standing as f64 + 5.0, 0.0, 100.0) as f32;
+            } else {
+                pl.tracks.viability = clamp(
+                    pl.tracks.viability as f64 - 25.0 + 50.0 * margin.max(-0.5),
+                    0.0,
+                    100.0,
+                ) as f32;
+                pl.tracks.standing = clamp(pl.tracks.standing as f64 - 10.0, 0.0, 100.0) as f32;
+            }
+        }
+        // A new cycle: by default the player defends whatever they hold.
+        pl.filing = None;
+    }
     let _ = CLASSES;
 }

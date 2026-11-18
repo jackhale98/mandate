@@ -3,7 +3,7 @@
 
 use crate::events::EventKind;
 use crate::scheduler::{Outs, Phase, Reads, SystemDef, SystemFn};
-use crate::{economy, environment, finance, player, policy, population};
+use crate::{economy, environment, finance, player, policy, politics, population};
 use mandate_core::Cadence;
 
 pub fn default_systems() -> Vec<SystemDef> {
@@ -87,6 +87,18 @@ pub fn default_systems() -> Vec<SystemDef> {
             phase: P::Population,
             cadence: Yearly,
             run: SystemFn::Population(population::demography),
+        },
+        SystemDef {
+            name: "politics.elections",
+            phase: P::Elections,
+            cadence: Daily,
+            run: SystemFn::Politics(politics::elections::daily),
+        },
+        SystemDef {
+            name: "politics.yearly",
+            phase: P::Characters,
+            cadence: Yearly,
+            run: SystemFn::Politics(politics::elections::yearly),
         },
         SystemDef {
             name: "calendar.year",

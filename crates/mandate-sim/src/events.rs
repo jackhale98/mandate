@@ -78,6 +78,24 @@ pub enum EventKind {
         policy: u32,
         municipality: u32,
     },
+    /// Local campaign season begins (candidates declared).
+    CampaignOpened {
+        election_day: SimDate,
+    },
+    PollsPublished {
+        count: u32,
+    },
+    RaceDecided {
+        municipality: u32,
+        mayor: bool,
+        winner: u32,
+        incumbent_defeated: bool,
+        player_won: bool,
+        player_ran: bool,
+    },
+    ElectionHeld {
+        races: u32,
+    },
 }
 
 /// How long an event is kept in full detail.

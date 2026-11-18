@@ -46,6 +46,10 @@ pub struct Cohort {
     pub player_awareness: f32,
     /// Opinion of the player among those aware (−1..1).
     pub player_approval: f32,
+    /// Attachment to each party (indexed by party id; sums to ≤ 1).
+    pub party_id: Vec<f32>,
+    /// Turnout at the last election (habit, DEC-071 §4).
+    pub last_turnout: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -80,6 +84,9 @@ pub struct PopulationState {
     /// Internal moves accumulated this year.
     pub moves_ytd: u64,
     pub history: Vec<DemographyYear>,
+    /// The last election whose turnout has been folded into habits.
+    #[serde(default)]
+    pub last_election_seen: Option<mandate_core::SimDate>,
 }
 
 impl PopulationState {
@@ -225,6 +232,8 @@ pub fn init(world: &World, totals: &[u64], world_seed: u64, wealthy: bool) -> Po
                     gov_approval: clamp(0.5 + rng.normal(0.0, 0.08), 0.0, 1.0) as f32,
                     player_awareness: 0.0,
                     player_approval: 0.0,
+                    party_id: Vec::new(),
+                    last_turnout: turnout as f32,
                 });
             }
         }
@@ -236,6 +245,7 @@ pub fn init(world: &World, totals: &[u64], world_seed: u64, wealthy: bool) -> Po
         hoods,
         moves_ytd: 0,
         history: Vec::new(),
+        last_election_seen: None,
     }
 }
 
@@ -418,12 +428,21 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let rate = r.content.economy.migration_rate;
     let rng = out.rng.get(Stream::Population);
 
-    // Collect movers by cohort (only the two mobile bands), with attitude sums.
+    // Movers leave per origin (only the two mobile bands) and carry their
+    // origin's attitudes. Destinations follow a gravity model (DEC-071):
+    // attractiveness × housing room × size^½ × (1 + d/d₀)^−γ.
     let mobile: Vec<usize> = (0..2)
         .flat_map(|a| (0..CLASSES).map(move |c| cohort_index(a, c)))
         .collect();
-    let mut pool_n = [0u64; COHORTS];
-    let mut pool_att = vec![[0.0f64; ATTITUDES]; COHORTS];
+    let mut movers = vec![[0u64; COHORTS]; nm];
+    let mut mover_att = vec![[[0.0f64; ATTITUDES]; COHORTS]; nm];
+    let np = pop
+        .hoods
+        .first()
+        .and_then(|h| h.cohorts.first())
+        .map(|c| c.party_id.len())
+        .unwrap_or(0);
+    let mut mover_pid = vec![vec![vec![0.0f64; np]; COHORTS]; nm];
     for (m, mu) in world.municipalities.iter().enumerate() {
         let push = rate * (1.0 - tanh((attract[m] - mean) * 1.5));
         let out_share = (push + extra_out[m]).min(0.5);
@@ -435,15 +454,17 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     continue;
                 }
                 hp.cohorts[k].count -= n;
-                pool_n[k] += n as u64;
+                movers[m][k] += n as u64;
                 for (j, a) in hp.cohorts[k].attitudes.iter().enumerate() {
-                    pool_att[k][j] += *a as f64 * n as f64;
+                    mover_att[m][k][j] += *a as f64 * n as f64;
+                }
+                for (j, a) in hp.cohorts[k].party_id.iter().enumerate().take(np) {
+                    mover_pid[m][k][j] += *a as f64 * n as f64;
                 }
             }
         }
     }
-    // Destination weights: attractiveness, available housing, and size.
-    let weights: Vec<f64> = (0..nm)
+    let pull: Vec<f64> = (0..nm)
         .map(|m| {
             let e = &econ.munis[m];
             let room = (e.housing.vacancy + 0.01).max(0.002);
@@ -452,57 +473,132 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 * mandate_core::math::sqrt(e.labour_force.max(1.0))
         })
         .collect();
-    let wsum: f64 = weights.iter().sum::<f64>().max(1e-9);
-    for &k in &mobile {
-        let total = pool_n[k];
-        if total == 0 {
+    let d0 = gravity_scale(world);
+    // Arrivals are pooled per destination and cohort, then settled once.
+    let mut arr_n = vec![[0u64; COHORTS]; nm];
+    let mut arr_att = vec![[[0.0f64; ATTITUDES]; COHORTS]; nm];
+    let mut arr_pid = vec![vec![vec![0.0f64; np]; COHORTS]; nm];
+    let mut weights = vec![0.0f64; nm];
+    for origin in 0..nm {
+        if movers[origin].iter().all(|n| *n == 0) {
             continue;
         }
-        pop.moves_ytd += total;
-        let att: Vec<f32> = pool_att[k]
-            .iter()
-            .map(|s| (s / total as f64) as f32)
-            .collect();
-        let mut remaining = total;
-        for m in 0..nm {
-            let share = if m + 1 == nm {
-                remaining
+        let (ox, oy) = world.municipalities[origin].center;
+        for d in 0..nm {
+            weights[d] = if d == origin && nm > 1 {
+                0.0
             } else {
-                ((total as f64) * weights[m] / wsum).floor() as u64
+                let (dx, dy) = world.municipalities[d].center;
+                let ddx = dx as f64 - ox as f64;
+                let ddy = dy as f64 - oy as f64;
+                let dist = mandate_core::math::sqrt(ddx * ddx + ddy * ddy);
+                // (1 + d/d₀)^−γ with γ = 1 (DEC-071; literature 0.5–2).
+                pull[d] / (1.0 + dist / d0)
             };
-            let share = share.min(remaining);
-            remaining -= share;
-            if share == 0 {
+        }
+        let wsum: f64 = weights.iter().sum::<f64>().max(1e-12);
+        let last = (0..nm).rev().find(|d| weights[*d] > 0.0).unwrap_or(origin);
+        for &k in &mobile {
+            let total = movers[origin][k];
+            if total == 0 {
                 continue;
             }
-            // Spread across the municipality's neighbourhoods by adult count.
-            let hoods = &world.municipalities[m].neighborhoods;
-            let adults: Vec<u64> = hoods
-                .iter()
-                .map(|h| pop.hoods[h.index()].adults().max(1))
-                .collect();
-            let asum: u64 = adults.iter().sum();
-            let mut left = share;
-            for (j, h) in hoods.iter().enumerate() {
-                let n = if j + 1 == hoods.len() {
-                    left
-                } else {
-                    (share * adults[j] / asum).min(left)
-                };
-                left -= n;
-                if n == 0 {
+            pop.moves_ytd += total;
+            let mut remaining = total;
+            for m in 0..nm {
+                if weights[m] <= 0.0 {
                     continue;
                 }
-                let c = &mut pop.hoods[h.index()].cohorts[k];
-                let w = n as f64 / (c.count as f64 + n as f64);
-                for (a, v) in c.attitudes.iter_mut().zip(&att) {
-                    *a = (*a as f64 * (1.0 - w) + *v as f64 * w) as f32;
+                let share = if m == last {
+                    remaining
+                } else {
+                    ((total as f64) * weights[m] / wsum).floor() as u64
+                };
+                let share = share.min(remaining);
+                remaining -= share;
+                if share == 0 {
+                    continue;
                 }
-                // Newcomers do not know local politicians yet.
-                c.player_awareness = (c.player_awareness as f64 * (1.0 - w)) as f32;
-                c.count += n as u32;
+                let f = share as f64 / total as f64;
+                arr_n[m][k] += share;
+                for j in 0..ATTITUDES {
+                    arr_att[m][k][j] += mover_att[origin][k][j] * f;
+                }
+                for j in 0..np {
+                    arr_pid[m][k][j] += mover_pid[origin][k][j] * f;
+                }
             }
         }
+    }
+    for m in 0..nm {
+        for &k in &mobile {
+            let n = arr_n[m][k];
+            if n == 0 {
+                continue;
+            }
+            let att: Vec<f32> = arr_att[m][k]
+                .iter()
+                .map(|s| (s / n as f64) as f32)
+                .collect();
+            let pid: Vec<f32> = arr_pid[m][k]
+                .iter()
+                .map(|s| (s / n as f64) as f32)
+                .collect();
+            settle(pop, world, m, k, n, &att, &pid);
+        }
+    }
+}
+
+/// d₀: a quarter of the settled extent, so decay is scale-free across world sizes.
+fn gravity_scale(world: &World) -> f64 {
+    let (mut minx, mut miny, mut maxx, mut maxy) = (u32::MAX, u32::MAX, 0u32, 0u32);
+    for m in &world.municipalities {
+        minx = minx.min(m.center.0);
+        miny = miny.min(m.center.1);
+        maxx = maxx.max(m.center.0);
+        maxy = maxy.max(m.center.1);
+    }
+    (maxx.saturating_sub(minx).max(maxy.saturating_sub(miny)) as f64 / 4.0).max(1.0)
+}
+
+/// Spread arrivals across a municipality's neighbourhoods by adult count.
+fn settle(
+    pop: &mut PopulationState,
+    world: &World,
+    m: usize,
+    k: usize,
+    share: u64,
+    att: &[f32],
+    pid: &[f32],
+) {
+    let hoods = &world.municipalities[m].neighborhoods;
+    let adults: Vec<u64> = hoods
+        .iter()
+        .map(|h| pop.hoods[h.index()].adults().max(1))
+        .collect();
+    let asum: u64 = adults.iter().sum();
+    let mut left = share;
+    for (j, h) in hoods.iter().enumerate() {
+        let n = if j + 1 == hoods.len() {
+            left
+        } else {
+            (share * adults[j] / asum).min(left)
+        };
+        left -= n;
+        if n == 0 {
+            continue;
+        }
+        let c = &mut pop.hoods[h.index()].cohorts[k];
+        let w = n as f64 / (c.count as f64 + n as f64);
+        for (a, v) in c.attitudes.iter_mut().zip(att) {
+            *a = (*a as f64 * (1.0 - w) + *v as f64 * w) as f32;
+        }
+        for (a, v) in c.party_id.iter_mut().zip(pid) {
+            *a = (*a as f64 * (1.0 - w) + *v as f64 * w) as f32;
+        }
+        // Newcomers do not know local politicians yet.
+        c.player_awareness = (c.player_awareness as f64 * (1.0 - w)) as f32;
+        c.count += n as u32;
     }
 }
 
@@ -510,13 +606,46 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
 /// to policies shape approval of the local government and of the player.
 pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
     use crate::policy::PolicyStatus;
-    use crate::politics::alignment;
     let econ = r.economy();
     let policy = r.policy();
     let fin = r.finance();
     let pol = r.politics();
+    // Retrospection is benchmarked against the nation (DEC-071 §2): a national
+    // recession is not the town hall's fault.
+    let dn = {
+        let h = &econ.national.history;
+        match (h.last(), h.get(h.len().saturating_sub(13))) {
+            (Some(a), Some(b)) => (a.unemployment - b.unemployment) as f64,
+            _ => 0.0,
+        }
+    };
+    let params = &r.content.politics;
+    let parties = &pol.parties;
+    // Party attachment moves slowly: once a year is enough (and cheap).
+    let january = r.date.calendar().month == 1;
+    // Fold the last election's turnout into habits once.
+    let new_election = pol.elections.last_election.is_some()
+        && pol.elections.last_election != pop.last_election_seen;
+    if new_election {
+        for (h, t) in &pol.elections.last_hood_turnout {
+            if let Some(hp) = pop.hoods.get_mut(*h as usize) {
+                for c in hp.cohorts.iter_mut() {
+                    // Cohorts differ around the neighbourhood mean by their own propensity.
+                    c.last_turnout =
+                        clamp(*t as f64 * (0.6 + 0.8 * c.turnout as f64), 0.02, 0.95) as f32;
+                }
+            }
+        }
+        pop.last_election_seen = pol.elections.last_election;
+    }
     for (m, mu) in r.world.municipalities.iter().enumerate() {
         let Some(e) = econ.munis.get(m) else { continue };
+        let mayor_party = pol
+            .councils
+            .get(m)
+            .and_then(|c| c.mayor)
+            .and_then(|id| pol.get(id))
+            .and_then(|p| p.party);
         let du = match (
             e.history.last(),
             e.history.get(e.history.len().saturating_sub(13)),
@@ -540,35 +669,55 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         } else {
             0.0
         };
-        let experienced = -8.0 * du - 2.0 * rent_growth + 2.0 * services - disaster;
-        let relevant: Vec<_> = policy
-            .in_municipality(m as u32)
-            .filter(|p| {
-                matches!(
-                    p.status,
-                    PolicyStatus::UnderConsideration
-                        | PolicyStatus::Enacted
-                        | PolicyStatus::InEffect
-                )
-            })
-            .filter_map(|p| r.content.policies.get(&p.template).map(|t| (p, t)))
-            .collect();
+        let experienced = -8.0 * (du - dn) - 2.0 * rent_growth + 2.0 * services - disaster;
+        // Reactions to laws and bills, pre-summed into one weighted signature
+        // per town (linear in attitudes, so each cohort needs one dot product).
+        let mut gov_vec = [0.0f64; ATTITUDES];
+        let mut player_vec = [0.0f64; ATTITUDES];
+        let mut n_gov = 0usize;
+        for p in policy.in_municipality(m as u32).filter(|p| {
+            matches!(
+                p.status,
+                PolicyStatus::UnderConsideration | PolicyStatus::Enacted | PolicyStatus::InEffect
+            )
+        }) {
+            let Some(t) = r.content.policies.get(&p.template) else {
+                continue;
+            };
+            let norm: f64 = t.signature.iter().map(|x| x.abs()).sum();
+            if norm <= 0.0 {
+                continue;
+            }
+            let w = 2.0 * p.awareness as f64 / norm;
+            let mine = p
+                .sponsor
+                .and_then(|s| pol.get(s))
+                .is_some_and(|s| s.is_player);
+            for k in 0..ATTITUDES {
+                if p.status != PolicyStatus::UnderConsideration {
+                    gov_vec[k] += w * t.signature[k];
+                }
+                if mine {
+                    player_vec[k] += w * t.signature[k];
+                }
+            }
+            if p.status != PolicyStatus::UnderConsideration {
+                n_gov += 1;
+            }
+        }
+        // Many laws should not saturate opinion: scale by √n.
+        let gov_scale = 1.0 / mandate_core::math::sqrt(n_gov.max(1) as f64);
         for h in &mu.neighborhoods {
-            for c in pop.hoods[h.index()].cohorts.iter_mut() {
+            for (ci, c) in pop.hoods[h.index()].cohorts.iter_mut().enumerate() {
+                let a = ci / CLASSES;
                 let mut gov_react = 0.0;
                 let mut player_react = 0.0;
-                for (p, t) in &relevant {
-                    let a = alignment(&t.signature, &c.attitudes) * p.awareness as f64;
-                    if p.status != PolicyStatus::UnderConsideration {
-                        gov_react += a;
-                    }
-                    if p.sponsor
-                        .and_then(|s| pol.get(s))
-                        .is_some_and(|s| s.is_player)
-                    {
-                        player_react += a;
-                    }
+                for k in 0..ATTITUDES {
+                    gov_react += gov_vec[k] * c.attitudes[k] as f64;
+                    player_react += player_vec[k] * c.attitudes[k] as f64;
                 }
+                let gov_react = clamp(gov_react * gov_scale, -2.0, 2.0);
+                let player_react = clamp(player_react, -2.0, 2.0);
                 let target = 0.5 + 0.5 * tanh(experienced + 0.6 * gov_react);
                 c.gov_approval = (c.gov_approval as f64 * 0.92 + target * 0.08) as f32;
                 c.player_approval = clamp(
@@ -577,7 +726,64 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                     1.0,
                 ) as f32;
                 c.player_awareness = (c.player_awareness as f64 * 0.985) as f32;
+                if january {
+                    update_party_id(c, a, parties, params, mayor_party);
+                }
             }
+        }
+    }
+}
+
+/// Mover–stayer party attachment (DEC-071 §3): the mover share drifts toward
+/// ideological fit plus credit or blame for the party running the town hall.
+fn update_party_id(
+    c: &mut Cohort,
+    age_band: usize,
+    parties: &[crate::politics::Party],
+    params: &mandate_content::PoliticsParams,
+    governing: Option<crate::politics::PartyId>,
+) {
+    if parties.is_empty() {
+        return;
+    }
+    let p = &params.party_id;
+    let attached = p.attached_by_age[age_band.min(3)];
+    let mut target =
+        crate::politics::parties::attachment(&c.attitudes, parties, attached, p.sharpness);
+    if let Some(g) = governing
+        && let Some(t) = target.get_mut(g.index())
+    {
+        *t = clamp(
+            *t as f64 * (1.0 + (c.gov_approval as f64 - 0.5) * 0.6),
+            0.0,
+            1.0,
+        ) as f32;
+    }
+    if c.party_id.len() != parties.len() {
+        c.party_id = target;
+        return;
+    }
+    let rate = p.mover_rate * (1.0 - p.stayer_share);
+    for (v, t) in c.party_id.iter_mut().zip(&target) {
+        *v = (*v as f64 + rate * (*t as f64 - *v as f64)) as f32;
+    }
+}
+
+/// Initial party attachment for every cohort (after parties are generated).
+pub fn assign_party_ids(
+    pop: &mut PopulationState,
+    parties: &[crate::politics::Party],
+    params: &mandate_content::PoliticsParams,
+) {
+    for h in pop.hoods.iter_mut() {
+        for (k, c) in h.cohorts.iter_mut().enumerate() {
+            let band = k / CLASSES;
+            c.party_id = crate::politics::parties::attachment(
+                &c.attitudes,
+                parties,
+                params.party_id.attached_by_age[band.min(3)],
+                params.party_id.sharpness,
+            );
         }
     }
 }

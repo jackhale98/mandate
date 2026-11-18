@@ -9,6 +9,7 @@
       {
         "tier": "local",
         "balanced_budget": true,
+        "elections": { "month": 11, "day": 3, "cycle_offset": 0, "campaign_weeks": 8, "timing": "concurrent", "partisan_ballot": true },
         "bodies": [
           {
             "id": "council", "name_key": "body-council",
@@ -45,6 +46,7 @@
       {
         "tier": "regional",
         "balanced_budget": true,
+        "elections": { "month": 11, "day": 3, "cycle_offset": 2, "campaign_weeks": 10, "timing": "concurrent", "partisan_ballot": true },
         "bodies": [
           {
             "id": "assembly", "name_key": "body-regional-assembly",
@@ -81,6 +83,7 @@
       {
         "tier": "national",
         "balanced_budget": false,
+        "elections": { "month": 11, "day": 3, "cycle_offset": 0, "campaign_weeks": 12, "timing": "concurrent", "partisan_ballot": true },
         "bodies": [
           {
             "id": "house", "name_key": "body-house",

@@ -12,6 +12,7 @@ pub mod engine;
 pub mod environment;
 pub mod events;
 pub mod finance;
+pub mod npc;
 pub mod player;
 pub mod policy;
 pub mod politics;

@@ -1,0 +1,115 @@
+// Parties, elections, polls, and campaigns (DEC-027 to DEC-029, DEC-071).
+// Magnitudes follow docs/design/research/SIMULATION_MODELS.md; tune via sweeps.
+{
+  "kind": "politics",
+  "value": {
+    "party_count": 3,
+    "party_names": {
+      // Fictional names only (REQ-001).
+      "nouns": ["Party", "Alliance", "Union", "Movement", "League", "Front", "Coalition"],
+      "by_attitude": [
+        { "attitude": "redistribution", "pro": ["Commonwealth", "Fair Share", "Solidarity"], "anti": ["Enterprise", "Free Hand", "Self-Reliance"] },
+        { "attitude": "tax_tolerance", "pro": ["Public Good", "Civic"], "anti": ["Taxpayers'", "Low Tax"] },
+        { "attitude": "social_liberalism", "pro": ["Open Society", "Liberty"], "anti": ["Family", "Decency"] },
+        { "attitude": "environment", "pro": ["Green Valley", "Evergreen"], "anti": ["Growth", "Industry"] },
+        { "attitude": "law_and_order", "pro": ["Order", "Safe Streets"], "anti": ["Civil Rights", "Due Process"] },
+        { "attitude": "localism", "pro": ["Hometown", "Localist"], "anti": ["National", "United"] },
+        { "attitude": "tradition", "pro": ["Heritage", "Hearth"], "anti": ["Forward", "New Dawn"] },
+        { "attitude": "reform_appetite", "pro": ["Reform", "Renewal"], "anti": ["Steady Hand", "Continuity"] },
+      ],
+    },
+    "vote": {
+      "issue_weight": 3.0,
+      "beta_low": 0.15,
+      "beta_high": 0.6,
+      "polarization_low": 0.2,
+      "polarization_high": 0.45,
+      "party_weight": 1.4,
+      "valence_weight": 1.0,
+      "retrospective_weight": 6.0,
+      "executive_multiplier": 1.8,
+      "home_ward_bonus": 0.25,
+      "partisan_discount": 0.4,
+      "incumbent_awareness": 0.55,
+      "challenger_awareness": 0.12,
+      "race_shock_sd": 0.25,
+      "national_swing_sd": 0.2,
+      "strategic_weight": 1.6,
+      "minor_party_threshold": 0.16,
+    },
+    "turnout": {
+      "standalone": 0.55,
+      "concurrent": 0.95,
+      "habit": 0.3,
+      "mobilisation_max": 0.08,
+    },
+    "polls": {
+      "pollsters": ["Civic Pulse", "Northgate Research", "Ledger & Co."],
+      "sample_size": 600,
+      "house_sd": 0.012,
+      "shared_sd": 0.02,
+      "early_multiplier": 2.0,
+      "every_days": 14,
+    },
+    "campaign": {
+      "persuasion_half_life_days": 60,
+      "awareness_per_canvass": 0.18,
+      "persuasion_per_canvass": 0.08,
+      "mobilisation_per_canvass": 0.25,
+      "diminishing": 0.6,
+      "ad_cost": 1500,
+      "awareness_per_ad": 0.06,
+      "npc_contacts_per_week": 1.5,
+    },
+    "ai": {
+      // Utility AI (DEC-030, DEC-071 §8). Score = weight × profile × Π curve(input).
+      "top_n": 3,
+      "actions": [
+        { "action": "canvass", "weight": 1.0, "considerations": [
+          { "input": "campaigning", "curve": { "type": "step", "x": 0.5, "lo": 0.0, "hi": 1.0 } },
+          { "input": "unknown", "curve": { "type": "linear", "m": 0.8, "b": 0.3 } },
+          { "input": "race_closeness", "curve": { "type": "logistic", "k": 6.0, "x0": 0.35 } },
+        ] },
+        { "action": "town_hall", "weight": 0.9, "considerations": [
+          { "input": "campaigning", "curve": { "type": "step", "x": 0.5, "lo": 0.0, "hi": 1.0 } },
+          { "input": "unknown", "curve": { "type": "linear", "m": 0.6, "b": 0.4 } },
+          { "input": "race_closeness", "curve": { "type": "logistic", "k": 6.0, "x0": 0.4 } },
+        ] },
+        { "action": "advertise", "weight": 0.9, "considerations": [
+          { "input": "campaigning", "curve": { "type": "step", "x": 0.5, "lo": 0.0, "hi": 1.0 } },
+          { "input": "funds", "curve": { "type": "logistic", "k": 10.0, "x0": 0.3 } },
+          { "input": "election_near", "curve": { "type": "linear", "m": 0.7, "b": 0.3 } },
+          { "input": "race_closeness", "curve": { "type": "logistic", "k": 6.0, "x0": 0.4 } },
+        ] },
+        { "action": "fundraise", "weight": 0.6, "considerations": [
+          { "input": "funds", "curve": { "type": "linear", "m": -0.9, "b": 1.0 } },
+          { "input": "election_near", "curve": { "type": "linear", "m": -0.6, "b": 1.0 } },
+        ] },
+        { "action": "lobby", "weight": 1.1, "considerations": [
+          { "input": "bill_stake", "curve": { "type": "logistic", "k": 8.0, "x0": 0.3 } },
+          { "input": "bill_closeness", "curve": { "type": "logistic", "k": 8.0, "x0": 0.45 } },
+        ] },
+        { "action": "propose_bill", "weight": 0.8, "considerations": [
+          { "input": "agenda", "curve": { "type": "logistic", "k": 10.0, "x0": 0.65 } },
+          { "input": "no_own_bill", "curve": { "type": "step", "x": 0.5, "lo": 0.0, "hi": 1.0 } },
+          { "input": "council_free", "curve": { "type": "linear", "m": 1.0, "b": 0.0 } },
+          { "input": "campaigning", "curve": { "type": "step", "x": 0.5, "lo": 1.0, "hi": 0.2 } },
+        ] },
+        { "action": "rest", "weight": 0.12, "considerations": [
+          { "input": "constant", "curve": { "type": "linear", "m": 0.0, "b": 1.0 } },
+        ] },
+      ],
+      "profiles": [
+        { "id": "ideologue", "mults": [ { "action": "propose_bill", "mult": 1.5 }, { "action": "lobby", "mult": 1.3 }, { "action": "advertise", "mult": 0.7 } ] },
+        { "id": "pragmatist", "mults": [ { "action": "lobby", "mult": 1.1 }, { "action": "fundraise", "mult": 1.2 } ] },
+        { "id": "populist", "mults": [ { "action": "town_hall", "mult": 1.5 }, { "action": "canvass", "mult": 1.2 }, { "action": "propose_bill", "mult": 1.1 } ] },
+      ],
+    },
+    "party_id": {
+      "attached_by_age": [0.45, 0.55, 0.65, 0.72],
+      "stayer_share": 0.6,
+      "mover_rate": 0.08,
+      "sharpness": 4.0,
+    },
+  },
+}

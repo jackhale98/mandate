@@ -24,6 +24,7 @@ pub struct ContentBundle {
     pub economy: EconomyParams,
     pub constitutions: BTreeMap<ContentKey, ConstitutionDef>,
     pub policies: BTreeMap<ContentKey, PolicyTemplate>,
+    pub politics: PoliticsParams,
     /// Fluent sources by language, then by file path.
     pub locales: BTreeMap<String, BTreeMap<String, String>>,
     /// Hash over every source path and text, in path order (DEC-053).
@@ -67,6 +68,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut packs = Vec::new();
     let mut tuning: Option<(Tuning, String)> = None;
     let mut economy: Option<(EconomyParams, String)> = None;
+    let mut politics: Option<(PoliticsParams, String)> = None;
     let mut constitutions: BTreeMap<ContentKey, ConstitutionDef> = BTreeMap::new();
     let mut policies: BTreeMap<ContentKey, PolicyTemplate> = BTreeMap::new();
     let mut sectors: BTreeMap<ContentKey, SectorDef> = BTreeMap::new();
@@ -157,6 +159,16 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     economy = Some((value, src.path.clone()));
                 }
             }
+            ContentFile::Politics { value } => {
+                if let Some((_, prev)) = &politics {
+                    issues.push(Issue::error(
+                        &src.path,
+                        &format!("politics defined twice (first in {prev})"),
+                    ));
+                } else {
+                    politics = Some((*value, src.path.clone()));
+                }
+            }
             ContentFile::Sectors { items } => {
                 for s in items {
                     if claim(&s.id, &mut issues) {
@@ -182,6 +194,10 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         issues.push(Issue::error("<content>", "no economy file found"));
         return Err(issues);
     };
+    let Some((politics, _)) = politics else {
+        issues.push(Issue::error("<content>", "no politics file found"));
+        return Err(issues);
+    };
     packs.sort_by(|a, b| (a.load_order, &a.id).cmp(&(b.load_order, &b.id)));
 
     let bundle = ContentBundle {
@@ -192,6 +208,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         economy,
         constitutions,
         policies,
+        politics,
         locales,
         content_hash,
     };

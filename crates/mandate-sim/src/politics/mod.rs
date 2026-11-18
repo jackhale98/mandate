@@ -1,6 +1,12 @@
-//! Politicians and local bodies (M3 subset of DEC-027/DEC-031): council
-//! members and mayors generated from their wards' opinions. Parties,
-//! factions, and full character simulation arrive in M4–M5.
+//! Politicians, parties, and local bodies (DEC-027, DEC-031 subset): council
+//! members and mayors generated from their wards' opinions, each belonging to
+//! a party generated from the society's cleavages. Elections live in
+//! `elections`; full character simulation arrives in M5.
+
+pub mod elections;
+pub mod parties;
+
+pub use parties::{Party, PartyId};
 
 use crate::population::{ATTITUDES, PopulationState};
 use crate::world::{ConstituencyId, MunicipalityId, Tier, World};
@@ -23,6 +29,10 @@ pub enum Role {
     Mayor {
         municipality: u32,
     },
+    /// Not in office (a defeated or retired politician, or a challenger).
+    Private {
+        municipality: u32,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -43,12 +53,35 @@ pub struct Politician {
     pub opinion_of_player: f32,
     /// Favours: positive = they owe the player; negative = the player owes them.
     pub favors: i32,
+    pub party: Option<PartyId>,
+    /// Drive to seek office (0..1).
+    pub ambition: f32,
+    /// Home neighbourhood (local ties in elections).
+    pub home: u32,
+    /// Valence damage from scandals (0..1), decays over time.
+    pub scandal: f32,
+    /// Campaign war chest (currency units).
+    pub funds: f64,
+    /// Years spent in elected office.
+    pub years_in_office: u8,
+    /// Terms served in the current office (term limits).
+    pub terms_in_office: u8,
 }
 
 impl Politician {
+    pub fn in_office(&self) -> bool {
+        !matches!(self.role, Role::Private { .. })
+    }
+
+    pub fn full_name(&self) -> String {
+        format!("{} {}", self.given, self.family)
+    }
+
     pub fn municipality(&self) -> u32 {
         match self.role {
-            Role::Councillor { municipality, .. } | Role::Mayor { municipality } => municipality,
+            Role::Councillor { municipality, .. }
+            | Role::Mayor { municipality }
+            | Role::Private { municipality } => municipality,
         }
     }
 }
@@ -70,6 +103,8 @@ pub struct PoliticsState {
     /// Per (politician, policy) persuasion built up by lobbying, trades, and earmarks.
     #[serde(with = "mandate_core::serde_util::map_as_pairs")]
     pub sway: BTreeMap<(u32, u32), f32>,
+    pub parties: Vec<Party>,
+    pub elections: elections::ElectionState,
 }
 
 impl PoliticsState {
@@ -78,6 +113,9 @@ impl PoliticsState {
     }
     pub fn get_mut(&mut self, id: PoliticianId) -> Option<&mut Politician> {
         self.politicians.get_mut(id.index())
+    }
+    pub fn party(&self, id: PartyId) -> Option<&Party> {
+        self.parties.get(id.index())
     }
     pub fn sway(&self, p: PoliticianId, policy: u32) -> f32 {
         self.sway.get(&(p.0, policy)).copied().unwrap_or(0.0)
@@ -123,19 +161,91 @@ pub fn init(
     given: &[String],
     family: &[String],
     year: u32,
+    parties: Vec<Party>,
 ) -> PoliticsState {
-    let mut st = PoliticsState::default();
+    let mut st = PoliticsState {
+        parties,
+        ..Default::default()
+    };
     let make = |st: &mut PoliticsState,
                 rng: &mut SimRng,
                 role: Role,
-                base: [f32; ATTITUDES]|
+                base: [f32; ATTITUDES],
+                home: u32|
      -> PoliticianId {
-        let id: PoliticianId = st.ids.alloc();
-        let (g, f) = name(rng, given, family);
         let mut attitudes = base;
         for a in attitudes.iter_mut() {
             *a = clamp(*a as f64 + rng.normal(0.0, 0.18), -1.0, 1.0) as f32;
         }
+        let party = parties::nearest_party(&attitudes, &st.parties);
+        new_politician(st, rng, given, family, role, attitudes, party, home, year)
+    };
+    let _ = &make;
+    for m in &world.municipalities {
+        let wards: Vec<_> = world
+            .constituencies
+            .iter()
+            .filter(|c| c.tier == Tier::Local && c.jurisdiction == m.id.0)
+            .collect();
+        let mut members = Vec::new();
+        for w in &wards {
+            let hoods: Vec<usize> = w.neighborhoods.iter().map(|h| h.index()).collect();
+            let base = mean_attitudes(pop, &hoods);
+            let home = w.neighborhoods.first().map(|h| h.0).unwrap_or(0);
+            let id = make(
+                &mut st,
+                rng,
+                Role::Councillor {
+                    municipality: m.id.0,
+                    ward: w.id,
+                },
+                base,
+                home,
+            );
+            members.push(id);
+        }
+        let all: Vec<usize> = world.hoods_of(MunicipalityId(m.id.0)).collect();
+        let home = m.neighborhoods.first().map(|h| h.0).unwrap_or(0);
+        let mayor = make(
+            &mut st,
+            rng,
+            Role::Mayor {
+                municipality: m.id.0,
+            },
+            mean_attitudes(pop, &all),
+            home,
+        );
+        st.councils.push(Council {
+            municipality: m.id.0,
+            members,
+            mayor: Some(mayor),
+        });
+    }
+    // Sitting officials have served some years already.
+    for p in st.politicians.iter_mut() {
+        p.years_in_office = rng.range_i64(0, 12) as u8;
+        p.terms_in_office = 1 + p.years_in_office / 4;
+    }
+    st
+}
+
+/// Create a politician (NPC) and register them. Used at generation and for
+/// new challengers at each election.
+#[allow(clippy::too_many_arguments)]
+pub fn new_politician(
+    st: &mut PoliticsState,
+    rng: &mut SimRng,
+    given: &[String],
+    family: &[String],
+    role: Role,
+    attitudes: [f32; ATTITUDES],
+    party: Option<PartyId>,
+    home: u32,
+    year: u32,
+) -> PoliticianId {
+    {
+        let id: PoliticianId = st.ids.alloc();
+        let (g, f) = name(rng, given, family);
         st.politicians.push(Politician {
             id,
             given: g,
@@ -150,45 +260,16 @@ pub fn init(
             negotiation: rng.range_f64(0.2, 0.9) as f32,
             opinion_of_player: rng.normal(0.0, 12.0).clamp(-40.0, 40.0) as f32,
             favors: 0,
+            party,
+            ambition: rng.range_f64(0.2, 0.95) as f32,
+            home,
+            scandal: 0.0,
+            funds: rng.range_f64(2_000.0, 12_000.0),
+            years_in_office: 0,
+            terms_in_office: 0,
         });
         id
-    };
-    for m in &world.municipalities {
-        let wards: Vec<_> = world
-            .constituencies
-            .iter()
-            .filter(|c| c.tier == Tier::Local && c.jurisdiction == m.id.0)
-            .collect();
-        let mut members = Vec::new();
-        for w in &wards {
-            let hoods: Vec<usize> = w.neighborhoods.iter().map(|h| h.index()).collect();
-            let base = mean_attitudes(pop, &hoods);
-            members.push(make(
-                &mut st,
-                rng,
-                Role::Councillor {
-                    municipality: m.id.0,
-                    ward: w.id,
-                },
-                base,
-            ));
-        }
-        let all: Vec<usize> = world.hoods_of(MunicipalityId(m.id.0)).collect();
-        let mayor = make(
-            &mut st,
-            rng,
-            Role::Mayor {
-                municipality: m.id.0,
-            },
-            mean_attitudes(pop, &all),
-        );
-        st.councils.push(Council {
-            municipality: m.id.0,
-            members,
-            mayor: Some(mayor),
-        });
     }
-    st
 }
 
 /// Cosine-style alignment between a policy signature and an attitude vector, in [-1, 1].

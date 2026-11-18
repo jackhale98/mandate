@@ -277,6 +277,47 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             put_policy(&mut put, engine, *policy, *municipality);
             "event-policy-withdrawn"
         }
+        EventKind::CampaignOpened { election_day } => {
+            let d = election_day.calendar();
+            put("day", d.day.to_string());
+            put("month_key", format!("month-{}", d.month));
+            put("year", d.year.to_string());
+            "event-campaign-opened"
+        }
+        EventKind::PollsPublished { count } => {
+            put("count", count.to_string());
+            "event-polls-published"
+        }
+        EventKind::RaceDecided {
+            municipality,
+            mayor,
+            winner,
+            incumbent_defeated,
+            player_won,
+            player_ran,
+        } => {
+            put("town", muni_name(engine, *municipality));
+            let name = engine
+                .state()
+                .politics
+                .get(mandate_sim::politics::PoliticianId(*winner))
+                .map(|p| p.full_name())
+                .unwrap_or_default();
+            put("name", name);
+            match (*player_ran, *player_won, *mayor, *incumbent_defeated) {
+                (true, true, true, _) => "event-player-elected-mayor",
+                (true, true, false, _) => "event-player-elected",
+                (true, false, _, _) => "event-player-defeated",
+                (false, _, true, true) => "event-mayor-ousted",
+                (false, _, true, false) => "event-mayor-elected",
+                (false, _, false, true) => "event-councillor-ousted",
+                (false, _, false, false) => "event-councillor-elected",
+            }
+        }
+        EventKind::ElectionHeld { races } => {
+            put("races", races.to_string());
+            "event-election-held"
+        }
         EventKind::NationalBudget {
             year,
             balance,

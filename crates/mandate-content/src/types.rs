@@ -25,6 +25,8 @@ pub enum ContentFile {
     Constitution { value: ConstitutionDef },
     /// Policy templates (DEC-024, DEC-026).
     Policies { items: Vec<PolicyTemplate> },
+    /// Parties, elections, polls, campaigns, and NPC AI (DEC-027 to DEC-030, DEC-071).
+    Politics { value: Box<PoliticsParams> },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -151,6 +153,30 @@ pub struct TierDef {
     /// Sub-national balanced-budget rule.
     #[serde(default)]
     pub balanced_budget: bool,
+    /// When this tier's elections happen (all elected bodies and offices share it).
+    #[serde(default)]
+    pub elections: Option<ElectionCalendarDef>,
+}
+
+/// Whether a tier votes on the same day as a higher tier (DEC-071: turnout).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ElectionTiming {
+    Concurrent,
+    Standalone,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ElectionCalendarDef {
+    pub month: u8,
+    pub day: u8,
+    /// Elections fall in years where `year % term_years == cycle_offset`.
+    pub cycle_offset: u8,
+    pub campaign_weeks: u8,
+    pub timing: ElectionTiming,
+    /// Party labels appear on the ballot (otherwise a nonpartisan race).
+    pub partisan_ballot: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -485,6 +511,222 @@ pub struct NamePoolDef {
     pub words: Vec<String>,
 }
 
+// --- Politics parameters (DEC-027 to DEC-030, DEC-071) -----------------------
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PoliticsParams {
+    /// Parties generated per world under plurality rules (two majors plus minors).
+    pub party_count: u8,
+    pub party_names: PartyNameParts,
+    pub vote: VoteParams,
+    pub turnout: TurnoutParams,
+    pub polls: PollParams,
+    pub campaign: CampaignParams,
+    pub party_id: PartyIdParams,
+    pub ai: AiParams,
+}
+
+// --- NPC utility AI (DEC-030, DEC-071 §8) ---------------------------------------
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum AiAction {
+    Canvass,
+    TownHall,
+    Advertise,
+    Fundraise,
+    Lobby,
+    ProposeBill,
+    Rest,
+}
+
+/// Normalised (0..1) inputs the engine computes for an NPC each decision.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AiInput {
+    /// 1 while the NPC is a candidate in an open race.
+    Campaigning,
+    /// 0 at the start of the campaign, 1 on election eve.
+    ElectionNear,
+    /// 1 for a dead heat (from polls when published, else party strength).
+    RaceCloseness,
+    /// 1 − the NPC's mean awareness among the race's voters.
+    Unknown,
+    /// Campaign funds relative to a few weeks of advertising.
+    Funds,
+    /// Strength of the NPC's view on the most important pending bill.
+    BillStake,
+    /// 1 when that bill's vote is on a knife edge.
+    BillCloseness,
+    /// Appeal of the NPC's best policy idea (own values and constituents).
+    Agenda,
+    /// 1 if the NPC has no bill of their own pending.
+    NoOwnBill,
+    /// 1 when the council has few bills pending.
+    CouncilFree,
+    /// Always 1.
+    Constant,
+}
+
+/// Response curve mapping an input (0..1) to a score (0..1).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum Curve {
+    /// m·x + b, clamped to 0..1.
+    Linear { m: f64, b: f64 },
+    /// 1 / (1 + e^(−k (x − x0))).
+    Logistic { k: f64, x0: f64 },
+    /// `lo` below `x`, `hi` at or above.
+    Step { x: f64, lo: f64, hi: f64 },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Consideration {
+    pub input: AiInput,
+    pub curve: Curve,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AiActionDef {
+    pub action: AiAction,
+    pub weight: f64,
+    pub considerations: Vec<Consideration>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AiProfileMult {
+    pub action: AiAction,
+    pub mult: f64,
+}
+
+/// Strategic profile (brief §9.4): multiplies action scores.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AiProfile {
+    pub id: String,
+    pub mults: Vec<AiProfileMult>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AiParams {
+    /// Choose by weighted chance among the best `top_n` scores.
+    pub top_n: u8,
+    pub actions: Vec<AiActionDef>,
+    pub profiles: Vec<AiProfile>,
+}
+
+/// Words for generated party names: an attitude-led adjective plus a noun.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartyNameParts {
+    pub nouns: Vec<String>,
+    pub by_attitude: Vec<AttitudeWords>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AttitudeWords {
+    /// An attitude key, e.g. `redistribution`.
+    pub attitude: String,
+    pub pro: Vec<String>,
+    pub anti: Vec<String>,
+}
+
+/// Per-cohort vote utility (DEC-028, DEC-071 §1–2).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct VoteParams {
+    pub issue_weight: f64,
+    /// Directional share β at low and high polarisation.
+    pub beta_low: f64,
+    pub beta_high: f64,
+    /// Mean attitude standard deviation mapped to β_low and β_high.
+    pub polarization_low: f64,
+    pub polarization_high: f64,
+    pub party_weight: f64,
+    pub valence_weight: f64,
+    pub retrospective_weight: f64,
+    /// Retrospective weight multiplier for executive offices.
+    pub executive_multiplier: f64,
+    pub home_ward_bonus: f64,
+    /// Share of retrospective blame partisans forgive their own side.
+    pub partisan_discount: f64,
+    /// Awareness floor for an incumbent within their constituency.
+    pub incumbent_awareness: f64,
+    /// Awareness of a fresh challenger before campaigning.
+    pub challenger_awareness: f64,
+    /// Per-candidate race shock (utility units).
+    pub race_shock_sd: f64,
+    /// National swing per party shared by every race in an election.
+    pub national_swing_sd: f64,
+    /// Wasted-vote penalty for candidates whose party is weak locally (Duverger).
+    pub strategic_weight: f64,
+    /// Minor parties contest only where their attachment share reaches this.
+    pub minor_party_threshold: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TurnoutParams {
+    /// Turnout multiplier for a standalone local election.
+    pub standalone: f64,
+    pub concurrent: f64,
+    /// Weight on last election's turnout (habit).
+    pub habit: f64,
+    /// Extra turnout from a fully mobilised neighbourhood.
+    pub mobilisation_max: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PollParams {
+    pub pollsters: Vec<String>,
+    pub sample_size: u32,
+    /// House-effect standard deviation (share points, 0..1 scale).
+    pub house_sd: f64,
+    /// Election-wide shared error on election eve (share, 0..1 scale).
+    pub shared_sd: f64,
+    /// Shared error multiplier at the start of the campaign.
+    pub early_multiplier: f64,
+    pub every_days: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CampaignParams {
+    pub persuasion_half_life_days: f64,
+    pub awareness_per_canvass: f64,
+    pub persuasion_per_canvass: f64,
+    pub mobilisation_per_canvass: f64,
+    /// Each repeated contact in a neighbourhood is worth this fraction of the last.
+    pub diminishing: f64,
+    pub ad_cost: i64,
+    pub awareness_per_ad: f64,
+    /// NPC campaign effort in abstracted races (contacts per week per candidate).
+    pub npc_contacts_per_week: f64,
+}
+
+/// Mover–stayer party attachment (DEC-071 §3).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartyIdParams {
+    /// Share of adults attached to any party, by age band (young → old).
+    pub attached_by_age: [f64; 4],
+    /// Durable share of attachment.
+    pub stayer_share: f64,
+    /// Yearly pull of the mover share toward current evaluations.
+    pub mover_rate: f64,
+    /// Sharpness of attachment by ideological distance.
+    pub sharpness: f64,
+}
+
 // ---- Position-preserving file wrappers -------------------------------------
 // serde's internally tagged enums buffer their input and lose line numbers, so
 // loading probes `kind` first, then parses into one of these structs directly.
@@ -549,6 +791,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "constitution" => ContentFile::Constitution {
             value: serde_json::from_str::<ValueFile<ConstitutionDef>>(json)?.value,
+        },
+        "politics" => ContentFile::Politics {
+            value: Box::new(serde_json::from_str::<ValueFile<PoliticsParams>>(json)?.value),
         },
         "policies" => ContentFile::Policies {
             items: serde_json::from_str::<ItemsFile<PolicyTemplate>>(json)?.items,

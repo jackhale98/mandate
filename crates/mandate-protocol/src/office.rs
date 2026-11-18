@@ -295,6 +295,7 @@ fn member_view(st: &State, p: &Politician) -> MemberView {
     let (role_key, ward) = match p.role {
         Role::Councillor { ward, .. } => ("role-councillor", Some(ward_number(st, ward))),
         Role::Mayor { .. } => ("role-mayor", None),
+        Role::Private { .. } => ("role-private", None),
     };
     MemberView {
         id: p.id.0,
@@ -339,7 +340,7 @@ fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
                 name: full_name(m),
                 ward_number: match m.role {
                     Role::Councillor { ward, .. } => ward_number(st, ward),
-                    Role::Mayor { .. } => 0,
+                    Role::Mayor { .. } | Role::Private { .. } => 0,
                 },
                 lean: lean_label(prob).into(),
                 yes_probability: prob,
@@ -567,6 +568,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
             role_key: match me.role {
                 Role::Councillor { .. } => "role-councillor",
                 Role::Mayor { .. } => "role-mayor",
+                Role::Private { .. } => "role-private",
             }
             .into(),
             municipality: mu.name.clone(),

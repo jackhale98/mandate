@@ -793,17 +793,24 @@ pub fn generate_with_progress(
         .get("names.family")
         .map(|p| p.prefixes.clone())
         .unwrap_or_default();
-    let mut politics = mandate_sim::politics::init(
+    // Parties come from the society's cleavages (DEC-027), then attachments.
+    let mut population = population;
+    let parties = mandate_sim::politics::parties::generate(
+        &population,
+        &content.politics,
+        rng.get(Stream::Npc),
+    );
+    mandate_sim::population::assign_party_ids(&mut population, &parties, &content.politics);
+    let politics = mandate_sim::politics::init(
         &world,
         &population,
         rng.get(Stream::Npc),
         &given_names,
         &family_names,
         content.tuning.start_year,
+        parties,
     );
     let policy = mandate_sim::policy::init(&world, rng.get(Stream::Npc));
-    let mut population = population;
-    let player = place_player(&world, &mut politics, &mut population, &content);
     let mut events = EventLog::default();
     let began = events.record(
         start_date,
@@ -831,7 +838,7 @@ pub fn generate_with_progress(
         environment,
         politics,
         policy,
-        player,
+        player: None,
     };
     let years = content.tuning.burn_in_years as u32;
     let mut engine = Engine::from_state(state, content)?;
@@ -842,6 +849,28 @@ pub fn generate_with_progress(
             "progress-history",
             0.4 + 0.6 * y as f64 / years.max(1) as f64,
         )
+    });
+    // The player is seated after history, so elections during the burn-in
+    // shape who sits on the council they join (M6's draft replaces this).
+    let content2 = engine.content_arc();
+    engine.setup(|state| {
+        let year = state.calendar.date.calendar().year;
+        let player = place_player(
+            &state.world,
+            &mut state.politics,
+            &mut state.population,
+            &content2,
+        );
+        if let Some(me) = player
+            .as_ref()
+            .and_then(|p| state.politics.get_mut(p.politician))
+        {
+            me.birth_year = year - 38;
+            me.years_in_office = 3;
+            me.terms_in_office = 1;
+            me.scandal = 0.0;
+        }
+        state.player = player;
     });
     engine.mark_started();
     progress("progress-done", 1.0);
@@ -909,6 +938,8 @@ fn place_player(
             health: 85.0,
         },
         actions: Vec::new(),
+        filing: None,
+        last_election_seen: None,
     })
 }
 

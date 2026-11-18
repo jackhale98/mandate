@@ -42,11 +42,17 @@ pub enum Action {
     },
     Fundraise,
     Rest,
+    /// Buy local advertising for the campaign (costs campaign funds).
+    Advertise,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PlayerCommand {
+    /// Declare the player's intention for the next local election (no slot).
+    File {
+        filing: crate::politics::elections::Filing,
+    },
     DraftPolicy {
         template: String,
         params: BTreeMap<String, f64>,
@@ -126,6 +132,8 @@ pub fn player_powers(state: &State, content: &ContentBundle) -> Vec<Power> {
             })
             .flat_map(|o| o.powers.iter().copied())
             .collect(),
+        // Out of office: no institutional powers, only campaigning and networking.
+        Role::Private { .. } => Vec::new(),
     }
 }
 
@@ -180,6 +188,33 @@ fn use_slot(state: &mut State, late_night: bool) -> Result<(), EngineError> {
         pl.slots_used += 1;
     }
     Ok(())
+}
+
+/// Apply campaign contact to the player's candidacy, if a race is running and
+/// covers the neighbourhood (`None` = every neighbourhood in the race).
+fn campaign_contact(
+    state: &mut State,
+    content: &ContentBundle,
+    hood: Option<u32>,
+    scale: f64,
+) -> bool {
+    let Some(me) = state.player.as_ref().map(|p| p.politician) else {
+        return false;
+    };
+    let params = &content.politics.campaign;
+    let mut touched = false;
+    for race in state.politics.elections.races.iter_mut() {
+        let Some(c) = race.candidates.iter_mut().find(|c| c.politician == me) else {
+            continue;
+        };
+        for (i, h) in race.hoods.iter().enumerate() {
+            if hood.is_none_or(|x| x == *h) {
+                crate::politics::elections::contact(c, i, params, scale);
+                touched = true;
+            }
+        }
+    }
+    touched
 }
 
 fn own_policy(state: &State, id: u32) -> Result<&PolicyInstance, EngineError> {
@@ -262,6 +297,17 @@ pub fn apply(
     let m = pl.municipality.0;
     let mut res = ActionResult::default();
     match cmd {
+        PlayerCommand::File { filing } => {
+            if let Some(p) = state.player.as_mut() {
+                p.filing = Some(*filing);
+            }
+            res.outcome_key = match filing {
+                crate::politics::elections::Filing::Council => "outcome-filed-council",
+                crate::politics::elections::Filing::Mayor => "outcome-filed-mayor",
+                crate::politics::elections::Filing::Retire => "outcome-filed-retire",
+            }
+            .into();
+        }
         PlayerCommand::DraftPolicy { template, params } => {
             let t = content
                 .policies
@@ -501,8 +547,9 @@ pub fn apply(
                         let nudge = sig
                             .map(|s| crate::politics::alignment(&s, &c.attitudes) * 0.1)
                             .unwrap_or(0.05);
+                        let room = 1.0 - (c.player_approval as f64).abs();
                         c.player_approval =
-                            clamp(c.player_approval as f64 + nudge, -1.0, 1.0) as f32;
+                            clamp(c.player_approval as f64 + nudge * room, -1.0, 1.0) as f32;
                     }
                     if let Some(id) = policy
                         && let Some(p) = state.policy.instances.get_mut(*id as usize)
@@ -510,6 +557,7 @@ pub fn apply(
                         p.awareness =
                             clamp(p.awareness as f64 + 0.12 * (0.5 + oratory), 0.0, 1.0) as f32;
                     }
+                    campaign_contact(state, content, Some(*neighborhood), 0.8 + 0.6 * oratory);
                     res.outcome_key = "outcome-town-hall".into();
                     res.args.insert(
                         "place".into(),
@@ -535,6 +583,7 @@ pub fn apply(
                     {
                         p.awareness = clamp(p.awareness as f64 + 0.15, 0.0, 1.0) as f32;
                     }
+                    campaign_contact(state, content, None, 0.25);
                     res.outcome_key = "outcome-press".into();
                 }
                 Action::Canvass { neighborhood } => {
@@ -551,11 +600,15 @@ pub fn apply(
                         .cohorts
                         .iter_mut()
                     {
-                        c.player_awareness =
-                            clamp(c.player_awareness as f64 + 0.3, 0.0, 1.0) as f32;
+                        // Contact mostly builds recognition; persuasion is small,
+                        // saturating, and decays (DEC-071 §5).
+                        let aw = c.player_awareness as f64;
+                        c.player_awareness = clamp(aw + 0.3 * (1.0 - aw), 0.0, 1.0) as f32;
+                        let room = 1.0 - (c.player_approval as f64).abs();
                         c.player_approval =
-                            clamp(c.player_approval as f64 + 0.06, -1.0, 1.0) as f32;
+                            clamp(c.player_approval as f64 + 0.04 * room, -1.0, 1.0) as f32;
                     }
+                    campaign_contact(state, content, Some(*neighborhood), 1.0);
                     res.outcome_key = "outcome-canvass".into();
                     res.args.insert(
                         "place".into(),
@@ -581,6 +634,31 @@ pub fn apply(
                     res.outcome_key = "outcome-fundraise".into();
                     res.args.insert("amount".into(), money.units().to_string());
                 }
+                Action::Advertise => {
+                    let cost = Money::from_units(content.politics.campaign.ad_cost);
+                    if state.player.as_ref().is_none_or(|p| p.money < cost) {
+                        return Err(bad("not enough campaign funds"));
+                    }
+                    let me = pl.politician;
+                    if !state
+                        .politics
+                        .elections
+                        .races
+                        .iter()
+                        .any(|r| r.candidates.iter().any(|c| c.politician == me))
+                    {
+                        return Err(bad("you are not running in a campaign"));
+                    }
+                    use_slot(state, false)?;
+                    if let Some(p) = state.player.as_mut() {
+                        p.money -= cost;
+                    }
+                    let per = content.politics.campaign.awareness_per_ad
+                        / content.politics.campaign.awareness_per_canvass.max(1e-6);
+                    campaign_contact(state, content, None, per);
+                    res.outcome_key = "outcome-advertise".into();
+                    res.args.insert("amount".into(), cost.units().to_string());
+                }
                 Action::Rest => {
                     use_slot(state, false)?;
                     if let Some(p) = state.player.as_mut() {
@@ -596,6 +674,7 @@ pub fn apply(
                 Action::Press { .. } => "action-press",
                 Action::Canvass { .. } => "action-canvass",
                 Action::Fundraise => "action-fundraise",
+                Action::Advertise => "action-advertise",
                 Action::Rest => "action-rest",
             };
             if let Some(p) = state.player.as_mut() {
@@ -629,6 +708,6 @@ pub fn estimate_cost(state: &State, content: &ContentBundle, p: &PolicyInstance)
 pub fn ward_of(state: &State, politician: PoliticianId) -> Option<ConstituencyId> {
     match state.politics.get(politician)?.role {
         Role::Councillor { ward, .. } => Some(ward),
-        Role::Mayor { .. } => None,
+        Role::Mayor { .. } | Role::Private { .. } => None,
     }
 }

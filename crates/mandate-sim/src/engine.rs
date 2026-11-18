@@ -76,6 +76,16 @@ impl Engine {
         &self.content
     }
 
+    pub fn content_arc(&self) -> Arc<ContentBundle> {
+        self.content.clone()
+    }
+
+    /// World-generation setup on the live state (before play starts). Not a
+    /// command: it is never logged or available to players.
+    pub fn setup(&mut self, f: impl FnOnce(&mut State)) {
+        f(&mut self.state);
+    }
+
     pub fn command_log(&self) -> &[LoggedCommand] {
         &self.command_log
     }
@@ -100,6 +110,8 @@ impl Engine {
     pub fn apply(&mut self, command: Command) -> Result<CommandOutcome, EngineError> {
         let outcome = match &command {
             Command::EndTurn => {
+                // NPCs act in the same turn as the player, before time moves (DEC-030).
+                self.npc_turns();
                 let days = self.turn_days();
                 let seeded = std::mem::take(&mut self.pending_effects);
                 self.schedule.advance_with(
@@ -120,6 +132,7 @@ impl Engine {
                     p.slots_used = 0;
                     p.late_night_used = false;
                 }
+                self.update_phase();
                 CommandOutcome {
                     days_advanced: days,
                     turn,
@@ -192,16 +205,53 @@ impl Engine {
     pub fn burn_in(&mut self, years: u32, progress: &mut dyn FnMut(u32)) {
         let prev = self.state.calendar.phase;
         self.state.calendar.phase = GamePhase::BurnIn;
+        // Councils legislate during history too: NPC legislative turns every
+        // sixteen weeks; campaigns are abstracted (DEC-022, DEC-030).
+        const STEP: u32 = 112;
         for y in 0..years {
-            self.schedule.advance(
-                &mut self.state,
-                &self.content,
-                mandate_core::time::DAYS_PER_YEAR,
-                &mut |_| {},
-            );
+            let mut left = mandate_core::time::DAYS_PER_YEAR;
+            while left > 0 {
+                crate::npc::take_turn_all(&mut self.state, &self.content, false);
+                let d = STEP.min(left);
+                self.schedule
+                    .advance(&mut self.state, &self.content, d, &mut |_| {});
+                left -= d;
+            }
             progress(y + 1);
         }
         self.state.calendar.phase = prev;
+    }
+
+    /// NPC turns before the calendar advances: the player's town in full
+    /// every turn, other towns' legislative work every fourth turn.
+    fn npc_turns(&mut self) {
+        let home = self.state.player.as_ref().map(|p| p.municipality.0);
+        if let Some(m) = home {
+            crate::npc::take_turn(&mut self.state, &self.content, m, true);
+        }
+        if self.state.calendar.turn.is_multiple_of(4) {
+            let n = self.state.world.municipalities.len() as u32;
+            for m in (0..n).filter(|m| Some(*m) != home) {
+                crate::npc::take_turn(&mut self.state, &self.content, m, false);
+            }
+        }
+    }
+
+    /// Campaign season shortens turns (DEC-012).
+    fn update_phase(&mut self) {
+        let me = self.state.player.as_ref().map(|p| p.politician);
+        let campaigning = self
+            .state
+            .politics
+            .elections
+            .races
+            .iter()
+            .any(|r| r.candidates.iter().any(|c| Some(c.politician) == me));
+        self.state.calendar.phase = if campaigning {
+            GamePhase::Campaign
+        } else {
+            GamePhase::Governing
+        };
     }
 
     pub fn system_names(&self) -> Vec<&'static str> {
