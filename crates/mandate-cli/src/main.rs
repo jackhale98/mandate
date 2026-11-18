@@ -2,6 +2,7 @@
 
 mod mapimg;
 mod png;
+mod sweep;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use mandate_content::{ContentBundle, Severity, bundle::read_dir_sources};
@@ -73,6 +74,38 @@ enum Cmd {
     },
     /// Inspect a save file's metadata.
     SaveInfo { path: PathBuf },
+    /// Monte Carlo health sweep (DEC-059): N seeds, burn-in plus Y years, NPC-only.
+    Sweep {
+        #[arg(long, default_value_t = 12)]
+        seeds: u64,
+        #[arg(long, default_value_t = 30)]
+        years: u32,
+        #[arg(long, value_enum, default_value_t = Size::Small)]
+        size: Size,
+        #[arg(long, value_enum)]
+        preset: Option<PresetArg>,
+    },
+    /// Yearly economic trace (balancing diagnostics): jobs by sector, labour
+    /// force, prices, and demand drivers.
+    TraceEcon {
+        #[arg(long, default_value_t = 1)]
+        seed: u64,
+        #[arg(long, default_value_t = 10)]
+        years: u32,
+        #[arg(long, value_enum, default_value_t = Size::Medium)]
+        size: Size,
+    },
+    /// Compare two runs' health metrics side by side.
+    Diff {
+        #[arg(long)]
+        seed_a: u64,
+        #[arg(long)]
+        seed_b: u64,
+        #[arg(long, default_value_t = 10)]
+        years: u32,
+        #[arg(long, value_enum, default_value_t = Size::Small)]
+        size: Size,
+    },
     /// Generate a world; print a summary and optionally export a map PNG.
     Gen {
         #[arg(long, default_value_t = 1)]
@@ -302,23 +335,17 @@ fn run(cli: Cli) -> Result<(), String> {
                 size: size.into(),
                 preset: preset.map(Into::into),
             };
-            let mut timings: Vec<(String, f64)> = Vec::new();
-            let mut last = 0.0;
-            let (world, terrain) =
-                mandate_worldgen::generate_world(&cfg, &content, &mut |stage, f| {
-                    timings.push((stage.to_string(), f - last));
-                    last = f;
-                })
+            let g = mandate_worldgen::generate_world(&cfg, &content, &mut |_, _| {})
                 .map_err(|e| e.to_string())?;
             if let Some(path) = png_path {
-                let (w, h, rgb) = mapimg::render(&terrain, &world, scale.max(1));
+                let (w, h, rgb) = mapimg::render(&g.terrain, &g.world, scale.max(1));
                 std::fs::write(&path, png::encode_rgb(w, h, &rgb)).map_err(|e| e.to_string())?;
                 eprintln!("wrote {}", path.display());
             }
             if full {
-                out(serde_json::to_value(&world).map_err(|e| e.to_string())?);
+                out(serde_json::to_value(&g.world).map_err(|e| e.to_string())?);
             } else {
-                out(summary(&world));
+                out(summary(&g.world, &g.hood_population));
             }
             Ok(())
         }
@@ -329,35 +356,109 @@ fn run(cli: Cli) -> Result<(), String> {
             region,
         } => {
             let content = load_content(&cli.content)?;
-            let cfg = WorldConfig {
-                seed,
-                size: size.into(),
-                preset: None,
-            };
-            let (world, _) = mandate_worldgen::generate_world(&cfg, &content, &mut |_, _| {})
-                .map_err(|e| e.to_string())?;
+            let e = generate(
+                &WorldConfig {
+                    seed,
+                    size: size.into(),
+                    preset: None,
+                },
+                content,
+            )
+            .map_err(|e| e.to_string())?;
             if let Some(m) = municipality {
-                let mu = world
-                    .municipalities
-                    .get(m as usize)
-                    .ok_or("no such municipality")?;
-                let hoods: Vec<_> = mu
-                    .neighborhoods
-                    .iter()
-                    .map(|h| &world.neighborhoods[h.index()])
-                    .collect();
-                let places: Vec<_> = mu.places.iter().map(|p| &world.places[p.index()]).collect();
-                out(
-                    serde_json::json!({ "municipality": mu, "neighborhoods": hoods, "places": places }),
-                );
+                let v = mandate_protocol::municipality_view(&e, m).ok_or("no such municipality")?;
+                out(serde_json::to_value(v).map_err(|e| e.to_string())?);
             } else if let Some(r) = region {
-                let re = world.regions.get(r as usize).ok_or("no such region")?;
-                out(
-                    serde_json::json!({ "region": re, "population": world.region_population(re.id) }),
-                );
+                let st = e.state();
+                let re = st.world.regions.get(r as usize).ok_or("no such region")?;
+                out(serde_json::json!({
+                    "region": re,
+                    "population": st.population.region_total(&st.world, re.id),
+                    "environment": st.environment.regions.get(r as usize),
+                    "treasury": st.finance.regional.get(r as usize).map(|t| &t.last_year),
+                }));
             } else {
-                out(summary(&world));
+                let st = e.state();
+                let mut v = serde_json::to_value(mandate_protocol::overview(&e))
+                    .map_err(|e| e.to_string())?;
+                v["national_treasury"] =
+                    serde_json::to_value(&st.finance.national).map_err(|e| e.to_string())?;
+                out(v);
             }
+            Ok(())
+        }
+        Cmd::Sweep {
+            seeds,
+            years,
+            size,
+            preset,
+        } => {
+            let content = load_content(&cli.content)?;
+            let rows = sweep::run(&content, seeds, years, size.into(), preset.map(Into::into));
+            let report = sweep::report(&rows, years);
+            let ok = report["pass"].as_bool().unwrap_or(false);
+            out(report);
+            if ok {
+                Ok(())
+            } else {
+                Err("Monte Carlo bands or drama floors failed".into())
+            }
+        }
+        Cmd::TraceEcon { seed, years, size } => {
+            let content = load_content(&cli.content)?;
+            let mut e = generate(
+                &WorldConfig {
+                    seed,
+                    size: size.into(),
+                    preset: None,
+                },
+                content,
+            )
+            .map_err(|e| e.to_string())?;
+            let mut rows = Vec::new();
+            for y in 0..=years {
+                if y > 0 {
+                    e.apply(Command::AdvanceDays { days: 365 })
+                        .map_err(|e| e.to_string())?;
+                }
+                let st = e.state();
+                let ec = &st.economy;
+                let mut jobs = [0.0f64; 8];
+                let mut cap = [0.0f64; 8];
+                for m in &ec.munis {
+                    for (k, sct) in m.sectors.iter().enumerate() {
+                        jobs[k] += sct.jobs;
+                        cap[k] += sct.capacity;
+                    }
+                }
+                let lf: f64 = ec.munis.iter().map(|m| m.labour_force).sum();
+                let cons: f64 = ec.munis.iter().map(|m| m.consumption).sum();
+                let base: f64 = ec.munis.iter().map(|m| m.base_consumption).sum();
+                rows.push(serde_json::json!({
+                    "year": st.calendar.date.calendar().year,
+                    "lf_k": (lf / 1000.0).round(),
+                    "jobs_k": jobs.iter().map(|j| (j / 1000.0).round()).collect::<Vec<_>>(),
+                    "jobs_over_capacity": jobs.iter().zip(cap.iter()).map(|(j, c)| (j / c.max(1.0) * 100.0).round() / 100.0).collect::<Vec<_>>(),
+                    "unemployment": (ec.national.unemployment * 1000.0).round() / 1000.0,
+                    "price_level": (ec.national.price_level * 1000.0).round() / 1000.0,
+                    "real_consumption_ratio": ((cons / ec.national.price_level / base.max(1.0)) * 1000.0).round() / 1000.0,
+                    "public_index": (st.finance.public_spending_index(0) * 1000.0).round() / 1000.0,
+                    "global_demand": (ec.global.demand * 1000.0).round() / 1000.0,
+                }));
+            }
+            out(serde_json::Value::Array(rows));
+            Ok(())
+        }
+        Cmd::Diff {
+            seed_a,
+            seed_b,
+            years,
+            size,
+        } => {
+            let content = load_content(&cli.content)?;
+            let a = sweep::run_one(&content, seed_a, years, size.into(), None);
+            let b = sweep::run_one(&content, seed_b, years, size.into(), None);
+            out(serde_json::json!({ "a": a, "b": b }));
             Ok(())
         }
         Cmd::SaveInfo { path } => {
@@ -369,14 +470,18 @@ fn run(cli: Cli) -> Result<(), String> {
     }
 }
 
-fn summary(world: &mandate_sim::world::World) -> serde_json::Value {
+fn summary(world: &mandate_sim::world::World, hood_pop: &[u64]) -> serde_json::Value {
+    use mandate_sim::world::SettlementClass as S;
     use mandate_sim::world::Tier;
     let classes = |c| world.municipalities.iter().filter(|m| m.class == c).count();
-    use mandate_sim::world::SettlementClass as S;
+    let muni_pop = |m: &mandate_sim::world::Municipality| -> u64 {
+        m.neighborhoods.iter().map(|h| hood_pop[h.index()]).sum()
+    };
     serde_json::json!({
-        "population": world.total_population(),
+        "population": hood_pop.iter().sum::<u64>(),
         "regions": world.regions.iter().map(|r| serde_json::json!({
-            "name": r.name, "municipalities": r.municipalities.len(), "population": world.region_population(r.id),
+            "name": r.name, "municipalities": r.municipalities.len(),
+            "population": r.municipalities.iter().map(|m| muni_pop(&world.municipalities[m.index()])).sum::<u64>(),
             "capital": world.municipalities[r.capital.index()].name,
         })).collect::<Vec<_>>(),
         "municipalities": world.municipalities.len(),
@@ -392,7 +497,7 @@ fn summary(world: &mandate_sim::world::World) -> serde_json::Value {
         "ports": world.municipalities.iter().filter(|m| m.port).count(),
         "places": world.places.len(),
         "largest": world.municipalities.iter().take(5).map(|m| serde_json::json!({
-            "name": m.name, "class": m.class, "population": world.municipality_population(m.id), "biome": m.geo.dominant_biome,
+            "name": m.name, "class": m.class, "population": muni_pop(m), "biome": m.geo.dominant_biome,
         })).collect::<Vec<_>>(),
     })
 }

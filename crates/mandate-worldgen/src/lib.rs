@@ -92,12 +92,20 @@ pub const KM_PER_CELL: f64 = 2.5;
 /// Progress callback: (Fluent stage key, fraction 0..1).
 pub type Progress<'a> = &'a mut dyn FnMut(&str, f64);
 
+/// Output of the geography pipeline.
+pub struct Generated {
+    pub world: World,
+    pub terrain: TerrainData,
+    /// Starting residents per neighbourhood (seeds the population domain).
+    pub hood_population: Vec<u64>,
+}
+
 /// Generate the world data and the derived terrain raster.
 pub fn generate_world(
     config: &WorldConfig,
     content: &ContentBundle,
     progress: Progress<'_>,
-) -> Result<(World, TerrainData), EngineError> {
+) -> Result<Generated, EngineError> {
     let pool = |id: &str| {
         content
             .name_pools
@@ -392,6 +400,7 @@ pub fn generate_world(
     // --- 10. Neighbourhoods ---------------------------------------------------
     progress("progress-neighborhoods", 0.82);
     let mut neighborhoods: Vec<Neighborhood> = Vec::new();
+    let mut hood_population: Vec<u64> = Vec::new();
     let mut industrial = vec![false; n_m];
     for k in 0..n_m {
         let m = &municipalities[k];
@@ -410,12 +419,12 @@ pub fn generate_world(
             } else {
                 names::unique(hood_pool, rng, &mut hood_names)
             };
+            hood_population.push(hp.population);
             neighborhoods.push(Neighborhood {
                 id: NeighborhoodId(neighborhoods.len() as u32),
                 municipality: MunicipalityId(k as u32),
                 name,
                 kind: hp.kind,
-                population: hp.population,
                 neighbors: local[j]
                     .iter()
                     .map(|&x| NeighborhoodId((first + x) as u32))
@@ -455,7 +464,7 @@ pub fn generate_world(
         .iter()
         .map(|n| n.neighbors.iter().map(|x| x.index()).collect())
         .collect();
-    let hood_pop: Vec<u64> = neighborhoods.iter().map(|n| n.population).collect();
+    let hood_pop: Vec<u64> = hood_population.clone();
     let mut constituencies = Vec::new();
     let push_districts =
         |tier: Tier, jurisdiction: u32, units: &[usize], k: usize, out: &mut Vec<Constituency>| {
@@ -586,8 +595,11 @@ pub fn generate_world(
         links,
         places,
     };
-    progress("progress-done", 1.0);
-    Ok((world, terrain))
+    Ok(Generated {
+        world,
+        terrain,
+        hood_population,
+    })
 }
 
 fn aggregate(
@@ -737,19 +749,44 @@ pub fn generate_with_progress(
     content: Arc<ContentBundle>,
     progress: Progress<'_>,
 ) -> Result<Engine, EngineError> {
-    let (world, terrain) = generate_world(config, &content, progress)?;
+    // Geography takes the first ~40% of the progress bar, history the rest.
+    let Generated {
+        world,
+        terrain,
+        hood_population,
+    } = generate_world(config, &content, &mut |k, f| progress(k, f * 0.4))?;
     let start_date = SimDate::from_ymd(content.tuning.start_year, 1, 1);
-    let state = State {
-        meta: WorldMeta {
-            seed: config.seed,
-            params: WorldParams {
-                size: config.size,
-                preset: config.preset,
-            },
-            content_hash: content.content_hash.clone(),
-            engine_version: ENGINE_VERSION.to_string(),
-            start_date,
+    let meta = WorldMeta {
+        seed: config.seed,
+        params: WorldParams {
+            size: config.size,
+            preset: config.preset,
         },
+        content_hash: content.content_hash.clone(),
+        engine_version: ENGINE_VERSION.to_string(),
+        start_date,
+    };
+    let mut rng = RngStreams::new(config.seed);
+    let population = mandate_sim::population::init(
+        &world,
+        &hood_population,
+        config.seed,
+        config.preset == Some(Preset::WealthyCoast),
+    );
+    let economy = mandate_sim::economy::init(&world, &population, &content, &meta);
+    let finance = mandate_sim::finance::init(&world, &population, &economy, &content.economy);
+    let environment = mandate_sim::environment::init(&world, &meta, rng.get(Stream::Environment));
+    let mut events = EventLog::default();
+    let began = events.record(
+        start_date,
+        mandate_sim::events::EventKind::HistoryBegan {
+            year: content.tuning.start_year,
+        },
+        vec![],
+    );
+    events.pin(began);
+    let state = State {
+        meta,
         calendar: Calendar {
             date: start_date,
             turn: 0,
@@ -757,13 +794,26 @@ pub fn generate_with_progress(
             act: 1,
             chapter: 1,
         },
-        rng: RngStreams::new(config.seed),
+        rng,
         world,
-        events: EventLog::default(),
+        events,
+        population,
+        economy,
+        finance,
+        environment,
     };
+    let years = content.tuning.burn_in_years as u32;
     let mut engine = Engine::from_state(state, content)?;
     engine.set_terrain(Arc::new(terrain));
+    progress("progress-history", 0.4);
+    engine.burn_in(years, &mut |y| {
+        progress(
+            "progress-history",
+            0.4 + 0.6 * y as f64 / years.max(1) as f64,
+        )
+    });
     engine.mark_started();
+    progress("progress-done", 1.0);
     Ok(engine)
 }
 
@@ -779,7 +829,7 @@ pub fn rebuild_terrain(
         size: state.meta.params.size,
         preset: state.meta.params.preset,
     };
-    let (_, terrain) = generate_world(&cfg, content, &mut |_, _| {})?;
+    let terrain = generate_world(&cfg, content, &mut |_, _| {})?.terrain;
     let ok = state
         .world
         .geo

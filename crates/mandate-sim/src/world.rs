@@ -165,7 +165,6 @@ pub struct Neighborhood {
     pub municipality: MunicipalityId,
     pub name: String,
     pub kind: NeighborhoodKind,
-    pub population: u64,
     pub neighbors: Vec<NeighborhoodId>,
 }
 
@@ -255,31 +254,24 @@ pub struct World {
 }
 
 impl World {
-    pub fn total_population(&self) -> u64 {
-        self.neighborhoods.iter().map(|n| n.population).sum()
-    }
-
-    pub fn municipality_population(&self, m: MunicipalityId) -> u64 {
+    /// Neighbourhood indices of a municipality.
+    pub fn hoods_of(&self, m: MunicipalityId) -> impl Iterator<Item = usize> + '_ {
         self.municipalities
             .get(m.index())
-            .map(|mu| {
-                mu.neighborhoods
-                    .iter()
-                    .map(|n| self.neighborhoods[n.index()].population)
-                    .sum()
-            })
-            .unwrap_or(0)
+            .into_iter()
+            .flat_map(|mu| mu.neighborhoods.iter().map(|n| n.index()))
     }
 
-    pub fn region_population(&self, r: RegionId) -> u64 {
+    /// Neighbourhood indices of a region.
+    pub fn hoods_of_region(&self, r: RegionId) -> Vec<usize> {
         self.regions
             .get(r.index())
             .map(|re| {
                 re.municipalities
                     .iter()
-                    .map(|m| self.municipality_population(*m))
-                    .sum()
+                    .flat_map(|m| self.hoods_of(*m))
+                    .collect()
             })
-            .unwrap_or(0)
+            .unwrap_or_default()
     }
 }

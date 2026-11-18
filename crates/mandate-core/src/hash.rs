@@ -64,3 +64,22 @@ mod tests {
         assert_ne!(derive_seed(1, "a"), derive_seed(1, "b"));
     }
 }
+
+#[cfg(test)]
+mod float_roundtrip {
+    /// Saves and state hashes require exact float round-trips; this fails if
+    /// serde_json's `float_roundtrip` feature is ever dropped.
+    #[test]
+    fn json_floats_round_trip_exactly() {
+        for v in [
+            0.995_312_894_493_527_9_f64,
+            1.0 / 3.0,
+            2.0e-308,
+            123_456.789_012_345_67,
+        ] {
+            let s = serde_json::to_string(&v).unwrap_or_default();
+            let back: f64 = serde_json::from_str(&s).unwrap_or(f64::NAN);
+            assert_eq!(v.to_bits(), back.to_bits(), "{s}");
+        }
+    }
+}

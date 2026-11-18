@@ -3,7 +3,9 @@ import { engine, expectKind } from "../engine/client";
 import type { MunicipalityView } from "../engine/protocol/MunicipalityView";
 import type { GeoIndexView } from "../engine/protocol/GeoIndexView";
 import { useGame } from "../state/gameStore";
-import { formatCount } from "../i18n/format";
+import { formatCount, formatMoney, formatPct } from "../i18n/format";
+import { StatTile } from "./StatTile";
+import type { MuniEconomyView } from "../engine/protocol/MuniEconomyView";
 
 function IndexBars({ items, tone }: { items: GeoIndexView[]; tone: "good" | "risk" }) {
   const tr = useGame((s) => s.tr);
@@ -22,6 +24,50 @@ function IndexBars({ items, tone }: { items: GeoIndexView[]; tone: "good" | "ris
         );
       })}
     </ul>
+  );
+}
+
+function LocalEconomy({ e }: { e: MuniEconomyView }) {
+  const tr = useGame((s) => s.tr);
+  const maxJobs = Math.max(1, ...e.sectors.map((x) => x.jobs));
+  const hist = e.unemployment_history.slice(-12);
+  const yearAgo = e.unemployment_history[e.unemployment_history.length - 13];
+  const d = yearAgo === undefined ? undefined : e.unemployment - yearAgo;
+  return (
+    <>
+      <h3 className="sub">{tr.t("ui-local-economy")}</h3>
+      <div className="stats stats-2">
+        <StatTile
+          label={tr.t("ui-unemployment")}
+          value={formatPct(e.unemployment, 1)}
+          delta={d === undefined ? undefined : { text: `${d >= 0 ? "+" : "−"}${formatPct(Math.abs(d), 1)}`, good: Math.abs(d) < 1e-4 ? null : d < 0 }}
+          trend={hist}
+          formatPoint={(v, ago) => `${formatPct(v, 1)} · ${tr.t("ui-months-ago", { n: ago })}`}
+          trendLabel={tr.t("ui-trend-12m", { what: tr.t("ui-unemployment") })}
+        />
+        <StatTile label={tr.t("ui-typical-income")} value={formatMoney(e.typical_income)} />
+        <StatTile label={tr.t("ui-rent")} value={formatMoney(e.monthly_rent)} />
+        <StatTile label={tr.t("ui-home-price")} value={formatMoney(e.home_price)} />
+      </div>
+      <h3 className="sub">{tr.t("ui-jobs-by-sector")}</h3>
+      <ul className="meters">
+        {e.sectors.map((x) => (
+          <li key={x.name_key}>
+            <span>{tr.t(x.name_key)}</span>
+            <span className="meter" aria-hidden="true">
+              <span className="meter-fill" style={{ width: `${(x.jobs / maxJobs) * 100}%` }} />
+            </span>
+            <span className="num">{formatCount(x.jobs)}</span>
+          </li>
+        ))}
+      </ul>
+      <h3 className="sub">{tr.t("ui-local-budget")}</h3>
+      <div className="stats stats-3">
+        <StatTile label={tr.t("ui-budget")} value={formatMoney(e.budget)} />
+        <StatTile label={tr.t("ui-local-debt")} value={formatMoney(e.debt)} />
+        <StatTile label={tr.t("ui-last-balance")} value={formatMoney(e.last_balance)} />
+      </div>
+    </>
   );
 }
 
@@ -70,6 +116,7 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
             {tr.t("ui-elevation", { m: Math.round(view.elevation_m) })} · {tr.t("ui-temperature", { c: view.temperature_c })} ·{" "}
             {tr.t("ui-precipitation", { mm: Math.round(view.precipitation_mm) })}
           </p>
+          {view.economy && <LocalEconomy e={view.economy} />}
           <h3 className="sub">{tr.t("ui-resources")}</h3>
           <IndexBars items={view.resources} tone="good" />
           <h3 className="sub">{tr.t("ui-hazards")}</h3>

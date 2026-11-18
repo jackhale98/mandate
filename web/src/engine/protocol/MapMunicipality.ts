@@ -4,4 +4,4 @@ export type MapMunicipality = { id: number, name: string, region: number,
 /**
  * `metro` | `city` | `town` | `rural`
  */
-class: string, x: number, y: number, population: number, port: boolean, regional_capital: boolean, national_capital: boolean, };
+class: string, x: number, y: number, population: number, unemployment: number, port: boolean, regional_capital: boolean, national_capital: boolean, };

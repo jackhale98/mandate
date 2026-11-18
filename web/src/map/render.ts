@@ -2,6 +2,16 @@
 import type { MapView } from "../engine/protocol/MapView";
 import { BIOME_RGB, decodeB64 } from "./palette";
 
+export type Overlay = "terrain" | "unemployment";
+
+// Sequential single-hue ramp (light → dark blue) for magnitudes.
+const RAMP_LO = [232, 238, 247] as const;
+const RAMP_HI = [24, 66, 128] as const;
+function ramp(t: number): [number, number, number] {
+  const k = Math.max(0, Math.min(1, t));
+  return [0, 1, 2].map((i) => (RAMP_LO[i] ?? 0) + ((RAMP_HI[i] ?? 0) - (RAMP_LO[i] ?? 0)) * k) as [number, number, number];
+}
+
 export interface MapRaster {
   width: number;
   height: number;
@@ -9,7 +19,7 @@ export interface MapRaster {
   image: ImageData;
 }
 
-export function bakeRaster(view: MapView, selected: number | null): MapRaster {
+export function bakeRaster(view: MapView, selected: number | null, overlay: Overlay = "terrain"): MapRaster {
   const { width: w, height: h } = view;
   const biome = decodeB64(view.biome_b64);
   const cover = decodeB64(view.cover_b64);
@@ -19,6 +29,7 @@ export function bakeRaster(view: MapView, selected: number | null): MapRaster {
   const owner = new Uint16Array(w * h);
   for (let i = 0; i < w * h; i++) owner[i] = (ownerBytes[2 * i] ?? 255) | ((ownerBytes[2 * i + 1] ?? 255) << 8);
   const regionOf = new Map<number, number>(view.municipalities.map((m) => [m.id, m.region]));
+  const unemp = new Map<number, number>(view.municipalities.map((m) => [m.id, m.unemployment]));
 
   const img = new ImageData(w, h);
   const px = img.data;
@@ -45,6 +56,13 @@ export function bakeRaster(view: MapView, selected: number | null): MapRaster {
         [r, g, b] = rv === 3 ? [52, 96, 170] : [84, 132, 196];
       }
       const o = owner[i] ?? 65535;
+      if (o !== 65535 && overlay === "unemployment" && (cover[i] ?? 0) === 2) {
+        const [cr, cg, cb] = ramp(((unemp.get(o) ?? 0) - 0.02) / 0.13);
+        const relief = 1 + s * 0.25;
+        r = cr * relief;
+        g = cg * relief;
+        b = cb * relief;
+      }
       if (o !== 65535) {
         const right = x + 1 < w ? owner[i + 1] : o;
         const down = y + 1 < h ? owner[i + w] : o;

@@ -19,6 +19,8 @@ pub enum ContentFile {
     Sectors { items: Vec<SectorDef> },
     /// Name-generation pools for places and people.
     NamePools { items: Vec<NamePoolDef> },
+    /// Economy and demography parameters (REQ-005).
+    Economy { value: EconomyParams },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -71,14 +73,96 @@ pub enum SectorClass {
     Public,
 }
 
+/// Behavioural kind of a sector; exactly one sector per kind (validated).
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SectorKind {
+    Agriculture,
+    Resources,
+    Manufacturing,
+    Construction,
+    Retail,
+    Tourism,
+    Knowledge,
+    Public,
+}
+
+impl SectorKind {
+    pub const ALL: [SectorKind; 8] = [
+        SectorKind::Agriculture,
+        SectorKind::Resources,
+        SectorKind::Manufacturing,
+        SectorKind::Construction,
+        SectorKind::Retail,
+        SectorKind::Tourism,
+        SectorKind::Knowledge,
+        SectorKind::Public,
+    ];
+    pub fn index(self) -> usize {
+        self as usize
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SectorDef {
     pub id: ContentKey,
     pub name_key: String,
     pub class: SectorClass,
+    pub kind: SectorKind,
     /// Relative weight of this sector's base presence in a generic economy.
     pub base_weight: f64,
+    /// Mean annual wage per worker at price level 1.0 (currency units).
+    pub base_wage: f64,
+    /// Elasticity of job demand to the global demand cycle.
+    pub cyclicality: f64,
+    /// Annual productivity growth (fraction).
+    pub productivity_growth: f64,
+}
+
+/// Economy and demography parameters (REQ-005).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EconomyParams {
+    pub inflation_target: f64,
+    pub natural_unemployment: f64,
+    pub neutral_real_rate: f64,
+    /// Monthly probability that a global recession begins.
+    pub recession_monthly_chance: f64,
+    /// Peak fall in global demand during a recession, [min, max].
+    pub recession_depth: [f64; 2],
+    pub recession_months: [u16; 2],
+    /// Monthly volatility of commodity prices (log scale).
+    pub commodity_volatility: f64,
+    /// Births per adult aged 18–44 per year.
+    pub birth_rate: f64,
+    /// Annual death rates: children, 18–29, 30–44, 45–64, 65+.
+    pub death_rates: [f64; 5],
+    /// Monthly share of mobile adults who reconsider where they live.
+    pub migration_rate: f64,
+    pub target_vacancy: f64,
+    pub construction_lag_months: u8,
+    /// Average dwelling price at price level 1.0.
+    pub base_dwelling_price: f64,
+    pub taxes: TaxParams,
+    /// Unemployment benefit and pension as a share of the mean wage.
+    pub unemployment_replacement: f64,
+    pub pension_replacement: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TaxParams {
+    /// Annual property tax as a share of dwelling value (local tier).
+    pub property: f64,
+    /// Sales tax on consumption (regional tier).
+    pub sales: f64,
+    /// Effective income tax by class: low, middle, high (national tier).
+    pub income: [f64; 3],
+    /// Tax on business output (national tier).
+    pub business: f64,
 }
 
 #[derive(
@@ -166,6 +250,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "name_pools" => ContentFile::NamePools {
             items: serde_json::from_str::<ItemsFile<NamePoolDef>>(json)?.items,
+        },
+        "economy" => ContentFile::Economy {
+            value: serde_json::from_str::<ValueFile<EconomyParams>>(json)?.value,
         },
         other => {
             use serde::de::Error;

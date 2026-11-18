@@ -1,7 +1,11 @@
 //! Authoritative simulation state. Everything here is serialized into saves
 //! (via `mandate-save` DTOs) and into the state hash.
 
+use crate::economy::EconomyState;
+use crate::environment::EnvironmentState;
 use crate::events::EventLog;
+use crate::finance::FinanceState;
+use crate::population::PopulationState;
 use crate::world::World;
 use mandate_core::{RngStreams, SimDate};
 use serde::{Deserialize, Serialize};
@@ -63,6 +67,10 @@ pub struct State {
     pub rng: RngStreams,
     pub world: World,
     pub events: EventLog,
+    pub population: PopulationState,
+    pub economy: EconomyState,
+    pub finance: FinanceState,
+    pub environment: EnvironmentState,
 }
 
 impl State {

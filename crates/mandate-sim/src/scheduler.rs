@@ -1,8 +1,20 @@
-//! Turn resolution order and cadence scheduling (OVERVIEW §4.2).
+//! Turn resolution order, cadence scheduling, and domain write isolation
+//! (OVERVIEW §4.2–4.3).
+//!
+//! Each system receives `&mut` access to **its own domain only** plus a
+//! read-only view of everything else (`Reads`). Cross-domain changes travel
+//! as typed `Effect`s applied by the owning domain. The borrow checker
+//! therefore enforces the architecture rule.
 
-use crate::state::State;
-use mandate_content::ContentBundle;
-use mandate_core::{Cadence, SimDate};
+use crate::economy::EconomyState;
+use crate::environment::EnvironmentState;
+use crate::events::{EventId, EventLog};
+use crate::finance::FinanceState;
+use crate::population::PopulationState;
+use crate::state::{Calendar, State, WorldMeta};
+use crate::world::World;
+use mandate_content::{ContentBundle, SectorKind};
+use mandate_core::{Cadence, RngStreams, SimDate};
 use serde::{Deserialize, Serialize};
 
 /// The 13 resolution phases, in order. Changing this order is a recorded
@@ -24,32 +36,28 @@ pub enum Phase {
     Commit,
 }
 
-impl Phase {
-    pub const ALL: [Phase; 13] = [
-        Phase::Commands,
-        Phase::NpcActions,
-        Phase::Institutions,
-        Phase::PolicyImplementation,
-        Phase::Environment,
-        Phase::Economy,
-        Phase::Population,
-        Phase::Information,
-        Phase::Opinion,
-        Phase::Elections,
-        Phase::Characters,
-        Phase::Director,
-        Phase::Commit,
-    ];
-}
-
 /// Cross-domain change request, applied by the owning system (OVERVIEW §4.3).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Effect {
-    /// Population change for a region, applied by the population system.
-    PopulationShock {
-        region: u32,
-        delta: i64,
-        cause: Option<crate::events::EventId>,
+    /// Destroy a share of a municipality's housing stock (economy applies).
+    HousingDamage {
+        municipality: u32,
+        fraction: f64,
+        cause: Option<EventId>,
+    },
+    /// Temporarily scale a sector's demand in a municipality (economy applies).
+    SectorShock {
+        municipality: u32,
+        sector: SectorKind,
+        factor: f64,
+        months: u16,
+        cause: Option<EventId>,
+    },
+    /// Residents leave a municipality after a disaster (population applies).
+    Displacement {
+        municipality: u32,
+        fraction: f64,
+        cause: Option<EventId>,
     },
 }
 
@@ -75,21 +83,65 @@ impl EffectQueue {
     }
 }
 
-/// Context handed to a system for one run.
-pub struct SystemCtx<'a> {
-    pub state: &'a mut State,
+/// Read-only view of the state, minus the domain being written.
+pub struct Reads<'a> {
     pub content: &'a ContentBundle,
-    pub effects: &'a mut EffectQueue,
     pub date: SimDate,
+    pub meta: &'a WorldMeta,
+    pub calendar: &'a Calendar,
+    pub world: &'a World,
+    population: Option<&'a PopulationState>,
+    economy: Option<&'a EconomyState>,
+    finance: Option<&'a FinanceState>,
+    environment: Option<&'a EnvironmentState>,
 }
 
-/// A registered system: stateless function plus its phase and cadence.
+// The scheduler always provides every domain except the one being written;
+// a system asking for its own domain through `Reads` is a programming error.
+#[allow(clippy::expect_used)]
+impl<'a> Reads<'a> {
+    pub fn population(&self) -> &'a PopulationState {
+        self.population
+            .expect("population is not readable from its own systems")
+    }
+    pub fn economy(&self) -> &'a EconomyState {
+        self.economy
+            .expect("economy is not readable from its own systems")
+    }
+    pub fn finance(&self) -> &'a FinanceState {
+        self.finance
+            .expect("finance is not readable from its own systems")
+    }
+    pub fn environment(&self) -> &'a EnvironmentState {
+        self.environment
+            .expect("environment is not readable from its own systems")
+    }
+}
+
+/// Shared outputs every system may use.
+pub struct Outs<'a> {
+    pub rng: &'a mut RngStreams,
+    pub events: &'a mut EventLog,
+    pub effects: &'a mut EffectQueue,
+}
+
+/// A system function bound to the domain it writes.
+#[derive(Clone, Copy)]
+pub enum SystemFn {
+    Population(fn(&mut PopulationState, &Reads<'_>, &mut Outs<'_>)),
+    Economy(fn(&mut EconomyState, &Reads<'_>, &mut Outs<'_>)),
+    Finance(fn(&mut FinanceState, &Reads<'_>, &mut Outs<'_>)),
+    Environment(fn(&mut EnvironmentState, &Reads<'_>, &mut Outs<'_>)),
+    /// Writes nothing but the event log.
+    Log(fn(&Reads<'_>, &mut Outs<'_>)),
+}
+
 #[derive(Clone, Copy)]
 pub struct SystemDef {
     pub name: &'static str,
     pub phase: Phase,
     pub cadence: Cadence,
-    pub run: fn(&mut SystemCtx<'_>),
+    pub run: SystemFn,
 }
 
 /// Systems sorted by phase, keeping registration order within a phase.
@@ -99,31 +151,114 @@ pub struct Schedule {
 
 impl Schedule {
     pub fn new(mut systems: Vec<SystemDef>) -> Self {
-        systems.sort_by_key(|s| s.phase); // stable sort keeps registration order
+        systems.sort_by_key(|s| s.phase); // stable: keeps registration order
         Schedule { systems }
     }
 
     /// Advance the calendar day by day, running each system whose cadence hits.
-    pub fn advance(&self, state: &mut State, content: &ContentBundle, days: u32) {
-        let mut effects = EffectQueue::default();
-        for _ in 0..days {
+    /// `on_day` is called after each day (progress reporting).
+    pub fn advance(
+        &self,
+        state: &mut State,
+        content: &ContentBundle,
+        days: u32,
+        on_day: &mut dyn FnMut(u32),
+    ) {
+        self.advance_with(state, content, days, Vec::new(), on_day);
+    }
+
+    /// Advance with effects pre-seeded into the queue (lab commands).
+    pub fn advance_with(
+        &self,
+        state: &mut State,
+        content: &ContentBundle,
+        days: u32,
+        seed_effects: Vec<Effect>,
+        on_day: &mut dyn FnMut(u32),
+    ) {
+        let mut effects = EffectQueue {
+            pending: seed_effects,
+        };
+        for d in 0..days {
             let date = state.calendar.date.add_days(1);
             state.calendar.date = date;
             for sys in &self.systems {
                 if sys.cadence.hits(date) {
-                    let mut ctx = SystemCtx {
-                        state,
-                        content,
-                        effects: &mut effects,
-                        date,
-                    };
-                    (sys.run)(&mut ctx);
+                    run_one(sys.run, state, content, date, &mut effects);
                 }
             }
+            on_day(d + 1);
         }
     }
 
     pub fn names(&self) -> Vec<&'static str> {
         self.systems.iter().map(|s| s.name).collect()
+    }
+}
+
+fn run_one(
+    f: SystemFn,
+    state: &mut State,
+    content: &ContentBundle,
+    date: SimDate,
+    effects: &mut EffectQueue,
+) {
+    let State {
+        meta,
+        calendar,
+        rng,
+        world,
+        events,
+        population,
+        economy,
+        finance,
+        environment,
+    } = state;
+    let mut outs = Outs {
+        rng,
+        events,
+        effects,
+    };
+    let base = |p, e, f, v| Reads {
+        content,
+        date,
+        meta,
+        calendar,
+        world,
+        population: p,
+        economy: e,
+        finance: f,
+        environment: v,
+    };
+    match f {
+        SystemFn::Population(g) => g(
+            population,
+            &base(None, Some(economy), Some(finance), Some(environment)),
+            &mut outs,
+        ),
+        SystemFn::Economy(g) => g(
+            economy,
+            &base(Some(population), None, Some(finance), Some(environment)),
+            &mut outs,
+        ),
+        SystemFn::Finance(g) => g(
+            finance,
+            &base(Some(population), Some(economy), None, Some(environment)),
+            &mut outs,
+        ),
+        SystemFn::Environment(g) => g(
+            environment,
+            &base(Some(population), Some(economy), Some(finance), None),
+            &mut outs,
+        ),
+        SystemFn::Log(g) => g(
+            &base(
+                Some(population),
+                Some(economy),
+                Some(finance),
+                Some(environment),
+            ),
+            &mut outs,
+        ),
     }
 }

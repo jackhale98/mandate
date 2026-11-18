@@ -3,13 +3,14 @@
 // move this to PixiJS.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MapView } from "../engine/protocol/MapView";
-import { bakeRaster } from "./render";
+import { bakeRaster, type Overlay } from "./render";
 
 interface Props {
   view: MapView;
   selected: number | null;
   onSelect: (municipalityId: number | null) => void;
   label: string;
+  overlay: Overlay;
 }
 
 interface Camera {
@@ -20,10 +21,10 @@ interface Camera {
 
 const CLASS_RADIUS: Record<string, number> = { metro: 5, city: 4, town: 3, rural: 2 };
 
-export function WorldMap({ view, selected, onSelect, label }: Props) {
+export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const raster = useMemo(() => bakeRaster(view, selected), [view, selected]);
+  const raster = useMemo(() => bakeRaster(view, selected, overlay), [view, selected, overlay]);
   const offscreen = useMemo(() => {
     const c = document.createElement("canvas");
     c.width = raster.width;

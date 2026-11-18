@@ -153,6 +153,45 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
             issues.push(Issue::error(&s.id, "base_weight must be finite and >= 0"));
         }
     }
+    for kind in crate::types::SectorKind::ALL {
+        let n = b.sectors.values().filter(|s| s.kind == kind).count();
+        if n != 1 {
+            issues.push(Issue::error(
+                "sectors",
+                &format!("expected exactly one sector of kind {kind:?}, found {n}"),
+            ));
+        }
+    }
+    let e = &b.economy;
+    let unit = |issues: &mut Vec<Issue>, name: &str, v: f64| {
+        if !(0.0..=1.0).contains(&v) {
+            issues.push(Issue::error(
+                "economy",
+                &format!("{name} = {v} outside [0, 1]"),
+            ));
+        }
+    };
+    unit(&mut issues, "natural_unemployment", e.natural_unemployment);
+    unit(
+        &mut issues,
+        "recession_monthly_chance",
+        e.recession_monthly_chance,
+    );
+    unit(&mut issues, "migration_rate", e.migration_rate);
+    unit(&mut issues, "target_vacancy", e.target_vacancy);
+    for (i, r) in e.death_rates.iter().enumerate() {
+        unit(&mut issues, &format!("death_rates[{i}]"), *r);
+    }
+    for (i, r) in e.taxes.income.iter().enumerate() {
+        unit(&mut issues, &format!("taxes.income[{i}]"), *r);
+    }
+    if e.recession_depth[0] > e.recession_depth[1] || e.recession_months[0] > e.recession_months[1]
+    {
+        issues.push(Issue::error(
+            "economy",
+            "recession ranges must be [min, max]",
+        ));
+    }
     for n in b.name_pools.values() {
         if n.prefixes.is_empty() || n.suffixes.is_empty() {
             issues.push(Issue::error(

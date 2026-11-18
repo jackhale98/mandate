@@ -3,7 +3,7 @@
 
 use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
 use mandate_sim::world::*;
-use mandate_worldgen::{Preset, WorldConfig, WorldSize, generate_world, terrain_hash};
+use mandate_worldgen::{Generated, Preset, WorldConfig, WorldSize, generate_world, terrain_hash};
 use proptest::prelude::*;
 use std::collections::{BTreeSet, VecDeque};
 use std::path::Path;
@@ -18,13 +18,22 @@ fn content() -> &'static ContentBundle {
     })
 }
 
-fn make(seed: u64, size: WorldSize, preset: Option<Preset>) -> (World, TerrainData) {
+fn make_full(seed: u64, size: WorldSize, preset: Option<Preset>) -> Generated {
     generate_world(
         &WorldConfig { seed, size, preset },
         content(),
         &mut |_, _| {},
     )
     .unwrap()
+}
+
+fn make(seed: u64, size: WorldSize, preset: Option<Preset>) -> (World, TerrainData) {
+    let g = make_full(seed, size, preset);
+    (g.world, g.terrain)
+}
+
+fn total_pop(seed: u64, size: WorldSize, preset: Option<Preset>) -> u64 {
+    make_full(seed, size, preset).hood_population.iter().sum()
 }
 
 fn connected(members: &BTreeSet<usize>, adj: impl Fn(usize) -> Vec<usize>) -> bool {
@@ -81,13 +90,9 @@ fn check_invariants(w: &World, t: &TerrainData) {
         );
         assert!(r.municipalities.contains(&r.capital));
     }
-    // Population accounting.
-    let by_muni: u64 = w
-        .municipalities
-        .iter()
-        .map(|m| w.municipality_population(m.id))
-        .sum();
-    assert_eq!(by_muni, w.total_population());
+    // Every neighbourhood belongs to exactly one municipality.
+    let listed: usize = w.municipalities.iter().map(|m| m.neighborhoods.len()).sum();
+    assert_eq!(listed, w.neighborhoods.len());
     // Constituencies partition their units exactly once per tier/jurisdiction, contiguously.
     for tier in [Tier::Local, Tier::Regional, Tier::National] {
         let mut seen: BTreeSet<(u32, usize)> = BTreeSet::new();
@@ -208,7 +213,11 @@ fn canonical_presets_bias_geography() {
         drier += (mean_precip(&dry) < mean_precip(&base)) as u32;
         more_coast += (coastal(&coast) >= coastal(&base)) as u32;
         richer += (minerals(&front) > minerals(&base)) as u32;
-        assert!(front.total_population() < base.total_population());
+        assert!(
+            total_pop(seed, WorldSize::Small, Some(Preset::ResourceFrontier))
+                < total_pop(seed, WorldSize::Small, None)
+        );
+        let _ = (&front, &base);
     }
     assert!(
         drier >= 3 && more_coast >= 3 && richer >= 3,

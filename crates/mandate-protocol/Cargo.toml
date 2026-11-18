@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+mandate-content = { version = "0.1.0", path = "../mandate-content" }
 mandate-core = { version = "0.1.0", path = "../mandate-core" }
 mandate-sim = { version = "0.1.0", path = "../mandate-sim" }
 serde = { version = "1.0.229", features = ["derive"] }

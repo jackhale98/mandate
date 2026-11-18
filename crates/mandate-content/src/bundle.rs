@@ -21,6 +21,7 @@ pub struct ContentBundle {
     pub tuning: Tuning,
     pub sectors: BTreeMap<ContentKey, SectorDef>,
     pub name_pools: BTreeMap<ContentKey, NamePoolDef>,
+    pub economy: EconomyParams,
     /// Fluent sources by language, then by file path.
     pub locales: BTreeMap<String, BTreeMap<String, String>>,
     /// Hash over every source path and text, in path order (DEC-053).
@@ -28,6 +29,11 @@ pub struct ContentBundle {
 }
 
 impl ContentBundle {
+    /// The sector definition for a kind (validated to exist exactly once).
+    pub fn sector(&self, kind: SectorKind) -> Option<&SectorDef> {
+        self.sectors.values().find(|s| s.kind == kind)
+    }
+
     pub fn sector_keys(&self) -> impl Iterator<Item = &ContentKey> {
         self.sectors.keys()
     }
@@ -58,6 +64,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut issues = Vec::new();
     let mut packs = Vec::new();
     let mut tuning: Option<(Tuning, String)> = None;
+    let mut economy: Option<(EconomyParams, String)> = None;
     let mut sectors: BTreeMap<ContentKey, SectorDef> = BTreeMap::new();
     let mut name_pools: BTreeMap<ContentKey, NamePoolDef> = BTreeMap::new();
     let mut locales: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
@@ -124,6 +131,16 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     tuning = Some((value, src.path.clone()));
                 }
             }
+            ContentFile::Economy { value } => {
+                if let Some((_, prev)) = &economy {
+                    issues.push(Issue::error(
+                        &src.path,
+                        &format!("economy defined twice (first in {prev})"),
+                    ));
+                } else {
+                    economy = Some((value, src.path.clone()));
+                }
+            }
             ContentFile::Sectors { items } => {
                 for s in items {
                     if claim(&s.id, &mut issues) {
@@ -145,6 +162,10 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         issues.push(Issue::error("<content>", "no tuning file found"));
         return Err(issues);
     };
+    let Some((economy, _)) = economy else {
+        issues.push(Issue::error("<content>", "no economy file found"));
+        return Err(issues);
+    };
     packs.sort_by(|a, b| (a.load_order, &a.id).cmp(&(b.load_order, &b.id)));
 
     let bundle = ContentBundle {
@@ -152,6 +173,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         tuning,
         sectors,
         name_pools,
+        economy,
         locales,
         content_hash,
     };

@@ -182,3 +182,56 @@ progress-neighborhoods = Settling neighbourhoods…
 progress-districts = Drawing electoral districts…
 progress-finishing = Finishing touches…
 progress-done = Ready.
+
+## Economy (M2)
+ui-economy = Economy
+ui-recession = Global recession
+ui-unemployment = Unemployment
+ui-inflation = Inflation
+ui-interest-rate = Interest rate
+ui-growth = Growth (annualised)
+ui-debt = National debt / output
+ui-output = Annual output
+ui-months-ago = { $n ->
+    [0] this month
+    [one] 1 month ago
+   *[other] { $n } months ago
+}
+ui-trend-12m = { $what }, last 12 months
+ui-overlay = Map layer
+ui-overlay-terrain = Terrain
+ui-overlay-unemployment = Unemployment
+ui-legend-low = Low
+ui-legend-high = High
+ui-local-economy = Local economy
+ui-typical-income = Typical income
+ui-rent = Average rent / month
+ui-home-price = Average home price
+ui-jobs-by-sector = Jobs by sector
+ui-local-budget = Town budget
+ui-budget = Annual budget
+ui-local-debt = Debt
+ui-last-balance = Last year's balance
+
+commodity-agriculture = farm produce
+commodity-minerals = minerals
+commodity-energy = energy
+
+hazard-flood = Flooding
+hazard-drought = Drought
+hazard-wildfire = Wildfire
+hazard-storm = A storm
+hazard-earthquake = An earthquake
+
+event-history-began = Recorded history begins in { $year }.
+event-global-recession = A global recession begins (demand down { $depth }%).
+event-global-recovery = The global economy begins to recover.
+event-commodity-spike = Prices of { $commodity } jump { $change }%.
+event-commodity-slump = Prices of { $commodity } slump ({ $change }%).
+event-plant-closure = { $sector } layoffs in { $town }: { $jobs } jobs lost.
+event-rate-rise = The central bank raises rates to { $rate }%.
+event-rate-cut = The central bank cuts rates to { $rate }%.
+event-disaster = { $hazard } strikes { $town } (severity { $severity }%).
+event-budget-surplus = The { $year } national budget closed in surplus. Debt is { $debt }% of output.
+event-budget-deficit = The { $year } national budget closed in deficit. Debt is { $debt }% of output.
+progress-history = Living through twenty years of history…

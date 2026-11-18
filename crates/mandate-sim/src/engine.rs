@@ -24,6 +24,8 @@ pub struct Engine {
     schedule: Schedule,
     command_log: Vec<LoggedCommand>,
     next_command: u64,
+    /// Effects queued by lab commands, delivered on the next advance.
+    pending_effects: Vec<crate::scheduler::Effect>,
 }
 
 impl Engine {
@@ -43,6 +45,7 @@ impl Engine {
             schedule: Schedule::new(default_systems()),
             command_log: Vec::new(),
             next_command: 0,
+            pending_effects: Vec::new(),
         })
     }
 
@@ -98,7 +101,14 @@ impl Engine {
         let outcome = match &command {
             Command::EndTurn => {
                 let days = self.turn_days();
-                self.schedule.advance(&mut self.state, &self.content, days);
+                let seeded = std::mem::take(&mut self.pending_effects);
+                self.schedule.advance_with(
+                    &mut self.state,
+                    &self.content,
+                    days,
+                    seeded,
+                    &mut |_| {},
+                );
                 self.state.calendar.turn += 1;
                 let turn = self.state.calendar.turn;
                 self.state.events.record(
@@ -111,13 +121,43 @@ impl Engine {
                     turn,
                 }
             }
+            Command::LabSectorShock {
+                municipality,
+                sector,
+                factor,
+                months,
+            } => {
+                if *municipality as usize >= self.state.world.municipalities.len() {
+                    return Err(EngineError::InvalidCommand("no such municipality".into()));
+                }
+                let effect = crate::scheduler::Effect::SectorShock {
+                    municipality: *municipality,
+                    sector: *sector,
+                    factor: *factor,
+                    months: *months,
+                    cause: None,
+                };
+                // Delivered on the next advance; applied at the next monthly economy step.
+                self.pending_effects.push(effect);
+                CommandOutcome {
+                    days_advanced: 0,
+                    turn: self.state.calendar.turn,
+                }
+            }
             Command::AdvanceDays { days } => {
                 if *days > 366 * 100 {
                     return Err(EngineError::InvalidCommand(
                         "advance limited to 100 years".into(),
                     ));
                 }
-                self.schedule.advance(&mut self.state, &self.content, *days);
+                let seeded = std::mem::take(&mut self.pending_effects);
+                self.schedule.advance_with(
+                    &mut self.state,
+                    &self.content,
+                    *days,
+                    seeded,
+                    &mut |_| {},
+                );
                 CommandOutcome {
                     days_advanced: *days,
                     turn: self.state.calendar.turn,
@@ -130,6 +170,23 @@ impl Engine {
         });
         self.next_command += 1;
         Ok(outcome)
+    }
+
+    /// NPC-only history before play begins (DEC-022). Not logged as a command:
+    /// it is part of world generation. Reports progress per simulated year.
+    pub fn burn_in(&mut self, years: u32, progress: &mut dyn FnMut(u32)) {
+        let prev = self.state.calendar.phase;
+        self.state.calendar.phase = GamePhase::BurnIn;
+        for y in 0..years {
+            self.schedule.advance(
+                &mut self.state,
+                &self.content,
+                mandate_core::time::DAYS_PER_YEAR,
+                &mut |_| {},
+            );
+            progress(y + 1);
+        }
+        self.state.calendar.phase = prev;
     }
 
     pub fn system_names(&self) -> Vec<&'static str> {

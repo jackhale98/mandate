@@ -1,0 +1,27 @@
+// Economy and demography parameters (REQ-005, DEC-019). Tune here, not in code.
+{
+  "kind": "economy",
+  "value": {
+    "inflation_target": 0.02,
+    "natural_unemployment": 0.055,
+    "neutral_real_rate": 0.01,
+    "recession_monthly_chance": 0.008,  // ~2–3 recessions per 30 years
+    "recession_depth": [0.05, 0.13],
+    "recession_months": [8, 22],
+    "commodity_volatility": 0.035,
+    "birth_rate": 0.030,
+    "death_rates": [0.0003, 0.0008, 0.0015, 0.006, 0.045],
+    "migration_rate": 0.004,
+    "target_vacancy": 0.05,
+    "construction_lag_months": 18,
+    "base_dwelling_price": 240000,
+    "taxes": {
+      "property": 0.009,
+      "sales": 0.06,
+      "income": [0.08, 0.19, 0.31],
+      "business": 0.09,
+    },
+    "unemployment_replacement": 0.38,
+    "pension_replacement": 0.45,
+  },
+}

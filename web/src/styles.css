@@ -175,3 +175,34 @@ h2 { font-size: 1.1rem; }
 .game-body { overflow-y: auto; min-height: 0; }
 .map-body { min-height: 0; }
 .map-wrap { min-height: 0; }
+
+/* M2: stat tiles (dataviz contract), meters, legend */
+:root { --good: #3f9b5c; --bad: #c8553d; --spark: var(--muted); --ramp-lo: rgb(232, 238, 247); --ramp-hi: rgb(24, 66, 128); }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chip-warn { border-color: var(--bad); }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.stats-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stats-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stat { display: flex; flex-direction: column; gap: 2px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); min-width: 0; }
+.stat-label { font-size: 0.8rem; color: var(--muted); }
+.stat-value { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-delta { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.delta-good > span:first-child { color: var(--good); }
+.delta-bad > span:first-child { color: var(--bad); }
+.spark-wrap { position: relative; margin-top: 4px; }
+.spark { width: 100%; height: 32px; display: block; overflow: visible; }
+.spark:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.spark-line { fill: none; stroke: var(--spark); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.spark-now { fill: var(--accent); stroke: var(--surface-2); stroke-width: 2; }
+.spark-hover { fill: var(--text); stroke: var(--surface-2); stroke-width: 2; }
+.spark-cross { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.spark-tip { position: absolute; left: 0; top: -26px; font-size: 0.75rem; white-space: nowrap; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; pointer-events: none; }
+.meters { list-style: none; margin: 0; padding: 0; }
+.meters li { display: grid; grid-template-columns: minmax(7rem, 9rem) 1fr 4.5rem; gap: 8px; align-items: center; padding: 3px 0; font-size: 0.9rem; }
+.meter { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); overflow: hidden; }
+.meter-fill { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.meters .num { text-align: right; }
+.map-tools { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 16px 0; }
+.segmented-sm .seg { min-height: 36px; min-width: 96px; font-size: 0.85rem; }
+.legend { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); }
+.legend-ramp { width: 90px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--ramp-lo), var(--ramp-hi)); }

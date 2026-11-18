@@ -405,6 +405,7 @@ dependencies = [
  "mandate-sim",
  "mandate-worldgen",
  "miniz_oxide",
+ "serde",
  "serde_json",
 ]
 
@@ -437,6 +438,7 @@ dependencies = [
 name = "mandate-protocol"
 version = "0.1.0"
 dependencies = [
+ "mandate-content",
  "mandate-core",
  "mandate-sim",
  "serde",

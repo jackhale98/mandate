@@ -43,6 +43,7 @@ pub struct MapMunicipality {
     pub x: u32,
     pub y: u32,
     pub population: f64,
+    pub unemployment: f64,
     pub port: bool,
     pub regional_capital: bool,
     pub national_capital: bool,
@@ -100,7 +101,8 @@ fn class_str(c: mandate_sim::world::SettlementClass) -> &'static str {
 
 pub fn map_view(engine: &Engine) -> Option<MapView> {
     let t = engine.terrain()?;
-    let w = &engine.state().world;
+    let st = engine.state();
+    let w = &st.world;
     let geo = w.geo.as_ref()?;
     let n = t.w * t.h;
     let mut shade = vec![128u8; n];
@@ -139,7 +141,13 @@ pub fn map_view(engine: &Engine) -> Option<MapView> {
                 class: class_str(m.class).into(),
                 x: m.center.0,
                 y: m.center.1,
-                population: w.municipality_population(m.id) as f64,
+                population: st.population.municipality_total(w, m.id) as f64,
+                unemployment: st
+                    .economy
+                    .munis
+                    .get(m.id.index())
+                    .map(|e| e.unemployment)
+                    .unwrap_or(0.0),
                 port: m.port,
                 regional_capital: w.regions[m.region.index()].capital == m.id,
                 national_capital: capital == Some(m.id),
@@ -160,7 +168,7 @@ pub fn map_view(engine: &Engine) -> Option<MapView> {
                     capital: r.capital.0,
                     label_x: sx / k,
                     label_y: sy / k,
-                    population: w.region_population(r.id) as f64,
+                    population: st.population.region_total(w, r.id) as f64,
                 }
             })
             .collect(),
@@ -228,6 +236,34 @@ pub struct MunicipalityView {
     pub hazards: Vec<GeoIndexView>,
     pub neighborhoods: Vec<NeighborhoodView>,
     pub places: Vec<PlaceView>,
+    pub economy: Option<MuniEconomyView>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SectorJobsView {
+    /// Fluent key, e.g. `sector-manufacturing`.
+    pub name_key: String,
+    pub jobs: f64,
+    pub wage: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct MuniEconomyView {
+    pub unemployment: f64,
+    pub mean_wage: f64,
+    /// Middle-class gross income per working-age adult.
+    pub typical_income: f64,
+    pub monthly_rent: f64,
+    pub home_price: f64,
+    pub vacancy: f64,
+    pub sectors: Vec<SectorJobsView>,
+    pub budget: f64,
+    pub debt: f64,
+    pub last_balance: f64,
+    /// Monthly unemployment history (oldest first).
+    pub unemployment_history: Vec<f64>,
 }
 
 fn snake(s: &str) -> String {
@@ -246,7 +282,8 @@ fn snake(s: &str) -> String {
 }
 
 pub fn municipality_view(engine: &Engine, id: u32) -> Option<MunicipalityView> {
-    let w = &engine.state().world;
+    let st = engine.state();
+    let w = &st.world;
     let m = w.municipalities.get(id as usize)?;
     let g = &m.geo;
     let idx = |k: &str, v: f64| GeoIndexView {
@@ -258,7 +295,7 @@ pub fn municipality_view(engine: &Engine, id: u32) -> Option<MunicipalityView> {
         name: m.name.clone(),
         region: w.regions[m.region.index()].name.clone(),
         class: class_str(m.class).into(),
-        population: w.municipality_population(MunicipalityId(id)) as f64,
+        population: st.population.municipality_total(w, MunicipalityId(id)) as f64,
         coastal: m.coastal,
         port: m.port,
         on_river: m.on_river,
@@ -293,7 +330,7 @@ pub fn municipality_view(engine: &Engine, id: u32) -> Option<MunicipalityView> {
                     id: n.id.0,
                     name: n.name.clone(),
                     kind: snake(&format!("{:?}", n.kind)),
-                    population: n.population as f64,
+                    population: st.population.hood_total(n.id.index()) as f64,
                 }
             })
             .collect(),
@@ -310,6 +347,34 @@ pub fn municipality_view(engine: &Engine, id: u32) -> Option<MunicipalityView> {
                 }
             })
             .collect(),
+        economy: st.economy.munis.get(id as usize).map(|e| {
+            let t = st.finance.local.get(id as usize);
+            MuniEconomyView {
+                unemployment: e.unemployment,
+                mean_wage: e.mean_wage,
+                typical_income: e.class_income[1],
+                monthly_rent: e.housing.rent,
+                home_price: e.housing.price,
+                vacancy: e.housing.vacancy,
+                sectors: mandate_content::SectorKind::ALL
+                    .iter()
+                    .zip(&e.sectors)
+                    .map(|(k, s)| SectorJobsView {
+                        name_key: engine
+                            .content()
+                            .sector(*k)
+                            .map(|d| d.name_key.clone())
+                            .unwrap_or_default(),
+                        jobs: s.jobs.round(),
+                        wage: s.wage.round(),
+                    })
+                    .collect(),
+                budget: t.map(|t| t.budget_total().units() as f64).unwrap_or(0.0),
+                debt: t.map(|t| t.debt.units() as f64).unwrap_or(0.0),
+                last_balance: t.map(|t| t.last_year.balance.units() as f64).unwrap_or(0.0),
+                unemployment_history: e.history.iter().map(|h| h.unemployment as f64).collect(),
+            }
+        }),
     })
 }
 

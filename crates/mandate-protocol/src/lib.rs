@@ -105,6 +105,8 @@ pub struct Response {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(tag = "status", rename_all = "snake_case")]
+// Responses are built once and serialized immediately; boxing buys nothing.
+#[allow(clippy::large_enum_variant)]
 pub enum ResponseResult {
     Ok { body: ResponseBody },
     Err { error: ProtocolError },

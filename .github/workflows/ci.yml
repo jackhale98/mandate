@@ -66,6 +66,8 @@ jobs:
           git diff --exit-code content/schemas web/src/engine/protocol
       - name: Determinism (twice + save/load/continue)
         run: cargo run -q --release -p mandate-cli -- determinism --seed 2026 --turns 80
+      - name: Monte Carlo health (quick)
+        run: cargo run -q --release -p mandate-cli -- sweep --seeds 8 --years 20 > /dev/null
       - uses: actions/download-artifact@v4
         with:
           name: engine-pkg

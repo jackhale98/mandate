@@ -1,5 +1,120 @@
 {
   "$defs": {
+    "EconomyParams": {
+      "additionalProperties": false,
+      "description": "Economy and demography parameters (REQ-005).",
+      "properties": {
+        "base_dwelling_price": {
+          "description": "Average dwelling price at price level 1.0.",
+          "format": "double",
+          "type": "number"
+        },
+        "birth_rate": {
+          "description": "Births per adult aged 18–44 per year.",
+          "format": "double",
+          "type": "number"
+        },
+        "commodity_volatility": {
+          "description": "Monthly volatility of commodity prices (log scale).",
+          "format": "double",
+          "type": "number"
+        },
+        "construction_lag_months": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "death_rates": {
+          "description": "Annual death rates: children, 18–29, 30–44, 45–64, 65+.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 5,
+          "minItems": 5,
+          "type": "array"
+        },
+        "inflation_target": {
+          "format": "double",
+          "type": "number"
+        },
+        "migration_rate": {
+          "description": "Monthly share of mobile adults who reconsider where they live.",
+          "format": "double",
+          "type": "number"
+        },
+        "natural_unemployment": {
+          "format": "double",
+          "type": "number"
+        },
+        "neutral_real_rate": {
+          "format": "double",
+          "type": "number"
+        },
+        "pension_replacement": {
+          "format": "double",
+          "type": "number"
+        },
+        "recession_depth": {
+          "description": "Peak fall in global demand during a recession, [min, max].",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "recession_monthly_chance": {
+          "description": "Monthly probability that a global recession begins.",
+          "format": "double",
+          "type": "number"
+        },
+        "recession_months": {
+          "items": {
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "target_vacancy": {
+          "format": "double",
+          "type": "number"
+        },
+        "taxes": {
+          "$ref": "#/$defs/TaxParams"
+        },
+        "unemployment_replacement": {
+          "description": "Unemployment benefit and pension as a share of the mean wage.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "inflation_target",
+        "natural_unemployment",
+        "neutral_real_rate",
+        "recession_monthly_chance",
+        "recession_depth",
+        "recession_months",
+        "commodity_volatility",
+        "birth_rate",
+        "death_rates",
+        "migration_rate",
+        "target_vacancy",
+        "construction_lag_months",
+        "base_dwelling_price",
+        "taxes",
+        "unemployment_replacement",
+        "pension_replacement"
+      ],
+      "type": "object"
+    },
     "NamePoolDef": {
       "additionalProperties": false,
       "description": "Syllable-based name generator pool.",
@@ -68,6 +183,11 @@
     "SectorDef": {
       "additionalProperties": false,
       "properties": {
+        "base_wage": {
+          "description": "Mean annual wage per worker at price level 1.0 (currency units).",
+          "format": "double",
+          "type": "number"
+        },
         "base_weight": {
           "description": "Relative weight of this sector's base presence in a generic economy.",
           "format": "double",
@@ -76,18 +196,86 @@
         "class": {
           "$ref": "#/$defs/SectorClass"
         },
+        "cyclicality": {
+          "description": "Elasticity of job demand to the global demand cycle.",
+          "format": "double",
+          "type": "number"
+        },
         "id": {
           "type": "string"
         },
+        "kind": {
+          "$ref": "#/$defs/SectorKind"
+        },
         "name_key": {
           "type": "string"
+        },
+        "productivity_growth": {
+          "description": "Annual productivity growth (fraction).",
+          "format": "double",
+          "type": "number"
         }
       },
       "required": [
         "id",
         "name_key",
         "class",
-        "base_weight"
+        "kind",
+        "base_weight",
+        "base_wage",
+        "cyclicality",
+        "productivity_growth"
+      ],
+      "type": "object"
+    },
+    "SectorKind": {
+      "description": "Behavioural kind of a sector; exactly one sector per kind (validated).",
+      "enum": [
+        "agriculture",
+        "resources",
+        "manufacturing",
+        "construction",
+        "retail",
+        "tourism",
+        "knowledge",
+        "public"
+      ],
+      "type": "string"
+    },
+    "TaxParams": {
+      "additionalProperties": false,
+      "properties": {
+        "business": {
+          "description": "Tax on business output (national tier).",
+          "format": "double",
+          "type": "number"
+        },
+        "income": {
+          "description": "Effective income tax by class: low, middle, high (national tier).",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "property": {
+          "description": "Annual property tax as a share of dwelling value (local tier).",
+          "format": "double",
+          "type": "number"
+        },
+        "sales": {
+          "description": "Sales tax on consumption (regional tier).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "property",
+        "sales",
+        "income",
+        "business"
       ],
       "type": "object"
     },
@@ -271,6 +459,24 @@
       "required": [
         "kind",
         "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Economy and demography parameters (REQ-005).",
+      "properties": {
+        "kind": {
+          "const": "economy",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/EconomyParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
       ],
       "type": "object"
     }

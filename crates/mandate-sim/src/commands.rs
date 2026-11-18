@@ -9,6 +9,13 @@ pub enum Command {
     EndTurn,
     /// Lab/debug: advance an exact number of days.
     AdvanceDays { days: u32 },
+    /// Lab only (never exposed to players): inject a sector demand shock.
+    LabSectorShock {
+        municipality: u32,
+        sector: mandate_content::SectorKind,
+        factor: f64,
+        months: u16,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

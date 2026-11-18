@@ -1,0 +1,753 @@
+//! Layered economy (DEC-019): global cycle and commodities (exogenous),
+//! national macro loop (inflation, central bank, output gap), and per-
+//! municipality sector jobs, wages, incomes, and housing markets.
+
+pub mod housing;
+
+use crate::events::{EventId, EventKind};
+use crate::population::{CLASSES, PopulationState};
+use crate::scheduler::{Effect, Outs, Reads};
+use crate::state::{Preset, WorldMeta};
+use crate::world::{MunicipalityId, NeighborhoodKind, PlaceKind, SettlementClass, World};
+use housing::Housing;
+use mandate_content::{ContentBundle, SectorKind};
+use mandate_core::math::{clamp, exp, ln, pow};
+use mandate_core::{SimRng, Stream};
+use serde::{Deserialize, Serialize};
+
+pub const SECTORS: usize = 8;
+/// Commodities: agriculture, minerals, energy.
+pub const COMMODITIES: usize = 3;
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Global {
+    /// Global demand index (1.0 = trend).
+    pub demand: f64,
+    pub recession: Option<Recession>,
+    /// Commodity price indices (1.0 = long-run mean).
+    pub commodities: [f64; COMMODITIES],
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Recession {
+    pub depth: f64,
+    pub months_total: u16,
+    pub months_elapsed: u16,
+    pub event: Option<EventId>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct National {
+    pub price_level: f64,
+    /// Annual inflation rate.
+    pub inflation: f64,
+    /// Central bank policy rate.
+    pub policy_rate: f64,
+    pub output_gap: f64,
+    pub unemployment: f64,
+    /// Annualised nominal output.
+    pub gdp: f64,
+    pub gdp_growth: f64,
+    pub tech_index: f64,
+    pub manufacturing_competitiveness: f64,
+    /// Annual structural trends (from presets).
+    pub tech_growth: f64,
+    pub manufacturing_trend: f64,
+    pub mean_wage: f64,
+    /// Job-weighted mean productivity across all sectors (1.0 at start).
+    pub productivity_index: f64,
+    pub last_rate_event: f64,
+    pub history: Vec<NationalSnapshot>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NationalSnapshot {
+    pub day: u32,
+    pub unemployment: f32,
+    pub inflation: f32,
+    pub policy_rate: f32,
+    pub gdp: f64,
+    pub global_demand: f32,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SectorState {
+    /// Structural job capacity at neutral demand.
+    pub capacity: f64,
+    pub jobs: f64,
+    /// Annual wage per worker (nominal).
+    pub wage: f64,
+    pub productivity: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ActiveShock {
+    pub sector: SectorKind,
+    pub factor: f64,
+    pub months_left: u16,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct MuniEcon {
+    pub sectors: Vec<SectorState>,
+    pub labour_force: f64,
+    pub employed: f64,
+    pub unemployment: f64,
+    /// Employment rate by class (low, middle, high).
+    pub class_employment: [f64; CLASSES],
+    /// Mean gross annual income per working-age adult by class.
+    pub class_income: [f64; CLASSES],
+    pub mean_wage: f64,
+    /// Annual household consumption (nominal).
+    pub consumption: f64,
+    /// Baseline consumption at initialisation (retail demand anchor).
+    pub base_consumption: f64,
+    /// Annualised output (nominal value added).
+    pub output: f64,
+    pub housing: Housing,
+    pub attractiveness: f64,
+    pub shocks: Vec<ActiveShock>,
+    /// Months since the last disaster (for tourism and attractiveness).
+    pub months_since_disaster: u16,
+    /// Mean wage at initialisation (unit-labour-cost anchor).
+    pub base_mean_wage: f64,
+    pub history: Vec<MuniSnapshot>,
+}
+
+impl MuniEcon {
+    pub fn total_jobs(&self) -> f64 {
+        self.sectors.iter().map(|s| s.jobs).sum()
+    }
+    pub fn knowledge_share(&self) -> f64 {
+        let t = self.total_jobs().max(1.0);
+        self.sectors
+            .get(SectorKind::Knowledge.index())
+            .map(|s| s.jobs / t)
+            .unwrap_or(0.0)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct MuniSnapshot {
+    pub day: u32,
+    pub unemployment: f32,
+    pub rent: f32,
+    pub jobs: f32,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct EconomyState {
+    pub global: Global,
+    pub national: National,
+    pub munis: Vec<MuniEcon>,
+}
+
+fn local_wage_factor(c: SettlementClass) -> f64 {
+    match c {
+        SettlementClass::Metro => 1.15,
+        SettlementClass::City => 1.05,
+        SettlementClass::Town => 0.95,
+        SettlementClass::Rural => 0.88,
+    }
+}
+
+/// Relative structural presence of each sector in a municipality.
+fn endowment(world: &World, m: usize, kind: SectorKind, preset: Option<Preset>) -> f64 {
+    let mu = &world.municipalities[m];
+    let g = &mu.geo;
+    let class = mu.class;
+    let industrial = world
+        .hoods_of(mu.id)
+        .any(|h| world.neighborhoods[h].kind == NeighborhoodKind::Industrial);
+    let has = |k: PlaceKind| mu.places.iter().any(|p| world.places[p.index()].kind == k);
+    let size = match class {
+        SettlementClass::Metro => 3,
+        SettlementClass::City => 2,
+        SettlementClass::Town => 1,
+        SettlementClass::Rural => 0,
+    };
+    let p = |x: Preset, f: f64| if preset == Some(x) { f } else { 1.0 };
+    match kind {
+        SectorKind::Agriculture => {
+            (0.2 + 2.5 * g.fertility)
+                * [1.6, 1.0, 0.3, 0.08][size]
+                * p(Preset::DroughtFarmland, 1.5)
+        }
+        SectorKind::Resources => {
+            (g.minerals + 0.6 * g.timber + 0.5 * g.energy + 0.3 * g.fishing)
+                * [1.6, 1.2, 0.5, 0.2][size]
+                * p(Preset::ResourceFrontier, 2.2)
+        }
+        SectorKind::Manufacturing => {
+            (if industrial { 1.6 } else { 0.5 })
+                * [0.6, 1.0, 1.2, 1.1][size]
+                * p(Preset::IndustrialDecline, 1.6)
+        }
+        SectorKind::Construction => 1.0,
+        SectorKind::Retail => [0.85, 1.0, 1.05, 1.1][size],
+        SectorKind::Tourism => {
+            (0.2 + 2.0 * pow(g.scenic, 1.5) + if mu.coastal { 0.3 } else { 0.0 })
+                * p(Preset::WealthyCoast, 1.5)
+        }
+        SectorKind::Knowledge => {
+            ([0.3, 0.6, 1.4, 2.2][size] + if has(PlaceKind::University) { 0.4 } else { 0.0 })
+                * p(Preset::TechGrowth, 1.5)
+                * p(Preset::WealthyCoast, 1.2)
+        }
+        SectorKind::Public => {
+            1.0 + if has(PlaceKind::RegionalAssembly) {
+                0.2
+            } else {
+                0.0
+            } + if has(PlaceKind::Parliament) { 0.5 } else { 0.0 }
+        }
+    }
+}
+
+/// Initialise the economy from geography and the starting population.
+pub fn init(
+    world: &World,
+    pop: &PopulationState,
+    content: &ContentBundle,
+    meta: &WorldMeta,
+) -> EconomyState {
+    let preset = meta.params.preset;
+    let e = &content.economy;
+    let mut munis = Vec::with_capacity(world.municipalities.len());
+    let wealth = if preset == Some(Preset::WealthyCoast) {
+        1.15
+    } else {
+        1.0
+    };
+    for (m, mu) in world.municipalities.iter().enumerate() {
+        let lf: f64 = pop.labour_force_by_class(world, mu.id).iter().sum();
+        let weights: Vec<f64> = SectorKind::ALL
+            .iter()
+            .map(|k| {
+                content.sector(*k).map(|s| s.base_weight).unwrap_or(0.0)
+                    * endowment(world, m, *k, preset)
+            })
+            .collect();
+        let wsum: f64 = weights.iter().sum::<f64>().max(1e-9);
+        let target_jobs = lf * (1.0 - e.natural_unemployment);
+        let sectors: Vec<SectorState> = SectorKind::ALL
+            .iter()
+            .zip(&weights)
+            .map(|(k, w)| {
+                let jobs = target_jobs * w / wsum;
+                let base_wage = content.sector(*k).map(|s| s.base_wage).unwrap_or(40_000.0);
+                SectorState {
+                    capacity: jobs,
+                    jobs,
+                    wage: base_wage * local_wage_factor(mu.class) * wealth,
+                    productivity: 1.0,
+                }
+            })
+            .collect();
+        let adults: f64 = pop.municipality_cohorts(world, mu.id).iter().sum();
+        let housing = housing::init(mu, adults, e, wealth);
+        munis.push(MuniEcon {
+            sectors,
+            labour_force: lf,
+            employed: target_jobs,
+            unemployment: e.natural_unemployment,
+            class_employment: [0.9, 0.95, 0.97],
+            class_income: [0.0; CLASSES],
+            mean_wage: 0.0,
+            consumption: 0.0,
+            base_consumption: 0.0,
+            output: 0.0,
+            housing,
+            attractiveness: 0.0,
+            shocks: Vec::new(),
+            months_since_disaster: 120,
+            base_mean_wage: 0.0,
+            history: Vec::new(),
+        });
+    }
+    let (tech_growth, manufacturing_trend) = match preset {
+        Some(Preset::TechGrowth) => (0.035, -0.003),
+        Some(Preset::IndustrialDecline) => (0.015, -0.02),
+        _ => (0.02, -0.008),
+    };
+    let mut st = EconomyState {
+        global: Global {
+            demand: 1.0,
+            recession: None,
+            commodities: [1.0; COMMODITIES],
+        },
+        national: National {
+            price_level: 1.0,
+            inflation: e.inflation_target,
+            policy_rate: e.neutral_real_rate + e.inflation_target,
+            tech_index: 1.0,
+            productivity_index: 1.0,
+            manufacturing_competitiveness: 1.0,
+            tech_growth,
+            manufacturing_trend,
+            unemployment: e.natural_unemployment,
+            ..Default::default()
+        },
+        munis,
+    };
+    // One settling pass so incomes, consumption, and attractiveness exist.
+    for m in 0..st.munis.len() {
+        settle_labour_and_incomes(
+            &mut st,
+            m,
+            world,
+            pop,
+            content,
+            content.economy.taxes.income,
+        );
+        let c = st.munis[m].consumption;
+        st.munis[m].base_consumption = c;
+        st.munis[m].base_mean_wage = st.munis[m].mean_wage;
+    }
+    st
+}
+
+// --- Systems --------------------------------------------------------------------
+
+/// Monthly: global demand cycle, recessions, and commodity prices.
+pub fn global(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
+    let p = &r.content.economy;
+    let rng = out.rng.get(Stream::Economy);
+    let g = &mut econ.global;
+    let target = match &mut g.recession {
+        Some(rec) => {
+            rec.months_elapsed += 1;
+            let t = rec.months_elapsed as f64 / rec.months_total.max(1) as f64;
+            // Sharp fall, slower recovery.
+            let shape = if t < 0.35 {
+                t / 0.35
+            } else {
+                (1.0 - t).max(0.0) / 0.65
+            };
+            1.0 - rec.depth * shape
+        }
+        None => 1.0,
+    };
+    if g.recession
+        .as_ref()
+        .is_some_and(|rec| rec.months_elapsed >= rec.months_total)
+    {
+        g.recession = None;
+        out.events
+            .record(r.date, EventKind::GlobalRecoveryBegan, vec![]);
+    } else if g.recession.is_none() && rng.chance(p.recession_monthly_chance) {
+        let depth = rng.range_f64(p.recession_depth[0], p.recession_depth[1]);
+        let months =
+            rng.range_i64(p.recession_months[0] as i64, p.recession_months[1] as i64) as u16;
+        let ev = out.events.record(
+            r.date,
+            EventKind::GlobalRecessionBegan {
+                depth_pct: (depth * 100.0).round() as u32,
+            },
+            vec![],
+        );
+        out.events.pin(ev);
+        g.recession = Some(Recession {
+            depth,
+            months_total: months,
+            months_elapsed: 0,
+            event: Some(ev),
+        });
+    }
+    g.demand = clamp(
+        0.8 * g.demand + 0.2 * target + rng.normal(0.0, 0.004),
+        0.6,
+        1.3,
+    );
+    for (i, c) in g.commodities.iter_mut().enumerate() {
+        let mut lp = ln(c.max(0.05));
+        lp += -0.04 * lp + rng.normal(0.0, p.commodity_volatility);
+        if rng.chance(0.006) {
+            let jump = rng.range_f64(0.18, 0.4) * if rng.chance(0.5) { 1.0 } else { -1.0 };
+            lp += jump;
+            out.events.record(
+                r.date,
+                EventKind::CommodityShock {
+                    commodity: i as u8,
+                    change_pct: (jump * 100.0).round() as i32,
+                },
+                vec![],
+            );
+        }
+        *c = clamp(exp(lp), 0.3, 3.0);
+    }
+}
+
+/// Recompute labour market, wages, and incomes for one municipality.
+fn settle_labour_and_incomes(
+    econ: &mut EconomyState,
+    m: usize,
+    world: &World,
+    pop: &PopulationState,
+    content: &ContentBundle,
+    income_tax: [f64; CLASSES],
+) {
+    let e = &content.economy;
+    let price = econ.national.price_level.max(0.01);
+    // Higher real rates encourage saving over spending.
+    let neutral = e.neutral_real_rate + e.inflation_target;
+    let propensity = clamp(1.0 - 2.5 * (econ.national.policy_rate - neutral), 0.85, 1.1);
+    let mid = MunicipalityId(m as u32);
+    let lf_c = pop.labour_force_by_class(world, mid);
+    let cohorts = pop.municipality_cohorts(world, mid);
+    let mu = &mut econ.munis[m];
+    let lf: f64 = lf_c.iter().sum::<f64>().max(1.0);
+    let demand = mu.total_jobs();
+    // Frictional unemployment never falls below ~2.5%.
+    let employed = demand.min(lf * 0.975);
+    let u = clamp(1.0 - employed / lf, 0.0, 0.6);
+    let wage_bill: f64 = mu.sectors.iter().map(|s| s.jobs * s.wage).sum();
+    let mean_wage = wage_bill / demand.max(1.0);
+    // Class employment: weaker classes absorb more of the slack.
+    let raw = [1.0 - u * 1.7, 1.0 - u * 0.85, 1.0 - u * 0.45].map(|x| clamp(x, 0.2, 1.0));
+    let implied: f64 = (0..CLASSES).map(|c| raw[c] * lf_c[c]).sum::<f64>().max(1.0);
+    let scale = employed / implied;
+    let rates = raw.map(|x| clamp(x * scale, 0.1, 1.0));
+    let knowledge = mu.knowledge_share();
+    let class_wage = [0.6 * mean_wage, mean_wage, (2.0 + knowledge) * mean_wage];
+    let class_income: [f64; CLASSES] = std::array::from_fn(|c| {
+        rates[c] * class_wage[c] + (1.0 - rates[c]) * e.unemployment_replacement * mean_wage
+    });
+    // Consumption: working-age by class plus pensioners.
+    let mut consumption = 0.0;
+    for c in 0..CLASSES {
+        let working: f64 = (0..3)
+            .map(|a| cohorts[crate::population::cohort_index(a, c)])
+            .sum();
+        let seniors = cohorts[crate::population::cohort_index(3, c)];
+        let disp = class_income[c] * (1.0 - income_tax[c]);
+        consumption += working * disp * [0.95, 0.85, 0.7][c]
+            + seniors * e.pension_replacement * mean_wage * 0.9;
+    }
+    let consumption = consumption * propensity;
+    mu.labour_force = lf;
+    mu.employed = employed;
+    mu.unemployment = u;
+    mu.class_employment = rates;
+    mu.class_income = class_income;
+    mu.mean_wage = mean_wage;
+    mu.consumption = consumption;
+    mu.output = wage_bill * 1.6;
+    let rent_burden = mu.housing.rent * 12.0 / class_income[1].max(1.0);
+    let capital_bonus = if world.capital == Some(mid) { 0.2 } else { 0.0 };
+    let disaster = if mu.months_since_disaster < 24 {
+        0.4 * (1.0 - mu.months_since_disaster as f64 / 24.0)
+    } else {
+        0.0
+    };
+    mu.attractiveness = -4.0 * u + 0.5 * ln((mean_wage / price) / 45_000.0) - 1.5 * rent_burden
+        + 0.3 * world.municipalities[m].geo.scenic
+        + capital_bonus
+        - disaster;
+}
+
+/// Monthly: sector demand, jobs, closures, wages, housing, incomes.
+pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
+    let world = r.world;
+    let pop = r.population();
+    let env = r.environment();
+    let fin = r.finance();
+    let content = r.content;
+    let nm = world.municipalities.len().min(econ.munis.len());
+    // Apply effects from other domains.
+    for e in out
+        .effects
+        .take(|e| matches!(e, Effect::HousingDamage { .. } | Effect::SectorShock { .. }))
+    {
+        match e {
+            Effect::HousingDamage {
+                municipality,
+                fraction,
+                ..
+            } => {
+                if let Some(mu) = econ.munis.get_mut(municipality as usize) {
+                    mu.housing.stock *= 1.0 - clamp(fraction, 0.0, 0.5);
+                    mu.months_since_disaster = 0;
+                }
+            }
+            Effect::SectorShock {
+                municipality,
+                sector,
+                factor,
+                months,
+                ..
+            } => {
+                if let Some(mu) = econ.munis.get_mut(municipality as usize) {
+                    mu.shocks.push(ActiveShock {
+                        sector,
+                        factor,
+                        months_left: months,
+                    });
+                    mu.months_since_disaster = 0;
+                }
+            }
+            _ => {}
+        }
+    }
+    let g = econ.global.clone();
+    let nat = econ.national.clone();
+    let rate = nat.policy_rate;
+    let rng: &mut SimRng = out.rng.get(Stream::Economy);
+    let recession_cause = g.recession.as_ref().and_then(|rec| rec.event);
+    for m in 0..nm {
+        let region = world.municipalities[m].region.index();
+        let renv = env.regions.get(region);
+        let mineral_stock = renv.map(|x| x.mineral_stock).unwrap_or(1.0);
+        let water = renv.map(|x| x.water).unwrap_or(1.0);
+        let public_index = fin.public_spending_index(m);
+        let lf: f64 = pop
+            .labour_force_by_class(world, MunicipalityId(m as u32))
+            .iter()
+            .sum();
+        let mu = &mut econ.munis[m];
+        mu.months_since_disaster = mu.months_since_disaster.saturating_add(1);
+        // Domestic demand is measured in real terms; jobs needed fall as
+        // productivity rises.
+        let price = nat.price_level.max(0.01);
+        // Real incomes grow with average productivity, so domestic demand is
+        // normalised by it (balanced growth).
+        let jobs_now = mu.total_jobs().max(1.0);
+        let avg_prod = (mu
+            .sectors
+            .iter()
+            .map(|x| x.jobs * x.productivity)
+            .sum::<f64>()
+            / jobs_now)
+            .max(0.01);
+        let retail_driver = pow(
+            (mu.consumption / price / mu.base_consumption.max(1.0) / avg_prod).max(0.1),
+            0.9,
+        );
+        let public_index = public_index / price / avg_prod;
+        // Unit labour costs: wages rising faster than prices × productivity
+        // erode the competitiveness of traded sectors.
+        let ulc = (mu.mean_wage / (mu.base_mean_wage.max(1.0) * price * avg_prod)).max(0.2);
+        let competitive = |elasticity: f64| pow(ulc, -elasticity);
+        let construction_driver =
+            pow(housing::starts_index(&mu.housing).max(0.1), 0.6) * pow(public_index.max(0.1), 0.3);
+        for (k, kind) in SectorKind::ALL.iter().enumerate() {
+            let def = content.sector(*kind);
+            let cyc = def.map(|d| d.cyclicality).unwrap_or(0.5);
+            let gcyc = pow(g.demand, cyc);
+            let driver = match kind {
+                SectorKind::Agriculture => {
+                    gcyc * pow(g.commodities[0], 0.4) * pow(water.max(0.2), 0.5)
+                }
+                SectorKind::Resources => {
+                    gcyc * pow(g.commodities[1] * 0.6 + g.commodities[2] * 0.4, 0.6)
+                        * pow(mineral_stock.max(0.05), 0.5)
+                        * competitive(0.3)
+                }
+                SectorKind::Manufacturing => {
+                    gcyc * nat.manufacturing_competitiveness * competitive(1.0)
+                }
+                SectorKind::Construction => gcyc * construction_driver,
+                SectorKind::Retail => retail_driver,
+                SectorKind::Tourism => {
+                    gcyc * competitive(0.8)
+                        * if mu.months_since_disaster < 12 {
+                            0.75
+                        } else {
+                            1.0
+                        }
+                }
+                // Technology raises knowledge-sector productivity, not headcount.
+                SectorKind::Knowledge => gcyc * competitive(0.8),
+                SectorKind::Public => public_index,
+            };
+            let shock: f64 = mu
+                .shocks
+                .iter()
+                .filter(|s| s.sector == *kind)
+                .map(|s| s.factor)
+                .product();
+            let s = &mut mu.sectors[k];
+            // Local services scale with the labour force; tradables drift with trends.
+            match kind {
+                SectorKind::Retail | SectorKind::Public | SectorKind::Construction => {
+                    s.capacity *= 1.0 + clamp((lf / mu.labour_force.max(1.0)) - 1.0, -0.02, 0.02);
+                }
+                SectorKind::Manufacturing => s.capacity *= 1.0 + nat.manufacturing_trend / 12.0,
+                SectorKind::Agriculture => s.capacity *= 1.0 - 0.004 / 12.0,
+                _ => {}
+            }
+            let target = s.capacity * driver * shock;
+            let speed = if target < s.jobs { 0.16 } else { 0.1 };
+            s.jobs = (s.jobs + (target - s.jobs) * speed).max(0.0);
+            let extra = if *kind == SectorKind::Knowledge {
+                nat.tech_growth - 0.02
+            } else {
+                0.0
+            };
+            s.productivity *=
+                1.0 + (def.map(|d| d.productivity_growth).unwrap_or(0.01) + extra) / 12.0;
+            // Plant closures in tradable sectors under sustained weak demand.
+            if matches!(kind, SectorKind::Manufacturing | SectorKind::Resources)
+                && driver < 0.85
+                && s.capacity > 200.0
+                && rng.chance(0.03 * (0.85 - driver) * 10.0)
+            {
+                let frac = rng.range_f64(0.08, 0.25);
+                let jobs = (s.capacity * frac).round();
+                s.capacity -= jobs;
+                let ev = out.events.record(
+                    r.date,
+                    EventKind::PlantClosure {
+                        municipality: m as u32,
+                        sector: *kind,
+                        jobs: jobs as u32,
+                    },
+                    recession_cause.into_iter().collect(),
+                );
+                out.events.pin(ev);
+            }
+        }
+        // Structural adjustment: idle labour slowly attracts new private
+        // capacity (and a tight market slowly sheds it). Decline therefore
+        // hurts for years but is not permanent.
+        let slack = mu.unemployment - content.economy.natural_unemployment;
+        let adjust = clamp(slack * 0.25, -0.01, 0.04) / 12.0;
+        for kind in [
+            SectorKind::Retail,
+            SectorKind::Knowledge,
+            SectorKind::Tourism,
+            SectorKind::Manufacturing,
+            SectorKind::Construction,
+        ] {
+            mu.sectors[kind.index()].capacity *= 1.0 + adjust;
+        }
+        mu.shocks.retain_mut(|s| {
+            s.months_left = s.months_left.saturating_sub(1);
+            s.months_left > 0
+        });
+        // Wages respond to local tightness, prices, and productivity.
+        let tight = clamp(
+            content.economy.natural_unemployment - mu.unemployment,
+            -0.1,
+            0.1,
+        );
+        let class = world.municipalities[m].class;
+        for (k, kind) in SectorKind::ALL.iter().enumerate() {
+            let base = content
+                .sector(*kind)
+                .map(|d| d.base_wage)
+                .unwrap_or(40_000.0)
+                * local_wage_factor(class);
+            let s = &mut mu.sectors[k];
+            let target = base * nat.price_level * s.productivity * (1.0 + 2.0 * tight);
+            s.wage += (target - s.wage) * 0.08;
+        }
+        housing::step(
+            &mut mu.housing,
+            rate,
+            nat.inflation,
+            nat.price_level,
+            &content.economy,
+        );
+    }
+    for m in 0..nm {
+        let adults: f64 = pop
+            .municipality_cohorts(world, MunicipalityId(m as u32))
+            .iter()
+            .sum();
+        econ.munis[m].housing.households = adults / housing::ADULTS_PER_HOUSEHOLD;
+        settle_labour_and_incomes(econ, m, world, pop, content, fin.taxes.income);
+        let mu = &mut econ.munis[m];
+        mu.history.push(MuniSnapshot {
+            day: r.date.0,
+            unemployment: mu.unemployment as f32,
+            rent: mu.housing.rent as f32,
+            jobs: mu.total_jobs() as f32,
+        });
+        if mu.history.len() > 36 {
+            mu.history.remove(0);
+        }
+    }
+}
+
+/// Monthly: national aggregates, inflation, and the central bank.
+pub fn national(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
+    let p = &r.content.economy;
+    let rng = out.rng.get(Stream::Economy);
+    let lf: f64 = econ
+        .munis
+        .iter()
+        .map(|m| m.labour_force)
+        .sum::<f64>()
+        .max(1.0);
+    let emp: f64 = econ.munis.iter().map(|m| m.employed).sum();
+    let gdp: f64 = econ.munis.iter().map(|m| m.output).sum();
+    let wage_jobs: f64 = econ
+        .munis
+        .iter()
+        .map(|m| m.total_jobs())
+        .sum::<f64>()
+        .max(1.0);
+    let n = &mut econ.national;
+    let u = 1.0 - emp / lf;
+    n.gdp_growth = if n.gdp > 0.0 { gdp / n.gdp - 1.0 } else { 0.0 };
+    n.gdp = gdp;
+    n.unemployment = u;
+    n.mean_wage = econ
+        .munis
+        .iter()
+        .map(|m| m.mean_wage * m.total_jobs())
+        .sum::<f64>()
+        / wage_jobs;
+    n.productivity_index = econ
+        .munis
+        .iter()
+        .flat_map(|m| m.sectors.iter().map(|s| s.jobs * s.productivity))
+        .sum::<f64>()
+        / wage_jobs;
+    n.output_gap = clamp((p.natural_unemployment - u) * 2.5, -0.15, 0.15);
+    let energy_shock = (econ.global.commodities[2] - 1.0) * 0.04;
+    // Expectations-augmented Phillips curve (monthly smoothing toward an
+    // equilibrium set by the unemployment gap and energy prices).
+    let equilibrium = p.inflation_target + 0.45 * (p.natural_unemployment - u) + energy_shock;
+    n.inflation = clamp(
+        0.9 * n.inflation + 0.1 * equilibrium + rng.normal(0.0, 0.0012),
+        -0.03,
+        0.25,
+    );
+    n.price_level *= 1.0 + n.inflation / 12.0;
+    let taylor = p.neutral_real_rate
+        + n.inflation
+        + 0.5 * (n.inflation - p.inflation_target)
+        + 0.5 * n.output_gap;
+    n.policy_rate = clamp(n.policy_rate + (taylor - n.policy_rate) * 0.25, 0.0, 0.2);
+    if (n.policy_rate - n.last_rate_event).abs() >= 0.005 {
+        let bp = ((n.policy_rate - n.last_rate_event) * 10_000.0).round() as i32;
+        out.events.record(
+            r.date,
+            EventKind::InterestRateMove {
+                change_bp: bp,
+                rate_bp: (n.policy_rate * 10_000.0).round() as u32,
+            },
+            vec![],
+        );
+        n.last_rate_event = n.policy_rate;
+    }
+    n.tech_index *= 1.0 + n.tech_growth / 12.0;
+    n.manufacturing_competitiveness = clamp(
+        n.manufacturing_competitiveness * (1.0 + rng.normal(0.0, 0.003)),
+        0.5,
+        1.5,
+    );
+    n.history.push(NationalSnapshot {
+        day: r.date.0,
+        unemployment: u as f32,
+        inflation: n.inflation as f32,
+        policy_rate: n.policy_rate as f32,
+        gdp,
+        global_demand: econ.global.demand as f32,
+    });
+    if n.history.len() > 480 {
+        n.history.remove(0);
+    }
+}

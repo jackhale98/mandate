@@ -16,6 +16,17 @@ export class Translator {
     return this.bundle.hasMessage(key);
   }
 
+  /** Format an engine event: args named `*_key` are Fluent keys, translated
+   * first and passed without the suffix (DEC-054). */
+  event(key: string, args: Record<string, string>): string {
+    const resolved: Record<string, FluentVariable> = {};
+    for (const [k, v] of Object.entries(args)) {
+      if (k.endsWith("_key")) resolved[k.slice(0, -4)] = this.t(v);
+      else resolved[k] = v;
+    }
+    return this.t(key, resolved);
+  }
+
   /** Format a message; unknown keys render as `⟦key⟧` so gaps are visible. */
   t(key: string, args?: Record<string, FluentVariable>): string {
     const msg = this.bundle.getMessage(key);

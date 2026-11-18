@@ -1,107 +1,84 @@
-//! System registry. M0 ships foundation systems that exercise every engine
-//! mechanism (cadence, RNG streams, effects, event log); later milestones
-//! replace them with the real domain systems.
+//! System registry (phase, cadence, owning domain). Order within a phase is
+//! registration order (OVERVIEW §4.2).
 
 use crate::events::EventKind;
-use crate::scheduler::{Effect, Phase, SystemCtx, SystemDef};
-use mandate_core::{Cadence, Stream};
+use crate::scheduler::{Outs, Phase, Reads, SystemDef, SystemFn};
+use crate::{economy, environment, finance, population};
+use mandate_core::Cadence;
 
 pub fn default_systems() -> Vec<SystemDef> {
+    use Cadence::*;
+    use Phase as P;
     vec![
         SystemDef {
+            name: "environment.drift",
+            phase: P::Environment,
+            cadence: Monthly,
+            run: SystemFn::Environment(environment::drift),
+        },
+        SystemDef {
+            name: "environment.hazards",
+            phase: P::Environment,
+            cadence: Monthly,
+            run: SystemFn::Environment(environment::hazards),
+        },
+        SystemDef {
+            name: "economy.global",
+            phase: P::Economy,
+            cadence: Monthly,
+            run: SystemFn::Economy(economy::global),
+        },
+        SystemDef {
+            name: "economy.markets",
+            phase: P::Economy,
+            cadence: Monthly,
+            run: SystemFn::Economy(economy::markets),
+        },
+        SystemDef {
+            name: "economy.national",
+            phase: P::Economy,
+            cadence: Monthly,
+            run: SystemFn::Economy(economy::national),
+        },
+        SystemDef {
+            name: "finance.accrue",
+            phase: P::Economy,
+            cadence: Monthly,
+            run: SystemFn::Finance(finance::accrue),
+        },
+        SystemDef {
+            name: "finance.budget_year",
+            phase: P::Economy,
+            cadence: Yearly,
+            run: SystemFn::Finance(finance::new_budget_year),
+        },
+        SystemDef {
+            name: "population.migration",
+            phase: P::Population,
+            cadence: Monthly,
+            run: SystemFn::Population(population::migration),
+        },
+        SystemDef {
+            name: "population.demography",
+            phase: P::Population,
+            cadence: Yearly,
+            run: SystemFn::Population(population::demography),
+        },
+        SystemDef {
             name: "calendar.year",
-            phase: Phase::Commit,
-            cadence: Cadence::Yearly,
-            run: year_began,
-        },
-        SystemDef {
-            name: "environment.shocks",
-            phase: Phase::Environment,
-            cadence: Cadence::Monthly,
-            run: regional_shocks,
-        },
-        SystemDef {
-            name: "population.growth",
-            phase: Phase::Population,
-            cadence: Cadence::Monthly,
-            run: population_growth,
+            phase: P::Commit,
+            cadence: Yearly,
+            run: SystemFn::Log(year_began),
         },
     ]
 }
 
-fn year_began(ctx: &mut SystemCtx<'_>) {
-    let year = ctx.date.calendar().year;
-    ctx.state
-        .events
-        .record(ctx.date, EventKind::YearBegan { year }, vec![]);
-}
-
-/// Occasional regional shocks; emitted as effects for the population system.
-fn regional_shocks(ctx: &mut SystemCtx<'_>) {
-    let n = ctx.state.world.regions.len() as u64;
-    if n == 0 {
-        return;
-    }
-    let rng = ctx.state.rng.get(Stream::Environment);
-    if rng.chance(0.05) {
-        let region = rng.below(n) as u32;
-        let pop = ctx
-            .state
-            .world
-            .region_population(crate::world::RegionId(region)) as f64;
-        let delta = -(pop * rng.range_f64(0.002, 0.01)) as i64;
-        let ev = ctx.state.events.record(
-            ctx.date,
-            EventKind::RegionalShock {
-                region,
-                population_delta: delta,
-            },
-            vec![],
-        );
-        ctx.effects.push(Effect::PopulationShock {
-            region,
-            delta,
-            cause: Some(ev),
-        });
-    }
-}
-
-/// Baseline monthly drift plus queued shocks. Populations never go negative.
-fn population_growth(ctx: &mut SystemCtx<'_>) {
-    let shocks = ctx
-        .effects
-        .take(|e| matches!(e, Effect::PopulationShock { .. }));
-    let world = &mut ctx.state.world;
-    for e in shocks {
-        let Effect::PopulationShock { region, delta, .. } = e;
-        // Spread the shock across the region's neighbourhoods by population.
-        let total = world
-            .region_population(crate::world::RegionId(region))
-            .max(1) as f64;
-        let Some(r) = world.regions.get(region as usize) else {
-            continue;
-        };
-        let hoods: Vec<usize> = r
-            .municipalities
-            .iter()
-            .flat_map(|m| {
-                world.municipalities[m.index()]
-                    .neighborhoods
-                    .iter()
-                    .map(|n| n.index())
-            })
-            .collect();
-        for h in hoods {
-            let n = &mut world.neighborhoods[h];
-            let share = (delta as f64 * n.population as f64 / total) as i64;
-            n.population = (n.population as i64 + share).max(0) as u64;
-        }
-    }
-    // Placeholder demography until the cohort model lands (M2).
-    let rng = ctx.state.rng.get(Stream::Population);
-    for n in &mut world.neighborhoods {
-        let rate = rng.normal(0.0006, 0.0004);
-        let delta = (n.population as f64 * rate) as i64;
-        n.population = (n.population as i64 + delta).max(0) as u64;
-    }
+fn year_began(r: &Reads<'_>, out: &mut Outs<'_>) {
+    out.events.record(
+        r.date,
+        EventKind::YearBegan {
+            year: r.date.calendar().year,
+        },
+        vec![],
+    );
 }

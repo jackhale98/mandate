@@ -27,6 +27,10 @@ pub fn tanh(x: f64) -> f64 {
     libm::tanh(x)
 }
 #[inline]
+pub fn log10(x: f64) -> f64 {
+    libm::log10(x)
+}
+#[inline]
 pub fn atan2(y: f64, x: f64) -> f64 {
     libm::atan2(y, x)
 }

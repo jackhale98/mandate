@@ -75,6 +75,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-066 | CI: build once, cache WASM by source hash | Accepted |
 | DEC-067 | System plan approved; implementation begins | Accepted |
 | DEC-068 | World generation implementation choices (M1) | Accepted |
+| DEC-069 | Society and economy implementation choices (M2) | Accepted |
 
 ---
 
@@ -1258,3 +1259,25 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Deferred:**
   - The hub tile-layout generator (M1-09) moves to M6, beside the hub renderer. Places already exist as entities.
   - The lab `diff` command moves to M2, where there is evolving state to compare.
+
+### DEC-069 — Society and economy implementation choices (M2)
+
+- **Status:** Accepted (agent technical decision during M2, 2026-11-18; within delegated technical authority). Refines DEC-018, DEC-019, DEC-023, DEC-042, and DEC-044.
+- **Domain write isolation is compile-time enforced.** Each system receives `&mut` access only to its own domain (population, economy, finance, environment) and `Reads` for the others. Cross-domain changes are typed `Effect`s. This replaces the planned grep-based architecture test.
+- **Population owns resident counts.** `Neighborhood` no longer stores population; the population domain holds 12 cohorts per neighbourhood (count, 8 attitudes, trust, turnout). People are conserved exactly by integer accounting, which is tested yearly.
+- **Economic circumstance is per municipality and class**, held in the economy domain (employment rate, income by class). It is not stored per cohort, which keeps saves small; cohorts read it.
+- **Tax rates are finance state** (standing settings, DEC-024), seeded from content. A baseline fiscal rule stands in for governments until M3–M4:
+  - budgets are indexed to prices × productivity × population;
+  - grants are indexed the same way;
+  - local and regional tiers follow a balanced-budget baseline with local tax adjustment;
+  - the national gap is closed half by taxes and half by trims, with a debt brake above 60%.
+- **Economic dynamics:**
+  - domestic demand is measured in real, productivity-normalised terms;
+  - expectations-augmented Phillips curve and a Taylor-rule central bank;
+  - interest channel on consumption;
+  - unit-labour-cost competitiveness for traded sectors;
+  - structural adjustment toward full employment over years.
+
+  Tuning history is in `docs/development/BALANCE_LOG.md`.
+- **Exact JSON float round-trips** (`serde_json/float_roundtrip`) are required for save → load → continue determinism. A guard test protects this.
+- **Lab tooling:** `Command::LabSectorShock` (lab only, never exposed to players) and the `trace-econ`, `sweep`, and `diff` CLI commands. The quick sweep runs in CI; the full sweep across every preset runs nightly.

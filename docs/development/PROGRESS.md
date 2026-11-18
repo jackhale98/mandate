@@ -8,7 +8,8 @@
 | M0 Foundation | **Done**, 2026-11-18 |
 | M1 World and lab | **Done**, 2026-11-18 |
 | M1s Rendering spikes | Map: Canvas 2D in production (fast, pixel-art); hub spike with M6 |
-| M2 Society, economy, environment | Next |
+| M2 Society, economy, environment | **Done**, 2026-11-18 |
+| M3 Local government and policy | Next (owner checkpoint at the end) |
 
 ## M0 summary
 - **Rust workspace:** 8 crates, with determinism lints enforced (banned `HashMap`, `std` float transcendentals, wall clock).
@@ -25,6 +26,26 @@
   - **native = WASM** state hash;
   - Playwright on desktop and phone: new game → end turn → save → reload offline → resume with an identical hash.
 - **CI:** cached WASM job; Rust, web, and E2E jobs; Pages deploy from `main`.
+
+## M2 summary
+- **Population:** 12 cohorts per neighbourhood with births, ageing, deaths, class mobility, immigration, internal migration toward attractive towns, and disaster displacement. Exact people accounting (tested).
+- **Economy:**
+  - the global cycle with recessions and commodity shocks;
+  - a national macro loop (Phillips curve, Taylor rule, output gap);
+  - per-municipality jobs, wages, and incomes in 8 sectors, with plant closures;
+  - housing markets with a construction pipeline.
+- **Public finance:** local, regional, and national treasuries; taxes, grants, entitlements, interest, and debt; a baseline fiscal rule.
+- **Environment:** a seeded trajectory, resource stocks, pollution, and hazards (floods, storms, wildfires, earthquakes, regional droughts), with consequences delivered as effects.
+- **History warm-up:** 20 years of NPC-only simulation before play. About 240 ms for medium worlds in WASM.
+- **Lab:** `trace-econ`, `sweep`, `diff`. All presets pass the stability bands and drama floors over 24 seeds × 30 years.
+- **Tests:** finiteness and bounds, population accounting, the factory-closure causal chain (brief §7.2), burn-in history.
+- **UI:**
+  - a national economy card (stat tiles with deltas and sparklines);
+  - a recession badge;
+  - a town economy section (stat tiles, jobs-by-sector meters, town budget);
+  - an unemployment map layer with a legend;
+  - Fluent text for all new events.
+- **Saves:** format v3.
 
 ## M1 summary
 - **World generation pipeline:**

@@ -11,10 +11,46 @@ define_id!(
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EventKind {
-    GameStarted { seed: u64 },
-    YearBegan { year: u32 },
-    TurnEnded { turn: u32 },
-    RegionalShock { region: u32, population_delta: i64 },
+    GameStarted {
+        seed: u64,
+    },
+    HistoryBegan {
+        year: u32,
+    },
+    YearBegan {
+        year: u32,
+    },
+    TurnEnded {
+        turn: u32,
+    },
+    GlobalRecessionBegan {
+        depth_pct: u32,
+    },
+    GlobalRecoveryBegan,
+    /// Commodity index: 0 agriculture, 1 minerals, 2 energy.
+    CommodityShock {
+        commodity: u8,
+        change_pct: i32,
+    },
+    PlantClosure {
+        municipality: u32,
+        sector: mandate_content::SectorKind,
+        jobs: u32,
+    },
+    InterestRateMove {
+        change_bp: i32,
+        rate_bp: u32,
+    },
+    Disaster {
+        municipality: u32,
+        hazard: crate::environment::HazardKind,
+        severity_pct: u32,
+    },
+    NationalBudget {
+        year: u32,
+        balance: i64,
+        debt_pct_gdp: u32,
+    },
 }
 
 /// How long an event is kept in full detail.

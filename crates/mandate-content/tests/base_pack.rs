@@ -50,7 +50,7 @@ fn detects_duplicates_and_missing_locale_keys() {
     let mut s = base_sources();
     s.push(Source {
         path: "dup/sectors.jsonc".into(),
-        text: r#"{"kind":"sectors","items":[{"id":"sector.retail","name_key":"nope","class":"tertiary","base_weight":0.1},{"id":"sector.new","name_key":"missing-key","class":"tertiary","base_weight":0.1}]}"#.into(),
+        text: r#"{"kind":"sectors","items":[{"id":"sector.retail","name_key":"nope","class":"tertiary","kind":"retail","base_weight":0.1,"base_wage":1,"cyclicality":0,"productivity_growth":0},{"id":"sector.new","name_key":"missing-key","class":"tertiary","kind":"retail","base_weight":0.1,"base_wage":1,"cyclicality":0,"productivity_growth":0}]}"#.into(),
     });
     let errs = load(&s).unwrap_err();
     assert!(
@@ -58,6 +58,10 @@ fn detects_duplicates_and_missing_locale_keys() {
             .any(|i| i.message.contains("duplicate content id `sector.retail`"))
     );
     assert!(errs.iter().any(|i| i.message.contains("missing-key")));
+    assert!(
+        errs.iter()
+            .any(|i| i.message.contains("exactly one sector of kind Retail"))
+    );
 }
 
 #[test]

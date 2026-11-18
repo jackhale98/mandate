@@ -3,6 +3,8 @@ import { useGame } from "../state/gameStore";
 import { formatCount, formatDate } from "../i18n/format";
 import { WorldMap } from "../map/WorldMap";
 import { MunicipalityPanel } from "../components/MunicipalityPanel";
+import { NationalEconomy } from "../components/NationalEconomy";
+import type { Overlay } from "../map/render";
 
 type Tab = "map" | "overview";
 
@@ -18,6 +20,7 @@ export function Game() {
   const [tab, setTab] = useState<Tab>("map");
   const [selected, setSelected] = useState<number | null>(null);
   const [openRegion, setOpenRegion] = useState<number | null>(null);
+  const [overlay, setOverlay] = useState<Overlay>("terrain");
 
   useEffect(() => {
     if (!map) void loadMap();
@@ -48,16 +51,34 @@ export function Game() {
       {tab === "map" ? (
         <main className="map-body">
           {map ? (
-            <WorldMap view={map} selected={selected} onSelect={setSelected} label={tr.t("ui-map-help")} />
+            <WorldMap view={map} selected={selected} onSelect={setSelected} label={tr.t("ui-map-help")} overlay={overlay} />
           ) : (
             <div className="center">
               <div className="spinner" aria-hidden="true" />
             </div>
           )}
+          <div className="map-tools">
+            <div className="segmented segmented-sm" role="radiogroup" aria-label={tr.t("ui-overlay")}>
+              {(["terrain", "unemployment"] as const).map((o) => (
+                <label key={o} className={overlay === o ? "seg seg-on" : "seg"}>
+                  <input type="radio" name="overlay" checked={overlay === o} onChange={() => setOverlay(o)} />
+                  {tr.t(`ui-overlay-${o}`)}
+                </label>
+              ))}
+            </div>
+            {overlay === "unemployment" && (
+              <div className="legend" aria-hidden="true">
+                <span>{tr.t("ui-legend-low")} 2%</span>
+                <span className="legend-ramp" />
+                <span>15% {tr.t("ui-legend-high")}</span>
+              </div>
+            )}
+          </div>
           <p className="map-help muted">{tr.t("ui-map-help")}</p>
         </main>
       ) : (
         <main className="game-body">
+          <NationalEconomy e={overview.economy} />
           <section className="card">
             <h2>
               {tr.t("ui-population")}: {formatCount(overview.total_population)}
@@ -96,7 +117,7 @@ export function Game() {
               {overview.recent_events.map((e) => (
                 <li key={e.id}>
                   <time className="muted">{formatDate(tr, e.date)}</time>
-                  <span>{tr.t(e.text_key, e.args)}</span>
+                  <span>{tr.event(e.text_key, e.args)}</span>
                 </li>
               ))}
             </ol>
