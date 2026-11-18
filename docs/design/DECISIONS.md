@@ -26,10 +26,13 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-017 | Constitution primitives (engine model) | Proposed |
 | DEC-018 | Population model & level of detail | Accepted |
 | DEC-019 | Economy fidelity | Accepted |
-| DEC-020 | Career detours: non-office power roles | Proposed (owner idea) |
-| DEC-021 | World scale & spatial representation | Proposed (D6) |
-| DEC-022 | World history via burn-in simulation | Proposed (D6) |
-| DEC-023 | Environment dynamics over a career | Proposed (awaiting owner, D6) |
+| DEC-020 | Career detours: non-office power roles | Accepted |
+| DEC-021 | World scale & spatial representation | Accepted |
+| DEC-022 | World history via burn-in simulation | Accepted |
+| DEC-023 | Environment dynamics over a career | Accepted |
+| DEC-024 | Policy model: pipeline, mechanisms, implementation | Proposed (D7) |
+| DEC-025 | Public response: anticipated vs. experienced | Proposed (D7) |
+| DEC-026 | Bill composition & customization | Proposed (awaiting owner, D7) |
 
 ---
 
@@ -476,7 +479,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-020 — Career detours: non-office power roles
 
-- **Status:** Proposed. Originated by the owner; design details are the agent's proposal. Finalize the role list in D10.
+- **Status:** Accepted (owner idea; agent design accepted without objection, 2026-11-18). Finalize the role list in D10.
 - **Context:** DEC-014 had a passive "between offices" state. The owner wants losing to open interesting alternatives, such as becoming a union boss to win over a demographic or fix an earlier weakness.
 - **Proposed decision:**
   - When out of office, the player can pursue a **detour role**: leadership of a real organization in the simulation. Candidates:
@@ -513,7 +516,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-021 — World scale & spatial representation
 
-- **Status:** Proposed (D6).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:**
   - **Scale:** one country of ~8–12 regions, ~40–80 municipalities, and ~400–600 neighborhoods.
     - Large cities: 10–20 neighborhoods.
@@ -545,7 +548,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-022 — World history via burn-in simulation
 
-- **Status:** Proposed (D6).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Context:** A fresh world needs a past: incumbents, party strongholds, legacy industries, old grudges, prior policies.
 - **Options:**
   - A. Rule-based authored backstory generation only.
@@ -562,7 +565,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-023 — Environment dynamics over a career
 
-- **Status:** Proposed. Awaiting owner (D6).
+- **Status:** Accepted (owner, 2026-11-18): option B.
 - **Context:** A career spans ~25–35 in-game years (DEC-012), which is long enough for environmental change to become politics.
 - **Options:**
   - A. Static geography: hazards are random events with fixed probabilities.
@@ -578,3 +581,79 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Stays explainable and cheap.
   - Option C is costly and would dominate the game's tone.
 - **Dependencies:** DEC-019, DEC-021, D7, D9.
+
+### DEC-024 — Policy model: pipeline, mechanisms, implementation
+
+- **Status:** Proposed (D7).
+- **Context:** Brief §8. Policies are structured simulation objects, not approval modifiers. DEC-010: the player works through institutions. DEC-017: procedures come from the constitution.
+- **Proposed decision:**
+  - **Two kinds of policy lever:**
+    - **Standing settings:** tax rates, fees, and budget allocations by category. Changed through the recurring **budget procedure**.
+    - **Programs and laws:** discrete initiatives authored as **policy templates** in content.
+  - **Lifecycle (state machine):**
+    1. Draft
+    2. Introduced
+    3. Negotiation (amendments, deals)
+    4. Passage (the constitution's procedure stages)
+    5. Appropriation (funded or not)
+    6. Implementation
+    7. Active
+    8. Review, which leads to amend, repeal, or sunset
+
+    Each stage can fail or stall, with recorded reasons.
+  - **Effects as typed mechanisms.** Policies never write outcome variables directly. They apply mechanism primitives, and the economy, population, and environment models compute the consequences in context:
+
+    | Mechanism | Example |
+    |---|---|
+    | Transfer | Benefit to a target cohort |
+    | Tax change | Rate or base change |
+    | Service provision | Transit frequency, school staffing, policing level |
+    | Investment | Capital stock: housing units, roads, levees |
+    | Subsidy / price | Sector cost relief, fees |
+    | Regulation / mandate | Zoning density, wage floor, extraction limit, emissions rule |
+    | Institutional | Create or reform an agency, ethics rules, procedures |
+
+    Magnitudes depend on local conditions: sector mix, housing supply, agency capacity, geography. The same policy therefore performs differently in different places (brief §8.2).
+  - **Implementation gap (brief §8.4):** each active policy has an implementing agency with capacity (staff, competence, leadership appointee) and funding adequacy. Implementation also depends on cooperation from other tiers, legal challenges (judicial review per the constitution), and public resistance. Consequences can include:
+    - ramp-up delays,
+    - partial effectiveness,
+    - cost overruns,
+    - procurement scandals. These raise Legal Jeopardy for whoever is responsible.
+  - **Required template fields** (brief §2.5 example, now REQ-006):
+    - affected cohorts, sectors, or places;
+    - implementation duration;
+    - fiscal impact;
+    - at least one secondary effect;
+    - institutional preconditions (constitution powers);
+    - responsible agency type.
+  - **Attribution for explanations:** mechanisms record their direct contributions each tick, which feed policy reports and the causal history. Full counterfactual re-simulation is a simulation-lab tool, not an in-game feature, unless D11 shows it is affordable.
+  - **Player knowledge:** in-game reports present *analyst estimates* (noisy, and possibly biased by the source). The Legacy score uses true simulation values.
+- **Dependencies:** DEC-010, DEC-017, DEC-018, DEC-019, DEC-023, D8, D9, D11, D13.
+
+### DEC-025 — Public response: anticipated vs. experienced
+
+- **Status:** Proposed (D7).
+- **Proposed decision:** cohort opinion reacts to policy through two separate channels:
+  1. **Anticipated:** at proposal and passage. Driven by value alignment (the policy's ideological signature against the cohort's attitude vector), *perceived* personal impact as shaped by messaging and media, salience, and trust in the messenger.
+  2. **Experienced:** after implementation, lagged. Driven by *actual* computed material changes (income, prices, rents, service quality, hazard damage) that the cohort can notice, weighted by visibility.
+- **Gameplay consequence:** the core timing tension of political careers is built in.
+  - Some policies are popular when proposed but resented when their costs bite.
+  - Others are unpopular up front but pay off after the next election.
+  - Election calendars therefore interact with implementation lags.
+- **Dependencies:** DEC-018, DEC-024, D8 (elections), D9 (media and perception).
+
+### DEC-026 — Bill composition & customization
+
+- **Status:** Proposed. Awaiting owner (D7).
+- **Options:**
+  - A. A fixed catalog: enact or repeal, with one intensity slider (Democracy-style).
+  - B. Templates with 2–4 tunable parameters (amount, target group, timeline, funding source). A bill can bundle clauses during negotiation (riders, earmarks or local projects, sunset clauses, pilot-program scoping).
+  - C. A free-form bill composer built from mechanism primitives.
+- **Proposed decision:** B.
+  - Parameters and bundling are the currency of negotiation. NPC legislators ask for changes or local projects in exchange for votes, which is logrolling.
+  - "Pilot program" scoping (limit a policy to one area first) lets the player test a policy before committing.
+- **Rationale:**
+  - Option A leaves nothing to negotiate, which undermines DEC-010.
+  - Option C overwhelms casual players, is hard to balance, and is hard for AI to evaluate.
+  - Option B makes legislation a political game while keeping content authorable.
+- **Dependencies:** DEC-010, DEC-024, D8, D9 (NPC preferences), D12.
