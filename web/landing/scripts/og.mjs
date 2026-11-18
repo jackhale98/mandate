@@ -27,7 +27,7 @@ const html = `<!doctype html><html><head><style>
     <div class="rule"></div>
     <h1><svg viewBox="0.9 0 16 16" width="92" height="92" shape-rendering="crispEdges"><path d="M2.5 15 V7.5 H4.5 V9.5 H6.5 V11.5 H8.5 V8.5 H10.5 V5.5 H12.5 V3.5 H13.5 V15" fill="none" stroke="#e8b44c" stroke-width="1.5" stroke-linecap="square"/><rect x="13" y="0" width="1" height="3" fill="#e9eaf0"/><rect x="14" y="0" width="2" height="2" fill="#eb6834"/></svg>Mandate</h1>
     <div class="rule"></div>
-    <p>Start on the town council of a country generated for your run. Climb from there.</p>
+    <p>Start on a town council in a country generated for your game, and see how far up you can get.</p>
     <p class="kick" style="color:#e9eaf0">Free to play in your browser</p>
   </div>
 </body></html>`;

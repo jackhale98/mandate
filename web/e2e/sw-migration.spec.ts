@@ -128,7 +128,7 @@ test.describe("service-worker migration to play/", () => {
       // which clears the old cache and reloads the page from the network.
       site.deploy(NEW_DIST);
       await page.reload();
-      await expect(page.getByRole("heading", { level: 1 })).toContainText("Every run, a new country", { timeout: 20_000 });
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Unknown councillor sets sights", { timeout: 20_000 });
       const state = await page.evaluate(async () => ({
         caches: await caches.keys(),
         scopes: (await navigator.serviceWorker.getRegistrations()).map((r) => r.scope),
@@ -145,7 +145,7 @@ test.describe("service-worker migration to play/", () => {
         .toEqual([`${site.url}play/`]);
       // A later visit to the landing page is not taken over by anything.
       await page.goto(site.url);
-      await expect(page.getByRole("heading", { level: 1 })).toContainText("Every run, a new country");
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Unknown councillor sets sights");
     } finally {
       await site.close();
     }
@@ -174,7 +174,7 @@ test.describe("service-worker migration to play/", () => {
 
       site.deploy(NEW_DIST);
       await page.reload();
-      await expect(page.getByRole("heading", { level: 1 })).toContainText("Every run, a new country", { timeout: 30_000 });
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Unknown councillor sets sights", { timeout: 30_000 });
       await expect(page.locator("[data-continue]")).toBeVisible();
 
       await page.getByRole("link", { name: "Continue your run" }).click();

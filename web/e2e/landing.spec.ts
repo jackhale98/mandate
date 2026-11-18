@@ -40,7 +40,7 @@ test("landing page: one action to the game, no errors, sound structure", async (
   await page.goto(LANDING);
 
   await expect(page.locator("h1")).toHaveCount(1);
-  await expect(page.locator("h1")).toContainText("Every run, a new country");
+  await expect(page.locator("h1")).toContainText("Unknown councillor sets sights");
   await expect(page.getByRole("banner")).toHaveCount(1);
   await expect(page.getByRole("main")).toHaveCount(1);
   await expect(page.getByRole("contentinfo")).toHaveCount(1);
