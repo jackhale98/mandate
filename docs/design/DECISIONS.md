@@ -59,9 +59,14 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-050 | Rendering prototype spikes | Accepted (each spike needs go-ahead) |
 | DEC-051 | Accessibility & explainability UI | Accepted |
 | DEC-052 | Save sync readiness (future cloud sync) | Accepted |
-| DEC-053 | Content authoring format & pipeline (rev. 2: JSONC) | Proposed (awaiting owner, D13) |
+| DEC-053 | Content authoring format & pipeline (rev. 2: JSONC) | Accepted |
 | DEC-054 | Text & localization pipeline | Accepted |
 | DEC-055 | Modding scope | Accepted |
+| DEC-056 | Engineering test layers | Proposed (D14) |
+| DEC-057 | CI tiers | Proposed (D14) |
+| DEC-058 | Simulation lab & canonical worlds | Proposed (D14) |
+| DEC-059 | Monte Carlo health metrics | Proposed (D14) |
+| DEC-060 | Game-quality validation & playtesting | Proposed (awaiting owner, D14) |
 
 ---
 
@@ -1085,7 +1090,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-053 — Content authoring format & pipeline (revision 2)
 
-- **Status:** Proposed. Awaiting owner (D13).
+- **Status:** Accepted (owner, 2026-11-18): JSONC.
 - **History:** revision 1 chose YAML. The owner questioned YAML's significant whitespace, and on review the concern holds.
 - **YAML problems found:**
   - Indentation errors can silently re-parent data. Strict schemas catch most of these, but not all; a mis-indented list item can still be valid.
@@ -1133,3 +1138,21 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - C. First-class modding at launch: a loader UI, documentation, and a sharing workflow.
 - **Proposed decision:** B. It costs little beyond what DEC-053 already requires, and keeps C open.
 - **Dependencies:** DEC-053, DEC-054, D15.
+
+### DEC-056 to DEC-060 — Test & validation strategy
+
+- **Status:**
+  - DEC-056 to DEC-059: proposed.
+  - DEC-060: awaiting the owner, who needs to confirm the playtesting plan.
+- **Content:** `docs/development/TEST_STRATEGY.md`. Sections map to decisions as follows:
+  - §1: DEC-056
+  - §2: DEC-057
+  - §3: DEC-058
+  - §4: DEC-059
+  - §5: DEC-060
+- **Key choices:**
+  - Exact-output golden tests are reserved for determinism. Balance-sensitive outputs are asserted with metric bands.
+  - Replay fixtures are the regression format.
+  - Bot-player tournaments detect dominant strategies and check run-length and pacing targets.
+  - Human playtesting happens at every milestone gate, plus a small group at M6.
+  - Opt-in local run-report export only; no telemetry backend (TECH-007).
