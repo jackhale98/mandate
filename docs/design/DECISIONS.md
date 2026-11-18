@@ -85,6 +85,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-076 | Difficulty target: rare wins, rich stories | Accepted |
 | DEC-077 | Run-to-run variety: town character, varied openings, situational policies, variety check | Accepted |
 | DEC-078 | Data-driven tuning and further registries | Accepted |
+| DEC-079 | Places as the interface: go somewhere to do something, with convenience | Accepted |
 
 ---
 
@@ -1530,3 +1531,40 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      - income classes and age bands (communities, DEC-075 stage 3, provide the flexible dimension);
      - the kinds of player action (their costs are already data, and a new kind is a small coded extension point).
 - **Order:** finish DEC-075 stages 2–3, then decisions 3, 4, 1 (starting with politics, opinion, and actions), and 2. Then decision 6 with M6 and decision 5 before M7.
+
+### DEC-079 — Places as the interface: go somewhere to do something, with convenience
+
+- **Status:** Accepted (owner, 2026-11-18: "instead of … a bunch of menus … they would actually go somewhere to do something, like going to town hall to vote, or somewhere to get higher-fidelity town and country data … balance so there is some convenience and information they can always get, so it's not busy work"). This brings DEC-009's located actions forward from M6 into M5.
+- **The player has a location:** a place in their hub (Act 1: their town). Places already exist in the generated world. Their kinds become a registry (DEC-078 decision 6, moved to M5) carrying each place's actions, information, opening hours (later), and art and interaction data (M6).
+- **Actions happen at places:**
+
+  | Where | What you do there |
+  |---|---|
+  | Council chamber | Declare votes, introduce and amend bills, see the full whip count |
+  | Town hall (mayor's office, clerk) | Policy drafting, budget papers, filing to run |
+  | A colleague's office, or the diner | Lobby, trade favours (late-night meetings) |
+  | Streets of a neighbourhood | Canvass |
+  | Community centre | Town halls |
+  | Newspaper office | Press statements, buying ads |
+  | Party office | Fundraising, internal polls, Standing with the party |
+  | Statistics office or library | Detailed town and country data, trends, history, past results |
+  | Diner, market, union hall | Overheard concerns: qualitative early warnings |
+  | Home | Rest |
+
+- **Convenience rules (no busywork):**
+  1. **Moving within the hub is free:** it costs no slot. Only actions cost time. Visiting another town costs a slot (travel).
+  2. **Auto-routing.** The always-available agenda lists every action. Choosing one takes the player there automatically (a short, skippable walk), then performs it. Players who like to wander can walk; players who don't, never have to.
+  3. **The pocket** (phone and notebook), always open, holds:
+     - date, slots, tracks, and money;
+     - your bills and the calendar;
+     - messages and alerts;
+     - headline numbers in coarse form (rounded, last month's).
+
+     Nothing needed to avoid a terminal ending is ever only at a place (DEC-006 fairness, accessibility).
+  4. **Places give depth, not access.** Going to the statistics office gives precise, current, by-neighbourhood data with trends. The party office gives internal polls. The council chamber gives the exact whip count. The diner gives early, qualitative signals. A visit rewards curiosity; skipping it costs precision, not playability.
+  5. **Deep information can cost something** (DEC-073). Commissioning a private poll or a research report costs money and a slot, and gives better precision than public data.
+- **Interface staging:**
+  - **M5:** an interim town screen. A schematic district of tappable buildings with the player's marker replaces the current tabs. The tabs' content moves into the places and the pocket. Engine and protocol work in terms of places from here on.
+  - **M6:** the walkable pixel-art hub replaces the schematic, on the same engine model.
+  - **Early M5:** a throwaway hub rendering prototype on a phone (one street block, tap-to-move character, ambient townsfolk, one enterable place) to settle Canvas versus PixiJS and performance before M6 builds on it (DEC-050).
+- **Fairness and accessibility:** every place's information and actions are also reachable from a list (screen readers, no map). The schematic and the hub are the primary way to play, never the only one.
