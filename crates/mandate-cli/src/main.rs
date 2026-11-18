@@ -1,6 +1,7 @@
 //! Mandate simulation lab CLI (DEC-058). Output is JSON for scripting.
 
 mod bots;
+mod lab;
 mod mapimg;
 mod png;
 mod sweep;
@@ -87,6 +88,8 @@ enum Cmd {
         /// or just `wealthy_coast`); omitted = a random country.
         #[arg(long)]
         scenario: Option<String>,
+        #[command(flatten)]
+        lab: LabArgs,
     },
     /// Bot players (M4): strategies play the first local election across seeds.
     Bots {
@@ -95,6 +98,8 @@ enum Cmd {
         /// Print per-seed results for these strategies instead of the report.
         #[arg(long)]
         detail: Vec<String>,
+        #[command(flatten)]
+        lab: LabArgs,
     },
     /// Yearly economic trace (balancing diagnostics): jobs by sector, labour
     /// force, prices, and demand drivers.
@@ -165,6 +170,37 @@ fn resolve_scenario(content: &ContentBundle, arg: Option<&str>) -> Result<Option
         "unknown scenario `{a}` (known: {})",
         known.join(", ")
     ))
+}
+
+/// Content overrides for lab runs (DEC-078 decision 2).
+#[derive(clap::Args, Clone, Default)]
+struct LabArgs {
+    /// Override a content value before validation, e.g.
+    /// `--set politics.vote.party_weight=1.6` or
+    /// `--set sectors[sector.retail].base_wage=31000` (repeatable).
+    #[arg(long = "set", value_name = "PATH=VALUE")]
+    set: Vec<String>,
+    /// Run every combination of up to two parameters, e.g.
+    /// `--grid politics.vote.party_weight=1.0,1.4,1.8`, printing one summary
+    /// row per combination (gates are reported, not enforced).
+    #[arg(long, value_name = "PATH=V1,V2,…")]
+    grid: Vec<String>,
+}
+
+/// The content combinations a lab run covers: `--set` plus each grid point.
+fn lab_runs(
+    root: &Path,
+    lab: &LabArgs,
+) -> Result<Vec<(serde_json::Value, Arc<ContentBundle>)>, String> {
+    let sets = lab::parse_sets(&lab.set)?;
+    let grid = lab::parse_grid(&lab.grid)?;
+    lab::combinations(&grid)
+        .into_iter()
+        .map(|point| {
+            let all: Vec<_> = sets.iter().cloned().chain(point.iter().cloned()).collect();
+            Ok((lab::label(&point), lab::load(root, &all)?))
+        })
+        .collect()
 }
 
 #[derive(Subcommand)]
@@ -409,8 +445,28 @@ fn run(cli: Cli) -> Result<(), String> {
             years,
             size,
             scenario,
+            lab,
         } => {
-            let content = load_content(&cli.content)?;
+            let runs = lab_runs(&cli.content, &lab)?;
+            if !lab.grid.is_empty() {
+                // One summary row per combination: bands and floors, no runs.
+                let mut rows = Vec::new();
+                for (point, content) in &runs {
+                    let scenario = resolve_scenario(content, scenario.as_deref())?;
+                    let r = sweep::report(
+                        &sweep::run(content, seeds, years, size.into(), scenario.as_deref()),
+                        years,
+                    );
+                    let row = serde_json::json!({ "set": point, "pass": r["pass"], "bands": r["bands"], "drama_floors": r["drama_floors"] });
+                    eprintln!("{}", serde_json::to_string(&row).unwrap_or_default());
+                    rows.push(row);
+                }
+                out(
+                    serde_json::json!({ "seeds": seeds, "years": years, "base_set": lab.set, "rows": rows }),
+                );
+                return Ok(());
+            }
+            let content = runs.into_iter().next().map(|r| r.1).ok_or("no content")?;
             let scenario = resolve_scenario(&content, scenario.as_deref())?;
             let rows = sweep::run(&content, seeds, years, size.into(), scenario.as_deref());
             let report = sweep::report(&rows, years);
@@ -422,8 +478,36 @@ fn run(cli: Cli) -> Result<(), String> {
                 Err("Monte Carlo bands or drama floors failed".into())
             }
         }
-        Cmd::Bots { seeds, detail } => {
-            let content = load_content(&cli.content)?;
+        Cmd::Bots { seeds, detail, lab } => {
+            let runs = lab_runs(&cli.content, &lab)?;
+            if !lab.grid.is_empty() {
+                // One summary row per combination: win rates and the gates.
+                let mut rows = Vec::new();
+                for (point, content) in &runs {
+                    let r = bots::run(content, seeds);
+                    let rates: serde_json::Map<String, serde_json::Value> = r["strategies"]
+                        .as_object()
+                        .map(|o| {
+                            o.iter()
+                                .map(|(k, v)| (k.clone(), v["win_rate"].clone()))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let row = serde_json::json!({
+                        "set": point,
+                        "win_rates": rates,
+                        "best_minus_median": r["best_minus_median"],
+                        "no_dominant_strategy": r["no_dominant_strategy"],
+                        "effort_matters": r["effort_matters"],
+                        "idle_rarely_wins": r["idle_rarely_wins"],
+                    });
+                    eprintln!("{}", serde_json::to_string(&row).unwrap_or_default());
+                    rows.push(row);
+                }
+                out(serde_json::json!({ "seeds": seeds, "base_set": lab.set, "rows": rows }));
+                return Ok(());
+            }
+            let content = runs.into_iter().next().map(|r| r.1).ok_or("no content")?;
             if !detail.is_empty() {
                 let mut rows = Vec::new();
                 for seed in 1..=seeds {

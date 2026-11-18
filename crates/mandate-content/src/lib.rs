@@ -3,6 +3,7 @@
 
 pub mod bundle;
 pub mod jsonc;
+pub mod overrides;
 pub mod types;
 pub mod validate;
 
