@@ -89,6 +89,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-080 | Hub renderer: Canvas 2D (revises the provisional PixiJS choice) | Accepted |
 | DEC-081 | Logo (poll-line M) and loading animation (career ladder) | Accepted |
 | DEC-082 | Save export and import (`.mandate` files; light Ironman rule) | Accepted |
+| DEC-083 | Landing page at the site root; the game moves to `play/` | Proposed |
 
 ---
 
@@ -1677,3 +1678,23 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Phones:** export downloads through a Blob, an object URL, and `<a download>`. On touch devices that can share files, the share sheet is offered first, with the download as the fallback. The file picker has no `accept` filter, because phones grey out unknown extensions. Desktop browsers also take a file dropped anywhere on the title screen.
 - **Where:** `web/src/persistence/runFile.ts` (format and rules, over any `SaveStore`), `web/src/components/RunTransfer.tsx` (browser wiring), on the title screen's saved-runs list. There is no in-game export yet: the pocket has only "Save & quit", and the run can be exported from the title screen after it.
 - **Dependencies:** DEC-008, DEC-044, DEC-052, DEC-074, DEC-048, DEC-051.
+
+### DEC-083 — Landing page at the site root; the game moves to `play/`
+
+- **Status:** Proposed (2026-11-18). Requested by the owner: a public page that sells the game to new players without looking like a template site. Research: `docs/design/research/LANDING_PAGE.md`.
+- **Decision:**
+  - The site base serves a **landing page**; the game is served at **`<base>play/`**. `MANDATE_BASE` stays the single deploy variable (DEC-064): `/mandate/` gives the landing page at `/mandate/` and the game at `/mandate/play/`; `/` gives `/` and `/play/`. The hub spike stays at `<base>spike-hub/`.
+  - The landing page is plain HTML, CSS, and about 1 KB of TypeScript, with no framework and no web fonts (Georgia and the system font, as in the app). It has its own Vite build (`web/landing/vite.config.ts`) into `dist/`; the app builds into `dist/play/`. `npm run build` runs both; `npm run preview` serves the whole site.
+  - **Concept:** a broadsheet front page from a generated country, in the game's palette. The dark theme is the night edition, the light theme the morning edition. Every image is captured from the running game (`web/landing/scripts/capture.mjs`, `encode.py`, `og.mjs`): the generated maps, the town and council-chamber screens, and a real election night, each captioned with its seed.
+  - **Honesty rules:** no testimonials, ratings, player counts, press quotes or signup. What is built and what is coming are labelled as such (the career ladder lights only the local rung).
+  - **One action:** "Play in your browser", a plain link to `play/` that works without JavaScript. If this browser holds an active saved run, the page also offers "Continue your run" (it reads the game's IndexedDB read-only and never creates the database; the space is reserved, so nothing shifts).
+  - **Absolute URLs** (canonical, `og:url`, `og:image`) need an origin: `https://jackhale98.github.io` for the default base, or `MANDATE_ORIGIN` for a custom domain. Without one, those tags are omitted and the share image is root-relative.
+  - **Budgets:** landing HTML, CSS, and JS at most 60 KB gzipped (checked in CI; about 12 KB today); the LCP image at most 150 KB (49 KB AVIF, 69 KB WebP); no layout shift (tested); tap targets of at least 44 px and text contrast of at least 4.5:1 in both themes (tested).
+- **Migration for installed players:**
+  - Before this change the app's service worker lived at `<base>sw.js` with scope `<base>`, answering every navigation under the base with the cached app shell. The new build puts a small **retiring worker** at that same URL (`web/landing/public/sw.js`). When a returning browser checks for an update it installs at once, deletes only the caches made for its own scope (the game's caches at `play/` share the origin and are kept), unregisters, and reloads the pages it controlled. They then get the landing page. vite-plugin-pwa's `selfDestroying` was not used because it deletes every cache on the origin.
+  - The app's new worker is at `<base>play/sw.js`, scoped to `play/`.
+  - The manifest keeps the old **`id`** (the site base, which was the old `start_url`), so browsers that update installed apps can move an existing install to `play/` instead of treating it as a new app. An installed app that still opens the site base in standalone mode is sent on to `play/` by the landing page.
+  - Saved runs are unaffected: IndexedDB belongs to the origin, not the path.
+  - **Tested** (`web/e2e/sw-migration.spec.ts`): a stand-in for the old root-scoped worker gives way to the landing page, its caches go, the game's caches stay, and the game registers its own worker at `play/` (runs in CI). With `MANDATE_OLD_DIST` set to a build from before this change, the real old app is installed, a run is saved, the new build is deployed over it, and the landing page appears with "Continue your run", which continues the saved run at `play/` (run locally).
+- **Consequences:** links shared to the old base now land on the landing page, one tap from the game. `<base>sw.js` must stay in the build for as long as old installs may exist. The old installed icon opens the base, which forwards to `play/` (online); for offline use from the home screen, players should add the game again from `play/`.
+- **Dependencies:** DEC-048, DEC-049, DEC-051, DEC-052, DEC-064, DEC-079, DEC-081, DEC-082.

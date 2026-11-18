@@ -113,10 +113,20 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # The site (DEC-083): the landing page at the base, the game at play/.
       - run: npm run build
       # Throwaway rendering prototype (DEC-050), published unlinked at /spike-hub/
       # for checks on a real phone. Built after the app so it is never precached.
       - run: npx vite build --config spikes/hub/vite.config.ts --outDir ../../dist/spike-hub --emptyOutDir
+      - name: Site layout and landing-page budget
+        run: |
+          for f in index.html sw.js og.png play/index.html play/sw.js play/manifest.webmanifest spike-hub/index.html; do
+            test -f "dist/$f" || { echo "missing dist/$f"; exit 1; }
+          done
+          # Landing HTML + CSS + JS, gzipped, excluding images: at most 60 KB.
+          size=$(cat dist/index.html dist/assets/index-*.css dist/assets/index-*.js | gzip -9 | wc -c)
+          echo "landing page: $size bytes gzipped"
+          test "$size" -le 61440
       - name: Playwright browsers (cached)
         id: pw
         uses: actions/cache@v4
@@ -134,7 +144,8 @@ jobs:
           path: web/dist
           retention-days: 7
 
-  # Deploy main to GitHub Pages (DEC-064).
+  # Deploy main to GitHub Pages (DEC-064): the landing page at the base, the game
+  # at play/, the hub spike at spike-hub/ (DEC-083), all from the web-dist artifact.
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [rust, web]

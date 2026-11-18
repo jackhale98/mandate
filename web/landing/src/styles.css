@@ -1,0 +1,373 @@
+/* Mandate landing page (DEC-083): a broadsheet front page in the game's palette.
+   Dark is the night edition, light the morning edition. No web fonts: Georgia
+   and the system UI font, as in the app. Motion only where it means something,
+   and none under prefers-reduced-motion. */
+
+:root {
+  --paper: #11131a;
+  --paper-2: #1a1d27;
+  --ink: #e9eaf0;
+  --ink-2: #a3a9bc;
+  --rule: #2f3446;
+  --gold: #e8b44c;
+  --gold-text: #e8b44c;
+  --button: #e8b44c;
+  --button-ink: #1b1405;
+  --flag: #eb6834;
+  --focus: #5fa8e5;
+  --bezel: #000000;
+  --party-0: #3987e5;
+  --party-1: #d95926;
+  --for: #5b9cf0;
+  --against: #e4703f;
+  --ballot: #f5f2ea;
+  --ballot-ink: #1d1f27;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --gutter: 16px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --paper: #f5f2ea;
+    --paper-2: #fffdf8;
+    --ink: #1d1f27;
+    --ink-2: #555a6b;
+    --rule: #cfc7b6;
+    --gold: #a8721a;
+    --gold-text: #8a5a10;
+    --button: #8a5a10;
+    --button-ink: #ffffff;
+    --focus: #1f6fb8;
+    --bezel: #1d1f27;
+    --party-0: #2a78d6;
+    --party-1: #eb6834;
+    --for: #2a6fc4;
+    --against: #c2501f;
+    --ballot: #fffdf8;
+    color-scheme: light;
+  }
+}
+@media (min-width: 720px) {
+  :root { --gutter: 32px; }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 18px/1.55 var(--serif);
+}
+[hidden] { display: none !important; }
+img { display: block; max-width: 100%; height: auto; }
+figure { margin: 0; }
+h1, h2, h3 { margin: 0; }
+p { margin: 0 0 0.9em; }
+a { color: inherit; text-underline-offset: 0.15em; }
+a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+code { font-size: 0.92em; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.skip {
+  position: absolute; left: var(--gutter); top: -100px; z-index: 2;
+  background: var(--ink); color: var(--paper); padding: 12px 16px; font: 700 1rem var(--sans);
+}
+.skip:focus { top: 8px; }
+
+.masthead, main, .ballot { max-width: 1200px; margin: 0 auto; padding: 0 var(--gutter); }
+
+/* Labels: the system font, small capitals. */
+.kicker, .strip, .dateline, figcaption, .tally, .listings dt, .rungs h3, .tag, .notices h2, .notices dt,
+.ledger thead, .ledger td::before, .cta-note, .aside, .colophon, .instr {
+  font-family: var(--sans);
+}
+.kicker {
+  margin: 0 0 10px;
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--gold-text);
+}
+
+/* ---- Masthead ---- */
+.strip {
+  display: none; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px;
+  margin: 0; padding: 10px 0;
+  font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2);
+  border-bottom: 1px solid var(--rule);
+}
+.nameplate {
+  display: flex; align-items: flex-end; justify-content: center; gap: clamp(8px, 2vw, 18px);
+  padding: 18px 0 12px;
+}
+.nameplate .mark { width: clamp(40px, 9vw, 76px); height: auto; margin-bottom: 0.08em; }
+.wordmark {
+  margin: 0;
+  font-size: clamp(3.4rem, 17vw, 8rem); line-height: 0.9; letter-spacing: 0.02em;
+}
+.dateline {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px;
+  margin: 0; padding: 8px 0;
+  border-top: 4px double var(--ink); border-bottom: 1px solid var(--ink);
+  font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase;
+}
+.dateline .wide { display: none; }
+@media (max-width: 599px) {
+  .dateline { font-size: 0.66rem; letter-spacing: 0.07em; gap: 4px 10px; }
+}
+.ed-morning { display: none; }
+@media (prefers-color-scheme: light) {
+  .ed-night { display: none; }
+  .ed-morning { display: inline; }
+}
+
+/* ---- Lead story ---- */
+.lead { padding: 28px 0 8px; }
+.lead h1 {
+  font-size: clamp(2rem, 7.6vw, 3.5rem); line-height: 1.04; letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.deck { margin: 16px 0 14px; font-size: 1.25rem; font-style: italic; color: var(--ink-2); }
+.standfirst { font-size: 1.12rem; max-width: 36em; }
+.cta { margin: 22px 0 26px; }
+.button {
+  display: inline-flex; align-items: center; gap: 12px;
+  min-height: 56px; padding: 0 22px;
+  background: var(--button); color: var(--button-ink);
+  font: 700 1.15rem/1.2 var(--sans); text-decoration: none;
+  border-radius: 3px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.button:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+.button .tick { flex: none; }
+.cta-note {
+  display: grid; min-height: 4.6rem; margin-top: 14px;
+  font-size: 0.95rem; line-height: 1.4; color: var(--ink-2);
+}
+.cta-note > * { grid-area: 1 / 1; margin: 0; }
+.continue { display: flex; flex-direction: column; align-items: flex-start; }
+.continue a {
+  display: inline-flex; align-items: center; min-height: 44px;
+  font-weight: 700; font-size: 1.05rem; color: var(--gold-text);
+}
+.lead-art img { width: 100%; border: 1px solid var(--ink); }
+.inside { display: none; }
+figcaption { margin-top: 8px; font-size: 0.82rem; line-height: 1.45; color: var(--ink-2); }
+figcaption strong { color: var(--ink); }
+
+/* ---- Sections: one rule above each, like the folds of a page ---- */
+main > section, main > aside { padding: 28px 0; border-top: 1px solid var(--ink); }
+main h2 { font-size: clamp(1.6rem, 4.6vw, 2.4rem); line-height: 1.1; text-wrap: balance; margin-bottom: 14px; }
+
+/* ---- Election night ---- */
+.results-copy h2 { font-size: clamp(1.75rem, 5.2vw, 2.7rem); }
+.tally {
+  margin: 8px 0 24px; padding: 14px 16px 16px;
+  background: var(--paper-2); border: 1px solid var(--ink);
+  font-size: 0.92rem; line-height: 1.35;
+}
+.tally-head {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px;
+  padding-bottom: 8px; border-bottom: 2px solid var(--ink);
+}
+.tally-head p { margin: 0; }
+.tally-head strong { font: 700 1.2rem var(--serif); }
+.tally-head p + p { color: var(--ink-2); font-size: 0.85rem; }
+.tally table { width: 100%; border-collapse: collapse; }
+.count th, .count td { padding: 8px 0 2px; text-align: left; vertical-align: top; }
+.count thead th {
+  padding: 8px 0 4px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-2); border-bottom: 1px solid var(--rule);
+}
+.count .num { text-align: right; padding-left: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.count tbody th { font-weight: 700; }
+.count .share { font-weight: 700; }
+.party { display: block; font-weight: 400; color: var(--ink-2); font-size: 0.85rem; }
+.swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; }
+.swatch-blue, .fill-blue { background: var(--party-0); }
+.swatch-orange, .fill-orange { background: var(--party-1); }
+.elected {
+  display: inline-block; margin-right: 4px; padding: 0 5px;
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  border: 1px solid var(--ink); vertical-align: 2px;
+}
+.you { font-weight: 400; color: var(--ink-2); font-size: 0.85rem; }
+.bar-row td { padding: 4px 0 6px; }
+.bar { position: relative; display: block; height: 10px; background: var(--rule); }
+.fill { position: absolute; inset: 0 auto 0 0; width: calc(var(--v) * 100%); transform-origin: left; }
+.poll { position: absolute; top: -4px; bottom: -4px; left: calc(var(--v) * 100%); width: 3px; background: var(--ink); }
+.poll-key { margin: 6px 0 0; color: var(--ink-2); font-size: 0.8rem; }
+.poll-key i { display: inline-block; width: 3px; height: 12px; margin: 0 6px -1px 0; background: var(--ink); }
+.why-head { margin: 16px 0 4px; font-weight: 700; }
+.why-head span { display: block; font-weight: 400; color: var(--ink-2); font-size: 0.8rem; }
+.why th { padding: 5px 8px 5px 0; text-align: left; font-weight: 400; white-space: nowrap; }
+.why td { padding: 5px 0; }
+.why td:first-of-type { position: relative; width: 50%; }
+.why td:first-of-type::before {
+  content: ""; position: absolute; left: 50%; top: 2px; bottom: 2px; width: 1px; background: var(--ink-2);
+}
+.dbar {
+  position: absolute; top: 50%; height: 10px; margin-top: -5px;
+  left: 50%; width: calc(var(--v) * 1.4%); background: var(--for); transform-origin: left;
+}
+.dbar.neg { left: auto; right: 50%; background: var(--against); transform-origin: right; }
+.why .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; padding-left: 8px; }
+.tally figcaption { margin-top: 12px; }
+
+.phone { max-width: 260px; margin: 0 auto; }
+.phone img { width: 100%; border: 7px solid var(--bezel); border-radius: 26px; }
+.phone figcaption { text-align: center; }
+
+/* ---- The ladder (DEC-081 loader, one rung lit: the built one) ---- */
+.rungs { position: relative; list-style: none; margin: 18px 0 0; padding: 0; }
+.rungs::before, .rungs::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 8px; background: var(--ink);
+}
+.rungs::before { left: 0; }
+.rungs::after { left: 64px; }
+.rungs li { position: relative; padding: 4px 0 18px 92px; min-height: 92px; }
+.rungs li::before {
+  content: ""; position: absolute; left: 8px; top: 12px; width: 56px; height: 8px;
+  background: var(--gold); opacity: 0.22;
+}
+.rungs li.lit::before { opacity: 1; }
+.rungs h3 { font-size: 0.82rem; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 4px; }
+.rungs p { margin: 0; font-size: 1rem; line-height: 1.45; }
+.rungs li:not(.lit) p { color: var(--ink-2); }
+.tag {
+  display: inline-block; margin-right: 6px; padding: 1px 6px;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  border: 1px solid currentColor; vertical-align: 2px;
+}
+.tag-now { background: var(--button); color: var(--button-ink); border-color: var(--button); }
+
+/* ---- Directory: classifieds ---- */
+.intro { max-width: 40em; }
+.listings { margin: 18px 0 22px; font-size: 0.98rem; line-height: 1.45; }
+.listings div { break-inside: avoid; padding: 8px 0; border-bottom: 1px dotted var(--ink-2); }
+.listings dt {
+  display: inline; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.listings dt::after { content: " · "; }
+.listings dd { display: inline; margin: 0; }
+.phones { display: flex; gap: 16px; justify-content: center; }
+.phones .phone { flex: 1 1 0; margin: 0; max-width: 240px; }
+.aside { margin: 14px 0 0; font-size: 0.9rem; font-style: italic; color: var(--ink-2); text-align: center; }
+
+/* ---- Atlas ---- */
+.atlas h2 { font-size: clamp(2rem, 6.4vw, 3.4rem); }
+.maps { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 22px; }
+.maps img { width: 100%; border: 1px solid var(--ink); }
+.maps strong { margin-right: 4px; }
+
+/* ---- Ledger ---- */
+.ledger table { width: 100%; border-collapse: collapse; font-size: 1rem; line-height: 1.4; }
+.ledger thead th {
+  padding: 6px 12px 6px 0; text-align: left;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  border-bottom: 2px solid var(--ink);
+}
+.ledger tbody th, .ledger td { padding: 10px 12px 10px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+.ledger tbody th { font-weight: 700; }
+.ledger td:last-child { font-style: italic; }
+.footnote { margin-top: 16px; font-style: italic; max-width: 40em; }
+@media (max-width: 599px) {
+  .ledger thead { display: none; }
+  .ledger tr { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+  .ledger tbody th { grid-column: 1 / -1; }
+  .ledger tbody th, .ledger td { display: block; padding: 2px 0; border: 0; font-size: 0.95rem; }
+  .ledger td::before {
+    content: attr(data-label); display: block;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-style: normal;
+    color: var(--ink-2); margin-top: 4px;
+  }
+}
+
+/* ---- Notices ---- */
+main > aside.notices { border-top: 0; padding: 0; margin: 28px 0; background: var(--paper-2); }
+.notices h2 {
+  display: inline-block; margin: 0;
+  padding: 6px 12px; font-size: 0.8rem; letter-spacing: 0.18em; text-transform: uppercase;
+  background: var(--ink); color: var(--paper);
+}
+.notices dl { margin: 0; padding: 14px 16px 6px; border: 3px double var(--ink); }
+.notices dt { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.notices dd { margin: 2px 0 14px; font-size: 0.98rem; line-height: 1.45; }
+
+/* ---- Ballot paper ---- */
+.ballot { padding-top: 12px; padding-bottom: calc(28px + env(safe-area-inset-bottom)); }
+.paper {
+  max-width: 560px; margin: 0 auto; padding: 20px 18px 22px;
+  background: var(--ballot); color: var(--ballot-ink);
+  border: 1px solid var(--ballot-ink);
+  outline: 1px dashed var(--ink-2); outline-offset: 6px;
+}
+.paper h2 {
+  margin: 0 0 4px; text-align: center;
+  font: 700 0.85rem var(--sans); letter-spacing: 0.24em; text-transform: uppercase;
+}
+.instr { margin: 0 0 16px; text-align: center; font-size: 0.85rem; }
+.button-ballot {
+  display: flex; justify-content: space-between; width: 100%; min-height: 72px;
+  padding: 0 16px; background: transparent; color: var(--ballot-ink);
+  border: 2px solid var(--ballot-ink); box-shadow: none;
+  font: 700 1.35rem var(--serif);
+}
+.button-ballot:focus-visible { outline-color: #1f6fb8; }
+.button-ballot .cross { opacity: 0; }
+.button-ballot:hover .cross, .button-ballot:focus-visible .cross { opacity: 1; }
+.colophon { margin: 28px 0 0; text-align: center; font-size: 0.85rem; color: var(--ink-2); }
+.colophon a { display: inline-block; padding: 12px 4px; }
+
+/* ---- Wider screens: a broadsheet grid ---- */
+@media (min-width: 600px) {
+  .strip { display: flex; }
+  .dateline .wide { display: inline; }
+  .listings { column-count: 2; column-gap: 28px; }
+  .maps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+}
+@media (min-width: 960px) {
+  main { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 32px; }
+  main > * { grid-column: 1 / -1; }
+  .lead { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 40px; padding-top: 36px; }
+  .lead-art { border-left: 1px solid var(--rule); padding-left: 40px; }
+  .inside { display: block; margin-top: 28px; border-top: 2px solid var(--ink); }
+  .inside-head {
+    margin: 0; padding: 8px 0; border-bottom: 1px solid var(--rule);
+    font: 700 0.78rem var(--sans); letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .inside ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 28px; }
+  .inside li { break-inside: avoid; border-bottom: 1px dotted var(--ink-2); }
+  .inside a { display: block; min-height: 44px; padding: 8px 0; text-decoration: none; font-size: 0.95rem; line-height: 1.35; }
+  .inside a:hover b { text-decoration: underline; }
+  .inside b { display: block; font: 700 0.75rem var(--sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-text); }
+  .results { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 3fr); gap: 32px; align-items: start; }
+  .tally { margin: 0; }
+  .phone-night { margin: 0; }
+  main > .ladder { grid-column: 1 / span 4; }
+  main > .directory { grid-column: 5 / -1; border-left: 1px solid var(--rule); padding-left: 32px; }
+  .atlas-copy { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; align-items: end; }
+  .atlas-copy .kicker, .atlas-copy h2 { grid-column: 1; }
+  .atlas-copy p:last-child { grid-column: 2; grid-row: 1 / span 2; }
+  main > .ledger { grid-column: 1 / span 8; }
+  main > aside.notices { grid-column: 9 / -1; margin: 28px 0 28px; align-self: start; }
+  .paper { padding: 26px 28px 28px; }
+}
+
+/* ---- Motion: purposeful, small, and off when asked ---- */
+@media (prefers-reduced-motion: no-preference) {
+  .button { transition: transform 120ms steps(2), box-shadow 120ms steps(2); }
+  .button:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+  .button:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+  .button-ballot:hover, .button-ballot:active { box-shadow: none; transform: none; }
+  /* The count comes in: bars fill in steps, like a tally board. */
+  .js .tally .fill, .js .tally .dbar { transform: scaleX(0); transition: transform 1.2s steps(12, end); }
+  .js .tally.in-view .fill, .js .tally.in-view .dbar { transform: scaleX(1); }
+  .js .tally.in-view .dbar { transition-delay: 0.6s; }
+  /* The first rung lights, as in the loader. */
+  .js .ladder .lit::before { opacity: 0.22; }
+  .js .ladder.in-view .lit::before { animation: light 1.2s steps(1, end) 0.2s forwards; }
+  @keyframes light { 0% { opacity: 0.22; } 33% { opacity: 1; } 50% { opacity: 0.22; } 66%, 100% { opacity: 1; } }
+}

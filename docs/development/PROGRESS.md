@@ -13,6 +13,8 @@
 | M4 Elections, parties, NPC AI | **Done**, 2026-11-18 (owner checkpoint) |
 | M5 Characters, places, and narrative | **In progress** (plan: ROADMAP, DEC-079). M5a done: places as the interface (located actions, auto-routing, pocket, information depth). DEC-078 decisions 1–4 done: balance numbers in content parameter blocks, lab `--set`/`--grid`, the concern registry with issue salience, and the scenario registry. |
 
+**Site (DEC-083, proposed):** a landing page at the site root (`web/landing/`, a broadsheet front page with images captured from the game); the game moved to `play/`, with a retiring service worker at the old path so installed copies switch over (migration tested in Playwright).
+
 ## M0 summary
 - **Rust workspace:** 8 crates, with determinism lints enforced (banned `HashMap`, `std` float transcendentals, wall clock).
 - **Core primitives:** typed IDs, calendar, fixed-point money, `libm` math, ChaCha RNG streams plus keyed access, BLAKE3 hashing.

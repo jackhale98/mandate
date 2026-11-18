@@ -5,7 +5,10 @@ import { VitePWA } from "vite-plugin-pwa";
 // One variable controls the deploy base path (DEC-064):
 //   GitHub Pages project site: /mandate/   (default)
 //   Custom domain / Cloudflare: /
-const base = process.env.MANDATE_BASE ?? "/mandate/";
+// The landing page is served at the base and the game at <base>play/ (DEC-083).
+// The landing page is a separate build (landing/vite.config.ts) into dist/.
+const site = process.env.MANDATE_BASE ?? "/mandate/";
+const base = `${site}play/`;
 
 export default defineConfig({
   base,
@@ -16,6 +19,10 @@ export default defineConfig({
       registerType: "autoUpdate",
       injectRegister: false,
       manifest: {
+        // Before DEC-083 the app's id was its start_url, the site base. Keeping
+        // it lets browsers that update installed apps move an existing install
+        // to play/ instead of treating this as a different app.
+        id: site,
         name: "Mandate",
         short_name: "Mandate",
         description: "A political career roguelike.",
@@ -35,17 +42,18 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,wasm,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: `${base}index.html`,
-        // Prototype pages published beside the app (DEC-050) are never served the app shell.
+        // Prototype pages published beside the app (DEC-050) are never served the
+        // app shell. They are outside this worker's scope since DEC-083; kept as a guard.
         navigateFallbackDenylist: [/\/spike-/],
       },
     }),
   ],
   worker: { format: "es" },
-  build: { target: "es2022", sourcemap: true },
+  build: { target: "es2022", sourcemap: true, outDir: "dist/play" },
   test: {
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test-setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "landing/src/**/*.test.ts"],
   },
 });
