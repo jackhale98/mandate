@@ -43,9 +43,16 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-034 | Media & information model | Accepted |
 | DEC-035 | Conversations & dialogue | Accepted |
 | DEC-036 | Character creation: draft of 3 | Accepted |
-| DEC-037 | Personal life scope | Proposed (awaiting owner, D10) |
-| DEC-038 | Difficulty & complexity layers | Proposed (D10) |
-| DEC-039 | Meta-progression | Proposed (D10) |
+| DEC-037 | Personal life scope | Accepted |
+| DEC-038 | Difficulty & complexity layers | Accepted |
+| DEC-039 | Meta-progression | Accepted |
+| DEC-040 | Crate structure (8 crates) | Proposed (D11 baseline) |
+| DEC-041 | Determinism rules | Proposed (D11 baseline) |
+| DEC-042 | Engine: calendar, turn order, effect requests, event log | Proposed (D11 baseline) |
+| DEC-043 | Worker protocol | Proposed (D11 baseline) |
+| DEC-044 | Persistence | Proposed (D11 baseline) |
+| DEC-045 | Frontend stack | Proposed (awaiting owner, D11) |
+| DEC-046 | Initial performance budgets | Proposed (D11 baseline) |
 
 ---
 
@@ -893,7 +900,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-037 — Personal life scope
 
-- **Status:** Proposed. Awaiting owner (D10).
+- **Status:** Accepted (owner, 2026-11-18): option B.
 - **Options:**
   - A. None: the character is purely a political avatar.
   - B. Light but consequential: household, health, and personal finances, included only where they create decisions.
@@ -912,7 +919,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-038 — Difficulty & complexity layers
 
-- **Status:** Proposed (D10).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:** difficulty and complexity are separate settings. Neither makes the simulation dishonest (brief §3.5).
   - **Difficulty levers**, bundled into presets plus a custom option:
     1. Storyteller profile (DEC-033).
@@ -932,7 +939,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-039 — Meta-progression
 
-- **Status:** Proposed (D10). Brief §19: keep it separate from run state; no permanent stat inflation.
+- **Status:** Accepted (owner, 2026-11-18; no objection raised). Brief §19: keep it separate from run state; no permanent stat inflation.
 - **Proposed decision:**
   - **Unlocks of new possibilities only:**
     - constitutional archetypes and quirks,
@@ -944,3 +951,18 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - A **Hall of Legacies** records past careers.
 - **Parking-lot idea (unratified):** **Legacy worlds.** A new run starts in the *same* world decades after a previous career ends, as a protégé or descendant, with the old career's laws, institutions, and grudges still in place (in the spirit of Rogue Legacy). The burn-in (DEC-022) makes this feasible. Evaluate after the MVP.
 - **Dependencies:** DEC-005, DEC-006, DEC-007, DEC-020, DEC-033, D13 (meta-save separate from run saves).
+
+### DEC-040 to DEC-046 — Technical architecture baseline
+
+- **Status:** Proposed as a package. The owner approves the architecture baseline as a whole (brief §26.1).
+- **Where the content lives:** `docs/architecture/OVERVIEW.md`. Sections map to decisions as follows:
+  - §2: DEC-040, crates
+  - §3: DEC-041, determinism
+  - §4: DEC-042, engine
+  - §5: DEC-043, protocol
+  - §6: DEC-044, persistence
+  - §7: DEC-045, frontend
+  - §8: DEC-046, budgets
+- **Revisions to the brief:** the brief's original proposals that this baseline changes are listed in OVERVIEW §10.
+- **DEC-017** (constitution primitives) is confirmed as part of this baseline.
+- **Open item:** DEC-045 frontend framework (React assumed). Ask the owner about preferences.
