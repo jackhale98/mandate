@@ -21,6 +21,9 @@ SEA = (38, 70, 111)
 MAPS = [("4040", (1200, 720)), ("777", (720,)), ("20260", (720,)), ("1848", (720,))]
 SCREENS = ["town", "chamber", "night"]
 SCREEN_WIDTH = 600  # shown at up to 300 CSS px
+# Desktop screenshots (captured at 1440×900 CSS px): shown up to ~1100 CSS px wide.
+DESKTOP = ["desktop"]
+DESKTOP_WIDTHS = (1600, 960)
 
 
 def land_box(im: Image.Image, pad: int = 28) -> tuple[int, int, int, int]:
@@ -62,5 +65,20 @@ def main() -> None:
             save(im.resize((SCREEN_WIDTH, h), Image.Resampling.LANCZOS), f"{name}-{scheme}")
 
 
+def desktop() -> None:
+    for name in DESKTOP:
+        for scheme in ("dark", "light"):
+            im = Image.open(RAW / f"{name}-{scheme}.png")
+            for w in DESKTOP_WIDTHS:
+                h = round(im.height * w / im.width)
+                save(im.resize((w, h), Image.Resampling.LANCZOS), f"{name}-{scheme}-{w}")
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if sys.argv[1:] == ["desktop"]:
+        desktop()
+    else:
+        main()
+        desktop()

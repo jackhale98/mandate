@@ -93,7 +93,7 @@
               Play in your browser
             </a>
             <div class="cta-note">
-              <p data-free-line>It’s free, with no account or download, and it keeps working offline on your phone.</p>
+              <p data-free-line>It’s free, with no account or download, and it works on phones and computers, even offline.</p>
               <p class="continue" data-continue hidden>
                 <a href="play/">Continue your run</a>
                 <span data-continue-detail></span>
@@ -313,6 +313,40 @@
           </figure>
         </div>
         <p class="aside">This screen is being replaced by a pixel-art town you can walk around in.</p>
+      </section>
+
+      <section class="screens" id="screens" aria-labelledby="screens-title">
+        <div class="screens-copy">
+          <p class="kicker">Phone or computer</p>
+          <h2 id="screens-title">The same game on a bigger screen</h2>
+          <p>
+            Mandate runs in any modern browser. On a phone, places open in a sheet that slides up from the bottom. On a
+            computer they open in a panel beside the town, so you can see the chamber, the town and its troubles at the
+            same time.
+          </p>
+          <p>
+            Your games are saved on the device you play on. To carry on somewhere else, export the game to a file and
+            open it on the other device.
+          </p>
+        </div>
+        <figure class="desk">
+          <picture>
+            <source type="image/avif" srcset="./img/desktop-light-960.avif 960w, ./img/desktop-light-1600.avif 1600w" sizes="(min-width: 960px) 66vw, 100vw" media="(prefers-color-scheme: light)" />
+            <source type="image/webp" srcset="./img/desktop-light-960.webp 960w, ./img/desktop-light-1600.webp 1600w" sizes="(min-width: 960px) 66vw, 100vw" media="(prefers-color-scheme: light)" />
+            <source type="image/avif" srcset="./img/desktop-dark-960.avif 960w, ./img/desktop-dark-1600.avif 1600w" sizes="(min-width: 960px) 66vw, 100vw" />
+            <img
+              src="./img/desktop-dark-960.webp"
+              srcset="./img/desktop-dark-960.webp 960w, ./img/desktop-dark-1600.webp 1600w"
+              sizes="(min-width: 960px) 66vw, 100vw"
+              width="1600"
+              height="1000"
+              loading="lazy"
+              decoding="async"
+              alt="The game in a desktop browser: the town of Larkobridge with its defining industry, live crisis, power broker and rival at the top, its places below, and the council chamber open in a panel on the right listing the council members and what they think of the player."
+            />
+          </picture>
+          <figcaption>Larkobridge in a desktop browser, with the council chamber open beside the town.</figcaption>
+        </figure>
       </section>
 
       <section class="atlas" id="atlas" aria-labelledby="atlas-title">
