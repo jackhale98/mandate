@@ -385,8 +385,8 @@ pub fn apply(
             let sig = content
                 .policies
                 .get(&template)
-                .map(|t| t.signature)
-                .unwrap_or([0.0; 8]);
+                .map(|t| t.signature_weights.clone())
+                .unwrap_or_default();
             let line = party_line(state, *policy);
             let sign = match vote {
                 Vote::Yes => 1.0,
@@ -705,7 +705,7 @@ pub fn apply(
                     let sig = policy
                         .and_then(|id| state.policy.instances.get(id as usize))
                         .and_then(|p| content.policies.get(&p.template))
-                        .map(|t| t.signature);
+                        .map(|t| t.signature_weights.clone());
                     for c in state.population.hoods[*neighborhood as usize]
                         .cohorts
                         .iter_mut()
@@ -714,7 +714,8 @@ pub fn apply(
                             clamp(c.player_awareness as f64 + 0.25 * (0.6 + oratory), 0.0, 1.0)
                                 as f32;
                         let nudge = sig
-                            .map(|s| crate::politics::alignment(&s, &c.attitudes) * 0.05)
+                            .as_ref()
+                            .map(|s| crate::politics::alignment(s, &c.attitudes) * 0.05)
                             .unwrap_or(0.02);
                         let room = 1.0 - (c.player_approval as f64).abs();
                         // A hostile crowd: people still learn your name, but not kindly.

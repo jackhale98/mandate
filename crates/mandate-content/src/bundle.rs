@@ -22,6 +22,9 @@ pub struct ContentBundle {
     /// The sector registry (DEC-075), in load order: files by path, then
     /// item order. The engine indexes sector data densely in this order.
     pub sectors: Vec<SectorDef>,
+    /// The attitude registry (DEC-075), in load order like sectors. Cohorts,
+    /// politicians, parties, and policy signatures are dense in this order.
+    pub attitudes: Vec<AttitudeDef>,
     pub name_pools: BTreeMap<ContentKey, NamePoolDef>,
     pub economy: EconomyParams,
     pub constitutions: BTreeMap<ContentKey, ConstitutionDef>,
@@ -57,6 +60,16 @@ impl ContentBundle {
             .filter(move |(_, s)| s.driver == driver)
     }
 
+    /// Registry index of an attitude by its short key (e.g. `law_and_order`).
+    pub fn attitude_index(&self, key: &str) -> Option<usize> {
+        self.attitudes.iter().position(|a| a.key == key)
+    }
+
+    /// Attitude short keys in registry order.
+    pub fn attitude_keys(&self) -> impl Iterator<Item = &String> {
+        self.attitudes.iter().map(|a| &a.key)
+    }
+
     /// All Fluent text for a language, concatenated in path order.
     pub fn locale_text(&self, lang: &str) -> String {
         self.locales
@@ -88,6 +101,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut constitutions: BTreeMap<ContentKey, ConstitutionDef> = BTreeMap::new();
     let mut policies: BTreeMap<ContentKey, PolicyTemplate> = BTreeMap::new();
     let mut sectors: Vec<SectorDef> = Vec::new();
+    let mut attitudes: Vec<AttitudeDef> = Vec::new();
     let mut name_pools: BTreeMap<ContentKey, NamePoolDef> = BTreeMap::new();
     let mut locales: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
     let mut origin: BTreeMap<String, String> = BTreeMap::new();
@@ -192,6 +206,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Attitudes { items } => {
+                for a in items {
+                    if claim(&a.id, &mut issues) {
+                        attitudes.push(a);
+                    }
+                }
+            }
             ContentFile::NamePools { items } => {
                 for n in items {
                     if claim(&n.id, &mut issues) {
@@ -215,11 +236,20 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         return Err(issues);
     };
     packs.sort_by(|a, b| (a.load_order, &a.id).cmp(&(b.load_order, &b.id)));
+    // Resolve keyed policy signatures to dense registry order (unknown keys
+    // are reported by validation).
+    for p in policies.values_mut() {
+        p.signature_weights = attitudes
+            .iter()
+            .map(|a| p.signature.get(&a.key).copied().unwrap_or(0.0))
+            .collect();
+    }
 
     let bundle = ContentBundle {
         packs,
         tuning,
         sectors,
+        attitudes,
         name_pools,
         economy,
         constitutions,

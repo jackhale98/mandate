@@ -6,7 +6,6 @@ use crate::views::DateView;
 use mandate_sim::Engine;
 use mandate_sim::politics::elections::{self, Filing, Seat};
 use mandate_sim::politics::{PoliticianId, Role};
-use mandate_sim::population::ATTITUDE_KEYS;
 use mandate_sim::world::Tier;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -154,7 +153,9 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
         .parties
         .iter()
         .map(|p| {
-            let mut dims: Vec<usize> = (0..ATTITUDE_KEYS.len()).collect();
+            // Stances iterate the attitude registry (DEC-075).
+            let keys = &engine.content().attitudes;
+            let mut dims: Vec<usize> = (0..p.platform.len().min(keys.len())).collect();
             dims.sort_by(|a, b| p.platform[*b].abs().total_cmp(&p.platform[*a].abs()));
             PartyView {
                 id: p.id.0,
@@ -168,7 +169,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
                         format!(
                             "{}-{}",
                             if p.platform[*d] >= 0.0 { "pro" } else { "anti" },
-                            ATTITUDE_KEYS[*d]
+                            keys[*d].key
                         )
                     })
                     .collect(),

@@ -8,7 +8,7 @@ pub mod parties;
 
 pub use parties::{Party, PartyId};
 
-use crate::population::{ATTITUDES, PopulationState};
+use crate::population::PopulationState;
 use crate::world::{ConstituencyId, MunicipalityId, Tier, World};
 use mandate_core::math::clamp;
 use mandate_core::{IdAllocator, SimRng, define_id};
@@ -43,7 +43,8 @@ pub struct Politician {
     pub role: Role,
     pub is_player: bool,
     pub birth_year: u32,
-    pub attitudes: [f32; ATTITUDES],
+    /// One value per attitude, in registry order (`PopulationState::attitude_keys`).
+    pub attitudes: Vec<f32>,
     /// Willingness to deal and be persuaded (0..1).
     pub pragmatism: f32,
     pub integrity: f32,
@@ -146,23 +147,19 @@ impl PoliticsState {
 }
 
 /// Turnout-weighted mean attitudes of the adults in a set of neighbourhoods.
-pub fn mean_attitudes(pop: &PopulationState, hoods: &[usize]) -> [f32; ATTITUDES] {
-    let mut acc = [0.0f64; ATTITUDES];
+pub fn mean_attitudes(pop: &PopulationState, hoods: &[usize]) -> Vec<f32> {
+    let mut acc = vec![0.0f64; pop.attitude_count()];
     let mut w = 0.0f64;
     for &h in hoods {
         for c in &pop.hoods[h].cohorts {
             let weight = c.count as f64 * c.turnout as f64;
-            for k in 0..ATTITUDES {
-                acc[k] += c.attitudes[k] as f64 * weight;
+            for (k, a) in acc.iter_mut().enumerate() {
+                *a += c.attitudes[k] as f64 * weight;
             }
             w += weight;
         }
     }
-    let mut out = [0.0f32; ATTITUDES];
-    for k in 0..ATTITUDES {
-        out[k] = (acc[k] / w.max(1.0)) as f32;
-    }
-    out
+    acc.iter().map(|a| (a / w.max(1.0)) as f32).collect()
 }
 
 fn name(rng: &mut SimRng, given: &[String], family: &[String]) -> (String, String) {
@@ -193,7 +190,7 @@ pub fn init(
     let make = |st: &mut PoliticsState,
                 rng: &mut SimRng,
                 role: Role,
-                base: [f32; ATTITUDES],
+                base: Vec<f32>,
                 home: u32|
      -> PoliticianId {
         let mut attitudes = base;
@@ -262,7 +259,7 @@ pub fn new_politician(
     given: &[String],
     family: &[String],
     role: Role,
-    attitudes: [f32; ATTITUDES],
+    attitudes: Vec<f32>,
     party: Option<PartyId>,
     home: u32,
     year: u32,
@@ -298,12 +295,13 @@ pub fn new_politician(
 }
 
 /// Cosine-style alignment between a policy signature and an attitude vector, in [-1, 1].
-pub fn alignment(signature: &[f64; ATTITUDES], attitudes: &[f32; ATTITUDES]) -> f64 {
+/// Both are in attitude-registry order; a missing tail counts as 0.
+pub fn alignment(signature: &[f64], attitudes: &[f32]) -> f64 {
     let mut dot = 0.0;
     let mut norm = 0.0;
-    for k in 0..ATTITUDES {
-        dot += signature[k] * attitudes[k] as f64;
-        norm += signature[k].abs();
+    for (s, a) in signature.iter().zip(attitudes) {
+        dot += s * *a as f64;
+        norm += s.abs();
     }
     if norm <= 0.0 {
         0.0

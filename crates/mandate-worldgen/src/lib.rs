@@ -778,6 +778,7 @@ pub fn generate_with_progress(
         &hood_population,
         config.seed,
         config.preset == Some(Preset::WealthyCoast),
+        &content.attitudes,
     );
     let economy = mandate_sim::economy::init(&world, &population, &content, &meta);
     let finance = mandate_sim::finance::init(&world, &population, &economy, &content.economy);

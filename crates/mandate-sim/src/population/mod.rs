@@ -10,19 +10,11 @@ use serde::{Deserialize, Serialize};
 pub const AGE_BANDS: usize = 4;
 pub const CLASSES: usize = 3;
 pub const COHORTS: usize = AGE_BANDS * CLASSES;
-pub const ATTITUDES: usize = 8;
 
-/// Attitude dimensions, each in [-1, 1].
-pub const ATTITUDE_KEYS: [&str; ATTITUDES] = [
-    "redistribution",
-    "tax_tolerance",
-    "social_liberalism",
-    "environment",
-    "law_and_order",
-    "localism",
-    "tradition",
-    "reform_appetite",
-];
+// Attitude dimensions are a content registry (DEC-075): each cohort holds
+// one value in [-1, 1] per attitude, in registry order
+// (`ContentBundle::attitudes`). `PopulationState::attitude_keys` records
+// which attitudes the state was built with.
 
 /// Age bands: 18–29, 30–44, 45–64, 65+.
 pub const BAND_YEARS: [f64; AGE_BANDS] = [12.0, 15.0, 20.0, 15.0];
@@ -37,7 +29,8 @@ pub fn cohort_index(age: usize, class: usize) -> usize {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cohort {
     pub count: u32,
-    pub attitudes: [f32; ATTITUDES],
+    /// One value per attitude, in registry order (`PopulationState::attitude_keys`).
+    pub attitudes: Vec<f32>,
     pub trust: f32,
     pub turnout: f32,
     /// Approval of the local government (0..1).
@@ -80,6 +73,10 @@ pub struct DemographyYear {
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct PopulationState {
+    /// Attitude keys, in the order every attitude vector in the state uses
+    /// (cohorts, politicians, parties, factions). Saves record it so content
+    /// that adds or reorders attitudes can be remapped on load (DEC-075).
+    pub attitude_keys: Vec<String>,
     pub hoods: Vec<HoodPop>,
     /// Internal moves accumulated this year.
     pub moves_ytd: u64,
@@ -90,6 +87,10 @@ pub struct PopulationState {
 }
 
 impl PopulationState {
+    /// Number of attitude dimensions in this state.
+    pub fn attitude_count(&self) -> usize {
+        self.attitude_keys.len()
+    }
     pub fn total(&self) -> u64 {
         self.hoods.iter().map(|h| h.total()).sum()
     }
@@ -158,51 +159,55 @@ fn age_mix(kind: NeighborhoodKind) -> ([f64; AGE_BANDS], f64) {
     }
 }
 
+/// Lean of a neighbourhood kind in an attitude's seeding model.
+fn kind_lean(l: &mandate_content::NeighborhoodLean, kind: NeighborhoodKind) -> f64 {
+    match kind {
+        NeighborhoodKind::Core => l.core,
+        NeighborhoodKind::Inner => l.inner,
+        NeighborhoodKind::Waterfront => l.waterfront,
+        NeighborhoodKind::Industrial => l.industrial,
+        NeighborhoodKind::Suburb => l.suburb,
+        NeighborhoodKind::Rural => l.rural,
+    }
+}
+
 /// Starting attitudes for a cohort (conditioned on context, not determined).
+/// The leans come from content (`AttitudeDef::seed`), one draw per attitude
+/// in registry order.
 fn seed_attitudes(
     rng: &mut SimRng,
+    defs: &[mandate_content::AttitudeDef],
     age: usize,
     class: usize,
     kind: NeighborhoodKind,
-    regional: &[f64; ATTITUDES],
-) -> [f32; ATTITUDES] {
-    let urban = matches!(
-        kind,
-        NeighborhoodKind::Core | NeighborhoodKind::Inner | NeighborhoodKind::Waterfront
-    );
-    let rural = kind == NeighborhoodKind::Rural;
-    let young = age == 0;
-    let senior = age == 3;
-    let class_lean = [0.35, 0.0, -0.35][class];
-    let b = |c: bool, v: f64| if c { v } else { 0.0 };
-    let base = [
-        class_lean + b(young, 0.1),
-        [0.05, -0.08, -0.28][class] + b(senior, -0.05),
-        b(young, 0.35) + b(senior, -0.3) + b(urban, 0.15) + b(rural, -0.2),
-        b(young, 0.25) + b(rural, -0.1) + b(urban, 0.08),
-        b(senior, 0.3) + b(rural, 0.15) + b(young, -0.1),
-        b(rural, 0.3) + b(urban, -0.1),
-        b(senior, 0.35) + b(rural, 0.25) + b(young, -0.2),
-        b(young, 0.2) + [0.1, 0.0, -0.1][class],
-    ];
-    let mut out = [0.0f32; ATTITUDES];
-    for k in 0..ATTITUDES {
-        out[k] = clamp(base[k] + regional[k] + rng.normal(0.0, 0.08), -1.0, 1.0) as f32;
-    }
-    out
+    regional: &[f64],
+) -> Vec<f32> {
+    defs.iter()
+        .zip(regional)
+        .map(|(d, reg)| {
+            let s = &d.seed;
+            let base = s.by_class[class] + s.by_age[age] + kind_lean(&s.by_neighborhood, kind);
+            clamp(base + reg + rng.normal(0.0, s.noise_sd), -1.0, 1.0) as f32
+        })
+        .collect()
 }
 
 /// Build the starting population from worldgen's per-neighbourhood totals.
-pub fn init(world: &World, totals: &[u64], world_seed: u64, wealthy: bool) -> PopulationState {
-    let region_culture: Vec<[f64; ATTITUDES]> = (0..world.regions.len())
+pub fn init(
+    world: &World,
+    totals: &[u64],
+    world_seed: u64,
+    wealthy: bool,
+    attitudes: &[mandate_content::AttitudeDef],
+) -> PopulationState {
+    let region_culture: Vec<Vec<f64>> = (0..world.regions.len())
         .map(|r| {
             let mut rng =
                 mandate_core::rng::keyed(world_seed, Stream::Population, &[0xC0170, r as u64]);
-            let mut v = [0.0; ATTITUDES];
-            for x in v.iter_mut() {
-                *x = rng.normal(0.0, 0.14);
-            }
-            v
+            attitudes
+                .iter()
+                .map(|a| rng.normal(0.0, a.seed.regional_sd))
+                .collect()
         })
         .collect();
     let mut hoods = Vec::with_capacity(world.neighborhoods.len());
@@ -222,7 +227,14 @@ pub fn init(world: &World, totals: &[u64], world_seed: u64, wealthy: bool) -> Po
                 let turnout = [0.42, 0.55, 0.66, 0.74][a] + [-0.08, 0.0, 0.1][c];
                 cohorts.push(Cohort {
                     count,
-                    attitudes: seed_attitudes(&mut rng, a, c, n.kind, &region_culture[region]),
+                    attitudes: seed_attitudes(
+                        &mut rng,
+                        attitudes,
+                        a,
+                        c,
+                        n.kind,
+                        &region_culture[region],
+                    ),
                     trust: clamp(
                         0.55 + [-0.08, 0.0, 0.06][c] + rng.normal(0.0, 0.05),
                         0.0,
@@ -242,11 +254,83 @@ pub fn init(world: &World, totals: &[u64], world_seed: u64, wealthy: bool) -> Po
         hoods.push(HoodPop { children, cohorts });
     }
     PopulationState {
+        attitude_keys: attitudes.iter().map(|a| a.key.clone()).collect(),
         hoods,
         moves_ytd: 0,
         history: Vec::new(),
         last_election_seen: None,
     }
+}
+
+/// Re-key every attitude vector in the state to the content's attitude
+/// registry (DEC-075), for a save loaded into content that added or reordered
+/// attitudes. Values are kept under their key. A new attitude starts without
+/// randomness: cohorts at their seeding model's mean for their class, age, and
+/// neighbourhood kind (no regional offset or noise); politicians at the
+/// turnout-weighted view of their home neighbourhood; party platforms and
+/// factions neutral (0). Content that removed an attitude the state uses is
+/// refused before this runs (`engine::missing_references`). Returns whether
+/// anything changed.
+pub fn remap_attitudes(
+    pop: &mut PopulationState,
+    politics: &mut crate::politics::PoliticsState,
+    world: &World,
+    content: &mandate_content::ContentBundle,
+) -> bool {
+    let keys: Vec<String> = content.attitude_keys().cloned().collect();
+    if pop.attitude_keys == keys {
+        return false;
+    }
+    let old: Vec<Option<usize>> = keys
+        .iter()
+        .map(|k| pop.attitude_keys.iter().position(|o| o == k))
+        .collect();
+    let remap = |v: &[f32], fresh: &dyn Fn(usize) -> f32| -> Vec<f32> {
+        old.iter()
+            .enumerate()
+            .map(|(i, o)| match o.and_then(|j| v.get(j)) {
+                Some(x) => *x,
+                None => fresh(i),
+            })
+            .collect()
+    };
+    for (h, hp) in pop.hoods.iter_mut().enumerate() {
+        let Some(kind) = world.neighborhoods.get(h).map(|n| n.kind) else {
+            continue;
+        };
+        for a in 0..AGE_BANDS {
+            for c in 0..CLASSES {
+                let Some(co) = hp.cohorts.get_mut(cohort_index(a, c)) else {
+                    continue;
+                };
+                co.attitudes = remap(&co.attitudes, &|i| {
+                    let s = &content.attitudes[i].seed;
+                    clamp(
+                        s.by_class[c] + s.by_age[a] + kind_lean(&s.by_neighborhood, kind),
+                        -1.0,
+                        1.0,
+                    ) as f32
+                });
+            }
+        }
+    }
+    pop.attitude_keys = keys;
+    for p in politics.politicians.iter_mut() {
+        let home = p.home as usize;
+        let local = if home < pop.hoods.len() {
+            crate::politics::mean_attitudes(pop, &[home])
+        } else {
+            vec![0.0; pop.attitude_count()]
+        };
+        p.attitudes = remap(&p.attitudes, &|i| local[i]);
+    }
+    for party in politics.parties.iter_mut() {
+        party.platform = remap(&party.platform, &|_| 0.0);
+        for f in party.factions.iter_mut() {
+            f.position = remap(&f.position, &|_| 0.0);
+        }
+    }
+    true
 }
 
 // --- Systems ------------------------------------------------------------------
@@ -262,9 +346,8 @@ fn shift(h: &mut HoodPop, from: usize, to: usize, n: u32) {
     let dst = &mut h.cohorts[to];
     let total = dst.count as f64 + n as f64;
     let w_new = n as f64 / total;
-    for k in 0..ATTITUDES {
-        dst.attitudes[k] =
-            (dst.attitudes[k] as f64 * (1.0 - w_new) + src.attitudes[k] as f64 * w_new) as f32;
+    for (d, s) in dst.attitudes.iter_mut().zip(&src.attitudes) {
+        *d = (*d as f64 * (1.0 - w_new) + *s as f64 * w_new) as f32;
     }
     let mix = |a: f32, b: f32| (a as f64 * (1.0 - w_new) + b as f64 * w_new) as f32;
     dst.trust = mix(dst.trust, src.trust);
@@ -435,7 +518,8 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
         .flat_map(|a| (0..CLASSES).map(move |c| cohort_index(a, c)))
         .collect();
     let mut movers = vec![[0u64; COHORTS]; nm];
-    let mut mover_att = vec![[[0.0f64; ATTITUDES]; COHORTS]; nm];
+    let na = pop.attitude_count();
+    let mut mover_att = vec![vec![vec![0.0f64; na]; COHORTS]; nm];
     let np = pop
         .hoods
         .first()
@@ -476,7 +560,7 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let d0 = gravity_scale(world);
     // Arrivals are pooled per destination and cohort, then settled once.
     let mut arr_n = vec![[0u64; COHORTS]; nm];
-    let mut arr_att = vec![[[0.0f64; ATTITUDES]; COHORTS]; nm];
+    let mut arr_att = vec![vec![vec![0.0f64; na]; COHORTS]; nm];
     let mut arr_pid = vec![vec![vec![0.0f64; np]; COHORTS]; nm];
     let mut weights = vec![0.0f64; nm];
     for origin in 0..nm {
@@ -521,7 +605,7 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 }
                 let f = share as f64 / total as f64;
                 arr_n[m][k] += share;
-                for j in 0..ATTITUDES {
+                for j in 0..na {
                     arr_att[m][k][j] += mover_att[origin][k][j] * f;
                 }
                 for j in 0..np {
@@ -681,8 +765,9 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             - 1.5 * mods.disruption;
         // Reactions to laws and bills, pre-summed into one weighted signature
         // per town (linear in attitudes, so each cohort needs one dot product).
-        let mut gov_vec = [0.0f64; ATTITUDES];
-        let mut player_vec = [0.0f64; ATTITUDES];
+        let na = pop.attitude_count();
+        let mut gov_vec = vec![0.0f64; na];
+        let mut player_vec = vec![0.0f64; na];
         let mut n_gov = 0usize;
         let mut grievance = [[0.0f64; CLASSES]; AGE_BANDS];
         let mut player_grievance = [[0.0f64; CLASSES]; AGE_BANDS];
@@ -695,7 +780,8 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             let Some(t) = r.content.policies.get(&p.template) else {
                 continue;
             };
-            let norm: f64 = t.signature.iter().map(|x| x.abs()).sum();
+            let sig = &t.signature_weights;
+            let norm: f64 = sig.iter().map(|x| x.abs()).sum();
             if norm <= 0.0 {
                 continue;
             }
@@ -704,12 +790,12 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                 .sponsor
                 .and_then(|s| pol.get(s))
                 .is_some_and(|s| s.is_player);
-            for k in 0..ATTITUDES {
+            for k in 0..na.min(sig.len()) {
                 if p.status != PolicyStatus::UnderConsideration {
-                    gov_vec[k] += w * t.signature[k];
+                    gov_vec[k] += w * sig[k];
                 }
                 if mine {
-                    player_vec[k] += w * t.signature[k];
+                    player_vec[k] += w * sig[k];
                 }
             }
             if p.status != PolicyStatus::UnderConsideration {
@@ -747,9 +833,9 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                 let a = ci / CLASSES;
                 let mut gov_react = 0.0;
                 let mut player_react = 0.0;
-                for k in 0..ATTITUDES {
-                    gov_react += gov_vec[k] * c.attitudes[k] as f64;
-                    player_react += player_vec[k] * c.attitudes[k] as f64;
+                for (k, a) in c.attitudes.iter().enumerate().take(na) {
+                    gov_react += gov_vec[k] * *a as f64;
+                    player_react += player_vec[k] * *a as f64;
                 }
                 let class = ci % CLASSES;
                 let gov_react = clamp(gov_react * gov_scale - grievance[a][class], -2.0, 2.0);

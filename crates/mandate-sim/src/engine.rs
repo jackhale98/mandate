@@ -49,6 +49,12 @@ pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String>
             out.push(k.clone());
         }
     }
+    // Nor can opinions on an attitude the content no longer has (DEC-075).
+    for k in &state.population.attitude_keys {
+        if content.attitude_index(k).is_none() && !out.contains(k) {
+            out.push(k.clone());
+        }
+    }
     out
 }
 
@@ -89,6 +95,13 @@ impl Engine {
         // New content may add or reorder sectors: re-key sector data. (Content
         // that removed one of the save's sectors was refused above.)
         crate::economy::remap_sectors(&mut state.economy, &state.world, &state.meta, &content);
+        // Likewise attitudes: re-key every attitude vector by attitude key.
+        crate::population::remap_attitudes(
+            &mut state.population,
+            &mut state.politics,
+            &state.world,
+            &content,
+        );
         Ok(Engine {
             state,
             terrain: None,

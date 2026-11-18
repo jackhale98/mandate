@@ -5,7 +5,7 @@
 
 use crate::events::{EventId, EventKind};
 use crate::politics::{PoliticianId, PoliticsState, Role, alignment, mean_attitudes};
-use crate::population::{ATTITUDES, PopulationState};
+use crate::population::PopulationState;
 use crate::scheduler::{Outs, Reads};
 use crate::world::{ConstituencyId, MunicipalityId, World};
 use mandate_content::{
@@ -321,7 +321,7 @@ pub fn public_support(t: &PolicyTemplate, pop: &PopulationState, hoods: &[usize]
     for &h in hoods {
         for c in &pop.hoods[h].cohorts {
             let weight = c.count as f64 * c.turnout as f64;
-            acc += alignment(&t.signature, &c.attitudes) * weight;
+            acc += alignment(&t.signature_weights, &c.attitudes) * weight;
             w += weight;
         }
     }
@@ -336,7 +336,7 @@ pub fn support_by_class(t: &PolicyTemplate, pop: &PopulationState, hoods: &[usiz
         for (k, c) in pop.hoods[h].cohorts.iter().enumerate() {
             let class = k % 3;
             let weight = c.count as f64 * c.turnout as f64;
-            acc[class] += alignment(&t.signature, &c.attitudes) * weight;
+            acc[class] += alignment(&t.signature_weights, &c.attitudes) * weight;
             w[class] += weight;
         }
     }
@@ -360,7 +360,7 @@ pub struct VoteInputs<'a> {
 }
 
 pub fn vote_lean(p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
-    let own = alignment(&v.template.signature, &p.attitudes);
+    let own = alignment(&v.template.signature_weights, &p.attitudes);
     let earmark = v
         .instance
         .clauses
@@ -436,7 +436,9 @@ pub fn council_leans(
     let mayor_lean = council
         .mayor
         .and_then(|m| pol.get(m))
-        .map(|m| alignment(&t.signature, &m.attitudes) * 0.6 + public_support(t, pop, &all) * 0.4)
+        .map(|m| {
+            alignment(&t.signature_weights, &m.attitudes) * 0.6 + public_support(t, pop, &all) * 0.4
+        })
         .unwrap_or(0.0);
     let sponsor_is_player = inst
         .sponsor
@@ -815,6 +817,6 @@ pub fn ward_hoods(world: &World, ward: ConstituencyId) -> Vec<usize> {
         .unwrap_or_default()
 }
 
-pub fn attitudes_of(pop: &PopulationState, hoods: &[usize]) -> [f32; ATTITUDES] {
+pub fn attitudes_of(pop: &PopulationState, hoods: &[usize]) -> Vec<f32> {
     mean_attitudes(pop, hoods)
 }

@@ -4,7 +4,7 @@
 //! so they reflect the coalitions that actually exist in this world. Each
 //! party is a coalition of two factions (its wings), which set the platform.
 
-use crate::population::{ATTITUDE_KEYS, ATTITUDES, PopulationState};
+use crate::population::PopulationState;
 use mandate_content::PoliticsParams;
 use mandate_core::{SimRng, define_id};
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,8 @@ define_id!(
 pub struct Faction {
     /// Fluent key suffix for the wing, e.g. `left` → `faction-left`.
     pub wing: String,
-    pub position: [f32; ATTITUDES],
+    /// One value per attitude, in registry order.
+    pub position: Vec<f32>,
     /// Share of the party's weight (0..1); shifts with members' success.
     pub strength: f32,
 }
@@ -28,8 +29,9 @@ pub struct Party {
     pub id: PartyId,
     pub name: String,
     pub short: String,
-    /// The platform: factions blended by strength.
-    pub platform: [f32; ATTITUDES],
+    /// The platform: factions blended by strength (one value per attitude,
+    /// in registry order).
+    pub platform: Vec<f32>,
     pub factions: Vec<Faction>,
     /// Stable colour slot for the UI (never re-assigned).
     pub colour: u8,
@@ -43,10 +45,10 @@ impl Party {
             .map(|f| f.strength)
             .sum::<f32>()
             .max(1e-6);
-        let mut p = [0.0f32; ATTITUDES];
+        let mut p = vec![0.0f32; self.platform.len()];
         for f in &self.factions {
-            for k in 0..ATTITUDES {
-                p[k] += f.position[k] * f.strength / total;
+            for (k, x) in p.iter_mut().enumerate() {
+                *x += f.position.get(k).copied().unwrap_or(0.0) * f.strength / total;
             }
         }
         self.platform = p;
@@ -55,30 +57,27 @@ impl Party {
 
 /// A weighted attitude sample (one neighbourhood cohort).
 struct Sample {
-    x: [f64; ATTITUDES],
+    x: Vec<f64>,
     w: f64,
 }
 
-fn to_f32(x: &[f64; ATTITUDES]) -> [f32; ATTITUDES] {
-    let mut o = [0.0f32; ATTITUDES];
-    for k in 0..ATTITUDES {
-        o[k] = x[k] as f32;
-    }
-    o
+fn to_f32(x: &[f64]) -> Vec<f32> {
+    x.iter().map(|v| *v as f32).collect()
 }
 
 /// Generate parties from the electorate. Largest first.
 pub fn generate(pop: &PopulationState, params: &PoliticsParams, rng: &mut SimRng) -> Vec<Party> {
+    let na = pop.attitude_count();
     let mut samples = Vec::new();
-    let mut mean = [0.0f64; ATTITUDES];
+    let mut mean = vec![0.0f64; na];
     let mut wsum = 0.0;
     for h in &pop.hoods {
         for c in &h.cohorts {
             if c.count == 0 {
                 continue;
             }
-            let mut x = [0.0f64; ATTITUDES];
-            for k in 0..ATTITUDES {
+            let mut x = vec![0.0f64; na];
+            for k in 0..na {
                 x[k] = c.attitudes[k] as f64;
                 mean[k] += x[k] * c.count as f64;
             }
@@ -101,20 +100,27 @@ pub fn generate(pop: &PopulationState, params: &PoliticsParams, rng: &mut SimRng
     let mut parties = Vec::new();
     for (i, (centre, _share)) in clusters.iter().enumerate() {
         // Parties sharpen their members' views: platforms sit beyond the cluster mean.
-        let mut platform = [0.0f64; ATTITUDES];
-        for a in 0..ATTITUDES {
+        let mut platform = vec![0.0f64; na];
+        for a in 0..na {
             platform[a] = (mean[a] + (centre[a] - mean[a]) * 1.6).clamp(-1.0, 1.0);
         }
         // Two wings: displaced along the party's most distinctive dimension pair.
         let (d1, _) = distinctive(&platform, &mean);
-        let mut left = platform;
-        let mut right = platform;
-        for a in 0..ATTITUDES {
+        let mut left = platform.clone();
+        let mut right = platform.clone();
+        for a in 0..na {
             let spread = 0.12 * if a == d1 { 2.0 } else { 0.5 };
             left[a] = (platform[a] + spread * (platform[a] - mean[a]).signum()).clamp(-1.0, 1.0);
             right[a] = (platform[a] - spread * (platform[a] - mean[a]).signum()).clamp(-1.0, 1.0);
         }
-        let name = party_name(&platform, &mean, params, rng, &used_names);
+        let name = party_name(
+            &platform,
+            &mean,
+            &pop.attitude_keys,
+            params,
+            rng,
+            &used_names,
+        );
         used_names.push(name.clone());
         let short = name
             .split_whitespace()
@@ -152,41 +158,42 @@ pub fn generate(pop: &PopulationState, params: &PoliticsParams, rng: &mut SimRng
 /// under-represented voters (largest distance from both majors).
 fn major_minor_split(
     samples: &[Sample],
-    mean: &[f64; ATTITUDES],
+    mean: &[f64],
     k: usize,
     rng: &mut SimRng,
-) -> Vec<([f64; ATTITUDES], f64)> {
+) -> Vec<(Vec<f64>, f64)> {
+    let na = mean.len();
     // Weighted covariance and its leading eigenvector by power iteration.
-    let mut cov = [[0.0f64; ATTITUDES]; ATTITUDES];
+    let mut cov = vec![vec![0.0f64; na]; na];
     let mut wsum = 0.0;
     for s in samples {
-        for i in 0..ATTITUDES {
-            for j in 0..ATTITUDES {
+        for i in 0..na {
+            for j in 0..na {
                 cov[i][j] += s.w * (s.x[i] - mean[i]) * (s.x[j] - mean[j]);
             }
         }
         wsum += s.w;
     }
-    let mut v = [0.0f64; ATTITUDES];
+    let mut v = vec![0.0f64; na];
     for x in v.iter_mut() {
         *x = 0.5 + rng.next_f64();
     }
     for _ in 0..60 {
-        let mut nv = [0.0f64; ATTITUDES];
-        for i in 0..ATTITUDES {
-            for j in 0..ATTITUDES {
+        let mut nv = vec![0.0f64; na];
+        for i in 0..na {
+            for j in 0..na {
                 nv[i] += cov[i][j] * v[j];
             }
         }
         let n = mandate_core::math::sqrt(nv.iter().map(|x| x * x).sum::<f64>()).max(1e-12);
-        for i in 0..ATTITUDES {
+        for i in 0..na {
             v[i] = nv[i] / n;
         }
     }
     let mut proj: Vec<(f64, usize)> = samples
         .iter()
         .enumerate()
-        .map(|(i, s)| ((0..ATTITUDES).map(|a| (s.x[a] - mean[a]) * v[a]).sum(), i))
+        .map(|(i, s)| ((0..na).map(|a| (s.x[a] - mean[a]) * v[a]).sum(), i))
         .collect();
     proj.sort_by(|a, b| a.0.total_cmp(&b.0));
     let mut acc = 0.0;
@@ -196,11 +203,11 @@ fn major_minor_split(
         side[*i] = if acc <= wsum / 2.0 { 0 } else { 1 };
     }
     let centre = |pick: &dyn Fn(usize) -> bool| {
-        let mut c = [0.0f64; ATTITUDES];
+        let mut c = vec![0.0f64; na];
         let mut w = 0.0;
         for (i, s) in samples.iter().enumerate() {
             if pick(i) {
-                for a in 0..ATTITUDES {
+                for a in 0..na {
                     c[a] += s.x[a] * s.w;
                 }
                 w += s.w;
@@ -216,26 +223,26 @@ fn major_minor_split(
     // axes 2, 3, …), e.g. a green or localist party.
     let mut axes = vec![v];
     while out.len() < k {
-        let mut u = [0.0f64; ATTITUDES];
+        let mut u = vec![0.0f64; na];
         for x in u.iter_mut() {
             *x = 0.5 + rng.next_f64();
         }
         for _ in 0..60 {
-            let mut nu = [0.0f64; ATTITUDES];
-            for i in 0..ATTITUDES {
-                for j in 0..ATTITUDES {
+            let mut nu = vec![0.0f64; na];
+            for i in 0..na {
+                for j in 0..na {
                     nu[i] += cov[i][j] * u[j];
                 }
             }
             // Orthogonalise against the axes already used (deflation).
             for a in &axes {
-                let d: f64 = (0..ATTITUDES).map(|i| nu[i] * a[i]).sum();
-                for i in 0..ATTITUDES {
+                let d: f64 = (0..na).map(|i| nu[i] * a[i]).sum();
+                for i in 0..na {
                     nu[i] -= d * a[i];
                 }
             }
             let n = mandate_core::math::sqrt(nu.iter().map(|x| x * x).sum::<f64>()).max(1e-12);
-            for i in 0..ATTITUDES {
+            for i in 0..na {
                 u[i] = nu[i] / n;
             }
         }
@@ -245,9 +252,7 @@ fn major_minor_split(
             .enumerate()
             .map(|(i, s)| {
                 (
-                    sign * (0..ATTITUDES)
-                        .map(|a| (s.x[a] - mean[a]) * u[a])
-                        .sum::<f64>(),
+                    sign * (0..na).map(|a| (s.x[a] - mean[a]) * u[a]).sum::<f64>(),
                     i,
                 )
             })
@@ -270,10 +275,10 @@ fn major_minor_split(
 }
 
 /// The attitude dimension where the platform departs most from the mean, and its sign.
-fn distinctive(platform: &[f64; ATTITUDES], mean: &[f64; ATTITUDES]) -> (usize, f64) {
+fn distinctive(platform: &[f64], mean: &[f64]) -> (usize, f64) {
     let mut best = 0;
     let mut bv = 0.0f64;
-    for a in 0..ATTITUDES {
+    for a in 0..platform.len().min(mean.len()) {
         let d = platform[a] - mean[a];
         if d.abs() > bv.abs() {
             bv = d;
@@ -284,14 +289,15 @@ fn distinctive(platform: &[f64; ATTITUDES], mean: &[f64; ATTITUDES]) -> (usize, 
 }
 
 fn party_name(
-    platform: &[f64; ATTITUDES],
-    mean: &[f64; ATTITUDES],
+    platform: &[f64],
+    mean: &[f64],
+    keys: &[String],
     params: &PoliticsParams,
     rng: &mut SimRng,
     used: &[String],
 ) -> String {
     // Try dimensions from most to least distinctive until a fresh name appears.
-    let mut dims: Vec<usize> = (0..ATTITUDES).collect();
+    let mut dims: Vec<usize> = (0..platform.len().min(keys.len())).collect();
     dims.sort_by(|a, b| {
         (platform[*b] - mean[*b])
             .abs()
@@ -302,7 +308,7 @@ fn party_name(
             .party_names
             .by_attitude
             .iter()
-            .find(|w| w.attitude == ATTITUDE_KEYS[a])
+            .find(|w| w.attitude == keys[a])
         else {
             continue;
         };
@@ -328,21 +334,18 @@ fn party_name(
 
 /// Attachment of a cohort to each party (sums to ≤ `attached`): closer
 /// platforms attract more, sharpened by `sharpness`.
-pub fn attachment(
-    attitudes: &[f32; ATTITUDES],
-    parties: &[Party],
-    attached: f64,
-    sharpness: f64,
-) -> Vec<f32> {
+pub fn attachment(attitudes: &[f32], parties: &[Party], attached: f64, sharpness: f64) -> Vec<f32> {
     if parties.is_empty() {
         return Vec::new();
     }
     let scores: Vec<f64> = parties
         .iter()
         .map(|p| {
-            let d: f64 = (0..ATTITUDES)
-                .map(|k| {
-                    let x = attitudes[k] as f64 - p.platform[k] as f64;
+            let d: f64 = attitudes
+                .iter()
+                .zip(&p.platform)
+                .map(|(a, q)| {
+                    let x = *a as f64 - *q as f64;
                     x * x
                 })
                 .sum();
@@ -359,13 +362,15 @@ pub fn attachment(
 }
 
 /// The party whose platform is nearest an attitude vector.
-pub fn nearest_party(attitudes: &[f32; ATTITUDES], parties: &[Party]) -> Option<PartyId> {
+pub fn nearest_party(attitudes: &[f32], parties: &[Party]) -> Option<PartyId> {
     parties
         .iter()
         .map(|p| {
-            let d: f64 = (0..ATTITUDES)
-                .map(|k| {
-                    let x = attitudes[k] as f64 - p.platform[k] as f64;
+            let d: f64 = attitudes
+                .iter()
+                .zip(&p.platform)
+                .map(|(a, q)| {
+                    let x = *a as f64 - *q as f64;
                     x * x
                 })
                 .sum();

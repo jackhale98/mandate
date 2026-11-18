@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (6, "2b1b391969488e0e");
+    const EXPECTED: (u16, &str) = (7, "d578ee7b8a0055fc");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -219,4 +219,121 @@ fn save_refuses_content_that_removes_a_sector() {
         .err()
         .expect("a removed sector refuses to load");
     assert!(err.to_string().contains("sector.fishing"), "{err}");
+}
+
+/// Base content plus an expansion that adds a `land_rights` attitude. The pack
+/// path sorts before `base/`, so the new attitude comes first in the registry
+/// and every existing attitude's index shifts (DEC-075).
+fn content_with_land_rights() -> Arc<mandate_content::ContentBundle> {
+    let mut src =
+        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
+    src.push(mandate_content::Source {
+        path: "aa_land/attitudes.jsonc".into(),
+        text: r#"{"kind":"attitudes","items":[{"id":"attitude.land_rights","key":"land_rights","seed":{"by_class":[0.2,0.0,-0.2],"by_neighborhood":{"rural":0.3}}}]}"#.into(),
+    });
+    src.push(mandate_content::Source {
+        path: "aa_land/locale/en/land.ftl".into(),
+        text:
+            "conviction-pro-land_rights = Land back\nconviction-anti-land_rights = Settled title\n"
+                .into(),
+    });
+    Arc::new(load(&src).unwrap().0)
+}
+
+#[test]
+fn save_loads_into_content_that_adds_an_attitude() {
+    let mut e = generate(
+        &WorldConfig {
+            seed: 43,
+            size: WorldSize::Small,
+            preset: None,
+        },
+        content(),
+    )
+    .unwrap();
+    for _ in 0..5 {
+        e.apply(Command::EndTurn).unwrap();
+    }
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    let before_pop = state.population.clone();
+    let before_pol = state.politics.clone();
+    let old_keys = before_pop.attitude_keys.clone();
+    assert_eq!(old_keys.len(), 8);
+
+    let land = content_with_land_rights();
+    assert_eq!(land.attitude_index("land_rights"), Some(0));
+    let mut e2 =
+        mandate_sim::Engine::from_state(state, land.clone()).expect("extra attitude loads");
+    let s = e2.state();
+    let keys: Vec<String> = land.attitude_keys().cloned().collect();
+    assert_eq!(s.population.attitude_keys, keys);
+    // Every value is kept under its key.
+    let moved = |new: &[f32], old: &[f32]| {
+        assert_eq!(new.len(), keys.len());
+        for (oi, k) in old_keys.iter().enumerate() {
+            assert_eq!(new[land.attitude_index(k).unwrap()], old[oi], "{k}");
+        }
+    };
+    for (h, hp) in s.population.hoods.iter().enumerate() {
+        let rural = s.world.neighborhoods[h].kind == mandate_sim::world::NeighborhoodKind::Rural;
+        for (k, c) in hp.cohorts.iter().enumerate() {
+            moved(&c.attitudes, &before_pop.hoods[h].cohorts[k].attitudes);
+            // The new issue starts at its seeding model's mean (no randomness).
+            let class = k % mandate_sim::population::CLASSES;
+            let want = [0.2, 0.0, -0.2][class] + if rural { 0.3 } else { 0.0 };
+            assert!((c.attitudes[0] as f64 - want).abs() < 1e-6);
+        }
+    }
+    for (p, old) in s.politics.politicians.iter().zip(&before_pol.politicians) {
+        moved(&p.attitudes, &old.attitudes);
+        assert!(p.attitudes[0].is_finite());
+    }
+    for (p, old) in s.politics.parties.iter().zip(&before_pol.parties) {
+        moved(&p.platform, &old.platform);
+        assert_eq!(p.platform[0], 0.0, "parties start neutral on the new issue");
+        for (f, of) in p.factions.iter().zip(&old.factions) {
+            moved(&f.position, &of.position);
+        }
+    }
+    assert!(
+        s.events
+            .iter()
+            .any(|ev| matches!(ev.kind, mandate_sim::events::EventKind::RulesUpdated { .. }))
+    );
+
+    e2.apply(Command::AdvanceDays { days: 365 }).unwrap();
+    let s = e2.state();
+    for hp in &s.population.hoods {
+        for c in &hp.cohorts {
+            assert_eq!(c.attitudes.len(), keys.len());
+            assert!(c.attitudes.iter().all(|a| a.is_finite() && a.abs() <= 1.0));
+        }
+    }
+    for p in &s.politics.politicians {
+        assert_eq!(p.attitudes.len(), keys.len());
+    }
+    // Saves of the remapped run round-trip.
+    let (bytes, _) = encode(s, &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    assert_eq!(state.hash(), e2.state_hash());
+}
+
+#[test]
+fn save_refuses_content_that_removes_an_attitude() {
+    let e = generate(
+        &WorldConfig {
+            seed: 44,
+            size: WorldSize::Small,
+            preset: None,
+        },
+        content_with_land_rights(),
+    )
+    .unwrap();
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    let err = mandate_sim::Engine::from_state(state, content())
+        .err()
+        .expect("a removed attitude refuses to load");
+    assert!(err.to_string().contains("land_rights"), "{err}");
 }

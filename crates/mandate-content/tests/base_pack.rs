@@ -20,6 +20,19 @@ fn base_pack_is_valid() {
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(bundle.sectors.len(), 8);
     assert_eq!(bundle.tuning.standard_slots, 3);
+    // Attitudes are a registry (DEC-075); keyed signatures resolve densely in
+    // registry order, with omitted attitudes at 0.
+    assert_eq!(bundle.attitudes.len(), 8);
+    assert_eq!(bundle.attitude_index("redistribution"), Some(0));
+    let police = &bundle.policies["policy.police_staffing"];
+    assert_eq!(police.signature_weights.len(), 8);
+    let lo = bundle.attitude_index("law_and_order").unwrap();
+    assert_eq!(
+        police.signature_weights[lo],
+        police.signature["law_and_order"]
+    );
+    let env = bundle.attitude_index("environment").unwrap();
+    assert_eq!(police.signature_weights[env], 0.0);
 }
 
 #[test]

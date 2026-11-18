@@ -3,6 +3,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// Stable content identifier, e.g. `sector.manufacturing`.
 pub type ContentKey = String;
@@ -17,6 +18,8 @@ pub enum ContentFile {
     Tuning { value: Tuning },
     /// Economic sectors (DEC-019).
     Sectors { items: Vec<SectorDef> },
+    /// Attitude dimensions: the issues voters hold views on (DEC-025, DEC-075).
+    Attitudes { items: Vec<AttitudeDef> },
     /// Name-generation pools for places and people.
     NamePools { items: Vec<NamePoolDef> },
     /// Economy and demography parameters (REQ-005).
@@ -335,8 +338,14 @@ pub struct PolicyTemplate {
     pub cost: CostDef,
     pub mechanisms: Vec<MechanismDef>,
     pub implementation_months: u16,
-    /// Value alignment over the 8 attitude dimensions (DEC-025 anticipated channel).
-    pub signature: [f64; 8],
+    /// Value alignment by attitude key (DEC-025 anticipated channel, DEC-075).
+    /// Attitudes left out weigh 0.
+    pub signature: BTreeMap<String, f64>,
+    /// `signature` resolved to a dense vector in attitude-registry order at
+    /// load, so hot loops never look up keys. Not part of the content format.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub signature_weights: Vec<f64>,
     /// Fluent keys for at least one secondary effect (REQ-006).
     pub secondary_keys: Vec<String>,
     /// Simulated downsides (DEC-073): every policy costs something besides money.
@@ -516,6 +525,82 @@ impl SectorDriver {
         SectorDriver::LocalServices,
         SectorDriver::Public,
     ];
+}
+
+/// An attitude dimension (DEC-075): an issue every cohort, politician, and
+/// party holds a position on, in [-1, 1]. Registry order is load order (files
+/// by path, then item order); the engine stores attitudes densely in that order.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AttitudeDef {
+    /// Content id, e.g. `attitude.redistribution`.
+    pub id: ContentKey,
+    /// Short key used in policy signatures, party-name words, and Fluent keys
+    /// (`conviction-pro-<key>`, `conviction-anti-<key>`), e.g. `redistribution`.
+    pub key: String,
+    /// How starting opinions are seeded (DEC-018).
+    #[serde(default)]
+    pub seed: AttitudeSeed,
+}
+
+/// Starting-opinion model for one attitude. A cohort's position is
+/// `by_class + by_age + by_neighborhood + regional offset + noise`, clamped to
+/// [-1, 1]. Each region draws its own cultural offset once per attitude.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AttitudeSeed {
+    /// Lean by income class: `[low, middle, high]`.
+    #[serde(default)]
+    pub by_class: [f64; 3],
+    /// Lean by age band: `[18–29, 30–44, 45–64, 65+]`.
+    #[serde(default)]
+    pub by_age: [f64; 4],
+    /// Lean by neighbourhood kind.
+    #[serde(default)]
+    pub by_neighborhood: NeighborhoodLean,
+    /// Standard deviation of each region's cultural offset.
+    #[serde(default = "default_regional_sd")]
+    pub regional_sd: f64,
+    /// Standard deviation of each cohort's individual variation.
+    #[serde(default = "default_noise_sd")]
+    pub noise_sd: f64,
+}
+
+fn default_regional_sd() -> f64 {
+    0.14
+}
+fn default_noise_sd() -> f64 {
+    0.08
+}
+
+impl Default for AttitudeSeed {
+    fn default() -> Self {
+        AttitudeSeed {
+            by_class: [0.0; 3],
+            by_age: [0.0; 4],
+            by_neighborhood: NeighborhoodLean::default(),
+            regional_sd: default_regional_sd(),
+            noise_sd: default_noise_sd(),
+        }
+    }
+}
+
+/// A value per neighbourhood kind (omitted kinds are 0).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct NeighborhoodLean {
+    #[serde(default)]
+    pub core: f64,
+    #[serde(default)]
+    pub inner: f64,
+    #[serde(default)]
+    pub waterfront: f64,
+    #[serde(default)]
+    pub industrial: f64,
+    #[serde(default)]
+    pub suburb: f64,
+    #[serde(default)]
+    pub rural: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -886,6 +971,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "sectors" => ContentFile::Sectors {
             items: serde_json::from_str::<ItemsFile<SectorDef>>(json)?.items,
+        },
+        "attitudes" => ContentFile::Attitudes {
+            items: serde_json::from_str::<ItemsFile<AttitudeDef>>(json)?.items,
         },
         "name_pools" => ContentFile::NamePools {
             items: serde_json::from_str::<ItemsFile<NamePoolDef>>(json)?.items,

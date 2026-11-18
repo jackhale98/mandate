@@ -12,7 +12,7 @@
 use super::parties::PartyId;
 use super::{Council, PoliticianId, PoliticsState, Role, mean_attitudes, new_politician};
 use crate::events::EventKind;
-use crate::population::{ATTITUDES, Cohort, PopulationState};
+use crate::population::{Cohort, PopulationState};
 use crate::scheduler::{Outs, Reads};
 use crate::world::{ConstituencyId, MunicipalityId, Tier, World};
 use mandate_content::{ElectionCalendarDef, ElectionTiming, PoliticsParams, TierKey};
@@ -513,9 +513,12 @@ fn recruit(
 ) -> PoliticianId {
     let hs: Vec<usize> = hoods.iter().map(|h| *h as usize).collect();
     let local = mean_attitudes(pop, &hs);
-    let platform = st.party(party).map(|p| p.platform).unwrap_or(local);
-    let mut att = [0.0f32; ATTITUDES];
-    for k in 0..ATTITUDES {
+    let platform = st
+        .party(party)
+        .map(|p| p.platform.clone())
+        .unwrap_or_else(|| local.clone());
+    let mut att = vec![0.0f32; local.len()];
+    for k in 0..att.len().min(platform.len()) {
         att[k] = clamp(
             0.55 * platform[k] as f64 + 0.45 * local[k] as f64 + rng.normal(0.0, 0.12),
             -1.0,
@@ -747,7 +750,7 @@ struct RaceCtx<'a> {
     params: &'a PoliticsParams,
     pop: &'a PopulationState,
     player: Option<PoliticianId>,
-    mean: [f32; ATTITUDES],
+    mean: Vec<f32>,
     beta: f64,
     turnout_mult: f64,
     media: f64,
@@ -757,17 +760,18 @@ struct RaceCtx<'a> {
 }
 
 /// Mean attitude standard deviation across a set of neighbourhoods (polarisation).
-fn polarisation(pop: &PopulationState, hoods: &[u32], mean: &[f32; ATTITUDES]) -> f64 {
+fn polarisation(pop: &PopulationState, hoods: &[u32], mean: &[f32]) -> f64 {
+    let na = mean.len();
     let mut acc = 0.0;
     let mut w = 0.0;
     for &h in hoods {
         for c in &pop.hoods[h as usize].cohorts {
             let n = c.count as f64;
-            for k in 0..ATTITUDES {
+            for k in 0..na {
                 let d = c.attitudes[k] as f64 - mean[k] as f64;
                 acc += d * d * n;
             }
-            w += n * ATTITUDES as f64;
+            w += n * na as f64;
         }
     }
     mandate_core::math::sqrt(acc / w.max(1.0))
@@ -868,24 +872,22 @@ impl RaceCtx<'_> {
                 };
                 let party = cand.party.and_then(|id| self.st.party(id));
                 // Perceived position: the person, coloured by the party label.
-                let mut pos = p.attitudes;
-                if self.race.partisan
-                    && let Some(pt) = party
-                {
-                    for a in 0..ATTITUDES {
-                        pos[a] = 0.6 * p.attitudes[a] + 0.4 * pt.platform[a];
-                    }
-                }
+                // (Computed in place: this is the hottest loop in an election.)
+                let blend = if self.race.partisan { party } else { None };
+                let na = self.mean.len();
                 let mut prox = 0.0;
                 let mut dir = 0.0;
-                for a in 0..ATTITUDES {
+                for a in 0..na {
                     let x = c.attitudes[a] as f64;
-                    let q = pos[a] as f64;
+                    let q = match blend {
+                        Some(pt) => 0.6 * p.attitudes[a] + 0.4 * pt.platform[a],
+                        None => p.attitudes[a],
+                    } as f64;
                     prox -= (x - q) * (x - q);
                     dir += (x - self.mean[a] as f64) * (q - self.mean[a] as f64);
                 }
-                let issue = ((1.0 - self.beta) * prox / ATTITUDES as f64 * 4.0
-                    + self.beta * dir / ATTITUDES as f64 * 4.0)
+                let issue = ((1.0 - self.beta) * prox / na as f64 * 4.0
+                    + self.beta * dir / na as f64 * 4.0)
                     * v.issue_weight;
                 let pid_share = cand
                     .party

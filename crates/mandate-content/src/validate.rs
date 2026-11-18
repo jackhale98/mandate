@@ -137,6 +137,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
 
     for id in b
         .sector_keys()
+        .chain(b.attitudes.iter().map(|a| &a.id))
         .chain(b.name_pools.keys())
         .chain(b.packs.iter().map(|p| &p.id))
     {
@@ -171,6 +172,67 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
             issues.push(Issue::error(
                 "sectors",
                 &format!("the economy needs at least one sector with driver {driver:?}"),
+            ));
+        }
+    }
+    // Attitude registry (DEC-075): at least one, unique short keys usable in
+    // Fluent ids, and finite seeding parameters. Ids are unique (claimed on load).
+    if b.attitudes.is_empty() {
+        issues.push(Issue::error(
+            "attitudes",
+            "at least one attitude is required",
+        ));
+    }
+    for (i, a) in b.attitudes.iter().enumerate() {
+        let short_ok = a.key.starts_with(|c: char| c.is_ascii_lowercase())
+            && a.key
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+        if !short_ok {
+            issues.push(Issue::error(
+                &a.id,
+                "attitude key must be [a-z][a-z0-9_]* (it is used in Fluent ids)",
+            ));
+        }
+        if b.attitudes[..i].iter().any(|x| x.key == a.key) {
+            issues.push(Issue::error(
+                &a.id,
+                &format!("duplicate attitude key `{}`", a.key),
+            ));
+        }
+        let sd = &a.seed;
+        let n = &sd.by_neighborhood;
+        let leans = sd.by_class.iter().chain(&sd.by_age).chain([
+            &n.core,
+            &n.inner,
+            &n.waterfront,
+            &n.industrial,
+            &n.suburb,
+            &n.rural,
+        ]);
+        if leans
+            .into_iter()
+            .any(|v| !(v.is_finite() && (-2.0..=2.0).contains(v)))
+        {
+            issues.push(Issue::error(
+                &a.id,
+                "seed leans must be finite and in [-2, 2]",
+            ));
+        }
+        for (name, v) in [("regional_sd", sd.regional_sd), ("noise_sd", sd.noise_sd)] {
+            if !(v.is_finite() && (0.0..=1.0).contains(&v)) {
+                issues.push(Issue::error(&a.id, &format!("{name} must be in [0, 1]")));
+            }
+        }
+    }
+    for w in &b.politics.party_names.by_attitude {
+        if b.attitude_index(&w.attitude).is_none() {
+            issues.push(Issue::error(
+                "politics.party_names",
+                &format!(
+                    "party-name words reference unknown attitude `{}`",
+                    w.attitude
+                ),
             ));
         }
     }
@@ -288,6 +350,20 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     }
     // Policies: referenced parameters exist; ranges are sane (REQ-006).
     for p in b.policies.values() {
+        for (k, v) in &p.signature {
+            if b.attitude_index(k).is_none() {
+                issues.push(Issue::error(
+                    &p.id,
+                    &format!("signature references unknown attitude `{k}`"),
+                ));
+            }
+            if !(v.is_finite() && (-1.0..=1.0).contains(v)) {
+                issues.push(Issue::error(
+                    &p.id,
+                    &format!("signature weight for `{k}` must be in [-1, 1]"),
+                ));
+            }
+        }
         let has = |id: &str| p.params.iter().any(|x| x.id == id);
         for prm in &p.params {
             if !(prm.min <= prm.default && prm.default <= prm.max && prm.step > 0.0) {
@@ -396,6 +472,17 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
             referenced.push((&p.id, &prm.name_key));
             referenced.push((&p.id, &prm.unit_key));
         }
+    }
+    // Attitudes are named in the UI through their conviction keys.
+    let convictions: Vec<(&str, String)> = b
+        .attitudes
+        .iter()
+        .flat_map(|a| {
+            ["pro", "anti"].map(|side| (a.id.as_str(), format!("conviction-{side}-{}", a.key)))
+        })
+        .collect();
+    for (owner, key) in &convictions {
+        referenced.push((owner, key));
     }
     for (owner, key) in referenced {
         if !en.contains(key) {

@@ -1,0 +1,32 @@
+// Attitude dimensions (DEC-025, DEC-075): the issues voters, politicians, and
+// parties hold positions on, each in [-1, 1]. Attitudes are a registry: an
+// expansion adds an issue here (with `conviction-pro-<key>` and
+// `conviction-anti-<key>` in its locale) and names it in policy signatures.
+// Registry order is load order (files by path, then item order).
+//
+// `seed` sets starting opinions (DEC-018): by_class [low, middle, high] +
+// by_age [18–29, 30–44, 45–64, 65+] + by_neighborhood + a regional offset
+// (sd regional_sd, default 0.14) + cohort noise (sd noise_sd, default 0.08).
+{
+  "kind": "attitudes",
+  "items": [
+    { "id": "attitude.redistribution", "key": "redistribution",
+      "seed": { "by_class": [0.35, 0.0, -0.35], "by_age": [0.1, 0.0, 0.0, 0.0] } },
+    { "id": "attitude.tax_tolerance", "key": "tax_tolerance",
+      "seed": { "by_class": [0.05, -0.08, -0.28], "by_age": [0.0, 0.0, 0.0, -0.05] } },
+    { "id": "attitude.social_liberalism", "key": "social_liberalism",
+      "seed": { "by_age": [0.35, 0.0, 0.0, -0.3],
+                "by_neighborhood": { "core": 0.15, "inner": 0.15, "waterfront": 0.15, "rural": -0.2 } } },
+    { "id": "attitude.environment", "key": "environment",
+      "seed": { "by_age": [0.25, 0.0, 0.0, 0.0],
+                "by_neighborhood": { "core": 0.08, "inner": 0.08, "waterfront": 0.08, "rural": -0.1 } } },
+    { "id": "attitude.law_and_order", "key": "law_and_order",
+      "seed": { "by_age": [-0.1, 0.0, 0.0, 0.3], "by_neighborhood": { "rural": 0.15 } } },
+    { "id": "attitude.localism", "key": "localism",
+      "seed": { "by_neighborhood": { "core": -0.1, "inner": -0.1, "waterfront": -0.1, "rural": 0.3 } } },
+    { "id": "attitude.tradition", "key": "tradition",
+      "seed": { "by_age": [-0.2, 0.0, 0.0, 0.35], "by_neighborhood": { "rural": 0.25 } } },
+    { "id": "attitude.reform_appetite", "key": "reform_appetite",
+      "seed": { "by_class": [0.1, 0.0, -0.1], "by_age": [0.2, 0.0, 0.0, 0.0] } },
+  ],
+}

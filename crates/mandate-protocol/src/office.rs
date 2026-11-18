@@ -10,7 +10,6 @@ use mandate_sim::policy::{
     support_by_class, yes_probability,
 };
 use mandate_sim::politics::{Politician, Role};
-use mandate_sim::population::ATTITUDE_KEYS;
 use mandate_sim::world::{ConstituencyId, MunicipalityId};
 use mandate_sim::{Engine, State};
 use serde::{Deserialize, Serialize};
@@ -353,8 +352,10 @@ fn lean_label(p: f64) -> &'static str {
     }
 }
 
-fn member_view(st: &State, p: &Politician) -> MemberView {
-    let mut idx: Vec<usize> = (0..ATTITUDE_KEYS.len()).collect();
+fn member_view(st: &State, content: &mandate_content::ContentBundle, p: &Politician) -> MemberView {
+    // Convictions iterate the attitude registry (DEC-075).
+    let n = p.attitudes.len().min(content.attitudes.len());
+    let mut idx: Vec<usize> = (0..n).collect();
     idx.sort_by(|a, b| {
         p.attitudes[*b]
             .abs()
@@ -372,7 +373,7 @@ fn member_view(st: &State, p: &Politician) -> MemberView {
                 } else {
                     "anti-"
                 },
-                ATTITUDE_KEYS[k]
+                content.attitudes[k].key
             )
         })
         .collect();
@@ -663,6 +664,17 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
     bills.sort_by_key(|b| (b.status == "ended", std::cmp::Reverse(b.id)));
     let council = st.politics.councils.get(m.index());
     let econ = st.economy.munis.get(m.index());
+    // Issue concerns read attitudes by key; content without one reads neutral.
+    let attitude = |key: &str| {
+        content
+            .attitude_index(key)
+            .map(|i| {
+                weighted(st, &hoods, |c| {
+                    c.attitudes.get(i).copied().unwrap_or(0.0) as f64
+                })
+            })
+            .unwrap_or(0.0)
+    };
     let mut concerns = vec![
         ConcernView {
             key: "jobs".into(),
@@ -676,15 +688,15 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
         },
         ConcernView {
             key: "safety".into(),
-            weight: (0.3 + weighted(st, &hoods, |c| c.attitudes[4] as f64) * 0.5).clamp(0.0, 1.0),
+            weight: (0.3 + attitude("law_and_order") * 0.5).clamp(0.0, 1.0),
         },
         ConcernView {
             key: "environment".into(),
-            weight: (0.3 + weighted(st, &hoods, |c| c.attitudes[3] as f64) * 0.5).clamp(0.0, 1.0),
+            weight: (0.3 + attitude("environment") * 0.5).clamp(0.0, 1.0),
         },
         ConcernView {
             key: "taxes".into(),
-            weight: (0.3 - weighted(st, &hoods, |c| c.attitudes[1] as f64) * 0.5).clamp(0.0, 1.0),
+            weight: (0.3 - attitude("tax_tolerance") * 0.5).clamp(0.0, 1.0),
         },
     ];
     concerns.sort_by(|a, b| b.weight.total_cmp(&a.weight));
@@ -756,14 +768,14 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
                 c.members
                     .iter()
                     .filter_map(|id| st.politics.get(*id))
-                    .map(|p| member_view(st, p))
+                    .map(|p| member_view(st, content, p))
                     .collect()
             })
             .unwrap_or_default(),
         mayor: council
             .and_then(|c| c.mayor)
             .and_then(|id| st.politics.get(id))
-            .map(|p| member_view(st, p)),
+            .map(|p| member_view(st, content, p)),
         town: TownView {
             gov_approval: weighted(st, &hoods, |c| c.gov_approval as f64),
             player_awareness_ward: weighted(st, &ward_hoods, |c| c.player_awareness as f64),

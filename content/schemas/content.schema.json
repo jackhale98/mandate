@@ -183,6 +183,114 @@
       ],
       "type": "object"
     },
+    "AttitudeDef": {
+      "additionalProperties": false,
+      "description": "An attitude dimension (DEC-075): an issue every cohort, politician, and\nparty holds a position on, in [-1, 1]. Registry order is load order (files\nby path, then item order); the engine stores attitudes densely in that order.",
+      "properties": {
+        "id": {
+          "description": "Content id, e.g. `attitude.redistribution`.",
+          "type": "string"
+        },
+        "key": {
+          "description": "Short key used in policy signatures, party-name words, and Fluent keys\n(`conviction-pro-<key>`, `conviction-anti-<key>`), e.g. `redistribution`.",
+          "type": "string"
+        },
+        "seed": {
+          "$ref": "#/$defs/AttitudeSeed",
+          "default": {
+            "by_age": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "by_class": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "by_neighborhood": {
+              "core": 0.0,
+              "industrial": 0.0,
+              "inner": 0.0,
+              "rural": 0.0,
+              "suburb": 0.0,
+              "waterfront": 0.0
+            },
+            "noise_sd": 0.08,
+            "regional_sd": 0.14
+          },
+          "description": "How starting opinions are seeded (DEC-018)."
+        }
+      },
+      "required": [
+        "id",
+        "key"
+      ],
+      "type": "object"
+    },
+    "AttitudeSeed": {
+      "additionalProperties": false,
+      "description": "Starting-opinion model for one attitude. A cohort's position is\n`by_class + by_age + by_neighborhood + regional offset + noise`, clamped to\n[-1, 1]. Each region draws its own cultural offset once per attitude.",
+      "properties": {
+        "by_age": {
+          "default": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "description": "Lean by age band: `[18–29, 30–44, 45–64, 65+]`.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "by_class": {
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "description": "Lean by income class: `[low, middle, high]`.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "by_neighborhood": {
+          "$ref": "#/$defs/NeighborhoodLean",
+          "default": {
+            "core": 0.0,
+            "industrial": 0.0,
+            "inner": 0.0,
+            "rural": 0.0,
+            "suburb": 0.0,
+            "waterfront": 0.0
+          },
+          "description": "Lean by neighbourhood kind."
+        },
+        "noise_sd": {
+          "default": 0.08,
+          "description": "Standard deviation of each cohort's individual variation.",
+          "format": "double",
+          "type": "number"
+        },
+        "regional_sd": {
+          "default": 0.14,
+          "description": "Standard deviation of each region's cultural offset.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "AttitudeWords": {
       "additionalProperties": false,
       "properties": {
@@ -950,6 +1058,43 @@
       ],
       "type": "string"
     },
+    "NeighborhoodLean": {
+      "additionalProperties": false,
+      "description": "A value per neighbourhood kind (omitted kinds are 0).",
+      "properties": {
+        "core": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        },
+        "industrial": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        },
+        "inner": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        },
+        "rural": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        },
+        "suburb": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        },
+        "waterfront": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "OfficeDef": {
       "additionalProperties": false,
       "properties": {
@@ -1152,14 +1297,12 @@
           "type": "array"
         },
         "signature": {
-          "description": "Value alignment over the 8 attitude dimensions (DEC-025 anticipated channel).",
-          "items": {
+          "additionalProperties": {
             "format": "double",
             "type": "number"
           },
-          "maxItems": 8,
-          "minItems": 8,
-          "type": "array"
+          "description": "Value alignment by attitude key (DEC-025 anticipated channel, DEC-075).\nAttitudes left out weigh 0.",
+          "type": "object"
         },
         "tier": {
           "$ref": "#/$defs/TierKey"
@@ -2054,6 +2197,27 @@
         },
         "kind": {
           "const": "sectors",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Attitude dimensions: the issues voters hold views on (DEC-025, DEC-075).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AttitudeDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "attitudes",
           "type": "string"
         }
       },

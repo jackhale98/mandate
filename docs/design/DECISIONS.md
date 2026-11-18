@@ -1457,6 +1457,19 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Content, commands, events, and effects name sectors by content key: `sector_subsidy.sector`, `LabSectorShock`, `PlantClosure`, `SectorShock`, and active shocks. Map views list sectors from the registry, with `id` and `name_key`.
   - Saves record `economy.sector_keys`. `Engine::from_state` remaps sector data by key when the content's registry differs. Matching keys keep their data. A new sector starts with no jobs and a capacity from its endowment, so it grows in over the following months. A removed sector is reported by `missing_references`, and the save is refused.
   - The save format moved to v6. Base-content results are unchanged: sweep metrics, bot win rates, and the economic trace are identical.
+- **Stage 2 implemented (attitudes as a registry, 2026-11-18):**
+  - Attitudes are content entries (`content/base/attitudes.jsonc`), each with an `id` (`attitude.redistribution`), a short `key` (`redistribution`), and a `seed` model: `by_class` [low, middle, high], `by_age` [four bands], `by_neighborhood` (per neighbourhood kind, omitted = 0), `regional_sd` (default 0.14), and `noise_sd` (default 0.08). The numbers that `seed_attitudes` hard-coded moved into content unchanged. The short keys are kept, so Fluent keys (`conviction-pro-<key>`, `conviction-anti-<key>`) and party-name words keyed by attitude still work.
+  - Registry order is load order, as for sectors. The engine stores attitudes as `Vec<f32>` in that order: cohorts, politicians, party platforms, and factions.
+  - Policy `signature` is a map from attitude key to weight (`{ "environment": 0.6, "localism": 0.1 }`, omitted = 0). At load it is resolved to a dense vector in registry order (`PolicyTemplate::signature_weights`), so hot loops never look up keys.
+  - Code that reads a specific issue looks it up by key (`ContentBundle::attitude_index`). The Office card's safety, environment, and taxes concerns read neutral if their attitude is absent. Member convictions and party stances iterate the registry.
+  - Validation requires at least one attitude, unique ids and short keys (`[a-z][a-z0-9_]*`), finite seed values, both conviction Fluent keys for each attitude, and known attitude keys in signatures and party-name words.
+  - Saves record `population.attitude_keys`. `Engine::from_state` re-keys every attitude vector when the content's registry differs. Matching keys keep their values. A new attitude starts without randomness:
+    - cohorts at their seed model's mean for their class, age, and neighbourhood kind (no regional offset or noise);
+    - politicians at the turnout-weighted view of their home neighbourhood;
+    - party platforms and factions at neutral (0).
+
+    A removed attitude is reported by `missing_references`, and the save is refused.
+  - The save format moved to v7. Base-content results are unchanged: sweep metrics, bot win rates, and the economic trace are identical. Decoded states differ only in the content hash and the new `attitude_keys` field.
 
 ### DEC-076 — Difficulty target: rare wins, rich stories
 

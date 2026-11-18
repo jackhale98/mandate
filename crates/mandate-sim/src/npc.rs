@@ -222,7 +222,7 @@ fn inputs_memo(
             let Some(t) = content.policies.get(&p.template) else {
                 continue;
             };
-            let a = alignment(&t.signature, &me.attitudes);
+            let a = alignment(&t.signature_weights, &me.attitudes);
             let stake = if p.sponsor == Some(id) { 1.0 } else { a.abs() };
             if best.is_none_or(|b| stake > b.1) {
                 best = Some((
@@ -293,7 +293,7 @@ fn inputs_memo(
                 {
                     continue;
                 }
-                let own = alignment(&t.signature, &me.attitudes);
+                let own = alignment(&t.signature_weights, &me.attitudes);
                 let public = *memo
                     .support
                     .entry((key, t.id.clone()))
