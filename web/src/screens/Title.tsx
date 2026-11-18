@@ -4,6 +4,7 @@ import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
 import { formatDate } from "../i18n/format";
 import { Loader, LogoMark } from "../components/Brand";
+import { ExportRunButton, ImportRun, TransferStatus, type TransferNotice } from "../components/RunTransfer";
 
 export function Title() {
   const tr = useGame((s) => s.tr);
@@ -18,6 +19,7 @@ export function Title() {
   const scenarios = useGame((s) => s.scenarios);
   const [scenario, setScenario] = useState("");
   const progress = useGame((s) => s.progress);
+  const [notice, setNotice] = useState<TransferNotice | null>(null);
 
   const start = () => {
     const trimmed = seed.trim();
@@ -99,7 +101,10 @@ export function Title() {
             {runs.map((r) => (
               <li key={r.runId} className="run">
                 <div className="run-info">
-                  <strong>{tr.t("ui-mode-label", { mode: r.mode })}</strong>
+                  <strong>
+                    {r.name ? `${r.name} · ` : ""}
+                    {tr.t("ui-mode-label", { mode: r.mode })}
+                  </strong>
                   <span className="muted">
                     {tr.t("ui-run-turn", { turn: r.meta.turn, date: formatDate(tr, r.meta.date) })}
                   </span>
@@ -108,6 +113,7 @@ export function Title() {
                   <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void continueRun(r.runId)}>
                     {tr.t("ui-continue")}
                   </button>
+                  <ExportRunButton run={r} onNotice={setNotice} />
                   <button
                     type="button"
                     className="btn btn-ghost"
@@ -123,6 +129,8 @@ export function Title() {
             ))}
           </ul>
         )}
+        <ImportRun onNotice={setNotice} />
+        <TransferStatus notice={notice} />
       </section>
       <footer className="foot muted">v{__APP_VERSION__}</footer>
     </main>

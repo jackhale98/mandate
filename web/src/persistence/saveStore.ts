@@ -13,6 +13,8 @@ export interface RunRecord {
   meta: SaveMetaDto;
   bytes: Uint8Array;
   updatedAt: string;
+  /** The player's town, for the saved-runs list and export file names. */
+  name?: string | undefined;
 }
 
 export type RunSummary = Omit<RunRecord, "bytes">;

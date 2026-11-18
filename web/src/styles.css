@@ -473,3 +473,13 @@ h2 { font-size: 1.1rem; }
 @media (max-width: 480px) {
   .facts > div { grid-template-columns: 1fr; gap: 0; }
 }
+/* Run export and import (DEC-082) */
+.run-actions { flex-wrap: wrap; }
+.import-run { margin-top: 12px; padding: 12px; border: 1px dashed var(--border); border-radius: 10px; }
+.import-run-drag { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.import-drop-hint { display: none; }
+@media (hover: hover) and (pointer: fine) { .import-drop-hint { display: block; } }
+.transfer-status { margin-top: 10px; padding: 8px 12px; border-radius: 10px; border-left: 3px solid var(--accent); background: var(--surface-2); }
+.transfer-status p { margin: 0; }
+.transfer-error { border-left-color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, var(--surface)); }
+.transfer-detail { overflow-wrap: anywhere; }

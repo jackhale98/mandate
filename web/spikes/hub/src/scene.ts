@@ -1,8 +1,10 @@
 // THROWAWAY SPIKE (DEC-050): renderer-agnostic scene data for the hub
-// rendering prototype. One street block on a 48x32 tile grid, A* on the
-// walkable grid, wandering townsfolk and a player. Nothing here is engine
+// rendering prototype. One street block on a 48x32 tile grid, routing with
+// the M6 hub module (web/src/hub), wandering townsfolk and a player. Nothing here is engine
 // code: in the real game, places come from the simulation and walking is UI
 // state (DEC-009).
+
+import { Walk, buildGrid, facing4, planRoute, type Footprint, type Grid, type Point, type Surface } from "../../../src/hub/pathfinding";
 
 export const TILE = 16;
 export const W = 48;
@@ -53,7 +55,8 @@ export interface Prop {
 export interface Town {
   ground: Uint8Array; // tile type per cell
   blocked: Uint8Array; // 1 = not walkable
-  cost: Uint8Array; // A* step cost (0 = blocked)
+  grid: Grid; // pedestrian costs for routing
+  footprints: Footprint[]; // tap targets, parallel to `buildings`
   buildings: Building[];
   props: Prop[];
   targets: number[]; // cells NPCs like to walk to
@@ -185,136 +188,44 @@ export function generate(seed: number): Town {
     addProp(rng() < 0.3 ? "pine" : "tree", x, y);
   }
 
-  const cost = new Uint8Array(W * H);
+  const surface = (x: number, y: number): Surface => {
+    const i = idx(x, y);
+    if (blocked[i]) return "blocked";
+    const t = ground[i];
+    return t === ROAD ? "road" : t === ZEBRA ? "crossing" : t === GRASS ? "grass" : "pavement";
+  };
+  const grid = buildGrid(W, H, surface);
   const targets: number[] = [];
   for (let i = 0; i < W * H; i++) {
     if (blocked[i]) continue;
     const t = ground[i];
-    cost[i] = t === ROAD ? 4 : t === GRASS ? 2 : 1;
     if (t === PAVE || t === PLAZA) targets.push(i);
   }
   for (const b of buildings) for (let k = 0; k < 6; k++) targets.push(idx(b.doorX, b.doorY));
-  return { ground, blocked, cost, buildings, props, targets };
-}
-
-// ---------------------------------------------------------------- A*
-
-const gScore = new Float64Array(W * H);
-const came = new Int32Array(W * H);
-const stamp = new Uint32Array(W * H);
-const closed = new Uint32Array(W * H);
-let gen = 0;
-const heapN: number[] = [];
-const heapF: number[] = [];
-
-function heapPush(n: number, f: number) {
-  let i = heapN.length;
-  heapN.push(n);
-  heapF.push(f);
-  while (i > 0) {
-    const p = (i - 1) >> 1;
-    if ((heapF[p] as number) <= f) break;
-    heapN[i] = heapN[p] as number;
-    heapF[i] = heapF[p] as number;
-    i = p;
-  }
-  heapN[i] = n;
-  heapF[i] = f;
-}
-function heapPop(): number {
-  const top = heapN[0] as number;
-  const n = heapN.pop() as number;
-  const f = heapF.pop() as number;
-  const len = heapN.length;
-  if (len > 0) {
-    let i = 0;
-    for (;;) {
-      const l = 2 * i + 1;
-      if (l >= len) break;
-      const r = l + 1;
-      const c = r < len && (heapF[r] as number) < (heapF[l] as number) ? r : l;
-      if ((heapF[c] as number) >= f) break;
-      heapN[i] = heapN[c] as number;
-      heapF[i] = heapF[c] as number;
-      i = c;
-    }
-    heapN[i] = n;
-    heapF[i] = f;
-  }
-  return top;
-}
-
-/** 4-neighbour A* over the cost grid. Writes cells (start excluded) into `out`. */
-export function astar(town: Town, start: number, goal: number, out: number[]): boolean {
-  out.length = 0;
-  if (start === goal) return true;
-  if (!town.cost[goal]) return false;
-  gen++;
-  heapN.length = 0;
-  heapF.length = 0;
-  const gx = goal % W;
-  const gy = (goal / W) | 0;
-  gScore[start] = 0;
-  stamp[start] = gen;
-  came[start] = -1;
-  heapPush(start, 0);
-  while (heapN.length) {
-    const cur = heapPop();
-    if (cur === goal) break;
-    if (closed[cur] === gen) continue;
-    closed[cur] = gen;
-    const cx = cur % W;
-    const cy = (cur / W) | 0;
-    const g0 = gScore[cur] as number;
-    for (let k = 0; k < 4; k++) {
-      const nx = cx + (k === 0 ? 1 : k === 1 ? -1 : 0);
-      const ny = cy + (k === 2 ? 1 : k === 3 ? -1 : 0);
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-      const n = ny * W + nx;
-      const c = town.cost[n] as number;
-      if (!c) continue;
-      const g = g0 + c;
-      if (stamp[n] === gen && g >= (gScore[n] as number)) continue;
-      stamp[n] = gen;
-      gScore[n] = g;
-      came[n] = cur;
-      heapPush(n, g + Math.abs(nx - gx) + Math.abs(ny - gy));
-    }
-  }
-  if (stamp[goal] !== gen) return false;
-  for (let c = goal; c !== start; c = came[c] as number) out.push(c);
-  out.reverse();
-  return true;
-}
-
-/** Nearest walkable cell to (x, y), searching outward. */
-export function nearestWalkable(town: Town, x: number, y: number): number {
-  for (let r = 0; r < 8; r++) {
-    for (let j = y - r; j <= y + r; j++) {
-      for (let i = x - r; i <= x + r; i++) {
-        if (i < 0 || j < 0 || i >= W || j >= H) continue;
-        if (Math.max(Math.abs(i - x), Math.abs(j - y)) !== r) continue;
-        if (town.cost[idx(i, j)]) return idx(i, j);
-      }
-    }
-  }
-  return -1;
+  // The roof drawn one tile above the footprint is tappable too.
+  const footprints = buildings.map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.h, door: idx(b.doorX, b.doorY), roofRows: 1 }));
+  return { ground, blocked, grid, footprints, buildings, props, targets };
 }
 
 // ---------------------------------------------------------------- walkers
+// Routing, tap targets, and smooth movement come from the M6 hub module
+// (web/src/hub, DEC-080): 8-direction A* with pedestrian costs, string-pulled
+// routes, and sub-tile interpolation.
 
 export const DIR_DOWN = 0;
 export const DIR_UP = 1;
 export const DIR_LEFT = 2;
 export const DIR_RIGHT = 3;
 
+/** Feet sit this many px below a tile's centre. */
+const FEET = 5;
+
 export interface Walker {
   id: number;
   x: number; // feet position, world px
   y: number;
   cell: number;
-  path: number[];
-  pi: number;
+  walk: Walk | null;
   speed: number; // px per second
   wait: number;
   variant: number;
@@ -324,57 +235,40 @@ export interface Walker {
 }
 
 export const cellX = (c: number): number => (c % W) * TILE + TILE / 2;
-export const cellY = (c: number): number => ((c / W) | 0) * TILE + TILE - 3;
+export const cellY = (c: number): number => Math.floor(c / W) * TILE + TILE / 2 + FEET;
+/** A walker's position in tile units (the hub module's coordinates). */
+export const tileOf = (w: Walker): Point => ({ x: w.x / TILE, y: (w.y - FEET) / TILE });
 
 export function makeWalker(id: number, cell: number, variant: number, speed: number): Walker {
-  return { id, x: cellX(cell), y: cellY(cell), cell, path: [], pi: 0, speed, wait: 0, variant, dir: DIR_DOWN, dist: 0, onArrive: null };
+  return { id, x: cellX(cell), y: cellY(cell), cell, walk: null, speed, wait: 0, variant, dir: DIR_DOWN, dist: 0, onArrive: null };
 }
 
 export function walkTo(town: Town, w: Walker, goal: number, onArrive: (() => void) | null = null): boolean {
-  const path: number[] = [];
-  if (!astar(town, w.cell, goal, path)) return false;
-  w.path = path;
-  w.pi = 0;
+  const route = planRoute(town.grid, tileOf(w), goal);
+  if (!route) return false;
+  w.walk = new Walk(route.points, w.speed / TILE);
   w.onArrive = onArrive;
-  if (path.length === 0 && onArrive) onArrive();
   return true;
 }
 
-/** Advance along the path. Returns true while moving. */
+/** Advance along the route. Returns true while moving. */
 export function stepWalker(w: Walker, dt: number): boolean {
-  let budget = w.speed * dt;
-  let moved = false;
-  while (budget > 0 && w.pi < w.path.length) {
-    const next = w.path[w.pi] as number;
-    const tx = cellX(next);
-    const ty = cellY(next);
-    const dx = tx - w.x;
-    const dy = ty - w.y;
-    const d = Math.abs(dx) + Math.abs(dy);
-    if (d > 0.001) w.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? DIR_RIGHT : DIR_LEFT) : dy > 0 ? DIR_DOWN : DIR_UP;
-    if (d <= budget) {
-      w.x = tx;
-      w.y = ty;
-      w.cell = next;
-      w.pi++;
-      budget -= d;
-      w.dist += d;
-    } else {
-      w.x += (dx / d) * budget;
-      w.y += (dy / d) * budget;
-      w.dist += budget;
-      budget = 0;
-    }
-    moved = true;
-  }
-  if (w.pi >= w.path.length && w.path.length) {
-    w.path = [];
-    w.pi = 0;
+  const walk = w.walk;
+  if (!walk) return false;
+  const before = walk.distance;
+  const p = walk.advance(dt);
+  w.x = p.x * TILE;
+  w.y = p.y * TILE + FEET;
+  w.dist += (walk.distance - before) * TILE;
+  w.dir = facing4(p.dx, p.dy, w.dir);
+  w.cell = Math.min(H - 1, Math.max(0, Math.floor(p.y))) * W + Math.min(W - 1, Math.max(0, Math.floor(p.x)));
+  if (p.done) {
+    w.walk = null;
     const cb = w.onArrive;
     w.onArrive = null;
     if (cb) cb();
   }
-  return moved;
+  return walk.distance > before;
 }
 
 /** Walk-cycle frame: 0 stand, 1 left foot, 2 right foot. */

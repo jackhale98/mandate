@@ -7,7 +7,7 @@
 |---|---|
 | M0 Foundation | **Done**, 2026-11-18 |
 | M1 World and lab | **Done**, 2026-11-18 |
-| M1s Rendering spikes | Map: Canvas 2D in production (fast, pixel-art); hub spike with M6 |
+| M1s Rendering spikes | Map: Canvas 2D in production (fast, pixel-art). Hub: Canvas 2D (DEC-080); its M6 movement module (`web/src/hub`: routing, tap targets, camera) is built, tested, and used by the spike |
 | M2 Society, economy, environment | **Done**, 2026-11-18 |
 | M3 Local government and policy | **Done**, 2026-11-18 (owner checkpoint) |
 | M4 Elections, parties, NPC AI | **Done**, 2026-11-18 (owner checkpoint) |

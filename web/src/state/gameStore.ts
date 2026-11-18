@@ -132,6 +132,7 @@ export const useGame = create<GameState>((set, get) => {
       meta,
       bytes,
       updatedAt: meta.saved_at,
+      name: get().town?.municipality,
     });
     set({ run: { ...run, revision } });
   }

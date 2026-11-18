@@ -1,6 +1,8 @@
 // THROWAWAY SPIKE (DEC-050, DEC-079): walkable hub rendering prototype.
 // URL params: r=canvas|pixi, n=<townsfolk>, res=device|css, light=day|dusk,
 // seed=<int>. Exposes window.__spike for web/spikes/hub/measure.mjs.
+import { HubCamera } from "../../../src/hub/camera";
+import { resolveTap } from "../../../src/hub/pathfinding";
 import { buildArt, type Art } from "./art";
 import type { Drawable, FrameInput, HubRenderer, RendererFactory } from "./renderer";
 import {
@@ -11,8 +13,8 @@ import {
   idx,
   makeWalker,
   mulberry32,
-  nearestWalkable,
   stepWalker,
+  tileOf,
   walkFrame,
   walkTo,
   type Building,
@@ -75,11 +77,18 @@ const player = makeWalker(9999, idx(council.doorX - 1, council.doorY), art.varia
 
 // ---------------------------------------------------------------- camera
 
-const cam = { x: player.x, y: player.y - 8, zoom: 3, follow: true };
+// The M6 hub camera (web/src/hub/camera.ts): pinch about the fingers'
+// midpoint, re-baselined when a finger lifts, eased limits, wheel at the cursor.
+const camera = new HubCamera({ x: player.x, y: player.y - 8, zoom: 3 }, { width: 1, height: 1 }, {
+  minZoom: 1.25,
+  maxZoom: 6,
+  bounds: { minX: 0, minY: 0, maxX: W * TILE, maxY: H * TILE },
+});
+const cam = camera.state;
+let follow = true;
 let cssW = 1;
 let cssH = 1;
 let dpr = 1;
-const clampZoom = (z: number) => Math.min(6, Math.max(1.25, z));
 
 // ---------------------------------------------------------------- frame data
 
@@ -171,7 +180,7 @@ function update(dt: number) {
     const w = npcs[i] as Walker;
     const m = stepWalker(w, dt);
     moving[i] = m ? 1 : 0;
-    if (!m && w.path.length === 0) {
+    if (!m && !w.walk) {
       w.wait -= dt;
       if (w.wait <= 0) {
         if (!walkTo(town, w, randomTarget())) w.wait = 1;
@@ -180,21 +189,16 @@ function update(dt: number) {
     }
   }
   playerMoving = stepWalker(player, dt);
-  if (!playerMoving && player.path.length === 0) marker = null;
-  if (cam.follow) {
+  if (!playerMoving && !player.walk) marker = null;
+  if (follow && !camera.gesturing) {
+    // Follow the player, but only as far as the view stays over the block.
     const k = Math.min(1, dt * 6);
-    cam.x += (player.x - cam.x) * k;
-    cam.y += (player.y - 8 - cam.y) * k;
+    const t = camera.clampCentre(player.x, player.y - 8);
+    cam.x += (t.x - cam.x) * k;
+    cam.y += (t.y - cam.y) * k;
   }
-  // Keep the camera over the block.
-  const hw = cssW / 2 / cam.zoom;
-  const hh = cssH / 2 / cam.zoom;
-  const ww = W * TILE;
-  const wh = H * TILE;
-  // Zoomed out wider than the block: ease toward its centre instead of snapping.
-  const ease = Math.min(1, dt * 8);
-  cam.x = hw * 2 >= ww ? cam.x + (ww / 2 - cam.x) * ease : Math.min(ww - hw, Math.max(hw, cam.x));
-  cam.y = hh * 2 >= wh ? cam.y + (wh / 2 - cam.y) * ease : Math.min(wh - hh, Math.max(hh, cam.y));
+  // Ease back inside the zoom limits and the block's edges (never snapped).
+  camera.update(dt);
 }
 
 // ---------------------------------------------------------------- places (DEC-079)
@@ -206,7 +210,7 @@ function showToast(text: string) {
 }
 
 function goToPlace(b: Building) {
-  cam.follow = true;
+  follow = true;
   const door = idx(b.doorX, b.doorY);
   marker = { id: 88888, frame: art.marker, x: b.doorX * TILE + TILE / 2, y: b.doorY * TILE + TILE - 3 };
   walkTo(town, player, door, () => {
@@ -265,107 +269,48 @@ function placeLabels() {
 
 // ---------------------------------------------------------------- input
 
-const toWorld = (sx: number, sy: number) => ({ x: cam.x + (sx - cssW / 2) / cam.zoom, y: cam.y + (sy - cssH / 2) / cam.zoom });
-
 function tap(sx: number, sy: number) {
-  const p = toWorld(sx, sy);
-  // Buildings first, front-most (largest base y) wins; sprite rect includes the roof.
-  const hit = [...town.buildings]
-    .sort((a, b) => b.y + b.h - (a.y + a.h))
-    .find((b) => p.x >= b.x * TILE && p.x < (b.x + b.w) * TILE && p.y >= (b.y - 1) * TILE && p.y < (b.y + b.h) * TILE);
-  if (hit) {
-    goToPlace(hit);
+  const p = camera.screenToWorld({ x: sx, y: sy });
+  // A building (or its roof) goes to its door; open ground to that spot; an
+  // obstacle to the nearest reachable spot on the player's side of it.
+  const target = resolveTap(town.grid, town.footprints, tileOf(player), { x: p.x / TILE, y: p.y / TILE });
+  if (!target) return;
+  if (target.kind === "door") {
+    goToPlace(town.buildings[target.building] as Building);
     return;
   }
-  const tx = Math.floor(p.x / TILE);
-  const ty = Math.floor(p.y / TILE);
-  if (tx < 0 || ty < 0 || tx >= W || ty >= H) return;
-  const goal = nearestWalkable(town, tx, ty);
-  if (goal < 0) return;
-  cam.follow = true;
+  follow = true;
+  const goal = target.cell;
   if (walkTo(town, player, goal)) marker = { id: 88888, frame: art.marker, x: (goal % W) * TILE + TILE / 2, y: Math.floor(goal / W) * TILE + TILE - 3 };
 }
 
-const pointers = new Map<number, { x: number; y: number }>();
-let gesture = { moved: false, startDist: 0, startZoom: 3, lastX: 0, lastY: 0 };
 const local = (e: PointerEvent | WheelEvent) => {
   const r = stage.getBoundingClientRect();
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 };
+const pointer = (e: PointerEvent) => ({ id: e.pointerId, ...local(e) });
 stage.addEventListener("pointerdown", (e) => {
   if (e.target !== stage && !(e.target instanceof HTMLCanvasElement)) return;
   stage.setPointerCapture(e.pointerId);
-  const p = local(e);
-  pointers.set(e.pointerId, p);
-  if (pointers.size === 1) gesture = { moved: false, startDist: 0, startZoom: cam.zoom, lastX: p.x, lastY: p.y };
-  if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()] as [{ x: number; y: number }, { x: number; y: number }];
-    gesture.startDist = Math.hypot(a.x - b.x, a.y - b.y);
-    gesture.startZoom = cam.zoom;
-    gesture.moved = true;
-  }
+  camera.pointerDown(pointer(e));
 });
 stage.addEventListener("pointermove", (e) => {
-  if (!pointers.has(e.pointerId)) return;
-  const p = local(e);
-  pointers.set(e.pointerId, p);
-  if (pointers.size === 2 && gesture.startDist > 0) {
-    const [a, b] = [...pointers.values()] as [{ x: number; y: number }, { x: number; y: number }];
-    // Zoom about the point between the fingers, so the town stays under them.
-    const mx = (a.x + b.x) / 2;
-    const my = (a.y + b.y) / 2;
-    const before = toWorld(mx, my);
-    cam.zoom = clampZoom((gesture.startZoom * Math.hypot(a.x - b.x, a.y - b.y)) / gesture.startDist);
-    const after = toWorld(mx, my);
-    cam.follow = false;
-    cam.x += before.x - after.x;
-    cam.y += before.y - after.y;
-    return;
-  }
-  const dx = p.x - gesture.lastX;
-  const dy = p.y - gesture.lastY;
-  if (!gesture.moved && Math.hypot(dx, dy) < 8) return;
-  gesture.moved = true;
-  cam.follow = false;
-  cam.x -= dx / cam.zoom;
-  cam.y -= dy / cam.zoom;
-  gesture.lastX = p.x;
-  gesture.lastY = p.y;
+  const { x, y, zoom } = cam;
+  camera.pointerMove(pointer(e));
+  // The player took the camera: stop following until the next walk.
+  if (cam.x !== x || cam.y !== y || cam.zoom !== zoom) follow = false;
 });
-// When a finger lifts mid-gesture, the remaining finger pans from where it
-// is now (not from where the first finger started), so the view never lurches.
-const rebaseline = () => {
-  const rest = [...pointers.values()][0];
-  if (rest) {
-    gesture.lastX = rest.x;
-    gesture.lastY = rest.y;
-  }
-  gesture.startDist = 0;
-};
-const endPointer = (e: PointerEvent) => {
-  if (!pointers.has(e.pointerId)) return;
-  pointers.delete(e.pointerId);
-  rebaseline();
-  if (pointers.size === 0 && !gesture.moved) {
-    const p = local(e);
-    tap(p.x, p.y);
-  }
-};
-stage.addEventListener("pointerup", endPointer);
-stage.addEventListener("pointercancel", (e) => {
-  pointers.delete(e.pointerId);
-  rebaseline();
+stage.addEventListener("pointerup", (e) => {
+  const t = camera.pointerUp(pointer(e));
+  if (t) tap(t.x, t.y);
 });
+stage.addEventListener("pointercancel", (e) => camera.pointerCancel(e.pointerId));
 stage.addEventListener(
   "wheel",
   (e) => {
     e.preventDefault();
-    const p = local(e);
-    const before = toWorld(p.x, p.y);
-    cam.zoom = clampZoom(cam.zoom * Math.exp(-e.deltaY * 0.0015));
-    const after = toWorld(p.x, p.y);
-    cam.x += before.x - after.x;
-    cam.y += before.y - after.y;
+    follow = false;
+    camera.wheel(local(e), e.deltaY);
   },
   { passive: false },
 );
@@ -397,24 +342,24 @@ let auto: { t0: number; route: number[]; leg: number } | null = null;
 function autopilotStep(now: number) {
   if (!auto) return;
   const t = (now - auto.t0) / 1000;
-  if (!playerMoving && player.path.length === 0) {
+  if (!playerMoving && !player.walk) {
     const goal = auto.route[auto.leg % auto.route.length] as number;
     auto.leg++;
     walkTo(town, player, goal);
   }
   if (t < 2.5) {
-    cam.follow = true;
+    follow = true;
     cam.zoom = 3;
   } else if (t < 5) {
     cam.zoom = 3 + 1.6 * Math.sin(((t - 2.5) / 2.5) * Math.PI * 2); // pinch in and out
   } else if (t < 7.5) {
-    cam.follow = false; // drag pan in a circle around the player
+    follow = false; // drag pan in a circle around the player
     const a = ((t - 5) / 2.5) * Math.PI * 2;
     cam.zoom = 3;
     cam.x = player.x + Math.cos(a) * 90;
     cam.y = player.y + Math.sin(a) * 90;
   } else {
-    cam.follow = true;
+    follow = true;
     cam.zoom = 3 - Math.min(1, (t - 7.5) / 1.5); // wide view: the most sprites on screen
   }
 }
@@ -477,6 +422,7 @@ function resize() {
   cssW = Math.max(1, stage.clientWidth);
   cssH = Math.max(1, stage.clientHeight);
   dpr = resMode === "css" ? 1 : resMode === "low" ? 1 / 3 : window.devicePixelRatio || 1;
+  camera.resize(cssW, cssH);
   renderer.resize(cssW, cssH, dpr);
 }
 
@@ -513,7 +459,7 @@ async function main() {
     timings: { artMs: tArt - tStart, importMs: tImport - tImport0, initMs: tInit - tImport, firstFrameAt, scriptStart: tStart },
     autopilot() {
       auto = { t0: performance.now(), route, leg: 0 };
-      player.path = [];
+      player.walk = null;
     },
     start() {
       rec.on = true;
