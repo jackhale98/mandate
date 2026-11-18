@@ -15,19 +15,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        preset: ["", industrial-decline, wealthy-coast, tech-growth, drought-farmland, resource-frontier]
+        scenario: ["", industrial_decline, wealthy_coast, tech_growth, drought_farmland, resource_frontier]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - name: Sweep ${{ matrix.preset || 'none' }}
+      - name: Sweep ${{ matrix.scenario || 'none' }}
         run: |
           ARGS="--seeds 32 --years 30"
-          if [ -n "${{ matrix.preset }}" ]; then ARGS="$ARGS --preset ${{ matrix.preset }}"; fi
+          if [ -n "${{ matrix.scenario }}" ]; then ARGS="$ARGS --scenario ${{ matrix.scenario }}"; fi
           cargo run -q --release -p mandate-cli -- sweep $ARGS > sweep.json || (cat sweep.json; exit 1)
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sweep-${{ matrix.preset || 'none' }}
+          name: sweep-${{ matrix.scenario || 'none' }}
           path: sweep.json
           retention-days: 14
 
