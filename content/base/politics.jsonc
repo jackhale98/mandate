@@ -58,7 +58,7 @@
       "mobilisation_per_canvass": 0.25,
       "diminishing": 0.6,
       "ad_cost": 1500,
-      "awareness_per_ad": 0.06,
+      "awareness_per_ad": 0.12,
       "npc_contacts_per_week": 1.5,
     },
     "ai": {
@@ -89,8 +89,8 @@
           { "input": "bill_stake", "curve": { "type": "logistic", "k": 8.0, "x0": 0.3 } },
           { "input": "bill_closeness", "curve": { "type": "logistic", "k": 8.0, "x0": 0.45 } },
         ] },
-        { "action": "propose_bill", "weight": 0.8, "considerations": [
-          { "input": "agenda", "curve": { "type": "logistic", "k": 10.0, "x0": 0.65 } },
+        { "action": "propose_bill", "weight": 0.35, "considerations": [
+          { "input": "agenda", "curve": { "type": "logistic", "k": 12.0, "x0": 0.75 } },
           { "input": "no_own_bill", "curve": { "type": "step", "x": 0.5, "lo": 0.0, "hi": 1.0 } },
           { "input": "council_free", "curve": { "type": "linear", "m": 1.0, "b": 0.0 } },
           { "input": "campaigning", "curve": { "type": "step", "x": 0.5, "lo": 1.0, "hi": 0.2 } },

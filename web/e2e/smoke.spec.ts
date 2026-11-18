@@ -80,3 +80,35 @@ test("draft, introduce, lobby and resume mid-turn", async ({ page }) => {
   await expect(page.getByTestId("slots")).toHaveText("1 slot left this turn");
   expect(await stateHash(page)).toBe(hash);
 });
+
+// M4 owner checkpoint: play a full local election (filing, campaign, polls,
+// election night with an explanation).
+test("a full local election", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto("./");
+  await page.getByPlaceholder("e.g. 20260").fill("4040");
+  await page.getByRole("button", { name: "Begin" }).click();
+  await expect(page.getByTestId("player-card")).toBeVisible();
+  await page.getByRole("tab", { name: "Campaign" }).click();
+  await expect(page.getByTestId("election-calendar")).toContainText("3 November 2020");
+  const endTurn = page.getByRole("button", { name: "End turn" });
+  for (let i = 0; i < 30 && (await page.getByTestId("my-race").count()) === 0; i++) {
+    await endTurn.click();
+    await expect(endTurn).toBeEnabled();
+  }
+  await expect(page.getByTestId("my-race")).toBeVisible();
+  await expect(page.getByText("Campaign season")).toBeVisible();
+  // Campaign: one canvass, then let the weeks run.
+  await page.getByTestId("agenda").getByRole("button", { name: "Go" }).click();
+  await expect(page.getByTestId("toast")).toHaveText(/knocked on doors/);
+  for (let i = 0; i < 12 && (await page.getByTestId("election-night").count()) === 0; i++) {
+    await endTurn.click();
+    await expect(endTurn).toBeEnabled();
+  }
+  const night = page.getByTestId("election-night");
+  await expect(night).toBeVisible();
+  await expect(night.getByText(/You (won|lost)\./)).toBeVisible();
+  await expect(night.getByText("Why it went this way").first()).toBeVisible();
+  await night.getByRole("button", { name: "Continue" }).last().click();
+  await expect(night).toHaveCount(0);
+});

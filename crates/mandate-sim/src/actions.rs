@@ -545,8 +545,8 @@ pub fn apply(
                             clamp(c.player_awareness as f64 + 0.25 * (0.6 + oratory), 0.0, 1.0)
                                 as f32;
                         let nudge = sig
-                            .map(|s| crate::politics::alignment(&s, &c.attitudes) * 0.1)
-                            .unwrap_or(0.05);
+                            .map(|s| crate::politics::alignment(&s, &c.attitudes) * 0.05)
+                            .unwrap_or(0.02);
                         let room = 1.0 - (c.player_approval as f64).abs();
                         c.player_approval =
                             clamp(c.player_approval as f64 + nudge * room, -1.0, 1.0) as f32;
@@ -606,7 +606,7 @@ pub fn apply(
                         c.player_awareness = clamp(aw + 0.3 * (1.0 - aw), 0.0, 1.0) as f32;
                         let room = 1.0 - (c.player_approval as f64).abs();
                         c.player_approval =
-                            clamp(c.player_approval as f64 + 0.04 * room, -1.0, 1.0) as f32;
+                            clamp(c.player_approval as f64 + 0.015 * room, -1.0, 1.0) as f32;
                     }
                     campaign_contact(state, content, Some(*neighborhood), 1.0);
                     res.outcome_key = "outcome-canvass".into();

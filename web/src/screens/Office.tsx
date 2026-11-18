@@ -85,9 +85,9 @@ function TownOpinion({ o }: { o: OfficeView }) {
   );
 }
 
-type AgendaKind = "canvass" | "town_hall" | "press" | "fundraise" | "rest";
+type AgendaKind = "canvass" | "town_hall" | "press" | "fundraise" | "rest" | "advertise";
 
-function Agenda({ o }: { o: OfficeView }) {
+export function Agenda({ o, campaigning = false }: { o: OfficeView; campaigning?: boolean }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
   const command = useGame((s) => s.command);
@@ -113,15 +113,20 @@ function Agenda({ o }: { o: OfficeView }) {
         return { type: "fundraise" };
       case "rest":
         return { type: "rest" };
+      case "advertise":
+        return { type: "advertise" };
     }
   };
+  const kinds: AgendaKind[] = campaigning
+    ? ["canvass", "town_hall", "advertise", "press", "fundraise", "rest"]
+    : ["canvass", "town_hall", "press", "fundraise", "rest"];
 
   return (
     <section className="card" data-testid="agenda">
       <h2>{tr.t("ui-agenda")}</h2>
       <p className="hint">{tr.t("ui-agenda-help")}</p>
       <div className="segmented segmented-sm agenda-kinds" role="radiogroup" aria-label={tr.t("ui-agenda")}>
-        {(["canvass", "town_hall", "press", "fundraise", "rest"] as const).map((k) => (
+        {kinds.map((k) => (
           <label key={k} className={kind === k ? "seg seg-on" : "seg"}>
             <input type="radio" name="agenda" checked={kind === k} onChange={() => setKind(k)} />
             {tr.t(`action-${k.replace("_", "-")}`)}
@@ -153,6 +158,7 @@ function Agenda({ o }: { o: OfficeView }) {
           </select>
         </label>
       )}
+      {kind === "advertise" && <p className="hint">{tr.t("ui-advertise-help")}</p>}
       {lateAllowed && (
         <label className="check">
           <input type="checkbox" checked={late} disabled={!p.late_night_available} onChange={(e) => setLate(e.target.checked)} />

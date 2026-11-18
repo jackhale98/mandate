@@ -40,6 +40,7 @@ pub struct ActionLogView {
 pub struct PlayerView {
     pub politician: u32,
     pub name: String,
+    pub party: Option<u32>,
     /// Fluent key, e.g. `role-councillor`.
     pub role_key: String,
     pub municipality: String,
@@ -99,6 +100,7 @@ pub struct TemplateView {
 pub struct WhipView {
     pub politician: u32,
     pub name: String,
+    pub party: Option<u32>,
     pub ward_number: u32,
     /// `yes` | `lean_yes` | `undecided` | `lean_no` | `no`
     pub lean: String,
@@ -180,6 +182,7 @@ pub struct BillView {
 pub struct MemberView {
     pub id: u32,
     pub name: String,
+    pub party: Option<u32>,
     pub role_key: String,
     pub ward_number: Option<u32>,
     pub is_player: bool,
@@ -300,6 +303,7 @@ fn member_view(st: &State, p: &Politician) -> MemberView {
     MemberView {
         id: p.id.0,
         name: full_name(p),
+        party: p.party.map(|x| x.0),
         role_key: role_key.into(),
         ward_number: ward,
         is_player: p.is_player,
@@ -338,6 +342,7 @@ fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
             Some(WhipView {
                 politician: id.0,
                 name: full_name(m),
+                party: m.party.map(|x| x.0),
                 ward_number: match m.role {
                     Role::Councillor { ward, .. } => ward_number(st, ward),
                     Role::Mayor { .. } | Role::Private { .. } => 0,
@@ -565,6 +570,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
         player: PlayerView {
             politician: me.id.0,
             name: full_name(me),
+            party: me.party.map(|x| x.0),
             role_key: match me.role {
                 Role::Councillor { .. } => "role-councillor",
                 Role::Mayor { .. } => "role-mayor",

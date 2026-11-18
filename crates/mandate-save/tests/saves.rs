@@ -95,7 +95,7 @@ fn rejects_corruption() {
 /// add a migration in `migrate`, add a fixture, then update EXPECTED.
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (5, "38a13052ef4bef19");
+    const EXPECTED: (u16, &str) = (5, "131025d62b70f9a2");
     let c = content();
     let mut e = generate(
         &WorldConfig {

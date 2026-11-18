@@ -10,7 +10,8 @@
 | M1s Rendering spikes | Map: Canvas 2D in production (fast, pixel-art); hub spike with M6 |
 | M2 Society, economy, environment | **Done**, 2026-11-18 |
 | M3 Local government and policy | **Done**, 2026-11-18 (owner checkpoint) |
-| M4 Elections, parties, NPC AI | Next (owner checkpoint: a local election) |
+| M4 Elections, parties, NPC AI | **Done**, 2026-11-18 (owner checkpoint) |
+| M5 Media, scandals, characters | Next |
 
 ## M0 summary
 - **Rust workspace:** 8 crates, with determinism lints enforced (banned `HashMap`, `std` float transcendentals, wall clock).
@@ -47,6 +48,35 @@
   - an unemployment map layer with a legend;
   - Fluent text for all new events.
 - **Saves:** format v3.
+
+## M4 summary
+- **Research pass** before building: `docs/design/research/SIMULATION_MODELS.md` (DEC-071).
+- **Parties** generated from cleavages (two competitive majors and a minor party); mover–stayer party attachment; gravity-model migration.
+- **Elections:**
+  - calendar from the constitution, candidacy and nomination;
+  - per-cohort logit vote with separate turnout and strategic voting;
+  - hidden shocks, plurality tabulation, seat changes, and a "why" decomposition.
+- **Polls** with shared error, house effects, and sampling noise.
+- **Campaigns:**
+  - weekly turns;
+  - canvassing, town halls, and ads build awareness and turnout, with diminishing, decaying persuasion;
+  - fundraising.
+- **NPC utility AI** (content-defined): bills with sunsets, lobbying for a safety margin, campaigning, fundraising. Party discipline in votes.
+- **Career:** defend your seat, run for mayor, or stand down; losing leaves you out of office.
+- **UI:**
+  - a Campaign tab: election calendar and filing, your race with a poll-trend chart (with a table view), other races, last results, and parties;
+  - an election-night screen with result bars, final-poll markers, and the factor breakdown;
+  - party colours from the validated categorical palette, always labelled.
+- **Balance:**
+  - burn-in re-election rate 76–83%, turnout about 62%;
+  - bots: no dominant strategy, and effort matters (BALANCE_LOG);
+  - sweeps still pass.
+- **Tests:**
+  - elections are plausible across seeds;
+  - councils and roles stay consistent;
+  - a full player election (Rust and Playwright, phone and desktop);
+  - laws are funded by the next budget year.
+- **Saves:** format v5.
 
 ## M3 summary
 - **Constitution primitives** with the Federal Presidential archetype. Each town has a council elected by ward and a mayor. Ordinances and budgets pass by council vote, then mayoral signature, with a two-thirds override.

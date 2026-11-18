@@ -193,7 +193,16 @@ fn inputs_memo(
         .copied()
         .filter(|p| p.status == PolicyStatus::UnderConsideration)
         .collect();
-    x.council_free = clamp(1.0 - pending.len() as f64 / 3.0, 0.0, 1.0);
+    // Floor time and budgets are finite: a busy statute book cools new bills.
+    let active = local
+        .iter()
+        .filter(|p| matches!(p.status, PolicyStatus::Enacted | PolicyStatus::InEffect))
+        .count();
+    x.council_free = clamp(
+        1.0 - pending.len() as f64 / 3.0 - active as f64 / 5.0,
+        0.0,
+        1.0,
+    );
     // At most one bill of one's own a year (councils have finite floor time).
     let today = state.calendar.date;
     x.no_own_bill = if local.iter().any(|p| {
@@ -581,7 +590,10 @@ fn act(
                 jurisdiction: m,
                 sponsor: Some(id),
                 params,
-                clauses: Vec::new(),
+                // NPC programmes are time-limited, so towns' agendas turn over.
+                clauses: vec![crate::policy::Clause::Sunset {
+                    years: 4 + rng.below(5) as u8,
+                }],
                 status: PolicyStatus::UnderConsideration,
                 stage: 0,
                 next_stage_on: Some(date.add_days(days as u32)),

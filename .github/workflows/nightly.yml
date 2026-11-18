@@ -31,6 +31,21 @@ jobs:
           path: sweep.json
           retention-days: 14
 
+  # Bot-player tournament (M4): no dominant strategy, effort matters.
+  bots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Tournament
+        run: cargo run -q --release -p mandate-cli -- bots --seeds 32 > bots.json || (cat bots.json; exit 1)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bots
+          path: bots.json
+          retention-days: 14
+
   long-property-tests:
     runs-on: ubuntu-latest
     steps:

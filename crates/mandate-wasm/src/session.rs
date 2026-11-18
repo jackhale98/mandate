@@ -157,6 +157,9 @@ impl Session {
                 QueryDto::Office => office_view(self.engine_mut()?)
                     .map(ResponseBody::Office)
                     .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
+                QueryDto::Campaign => campaign_view(self.engine_mut()?)
+                    .map(ResponseBody::Campaign)
+                    .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
                 QueryDto::Diagnostics => {
                     Ok(ResponseBody::Diagnostics(diagnostics(self.engine_mut()?)))
                 }
@@ -270,6 +273,13 @@ fn player_command(c: CommandDto) -> mandate_sim::actions::PlayerCommand {
                 .collect(),
         },
         CommandDto::IntroducePolicy { policy } => P::IntroducePolicy { policy },
+        CommandDto::File { filing } => P::File {
+            filing: match filing {
+                FilingDto::Council => mandate_sim::politics::elections::Filing::Council,
+                FilingDto::Mayor => mandate_sim::politics::elections::Filing::Mayor,
+                FilingDto::Retire => mandate_sim::politics::elections::Filing::Retire,
+            },
+        },
         CommandDto::WithdrawPolicy { policy } => P::WithdrawPolicy { policy },
         CommandDto::Act { action, late_night } => P::Act {
             late_night,
@@ -289,6 +299,7 @@ fn player_command(c: CommandDto) -> mandate_sim::actions::PlayerCommand {
                 ActionDto::Canvass { neighborhood } => Action::Canvass { neighborhood },
                 ActionDto::Fundraise => Action::Fundraise,
                 ActionDto::Rest => Action::Rest,
+                ActionDto::Advertise => Action::Advertise,
             },
         },
         // EndTurn and AdvanceDays are handled before this conversion.

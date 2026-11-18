@@ -900,7 +900,33 @@ fn place_player(
         })
         .or(world.municipalities.first())?;
     let council = politics.councils.get(home.id.index())?;
-    let seat = *council.members.get(council.members.len() / 2)?;
+    // Start in the town's most marginal ward held by a major party: the first
+    // election is winnable and losable (drama, DEC-059). M6's draft replaces this.
+    let margin_of = |id: mandate_sim::politics::PoliticianId| -> f32 {
+        politics
+            .elections
+            .results
+            .iter()
+            .rev()
+            .find(|r| r.winner == id)
+            .map(|r| {
+                let mut s: Vec<f32> = r.candidates.iter().map(|c| c.share).collect();
+                s.sort_by(|a, b| b.total_cmp(a));
+                s[0] - s.get(1).copied().unwrap_or(0.0)
+            })
+            .unwrap_or(0.5)
+    };
+    let seat = council
+        .members
+        .iter()
+        .copied()
+        .filter(|id| {
+            politics
+                .get(*id)
+                .is_some_and(|p| p.party.is_some_and(|x| x.0 < 2))
+        })
+        .min_by(|a, b| margin_of(*a).total_cmp(&margin_of(*b)))
+        .or_else(|| council.members.get(council.members.len() / 2).copied())?;
     let me = politics.get_mut(seat)?;
     me.is_player = true;
     me.opinion_of_player = 0.0;

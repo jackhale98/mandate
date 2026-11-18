@@ -504,3 +504,59 @@ event-mayor-elected = { $name } was elected mayor of { $town }.
 event-councillor-ousted = { $name } unseated a sitting councillor in { $town }.
 event-councillor-elected = { $name } won a council seat in { $town }.
 event-election-held = Local elections were held ({ $races } races).
+
+## Campaign (M4)
+ui-campaign = Campaign
+ui-campaign-season = Campaign season
+ui-next-election = Next local election
+ui-days-left = { $n ->
+    [0] Today
+    [one] 1 day
+   *[other] { $n } days
+}
+ui-campaign-opens = campaign opens { $date }
+ui-your-party = Your party
+ui-independent = Independent
+ui-your-plans = Your plans
+ui-file-defend = Defend my seat
+ui-file-council = Run for my old ward
+ui-file-mayor = Run for mayor
+ui-file-retire = Stand down
+ui-filing-help = Candidates are fixed when the campaign opens.
+ui-filing-closed = Nominations have closed for this election.
+ui-mayor-needs-standing = Your party will only back you for mayor with Standing of 40 or more.
+ui-not-running = You are not on the ballot this time.
+ui-race-mayor = Mayor
+ui-race-ward = Ward { $n }
+ui-your-race = Your race
+ui-incumbent = incumbent
+ui-know-you = Voters who know you
+ui-polls = Polls
+ui-no-polls = No polls yet. The first arrive two weeks into the campaign.
+ui-polls-note = Polls are estimates from samples of voters. They can all be wrong in the same direction.
+ui-poll-trend = Poll trend
+ui-poll-table = Show polls as a table
+ui-date-col = Date
+ui-pollster = Pollster
+ui-undecided-col = Undecided
+ui-undecided = { $pct }% undecided
+ui-other-races = Other races in town
+ui-last-results = Last election
+ui-turnout = Turnout { $pct }%
+ui-winner = Winner
+ui-final-poll = final polls { $pct }%
+ui-why-result = Why it went this way
+ui-why-result-help = How much each factor added to (or took from) the winner's lead, in points.
+ui-why-lost-help = How much each factor helped you (+) or cost you (−) against the winner, in points.
+factor-issues = Issues and positions
+factor-party = Party loyalty
+factor-valence = Candidate quality
+factor-record = Record in office
+factor-campaign = Campaigning
+factor-shock = Late swing and luck
+ui-you-won = You won.
+ui-you-lost = You lost.
+ui-election-night = Election night
+ui-continue-game = Continue
+ui-parties = Parties
+ui-advertise-help = Local ads reach every neighbourhood a little. They cost campaign funds.

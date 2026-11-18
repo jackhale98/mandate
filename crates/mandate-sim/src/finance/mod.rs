@@ -507,6 +507,30 @@ pub fn new_budget_year(fin: &mut FinanceState, r: &Reads<'_>, out: &mut Outs<'_>
     // Real public services held constant: index to prices × productivity.
     let wage_index = (econ.national.price_level * econ.national.productivity_index).max(0.1);
     let pop_index = (r.population().total() as f64 / fin.base_population.max(1.0)).max(0.1);
+    // The new budget adopts every enacted programme (DEC-024: appropriation is
+    // yearly). Programmes may take up to a quarter of a town's budget; beyond
+    // that all are pro-rated. Baseline services make room below.
+    for m in 0..fin.local.len() {
+        let budget = fin.local[m].budget_total().units() as f64;
+        let full: f64 = fin
+            .appropriations
+            .values()
+            .filter(|a| a.municipality as usize == m)
+            .map(|a| a.annual_cost)
+            .sum();
+        let share = if full <= 0.0 {
+            1.0
+        } else {
+            clamp(0.25 * budget / full, 0.0, 1.0)
+        };
+        for a in fin
+            .appropriations
+            .values_mut()
+            .filter(|a| a.municipality as usize == m)
+        {
+            a.funded_share = share;
+        }
+    }
     let programme_cost_by_idx: std::collections::BTreeMap<usize, f64> = (0..fin.local.len())
         .map(|m| (m, fin.programmes_cost(m as u32)))
         .collect();

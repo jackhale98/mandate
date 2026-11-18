@@ -1,5 +1,6 @@
 //! Mandate simulation lab CLI (DEC-058). Output is JSON for scripting.
 
+mod bots;
 mod mapimg;
 mod png;
 mod sweep;
@@ -84,6 +85,14 @@ enum Cmd {
         size: Size,
         #[arg(long, value_enum)]
         preset: Option<PresetArg>,
+    },
+    /// Bot players (M4): strategies play the first local election across seeds.
+    Bots {
+        #[arg(long, default_value_t = 16)]
+        seeds: u64,
+        /// Print per-seed results for these strategies instead of the report.
+        #[arg(long)]
+        detail: Vec<String>,
     },
     /// Yearly economic trace (balancing diagnostics): jobs by sector, labour
     /// force, prices, and demand drivers.
@@ -402,6 +411,39 @@ fn run(cli: Cli) -> Result<(), String> {
                 Ok(())
             } else {
                 Err("Monte Carlo bands or drama floors failed".into())
+            }
+        }
+        Cmd::Bots { seeds, detail } => {
+            let content = load_content(&cli.content)?;
+            if !detail.is_empty() {
+                let mut rows = Vec::new();
+                for seed in 1..=seeds {
+                    let mut row = serde_json::Map::new();
+                    row.insert("seed".into(), seed.into());
+                    for s in &detail {
+                        row.insert(
+                            s.clone(),
+                            match bots::play(&content, seed, s) {
+                                Some((won, share)) => {
+                                    serde_json::json!({ "won": won, "share": share })
+                                }
+                                None => serde_json::Value::Null,
+                            },
+                        );
+                    }
+                    rows.push(serde_json::Value::Object(row));
+                }
+                out(serde_json::Value::Array(rows));
+                return Ok(());
+            }
+            let report = bots::run(&content, seeds);
+            let ok = report["no_dominant_strategy"].as_bool().unwrap_or(false)
+                && report["effort_matters"].as_bool().unwrap_or(false);
+            out(report);
+            if ok {
+                Ok(())
+            } else {
+                Err("a dominant strategy exists, or effort does not matter".into())
             }
         }
         Cmd::TraceEcon { seed, years, size } => {

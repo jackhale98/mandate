@@ -2,7 +2,7 @@
 import type { ActionLogView } from "./ActionLogView";
 import type { TracksView } from "./TracksView";
 
-export type PlayerView = { politician: number, name: string, 
+export type PlayerView = { politician: number, name: string, party: number | null, 
 /**
  * Fluent key, e.g. `role-councillor`.
  */

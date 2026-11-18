@@ -7,9 +7,10 @@ import { NationalEconomy } from "../components/NationalEconomy";
 import type { Overlay } from "../map/render";
 import { Office } from "./Office";
 import { Council } from "./Council";
+import { Campaign, ElectionNight } from "./Campaign";
 import { Toast } from "../components/Toast";
 
-type Tab = "office" | "council" | "map" | "overview";
+type Tab = "office" | "council" | "campaign" | "map" | "overview";
 
 export function Game() {
   const tr = useGame((s) => s.tr);
@@ -22,6 +23,8 @@ export function Game() {
   const run = useGame((s) => s.run);
   const office = useGame((s) => s.office);
   const loadOffice = useGame((s) => s.loadOffice);
+  const campaign = useGame((s) => s.campaign);
+  const loadCampaign = useGame((s) => s.loadCampaign);
   const [tab, setTab] = useState<Tab>("office");
   const [selected, setSelected] = useState<number | null>(null);
   const [openRegion, setOpenRegion] = useState<number | null>(null);
@@ -33,6 +36,9 @@ export function Game() {
   useEffect(() => {
     if (!office) void loadOffice();
   }, [office, loadOffice]);
+  useEffect(() => {
+    if (!campaign) void loadCampaign();
+  }, [campaign, loadCampaign]);
 
   if (!overview) return null;
 
@@ -53,12 +59,13 @@ export function Game() {
               {office.player.late_night_available ? " ☾" : ""}
             </span>
           )}
+          {campaign?.in_campaign && <span className="chip chip-warn">{tr.t("ui-campaign-season")}</span>}
           <span className="chip chip-muted">{run ? tr.t("ui-mode-label", { mode: run.mode }) : ""}</span>
         </div>
       </header>
 
       <nav className="tabs" role="tablist">
-        {(["office", "council", "map", "overview"] as const).map((t) => (
+        {(["office", "council", "campaign", "map", "overview"] as const).map((t) => (
           <button key={t} role="tab" type="button" aria-selected={tab === t} className={tab === t ? "tab tab-on" : "tab"} onClick={() => setTab(t)}>
             {tr.t(`ui-${t}`)}
           </button>
@@ -69,6 +76,8 @@ export function Game() {
         <Office />
       ) : tab === "council" ? (
         <Council />
+      ) : tab === "campaign" ? (
+        <Campaign />
       ) : tab === "map" ? (
         <main className="map-body">
           {map ? (
@@ -150,6 +159,7 @@ export function Game() {
       )}
 
       <Toast />
+      <ElectionNight />
       {selected !== null && <MunicipalityPanel id={selected} onClose={() => setSelected(null)} />}
 
       <footer className="actionbar">

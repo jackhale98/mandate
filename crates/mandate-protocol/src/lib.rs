@@ -2,10 +2,12 @@
 //! for the TypeScript client; `cargo test -p mandate-protocol` regenerates
 //! `web/src/engine/protocol/*.ts`.
 
+pub mod campaign;
 pub mod map;
 pub mod office;
 pub mod views;
 
+pub use campaign::*;
 pub use map::*;
 pub use office::*;
 use serde::{Deserialize, Serialize};
@@ -91,6 +93,19 @@ pub enum CommandDto {
         action: ActionDto,
         late_night: bool,
     },
+    /// Declare intentions for the next local election.
+    File {
+        filing: FilingDto,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum FilingDto {
+    Council,
+    Mayor,
+    Retire,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -117,6 +132,7 @@ pub enum ActionDto {
     },
     Fundraise,
     Rest,
+    Advertise,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -133,6 +149,7 @@ pub struct ActionResultView {
 pub enum QueryDto {
     Overview,
     Office,
+    Campaign,
     Map,
     Municipality {
         id: u32,
@@ -178,6 +195,7 @@ pub enum ResponseBody {
     CommandApplied(CommandAppliedView),
     Overview(OverviewView),
     Office(OfficeView),
+    Campaign(CampaignView),
     Map(MapView),
     Municipality(MunicipalityView),
     Locale(LocaleView),

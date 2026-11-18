@@ -6,6 +6,7 @@ import type { OverviewView } from "../engine/protocol/OverviewView";
 import type { MapView } from "../engine/protocol/MapView";
 import type { PresetDto } from "../engine/protocol/PresetDto";
 import type { OfficeView } from "../engine/protocol/OfficeView";
+import type { CampaignView } from "../engine/protocol/CampaignView";
 import type { CommandDto } from "../engine/protocol/CommandDto";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
@@ -30,6 +31,9 @@ interface GameState {
   overview: OverviewView | null;
   map: MapView | null;
   office: OfficeView | null;
+  campaign: CampaignView | null;
+  /** Shown after an election the player took part in. */
+  electionNight: boolean;
   toast: { key: string; args: Record<string, string> } | null;
   progress: { stage: string; fraction: number } | null;
   run: ActiveRun | null;
@@ -39,6 +43,10 @@ interface GameState {
   newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; preset: PresetDto | null }): Promise<void>;
   loadMap(): Promise<void>;
   loadOffice(): Promise<void>;
+  loadCampaign(): Promise<void>;
+  /** Refresh the office and campaign views together. */
+  refreshDesk(): Promise<void>;
+  closeElectionNight(): void;
   /** Run a player command; journals it (Ironman) and refreshes views. */
   command(cmd: CommandDto): Promise<number | null>;
   dismissToast(): void;
@@ -95,6 +103,8 @@ export const useGame = create<GameState>((set, get) => {
     overview: null,
     map: null,
     office: null,
+    campaign: null,
+    electionNight: false,
     toast: null,
     progress: null,
     run: null,
@@ -127,15 +137,32 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, preset } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
-        await get().loadOffice();
+        await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });
       } finally {
         off();
         set({ busy: false, progress: null });
       }
+    },
+
+    async loadCampaign() {
+      try {
+        set({ campaign: expectKind(await engine().request({ kind: "query", payload: { type: "campaign" } }), "campaign") });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async refreshDesk() {
+      await get().loadOffice();
+      await get().loadCampaign();
+    },
+
+    closeElectionNight() {
+      set({ electionNight: false });
     },
 
     async loadOffice() {
@@ -158,7 +185,7 @@ export const useGame = create<GameState>((set, get) => {
           overview: applied.overview,
           toast: applied.result ? { key: applied.result.outcome_key, args: applied.result.args } : null,
         });
-        await get().loadOffice();
+        await get().refreshDesk();
         return applied.result?.created ?? null;
       } catch (e) {
         set({ error: errText(e) });
@@ -187,7 +214,13 @@ export const useGame = create<GameState>((set, get) => {
         const body = await engine().request({ kind: "command", payload: { type: "end_turn" } });
         set({ overview: expectKind(body, "command_applied").overview, toast: null });
         await persist();
-        await get().loadOffice();
+        const before = get().campaign?.last_election?.day_number ?? null;
+        await get().refreshDesk();
+        const after = get().campaign;
+        const lastDay = after?.last_election?.day_number ?? null;
+        if (lastDay !== null && lastDay !== before && after?.results.some((r) => r.player_ran)) {
+          set({ electionNight: true });
+        }
       } catch (e) {
         set({ error: errText(e) });
       } finally {
@@ -199,7 +232,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, electionNight: false, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -219,8 +252,8 @@ export const useGame = create<GameState>((set, get) => {
           const body = await engine().request({ kind: "command", payload: JSON.parse(json) as CommandDto });
           overview = expectKind(body, "command_applied").overview;
         }
-        set({ overview, map: null, office: null, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
-        await get().loadOffice();
+        set({ overview, map: null, office: null, campaign: null, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });
       } finally {

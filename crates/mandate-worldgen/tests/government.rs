@@ -92,9 +92,13 @@ fn bill_journey_draft_to_law() {
         PolicyStatus::Enacted | PolicyStatus::InEffect | PolicyStatus::Ended
     ));
     if p.status != PolicyStatus::Ended {
-        // Funded and implementing within a few months.
-        for _ in 0..8 {
+        // Funded from the next budget year at the latest (funding is a
+        // status, DEC-024: a law can pass and wait for money).
+        for _ in 0..30 {
             e.apply(Command::EndTurn).unwrap();
+            if e.state().policy.instances[id as usize].status == PolicyStatus::InEffect {
+                break;
+            }
         }
         let p = &e.state().policy.instances[id as usize];
         assert_eq!(p.status, PolicyStatus::InEffect);

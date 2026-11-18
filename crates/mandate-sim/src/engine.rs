@@ -206,8 +206,8 @@ impl Engine {
         let prev = self.state.calendar.phase;
         self.state.calendar.phase = GamePhase::BurnIn;
         // Councils legislate during history too: NPC legislative turns every
-        // sixteen weeks; campaigns are abstracted (DEC-022, DEC-030).
-        const STEP: u32 = 112;
+        // six months; campaigns are abstracted (DEC-022, DEC-030).
+        const STEP: u32 = 182;
         for y in 0..years {
             let mut left = mandate_core::time::DAYS_PER_YEAR;
             while left > 0 {

@@ -1327,3 +1327,38 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Coalition-builders aim for a margin above the threshold and counter-lobby.
 - **Migration** uses a gravity model with distance decay: `(1 + d/d₀)^−γ`, γ ≈ 1.2.
 - **Deferred:** parameterising demography by fertility rate and life expectancy (M7 balance pass).
+
+### DEC-072 — Elections, parties, and NPC AI implementation choices (M4)
+
+- **Status:** Accepted (agent technical decision during M4, 2026-11-18; within delegated technical authority). Implements DEC-027 to DEC-030 with the refinements of DEC-071.
+- **Parties** are generated after the society exists:
+  - The two majors split the electorate at the weighted median of its first principal axis (competitive under plurality by construction).
+  - Minor parties come from the tail of the next, cross-cutting axes.
+  - Each party has two wings (factions) that set its platform.
+  - Names are composed from content word lists keyed to the platform's most distinctive attitude.
+- **The player is seated after the burn-in,** in the most marginal major-party ward of their town (M6's draft replaces this), so history's elections shape the council they join.
+- **Election timing** comes from the constitution (`elections` per tier: date, cycle, campaign length, concurrency, partisan ballot). Local elections are on 3 November in years divisible by 4 (concurrent with national ones), so the first election falls in the player's first year.
+- **Vote model:**
+  - Per-cohort logit over candidates; turnout is modelled separately.
+  - A strategic wasted-vote penalty implements Duverger dynamics.
+  - Hidden per-race shocks and a national swing are drawn from keyed streams when the campaign opens.
+  - The result is the expectation including those shocks, so results are deterministic and fair.
+  - Every player-era result stores a six-factor decomposition: issues, party, candidate quality, record, campaign, luck. History-era results skip it for speed.
+- **Polls** see the current electorate plus part of the late shock. They add a per-race shared error, house effects, and sampling noise. NPCs plan from polls (or party strength before the first poll), never from the truth.
+- **Turn order:** NPC turns run before the calendar advances, like player commands. The player's town gets the full AI every turn; other towns get legislative AI every fourth turn and abstracted campaigning. During the burn-in, NPCs legislate every six months.
+- **Utility AI is content data** (`politics.jsonc` → `ai`): considerations over ten engine inputs, three curve types, weights, and three profiles (ideologue, pragmatist, populist). Choice is a seeded weighted pick among the top three.
+- **Party discipline** in council votes: +0.15 lean for the sponsor's party, −0.08 for others. Sponsors always vote for their own bills, and a mayor signs their own.
+- **Career:** the player files to defend their seat, run for mayor (needs Standing ≥ 40), or stand down. Losing leaves the player out of office (no powers) but still playing. Results move Mandate, Viability, and Standing.
+- **Funding:** each budget year adopts every enacted programme, pro-rated above 25% of the town budget (DEC-024).
+- **Bot tournament** (`mandate-cli bots`):
+  - six strategies play the first election across seeds;
+  - CI runs 8 seeds and the nightly runs 32;
+  - the gate is "best win rate − median ≤ 0.3" and "effort beats idle".
+- **Performance:** a medium world generates (with 20 years of politics) in about 0.85 s natively and 1.2–3 s in the browser. Optimisation is tracked for M6's performance pass.
+- **Deferred:**
+  - regional and national elections (the bodies exist in the constitution);
+  - primaries;
+  - debates and endorsements;
+  - NPC favour calls;
+  - the budget-procedure screen;
+  - the "Why did they do that?" NPC inspector (traces are available in the engine).
