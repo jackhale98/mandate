@@ -109,11 +109,11 @@ ui-regional-capital = Regional capital
 ui-map-help = Drag to pan, pinch or scroll to zoom, tap a town for details.
 ui-generating = Building your country…
 ui-index = { $pct }%
-preset-industrial_decline = Declining industrial heartland
-preset-wealthy_coast = Wealthy coastal nation
-preset-tech_growth = Fast-growing tech economy
-preset-drought_farmland = Drought-prone farmland
-preset-resource_frontier = Resource-rich frontier
+scenario-industrial_decline = Declining industrial heartland
+scenario-wealthy_coast = Wealthy coastal nation
+scenario-tech_growth = Fast-growing tech economy
+scenario-drought_farmland = Drought-prone farmland
+scenario-resource_frontier = Resource-rich frontier
 
 class-metro = Metropolis
 class-city = City

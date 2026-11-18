@@ -3,7 +3,7 @@
 
 use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
 use mandate_sim::world::*;
-use mandate_worldgen::{Generated, Preset, WorldConfig, WorldSize, generate_world, terrain_hash};
+use mandate_worldgen::{Generated, WorldConfig, WorldSize, generate_world, terrain_hash};
 use proptest::prelude::*;
 use std::collections::{BTreeSet, VecDeque};
 use std::path::Path;
@@ -18,22 +18,26 @@ fn content() -> &'static ContentBundle {
     })
 }
 
-fn make_full(seed: u64, size: WorldSize, preset: Option<Preset>) -> Generated {
+fn make_full(seed: u64, size: WorldSize, scenario: Option<&str>) -> Generated {
     generate_world(
-        &WorldConfig { seed, size, preset },
+        &WorldConfig {
+            seed,
+            size,
+            scenario: scenario.map(str::to_string),
+        },
         content(),
         &mut |_, _| {},
     )
     .unwrap()
 }
 
-fn make(seed: u64, size: WorldSize, preset: Option<Preset>) -> (World, TerrainData) {
-    let g = make_full(seed, size, preset);
+fn make(seed: u64, size: WorldSize, scenario: Option<&str>) -> (World, TerrainData) {
+    let g = make_full(seed, size, scenario);
     (g.world, g.terrain)
 }
 
-fn total_pop(seed: u64, size: WorldSize, preset: Option<Preset>) -> u64 {
-    make_full(seed, size, preset).hood_population.iter().sum()
+fn total_pop(seed: u64, size: WorldSize, scenario: Option<&str>) -> u64 {
+    make_full(seed, size, scenario).hood_population.iter().sum()
 }
 
 fn connected(members: &BTreeSet<usize>, adj: impl Fn(usize) -> Vec<usize>) -> bool {
@@ -206,15 +210,15 @@ fn canonical_presets_bias_geography() {
     let mut richer = 0;
     for seed in 1..=4u64 {
         let (base, _) = make(seed, WorldSize::Small, None);
-        let (dry, t) = make(seed, WorldSize::Small, Some(Preset::DroughtFarmland));
+        let (dry, t) = make(seed, WorldSize::Small, Some("scenario.drought_farmland"));
         check_invariants(&dry, &t);
-        let (coast, _) = make(seed, WorldSize::Small, Some(Preset::WealthyCoast));
-        let (front, _) = make(seed, WorldSize::Small, Some(Preset::ResourceFrontier));
+        let (coast, _) = make(seed, WorldSize::Small, Some("scenario.wealthy_coast"));
+        let (front, _) = make(seed, WorldSize::Small, Some("scenario.resource_frontier"));
         drier += (mean_precip(&dry) < mean_precip(&base)) as u32;
         more_coast += (coastal(&coast) >= coastal(&base)) as u32;
         richer += (minerals(&front) > minerals(&base)) as u32;
         assert!(
-            total_pop(seed, WorldSize::Small, Some(Preset::ResourceFrontier))
+            total_pop(seed, WorldSize::Small, Some("scenario.resource_frontier"))
                 < total_pop(seed, WorldSize::Small, None)
         );
         let _ = (&front, &base);

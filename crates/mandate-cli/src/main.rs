@@ -83,8 +83,10 @@ enum Cmd {
         years: u32,
         #[arg(long, value_enum, default_value_t = Size::Small)]
         size: Size,
-        #[arg(long, value_enum)]
-        preset: Option<PresetArg>,
+        /// Scenario id from the content registry (e.g. `scenario.wealthy_coast`
+        /// or just `wealthy_coast`); omitted = a random country.
+        #[arg(long)]
+        scenario: Option<String>,
     },
     /// Bot players (M4): strategies play the first local election across seeds.
     Bots {
@@ -121,8 +123,9 @@ enum Cmd {
         seed: u64,
         #[arg(long, value_enum, default_value_t = Size::Medium)]
         size: Size,
-        #[arg(long, value_enum)]
-        preset: Option<PresetArg>,
+        /// Scenario id (see `sweep --scenario`).
+        #[arg(long)]
+        scenario: Option<String>,
         /// Write a map image here.
         #[arg(long)]
         png: Option<PathBuf>,
@@ -145,26 +148,23 @@ enum Cmd {
     },
 }
 
-#[derive(Clone, Copy, ValueEnum)]
-enum PresetArg {
-    IndustrialDecline,
-    WealthyCoast,
-    TechGrowth,
-    DroughtFarmland,
-    ResourceFrontier,
-}
-
-impl From<PresetArg> for mandate_worldgen::Preset {
-    fn from(p: PresetArg) -> Self {
-        use mandate_worldgen::Preset as P;
-        match p {
-            PresetArg::IndustrialDecline => P::IndustrialDecline,
-            PresetArg::WealthyCoast => P::WealthyCoast,
-            PresetArg::TechGrowth => P::TechGrowth,
-            PresetArg::DroughtFarmland => P::DroughtFarmland,
-            PresetArg::ResourceFrontier => P::ResourceFrontier,
-        }
+/// Resolve a scenario argument to a registry id (`wealthy_coast` or
+/// `scenario.wealthy_coast`), listing the registry when it is unknown.
+fn resolve_scenario(content: &ContentBundle, arg: Option<&str>) -> Result<Option<String>, String> {
+    let Some(a) = arg else { return Ok(None) };
+    let full = if a.contains('.') {
+        a.to_string()
+    } else {
+        format!("scenario.{a}")
+    };
+    if content.scenario(&full).is_some() {
+        return Ok(Some(full));
     }
+    let known: Vec<&str> = content.scenarios.iter().map(|x| x.id.as_str()).collect();
+    Err(format!(
+        "unknown scenario `{a}` (known: {})",
+        known.join(", ")
+    ))
 }
 
 #[derive(Subcommand)]
@@ -211,7 +211,7 @@ fn play(
         &WorldConfig {
             seed,
             size,
-            preset: None,
+            scenario: None,
         },
         content,
     )
@@ -341,7 +341,7 @@ fn run(cli: Cli) -> Result<(), String> {
         Cmd::Gen {
             seed,
             size,
-            preset,
+            scenario,
             png: png_path,
             scale,
             full,
@@ -350,7 +350,7 @@ fn run(cli: Cli) -> Result<(), String> {
             let cfg = WorldConfig {
                 seed,
                 size: size.into(),
-                preset: preset.map(Into::into),
+                scenario: resolve_scenario(&content, scenario.as_deref())?,
             };
             let g = mandate_worldgen::generate_world(&cfg, &content, &mut |_, _| {})
                 .map_err(|e| e.to_string())?;
@@ -377,7 +377,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 &WorldConfig {
                     seed,
                     size: size.into(),
-                    preset: None,
+                    scenario: None,
                 },
                 content,
             )
@@ -408,10 +408,11 @@ fn run(cli: Cli) -> Result<(), String> {
             seeds,
             years,
             size,
-            preset,
+            scenario,
         } => {
             let content = load_content(&cli.content)?;
-            let rows = sweep::run(&content, seeds, years, size.into(), preset.map(Into::into));
+            let scenario = resolve_scenario(&content, scenario.as_deref())?;
+            let rows = sweep::run(&content, seeds, years, size.into(), scenario.as_deref());
             let report = sweep::report(&rows, years);
             let ok = report["pass"].as_bool().unwrap_or(false);
             out(report);
@@ -464,7 +465,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 &WorldConfig {
                     seed,
                     size: size.into(),
-                    preset: None,
+                    scenario: None,
                 },
                 content,
             )

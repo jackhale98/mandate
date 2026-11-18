@@ -54,18 +54,36 @@ pub struct NewGameParams {
     #[ts(type = "string")]
     pub seed: u64,
     pub size: WorldSizeDto,
-    pub preset: Option<PresetDto>,
+    /// Scenario content id (from `QueryDto::Scenarios`); `None` = a random country.
+    pub scenario: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+/// A starting world the title screen offers (DEC-078 decision 4).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "snake_case")]
-pub enum PresetDto {
-    IndustrialDecline,
-    WealthyCoast,
-    TechGrowth,
-    DroughtFarmland,
-    ResourceFrontier,
+pub struct ScenarioView {
+    pub id: String,
+    pub name_key: String,
+}
+
+/// The scenario registry, in load order (available before a game starts).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ScenarioListView {
+    pub scenarios: Vec<ScenarioView>,
+}
+
+pub fn scenario_list(content: &mandate_content::ContentBundle) -> ScenarioListView {
+    ScenarioListView {
+        scenarios: content
+            .scenarios
+            .iter()
+            .map(|x| ScenarioView {
+                id: x.id.clone(),
+                name_key: x.name_key.clone(),
+            })
+            .collect(),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -192,6 +210,8 @@ pub enum QueryDto {
     Locale {
         lang: String,
     },
+    /// The scenario registry (no game needed).
+    Scenarios,
     Diagnostics,
 }
 
@@ -238,6 +258,7 @@ pub enum ResponseBody {
     Town(TownPlacesView),
     Place(PlacePanelView),
     Locale(LocaleView),
+    Scenarios(ScenarioListView),
     Diagnostics(DiagnosticsView),
 }
 
@@ -322,13 +343,13 @@ mod tests {
             body: RequestBody::NewGame(NewGameParams {
                 seed: u64::MAX,
                 size: WorldSizeDto::Small,
-                preset: None,
+                scenario: None,
             }),
         };
         let j = serde_json::to_string(&r).unwrap_or_default();
         assert_eq!(
             j,
-            r#"{"protocol_version":1,"request_id":7,"body":{"kind":"new_game","payload":{"seed":"18446744073709551615","size":"small","preset":null}}}"#
+            r#"{"protocol_version":1,"request_id":7,"body":{"kind":"new_game","payload":{"seed":"18446744073709551615","size":"small","scenario":null}}}"#
         );
         let back: Request = serde_json::from_str(&j).unwrap_or(r.clone());
         assert_eq!(back, r);

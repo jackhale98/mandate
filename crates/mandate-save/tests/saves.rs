@@ -31,7 +31,7 @@ fn round_trip_preserves_state() {
         &WorldConfig {
             seed: 11,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         c.clone(),
     )
@@ -51,7 +51,7 @@ fn save_load_continue_matches_uninterrupted() {
     let cfg = WorldConfig {
         seed: 12345,
         size: WorldSize::Medium,
-        preset: None,
+        scenario: None,
     };
     let mut a = generate(&cfg, c.clone()).unwrap();
     let mut b = generate(&cfg, c.clone()).unwrap();
@@ -76,7 +76,7 @@ fn rejects_corruption() {
         &WorldConfig {
             seed: 1,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         c,
     )
@@ -101,13 +101,13 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (9, "68836b10b07ccaa0");
+    const EXPECTED: (u16, &str) = (10, "ca0f914be85effb1");
     let c = content();
     let mut e = generate(
         &WorldConfig {
             seed: 3,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         c,
     )
@@ -147,7 +147,7 @@ fn save_loads_into_content_that_adds_a_sector() {
         &WorldConfig {
             seed: 41,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         base.clone(),
     )
@@ -208,7 +208,7 @@ fn save_refuses_content_that_removes_a_sector() {
         &WorldConfig {
             seed: 42,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         content_with_fishing(),
     )
@@ -246,7 +246,7 @@ fn save_loads_into_content_that_adds_an_attitude() {
         &WorldConfig {
             seed: 43,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         content(),
     )
@@ -325,7 +325,7 @@ fn save_refuses_content_that_removes_an_attitude() {
         &WorldConfig {
             seed: 44,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         content_with_land_rights(),
     )
@@ -361,7 +361,7 @@ fn save_loads_into_content_that_adds_a_community() {
         &WorldConfig {
             seed: 45,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         content(),
     )
@@ -440,7 +440,7 @@ fn save_refuses_content_that_removes_a_community() {
         &WorldConfig {
             seed: 46,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         content_with_first_nation(),
     )
@@ -451,4 +451,73 @@ fn save_refuses_content_that_removes_a_community() {
         .err()
         .expect("a removed community refuses to load");
     assert!(err.to_string().contains("community.first_nation"), "{err}");
+}
+
+/// A v9 save named its world's preset with an enum; v10 names a scenario
+/// content id (DEC-078 decision 4). The migration maps the five presets.
+#[test]
+fn v9_saves_migrate_their_preset_to_a_scenario_id() {
+    let e = generate(
+        &WorldConfig::with_scenario(47, WorldSize::Small, "scenario.wealthy_coast"),
+        content(),
+    )
+    .unwrap();
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    // Rewrite the payload into the v9 shape.
+    let params = v.pointer_mut("/state/meta/params").unwrap();
+    let obj = params.as_object_mut().unwrap();
+    obj.remove("scenario");
+    obj.insert("preset".into(), "WealthyCoast".into());
+    let migrated = mandate_save::migrate(9, v).unwrap();
+    let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    assert_eq!(
+        state.meta.params.scenario.as_deref(),
+        Some("scenario.wealthy_coast")
+    );
+    assert_eq!(state.hash(), e.state_hash());
+    let mut e2 = mandate_sim::Engine::from_state(state, content()).unwrap();
+    e2.apply(Command::EndTurn).unwrap();
+    // A random country and an unknown preset.
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    let obj = v
+        .pointer_mut("/state/meta/params")
+        .unwrap()
+        .as_object_mut()
+        .unwrap();
+    obj.remove("scenario");
+    obj.insert("preset".into(), serde_json::Value::Null);
+    let m = mandate_save::migrate(9, v.clone()).unwrap();
+    assert!(m.pointer("/state/meta/params/scenario").unwrap().is_null());
+    if let Some(p) = v.pointer_mut("/state/meta/params/preset") {
+        *p = "Atlantis".into();
+    }
+    assert!(mandate_save::migrate(9, v).is_err());
+}
+
+#[test]
+fn save_refuses_content_that_removes_its_scenario() {
+    let e = generate(
+        &WorldConfig::with_scenario(48, WorldSize::Small, "scenario.drought_farmland"),
+        content(),
+    )
+    .unwrap();
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    let mut src =
+        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
+    let f = src
+        .iter_mut()
+        .find(|s| s.path == "base/scenarios.jsonc")
+        .unwrap();
+    f.text = r#"{"kind":"scenarios","items":[]}"#.into();
+    let fewer = Arc::new(load(&src).unwrap().0);
+    let err = mandate_sim::Engine::from_state(state.clone(), fewer)
+        .err()
+        .expect("a removed scenario refuses to load");
+    assert!(
+        err.to_string().contains("scenario.drought_farmland"),
+        "{err}"
+    );
+    // With its scenario present it loads.
+    assert!(mandate_sim::Engine::from_state(state, content()).is_ok());
 }

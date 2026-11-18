@@ -30,6 +30,9 @@ pub struct ContentBundle {
     #[serde(default)]
     pub communities: Vec<CommunityDef>,
     pub name_pools: BTreeMap<ContentKey, NamePoolDef>,
+    /// The scenario registry (DEC-078 decision 4), in load order.
+    #[serde(default)]
+    pub scenarios: Vec<ScenarioDef>,
     /// The place-kind registry (DEC-079), in load order.
     #[serde(default)]
     pub places: Vec<PlaceKindDef>,
@@ -102,6 +105,19 @@ impl ContentBundle {
             .unwrap_or(0)
     }
 
+    /// A scenario by content id.
+    pub fn scenario(&self, id: &str) -> Option<&ScenarioDef> {
+        self.scenarios.iter().find(|s| s.id == id)
+    }
+
+    /// The generator biases for a world: its scenario's, or none (a random
+    /// country) when the world has no scenario or the id is unknown.
+    pub fn scenario_or_random(&self, id: Option<&str>) -> ScenarioDef {
+        id.and_then(|k| self.scenario(k))
+            .cloned()
+            .unwrap_or_default()
+    }
+
     /// A place kind by its snake-case key (e.g. `council_chamber`).
     pub fn place_kind(&self, key: &str) -> Option<&PlaceKindDef> {
         self.places.iter().find(|p| p.key == key)
@@ -146,6 +162,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut attitudes: Vec<AttitudeDef> = Vec::new();
     let mut communities: Vec<CommunityDef> = Vec::new();
     let mut name_pools: BTreeMap<ContentKey, NamePoolDef> = BTreeMap::new();
+    let mut scenarios: Vec<ScenarioDef> = Vec::new();
     let mut places: Vec<PlaceKindDef> = Vec::new();
     let mut locales: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
     let mut origin: BTreeMap<String, String> = BTreeMap::new();
@@ -301,6 +318,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Scenarios { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        scenarios.push(x);
+                    }
+                }
+            }
             ContentFile::NamePools { items } => {
                 for n in items {
                     if claim(&n.id, &mut issues) {
@@ -361,6 +385,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         attitudes,
         communities,
         name_pools,
+        scenarios,
         places,
         economy,
         constitutions,

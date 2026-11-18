@@ -1200,6 +1200,10 @@
           "format": "double",
           "type": "number"
         },
+        "manufacturing_trend": {
+          "format": "double",
+          "type": "number"
+        },
         "migration_rate": {
           "description": "Monthly share of mobile adults who reconsider where they live.",
           "format": "double",
@@ -1250,6 +1254,11 @@
         "taxes": {
           "$ref": "#/$defs/TaxParams"
         },
+        "tech_growth": {
+          "description": "Annual structural trends of a world without a scenario bias:\ntechnology growth, and the drift of manufacturing competitiveness.",
+          "format": "double",
+          "type": "number"
+        },
         "unemployment_replacement": {
           "description": "Unemployment benefit and pension as a share of the mean wage.",
           "format": "double",
@@ -1272,7 +1281,9 @@
         "base_dwelling_price",
         "taxes",
         "unemployment_replacement",
-        "pension_replacement"
+        "pension_replacement",
+        "tech_growth",
+        "manufacturing_trend"
       ],
       "type": "object"
     },
@@ -2490,6 +2501,226 @@
       ],
       "type": "object"
     },
+    "ScenarioDef": {
+      "additionalProperties": false,
+      "description": "A starting world: biases on world generation (geography, economy, era,\npolitics). Everything left out is drawn at random, as for a random\ncountry, so a scenario only says what makes it different.",
+      "properties": {
+        "economy": {
+          "$ref": "#/$defs/ScenarioEconomy",
+          "default": {
+            "class_mix": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "endowment": {},
+            "wealth": 1.0
+          }
+        },
+        "era": {
+          "$ref": "#/$defs/ScenarioEra",
+          "default": {
+            "drying": null,
+            "manufacturing_trend": null,
+            "storminess": null,
+            "tech_growth": null
+          }
+        },
+        "geography": {
+          "$ref": "#/$defs/ScenarioGeography",
+          "default": {
+            "country_extent": 1.0,
+            "industrial_towns": false,
+            "mineral_richness": 1.0,
+            "mountain_strength": null,
+            "population": 1.0,
+            "sea_sides": null,
+            "temp_south": null,
+            "wetness": null
+          }
+        },
+        "id": {
+          "description": "Content id, e.g. `scenario.wealthy_coast`.",
+          "type": "string"
+        },
+        "name_key": {
+          "description": "Fluent key of the name shown on the title screen.",
+          "type": "string"
+        },
+        "politics": {
+          "$ref": "#/$defs/ScenarioPolitics",
+          "default": {
+            "attitude_shift": {}
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name_key"
+      ],
+      "type": "object"
+    },
+    "ScenarioEconomy": {
+      "additionalProperties": false,
+      "properties": {
+        "class_mix": {
+          "default": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "description": "Multipliers on each neighbourhood's income-class mix: `[low, middle, high]`.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "endowment": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Multiplies the structural presence of sectors with a driver (omitted = 1).",
+          "type": "object"
+        },
+        "wealth": {
+          "default": 1.0,
+          "description": "Wages and dwelling prices multiplier.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "ScenarioEra": {
+      "additionalProperties": false,
+      "description": "The trends of the age: technology and industry, and the climate's drift.",
+      "properties": {
+        "drying": {
+          "default": null,
+          "description": "Annual drying of the climate; random when omitted.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "manufacturing_trend": {
+          "default": null,
+          "description": "Annual drift of manufacturing competitiveness (default `economy.manufacturing_trend`).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "storminess": {
+          "default": null,
+          "description": "Annual growth in storminess; random when omitted.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "tech_growth": {
+          "default": null,
+          "description": "Annual technology growth (default `economy.tech_growth`).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ScenarioGeography": {
+      "additionalProperties": false,
+      "properties": {
+        "country_extent": {
+          "default": 1.0,
+          "description": "Size of the country within the map.",
+          "format": "double",
+          "type": "number"
+        },
+        "industrial_towns": {
+          "default": false,
+          "description": "Every town and city (not rural places) has an industrial district.",
+          "type": "boolean"
+        },
+        "mineral_richness": {
+          "default": 1.0,
+          "description": "Mineral deposits multiplier.",
+          "format": "double",
+          "type": "number"
+        },
+        "mountain_strength": {
+          "default": null,
+          "description": "Strength of mountain ranges (0..1); random when omitted.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "population": {
+          "default": 1.0,
+          "description": "Population multiplier on the world size's population.",
+          "format": "double",
+          "type": "number"
+        },
+        "sea_sides": {
+          "default": null,
+          "description": "Sides of the country on the sea (1–3); random when omitted.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "temp_south": {
+          "default": null,
+          "description": "Mean temperature in the south (°C); random when omitted.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "wetness": {
+          "default": null,
+          "description": "Rainfall multiplier; random when omitted.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ScenarioPolitics": {
+      "additionalProperties": false,
+      "properties": {
+        "attitude_shift": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Added to every cohort's seeded opinion, by attitude key (omitted = 0).",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "SectorClass": {
       "enum": [
         "primary",
@@ -3474,6 +3705,27 @@
         },
         "kind": {
           "const": "name_pools",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "World scenarios: starting worlds as biases on the generator (DEC-078).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ScenarioDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "scenarios",
           "type": "string"
         }
       },

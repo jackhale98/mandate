@@ -43,6 +43,12 @@ pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String>
             out.push(p.template.clone());
         }
     }
+    // The world's scenario rebuilds its terrain and seeds new sectors.
+    if let Some(k) = &state.meta.params.scenario
+        && content.scenario(k).is_none()
+    {
+        out.push(k.clone());
+    }
     // Sector data cannot be carried into content that removed the sector.
     for k in &state.economy.sector_keys {
         if content.sector_index(k).is_none() && !out.contains(k) {

@@ -3,7 +3,7 @@
 
 use crate::events::EventKind;
 use crate::scheduler::{Effect, EffectQueue, Outs, Reads};
-use crate::state::{Preset, WorldMeta};
+use crate::state::WorldMeta;
 use crate::world::World;
 use mandate_content::{ContentBundle, SectorDriver};
 use mandate_core::math::clamp;
@@ -49,19 +49,25 @@ pub struct EnvironmentState {
     pub disasters_total: u32,
 }
 
-pub fn init(world: &World, meta: &WorldMeta, rng: &mut SimRng) -> EnvironmentState {
-    let preset = meta.params.preset;
+pub fn init(
+    world: &World,
+    meta: &WorldMeta,
+    content: &mandate_content::ContentBundle,
+    rng: &mut SimRng,
+) -> EnvironmentState {
+    // A scenario's era fixes a trend instead of drawing it (no draw is made).
+    let era = content
+        .scenario_or_random(meta.params.scenario.as_deref())
+        .era;
     let trajectory = Trajectory {
         warming: rng.range_f64(0.01, 0.045),
-        drying: if preset == Some(Preset::DroughtFarmland) {
-            0.012
-        } else {
-            rng.normal(0.002, 0.004)
+        drying: match era.drying {
+            Some(v) => v,
+            None => rng.normal(0.002, 0.004),
         },
-        storminess: if preset == Some(Preset::WealthyCoast) {
-            0.012
-        } else {
-            rng.range_f64(0.0, 0.01)
+        storminess: match era.storminess {
+            Some(v) => v,
+            None => rng.range_f64(0.0, 0.01),
         },
     };
     let regions = world

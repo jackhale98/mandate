@@ -19,7 +19,7 @@ fn new_game_end_turn_save_load() {
         RequestBody::NewGame(NewGameParams {
             seed: 42,
             size: WorldSizeDto::Small,
-            preset: None,
+            scenario: None,
         }),
     )))
     .unwrap();
@@ -111,7 +111,7 @@ fn map_and_municipality_queries_survive_save_load() {
         RequestBody::NewGame(NewGameParams {
             seed: 5,
             size: WorldSizeDto::Small,
-            preset: None,
+            scenario: None,
         }),
     ));
     let map = |s: &mut Session| -> MapView {
@@ -191,7 +191,7 @@ fn information_depth_depends_on_where_the_player_is() {
         RequestBody::NewGame(NewGameParams {
             seed: 31337,
             size: WorldSizeDto::Small,
-            preset: None,
+            scenario: None,
         }),
     );
     let ResponseBody::Town(town) = send(&mut s, 2, RequestBody::Query(QueryDto::Town)) else {
@@ -274,4 +274,51 @@ fn information_depth_depends_on_where_the_player_is() {
     )))
     .unwrap();
     assert!(matches!(r.result, ResponseResult::Err { .. }));
+}
+
+#[test]
+fn scenarios_are_listed_before_a_game_and_start_one() {
+    // DEC-078 decision 4: the title screen lists the scenario registry.
+    let mut s = Session::new().unwrap();
+    let r: Response =
+        serde_json::from_str(&s.handle_json(&req(1, RequestBody::Query(QueryDto::Scenarios))))
+            .unwrap();
+    let ResponseResult::Ok {
+        body: ResponseBody::Scenarios(list),
+    } = r.result
+    else {
+        panic!("expected the scenario list");
+    };
+    assert_eq!(list.scenarios.len(), 5);
+    let coast = list
+        .scenarios
+        .iter()
+        .find(|x| x.id == "scenario.wealthy_coast")
+        .unwrap();
+    assert_eq!(coast.name_key, "scenario-wealthy_coast");
+    let start = |s: &mut Session, scenario: &str| -> Response {
+        serde_json::from_str(&s.handle_json(&req(
+            2,
+            RequestBody::NewGame(NewGameParams {
+                seed: 7,
+                size: WorldSizeDto::Small,
+                scenario: Some(scenario.into()),
+            }),
+        )))
+        .unwrap()
+    };
+    assert!(matches!(
+        start(&mut s, "scenario.atlantis").result,
+        ResponseResult::Err { .. }
+    ));
+    assert!(matches!(
+        start(&mut s, "scenario.wealthy_coast").result,
+        ResponseResult::Ok {
+            body: ResponseBody::GameStarted(_)
+        }
+    ));
+    assert_eq!(
+        s.engine().unwrap().state().meta.params.scenario.as_deref(),
+        Some("scenario.wealthy_coast")
+    );
 }

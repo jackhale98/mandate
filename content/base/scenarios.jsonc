@@ -1,0 +1,38 @@
+// World scenarios (DEC-078 decision 4): starting worlds as biases on the
+// generator. Anything omitted is drawn at random, exactly as for a random
+// country. A new starting world is a new entry here plus its Fluent name; the
+// title screen lists the registry. Registry order is load order.
+//
+//   "geography": { "sea_sides": 1–3, "mountain_strength": 0..1, "country_extent": 1.0,
+//                  "wetness": 1.0, "temp_south": °C, "mineral_richness": 1.0,
+//                  "population": 1.0, "industrial_towns": false }
+//   "economy":   { "endowment": { "<sector driver>": multiplier }, "wealth": 1.0,
+//                  "class_mix": [low, middle, high multipliers] }
+//   "era":       { "tech_growth": a year, "manufacturing_trend": a year,
+//                  "drying": a year, "storminess": a year }
+//   "politics":  { "attitude_shift": { "<attitude key>": added to seeded opinions } }
+{
+  "kind": "scenarios",
+  "items": [
+    { "id": "scenario.industrial_decline", "name_key": "scenario-industrial_decline",
+      "geography": { "mineral_richness": 1.3, "industrial_towns": true },
+      "economy": { "endowment": { "industrial": 1.6 } },
+      "era": { "tech_growth": 0.015, "manufacturing_trend": -0.02 } },
+    { "id": "scenario.wealthy_coast", "name_key": "scenario-wealthy_coast",
+      "geography": { "sea_sides": 3, "country_extent": 1.3, "wetness": 1.15 },
+      "economy": { "endowment": { "visitor": 1.5, "knowledge": 1.2 }, "wealth": 1.15,
+                   "class_mix": [0.75, 1.0, 1.4] },
+      "era": { "storminess": 0.012 } },
+    { "id": "scenario.tech_growth", "name_key": "scenario-tech_growth",
+      "geography": { "population": 1.2 },
+      "economy": { "endowment": { "knowledge": 1.5 } },
+      "era": { "tech_growth": 0.035, "manufacturing_trend": -0.003 } },
+    { "id": "scenario.drought_farmland", "name_key": "scenario-drought_farmland",
+      "geography": { "sea_sides": 1, "mountain_strength": 0.35, "wetness": 0.5, "temp_south": 24.0 },
+      "economy": { "endowment": { "land_based": 1.5 } },
+      "era": { "drying": 0.012 } },
+    { "id": "scenario.resource_frontier", "name_key": "scenario-resource_frontier",
+      "geography": { "sea_sides": 1, "mountain_strength": 0.85, "mineral_richness": 1.6, "population": 0.5 },
+      "economy": { "endowment": { "extraction": 2.2 } } },
+  ],
+}

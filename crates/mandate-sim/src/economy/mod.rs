@@ -7,10 +7,10 @@ pub mod housing;
 use crate::events::{EventId, EventKind};
 use crate::population::{CLASSES, PopulationState};
 use crate::scheduler::{Effect, Outs, Reads};
-use crate::state::{Preset, WorldMeta};
+use crate::state::WorldMeta;
 use crate::world::{MunicipalityId, NeighborhoodKind, PlaceKind, SettlementClass, World};
 use housing::Housing;
-use mandate_content::{ContentBundle, ContentKey, SectorDriver};
+use mandate_content::{ContentBundle, ContentKey, ScenarioEconomy, SectorDriver};
 use mandate_core::math::{clamp, exp, ln, pow};
 use mandate_core::{SimRng, Stream};
 use serde::{Deserialize, Serialize};
@@ -49,7 +49,7 @@ pub struct National {
     pub gdp_growth: f64,
     pub tech_index: f64,
     pub manufacturing_competitiveness: f64,
-    /// Annual structural trends (from presets).
+    /// Annual structural trends (economy parameters, or the scenario's era).
     pub tech_growth: f64,
     pub manufacturing_trend: f64,
     pub mean_wage: f64,
@@ -162,8 +162,9 @@ fn local_wage_factor(c: SettlementClass) -> f64 {
     }
 }
 
-/// Relative structural presence of each sector in a municipality.
-fn endowment(world: &World, m: usize, driver: SectorDriver, preset: Option<Preset>) -> f64 {
+/// Relative structural presence of each sector in a municipality, times the
+/// scenario's endowment multiplier for its driver.
+fn endowment(world: &World, m: usize, driver: SectorDriver, sc: &ScenarioEconomy) -> f64 {
     let mu = &world.municipalities[m];
     let g = &mu.geo;
     let class = mu.class;
@@ -177,33 +178,22 @@ fn endowment(world: &World, m: usize, driver: SectorDriver, preset: Option<Prese
         SettlementClass::Town => 1,
         SettlementClass::Rural => 0,
     };
-    let p = |x: Preset, f: f64| if preset == Some(x) { f } else { 1.0 };
-    match driver {
-        SectorDriver::LandBased => {
-            (0.2 + 2.5 * g.fertility)
-                * [1.6, 1.0, 0.3, 0.08][size]
-                * p(Preset::DroughtFarmland, 1.5)
-        }
+    let base = match driver {
+        SectorDriver::LandBased => (0.2 + 2.5 * g.fertility) * [1.6, 1.0, 0.3, 0.08][size],
         SectorDriver::Extraction => {
             (g.minerals + 0.6 * g.timber + 0.5 * g.energy + 0.3 * g.fishing)
                 * [1.6, 1.2, 0.5, 0.2][size]
-                * p(Preset::ResourceFrontier, 2.2)
         }
         SectorDriver::Industrial => {
-            (if industrial { 1.6 } else { 0.5 })
-                * [0.6, 1.0, 1.2, 1.1][size]
-                * p(Preset::IndustrialDecline, 1.6)
+            (if industrial { 1.6 } else { 0.5 }) * [0.6, 1.0, 1.2, 1.1][size]
         }
         SectorDriver::Building => 1.0,
         SectorDriver::LocalServices => [0.85, 1.0, 1.05, 1.1][size],
         SectorDriver::Visitor => {
-            (0.2 + 2.0 * pow(g.scenic, 1.5) + if mu.coastal { 0.3 } else { 0.0 })
-                * p(Preset::WealthyCoast, 1.5)
+            0.2 + 2.0 * pow(g.scenic, 1.5) + if mu.coastal { 0.3 } else { 0.0 }
         }
         SectorDriver::Knowledge => {
-            ([0.3, 0.6, 1.4, 2.2][size] + if has(PlaceKind::University) { 0.4 } else { 0.0 })
-                * p(Preset::TechGrowth, 1.5)
-                * p(Preset::WealthyCoast, 1.2)
+            [0.3, 0.6, 1.4, 2.2][size] + if has(PlaceKind::University) { 0.4 } else { 0.0 }
         }
         SectorDriver::Public => {
             1.0 + if has(PlaceKind::RegionalAssembly) {
@@ -212,6 +202,11 @@ fn endowment(world: &World, m: usize, driver: SectorDriver, preset: Option<Prese
                 0.0
             } + if has(PlaceKind::Parliament) { 0.5 } else { 0.0 }
         }
+    };
+    // Drivers without a multiplier are returned untouched (no extra float op).
+    match sc.endowment.get(&driver) {
+        Some(f) => base * f,
+        None => base,
     }
 }
 
@@ -222,20 +217,16 @@ pub fn init(
     content: &ContentBundle,
     meta: &WorldMeta,
 ) -> EconomyState {
-    let preset = meta.params.preset;
+    let sc = content.scenario_or_random(meta.params.scenario.as_deref());
     let e = &content.economy;
     let mut munis = Vec::with_capacity(world.municipalities.len());
-    let wealth = if preset == Some(Preset::WealthyCoast) {
-        1.15
-    } else {
-        1.0
-    };
+    let wealth = sc.economy.wealth;
     for (m, mu) in world.municipalities.iter().enumerate() {
         let lf: f64 = pop.labour_force_by_class(world, mu.id).iter().sum();
         let weights: Vec<f64> = content
             .sectors
             .iter()
-            .map(|s| s.base_weight * endowment(world, m, s.driver, preset))
+            .map(|s| s.base_weight * endowment(world, m, s.driver, &sc.economy))
             .collect();
         let wsum: f64 = weights.iter().sum::<f64>().max(1e-9);
         let target_jobs = lf * (1.0 - e.natural_unemployment);
@@ -274,11 +265,8 @@ pub fn init(
             history: Vec::new(),
         });
     }
-    let (tech_growth, manufacturing_trend) = match preset {
-        Some(Preset::TechGrowth) => (0.035, -0.003),
-        Some(Preset::IndustrialDecline) => (0.015, -0.02),
-        _ => (0.02, -0.008),
-    };
+    let tech_growth = sc.era.tech_growth.unwrap_or(e.tech_growth);
+    let manufacturing_trend = sc.era.manufacturing_trend.unwrap_or(e.manufacturing_trend);
     let mut st = EconomyState {
         sector_keys: content.sector_keys().cloned().collect(),
         global: Global {
@@ -334,7 +322,7 @@ pub fn remap_sectors(
     if econ.sector_keys == keys {
         return false;
     }
-    let preset = meta.params.preset;
+    let sc = content.scenario_or_random(meta.params.scenario.as_deref());
     let price = econ.national.price_level.max(0.01);
     let productivity = econ.national.productivity_index.max(0.01);
     let old: Vec<Option<usize>> = keys
@@ -349,7 +337,7 @@ pub fn remap_sectors(
         let weights: Vec<f64> = content
             .sectors
             .iter()
-            .map(|s| s.base_weight * endowment(world, m, s.driver, preset))
+            .map(|s| s.base_weight * endowment(world, m, s.driver, &sc.economy))
             .collect();
         let wsum: f64 = weights.iter().sum::<f64>().max(1e-9);
         let jobs = mu.total_jobs();

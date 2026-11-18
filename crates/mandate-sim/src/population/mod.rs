@@ -232,7 +232,8 @@ impl PopulationState {
 
 // --- Initialisation ---------------------------------------------------------
 
-fn class_mix(kind: NeighborhoodKind, wealthy: bool) -> [f64; CLASSES] {
+/// Income-class mix of a neighbourhood kind, times a scenario's multipliers.
+fn class_mix(kind: NeighborhoodKind, mult: [f64; CLASSES]) -> [f64; CLASSES] {
     let base = match kind {
         NeighborhoodKind::Core => [0.34, 0.45, 0.21],
         NeighborhoodKind::Inner => [0.30, 0.47, 0.23],
@@ -241,11 +242,7 @@ fn class_mix(kind: NeighborhoodKind, wealthy: bool) -> [f64; CLASSES] {
         NeighborhoodKind::Suburb => [0.22, 0.55, 0.23],
         NeighborhoodKind::Rural => [0.42, 0.48, 0.10],
     };
-    if wealthy {
-        [base[0] * 0.75, base[1], base[2] * 1.4]
-    } else {
-        base
-    }
+    std::array::from_fn(|c| base[c] * mult[c])
 }
 
 fn age_mix(kind: NeighborhoodKind) -> ([f64; AGE_BANDS], f64) {
@@ -275,6 +272,7 @@ fn kind_lean(l: &mandate_content::NeighborhoodLean, kind: NeighborhoodKind) -> f
 /// The leans come from content (`AttitudeDef::seed`), one draw per attitude
 /// in registry order, plus the cohort's community offsets (dense in attitude
 /// order; empty = none).
+#[allow(clippy::too_many_arguments)]
 fn seed_attitudes(
     rng: &mut SimRng,
     defs: &[mandate_content::AttitudeDef],
@@ -283,12 +281,17 @@ fn seed_attitudes(
     kind: NeighborhoodKind,
     regional: &[f64],
     offsets: &[f64],
+    shift: &[f64],
 ) -> Vec<f32> {
     defs.iter()
         .zip(regional)
         .enumerate()
         .map(|(i, (d, reg))| {
             let base = seed_mean(d, age, class, kind) + offsets.get(i).copied().unwrap_or(0.0);
+            let base = match shift.get(i) {
+                Some(s) => base + s,
+                None => base,
+            };
             clamp(base + reg + rng.normal(0.0, d.seed.noise_sd), -1.0, 1.0) as f32
         })
         .collect()
@@ -368,10 +371,27 @@ pub fn init(
     world: &World,
     totals: &[u64],
     world_seed: u64,
-    wealthy: bool,
+    scenario: &mandate_content::ScenarioDef,
     attitudes: &[mandate_content::AttitudeDef],
     communities: &[mandate_content::CommunityDef],
 ) -> PopulationState {
+    // A scenario's politics bias, dense in attitude-registry order (empty
+    // when it has none, so seeding is untouched).
+    let shift: Vec<f64> = if scenario.politics.attitude_shift.is_empty() {
+        Vec::new()
+    } else {
+        attitudes
+            .iter()
+            .map(|a| {
+                scenario
+                    .politics
+                    .attitude_shift
+                    .get(&a.key)
+                    .copied()
+                    .unwrap_or(0.0)
+            })
+            .collect()
+    };
     let region_culture: Vec<Vec<f64>> = (0..world.regions.len())
         .map(|r| {
             let mut rng =
@@ -416,7 +436,7 @@ pub fn init(
         let total = totals.get(i).copied().unwrap_or(0) as f64;
         let (ages, kids_per_adult) = age_mix(n.kind);
         let adults = total / (1.0 + kids_per_adult);
-        let classes = class_mix(n.kind, wealthy);
+        let classes = class_mix(n.kind, scenario.economy.class_mix);
         let csum: f64 = classes.iter().sum();
         let region = world.municipalities[n.municipality.index()].region.index();
         let mut rng =
@@ -459,6 +479,7 @@ pub fn init(
                             n.kind,
                             &region_culture[region],
                             offsets,
+                            &shift,
                         ),
                         trust: clamp(
                             0.55 + [-0.08, 0.0, 0.06][c] + rng.normal(0.0, 0.05),

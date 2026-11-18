@@ -251,7 +251,7 @@ pub fn play(content: &Arc<ContentBundle>, seed: u64, strategy: &str) -> Option<(
         &WorldConfig {
             seed,
             size: WorldSize::Small,
-            preset: None,
+            scenario: None,
         },
         content.clone(),
     )

@@ -5,7 +5,7 @@
 use mandate_content::ContentBundle;
 use mandate_sim::Command;
 use mandate_sim::events::EventKind;
-use mandate_worldgen::{Preset, WorldConfig, WorldSize, generate};
+use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use serde::Serialize;
 use std::sync::Arc;
 
@@ -49,9 +49,16 @@ pub fn run_one(
     seed: u64,
     years: u32,
     size: WorldSize,
-    preset: Option<Preset>,
+    scenario: Option<&str>,
 ) -> RunMetrics {
-    let mut e = match generate(&WorldConfig { seed, size, preset }, content.clone()) {
+    let mut e = match generate(
+        &WorldConfig {
+            seed,
+            size,
+            scenario: scenario.map(str::to_string),
+        },
+        content.clone(),
+    ) {
         Ok(e) => e,
         Err(err) => panic!("generation failed for seed {seed}: {err}"),
     };
@@ -118,7 +125,7 @@ pub fn run(
     seeds: u64,
     years: u32,
     size: WorldSize,
-    preset: Option<Preset>,
+    scenario: Option<&str>,
 ) -> Vec<RunMetrics> {
     let threads = std::thread::available_parallelism()
         .map(|n| n.get())
@@ -135,7 +142,7 @@ pub fn run(
                 sc.spawn(move || {
                     chunk
                         .into_iter()
-                        .map(|s| run_one(&c, s, years, size, preset))
+                        .map(|s| run_one(&c, s, years, size, scenario))
                         .collect::<Vec<_>>()
                 })
             })

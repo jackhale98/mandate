@@ -25,7 +25,7 @@ use mandate_core::hash::StableHash;
 use mandate_core::{ENGINE_VERSION, RngStreams, SimDate, SimRng, Stream};
 use mandate_sim::events::EventLog;
 use mandate_sim::state::{Calendar, GamePhase, State, WorldMeta};
-pub use mandate_sim::state::{Preset, WorldParams, WorldSize};
+pub use mandate_sim::state::{WorldParams, WorldSize};
 use mandate_sim::world::*;
 use mandate_sim::{Engine, EngineError};
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,8 @@ use std::sync::Arc;
 pub struct WorldConfig {
     pub seed: u64,
     pub size: WorldSize,
-    pub preset: Option<Preset>,
+    /// Content id of a scenario (DEC-078 decision 4); `None` is a random country.
+    pub scenario: Option<String>,
 }
 
 impl WorldConfig {
@@ -44,7 +45,15 @@ impl WorldConfig {
         WorldConfig {
             seed,
             size,
-            preset: None,
+            scenario: None,
+        }
+    }
+
+    pub fn with_scenario(seed: u64, size: WorldSize, scenario: &str) -> Self {
+        WorldConfig {
+            seed,
+            size,
+            scenario: Some(scenario.to_string()),
         }
     }
 }
@@ -119,12 +128,18 @@ pub fn generate_world(
         pool("names.given")?,
     );
 
+    if let Some(k) = &config.scenario
+        && content.scenario(k).is_none()
+    {
+        return Err(EngineError::Content(format!("unknown scenario `{k}`")));
+    }
     let d = dims(config.size);
     let mut streams = RngStreams::new(config.seed);
     let rng: &mut SimRng = streams.get(Stream::Worldgen);
-    let preset = config.preset;
+    let sc = content.scenario_or_random(config.scenario.as_deref());
+    let geo = &sc.geography;
 
-    // --- Parameters (presets bias the canonical test worlds) ---------------
+    // --- Parameters (a scenario fixes what it biases; the rest is drawn) ----
     let mut sides = vec![
         terrain::Side::North,
         terrain::Side::East,
@@ -132,51 +147,35 @@ pub fn generate_world(
         terrain::Side::West,
     ];
     rng.shuffle(&mut sides);
-    let n_sea = match preset {
-        Some(Preset::WealthyCoast) => 3,
-        Some(Preset::DroughtFarmland) | Some(Preset::ResourceFrontier) => 1,
-        _ => 1 + rng.below(3) as usize,
+    let n_sea = match geo.sea_sides {
+        Some(n) => (n as usize).clamp(1, 3),
+        None => 1 + rng.below(3) as usize,
     };
     let sea_sides: Vec<terrain::Side> = sides[..n_sea].to_vec();
     let tp = terrain::TerrainParams {
         sea_fraction: 0.14 + 0.08 * n_sea as f64,
-        mountain_strength: match preset {
-            Some(Preset::ResourceFrontier) => 0.85,
-            Some(Preset::DroughtFarmland) => 0.35,
-            _ => rng.range_f64(0.45, 0.7),
+        mountain_strength: match geo.mountain_strength {
+            Some(v) => v,
+            None => rng.range_f64(0.45, 0.7),
         },
         sea_sides,
-        country_extent: if preset == Some(Preset::WealthyCoast) {
-            1.3
-        } else {
-            1.0
-        },
+        country_extent: geo.country_extent,
     };
     let wind_from_west = rng.chance(0.75);
     let cp = climate::ClimateParams {
         wind_from_west,
-        wetness: match preset {
-            Some(Preset::DroughtFarmland) => 0.5,
-            Some(Preset::WealthyCoast) => 1.15,
-            _ => rng.range_f64(0.85, 1.15),
+        wetness: match geo.wetness {
+            Some(v) => v,
+            None => rng.range_f64(0.85, 1.15),
         },
-        temp_south: if preset == Some(Preset::DroughtFarmland) {
-            24.0
-        } else {
-            rng.range_f64(16.0, 21.0)
+        temp_south: match geo.temp_south {
+            Some(v) => v,
+            None => rng.range_f64(16.0, 21.0),
         },
         temp_north: rng.range_f64(3.0, 8.0),
     };
-    let mineral_richness = match preset {
-        Some(Preset::ResourceFrontier) => 1.6,
-        Some(Preset::IndustrialDecline) => 1.3,
-        _ => 1.0,
-    };
-    let total_pop = match preset {
-        Some(Preset::ResourceFrontier) => d.population / 2,
-        Some(Preset::TechGrowth) => d.population * 6 / 5,
-        _ => d.population,
-    };
+    let mineral_richness = geo.mineral_richness;
+    let total_pop = (d.population as f64 * geo.population).round() as u64;
 
     // --- 1. Terrain ---------------------------------------------------------
     progress("progress-terrain", 0.05);
@@ -408,7 +407,7 @@ pub fn generate_world(
             || m.geo.energy > 0.5
             || (matches!(m.class, SettlementClass::City | SettlementClass::Metro)
                 && rng.chance(0.6))
-            || (preset == Some(Preset::IndustrialDecline) && m.class != SettlementClass::Rural);
+            || (geo.industrial_towns && m.class != SettlementClass::Rural);
         let plan = hoods::plan(rng, pops[k], m.class, m.coastal, industrial[k]);
         let first = neighborhoods.len();
         let local = hoods::local_adjacency(plan.len());
@@ -760,7 +759,7 @@ pub fn generate_with_progress(
         seed: config.seed,
         params: WorldParams {
             size: config.size,
-            preset: config.preset,
+            scenario: config.scenario.clone(),
         },
         content_hash: content.content_hash.clone(),
         engine_version: ENGINE_VERSION.to_string(),
@@ -777,13 +776,14 @@ pub fn generate_with_progress(
         &world,
         &hood_population,
         config.seed,
-        config.preset == Some(Preset::WealthyCoast),
+        &content.scenario_or_random(config.scenario.as_deref()),
         &content.attitudes,
         &content.communities,
     );
     let economy = mandate_sim::economy::init(&world, &population, &content, &meta);
     let finance = mandate_sim::finance::init(&world, &population, &economy, &content.economy);
-    let environment = mandate_sim::environment::init(&world, &meta, rng.get(Stream::Environment));
+    let environment =
+        mandate_sim::environment::init(&world, &meta, &content, rng.get(Stream::Environment));
     // Politics after the population exists: councils reflect their wards.
     let given_names: Vec<String> = content
         .name_pools
@@ -985,7 +985,7 @@ pub fn rebuild_terrain(
     let cfg = WorldConfig {
         seed: state.meta.seed,
         size: state.meta.params.size,
-        preset: state.meta.params.preset,
+        scenario: state.meta.params.scenario.clone(),
     };
     let terrain = generate_world(&cfg, content, &mut |_, _| {})?.terrain;
     let ok = state

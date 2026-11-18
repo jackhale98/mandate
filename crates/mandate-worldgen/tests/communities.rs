@@ -91,7 +91,7 @@ fn a_first_nation_splits_cohorts_exactly_and_concentrates_in_rural_areas() {
         &g.world,
         &g.hood_population,
         SEED,
-        false,
+        &Default::default(),
         &b.attitudes,
         &b.communities,
     );
@@ -99,7 +99,7 @@ fn a_first_nation_splits_cohorts_exactly_and_concentrates_in_rural_areas() {
         &g.world,
         &g.hood_population,
         SEED,
-        false,
+        &Default::default(),
         &c.attitudes,
         &c.communities,
     );

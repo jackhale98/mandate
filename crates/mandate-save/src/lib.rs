@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 9;
+pub const SAVE_FORMAT_VERSION: u16 = 10;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -161,10 +161,10 @@ pub type MigrationStep = fn(serde_json::Value) -> Result<serde_json::Value, Save
 
 /// JSON-level migration chain `vN → vN+1`. Add one arm per format bump.
 pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
-    // One step per format bump, applied in order. None exist yet (v1).
-    // Pre-release policy: development builds may bump the version without a
-    // migration; such saves are rejected with a clear error instead.
-    let steps: &[(u16, MigrationStep)] = &[];
+    // One step per format bump, applied in order. Pre-release policy:
+    // development builds may bump the version without a migration; such
+    // saves are rejected with a clear error instead.
+    let steps: &[(u16, MigrationStep)] = &[(9, v9_scenario_ids)];
     let mut value = value;
     let mut v = from;
     while v < SAVE_FORMAT_VERSION {
@@ -176,6 +176,34 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         value = step(value)?;
         v += 1;
     }
+    Ok(value)
+}
+
+/// v9 → v10 (DEC-078 decision 4): the world's preset became a scenario
+/// content id. The five presets map to the base pack's scenarios.
+fn v9_scenario_ids(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let params = value
+        .pointer_mut("/state/meta/params")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    let scenario = match params.remove("preset") {
+        None | Some(serde_json::Value::Null) => serde_json::Value::Null,
+        Some(serde_json::Value::String(p)) => {
+            let id = match p.as_str() {
+                "IndustrialDecline" => "scenario.industrial_decline",
+                "WealthyCoast" => "scenario.wealthy_coast",
+                "TechGrowth" => "scenario.tech_growth",
+                "DroughtFarmland" => "scenario.drought_farmland",
+                "ResourceFrontier" => "scenario.resource_frontier",
+                other => {
+                    return Err(SaveError::Data(format!("unknown world preset `{other}`")));
+                }
+            };
+            serde_json::Value::String(id.into())
+        }
+        Some(_) => return Err(SaveError::Malformed),
+    };
+    params.insert("scenario".into(), scenario);
     Ok(value)
 }
 

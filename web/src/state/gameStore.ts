@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { engine, expectKind } from "../engine/client";
 import type { OverviewView } from "../engine/protocol/OverviewView";
 import type { MapView } from "../engine/protocol/MapView";
-import type { PresetDto } from "../engine/protocol/PresetDto";
+import type { ScenarioView } from "../engine/protocol/ScenarioView";
 import type { OfficeView } from "../engine/protocol/OfficeView";
 import type { CampaignView } from "../engine/protocol/CampaignView";
 import type { CommandDto } from "../engine/protocol/CommandDto";
@@ -59,9 +59,11 @@ interface GameState {
   progress: { stage: string; fraction: number } | null;
   run: ActiveRun | null;
   runs: RunSummary[];
+  /** Starting worlds from the content registry (title screen). */
+  scenarios: ScenarioView[];
   boot(): Promise<void>;
   refreshRuns(): Promise<void>;
-  newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; preset: PresetDto | null }): Promise<void>;
+  newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; scenario: string | null }): Promise<void>;
   loadMap(): Promise<void>;
   loadOffice(): Promise<void>;
   loadCampaign(): Promise<void>;
@@ -149,12 +151,15 @@ export const useGame = create<GameState>((set, get) => {
     progress: null,
     run: null,
     runs: [],
+    scenarios: [],
 
     async boot() {
       try {
         await engine().ready;
         const locale = expectKind(await engine().request({ kind: "query", payload: { type: "locale", lang: "en" } }), "locale");
         set({ tr: new Translator(locale.lang, locale.ftl) });
+        const list = expectKind(await engine().request({ kind: "query", payload: { type: "scenarios" } }), "scenarios");
+        set({ scenarios: list.scenarios });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -171,11 +176,11 @@ export const useGame = create<GameState>((set, get) => {
       }
     },
 
-    async newGame({ seed, size, mode, preset }) {
+    async newGame({ seed, size, mode, scenario }) {
       set({ busy: true, error: null, map: null, progress: { stage: "progress-terrain", fraction: 0 } });
       const off = engine().onProgress((stage, fraction) => set({ progress: { stage, fraction } }));
       try {
-        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, preset } });
+        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario } });
         const overview = expectKind(body, "game_started");
         set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, openPlace: null, view: "town", run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();

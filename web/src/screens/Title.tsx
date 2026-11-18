@@ -2,9 +2,6 @@ import { useState } from "react";
 import { useGame } from "../state/gameStore";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
-import type { PresetDto } from "../engine/protocol/PresetDto";
-
-const PRESETS: PresetDto[] = ["industrial_decline", "wealthy_coast", "tech_growth", "drought_farmland", "resource_frontier"];
 import { formatDate } from "../i18n/format";
 import { Loader, LogoMark } from "../components/Brand";
 
@@ -18,12 +15,13 @@ export function Title() {
   const [size, setSize] = useState<WorldSizeDto>("medium");
   const [mode, setMode] = useState<RunModeDto>("ironman");
   const [seed, setSeed] = useState("");
-  const [preset, setPreset] = useState<PresetDto | "">("");
+  const scenarios = useGame((s) => s.scenarios);
+  const [scenario, setScenario] = useState("");
   const progress = useGame((s) => s.progress);
 
   const start = () => {
     const trimmed = seed.trim();
-    void newGame({ size, mode, preset: preset === "" ? null : preset, ...(/^\d+$/.test(trimmed) ? { seed: trimmed } : {}) });
+    void newGame({ size, mode, scenario: scenario === "" ? null : scenario, ...(/^\d+$/.test(trimmed) ? { seed: trimmed } : {}) });
   };
 
   return (
@@ -61,11 +59,11 @@ export function Title() {
         </fieldset>
         <label className="field">
           <span>{tr.t("ui-scenario")}</span>
-          <select className="input" value={preset} onChange={(e) => setPreset(e.target.value as PresetDto | "")}>
+          <select className="input" value={scenario} onChange={(e) => setScenario(e.target.value)}>
             <option value="">{tr.t("ui-scenario-random")}</option>
-            {PRESETS.map((p) => (
-              <option key={p} value={p}>
-                {tr.t(`preset-${p}`)}
+            {scenarios.map((s) => (
+              <option key={s.id} value={s.id}>
+                {tr.t(s.name_key)}
               </option>
             ))}
           </select>

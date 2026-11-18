@@ -5,7 +5,7 @@ use mandate_content::ContentBundle;
 use mandate_protocol::*;
 use mandate_save::{RunMode, SaveRequest};
 use mandate_sim::{Command, Engine};
-use mandate_worldgen::{Preset, WorldConfig, WorldSize, generate_with_progress, rebuild_terrain};
+use mandate_worldgen::{WorldConfig, WorldSize, generate_with_progress, rebuild_terrain};
 use std::sync::Arc;
 
 /// Progress callback: (Fluent stage key, fraction 0..1).
@@ -106,13 +106,14 @@ impl Session {
                     WorldSizeDto::Medium => WorldSize::Medium,
                     WorldSizeDto::Large => WorldSize::Large,
                 };
-                let preset = p.preset.map(|x| match x {
-                    PresetDto::IndustrialDecline => Preset::IndustrialDecline,
-                    PresetDto::WealthyCoast => Preset::WealthyCoast,
-                    PresetDto::TechGrowth => Preset::TechGrowth,
-                    PresetDto::DroughtFarmland => Preset::DroughtFarmland,
-                    PresetDto::ResourceFrontier => Preset::ResourceFrontier,
-                });
+                if let Some(k) = &p.scenario
+                    && self.content.scenario(k).is_none()
+                {
+                    return Err(err(
+                        ErrorCode::BadRequest,
+                        format!("unknown scenario `{k}`"),
+                    ));
+                }
                 let mut noop = |_: &str, _: f64| {};
                 let progress: &mut dyn FnMut(&str, f64) = match self.progress.as_mut() {
                     Some(f) => f.as_mut(),
@@ -122,7 +123,7 @@ impl Session {
                     &WorldConfig {
                         seed: p.seed,
                         size,
-                        preset,
+                        scenario: p.scenario.clone(),
                     },
                     self.content.clone(),
                     progress,
@@ -178,6 +179,7 @@ impl Session {
                 QueryDto::Place { location } => place_panel_view(self.engine_mut()?, location)
                     .map(ResponseBody::Place)
                     .ok_or_else(|| err(ErrorCode::BadRequest, "no such place in your town")),
+                QueryDto::Scenarios => Ok(ResponseBody::Scenarios(scenario_list(&self.content))),
                 QueryDto::Locale { lang } => Ok(ResponseBody::Locale(LocaleView {
                     ftl: self.content.locale_text(&lang),
                     lang,

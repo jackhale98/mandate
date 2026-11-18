@@ -20,20 +20,13 @@ pub enum WorldSize {
     Large,
 }
 
-/// Canonical test-world presets (TEST_STRATEGY §3, DEC-058).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Preset {
-    IndustrialDecline,
-    WealthyCoast,
-    TechGrowth,
-    DroughtFarmland,
-    ResourceFrontier,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorldParams {
     pub size: WorldSize,
-    pub preset: Option<Preset>,
+    /// Content id of the world's scenario (DEC-078 decision 4); `None` is a
+    /// random country. Saves record it; content that removes it is refused.
+    #[serde(default)]
+    pub scenario: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

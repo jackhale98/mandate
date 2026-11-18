@@ -23,5 +23,7 @@
     },
     "unemployment_replacement": 0.38,
     "pension_replacement": 0.45,
+    "tech_growth": 0.02,           // annual technology growth (a scenario may bias it)
+    "manufacturing_trend": -0.008,  // annual drift of manufacturing competitiveness
   },
 }
