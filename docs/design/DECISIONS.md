@@ -1306,3 +1306,24 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - NPC-sponsored bills and NPC agendas: M4 (NPC AI).
   - Authority (the executive-power resource): M4, with the mayor's office.
   - A dedicated budget-procedure screen: M4. Appropriations follow the fiscal rule until then.
+
+### DEC-071 — Research-informed refinements to the election, party, NPC, and migration models
+
+- **Status:** Accepted (agent technical decision at the start of M4, 2026-11-18, after the owner asked for a research pass; within delegated technical authority). Refines DEC-025, DEC-027, DEC-028, DEC-029, and DEC-030. Evidence and sources: `docs/design/research/SIMULATION_MODELS.md`.
+- **Vote choice:**
+  - Issue utility blends proximity and directional components. The blend weight β rises with electorate polarisation.
+  - Candidate awareness *multiplies* the issue and valence terms.
+  - Party labels count only where the constitution prints them on the ballot.
+- **Incumbency** is not a flat bonus. It emerges from awareness, record, and challenger entry, and is tuned so that local incumbents win about 65–80% of races. This is a sweep metric.
+- **Retrospective judgment** uses local conditions *relative to national* ones. It weighs more on executives and on towns that dominate their region.
+- **Party attachment** is mover–stayer: a durable share plus a slowly updating share. Partisans discount blame aimed at their own side.
+- **Turnout** = duty + resources + habit + election importance − cost + mobilisation. Constitutions gain an election-timing field (concurrent or standalone).
+- **Campaign contact** mainly moves awareness and turnout. Its persuasion decays (half-life of about 2 months) and has diminishing returns, so canvassing alone cannot be a dominant strategy.
+- **Polls** = truth + a shared per-election bias + a per-pollster house effect + sampling noise. Error shrinks as election day approaches.
+- **NPC AI:**
+  - Utility scoring uses content-defined considerations and response curves.
+  - Selection is a seeded weighted-random choice among the top three, and it can be traced.
+  - Acting against personality is discounted and costs Standing or Health.
+  - Coalition-builders aim for a margin above the threshold and counter-lobby.
+- **Migration** uses a gravity model with distance decay: `(1 + d/d₀)^−γ`, γ ≈ 1.2.
+- **Deferred:** parameterising demography by fertility rate and life expectancy (M7 balance pass).
