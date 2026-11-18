@@ -12,9 +12,10 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-003 | Discovery-before-implementation process | Accepted |
 | DEC-004 | Run shape & career structure: career in acts | Accepted |
 | DEC-005 | Nested time structure & target lengths | Accepted |
-| DEC-006 | Endings, victory & run termination (rev. 2) | Proposed |
+| DEC-006 | Endings, victory & run termination (rev. 2) | Accepted |
 | DEC-007 | Constitution variability per run | Accepted |
-| DEC-008 | Save model: ironman vs. reloadable | Proposed (awaiting owner) |
+| DEC-008 | Save model: ironman vs. reloadable | Accepted |
+| DEC-009 | Presence model: embodied scenes + strategic layer | Proposed (awaiting owner, D2) |
 
 ---
 
@@ -86,7 +87,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-006 — Endings, victory & run termination (revision 2)
 
-- **Status:** Proposed. Revision 1 (layered endings with "no bare game over") drew an owner concern: a roguelike needs real, final failure. This revision adds terminal endings.
+- **Status:** Accepted (owner, 2026-11-18). Owner addendum: terminal endings must happen to the player's character on screen (staged scenes in the embodied layer, DEC-009), not be reported as a news brief.
+- **History:** Revision 1 (layered endings with "no bare game over") drew an owner concern: a roguelike needs real, final failure. This revision adds terminal endings.
 - **Options:**
   - A. Single win: hold the legislature at the midterms.
   - B. Legacy score only.
@@ -152,7 +154,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-008 — Save model: ironman vs. reloadable
 
-- **Status:** Proposed. Awaiting owner.
+- **Status:** Accepted (owner, 2026-11-18): option B.
 - **Context:** Final failure (DEC-006) is meaningless if the player can reload. The brief (§16.1) asks for manual saves and multiple slots, which conflicts with a roguelike structure.
 - **Options:**
   - A. Ironman only: one continuous save per run, save-and-quit.
@@ -164,3 +166,36 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Developer and simulation-lab builds keep arbitrary snapshots.
 - **Consequences:** Revises §16.1 (manual saves become save-and-quit). Story-mode runs may be excluded from some unlocks.
 - **Dependencies:** DEC-006, D13.
+
+### DEC-009 — Presence model: embodied scenes + strategic layer
+
+- **Status:** Proposed. Awaiting owner (opens D2).
+- **Context:** The owner wants the player to walk around an actual screen of their town, regional capital, or national capital. Dramatic outcomes (arrest, assassination) must happen to the on-screen character. The game must still offer high-level policy reading, decisions, and impacts. This is the brief's §5.5 question ("explorable map or strategic visualization?"), now answered in favor of embodiment.
+- **Options:**
+  - A. Free-roam open world at all scales (Stardew-style), with walking time as a cost.
+  - B. Walkable hubs per act, plus a strategic layer, with located actions and staged scenes.
+  - C. Illustrated location vignettes without free movement (Citizen Sleeper / Darkest Dungeon hamlet).
+  - D. Dashboards plus cutscenes only.
+- **Proposed decision:** B.
+  - **Hubs:** each act has a small walkable "stage" (~10–20 points of interest), generated from the world's settlement data.
+    - Act 1: home town district.
+    - Act 2: regional capital.
+    - Acts 3–4: national capital core.
+    - Any other settlement on the map can be *visited* (campaign trips, crises), using the same generator.
+  - **Movement:** tap or click to move (mobile-friendly), with optional keyboard movement on desktop. Walking is free *within* a turn; actions cost time slots (time budget set in D3).
+  - **Located actions:** actions happen at places and with people (council chamber, diner, union hall, press room). An agenda or quick menu can auto-route the character there, so walking is never a chore, but the scene always plays.
+  - **Strategic layer through in-world portals:** the office desk is the policy/budget desk, the TV or newspaper is news, the map room is the national map. Each is also reachable from a global menu.
+  - **The street as a living readout:** ambient townsfolk are representative samples of the simulated cohorts. Their remarks, visible conditions (boarded storefronts, construction, protests, flood damage), and crowds are derived from simulation state. Walking rewards observation (rumors, overheard concerns, noticed problems) but is never mandatory for critical information (accessibility, §15.5).
+  - **Faces on statistics:** policy and economic reports pair aggregate figures with named NPCs who are affected. Hybrid-population NPCs are the bridge between layers.
+  - **Staged scenes:** key moments (debates, election night, bill signing, arrest, assassination attempt, protest) are data-driven scene templates choreographed in the hub, using the actual characters and location.
+    - Decision points inside a scene are engine commands. Outcomes are always determined by the simulation. There are no reflex or skill mini-games.
+- **Rationale:** Gives the owner's embodied feel without building an open-world game. Keeps navigation fast for strategic players. Makes consequences visible and personal. Reuses one settlement generator across all scales.
+- **Consequences:**
+  - Requires a 2D scene renderer (PixiJS likely; prototype in D12).
+  - Requires layered procedural character sprites, building and interior templates, and a scene-template system.
+  - The simulation must model places (buildings as entities) and named-NPC schedules or locations, deterministically.
+  - Player position and walking are UI state, not simulation state.
+  - Raises art-pipeline and scope risk. This is the largest scope addition so far.
+  - MVP: one town hub, an office, a council chamber, and a few scene templates.
+- **Dependencies:** D2, D3 (time slots), D6 (settlement layout generation), D9 (NPC schedules, scene templates), D11, D12 (camera, art style, renderer), D13.
+- **Revisit criteria:** The prototype shows walking adds friction without insight, or art cost threatens the vertical slice.
