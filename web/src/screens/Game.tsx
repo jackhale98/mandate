@@ -12,6 +12,7 @@ import { Walking } from "../components/Walking";
 import { Town } from "./Town";
 import { PlacePanel } from "./PlacePanel";
 import { placeIcon, placeName } from "../places/labels";
+import { Loader } from "../components/Brand";
 
 function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => void; selected: number | null }) {
   const tr = useGame((s) => s.tr);
@@ -23,7 +24,7 @@ function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => vo
         <WorldMap view={map} selected={selected} onSelect={onSelect} label={tr.t("ui-map-help")} overlay={overlay} />
       ) : (
         <div className="center">
-          <div className="spinner" aria-hidden="true" />
+          <Loader compact />
         </div>
       )}
       <div className="map-tools">

@@ -132,9 +132,25 @@ h2 { font-size: 1.1rem; }
 .banner-error { background: color-mix(in srgb, var(--danger) 22%, var(--surface)); }
 .banner-info { position: fixed; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 5; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--info); }
 
-.spinner { width: 36px; height: 36px; border-radius: 50%; border: 4px solid var(--border); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* Brand (DEC-081): logo B (poll-line M), loader C (career ladder). */
+:root { --logo-flag: #eb6834; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.title-hero .logo-mark { display: block; margin: 0 auto 12px; }
+.loader { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.loader-ladder { position: relative; display: flex; }
+.loader-ladder svg { display: block; }
+.loader-tiers { position: relative; width: 7rem; margin-left: 14px; }
+.loader:not(.loader-compact) .loader-ladder { margin-left: calc(7rem + 14px); }
+.loader-tiers span { position: absolute; left: 0; font-size: 0.72rem; line-height: 12px; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; color: var(--text); }
+.loader-label { margin: 0; color: var(--muted); }
+.rung-1 { animation: rung1 4s infinite; } .rung-2 { animation: rung2 4s infinite; }
+.rung-3 { animation: rung3 4s infinite; } .rung-4 { animation: rung4 4s infinite; }
+@keyframes rung1 { 0%, 4% { opacity: 0.18; } 5%, 90% { opacity: 1; } 100% { opacity: 0.18; } }
+@keyframes rung2 { 0%, 24% { opacity: 0.18; } 25%, 90% { opacity: 1; } 100% { opacity: 0.18; } }
+@keyframes rung3 { 0%, 44% { opacity: 0.18; } 45%, 90% { opacity: 1; } 100% { opacity: 0.18; } }
+@keyframes rung4 { 0%, 64% { opacity: 0.18; } 65%, 90% { opacity: 1; } 100% { opacity: 0.18; } }
+@media (prefers-reduced-motion: reduce) { .rung-1, .rung-2, .rung-3, .rung-4 { animation: none; } }
 
 /* M1: tabs, map, sheets */
 .tabs { display: flex; gap: 4px; padding: 6px 16px 0; background: var(--surface); border-bottom: 1px solid var(--border); }

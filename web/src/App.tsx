@@ -4,6 +4,7 @@ import { Title } from "./screens/Title";
 import { Game } from "./screens/Game";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { UpdatePrompt } from "./components/UpdatePrompt";
+import { Loader } from "./components/Brand";
 
 export function App() {
   const screen = useGame((s) => s.screen);
@@ -19,9 +20,8 @@ export function App() {
     <div className="app">
       <ErrorBanner />
       {booting ? (
-        <main className="center" aria-busy="true">
-          <div className="spinner" aria-hidden="true" />
-          <p>{tr.has("ui-loading-engine") ? tr.t("ui-loading-engine") : "Starting the engine…"}</p>
+        <main className="center">
+          <Loader label={tr.has("ui-loading-engine") ? tr.t("ui-loading-engine") : "Starting the engine…"} />
         </main>
       ) : screen === "title" ? (
         <Title />

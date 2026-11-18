@@ -1,6 +1,7 @@
 import type { SpotView } from "../engine/protocol/SpotView";
 import { useGame } from "../state/gameStore";
 import { placeIcon, placeName } from "../places/labels";
+import { Loader } from "../components/Brand";
 
 function Spot({ s }: { s: SpotView }) {
   const tr = useGame((st) => st.tr);
@@ -51,7 +52,7 @@ export function Town() {
     return (
       <main className="game-body">
         <div className="center">
-          <div className="spinner" aria-hidden="true" />
+          <Loader compact />
         </div>
       </main>
     );

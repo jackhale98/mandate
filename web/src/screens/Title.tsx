@@ -6,6 +6,7 @@ import type { PresetDto } from "../engine/protocol/PresetDto";
 
 const PRESETS: PresetDto[] = ["industrial_decline", "wealthy_coast", "tech_growth", "drought_farmland", "resource_frontier"];
 import { formatDate } from "../i18n/format";
+import { Loader, LogoMark } from "../components/Brand";
 
 export function Title() {
   const tr = useGame((s) => s.tr);
@@ -28,6 +29,7 @@ export function Title() {
   return (
     <main className="title">
       <header className="title-hero">
+        <LogoMark size={72} />
         <h1 className="wordmark">{tr.t("app-title")}</h1>
         <p className="tagline">{tr.t("app-tagline")}</p>
       </header>
@@ -83,6 +85,7 @@ export function Title() {
         </button>
         {progress && (
           <div className="progress" role="status" aria-live="polite">
+            <Loader compact decorative />
             <span>{tr.t(progress.stage)}</span>
             <progress max={1} value={progress.fraction} />
           </div>

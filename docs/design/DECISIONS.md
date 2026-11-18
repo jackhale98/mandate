@@ -87,6 +87,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-078 | Data-driven tuning and further registries | Accepted |
 | DEC-079 | Places as the interface: go somewhere to do something, with convenience | Accepted |
 | DEC-080 | Hub renderer: Canvas 2D (revises the provisional PixiJS choice) | Accepted |
+| DEC-081 | Logo (poll-line M) and loading animation (career ladder) | Accepted |
 
 ---
 
@@ -1635,3 +1636,16 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - a pinch zooms about the midpoint between the fingers, so the point under them stays put;
   - when one finger lifts or a pointer is cancelled, the gesture re-baselines from the remaining finger instead of jumping;
   - limits are eased in when zoomed past them, never snapped.
+
+### DEC-081 — Logo and loading animation
+
+- **Status:** Accepted (owner, 2026-11-18: "I agree b for logo c for loader", choosing from four concepts: ballot box, rising poll line, career-ladder seal, pixel capitol).
+- **Logo:** a pixel-art M drawn as a stepped poll line. The right peak rises higher than the left and ends in a flag: a career with a setback on the way up. It is a 16×16 grid drawn with crisp edges in the accent gold, with the flagpole in the text colour and the flag in `--logo-flag` (#eb6834). The wordmark stays Georgia. The mark appears above the title on the title screen. App icons (`web/public/icons`: SVG, 192, 512, and a maskable 512 with the mark inside the safe zone) are rendered from the same drawing.
+- **Loader:** a ladder whose four rungs light from the bottom (Local, Regional, National, Presidency), one per act. It runs on a 4-second cycle and replaces the old spinner everywhere. The full version, with tier labels, is used while the engine starts; a compact one without labels is used for in-screen waits and while a world is generated.
+- **Rules:**
+  - Both follow the light and dark themes through `--accent` and `--text`.
+  - Under `prefers-reduced-motion` the ladder is drawn fully lit and still.
+  - The loader announces itself as a status. Its tier names are decorative, with English fallbacks because they show before the translations load.
+  - Component: `web/src/components/Brand.tsx` (`LogoMark`, `Loader`).
+- **Open:** the owner may still send their own logo and loading animation. If so, they replace these through the same component, and the icons are re-rendered.
+
