@@ -4,7 +4,7 @@
 
 use crate::economy::EconomyState;
 use crate::events::EventKind;
-use crate::population::{CLASSES, PopulationState, cohort_index};
+use crate::population::{CLASSES, PopulationState, group_index};
 use crate::scheduler::{Outs, Reads};
 use crate::world::{MunicipalityId, World};
 use mandate_content::EconomyParams;
@@ -253,7 +253,7 @@ fn annual_flows(
     for m in 0..nm {
         let mu = &econ.munis[m];
         let region = world.municipalities[m].region.index();
-        let cohorts = pop.municipality_cohorts(world, MunicipalityId(m as u32));
+        let groups = pop.municipality_groups(world, MunicipalityId(m as u32));
         let people = pop.municipality_total(world, MunicipalityId(m as u32)) as f64;
         f.population_by_muni[m] = people;
         f.population_by_region[region] += people;
@@ -265,8 +265,8 @@ fn annual_flows(
             mu.consumption * tax.sales.get(region).copied().unwrap_or(e.taxes.sales);
         f.business_tax += mu.output * tax.business;
         for c in 0..CLASSES {
-            let working: f64 = (0..3).map(|a| cohorts[cohort_index(a, c)]).sum();
-            let seniors = cohorts[cohort_index(3, c)];
+            let working: f64 = (0..3).map(|a| groups[group_index(a, c)]).sum();
+            let seniors = groups[group_index(3, c)];
             f.income_tax += working * mu.class_income[c] * tax.income[c];
             f.pensions += seniors * e.pension_replacement * mu.mean_wage;
             f.benefits += working

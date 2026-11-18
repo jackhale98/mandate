@@ -2,6 +2,8 @@
 
 pack-base = Mandate base content
 
+community-general = General population
+
 sector-agriculture = Agriculture
 sector-resources = Resources
 sector-manufacturing = Manufacturing
@@ -207,6 +209,7 @@ ui-legend-low = Low
 ui-legend-high = High
 ui-local-economy = Local economy
 ui-typical-income = Typical income
+ui-communities = Communities
 ui-rent = Average rent / month
 ui-home-price = Average home price
 ui-jobs-by-sector = Jobs by sector

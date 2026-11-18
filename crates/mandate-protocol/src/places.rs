@@ -230,6 +230,8 @@ pub struct TownDataView {
     pub sectors: Vec<SectorJobsView>,
     pub concerns: Vec<ConcernView>,
     pub neighborhoods: Vec<HoodDataView>,
+    /// Communities with adults in town and their shares (DEC-075).
+    pub communities: Vec<crate::map::CommunityShareView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -624,6 +626,7 @@ fn town_data(engine: &Engine) -> Option<TownDataView> {
             })
             .collect(),
         concerns: concerns_for(st, content, m, &hoods),
+        communities: crate::map::community_shares(engine, m),
         neighborhoods: hoods
             .iter()
             .filter_map(|&h| {

@@ -121,6 +121,11 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
             {tr.t("ui-elevation", { m: Math.round(view.elevation_m) })} · {tr.t("ui-temperature", { c: view.temperature_c })} ·{" "}
             {tr.t("ui-precipitation", { mm: Math.round(view.precipitation_mm) })}
           </p>
+          {view.communities.length > 1 && (
+            <p className="muted">
+              {tr.t("ui-communities")}: {view.communities.map((c) => `${tr.t(c.name_key)} ${formatPct(c.share, 0)}`).join(" · ")}
+            </p>
+          )}
           {view.economy && <LocalEconomy e={view.economy} />}
           <h3 className="sub">{tr.t("ui-resources")}</h3>
           <IndexBars items={view.resources} tone="good" />

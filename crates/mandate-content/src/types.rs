@@ -20,6 +20,8 @@ pub enum ContentFile {
     Sectors { items: Vec<SectorDef> },
     /// Attitude dimensions: the issues voters hold views on (DEC-025, DEC-075).
     Attitudes { items: Vec<AttitudeDef> },
+    /// Communities: a cohort dimension beside age and class (DEC-075).
+    Communities { items: Vec<CommunityDef> },
     /// Name-generation pools for places and people.
     NamePools { items: Vec<NamePoolDef> },
     /// Place kinds: what the player can do and learn at each kind of place (DEC-079).
@@ -605,6 +607,61 @@ pub struct NeighborhoodLean {
     pub rural: f64,
 }
 
+/// A community (DEC-075): a cohort dimension beside age band and income
+/// class. Every neighbourhood holds age × class cohorts for each community.
+/// Registry order is load order (files by path, then item order). The base
+/// pack ships one community, so the dimension costs nothing until an
+/// expansion adds another (an Indigenous nation, an immigrant community, a
+/// linguistic minority).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CommunityDef {
+    /// Content id, e.g. `community.general`.
+    pub id: ContentKey,
+    /// Fluent key, e.g. `community-general`.
+    pub name_key: String,
+    /// How much of each neighbourhood's population belongs to this community.
+    /// Exactly one community omits it: that community takes the remainder
+    /// (in the base pack, `community.general` is everyone).
+    #[serde(default)]
+    pub share: Option<CommunityShare>,
+    /// Added to the seeded attitudes of this community's cohorts, by attitude
+    /// key (omitted = 0).
+    #[serde(default)]
+    pub attitude_offsets: BTreeMap<String, f64>,
+    /// `attitude_offsets` resolved to a dense vector in attitude-registry
+    /// order at load. Not part of the content format.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub attitude_offset_weights: Vec<f64>,
+    /// Added to the seeded turnout propensity of this community's cohorts.
+    #[serde(default)]
+    pub turnout_offset: f64,
+    /// Fraction of international immigrants who join this community (the
+    /// remainder community takes whatever the others leave).
+    #[serde(default)]
+    pub immigration_share: f64,
+}
+
+/// Share model for a community: in a neighbourhood the community's share of
+/// every age × class group is `base + by_neighborhood[kind] + regional
+/// offset`, clamped to [0, 1]. Each region draws its offset once (sd
+/// `regional_sd`). Where the communities with a share model add up to more
+/// than 1, they are scaled down to 1; the remainder community takes the rest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CommunityShare {
+    /// Share everywhere, before the neighbourhood and regional terms.
+    #[serde(default)]
+    pub base: f64,
+    /// Added by neighbourhood kind (omitted kinds are 0).
+    #[serde(default)]
+    pub by_neighborhood: NeighborhoodLean,
+    /// Standard deviation of each region's offset (0 = none).
+    #[serde(default)]
+    pub regional_sd: f64,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SectorDef {
@@ -1041,6 +1098,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "attitudes" => ContentFile::Attitudes {
             items: serde_json::from_str::<ItemsFile<AttitudeDef>>(json)?.items,
+        },
+        "communities" => ContentFile::Communities {
+            items: serde_json::from_str::<ItemsFile<CommunityDef>>(json)?.items,
         },
         "name_pools" => ContentFile::NamePools {
             items: serde_json::from_str::<ItemsFile<NamePoolDef>>(json)?.items,

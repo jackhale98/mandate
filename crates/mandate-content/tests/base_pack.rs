@@ -33,6 +33,15 @@ fn base_pack_is_valid() {
     );
     let env = bundle.attitude_index("environment").unwrap();
     assert_eq!(police.signature_weights[env], 0.0);
+    // Communities are a registry (DEC-075); the base pack has one, which
+    // takes everyone (no share model) and shifts nothing.
+    assert_eq!(bundle.communities.len(), 1);
+    assert_eq!(bundle.community_index("community.general"), Some(0));
+    assert_eq!(bundle.remainder_community(), 0);
+    let general = &bundle.communities[0];
+    assert!(general.share.is_none());
+    assert_eq!(general.attitude_offset_weights, vec![0.0; 8]);
+    assert_eq!(general.turnout_offset, 0.0);
 }
 
 #[test]

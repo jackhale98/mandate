@@ -1,5 +1,6 @@
-//! Population (DEC-018): 12 aggregate cohorts per neighbourhood, simulated
-//! everywhere at all times. Owns resident counts and cohort political state.
+//! Population (DEC-018): aggregate cohorts per neighbourhood (age band ×
+//! income class × community, DEC-075), simulated everywhere at all times.
+//! Owns resident counts and cohort political state.
 
 use crate::scheduler::{Effect, Outs, Reads};
 use crate::world::{MunicipalityId, NeighborhoodKind, RegionId, SettlementClass, World};
@@ -9,7 +10,9 @@ use serde::{Deserialize, Serialize};
 
 pub const AGE_BANDS: usize = 4;
 pub const CLASSES: usize = 3;
-pub const COHORTS: usize = AGE_BANDS * CLASSES;
+/// Age × class groups per community. A neighbourhood holds `GROUPS` cohorts
+/// for each community in the registry (`PopulationState::community_keys`).
+pub const GROUPS: usize = AGE_BANDS * CLASSES;
 
 // Attitude dimensions are a content registry (DEC-075): each cohort holds
 // one value in [-1, 1] per attitude, in registry order
@@ -21,9 +24,47 @@ pub const BAND_YEARS: [f64; AGE_BANDS] = [12.0, 15.0, 20.0, 15.0];
 /// Labour-force participation by age band.
 pub const PARTICIPATION: [f64; AGE_BANDS] = [0.72, 0.86, 0.78, 0.07];
 
+// Cohort indexing (DEC-075). `HoodPop::cohorts` is community-major, then age
+// band, then class: with one community (the base pack) the layout is the
+// plain age × class grid. Code that needs a cohort's age, class, or community
+// uses the helpers below, never arithmetic on the index, so adding a
+// dimension cannot silently break it.
+
+/// Index of an age × class group, for per-group aggregates that sum over
+/// communities (`PopulationState::municipality_groups`).
 #[inline]
-pub fn cohort_index(age: usize, class: usize) -> usize {
+pub fn group_index(age: usize, class: usize) -> usize {
     age * CLASSES + class
+}
+
+/// Index of a cohort in `HoodPop::cohorts`.
+#[inline]
+pub fn cohort_index(age: usize, class: usize, community: usize) -> usize {
+    community * GROUPS + group_index(age, class)
+}
+
+/// The age × class group of a cohort index.
+#[inline]
+pub fn group_of(ci: usize) -> usize {
+    ci % GROUPS
+}
+
+/// The age band of a cohort index.
+#[inline]
+pub fn age_of(ci: usize) -> usize {
+    group_of(ci) / CLASSES
+}
+
+/// The income class of a cohort index.
+#[inline]
+pub fn class_of(ci: usize) -> usize {
+    group_of(ci) % CLASSES
+}
+
+/// The community (registry index) of a cohort index.
+#[inline]
+pub fn community_of(ci: usize) -> usize {
+    ci / GROUPS
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -47,8 +88,14 @@ pub struct Cohort {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HoodPop {
+    /// All children in the neighbourhood.
     pub children: u32,
-    /// Indexed by `cohort_index(age, class)`.
+    /// Children by community, in `PopulationState::community_keys` order,
+    /// summing to `children`. Empty while the state has one community (all
+    /// children are in it), so the base game stores nothing extra.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub children_by_community: Vec<u32>,
+    /// Indexed by `cohort_index(age, class, community)`.
     pub cohorts: Vec<Cohort>,
 }
 
@@ -58,6 +105,38 @@ impl HoodPop {
     }
     pub fn total(&self) -> u64 {
         self.adults() + self.children as u64
+    }
+    /// Number of communities this neighbourhood's cohorts cover.
+    pub fn communities(&self) -> usize {
+        self.cohorts.len() / GROUPS
+    }
+    /// Adults of one community.
+    pub fn community_adults(&self, k: usize) -> u64 {
+        self.cohorts
+            .iter()
+            .skip(k * GROUPS)
+            .take(GROUPS)
+            .map(|c| c.count as u64)
+            .sum()
+    }
+    /// Children of one community.
+    pub fn children_of(&self, k: usize) -> u32 {
+        if self.children_by_community.is_empty() {
+            if k == 0 { self.children } else { 0 }
+        } else {
+            self.children_by_community.get(k).copied().unwrap_or(0)
+        }
+    }
+    /// Set the children of one community (keeping `children` the total).
+    pub fn set_children_of(&mut self, k: usize, n: u32) {
+        if self.children_by_community.is_empty() {
+            if k == 0 {
+                self.children = n;
+            }
+        } else if let Some(v) = self.children_by_community.get_mut(k) {
+            *v = n;
+            self.children = self.children_by_community.iter().sum();
+        }
     }
 }
 
@@ -77,6 +156,10 @@ pub struct PopulationState {
     /// (cohorts, politicians, parties, factions). Saves record it so content
     /// that adds or reorders attitudes can be remapped on load (DEC-075).
     pub attitude_keys: Vec<String>,
+    /// Community ids, in the order cohorts are laid out per neighbourhood
+    /// (`cohort_index`). Saves record it so content that adds or reorders
+    /// communities can be remapped on load (DEC-075).
+    pub community_keys: Vec<String>,
     pub hoods: Vec<HoodPop>,
     /// Internal moves accumulated this year.
     pub moves_ytd: u64,
@@ -90,6 +173,22 @@ impl PopulationState {
     /// Number of attitude dimensions in this state.
     pub fn attitude_count(&self) -> usize {
         self.attitude_keys.len()
+    }
+    /// Number of communities in this state.
+    pub fn community_count(&self) -> usize {
+        self.community_keys.len()
+    }
+    /// Adults per community in a municipality, in `community_keys` order.
+    pub fn municipality_communities(&self, world: &World, m: MunicipalityId) -> Vec<u64> {
+        let mut out = vec![0u64; self.community_count()];
+        for i in world.hoods_of(m) {
+            for (k, c) in self.hoods[i].cohorts.iter().enumerate() {
+                if let Some(x) = out.get_mut(community_of(k)) {
+                    *x += c.count as u64;
+                }
+            }
+        }
+        out
     }
     pub fn total(&self) -> u64 {
         self.hoods.iter().map(|h| h.total()).sum()
@@ -107,23 +206,24 @@ impl PopulationState {
             .map(|&i| self.hood_total(i))
             .sum()
     }
-    /// Adults per (age band, class) in a municipality.
-    pub fn municipality_cohorts(&self, world: &World, m: MunicipalityId) -> [f64; COHORTS] {
-        let mut out = [0.0; COHORTS];
+    /// Adults per age × class group in a municipality, summed over
+    /// communities; index with `group_index(age, class)`.
+    pub fn municipality_groups(&self, world: &World, m: MunicipalityId) -> [f64; GROUPS] {
+        let mut out = [0.0; GROUPS];
         for i in world.hoods_of(m) {
             for (k, c) in self.hoods[i].cohorts.iter().enumerate() {
-                out[k] += c.count as f64;
+                out[group_of(k)] += c.count as f64;
             }
         }
         out
     }
     /// Labour force (participation-weighted adults) by class.
     pub fn labour_force_by_class(&self, world: &World, m: MunicipalityId) -> [f64; CLASSES] {
-        let c = self.municipality_cohorts(world, m);
+        let c = self.municipality_groups(world, m);
         let mut lf = [0.0; CLASSES];
         for a in 0..AGE_BANDS {
             for (k, v) in lf.iter_mut().enumerate() {
-                *v += c[cohort_index(a, k)] * PARTICIPATION[a];
+                *v += c[group_index(a, k)] * PARTICIPATION[a];
             }
         }
         lf
@@ -173,7 +273,8 @@ fn kind_lean(l: &mandate_content::NeighborhoodLean, kind: NeighborhoodKind) -> f
 
 /// Starting attitudes for a cohort (conditioned on context, not determined).
 /// The leans come from content (`AttitudeDef::seed`), one draw per attitude
-/// in registry order.
+/// in registry order, plus the cohort's community offsets (dense in attitude
+/// order; empty = none).
 fn seed_attitudes(
     rng: &mut SimRng,
     defs: &[mandate_content::AttitudeDef],
@@ -181,24 +282,95 @@ fn seed_attitudes(
     class: usize,
     kind: NeighborhoodKind,
     regional: &[f64],
+    offsets: &[f64],
 ) -> Vec<f32> {
     defs.iter()
         .zip(regional)
-        .map(|(d, reg)| {
-            let s = &d.seed;
-            let base = s.by_class[class] + s.by_age[age] + kind_lean(&s.by_neighborhood, kind);
-            clamp(base + reg + rng.normal(0.0, s.noise_sd), -1.0, 1.0) as f32
+        .enumerate()
+        .map(|(i, (d, reg))| {
+            let base = seed_mean(d, age, class, kind) + offsets.get(i).copied().unwrap_or(0.0);
+            clamp(base + reg + rng.normal(0.0, d.seed.noise_sd), -1.0, 1.0) as f32
         })
         .collect()
 }
 
+/// An attitude's seeding-model mean for a class, age, and neighbourhood kind.
+fn seed_mean(
+    d: &mandate_content::AttitudeDef,
+    age: usize,
+    class: usize,
+    kind: NeighborhoodKind,
+) -> f64 {
+    let s = &d.seed;
+    s.by_class[class] + s.by_age[age] + kind_lean(&s.by_neighborhood, kind)
+}
+
+/// Seeded turnout propensity for an age band and class (before noise).
+fn seed_turnout(age: usize, class: usize, offset: f64) -> f64 {
+    [0.42, 0.55, 0.66, 0.74][age] + [-0.08, 0.0, 0.1][class] + offset
+}
+
+/// Each community's share of a neighbourhood (DEC-075), in registry order.
+/// Communities with a share model take `base + by_neighborhood[kind] +
+/// regional offset`, clamped to [0, 1] and scaled down together if they add
+/// up to more than 1; the remainder community's entry is unused (it takes
+/// whatever is left).
+fn community_shares(
+    communities: &[mandate_content::CommunityDef],
+    kind: NeighborhoodKind,
+    regional: &[f64],
+) -> Vec<f64> {
+    let mut shares: Vec<f64> = communities
+        .iter()
+        .zip(regional)
+        .map(|(c, reg)| match &c.share {
+            Some(sh) => clamp(
+                sh.base + kind_lean(&sh.by_neighborhood, kind) + reg,
+                0.0,
+                1.0,
+            ),
+            None => 0.0,
+        })
+        .collect();
+    let sum: f64 = shares.iter().sum();
+    if sum > 1.0 {
+        for x in shares.iter_mut() {
+            *x /= sum;
+        }
+    }
+    shares
+}
+
+/// Split `n` people across communities by share, exactly: each community with
+/// a share model takes its rounded share of what is left in registry order,
+/// and the remainder community takes the rest.
+fn split_by_share(n: u32, shares: &[f64], remainder: usize) -> Vec<u32> {
+    let mut out = vec![0u32; shares.len().max(1)];
+    let mut left = n;
+    for (k, s) in shares.iter().enumerate() {
+        if k == remainder || *s <= 0.0 {
+            continue;
+        }
+        let x = ((n as f64 * s).round() as u32).min(left);
+        out[k] = x;
+        left -= x;
+    }
+    if let Some(r) = out.get_mut(remainder) {
+        *r += left;
+    }
+    out
+}
+
 /// Build the starting population from worldgen's per-neighbourhood totals.
+/// With one community (the base pack) this makes exactly the draws and
+/// cohorts of the plain age × class model.
 pub fn init(
     world: &World,
     totals: &[u64],
     world_seed: u64,
     wealthy: bool,
     attitudes: &[mandate_content::AttitudeDef],
+    communities: &[mandate_content::CommunityDef],
 ) -> PopulationState {
     let region_culture: Vec<Vec<f64>> = (0..world.regions.len())
         .map(|r| {
@@ -210,6 +382,35 @@ pub fn init(
                 .collect()
         })
         .collect();
+    let ncom = communities.len().max(1);
+    let remainder = communities
+        .iter()
+        .position(|c| c.share.is_none())
+        .unwrap_or(0);
+    // Regional share offsets: one draw per region and community with a share
+    // model, in a stream keyed by the community id (so registry order does not
+    // matter). The remainder community draws nothing, so the base pack adds
+    // no draws.
+    let region_share: Vec<Vec<f64>> = (0..world.regions.len())
+        .map(|r| {
+            communities
+                .iter()
+                .map(|c| match &c.share {
+                    Some(sh) if sh.regional_sd > 0.0 => {
+                        let key = mandate_core::hash::derive_u64(&c.id, &[]);
+                        let mut rng = mandate_core::rng::keyed(
+                            world_seed,
+                            Stream::Population,
+                            &[0xC0C0, key, r as u64],
+                        );
+                        rng.normal(0.0, sh.regional_sd)
+                    }
+                    _ => 0.0,
+                })
+                .collect()
+        })
+        .collect();
+    let no_offsets: Vec<f64> = Vec::new();
     let mut hoods = Vec::with_capacity(world.neighborhoods.len());
     for (i, n) in world.neighborhoods.iter().enumerate() {
         let total = totals.get(i).copied().unwrap_or(0) as f64;
@@ -220,41 +421,79 @@ pub fn init(
         let region = world.municipalities[n.municipality.index()].region.index();
         let mut rng =
             mandate_core::rng::keyed(world_seed, Stream::Population, &[0xC0407, i as u64]);
-        let mut cohorts = Vec::with_capacity(COHORTS);
+        // Adults per age × class group, then split across communities.
+        let mut groups = [0u32; GROUPS];
         for (a, share_a) in ages.iter().enumerate() {
             for (c, share_c) in classes.iter().enumerate() {
-                let count = (adults * share_a * share_c / csum).round().max(0.0) as u32;
-                let turnout = [0.42, 0.55, 0.66, 0.74][a] + [-0.08, 0.0, 0.1][c];
-                cohorts.push(Cohort {
-                    count,
-                    attitudes: seed_attitudes(
-                        &mut rng,
-                        attitudes,
-                        a,
-                        c,
-                        n.kind,
-                        &region_culture[region],
-                    ),
-                    trust: clamp(
-                        0.55 + [-0.08, 0.0, 0.06][c] + rng.normal(0.0, 0.05),
-                        0.0,
-                        1.0,
-                    ) as f32,
-                    turnout: clamp(turnout + rng.normal(0.0, 0.03), 0.05, 0.98) as f32,
-                    gov_approval: clamp(0.5 + rng.normal(0.0, 0.08), 0.0, 1.0) as f32,
-                    player_awareness: 0.0,
-                    player_approval: 0.0,
-                    party_id: Vec::new(),
-                    last_turnout: turnout as f32,
-                });
+                groups[group_index(a, c)] =
+                    (adults * share_a * share_c / csum).round().max(0.0) as u32;
+            }
+        }
+        let split: Vec<Vec<u32>> = if ncom > 1 {
+            let shares = community_shares(communities, n.kind, &region_share[region]);
+            groups
+                .iter()
+                .map(|g| split_by_share(*g, &shares, remainder))
+                .collect()
+        } else {
+            groups.iter().map(|g| vec![*g]).collect()
+        };
+        let mut cohorts = Vec::with_capacity(GROUPS * ncom);
+        for k in 0..ncom {
+            let cm = communities.get(k);
+            let offsets = cm
+                .map(|c| &c.attitude_offset_weights)
+                .unwrap_or(&no_offsets);
+            let turnout_offset = cm.map(|c| c.turnout_offset).unwrap_or(0.0);
+            for a in 0..AGE_BANDS {
+                for c in 0..CLASSES {
+                    let count = split[group_index(a, c)][k];
+                    let turnout = seed_turnout(a, c, turnout_offset);
+                    cohorts.push(Cohort {
+                        count,
+                        attitudes: seed_attitudes(
+                            &mut rng,
+                            attitudes,
+                            a,
+                            c,
+                            n.kind,
+                            &region_culture[region],
+                            offsets,
+                        ),
+                        trust: clamp(
+                            0.55 + [-0.08, 0.0, 0.06][c] + rng.normal(0.0, 0.05),
+                            0.0,
+                            1.0,
+                        ) as f32,
+                        turnout: clamp(turnout + rng.normal(0.0, 0.03), 0.05, 0.98) as f32,
+                        gov_approval: clamp(0.5 + rng.normal(0.0, 0.08), 0.0, 1.0) as f32,
+                        player_awareness: 0.0,
+                        player_approval: 0.0,
+                        party_id: Vec::new(),
+                        last_turnout: turnout as f32,
+                    });
+                }
             }
         }
         let adults_total: u64 = cohorts.iter().map(|c| c.count as u64).sum();
         let children = (total as u64).saturating_sub(adults_total) as u32;
-        hoods.push(HoodPop { children, cohorts });
+        let mut hood = HoodPop {
+            children,
+            children_by_community: Vec::new(),
+            cohorts,
+        };
+        if ncom > 1 {
+            // Children follow their community's share of the adults.
+            let shares: Vec<f64> = (0..ncom)
+                .map(|k| hood.community_adults(k) as f64 / adults_total.max(1) as f64)
+                .collect();
+            hood.children_by_community = split_by_share(children, &shares, remainder);
+        }
+        hoods.push(hood);
     }
     PopulationState {
         attitude_keys: attitudes.iter().map(|a| a.key.clone()).collect(),
+        community_keys: communities.iter().map(|c| c.id.clone()).collect(),
         hoods,
         moves_ytd: 0,
         history: Vec::new(),
@@ -294,24 +533,28 @@ pub fn remap_attitudes(
             })
             .collect()
     };
+    // A cohort's community offsets, from the content's community of the same
+    // id (the community registry is remapped after this).
+    let offsets: Vec<Option<&Vec<f64>>> = pop
+        .community_keys
+        .iter()
+        .map(|k| {
+            content
+                .community_index(k)
+                .map(|i| &content.communities[i].attitude_offset_weights)
+        })
+        .collect();
     for (h, hp) in pop.hoods.iter_mut().enumerate() {
         let Some(kind) = world.neighborhoods.get(h).map(|n| n.kind) else {
             continue;
         };
-        for a in 0..AGE_BANDS {
-            for c in 0..CLASSES {
-                let Some(co) = hp.cohorts.get_mut(cohort_index(a, c)) else {
-                    continue;
-                };
-                co.attitudes = remap(&co.attitudes, &|i| {
-                    let s = &content.attitudes[i].seed;
-                    clamp(
-                        s.by_class[c] + s.by_age[a] + kind_lean(&s.by_neighborhood, kind),
-                        -1.0,
-                        1.0,
-                    ) as f32
-                });
-            }
+        for (ci, co) in hp.cohorts.iter_mut().enumerate() {
+            let (a, c) = (age_of(ci), class_of(ci));
+            let off = offsets.get(community_of(ci)).copied().flatten();
+            co.attitudes = remap(&co.attitudes, &|i| {
+                let o = off.and_then(|v| v.get(i)).copied().unwrap_or(0.0);
+                clamp(seed_mean(&content.attitudes[i], a, c, kind) + o, -1.0, 1.0) as f32
+            });
         }
     }
     pop.attitude_keys = keys;
@@ -330,6 +573,89 @@ pub fn remap_attitudes(
             f.position = remap(&f.position, &|_| 0.0);
         }
     }
+    true
+}
+
+/// Re-key cohorts to the content's community registry (DEC-075), for a save
+/// loaded into content that added or reordered communities. Each community
+/// keeps its cohorts and children under its id. A new community starts with
+/// no people: its cohorts are empty, seeded without randomness (attitudes at
+/// the seeding model's mean plus the community's offsets, turnout at the
+/// seeded propensity, party attachment from those attitudes), and it grows
+/// only through immigration (`immigration_share`) and the people born into
+/// it from then on. Content that removed a community the state uses is
+/// refused before this runs (`engine::missing_references`). Run after
+/// `remap_attitudes`. Returns whether anything changed.
+pub fn remap_communities(
+    pop: &mut PopulationState,
+    politics: &crate::politics::PoliticsState,
+    world: &World,
+    content: &mandate_content::ContentBundle,
+) -> bool {
+    let keys: Vec<String> = content.community_keys().cloned().collect();
+    if pop.community_keys == keys || keys.is_empty() {
+        return false;
+    }
+    let old: Vec<Option<usize>> = keys
+        .iter()
+        .map(|k| pop.community_keys.iter().position(|o| o == k))
+        .collect();
+    let params = &content.politics.party_id;
+    for (h, hp) in pop.hoods.iter_mut().enumerate() {
+        let Some(kind) = world.neighborhoods.get(h).map(|n| n.kind) else {
+            continue;
+        };
+        let mut cohorts = Vec::with_capacity(GROUPS * keys.len());
+        let mut children = Vec::with_capacity(keys.len());
+        for (k, o) in old.iter().enumerate() {
+            match o {
+                Some(j) if hp.cohorts.len() >= (j + 1) * GROUPS => {
+                    cohorts.extend_from_slice(&hp.cohorts[j * GROUPS..(j + 1) * GROUPS]);
+                    children.push(hp.children_of(*j));
+                }
+                _ => {
+                    let cm = &content.communities[k];
+                    for a in 0..AGE_BANDS {
+                        for c in 0..CLASSES {
+                            let attitudes: Vec<f32> = content
+                                .attitudes
+                                .iter()
+                                .enumerate()
+                                .map(|(i, d)| {
+                                    let o =
+                                        cm.attitude_offset_weights.get(i).copied().unwrap_or(0.0);
+                                    clamp(seed_mean(d, a, c, kind) + o, -1.0, 1.0) as f32
+                                })
+                                .collect();
+                            let turnout = clamp(seed_turnout(a, c, cm.turnout_offset), 0.05, 0.98);
+                            let party_id = crate::politics::parties::attachment(
+                                &attitudes,
+                                &politics.parties,
+                                params.attached_by_age[a.min(3)],
+                                params.sharpness,
+                            );
+                            cohorts.push(Cohort {
+                                count: 0,
+                                attitudes,
+                                trust: clamp(0.55 + [-0.08, 0.0, 0.06][c], 0.0, 1.0) as f32,
+                                turnout: turnout as f32,
+                                gov_approval: 0.5,
+                                player_awareness: 0.0,
+                                player_approval: 0.0,
+                                party_id,
+                                last_turnout: turnout as f32,
+                            });
+                        }
+                    }
+                    children.push(0);
+                }
+            }
+        }
+        hp.cohorts = cohorts;
+        hp.children = children.iter().sum();
+        hp.children_by_community = if keys.len() > 1 { children } else { Vec::new() };
+    }
+    pop.community_keys = keys;
     true
 }
 
@@ -382,6 +708,23 @@ pub fn demography(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) 
         year: r.date.calendar().year.saturating_sub(1),
         ..Default::default()
     };
+    // Immigration shares by state community (the state's community order is
+    // the content's: `Engine::from_state` remaps it).
+    let remainder = r.content.remainder_community();
+    let imm_shares: Vec<f64> = {
+        let v: Vec<f64> = r
+            .content
+            .communities
+            .iter()
+            .map(|c| c.immigration_share)
+            .collect();
+        let sum: f64 = v.iter().sum();
+        if sum > 1.0 {
+            v.iter().map(|x| x / sum).collect()
+        } else {
+            v
+        }
+    };
     for (i, n) in r.world.neighborhoods.iter().enumerate() {
         let m = n.municipality.index();
         let unemployment = econ.munis.get(m).map(|e| e.unemployment).unwrap_or(0.05);
@@ -392,74 +735,84 @@ pub fn demography(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) 
             .unwrap_or(0.1);
         let class = r.world.municipalities[m].class;
         let h = &mut pop.hoods[i];
+        let ncom = h.communities();
 
-        // Births to adults aged 18–44.
-        let parents: u64 = (0..CLASSES)
-            .map(|c| {
-                (h.cohorts[cohort_index(0, c)].count + h.cohorts[cohort_index(1, c)].count) as u64
-            })
-            .sum();
-        let births = draw(rng, parents as f64 * p.birth_rate);
-        // Children come of age into the youngest band, by parents' class mix.
-        let coming_of_age = draw(rng, h.children as f64 / 18.0);
-        let coming_of_age = coming_of_age.min(h.children);
-        let child_deaths =
-            draw(rng, h.children as f64 * p.death_rates[0]).min(h.children - coming_of_age);
-        h.children = h.children - coming_of_age - child_deaths + births;
-        // Split exactly (largest share takes the remainder) so people are conserved.
-        let parent_mix: Vec<u64> = (0..CLASSES)
-            .map(|c| h.cohorts[cohort_index(1, c)].count as u64)
-            .collect();
-        let pm_sum: u64 = parent_mix.iter().sum::<u64>().max(1);
-        let mut given = 0u32;
-        for c in 0..CLASSES {
-            let n = (coming_of_age as u64 * parent_mix[c] / pm_sum) as u32;
-            h.cohorts[cohort_index(0, c)].count += n;
-            given += n;
+        // Births to adults aged 18–44, into their parents' community.
+        for k in 0..ncom {
+            let parents: u64 = (0..CLASSES)
+                .map(|c| {
+                    (h.cohorts[cohort_index(0, c, k)].count
+                        + h.cohorts[cohort_index(1, c, k)].count) as u64
+                })
+                .sum();
+            let births = draw(rng, parents as f64 * p.birth_rate);
+            // Children come of age into the youngest band, by parents' class mix.
+            let kids = h.children_of(k);
+            let coming_of_age = draw(rng, kids as f64 / 18.0);
+            let coming_of_age = coming_of_age.min(kids);
+            let child_deaths = draw(rng, kids as f64 * p.death_rates[0]).min(kids - coming_of_age);
+            h.set_children_of(k, kids - coming_of_age - child_deaths + births);
+            // Split exactly (largest share takes the remainder) so people are conserved.
+            let parent_mix: Vec<u64> = (0..CLASSES)
+                .map(|c| h.cohorts[cohort_index(1, c, k)].count as u64)
+                .collect();
+            let pm_sum: u64 = parent_mix.iter().sum::<u64>().max(1);
+            let mut given = 0u32;
+            for c in 0..CLASSES {
+                let n = (coming_of_age as u64 * parent_mix[c] / pm_sum) as u32;
+                h.cohorts[cohort_index(0, c, k)].count += n;
+                given += n;
+            }
+            let biggest = (0..CLASSES)
+                .max_by_key(|&c| (parent_mix[c], c))
+                .unwrap_or(1);
+            h.cohorts[cohort_index(0, biggest, k)].count += coming_of_age - given;
+            year.births += births as u64;
+            year.deaths += child_deaths as u64;
         }
-        let biggest = (0..CLASSES)
-            .max_by_key(|&c| (parent_mix[c], c))
-            .unwrap_or(1);
-        h.cohorts[cohort_index(0, biggest)].count += coming_of_age - given;
-        year.births += births as u64;
-        year.deaths += child_deaths as u64;
 
-        // Ageing (oldest band first so people move one band per year).
-        for a in (0..AGE_BANDS - 1).rev() {
-            for c in 0..CLASSES {
-                let from = cohort_index(a, c);
-                let n_age = draw(rng, h.cohorts[from].count as f64 / BAND_YEARS[a]);
-                shift(h, from, cohort_index(a + 1, c), n_age);
+        for k in 0..ncom {
+            // Ageing (oldest band first so people move one band per year).
+            for a in (0..AGE_BANDS - 1).rev() {
+                for c in 0..CLASSES {
+                    let from = cohort_index(a, c, k);
+                    let n_age = draw(rng, h.cohorts[from].count as f64 / BAND_YEARS[a]);
+                    shift(h, from, cohort_index(a + 1, c, k), n_age);
+                }
             }
-        }
-        // Deaths.
-        for a in 0..AGE_BANDS {
-            for c in 0..CLASSES {
-                let k = cohort_index(a, c);
-                let d = draw(
-                    rng,
-                    h.cohorts[k].count as f64 * p.death_rates[a + 1] * [1.15, 1.0, 0.85][c],
-                )
-                .min(h.cohorts[k].count);
-                h.cohorts[k].count -= d;
-                year.deaths += d as u64;
+            // Deaths.
+            for a in 0..AGE_BANDS {
+                for c in 0..CLASSES {
+                    let ci = cohort_index(a, c, k);
+                    let d = draw(
+                        rng,
+                        h.cohorts[ci].count as f64 * p.death_rates[a + 1] * [1.15, 1.0, 0.85][c],
+                    )
+                    .min(h.cohorts[ci].count);
+                    h.cohorts[ci].count -= d;
+                    year.deaths += d as u64;
+                }
             }
-        }
-        // Class mobility among working ages.
-        for a in 0..3 {
-            let up_low = 0.02 * (1.0 - unemployment * 4.0).max(0.0) + 0.01 * knowledge;
-            let down_mid = 0.008 + unemployment * 0.08;
-            let up_mid = 0.006 + 0.03 * knowledge;
-            let down_high = 0.006 + unemployment * 0.03;
-            let (lo, mi, hi) = (cohort_index(a, 0), cohort_index(a, 1), cohort_index(a, 2));
-            let n1 = draw(rng, h.cohorts[lo].count as f64 * up_low);
-            let n2 = draw(rng, h.cohorts[mi].count as f64 * down_mid);
-            let n3 = draw(rng, h.cohorts[mi].count as f64 * up_mid);
-            let n4 = draw(rng, h.cohorts[hi].count as f64 * down_high);
-            shift(h, lo, mi, n1);
-            shift(h, mi, lo, n2);
-            shift(h, mi, hi, n3);
-            shift(h, hi, mi, n4);
+            // Class mobility among working ages.
+            for a in 0..3 {
+                let up_low = 0.02 * (1.0 - unemployment * 4.0).max(0.0) + 0.01 * knowledge;
+                let down_mid = 0.008 + unemployment * 0.08;
+                let up_mid = 0.006 + 0.03 * knowledge;
+                let down_high = 0.006 + unemployment * 0.03;
+                let (lo, mi, hi) = (
+                    cohort_index(a, 0, k),
+                    cohort_index(a, 1, k),
+                    cohort_index(a, 2, k),
+                );
+                let n1 = draw(rng, h.cohorts[lo].count as f64 * up_low);
+                let n2 = draw(rng, h.cohorts[mi].count as f64 * down_mid);
+                let n3 = draw(rng, h.cohorts[mi].count as f64 * up_mid);
+                let n4 = draw(rng, h.cohorts[hi].count as f64 * down_high);
+                shift(h, lo, mi, n1);
+                shift(h, mi, lo, n2);
+                shift(h, mi, hi, n3);
+                shift(h, hi, mi, n4);
+            }
         }
         // International immigration to larger places.
         let imm_rate = match class {
@@ -469,8 +822,17 @@ pub fn demography(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) 
             SettlementClass::Rural => 0.0004,
         };
         let imm = draw(rng, h.adults() as f64 * imm_rate);
-        h.cohorts[cohort_index(0, 0)].count += imm / 2;
-        h.cohorts[cohort_index(0, 1)].count += imm - imm / 2;
+        // Communities with an immigration share take theirs; the remainder
+        // community takes the rest (everyone, in the base pack).
+        let per_community = if ncom > 1 && imm_shares.len() == ncom {
+            split_by_share(imm, &imm_shares, remainder)
+        } else {
+            vec![imm]
+        };
+        for (k, n) in per_community.iter().enumerate().take(ncom) {
+            h.cohorts[cohort_index(0, 0, k)].count += n / 2;
+            h.cohorts[cohort_index(0, 1, k)].count += n - n / 2;
+        }
         year.immigration += imm as u64;
     }
     year.internal_moves = pop.moves_ytd;
@@ -514,19 +876,21 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     // Movers leave per origin (only the two mobile bands) and carry their
     // origin's attitudes. Destinations follow a gravity model (DEC-071):
     // attractiveness × housing room × size^½ × (1 + d/d₀)^−γ.
-    let mobile: Vec<usize> = (0..2)
-        .flat_map(|a| (0..CLASSES).map(move |c| cohort_index(a, c)))
+    // Movers keep their community: cohort indices carry it.
+    let ncoh = pop.hoods.first().map(|h| h.cohorts.len()).unwrap_or(GROUPS);
+    let mobile: Vec<usize> = (0..ncoh / GROUPS)
+        .flat_map(|k| (0..2).flat_map(move |a| (0..CLASSES).map(move |c| cohort_index(a, c, k))))
         .collect();
-    let mut movers = vec![[0u64; COHORTS]; nm];
+    let mut movers = vec![vec![0u64; ncoh]; nm];
     let na = pop.attitude_count();
-    let mut mover_att = vec![vec![vec![0.0f64; na]; COHORTS]; nm];
+    let mut mover_att = vec![vec![vec![0.0f64; na]; ncoh]; nm];
     let np = pop
         .hoods
         .first()
         .and_then(|h| h.cohorts.first())
         .map(|c| c.party_id.len())
         .unwrap_or(0);
-    let mut mover_pid = vec![vec![vec![0.0f64; np]; COHORTS]; nm];
+    let mut mover_pid = vec![vec![vec![0.0f64; np]; ncoh]; nm];
     for (m, mu) in world.municipalities.iter().enumerate() {
         let push = rate * (1.0 - tanh((attract[m] - mean) * 1.5));
         let out_share = (push + extra_out[m]).min(0.5);
@@ -559,9 +923,9 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
         .collect();
     let d0 = gravity_scale(world);
     // Arrivals are pooled per destination and cohort, then settled once.
-    let mut arr_n = vec![[0u64; COHORTS]; nm];
-    let mut arr_att = vec![vec![vec![0.0f64; na]; COHORTS]; nm];
-    let mut arr_pid = vec![vec![vec![0.0f64; np]; COHORTS]; nm];
+    let mut arr_n = vec![vec![0u64; ncoh]; nm];
+    let mut arr_att = vec![vec![vec![0.0f64; na]; ncoh]; nm];
+    let mut arr_pid = vec![vec![vec![0.0f64; np]; ncoh]; nm];
     let mut weights = vec![0.0f64; nm];
     for origin in 0..nm {
         if movers[origin].iter().all(|n| *n == 0) {
@@ -830,14 +1194,14 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         let gov_scale = 1.0 / mandate_core::math::sqrt(n_gov.max(1) as f64);
         for h in &mu.neighborhoods {
             for (ci, c) in pop.hoods[h.index()].cohorts.iter_mut().enumerate() {
-                let a = ci / CLASSES;
+                let a = age_of(ci);
                 let mut gov_react = 0.0;
                 let mut player_react = 0.0;
                 for (k, a) in c.attitudes.iter().enumerate().take(na) {
                     gov_react += gov_vec[k] * *a as f64;
                     player_react += player_vec[k] * *a as f64;
                 }
-                let class = ci % CLASSES;
+                let class = class_of(ci);
                 let gov_react = clamp(gov_react * gov_scale - grievance[a][class], -2.0, 2.0);
                 let player_react = clamp(player_react - player_grievance[a][class], -2.0, 2.0);
                 let target = 0.5 + 0.5 * tanh(experienced + 0.6 * gov_react);
@@ -899,7 +1263,7 @@ pub fn assign_party_ids(
 ) {
     for h in pop.hoods.iter_mut() {
         for (k, c) in h.cohorts.iter_mut().enumerate() {
-            let band = k / CLASSES;
+            let band = age_of(k);
             c.party_id = crate::politics::parties::attachment(
                 &c.attitudes,
                 parties,

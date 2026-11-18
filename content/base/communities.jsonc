@@ -1,0 +1,23 @@
+// Communities (DEC-075): a cohort dimension beside age band and income class.
+// Every neighbourhood holds age × class cohorts for each community, so an
+// expansion can add an Indigenous nation, an immigrant community, or a
+// linguistic minority here without code. The base pack ships one community,
+// which costs nothing. Registry order is load order (files by path, then item
+// order).
+//
+// Exactly one community omits `share`: it takes each neighbourhood's
+// remainder. Every other community has a share model:
+//   "share": { "base": 0.0, "by_neighborhood": { "rural": 0.12 }, "regional_sd": 0.05 }
+// Its share of each age × class group in a neighbourhood is base +
+// by_neighborhood[kind] + a regional offset (one draw per region, sd
+// regional_sd), clamped to [0, 1]; shares adding up to more than 1 are scaled
+// down. Optional fields:
+//   "attitude_offsets": { "localism": 0.3 }  added to seeded attitudes, by key
+//   "turnout_offset": -0.08                  added to seeded turnout
+//   "immigration_share": 0.0                 share of international immigrants
+{
+  "kind": "communities",
+  "items": [
+    { "id": "community.general", "name_key": "community-general" },
+  ],
+}

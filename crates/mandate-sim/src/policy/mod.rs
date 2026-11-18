@@ -334,7 +334,7 @@ pub fn support_by_class(t: &PolicyTemplate, pop: &PopulationState, hoods: &[usiz
     let mut w = [0.0; 3];
     for &h in hoods {
         for (k, c) in pop.hoods[h].cohorts.iter().enumerate() {
-            let class = k % 3;
+            let class = crate::population::class_of(k);
             let weight = c.count as f64 * c.turnout as f64;
             acc[class] += alignment(&t.signature_weights, &c.attitudes) * weight;
             w[class] += weight;

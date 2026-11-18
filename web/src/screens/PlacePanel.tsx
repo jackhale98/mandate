@@ -42,6 +42,11 @@ function TownData({ d }: { d: TownDataView }) {
         <StatTile label={tr.t("ui-home-price")} value={formatMoney(d.home_price)} />
         <StatTile label={tr.t("ui-vacancy")} value={formatPct(d.vacancy, 1)} />
       </div>
+      {d.communities.length > 1 && (
+        <p className="muted" data-testid="town-communities">
+          {tr.t("ui-communities")}: {d.communities.map((c) => `${tr.t(c.name_key)} ${formatPct(c.share, 0)}`).join(" · ")}
+        </p>
+      )}
       <h3 className="sub">{tr.t("ui-by-neighbourhood")}</h3>
       <div className="table-scroll">
         <table className="data-table">

@@ -429,6 +429,89 @@
       ],
       "type": "string"
     },
+    "CommunityDef": {
+      "additionalProperties": false,
+      "description": "A community (DEC-075): a cohort dimension beside age band and income\nclass. Every neighbourhood holds age × class cohorts for each community.\nRegistry order is load order (files by path, then item order). The base\npack ships one community, so the dimension costs nothing until an\nexpansion adds another (an Indigenous nation, an immigrant community, a\nlinguistic minority).",
+      "properties": {
+        "attitude_offsets": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Added to the seeded attitudes of this community's cohorts, by attitude\nkey (omitted = 0).",
+          "type": "object"
+        },
+        "id": {
+          "description": "Content id, e.g. `community.general`.",
+          "type": "string"
+        },
+        "immigration_share": {
+          "default": 0.0,
+          "description": "Fraction of international immigrants who join this community (the\nremainder community takes whatever the others leave).",
+          "format": "double",
+          "type": "number"
+        },
+        "name_key": {
+          "description": "Fluent key, e.g. `community-general`.",
+          "type": "string"
+        },
+        "share": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CommunityShare"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How much of each neighbourhood's population belongs to this community.\nExactly one community omits it: that community takes the remainder\n(in the base pack, `community.general` is everyone)."
+        },
+        "turnout_offset": {
+          "default": 0.0,
+          "description": "Added to the seeded turnout propensity of this community's cohorts.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name_key"
+      ],
+      "type": "object"
+    },
+    "CommunityShare": {
+      "additionalProperties": false,
+      "description": "Share model for a community: in a neighbourhood the community's share of\nevery age × class group is `base + by_neighborhood[kind] + regional\noffset`, clamped to [0, 1]. Each region draws its offset once (sd\n`regional_sd`). Where the communities with a share model add up to more\nthan 1, they are scaled down to 1; the remainder community takes the rest.",
+      "properties": {
+        "base": {
+          "default": 0.0,
+          "description": "Share everywhere, before the neighbourhood and regional terms.",
+          "format": "double",
+          "type": "number"
+        },
+        "by_neighborhood": {
+          "$ref": "#/$defs/NeighborhoodLean",
+          "default": {
+            "core": 0.0,
+            "industrial": 0.0,
+            "inner": 0.0,
+            "rural": 0.0,
+            "suburb": 0.0,
+            "waterfront": 0.0
+          },
+          "description": "Added by neighbourhood kind (omitted kinds are 0)."
+        },
+        "regional_sd": {
+          "default": 0.0,
+          "description": "Standard deviation of each region's offset (0 = none).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "Consideration": {
       "additionalProperties": false,
       "properties": {
@@ -2273,6 +2356,27 @@
         },
         "kind": {
           "const": "attitudes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Communities: a cohort dimension beside age and class (DEC-075).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/CommunityDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "communities",
           "type": "string"
         }
       },

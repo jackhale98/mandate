@@ -253,7 +253,7 @@ pub fn init(
                 }
             })
             .collect();
-        let adults: f64 = pop.municipality_cohorts(world, mu.id).iter().sum();
+        let adults: f64 = pop.municipality_groups(world, mu.id).iter().sum();
         let housing = housing::init(mu, adults, e, wealth);
         munis.push(MuniEcon {
             sectors,
@@ -472,7 +472,7 @@ fn settle_labour_and_incomes(
     for (c, v) in lf_c.iter_mut().enumerate() {
         *v *= (1.0 + mods.labour_supply[c]).max(0.5);
     }
-    let cohorts = pop.municipality_cohorts(world, mid);
+    let groups = pop.municipality_groups(world, mid);
     let mu = &mut econ.munis[m];
     let lf: f64 = lf_c.iter().sum::<f64>().max(1.0);
     let demand = mu.total_jobs();
@@ -502,9 +502,9 @@ fn settle_labour_and_incomes(
     let mut consumption = 0.0;
     for c in 0..CLASSES {
         let working: f64 = (0..3)
-            .map(|a| cohorts[crate::population::cohort_index(a, c)])
+            .map(|a| groups[crate::population::group_index(a, c)])
             .sum();
-        let seniors = cohorts[crate::population::cohort_index(3, c)];
+        let seniors = groups[crate::population::group_index(3, c)];
         let disp = class_income[c] * (1.0 - income_tax[c]);
         consumption += working * disp * [0.95, 0.85, 0.7][c]
             + seniors * e.pension_replacement * mean_wage * 0.9;
@@ -755,7 +755,7 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
     }
     for m in 0..nm {
         let adults: f64 = pop
-            .municipality_cohorts(world, MunicipalityId(m as u32))
+            .municipality_groups(world, MunicipalityId(m as u32))
             .iter()
             .sum();
         econ.munis[m].housing.households = adults / housing::ADULTS_PER_HOUSEHOLD;

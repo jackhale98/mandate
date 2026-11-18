@@ -237,6 +237,43 @@ pub struct MunicipalityView {
     pub neighborhoods: Vec<NeighborhoodView>,
     pub places: Vec<PlaceView>,
     pub economy: Option<MuniEconomyView>,
+    /// Communities with adults here, in registry order (DEC-075). The base
+    /// game has one, which the UI does not show.
+    pub communities: Vec<CommunityShareView>,
+}
+
+/// One community's share of a town's adults (DEC-075).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct CommunityShareView {
+    /// Community content id, e.g. `community.general`.
+    pub id: String,
+    /// Fluent key, e.g. `community-general`.
+    pub name_key: String,
+    /// Share of the town's adults (0..1).
+    pub share: f64,
+}
+
+/// The communities with adults in a municipality and their shares.
+pub fn community_shares(engine: &Engine, m: MunicipalityId) -> Vec<CommunityShareView> {
+    let st = engine.state();
+    let content = engine.content();
+    let adults = st.population.municipality_communities(&st.world, m);
+    let total = adults.iter().sum::<u64>().max(1) as f64;
+    st.population
+        .community_keys
+        .iter()
+        .zip(&adults)
+        .filter(|(_, n)| **n > 0)
+        .map(|(id, n)| CommunityShareView {
+            id: id.clone(),
+            name_key: content
+                .community_index(id)
+                .map(|i| content.communities[i].name_key.clone())
+                .unwrap_or_default(),
+            share: *n as f64 / total,
+        })
+        .collect()
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -416,6 +453,7 @@ pub fn municipality_view(engine: &Engine, id: u32) -> Option<MunicipalityView> {
                 },
             }
         }),
+        communities: community_shares(engine, MunicipalityId(id)),
     })
 }
 

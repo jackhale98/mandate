@@ -25,6 +25,10 @@ pub struct ContentBundle {
     /// The attitude registry (DEC-075), in load order like sectors. Cohorts,
     /// politicians, parties, and policy signatures are dense in this order.
     pub attitudes: Vec<AttitudeDef>,
+    /// The community registry (DEC-075), in load order like sectors. Cohorts
+    /// are dense in this order (`population::cohort_index`).
+    #[serde(default)]
+    pub communities: Vec<CommunityDef>,
     pub name_pools: BTreeMap<ContentKey, NamePoolDef>,
     /// The place-kind registry (DEC-079), in load order.
     #[serde(default)]
@@ -73,6 +77,25 @@ impl ContentBundle {
         self.attitudes.iter().map(|a| &a.key)
     }
 
+    /// Registry index of a community by content id (e.g. `community.general`).
+    pub fn community_index(&self, id: &str) -> Option<usize> {
+        self.communities.iter().position(|c| c.id == id)
+    }
+
+    /// Community ids in registry order.
+    pub fn community_keys(&self) -> impl Iterator<Item = &ContentKey> {
+        self.communities.iter().map(|c| &c.id)
+    }
+
+    /// The community without a share model, which takes each
+    /// neighbourhood's remainder (validation requires exactly one).
+    pub fn remainder_community(&self) -> usize {
+        self.communities
+            .iter()
+            .position(|c| c.share.is_none())
+            .unwrap_or(0)
+    }
+
     /// A place kind by its snake-case key (e.g. `council_chamber`).
     pub fn place_kind(&self, key: &str) -> Option<&PlaceKindDef> {
         self.places.iter().find(|p| p.key == key)
@@ -110,6 +133,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut policies: BTreeMap<ContentKey, PolicyTemplate> = BTreeMap::new();
     let mut sectors: Vec<SectorDef> = Vec::new();
     let mut attitudes: Vec<AttitudeDef> = Vec::new();
+    let mut communities: Vec<CommunityDef> = Vec::new();
     let mut name_pools: BTreeMap<ContentKey, NamePoolDef> = BTreeMap::new();
     let mut places: Vec<PlaceKindDef> = Vec::new();
     let mut locales: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
@@ -222,6 +246,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Communities { items } => {
+                for c in items {
+                    if claim(&c.id, &mut issues) {
+                        communities.push(c);
+                    }
+                }
+            }
             ContentFile::Places { items } => {
                 for p in items {
                     if claim(&p.id, &mut issues) {
@@ -260,12 +291,20 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             .map(|a| p.signature.get(&a.key).copied().unwrap_or(0.0))
             .collect();
     }
+    // Likewise community attitude offsets.
+    for c in communities.iter_mut() {
+        c.attitude_offset_weights = attitudes
+            .iter()
+            .map(|a| c.attitude_offsets.get(&a.key).copied().unwrap_or(0.0))
+            .collect();
+    }
 
     let bundle = ContentBundle {
         packs,
         tuning,
         sectors,
         attitudes,
+        communities,
         name_pools,
         places,
         economy,

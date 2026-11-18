@@ -55,6 +55,12 @@ pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String>
             out.push(k.clone());
         }
     }
+    // Nor can the people of a community the content no longer has.
+    for k in &state.population.community_keys {
+        if content.community_index(k).is_none() && !out.contains(k) {
+            out.push(k.clone());
+        }
+    }
     out
 }
 
@@ -99,6 +105,14 @@ impl Engine {
         crate::population::remap_attitudes(
             &mut state.population,
             &mut state.politics,
+            &state.world,
+            &content,
+        );
+        // Then communities: cohorts are re-laid out by community id (a new
+        // community starts empty).
+        crate::population::remap_communities(
+            &mut state.population,
+            &state.politics,
             &state.world,
             &content,
         );

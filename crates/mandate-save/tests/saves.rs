@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (8, "c6b56f8aba0d33b8");
+    const EXPECTED: (u16, &str) = (9, "68836b10b07ccaa0");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -280,7 +280,7 @@ fn save_loads_into_content_that_adds_an_attitude() {
         for (k, c) in hp.cohorts.iter().enumerate() {
             moved(&c.attitudes, &before_pop.hoods[h].cohorts[k].attitudes);
             // The new issue starts at its seeding model's mean (no randomness).
-            let class = k % mandate_sim::population::CLASSES;
+            let class = mandate_sim::population::class_of(k);
             let want = [0.2, 0.0, -0.2][class] + if rural { 0.3 } else { 0.0 };
             assert!((c.attitudes[0] as f64 - want).abs() < 1e-6);
         }
@@ -336,4 +336,119 @@ fn save_refuses_content_that_removes_an_attitude() {
         .err()
         .expect("a removed attitude refuses to load");
     assert!(err.to_string().contains("land_rights"), "{err}");
+}
+
+/// Base content plus an expansion that adds a First Nation community. The pack
+/// path sorts before `base/`, so the new community comes first in the registry
+/// and the general community's cohorts move to the second block (DEC-075).
+fn content_with_first_nation() -> Arc<mandate_content::ContentBundle> {
+    let mut src =
+        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
+    src.push(mandate_content::Source {
+        path: "aa_nation/communities.jsonc".into(),
+        text: r#"{"kind":"communities","items":[{"id":"community.first_nation","name_key":"community-first_nation","share":{"by_neighborhood":{"rural":0.3,"industrial":0.05},"regional_sd":0.05},"attitude_offsets":{"localism":0.3,"environment":0.2},"turnout_offset":-0.08,"immigration_share":0.1}]}"#.into(),
+    });
+    src.push(mandate_content::Source {
+        path: "aa_nation/locale/en/nation.ftl".into(),
+        text: "community-first_nation = First Nation\n".into(),
+    });
+    Arc::new(load(&src).unwrap().0)
+}
+
+#[test]
+fn save_loads_into_content_that_adds_a_community() {
+    let mut e = generate(
+        &WorldConfig {
+            seed: 45,
+            size: WorldSize::Small,
+            preset: None,
+        },
+        content(),
+    )
+    .unwrap();
+    for _ in 0..5 {
+        e.apply(Command::EndTurn).unwrap();
+    }
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    let before = state.population.clone();
+    assert_eq!(before.community_keys, vec!["community.general".to_string()]);
+    assert!(
+        before
+            .hoods
+            .iter()
+            .all(|h| h.children_by_community.is_empty())
+    );
+
+    let nation = content_with_first_nation();
+    assert_eq!(nation.community_index("community.first_nation"), Some(0));
+    let general = nation.community_index("community.general").unwrap();
+    assert_eq!(general, 1);
+    let mut e2 =
+        mandate_sim::Engine::from_state(state, nation.clone()).expect("extra community loads");
+    let s = e2.state();
+    let keys: Vec<String> = nation.community_keys().cloned().collect();
+    assert_eq!(s.population.community_keys, keys);
+    let g = mandate_sim::population::GROUPS;
+    for (h, hp) in s.population.hoods.iter().enumerate() {
+        let old = &before.hoods[h];
+        assert_eq!(hp.cohorts.len(), 2 * g);
+        // The existing people keep their cohorts under their community's id.
+        assert_eq!(
+            &hp.cohorts[general * g..(general + 1) * g],
+            &old.cohorts[..]
+        );
+        // The new community starts empty, seeded without randomness.
+        for (ci, c) in hp.cohorts[..g].iter().enumerate() {
+            assert_eq!(c.count, 0);
+            assert_eq!(mandate_sim::population::community_of(ci), 0);
+            assert_eq!(c.attitudes.len(), nation.attitudes.len());
+            assert_eq!(c.party_id.len(), s.politics.parties.len());
+        }
+        assert_eq!(hp.children, old.children);
+        assert_eq!(hp.children_by_community, vec![0, old.children]);
+    }
+    assert_eq!(s.population.total(), before.total());
+    assert!(
+        s.events
+            .iter()
+            .any(|ev| matches!(ev.kind, mandate_sim::events::EventKind::RulesUpdated { .. }))
+    );
+
+    // The community grows through immigration; everything keeps running.
+    e2.apply(Command::AdvanceDays { days: 365 }).unwrap();
+    let s = e2.state();
+    let newcomers: u64 = s
+        .population
+        .hoods
+        .iter()
+        .map(|h| h.community_adults(0))
+        .sum();
+    assert!(newcomers > 0, "the new community gains immigrants");
+    for hp in &s.population.hoods {
+        assert_eq!(hp.cohorts.len(), 2 * g);
+        assert_eq!(hp.children, hp.children_by_community.iter().sum::<u32>());
+    }
+    let (bytes, _) = encode(s, &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    assert_eq!(state.hash(), e2.state_hash());
+}
+
+#[test]
+fn save_refuses_content_that_removes_a_community() {
+    let e = generate(
+        &WorldConfig {
+            seed: 46,
+            size: WorldSize::Small,
+            preset: None,
+        },
+        content_with_first_nation(),
+    )
+    .unwrap();
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    let err = mandate_sim::Engine::from_state(state, content())
+        .err()
+        .expect("a removed community refuses to load");
+    assert!(err.to_string().contains("community.first_nation"), "{err}");
 }

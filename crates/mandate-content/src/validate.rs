@@ -138,6 +138,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     for id in b
         .sector_keys()
         .chain(b.attitudes.iter().map(|a| &a.id))
+        .chain(b.community_keys())
         .chain(b.name_pools.keys())
         .chain(b.packs.iter().map(|p| &p.id))
     {
@@ -237,6 +238,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         }
     }
     validate_places(b, &mut issues);
+    validate_communities(b, &mut issues);
     let e = &b.economy;
     let unit = |issues: &mut Vec<Issue>, name: &str, v: f64| {
         if !(0.0..=1.0).contains(&v) {
@@ -452,6 +454,9 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     for s in &b.sectors {
         referenced.push((&s.id, &s.name_key));
     }
+    for c in &b.communities {
+        referenced.push((&c.id, &c.name_key));
+    }
     for c in b.constitutions.values() {
         referenced.push((&c.id, &c.name_key));
         for t in &c.tiers {
@@ -587,6 +592,108 @@ fn validate_places(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 &format!("no place offers `{a}` late at night"),
             ));
         }
+    }
+}
+
+/// Community registry (DEC-075): at least one; exactly one without a share
+/// model (it takes each neighbourhood's remainder); finite shares and
+/// offsets; offsets name known attitudes. Ids are unique (claimed on load).
+fn validate_communities(b: &ContentBundle, issues: &mut Vec<Issue>) {
+    if b.communities.is_empty() {
+        issues.push(Issue::error(
+            "communities",
+            "at least one community is required",
+        ));
+        return;
+    }
+    let remainder = b.communities.iter().filter(|c| c.share.is_none()).count();
+    if remainder != 1 {
+        issues.push(Issue::error(
+            "communities",
+            &format!(
+                "exactly one community must omit `share` (it takes the remainder); found {remainder}"
+            ),
+        ));
+    }
+    let in_range = |v: f64, lo: f64, hi: f64| v.is_finite() && (lo..=hi).contains(&v);
+    for c in &b.communities {
+        if let Some(sh) = &c.share {
+            let n = &sh.by_neighborhood;
+            if !in_range(sh.base, 0.0, 1.0) {
+                issues.push(Issue::error(&c.id, "share.base must be in [0, 1]"));
+            }
+            if [
+                n.core,
+                n.inner,
+                n.waterfront,
+                n.industrial,
+                n.suburb,
+                n.rural,
+            ]
+            .iter()
+            .any(|v| !in_range(*v, -1.0, 1.0))
+            {
+                issues.push(Issue::error(
+                    &c.id,
+                    "share.by_neighborhood values must be in [-1, 1]",
+                ));
+            }
+            if !in_range(sh.regional_sd, 0.0, 0.5) {
+                issues.push(Issue::error(&c.id, "share.regional_sd must be in [0, 0.5]"));
+            }
+        }
+        for (k, v) in &c.attitude_offsets {
+            if b.attitude_index(k).is_none() {
+                issues.push(Issue::error(
+                    &c.id,
+                    &format!("attitude_offsets references unknown attitude `{k}`"),
+                ));
+            }
+            if !in_range(*v, -2.0, 2.0) {
+                issues.push(Issue::error(
+                    &c.id,
+                    &format!("attitude offset for `{k}` must be in [-2, 2]"),
+                ));
+            }
+        }
+        if !in_range(c.turnout_offset, -0.5, 0.5) {
+            issues.push(Issue::error(&c.id, "turnout_offset must be in [-0.5, 0.5]"));
+        }
+        if !in_range(c.immigration_share, 0.0, 1.0) {
+            issues.push(Issue::error(&c.id, "immigration_share must be in [0, 1]"));
+        }
+    }
+    // Shares that can add up to more than everyone are scaled down by the
+    // engine; say so, since the content probably did not mean it.
+    let kinds: [fn(&crate::types::NeighborhoodLean) -> f64; 6] = [
+        |n| n.core,
+        |n| n.inner,
+        |n| n.waterfront,
+        |n| n.industrial,
+        |n| n.suburb,
+        |n| n.rural,
+    ];
+    for kind in kinds {
+        let sum: f64 = b
+            .communities
+            .iter()
+            .filter_map(|c| c.share.as_ref())
+            .map(|sh| (sh.base + kind(&sh.by_neighborhood)).clamp(0.0, 1.0))
+            .sum();
+        if sum > 1.0 + 1e-9 {
+            issues.push(Issue::warning(
+                "communities",
+                "community shares add up to more than 1 in some neighbourhood kind; they will be scaled down",
+            ));
+            break;
+        }
+    }
+    let immigration: f64 = b.communities.iter().map(|c| c.immigration_share).sum();
+    if immigration > 1.0 + 1e-9 {
+        issues.push(Issue::warning(
+            "communities",
+            "immigration shares add up to more than 1; they will be scaled down",
+        ));
     }
 }
 

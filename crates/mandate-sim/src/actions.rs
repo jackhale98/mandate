@@ -864,10 +864,11 @@ pub fn apply(
                     // Donor ties: low-income voters who know you notice who you court.
                     let hoods: Vec<usize> = state.world.hoods_of(MunicipalityId(m)).collect();
                     for h in hoods {
-                        for c in state.population.hoods[h]
+                        for (_, c) in state.population.hoods[h]
                             .cohorts
                             .iter_mut()
-                            .step_by(crate::population::CLASSES)
+                            .enumerate()
+                            .filter(|(ci, _)| crate::population::class_of(*ci) == 0)
                         {
                             c.player_approval = clamp(
                                 c.player_approval as f64 - 0.01 * c.player_awareness as f64,
