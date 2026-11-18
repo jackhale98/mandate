@@ -11,6 +11,11 @@
   --accent-ink: #1b1405;
   --danger: #e5675f;
   --info: #5fa8e5;
+  /* Sheets are a raised layer over the screen (bluer and lighter than cards). */
+  --sheet: #20263a;
+  --sheet-2: #2a3149;
+  --sheet-border: #3a4363;
+  --scrim: rgba(5, 6, 10, 0.55);
   --radius: 12px;
   --gap: 16px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -27,6 +32,10 @@
     --muted: #5d6273;
     --accent: #a8721a;
     --accent-ink: #ffffff;
+    --sheet: #ffffff;
+    --sheet-2: #f3efe6;
+    --sheet-border: #d9d2c3;
+    --scrim: rgba(29, 31, 39, 0.38);
     color-scheme: light;
   }
 }
@@ -39,6 +48,10 @@
   --muted: #5d6273;
   --accent: #a8721a;
   --accent-ink: #ffffff;
+  --sheet: #ffffff;
+  --sheet-2: #f3efe6;
+  --sheet-border: #d9d2c3;
+  --scrim: rgba(29, 31, 39, 0.38);
   color-scheme: light;
 }
 
@@ -169,6 +182,20 @@ h2 { font-size: 1.1rem; }
 @media (min-width: 900px) {
   .sheet { left: auto; top: 0; width: 400px; max-height: none; border-radius: 0; border-left: 1px solid var(--border); padding-top: 72px; }
 }
+/* Sheets are their own layer: a raised colour (inner cards follow it), a grab
+   handle, and on phones a scrim that dims the screen behind (tap it to close). */
+.sheet { --surface: var(--sheet); --surface-2: var(--sheet-2); --border: var(--sheet-border); background: var(--sheet); border-top-color: var(--sheet-border); box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.35); }
+.sheet-scrim { position: fixed; inset: 0; z-index: 3; background: var(--scrim); animation: fade-in 220ms ease-out; }
+.sheet-scrim.sheet-closing { animation: fade-out 200ms ease-in forwards; }
+@keyframes fade-out { to { opacity: 0; } }
+@media (max-width: 899px) {
+  .sheet .sheet-head { padding-top: 22px; }
+  .sheet .sheet-head::before { content: ""; position: absolute; top: 8px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: var(--muted); opacity: 0.6; }
+}
+@media (min-width: 900px) {
+  .sheet-scrim { display: none; }
+  .sheet { box-shadow: -12px 0 32px rgba(0, 0, 0, 0.3); }
+}
 /* Sheets slide up from the bottom on phones and in from the right on wide screens. */
 .sheet { animation: sheet-up 240ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .sheet.sheet-closing { animation: sheet-down 200ms ease-in forwards; }
@@ -186,7 +213,7 @@ h2 { font-size: 1.1rem; }
 @media (min-width: 700px) { .modal { animation-name: modal-in; } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(16px) scale(0.98); } }
 @media (prefers-reduced-motion: reduce) {
-  .sheet, .sheet.sheet-closing, .modal-backdrop, .modal { animation: none; }
+  .sheet, .sheet.sheet-closing, .sheet-scrim, .modal-backdrop, .modal { animation: none; }
 }
 .sheet-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .sheet-body { display: flex; flex-direction: column; gap: 6px; }

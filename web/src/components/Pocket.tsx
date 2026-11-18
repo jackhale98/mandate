@@ -116,6 +116,8 @@ export function Pocket() {
   if (!open || !p) return null;
   const h = p.headlines;
   return (
+    <>
+      <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />
     <aside className={closing ? "sheet pocket sheet-closing" : "sheet pocket"} aria-label={tr.t("ui-pocket")} data-testid="pocket">
       <div className="sheet-head">
         <div>
@@ -191,5 +193,6 @@ export function Pocket() {
         </nav>
       </div>
     </aside>
+    </>
   );
 }

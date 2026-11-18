@@ -95,6 +95,8 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
   }, [id]);
 
   return (
+    <>
+      <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />
     <aside className={closing ? "sheet sheet-closing" : "sheet"} aria-label={view?.name ?? ""}>
       <div className="sheet-head">
         <div>
@@ -153,5 +155,6 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
         </div>
       )}
     </aside>
+    </>
   );
 }

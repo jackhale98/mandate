@@ -210,6 +210,8 @@ export function PlacePanel() {
   // Lobbying in the chamber is done from the whip list.
   const skip = new Set<string>(chamber ? ["lobby", "trade_favor"] : []);
   return (
+    <>
+      <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />
     <aside
       ref={sheet}
       className={closing ? "sheet place-panel sheet-closing" : "sheet place-panel"}
@@ -280,5 +282,6 @@ export function PlacePanel() {
       )}
       </Fragment>
     </aside>
+    </>
   );
 }
