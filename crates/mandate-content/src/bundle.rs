@@ -29,6 +29,10 @@ pub struct ContentBundle {
     /// are dense in this order (`population::cohort_index`).
     #[serde(default)]
     pub communities: Vec<CommunityDef>,
+    /// The concern registry (DEC-078 decision 3), in load order. Towns hold
+    /// a level per concern and a salience per attitude derived from them.
+    #[serde(default)]
+    pub concerns: Vec<ConcernDef>,
     pub name_pools: BTreeMap<ContentKey, NamePoolDef>,
     /// The scenario registry (DEC-078 decision 4), in load order.
     #[serde(default)]
@@ -96,6 +100,16 @@ impl ContentBundle {
         self.communities.iter().map(|c| &c.id)
     }
 
+    /// Registry index of a concern by content id (e.g. `concern.jobs`).
+    pub fn concern_index(&self, id: &str) -> Option<usize> {
+        self.concerns.iter().position(|c| c.id == id)
+    }
+
+    /// Concern ids in registry order.
+    pub fn concern_keys(&self) -> impl Iterator<Item = &ContentKey> {
+        self.concerns.iter().map(|c| &c.id)
+    }
+
     /// The community without a share model, which takes each
     /// neighbourhood's remainder (validation requires exactly one).
     pub fn remainder_community(&self) -> usize {
@@ -161,6 +175,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut sectors: Vec<SectorDef> = Vec::new();
     let mut attitudes: Vec<AttitudeDef> = Vec::new();
     let mut communities: Vec<CommunityDef> = Vec::new();
+    let mut concerns: Vec<ConcernDef> = Vec::new();
     let mut name_pools: BTreeMap<ContentKey, NamePoolDef> = BTreeMap::new();
     let mut scenarios: Vec<ScenarioDef> = Vec::new();
     let mut places: Vec<PlaceKindDef> = Vec::new();
@@ -311,6 +326,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Concerns { items } => {
+                for c in items {
+                    if claim(&c.id, &mut issues) {
+                        concerns.push(c);
+                    }
+                }
+            }
             ContentFile::Places { items } => {
                 for p in items {
                     if claim(&p.id, &mut issues) {
@@ -370,6 +392,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             .map(|a| p.signature.get(&a.key).copied().unwrap_or(0.0))
             .collect();
     }
+    // Likewise concern weights.
+    for c in concerns.iter_mut() {
+        c.attitude_weights = attitudes
+            .iter()
+            .map(|a| c.attitudes.get(&a.key).copied().unwrap_or(0.0))
+            .collect();
+    }
     // Likewise community attitude offsets.
     for c in communities.iter_mut() {
         c.attitude_offset_weights = attitudes
@@ -384,6 +413,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         sectors,
         attitudes,
         communities,
+        concerns,
         name_pools,
         scenarios,
         places,

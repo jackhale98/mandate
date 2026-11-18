@@ -23,6 +23,12 @@ pub fn default_systems() -> Vec<SystemDef> {
             run: SystemFn::Policy(policy::implementation),
         },
         SystemDef {
+            name: "population.concerns",
+            phase: P::Opinion,
+            cadence: Monthly,
+            run: SystemFn::Population(crate::concerns::refresh),
+        },
+        SystemDef {
             name: "population.opinion",
             phase: P::Opinion,
             cadence: Monthly,

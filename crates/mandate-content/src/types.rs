@@ -22,6 +22,8 @@ pub enum ContentFile {
     Attitudes { items: Vec<AttitudeDef> },
     /// Communities: a cohort dimension beside age and class (DEC-075).
     Communities { items: Vec<CommunityDef> },
+    /// Voter concerns: what worries a town, and which issues it makes salient (DEC-078).
+    Concerns { items: Vec<ConcernDef> },
     /// Name-generation pools for places and people.
     NamePools { items: Vec<NamePoolDef> },
     /// World scenarios: starting worlds as biases on the generator (DEC-078).
@@ -766,6 +768,88 @@ pub struct NamePoolDef {
     pub words: Vec<String>,
 }
 
+// --- Indicators and concerns (DEC-078 decision 3) --------------------------------
+
+/// Engine-provided measures of a municipality, recomputed monthly. Concerns
+/// read them; situational policies (DEC-077) will use them as unlock
+/// conditions. Adding one is a code extension point (one variant, one
+/// computation in `mandate_sim::concerns::indicator`, and a test).
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum Indicator {
+    /// Unemployment rate (0..1).
+    Unemployment,
+    /// Change in the unemployment rate over the last year (points, 0..1 scale).
+    UnemploymentRise,
+    /// Annual rent of an average home as a share of a typical (middle-class) income.
+    RentBurden,
+    /// The region's pollution index (0 clean, about 0.2 at start, up to 3).
+    Pollution,
+    /// Annual property tax on an average home as a share of a typical income.
+    TaxBurden,
+    /// The town's debt as a share of its annual budget.
+    BudgetStress,
+    /// 1 just after a disaster, fading to 0 over two years.
+    RecentDisaster,
+}
+
+impl Indicator {
+    pub const ALL: [Indicator; 7] = [
+        Indicator::Unemployment,
+        Indicator::UnemploymentRise,
+        Indicator::RentBurden,
+        Indicator::Pollution,
+        Indicator::TaxBurden,
+        Indicator::BudgetStress,
+        Indicator::RecentDisaster,
+    ];
+}
+
+/// A voter concern (DEC-078 decision 3): something that worries a town,
+/// read from an indicator, and the issues (attitudes) it makes voters weigh.
+/// Registry order is load order.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConcernDef {
+    /// Content id, e.g. `concern.jobs`.
+    pub id: ContentKey,
+    /// Fluent key of the concern's name, e.g. `concern-jobs`.
+    pub name_key: String,
+    /// Fluent key of what residents say about it (the "overheard" service).
+    #[serde(default)]
+    pub overheard_key: Option<String>,
+    pub indicator: Indicator,
+    /// The attitudes behind the concern, by key. The magnitude is how much a
+    /// worried town weighs that issue; the sign is the side worried voters
+    /// lean toward (used to rank concerns by neighbourhood).
+    pub attitudes: BTreeMap<String, f64>,
+    /// `attitudes` resolved to a dense vector in attitude-registry order at
+    /// load. Not part of the content format.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub attitude_weights: Vec<f64>,
+    /// How the indicator's value becomes the concern's level.
+    pub level: ConcernLevel,
+}
+
+/// `level = clamp(baseline + slope × indicator, min, max)`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConcernLevel {
+    pub baseline: f64,
+    pub slope: f64,
+    pub min: f64,
+    pub max: f64,
+}
+
+impl ConcernLevel {
+    pub fn of(&self, indicator: f64) -> f64 {
+        (self.baseline + self.slope * indicator).clamp(self.min, self.max)
+    }
+}
+
 // --- Scenarios (DEC-078 decision 4) -----------------------------------------------
 
 /// A starting world: biases on world generation (geography, economy, era,
@@ -1129,6 +1213,11 @@ pub struct VoteParams {
     pub record_baseline: f64,
     /// Below this Standing the party will not renominate its own officeholder.
     pub renomination_standing: f64,
+    /// Issue salience (DEC-078 decision 3): every attitude's raw salience in
+    /// a town is this base plus each concern's level × |its weight on the
+    /// attitude|; the vector is then scaled to a mean of 1, so the issue
+    /// weight keeps its meaning. A larger base mutes local priorities.
+    pub salience_base: f64,
     /// Perceived position on a partisan ballot: the candidate's own views and
     /// their party's platform, blended with these weights.
     pub perceived_own_weight: f64,
@@ -1632,6 +1721,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "communities" => ContentFile::Communities {
             items: serde_json::from_str::<ItemsFile<CommunityDef>>(json)?.items,
+        },
+        "concerns" => ContentFile::Concerns {
+            items: serde_json::from_str::<ItemsFile<ConcernDef>>(json)?.items,
         },
         "scenarios" => ContentFile::Scenarios {
             items: serde_json::from_str::<ItemsFile<ScenarioDef>>(json)?.items,

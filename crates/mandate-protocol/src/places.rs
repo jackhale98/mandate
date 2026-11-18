@@ -121,8 +121,8 @@ pub struct HeadlinesView {
     pub approval_ward: f64,
     pub awareness_ward: f64,
     pub approval_town: f64,
-    /// The town's two strongest concerns (Fluent suffixes: `concern-<key>`).
-    pub top_concerns: Vec<String>,
+    /// The town's two strongest concerns (Fluent name keys, DEC-078).
+    pub top_concern_keys: Vec<String>,
 }
 
 /// The pocket (phone and notebook): always available (DEC-079 rule 3).
@@ -212,7 +212,8 @@ pub struct HoodDataView {
     pub player_awareness: f64,
     pub player_approval: f64,
     pub town_hall_risk: f64,
-    pub top_concern: Option<String>,
+    /// Fluent name key of the neighbourhood's strongest concern.
+    pub top_concern_key: Option<String>,
 }
 
 /// Detailed town data (the statistics desk).
@@ -490,7 +491,7 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
             approval_ward: c5(weighted(st, &ward_hoods, |c| c.player_approval as f64)),
             awareness_ward: c5(weighted(st, &ward_hoods, |c| c.player_awareness as f64)),
             approval_town: c5(weighted(st, &hoods, |c| c.player_approval as f64)),
-            top_concerns: concerns.into_iter().map(|c| c.key).collect(),
+            top_concern_keys: concerns.into_iter().map(|c| c.name_key).collect(),
         },
         location: location_view(st, pl.location),
         routes: routes(engine),
@@ -639,9 +640,9 @@ fn town_data(engine: &Engine) -> Option<TownDataView> {
                     player_awareness: weighted(st, &[h], |c| c.player_awareness as f64),
                     player_approval: weighted(st, &[h], |c| c.player_approval as f64),
                     town_hall_risk: mandate_sim::actions::town_hall_risk(st, content, h as u32),
-                    top_concern: concerns_for(st, content, m, &[h])
+                    top_concern_key: concerns_for(st, content, m, &[h])
                         .first()
-                        .map(|c| c.key.clone()),
+                        .map(|c| c.name_key.clone()),
                 })
             })
             .collect(),
@@ -750,10 +751,17 @@ fn overheard(engine: &Engine, loc: Location) -> Option<OverheardView> {
     let pl = st.player.as_ref()?;
     let h = places::hood_of(st, loc)?;
     let n = st.world.neighborhoods.get(h.index())?;
-    let keys = concerns_for(st, engine.content(), pl.municipality, &[h.index()])
+    let content = engine.content();
+    let keys = concerns_for(st, content, pl.municipality, &[h.index()])
         .into_iter()
+        .filter_map(|c| {
+            content
+                .concerns
+                .iter()
+                .find(|d| d.id == c.id)
+                .and_then(|d| d.overheard_key.clone())
+        })
         .take(2)
-        .map(|c| format!("overheard-{}", c.key))
         .collect();
     Some(OverheardView {
         neighborhood: h.0,

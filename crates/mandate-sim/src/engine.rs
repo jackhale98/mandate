@@ -122,6 +122,23 @@ impl Engine {
             &state.world,
             &content,
         );
+        // Concerns are derived: recompute them for content whose concern
+        // registry differs from the one they were computed with (a new
+        // game, or content that added or removed a concern).
+        let keys: Vec<String> = content.concern_keys().cloned().collect();
+        if state.population.concern_keys != keys
+            || state.population.town_concerns.len() != state.world.municipalities.len()
+            || state
+                .population
+                .town_concerns
+                .iter()
+                .any(|t| t.salience.len() != state.population.attitude_count())
+        {
+            let towns =
+                crate::concerns::compute_all(&crate::scheduler::Reads::of_state(&state, &content));
+            state.population.town_concerns = towns;
+            state.population.concern_keys = keys;
+        }
         Ok(Engine {
             state,
             terrain: None,

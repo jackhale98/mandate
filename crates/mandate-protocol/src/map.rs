@@ -240,6 +240,8 @@ pub struct MunicipalityView {
     /// Communities with adults here, in registry order (DEC-075). The base
     /// game has one, which the UI does not show.
     pub communities: Vec<CommunityShareView>,
+    /// The town's strongest concerns, strongest first (at most three; DEC-078).
+    pub top_concerns: Vec<crate::office::ConcernView>,
 }
 
 /// One community's share of a town's adults (DEC-075).
@@ -454,6 +456,7 @@ pub fn municipality_view(engine: &Engine, id: u32) -> Option<MunicipalityView> {
             }
         }),
         communities: community_shares(engine, MunicipalityId(id)),
+        top_concerns: crate::office::town_concerns(engine, MunicipalityId(id), 3),
     })
 }
 

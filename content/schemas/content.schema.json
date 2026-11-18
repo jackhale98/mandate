@@ -783,6 +783,80 @@
       },
       "type": "object"
     },
+    "ConcernDef": {
+      "additionalProperties": false,
+      "description": "A voter concern (DEC-078 decision 3): something that worries a town,\nread from an indicator, and the issues (attitudes) it makes voters weigh.\nRegistry order is load order.",
+      "properties": {
+        "attitudes": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "description": "The attitudes behind the concern, by key. The magnitude is how much a\nworried town weighs that issue; the sign is the side worried voters\nlean toward (used to rank concerns by neighbourhood).",
+          "type": "object"
+        },
+        "id": {
+          "description": "Content id, e.g. `concern.jobs`.",
+          "type": "string"
+        },
+        "indicator": {
+          "$ref": "#/$defs/Indicator"
+        },
+        "level": {
+          "$ref": "#/$defs/ConcernLevel",
+          "description": "How the indicator's value becomes the concern's level."
+        },
+        "name_key": {
+          "description": "Fluent key of the concern's name, e.g. `concern-jobs`.",
+          "type": "string"
+        },
+        "overheard_key": {
+          "default": null,
+          "description": "Fluent key of what residents say about it (the \"overheard\" service).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "indicator",
+        "attitudes",
+        "level"
+      ],
+      "type": "object"
+    },
+    "ConcernLevel": {
+      "additionalProperties": false,
+      "description": "`level = clamp(baseline + slope × indicator, min, max)`.",
+      "properties": {
+        "baseline": {
+          "format": "double",
+          "type": "number"
+        },
+        "max": {
+          "format": "double",
+          "type": "number"
+        },
+        "min": {
+          "format": "double",
+          "type": "number"
+        },
+        "slope": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "baseline",
+        "slope",
+        "min",
+        "max"
+      ],
+      "type": "object"
+    },
     "Consideration": {
       "additionalProperties": false,
       "properties": {
@@ -1431,6 +1505,46 @@
         "wildfire"
       ],
       "type": "string"
+    },
+    "Indicator": {
+      "description": "Engine-provided measures of a municipality, recomputed monthly. Concerns\nread them; situational policies (DEC-077) will use them as unlock\nconditions. Adding one is a code extension point (one variant, one\ncomputation in `mandate_sim::concerns::indicator`, and a test).",
+      "oneOf": [
+        {
+          "const": "unemployment",
+          "description": "Unemployment rate (0..1).",
+          "type": "string"
+        },
+        {
+          "const": "unemployment_rise",
+          "description": "Change in the unemployment rate over the last year (points, 0..1 scale).",
+          "type": "string"
+        },
+        {
+          "const": "rent_burden",
+          "description": "Annual rent of an average home as a share of a typical (middle-class) income.",
+          "type": "string"
+        },
+        {
+          "const": "pollution",
+          "description": "The region's pollution index (0 clean, about 0.2 at start, up to 3).",
+          "type": "string"
+        },
+        {
+          "const": "tax_burden",
+          "description": "Annual property tax on an average home as a share of a typical income.",
+          "type": "string"
+        },
+        {
+          "const": "budget_stress",
+          "description": "The town's debt as a share of its annual budget.",
+          "type": "string"
+        },
+        {
+          "const": "recent_disaster",
+          "description": "1 just after a disaster, fading to 0 over two years.",
+          "type": "string"
+        }
+      ]
     },
     "IntroduceEffects": {
       "additionalProperties": false,
@@ -3507,6 +3621,11 @@
           "format": "double",
           "type": "number"
         },
+        "salience_base": {
+          "description": "Issue salience (DEC-078 decision 3): every attitude's raw salience in\na town is this base plus each concern's level × |its weight on the\nattitude|; the vector is then scaled to a mean of 1, so the issue\nweight keeps its meaning. A larger base mutes local priorities.",
+          "format": "double",
+          "type": "number"
+        },
         "strategic_weight": {
           "description": "Wasted-vote penalty for candidates whose party is weak locally (Duverger).",
           "format": "double",
@@ -3548,6 +3667,7 @@
         "record_bonus",
         "record_baseline",
         "renomination_standing",
+        "salience_base",
         "perceived_own_weight",
         "perceived_party_weight",
         "valence_oratory",
@@ -3684,6 +3804,27 @@
         },
         "kind": {
           "const": "communities",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Voter concerns: what worries a town, and which issues it makes salient (DEC-078).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ConcernDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "concerns",
           "type": "string"
         }
       },

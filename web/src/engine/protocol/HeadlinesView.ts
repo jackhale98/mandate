@@ -17,6 +17,6 @@ monthly_rent: number,
  */
 gov_approval: number, approval_ward: number, awareness_ward: number, approval_town: number, 
 /**
- * The town's two strongest concerns (Fluent suffixes: `concern-<key>`).
+ * The town's two strongest concerns (Fluent name keys, DEC-078).
  */
-top_concerns: Array<string>, };
+top_concern_keys: Array<string>, };

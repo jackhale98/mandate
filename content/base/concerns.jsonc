@@ -1,0 +1,49 @@
+// Voter concerns (DEC-078 decision 3): what worries a town, read from an
+// engine indicator each month, and which issues it makes voters weigh.
+//
+//   level = clamp(baseline + slope × indicator, min, max)
+//   salience of an attitude = politics.vote.salience_base + Σ level × |weight|,
+//   then scaled so the town's mean salience is 1 (the vote model's issue term
+//   weighs each attitude by it).
+//
+// The sign of a weight is the side worried voters lean toward; it ranks
+// concerns by neighbourhood for display. Indicators: unemployment,
+// unemployment_rise, rent_burden, pollution, tax_burden, budget_stress,
+// recent_disaster. The simulation has no crime yet, so there is no safety
+// concern. Registry order is load order. Levels are scaled so a typical town
+// sits around 0.2–0.5 and the worst few percent reach 0.7–1.
+{
+  "kind": "concerns",
+  "items": [
+    // Unemployment: median town about 6.6%, worst 5% about 10%.
+    { "id": "concern.jobs", "name_key": "concern-jobs", "overheard_key": "overheard-jobs",
+      "indicator": "unemployment",
+      "attitudes": { "redistribution": 0.6, "reform_appetite": 0.3, "localism": 0.2 },
+      "level": { "baseline": -0.15, "slope": 9.0, "min": 0.0, "max": 1.0 } },
+    // Annual rent / typical income: median about 0.11, worst 5% about 0.24.
+    { "id": "concern.housing", "name_key": "concern-housing", "overheard_key": "overheard-housing",
+      "indicator": "rent_burden",
+      "attitudes": { "redistribution": 0.5, "reform_appetite": 0.3, "localism": -0.3 },
+      "level": { "baseline": -0.2, "slope": 4.0, "min": 0.0, "max": 1.0 } },
+    // The region's pollution index: median about 0.5, worst 5% about 1.2.
+    { "id": "concern.environment", "name_key": "concern-environment", "overheard_key": "overheard-environment",
+      "indicator": "pollution",
+      "attitudes": { "environment": 1.0 },
+      "level": { "baseline": -0.1, "slope": 0.6, "min": 0.0, "max": 1.0 } },
+    // Property tax on an average home / typical income: median about 0.06.
+    { "id": "concern.taxes", "name_key": "concern-taxes", "overheard_key": "overheard-taxes",
+      "indicator": "tax_burden",
+      "attitudes": { "tax_tolerance": -0.8, "redistribution": -0.3 },
+      "level": { "baseline": -0.4, "slope": 10.0, "min": 0.0, "max": 1.0 } },
+    // Town debt / annual budget: near 0 while budgets balance.
+    { "id": "concern.services", "name_key": "concern-services", "overheard_key": "overheard-services",
+      "indicator": "budget_stress",
+      "attitudes": { "tax_tolerance": 0.5, "redistribution": 0.3, "law_and_order": 0.2 },
+      "level": { "baseline": 0.1, "slope": 2.0, "min": 0.0, "max": 1.0 } },
+    // 1 just after a disaster, fading over two years.
+    { "id": "concern.recovery", "name_key": "concern-recovery", "overheard_key": "overheard-recovery",
+      "indicator": "recent_disaster",
+      "attitudes": { "environment": 0.4, "tax_tolerance": 0.3, "law_and_order": 0.3 },
+      "level": { "baseline": 0.0, "slope": 0.8, "min": 0.0, "max": 1.0 } },
+  ],
+}

@@ -68,7 +68,7 @@ function TownData({ d }: { d: TownDataView }) {
                 <td className="num">{Math.round(h.player_awareness * 100)}%</td>
                 <td className="num">{signed(h.player_approval)}</td>
                 <td className="num">{signed(h.gov_approval)}</td>
-                <td>{h.top_concern ? tr.t(`concern-${h.top_concern}`) : "—"}</td>
+                <td>{h.top_concern_key ? tr.t(h.top_concern_key) : "—"}</td>
               </tr>
             ))}
           </tbody>

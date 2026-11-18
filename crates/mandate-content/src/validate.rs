@@ -138,6 +138,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     for id in b
         .sector_keys()
         .chain(b.scenarios.iter().map(|x| &x.id))
+        .chain(b.concern_keys())
         .chain(b.attitudes.iter().map(|a| &a.id))
         .chain(b.community_keys())
         .chain(b.name_pools.keys())
@@ -241,6 +242,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     validate_places(b, &mut issues);
     validate_communities(b, &mut issues);
     validate_scenarios(b, &mut issues);
+    validate_concerns(b, &mut issues);
     for (name, v, lo, hi) in param_ranges(b) {
         if !(v.is_finite() && (lo..=hi).contains(&v)) {
             let kind = name.split('.').next().unwrap_or("parameters").to_string();
@@ -495,6 +497,12 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     for x in &b.scenarios {
         referenced.push((&x.id, &x.name_key));
     }
+    for c in &b.concerns {
+        referenced.push((&c.id, &c.name_key));
+        if let Some(k) = &c.overheard_key {
+            referenced.push((&c.id, k));
+        }
+    }
     for c in b.constitutions.values() {
         referenced.push((&c.id, &c.name_key));
         for t in &c.tiers {
@@ -571,6 +579,7 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
         ("record_bonus", v.record_bonus, 0.0, 10.0),
         ("record_baseline", v.record_baseline, 0.0, 1.0),
         ("renomination_standing", v.renomination_standing, 0.0, 100.0),
+        ("salience_base", v.salience_base, 0.01, 100.0),
         ("perceived_own_weight", v.perceived_own_weight, 0.0, 1.0),
         ("perceived_party_weight", v.perceived_party_weight, 0.0, 1.0),
         ("valence_oratory", v.valence_oratory, 0.0, 5.0),
@@ -1025,6 +1034,50 @@ fn validate_places(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 "places",
                 &format!("no place offers `{a}` late at night"),
             ));
+        }
+    }
+}
+
+/// Concern registry (DEC-078 decision 3): at least one attitude per concern,
+/// known attitude keys, weights in [-1, 1], and a sane level mapping. An empty
+/// registry is allowed (every issue then weighs the same). Ids are unique
+/// (claimed on load).
+fn validate_concerns(b: &ContentBundle, issues: &mut Vec<Issue>) {
+    let in_range = |v: f64, lo: f64, hi: f64| v.is_finite() && (lo..=hi).contains(&v);
+    for c in &b.concerns {
+        if c.attitudes.is_empty() {
+            issues.push(Issue::error(&c.id, "a concern needs at least one attitude"));
+        }
+        for (k, w) in &c.attitudes {
+            if b.attitude_index(k).is_none() {
+                issues.push(Issue::error(
+                    &c.id,
+                    &format!("attitudes references unknown attitude `{k}`"),
+                ));
+            }
+            if !in_range(*w, -1.0, 1.0) || *w == 0.0 {
+                issues.push(Issue::error(
+                    &c.id,
+                    &format!("attitude weight for `{k}` must be non-zero and in [-1, 1]"),
+                ));
+            }
+        }
+        let l = &c.level;
+        for (name, v, lo, hi) in [
+            ("level.baseline", l.baseline, -10.0, 10.0),
+            ("level.slope", l.slope, -1000.0, 1000.0),
+            ("level.min", l.min, 0.0, 10.0),
+            ("level.max", l.max, 0.0, 10.0),
+        ] {
+            if !in_range(v, lo, hi) {
+                issues.push(Issue::error(
+                    &c.id,
+                    &format!("{name} = {v} outside [{lo}, {hi}]"),
+                ));
+            }
+        }
+        if l.min > l.max {
+            issues.push(Issue::error(&c.id, "level.min must not exceed level.max"));
         }
     }
 }

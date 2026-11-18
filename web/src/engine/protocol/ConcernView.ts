@@ -2,6 +2,15 @@
 
 export type ConcernView = { 
 /**
- * Fluent key suffix, e.g. `jobs` → `concern-jobs`.
+ * Concern content id, e.g. `concern.jobs` (DEC-078).
  */
-key: string, weight: number, };
+id: string, 
+/**
+ * Fluent key of its name, e.g. `concern-jobs`.
+ */
+name_key: string, 
+/**
+ * How strongly it is felt (0..1.5; the town's level, adjusted for how
+ * the residents in question lean).
+ */
+weight: number, };

@@ -40,6 +40,7 @@
       "record_bonus": 0.15,
       "record_baseline": 0.35,
       "renomination_standing": 25.0,
+      "salience_base": 1.5,             // issue salience: base + concern levels, scaled to mean 1 (DEC-078)
       // Perceived position on a partisan ballot: own views and party platform.
       "perceived_own_weight": 0.6,
       "perceived_party_weight": 0.4,

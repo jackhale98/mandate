@@ -11,7 +11,7 @@
 | M2 Society, economy, environment | **Done**, 2026-11-18 |
 | M3 Local government and policy | **Done**, 2026-11-18 (owner checkpoint) |
 | M4 Elections, parties, NPC AI | **Done**, 2026-11-18 (owner checkpoint) |
-| M5 Characters, places, and narrative | **In progress** (plan: ROADMAP, DEC-079). M5a done: places as the interface (located actions, auto-routing, pocket, information depth). |
+| M5 Characters, places, and narrative | **In progress** (plan: ROADMAP, DEC-079). M5a done: places as the interface (located actions, auto-routing, pocket, information depth). DEC-078 decisions 1–4 done: balance numbers in content parameter blocks, lab `--set`/`--grid`, the concern registry with issue salience, and the scenario registry. |
 
 ## M0 summary
 - **Rust workspace:** 8 crates, with determinism lints enforced (banned `HashMap`, `std` float transcendentals, wall clock).

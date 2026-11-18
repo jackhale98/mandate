@@ -286,8 +286,12 @@ pub struct PlaceRef {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct ConcernView {
-    /// Fluent key suffix, e.g. `jobs` → `concern-jobs`.
-    pub key: String,
+    /// Concern content id, e.g. `concern.jobs` (DEC-078).
+    pub id: String,
+    /// Fluent key of its name, e.g. `concern-jobs`.
+    pub name_key: String,
+    /// How strongly it is felt (0..1.5; the town's level, adjusted for how
+    /// the residents in question lean).
     pub weight: f64,
 }
 
@@ -829,52 +833,46 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
     })
 }
 
-/// The concern model: what worries residents of some neighbourhoods of a
-/// town, strongest first (jobs and housing read the town's economy; the
-/// rest read attitudes by key, neutral when content lacks one).
+/// What worries residents of some neighbourhoods of a town, strongest first:
+/// the engine's concern levels (DEC-078 decision 3), as felt by those
+/// residents (`mandate_sim::concerns::felt_concerns`). Concerns at level 0
+/// are left out.
 pub fn concerns_for(
     st: &State,
     content: &mandate_content::ContentBundle,
     m: MunicipalityId,
     hoods: &[usize],
 ) -> Vec<ConcernView> {
-    let econ = st.economy.munis.get(m.index());
-    let attitude = |key: &str| {
-        content
-            .attitude_index(key)
-            .map(|i| {
-                weighted(st, hoods, |c| {
-                    c.attitudes.get(i).copied().unwrap_or(0.0) as f64
-                })
+    mandate_sim::concerns::felt_concerns(&st.population, content, m.index(), hoods)
+        .into_iter()
+        .filter(|(_, w)| *w > 0.0)
+        .filter_map(|(i, w)| {
+            let c = content.concerns.get(i)?;
+            Some(ConcernView {
+                id: c.id.clone(),
+                name_key: c.name_key.clone(),
+                weight: w,
             })
-            .unwrap_or(0.0)
-    };
-    let mut concerns = vec![
-        ConcernView {
-            key: "jobs".into(),
-            weight: econ.map(|e| (e.unemployment * 8.0).min(1.0)).unwrap_or(0.3),
-        },
-        ConcernView {
-            key: "housing".into(),
-            weight: econ
-                .map(|e| (e.housing.rent * 12.0 / e.class_income[1].max(1.0) * 2.5).min(1.0))
-                .unwrap_or(0.3),
-        },
-        ConcernView {
-            key: "safety".into(),
-            weight: (0.3 + attitude("law_and_order") * 0.5).clamp(0.0, 1.0),
-        },
-        ConcernView {
-            key: "environment".into(),
-            weight: (0.3 + attitude("environment") * 0.5).clamp(0.0, 1.0),
-        },
-        ConcernView {
-            key: "taxes".into(),
-            weight: (0.3 - attitude("tax_tolerance") * 0.5).clamp(0.0, 1.0),
-        },
-    ];
-    concerns.sort_by(|a, b| b.weight.total_cmp(&a.weight));
-    concerns
+        })
+        .collect()
+}
+
+/// A town's strongest concerns by level (at most `n`), for any town.
+pub fn town_concerns(engine: &Engine, m: MunicipalityId, n: usize) -> Vec<ConcernView> {
+    let content = engine.content();
+    mandate_sim::concerns::top_concerns(&engine.state().population, m.index())
+        .into_iter()
+        .filter(|(_, w)| *w > 0.0)
+        .take(n)
+        .filter_map(|(i, w)| {
+            let c = content.concerns.get(i)?;
+            Some(ConcernView {
+                id: c.id.clone(),
+                name_key: c.name_key.clone(),
+                weight: w,
+            })
+        })
+        .collect()
 }
 
 fn param_view(p: &ParamDef) -> ParamView {

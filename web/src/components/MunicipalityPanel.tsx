@@ -121,6 +121,11 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
             {tr.t("ui-elevation", { m: Math.round(view.elevation_m) })} · {tr.t("ui-temperature", { c: view.temperature_c })} ·{" "}
             {tr.t("ui-precipitation", { mm: Math.round(view.precipitation_mm) })}
           </p>
+          {view.top_concerns.length > 0 && (
+            <p className="muted" data-testid="town-top-concerns">
+              {tr.t("ui-town-concerns", { list: view.top_concerns.map((c) => tr.t(c.name_key)).join(", ") })}
+            </p>
+          )}
           {view.communities.length > 1 && (
             <p className="muted">
               {tr.t("ui-communities")}: {view.communities.map((c) => `${tr.t(c.name_key)} ${formatPct(c.share, 0)}`).join(" · ")}

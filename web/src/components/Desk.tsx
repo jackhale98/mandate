@@ -28,10 +28,10 @@ export function TownOpinion({ o }: { o: OfficeView }) {
       <h3 className="sub">{tr.t("ui-concerns")}</h3>
       <ul className="meters">
         {t.concerns.map((c) => (
-          <li key={c.key}>
-            <span>{tr.t(`concern-${c.key}`)}</span>
+          <li key={c.id}>
+            <span>{tr.t(c.name_key)}</span>
             <span className="meter" aria-hidden="true">
-              <span className="meter-fill" style={{ width: `${Math.round(c.weight * 100)}%` }} />
+              <span className="meter-fill" style={{ width: `${Math.round(Math.min(c.weight, 1) * 100)}%` }} />
             </span>
             <span className="num">{Math.round(c.weight * 100)}</span>
           </li>

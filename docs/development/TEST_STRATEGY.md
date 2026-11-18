@@ -40,10 +40,10 @@
 - `trigger`
 - `trace` (causal chain from the event log)
 - `diff` (two runs)
-- `sweep` (seeds × parameters, parallel across runs)
+- `sweep` (seeds × parameters, parallel across runs); `sweep` and `bots` take `--set <path>=<value>` and `--grid <path>=<v1>,<v2>,…` over one or two content parameters (DEC-078 decision 2; syntax in `EXTENDING.md`)
 - `report` (CSV/JSON, plus an HTML summary)
 
-**Canonical test worlds.** These are pinned fixtures made from generation overrides, so they stay stable when the generator changes:
+**Canonical test worlds.** These are the base pack's scenarios (`content/base/scenarios.jsonc`, DEC-078 decision 4): generator biases, so a new canonical world is content (`sweep --scenario <id>`):
 1. Declining industrial region
 2. Wealthy coastal region
 3. Fast-growing tech region

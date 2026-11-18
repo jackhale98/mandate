@@ -167,6 +167,14 @@ pub struct PopulationState {
     /// The last election whose turnout has been folded into habits.
     #[serde(default)]
     pub last_election_seen: Option<mandate_core::SimDate>,
+    /// Concern ids the town concerns were computed for (DEC-078 decision 3).
+    /// Concerns are derived state: when the content's registry differs, the
+    /// engine recomputes them on load.
+    #[serde(default)]
+    pub concern_keys: Vec<String>,
+    /// Per municipality: concern levels and issue salience (`concerns`).
+    #[serde(default)]
+    pub town_concerns: Vec<crate::concerns::TownConcerns>,
 }
 
 impl PopulationState {
@@ -519,6 +527,9 @@ pub fn init(
         moves_ytd: 0,
         history: Vec::new(),
         last_election_seen: None,
+        // Computed by the engine when it takes over the state.
+        concern_keys: Vec::new(),
+        town_concerns: Vec::new(),
     }
 }
 

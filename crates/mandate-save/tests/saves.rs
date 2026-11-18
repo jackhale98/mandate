@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (10, "ca0f914be85effb1");
+    const EXPECTED: (u16, &str) = (10, "af3ee7da03d75b42");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -520,4 +520,68 @@ fn save_refuses_content_that_removes_its_scenario() {
     );
     // With its scenario present it loads.
     assert!(mandate_sim::Engine::from_state(state, content()).is_ok());
+}
+
+/// Concerns are derived state (DEC-078 decision 3): a save loads into content
+/// that adds or removes a concern, and the towns' concerns are recomputed.
+#[test]
+fn save_loads_into_content_that_adds_or_removes_a_concern() {
+    let mut e = generate(
+        &WorldConfig {
+            seed: 49,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        content(),
+    )
+    .unwrap();
+    for _ in 0..3 {
+        e.apply(Command::EndTurn).unwrap();
+    }
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    let (state, _) = decode(&bytes).unwrap();
+    assert_eq!(state.population.concern_keys.len(), 6);
+    let base_src =
+        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
+
+    // Added: an expansion concern sorts first (its pack path sorts before base/).
+    let mut src = base_src.clone();
+    src.push(mandate_content::Source {
+        path: "aa_heritage/concerns.jsonc".into(),
+        text: r#"{"kind":"concerns","items":[{"id":"concern.heritage","name_key":"concern-heritage","indicator":"pollution","attitudes":{"tradition":1.0},"level":{"baseline":0.0,"slope":1.0,"min":0.0,"max":1.0}}]}"#.into(),
+    });
+    src.push(mandate_content::Source {
+        path: "aa_heritage/locale/en/h.ftl".into(),
+        text: "concern-heritage = Heritage\n".into(),
+    });
+    let more = Arc::new(load(&src).unwrap().0);
+    let mut e2 = mandate_sim::Engine::from_state(state.clone(), more.clone()).unwrap();
+    let pop = &e2.state().population;
+    assert_eq!(pop.concern_keys[0], "concern.heritage");
+    assert_eq!(pop.concern_keys.len(), 7);
+    assert!(pop.town_concerns.iter().all(|t| t.levels.len() == 7));
+    // The other domains are untouched.
+    assert_eq!(e2.state().population.hoods, state.population.hoods);
+    e2.apply(Command::EndTurn).unwrap();
+
+    // Removed: not refused; the remaining concerns are recomputed.
+    let mut src = base_src;
+    let f = src
+        .iter_mut()
+        .find(|s| s.path == "base/concerns.jsonc")
+        .unwrap();
+    f.text = r#"{"kind":"concerns","items":[{"id":"concern.jobs","name_key":"concern-jobs","indicator":"unemployment","attitudes":{"redistribution":0.6},"level":{"baseline":0.0,"slope":9.0,"min":0.0,"max":1.0}}]}"#.into();
+    let fewer = Arc::new(load(&src).unwrap().0);
+    let e3 = mandate_sim::Engine::from_state(state, fewer).expect("a removed concern still loads");
+    assert_eq!(
+        e3.state().population.concern_keys,
+        vec!["concern.jobs".to_string()]
+    );
+    assert!(
+        e3.state()
+            .population
+            .town_concerns
+            .iter()
+            .all(|t| t.levels.len() == 1)
+    );
 }
