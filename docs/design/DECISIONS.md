@@ -15,7 +15,9 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-006 | Endings, victory & run termination (rev. 2) | Accepted |
 | DEC-007 | Constitution variability per run | Accepted |
 | DEC-008 | Save model: ironman vs. reloadable | Accepted |
-| DEC-009 | Presence model: embodied scenes + strategic layer | Proposed (awaiting owner, D2) |
+| DEC-009 | Presence model: embodied scenes + strategic layer | Accepted |
+| DEC-010 | Player role: politician first, administration mediated | Proposed (awaiting owner) |
+| DEC-011 | Player power & resource model | Proposed |
 
 ---
 
@@ -169,7 +171,14 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-009 — Presence model: embodied scenes + strategic layer
 
-- **Status:** Proposed. Awaiting owner (opens D2).
+- **Status:** Accepted (owner, 2026-11-18): option B.
+- **Owner addendum: persistent hubs.** Careers can move *down* the ladder (e.g. losing national office and running for governor or mayor). Returning sends the player back to the earlier hub, which must show what happened in the wider country while they were away. Consequences:
+  - Hubs are persistent world places, rendered from live simulation state. They are never static snapshots.
+  - When the player leaves a scope, its places and named NPCs are kept, and the area keeps simulating at reduced detail.
+  - On return, detail is re-derived consistently with the aggregate history.
+  - NPCs remember the player.
+  - A "homecoming" scene summarizes what changed.
+  - This is a hard requirement for D5 (level-of-detail transitions) and D9 (NPC persistence and memory).
 - **Context:** The owner wants the player to walk around an actual screen of their town, regional capital, or national capital. Dramatic outcomes (arrest, assassination) must happen to the on-screen character. The game must still offer high-level policy reading, decisions, and impacts. This is the brief's §5.5 question ("explorable map or strategic visualization?"), now answered in favor of embodiment.
 - **Options:**
   - A. Free-roam open world at all scales (Stardew-style), with walking time as a cost.
@@ -199,3 +208,38 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - MVP: one town hub, an office, a council chamber, and a few scene templates.
 - **Dependencies:** D2, D3 (time slots), D6 (settlement layout generation), D9 (NPC schedules, scene templates), D11, D12 (camera, art style, renderer), D13.
 - **Revisit criteria:** The prototype shows walking adds friction without insight, or art cost threatens the vertical slice.
+
+### DEC-010 — Player role: politician first, administration mediated
+
+- **Status:** Proposed. Awaiting owner.
+- **Context:** Brief §3.1 and §4.4. Is the player a politician who persuades, an administrator who allocates, or both? This determines how direct policy control is at every level, and so the policy layer's design.
+- **Options:**
+  - A. Politician first: power flows through people at every level. Even in executive office, policy goes through legislatures, agencies, and appointees, as set by the constitution.
+  - B. Hybrid by office: legislative acts are persuasion; executive offices grant direct, Democracy-style policy control.
+  - C. Administrator first: a policy and budget management game with political events.
+- **Proposed decision:** A. Roughly 70% politics and 30% administration, with the administrative share growing in executive offices. Administration is always mediated: you appoint, fund, direct, and oversee, but you do not set outcome sliders.
+  - The core fantasy: *you can only do what you can get others to do, and what the rules let you attempt.*
+- **Rationale:** Differentiates Mandate from Democracy. Makes NPCs and relationships mechanically central, which pays off DEC-009. Makes constitution variety (DEC-007) matter. Makes the policy implementation gap (§8.4) a natural source of play.
+- **Consequences:**
+  - The policy layer is a pipeline of proposals, coalitions, votes, funding, and implementation, not a settings panel.
+  - Executive acts need delegation and oversight mechanics.
+  - Opponent and ally AI quality becomes critical.
+- **Dependencies:** DEC-007, DEC-009, D3, D4, D7, D9.
+
+### DEC-011 — Player power & resource model
+
+- **Status:** Proposed
+- **Context:** Brief §4.2 and §4.4 list authority, influence, resources, legitimacy, and political capital, and warn against them becoming interchangeable currencies.
+- **Proposed decision:** Four distinct kinds of power, plus the risk side (DEC-006 pressure tracks).
+
+  | Kind | What it is | Form | Gained by | Used for |
+  |---|---|---|---|---|
+  | **Authority** | What your office legally permits | Rule set from constitution data, not a currency | Holding office | Gates which actions exist |
+  | **Mandate** | Public legitimacy behind you; merges the brief's "legitimacy" and "political capital" | One global meter that decays over a term | Winning (by margin), clear pledges, kept pledges, visible successes | Pushing contested actions, holding allies, overriding resistance |
+  | **Relationships** | Influence, kept as a per-NPC ledger | Directional trust, favors owed, grudges, memory | Helping, trading, keeping your word | Persuasion, votes, endorsements, information |
+  | **Resources** | Time slots, money (personal finances and campaign funds, kept separate from the government budget you control), staff capacity | Budgets | Fundraising, salary, staff hires | Paying action costs |
+
+  - **Pledges:** campaign promises are tracked as measurable objectives. Winning on clear pledges creates Mandate. Breaking them drains it. Kept pledges feed the Legacy score.
+- **Rationale:** Each kind of power answers a different question (may I, will the public back me, will *they* help me, can I afford it). Kinds do not convert one-to-one, though actions can trade between them with friction. Using the name "Mandate" ties the main meter to the game's title.
+- **Deviation from the brief:** "legitimacy" and "political capital" are merged into Mandate to reduce cognitive load. Elite acceptance is carried by Relationships.
+- **Dependencies:** DEC-006, DEC-010, D3 (action economy), D4, D8, D9.
