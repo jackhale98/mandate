@@ -52,22 +52,40 @@
 
 In addition, each constitutional archetype is a fixture configuration.
 
-## 4. Monte Carlo health metrics (DEC-059)
+## 4. Monte Carlo health metrics (DEC-059, revision 2)
 
-Nightly sweeps over N seeds, with burn-in plus 30 years of NPC-only play. Each metric must fall inside its band. Bands are initial assumptions, tuned during balancing.
+The owner asked whether real-world-aligned ranges would make the game boring. Revision 2 clarifies three things:
 
-| Metric | Initial band (assumption) | Detects |
+1. **Bands are guardrails against broken simulation, not targets for drama.** They apply to **baseline runs**: burn-in plus 30 years of NPC-only play, with no player. The player is the agent of drama. Player choices **may** push outcomes far outside the bands (reckless policy can produce hyperinflation); that is a consequence, not a bug.
+2. **Bands constrain distributions, not individual runs.** Assertions are on medians and percentiles. Tails are required to exist.
+3. **Drama floors.** Sweeps fail if worlds are *too calm*, just as they fail if worlds are broken. Bands use "heightened realism": wider than real-world norms.
+
+**Stability bands** (detect broken simulation; initial assumptions):
+
+| Metric | Band on median across seeds | Detects |
 |---|---|---|
 | Population change per decade | −10% to +20% | Demographic runaway |
-| Unemployment | 2–20% | Economic collapse or locked equilibrium |
+| Unemployment | 2–20% | Collapse or locked equilibrium |
 | Inflation (annual) | −2% to +12% | Macro instability |
-| Debt-to-output trajectory | No unbounded growth without cause | Fiscal runaway |
-| Competitive districts (margin < 10 pts) | 15–50% | Dead elections or chaos |
+| Debt-to-output | No unbounded growth without cause | Fiscal runaway |
+| Competitive districts (margin < 10 pts) | 15–50% | Dead or chaotic elections |
 | Incumbent re-election rate | 55–85% | Over- or under-rewarding office |
-| Party-system realignments per 30 years | 0–2 typical | Party churn (DEC-027) |
-| Events per chapter by category | Within director budgets (DEC-033) | Pacing failures |
-| Terminal-ending mix | No single cause > 50% of endings | Degenerate failure modes |
+| Terminal-ending mix | No single cause > 50% | Degenerate failure modes |
 | Determinism and invariant violations | 0 | Correctness |
+
+**Drama floors** (detect boring worlds; minimum frequency per 30-year baseline run, as the median across seeds):
+
+| Event class | Floor (assumption) |
+|---|---|
+| Recessions or regional economic shocks | ≥ 2 |
+| Major environmental disasters | ≥ 1 |
+| Electoral upsets (the poll underdog wins) | 10–25% of contested races |
+| Major scandals exposed | ≥ 3 |
+| Party realignment events (splits, insurgents, leadership coups) | ≥ 1 in at least 40% of seeds |
+| Storyline arcs reaching a climax | Within director budgets (DEC-033) |
+| Turbulent worlds (top-decile volatility) | Present: some seeds must be wild |
+
+**Volatility as a world parameter.** Each world draws an "era" volatility (calm, unsettled, turbulent) that scales exogenous shocks, polarization drift, and hazard trajectories. It is exposed in world setup and difficulty (DEC-038), and it combines with storyteller profiles (DEC-033).
 
 ## 5. Game-quality validation (DEC-060)
 

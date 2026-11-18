@@ -12,6 +12,9 @@ A political career roguelike. You rise from local office toward the presidency i
 4. **A different country, and different rules, every run** (DEC-007). Generated geography and society, and a constitution assembled from authored archetypes plus quirks.
 5. **A climb in acts** (DEC-004, DEC-005). Four acts (Local, Regional/State, National, Presidency), made of 25–45 minute chapters that each end in a resolution. A full successful career takes 6–10 hours; a typical run, 2–5 hours.
 
+## Tone
+**Heightened realism** (DEC-061). Believable institutions and consequences, with the dramatic density of a political drama series. Calm eras and turbulent eras both exist.
+
 ## Endings
 Every run closes with a Legacy epilogue: a graded summary of the career that feeds meta-progression. The summit is the **Mandate Test**, the first national verdict on your presidency as scheduled by the constitution. Terminal endings include death, prison, disqualification from office, disgrace, political wilderness, age, and retirement.
 

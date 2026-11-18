@@ -62,11 +62,14 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-053 | Content authoring format & pipeline (rev. 2: JSONC) | Accepted |
 | DEC-054 | Text & localization pipeline | Accepted |
 | DEC-055 | Modding scope | Accepted |
-| DEC-056 | Engineering test layers | Proposed (D14) |
-| DEC-057 | CI tiers | Proposed (D14) |
-| DEC-058 | Simulation lab & canonical worlds | Proposed (D14) |
-| DEC-059 | Monte Carlo health metrics | Proposed (D14) |
-| DEC-060 | Game-quality validation & playtesting | Proposed (awaiting owner, D14) |
+| DEC-056 | Engineering test layers | Accepted |
+| DEC-057 | CI tiers | Accepted |
+| DEC-058 | Simulation lab & canonical worlds | Accepted |
+| DEC-059 | Monte Carlo health metrics (rev. 2: baseline-only bands plus drama floors) | Accepted |
+| DEC-060 | Game-quality validation & playtesting | Accepted |
+| DEC-061 | Tone: heightened realism | Proposed |
+| DEC-062 | MVP scope (vertical slice) | Proposed (D15) |
+| DEC-063 | Milestone order: thin playable loop first | Proposed (awaiting owner, D15) |
 
 ---
 
@@ -1141,9 +1144,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-056 to DEC-060 — Test & validation strategy
 
-- **Status:**
-  - DEC-056 to DEC-059: proposed.
-  - DEC-060: awaiting the owner, who needs to confirm the playtesting plan.
+- **Status:** Accepted (owner, 2026-11-18). The owner can recruit a few playtesters for M-gates.
+  - DEC-059 was revised in response to the owner's concern about real-world ranges being boring: bands now apply to baseline runs only, distributions must include tails, drama floors were added, and world era volatility is a parameter.
 - **Content:** `docs/development/TEST_STRATEGY.md`. Sections map to decisions as follows:
   - §1: DEC-056
   - §2: DEC-057
@@ -1156,3 +1158,27 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Bot-player tournaments detect dominant strategies and check run-length and pacing targets.
   - Human playtesting happens at every milestone gate, plus a small group at M6.
   - Opt-in local run-report export only; no telemetry backend (TECH-007).
+
+### DEC-061 — Tone: heightened realism
+
+- **Status:** Proposed. Prompted by the owner's question about whether realism makes the game boring.
+- **Proposed decision:** Mandate aims for **heightened realism**, in the register of a political drama series rather than a civics textbook.
+  - Institutions, economics, and causality are believable and consistent.
+  - Drama is concentrated at the human and narrative scale (scandals, betrayals, upsets, crises, comebacks). The director compresses and spotlights it (DEC-033), and every chapter has a climax (DEC-005).
+  - Macro aggregates move plausibly but can swing harder than real-world norms in turbulent eras.
+- **Consequences:** DEC-059 drama floors; era volatility as a world parameter; a GAME_VISION pillar.
+- **Dependencies:** DEC-005, DEC-033, DEC-038, DEC-059.
+
+### DEC-062 — MVP scope (vertical slice)
+
+- **Status:** Proposed (D15). Detail in `docs/development/ROADMAP.md`.
+
+### DEC-063 — Milestone order: thin playable loop first
+
+- **Status:** Proposed. Awaiting owner (D15). This resolves DISCOVERY C5. Detail in `docs/development/ROADMAP.md`.
+- **Options:**
+  - A. The brief's order: systems first (worldgen → population/economy → policy → elections → NPCs → slice).
+  - B. Thin loop first. After the foundation, build a crude but complete Act 1 loop on a **hand-authored micro-town**, with a panel UI and no generated world, and playtest it before deepening the systems. World generation and rendering then build *under* a loop that is already fun. Rendering spikes run in parallel.
+- **Proposed decision:** B.
+- **Rationale:** tests the fun hypothesis (the action economy, power through people, Mandate and pressure tracks, the director's pacing) within weeks instead of months. This is the brief's §32 primary risk.
+- **Consequences:** the micro-town must use the real engine, data model, and protocol, so the thin loop is not throwaway code. Only its hand-authored world is temporary, and it becomes a test fixture.

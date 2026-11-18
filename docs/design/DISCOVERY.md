@@ -150,7 +150,7 @@ One consequential question per exchange. Tightly coupled decisions are presented
 | D11 ✅ | Technical architecture (DEC-040–046, `architecture/OVERVIEW.md`) | 13, 14, 20–22 | Crate layout, protocol, scheduling, RNG streams, numerics | D3, D5, D9 | architecture/*.md |
 | D12 ✅ | UI, rendering, mobile (DEC-047–051, `UI.md`) | 15 | Screen map, mobile strategy, map renderer prototype plan | D2, D3, D6 | UI.md |
 | D13 ✅ | Saves, content, modding (DEC-052–055) | 16, 17 | Save schema and migration, content format, validation | D9, D11 | SAVE_FORMAT.md, CONTENT.md |
-| D14 | Testing & sim lab | 18 | Test strategy, lab CLI scope, canonical worlds, quality gates | D11 | TEST_STRATEGY.md |
+| D14 ✅ | Testing & sim lab (DEC-056–060, `development/TEST_STRATEGY.md`) | 18 | Test strategy, lab CLI scope, canonical worlds, quality gates | D11 | TEST_STRATEGY.md |
 | D15 | MVP, milestones, backlog | 19, 26–29 | MVP scope, milestone reorder (C5), backlog, deployment | all | ROADMAP.md, backlog |
 
 After D15, an architecture review (brief §26.1) and owner approval come before any substantive implementation.
