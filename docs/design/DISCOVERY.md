@@ -141,7 +141,7 @@ One consequential question per exchange. Tightly coupled decisions are presented
 | D2 ✅ | Player role, agency & **presence model** (DEC-009, DEC-010, DEC-011) | 3.1, 4.4 | Politician vs. administrator balance; authority/influence/resources/legitimacy/capital model; what makes a run memorable | D1 | GAMEPLAY.md §role |
 | D3 ✅ | Time model & core loop (DEC-012, DEC-013) | 4.1–4.3, 12 | Turn length per act, time skips, action economy, action taxonomy skeleton | D1, D2 | GAMEPLAY.md §loop; cadence table |
 | D4 ✅ | Institutions & office ladder (DEC-007, DEC-014–017) | 3.3, 8.3, 9.2 | Fictional constitution, electoral systems per level, appointments, party switching, final victory definition | D1, D2 | POLITICAL_SYSTEMS.md |
-| D5 | Simulation fidelity & LOD | 6, 7 | Cohort dimensions, economy model, LOD transitions, numeric representation | D3, D4 | SIMULATION.md |
+| D5 ✅ | Simulation fidelity & LOD (DEC-018, DEC-019) | 6, 7 | Cohort dimensions, economy model, LOD transitions, numeric representation | D3, D4 | SIMULATION.md |
 | D6 | World & geography | 5 | Scale (regions, municipalities, neighborhoods), generation pipeline, map role | D4, D5 | WORLDGEN.md |
 | D7 | Policy & legislation | 8 | Policy schema, effect mechanism model, implementation gap | D4, D5 | POLICY.md |
 | D8 | Parties, elections, opponents | 9 | Party model, election pipeline, opponent AI profiles | D4, D5 | ELECTIONS.md |

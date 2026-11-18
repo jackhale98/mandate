@@ -24,8 +24,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-015 | Constitution parameter space & archetypes | Accepted |
 | DEC-016 | Default / MVP constitutional archetype | Accepted |
 | DEC-017 | Constitution primitives (engine model) | Proposed |
-| DEC-018 | Population model & level of detail | Proposed (D5) |
-| DEC-019 | Economy fidelity | Proposed (awaiting owner, D5) |
+| DEC-018 | Population model & level of detail | Accepted |
+| DEC-019 | Economy fidelity | Accepted |
+| DEC-020 | Career detours: non-office power roles | Proposed (owner idea) |
+| DEC-021 | World scale & spatial representation | Proposed (D6) |
+| DEC-022 | World history via burn-in simulation | Proposed (D6) |
+| DEC-023 | Environment dynamics over a career | Proposed (awaiting owner, D6) |
 
 ---
 
@@ -413,7 +417,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-018 — Population model & level of detail
 
-- **Status:** Proposed (D5).
+- **Status:** Accepted (owner, 2026-11-18).
 - **Context:** H4 (hybrid population) and the DEC-009 persistent-hub requirement. Hubs keep simulating while the player is away and must be consistent when the player returns.
 - **Key observation:** aggregate cohorts are computationally cheap. A country of ~10 regions, ~60 municipalities, and ~500 neighborhoods with 12 cohorts each is ~6,000 cohort cells, trivial to update monthly in Rust/WASM. The expensive things are *individuals*: NPC goals, schedules, AI, memory, and event generation.
 - **Proposed decision:** **aggregate everywhere, individuals where it matters.**
@@ -453,7 +457,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-019 — Economy fidelity
 
-- **Status:** Proposed. Awaiting owner (D5).
+- **Status:** Accepted (owner, 2026-11-18): option B (layered).
 - **Options:**
   - A. Light: sectors, jobs, wages, housing, and public budgets per municipality and region. National macro conditions are exogenous "weather" (scripted or random shocks).
   - B. Layered: A, plus an endogenous national macro loop (inflation, interest rates set by a central bank actor, national debt dynamics, simple inter-regional trade). The loop always runs, but the player can only influence it in Acts 3–4.
@@ -469,3 +473,108 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - National acts gain real macro levers and tradeoffs.
   - Option C adds cost and opacity with little gameplay return. It conflicts with explainability (§1.3).
 - **Dependencies:** DEC-010, DEC-018, D6, D7, D11.
+
+### DEC-020 — Career detours: non-office power roles
+
+- **Status:** Proposed. Originated by the owner; design details are the agent's proposal. Finalize the role list in D10.
+- **Context:** DEC-014 had a passive "between offices" state. The owner wants losing to open interesting alternatives, such as becoming a union boss to win over a demographic or fix an earlier weakness.
+- **Proposed decision:**
+  - When out of office, the player can pursue a **detour role**: leadership of a real organization in the simulation. Candidates:
+    - union leader,
+    - business association head,
+    - advocacy or NGO director,
+    - media commentator or columnist,
+    - party organizer or chair,
+    - lobbyist,
+    - think-tank or academic post,
+    - appointed official (if offered).
+  - **Detours are earned, not picked from a menu.** Organizations exist in the simulation with NPC leaders and internal selection (a union election, a board vote, an editor's hire). Taking the role means winning it, and the displaced leader may become a rival.
+  - **A detour is a playable chapter** (DEC-005 sizing), set in its own hub location (union hall, newsroom, association offices), with a role-specific action set. Examples:
+    - Organize a strike.
+    - Run an exposé.
+    - Endorse candidates.
+    - Lobby legislators.
+  - **Strategic purpose** (the roguelike "rest site / shop" analogue):
+    - Rebuild Viability.
+    - Shift your reputation with specific cohorts.
+    - Gain Relationships.
+    - Learn skills.
+    - Accumulate organizational power that you keep using after returning to office (endorsements, volunteers, money, media access).
+  - **Tradeoffs:**
+    - Each role pleases some constituencies and alienates others (a union boss gains working-class trust but loses business standing).
+    - Some roles carry Legal Jeopardy risk (lobbying, union funds).
+    - Time and Age still pass.
+  - **Power-broker path:** a player may choose to stay in a detour role and influence politics from outside. This could be a recognized Legacy ending, e.g. "Kingmaker".
+  - **Reuse:** detour roles share content definitions with starting backgrounds (D10). A "former union organizer" background and a union-leader detour use the same role data.
+- **Consequences:**
+  - Organizations (unions, associations, outlets, NGOs) must be simulated actors with leadership, membership, resources, and internal selection.
+  - Each role needs an action set and a hub location. MVP candidates: union leader, business association head, media commentator.
+- **Dependencies:** DEC-005, DEC-006, DEC-009, DEC-011, DEC-014, D8, D9, D10.
+
+### DEC-021 — World scale & spatial representation
+
+- **Status:** Proposed (D6).
+- **Proposed decision:**
+  - **Scale:** one country of ~8–12 regions, ~40–80 municipalities, and ~400–600 neighborhoods.
+    - Large cities: 10–20 neighborhoods.
+    - Towns: 3–6.
+    - Rural municipalities: 1–3.
+    - This fits the DEC-018 cost envelope. Scale is a world-generation parameter; the MVP uses one medium size.
+  - **Layered representation:**
+    - **Terrain raster** (~512² cells): elevation, hydrology, climate, biome, resources, hazard maps. Used during generation and for environmental events.
+    - **Spatial hierarchy graph:** neighborhood → municipality → region → nation, with adjacency. This is the simulation's primary structure.
+    - **Transport graph:** roads, rail, ports, with travel costs.
+    - **Political districts:** contiguous groupings of neighborhoods, generated to near-equal population per the constitution's constituency rules. Redistricting (and gerrymandering) is therefore possible as a policy or constitutional mechanic.
+    - **Hub layouts:** walkable district scenes (DEC-009) generated deterministically from settlement data. Every point of interest maps to a simulation entity (the actual town hall, union local, or factory). A hub is a stylized representative district, not a full city.
+  - **Generation pipeline** (brief §5.2, refined):
+    1. Elevation (noise plus ridge shaping).
+    2. Hydrology (flow accumulation → rivers, lakes).
+    3. Climate (latitude, prevailing wind, rain shadow).
+    4. Biomes (Whittaker-style).
+    5. Resources and hazard maps (floodplains, drought, wildfire, seismic).
+    6. Settlement-site scoring (water, flat land, coast, resources).
+    7. Settlement hierarchy (rank-size).
+    8. Transport (least-cost paths).
+    9. Regions (grown from capitals with terrain costs, preferring rivers and ridgelines as borders).
+    10. Neighborhoods and districts.
+    11. Population and economy seeded from geography.
+    12. History burn-in (DEC-022).
+  - **Map role:** the national and regional maps are strategic visualizations with overlays (polls, economy, hazards, districts). Walking happens only in hubs.
+- **Standard:** "plausible, not physical". Use believable geography from well-understood techniques, not climate or tectonic simulation.
+- **Dependencies:** DEC-009, DEC-017, DEC-018, DEC-019, D11, D12.
+
+### DEC-022 — World history via burn-in simulation
+
+- **Status:** Proposed (D6).
+- **Context:** A fresh world needs a past: incumbents, party strongholds, legacy industries, old grudges, prior policies.
+- **Options:**
+  - A. Rule-based authored backstory generation only.
+  - B. Rule-based founding layers plus a burn-in, i.e. running the actual simulation for ~15–25 in-game years with NPC-only politics before the player starts.
+- **Proposed decision:** B.
+  - Coarse rule-based eras set the founding conditions: settlement age and early industries.
+  - The burn-in then produces a consistent present: real election histories, incumbents with records, NPC relationships and memories, declining or booming towns.
+  - The same mechanism generates late-start backstories (DEC-005).
+- **Rationale:** the starting state is produced by the same rules that govern play, so it is internally consistent. Every generation also exercises system stability.
+- **Consequences:**
+  - New-game time must include the burn-in. Performance budget to be set in D11/D14; a target of under ~10 s on mid-range mobile is an assumption.
+  - The NPC-only political AI must be good enough to run the country unattended. It is the same AI as the time-skip player-proxy (DEC-012).
+- **Dependencies:** DEC-005, DEC-012, DEC-018, D9, D11, D14.
+
+### DEC-023 — Environment dynamics over a career
+
+- **Status:** Proposed. Awaiting owner (D6).
+- **Context:** A career spans ~25–35 in-game years (DEC-012), which is long enough for environmental change to become politics.
+- **Options:**
+  - A. Static geography: hazards are random events with fixed probabilities.
+  - B. Slow dynamic environment: a small set of state variables per region drifts along a seeded trajectory and responds to policy. Variables: resource stocks (mines, forests, fisheries, aquifers), water availability, hazard intensities, pollution, land use.
+  - C. Full environmental simulation (ecosystems, an emissions-to-climate model).
+- **Proposed decision:** B.
+  - Each world has a seeded environmental trajectory (stable, warming and drying, increasingly stormy, and so on).
+  - Resources deplete with extraction.
+  - Policy acts mainly through adaptation and management (levees, water rights, extraction limits, zoning, pollution rules). Within a single career these have visible effects. National mitigation policy affects the long-term trend weakly and realistically, and feeds Legacy.
+- **Rationale:**
+  - Makes geography an active political force over a career (the mine running dry, the worsening floods).
+  - Produces visible hub changes on return (DEC-009).
+  - Stays explainable and cheap.
+  - Option C is costly and would dominate the game's tone.
+- **Dependencies:** DEC-019, DEC-021, D7, D9.
