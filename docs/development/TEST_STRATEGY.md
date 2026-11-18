@@ -109,3 +109,11 @@ Measured:
 - Playtesters can make an opt-in **local run-report export**: a file with the run summary, key decisions, endings, and timings, containing no personal data. They share it manually. There is no telemetry backend.
 
 **Balance log.** `docs/development/BALANCE_LOG.md` records each tuning change: the parameter, old and new values, the evidence (sweep or bot result), and the observed effect.
+
+## Difficulty and story targets (DEC-076)
+Once careers span several acts, the lab adds three things:
+- full-career bot players;
+- a story-beat counter (elections won and lost, laws with visible effects, crises and scandals, rivals and allies, comebacks);
+- the distribution of endings.
+
+Nightly runs report the win rate (target 5–10% for a competent bot at default difficulty), the share of brutal early ends (under 15%), the share of story-rich runs (at least 80%), and the spread of endings (no single ending above 50%). They become gates from M6.

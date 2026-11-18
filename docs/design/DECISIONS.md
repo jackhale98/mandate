@@ -76,6 +76,13 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-067 | System plan approved; implementation begins | Accepted |
 | DEC-068 | World generation implementation choices (M1) | Accepted |
 | DEC-069 | Society and economy implementation choices (M2) | Accepted |
+| DEC-070 | Local government and policy implementation choices (M3) | Accepted |
+| DEC-071 | Research-informed model refinements | Accepted |
+| DEC-072 | Elections, parties, NPC AI implementation (M4) | Accepted |
+| DEC-073 | Every decision is a trade-off | Accepted |
+| DEC-074 | Saves across app updates | Accepted |
+| DEC-075 | Extensibility: registries over hard-coded dimensions | Accepted |
+| DEC-076 | Difficulty target: rare wins, rich stories | Accepted |
 
 ---
 
@@ -1412,9 +1419,9 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Determinism** is guaranteed within one (engine, content) version and tested: two runs, plus save, load, and continue, natively and in WASM.
 - **Save-format changes:** before release, they still reject old saves with a clear message. From M6 (testers), format changes ship with JSON migrations.
 
-### DEC-075 — Extensibility: registries over hard-coded dimensions (proposed)
+### DEC-075 — Extensibility: registries over hard-coded dimensions
 
-- **Status:** Proposed (owner question, 2026-11-18: the game should stay easy to expand after release, for example with new policy types, industries with their own quirks, and new demographic groups such as Indigenous communities).
+- **Status:** Accepted (no objection; scheduled before M5). Owner question, 2026-11-18: the game should stay easy to expand after release, for example with new policy types, industries with their own quirks, and new demographic groups such as Indigenous communities).
 - **Already data-driven:**
   - policy templates and their parameters, costs, and side effects;
   - constitutions (bodies, offices, procedures, election calendars);
@@ -1440,3 +1447,19 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      - save-format migrations.
   5. **Pack patches:** an expansion pack can add to or override entries from earlier packs by id (today duplicates are an error).
 - **Cost:** a one-time refactor touching the economy, population, politics, and protocol, plus a save-format bump. It is done before testers arrive (M6) so post-release saves never need that migration.
+
+### DEC-076 — Difficulty target: rare wins, rich stories
+
+- **Status:** Accepted (owner, 2026-11-18: "Most people don't win a roguelike, but we don't want it to be brutally hard or uninteresting … if we generate interesting stories most of the time and rarely the user wins, that is probably a good goal." Tuning waits until the simulation is complete).
+- **Targets** (default difficulty, measured by full-career bot players and later by testers):
+
+  | Measure | Target |
+  |---|---|
+  | Full win (Mandate renewed, DEC-006) | Rare: about 5–10% for a competent player, higher on easier presets; never 0% on any preset |
+  | Brutal early end (run over within Act 1's first election cycle) | Under 15% |
+  | Story-rich runs | At least 80% of runs reach several distinct beats: an election won and lost, a law that changed the town, a crisis or scandal, a rival or ally, a comeback or a fall |
+  | Where runs end | Most in Acts 2–3, with a spread of endings; no single terminal ending above 50% |
+  | Skill matters | The best strategy clearly beats random play, and no strategy dominates (DEC-072) |
+
+- **How difficulty is reached:** through honest levers only (DEC-038): world conditions, storyteller tension, NPC competence, and information quality. NPCs never get hidden bonuses.
+- **When:** metrics are added to the lab (story-beat counter, ending distribution, full-career bots) as Acts 2–4 come online. Gates go into CI and the nightly runs from M6. No tuning toward these targets before then.
