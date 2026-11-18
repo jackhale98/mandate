@@ -1630,3 +1630,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - pedestrian costs that prefer pavements and crossings but allow short road crossings;
   - a tap on a building routes to its door, and a tap on open ground goes to the nearest reachable cell on the player's side;
   - smooth sub-tile movement with interpolation.
+  - a test that a route between two points with open ground between them is visibly direct: no more turns than the obstacles force, and a length within a small factor of the straight line.
+- **M6 zoom requirements** (owner, 2026-11-18: the town "jumps" when zooming; fixed in the spike):
+  - a pinch zooms about the midpoint between the fingers, so the point under them stays put;
+  - when one finger lifts or a pointer is cancelled, the gesture re-baselines from the remaining finger instead of jumping;
+  - limits are eased in when zoomed past them, never snapped.
