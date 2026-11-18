@@ -30,9 +30,13 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-021 | World scale & spatial representation | Accepted |
 | DEC-022 | World history via burn-in simulation | Accepted |
 | DEC-023 | Environment dynamics over a career | Accepted |
-| DEC-024 | Policy model: pipeline, mechanisms, implementation | Proposed (D7) |
-| DEC-025 | Public response: anticipated vs. experienced | Proposed (D7) |
-| DEC-026 | Bill composition & customization | Proposed (awaiting owner, D7) |
+| DEC-024 | Policy model: pipeline, mechanisms, implementation (rev. 2: 5 lifecycle states) | Accepted |
+| DEC-025 | Public response: anticipated vs. experienced | Accepted |
+| DEC-026 | Bill composition & customization | Accepted |
+| DEC-027 | Parties & factions: dynamism | Proposed (awaiting owner, D8) |
+| DEC-028 | Election model | Proposed (D8) |
+| DEC-029 | Polling & imperfect information | Proposed (D8) |
+| DEC-030 | NPC political AI: rule symmetry | Proposed (D8) |
 
 ---
 
@@ -584,23 +588,24 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-024 — Policy model: pipeline, mechanisms, implementation
 
-- **Status:** Proposed (D7).
+- **Status:** Accepted (owner, 2026-11-18), with the lifecycle simplified at the owner's request (revision 2).
 - **Context:** Brief §8. Policies are structured simulation objects, not approval modifiers. DEC-010: the player works through institutions. DEC-017: procedures come from the constitution.
 - **Proposed decision:**
   - **Two kinds of policy lever:**
     - **Standing settings:** tax rates, fees, and budget allocations by category. Changed through the recurring **budget procedure**.
     - **Programs and laws:** discrete initiatives authored as **policy templates** in content.
-  - **Lifecycle (state machine):**
-    1. Draft
-    2. Introduced
-    3. Negotiation (amendments, deals)
-    4. Passage (the constitution's procedure stages)
-    5. Appropriation (funded or not)
-    6. Implementation
-    7. Active
-    8. Review, which leads to amend, repeal, or sunset
+  - **Lifecycle (revision 2, owner-simplified).** Five states, plus attributes. (Revision 1 had 9 states; the owner flagged redundancy.)
 
-    Each stage can fail or stall, with recorded reasons.
+    | State | Meaning | Key attributes |
+    |---|---|---|
+    | **Draft** | Private; being shaped, with co-sponsors gathered | Sponsors, parameters |
+    | **Under consideration** | Moving through the constitution's procedure. Negotiation and amendments happen here as *activity*, not as a separate state | Current procedure stage (e.g. "in committee", "passed lower house", "awaiting signature"), vote counts |
+    | **Enacted** | Law on the books | **Funding status:** funded / partial / unfunded / not required |
+    | **In effect** | Being carried out | **Implementation progress** 0–100% (ramps effectiveness), issue flags (delayed, court challenge, overrun) |
+    | **Ended** | Repealed / expired / struck down / died | Reason |
+
+    - "Review" is an *event* (a scheduled report or sunset vote), not a state.
+    - **Funding is a status, not a stage.** Authorization and funding stay separate because unfunded laws are real politics: pass it for credit and then starve it, or opponents defund your law at the next budget. This is the brief's §7.3 requirement. Regulations need no appropriation.
   - **Effects as typed mechanisms.** Policies never write outcome variables directly. They apply mechanism primitives, and the economy, population, and environment models compute the consequences in context:
 
     | Mechanism | Example |
@@ -632,7 +637,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-025 — Public response: anticipated vs. experienced
 
-- **Status:** Proposed (D7).
+- **Status:** Accepted (owner, 2026-11-18; no objection raised).
 - **Proposed decision:** cohort opinion reacts to policy through two separate channels:
   1. **Anticipated:** at proposal and passage. Driven by value alignment (the policy's ideological signature against the cohort's attitude vector), *perceived* personal impact as shaped by messaging and media, salience, and trust in the messenger.
   2. **Experienced:** after implementation, lagged. Driven by *actual* computed material changes (income, prices, rents, service quality, hazard damage) that the cohort can notice, weighted by visibility.
@@ -644,7 +649,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-026 — Bill composition & customization
 
-- **Status:** Proposed. Awaiting owner (D7).
+- **Status:** Accepted (owner, 2026-11-18): option B.
 - **Options:**
   - A. A fixed catalog: enact or repeal, with one intensity slider (Democracy-style).
   - B. Templates with 2–4 tunable parameters (amount, target group, timeline, funding source). A bill can bundle clauses during negotiation (riders, earmarks or local projects, sunset clauses, pilot-program scoping).
@@ -657,3 +662,66 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Option C overwhelms casual players, is hard to balance, and is hard for AI to evaluate.
   - Option B makes legislation a political game while keeping content authorable.
 - **Dependencies:** DEC-010, DEC-024, D8, D9 (NPC preferences), D12.
+
+### DEC-027 — Parties & factions: dynamism
+
+- **Status:** Proposed. Awaiting owner (D8).
+- **Context:** Brief §9.1. Careers span 25–35 years, long enough for realignments. The number of parties should follow the electoral system: plurality voting tends toward two major parties, proportional voting toward several.
+- **Model (common to all options):**
+  - **Factions are the fundamental unit.** Each has an ideological position (attitude vector), a leader NPC, member politicians, and a regional and cohort base.
+  - **A party is a coalition of factions.** It has leadership, a platform (a weighted blend of its factions), a brand (reputation per cohort), organization (money, volunteers, branches per region), and cohesion.
+  - Parties are generated at world creation from the society's main cleavages (attitude dimensions and cohort coalitions). The number of parties fits the constitution's electoral system, then is shaped by the burn-in (DEC-022).
+- **Options:**
+  - A. Fixed party roster and fixed factions.
+  - B. Stable parties with dynamic factions. Factions rise and fall within parties, and politicians (including the player) can switch parties.
+  - C. A fully dynamic party system. Factions can split off, parties can merge or collapse, and new parties can emerge, including one founded by the player.
+- **Proposed decision:** B as the baseline, with C-type events possible but rare and conditional. Splits, insurgent parties, and mergers become likely only when their conditions build up: cohesion collapse, a large unrepresented cohort, or a permissive electoral system (more likely under PR, rare under plurality).
+  - Founding a party is a late-career, high-risk path.
+  - Factions-as-units makes this the same architecture as C, just tuned.
+- **Rationale:** Party brands stay legible for most of a run. Realignments happen as earned, dramatic events, not noise. Supports DEC-020 power-broker play and DEC-015 archetype differences.
+- **Dependencies:** DEC-015, DEC-017, DEC-018, DEC-022, DEC-028, D9.
+
+### DEC-028 — Election model
+
+- **Status:** Proposed (D8).
+- **Proposed decision:** a bottom-up, deterministic-expectation model computed per neighborhood cohort. Stages:
+  1. **Candidacy.** NPCs decide whether to run (ambition, opportunity, Viability). Nomination follows the constitution's candidate-selection rule; the MVP uses local party nomination.
+  2. **Campaign** (weekly turns, DEC-012). Money, volunteers, staff, ads, canvassing, events, debates, and endorsements change *awareness* and *perceived positions and valence* per neighborhood and cohort.
+  3. **Vote utility** per cohort for each candidate, made up of:
+     - issue proximity (cohort attitudes, weighted by salience, compared with the candidate's *perceived* positions);
+     - party identification;
+     - valence: competence, likability, scandals, and retrospective judgment of incumbents (experienced conditions against expectations, from DEC-025);
+     - local ties;
+     - an awareness discount for unknown candidates.
+
+     Utilities become choice shares through multinomial logit.
+  4. **Turnout** per cohort: propensity × mobilization × enthusiasm × the constitution's rules (e.g. compulsory voting).
+  5. **Shocks:** a small number of structured, seeded random shocks per election (election RNG stream). These include regionally and cohort-correlated swings and turnout shocks. There is no per-voter randomness.
+  6. **Tabulation** with the constitution's voting rule (DEC-017 tabulators). Logit utilities give full preference distributions, so plurality, two-round, ranked-choice, approval, and list PR all use one voter model.
+  7. **Seats and control**, then **consequences**: Mandate from margin and pledges, NPC memories, and narrative events.
+- **Explainability:** each result carries a decomposition of swing by factor (issues, economy, scandal, campaign effort, turnout, shock) per district. This powers the "why you won or lost" screen.
+- **Dependencies:** DEC-012, DEC-017, DEC-018, DEC-025, DEC-027, DEC-029.
+
+### DEC-029 — Polling & imperfect information
+
+- **Status:** Proposed (D8).
+- **Proposed decision:**
+  - The player never sees the true electoral state, only **polls**. Pollsters are NPC organizations that sample the true model with sampling noise, house effects, and occasional systematic error.
+  - Private polling costs money and gives better precision.
+  - The election result is the truth.
+  - Polling misses are therefore organic drama, and seeded shocks (DEC-028) keep the outcome uncertain without being unfair.
+  - A difficulty or complexity layer may show uncertainty bands (brief §3.5). It never shows the truth.
+- **Dependencies:** DEC-028, D9 (media), D10 (difficulty).
+
+### DEC-030 — NPC political AI: rule symmetry
+
+- **Status:** Proposed (D8).
+- **Proposed decision:**
+  - **NPC politicians play by the player's rules.** They have the same action set, authority, slots and resources (abstracted), and the same pressure tracks. They get no hidden bonuses.
+  - They plan with utility-based AI that evaluates actions using **polls, not truth**. Strategic profiles weight the utilities (brief §9.4): ideologue, pragmatist, populist, insider, local advocate, wealthy outsider.
+  - **Difficulty** changes NPC competence (information quality, planning depth, efficiency), not stat bonuses. This keeps difficulty honest (brief §3.5).
+  - The same AI drives the time-skip player-proxy (DEC-012) and the burn-in (DEC-022).
+- **Consequences:**
+  - The action system must be actor-agnostic.
+  - Simplified ("abstracted") NPC turns are needed for performance, but they must use the same rules.
+- **Dependencies:** DEC-011, DEC-012, DEC-022, DEC-028, DEC-029, D9, D10.
