@@ -35,6 +35,8 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,wasm,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: `${base}index.html`,
+        // Prototype pages published beside the app (DEC-050) are never served the app shell.
+        navigateFallbackDenylist: [/\/spike-/],
       },
     }),
   ],
