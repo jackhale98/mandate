@@ -88,7 +88,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-079 | Places as the interface: go somewhere to do something, with convenience | Accepted |
 | DEC-080 | Hub renderer: Canvas 2D (revises the provisional PixiJS choice) | Accepted |
 | DEC-081 | Logo (poll-line M) and loading animation (career ladder) | Accepted |
-| DEC-082 | Save export and import (`.mandate` files; no Ironman rewinding) | Proposed |
+| DEC-082 | Save export and import (`.mandate` files; light Ironman rule) | Accepted |
 
 ---
 
@@ -1659,7 +1659,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-082 — Save export and import
 
-- **Status:** Proposed (agent, 2026-11-18; needs the owner's approval for the Ironman rule).
+- **Status:** Accepted (owner, 2026-11-18: "I don't think we need to be that strict on Ironman, it's a game"). The light rule below stands; the tombstone option is declined.
 - **Context:** DEC-052 keeps file export and import as the manual fallback for moving saves until a sync provider exists. Players need to back up a run, move it to another device, or restore it after clearing the browser. An import is also a way to put an old save back, which would undo Ironman (DEC-008).
 - **File:** one `.mandate` file per run, named `mandate-<town>-<YYYY-MM-DD>.mandate` (or `mandate-run-<id>-…` before the town is known). It is UTF-8 text in three lines:
   - the magic line `MANDATE RUN EXPORT`;
@@ -1673,7 +1673,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - A file whose revision is greater than or equal to the local revision replaces the local run.
   - An older revision of an **Ironman** run that exists here is refused with an explanation: Ironman runs cannot go back in time. If either the file or the local run is Ironman, the rule applies.
   - An older revision of a **Story** run is added as a separate run (a new run id), next to the current one.
-- **Trade-off:** this stops casual rewinding, not all cheating. A determined player can keep copies of files, delete the local run, and import an old copy, or clear the browser first. This matches DEC-052 ("sync is not anti-cheat"): the game has no leaderboards, and the rule exists so a player cannot undo a bad election with two taps, not to police them. A stronger option, not implemented, keeps a tombstone of the highest revision seen for each deleted Ironman run and refuses older imports of it too. It costs a little storage and still fails after clearing site data.
+- **Trade-off:** this stops casual rewinding, not all cheating. A determined player can keep copies of files, delete the local run, and import an old copy, or clear the browser first. This matches DEC-052 ("sync is not anti-cheat"): the game has no leaderboards, and the rule exists so a player cannot undo a bad election with two taps, not to police them. A stronger option, not implemented, keeps a tombstone of the highest revision seen for each deleted Ironman run and refuses older imports of it too. It costs a little storage and still fails after clearing site data. **Declined by the owner:** Ironman protection stays light. It stops accidental or casual rewinding, not deliberate workarounds.
 - **Phones:** export downloads through a Blob, an object URL, and `<a download>`. On touch devices that can share files, the share sheet is offered first, with the download as the fallback. The file picker has no `accept` filter, because phones grey out unknown extensions. Desktop browsers also take a file dropped anywhere on the title screen.
 - **Where:** `web/src/persistence/runFile.ts` (format and rules, over any `SaveStore`), `web/src/components/RunTransfer.tsx` (browser wiring), on the title screen's saved-runs list. There is no in-game export yet: the pocket has only "Save & quit", and the run can be exported from the title screen after it.
 - **Dependencies:** DEC-008, DEC-044, DEC-052, DEC-074, DEC-048, DEC-051.
