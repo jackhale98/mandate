@@ -366,3 +366,31 @@ export function parallelGap(a: Segment, b: Segment): { overlap: number; gap: num
   const gap = off - ((a.width + b.width + 1) >> 1);
   return { overlap, gap };
 }
+
+/** Offset between the centre lines of two parallel runs, cells across. */
+export function centreOffset(a: Segment, b: Segment): number {
+  if (a.axis === "h") return Math.abs(a.ay - b.ay);
+  if (a.axis === "v") return Math.abs(a.ax - b.ax);
+  const ka = a.axis === "ne" ? a.ax + a.ay : a.ax - a.ay;
+  const kb = b.axis === "ne" ? b.ax + b.ay : b.ax - b.ay;
+  return Math.abs(ka - kb);
+}
+
+/** Whether a run would lie alongside another (or the railway) within a few cells, or jog off another's line (`self` excepted). */
+export function crowded(w: Work, s: Segment, self: Segment | null): boolean {
+  for (const o of w.segments) {
+    if (o === self || o.axis !== s.axis) continue;
+    const g = parallelGap(s, o);
+    const off = centreOffset(s, o);
+    if (off === 0) continue;
+    if (g.overlap >= 4 && g.gap <= 3) return true;
+    // Collinear pieces a few cells apart across: a jog.
+    if (g.overlap > -7 && g.overlap < 4 && g.gap > -Math.max(s.width, o.width) && off <= 5) return true;
+  }
+  for (const o of w.rail) {
+    if (o.axis !== s.axis) continue;
+    const g = parallelGap(s, o);
+    if (g.overlap >= 4 && g.gap <= 2 && g.gap >= -1) return true;
+  }
+  return false;
+}

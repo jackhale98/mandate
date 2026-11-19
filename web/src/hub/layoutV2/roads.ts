@@ -14,7 +14,7 @@
 import { Terrain } from "../townLayout";
 import { BAND_CAPS, type GeoLink } from "./geo";
 import { MinHeap, NO_BEARING, bearingGap, bearingOf, compassVec } from "./imath";
-import { boxSeg, isDiagDir, levelCrossing, makeSeg, paintSegment, segCells } from "./net";
+import { boxSeg, crowded, isDiagDir, levelCrossing, makeSeg, paintSegment, segCells } from "./net";
 import { edgePoint } from "./terrain";
 import { RoadClass, Use, WaterKind, isWaterBody, rngOf, type Arterial, type PlanConnector, type Segment, type Work } from "./work";
 
@@ -106,6 +106,8 @@ interface Coarse {
   road: Uint8Array;
   /** Cells next to a road (running alongside one costs more). */
   near: Uint8Array;
+  /** Water too near a bridge for another (§8: bridges at least 40 tiles apart outside cities). */
+  nearBridge: Uint8Array;
   blocked: Uint8Array;
   /** The railway: 1 an east–west run, 2 a north–south run, 3 a bend. */
   rail: Uint8Array;
@@ -115,7 +117,7 @@ function coarseOf(w: Work): Coarse {
   const CW = w.W / G;
   const CH = w.H / G;
   const n = CW * CH;
-  const cg: Coarse = { CW, CH, wet: new Uint8Array(n), sea: new Uint8Array(n), level: new Uint8Array(n), rock: new Uint8Array(n), road: new Uint8Array(n), near: new Uint8Array(n), blocked: new Uint8Array(n), rail: new Uint8Array(n) };
+  const cg: Coarse = { CW, CH, wet: new Uint8Array(n), sea: new Uint8Array(n), level: new Uint8Array(n), rock: new Uint8Array(n), road: new Uint8Array(n), near: new Uint8Array(n), nearBridge: new Uint8Array(n), blocked: new Uint8Array(n), rail: new Uint8Array(n) };
   for (let j = 0; j < CH; j++) {
     for (let i = 0; i < CW; i++) {
       const k = j * CW + i;
@@ -234,7 +236,7 @@ function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], 
       const rl = cg.rail[nc] as number;
       if (rl === 3 || (rl === 1 && nd !== 2 && nd !== 6) || (rl === 2 && nd !== 0 && nd !== 4)) continue;
       let cost = (diag ? k.diag : k.base) + k.slope * Math.abs((cg.level[nc] as number) - (cg.level[c] as number));
-      if (cg.wet[nc] && !cg.road[nc]) cost += k.water;
+      if (cg.wet[nc] && !cg.road[nc]) cost += k.water + (cg.nearBridge[nc] ? 900 : 0);
       if (cg.rock[nc]) cost += k.rock;
       if (cg.road[nc]) cost -= k.road;
       else if (cg.near[nc]) cost += k.near;
@@ -565,8 +567,12 @@ export function stageArterials(w: Work) {
     const dy = DY8[d] as number;
     const c1 = at(i, j);
     const c2 = at(i + dx, j + dy);
+    const c3 = at(i + 2 * dx, j + 2 * dy);
     if (c1 < 0 || c2 < 0) return;
-    exits.push({ c: c2, d, via: isDiagDir(d) ? [ring, c1] : [c1] });
+    // A 45° exit runs three cells out before it may turn (clear of the ring's side streets' lines).
+    if (isDiagDir(d)) {
+      if (c3 >= 0) exits.push({ c: c3, d, via: [ring, c1, c2] });
+    } else exits.push({ c: c2, d, via: [c1] });
   };
   for (let i = rx0; i <= rx1; i++) {
     if (!sideOk(i, rx0, rx1)) continue;
@@ -584,6 +590,13 @@ export function stageArterials(w: Work) {
   exit(rx1 + 1, ry1 + 1, 7, at(rx1, ry1));
   const clear = (c: number) => c >= 0 && !cg.sea[c] && !cg.wet[c] && !cg.rail[c] && !cg.blocked[c];
   const usable = exits.filter((e) => clear(e.c) && e.via.every((v, k) => (isDiagDir(e.d) && k === 0) || clear(v)));
+  // No arterial runs along the ring: the cells round it are only crossed by the exits' first cells.
+  for (let j = ry0 - 1; j <= ry1 + 1; j++) {
+    for (let i = rx0 - 1; i <= rx1 + 1; i++) {
+      const c = at(i, j);
+      if (c >= 0) cg.blocked[c] = 1;
+    }
+  }
   const taken = new Set<number>();
   const tooClose = (e: { c: number }) => {
     if (taken.has(e.c)) return false;
@@ -670,6 +683,11 @@ export function stageArterials(w: Work) {
       for (const m of bridgeRuns(w, s, kinds)) {
         // A bridge another arterial already built here is shared, not counted twice.
         if (!w.connectors.some((o) => o.x === m.x && o.y === m.y && o.w === m.w && o.h === m.h)) {
+          if (!caps.ring) {
+            const bi = Math.floor((m.x + (m.w >> 1)) / G);
+            const bj = Math.floor((m.y + (m.h >> 1)) / G);
+            for (let j = 0; j < CH; j++) for (let i = 0; i < CW; i++) if (Math.abs(i - bi) + Math.abs(j - bj) <= 10) cg.nearBridge[j * CW + i] = 1;
+          }
           w.connectors.push(m);
           bridges++;
         }
@@ -687,6 +705,11 @@ export function stageArterials(w: Work) {
   };
   const costs = (water: number): Costs8 => ({ base: 10, diag: 14, slope: 30, water, rock: 60, road: 6, t45: 35, t90: 50, near: 14, border: 120 });
   const startsFor = () => usable.filter((e) => !tooClose(e)).map((e) => ({ c: e.c, d: e.d, g: isDiagDir(e.d) ? 6 : 0 }));
+  const withRingDry = (path: { c: number; d: number }[]) => {
+    const first = path[0] as { c: number; d: number };
+    const st = usable.find((s) => s.c === first.c && s.d === first.d);
+    return st ? [...st.via.map((c) => ({ c, d: first.d })), ...path] : path;
+  };
   const withRing = (path: { c: number; d: number }[]) => {
     const first = path[0] as { c: number; d: number };
     const st = usable.find((s) => s.c === first.c && s.d === first.d);
@@ -702,11 +725,17 @@ export function stageArterials(w: Work) {
     const water = bridges >= caps.bridges ? 900 : 70 + bridges * 60;
     const starts = startsFor();
     const out = outward(cg, goal);
-    // Any border cell on that side within two of the bearing's, left straight out (no jog to hit one cell).
+    // Any border cell on that side within four of the bearing's, left straight out (no jog to hit one cell).
     const gx = goal % CW;
     const gy = Math.floor(goal / CW);
-    const near = (c: number) => !cg.wet[c] && !cg.rail[c] && outward(cg, c) === out && Math.abs((c % CW) - gx) + Math.abs(Math.floor(c / CW) - gy) <= 2 && (c % CW === 0 || c % CW === CW - 1 || c < CW || c >= CW * (CH - 1));
-    const path = coarsePath8(cg, starts, (c, d) => d === out && near(c), goal, costs(water), near);
+    const railBeside = (c: number) => [c - 1, c + 1, c - CW, c + CW, c - CW - 1, c - CW + 1, c + CW - 1, c + CW + 1].some((n) => n >= 0 && n < CW * CH && cg.rail[n] !== 0);
+    const near = (c: number) => !cg.wet[c] && !cg.rail[c] && !railBeside(c) && outward(cg, c) === out && Math.abs((c % CW) - gx) + Math.abs(Math.floor(c / CW) - gy) <= 4 && (c % CW === 0 || c % CW === CW - 1 || c < CW || c >= CW * (CH - 1));
+    let path = coarsePath8(cg, starts, (c, d) => d === out && near(c), goal, costs(water), near);
+    // Alongside another road (or the railway) for a stretch: route again, keeping well clear of the others.
+    if (path && roadSegs(cg, withRingDry(path), { cls: RoadClass.Arterial, style: "asphalt", district: -1, arterial: -1 }).some((s) => crowded(w, s, null))) {
+      const again = coarsePath8(cg, starts, (c, d) => d === out && near(c), goal, { ...costs(water), near: 70 }, near);
+      if (again) path = again;
+    }
     if (!path) continue;
     const toName = p.link?.to_name ?? "";
     let name = toName ? `${toName} Road` : `${COMPASS_NAMES[p.bearing] ?? "North"} Road`;

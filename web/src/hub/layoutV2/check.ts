@@ -5,10 +5,10 @@ import { reachableFrom } from "../pathfinding";
 import { ROOF_ROWS, Terrain, surfaceOfTerrain, townGrid, type TownMap } from "../townLayout";
 import type { TownInput } from "../townInput";
 import { BAND_CAPS } from "./geo";
-import { forBand, headCells, isHead, parallelGap, segCells, segSteps, streetEndOf } from "./net";
+import { centreOffset, forBand, headCells, isHead, parallelGap, segCells, segSteps, streetEndOf } from "./net";
 import type { TownPlan } from "./plan";
 import { rectDistance } from "./plots";
-import { centreOffset, endState } from "./streets";
+import { endState } from "./streets";
 import { RoadClass, WaterKind, type Segment } from "./work";
 
 const isWaterBody = (k: number) => k === WaterKind.River || k === WaterKind.Sea || k === WaterKind.Lake;
@@ -231,7 +231,31 @@ export function streetProblems(map: TownMap, plan: TownPlan): string[] {
   }
   // ---- duplicates and jogs (two arterial runs joined by a 45° run of the arterials are a clean bend, not a jog)
   const boxes = (p: Segment, q: Segment) => p.x0 <= q.x1 + 1 && q.x0 <= p.x1 + 1 && p.y0 <= q.y1 + 1 && q.y0 <= p.y1 + 1;
-  const bentAt45 = (a: Segment, b: Segment) => a.arterial >= 0 && b.arterial >= 0 && segs.some((d) => d.arterial >= 0 && (d.axis === "ne" || d.axis === "nw") && segSteps(d) >= 4 && boxes(d, a) && boxes(d, b));
+  const bentAt45 = (a: Segment, b: Segment) => (a.arterial >= 0 || b.arterial >= 0) && segs.some((d) => d.arterial >= 0 && (d.axis === "ne" || d.axis === "nw") && segSteps(d) >= 4 && boxes(d, a) && boxes(d, b));
+  /** The bounding box of a run's end band (the end nearer to `p`), one cell wider all round. */
+  const endBox = (s: Segment, p: Segment) => {
+    const da = Math.abs(s.ax - p.ax) + Math.abs(s.ay - p.ay) + Math.abs(s.ax - p.bx) + Math.abs(s.ay - p.by);
+    const db = Math.abs(s.bx - p.ax) + Math.abs(s.by - p.ay) + Math.abs(s.bx - p.bx) + Math.abs(s.by - p.by);
+    const t = da <= db ? 0 : segSteps(s);
+    let x0 = W;
+    let y0 = H;
+    let x1 = -1;
+    let y1 = -1;
+    forBand(s, t, t, (x, y) => {
+      x0 = Math.min(x0, x - 1);
+      y0 = Math.min(y0, y - 1);
+      x1 = Math.max(x1, x + 1);
+      y1 = Math.max(y1, y + 1);
+    });
+    return { x0, y0, x1, y1 };
+  };
+  const meets = (q: Segment, r: { x0: number; y0: number; x1: number; y1: number }) => q.x0 <= r.x1 && r.x0 <= q.x1 && q.y0 <= r.y1 && r.y0 <= q.y1;
+  /** A jog: the two runs' facing ends meet the same cross street (a street continuing a few cells aside across a junction). */
+  const acrossOneJunction = (a: Segment, b: Segment) => {
+    const ea = endBox(a, b);
+    const eb = endBox(b, a);
+    return segs.some((x) => x !== a && x !== b && x.axis !== a.axis && meets(x, ea) && meets(x, eb));
+  };
   for (let i = 0; i < segs.length; i++) {
     const a = segs[i] as Segment;
     for (let j = i + 1; j < segs.length; j++) {
@@ -241,7 +265,7 @@ export function streetProblems(map: TownMap, plan: TownPlan): string[] {
       const off = centreOffset(a, b);
       if (off === 0) continue;
       if (g.overlap >= 4 && g.gap <= 3) out.push(`${name(a)} and ${name(b)} run alongside ${Math.max(0, g.gap)} cells apart`);
-      else if (g.overlap > -7 && g.overlap < 4 && off <= 5 && g.gap > -Math.max(a.width, b.width) && !bentAt45(a, b)) out.push(`${name(a)} and ${name(b)} jog ${off} cells`);
+      else if (g.overlap > -7 && g.overlap < 4 && off <= 5 && g.gap > -Math.max(a.width, b.width) && !bentAt45(a, b) && acrossOneJunction(a, b)) out.push(`${name(a)} and ${name(b)} jog ${off} cells`);
     }
     for (const r of plan.rail) {
       if (a.axis !== r.axis) continue;
