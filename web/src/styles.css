@@ -629,7 +629,9 @@ h2 { font-size: 1.1rem; }
 .pocket-btn .badge { display: inline-flex; gap: 2px; }
 @media (max-width: 599px) {
   .gamebar { gap: 6px; padding-left: 8px; padding-right: 8px; }
-  .gamebar-label, .gamebar-span { display: none; }
+  .gamebar-span { display: none; }
+  /* The labels stay for screen readers (the pocket button's name). */
+  .gamebar-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .gamebar-map, .pocket-btn { padding: 0 10px; }
   .gamebar-end { min-width: 0; padding: 0 12px; }
 }
@@ -641,7 +643,7 @@ h2 { font-size: 1.1rem; }
 .skip-link:focus, .skip-link:focus-visible { transform: none; outline: 3px solid var(--info); outline-offset: 2px; }
 
 /* The pocket's tabs (DEC-088): at the top of the sheet, in its sticky head. */
-.pocket-head { padding-bottom: 0; }
+.sheet-head.pocket-head { flex-direction: column; align-items: stretch; gap: 4px; padding-bottom: 0; }
 .pocket-head-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .pocket-head h2 { margin-bottom: 2px; }
 .pocket-head p { margin: 0 0 4px; }

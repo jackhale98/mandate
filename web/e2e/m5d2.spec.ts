@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { openPocket, showPlaces } from "./pocket";
 
 // M5d part 2: the storyteller is chosen at new game and shown in the run
 // metadata (DEC-033); the catalogue's sliders ask the engine for the cost
@@ -6,16 +7,6 @@ import { expect, test, type Page } from "@playwright/test";
 
 const shots = process.env.M5D2_SHOTS;
 
-async function showList(page: Page) {
-  await page.getByTestId("town-tab-list").click();
-  await expect(page.getByRole("tabpanel", { name: /List/ })).toBeVisible();
-}
-
-const openPocket = async (page: Page) => {
-  if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
-  await expect(page.getByTestId("pocket")).toBeVisible();
-  return page.getByTestId("pocket");
-};
 
 test("storyteller at new game, and sliders that move the engine's estimate", async ({ page }, info) => {
   await page.goto("./");
@@ -28,7 +19,7 @@ test("storyteller at new game, and sliders that move the engine's estimate", asy
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
 
-  await showList(page);
+  await showPlaces(page);
   await page.getByTestId("spot-town_hall").click();
   const catalog = page.getByTestId("place-panel").getByTestId("catalog");
   await catalog.getByRole("button", { name: /Transit frequency/ }).click();
@@ -57,7 +48,7 @@ test("overheard talk is grounded and rendered", async ({ page }, info) => {
   await page.getByPlaceholder("e.g. 20260").fill("4242");
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
-  await showList(page);
+  await showPlaces(page);
   let found = false;
   for (const kind of ["diner", "market", "union_hall"]) {
     const spot = page.getByTestId(`spot-${kind}`);

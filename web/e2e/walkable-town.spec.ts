@@ -1,12 +1,13 @@
 import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { openPocket, showPlaces } from "./pocket";
 
-// The walkable town in the game (DEC-086, DEC-088, DEC-090): the town screen
-// opens on the town map, drawn from layout v2 (planned in the town worker,
-// cached in memory and IndexedDB); "Walk the streets" goes down into the
-// walkable street (the hub renderer, pixel-art pack), where tapping a place
-// walks the player there and opens its panel. The light follows the turn's
+// The walkable town in the game (DEC-086, DEC-088, DEC-090): the game's main
+// screen is the walkable street, full screen (the hub renderer, pixel-art
+// pack), drawn from layout v2 (planned in the town worker, cached in memory
+// and IndexedDB); tapping a place walks the player there and opens its panel.
+// The town map is an overlay from the bar. The light follows the turn's
 // slots, and ending a turn passes the night. Runs on desktop and phone.
 // WALK_SCREENS=<dir> also saves screenshots there.
 const SCREENS = process.env.WALK_SCREENS ?? "";
@@ -66,14 +67,15 @@ const start = async (page: Page, seed: string) => {
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
-  await expect(page.getByTestId("town-map-canvas")).toBeVisible();
-};
-
-const enterStreet = async (page: Page) => {
-  await page.getByTestId("town-walk").click();
+  // The street is the main screen: no click needed to walk.
   await expect(page.getByTestId("town-street")).toBeVisible();
   await expect(page.locator(".town-street-stage[data-ready='1']")).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => page.evaluate(() => (window as unknown as Probes).__townStreet?.view.map.version ?? 0)).toBe(2);
+};
+
+const openMap = async (page: Page) => {
+  await page.getByTestId("town-map-button").click();
+  await expect(page.getByTestId("town-map-canvas")).toBeVisible();
 };
 
 /**
@@ -107,24 +109,34 @@ const tapBuilding = async (page: Page, info: TestInfo, which: "home" | "nearest-
   return target.b;
 };
 
-test("a new game opens the town map on layout v2, planned off the main thread, with no console errors", async ({ page }, info) => {
+test("a new game opens the walkable street full screen on layout v2, planned off the main thread, with no console errors", async ({ page }, info) => {
   const errors = watchErrors(page);
   await start(page, "31337");
-  await expect(page.getByTestId("town-tab-map")).toHaveAttribute("aria-selected", "true");
-  expect(await page.evaluate(() => (window as unknown as Probes).__townMap?.view?.scene.map.version)).toBe(2);
+  // Full screen: the street fills the screen above the bar; the town card is not on it (it is in the pocket).
+  const street = await page.getByTestId("town-street").boundingBox();
+  const bar = await page.getByTestId("gamebar").boundingBox();
+  const vp = page.viewportSize();
+  expect(street?.width).toBeGreaterThan((vp?.width ?? 0) - 2);
+  expect((street?.height ?? 0) + (bar?.height ?? 0)).toBeGreaterThan((vp?.height ?? 0) - 2);
+  await expect(page.getByTestId("gamebar")).toBeInViewport();
+  await expect(page.getByTestId("town-card")).toHaveCount(0);
   const load = await page.evaluate(() => (window as unknown as Probes).__townPlan?.loads.at(-1) ?? null);
   expect(load?.source).toBe("planned");
   expect(load?.planMs).toBeGreaterThan(0);
+  await shot(page, info, "street-start");
+  // The map overlay draws the same layout v2 plan.
+  await openMap(page);
+  expect(await page.evaluate(() => (window as unknown as Probes).__townMap?.view?.scene.map.version)).toBe(2);
   await shot(page, info, "town-map-v2");
+  expect(await page.evaluate(() => (window as unknown as Probes).__townPlan?.loads.length)).toBe(1);
   expect(errors).toEqual([]);
 });
 
-test("walk the streets: tap a place, the player walks there and its panel opens; back to the map; the List still works", async ({ page }, info) => {
+test("walk the streets: tap a place, the player walks there and its panel opens; the map marks it; the Places tab still works", async ({ page }, info) => {
   test.setTimeout(120_000);
   const errors = watchErrors(page);
   await start(page, "31337");
-  await enterStreet(page);
-  await expect(page.locator(".town-street-stage canvas")).toHaveAttribute("aria-label", /streets of .+ List view/);
+  await expect(page.locator(".town-street-stage canvas")).toHaveAttribute("aria-label", /streets of .+ Places tab/);
   // Townsfolk are about.
   expect(await page.evaluate(() => (window as unknown as Probes).__townStreet?.view.scene.activeFolk ?? 0)).toBeGreaterThan(0);
   await page.waitForTimeout(500);
@@ -148,21 +160,26 @@ test("walk the streets: tap a place, the player walks there and its panel opens;
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
 
-  // Back up to the map: the player is marked where they now are.
-  await page.getByTestId("town-walk-back").click();
-  await expect(page.getByTestId("town-map-canvas")).toBeVisible();
+  // On the map the player is marked where they now are.
+  await openMap(page);
   const here = page.locator("[data-hotspot][aria-current='location']");
   await expect(here).toHaveCount(1);
   expect(name).toContain((await here.getAttribute("data-name")) ?? "-");
+  await page.getByTestId("town-map-close").click();
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
 
-  // The List view still works, as before.
-  await page.getByTestId("town-tab-list").click();
+  // The Places tab goes there without walking; the street stands the player there.
+  await showPlaces(page);
   await page.getByTestId("spot-town_hall").click();
   await expect(panel.getByRole("heading", { name: /Town hall/ })).toBeVisible();
   await expect(page.getByTestId("where")).toContainText("Town hall");
   await page.keyboard.press("Escape");
-  await page.getByTestId("town-tab-map").click();
-  await expect(page.getByTestId("town-map-canvas")).toBeVisible();
+  await expect(panel).toHaveCount(0);
+  const hall = await page.evaluate(() => {
+    const v = (window as unknown as Probes).__townStreet?.view;
+    return v ? { at: v.scene.playerCell, fronts: v.map.buildings.filter((b) => b.kind === "town_hall").map((b) => b.front) } : null;
+  });
+  expect(hall?.fronts).toContain(hall?.at);
   expect(errors).toEqual([]);
 });
 
@@ -172,7 +189,7 @@ test("a reload plans nothing: the town comes from the plan cache", async ({ page
   expect(await page.evaluate(() => (window as unknown as Probes).__townPlan?.loads.at(-1)?.source)).toBe("planned");
   await page.reload();
   await page.getByRole("button", { name: "Continue" }).first().click();
-  await expect(page.getByTestId("town-map-canvas")).toBeVisible();
+  await expect(page.locator(".town-street-stage[data-ready='1']")).toBeVisible({ timeout: 30_000 });
   const loads = await page.evaluate(() => (window as unknown as Probes).__townPlan?.loads ?? []);
   expect(loads.map((l) => l.source)).toEqual(["stored"]);
   expect(errors).toEqual([]);
@@ -182,7 +199,6 @@ test("the light follows the turn's slots: still while idle, forward when a slot 
   test.setTimeout(120_000);
   const errors = watchErrors(page);
   await start(page, "4242");
-  await enterStreet(page);
   const minutes = () => page.evaluate(() => (window as unknown as Probes).__townStreet?.minutes ?? -1);
   const m0 = await minutes();
   await page.waitForTimeout(1500);
@@ -215,7 +231,6 @@ test("ending a turn passes the night: the light goes to night, the new date show
   test.setTimeout(120_000);
   const errors = watchErrors(page);
   await start(page, "4242");
-  await enterStreet(page);
   const day = await page.evaluate(() => (window as unknown as Probes).__townStreet?.minutes ?? -1);
   await page.getByTestId("end-turn").click();
   const passage = page.getByTestId("turn-passage");
@@ -230,14 +245,18 @@ test("ending a turn passes the night: the light goes to night, the new date show
   await expect(page.getByText("Turn 1").first()).toBeVisible();
   // The morning of the new turn, as the map shows it.
   await expect.poll(() => page.evaluate(() => (window as unknown as Probes).__townStreet?.minutes ?? -1)).toBeCloseTo(day, 0);
-  // On the map and the list it passes the same way.
-  await page.getByTestId("town-walk-back").click();
+  // The map shows the same morning.
+  await openMap(page);
+  expect(await page.evaluate(() => (window as unknown as Probes).__townMap?.view?.minutes ?? -1)).toBeCloseTo(day, 0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
+  // With the pocket open (Places), it passes the same way: End turn stays on the bar.
+  await showPlaces(page);
   await page.getByTestId("end-turn").click();
   await expect(passage).toBeVisible();
   await expect(passage).toHaveCount(0, { timeout: 15_000 });
   await expect(page.getByText("Turn 2").first()).toBeVisible();
-  expect(await page.evaluate(() => (window as unknown as Probes).__townMap?.view?.minutes ?? -1)).toBeCloseTo(day, 0);
-  await page.getByTestId("town-tab-list").click();
+  await openPocket(page, "today");
   await page.getByTestId("end-turn").click();
   await expect(passage).toBeVisible();
   await expect(passage).toHaveCount(0, { timeout: 15_000 });
@@ -258,8 +277,13 @@ test.describe("with reduced motion", () => {
     const t0 = Date.now();
     await expect(passage).toHaveCount(0);
     expect(Date.now() - t0).toBeLessThan(2000);
-    // No easing: the map shows the new morning at once.
-    expect(await page.evaluate(() => (window as unknown as Probes).__townMap?.view?.minutes ?? -1)).toBeGreaterThan(0);
+    // No easing: the street shows the new morning at once.
+    await expect.poll(() => page.evaluate(() => (window as unknown as Probes).__townStreet?.target ?? -1)).toBeGreaterThan(0);
+    const s = await page.evaluate(() => {
+      const t = (window as unknown as Probes).__townStreet;
+      return t ? { m: t.minutes, t: t.target } : null;
+    });
+    expect(s?.m).toBeCloseTo(s?.t ?? -1, 1);
     expect(errors).toEqual([]);
   });
 });

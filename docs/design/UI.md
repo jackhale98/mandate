@@ -14,9 +14,28 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
        └─ Candidate draft: 3 cards, rerolls (DEC-036)
               │
               ▼
-        HUB (primary screen, Canvas 2D scene, DEC-009, DEC-080). Until the walkable town lands in M6 the town screen opens on the town map (DEC-086): an illustrated map of neighbourhoods, routes, and landmarks; tap a building to go there. The "List" tab beside it is the accessible text view of the same places
-          HUD: turn span ("Week of 3 March"), day-part slots, Mandate, money, staff,
-               pressure-track mini-gauges (DEC-006), notifications, Agenda, End Turn
+        HUB (primary screen, Canvas 2D scene, DEC-009, DEC-080, DEC-088 "Main screen"): the walkable
+          street of the player's town, full screen (phone and desktop), opened when a run starts and
+          when returning to the town. Tap a building to walk there; arriving opens its place panel
+          Bar (one slim row): Map (the town map, DEC-086, as a full-screen overlay; tapping a place
+               closes it and walks there in the street) · date, turn, slots, where you are ·
+               Pocket (badges: decisions, alerts, new notebook items) · End Turn
+          Pocket (bottom sheet on phones with its tabs at the top; a side panel on desktop that can
+               stay docked open beside the town, the street resizing to fit). Tabs, remembered per device:
+            ├─ Today → slots, money, Mandate, alerts, decisions waiting, legal, Agenda (auto-routed
+            │          actions), your bills and votes, next election, tracks
+            ├─ Town → the town card (industry, crisis, power broker, rival and their plan, priorities),
+            │          headline numbers, neighbourhoods and their worries, news; gated by knowledge
+            │          (DEC-091: placeholders and leads where something is not known yet)
+            ├─ Places → every place in town as a button, by neighbourhood, reachable without walking
+            │          (the accessible path, DEC-051, and quick mode's future home)
+            └─ People → who matters in town (council and mayor, broker, rival) and how they stand
+                       with you; the notebook (K5) joins this tab
+            plus links: national map, overview, the story so far, save & quit
+          Accessibility: a "Skip to Places" link (visible on focus), landmarks (main: the town;
+               complementary: the pocket; navigation: the bar), the canvas labelled with a pointer to
+               Places; every action works by keyboard and screen reader without the canvas
+          Not yet: pressure-track mini-gauges (DEC-006) and staff in the bar
           In-world portals (each also in a global menu):
             ├─ Office desk → Bills & policies · Budget · Agencies & appointments (DEC-024/026)
             ├─ News (paper / TV / feed) → coverage, polls (DEC-029/034)
