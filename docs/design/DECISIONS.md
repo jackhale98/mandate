@@ -2095,6 +2095,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Timing:** M6, with or right after the knowledge ledger (DEC-091). Conversations are the ledger's main source.
 - **Dependencies:** DEC-031, DEC-033, DEC-035, DEC-041, DEC-051, DEC-053, DEC-054, DEC-079, DEC-088, DEC-091, DEC-092.
 
+- **Dialogue mode (owner, 2026-11-19: "Yes merge it").** Conversations show as a dialogue, not a sheet. In the street the camera frames both speakers and the reply is a pixel speech bubble. Elsewhere (lists, quick mode) the reply shows over a pixel portrait. In both cases there is an RPG-style choice box with the odds on each choice, and a notebook toast for what was learned. UI.md §3.
+
 ### DEC-094 — Credit, blame, and endorsements
 
 - **Status:** Accepted (owner, 2026-11-19: "Yes add it to the plan"). Two gaps came up while reviewing how the simulation turns state into votes. First, a law's outcomes reach votes only through general approval of the government (and approval of the player for the player's own bills), so voters don't credit or blame the politicians who passed it. Second, relationships with characters don't move mass votes.
