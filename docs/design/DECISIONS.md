@@ -2048,6 +2048,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - pronouns come with pixel-art P1.
 - **Dependencies:** DEC-024, DEC-026, DEC-041, DEC-053, DEC-073, DEC-077, DEC-078, DEC-079, DEC-090, DEC-091.
 
+- **Voters weigh their own district's worries (owner, 2026-11-19).** The owner said: "Voters weighing by their districts worries is a good improvement of currently we lump them within the town."
+  - **Before:** N1 gave each neighbourhood its own concern levels (`hood_concerns`), but the vote model's issue salience and NPC agendas still read the town-wide measured levels.
+  - **Task N2** computes salience per ward or constituency, from its neighbourhoods' levels weighted by residents. A platform's issue match then varies by ward, and so do NPC agendas where they target a ward.
+  - **Timing:** after E1 merges, so the two balance changes can be told apart. N2 runs beside E2. Bots at 16 and 32 seeds and the CI sweep are re-run, and BALANCE_LOG records the shift.
+  - **Fit:** this is the voting half of need-aware reactions (§2.22), and F7 builds on it.
+
 ### DEC-093 — Conversations
 
 - **Status:** Accepted (owner, 2026-11-19). The owner asked how robust sentence generation is, and whether NPCs just stand near the player while information updates, or whether the player actually talks to them. Owner: "Yes, record DEC-093 and add it to the brief."
