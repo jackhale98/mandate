@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 12;
+pub const SAVE_FORMAT_VERSION: u16 = 13;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -168,6 +168,7 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         (9, v9_scenario_ids),
         (10, v10_characters),
         (11, v11_narrative),
+        (12, v12_media),
     ];
     let mut value = value;
     let mut v = from;
@@ -301,6 +302,25 @@ fn v11_narrative(mut value: serde_json::Value) -> Result<serde_json::Value, Save
         .and_then(Value::as_object_mut)
     {
         g.insert("held_recession".into(), Value::Null);
+    }
+    Ok(value)
+}
+
+/// v12 → v13 (DEC-034, DEC-006): the media and justice domains, a career's
+/// status, hidden facts' fates, and raised decisions. Media and justice start
+/// empty (outlets are generated on load for a game in play); the player is
+/// in play; hidden facts from before have no fate (they never come out);
+/// decisions answer nothing. Every new field has a serde default, so the
+/// step only drops anything a newer build might have left.
+fn v12_media(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let st = value
+        .pointer_mut("/state")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    st.remove("media");
+    st.remove("justice");
+    if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
+        p.remove("status");
     }
     Ok(value)
 }

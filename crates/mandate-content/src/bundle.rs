@@ -78,6 +78,13 @@ pub struct ContentBundle {
     /// Scene templates (DEC-035), in load order.
     #[serde(default)]
     pub scenes: Vec<crate::narrative::SceneDef>,
+    /// Outlet templates (DEC-034), in load order.
+    #[serde(default)]
+    pub outlets: Vec<crate::media::OutletDef>,
+    /// Discovery, coverage, perception, responses, rumours, shady acts (DEC-034).
+    pub media: crate::media::MediaParams,
+    /// The legal path (DEC-006 Legal Jeopardy).
+    pub justice: crate::media::JusticeParams,
     /// Fluent sources by language, then by file path.
     pub locales: BTreeMap<String, BTreeMap<String, String>>,
     /// Hash over every source path and text, in path order (DEC-053).
@@ -195,6 +202,11 @@ impl ContentBundle {
         self.dilemmas.iter().find(|d| d.id == id)
     }
 
+    /// An outlet template by id.
+    pub fn outlet(&self, id: &str) -> Option<&crate::media::OutletDef> {
+        self.outlets.iter().find(|o| o.id == id)
+    }
+
     /// A goal template by id.
     pub fn goal(&self, id: &str) -> Option<&crate::narrative::GoalDef> {
         self.goals.iter().find(|g| g.id == id)
@@ -250,6 +262,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut goals: Vec<crate::narrative::GoalDef> = Vec::new();
     let mut storylines: Vec<crate::narrative::StorylineDef> = Vec::new();
     let mut scenes: Vec<crate::narrative::SceneDef> = Vec::new();
+    let mut outlets: Vec<crate::media::OutletDef> = Vec::new();
+    let mut media: Option<(crate::media::MediaParams, String)> = None;
+    let mut justice: Option<(crate::media::JusticeParams, String)> = None;
     let mut traits: Vec<TraitDef> = Vec::new();
     let mut occupations: Vec<OccupationDef> = Vec::new();
     let mut crises: Vec<CrisisDef> = Vec::new();
@@ -385,6 +400,19 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                         scenes.push(x);
                     }
                 }
+            }
+            ContentFile::Outlets { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        outlets.push(x);
+                    }
+                }
+            }
+            ContentFile::Media { value } => {
+                once(&mut media, *value, "media", &src.path, &mut issues)
+            }
+            ContentFile::Justice { value } => {
+                once(&mut justice, *value, "justice", &src.path, &mut issues)
             }
             ContentFile::Traits { items } => {
                 for t in items {
@@ -526,11 +554,15 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         Some((npc, _)),
         Some((characters, _)),
         Some((director, _)),
-    ) = (opinion, actions, council, career, npc, characters, director)
+        Some((media, _)),
+        Some((justice, _)),
+    ) = (
+        opinion, actions, council, career, npc, characters, director, media, justice,
+    )
     else {
         issues.push(Issue::error(
             "<content>",
-            "the opinion, actions, council, career, npc, characters, and director parameter files are all required",
+            "the opinion, actions, council, career, npc, characters, director, media, and justice parameter files are all required",
         ));
         return Err(issues);
     };
@@ -587,6 +619,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         goals,
         storylines,
         scenes,
+        outlets,
+        media,
+        justice,
         locales,
         content_hash,
     };

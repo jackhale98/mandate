@@ -173,6 +173,16 @@ pub enum Applied {
     Drafted {
         policy: u32,
     },
+    /// A borderline or illegal act was done: it may come out (`risk`: the
+    /// chance within a year, as shown before the choice).
+    Hidden {
+        kind: String,
+        risk: f32,
+    },
+    /// The player answered a story or an investigation.
+    Responded {
+        response: String,
+    },
     /// The effect could not happen any more (e.g. the vote was already held).
     Skipped {
         effect: String,
@@ -220,6 +230,9 @@ pub struct Decision {
     pub place: Option<Location>,
     pub status: DecisionStatus,
     pub resolution: Option<Resolution>,
+    /// The story or case a raised decision answers.
+    #[serde(default)]
+    pub about: Option<About>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -390,12 +403,26 @@ pub struct Fact {
     pub newsworthiness: f32,
 }
 
-/// Something that happened out of sight (DEC-034 hook): it may come to light
+/// Whether a hidden fact will come out, and to whom: settled when it
+/// happened (evidence × the discoverers' interest × their access, a keyed
+/// draw), never by the director (DEC-033 B: the director times it within the
+/// evidence window, it never decides whether).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Fate {
+    /// The chance it comes out at all.
+    pub chance: f32,
+    pub discovered: bool,
+    pub by: mandate_content::Discoverer,
+    /// The person who finds it (a journalist, a rival), if a person does.
+    pub who: Option<CharacterId>,
+}
+
+/// Something that happened out of sight (DEC-034): it may come to light
 /// within its evidence window; the director chooses when (DEC-033 B).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HiddenFact {
     pub id: u32,
-    /// What happened: `late_night_deal`, `late_night_fundraising`, `donation`.
+    /// What happened (Fluent `fact-<kind>`), e.g. `bribe`, `back_room_deal`.
     pub kind: String,
     pub date: SimDate,
     pub actors: Vec<Actor>,
@@ -403,6 +430,29 @@ pub struct HiddenFact {
     pub window: [SimDate; 2],
     pub discoverable_on: Option<SimDate>,
     pub surfaced: bool,
+    /// Whose secret it is.
+    #[serde(default)]
+    pub subject: Option<crate::politics::PoliticianId>,
+    #[serde(default)]
+    pub severity: mandate_content::Gravity,
+    /// Evidence it left (0..1).
+    #[serde(default)]
+    pub evidence: f32,
+    /// The subject's town when it happened.
+    #[serde(default)]
+    pub town: Option<u32>,
+    #[serde(default)]
+    pub fate: Option<Fate>,
+}
+
+/// What a raised decision answers (DEC-034, DEC-006).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum About {
+    /// A story about the player (`media::Scandal` id).
+    Scandal { id: u32 },
+    /// An investigation of the player (`justice::Case` id).
+    Case { id: u32 },
 }
 
 /// The director's requests on exogenous chance (DEC-033 B). Owning systems
@@ -475,6 +525,17 @@ pub struct NarrativeState {
     /// Lab switch: apply default options when deadlines pass (off, a
     /// decision past its deadline lapses without consequence).
     pub resolve_defaults: bool,
+    /// Stories and cases a decision has been raised for.
+    #[serde(default)]
+    pub raised: Vec<About>,
+    /// Lab switch: shape discovery timing by the chapter's tension (DEC-033
+    /// B). Off, a hidden fact's date is uniform in its window.
+    #[serde(default = "yes")]
+    pub shape_discovery: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl Default for NarrativeState {
@@ -501,6 +562,8 @@ impl Default for NarrativeState {
             seen: Seen::default(),
             spotlight: true,
             resolve_defaults: true,
+            raised: Vec::new(),
+            shape_discovery: true,
         }
     }
 }
@@ -565,27 +628,13 @@ impl NarrativeState {
         id
     }
 
-    /// Record a hidden fact (Commands phase: the player's own late-night
-    /// work). Its evidence window opens after `discovery_days[0]`.
-    pub fn hide(
-        &mut self,
-        content: &ContentBundle,
-        date: SimDate,
-        kind: &str,
-        actors: Vec<Actor>,
-    ) -> u32 {
+    /// Record a hidden fact (the Commands phase and NPC turns: the act
+    /// itself). `media::hide` settles its fate and window first.
+    pub fn hide(&mut self, mut h: HiddenFact) -> u32 {
         let id = self.next_hidden;
         self.next_hidden += 1;
-        let [a, b] = content.director.chance.discovery_days;
-        self.hidden.push(HiddenFact {
-            id,
-            kind: kind.into(),
-            date,
-            actors,
-            window: [date.add_days(a), date.add_days(b)],
-            discoverable_on: None,
-            surfaced: false,
-        });
+        h.id = id;
+        self.hidden.push(h);
         if self.hidden.len() > HIDDEN_CAP
             && let Some(i) = self.hidden.iter().position(|h| h.surfaced)
         {

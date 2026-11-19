@@ -16,6 +16,10 @@
       "rest": { "slots": 1, "health": -12 },
       "introduce": { "slots": 1 },
       "amend": { "slots": 1 },
+      // Shady actions (DEC-034): payoffs and risks in media.jsonc.
+      "take_bribe": { "slots": 0 },             // late at night only
+      "dip_funds": { "slots": 0 },              // money, not time
+      "leak_file": { "slots": 1 },
     },
     "turn_days": {                // DEC-012
       "campaign": 7,

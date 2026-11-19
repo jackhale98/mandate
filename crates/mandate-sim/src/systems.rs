@@ -17,6 +17,24 @@ pub fn default_systems() -> Vec<SystemDef> {
             run: SystemFn::Policy(policy::procedures),
         },
         SystemDef {
+            name: "justice.cases",
+            phase: P::Institutions,
+            cadence: Weekly,
+            run: SystemFn::Justice(crate::justice::weekly),
+        },
+        SystemDef {
+            name: "media.weekly",
+            phase: P::Information,
+            cadence: Weekly,
+            run: SystemFn::Media(crate::media::weekly),
+        },
+        SystemDef {
+            name: "population.coverage",
+            phase: P::Opinion,
+            cadence: Daily,
+            run: SystemFn::Population(crate::media::perceive),
+        },
+        SystemDef {
             name: "policy.implementation",
             phase: P::PolicyImplementation,
             cadence: Monthly,
@@ -117,6 +135,18 @@ pub fn default_systems() -> Vec<SystemDef> {
             phase: P::Characters,
             cadence: Daily,
             run: SystemFn::Politics(crate::characters::apply_effects),
+        },
+        SystemDef {
+            name: "politics.media_effects",
+            phase: P::Characters,
+            cadence: Daily,
+            run: SystemFn::Politics(crate::politics::media_effects),
+        },
+        SystemDef {
+            name: "player.effects",
+            phase: P::Characters,
+            cadence: Daily,
+            run: SystemFn::Player(player::effects),
         },
         SystemDef {
             name: "characters.monthly",

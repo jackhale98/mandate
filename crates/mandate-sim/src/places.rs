@@ -216,6 +216,9 @@ pub fn action_of(state: &State, cmd: &PlayerCommand) -> Option<(&'static str, bo
             Action::Press { .. } => ("press", false, None),
             Action::Advertise => ("advertise", false, None),
             Action::Rest => ("rest", false, None),
+            Action::TakeBribe => ("take_bribe", *late_night, None),
+            Action::DipFunds => ("dip_funds", false, None),
+            Action::LeakFile => ("leak_file", false, None),
         },
     })
 }
@@ -357,6 +360,9 @@ pub fn actions_at(
         };
         for late_night in [false, true] {
             if late_night && !mandate_content::LATE_NIGHT_ACTIONS.contains(&key) {
+                continue;
+            }
+            if !late_night && mandate_content::LATE_ONLY_ACTIONS.contains(&key) {
                 continue;
             }
             if locations_for(state, content, Offer::Action { key, late_night }, scope)

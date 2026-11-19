@@ -7,6 +7,7 @@ import type { DiagnosticsView } from "./DiagnosticsView";
 import type { LocaleView } from "./LocaleView";
 import type { MapView } from "./MapView";
 import type { MunicipalityView } from "./MunicipalityView";
+import type { NewspaperView } from "./NewspaperView";
 import type { OfficeView } from "./OfficeView";
 import type { OverviewView } from "./OverviewView";
 import type { PlacePanelView } from "./PlacePanelView";
@@ -15,4 +16,4 @@ import type { ScenarioListView } from "./ScenarioListView";
 import type { StoryView } from "./StoryView";
 import type { TownPlacesView } from "./TownPlacesView";
 
-export type ResponseBody = { "kind": "game_started", "payload": OverviewView } | { "kind": "command_applied", "payload": CommandAppliedView } | { "kind": "overview", "payload": OverviewView } | { "kind": "office", "payload": OfficeView } | { "kind": "campaign", "payload": CampaignView } | { "kind": "map", "payload": MapView } | { "kind": "municipality", "payload": MunicipalityView } | { "kind": "pocket", "payload": PocketView } | { "kind": "town", "payload": TownPlacesView } | { "kind": "place", "payload": PlacePanelView } | { "kind": "character", "payload": CharacterView } | { "kind": "decision", "payload": DecisionView } | { "kind": "story", "payload": StoryView } | { "kind": "locale", "payload": LocaleView } | { "kind": "scenarios", "payload": ScenarioListView } | { "kind": "diagnostics", "payload": DiagnosticsView };
+export type ResponseBody = { "kind": "game_started", "payload": OverviewView } | { "kind": "command_applied", "payload": CommandAppliedView } | { "kind": "overview", "payload": OverviewView } | { "kind": "office", "payload": OfficeView } | { "kind": "campaign", "payload": CampaignView } | { "kind": "map", "payload": MapView } | { "kind": "municipality", "payload": MunicipalityView } | { "kind": "pocket", "payload": PocketView } | { "kind": "town", "payload": TownPlacesView } | { "kind": "place", "payload": PlacePanelView } | { "kind": "character", "payload": CharacterView } | { "kind": "decision", "payload": DecisionView } | { "kind": "story", "payload": StoryView } | { "kind": "newspaper", "payload": NewspaperView } | { "kind": "locale", "payload": LocaleView } | { "kind": "scenarios", "payload": ScenarioListView } | { "kind": "diagnostics", "payload": DiagnosticsView };

@@ -1515,3 +1515,73 @@ pub enum Filing {
     /// Sit this election out.
     Retire,
 }
+
+/// Fill a seat left empty mid-term (a removal from office, DEC-006): the
+/// departing member's party appoints a newcomer from the ward (or town),
+/// like a recruit for an election. Keyed by the date and the departing
+/// politician, so no sequential stream moves.
+pub(crate) fn appoint_replacement(
+    st: &mut PoliticsState,
+    r: &Reads<'_>,
+    leaving: PoliticianId,
+) -> Option<PoliticianId> {
+    let p = st.get(leaving)?.clone();
+    let m = p.municipality();
+    let council = st.councils.get(m as usize)?.clone();
+    let (role, hoods): (Role, Vec<u32>) = if council.mayor == Some(leaving) {
+        (
+            Role::Mayor { municipality: m },
+            r.world
+                .hoods_of(crate::world::MunicipalityId(m))
+                .map(|h| h as u32)
+                .collect(),
+        )
+    } else {
+        let wi = council.members.iter().position(|x| *x == leaving)?;
+        let ward = r
+            .world
+            .constituencies
+            .iter()
+            .filter(|c| c.tier == Tier::Local && c.jurisdiction == m)
+            .nth(wi)?;
+        (
+            Role::Councillor {
+                municipality: m,
+                ward: ward.id,
+            },
+            ward.neighborhoods.iter().map(|h| h.0).collect(),
+        )
+    };
+    let party = p.party.or(st.parties.first().map(|x| x.id))?;
+    let (given, family) = names(r);
+    let mut rng = mandate_core::rng::keyed(
+        r.meta.seed,
+        Stream::Elections,
+        &[0xA990, r.date.0 as u64, leaving.0 as u64],
+    );
+    let id = recruit(
+        st,
+        &mut rng,
+        &given,
+        &family,
+        r.population(),
+        &hoods,
+        party,
+        m,
+        r.date.calendar().year,
+        r.content,
+        r.meta.seed,
+    );
+    if let Some(c) = st.councils.get_mut(m as usize) {
+        if c.mayor == Some(leaving) {
+            c.mayor = Some(id);
+        } else if let Some(slot) = c.members.iter_mut().find(|x| **x == leaving) {
+            *slot = id;
+        }
+    }
+    set_role(st, id, role);
+    if let Some(x) = st.get_mut(id) {
+        x.record = 0.3;
+    }
+    Some(id)
+}

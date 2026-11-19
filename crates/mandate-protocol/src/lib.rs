@@ -5,6 +5,7 @@
 pub mod campaign;
 pub mod characters;
 pub mod map;
+pub mod media;
 pub mod narrative;
 pub mod office;
 pub mod places;
@@ -13,6 +14,7 @@ pub mod views;
 pub use campaign::*;
 pub use characters::*;
 pub use map::*;
+pub use media::*;
 pub use narrative::*;
 pub use office::*;
 pub use places::*;
@@ -191,6 +193,12 @@ pub enum ActionDto {
     Fundraise,
     Rest,
     Advertise,
+    /// Shady (DEC-034): late at night, at the diner.
+    TakeBribe,
+    /// Shady: at the party office.
+    DipFunds,
+    /// Shady: at the newspaper office (about the rival).
+    LeakFile,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -230,6 +238,8 @@ pub enum QueryDto {
     },
     /// The story so far: chapter, tension, storylines, past decisions.
     Story,
+    /// The newspaper: what the outlets reaching the player's town run (DEC-034).
+    Newspaper,
     /// Fluent sources for a language (DEC-054).
     Locale {
         lang: String,
@@ -284,6 +294,7 @@ pub enum ResponseBody {
     Character(CharacterView),
     Decision(DecisionView),
     Story(StoryView),
+    Newspaper(NewspaperView),
     Locale(LocaleView),
     Scenarios(ScenarioListView),
     Diagnostics(DiagnosticsView),

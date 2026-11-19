@@ -38,6 +38,7 @@ fn memory_kind(key: &str) -> Option<MemoryKind> {
         StoodWithMe,
         StoodAgainstMe,
         IgnoredMe,
+        BlamedMe,
     ]
     .into_iter()
     .find(|k| k.key() == key)
@@ -90,6 +91,7 @@ fn apply_effect(
     content: &ContentBundle,
     id: DecisionId,
     cast: &[super::CastEntry],
+    about: Option<super::About>,
     e: &EffectDef,
     by_default: bool,
 ) -> Applied {
@@ -347,6 +349,44 @@ fn apply_effect(
                 Err(_) => skip("draft"),
             }
         }
+        EffectDef::Hidden { with_role, .. } => {
+            let (Some(spec), Some(me)) = (e.hidden_spec(), me_pol) else {
+                return skip("hidden");
+            };
+            let risk = crate::media::risk_within_horizon(
+                content,
+                &crate::media::exposure(state, content, &spec, me),
+            );
+            let actors = with_role
+                .as_deref()
+                .and_then(|r| super::actor_of(cast, r))
+                .into_iter()
+                .collect();
+            crate::media::hide(state, content, &spec, me, actors);
+            Applied::Hidden {
+                kind: spec.kind,
+                risk: risk as f32,
+            }
+        }
+        EffectDef::ScandalResponse { response } => match about {
+            Some(super::About::Scandal { id }) => {
+                crate::media::respond(state, content, id, *response);
+                Applied::Responded {
+                    response: response.key().into(),
+                }
+            }
+            _ => skip("scandal_response"),
+        },
+        EffectDef::LegalResponse { response, role } => match about {
+            Some(super::About::Case { id }) => {
+                let ally = role.as_deref().and_then(|r| person_of(cast, r));
+                crate::justice::respond(state, content, id, *response, ally);
+                Applied::Responded {
+                    response: response.key().into(),
+                }
+            }
+            _ => skip("legal_response"),
+        },
     }
 }
 
@@ -393,7 +433,7 @@ pub fn answer(
     let applied: Vec<Applied> = opt
         .effects
         .iter()
-        .map(|e| apply_effect(state, content, id, &d.cast, e, by_default))
+        .map(|e| apply_effect(state, content, id, &d.cast, d.about, e, by_default))
         .collect();
     let n = &mut state.narrative;
     if let Some(x) = n.decisions.iter_mut().find(|x| x.id == id) {

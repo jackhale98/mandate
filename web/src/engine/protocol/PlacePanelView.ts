@@ -3,6 +3,7 @@ import type { BudgetPapersView } from "./BudgetPapersView";
 import type { DecisionView } from "./DecisionView";
 import type { InternalPollView } from "./InternalPollView";
 import type { LocationView } from "./LocationView";
+import type { NewspaperView } from "./NewspaperView";
 import type { OfferView } from "./OfferView";
 import type { OverheardView } from "./OverheardView";
 import type { PersonRefView } from "./PersonRefView";
@@ -16,6 +17,10 @@ export type PlacePanelView = { location: LocationView, here: boolean, actions: A
  * Service payloads: only filled while the player is here.
  */
 town_data: TownDataView | null, budget: BudgetPapersView | null, internal_poll: InternalPollView | null, overheard: OverheardView | null, 
+/**
+ * The newspaper (DEC-034): only while the player is here.
+ */
+newspaper: NewspaperView | null, 
 /**
  * Who is here (DEC-018): characters who work or sit here, then
  * passers-by. Listed wherever the panel is opened; meeting someone

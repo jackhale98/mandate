@@ -45,6 +45,31 @@ pub enum Action {
     Rest,
     /// Buy local advertising for the campaign (costs campaign funds).
     Advertise,
+    /// Shady (DEC-034): take an envelope at the diner, late at night.
+    TakeBribe,
+    /// Shady: put household bills on the campaign card (the party office).
+    DipFunds,
+    /// Shady: slip a rival's confidential file to a reporter (the newspaper).
+    LeakFile,
+}
+
+impl Action {
+    /// The action-cost and place key.
+    pub fn key(&self) -> &'static str {
+        match self {
+            Action::Lobby { .. } => "lobby",
+            Action::TradeFavor { .. } => "trade_favor",
+            Action::TownHall { .. } => "town_hall",
+            Action::Press { .. } => "press",
+            Action::Canvass { .. } => "canvass",
+            Action::Fundraise => "fundraise",
+            Action::Rest => "rest",
+            Action::Advertise => "advertise",
+            Action::TakeBribe => "take_bribe",
+            Action::DipFunds => "dip_funds",
+            Action::LeakFile => "leak_file",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -397,6 +422,16 @@ pub fn apply(
         .clone();
     let m = pl.municipality.0;
     let mut res = ActionResult::default();
+    // In prison, or the career is over (DEC-006): nothing to do but wait.
+    match pl.status {
+        crate::player::RunStatus::Active => {}
+        crate::player::RunStatus::Imprisoned { .. } => {
+            return Err(bad("you are in prison"));
+        }
+        crate::player::RunStatus::Ended { .. } => {
+            return Err(bad("your career is over"));
+        }
+    }
     match cmd {
         PlayerCommand::MoveTo { location } => return move_to(state, *location),
         PlayerCommand::Answer { decision, option } => {
@@ -574,12 +609,18 @@ pub fn apply(
             if *late_night
                 && !matches!(
                     action,
-                    Action::Lobby { .. } | Action::TradeFavor { .. } | Action::Fundraise
+                    Action::Lobby { .. }
+                        | Action::TradeFavor { .. }
+                        | Action::Fundraise
+                        | Action::TakeBribe
                 )
             {
                 return Err(bad(
                     "only private meetings and fundraising happen late at night",
                 ));
+            }
+            if !*late_night && matches!(action, Action::TakeBribe) {
+                return Err(bad("envelopes change hands late at night"));
             }
             match action {
                 Action::Lobby { politician, policy }
@@ -677,12 +718,13 @@ pub fn apply(
                             (p.tracks.legal_jeopardy + fx.late_night_legal as f32).min(100.0);
                     }
                     if *late_night {
-                        // A back-room deal is a hidden fact (DEC-034 hook):
-                        // the director times when it may come to light.
-                        state.narrative.hide(
+                        // A back-room deal is a hidden fact (DEC-034): its fate
+                        // is settled now; the director times when it surfaces.
+                        crate::media::hide(
+                            state,
                             content,
-                            date,
-                            "late_night_deal",
+                            &content.media.late_night_deal,
+                            pl.politician,
                             vec![crate::narrative::Actor::Person { id: tc }],
                         );
                     }
@@ -816,6 +858,8 @@ pub fn apply(
                     if !gaffe {
                         campaign_contact(state, content, None, fx.contact);
                     }
+                    // Outlets decide whether and how to cover it (DEC-034).
+                    crate::media::statement(state, content, pl.politician, *policy);
                     res.outcome_key = if gaffe {
                         "outcome-press-gaffe"
                     } else {
@@ -885,9 +929,13 @@ pub fn apply(
                         }
                     }
                     if *late_night {
-                        state
-                            .narrative
-                            .hide(content, date, "late_night_fundraising", Vec::new());
+                        crate::media::hide(
+                            state,
+                            content,
+                            &content.media.late_night_fundraising,
+                            pl.politician,
+                            Vec::new(),
+                        );
                     }
                     // Donor ties: low-income voters who know you notice who you court.
                     let hoods: Vec<usize> = state.world.hoods_of(MunicipalityId(m)).collect();
@@ -938,6 +986,8 @@ pub fn apply(
                             crate::politics::elections::advertise(c, &content.politics.campaign, n);
                         }
                     }
+                    // Changing the subject cools a running scandal a little.
+                    crate::media::advertised(state, content, me);
                     res.outcome_key = "outcome-advertise".into();
                     res.args.insert("amount".into(), cost.units().to_string());
                 }
@@ -945,21 +995,15 @@ pub fn apply(
                     spend(state, content, "rest", false)?;
                     res.outcome_key = "outcome-rest".into();
                 }
+                Action::TakeBribe | Action::DipFunds | Action::LeakFile => {
+                    res = shady(state, content, action, *late_night)?;
+                }
             }
-            let action_key = match action {
-                Action::Lobby { .. } => "action-lobby",
-                Action::TradeFavor { .. } => "action-trade-favor",
-                Action::TownHall { .. } => "action-town-hall",
-                Action::Press { .. } => "action-press",
-                Action::Canvass { .. } => "action-canvass",
-                Action::Fundraise => "action-fundraise",
-                Action::Advertise => "action-advertise",
-                Action::Rest => "action-rest",
-            };
+            let action_key = format!("action-{}", action.key().replace('_', "-"));
             if let Some(p) = state.player.as_mut() {
                 p.log(
                     date,
-                    action_key,
+                    &action_key,
                     &res.outcome_key,
                     res.args
                         .iter()
@@ -967,6 +1011,141 @@ pub fn apply(
                         .collect(),
                 );
             }
+        }
+    }
+    Ok(res)
+}
+
+/// Who offers a bribe in the player's town: the power broker, else a
+/// business leader or plant manager (a Named person who wants something).
+pub fn briber(state: &State) -> Option<characters::CharacterId> {
+    let pl = state.player.as_ref()?;
+    let m = pl.municipality.0;
+    let me = characters::player_character(state);
+    let town = state.politics.characters.towns.get(m as usize);
+    town.and_then(|t| t.broker)
+        .filter(|b| {
+            Some(*b) != me
+                && state
+                    .politics
+                    .characters
+                    .get(*b)
+                    .is_some_and(|c| c.politician.is_none())
+        })
+        .or_else(|| {
+            state
+                .politics
+                .characters
+                .people
+                .iter()
+                .filter(|c| {
+                    c.named.as_deref().is_some_and(|n| {
+                        matches!(
+                            n.occupation.as_str(),
+                            "occupation.business_leader" | "occupation.plant_manager"
+                        ) && n
+                            .place
+                            .and_then(|p| state.world.places.get(p.index()))
+                            .is_some_and(|p| p.municipality.0 == m)
+                    })
+                })
+                .map(|c| c.id)
+                .next()
+        })
+}
+
+/// The rival a leak targets: the town's named rival (a politician).
+pub fn leak_target(state: &State) -> Option<PoliticianId> {
+    let pl = state.player.as_ref()?;
+    let rival = state
+        .politics
+        .characters
+        .towns
+        .get(pl.municipality.index())?
+        .rival?;
+    state.politics.characters.get(rival)?.politician
+}
+
+/// Shady actions (DEC-034, DEC-073): a real payoff now, a hidden fact that
+/// may come out later (the risk is shown before acting).
+fn shady(
+    state: &mut State,
+    content: &ContentBundle,
+    action: &Action,
+    late_night: bool,
+) -> Result<ActionResult, EngineError> {
+    let key = action.key();
+    let def = content
+        .media
+        .shady_actions
+        .get(key)
+        .ok_or_else(|| bad("that is not possible here"))?
+        .clone();
+    let me = state
+        .player
+        .as_ref()
+        .map(|p| p.politician)
+        .ok_or_else(|| bad("no player"))?;
+    let mut res = ActionResult::default();
+    let mut actors = Vec::new();
+    let rival = match action {
+        Action::TakeBribe => {
+            let b = briber(state).ok_or_else(|| bad("nobody here is offering"))?;
+            actors.push(crate::narrative::Actor::Person { id: b });
+            if let Some(p) = characters::profile(&state.politics, &state.world, b) {
+                res.args.insert("name".into(), p.full_name());
+            }
+            None
+        }
+        Action::DipFunds => {
+            if state
+                .player
+                .as_ref()
+                .is_some_and(|p| (p.money.units() as f64) < -def.money)
+            {
+                return Err(bad("not enough campaign funds"));
+            }
+            None
+        }
+        _ => {
+            let r = leak_target(state).ok_or_else(|| bad("you have no rival to leak about"))?;
+            if let Some(c) = state.politics.get(r).map(|p| p.character) {
+                actors.push(crate::narrative::Actor::Person { id: c });
+            }
+            res.args.insert(
+                "name".into(),
+                state
+                    .politics
+                    .get(r)
+                    .map(|p| p.full_name())
+                    .unwrap_or_default(),
+            );
+            Some(r)
+        }
+    };
+    spend(state, content, key, late_night)?;
+    if let Some(p) = state.player.as_mut() {
+        let money = (p.money.units() as f64 + def.money).max(0.0);
+        p.money = Money::from_units(money.round() as i64);
+        p.tracks.health = clamp(p.tracks.health as f64 + def.health, 0.0, 100.0) as f32;
+        p.tracks.legal_jeopardy =
+            clamp(p.tracks.legal_jeopardy as f64 + def.legal, 0.0, 100.0) as f32;
+    }
+    let hidden = crate::media::hide(state, content, &def.hidden, me, actors);
+    res.outcome_key = format!("outcome-{}", key.replace('_', "-"));
+    if def.money > 0.0 {
+        res.args
+            .insert("amount".into(), (def.money as i64).to_string());
+    }
+    if let Some(r) = rival {
+        match crate::media::leak(state, r, hidden) {
+            Some(crate::media::Leak::Exposed { .. }) => {
+                res.outcome_key = "outcome-leak-file-exposed".into();
+            }
+            Some(crate::media::Leak::Rumour { .. }) => {
+                res.outcome_key = "outcome-leak-file-rumour".into();
+            }
+            None => {}
         }
     }
     Ok(res)

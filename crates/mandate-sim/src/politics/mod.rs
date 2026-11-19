@@ -136,6 +136,77 @@ pub fn add_record(st: &mut PoliticsState, id: PoliticianId, amount: f32) {
     }
 }
 
+/// Politics domain, Characters phase, daily: what coverage and the courts
+/// did (DEC-034, DEC-006): scandal valence, memories, removals from office
+/// (the party fills the seat), and NPCs' sentences.
+pub fn media_effects(
+    st: &mut PoliticsState,
+    r: &crate::scheduler::Reads<'_>,
+    out: &mut crate::scheduler::Outs<'_>,
+) {
+    use crate::scheduler::Effect;
+    let player = r.player.map(|p| p.politician);
+    for e in out.effects.take(|e| match e {
+        Effect::Valence { .. } | Effect::Remember { .. } | Effect::Removal { .. } => true,
+        Effect::Sentenced { politician, .. } => Some(*politician) != player,
+        _ => false,
+    }) {
+        match e {
+            Effect::Valence { politician, delta } => {
+                if let Some(p) = st.get_mut(politician) {
+                    p.scandal = (p.scandal + delta).clamp(0.0, 1.0);
+                }
+            }
+            Effect::Remember {
+                holder,
+                actor,
+                kind,
+            } => {
+                if st.characters.get(holder).and_then(|c| c.politician) != player {
+                    crate::characters::remember(
+                        st, r.content, r.date, holder, actor, kind, None, None,
+                    );
+                }
+            }
+            Effect::Removal { politician, barred } => {
+                let Some(p) = st.get(politician) else {
+                    continue;
+                };
+                if p.in_office() {
+                    let m = p.municipality();
+                    elections::appoint_replacement(st, r, politician);
+                    if let Some(p) = st.get_mut(politician) {
+                        p.role = Role::Private { municipality: m };
+                        p.terms_in_office = 0;
+                    }
+                }
+                if barred
+                    && let Some(p) = st.get_mut(politician)
+                    && !p.is_player
+                {
+                    // In prison: no candidacy (the party will not recruit them).
+                    p.ambition = 0.0;
+                }
+            }
+            Effect::Sentenced {
+                politician,
+                sentence,
+                ..
+            } => {
+                if let Some(p) = st.get_mut(politician) {
+                    if let crate::justice::Sentence::Fine { amount }
+                    | crate::justice::Sentence::Removed { amount } = sentence
+                    {
+                        p.funds = (p.funds - amount).max(0.0);
+                    }
+                    p.scandal = (p.scandal + 0.2).min(1.0);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 impl PoliticsState {
     pub fn get(&self, id: PoliticianId) -> Option<&Politician> {
         self.politicians.get(id.index())

@@ -1,0 +1,101 @@
+// Media, scandals, and shady acts (DEC-034, DEC-073, DEC-078 decision 1).
+// One file across all packs; every field is required.
+//
+// Four layers: facts (the narrative's facts log and hidden facts), knowledge
+// (who uncovered what, with what evidence), coverage (stories outlets run),
+// and perception (what voters and people believe, from coverage only).
+// Whether a hidden fact will come out is settled when it happens, from its
+// evidence, the discoverers' interest, and their access; when it comes out,
+// within its evidence window, is the director's (DEC-033 B).
+{
+  "kind": "media",
+  "value": {
+    "discovery": {
+      // Discoverers' interest by severity (× evidence × access is each one's chance).
+      "interest": { "ethics": 0.35, "misconduct": 0.6, "crime": 0.85 },
+      "access": { "journalist": 0.55, "rival": 0.3, "auditor": 0.35, "investigator": 0.3 },
+      "journalists_full": 2.0,      // a town's journalists give full access from this many
+      "journalist_floor": 0.3,      // a town without journalists: the regional press
+      // Evidence window, days after the act: strong evidence surfaces sooner.
+      "window_strong": [45, 270],
+      "window_weak": [120, 720],
+      "horizon_days": 365,          // the risk line: "this comes out within a year"
+      "bands": [0.15, 0.4],         // low / real / high
+    },
+    "coverage": {
+      "newsworthiness": { "ethics": 0.5, "misconduct": 0.8, "crime": 1.2 },
+      "heat_keep": 0.72,            // a scandal's heat each week
+      "heat_end": 0.12,             // it is over below this
+      "min_score": 0.15,
+      "hostility_interest": 0.6,    // an outlet that disagrees with you digs more
+      "regional_access": 0.45,      // a regional outlet picks up a town affair (× severity weight)
+      "national_access": 0.25,
+      "typical_budget": 400000,
+      "town_news": true,            // the local paper also runs neutral town news
+      "stories_kept": 400,
+    },
+    "perception": {
+      "severity_weight": { "ethics": 0.3, "misconduct": 0.6, "crime": 1.0 },
+      "approval": 0.03,             // per story × weight × heat × exposure × credibility
+      "awareness": 0.03,
+      "framing": 0.5,               // hostile framing hurts up to 1.5×
+      "valence": 0.04,              // a politician's scandal valence per story (NPCs and the player)
+      "standing": 4.0,              // the party's Standing lost when it breaks, × weight
+      "statement": 0.01,            // a covered statement: approval × framing
+      "legal_story": 1.0,           // charges and convictions, beside a breaking story
+      "acquittal": 0.6,
+    },
+    "responses": {
+      "deny_heat": 0.6,             // weak evidence: the story loses steam
+      "deny_strong": 0.55,          // strong evidence: the denial unravels
+      "deny_backfire_heat": 1.5,
+      "deny_backfire_standing": 4.0,
+      "explain_heat": 0.75,
+      "apologise_heat": 0.35,
+      "apologise_evidence": 0.1,    // an admission helps prosecutors
+      "counter_heat": 0.9,
+      "counter_hostility": 0.3,
+      "statement_heat": 0.85,
+      "ad_heat": 0.92,
+    },
+    "rumours": {
+      "spread_weeks": 4,
+      "correction_chance": 0.35,    // weekly, × the correcting outlet's credibility
+      "correction_share": 0.7,
+      "weight": 0.5,
+    },
+    // Shady actions at places (DEC-079): the payoff now, the hidden fact later.
+    "shady_actions": {
+      // The diner, late at night: an envelope from someone who wants something.
+      "take_bribe": { "money": 4000, "legal": 2.0,
+        "hidden": { "kind": "bribe", "severity": "crime", "evidence": 0.45 } },
+      // The party office: the campaign card pays the household bills.
+      "dip_funds": { "money": -1200, "health": 12.0,
+        "hidden": { "kind": "campaign_funds", "severity": "misconduct", "evidence": 0.6,
+                    "discoverers": ["journalist", "auditor", "rival"] } },
+      // The newspaper office: a rival's confidential file, slipped to a reporter.
+      "leak_file": { "legal": 1.0,
+        "hidden": { "kind": "leaked_file", "severity": "misconduct", "evidence": 0.35,
+                    "discoverers": ["journalist", "rival", "investigator"] } },
+    },
+    // NPCs' acts (DEC-030): the same exposure model; money goes to their war chest.
+    "npc_acts": {
+      "take_bribe": { "money": 4000,
+        "hidden": { "kind": "bribe", "severity": "crime", "evidence": 0.45 } },
+      "donor_deal": { "money": 2500,
+        "hidden": { "kind": "donor_deal", "severity": "misconduct", "evidence": 0.4,
+                    "discoverers": ["journalist", "rival", "auditor"] } },
+    },
+    "temptation": {
+      "chance": 0.006,              // per turn, at integrity 0 and ambition 0.5
+      "integrity_power": 2.0,
+      "ambition_base": 0.5,
+      "acts": ["donor_deal", "take_bribe"],
+    },
+    // M5c's hidden facts: back-room deals and late-night money.
+    "late_night_deal": { "kind": "back_room_deal", "severity": "ethics", "evidence": 0.3,
+                         "discoverers": ["journalist", "rival"] },
+    "late_night_fundraising": { "kind": "late_night_money", "severity": "ethics", "evidence": 0.35,
+                                "discoverers": ["journalist", "rival", "auditor"] },
+  },
+}

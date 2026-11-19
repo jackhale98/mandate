@@ -232,6 +232,9 @@ pub enum Cast {
     },
     /// The person whose goal raised this request (requests only).
     GoalHolder,
+    /// The colleague closest to the player (the highest opinion of them):
+    /// someone to lean on, or to blame.
+    Ally,
 }
 
 /// A pressure track, record, or Mandate (DEC-006, DEC-011, DEC-076).
@@ -470,6 +473,87 @@ pub enum EffectDef {
         #[serde(default)]
         params: BTreeMap<String, f64>,
     },
+    /// A borderline or illegal act (DEC-034): a hidden fact that may come to
+    /// light (its risk is shown before the player commits, DEC-073).
+    Hidden {
+        kind: String,
+        severity: crate::media::Gravity,
+        evidence: f64,
+        #[serde(default)]
+        discoverers: Vec<crate::media::Discoverer>,
+        /// A cast person in on it (named in the fact).
+        #[serde(default)]
+        with_role: Option<String>,
+    },
+    /// The player's answer to a story about them (scandal decisions only).
+    ScandalResponse {
+        response: ScandalResponseKind,
+    },
+    /// The player's answer to an investigation (investigation decisions
+    /// only); `blame` names the cast ally in `role`.
+    LegalResponse {
+        response: LegalResponseKind,
+        #[serde(default)]
+        role: Option<String>,
+    },
+}
+
+/// How the player answers a story (DEC-034 player communication).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ScandalResponseKind {
+    /// Say nothing (the story runs its course).
+    None,
+    Deny,
+    Explain,
+    Apologise,
+    CounterAttack,
+}
+
+impl ScandalResponseKind {
+    pub fn key(self) -> &'static str {
+        match self {
+            ScandalResponseKind::None => "none",
+            ScandalResponseKind::Deny => "deny",
+            ScandalResponseKind::Explain => "explain",
+            ScandalResponseKind::Apologise => "apologise",
+            ScandalResponseKind::CounterAttack => "counter_attack",
+        }
+    }
+}
+
+/// How the player answers an investigation (DEC-006 Legal Jeopardy).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LegalResponseKind {
+    /// Wait and see.
+    None,
+    Cooperate,
+    Lawyer,
+    Stonewall,
+    BlameAlly,
+}
+
+impl LegalResponseKind {
+    pub fn key(self) -> &'static str {
+        match self {
+            LegalResponseKind::None => "none",
+            LegalResponseKind::Cooperate => "cooperate",
+            LegalResponseKind::Lawyer => "lawyer",
+            LegalResponseKind::Stonewall => "stonewall",
+            LegalResponseKind::BlameAlly => "blame_ally",
+        }
+    }
+}
+
+/// What raises a decision other than the director's spotlight: a story
+/// about the player, or an investigation of them. Raised decisions are
+/// fairness first (DEC-006): never budgeted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RaisedBy {
+    Scandal,
+    Investigation,
 }
 
 impl EffectDef {
@@ -490,6 +574,28 @@ impl EffectDef {
             EffectDef::Repay { .. } => (true, true),
             EffectDef::Vote { .. } => (true, true),
             EffectDef::Draft { .. } => (false, true),
+            // A risk, never a benefit: the option's payoff is elsewhere.
+            EffectDef::Hidden { .. } => (true, false),
+            EffectDef::ScandalResponse { .. } | EffectDef::LegalResponse { .. } => (true, true),
+        }
+    }
+
+    /// The hidden-fact spec of a `Hidden` effect.
+    pub fn hidden_spec(&self) -> Option<crate::media::HiddenSpec> {
+        match self {
+            EffectDef::Hidden {
+                kind,
+                severity,
+                evidence,
+                discoverers,
+                ..
+            } => Some(crate::media::HiddenSpec {
+                kind: kind.clone(),
+                severity: *severity,
+                evidence: *evidence,
+                discoverers: discoverers.clone(),
+            }),
+            _ => None,
         }
     }
 
@@ -503,6 +609,8 @@ impl EffectDef {
             EffectDef::Approval { neighborhood, .. } => {
                 neighborhood.iter().map(|s| s.as_str()).collect()
             }
+            EffectDef::Hidden { with_role, .. } => with_role.iter().map(|s| s.as_str()).collect(),
+            EffectDef::LegalResponse { role, .. } => role.iter().map(|s| s.as_str()).collect(),
             _ => Vec::new(),
         }
     }
@@ -593,6 +701,10 @@ pub struct DilemmaDef {
     /// Only presented as a storyline stage, never on its own.
     #[serde(default)]
     pub storyline_only: bool,
+    /// Raised by a story or an investigation about the player, not by the
+    /// spotlight (DEC-006 fairness: never budgeted).
+    #[serde(default)]
+    pub raised_by: Option<RaisedBy>,
 }
 
 // --- NPC goals (DEC-032) ----------------------------------------------------------------
@@ -1103,8 +1215,13 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
     for c in &d.triggers {
         scope.condition(c, issues);
     }
-    if !(2..=4).contains(&d.options.len()) {
-        issues.push(Issue::error(owner, "a dilemma has 2–4 options"));
+    // A raised decision answers a story or a case: four answers and silence.
+    let most = if d.raised_by.is_some() { 5 } else { 4 };
+    if !(2..=most).contains(&d.options.len()) {
+        issues.push(Issue::error(
+            owner,
+            &format!("a dilemma has 2–{most} options"),
+        ));
     }
     let defaults = d.options.iter().filter(|o| o.default).count();
     if defaults != 1 {
@@ -1229,8 +1346,61 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
                     }
                 }
                 EffectDef::Favour { .. } | EffectDef::Repay { .. } => {}
+                EffectDef::Hidden { kind, evidence, .. } => {
+                    if !in_range(*evidence, 0.0, 1.0) {
+                        issues.push(Issue::error(&at, "hidden evidence must be in [0, 1]"));
+                    }
+                    if kind.is_empty() || !kind.chars().all(|c| c.is_ascii_lowercase() || c == '_')
+                    {
+                        issues.push(Issue::error(
+                            &at,
+                            "a hidden fact kind is lower-case letters and `_`",
+                        ));
+                    }
+                }
+                EffectDef::ScandalResponse { .. } => {
+                    if d.raised_by != Some(RaisedBy::Scandal) {
+                        issues.push(Issue::error(
+                            &at,
+                            "a scandal response belongs to a decision raised by a scandal",
+                        ));
+                    }
+                }
+                EffectDef::LegalResponse { response, role } => {
+                    if d.raised_by != Some(RaisedBy::Investigation) {
+                        issues.push(Issue::error(
+                            &at,
+                            "a legal response belongs to a decision raised by an investigation",
+                        ));
+                    }
+                    let blame = *response == LegalResponseKind::BlameAlly;
+                    if blame != role.is_some() {
+                        issues.push(Issue::error(
+                            &at,
+                            "blaming an ally names the ally's role (and only blaming does)",
+                        ));
+                    }
+                }
             }
         }
+        if let Some(by) = d.raised_by {
+            let answers = o.effects.iter().any(|e| match by {
+                RaisedBy::Scandal => matches!(e, EffectDef::ScandalResponse { .. }),
+                RaisedBy::Investigation => matches!(e, EffectDef::LegalResponse { .. }),
+            });
+            if !answers {
+                issues.push(Issue::error(
+                    &at,
+                    "every option of a raised decision is a response to it",
+                ));
+            }
+        }
+    }
+    if d.raised_by.is_some() && (d.category != DilemmaCategory::Significant || d.storyline_only) {
+        issues.push(Issue::error(
+            owner,
+            "a raised decision is significant and stands on its own",
+        ));
     }
     if let Some(s) = &d.scene {
         match b.scene(s) {

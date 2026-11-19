@@ -156,6 +156,10 @@ pub struct PocketView {
     /// Decisions waiting for the player, soonest deadline first (DEC-079:
     /// always listed here and answerable from here).
     pub decisions: Vec<crate::narrative::DecisionView>,
+    /// The latest headlines in town (coarse: the newspaper has the rest).
+    pub news: Vec<crate::media::ArticleView>,
+    /// Scandals, cases, and where the career stands (DEC-006, DEC-034).
+    pub legal: Option<crate::media::LegalView>,
 }
 
 /// One location on the town schematic, with what it offers.
@@ -205,6 +209,8 @@ pub struct OfferView {
     pub health: f64,
     /// Chance it goes wrong (a gaffe, a hostile crowd), where it can.
     pub risk: Option<f64>,
+    /// A shady action's payoff and exposure (DEC-073 risk line).
+    pub shady: Option<crate::media::ShadyOfferView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -314,6 +320,8 @@ pub struct PlacePanelView {
     pub budget: Option<BudgetPapersView>,
     pub internal_poll: Option<InternalPollView>,
     pub overheard: Option<OverheardView>,
+    /// The newspaper (DEC-034): only while the player is here.
+    pub newspaper: Option<crate::media::NewspaperView>,
     /// Who is here (DEC-018): characters who work or sit here, then
     /// passers-by. Listed wherever the panel is opened; meeting someone
     /// needs the player there.
@@ -463,6 +471,19 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
     if pl.tracks.legal_jeopardy >= 50.0 {
         alerts.push(alert("alert-legal", &[]));
     }
+    // A story about you is running; a case against you is open (DEC-034, DEC-006).
+    for sc in st.media.running_about(pl.politician) {
+        alerts.push(alert(
+            "alert-scandal",
+            &[("fact_key", format!("fact-{}", sc.kind.replace('_', "-")))],
+        ));
+    }
+    for c in st.justice.open_against(pl.politician) {
+        alerts.push(alert(
+            "alert-case",
+            &[("stage_key", format!("case-stage-{}", c.stage.key()))],
+        ));
+    }
     let decisions = crate::narrative::pending_decisions(engine);
     if !decisions.is_empty() {
         alerts.push(alert(
@@ -527,6 +548,10 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
         },
         location: location_view(st, pl.location),
         routes: routes(engine),
+        news: crate::media::newspaper_view(engine, 3)
+            .map(|n| n.articles)
+            .unwrap_or_default(),
+        legal: crate::media::legal_view(engine),
     })
 }
 
@@ -608,6 +633,14 @@ fn offer_view(engine: &Engine, loc: Location, key: &str, late_night: bool) -> Of
             .map(|h| mandate_sim::actions::town_hall_risk(st, engine.content(), h.0)),
         _ => None,
     };
+    let shady = mandate_content::SHADY_ACTIONS
+        .contains(&key)
+        .then(|| {
+            crate::media::shady_offers(engine)
+                .into_iter()
+                .find(|x| x.action == key)
+        })
+        .flatten();
     // Free commands (votes, drafting, filing) take no slot.
     let free = matches!(key, "vote" | "draft" | "file" | "withdraw");
     OfferView {
@@ -624,6 +657,7 @@ fn offer_view(engine: &Engine, loc: Location, key: &str, late_night: bool) -> Of
             cost.health
         },
         risk,
+        shady,
     }
 }
 
@@ -839,6 +873,11 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
         },
         overheard: if has("overheard") {
             overheard(engine, loc)
+        } else {
+            None
+        },
+        newspaper: if has("newspaper") {
+            crate::media::newspaper_view(engine, 24)
         } else {
             None
         },

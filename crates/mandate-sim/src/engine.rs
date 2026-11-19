@@ -152,6 +152,8 @@ impl Engine {
         // Narrative (DEC-074): pending decisions and storylines whose
         // template was removed lapse; nothing is refused.
         crate::narrative::on_load(&mut state, &content);
+        // Media (DEC-034): a save from before the press gets its outlets.
+        crate::media::on_load(&mut state, &content);
         Ok(Engine {
             state,
             terrain: None,
@@ -224,37 +226,39 @@ impl Engine {
     pub fn apply(&mut self, command: Command) -> Result<CommandOutcome, EngineError> {
         let outcome = match &command {
             Command::EndTurn => {
-                let days = self.turn_days();
-                // Decisions whose deadline falls in this turn take their
-                // default: the player let them pass (DEC-077 §4).
-                let until = self.state.calendar.date.add_days(days);
-                crate::narrative::resolve_due(&mut self.state, &self.content, until);
-                // NPCs act in the same turn as the player, before time moves (DEC-030).
-                self.npc_turns();
-                let seeded = std::mem::take(&mut self.pending_effects);
-                let _ = self.schedule.advance_with(
-                    &mut self.state,
-                    &self.content,
-                    days,
-                    seeded,
-                    &mut |_| {},
-                );
-                self.state.calendar.turn += 1;
-                let turn = self.state.calendar.turn;
-                self.state.events.record(
-                    self.state.calendar.date,
-                    EventKind::TurnEnded { turn },
-                    vec![],
-                );
-                if let Some(p) = self.state.player.as_mut() {
-                    p.slots_used = 0;
-                    p.late_night_used = false;
-                    p.ads_this_turn = 0;
+                if self
+                    .state
+                    .player
+                    .as_ref()
+                    .is_some_and(|p| matches!(p.status, crate::player::RunStatus::Ended { .. }))
+                {
+                    return Err(EngineError::InvalidCommand("the career is over".into()));
                 }
-                self.update_phase();
+                // In prison (a short sentence, DEC-006): time passes, turn by
+                // turn, until release; the world goes on (a time skip).
+                let mut days = 0;
+                while let Some(crate::player::RunStatus::Imprisoned { .. }) =
+                    self.state.player.as_ref().map(|p| p.status)
+                {
+                    days += self.end_one_turn();
+                }
+                if days > 0 {
+                    let turn = self.state.calendar.turn;
+                    self.command_log.push(LoggedCommand {
+                        index: self.next_command,
+                        command,
+                    });
+                    self.next_command += 1;
+                    return Ok(CommandOutcome {
+                        days_advanced: days,
+                        turn,
+                        result: None,
+                    });
+                }
+                let days = self.end_one_turn();
                 CommandOutcome {
                     days_advanced: days,
-                    turn,
+                    turn: self.state.calendar.turn,
                     result: None,
                 }
             }
@@ -346,6 +350,36 @@ impl Engine {
         });
         self.next_command += 1;
         Ok(outcome)
+    }
+
+    /// One turn: decisions falling due take their default, NPCs act, the
+    /// calendar advances. Returns the days advanced.
+    fn end_one_turn(&mut self) -> u32 {
+        let days = self.turn_days();
+        // Decisions whose deadline falls in this turn take their
+        // default: the player let them pass (DEC-077 §4).
+        let until = self.state.calendar.date.add_days(days);
+        crate::narrative::resolve_due(&mut self.state, &self.content, until);
+        // NPCs act in the same turn as the player, before time moves (DEC-030).
+        self.npc_turns();
+        let seeded = std::mem::take(&mut self.pending_effects);
+        let _ =
+            self.schedule
+                .advance_with(&mut self.state, &self.content, days, seeded, &mut |_| {});
+        self.state.calendar.turn += 1;
+        let turn = self.state.calendar.turn;
+        self.state.events.record(
+            self.state.calendar.date,
+            EventKind::TurnEnded { turn },
+            vec![],
+        );
+        if let Some(p) = self.state.player.as_mut() {
+            p.slots_used = 0;
+            p.late_night_used = false;
+            p.ads_this_turn = 0;
+        }
+        self.update_phase();
+        days
     }
 
     /// NPC-only history before play begins (DEC-022). Not logged as a command:

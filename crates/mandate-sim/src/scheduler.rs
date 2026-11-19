@@ -10,6 +10,8 @@ use crate::economy::EconomyState;
 use crate::environment::EnvironmentState;
 use crate::events::{EventId, EventLog};
 use crate::finance::FinanceState;
+use crate::justice::JusticeState;
+use crate::media::MediaState;
 use crate::narrative::NarrativeState;
 use crate::player::PlayerState;
 use crate::policy::PolicyState;
@@ -71,6 +73,40 @@ pub enum Effect {
         kind: crate::characters::MemoryKind,
         subject: Option<crate::characters::Subject>,
     },
+    /// A story about the player ran (DEC-034 perception): population applies
+    /// it to the cohorts the outlet reaches.
+    Perceive { story: u32 },
+    /// A story moved a politician's scandal valence (politics applies).
+    Valence {
+        politician: crate::politics::PoliticianId,
+        delta: f32,
+    },
+    /// Anyone remembers what someone did (politics applies, DEC-031).
+    Remember {
+        holder: crate::characters::CharacterId,
+        actor: crate::characters::CharacterId,
+        kind: crate::characters::MemoryKind,
+    },
+    /// The player's tracks move (the player applies): Standing, viability,
+    /// money, and a Legal Jeopardy floor while a case is open.
+    PlayerTrack {
+        standing: f32,
+        viability: f32,
+        money: f64,
+        legal_floor: Option<f32>,
+    },
+    /// A conviction removes someone from office (politics applies; the seat
+    /// is filled by their party). `barred`: they cannot stand again yet.
+    Removal {
+        politician: crate::politics::PoliticianId,
+        barred: bool,
+    },
+    /// A sentence lands (the player applies to the player; politics to NPCs).
+    Sentenced {
+        politician: crate::politics::PoliticianId,
+        case: u32,
+        sentence: crate::justice::Sentence,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -109,6 +145,8 @@ pub struct Reads<'a> {
     politics: Option<&'a PoliticsState>,
     policy: Option<&'a PolicyState>,
     narrative: Option<&'a NarrativeState>,
+    media: Option<&'a MediaState>,
+    justice: Option<&'a JusticeState>,
     /// The player, if one exists (lab runs may have none).
     pub player: Option<&'a PlayerState>,
 }
@@ -133,6 +171,8 @@ impl<'a> Reads<'a> {
             politics: Some(&state.politics),
             policy: Some(&state.policy),
             narrative: Some(&state.narrative),
+            media: Some(&state.media),
+            justice: Some(&state.justice),
             player: state.player.as_ref(),
         }
     }
@@ -165,6 +205,14 @@ impl<'a> Reads<'a> {
         self.narrative
             .expect("narrative is not readable from its own systems")
     }
+    pub fn media(&self) -> &'a MediaState {
+        self.media
+            .expect("media is not readable from its own systems")
+    }
+    pub fn justice(&self) -> &'a JusticeState {
+        self.justice
+            .expect("justice is not readable from its own systems")
+    }
 }
 
 /// Shared outputs every system may use.
@@ -187,6 +235,10 @@ pub enum SystemFn {
     Player(fn(&mut PlayerState, &Reads<'_>, &mut Outs<'_>)),
     /// The narrative director (DEC-033): writes only its own domain.
     Narrative(fn(&mut NarrativeState, &Reads<'_>, &mut Outs<'_>)),
+    /// Media and information (DEC-034).
+    Media(fn(&mut MediaState, &Reads<'_>, &mut Outs<'_>)),
+    /// The legal path (DEC-006).
+    Justice(fn(&mut JusticeState, &Reads<'_>, &mut Outs<'_>)),
     /// Writes nothing but the event log.
     Log(fn(&Reads<'_>, &mut Outs<'_>)),
 }
@@ -274,6 +326,8 @@ fn run_one(
         policy,
         player,
         narrative,
+        media,
+        justice,
     } = state;
     let mut outs = Outs {
         rng,
@@ -284,9 +338,20 @@ fn run_one(
     // checker proves a system cannot read-and-write its own state through two paths.
     macro_rules! reads {
         ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr) => {
-            reads!($pop, $eco, $fin, $env, $pol, $poly, $ply, Some(&*narrative))
+            reads!(
+                $pop,
+                $eco,
+                $fin,
+                $env,
+                $pol,
+                $poly,
+                $ply,
+                Some(&*narrative),
+                Some(&*media),
+                Some(&*justice)
+            )
         };
-        ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr, $narr:expr) => {
+        ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr, $narr:expr, $med:expr, $jus:expr) => {
             Reads {
                 content,
                 date,
@@ -300,6 +365,8 @@ fn run_one(
                 politics: $pol,
                 policy: $poly,
                 narrative: $narr,
+                media: $med,
+                justice: $jus,
                 player: $ply,
             }
         };
@@ -400,9 +467,41 @@ fn run_one(
                 Some(&*politics),
                 Some(&*policy),
                 player.as_ref(),
-                None
+                None,
+                Some(&*media),
+                Some(&*justice)
             );
             g(narrative, &r, &mut outs)
+        }
+        SystemFn::Media(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                Some(&*finance),
+                Some(&*environment),
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref(),
+                Some(&*narrative),
+                None,
+                Some(&*justice)
+            );
+            g(media, &r, &mut outs)
+        }
+        SystemFn::Justice(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                Some(&*finance),
+                Some(&*environment),
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref(),
+                Some(&*narrative),
+                Some(&*media),
+                None
+            );
+            g(justice, &r, &mut outs)
         }
         SystemFn::Log(g) => {
             let r = reads!(

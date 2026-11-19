@@ -111,6 +111,15 @@ fn muni_name(engine: &Engine, m: u32) -> String {
         .unwrap_or_default()
 }
 
+fn pol_name(engine: &Engine, p: u32) -> String {
+    engine
+        .state()
+        .politics
+        .get(mandate_sim::politics::PoliticianId(p))
+        .map(|x| x.full_name())
+        .unwrap_or_default()
+}
+
 fn snake_debug<T: std::fmt::Debug>(v: &T) -> String {
     let s = format!("{v:?}");
     let mut out = String::new();
@@ -401,6 +410,46 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             "event-director-intervention"
         }
         EventKind::FactDiscoverable { .. } => "event-fact-discoverable",
+        EventKind::ScandalBroke {
+            politician,
+            municipality,
+            kind,
+            ..
+        } => {
+            put("name", pol_name(engine, *politician));
+            put("town", muni_name(engine, *municipality));
+            put("fact_key", format!("fact-{}", kind.replace('_', "-")));
+            "event-scandal-broke"
+        }
+        EventKind::CaseOpened { politician, .. } => {
+            put("name", pol_name(engine, *politician));
+            "event-case-opened"
+        }
+        EventKind::CaseDeveloped {
+            politician, stage, ..
+        } => {
+            put("name", pol_name(engine, *politician));
+            put("stage_key", format!("case-stage-{stage}"));
+            "event-case-developed"
+        }
+        EventKind::PlayerImprisoned { years, until } => {
+            put("years", years.to_string());
+            put("year", until.calendar().year.to_string());
+            "event-player-imprisoned"
+        }
+        EventKind::PlayerReleased => "event-player-released",
+        EventKind::CareerEnded { reason } => {
+            put("reason_key", format!("ending-{reason}"));
+            "event-career-ended"
+        }
+        EventKind::RumourSpread { politician, .. } => {
+            put("name", pol_name(engine, *politician));
+            "event-rumour-spread"
+        }
+        EventKind::RumourCorrected { politician, .. } => {
+            put("name", pol_name(engine, *politician));
+            "event-rumour-corrected"
+        }
         EventKind::RulesUpdated { to_engine, .. } => {
             put("version", to_engine.clone());
             "event-rules-updated"

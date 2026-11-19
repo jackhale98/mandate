@@ -75,6 +75,12 @@ pub struct State {
     /// The director, decisions, storylines, and the facts log (DEC-033).
     #[serde(default)]
     pub narrative: crate::narrative::NarrativeState,
+    /// Outlets, knowledge, coverage, scandals, rumours (DEC-034).
+    #[serde(default)]
+    pub media: crate::media::MediaState,
+    /// Investigations, charges, trials, sentences (DEC-006).
+    #[serde(default)]
+    pub justice: crate::justice::JusticeState,
 }
 
 impl State {

@@ -1,0 +1,40 @@
+// Outlets (DEC-034): the newspapers, broadcasters, and social platforms
+// that decide what people hear. Generated when play begins: a town outlet
+// for each town with its home place (the newspaper, DEC-079), one per region,
+// one for the nation. Each has an audience by income class and age band, a
+// reach, an editorial lean (an attitude vector drawn around its audience's
+// views), a credibility, interests (concerns), finances, and journalists
+// (the Named people with these occupations at its home place). Outlets
+// choose stories by newsworthiness × interest × access and frame them by
+// their lean; they never just repeat a politician.
+{
+  "kind": "outlets",
+  "items": [
+    { "id": "outlet.local_paper", "name_key": "outlet-local_paper", "scope": "town",
+      "place": "news_office",
+      "reach": 0.55,
+      "audience": { "class": [0.8, 1.0, 1.1], "age": [0.5, 0.8, 1.2, 1.5] },
+      "credibility": [0.65, 0.85], "lean_sd": 0.2,
+      "interests": ["concern.jobs", "concern.housing", "concern.taxes"],
+      "finances": [150000, 600000], "stories_per_week": 3,
+      "journalists": ["occupation.journalist", "occupation.editor"] },
+    { "id": "outlet.regional_paper", "name_key": "outlet-regional_paper", "scope": "region",
+      "reach": 0.35,
+      "audience": { "class": [0.7, 1.0, 1.3], "age": [0.4, 0.8, 1.2, 1.6] },
+      "credibility": [0.7, 0.9], "lean_sd": 0.25,
+      "interests": ["concern.jobs", "concern.services", "concern.environment"],
+      "finances": [400000, 1200000], "stories_per_week": 4 },
+    { "id": "outlet.national_broadcaster", "name_key": "outlet-national_broadcaster", "scope": "nation",
+      "reach": 0.5,
+      "audience": { "class": [1.0, 1.0, 1.0], "age": [0.7, 0.9, 1.1, 1.3] },
+      "credibility": [0.75, 0.9], "lean_sd": 0.1,
+      "interests": ["concern.jobs", "concern.recovery"],
+      "finances": [2000000, 4000000], "stories_per_week": 5 },
+    { "id": "outlet.social", "name_key": "outlet-social", "scope": "nation", "social": true,
+      "reach": 0.6,
+      "audience": { "class": [1.1, 1.0, 0.9], "age": [1.8, 1.3, 0.8, 0.4] },
+      "credibility": [0.25, 0.4], "lean_sd": 0.35,
+      "interests": ["concern.taxes", "concern.housing"],
+      "finances": [0, 0], "stories_per_week": 6 },
+  ],
+}

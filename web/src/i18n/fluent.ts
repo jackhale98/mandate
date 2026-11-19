@@ -21,10 +21,15 @@ export class Translator {
   event(key: string, args: Record<string, string>): string {
     const resolved: Record<string, FluentVariable> = {};
     for (const [k, v] of Object.entries(args)) {
-      if (k.endsWith("_key")) resolved[k.slice(0, -4)] = this.t(v);
+      if (k.endsWith("_key")) continue;
       // Counts select plural variants, which match numbers, not strings.
-      else if (k === "n" && /^\d+$/.test(v)) resolved[k] = Number(v);
+      if (k === "n" && /^\d+$/.test(v)) resolved[k] = Number(v);
       else resolved[k] = v;
+    }
+    // Keys see the plain arguments too (an outlet's name takes its place).
+    const plain = { ...resolved };
+    for (const [k, v] of Object.entries(args)) {
+      if (k.endsWith("_key")) resolved[k.slice(0, -4)] = this.t(v, plain);
     }
     return this.t(key, resolved);
   }

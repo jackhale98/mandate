@@ -14,6 +14,8 @@ pub mod engine;
 pub mod environment;
 pub mod events;
 pub mod finance;
+pub mod justice;
+pub mod media;
 pub mod narrative;
 pub mod npc;
 pub mod places;

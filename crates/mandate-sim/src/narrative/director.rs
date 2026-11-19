@@ -351,6 +351,7 @@ fn open(
     c: Candidate<'_>,
     weight: Weight,
     storyline: Option<StorylineRunId>,
+    about: Option<super::About>,
 ) -> DecisionId {
     let d = &v.content().director;
     let date = v.date();
@@ -390,7 +391,9 @@ fn open(
         .collect();
     let actors: Vec<Actor> = c.cast.iter().map(|e| e.actor).collect();
     let chapter_index = n.chapter.as_ref().map(|ch| ch.index).unwrap_or(0);
-    if let Some(ch) = n.chapter.as_mut() {
+    // A raised decision (a story, an investigation) is fairness, not pacing:
+    // it never counts against the chapter's budgets (DEC-006).
+    if let Some(ch) = n.chapter.as_mut().filter(|_| about.is_none()) {
         match weight {
             Weight::Climax => {
                 ch.climaxes += 1;
@@ -409,8 +412,10 @@ fn open(
         ch.templates.push(c.def.id.clone());
         ch.people.extend(people);
     }
-    n.cooldowns
-        .insert(c.def.id.clone(), date.add_days(c.def.cooldown_days));
+    if about.is_none() {
+        n.cooldowns
+            .insert(c.def.id.clone(), date.add_days(c.def.cooldown_days));
+    }
     let news = (c.relevance / 3.0).clamp(0.0, 1.0) as f32;
     n.decisions.push(Decision {
         id,
@@ -427,6 +432,7 @@ fn open(
         place,
         status: DecisionStatus::Pending,
         resolution: None,
+        about,
     });
     n.log(
         date,
@@ -584,7 +590,7 @@ fn discovery(
     quiet: bool,
 ) {
     let date = v.date();
-    let shape = profile.is_some_and(|p| p.tension_curve);
+    let shape = n.shape_discovery && profile.is_some_and(|p| p.tension_curve);
     let seed = v.r.meta.seed;
     let mut surfaced = Vec::new();
     for h in n.hidden.iter_mut() {
@@ -870,7 +876,7 @@ fn advance_runs(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>, b: Bud
             } else {
                 Weight::Significant
             };
-            let id = open(n, v, out, c, weight, Some(run_id));
+            let id = open(n, v, out, c, weight, Some(run_id), None);
             let r = &mut n.storylines[i];
             r.cast = merged;
             r.decision = Some(id);
@@ -930,6 +936,55 @@ fn advance_runs(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>, b: Bud
     }
 }
 
+/// Decisions raised by a story about the player or an investigation of
+/// them (DEC-034, DEC-006): fairness first, so never budgeted, spaced, or
+/// capped; each story and case is raised once.
+fn raise(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>) {
+    let Some(pl) = v.player() else { return };
+    if !pl.status.active() {
+        return;
+    }
+    let content = v.content();
+    let me = pl.politician;
+    let mut todo: Vec<(super::About, mandate_content::RaisedBy, &'static str)> = Vec::new();
+    for s in v.r.media().scandals.iter() {
+        let a = super::About::Scandal { id: s.id };
+        if s.subject == me && s.running() && s.response.is_none() && !n.raised.contains(&a) {
+            todo.push((a, mandate_content::RaisedBy::Scandal, "standing"));
+        }
+    }
+    for c in v.r.justice().cases.iter() {
+        let a = super::About::Case { id: c.id };
+        if c.subject == me
+            && c.stage == crate::justice::Stage::Investigation
+            && c.response.is_none()
+            && !n.raised.contains(&a)
+        {
+            todo.push((
+                a,
+                mandate_content::RaisedBy::Investigation,
+                "legal_jeopardy",
+            ));
+        }
+    }
+    for (about, by, track) in todo {
+        let Some(def) = content.dilemmas.iter().find(|d| d.raised_by == Some(by)) else {
+            continue;
+        };
+        let Some(mut c) = evaluate(v, n, def, &[], None, &[]) else {
+            continue;
+        };
+        c.reasons.push(Reason::Pressure {
+            track: track.into(),
+        });
+        open(n, v, out, c, Weight::Significant, None, Some(about));
+        n.raised.push(about);
+        if n.raised.len() > 200 {
+            n.raised.remove(0);
+        }
+    }
+}
+
 /// Requests (DEC-032): a goal that needs the player.
 fn requests(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>, b: Budget) {
     let content = v.content();
@@ -980,7 +1035,7 @@ fn requests(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>, b: Budget)
             .find(|g| g.holder == h && g.goal == k)
             .map(|g| g.since)
             .unwrap_or(date);
-        open(n, v, out, c, Weight::Minor, None);
+        open(n, v, out, c, Weight::Minor, None, None);
         n.requests_raised.push((h, k, since));
         if n.requests_raised.len() > 200 {
             n.requests_raised.remove(0);
@@ -1032,6 +1087,7 @@ fn dilemmas(
     for def in &content.dilemmas {
         if def.category == DilemmaCategory::Request
             || def.storyline_only
+            || def.raised_by.is_some()
             || staged.contains(&def.id.as_str())
             || (!climax && n.cooldowns.get(&def.id).is_some_and(|x| *x > date))
             || n.pending().any(|p| p.template == def.id)
@@ -1045,7 +1101,7 @@ fn dilemmas(
     let shaped = profile.is_some_and(|p| p.tension_curve);
     if climax {
         if let Some(c) = best(cands, &|_| true) {
-            open(n, v, out, c, Weight::Climax, None);
+            open(n, v, out, c, Weight::Climax, None, None);
         }
         return;
     }
@@ -1063,7 +1119,7 @@ fn dilemmas(
     if let Some(c) = best(cands, &|c| {
         c.def.category == DilemmaCategory::Significant && (!c.def.opportunity || quiet || behind)
     }) {
-        open(n, v, out, c, Weight::Significant, None);
+        open(n, v, out, c, Weight::Significant, None, None);
     }
 }
 
@@ -1242,6 +1298,7 @@ pub fn weekly(n: &mut NarrativeState, r: &Reads<'_>, out: &mut Outs<'_>) {
         ch.peak_tension = ch.peak_tension.max(actual as f32);
     }
     lapse(n, &v, out);
+    raise(n, &v, out);
     start_runs(n, &v);
     advance_runs(n, &v, out, b);
     requests(n, &v, out, b);

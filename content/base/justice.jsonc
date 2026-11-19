@@ -1,0 +1,40 @@
+// The legal path (DEC-006 Legal Jeopardy): a discovered fact may draw an
+// investigation; an investigation ends in charges or is dropped; charges go
+// to trial; a conviction brings a fine, removal from office, or prison. A
+// long sentence or a disqualification ends a career, and only after a
+// warning and the response window (DEC-006 fairness). Every draw is keyed;
+// NPCs face the same path (DEC-030). One file across all packs.
+{
+  "kind": "justice",
+  "value": {
+    "open": { "ethics": 0.15, "misconduct": 0.45, "crime": 0.9 },   // × evidence
+    "official_bonus": 0.2,          // auditors or investigators found it
+    "open_days": [14, 60],
+    "investigation_days": [90, 200],
+    "charge": { "ethics": 0.1, "misconduct": 0.45, "crime": 0.75 }, // × (evidence + base)
+    "charge_evidence_base": 0.35,
+    "trial_days": [90, 180],        // at least the fairness response time
+    // Conviction: logistic(base + evidence × this − lawyer + mood × (0.5 − approval)).
+    "convict_base": -1.2,
+    "convict_evidence": 3.0,
+    "convict_mood": 1.5,
+    "fine": { "ethics": 1500, "misconduct": 4000, "crime": 8000 },
+    "removal_misconduct": 0.5,
+    "prison_years": [1, 7],
+    "long_years": 5,                // this long, or disqualified: the career ends
+    "disqualify": 0.15,
+    "responses": {
+      "cooperate_charge": 0.7, "cooperate_evidence": 0.1, "cooperate_sentence": 0.6,
+      "lawyer_charge": 0.12, "lawyer_convict": 1.0,
+      "stonewall_strong": 0.6, "stonewall_charge": 0.15, "stonewall_relief": 0.1,
+      "blame_charge": 0.55, "blame_valence": 0.15,
+    },
+    "track_investigation": 55.0,    // Legal Jeopardy while investigated
+    "track_charged": 80.0,          // and once charged (past the warning line)
+    "track_decay": 3.0,             // monthly with no open case
+    "release_standing": 30.0,
+    "release_viability": 20.0,
+    "fine_standing": 6.0,
+    "removal_viability": 25.0,
+  },
+}

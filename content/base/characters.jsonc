@@ -31,6 +31,8 @@
       "stood_with_me":   { "sentiment": 0.7,  "magnitude": 0.6,  "decay": 0.2,  "opinion": 0.0,   "trust": 0.06,  "tags": ["decision"] },
       "stood_against_me": { "sentiment": -0.7, "magnitude": 0.6, "decay": 0.2,  "opinion": 0.0,   "trust": -0.06, "tags": ["decision"] },
       "ignored_me":      { "sentiment": -0.4, "magnitude": 0.35, "decay": 0.5,  "opinion": 0.0,   "trust": -0.03, "tags": ["decision"] },
+      // The player pinned their own wrongdoing on them (DEC-006 legal responses): a betrayal.
+      "blamed_me":       { "sentiment": -1.0, "magnitude": 1.0,  "decay": 0.03, "opinion": -30.0, "trust": -0.4,  "tags": ["betrayal", "scandal"] },
     },
     "generation": {
       "personality": [0.15, 0.85],  // axes drawn uniformly here, plus trait and occupation offsets

@@ -228,6 +228,12 @@
             { "type": "opinion", "role": "owner", "delta": 10, "memory": "stood_with_me" },
             { "type": "approval", "classes": [0], "delta": 0.01 },
             { "type": "approval", "classes": [2], "delta": -0.015 } ] },
+        // Borderline: the inspection report quietly disappears (DEC-034).
+        { "id": "bury_report", "label_key": "dilemma-pollution-bury", "aftermath_key": "dilemma-pollution-bury-after",
+          "effects": [
+            { "type": "opinion", "role": "owner", "delta": 14, "memory": "stood_with_me" },
+            { "type": "approval", "classes": [0], "delta": 0.005 },
+            { "type": "hidden", "kind": "buried_report", "severity": "misconduct", "evidence": 0.5, "with_role": "owner" } ] },
         { "id": "wait_for_data", "default": true, "label_key": "dilemma-pollution-wait", "aftermath_key": "dilemma-pollution-wait-after",
           "effects": [
             { "type": "opinion", "role": "voice", "delta": -8, "memory": "ignored_me" },
@@ -323,7 +329,8 @@
             { "type": "money", "amount": 3000 },
             { "type": "favour", "role": "donor" },
             { "type": "legal_jeopardy", "delta": 3 },
-            { "type": "opinion", "role": "donor", "delta": 8 } ] },
+            { "type": "opinion", "role": "donor", "delta": 8 },
+            { "type": "hidden", "kind": "donation", "severity": "ethics", "evidence": 0.35, "with_role": "donor" } ] },
         { "id": "decline", "label_key": "dilemma-donor-offer-decline", "aftermath_key": "dilemma-donor-offer-decline-after",
           "effects": [
             { "type": "opinion", "role": "donor", "delta": -8, "memory": "stood_against_me" },
@@ -407,6 +414,14 @@
             { "type": "awareness", "scope": "town", "delta": 0.03 },
             { "type": "approval", "classes": [2], "delta": -0.01 },
             { "type": "standing", "delta": 2 } ] },
+        // Borderline: a doctored quote in the ad (DEC-034).
+        { "id": "smear", "label_key": "dilemma-attack-ad-smear", "aftermath_key": "dilemma-attack-ad-smear-after",
+          "effects": [
+            { "type": "money", "amount": -600 },
+            { "type": "opinion", "role": "rival", "delta": -20, "memory": "stood_against_me" },
+            { "type": "awareness", "scope": "town", "delta": 0.05 },
+            { "type": "standing", "delta": 3 },
+            { "type": "hidden", "kind": "smear", "severity": "misconduct", "evidence": 0.4, "discoverers": ["journalist", "rival"] } ] },
         { "id": "keep_it_clean", "label_key": "dilemma-attack-ad-clean", "aftermath_key": "dilemma-attack-ad-clean-after",
           "effects": [
             { "type": "standing", "delta": -2 },
@@ -436,6 +451,187 @@
             { "type": "approval", "delta": -0.01 },
             { "type": "opinion", "role": "rival", "delta": 3 },
             { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    // --- Borderline and illegal choices (DEC-034, DEC-073) ----------------------------------
+    // Each shady option pays off now and leaves a hidden fact: its severity,
+    // its evidence, and who might find it. The decision sheet shows the
+    // chance it comes out within a year before the player commits.
+    {
+      "id": "dilemma.consultancy_fee", "category": "significant", "opportunity": true,
+      "title_key": "dilemma-consultancy-fee", "situation_key": "dilemma-consultancy-fee-situation",
+      "roles": [
+        { "id": "developer", "cast": { "type": "occupation", "occupations": ["occupation.business_leader", "occupation.plant_manager"] } },
+      ],
+      "triggers": [ { "type": "months_in_play", "min": 4 } ],
+      "deadline_days": 21, "cooldown_days": 540, "scene": "scene.consultancy_fee",
+      "options": [
+        { "id": "take_fee", "label_key": "dilemma-consultancy-fee-take", "aftermath_key": "dilemma-consultancy-fee-take-after",
+          "effects": [
+            { "type": "money", "amount": 4000 },
+            { "type": "opinion", "role": "developer", "delta": 10 },
+            { "type": "favour", "role": "developer" },
+            { "type": "hidden", "kind": "consultancy_fee", "severity": "crime", "evidence": 0.45, "with_role": "developer" } ] },
+        { "id": "decline", "label_key": "dilemma-consultancy-fee-decline", "aftermath_key": "dilemma-consultancy-fee-decline-after",
+          "effects": [
+            { "type": "opinion", "role": "developer", "delta": -8, "memory": "stood_against_me" },
+            { "type": "standing", "delta": 1 } ] },
+        { "id": "report", "label_key": "dilemma-consultancy-fee-report", "aftermath_key": "dilemma-consultancy-fee-report-after",
+          "effects": [
+            { "type": "opinion", "role": "developer", "delta": -18, "memory": "stood_against_me" },
+            { "type": "awareness", "scope": "town", "delta": 0.02 },
+            { "type": "approval", "scope": "town", "delta": 0.01 },
+            { "type": "standing", "delta": -2 } ] },
+        { "id": "let_lapse", "default": true, "label_key": "dilemma-consultancy-fee-lapse", "aftermath_key": "dilemma-consultancy-fee-lapse-after",
+          "effects": [
+            { "type": "opinion", "role": "developer", "delta": -5, "memory": "ignored_me" },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    {
+      "id": "dilemma.steer_contract", "category": "significant",
+      "title_key": "dilemma-steer-contract", "situation_key": "dilemma-steer-contract-situation",
+      "roles": [
+        { "id": "law", "cast": { "type": "law", "building": true, "templates": ["policy.transit_frequency", "policy.affordable_housing", "policy.flood_defenses", "policy.parks"] } },
+        { "id": "donor", "cast": { "type": "occupation", "occupations": ["occupation.business_leader", "occupation.shopkeeper", "occupation.plant_manager", "occupation.diner_owner"] } },
+      ],
+      "triggers": [ { "type": "months_in_play", "min": 2 } ],
+      "deadline_days": 28, "cooldown_days": 540, "scene": "scene.steer_contract",
+      "options": [
+        { "id": "steer", "label_key": "dilemma-steer-contract-steer", "aftermath_key": "dilemma-steer-contract-steer-after",
+          "effects": [
+            { "type": "money", "amount": 2500 },
+            { "type": "opinion", "role": "donor", "delta": 12, "memory": "stood_with_me" },
+            { "type": "hidden", "kind": "steered_contract", "severity": "misconduct", "evidence": 0.5, "with_role": "donor" } ] },
+        { "id": "open_tender", "label_key": "dilemma-steer-contract-tender", "aftermath_key": "dilemma-steer-contract-tender-after",
+          "effects": [
+            { "type": "slots", "n": 1 },
+            { "type": "record", "delta": 0.02 },
+            { "type": "opinion", "role": "donor", "delta": -6 } ] },
+        { "id": "leave_it", "default": true, "label_key": "dilemma-steer-contract-leave", "aftermath_key": "dilemma-steer-contract-leave-after",
+          "effects": [
+            { "type": "opinion", "role": "donor", "delta": -3, "memory": "ignored_me" },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    {
+      "id": "dilemma.paid_crowd", "category": "significant",
+      "title_key": "dilemma-paid-crowd", "situation_key": "dilemma-paid-crowd-situation",
+      "roles": [
+        { "id": "fixer", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.party_chair", "occupation.resident"] } },
+      ],
+      "triggers": [ { "type": "campaigning" } ],
+      "deadline_days": 14, "cooldown_days": 300, "scene": "scene.paid_crowd",
+      "options": [
+        { "id": "pay", "label_key": "dilemma-paid-crowd-pay", "aftermath_key": "dilemma-paid-crowd-pay-after",
+          "effects": [
+            { "type": "money", "amount": -600 },
+            { "type": "awareness", "scope": "town", "delta": 0.04 },
+            { "type": "approval", "delta": 0.01 },
+            { "type": "hidden", "kind": "paid_crowd", "severity": "ethics", "evidence": 0.5, "with_role": "fixer" } ] },
+        { "id": "honest", "label_key": "dilemma-paid-crowd-honest", "aftermath_key": "dilemma-paid-crowd-honest-after",
+          "effects": [
+            { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 },
+            { "type": "awareness", "delta": 0.02 },
+            { "type": "opinion", "role": "fixer", "delta": 4 } ] },
+        { "id": "skip", "default": true, "label_key": "dilemma-paid-crowd-skip", "aftermath_key": "dilemma-paid-crowd-skip-after",
+          "effects": [
+            { "type": "awareness", "delta": -0.01 },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    {
+      "id": "dilemma.personal_bills", "category": "significant",
+      "title_key": "dilemma-personal-bills", "situation_key": "dilemma-personal-bills-situation",
+      "roles": [
+        { "id": "treasurer", "cast": { "type": "occupation", "occupations": ["occupation.party_chair"] } },
+      ],
+      "triggers": [ { "type": "track", "track": "health", "max": 55 }, { "type": "money", "min": 3000 } ],
+      "deadline_days": 21, "cooldown_days": 400, "scene": "scene.personal_bills",
+      "options": [
+        { "id": "use_funds", "label_key": "dilemma-personal-bills-use", "aftermath_key": "dilemma-personal-bills-use-after",
+          "effects": [
+            { "type": "money", "amount": -1500 },
+            { "type": "health", "delta": 12 },
+            { "type": "hidden", "kind": "campaign_funds", "severity": "misconduct", "evidence": 0.6,
+              "discoverers": ["journalist", "auditor", "rival"], "with_role": "treasurer" } ] },
+        { "id": "ask_party", "label_key": "dilemma-personal-bills-ask", "aftermath_key": "dilemma-personal-bills-ask-after",
+          "effects": [
+            { "type": "standing", "delta": -3 },
+            { "type": "health", "delta": 6 },
+            { "type": "opinion", "role": "treasurer", "delta": -4 } ] },
+        { "id": "carry_on", "default": true, "label_key": "dilemma-personal-bills-carry-on", "aftermath_key": "dilemma-personal-bills-carry-on-after",
+          "effects": [
+            { "type": "health", "delta": -3 },
+            { "type": "opinion", "role": "treasurer", "delta": 2 } ] },
+      ],
+    },
+    {
+      "id": "dilemma.job_for_relative", "category": "significant",
+      "title_key": "dilemma-job-for-relative", "situation_key": "dilemma-job-for-relative-situation",
+      "roles": [
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "other" } },
+        { "id": "sponsor", "cast": { "type": "sponsor_of", "role": "bill" } },
+      ],
+      "triggers": [ { "type": "can_vote", "role": "bill" }, { "type": "months_in_play", "min": 3 } ],
+      "deadline_days": 21, "cooldown_days": 500, "scene": "scene.job_for_relative",
+      "options": [
+        { "id": "deal", "label_key": "dilemma-job-for-relative-deal", "aftermath_key": "dilemma-job-for-relative-deal-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "yes" },
+            { "type": "opinion", "role": "sponsor", "delta": 12, "memory": "stood_with_me" },
+            { "type": "health", "delta": 4 },
+            { "type": "hidden", "kind": "job_for_vote", "severity": "misconduct", "evidence": 0.4, "with_role": "sponsor" } ] },
+        { "id": "refuse", "label_key": "dilemma-job-for-relative-refuse", "aftermath_key": "dilemma-job-for-relative-refuse-after",
+          "effects": [
+            { "type": "opinion", "role": "sponsor", "delta": -8, "memory": "stood_against_me" },
+            { "type": "standing", "delta": 1 } ] },
+        { "id": "noncommittal", "default": true, "label_key": "dilemma-job-for-relative-noncommittal", "aftermath_key": "dilemma-job-for-relative-noncommittal-after",
+          "effects": [
+            { "type": "opinion", "role": "sponsor", "delta": -4, "memory": "ignored_me" },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    // --- Raised by a story or an investigation (DEC-034, DEC-006) -----------------------
+    // Fairness first: never budgeted, always listed in the pocket. Fluent
+    // arguments add `$fact_key` (what came out), `$outlet` (who ran it), and
+    // `$severity_key`.
+    {
+      "id": "dilemma.scandal_response", "category": "significant", "raised_by": "scandal",
+      "title_key": "dilemma-scandal-response", "situation_key": "dilemma-scandal-response-situation",
+      "roles": [],
+      "deadline_days": 14, "cooldown_days": 0,
+      "options": [
+        { "id": "deny", "label_key": "dilemma-scandal-response-deny", "aftermath_key": "dilemma-scandal-response-deny-after",
+          "effects": [ { "type": "scandal_response", "response": "deny" } ] },
+        { "id": "explain", "label_key": "dilemma-scandal-response-explain", "aftermath_key": "dilemma-scandal-response-explain-after",
+          "effects": [ { "type": "slots", "n": 1 }, { "type": "scandal_response", "response": "explain" } ] },
+        { "id": "apologise", "label_key": "dilemma-scandal-response-apologise", "aftermath_key": "dilemma-scandal-response-apologise-after",
+          "effects": [ { "type": "standing", "delta": -4 }, { "type": "scandal_response", "response": "apologise" } ] },
+        { "id": "counter_attack", "label_key": "dilemma-scandal-response-counter", "aftermath_key": "dilemma-scandal-response-counter-after",
+          "effects": [ { "type": "money", "amount": -800 }, { "type": "standing", "delta": 1 }, { "type": "scandal_response", "response": "counter_attack" } ] },
+        { "id": "say_nothing", "default": true, "label_key": "dilemma-scandal-response-nothing", "aftermath_key": "dilemma-scandal-response-nothing-after",
+          "effects": [ { "type": "standing", "delta": -1 }, { "type": "scandal_response", "response": "none" } ] },
+      ],
+    },
+    {
+      "id": "dilemma.legal_response", "category": "significant", "raised_by": "investigation",
+      "title_key": "dilemma-legal-response", "situation_key": "dilemma-legal-response-situation",
+      "roles": [ { "id": "ally", "cast": { "type": "ally" } } ],
+      "deadline_days": 21, "cooldown_days": 0,
+      "options": [
+        { "id": "cooperate", "label_key": "dilemma-legal-response-cooperate", "aftermath_key": "dilemma-legal-response-cooperate-after",
+          "effects": [ { "type": "standing", "delta": -2 }, { "type": "legal_response", "response": "cooperate" } ] },
+        { "id": "lawyer", "label_key": "dilemma-legal-response-lawyer", "aftermath_key": "dilemma-legal-response-lawyer-after",
+          "effects": [ { "type": "money", "amount": -3000 }, { "type": "legal_response", "response": "lawyer" } ] },
+        { "id": "stonewall", "label_key": "dilemma-legal-response-stonewall", "aftermath_key": "dilemma-legal-response-stonewall-after",
+          "effects": [ { "type": "approval", "scope": "town", "delta": -0.01 }, { "type": "standing", "delta": 1 }, { "type": "legal_response", "response": "stonewall" } ] },
+        { "id": "blame_ally", "label_key": "dilemma-legal-response-blame", "aftermath_key": "dilemma-legal-response-blame-after",
+          "effects": [
+            { "type": "opinion", "role": "ally", "delta": -30, "memory": "blamed_me" },
+            { "type": "legal_response", "response": "blame_ally", "role": "ally" } ] },
+        { "id": "wait", "default": true, "label_key": "dilemma-legal-response-wait", "aftermath_key": "dilemma-legal-response-wait-after",
+          "effects": [ { "type": "health", "delta": -2 }, { "type": "legal_response", "response": "none" } ] },
       ],
     },
     // --- Requests: an NPC's goal needs the player (DEC-032) -------------------------------

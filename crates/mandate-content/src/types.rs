@@ -80,6 +80,16 @@ pub enum ContentFile {
     Scenes {
         items: Vec<crate::narrative::SceneDef>,
     },
+    /// Outlet templates: newspapers, broadcasters, and social platforms (DEC-034).
+    Outlets { items: Vec<crate::media::OutletDef> },
+    /// Discovery, coverage, perception, responses, rumours, shady acts (DEC-034).
+    Media {
+        value: Box<crate::media::MediaParams>,
+    },
+    /// Investigations, charges, trials, and sentences (DEC-006 Legal Jeopardy).
+    Justice {
+        value: Box<crate::media::JusticeParams>,
+    },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -1021,7 +1031,7 @@ fn ones3() -> [f64; 3] {
 /// The player actions a place can offer. The kinds of action stay in code
 /// (DEC-078 decision 7); these keys match the action-cost keys in tuning
 /// where an action costs time. `vote`, `draft`, `file`, and `withdraw` are free.
-pub const PLACE_ACTIONS: [&str; 14] = [
+pub const PLACE_ACTIONS: [&str; 17] = [
     "canvass",
     "town_hall",
     "press",
@@ -1036,19 +1046,30 @@ pub const PLACE_ACTIONS: [&str; 14] = [
     "draft",
     "file",
     "withdraw",
+    "take_bribe",
+    "dip_funds",
+    "leak_file",
 ];
 
 /// Actions with a late-night variant (the optional fourth slot).
-pub const LATE_NIGHT_ACTIONS: [&str; 3] = ["lobby", "trade_favor", "fundraise"];
+pub const LATE_NIGHT_ACTIONS: [&str; 4] = ["lobby", "trade_favor", "fundraise", "take_bribe"];
+
+/// Actions done only late at night (no daytime variant).
+pub const LATE_ONLY_ACTIONS: [&str; 1] = ["take_bribe"];
+
+/// Borderline and illegal actions (DEC-034, DEC-073): each pays off now and
+/// leaves a hidden fact (`media.shady_actions`).
+pub const SHADY_ACTIONS: [&str; 3] = ["take_bribe", "dip_funds", "leak_file"];
 
 /// Information services a place can offer: precise data the pocket only has
 /// in coarse form (DEC-079 rule 4).
-pub const PLACE_SERVICES: [&str; 5] = [
+pub const PLACE_SERVICES: [&str; 6] = [
     "whip_exact",
     "town_data_detailed",
     "budget_papers",
     "internal_polls",
     "overheard",
+    "newspaper",
 ];
 
 /// Pseudo-locations that are not generated places: the player's home, and
@@ -1724,7 +1745,7 @@ pub const COMPETENCIES: [&str; 5] = [
 /// The kinds of memory the engine records (DEC-031). Each has a parameter
 /// row in `characters.memories` and a Fluent key `memory-<kind>`. New kinds
 /// are a code extension point: the engine must record them somewhere.
-pub const MEMORY_KINDS: [&str; 17] = [
+pub const MEMORY_KINDS: [&str; 18] = [
     "backed_my_bill",
     "opposed_my_bill",
     "promised_favour",
@@ -1742,6 +1763,7 @@ pub const MEMORY_KINDS: [&str; 17] = [
     "stood_with_me",
     "stood_against_me",
     "ignored_me",
+    "blamed_me",
 ];
 
 /// A multiplier pair for good and bad news.
@@ -2125,6 +2147,19 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "scenes" => ContentFile::Scenes {
             items: serde_json::from_str::<ItemsFile<crate::narrative::SceneDef>>(json)?.items,
+        },
+        "outlets" => ContentFile::Outlets {
+            items: serde_json::from_str::<ItemsFile<crate::media::OutletDef>>(json)?.items,
+        },
+        "media" => ContentFile::Media {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::media::MediaParams>>(json)?.value,
+            ),
+        },
+        "justice" => ContentFile::Justice {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::media::JusticeParams>>(json)?.value,
+            ),
         },
         other => {
             use serde::de::Error;

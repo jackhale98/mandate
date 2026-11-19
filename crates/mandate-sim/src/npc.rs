@@ -576,7 +576,68 @@ pub fn take_turn(state: &mut State, content: &ContentBundle, m: u32, full: bool)
                 AiAction::Rest => {}
             }
         }
+        // The late-night temptation (DEC-030, DEC-034): the same acts and
+        // the same exposure as the player's. Towns other than the player's
+        // take NPC turns every fourth turn, so their chance is scaled to match.
+        tempt(state, content, id, if full { 1.0 } else { 4.0 });
     }
+}
+
+/// An officeholder may take a bribe or a donor's quiet deal, by personality
+/// (integrity resists, ambition tempts). The act pays into their war chest
+/// and leaves a hidden fact with a fate settled like the player's.
+pub fn tempt(state: &mut State, content: &ContentBundle, id: PoliticianId, scale: f64) {
+    if !state.media.active || state.player.is_none() {
+        return;
+    }
+    let t = &content.media.temptation;
+    if t.acts.is_empty() || t.chance <= 0.0 {
+        return;
+    }
+    let Some(p) = state.politics.get(id) else {
+        return;
+    };
+    if !p.in_office() || p.is_player {
+        return;
+    }
+    let chance = t.chance
+        * mandate_core::math::pow((1.0 - p.integrity as f64).max(0.0), t.integrity_power)
+        * (t.ambition_base + p.ambition as f64)
+        * scale;
+    let mut rng = mandate_core::rng::keyed(
+        state.meta.seed,
+        Stream::Npc,
+        &[0xB1BE, state.calendar.date.0 as u64, id.0 as u64],
+    );
+    if !rng.chance(chance) {
+        return;
+    }
+    let act = &t.acts[rng.below(t.acts.len() as u64) as usize];
+    let Some(def) = content.media.npc_acts.get(act).cloned() else {
+        return;
+    };
+    let m = p.municipality() as usize;
+    let briber = state
+        .politics
+        .characters
+        .towns
+        .get(m)
+        .and_then(|tc| tc.broker)
+        .filter(|b| {
+            state
+                .politics
+                .characters
+                .get(*b)
+                .is_some_and(|c| c.politician != Some(id))
+        });
+    if let Some(p) = state.politics.get_mut(id) {
+        p.funds += def.money.max(0.0);
+    }
+    let actors = briber
+        .map(|b| crate::narrative::Actor::Person { id: b })
+        .into_iter()
+        .collect();
+    crate::media::hide(state, content, &def.hidden, id, actors);
 }
 
 fn act(

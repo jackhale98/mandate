@@ -153,7 +153,8 @@ fn pacing_stays_within_budgets_and_cooldowns_hold() {
         // (a storyline's turn has priority and may come sooner).
         let mut opened: Vec<_> = ds
             .iter()
-            .filter(|x| x.weight != Weight::Minor && x.storyline.is_none())
+            // Raised decisions (a story, a case) are fairness, not pacing.
+            .filter(|x| x.weight != Weight::Minor && x.storyline.is_none() && x.about.is_none())
             .map(|x| x.opened)
             .collect();
         opened.sort();

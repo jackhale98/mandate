@@ -149,6 +149,46 @@ pub enum EventKind {
     FactDiscoverable {
         hidden: u32,
     },
+    /// A hidden fact came out (DEC-034): the story broke.
+    ScandalBroke {
+        scandal: u32,
+        politician: u32,
+        municipality: u32,
+        /// `ethics` | `misconduct` | `crime`.
+        severity: String,
+        /// The fact kind (Fluent `fact-<kind>`).
+        kind: String,
+    },
+    /// Prosecutors opened an investigation (DEC-006).
+    CaseOpened {
+        case: u32,
+        politician: u32,
+    },
+    /// A case moved on: `charged`, `dropped`, `acquitted`, `convicted`.
+    CaseDeveloped {
+        case: u32,
+        politician: u32,
+        stage: String,
+    },
+    /// The player went to prison (out of politics until `until`).
+    PlayerImprisoned {
+        years: u32,
+        until: SimDate,
+    },
+    PlayerReleased,
+    /// The career is over (DEC-006 terminal ending): `prison`, `disqualified`.
+    CareerEnded {
+        reason: String,
+    },
+    /// An unverified claim began to spread (DEC-034 rumours).
+    RumourSpread {
+        rumour: u32,
+        politician: u32,
+    },
+    RumourCorrected {
+        rumour: u32,
+        politician: u32,
+    },
     /// The game's rules were updated under a running career (an app update).
     RulesUpdated {
         from_content: String,

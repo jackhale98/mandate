@@ -411,6 +411,35 @@ fn preview(engine: &Engine, d: &Decision, e: &EffectDef) -> EffectLineView {
             )],
             "gain",
         ),
+        // DEC-073: the risk is shown before the player commits, as a coarse band.
+        EffectDef::Hidden { severity, .. } => {
+            let (Some(spec), Some(pl)) = (e.hidden_spec(), st.player.as_ref()) else {
+                return line("effect-hidden", vec![], "cost");
+            };
+            let x = mandate_sim::media::exposure(st, content, &spec, pl.politician);
+            let p = mandate_sim::media::risk_within_horizon(content, &x);
+            line(
+                "effect-hidden",
+                vec![
+                    (
+                        "risk_key",
+                        format!("risk-{}", mandate_sim::media::band(content, p)),
+                    ),
+                    ("severity_key", format!("severity-{}", severity.key())),
+                ],
+                "cost",
+            )
+        }
+        EffectDef::ScandalResponse { response } => line(
+            &format!("effect-respond-{}", response.key().replace('_', "-")),
+            vec![],
+            "mixed",
+        ),
+        EffectDef::LegalResponse { response, .. } => line(
+            &format!("effect-legal-{}", response.key().replace('_', "-")),
+            vec![],
+            "mixed",
+        ),
     }
 }
 
@@ -524,6 +553,22 @@ fn applied_line(engine: &Engine, a: &Applied) -> EffectLineView {
                     .unwrap_or_default(),
             )],
             "gain",
+        ),
+        Applied::Hidden { risk, .. } => line(
+            "effect-hidden-done",
+            vec![(
+                "risk_key",
+                format!("risk-{}", mandate_sim::media::band(content, *risk as f64)),
+            )],
+            "cost",
+        ),
+        Applied::Responded { response } => line(
+            "effect-responded",
+            vec![(
+                "response_key",
+                format!("response-{}", response.replace('_', "-")),
+            )],
+            "mixed",
         ),
         Applied::Skipped { effect } => {
             line("effect-skipped", vec![("what", effect.clone())], "mixed")
@@ -733,13 +778,38 @@ pub fn decision_view(engine: &Engine, d: &Decision) -> Option<DecisionView> {
             lines: r.applied.iter().map(|a| applied_line(engine, a)).collect(),
         })
     });
+    let mut args = cast_args(engine, &d.cast);
+    // A raised decision names what came out and who ran it.
+    let about = match d.about {
+        Some(mandate_sim::narrative::About::Scandal { id }) => st
+            .media
+            .scandal(id)
+            .map(|s| (s.kind.clone(), s.severity, s.outlet)),
+        Some(mandate_sim::narrative::About::Case { id }) => st
+            .justice
+            .case(id)
+            .map(|c| (c.kind.clone(), c.severity, None)),
+        None => None,
+    };
+    if let Some((kind, sev, outlet)) = about {
+        args.insert(
+            "fact_key".into(),
+            format!("fact-{}", kind.replace('_', "-")),
+        );
+        args.insert("severity_key".into(), format!("severity-{}", sev.key()));
+        if let Some(o) = outlet.and_then(|o| st.media.outlet(o)) {
+            let (k, place) = mandate_sim::media::outlet_name(content, o);
+            args.insert("outlet_key".into(), k);
+            args.insert("outlet_place".into(), place);
+        }
+    }
     Some(DecisionView {
         id: d.id.0,
         template: d.template.clone(),
         title_key: def.title_key.clone(),
         situation_key: def.situation_key.clone(),
         kind: weight_key(d.weight, def.category).into(),
-        args: cast_args(engine, &d.cast),
+        args,
         people,
         opened: DateView::of(d.opened),
         deadline: DateView::of(d.deadline),

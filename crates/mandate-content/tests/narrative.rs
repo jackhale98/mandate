@@ -47,9 +47,13 @@ fn the_base_narrative_content_is_valid() {
     let standalone = b
         .dilemmas
         .iter()
-        .filter(|d| d.category != mandate_content::DilemmaCategory::Request && !d.storyline_only)
+        .filter(|d| {
+            d.category != mandate_content::DilemmaCategory::Request
+                && !d.storyline_only
+                && d.raised_by.is_none()
+        })
         .count();
-    assert!((8..=12).contains(&standalone), "{standalone} base dilemmas");
+    assert!((8..=20).contains(&standalone), "{standalone} base dilemmas");
     assert!(b.storylines.len() >= 2);
     assert_eq!(b.storytellers.len(), 3);
 }

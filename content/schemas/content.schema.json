@@ -416,6 +416,37 @@
       ],
       "type": "object"
     },
+    "AudienceDef": {
+      "additionalProperties": false,
+      "description": "Who follows an outlet: relative weights by income class and age band.",
+      "properties": {
+        "age": {
+          "description": "[18–29, 30–44, 45–64, 65+].",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "class": {
+          "description": "[low, middle, high].",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        }
+      },
+      "required": [
+        "class",
+        "age"
+      ],
+      "type": "object"
+    },
     "BeatDef": {
       "additionalProperties": false,
       "properties": {
@@ -531,6 +562,30 @@
         "economic_development"
       ],
       "type": "string"
+    },
+    "ByGravity": {
+      "additionalProperties": false,
+      "description": "A number per severity.",
+      "properties": {
+        "crime": {
+          "format": "double",
+          "type": "number"
+        },
+        "ethics": {
+          "format": "double",
+          "type": "number"
+        },
+        "misconduct": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ethics",
+        "misconduct",
+        "crime"
+      ],
+      "type": "object"
     },
     "CampaignParams": {
       "additionalProperties": false,
@@ -979,6 +1034,20 @@
           "properties": {
             "type": {
               "const": "goal_holder",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The colleague closest to the player (the highest opinion of them):\nsomeone to lean on, or to blame.",
+          "properties": {
+            "type": {
+              "const": "ally",
               "type": "string"
             }
           },
@@ -2044,6 +2113,73 @@
       ],
       "type": "object"
     },
+    "CoverageParams": {
+      "additionalProperties": false,
+      "description": "Story selection, scandal heat, and perception (DEC-034).",
+      "properties": {
+        "heat_end": {
+          "description": "A scandal ends below this heat.",
+          "format": "double",
+          "type": "number"
+        },
+        "heat_keep": {
+          "description": "Heat kept each week (a scandal fades).",
+          "format": "double",
+          "type": "number"
+        },
+        "hostility_interest": {
+          "description": "Extra interest per unit of disagreement between an outlet's lean and the subject.",
+          "format": "double",
+          "type": "number"
+        },
+        "min_score": {
+          "description": "Stories below this score are not run.",
+          "format": "double",
+          "type": "number"
+        },
+        "national_access": {
+          "format": "double",
+          "type": "number"
+        },
+        "newsworthiness": {
+          "$ref": "#/$defs/ByGravity",
+          "description": "Newsworthiness by severity (a scandal at full heat)."
+        },
+        "regional_access": {
+          "description": "Interest of a regional (nation) outlet in a town affair, × severity weight.",
+          "format": "double",
+          "type": "number"
+        },
+        "stories_kept": {
+          "description": "Stories kept (for the newspaper and the audit).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "town_news": {
+          "description": "Neutral town news (closures, disasters, laws) the local paper runs.",
+          "type": "boolean"
+        },
+        "typical_budget": {
+          "description": "Budget at which an outlet runs its `stories_per_week`.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "newsworthiness",
+        "heat_keep",
+        "heat_end",
+        "min_score",
+        "hostility_interest",
+        "regional_access",
+        "national_access",
+        "typical_budget",
+        "town_news",
+        "stories_kept"
+      ],
+      "type": "object"
+    },
     "CrisisDef": {
       "additionalProperties": false,
       "description": "A kind of live local crisis (DEC-077 §1), read from an indicator with\nhysteresis: it begins at `begin`, ends below `end`, and its severity runs\nfrom 0 at `end` to 1 at `severe`. Registry order is load order and breaks\nties between equally severe crises.",
@@ -2287,6 +2423,18 @@
           },
           "type": "array"
         },
+        "raised_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RaisedBy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Raised by a story or an investigation about the player, not by the\nspotlight (DEC-006 fairness: never budgeted)."
+        },
         "roles": {
           "items": {
             "$ref": "#/$defs/RoleDef"
@@ -2478,6 +2626,107 @@
         "chance",
         "storylines_active",
         "history"
+      ],
+      "type": "object"
+    },
+    "Discoverer": {
+      "description": "Who may uncover a hidden fact.",
+      "oneOf": [
+        {
+          "const": "journalist",
+          "description": "A reporter at an outlet in the subject's town (Named journalists and editors).",
+          "type": "string"
+        },
+        {
+          "const": "rival",
+          "description": "A political opponent: the subject's rival.",
+          "type": "string"
+        },
+        {
+          "const": "auditor",
+          "description": "The town's auditors (money trails).",
+          "type": "string"
+        },
+        {
+          "const": "investigator",
+          "description": "Police and prosecutors' investigators.",
+          "type": "string"
+        }
+      ]
+    },
+    "DiscoveryParams": {
+      "additionalProperties": false,
+      "description": "Discovery of hidden facts (DEC-034): whether a fact will come out is\nsettled when it happens (evidence × interest × access), never by the\ndirector; when, within its evidence window, is the director's (DEC-033 B).",
+      "properties": {
+        "access": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "description": "Each discoverer's access (0..1) when present.",
+          "type": "object"
+        },
+        "bands": {
+          "description": "Risk bands: low below [0], real below [1], high from [1].",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "horizon_days": {
+          "description": "The risk line's horizon (DEC-073: \"within a year\").",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "interest": {
+          "$ref": "#/$defs/ByGravity",
+          "description": "Discoverers' interest by severity."
+        },
+        "journalist_floor": {
+          "description": "Journalist access without any journalist in town (the regional press).",
+          "format": "double",
+          "type": "number"
+        },
+        "journalists_full": {
+          "description": "A town's journalists add access up to this many (a town without a paper has little).",
+          "format": "double",
+          "type": "number"
+        },
+        "window_strong": {
+          "description": "Evidence window (days after the act) at evidence 1 and evidence 0.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "window_weak": {
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "interest",
+        "access",
+        "journalists_full",
+        "journalist_floor",
+        "window_strong",
+        "window_weak",
+        "horizon_days",
+        "bands"
       ],
       "type": "object"
     },
@@ -2903,6 +3152,91 @@
             "template"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A borderline or illegal act (DEC-034): a hidden fact that may come to\nlight (its risk is shown before the player commits, DEC-073).",
+          "properties": {
+            "discoverers": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/Discoverer"
+              },
+              "type": "array"
+            },
+            "evidence": {
+              "format": "double",
+              "type": "number"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "severity": {
+              "$ref": "#/$defs/Gravity"
+            },
+            "type": {
+              "const": "hidden",
+              "type": "string"
+            },
+            "with_role": {
+              "default": null,
+              "description": "A cast person in on it (named in the fact).",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "kind",
+            "severity",
+            "evidence"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's answer to a story about them (scandal decisions only).",
+          "properties": {
+            "response": {
+              "$ref": "#/$defs/ScandalResponseKind"
+            },
+            "type": {
+              "const": "scandal_response",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "response"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's answer to an investigation (investigation decisions\nonly); `blame` names the cast ally in `role`.",
+          "properties": {
+            "response": {
+              "$ref": "#/$defs/LegalResponseKind"
+            },
+            "role": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "legal_response",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "response"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -3259,6 +3593,15 @@
       },
       "type": "object"
     },
+    "Gravity": {
+      "description": "How serious a hidden fact is (DEC-006 Legal Jeopardy): a lapse of\nethics, misconduct in office, or a crime.",
+      "enum": [
+        "ethics",
+        "misconduct",
+        "crime"
+      ],
+      "type": "string"
+    },
     "HazardKey": {
       "enum": [
         "flood",
@@ -3266,6 +3609,38 @@
         "wildfire"
       ],
       "type": "string"
+    },
+    "HiddenSpec": {
+      "additionalProperties": false,
+      "description": "A borderline or illegal act: what it is, how serious, how much evidence\nit leaves, and who might uncover it (DEC-034, DEC-073: the risk is shown\nbefore the player commits).",
+      "properties": {
+        "discoverers": {
+          "default": [],
+          "description": "Who could uncover it (empty = every discoverer).",
+          "items": {
+            "$ref": "#/$defs/Discoverer"
+          },
+          "type": "array"
+        },
+        "evidence": {
+          "description": "How much evidence it leaves (0..1): a paper trail is high, a quiet word low.",
+          "format": "double",
+          "type": "number"
+        },
+        "kind": {
+          "description": "Fact kind key (Fluent `fact-<kind>`), e.g. `consultancy_fee`.",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Gravity"
+        }
+      },
+      "required": [
+        "kind",
+        "severity",
+        "evidence"
+      ],
+      "type": "object"
     },
     "Indicator": {
       "description": "Engine-provided measures of a municipality, recomputed monthly. Concerns\nread them; situational policies (DEC-077) will use them as unlock\nconditions. Adding one is a code extension point (one variant, one\ncomputation in `mandate_sim::concerns::indicator`, and a test).",
@@ -3323,6 +3698,249 @@
       },
       "required": [
         "awareness"
+      ],
+      "type": "object"
+    },
+    "JusticeParams": {
+      "additionalProperties": false,
+      "description": "The legal path (DEC-006 Legal Jeopardy): investigation, charges, trial, sentence.",
+      "properties": {
+        "charge": {
+          "$ref": "#/$defs/ByGravity",
+          "description": "Chance of charges at the end, × (evidence + `charge_evidence_base`)."
+        },
+        "charge_evidence_base": {
+          "format": "double",
+          "type": "number"
+        },
+        "convict_base": {
+          "description": "Conviction: logistic(base + evidence × evidence − lawyer + mood × (0.5 − approval)).",
+          "format": "double",
+          "type": "number"
+        },
+        "convict_evidence": {
+          "format": "double",
+          "type": "number"
+        },
+        "convict_mood": {
+          "format": "double",
+          "type": "number"
+        },
+        "disqualify": {
+          "description": "Chance a crime conviction disqualifies from office.",
+          "format": "double",
+          "type": "number"
+        },
+        "fine": {
+          "$ref": "#/$defs/ByGravity",
+          "description": "Sentences: a fine (currency, by severity), removal from office\n(chance for misconduct; always for prison), prison years for crimes."
+        },
+        "fine_standing": {
+          "description": "Standing and viability lost to a fine or a removal.",
+          "format": "double",
+          "type": "number"
+        },
+        "investigation_days": {
+          "description": "Days an investigation lasts, [min, max].",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "long_years": {
+          "description": "A sentence this long (years) or a disqualification ends a career.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "official_bonus": {
+          "description": "Extra when auditors or investigators found it.",
+          "format": "double",
+          "type": "number"
+        },
+        "open": {
+          "$ref": "#/$defs/ByGravity",
+          "description": "Prosecutors' interest: chance an investigation opens, × evidence."
+        },
+        "open_days": {
+          "description": "Days from discovery to the decision to investigate, [min, max].",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "prison_years": {
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "release_standing": {
+          "description": "Out of prison: Standing and viability set to at most these.",
+          "format": "double",
+          "type": "number"
+        },
+        "release_viability": {
+          "format": "double",
+          "type": "number"
+        },
+        "removal_misconduct": {
+          "format": "double",
+          "type": "number"
+        },
+        "removal_viability": {
+          "format": "double",
+          "type": "number"
+        },
+        "responses": {
+          "$ref": "#/$defs/LegalResponseParams"
+        },
+        "track_charged": {
+          "format": "double",
+          "type": "number"
+        },
+        "track_decay": {
+          "description": "Legal Jeopardy falls this much a month with no open case.",
+          "format": "double",
+          "type": "number"
+        },
+        "track_investigation": {
+          "description": "Legal Jeopardy floors by stage (the track shows the case).",
+          "format": "double",
+          "type": "number"
+        },
+        "trial_days": {
+          "description": "Days from charges to trial, [min, max] (at least the fairness response time).",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "open",
+        "official_bonus",
+        "open_days",
+        "investigation_days",
+        "charge",
+        "charge_evidence_base",
+        "trial_days",
+        "convict_base",
+        "convict_evidence",
+        "convict_mood",
+        "fine",
+        "removal_misconduct",
+        "prison_years",
+        "long_years",
+        "disqualify",
+        "responses",
+        "track_investigation",
+        "track_charged",
+        "track_decay",
+        "release_standing",
+        "release_viability",
+        "fine_standing",
+        "removal_viability"
+      ],
+      "type": "object"
+    },
+    "LegalResponseKind": {
+      "description": "How the player answers an investigation (DEC-006 Legal Jeopardy).",
+      "oneOf": [
+        {
+          "enum": [
+            "cooperate",
+            "lawyer",
+            "stonewall",
+            "blame_ally"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "none",
+          "description": "Wait and see.",
+          "type": "string"
+        }
+      ]
+    },
+    "LegalResponseParams": {
+      "additionalProperties": false,
+      "description": "Responses to an investigation (the player's decision, NPCs by personality).",
+      "properties": {
+        "blame_charge": {
+          "description": "Blaming an ally: the charge chance × this; the ally's scandal valence + this.",
+          "format": "double",
+          "type": "number"
+        },
+        "blame_valence": {
+          "format": "double",
+          "type": "number"
+        },
+        "cooperate_charge": {
+          "description": "Cooperating: the charge chance × this, evidence + this, sentence × this.",
+          "format": "double",
+          "type": "number"
+        },
+        "cooperate_evidence": {
+          "format": "double",
+          "type": "number"
+        },
+        "cooperate_sentence": {
+          "format": "double",
+          "type": "number"
+        },
+        "lawyer_charge": {
+          "description": "A lawyer: the charge chance − this, the conviction logit − this.",
+          "format": "double",
+          "type": "number"
+        },
+        "lawyer_convict": {
+          "format": "double",
+          "type": "number"
+        },
+        "stonewall_charge": {
+          "format": "double",
+          "type": "number"
+        },
+        "stonewall_relief": {
+          "format": "double",
+          "type": "number"
+        },
+        "stonewall_strong": {
+          "description": "Stonewalling: at evidence ≥ `stonewall_strong` the charge chance + this\n(obstruction), below it − `stonewall_relief`.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "cooperate_charge",
+        "cooperate_evidence",
+        "cooperate_sentence",
+        "lawyer_charge",
+        "lawyer_convict",
+        "stonewall_strong",
+        "stonewall_charge",
+        "stonewall_relief",
+        "blame_charge",
+        "blame_valence"
       ],
       "type": "object"
     },
@@ -3626,6 +4244,64 @@
           "type": "object"
         }
       ]
+    },
+    "MediaParams": {
+      "additionalProperties": false,
+      "description": "The media parameter block (one file across all packs).",
+      "properties": {
+        "coverage": {
+          "$ref": "#/$defs/CoverageParams"
+        },
+        "discovery": {
+          "$ref": "#/$defs/DiscoveryParams"
+        },
+        "late_night_deal": {
+          "$ref": "#/$defs/HiddenSpec",
+          "description": "Late-night deals and fundraising (M5c's hidden facts)."
+        },
+        "late_night_fundraising": {
+          "$ref": "#/$defs/HiddenSpec"
+        },
+        "npc_acts": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ShadyActionDef"
+          },
+          "description": "NPC acts by id (a `shady_actions` key, or `donor_deal`), with their payoff in funds.",
+          "type": "object"
+        },
+        "perception": {
+          "$ref": "#/$defs/PerceptionParams"
+        },
+        "responses": {
+          "$ref": "#/$defs/ResponseParams"
+        },
+        "rumours": {
+          "$ref": "#/$defs/RumourParams"
+        },
+        "shady_actions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ShadyActionDef"
+          },
+          "description": "Shady actions by action key (`take_bribe`, `dip_funds`, `leak_file`).",
+          "type": "object"
+        },
+        "temptation": {
+          "$ref": "#/$defs/TemptationParams"
+        }
+      },
+      "required": [
+        "discovery",
+        "coverage",
+        "perception",
+        "responses",
+        "rumours",
+        "shady_actions",
+        "npc_acts",
+        "temptation",
+        "late_night_deal",
+        "late_night_fundraising"
+      ],
+      "type": "object"
     },
     "MemoryCaps": {
       "additionalProperties": false,
@@ -4184,6 +4860,123 @@
       ],
       "type": "object"
     },
+    "OutletDef": {
+      "additionalProperties": false,
+      "description": "An outlet template (DEC-034): generated per town, region, or nation when\nplay begins.",
+      "properties": {
+        "audience": {
+          "$ref": "#/$defs/AudienceDef"
+        },
+        "credibility": {
+          "description": "Credibility (0..1), drawn in [min, max].",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "finances": {
+          "description": "Yearly budget (currency), drawn in [min, max]: capacity and digging.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "interests": {
+          "default": [],
+          "description": "Concerns it cares about (extra interest in stories that touch them).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "journalists": {
+          "default": [],
+          "description": "Occupations of its journalists (Named people at its home place).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "lean_sd": {
+          "description": "Spread of its editorial lean around its audience's views (per issue).",
+          "format": "double",
+          "type": "number"
+        },
+        "name_key": {
+          "description": "Fluent key of the outlet's name (`$outlet_place`: its home place's\nname for a town outlet, its region's name for a regional one).",
+          "type": "string"
+        },
+        "place": {
+          "default": null,
+          "description": "A town outlet's home place kind (DEC-079): towns without one have none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reach": {
+          "description": "Share of the scope's adults it reaches (an audience weight of 1).",
+          "format": "double",
+          "type": "number"
+        },
+        "scope": {
+          "$ref": "#/$defs/OutletScope"
+        },
+        "social": {
+          "default": false,
+          "description": "A social platform: high reach, low credibility, spreads rumours.",
+          "type": "boolean"
+        },
+        "stories_per_week": {
+          "description": "Stories it runs a week at a typical budget.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "scope",
+        "reach",
+        "audience",
+        "credibility",
+        "lean_sd",
+        "finances",
+        "stories_per_week"
+      ],
+      "type": "object"
+    },
+    "OutletScope": {
+      "description": "Where an outlet publishes.",
+      "oneOf": [
+        {
+          "const": "town",
+          "description": "One per town with its home place (`place`).",
+          "type": "string"
+        },
+        {
+          "const": "region",
+          "description": "One per region.",
+          "type": "string"
+        },
+        {
+          "const": "nation",
+          "description": "One for the nation.",
+          "type": "string"
+        }
+      ]
+    },
     "ParamDef": {
       "additionalProperties": false,
       "properties": {
@@ -4300,6 +5093,67 @@
         "other"
       ],
       "type": "string"
+    },
+    "PerceptionParams": {
+      "additionalProperties": false,
+      "description": "What coverage does to beliefs (DEC-034 perception, DEC-025: perceived\npersonal impact as shaped by media).",
+      "properties": {
+        "acquittal": {
+          "format": "double",
+          "type": "number"
+        },
+        "approval": {
+          "description": "Approval of the subject lost per story × weight × heat × exposure × credibility.",
+          "format": "double",
+          "type": "number"
+        },
+        "awareness": {
+          "description": "Name recognition per story × exposure (a scandal makes you known).",
+          "format": "double",
+          "type": "number"
+        },
+        "framing": {
+          "description": "Hostile framing scales the hit by (1 + this × hostility).",
+          "format": "double",
+          "type": "number"
+        },
+        "legal_story": {
+          "description": "A legal development's story: × this (charges, a conviction), and an acquittal gives back this.",
+          "format": "double",
+          "type": "number"
+        },
+        "severity_weight": {
+          "$ref": "#/$defs/ByGravity",
+          "description": "Weight of each severity."
+        },
+        "standing": {
+          "description": "The subject's Standing (party) per breaking scandal × weight.",
+          "format": "double",
+          "type": "number"
+        },
+        "statement": {
+          "description": "Approval per covered statement × framing × exposure × credibility.",
+          "format": "double",
+          "type": "number"
+        },
+        "valence": {
+          "description": "A politician's scandal valence (0..1) per story × weight × heat × exposure × credibility.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "severity_weight",
+        "approval",
+        "awareness",
+        "framing",
+        "valence",
+        "standing",
+        "statement",
+        "legal_story",
+        "acquittal"
+      ],
+      "type": "object"
     },
     "PersonalityAiParams": {
       "additionalProperties": false,
@@ -4638,6 +5492,14 @@
       ],
       "type": "object"
     },
+    "RaisedBy": {
+      "description": "What raises a decision other than the director's spotlight: a story\nabout the player, or an investigation of them. Raised decisions are\nfairness first (DEC-006): never budgeted.",
+      "enum": [
+        "scandal",
+        "investigation"
+      ],
+      "type": "string"
+    },
     "RecordGains": {
       "additionalProperties": false,
       "properties": {
@@ -4749,6 +5611,76 @@
       ],
       "type": "object"
     },
+    "ResponseParams": {
+      "additionalProperties": false,
+      "description": "Responses to a story (the player's and NPCs').",
+      "properties": {
+        "ad_heat": {
+          "description": "An ad buy during a scandal keeps this much heat (changing the subject).",
+          "format": "double",
+          "type": "number"
+        },
+        "apologise_evidence": {
+          "description": "An apology is an admission: prosecutors' evidence rises by this.",
+          "format": "double",
+          "type": "number"
+        },
+        "apologise_heat": {
+          "format": "double",
+          "type": "number"
+        },
+        "counter_heat": {
+          "format": "double",
+          "type": "number"
+        },
+        "counter_hostility": {
+          "description": "A counter-attack turns the outlet that broke it more hostile.",
+          "format": "double",
+          "type": "number"
+        },
+        "deny_backfire_heat": {
+          "format": "double",
+          "type": "number"
+        },
+        "deny_backfire_standing": {
+          "format": "double",
+          "type": "number"
+        },
+        "deny_heat": {
+          "description": "Heat kept after a denial when the evidence is weak (below `deny_strong`).",
+          "format": "double",
+          "type": "number"
+        },
+        "deny_strong": {
+          "description": "Evidence at which a denial unravels: heat × `deny_backfire_heat` and Standing.",
+          "format": "double",
+          "type": "number"
+        },
+        "explain_heat": {
+          "format": "double",
+          "type": "number"
+        },
+        "statement_heat": {
+          "description": "A covered statement during a scandal keeps this much heat (× sympathy).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "deny_heat",
+        "deny_strong",
+        "deny_backfire_heat",
+        "deny_backfire_standing",
+        "explain_heat",
+        "apologise_heat",
+        "apologise_evidence",
+        "counter_heat",
+        "counter_hostility",
+        "statement_heat",
+        "ad_heat"
+      ],
+      "type": "object"
+    },
     "RoleDef": {
       "additionalProperties": false,
       "properties": {
@@ -4765,6 +5697,60 @@
         "cast"
       ],
       "type": "object"
+    },
+    "RumourParams": {
+      "additionalProperties": false,
+      "description": "Unverified claims (DEC-034 rumours, kept small).",
+      "properties": {
+        "correction_chance": {
+          "description": "Weekly chance a credible outlet corrects it (× its credibility).",
+          "format": "double",
+          "type": "number"
+        },
+        "correction_share": {
+          "description": "Share of the harm a correction undoes.",
+          "format": "double",
+          "type": "number"
+        },
+        "spread_weeks": {
+          "description": "Weeks a rumour spreads on social platforms.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "weight": {
+          "description": "A rumour's weight beside a real scandal of the same severity.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "spread_weeks",
+        "correction_chance",
+        "correction_share",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "ScandalResponseKind": {
+      "description": "How the player answers a story (DEC-034 player communication).",
+      "oneOf": [
+        {
+          "enum": [
+            "deny",
+            "explain",
+            "apologise",
+            "counter_attack"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "none",
+          "description": "Say nothing (the story runs its course).",
+          "type": "string"
+        }
+      ]
     },
     "ScenarioDef": {
       "additionalProperties": false,
@@ -5229,6 +6215,37 @@
         }
       ]
     },
+    "ShadyActionDef": {
+      "additionalProperties": false,
+      "description": "A shady action at a place (DEC-079): its payoff and the hidden fact it leaves.",
+      "properties": {
+        "health": {
+          "default": 0.0,
+          "description": "Health gained.",
+          "format": "double",
+          "type": "number"
+        },
+        "hidden": {
+          "$ref": "#/$defs/HiddenSpec"
+        },
+        "legal": {
+          "default": 0.0,
+          "description": "Legal exposure added at once.",
+          "format": "double",
+          "type": "number"
+        },
+        "money": {
+          "default": 0.0,
+          "description": "Campaign funds gained (negative: spent).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "hidden"
+      ],
+      "type": "object"
+    },
     "SideEffectDef": {
       "description": "A simulated downside of a policy (DEC-073). The amount is `per_unit`\ntimes the named parameter (or 1 without one), scaled by implementation\nprogress, funding, and pilot size like the mechanisms.",
       "oneOf": [
@@ -5604,6 +6621,41 @@
         "sales",
         "income",
         "business"
+      ],
+      "type": "object"
+    },
+    "TemptationParams": {
+      "additionalProperties": false,
+      "description": "NPCs' temptations (DEC-030: the same acts and the same exposure).",
+      "properties": {
+        "acts": {
+          "description": "What they take: the player's diner bribe, or a donor deal.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ambition_base": {
+          "description": "Chance × (base + ambition).",
+          "format": "double",
+          "type": "number"
+        },
+        "chance": {
+          "description": "Chance per turn for an officeholder of integrity 0 (× ambition factor).",
+          "format": "double",
+          "type": "number"
+        },
+        "integrity_power": {
+          "description": "Integrity's weight: chance × (1 − integrity)^this.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "chance",
+        "integrity_power",
+        "ambition_base",
+        "acts"
       ],
       "type": "object"
     },
@@ -6898,6 +7950,63 @@
       "required": [
         "kind",
         "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Outlet templates: newspapers, broadcasters, and social platforms (DEC-034).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/OutletDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "outlets",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Discovery, coverage, perception, responses, rumours, shady acts (DEC-034).",
+      "properties": {
+        "kind": {
+          "const": "media",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/MediaParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Investigations, charges, trials, and sentences (DEC-006 Legal Jeopardy).",
+      "properties": {
+        "kind": {
+          "const": "justice",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/JusticeParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
       ],
       "type": "object"
     }

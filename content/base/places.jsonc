@@ -8,7 +8,9 @@
 // actions that may also be taken here in the late-night slot. `services` are
 // information services: precise data the pocket only shows in coarse form.
 // `fallback` names the kind that hosts this kind's offerings in a town (or,
-// for neighbourhood actions, a neighbourhood) without one.
+// for neighbourhood actions, a neighbourhood) without one. Shady actions
+// (`take_bribe`, `dip_funds`, `leak_file`) take their payoff and hidden fact
+// from media.jsonc.
 {
   "kind": "places",
   "items": [
@@ -37,12 +39,13 @@
     {
       // Small towns without a paper: the press room at the town hall.
       "id": "place.news_office", "key": "news_office", "name_key": "place-news_office",
-      "actions": ["press", "advertise"],
+      "actions": ["press", "advertise", "leak_file"],
+      "services": ["newspaper"],
       "fallback": "town_hall",
     },
     {
       "id": "place.party_office", "key": "party_office", "name_key": "place-party_office",
-      "actions": ["fundraise"],
+      "actions": ["fundraise", "dip_funds"],
       "late_night": ["fundraise"],
       "services": ["internal_polls"],
       "fallback": "town_hall",
@@ -51,8 +54,9 @@
     // Where people talk: private meetings and overheard concerns.
     {
       "id": "place.diner", "key": "diner", "name_key": "place-diner",
-      "actions": ["lobby", "trade_favor"],
-      "late_night": ["lobby", "trade_favor"],
+      // `take_bribe` happens only late at night (an envelope under the table).
+      "actions": ["lobby", "trade_favor", "take_bribe"],
+      "late_night": ["lobby", "trade_favor", "take_bribe"],
       "services": ["overheard"],
     },
     {

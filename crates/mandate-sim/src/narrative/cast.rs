@@ -439,6 +439,23 @@ pub fn candidates(
                 .collect()
         }
         Cast::GoalHolder => goal_holder.filter(not_me).map(person).into_iter().collect(),
+        Cast::Ally => {
+            // Colleagues by their opinion of the player, warmest first.
+            let mut xs: Vec<(f32, CharacterId)> = v
+                .officeholders()
+                .into_iter()
+                .filter_map(|id| v.pol.get(id))
+                .filter(|p| !p.is_player)
+                .map(|p| {
+                    let o = me
+                        .map(|me| characters::opinion(v.pol, p.character, me))
+                        .unwrap_or(0.0);
+                    (o, p.character)
+                })
+                .collect();
+            xs.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
+            xs.into_iter().map(|(_, c)| person(c)).collect()
+        }
     }
 }
 

@@ -844,6 +844,8 @@ pub fn generate_with_progress(
         policy,
         player: None,
         narrative: Default::default(),
+        media: Default::default(),
+        justice: Default::default(),
     };
     let years = content.tuning.burn_in_years as u32;
     let mut engine = Engine::from_state(state, content)?;
@@ -891,6 +893,8 @@ pub fn generate_with_progress(
             date,
         );
         mandate_sim::characters::refresh_towns(state, &content2);
+        // The press, as play begins (DEC-034): outlets and their journalists.
+        mandate_sim::media::generate(state, &content2);
     });
     engine.mark_started();
     progress("progress-done", 1.0);
@@ -987,6 +991,7 @@ fn place_player(
         ads_this_turn: 0,
         last_election_seen: None,
         location: mandate_sim::places::Location::Home,
+        status: Default::default(),
     })
 }
 

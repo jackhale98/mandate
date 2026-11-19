@@ -122,6 +122,8 @@ pub struct PlayerView {
     pub record: f64,
     /// Below this Standing the party will not renominate the player.
     pub renomination_standing: f64,
+    /// Shady actions with their payoff and risk line (DEC-034, DEC-073).
+    pub shady: Vec<crate::media::ShadyOfferView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -756,6 +758,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
             ad_cost: content.politics.campaign.ad_cost as f64,
             record: me.record as f64 * 100.0,
             renomination_standing: content.politics.vote.renomination_standing,
+            shady: crate::media::shady_offers(engine),
             action_costs: content
                 .tuning
                 .action_costs

@@ -123,6 +123,8 @@ pub enum MemoryKind {
     StoodWithMe,
     StoodAgainstMe,
     IgnoredMe,
+    /// The player pinned their own wrongdoing on them (a betrayal).
+    BlamedMe,
 }
 
 impl MemoryKind {
@@ -146,6 +148,7 @@ impl MemoryKind {
             MemoryKind::StoodWithMe => "stood_with_me",
             MemoryKind::StoodAgainstMe => "stood_against_me",
             MemoryKind::IgnoredMe => "ignored_me",
+            MemoryKind::BlamedMe => "blamed_me",
         }
     }
 

@@ -61,6 +61,154 @@ pub struct PlayerState {
     /// Where the player is in their town (DEC-079). Moving is free.
     #[serde(default)]
     pub location: crate::places::Location,
+    /// In play, in prison, or over (DEC-006).
+    #[serde(default)]
+    pub status: RunStatus,
+}
+
+/// Where a career stands (DEC-006): in play, out of politics for a while
+/// (a short sentence: time passes, then a possible comeback), or over.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RunStatus {
+    #[default]
+    Active,
+    Imprisoned {
+        until: SimDate,
+        case: u32,
+    },
+    /// The run is over: `reason` is `prison` (a long sentence) or
+    /// `disqualified`.
+    Ended {
+        date: SimDate,
+        case: u32,
+        reason: EndReason,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EndReason {
+    Prison,
+    Disqualified,
+}
+
+impl EndReason {
+    pub fn key(self) -> &'static str {
+        match self {
+            EndReason::Prison => "prison",
+            EndReason::Disqualified => "disqualified",
+        }
+    }
+}
+
+impl RunStatus {
+    pub fn active(&self) -> bool {
+        matches!(self, RunStatus::Active)
+    }
+}
+
+/// Player domain, Characters phase, daily: track changes other domains asked
+/// for (a scandal's cost in Standing, a case's Legal Jeopardy floor), a
+/// sentence landing, and release from prison.
+pub fn effects(pl: &mut PlayerState, r: &Reads<'_>, out: &mut Outs<'_>) {
+    let j = &r.content.justice;
+    let me = pl.politician;
+    for e in out.effects.take(|e| match e {
+        crate::scheduler::Effect::PlayerTrack { .. } => true,
+        crate::scheduler::Effect::Sentenced { politician, .. } => *politician == me,
+        _ => false,
+    }) {
+        match e {
+            crate::scheduler::Effect::PlayerTrack {
+                standing,
+                viability,
+                money,
+                legal_floor,
+            } => {
+                let t = &mut pl.tracks;
+                t.standing = (t.standing + standing).clamp(0.0, 100.0);
+                t.viability = (t.viability + viability).clamp(0.0, 100.0);
+                if let Some(f) = legal_floor {
+                    t.legal_jeopardy = t.legal_jeopardy.max(f).min(100.0);
+                }
+                if money != 0.0 {
+                    let m = (pl.money.units() as f64 + money).max(0.0);
+                    pl.money = Money::from_units(m.round() as i64);
+                }
+            }
+            crate::scheduler::Effect::Sentenced {
+                politician,
+                case,
+                sentence,
+            } => {
+                let _ = politician;
+                use crate::justice::Sentence;
+                let fine = match sentence {
+                    Sentence::Fine { amount } | Sentence::Removed { amount } => amount,
+                    _ => 0.0,
+                };
+                let m = (pl.money.units() as f64 - fine).max(0.0);
+                pl.money = Money::from_units(m.round() as i64);
+                pl.tracks.standing = (pl.tracks.standing - j.fine_standing as f32).max(0.0);
+                if !matches!(sentence, Sentence::Fine { .. }) {
+                    pl.tracks.viability =
+                        (pl.tracks.viability - j.removal_viability as f32).max(0.0);
+                    pl.filing = None;
+                }
+                let years = sentence.prison_years();
+                if sentence.ends_career(j.long_years) {
+                    let reason = if matches!(sentence, Sentence::Disqualified { .. }) {
+                        EndReason::Disqualified
+                    } else {
+                        EndReason::Prison
+                    };
+                    pl.status = RunStatus::Ended {
+                        date: r.date,
+                        case,
+                        reason,
+                    };
+                    let ev = out.events.record(
+                        r.date,
+                        crate::events::EventKind::CareerEnded {
+                            reason: reason.key().into(),
+                        },
+                        vec![],
+                    );
+                    out.events.pin(ev);
+                } else if years > 0 {
+                    let until = r
+                        .date
+                        .add_days(years as u32 * mandate_core::time::DAYS_PER_YEAR);
+                    pl.status = RunStatus::Imprisoned { until, case };
+                    pl.location = crate::places::Location::Home;
+                    let ev = out.events.record(
+                        r.date,
+                        crate::events::EventKind::PlayerImprisoned {
+                            years: years as u32,
+                            until,
+                        },
+                        vec![],
+                    );
+                    out.events.pin(ev);
+                }
+            }
+            _ => {}
+        }
+    }
+    // Out of prison: back in town, out of office, with a long way back.
+    if let RunStatus::Imprisoned { until, .. } = pl.status
+        && until <= r.date
+    {
+        pl.status = RunStatus::Active;
+        pl.tracks.standing = pl.tracks.standing.min(j.release_standing as f32);
+        pl.tracks.viability = pl.tracks.viability.min(j.release_viability as f32);
+        pl.tracks.legal_jeopardy = pl.tracks.legal_jeopardy.min(30.0);
+        let ev = out
+            .events
+            .record(r.date, crate::events::EventKind::PlayerReleased, vec![]);
+        out.events.pin(ev);
+    }
 }
 
 impl PlayerState {
@@ -114,6 +262,11 @@ pub fn monthly(pl: &mut PlayerState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         100.0,
     ) as f32;
     pl.tracks.health = (pl.tracks.health + k.health_recovery as f32).min(100.0);
+    // Legal Jeopardy eases while no case is open (a case holds its floor).
+    if r.justice().open_against(pl.politician).next().is_none() {
+        pl.tracks.legal_jeopardy =
+            (pl.tracks.legal_jeopardy - r.content.justice.track_decay as f32).max(0.0);
+    }
     // The party notices a passenger, and rewards a worker (DEC-076).
     let record = r
         .politics()

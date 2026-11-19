@@ -98,6 +98,12 @@ enum Cmd {
         /// Print per-seed results for these strategies instead of the report.
         #[arg(long)]
         detail: Vec<String>,
+        /// Play careers this many years long with these strategies and print
+        /// their outcome distribution (elections, scandals, cases, prison).
+        #[arg(long)]
+        careers: Option<u32>,
+        #[arg(long, default_values_t = vec!["corrupt".to_string(), "mixed".to_string()])]
+        career_strategies: Vec<String>,
         #[command(flatten)]
         lab: LabArgs,
     },
@@ -536,7 +542,13 @@ fn run(cli: Cli) -> Result<(), String> {
                 Err("Monte Carlo bands or drama floors failed".into())
             }
         }
-        Cmd::Bots { seeds, detail, lab } => {
+        Cmd::Bots {
+            seeds,
+            detail,
+            careers,
+            career_strategies,
+            lab,
+        } => {
             let runs = lab_runs(&cli.content, &lab)?;
             if !lab.grid.is_empty() {
                 // One summary row per combination: win rates and the gates.
@@ -566,6 +578,14 @@ fn run(cli: Cli) -> Result<(), String> {
                 return Ok(());
             }
             let content = runs.into_iter().next().map(|r| r.1).ok_or("no content")?;
+            if let Some(years) = careers {
+                let rows: Vec<serde_json::Value> = career_strategies
+                    .iter()
+                    .map(|s| bots::careers(&content, seeds, s, years))
+                    .collect();
+                out(serde_json::Value::Array(rows));
+                return Ok(());
+            }
             if !detail.is_empty() {
                 let mut rows = Vec::new();
                 for seed in 1..=seeds {

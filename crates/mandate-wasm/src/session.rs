@@ -186,6 +186,9 @@ impl Session {
                     .map(ResponseBody::Decision)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no decision {id}"))),
                 QueryDto::Story => Ok(ResponseBody::Story(story_view(self.engine_mut()?))),
+                QueryDto::Newspaper => newspaper_view(self.engine_mut()?, 24)
+                    .map(ResponseBody::Newspaper)
+                    .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
                 QueryDto::Scenarios => Ok(ResponseBody::Scenarios(scenario_list(&self.content))),
                 QueryDto::Locale { lang } => Ok(ResponseBody::Locale(LocaleView {
                     ftl: self.content.locale_text(&lang),
@@ -338,6 +341,9 @@ fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, 
                 ActionDto::Fundraise => Action::Fundraise,
                 ActionDto::Rest => Action::Rest,
                 ActionDto::Advertise => Action::Advertise,
+                ActionDto::TakeBribe => Action::TakeBribe,
+                ActionDto::DipFunds => Action::DipFunds,
+                ActionDto::LeakFile => Action::LeakFile,
             },
         },
         // EndTurn and AdvanceDays are handled before this conversion; they

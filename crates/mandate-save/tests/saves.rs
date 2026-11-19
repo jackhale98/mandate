@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (12, "bfb8f55a9d5abfcb");
+    const EXPECTED: (u16, &str) = (13, "9d193ebd40fd1955");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -740,14 +740,27 @@ fn saves_and_the_character_registries() {
         let (state, _) = decode(&bytes).unwrap();
         mandate_sim::Engine::from_state(state, bundle)
     };
-    // A used occupation removed: refused, naming it.
+    // A used occupation removed: refused, naming it. (One only outlets name
+    // besides its own file; the outlets lose it too, so the content itself
+    // still validates.)
+    let all =
+        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
+    let named_elsewhere = |id: &str| {
+        all.iter().any(|s| {
+            !matches!(
+                s.path.as_str(),
+                "base/occupations.jsonc" | "base/outlets.jsonc"
+            ) && s.text.contains(&format!("\"{id}\""))
+        })
+    };
     let used = e
         .state()
         .politics
         .characters
         .people
         .iter()
-        .find_map(|p| p.named.as_deref().map(|n| n.occupation.clone()))
+        .filter_map(|p| p.named.as_deref().map(|n| n.occupation.clone()))
+        .find(|o| !named_elsewhere(o))
         .unwrap();
     let r = load_with(&|src| {
         let f = src
@@ -760,6 +773,18 @@ fn saves_and_the_character_registries() {
             .as_array_mut()
             .unwrap()
             .retain(|o| o["id"] != serde_json::json!(used));
+        f.text = v.to_string();
+        let f = src
+            .iter_mut()
+            .find(|s| s.path == "base/outlets.jsonc")
+            .unwrap();
+        let mut v: serde_json::Value =
+            serde_json::from_str(&mandate_content::jsonc::to_strict_json(&f.text)).unwrap();
+        for o in v["items"].as_array_mut().unwrap() {
+            if let Some(js) = o.get_mut("journalists").and_then(|j| j.as_array_mut()) {
+                js.retain(|j| j != &serde_json::json!(used));
+            }
+        }
         f.text = v.to_string();
     });
     match r {
@@ -914,4 +939,71 @@ fn a_removed_dilemma_template_does_not_break_loading() {
             .iter()
             .all(|d| d.template != pending.template || d.id == pending.id)
     );
+}
+
+/// v13 added media and justice (DEC-034, DEC-006): outlets, knowledge,
+/// stories, scandals, rumours, cases, a career's status, and hidden facts'
+/// fates. A v12 save loads with media and justice empty, gets its outlets
+/// on load, and plays on; the press then covers what happens from there.
+#[test]
+fn v12_saves_migrate_to_media_and_justice() {
+    let c = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 63,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    e.apply(Command::AdvanceDays { days: 300 }).unwrap();
+    // The v12 shape: no media, justice, or status; hidden facts and
+    // decisions without their new fields; no media RNG stream.
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    let st = v.pointer_mut("/state").unwrap().as_object_mut().unwrap();
+    st.remove("media");
+    st.remove("justice");
+    st.get_mut("player")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .remove("status");
+    let n = st.get_mut("narrative").unwrap().as_object_mut().unwrap();
+    n.remove("raised");
+    n.remove("shape_discovery");
+    for h in n.get_mut("hidden").unwrap().as_array_mut().unwrap() {
+        let h = h.as_object_mut().unwrap();
+        for k in ["subject", "severity", "evidence", "town", "fate"] {
+            h.remove(k);
+        }
+    }
+    for d in n.get_mut("decisions").unwrap().as_array_mut().unwrap() {
+        d.as_object_mut().unwrap().remove("about");
+    }
+    st.get_mut("rng")
+        .unwrap()
+        .get_mut("states")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .remove("Media");
+    let migrated = mandate_save::migrate(12, v).unwrap();
+    let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    assert!(!state.media.active && state.media.outlets.is_empty());
+    assert!(state.justice.cases.is_empty());
+    assert!(state.narrative.hidden.iter().all(|h| h.fate.is_none()));
+    let mut e2 = mandate_sim::Engine::from_state(state, c).unwrap();
+    assert!(e2.state().media.active, "outlets are generated on load");
+    assert!(!e2.state().media.outlets.is_empty());
+    for _ in 0..30 {
+        e2.apply(Command::EndTurn).unwrap();
+    }
+    assert!(
+        !e2.state().media.stories.is_empty(),
+        "the press covers the town from here on"
+    );
+    let (bytes, _) = encode(e2.state(), &req()).unwrap();
+    let (back, _) = decode(&bytes).unwrap();
+    assert_eq!(back.hash(), e2.state_hash());
 }

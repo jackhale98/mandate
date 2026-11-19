@@ -27,10 +27,12 @@ pub enum Stream {
     Dialogue,
     Player,
     Misc,
+    /// Media, scandals, and the legal path (DEC-034, DEC-006): keyed draws only.
+    Media,
 }
 
 impl Stream {
-    pub const ALL: [Stream; 11] = [
+    pub const ALL: [Stream; 12] = [
         Stream::Worldgen,
         Stream::Population,
         Stream::Economy,
@@ -42,6 +44,7 @@ impl Stream {
         Stream::Dialogue,
         Stream::Player,
         Stream::Misc,
+        Stream::Media,
     ];
 
     pub fn tag(self) -> &'static str {
@@ -57,6 +60,7 @@ impl Stream {
             Stream::Dialogue => "dialogue",
             Stream::Player => "player",
             Stream::Misc => "misc",
+            Stream::Media => "media",
         }
     }
 }
