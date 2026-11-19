@@ -2,7 +2,7 @@
 // stage reads and writes, keyed random streams, and small grid helpers.
 // Internal to ./plan and its stages.
 import { stream, type Rng } from "../rng";
-import { Terrain, type TownConnector, type TownProp } from "../townLayout";
+import { Terrain, type StreetEndKind, type TownConnector, type TownProp } from "../townLayout";
 import type { Band, TownGeo } from "./geo";
 import type { DistrictType, Recipe, TerrainFeature } from "./registry";
 
@@ -12,7 +12,7 @@ export class LayoutOverflow extends Error {}
 export const WaterKind = { None: 0, River: 1, Sea: 2, Lake: 3, Creek: 4 } as const;
 
 /** Cell use flags (what a later stage must not build over). */
-export const Use = { Road: 1, Square: 2, Plot: 4, Rail: 8, Bridge: 16, Keep: 32, Lane: 64 } as const;
+export const Use = { Road: 1, Square: 2, Plot: 4, Rail: 8, Bridge: 16, Keep: 32, Lane: 64, End: 128 } as const;
 
 /** Street classes per road cell (for names, lamps, routing). */
 export const RoadClass = { None: 0, Arterial: 1, Street: 2, Lane: 3 } as const;
@@ -55,8 +55,8 @@ export interface Segment {
   district: number;
   /** The arterial it belongs to, or -1. */
   arterial: number;
-  /** Designed turning heads (cul-de-sacs): bit 1 at the a end, bit 2 at the b end. */
-  heads: number;
+  /** How each end (a, b) terminates when it joins no street (a turning circle, bollards, a field gate…), or null. */
+  ends: [StreetEndKind | null, StreetEndKind | null];
 }
 
 export interface Arterial {

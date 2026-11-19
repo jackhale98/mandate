@@ -173,6 +173,7 @@ export function dressTown(plan: TownPlan, state: TownState): TownMap {
     elevation: plan.elevation,
     connectors: mapConnectors(plan),
     streetAxis: plan.streetAxis,
+    streetEnds: plan.streetEnds.map((e) => ({ ...e })),
     solid,
     district: plan.district,
     buildings,
@@ -204,6 +205,7 @@ export function dressHash(map: TownMap): string {
   for (let i = 0; i < map.terrain.length; i++) feed((map.terrain[i] as number) | ((map.solid[i] as number) << 5) | (((map.elevation?.[i] as number | undefined) ?? 0) << 6));
   for (const b of map.buildings) for (const n of [b.x, b.y, b.w, b.h, b.doorX, b.place ?? 0xffff, b.district, ST[b.state ?? "built"] ?? 0, b.home ? 1 : 0]) feed(n);
   for (const c of map.connectors ?? []) for (const n of [c.x, c.y, c.w, c.h]) feed(n);
+  for (const e of map.streetEnds ?? []) for (const n of [e.x, e.y, e.w, e.h, e.kind.length, e.facing.length]) feed(n);
   if (map.streetAxis) for (let i = 0; i < map.streetAxis.length; i++) if (map.streetAxis[i]) feed(i * 4 + (map.streetAxis[i] as number));
   for (const p of map.props) feed(p.x * 31 + p.y);
   return (h >>> 0).toString(16).padStart(8, "0");

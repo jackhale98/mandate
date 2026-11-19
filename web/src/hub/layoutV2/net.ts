@@ -3,7 +3,7 @@
 // run is a staircase of cells the art draws smooth), painting them with
 // their kerbs, and the `StreetAxis` code of every street cell. Shared by
 // the planner's stages and the checks. Integer maths only.
-import { StreetAxis, Terrain } from "../townLayout";
+import { StreetAxis, Terrain, type StreetEndKind, type TownStreetEnd } from "../townLayout";
 import { RoadClass, Use, WaterKind, isWaterBody, type PlanConnector, type SegAxis, type Segment, type Work } from "./work";
 
 /** The eight directions, counter-clockwise from east (screen axes: y grows south). */
@@ -46,7 +46,7 @@ export const bandLo = (width: number) => (width - 1) >> 1;
 export const segSteps = (s: Segment) => (s.axis === "v" ? s.by - s.ay : s.bx - s.ax);
 
 /** A run from (x, y) going `steps` along direction `dir`, normalised so a ≤ b. */
-export function makeSeg(x: number, y: number, dir: number, steps: number, width: number, base: Pick<Segment, "cls" | "style" | "district" | "arterial"> & { heads?: number }): Segment {
+export function makeSeg(x: number, y: number, dir: number, steps: number, width: number, base: Pick<Segment, "cls" | "style" | "district" | "arterial"> & { end?: StreetEndKind | null }): Segment {
   const [dx, dy] = DIR8[dir & 7] as readonly [number, number];
   const ex = x + dx * steps;
   const ey = y + dy * steps;
@@ -56,10 +56,10 @@ export function makeSeg(x: number, y: number, dir: number, steps: number, width:
   const ay = flip ? ey : y;
   const bx = flip ? x : ex;
   const by = flip ? y : ey;
-  // A head asked for at the far end (b in travel order) moves with the flip.
-  let heads = base.heads ?? 0;
-  if (flip) heads = ((heads & 1) << 1) | ((heads & 2) >> 1);
-  return withBox({ axis, ax, ay, bx, by, width, x0: 0, y0: 0, x1: 0, y1: 0, cls: base.cls, style: base.style, district: base.district, arterial: base.arterial, heads });
+  // An end asked for at the far end (in travel order) moves with the flip.
+  const far = base.end ?? null;
+  const ends: Segment["ends"] = flip ? [far, null] : [null, far];
+  return withBox({ axis, ax, ay, bx, by, width, x0: 0, y0: 0, x1: 0, y1: 0, cls: base.cls, style: base.style, district: base.district, arterial: base.arterial, ends });
 }
 
 /** Set a run's bounding box from its centre line and width. */
@@ -89,7 +89,7 @@ export function withBox(s: Segment): Segment {
 export function boxSeg(axis: "h" | "v", x0: number, y0: number, x1: number, y1: number, base: Pick<Segment, "cls" | "style" | "district" | "arterial">): Segment {
   const width = axis === "h" ? y1 - y0 + 1 : x1 - x0 + 1;
   const lo = bandLo(width);
-  const s: Segment = axis === "h" ? { axis, ax: x0, ay: y0 + lo, bx: x1, by: y0 + lo, width, x0, y0, x1, y1, ...base, heads: 0 } : { axis, ax: x0 + lo, ay: y0, bx: x0 + lo, by: y1, width, x0, y0, x1, y1, ...base, heads: 0 };
+  const s: Segment = axis === "h" ? { axis, ax: x0, ay: y0 + lo, bx: x1, by: y0 + lo, width, x0, y0, x1, y1, ...base, ends: [null, null] } : { axis, ax: x0 + lo, ay: y0, bx: x0 + lo, by: y1, width, x0, y0, x1, y1, ...base, ends: [null, null] };
   return s;
 }
 
@@ -209,38 +209,66 @@ export function levelCrossing(w: Work, s: Segment, cells: number[]): PlanConnect
   return { kind: "level_crossing", type: id, x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, axis: s.axis === "v" ? "ns" : "ew", name: "", crosses: "rail", arterial: s.arterial };
 }
 
-/** The cells of a designed turning head at a run's end (a square of road with a kerb). */
+/** Terminations that widen the road (a turning head is part of the street). */
+export const isHead = (k: StreetEndKind | null | undefined) => k === "turning_circle" || k === "hammerhead";
+
+/**
+ * The cells of a turning head at a run's end: a turning circle is a square
+ * bulb (the art rounds it) about the street's width plus two, pushed out so
+ * the run's mouth stays open; a hammerhead is a bar across the run's last
+ * cells, two cells wider each side (a T).
+ */
 export function headCells(s: Segment, end: 0 | 1, W: number, H: number): number[] {
+  const kind = s.ends[end];
+  const cells: number[] = [];
+  const t = end === 0 ? 0 : segSteps(s);
+  const out = end === 0 ? -1 : 1;
+  if (kind === "hammerhead") {
+    const depth = Math.max(2, Math.min(3, s.width));
+    const n = s.width + 4;
+    const bar: Segment = { ...s, width: n };
+    forBand(bar, Math.min(t, t - out * (depth - 1)), Math.max(t, t - out * (depth - 1)), (x, y) => {
+      if (x >= 0 && y >= 0 && x < W && y < H) cells.push(y * W + x);
+    });
+    return [...new Set(cells)].sort((p, q) => p - q);
+  }
   const cx = end === 0 ? s.ax : s.bx;
   const cy = end === 0 ? s.ay : s.by;
   const r = Math.max(2, (s.width >> 1) + 1);
-  // The head sits on the end, pushed outward so the run's mouth stays open.
   const [sx, sy] = stepOf(s.axis);
-  const out = end === 0 ? -1 : 1;
   const hx = cx + sx * out * (r - 1);
   const hy = cy + sy * out * (r - 1);
-  const cells: number[] = [];
   for (let y = hy - r; y <= hy + r; y++) for (let x = hx - r; x <= hx + r; x++) if (x >= 0 && y >= 0 && x < W && y < H) cells.push(y * W + x);
   return cells;
 }
 
-/** Paint a turning head: road inside a ring of pavement (dirt for country lanes). Returns false where it cannot fit. */
+/** Paint a turning head: road inside a kerb of pavement (dirt for country lanes). Returns false where it cannot fit. */
 export function paintHead(w: Work, s: Segment, end: 0 | 1, dry = false): boolean {
   const { W, H } = w;
   const cells = headCells(s, end, W, H);
-  const side = Math.round(Math.sqrt(cells.length));
-  if (cells.length !== side * side) return false;
+  if (!cells.length) return false;
+  let x0 = W;
+  let y0 = H;
+  let x1 = -1;
+  let y1 = -1;
   for (const c of cells) {
     if (isWaterBody(w, c) || (w.use[c] as number) & (Use.Rail | Use.Square | Use.Plot) || w.terrain[c] === Terrain.Rock) return false;
+    const x = c % W;
+    const y = (c - x) / W;
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x);
+    y1 = Math.max(y1, y);
+    if (x === 0 || y === 0 || x === W - 1 || y === H - 1) return false;
   }
   if (dry) return true;
-  const x0 = (cells[0] as number) % W;
-  const y0 = Math.floor((cells[0] as number) / W);
-  const lv = w.level[(y0 + (side >> 1)) * W + x0 + (side >> 1)] as number;
+  const set = new Set(cells);
+  const lv = w.level[(s.ends[end] === "hammerhead" ? (end === 0 ? s.ay : s.by) : (y0 + y1) >> 1) * W + (s.ends[end] === "hammerhead" ? (end === 0 ? s.ax : s.bx) : (x0 + x1) >> 1)] as number;
   for (const c of cells) {
     const x = c % W;
     const y = (c - x) / W;
-    const rim = x === x0 || y === y0 || x === x0 + side - 1 || y === y0 + side - 1;
+    // The kerb: a head cell with a neighbour outside the head.
+    const rim = !set.has(c - 1) || !set.has(c + 1) || !set.has(c - W) || !set.has(c + W) || x === x0 || x === x1 || y === y0 || y === y1;
     const t = s.style === "dirt" ? Terrain.Dirt : s.style === "lane" || s.style === "path" ? Terrain.Pavement : rim ? Terrain.Pavement : Terrain.Road;
     const cur = w.terrain[c] as number;
     if ((w.use[c] as number) & Use.Road && (RANK[cur] ?? 0) >= (RANK[t] ?? 0)) continue;
@@ -255,6 +283,48 @@ export function paintHead(w: Work, s: Segment, end: 0 | 1, dry = false): boolean
     if (!w.roadClass[c]) w.roadClass[c] = s.cls || RoadClass.Street;
   }
   return true;
+}
+
+/** The direction a run travels into its end. */
+export function facingOf(s: Segment, end: 0 | 1): TownStreetEnd["facing"] {
+  switch (s.axis) {
+    case "h":
+      return end === 1 ? "e" : "w";
+    case "v":
+      return end === 1 ? "s" : "n";
+    case "ne":
+      return end === 1 ? "ne" : "sw";
+    default:
+      return end === 1 ? "se" : "nw";
+  }
+}
+
+/** A recorded street end: the end's last road cells (its head, for a turning head). */
+export function streetEndOf(s: Segment, end: 0 | 1, W: number, H: number): TownStreetEnd | null {
+  const kind = s.ends[end];
+  if (!kind) return null;
+  const cells: number[] = [];
+  if (isHead(kind)) cells.push(...headCells(s, end, W, H));
+  else {
+    const t = end === 0 ? 0 : segSteps(s);
+    forBand(s, t, t, (x, y) => {
+      if (x >= 0 && y >= 0 && x < W && y < H) cells.push(y * W + x);
+    });
+  }
+  if (!cells.length) return null;
+  let x0 = W;
+  let y0 = H;
+  let x1 = -1;
+  let y1 = -1;
+  for (const c of cells) {
+    const x = c % W;
+    const y = (c - x) / W;
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x);
+    y1 = Math.max(y1, y);
+  }
+  return { kind, x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, facing: facingOf(s, end) };
 }
 
 /** `StreetAxis` per cell from the runs: a diagonal's cells take its direction, where it meets another run a junction. */

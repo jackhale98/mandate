@@ -924,7 +924,7 @@ export function stageProps(w: Work) {
     for (let x = 1; x < W - 1; x++) {
       const c = y * W + x;
       const t = w.terrain[c] as number;
-      if ((w.use[c] as number) & (Use.Plot | Use.Road | Use.Square | Use.Rail)) continue;
+      if ((w.use[c] as number) & (Use.Plot | Use.Road | Use.Square | Use.Rail | Use.End)) continue;
       const d = w.district[c] as number;
       let p = 0;
       if (t === Terrain.Park) p = 0.14;

@@ -9,13 +9,14 @@
 // stage (../rng), so changing one stage never shifts another's draws. A stage
 // that cannot fit what it must throws `LayoutOverflow`; the plan retries with
 // more room (a new attempt number keys every stream), as v1 does.
-import type { TownConnector, TownProp, WaterSide } from "../townLayout";
+import type { TownConnector, TownProp, TownStreetEnd, WaterSide } from "../townLayout";
 import { Terrain } from "../townLayout";
 import { BAND_CAPS, bandOf, type Band, type TownGeo } from "./geo";
 import { NO_BEARING, isqrt } from "./imath";
 import { BASE_RECIPE, snapshotRecipe, type Recipe } from "./registry";
 import { stageDistricts } from "./districts";
 import { stageStreetAxes, stageStreets } from "./streets";
+import { streetEndOf } from "./net";
 import { stageConnect, stageMinimumFill, stageShortcuts, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
 import { nameBridges, stageArterials, stageLevelEdges, stageRail, stageTerraces } from "./roads";
 import { stageCentre, stageTerrain, stageWater, townSize } from "./terrain";
@@ -79,6 +80,8 @@ export interface TownPlan {
   rail: Segment[];
   /** `StreetAxis` per cell: the direction of diagonal streets (the art draws them smooth). */
   streetAxis: Uint8Array;
+  /** How every street that joins no other street ends (DEC-090 street ends). */
+  streetEnds: TownStreetEnd[];
   landmarks: { kind: string; x: number; y: number; name: string; plot: number }[];
   /** The square's open plaza and the civic row above it. */
   square: Rect;
@@ -387,6 +390,7 @@ function finish(w: Work, baseline: number[]): TownPlan {
     segments: w.segments,
     rail: w.rail,
     streetAxis: w.axis,
+    streetEnds: w.segments.flatMap((s) => [streetEndOf(s, 0, W, H), streetEndOf(s, 1, W, H)].filter((e): e is TownStreetEnd => e !== null)),
     mainRoad: Uint8Array.from(w.roadClass, (k) => (k === RoadClass.Arterial ? 1 : 0)),
     square: w.plaza,
     civic: w.civic,
@@ -416,6 +420,7 @@ export function planHash(plan: TownPlan): string {
   feed(plan.height);
   for (let i = 0; i < plan.terrain.length; i++) feed((plan.terrain[i] as number) | ((plan.elevation[i] as number) << 5) | (((plan.district[i] as number) + 1) << 7));
   for (let i = 0; i < plan.streetAxis.length; i++) if (plan.streetAxis[i]) feed(i * 4 + (plan.streetAxis[i] as number));
+  for (const e of plan.streetEnds) for (const n of [e.x, e.y, e.w, e.h, e.kind.length, e.facing.length]) feed(n);
   for (const p of plan.plots) for (const n of [p.x, p.y, p.w, p.h, p.doorX, p.place ?? 0xffff, p.district, p.fillRank, p.declineRank]) feed(n);
   for (const c of plan.connectors) for (const n of [c.x, c.y, c.w, c.h, c.axis === "ns" ? 1 : 0, c.name.length]) feed(n);
   for (const p of plan.props) feed(p.x * 31 + p.y);

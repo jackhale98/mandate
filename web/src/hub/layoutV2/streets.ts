@@ -16,9 +16,10 @@
 // promoted to a main street. Then small greens at junctions, and the
 // direction code of every street cell for the art. Integer maths, keyed
 // streams per district.
-import { Terrain } from "../townLayout";
+import { mix } from "../rng";
+import { Terrain, type StreetEndKind } from "../townLayout";
 import { MinHeap } from "./imath";
-import { DIR8, axisOfDir, bandLo, forBand, headCells, isDiagDir, levelCrossing, makeSeg, paintHead, paintSegment, parallelGap, segCells, segSteps, stepOf, streetAxes } from "./net";
+import { DIR8, axisOfDir, bandLo, forBand, headCells, isDiagDir, isHead, levelCrossing, makeSeg, paintHead, paintSegment, parallelGap, segCells, segSteps, stepOf, streetAxes } from "./net";
 import { RoadClass, Use, WaterKind, countrysideMargin, distanceField, isWaterBody, rngOf, type Segment, type Work, type WorkDistrict } from "./work";
 
 /** How a street pattern grows (defaults by pattern name; the registry gives block and depth). */
@@ -35,6 +36,8 @@ interface Growth {
   bend: number;
   /** Share of streets that end in a turning head where the type allows dead ends. */
   culDeSac: number;
+  /** The turning head a cul-de-sac ends in. */
+  head: "turning_circle" | "hammerhead";
   /** The longest street run, tiles. */
   maxRun: number;
   /** How far a street may shift from the deepest point to find a better line, tiles. */
@@ -52,10 +55,11 @@ const GROWTH: Record<string, Growth> = {
     crossroads: 500,
     bend: 0.45,
     culDeSac: 0,
+    head: "turning_circle",
     maxRun: 34,
     shift: 2,
   },
-  grid: { widths: [{ width: 3, style: "asphalt", weight: 1 }], diagonal: { radial: false, terrain: true }, rows: 260, crossroads: 120, bend: 0.12, culDeSac: 0, maxRun: 70, shift: 1 },
+  grid: { widths: [{ width: 3, style: "asphalt", weight: 1 }], diagonal: { radial: false, terrain: true }, rows: 260, crossroads: 120, bend: 0.12, culDeSac: 0, head: "hammerhead", maxRun: 70, shift: 1 },
   curvy: {
     widths: [{ width: 3, style: "asphalt", weight: 1 }],
     diagonal: { radial: true, terrain: true },
@@ -63,13 +67,14 @@ const GROWTH: Record<string, Growth> = {
     crossroads: 500,
     bend: 0.6,
     culDeSac: 0.45,
+    head: "turning_circle",
     maxRun: 40,
     shift: 3,
   },
-  contour: { widths: [{ width: 3, style: "asphalt", weight: 1 }], diagonal: { radial: false, terrain: true }, rows: 140, crossroads: 400, bend: 0.4, culDeSac: 0.3, maxRun: 50, shift: 2 },
-  yards: { widths: [{ width: 4, style: "asphalt", weight: 1 }], diagonal: { radial: false, terrain: false }, rows: 160, crossroads: 150, bend: 0.25, culDeSac: 0.35, maxRun: 60, shift: 2 },
-  quay: { widths: [{ width: 4, style: "asphalt", weight: 1 }], diagonal: { radial: false, terrain: true }, rows: 160, crossroads: 300, bend: 0.25, culDeSac: 0.3, maxRun: 60, shift: 2 },
-  ribbon: { widths: [{ width: 2, style: "dirt", weight: 1 }], diagonal: { radial: false, terrain: true }, rows: 80, crossroads: 300, bend: 0.4, culDeSac: 0.5, maxRun: 70, shift: 3 },
+  contour: { widths: [{ width: 3, style: "asphalt", weight: 1 }], diagonal: { radial: false, terrain: true }, rows: 140, crossroads: 400, bend: 0.4, culDeSac: 0.3, head: "turning_circle", maxRun: 50, shift: 2 },
+  yards: { widths: [{ width: 4, style: "asphalt", weight: 1 }], diagonal: { radial: false, terrain: false }, rows: 160, crossroads: 150, bend: 0.25, culDeSac: 0.35, head: "hammerhead", maxRun: 60, shift: 2 },
+  quay: { widths: [{ width: 4, style: "asphalt", weight: 1 }], diagonal: { radial: false, terrain: true }, rows: 160, crossroads: 300, bend: 0.25, culDeSac: 0.3, head: "hammerhead", maxRun: 60, shift: 2 },
+  ribbon: { widths: [{ width: 2, style: "dirt", weight: 1 }], diagonal: { radial: false, terrain: true }, rows: 80, crossroads: 300, bend: 0.4, culDeSac: 0.5, head: "turning_circle", maxRun: 70, shift: 3 },
 };
 
 const INF = 0x3fffffff;
@@ -87,7 +92,8 @@ interface Cand {
   legs: Leg[];
   width: number;
   style: Segment["style"];
-  head: boolean;
+  /** The far end's termination (a cul-de-sac's head), or null. */
+  end: StreetEndKind | null;
   score: number;
 }
 
@@ -280,7 +286,7 @@ export function stageStreets(w: Work) {
     return { four, jog: jog && !four };
   };
 
-  const segOf = (l: Leg, width: number, style: Segment["style"], d: number, cls: number, heads = 0) => makeSeg(l.x, l.y, l.dir, l.steps, width, { cls, style, district: d, arterial: -1, heads });
+  const segOf = (l: Leg, width: number, style: Segment["style"], d: number, cls: number, end: StreetEndKind | null = null) => makeSeg(l.x, l.y, l.dir, l.steps, width, { cls, style, district: d, arterial: -1, end });
   /** Whether a run would lie alongside another (or the railway) within a few cells: a near-parallel duplicate. */
   const crowds = (s: Segment) => {
     for (const o of w.segments) {
@@ -302,7 +308,7 @@ export function stageStreets(w: Work) {
     const made: Segment[] = [];
     cand.legs.forEach((l, i) => {
       const last = i === cand.legs.length - 1;
-      const s = segOf(l, isDiagDir(l.dir) ? cand.width + 1 : cand.width, cand.style, d, cls, last && cand.head ? 2 : 0);
+      const s = segOf(l, isDiagDir(l.dir) ? cand.width + 1 : cand.width, cand.style, d, cls, last ? cand.end : null);
       made.push(s);
     });
     const cells: number[] = [];
@@ -317,8 +323,8 @@ export function stageStreets(w: Work) {
       w.segments.push(s);
       addCover(s, i);
       segCells(s, W, H, (c) => cells.push(c));
-      if (s.heads) {
-        const end = s.heads & 2 ? 1 : 0;
+      for (const end of [0, 1] as const) {
+        if (!isHead(s.ends[end])) continue;
         paintHead(w, s, end);
         for (const c of headCells(s, end, W, H)) {
           cells.push(c);
@@ -405,7 +411,7 @@ export function stageStreets(w: Work) {
           const len = fw.steps + bw.steps;
           const q = endQuality(ox + dx * (fw.steps - 1), oy + dy * (fw.steps - 1), dir) + endQuality(ox - dx * (bw.steps - 1), oy - dy * (bw.steps - 1), (dir + 4) & 7);
           if (q > -INF && len >= 4) {
-            out.push({ legs: [{ x: ox - dx * bw.steps, y: oy - dy * bw.steps, dir, steps: len }], width: wo.width, style: wo.style, head: false, score: base + q - len * 6 });
+            out.push({ legs: [{ x: ox - dx * bw.steps, y: oy - dy * bw.steps, dir, steps: len }], width: wo.width, style: wo.style, end: null, score: base + q - len * 6 });
           }
         }
         // One end on a street: a bend toward another street, or a cul-de-sac.
@@ -448,7 +454,7 @@ export function stageStreets(w: Work) {
                   ],
                   width: wo.width,
                   style: wo.style,
-                  head: false,
+                  end: null,
                   score: base + hq + q2 - (len1 + t2.steps) * 6 - 40,
                 });
               }
@@ -459,14 +465,14 @@ export function stageStreets(w: Work) {
             const ext = Math.min(other.steps - 3, 3 + r.int(0, 4));
             const len = hitSide.steps + ext;
             if (len >= 6) {
-              const s = segOf({ x: startX, y: startY, dir: od, steps: len }, width, wo.style, d.index, RoadClass.Street, 2);
-              if (paintHead(w, s, s.heads & 2 ? 1 : 0, true) && headClear(s)) out.push({ legs: [{ x: startX, y: startY, dir: od, steps: len }], width: wo.width, style: wo.style, head: true, score: base + hq - len * 6 + (r.chance(g.culDeSac) ? 200 : -200) });
+              const s = segOf({ x: startX, y: startY, dir: od, steps: len }, width, wo.style, d.index, RoadClass.Street, g.head);
+              if (paintHead(w, s, s.ends[1] ? 1 : 0, true) && headClear(s)) out.push({ legs: [{ x: startX, y: startY, dir: od, steps: len }], width: wo.width, style: wo.style, end: g.head, score: base + hq - len * 6 + (r.chance(g.culDeSac) ? 200 : -200) });
             }
           }
           // A spine into open land: later streets join it, and what runs past its last junction is cut back.
           if (!other.hit && other.steps >= 4) {
             const len = hitSide.steps + other.steps;
-            out.push({ legs: [{ x: startX, y: startY, dir: od, steps: len }], width: wo.width, style: wo.style, head: false, score: base + hq - len * 4 - 260 });
+            out.push({ legs: [{ x: startX, y: startY, dir: od, steps: len }], width: wo.width, style: wo.style, end: null, score: base + hq - len * 4 - 260 });
           }
         }
       }
@@ -474,7 +480,7 @@ export function stageStreets(w: Work) {
     return out;
   };
   /** A turning head stands on land only (never on another street). */
-  const headClear = (s: Segment) => headCells(s, s.heads & 2 ? 1 : 0, W, H).every((c) => land[c] === 1);
+  const headClear = (s: Segment) => headCells(s, s.ends[1] ? 1 : 0, W, H).every((c) => land[c] === 1);
 
   const accept = (cand: Cand, d: number): boolean => {
     const segs = cand.legs.map((l) => segOf(l, isDiagDir(l.dir) ? cand.width + 1 : cand.width, cand.style, d, RoadClass.Street));
@@ -508,7 +514,7 @@ export function stageStreets(w: Work) {
         if (!t.hit || t.steps < 6) continue;
         const a = across(sx + dx * (t.steps - 1), sy + dy * (t.steps - 1), k.dir, 4);
         if (a.jog) continue;
-        const cand: Cand = { legs: [{ x: k.x - dx, y: k.y - dy, dir: k.dir, steps: t.steps + 2 }], width: 3, style: "asphalt", head: false, score: 0 };
+        const cand: Cand = { legs: [{ x: k.x - dx, y: k.y - dy, dir: k.dir, steps: t.steps + 2 }], width: 3, style: "asphalt", end: null, score: 0 };
         if (!accept(cand, core.index)) continue;
         commit(cand, core.index);
       }
@@ -561,7 +567,7 @@ export function stageStreets(w: Work) {
       for (const cand of cands.slice(0, 12)) {
         if (!accept(cand, d.index)) continue;
         commit(cand, d.index);
-        if (cand.head) headsLeft--;
+        if (cand.end) headsLeft--;
         done = true;
         STATS.ok++;
         break;
@@ -635,14 +641,18 @@ export function centreOffset(a: Segment, b: Segment): number {
   return Math.abs(ka - kb);
 }
 
-/** Whether a run's end (0: a, 1: b) meets another run, the square or a bridge; or leaves the map. */
-export function endState(s: Segment, end: 0 | 1, W: number, H: number, cover: (c: number) => number, square: (c: number) => boolean): "joined" | "edge" | "open" {
+/**
+ * How a run's end (0: a, 1: b) meets the town: another run ("joined": a
+ * shared band, the band just beyond, or a street at the end's side), the
+ * square ("square"), the map's edge ("edge"), or nothing ("open").
+ */
+export function endState(s: Segment, end: 0 | 1, W: number, H: number, cover: (c: number) => number, square: (c: number) => boolean): "joined" | "square" | "edge" | "open" {
   const L = segSteps(s);
   const t = end === 0 ? 0 : L;
   const out = end === 0 ? -1 : 1;
   let joined = false;
+  let sq = false;
   let edge = false;
-  // The end's own band (shared with another run: a junction) and the band one step beyond.
   forBand(s, t, t, (x, y) => {
     if (x < 0 || y < 0 || x >= W || y >= H) return;
     if (cover(y * W + x) >= 2) joined = true;
@@ -653,10 +663,11 @@ export function endState(s: Segment, end: 0 | 1, W: number, H: number, cover: (c
       return;
     }
     const c = y * W + x;
-    if (cover(c) >= 1 || square(c)) joined = true;
+    if (cover(c) >= 1) joined = true;
+    else if (square(c)) sq = true;
   });
   if (!joined && !edge) {
-    // A street met at the end's side (a corner joint, or a T onto the end): a neighbour of the end's band that the run itself does not cover.
+    // A street met at the end's side (a corner joint, or a T onto the end): a neighbour of the end's band the run itself does not cover.
     const self = new Set<number>();
     forBand(s, Math.min(t, t - 2 * out), Math.max(t, t - 2 * out), (x, y) => {
       if (x >= 0 && y >= 0 && x < W && y < H) self.add(y * W + x);
@@ -671,22 +682,30 @@ export function endState(s: Segment, end: 0 | 1, W: number, H: number, cover: (c
         if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
         const n = ny * W + nx;
         if (self.has(n)) continue;
-        if (cover(n) >= 1 || square(n)) joined = true;
+        if (cover(n) >= 1) joined = true;
+        else if (square(n)) sq = true;
       }
     });
   }
-  return joined ? "joined" : edge ? "edge" : "open";
+  return joined ? "joined" : sq ? "square" : edge ? "edge" : "open";
 }
 
-/** Join up or cut back every open end (a street stopped by a district edge, the railway or water). */
+/**
+ * Every end joins a street or ends in a designed termination (DEC-090 street
+ * ends). An open end is run on to the street ahead when one is close (a
+ * paved lane in the old core becomes a footpath behind bollards instead);
+ * else, by what it meets: a railing at the water, a field gate at the
+ * countryside, a turning head where the district type has cul-de-sacs;
+ * else it is cut back to its last junction (a run with none goes).
+ */
 function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Array, preLevel: Uint8Array) {
   const { W, H } = w;
-  const N = W * H;
   const sq = (c: number) => ((w.use[c] as number) & Use.Square) !== 0;
   const cov = (c: number) => cover[c] as number;
+  const inMap = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
   const unpaint = (s: Segment, t0: number, t1: number) => {
     forBand(s, t0, t1, (x, y) => {
-      if (x < 0 || y < 0 || x >= W || y >= H) return;
+      if (!inMap(x, y)) return;
       const c = y * W + x;
       cover[c] = Math.max(0, (cover[c] as number) - 1);
       if ((cover[c] as number) > 0 || (w.use[c] as number) & (Use.Bridge | Use.Rail)) return;
@@ -697,7 +716,8 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
       if ((w.district[c] as number) >= 0 && !isWaterBody(w, c)) land[c] = 1;
     });
   };
-  const free = (c: number) => land[c] === 1 || (pre[c] === Terrain.Grass && (w.district[c] as number) >= 0 && !(w.use[c] as number));
+  const free = (c: number) => land[c] === 1;
+  const prop = (kind: "bollards" | "railing" | "field_gate", x: number, y: number) => w.props.push({ kind, x, y, blocks: false, variant: mix(w.seed, x, y, 0xe7d) & 0xff });
   for (let round = 0; round < 8; round++) {
     let changed = false;
     for (let i = 0; i < w.segments.length; i++) {
@@ -705,78 +725,148 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
       if (s.arterial >= 0 && w.arterials[s.arterial]?.mode !== "local") continue;
       if (s.district < 0 && s.arterial < 0) continue;
       for (const end of [0, 1] as const) {
-        if (s.heads & (end === 0 ? 1 : 2)) continue;
+        if (s.ends[end]) continue;
         const L = segSteps(s);
         if (L < 0) continue;
         const st = endState(s, end, W, H, cov, sq);
         if (st === "joined") continue;
-        // Run on: up to 12 steps of land to a street.
+        if (st === "square") {
+          // The paving runs into the square.
+          s.ends[end] = "plaza";
+          continue;
+        }
         const [sx, sy] = stepOf(s.axis);
         const out = end === 0 ? -1 : 1;
         const t = end === 0 ? 0 : L;
+        const ex = end === 0 ? s.ax : s.bx;
+        const ey = end === 0 ? s.ay : s.by;
+        // ---- run on: up to 12 steps of land to a street
         let reach = -1;
-        for (let k = 1; k <= 12 && reach < 0; k++) {
-          let ok = true;
-          let hit = false;
-          forBand(s, t + out * k, t + out * k, (x, y) => {
-            if (x < 0 || y < 0 || x >= W || y >= H) {
-              ok = false;
-              return;
-            }
-            const c = y * W + x;
-            if (cov(c) >= 1 || sq(c)) hit = true;
-            else if (!free(c)) ok = false;
+        if (st !== "edge") {
+          for (let k = 1; k <= 12 && reach < 0; k++) {
+            let ok = true;
+            let hit = false;
+            forBand(s, t + out * k, t + out * k, (x, y) => {
+              if (!inMap(x, y)) {
+                ok = false;
+                return;
+              }
+              const c = y * W + x;
+              if (cov(c) >= 1 || sq(c)) hit = true;
+              else if (!free(c)) ok = false;
+            });
+            if (hit) reach = k - 1;
+            else if (!ok) break;
+          }
+        }
+        if (reach >= 0 && s.style === "lane" && reach >= 3) {
+          // A paved lane in the old core: bollards across its end, a footpath on to the street ahead.
+          forBand(s, t, t, (x, y) => {
+            if (inMap(x, y)) prop("bollards", x, y);
           });
-          if (hit) reach = k - 1;
-          else if (!ok) break;
+          for (let k = 1; k <= reach + 1; k++) {
+            const x = ex + sx * out * k;
+            const y = ey + sy * out * k;
+            if (!inMap(x, y)) break;
+            const c = y * W + x;
+            if (cov(c) >= 1 || sq(c)) break;
+            w.terrain[c] = Terrain.Path;
+            w.use[c] = (w.use[c] as number) | Use.Lane | Use.End;
+            land[c] = 0;
+          }
+          s.ends[end] = "bollards";
+          changed = true;
+          continue;
         }
         if (reach >= 0) {
-          const ext: Segment = { ...s };
+          const e: Segment = { ...s, ends: [null, null] };
           if (end === 0) {
-            ext.ax = s.ax - sx * (reach + 1);
-            ext.ay = s.ay - sy * (reach + 1);
-            ext.bx = s.ax - sx;
-            ext.by = s.ay - sy;
+            e.ax = s.ax - sx * (reach + 1);
+            e.ay = s.ay - sy * (reach + 1);
+            e.bx = s.ax - sx;
+            e.by = s.ay - sy;
           } else {
-            ext.ax = s.bx + sx;
-            ext.ay = s.by + sy;
-            ext.bx = s.bx + sx * (reach + 1);
-            ext.by = s.by + sy * (reach + 1);
+            e.ax = s.bx + sx;
+            e.ay = s.by + sy;
+            e.bx = s.bx + sx * (reach + 1);
+            e.by = s.by + sy * (reach + 1);
           }
-          if (reach >= 0) {
-            const e = { ...ext };
-            if (reach + 1 > 0) {
-              paintSegment(w, withBoxOf(e));
-              forBand(e, 0, segSteps(e), (x, y) => {
-                if (x >= 0 && y >= 0 && x < W && y < H) {
-                  cover[y * W + x] = (cover[y * W + x] as number) + 1;
-                  land[y * W + x] = 0;
-                }
-              });
+          paintSegment(w, withBoxOf(e));
+          forBand(e, 0, segSteps(e), (x, y) => {
+            if (inMap(x, y)) {
+              cover[y * W + x] = (cover[y * W + x] as number) + 1;
+              land[y * W + x] = 0;
             }
-            if (end === 0) {
-              s.ax = ext.ax;
-              s.ay = ext.ay;
-            } else {
-              s.bx = ext.bx;
-              s.by = ext.by;
-            }
-            withBoxOf(s);
-            // The extension's cells were counted once as `e`; the run now covers them itself.
+          });
+          if (end === 0) {
+            s.ax = e.ax;
+            s.ay = e.ay;
+          } else {
+            s.bx = e.bx;
+            s.by = e.by;
+          }
+          withBoxOf(s);
+          changed = true;
+          continue;
+        }
+        // ---- a termination by what the end meets
+        if (st !== "edge") {
+          let water = false;
+          let country = false;
+          for (let k = 1; k <= 2; k++) {
+            forBand(s, t + out * k, t + out * k, (x, y) => {
+              if (!inMap(x, y)) return;
+              const c = y * W + x;
+              if (isWaterBody(w, c)) water = true;
+              else if (k === 1 && (w.district[c] as number) < 0 && !((w.use[c] as number) & (Use.Rail | Use.Road))) country = true;
+            });
+          }
+          if (water) {
+            forBand(s, t, t, (x, y) => {
+              if (inMap(x, y)) prop("railing", x, y);
+            });
+            s.ends[end] = "railing";
             changed = true;
             continue;
           }
+          const gx = ex + sx * out;
+          const gy = ey + sy * out;
+          if (country && inMap(gx, gy) && !w.use[gy * W + gx] && !isWaterBody(w, gy * W + gx) && w.terrain[gy * W + gx] !== Terrain.Rock) {
+            prop("field_gate", gx, gy);
+            w.use[gy * W + gx] = (w.use[gy * W + gx] as number) | Use.End;
+            land[gy * W + gx] = 0;
+            s.ends[end] = "field_gate";
+            changed = true;
+            continue;
+          }
+          // A turning head where the district type has cul-de-sacs.
+          const g = s.district >= 0 ? GROWTH[(w.districts[s.district] as WorkDistrict).type.streets.pattern] : undefined;
+          if (g && g.culDeSac > 0 && L >= 4) {
+            s.ends[end] = g.head;
+            const cells = headCells(s, end, W, H);
+            const self = new Set<number>();
+            segCells(s, W, H, (c) => self.add(c));
+            if (paintHead(w, s, end, true) && cells.every((c) => land[c] === 1 || self.has(c))) {
+              paintHead(w, s, end);
+              for (const c of cells) {
+                cover[c] = (cover[c] as number) + 1;
+                land[c] = 0;
+              }
+              changed = true;
+              continue;
+            }
+            s.ends[end] = null;
+          }
         }
-        // Cut back to the last junction along the run (a shared band, or the far end meeting a street).
+        // ---- cut back to the last junction along the run (a shared band, a street at its side, or the far end meeting a street)
         let keep = -1;
         const dirIn = end === 0 ? 1 : -1;
-        const shared = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && (cover[y * W + x] as number) >= 2;
-        const beside = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && ((cover[y * W + x] as number) >= 1 || sq(y * W + x));
+        const shared = (x: number, y: number) => inMap(x, y) && (cover[y * W + x] as number) >= 2;
+        const beside = (x: number, y: number) => inMap(x, y) && ((cover[y * W + x] as number) >= 1 || sq(y * W + x));
         for (let k = 0; k <= L && keep < 0; k++) {
           const p = t + dirIn * k;
           forBand(s, p, p, (x, y, kk) => {
             if (shared(x, y)) keep = p;
-            // A street meeting the run's side.
             if (kk === 0 || kk === s.width - 1) {
               const o = kk === 0 ? -1 : 1;
               if (beside(s.axis === "h" ? x : x + o, s.axis === "h" ? y + o : y)) keep = p;
@@ -789,8 +879,20 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
           }
         }
         if (keep < 0 || Math.abs(keep - t) >= L - 1 || L - Math.abs(keep - t) + 1 < 3) {
-          // No junction: the whole run goes.
+          // No junction: the whole run goes (its other end's termination with it).
           unpaint(s, 0, L);
+          const other = s.ends[end === 0 ? 1 : 0];
+          if (isHead(other)) {
+            for (const c of headCells(s, end === 0 ? 1 : 0, W, H)) {
+              cover[c] = Math.max(0, (cover[c] as number) - 1);
+              if ((cover[c] as number) > 0) continue;
+              w.terrain[c] = pre[c] as number;
+              w.level[c] = preLevel[c] as number;
+              w.use[c] = (w.use[c] as number) & ~Use.Road;
+              w.roadClass[c] = RoadClass.None;
+            }
+          }
+          s.ends = [null, null];
           s.bx = s.ax - sx;
           s.by = s.ay - sy;
           changed = true;
@@ -813,7 +915,6 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
     for (let i = w.segments.length - 1; i >= 0; i--) if (segSteps(w.segments[i] as Segment) < 0) w.segments.splice(i, 1);
     if (!changed) break;
   }
-  void N;
 }
 
 function withBoxOf(s: Segment): Segment {

@@ -5,7 +5,7 @@ import { reachableFrom } from "../pathfinding";
 import { ROOF_ROWS, Terrain, surfaceOfTerrain, townGrid, type TownMap } from "../townLayout";
 import type { TownInput } from "../townInput";
 import { BAND_CAPS } from "./geo";
-import { forBand, headCells, parallelGap, segCells, segSteps } from "./net";
+import { forBand, headCells, isHead, parallelGap, segCells, segSteps, streetEndOf } from "./net";
 import type { TownPlan } from "./plan";
 import { rectDistance } from "./plots";
 import { centreOffset, endState } from "./streets";
@@ -153,29 +153,62 @@ export function streetProblems(map: TownMap, plan: TownPlan): string[] {
   const cover = new Uint16Array(N);
   for (const s of segs) {
     segCells(s, W, H, (c) => (cover[c] = (cover[c] as number) + 1));
-    for (const end of [0, 1] as const) if (s.heads & (end === 0 ? 1 : 2)) for (const c of headCells(s, end, W, H)) cover[c] = (cover[c] as number) + 1;
+    for (const end of [0, 1] as const) if (isHead(s.ends[end])) for (const c of headCells(s, end, W, H)) cover[c] = (cover[c] as number) + 1;
   }
   const sq = (c: number) => map.terrain[c] === Terrain.Plaza && rectDistance(plan.square, c % W, Math.floor(c / W)) === 0;
   const link = (s: Segment) => s.arterial >= 0 && (plan.arterials[s.arterial]?.mode ?? "local") !== "local";
   const name = (s: Segment) => `${s.arterial >= 0 ? (plan.arterials[s.arterial]?.name ?? "arterial") : s.district >= 0 ? `a street of ${plan.districts[s.district]?.name ?? "?"}` : "the square's ring"} (${s.axis} ${s.ax},${s.ay}–${s.bx},${s.by})`;
   const railAt = (c: number) => map.terrain[c] === Terrain.Rail;
-  // ---- ends
+  // ---- ends: a junction, a road to another town at the map's edge, or a recorded termination with what it needs there
   const headed = new Uint8Array(N);
+  const recorded = map.streetEnds ?? [];
+  const propAt = (kind: string, cells: number[]) => map.props.some((p) => p.kind === kind && cells.includes(p.y * W + p.x));
   for (const s of segs) {
     for (const end of [0, 1] as const) {
-      if (s.heads & (end === 0 ? 1 : 2)) {
-        const cells = headCells(s, end, W, H);
-        const paved = cells.filter((c) => STREET.has(map.terrain[c] as number)).length;
-        if (paved * 10 < cells.length * 7) out.push(`turning head of ${name(s)} is not paved`);
-        for (const c of cells) headed[c] = 1;
+      const kind = s.ends[end];
+      const t = end === 0 ? 0 : segSteps(s);
+      const out1 = end === 0 ? -1 : 1;
+      const band = (p: number) => {
+        const cells: number[] = [];
+        forBand(s, p, p, (x, y) => {
+          if (x >= 0 && y >= 0 && x < W && y < H) cells.push(y * W + x);
+        });
+        return cells;
+      };
+      if (kind) {
+        const rec = streetEndOf(s, end, W, H);
+        if (!rec || !recorded.some((r) => r.kind === kind && r.x === rec.x && r.y === rec.y && r.w === rec.w && r.h === rec.h && r.facing === rec.facing)) out.push(`${kind} of ${name(s)} is not recorded in the street ends`);
+        const endCells = band(t);
+        const beyond = [...band(t + out1), ...band(t + 2 * out1)];
+        if (isHead(kind)) {
+          const cells = headCells(s, end, W, H);
+          const paved = cells.filter((c) => STREET.has(map.terrain[c] as number) || map.terrain[c] === Terrain.Embankment).length;
+          if (paved * 10 < cells.length * 7) out.push(`${kind} of ${name(s)} is not paved`);
+          for (const c of cells) headed[c] = 1;
+        } else if (kind === "plaza") {
+          if (endState(s, end, W, H, (c) => cover[c] as number, sq) !== "square") out.push(`plaza end of ${name(s)} does not meet the square`);
+        } else if (kind === "bollards") {
+          if (!propAt("bollards", endCells)) out.push(`bollards end of ${name(s)} has no bollards`);
+          if (!band(t + out1).some((c) => map.terrain[c] === Terrain.Path)) out.push(`bollards end of ${name(s)} has no footpath beyond`);
+        } else if (kind === "railing") {
+          if (!propAt("railing", endCells)) out.push(`railing end of ${name(s)} has no railing`);
+          if (!beyond.some((c) => isWaterBody(plan.water[c] as number))) out.push(`railing end of ${name(s)} is not at the water`);
+        } else if (kind === "field_gate") {
+          if (!propAt("field_gate", band(t + out1))) out.push(`field gate end of ${name(s)} has no gate`);
+          if (!band(t + out1).some((c) => (map.district[c] as number) < 0)) out.push(`field gate end of ${name(s)} is not at the countryside`);
+        }
         continue;
       }
       const st = endState(s, end, W, H, (c) => cover[c] as number, sq);
       if (st === "joined") continue;
+      if (st === "square") {
+        out.push(`${name(s)} meets the square with no plaza end`);
+        continue;
+      }
       if (st === "edge" && link(s)) continue;
       let rail = false;
-      const t = end === 0 ? -1 : segSteps(s) + 1;
-      forBand(s, t, t, (x, y) => {
+      const tb = end === 0 ? -1 : segSteps(s) + 1;
+      forBand(s, tb, tb, (x, y) => {
         if (x >= 0 && y >= 0 && x < W && y < H && railAt(y * W + x)) rail = true;
       });
       out.push(st === "edge" ? `${name(s)} leaves the map but is no road to another town` : rail ? `${name(s)} stops at the railway with no crossing` : `${name(s)} ends in nothing`);
@@ -334,7 +367,7 @@ export function readability(map: TownMap, plan: TownPlan): Readability {
   const street = new Uint8Array(N);
   for (const s of plan.segments) {
     segCells(s, W, map.height, (c) => (street[c] = 1));
-    for (const end of [0, 1] as const) if (s.heads & (end === 0 ? 1 : 2)) for (const c of headCells(s, end, W, map.height)) street[c] = 1;
+    for (const end of [0, 1] as const) if (isHead(s.ends[end])) for (const c of headCells(s, end, W, map.height)) street[c] = 1;
   }
   const isStreetAt = (c: number) => {
     const t = map.terrain[c] as number;
