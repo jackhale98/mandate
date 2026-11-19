@@ -786,13 +786,13 @@ fn older_saves_migrate_to_empty_talk() {
     let mut e = game(42, &c);
     script(&mut e, &c, 0, 2);
     assert!(!e.state().player.as_ref().unwrap().talk.log.is_empty());
-    let mut v15 = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
-    v15.pointer_mut("/state/player")
+    let mut v16 = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    v16.pointer_mut("/state/player")
         .unwrap()
         .as_object_mut()
         .unwrap()
         .remove("talk");
-    let migrated = mandate_save::migrate(15, v15).unwrap();
+    let migrated = mandate_save::migrate(16, v16).unwrap();
     let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
     assert_eq!(
         state.player.as_ref().unwrap().talk,

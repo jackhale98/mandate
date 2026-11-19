@@ -180,9 +180,52 @@ pub struct PopulationState {
     /// Per municipality: concern levels and issue salience (`concerns`).
     #[serde(default)]
     pub town_concerns: Vec<crate::concerns::TownConcerns>,
+    /// Per neighbourhood: how hard its town's latest disaster hit it against
+    /// the town's average (1 = average; DEC-090 D8). Empty until a disaster;
+    /// a neighbourhood without an entry counts as 1. Opinion and the felt
+    /// recovery concern read it.
+    pub hood_impact: Vec<f32>,
+    /// Residents staying away from a damaged neighbourhood until they can
+    /// return (DEC-090 D8), by (from, to, cohort), ascending. They are
+    /// counted where they stay.
+    pub displaced: Vec<Displaced>,
+}
+
+/// Adults of one cohort staying in another neighbourhood (or the next town)
+/// after a disaster damaged their homes.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Displaced {
+    /// Home neighbourhood.
+    pub from: u32,
+    /// Where they stay for now.
+    pub to: u32,
+    /// Cohort index (`cohort_index`).
+    pub cohort: u16,
+    pub count: u32,
 }
 
 impl PopulationState {
+    /// How hard a neighbourhood was hit by its town's latest disaster,
+    /// against the town's average (1 when it has none).
+    pub fn impact(&self, hood: usize) -> f64 {
+        self.hood_impact.get(hood).map_or(1.0, |v| f64::from(*v))
+    }
+    /// Residents of a neighbourhood staying elsewhere after a disaster.
+    pub fn displaced_from(&self, id: crate::world::NeighborhoodId) -> u64 {
+        self.displaced
+            .iter()
+            .filter(|d| d.from == id.0)
+            .map(|d| u64::from(d.count))
+            .sum()
+    }
+    /// Displaced residents of other neighbourhoods staying in this one.
+    pub fn displaced_into(&self, id: crate::world::NeighborhoodId) -> u64 {
+        self.displaced
+            .iter()
+            .filter(|d| d.to == id.0)
+            .map(|d| u64::from(d.count))
+            .sum()
+    }
     /// Number of attitude dimensions in this state.
     pub fn attitude_count(&self) -> usize {
         self.attitude_keys.len()
@@ -537,6 +580,8 @@ pub fn init(
         // Computed by the engine when it takes over the state.
         concern_keys: Vec::new(),
         town_concerns: Vec::new(),
+        hood_impact: Vec::new(),
+        displaced: Vec::new(),
     }
 }
 
@@ -905,7 +950,9 @@ pub fn demography(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) 
 }
 
 /// Monthly internal migration toward attractive municipalities, plus
-/// displacement after disasters.
+/// displacement after disasters: by neighbourhood (DEC-090 D8), some leave
+/// the town for good, others stay in less-hit neighbourhoods until they can
+/// return.
 pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let econ = r.economy();
     let world = r.world;
@@ -913,19 +960,46 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     if econ.munis.len() != nm || nm == 0 {
         return;
     }
+    let hz = &r.content.economy.hazards;
+    // The displaced come home first, a share each month.
+    return_home(pop, hz.return_rate);
     let mut extra_out = vec![0.0f64; nm];
+    let mut hood_out = vec![0.0f64; pop.hoods.len()];
+    // This month's strikes: (neighbourhood, relative hit, temporary share).
+    let mut struck: Vec<(usize, f64, f64)> = Vec::new();
     for e in out
         .effects
-        .take(|e| matches!(e, Effect::Displacement { .. }))
+        .take(|e| matches!(e, Effect::Displacement { .. } | Effect::HoodDisaster { .. }))
     {
-        if let Effect::Displacement {
-            municipality,
-            fraction,
-            ..
-        } = e
-            && let Some(x) = extra_out.get_mut(municipality as usize)
-        {
-            *x += fraction;
+        match e {
+            Effect::Displacement {
+                municipality,
+                fraction,
+                ..
+            } => {
+                if let Some(x) = extra_out.get_mut(municipality as usize) {
+                    *x += fraction;
+                }
+            }
+            Effect::HoodDisaster {
+                neighborhood,
+                relative,
+                leave,
+                temporary,
+                ..
+            } => {
+                let h = neighborhood as usize;
+                if h >= pop.hoods.len() {
+                    continue;
+                }
+                if pop.hood_impact.len() != pop.hoods.len() {
+                    pop.hood_impact.resize(pop.hoods.len(), 1.0);
+                }
+                pop.hood_impact[h] = relative as f32;
+                hood_out[h] += leave;
+                struck.push((h, relative, temporary));
+            }
+            _ => {}
         }
     }
     let attract: Vec<f64> = econ.munis.iter().map(|m| m.attractiveness).collect();
@@ -953,8 +1027,8 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let mut mover_pid = vec![vec![vec![0.0f64; np]; ncoh]; nm];
     for (m, mu) in world.municipalities.iter().enumerate() {
         let push = rate * (1.0 - tanh((attract[m] - mean) * 1.5));
-        let out_share = (push + extra_out[m]).min(0.5);
         for h in &mu.neighborhoods {
+            let out_share = (push + extra_out[m] + hood_out[h.index()]).min(0.5);
             let hp = &mut pop.hoods[h.index()];
             for &k in &mobile {
                 let n = draw(rng, hp.cohorts[k].count as f64 * out_share);
@@ -1055,6 +1129,159 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
             settle(pop, world, m, k, n, &att, &pid);
         }
     }
+    // Then those who lost their homes for a while find somewhere to stay.
+    shelter(pop, world, &struck);
+}
+
+/// Adults of struck neighbourhoods stay elsewhere for a while (DEC-090 D8):
+/// in their town's less-hit neighbourhoods, by adults × how much less they
+/// were hit; where none was spared (one neighbourhood, or an even strike),
+/// in the neighbouring towns' adjoining neighbourhoods; otherwise nowhere
+/// (they stay put). Whole people per cohort (floor), no draws.
+fn shelter(pop: &mut PopulationState, world: &World, struck: &[(usize, f64, f64)]) {
+    for &(h, rel, temporary) in struck {
+        let t = temporary.clamp(0.0, 0.9);
+        if t <= 0.0 || rel <= 0.0 {
+            continue;
+        }
+        let Some(hood) = world.neighborhoods.get(h) else {
+            continue;
+        };
+        let m = hood.municipality;
+        let rel_of = |j: usize| struck.iter().find(|s| s.0 == j).map_or(0.0, |s| s.1);
+        let mut dest: Vec<(usize, f64)> = world
+            .hoods_of(m)
+            .filter(|&j| j != h)
+            .map(|j| {
+                let spared = (1.0 - rel_of(j) / rel).max(0.0);
+                (j, pop.hoods[j].adults() as f64 * spared)
+            })
+            .filter(|(_, w)| *w > 0.0)
+            .collect();
+        if dest.is_empty() {
+            dest = hood
+                .neighbors
+                .iter()
+                .map(|n| n.index())
+                .filter(|&j| {
+                    world
+                        .neighborhoods
+                        .get(j)
+                        .is_some_and(|x| x.municipality != m)
+                })
+                .filter(|&j| j < pop.hoods.len())
+                .map(|j| (j, pop.hoods[j].adults() as f64))
+                .filter(|(_, w)| *w > 0.0)
+                .collect();
+        }
+        let wsum: f64 = dest.iter().map(|d| d.1).sum();
+        if wsum <= 0.0 {
+            continue;
+        }
+        for k in 0..pop.hoods[h].cohorts.len() {
+            let total = (pop.hoods[h].cohorts[k].count as f64 * t).floor() as u32;
+            let mut left = total;
+            for (i, &(j, w)) in dest.iter().enumerate() {
+                let n = if i + 1 == dest.len() {
+                    left
+                } else {
+                    ((total as f64 * w / wsum).floor() as u32).min(left)
+                };
+                left -= n;
+                if n == 0 {
+                    continue;
+                }
+                transfer(pop, h, j, k, n);
+                add_displaced(pop, h as u32, j as u32, k as u16, n);
+            }
+        }
+    }
+}
+
+/// Record displaced adults (merged by from, to and cohort).
+fn add_displaced(pop: &mut PopulationState, from: u32, to: u32, cohort: u16, n: u32) {
+    let key = (from, to, cohort);
+    match pop
+        .displaced
+        .binary_search_by_key(&key, |d| (d.from, d.to, d.cohort))
+    {
+        Ok(i) => pop.displaced[i].count = pop.displaced[i].count.saturating_add(n),
+        Err(i) => pop.displaced.insert(
+            i,
+            Displaced {
+                from,
+                to,
+                cohort,
+                count: n,
+            },
+        ),
+    }
+}
+
+/// Each month a share of the displaced come home (at least one person per
+/// group, so every group ends). Those no longer where they stayed (they
+/// moved on or died) are dropped from the record.
+fn return_home(pop: &mut PopulationState, rate: f64) {
+    let rate = rate.clamp(0.0, 1.0);
+    if pop.displaced.is_empty() || rate <= 0.0 {
+        return;
+    }
+    let groups = std::mem::take(&mut pop.displaced);
+    let mut keep = Vec::with_capacity(groups.len());
+    for mut g in groups {
+        let (from, to, k) = (g.from as usize, g.to as usize, g.cohort as usize);
+        let here = pop
+            .hoods
+            .get(to)
+            .and_then(|h| h.cohorts.get(k))
+            .map_or(0, |c| c.count);
+        if from >= pop.hoods.len() || here == 0 {
+            continue;
+        }
+        let back = ((g.count as f64 * rate).ceil() as u32).clamp(1, g.count);
+        transfer(pop, to, from, k, back.min(here));
+        g.count -= back;
+        g.count = g.count.min(here - back.min(here));
+        if g.count > 0 {
+            keep.push(g);
+        }
+    }
+    pop.displaced = keep;
+}
+
+/// Move `n` adults of cohort `k` from one neighbourhood to another: the
+/// receiving cohort's views and habits become the count-weighted mix.
+fn transfer(pop: &mut PopulationState, from: usize, to: usize, k: usize, n: u32) {
+    if from == to || n == 0 || from >= pop.hoods.len() || to >= pop.hoods.len() {
+        return;
+    }
+    let Some(src) = pop.hoods[from].cohorts.get(k).cloned() else {
+        return;
+    };
+    let n = n.min(src.count);
+    if n == 0 {
+        return;
+    }
+    pop.hoods[from].cohorts[k].count -= n;
+    let Some(c) = pop.hoods[to].cohorts.get_mut(k) else {
+        pop.hoods[from].cohorts[k].count += n;
+        return;
+    };
+    let w = n as f64 / (c.count as f64 + n as f64);
+    let mix = |a: f32, b: f32| (a as f64 * (1.0 - w) + b as f64 * w) as f32;
+    for (a, v) in c.attitudes.iter_mut().zip(&src.attitudes) {
+        *a = mix(*a, *v);
+    }
+    for (a, v) in c.party_id.iter_mut().zip(&src.party_id) {
+        *a = mix(*a, *v);
+    }
+    c.trust = mix(c.trust, src.trust);
+    c.turnout = mix(c.turnout, src.turnout);
+    c.gov_approval = mix(c.gov_approval, src.gov_approval);
+    c.player_awareness = mix(c.player_awareness, src.player_awareness);
+    c.player_approval = mix(c.player_approval, src.player_approval);
+    c.last_turnout = mix(c.last_turnout, src.last_turnout);
+    c.count += n;
 }
 
 /// d₀: a quarter of the settled extent, so decay is scale-free across world sizes.
@@ -1195,9 +1422,10 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         } else {
             0.0
         };
+        // The disaster is felt by neighbourhood (DEC-090 D8): × how hard
+        // each was hit against the town (residents' mean 1).
         let experienced = -x.unemployment * (du - dn) - x.rent_growth * rent_growth
             + x.services * services
-            - disaster
             - x.disruption * mods.disruption;
         // Reactions to laws and bills, pre-summed into one weighted signature
         // per town (linear in attitudes, so each cohort needs one dot product).
@@ -1265,6 +1493,7 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         // Many laws should not saturate opinion: scale by √n.
         let gov_scale = 1.0 / mandate_core::math::sqrt(n_gov.max(1) as f64);
         for h in &mu.neighborhoods {
+            let experienced = experienced - disaster * pop.impact(h.index());
             for (ci, c) in pop.hoods[h.index()].cohorts.iter_mut().enumerate() {
                 let a = age_of(ci);
                 let mut gov_react = 0.0;
