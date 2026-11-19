@@ -117,7 +117,7 @@ export class TownPlanCache {
     if (!this.store) return null;
     try {
       const p = await this.store.get(key);
-      return p && p.version === LAYOUT_VERSION && p.terrain instanceof Uint8Array ? p : null;
+      return p && p.version === LAYOUT_VERSION && ArrayBuffer.isView(p.terrain) ? p : null;
     } catch {
       return null;
     }

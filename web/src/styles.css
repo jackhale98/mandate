@@ -635,7 +635,7 @@ h2 { font-size: 1.1rem; }
   border-radius: var(--radius); border: 1px solid var(--border); background: #3d6633;
 }
 @media (max-width: 699px) { .town-street-frame { height: min(60dvh, 600px); } }
-.town-street-stage { position: absolute; inset: 0; cursor: pointer; }
+.town-street-stage { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .town-street-loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface); }
 .town-map-walk {
   position: absolute; left: 8px; top: 8px; z-index: 2; min-height: 40px; font-weight: 700;
