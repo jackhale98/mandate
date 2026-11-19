@@ -429,34 +429,22 @@ impl Ctx<'_> {
 }
 
 /// The slot-free reading of a situation condition in town `m` (a policy's
-/// unlock, a family trigger): slot-relative conditions never hold; the
-/// player's ledger is read for subjects that need no slot (`policy`
-/// delegates its new variants here).
+/// unlock, a family trigger; `policy::situation_holds` delegates its new
+/// variants here). Conversation conditions never hold in a town's
+/// situation: slot-relative ones need a speaker, and the player's ledger
+/// (`player_knows`, `tells`) never decides whether something happens
+/// (DEC-091: the world does not wait for the player; validation refuses
+/// them there too).
 pub fn holds_in_town(
     state: &State,
     content: &ContentBundle,
     c: &SituationCondition,
     m: u32,
 ) -> bool {
-    use SituationCondition as U;
-    let town = MunicipalityId(m);
     match c {
-        U::Any { of } => of
+        SituationCondition::Any { of } => of
             .iter()
             .any(|x| crate::policy::situation_holds(state, content, x, m)),
-        U::PlayerKnows { subject, min, max } => {
-            let tc = state.politics.characters.towns.get(town.index());
-            let s = match subject {
-                SubjectRef::TownConcerns => Some(Subject::TownConcerns { town }),
-                SubjectRef::Broker => tc.and_then(|t| t.broker).map(|_| Subject::Broker { town }),
-                SubjectRef::RivalPlans => tc
-                    .and_then(|t| t.rival)
-                    .map(|_| Subject::RivalPlans { town }),
-                _ => None,
-            };
-            let l = s.map(|s| knowledge::knows(state, &s)).unwrap_or_default();
-            min.is_none_or(|a| l >= a) && max.is_none_or(|z| l <= z)
-        }
         _ => false,
     }
 }

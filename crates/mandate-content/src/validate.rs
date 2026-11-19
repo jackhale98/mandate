@@ -1661,10 +1661,12 @@ pub fn check_situation_condition(
             }
         };
     if slots.is_none() && c.is_slot_relative() && !matches!(c, U::Any { .. }) {
-        issues.push(Issue::error(
-            owner,
-            "this condition reads a slot (a conversation's speaker or subject); no slot is bound here",
-        ));
+        let why = if matches!(c, U::PlayerKnows { .. } | U::Tells { .. }) {
+            "what the player knows shapes conversations only; it never decides whether something happens (DEC-091)"
+        } else {
+            "this condition reads a slot (a conversation's speaker or subject); no slot is bound here"
+        };
+        issues.push(Issue::error(owner, why));
         return;
     }
     let slot_ok = |slot: &str, issues: &mut Vec<Issue>| {

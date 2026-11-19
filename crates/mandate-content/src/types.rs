@@ -563,7 +563,9 @@ pub enum SituationCondition {
         subject: crate::conversation::SubjectRef,
         min: crate::knowledge::Level,
     },
-    /// The player's ledger (DEC-091) holds the subject within [min, max]:
+    /// The player's ledger (DEC-091) holds the subject within [min, max]
+    /// (conversations only: it frames what the player is told, never
+    /// whether something happens):
     /// the subject's arguments.
     PlayerKnows {
         subject: crate::conversation::SubjectRef,
@@ -581,7 +583,11 @@ fn yes() -> bool {
 }
 
 impl SituationCondition {
-    /// Whether the condition reads a bound slot (it never holds where none is).
+    /// Whether the condition belongs to conversations only: it reads a bound
+    /// slot (a speaker, a subject), or the player's ledger. Neither ever
+    /// holds in a town's situation, where conditions decide whether things
+    /// happen (DEC-091: knowledge gates what the player sees, never what
+    /// happens).
     pub fn is_slot_relative(&self) -> bool {
         use SituationCondition as U;
         match self {
@@ -589,13 +595,6 @@ impl SituationCondition {
             | U::Indicator { .. }
             | U::PlantClosure { .. }
             | U::Disaster { .. } => false,
-            U::PlayerKnows { subject, .. } => matches!(
-                subject,
-                crate::conversation::SubjectRef::Person { .. }
-                    | crate::conversation::SubjectRef::Proposal { .. }
-                    | crate::conversation::SubjectRef::PolicySupport { .. }
-                    | crate::conversation::SubjectRef::HoodConcerns { .. }
-            ),
             U::Any { of } => of.iter().any(|c| c.is_slot_relative()),
             _ => true,
         }

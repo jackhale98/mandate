@@ -1381,13 +1381,13 @@ mod tests {
             r#""any": [ { "type": "trait", "slot": "speaker", "traits": ["trait.vain"] },"#,
         );
         assert!(e.contains("this condition reads a slot"), "{e}");
-        // The player's ledger needs no slot.
+        // The player's ledger never decides whether something happens (DEC-091).
         let e = issues_with(
             "base/policies/situational.jsonc",
             r#""any": ["#,
-            r#""any": [ { "type": "player_knows", "subject": { "type": "broker" }, "min": "known" },"#,
+            r#""any": [ { "type": "any", "of": [ { "type": "player_knows", "subject": { "type": "broker" }, "min": "known" } ] },"#,
         );
-        assert!(e.is_empty(), "{e}");
+        assert!(e.contains("never decides whether something happens"), "{e}");
     }
 
     #[test]
