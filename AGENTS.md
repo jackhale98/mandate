@@ -21,6 +21,10 @@ The system plan (`docs/design/SYSTEM_PLAN.md`) is **approved** (DEC-067). Implem
   - `Money` is an `i64` of minor units;
   - typed `u32` IDs, never reused;
   - all randomness comes from named or keyed RNG streams.
+- **Tier-generic (DEC-098):**
+  - State that belongs to a town, a region or the nation is keyed by `Jurisdiction`, not `MunicipalityId`. `MunicipalityId` is for physical things in a town.
+  - Offices, seats, powers, terms and calendars are read from the constitution; no code or content names an office or body except through constitution ids.
+  - New code asks for the player's home, posts or focus, and never reads `player.municipality`.
 - **The UI never computes authoritative outcomes.** It sends commands and renders view models.
 - **The engine never produces prose.** It emits facts and Fluent keys (DEC-054).
 - **Content** is JSONC, validated against schemas generated from Rust types (DEC-053).

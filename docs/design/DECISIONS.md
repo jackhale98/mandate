@@ -104,6 +104,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-095 | Every character attribute changes behaviour; a lab check forbids decorative attributes | Accepted |
 | DEC-096 | The power broker acts: lobbies, backs people, and helps or hinders the player | Accepted |
 | DEC-097 | Engagement and variety: ground-game rebalance, asks and promises, storyteller variety, secrets and walking rewards, an engagement gate | Accepted |
+| DEC-098 | Built for every tier: offices from the constitution, jurisdiction keys, what becomes data, one condition language | Accepted |
 
 ---
 
@@ -2226,3 +2227,58 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
     - a rising bar in the second term;
     - pressures introduced year by year;
     - at least 6 campaign-only templates.
+
+### DEC-098 — Built for every tier: offices from the constitution, jurisdiction keys, what becomes data
+
+- **Status:** Accepted (owner, 2026-11-19: "Yes go ahead").
+  - **The owner's questions:** whether hooks exist for governor, senator and president, which data-driven parts would make expansion easier, and a requirement that "the offices should actually be integrated as part of the constitution as well".
+  - **The basis:** the audit `docs/design/research/EXTENSIBILITY_AUDIT.md` (2026-11-19).
+- **Findings:**
+  - **Ready for every tier:** the world, the constitution data, population, finance, media and characters.
+  - **Local and single-town:** politics and the player.
+    - `Role` is `Councillor | Mayor | Private`, and about 50 places in the code hard-code an office.
+    - There is one local election calendar.
+    - Law-making stages ignore the procedure's own bodies and offices.
+    - There are 109 reads of the player's town.
+  - **Sizes:** M7 is about the size of M4 plus M5a. M8 is larger, but mostly new systems.
+- **Decision:**
+  1. **Offices come from the constitution** (DEC-017 note).
+     - Politicians hold posts: a seat in a body, or an office, for a jurisdiction of any tier.
+     - Ids, powers, terms, limits, selection and constituency are read from the constitution.
+     - Elections, filing, power checks, law-making stages, career steps and labels all follow the constitution. The career ladder comes from a `career` block in the constitution.
+     - Tasks: **R1** (engine and save) and **R2** (protocol and web), audit §7.8. Schema additions are in §7.6.
+  2. **Jurisdiction keys.**
+     - **What is keyed by jurisdiction:** state that belongs to a government's territory uses `Jurisdiction` (tier plus id) or `Area`. `MunicipalityId` stays for physical things in a town.
+     - **Briefs amended:** the F-, E-, V-, P- and C-series task briefs take the audit's §3 amendments.
+  3. **A rule for every brief** (added to AGENTS.md):
+     - State is keyed by jurisdiction.
+     - No code or content names an office or body except through constitution ids.
+     - New code asks for the player's home, posts or focus, never `player.municipality`.
+  4. **What becomes data:**
+     - **In M6:**
+       - endings and Legacy as a registry from their first build;
+       - interior recipes as JSON;
+       - character appearance as a registry, in pixel-art P1;
+       - one fact-kinds registry for scandals and secrets, with E9;
+       - difficulty presets, when the DEC-076 gates land;
+       - treasury shares in content;
+       - nomination gates per post (R1);
+       - a tutorial step list in the web layer, never engine content.
+     - **Before M7:**
+       - the DEC-078 §5 registries (budget categories, revenue types, hazards, commodities);
+       - a place-plan registry by settlement class;
+       - per-tier NPC overrides;
+       - per-tier election cycles;
+       - an action availability table;
+       - an optional lab gates file.
+     - **Never:** UI layouts, bot logic, and chapter kinds.
+  5. **One condition language, no scripting language.** The three overlapping condition languages (narrative, situation, heard) are unified before E3 and E8 add their content. A script engine would cost determinism, size and "Why?" explanations (DEC-041, DEC-051).
+  6. **Validation now:**
+     - Voting rules without an implemented tabulator (only plurality exists) are refused.
+     - Body and office ids are unique across tiers.
+- **Order:**
+  - R1 runs after N1, as a short freeze on its files, with E1 beside it.
+  - Then E2, then the condition-language task, then E3 and E6.
+  - R2 runs after R1, beside the asks work.
+  - X1 is a lab timing check of layout v2 on a regional capital (any time).
+- **Dependencies:** DEC-006, DEC-017, DEC-020, DEC-036, DEC-039, DEC-041, DEC-051, DEC-075, DEC-076, DEC-077, DEC-078, DEC-087, DEC-097.
