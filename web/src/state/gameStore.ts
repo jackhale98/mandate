@@ -351,7 +351,8 @@ export const useGame = create<GameState>((set, get) => {
         return;
       }
       try {
-        set({ decision: expectKind(await engine().request({ kind: "query", payload: { type: "decision", id } }), "decision") });
+        // The decision sheet replaces the pocket rather than stacking on top of it.
+        set({ decision: expectKind(await engine().request({ kind: "query", payload: { type: "decision", id } }), "decision"), pocketOpen: false });
       } catch (e) {
         set({ error: errText(e) });
       }
