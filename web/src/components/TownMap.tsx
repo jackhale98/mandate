@@ -20,6 +20,7 @@ import { LIGHT_EASE_MS, PASSAGE_EASE_MS, shownMinutes } from "../hub/turnClock";
 import type { TownGeo } from "../hub/layoutV2/geo";
 import { planInWorker, townJobs } from "../hub/townWorkerClient";
 import { liveRecipe } from "../hub/gameTown";
+import { IdbPlanStore, TownPlanCache } from "../hub/townPlanCache";
 import type { Translator } from "../i18n/fluent";
 import { placeIcon, placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
@@ -119,7 +120,7 @@ interface Probe {
   size: { width: number; height: number };
   view: TownMapView | null;
   /** Plan (in the town worker, uncached), dress, build and bake another town (measurements), ms. */
-  bench(input: TownInput, geo: TownGeo, seed: string): Promise<BuiltTownMap["timings"] & { planMs: number; workerMs: number; dressMs: number; px: number; width: number; height: number }>;
+  bench(input: TownInput, geo: TownGeo, seed: string): Promise<TownBench>;
 }
 
 declare global {
@@ -128,15 +129,41 @@ declare global {
   }
 }
 
-/** Plan, dress, build and bake a town as the game does, timed (the `bench` probe). */
-async function bench(input: TownInput, geo: TownGeo, seed: string) {
+/** Timings of one town through the game's path, ms (the `bench` probe). */
+export interface TownBench {
+  /** Cold: planned in the town worker (its own time, and the wait on the main thread for it). */
+  planMs: number;
+  coldMs: number;
+  /** Warm: the same plan from memory, and from IndexedDB in a new cache (a reload). */
+  memoryMs: number;
+  storedMs: number;
+  storedFrom: string;
+  /** Main-thread work after the plan: dress, the map's scene and its bake. */
+  dressMs: number;
+  sceneMs: number;
+  bakeMs: number;
+  width: number;
+  height: number;
+}
+
+/** Plan (cold, then warm from memory and IndexedDB), dress, build and bake a town as the game does, timed. */
+async function bench(input: TownInput, geo: TownGeo, seed: string): Promise<TownBench> {
+  const req = { runSeed: `bench-${seed}`, town: geo.municipality, contentHash: "bench", geo: { ...geo, places: input.places.map((p) => ({ ...p })) }, seed: townSeed(seed, input.municipality), recipe: await liveRecipe() };
+  // A generator id of its own, so a bench never reads a plan an earlier run stored.
+  const generator = `bench-${performance.now()}`;
+  const planner = (g: TownGeo, s: number, r: typeof req.recipe) => planInWorker(townJobs(), g, s, r);
+  const store = new IdbPlanStore();
+  const cold = await new TownPlanCache(planner, store, generator).get(req);
+  // Let the background write land before reading it back.
+  await new Promise((r) => setTimeout(r, 50));
+  const cache = new TownPlanCache(planner, store, generator);
+  const stored = await cache.get(req);
+  const memory = await cache.get(req);
   const t0 = performance.now();
-  const { plan, ms } = await planInWorker(townJobs(), { ...geo, places: input.places.map((p) => ({ ...p })) }, townSeed(seed, input.municipality), await liveRecipe());
+  const map = dressTown(stored.plan, { home: input.home, location: { type: "home" } });
   const t1 = performance.now();
-  const map = dressTown(plan, { home: input.home, location: { type: "home" } });
-  const t2 = performance.now();
   const b = buildTownMap(map, viewForInput(input));
-  return { ...b.timings, planMs: ms, workerMs: t1 - t0, dressMs: t2 - t1, px: b.baked.px, width: b.baked.width, height: b.baked.height };
+  return { planMs: cold.planMs ?? 0, coldMs: cold.ms, memoryMs: memory.ms, storedMs: stored.ms, storedFrom: stored.source, dressMs: t1 - t0, sceneMs: b.timings.sceneMs, bakeMs: b.timings.bakeMs, width: map.width, height: map.height };
 }
 
 export interface TownMapProps {
