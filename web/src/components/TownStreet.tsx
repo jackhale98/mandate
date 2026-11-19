@@ -19,6 +19,7 @@ import { LIGHT_EASE_MS, PASSAGE_EASE_MS, shownMinutes } from "../hub/turnClock";
 import { artPack } from "../hub/townWorkerClient";
 import { Loader } from "./Brand";
 import { useGame } from "../state/gameStore";
+import { sameLocation } from "../state/routing";
 import { say } from "./townMapText";
 
 export interface TownStreetProps {
@@ -46,8 +47,6 @@ declare global {
 }
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-const sameLocation = (a: LocationDto, b: LocationDto) => JSON.stringify(a) === JSON.stringify(b);
 
 export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
   const tr = useGame((s) => s.tr);
