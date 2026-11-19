@@ -705,7 +705,10 @@ fn the_notebook_badge_starts_at_zero() {
             RequestBody::Command(CommandDto::Go {
                 location: LocationDto::Street { neighborhood: hood },
                 then: Some(Box::new(CommandDto::Act {
-                    action: ActionDto::Canvass { neighborhood: hood },
+                    action: ActionDto::Canvass {
+                        neighborhood: hood,
+                        issue: None,
+                    },
                     late_night: false,
                 })),
             }),
