@@ -398,7 +398,8 @@ pub fn agenda_bonus(
         && let Some(tc) = state.population.town_concerns.get(m as usize)
     {
         let (mut fit, mut w) = (0.0, 0.0);
-        for (c, level) in content.concerns.iter().zip(&tc.levels) {
+        // The town's measured concerns: its politics, not its talk.
+        for (c, level) in content.concerns.iter().zip(&tc.measured) {
             let level = *level as f64;
             if level <= 0.0 {
                 continue;

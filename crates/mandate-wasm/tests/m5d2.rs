@@ -421,6 +421,17 @@ fn no_river_no_river_talk() {
                     *l = if j == i { 1.0 } else { 0.0 };
                 }
             }
+            // Every neighbourhood feels it too (overheard reads them).
+            let hoods: Vec<usize> = s.world.hoods_of(m).collect();
+            if let Some(i) = env {
+                for h in hoods {
+                    if let Some(hc) = s.population.hood_concerns.get_mut(h) {
+                        for (j, l) in hc.levels.iter_mut().enumerate() {
+                            *l = if j == i { 1.0 } else { 0.0 };
+                        }
+                    }
+                }
+            }
         });
         for (_, _, lines) in heard(&mut e, 1) {
             assert!(

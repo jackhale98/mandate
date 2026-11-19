@@ -19,5 +19,44 @@
     "gov_approval_rate": 0.08,     // monthly pull of government approval toward its target
     "player_approval_rate": 0.1,   // monthly pull of approval of the player toward reactions to their bills
     "player_reaction_scale": 1.5,
+
+    // Neighbourhood concerns: each district feels its town's indicators
+    // through its own residents, homes and surroundings (concerns.jsonc reads
+    // the result). Each factor is relative: it is scaled so the residents'
+    // mean over the town is 1, leaving the town's own figure where it was.
+    // Unemployment comes from the district's income classes (the town's
+    // employment rate by class), plus the jobs its workers' sectors have lost
+    // beyond the town's average; tax burden and budget stress are the town's
+    // everywhere; a recent disaster is felt by how hard it hit (DEC-090 D8).
+    "local_concerns": {
+      // Rent by district kind; burden is rent over residents' incomes.
+      "rent": { "core": 1.15, "inner": 1.1, "waterfront": 1.3, "industrial": 0.8, "suburb": 1.0, "rural": 0.75 },
+      "rent_growth": 2.0,              // rent elasticity to growth since play began, against the town
+      // Exposure to the region's pollution by district kind, plus industry
+      // nearby and the floodplain's runoff.
+      "pollution": { "core": 1.0, "inner": 0.8, "waterfront": 0.9, "industrial": 1.6, "suburb": 0.5, "rural": 0.4 },
+      "pollution_workplace": 1.0,      // per polluting workplace in the district
+      "pollution_next_door": 0.35,     // per polluting workplace next door
+      "pollution_floodplain": 0.8,     // × flood exposure (0..1)
+      // Which places employ which sector's workers (polluting: industrial, extraction).
+      "workplaces": {
+        "factory": "industrial", "mill": "industrial", "port": "industrial", "mine": "extraction",
+        "farm": "land_based", "hotel": "visitor", "university": "knowledge", "tech_campus": "knowledge",
+      },
+      "workplace_affinity": 1.5,       // extra share of a sector's workers per workplace in the district (half next door)
+      // Extra share of each sector's workers by district kind.
+      "sector_kinds": [
+        { "driver": "industrial", "kinds": { "industrial": 2.5, "waterfront": 0.3, "rural": 0.2 } },
+        { "driver": "extraction", "kinds": { "industrial": 1.0, "rural": 1.5 } },
+        { "driver": "land_based", "kinds": { "rural": 4.0 } },
+        { "driver": "building", "kinds": { "industrial": 0.6, "suburb": 0.3 } },
+        { "driver": "local_services", "kinds": { "core": 0.5, "inner": 0.3 } },
+        { "driver": "visitor", "kinds": { "waterfront": 1.5, "core": 0.4 } },
+        { "driver": "knowledge", "kinds": { "inner": 0.8, "suburb": 0.5, "core": 0.3 } },
+        { "driver": "public", "kinds": { "core": 0.4, "inner": 0.3, "suburb": 0.2 } },
+      ],
+      "job_loss_decline": 4.0,         // a sector's decline since play began, beside its cyclicality, in who feels job losses
+      "jobs_sector_tilt": 1.0,         // share of the jobs a district's sectors lost (beyond the town's) added to its unemployment
+    },
   },
 }
