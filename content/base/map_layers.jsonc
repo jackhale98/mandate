@@ -1,0 +1,85 @@
+// The country map's layers (DEC-089): public statistics the map can colour
+// its towns by. The picker lists them in this order after Terrain. Types:
+// `mandate-content/src/map_layers.rs`.
+//
+// `source` is a figure the engine serves per town (`MapTownFigures`):
+// population, density, unemployment, median_income, rent, main_industry,
+// main_resource. `scale`: sequential (one hue, light to dark), diverging (two
+// hues either side of a grey `midpoint`: "national" or { "value": x }) or
+// categorical (the `legend.classes` most common categories, at most 3, then
+// Other). `format`: count, per_km2, percent, money or category. The engine
+// computes the figures, the class breaks and the legend; the client paints.
+{
+  "kind": "map_layers",
+  "items": [
+    {
+      "id": "map_layer.population",
+      "label_key": "map-layer-population",
+      "unit_key": "map-layer-population-unit",
+      "source": "population",
+      "scale": "sequential",
+      "format": "count",
+      "legend": { "classes": 5, "breaks": "quantile" },
+    },
+    {
+      "id": "map_layer.density",
+      "label_key": "map-layer-density",
+      "unit_key": "map-layer-density-unit",
+      "source": "density",
+      "scale": "sequential",
+      "format": "per_km2",
+      "legend": { "classes": 5, "breaks": "quantile" },
+    },
+    {
+      "id": "map_layer.unemployment",
+      "label_key": "map-layer-unemployment",
+      "unit_key": "map-layer-unemployment-unit",
+      "note_key": "map-layer-unemployment-note",
+      "source": "unemployment",
+      "scale": "diverging",
+      "midpoint": "national",
+      "format": "percent",
+      "legend": { "classes": 5 },
+    },
+    {
+      "id": "map_layer.median_income",
+      "label_key": "map-layer-median-income",
+      "unit_key": "map-layer-median-income-unit",
+      "source": "median_income",
+      "scale": "sequential",
+      "format": "money",
+      "legend": { "classes": 5, "breaks": "quantile" },
+    },
+    {
+      "id": "map_layer.rent",
+      "label_key": "map-layer-rent",
+      "unit_key": "map-layer-rent-unit",
+      "source": "rent",
+      "scale": "sequential",
+      "format": "money",
+      "legend": { "classes": 5, "breaks": "quantile" },
+    },
+    {
+      "id": "map_layer.industry",
+      "label_key": "map-layer-industry",
+      "unit_key": "map-layer-industry-unit",
+      "note_key": "map-layer-industry-note",
+      "detail_key": "map-layer-industry-detail",
+      "source": "main_industry",
+      "scale": "categorical",
+      "format": "category",
+      "legend": { "classes": 3 },
+    },
+    {
+      "id": "map_layer.resource",
+      "label_key": "map-layer-resource",
+      "unit_key": "map-layer-resource-unit",
+      "note_key": "map-layer-resource-note",
+      "detail_key": "map-layer-resource-detail",
+      "source": "main_resource",
+      "scale": "categorical",
+      "format": "category",
+      "legend": { "classes": 3 },
+    },
+  ],
+}

@@ -273,6 +273,9 @@ pub enum QueryDto {
     Office,
     Campaign,
     Map,
+    /// The country map's layers (DEC-089): every town's public figures and
+    /// each registry layer's legend and classes. Small; refresh each turn.
+    MapLayers,
     Municipality {
         id: u32,
     },
@@ -365,6 +368,7 @@ pub enum ResponseBody {
     Office(OfficeView),
     Campaign(CampaignView),
     Map(MapView),
+    MapLayers(MapLayersView),
     Municipality(MunicipalityView),
     Pocket(PocketView),
     Town(TownPlacesView),

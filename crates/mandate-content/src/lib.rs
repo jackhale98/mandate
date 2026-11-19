@@ -6,6 +6,7 @@ pub mod conversation;
 pub mod jsonc;
 pub mod knowledge;
 pub mod layout;
+pub mod map_layers;
 pub mod media;
 pub mod narrative;
 pub mod overrides;

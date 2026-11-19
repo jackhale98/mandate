@@ -241,6 +241,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     }
     validate_places(b, &mut issues);
     crate::layout::validate_layout(b, &mut issues);
+    crate::map_layers::validate(b, &mut issues);
     validate_communities(b, &mut issues);
     validate_scenarios(b, &mut issues);
     validate_concerns(b, &mut issues);
@@ -620,6 +621,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
             referenced.push((&c.id, k));
         }
     }
+    referenced.extend(crate::map_layers::fluent_refs(b));
     for (owner, key) in referenced {
         if !en.contains(key) {
             issues.push(Issue::error(

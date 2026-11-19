@@ -104,6 +104,10 @@ pub enum ContentFile {
     Connectors {
         items: Vec<crate::layout::ConnectorDef>,
     },
+    /// The country map's layers (DEC-089): what the map can colour towns by.
+    MapLayers {
+        items: Vec<crate::map_layers::MapLayerDef>,
+    },
     /// Knowledge is earned (DEC-091): start profiles, the local option, the
     /// party primer, place introductions, and the effectiveness terms.
     Knowledge {
@@ -2545,6 +2549,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "connectors" => ContentFile::Connectors {
             items: serde_json::from_str::<ItemsFile<crate::layout::ConnectorDef>>(json)?.items,
+        },
+        "map_layers" => ContentFile::MapLayers {
+            items: serde_json::from_str::<ItemsFile<crate::map_layers::MapLayerDef>>(json)?.items,
         },
         "knowledge" => ContentFile::Knowledge {
             value: Box::new(

@@ -2,15 +2,14 @@
 import type { MapView } from "../engine/protocol/MapView";
 import { BIOME_RGB, decodeB64 } from "./palette";
 
-export type Overlay = "terrain" | "unemployment";
+/**
+ * A map layer's fill per town (municipality id to RGB), from the engine's
+ * classes (DEC-089, ./layers); `null` draws terrain only.
+ */
+export type LayerPaint = ReadonlyMap<number, readonly [number, number, number]> | null;
 
-// Sequential single-hue ramp (light → dark blue) for magnitudes.
-const RAMP_LO = [232, 238, 247] as const;
-const RAMP_HI = [24, 66, 128] as const;
-function ramp(t: number): [number, number, number] {
-  const k = Math.max(0, Math.min(1, t));
-  return [0, 1, 2].map((i) => (RAMP_LO[i] ?? 0) + ((RAMP_HI[i] ?? 0) - (RAMP_LO[i] ?? 0)) * k) as [number, number, number];
-}
+/** The selected town's outline over a layer (bright, in both themes). */
+const PICK_RING = [255, 210, 63] as const;
 
 export interface MapRaster {
   width: number;
@@ -19,7 +18,7 @@ export interface MapRaster {
   image: ImageData;
 }
 
-export function bakeRaster(view: MapView, selected: number | null, overlay: Overlay = "terrain"): MapRaster {
+export function bakeRaster(view: MapView, selected: number | null, paint: LayerPaint = null): MapRaster {
   const { width: w, height: h } = view;
   const biome = decodeB64(view.biome_b64);
   const cover = decodeB64(view.cover_b64);
@@ -29,7 +28,6 @@ export function bakeRaster(view: MapView, selected: number | null, overlay: Over
   const owner = new Uint16Array(w * h);
   for (let i = 0; i < w * h; i++) owner[i] = (ownerBytes[2 * i] ?? 255) | ((ownerBytes[2 * i + 1] ?? 255) << 8);
   const regionOf = new Map<number, number>(view.municipalities.map((m) => [m.id, m.region]));
-  const unemp = new Map<number, number>(view.municipalities.map((m) => [m.id, m.unemployment]));
 
   const img = new ImageData(w, h);
   const px = img.data;
@@ -56,12 +54,13 @@ export function bakeRaster(view: MapView, selected: number | null, overlay: Over
         [r, g, b] = rv === 3 ? [52, 96, 170] : [84, 132, 196];
       }
       const o = owner[i] ?? 65535;
-      if (o !== 65535 && overlay === "unemployment" && (cover[i] ?? 0) === 2) {
-        const [cr, cg, cb] = ramp(((unemp.get(o) ?? 0) - 0.02) / 0.13);
-        const relief = 1 + s * 0.25;
-        r = cr * relief;
-        g = cg * relief;
-        b = cb * relief;
+      const fill = o !== 65535 && (cover[i] ?? 0) === 2 ? paint?.get(o) : undefined;
+      if (fill) {
+        // A whisper of relief, so the land still reads without shifting a class's colour.
+        const relief = 1 + s * 0.12;
+        r = fill[0] * relief;
+        g = fill[1] * relief;
+        b = fill[2] * relief;
       }
       if (o !== 65535) {
         const right = x + 1 < w ? owner[i + 1] : o;
@@ -77,9 +76,17 @@ export function bakeRaster(view: MapView, selected: number | null, overlay: Over
           b *= 0.82;
         }
         if (selected !== null && o === selected) {
-          r = r * 0.6 + 255 * 0.4;
-          g = g * 0.6 + 214 * 0.4;
-          b = b * 0.6 + 90 * 0.4;
+          if (paint) {
+            // Over a layer the town keeps its class colour: a bright ring
+            // round its edge marks it instead of a tint.
+            const left = x > 0 ? owner[i - 1] : o;
+            const up = y > 0 ? owner[i - w] : o;
+            if ([right, down, left, up].some((n) => n !== o)) [r, g, b] = PICK_RING;
+          } else {
+            r = r * 0.6 + 255 * 0.4;
+            g = g * 0.6 + 214 * 0.4;
+            b = b * 0.6 + 90 * 0.4;
+          }
         }
       }
       const p = i * 4;
