@@ -293,7 +293,7 @@ fn town_state_is_rounded_except_at_the_town_hall() {
 /// its id and its slot, offers nothing, and cannot be entered; saves keep it.
 #[test]
 fn closed_places_are_kept_and_offer_nothing() {
-    let mut s = new_game(4242);
+    let s = new_game(4242);
     let id = home_id(&s);
     let hash_before = s.engine().unwrap().state_hash();
     // While every place is open the state (and its hash) has no status field.
