@@ -56,6 +56,30 @@ pub enum ContentFile {
     Crises { items: Vec<CrisisDef> },
     /// Character, memory, relationship, and town-character numbers (DEC-031, DEC-077).
     Characters { value: Box<CharacterParams> },
+    /// The narrative director's pacing, fairness, and chance numbers (DEC-033).
+    Director {
+        value: Box<crate::narrative::DirectorParams>,
+    },
+    /// Storyteller profiles (DEC-033 addendum).
+    Storytellers {
+        items: Vec<crate::narrative::StorytellerDef>,
+    },
+    /// Dilemmas and requests: decisions where every option costs someone (DEC-077 §4).
+    Dilemmas {
+        items: Vec<crate::narrative::DilemmaDef>,
+    },
+    /// NPC goal templates (DEC-032).
+    Goals {
+        items: Vec<crate::narrative::GoalDef>,
+    },
+    /// Storyline templates (DEC-032).
+    Storylines {
+        items: Vec<crate::narrative::StorylineDef>,
+    },
+    /// Scene templates: short exchanges at a place (DEC-035, DEC-079).
+    Scenes {
+        items: Vec<crate::narrative::SceneDef>,
+    },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -1700,7 +1724,7 @@ pub const COMPETENCIES: [&str; 5] = [
 /// The kinds of memory the engine records (DEC-031). Each has a parameter
 /// row in `characters.memories` and a Fluent key `memory-<kind>`. New kinds
 /// are a code extension point: the engine must record them somewhere.
-pub const MEMORY_KINDS: [&str; 14] = [
+pub const MEMORY_KINDS: [&str; 17] = [
     "backed_my_bill",
     "opposed_my_bill",
     "promised_favour",
@@ -1715,6 +1739,9 @@ pub const MEMORY_KINDS: [&str; 14] = [
     "signed_my_bill",
     "met",
     "scandal",
+    "stood_with_me",
+    "stood_against_me",
+    "ignored_me",
 ];
 
 /// A multiplier pair for good and bad news.
@@ -2078,6 +2105,26 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "characters" => ContentFile::Characters {
             value: Box::new(serde_json::from_str::<ValueFile<CharacterParams>>(json)?.value),
+        },
+        "director" => ContentFile::Director {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::narrative::DirectorParams>>(json)?.value,
+            ),
+        },
+        "storytellers" => ContentFile::Storytellers {
+            items: serde_json::from_str::<ItemsFile<crate::narrative::StorytellerDef>>(json)?.items,
+        },
+        "dilemmas" => ContentFile::Dilemmas {
+            items: serde_json::from_str::<ItemsFile<crate::narrative::DilemmaDef>>(json)?.items,
+        },
+        "goals" => ContentFile::Goals {
+            items: serde_json::from_str::<ItemsFile<crate::narrative::GoalDef>>(json)?.items,
+        },
+        "storylines" => ContentFile::Storylines {
+            items: serde_json::from_str::<ItemsFile<crate::narrative::StorylineDef>>(json)?.items,
+        },
+        "scenes" => ContentFile::Scenes {
+            items: serde_json::from_str::<ItemsFile<crate::narrative::SceneDef>>(json)?.items,
         },
         other => {
             use serde::de::Error;

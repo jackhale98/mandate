@@ -11,10 +11,8 @@ import { expect, test, type Page } from "@playwright/test";
 // a self-unregistering sw.js at that path. These tests serve one origin whose
 // files switch from an old build to the new dist/, as a deploy does.
 //
-// The first test uses a minimal stand-in for the old worker and always runs.
-// The second uses a real old build when MANDATE_OLD_DIST points to one (a
-// dist/ built before DEC-083 with the same MANDATE_BASE), and also checks that
-// saved runs survive.
+// The test uses a minimal stand-in for the old worker. (A one-off test against
+// a real pre-DEC-083 build passed before the move shipped and was retired.)
 
 const BASE = process.env.MANDATE_BASE ?? "/mandate/";
 const NEW_DIST = resolve("dist");
@@ -146,42 +144,6 @@ test.describe("service-worker migration to play/", () => {
       // A later visit to the landing page is not taken over by anything.
       await page.goto(site.url);
       await expect(page.getByRole("heading", { level: 1 })).toContainText("Unknown councillor sets sights");
-    } finally {
-      await site.close();
-    }
-  });
-
-  test("a real old build: landing page after the update, game at play/, saved runs kept", async ({ page }, testInfo) => {
-    const oldDist = process.env.MANDATE_OLD_DIST;
-    test.skip(!oldDist, "set MANDATE_OLD_DIST to a dist/ built before the move to play/");
-    test.skip(testInfo.project.name !== "desktop", "one device is enough");
-    test.setTimeout(120_000);
-    const site = await siteServer(resolve(oldDist ?? ""));
-    try {
-      // The old app at the root: start a run and save it.
-      await page.goto(site.url);
-      await page.getByPlaceholder("e.g. 20260").fill("4242");
-      await page.getByRole("button", { name: "Begin" }).click();
-      await expect(page.getByTestId("town")).toBeVisible();
-      if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
-      await page.getByTestId("pocket").getByRole("button", { name: "Save & quit" }).click();
-      await expect(page.getByRole("button", { name: "Continue" }).first()).toBeVisible();
-      // From the next load the old worker serves the app, as on a returning visit.
-      await controlled(page);
-      await page.reload();
-      expect(await controlled(page)).toBe(true);
-      await expect(page.getByRole("button", { name: "Continue" }).first()).toBeVisible();
-
-      site.deploy(NEW_DIST);
-      await page.reload();
-      await expect(page.getByRole("heading", { level: 1 })).toContainText("Unknown councillor sets sights", { timeout: 30_000 });
-      await expect(page.locator("[data-continue]")).toBeVisible();
-
-      await page.getByRole("link", { name: "Continue your run" }).click();
-      await expect(page).toHaveURL(`${site.url}play/`);
-      await expect(page.getByRole("button", { name: "Continue" }).first()).toBeVisible();
-      await page.getByRole("button", { name: "Continue" }).first().click();
-      await expect(page.getByText("Turn 0")).toBeVisible();
     } finally {
       await site.close();
     }

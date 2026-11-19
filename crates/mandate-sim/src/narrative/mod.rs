@@ -1,0 +1,675 @@
+//! Narrative (DEC-033, DEC-032, DEC-077 §4): the director, decisions
+//! (dilemmas and requests), storylines, the facts log, and the director's
+//! exogenous levers.
+//!
+//! **Authority (DEC-033 B: a storyteller of chance, not of consequence).**
+//! The director's systems write only this domain (`NarrativeState`). They
+//! read live state, choose which situations to spotlight (pending
+//! decisions, developments), and post *requests* on exogenous chance
+//! (`Chance`): a hold on hazards in the player's town, the share of hazard
+//! strikes there, a hold on the onset of a global recession. The owning
+//! systems (environment, economy) accept and clamp them, and log every
+//! intervention. Hidden facts get a discovery date inside their evidence
+//! window. Nothing here changes an endogenous outcome: decisions change the
+//! world only when answered, through `resolve` in the Commands phase (the
+//! player's answer, or the default when the deadline passes, which is the
+//! player's inaction).
+//!
+//! **Determinism.** Every draw is keyed (seed, `Stream::Director`, date,
+//! subject), so the director never shifts a sequential stream.
+
+pub mod audit;
+pub mod cast;
+pub mod director;
+pub mod resolve;
+
+use crate::characters::CharacterId;
+use crate::places::Location;
+use mandate_content::{ContentBundle, ContentKey};
+use mandate_core::{SimDate, define_id};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+pub use director::{daily, weekly};
+pub use resolve::{answer, resolve_due};
+
+define_id!(
+    /// A decision the director spotlighted (never reused).
+    DecisionId
+);
+define_id!(
+    /// A storyline in progress or finished.
+    StorylineRunId
+);
+
+/// Keyed-RNG tags (DEC-041): one per kind of director draw.
+pub(crate) const KEY_JITTER: u64 = 0xD1E0;
+pub(crate) const KEY_DISCOVERY: u64 = 0xD1E1;
+/// (Used by the environment for a Steady profile's missed strikes.)
+pub const KEY_HAZARD_KEEP: u64 = 0xD1E2;
+
+/// A live actor cast in a role.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Actor {
+    Person {
+        id: CharacterId,
+    },
+    Neighborhood {
+        id: u32,
+    },
+    /// A bill or a law (policy instance).
+    Policy {
+        id: u32,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CastEntry {
+    pub role: String,
+    pub actor: Actor,
+}
+
+/// Find a role's actor in a cast.
+pub fn actor_of(cast: &[CastEntry], role: &str) -> Option<Actor> {
+    cast.iter().find(|c| c.role == role).map(|c| c.actor)
+}
+
+pub fn person_of(cast: &[CastEntry], role: &str) -> Option<CharacterId> {
+    match actor_of(cast, role)? {
+        Actor::Person { id } => Some(id),
+        _ => None,
+    }
+}
+
+/// The weight of a decision in the chapter's budgets.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Weight {
+    Climax,
+    Significant,
+    Minor,
+}
+
+/// Why a situation came up: the live facts it was grounded in.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Reason {
+    Crisis {
+        kind: ContentKey,
+        severity: f32,
+    },
+    Concern {
+        concern: ContentKey,
+    },
+    Election {
+        days: u32,
+    },
+    Storyline {
+        storyline: ContentKey,
+    },
+    Memory {
+        person: CharacterId,
+    },
+    Goal {
+        person: CharacterId,
+        goal: ContentKey,
+    },
+    Ward,
+    Pressure {
+        track: String,
+    },
+    Opportunity,
+}
+
+/// What one effect of an answered decision did (facts for the aftermath).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Applied {
+    Opinion {
+        person: CharacterId,
+        delta: f32,
+    },
+    /// Mean change in approval of the player among the voters reached.
+    Approval {
+        scope: String,
+        neighborhood: Option<u32>,
+        classes: Vec<u8>,
+        delta: f32,
+    },
+    Awareness {
+        scope: String,
+        delta: f32,
+    },
+    Money {
+        amount: f64,
+    },
+    Health {
+        delta: f32,
+    },
+    Slots {
+        n: u8,
+    },
+    Standing {
+        delta: f32,
+    },
+    LegalJeopardy {
+        delta: f32,
+    },
+    Record {
+        delta: f32,
+    },
+    Favour {
+        person: CharacterId,
+        owed_to_player: bool,
+    },
+    Repaid {
+        person: CharacterId,
+    },
+    Vote {
+        policy: u32,
+        vote: String,
+    },
+    Drafted {
+        policy: u32,
+    },
+    /// The effect could not happen any more (e.g. the vote was already held).
+    Skipped {
+        effect: String,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DecisionStatus {
+    Pending,
+    Answered,
+    /// The deadline passed: the default option happened.
+    Defaulted,
+    /// The situation dissolved before an answer (a bill was decided, its
+    /// template was removed by an update).
+    Lapsed,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Resolution {
+    pub option: String,
+    pub date: SimDate,
+    pub by_default: bool,
+    pub applied: Vec<Applied>,
+}
+
+/// A decision the director spotlighted: a dilemma, a request, or a
+/// storyline's turn. It is visible from `opened` until `deadline`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Decision {
+    pub id: DecisionId,
+    /// Dilemma content id.
+    pub template: ContentKey,
+    pub weight: Weight,
+    pub cast: Vec<CastEntry>,
+    pub reasons: Vec<Reason>,
+    pub opened: SimDate,
+    pub deadline: SimDate,
+    pub chapter: u32,
+    pub relevance: f32,
+    pub storyline: Option<StorylineRunId>,
+    /// The goal that raised a request: (holder, goal id).
+    pub goal: Option<(CharacterId, ContentKey)>,
+    /// Where its scene happens.
+    pub place: Option<Location>,
+    pub status: DecisionStatus,
+    pub resolution: Option<Resolution>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChapterKind {
+    /// A budget year in office.
+    Session,
+    /// The player's campaign; its climax is the election.
+    Campaign,
+}
+
+impl ChapterKind {
+    pub fn key(self) -> &'static str {
+        match self {
+            ChapterKind::Session => "session",
+            ChapterKind::Campaign => "campaign",
+        }
+    }
+}
+
+/// A chapter (DEC-005) and what the director spotlighted in it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Chapter {
+    pub index: u32,
+    pub kind: ChapterKind,
+    pub start: SimDate,
+    /// Planned end (a session: the next budget year; a campaign: election day).
+    pub end: SimDate,
+    /// When it actually ended.
+    pub closed: Option<SimDate>,
+    pub climaxes: u8,
+    pub significant: u8,
+    pub minor: u8,
+    /// The decision chosen as its climax (a session), if any.
+    pub climax: Option<DecisionId>,
+    pub peak_tension: f32,
+    pub last_decision: Option<SimDate>,
+    pub last_minor: Option<SimDate>,
+    /// Templates and people spotlighted this chapter (repetition penalty).
+    pub templates: Vec<ContentKey>,
+    pub people: Vec<CharacterId>,
+}
+
+impl Chapter {
+    pub fn new(index: u32, kind: ChapterKind, start: SimDate, end: SimDate) -> Self {
+        Chapter {
+            index,
+            kind,
+            start,
+            end,
+            closed: None,
+            climaxes: 0,
+            significant: 0,
+            minor: 0,
+            climax: None,
+            peak_tension: 0.0,
+            last_decision: None,
+            last_minor: None,
+            templates: Vec::new(),
+            people: Vec::new(),
+        }
+    }
+
+    /// Share of the planned chapter elapsed (0..1).
+    pub fn progress(&self, on: SimDate) -> f64 {
+        let total = self.start.days_until(self.end).max(1) as f64;
+        (self.start.days_until(on) as f64 / total).clamp(0.0, 1.0)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RunEnd {
+    /// It reached a stage that ends it.
+    Ended,
+    /// A stage timed out.
+    Faded,
+    /// Its template was removed by an update.
+    Removed,
+}
+
+/// A storyline in progress (DEC-032).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct StorylineRun {
+    pub id: StorylineRunId,
+    pub template: ContentKey,
+    pub cast: Vec<CastEntry>,
+    /// Index of the current stage.
+    pub stage: u32,
+    /// The current stage has been reached (its beat or decision presented).
+    pub entered: bool,
+    /// When the previous stage finished (waits and timeouts count from here).
+    pub since: SimDate,
+    pub started: SimDate,
+    /// The decision of the current stage, if presented.
+    pub decision: Option<DecisionId>,
+    /// Stages reached: (stage id, date).
+    pub stages: Vec<(String, SimDate)>,
+    pub ended: Option<(SimDate, RunEnd)>,
+}
+
+/// What a fact is about (the facts log; DEC-034's media layer will read it).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum FactKind {
+    ChapterBegan {
+        index: u32,
+        kind: ChapterKind,
+    },
+    DecisionOpened {
+        decision: DecisionId,
+    },
+    DecisionResolved {
+        decision: DecisionId,
+        option: String,
+        by_default: bool,
+    },
+    DecisionLapsed {
+        decision: DecisionId,
+    },
+    CrisisBegan {
+        kind: ContentKey,
+    },
+    CrisisWorse {
+        kind: ContentKey,
+    },
+    GoalTaken {
+        person: CharacterId,
+        goal: ContentKey,
+    },
+    RivalNamed {
+        person: CharacterId,
+    },
+    StorylineStage {
+        run: StorylineRunId,
+        stage: String,
+    },
+    StorylineEnded {
+        run: StorylineRunId,
+        end: RunEnd,
+    },
+    TrackWarning {
+        track: String,
+        value: f32,
+    },
+    /// A hidden fact can now be discovered (the media's hook).
+    Discoverable {
+        hidden: u32,
+    },
+    /// Something that happened in the player's town (a logged event: a
+    /// closure, a disaster, a colleague's bill), spotlighted as news.
+    TownEvent {
+        event: crate::events::EventId,
+    },
+}
+
+/// One entry of the facts log. `spotlit` facts were presented to the player
+/// (and count against the chapter's budgets when minor).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Fact {
+    pub id: u32,
+    pub date: SimDate,
+    pub chapter: u32,
+    pub kind: FactKind,
+    pub actors: Vec<Actor>,
+    pub spotlit: bool,
+    /// How newsworthy (0..1): relevance for the media task.
+    pub newsworthiness: f32,
+}
+
+/// Something that happened out of sight (DEC-034 hook): it may come to light
+/// within its evidence window; the director chooses when (DEC-033 B).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct HiddenFact {
+    pub id: u32,
+    /// What happened: `late_night_deal`, `late_night_fundraising`, `donation`.
+    pub kind: String,
+    pub date: SimDate,
+    pub actors: Vec<Actor>,
+    /// Evidence window: it cannot surface before [0] and will by [1].
+    pub window: [SimDate; 2],
+    pub discoverable_on: Option<SimDate>,
+    pub surfaced: bool,
+}
+
+/// The director's requests on exogenous chance (DEC-033 B). Owning systems
+/// accept and clamp them.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Chance {
+    /// Hold hazard strikes on this town until this date (they are deferred,
+    /// not removed: they strike within `director.chance.hazard_max_defer_days`).
+    pub hazard_hold: Option<(u32, SimDate)>,
+    /// Share of hazard strikes on this town that happen (Steady).
+    pub hazard_keep: Option<(u32, f32)>,
+    /// Hold the onset of a global recession until this date.
+    pub recession_hold: Option<SimDate>,
+}
+
+/// A fairness warning issued (DEC-006).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Warning {
+    pub track: String,
+    pub date: SimDate,
+    pub value: f32,
+}
+
+/// What the director saw last week (to notice developments).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Seen {
+    /// Crisis kinds with a severity band (0..3).
+    pub crises: Vec<(ContentKey, u8)>,
+    pub rival: Option<CharacterId>,
+    pub goals: Vec<(CharacterId, ContentKey)>,
+    /// The last event-log entry looked at.
+    #[serde(default)]
+    pub last_event: u32,
+}
+
+/// The narrative domain.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NarrativeState {
+    /// Storyteller profile id (`storytellers`); empty = the content's default.
+    pub profile: ContentKey,
+    /// When play began (the director's first day with a player).
+    pub play_began: Option<SimDate>,
+    pub chapter: Option<Chapter>,
+    /// Closed chapters, oldest first (bounded).
+    pub chapters: Vec<Chapter>,
+    pub tension: f32,
+    pub decision_ids: mandate_core::IdAllocator,
+    /// Pending decisions, then recent resolved ones (bounded).
+    pub decisions: Vec<Decision>,
+    pub run_ids: mandate_core::IdAllocator,
+    pub storylines: Vec<StorylineRun>,
+    /// Template (dilemma or storyline) → the earliest date it may return.
+    #[serde(with = "mandate_core::serde_util::map_as_pairs")]
+    pub cooldowns: BTreeMap<ContentKey, SimDate>,
+    /// Goals whose request was raised: (holder, goal, adopted on).
+    pub requests_raised: Vec<(CharacterId, ContentKey, SimDate)>,
+    /// Follow-up storylines waiting: (template, cast, from).
+    pub follow_ups: Vec<(ContentKey, Vec<CastEntry>, SimDate)>,
+    pub next_fact: u32,
+    /// The facts log (bounded).
+    pub facts: Vec<Fact>,
+    pub hidden: Vec<HiddenFact>,
+    pub next_hidden: u32,
+    pub chance: Chance,
+    pub warnings: Vec<Warning>,
+    pub seen: Seen,
+    /// Lab switch: spotlight situations (decisions, storylines,
+    /// developments). Off, the director still shapes chance identically.
+    pub spotlight: bool,
+    /// Lab switch: apply default options when deadlines pass (off, a
+    /// decision past its deadline lapses without consequence).
+    pub resolve_defaults: bool,
+}
+
+impl Default for NarrativeState {
+    fn default() -> Self {
+        NarrativeState {
+            profile: String::new(),
+            play_began: None,
+            chapter: None,
+            chapters: Vec::new(),
+            tension: 0.0,
+            decision_ids: Default::default(),
+            decisions: Vec::new(),
+            run_ids: Default::default(),
+            storylines: Vec::new(),
+            cooldowns: BTreeMap::new(),
+            requests_raised: Vec::new(),
+            follow_ups: Vec::new(),
+            next_fact: 0,
+            facts: Vec::new(),
+            hidden: Vec::new(),
+            next_hidden: 0,
+            chance: Chance::default(),
+            warnings: Vec::new(),
+            seen: Seen::default(),
+            spotlight: true,
+            resolve_defaults: true,
+        }
+    }
+}
+
+/// Facts kept in the log.
+pub const FACTS_CAP: usize = 400;
+/// Closed chapters kept.
+pub const CHAPTERS_CAP: usize = 60;
+/// Hidden facts kept after they surfaced.
+pub const HIDDEN_CAP: usize = 200;
+
+impl NarrativeState {
+    pub fn decision(&self, id: DecisionId) -> Option<&Decision> {
+        self.decisions.iter().find(|d| d.id == id)
+    }
+
+    pub fn pending(&self) -> impl Iterator<Item = &Decision> {
+        self.decisions
+            .iter()
+            .filter(|d| d.status == DecisionStatus::Pending)
+    }
+
+    pub fn active_runs(&self) -> impl Iterator<Item = &StorylineRun> {
+        self.storylines.iter().filter(|r| r.ended.is_none())
+    }
+
+    /// The storyteller profile in force.
+    pub fn profile<'a>(
+        &self,
+        content: &'a ContentBundle,
+    ) -> Option<&'a mandate_content::StorytellerDef> {
+        content
+            .storyteller(&self.profile)
+            .or_else(|| content.storyteller(&content.director.default_profile))
+            .or(content.storytellers.first())
+    }
+
+    pub(crate) fn log(
+        &mut self,
+        date: SimDate,
+        kind: FactKind,
+        actors: Vec<Actor>,
+        spotlit: bool,
+        newsworthiness: f32,
+    ) -> u32 {
+        let id = self.next_fact;
+        self.next_fact += 1;
+        let chapter = self.chapter.as_ref().map(|c| c.index).unwrap_or(0);
+        self.facts.push(Fact {
+            id,
+            date,
+            chapter,
+            kind,
+            actors,
+            spotlit,
+            newsworthiness,
+        });
+        if self.facts.len() > FACTS_CAP {
+            let drop = self.facts.len() - FACTS_CAP;
+            self.facts.drain(..drop);
+        }
+        id
+    }
+
+    /// Record a hidden fact (Commands phase: the player's own late-night
+    /// work). Its evidence window opens after `discovery_days[0]`.
+    pub fn hide(
+        &mut self,
+        content: &ContentBundle,
+        date: SimDate,
+        kind: &str,
+        actors: Vec<Actor>,
+    ) -> u32 {
+        let id = self.next_hidden;
+        self.next_hidden += 1;
+        let [a, b] = content.director.chance.discovery_days;
+        self.hidden.push(HiddenFact {
+            id,
+            kind: kind.into(),
+            date,
+            actors,
+            window: [date.add_days(a), date.add_days(b)],
+            discoverable_on: None,
+            surfaced: false,
+        });
+        if self.hidden.len() > HIDDEN_CAP
+            && let Some(i) = self.hidden.iter().position(|h| h.surfaced)
+        {
+            self.hidden.remove(i);
+        }
+        id
+    }
+
+    /// Whether a terminal ending on `track` may happen on `on` (DEC-006
+    /// fairness): only after a warning, with `fairness.response_days` to
+    /// respond. The ending systems (M6+) must ask this first.
+    pub fn ending_allowed(&self, content: &ContentBundle, track: &str, on: SimDate) -> bool {
+        let wait = content.director.fairness.response_days;
+        self.warnings
+            .iter()
+            .any(|w| w.track == track && w.date.add_days(wait) <= on)
+    }
+
+    /// Keep pending decisions and the most recent resolved ones.
+    pub(crate) fn trim(&mut self, keep: usize) {
+        let resolved = self
+            .decisions
+            .iter()
+            .filter(|d| d.status != DecisionStatus::Pending)
+            .count();
+        if resolved > keep {
+            let mut drop = resolved - keep;
+            self.decisions.retain(|d| {
+                if drop > 0 && d.status != DecisionStatus::Pending {
+                    drop -= 1;
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+        if self.chapters.len() > CHAPTERS_CAP {
+            let drop = self.chapters.len() - CHAPTERS_CAP;
+            self.chapters.drain(..drop);
+        }
+        let finished = self.storylines.iter().filter(|r| r.ended.is_some()).count();
+        if finished > 40 {
+            let mut drop = finished - 40;
+            self.storylines.retain(|r| {
+                if drop > 0 && r.ended.is_some() {
+                    drop -= 1;
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+    }
+}
+
+/// Bring the narrative in line with loaded content (DEC-074): a pending
+/// decision whose template was removed lapses, a storyline whose template
+/// was removed ends, and waiting follow-ups and cooldowns for removed
+/// templates are dropped. Never refuses a save.
+pub fn on_load(state: &mut crate::State, content: &ContentBundle) {
+    let date = state.calendar.date;
+    let n = &mut state.narrative;
+    for d in n.decisions.iter_mut() {
+        if d.status == DecisionStatus::Pending && content.dilemma(&d.template).is_none() {
+            d.status = DecisionStatus::Lapsed;
+            d.resolution = Some(Resolution {
+                option: String::new(),
+                date,
+                by_default: false,
+                applied: Vec::new(),
+            });
+        }
+    }
+    let mut ended = Vec::new();
+    for r in n.storylines.iter_mut() {
+        if r.ended.is_none() && content.storyline(&r.template).is_none() {
+            r.ended = Some((date, RunEnd::Removed));
+            ended.push(r.id);
+        }
+    }
+    n.follow_ups
+        .retain(|(k, _, _)| content.storyline(k).is_some());
+    n.cooldowns
+        .retain(|k, _| content.dilemma(k).is_some() || content.storyline(k).is_some());
+    let _ = ended;
+    crate::characters::goals::on_load(&mut state.politics, content);
+}

@@ -1,0 +1,344 @@
+# Narrative: the director, dilemmas, requests, goals, storylines, scenes
+# (DEC-033, DEC-077 §4, DEC-032, DEC-035). Arguments: each cast role's name
+# as $<role> (a bill or law: its policy name), a person's role as
+# $<role>_role, plus $town, $crisis, and $player.
+
+## Storyteller profiles (DEC-033 addendum)
+storyteller-classic = Classic
+storyteller-classic-desc = Tension rises through each chapter to one climax. Hazards wait while your town already has its hands full.
+storyteller-unfiltered = Unfiltered
+storyteller-unfiltered-desc = Pure chance. Storms and shocks arrive as they fall; nothing waits its turn.
+storyteller-steady = Steady
+storyteller-steady-desc = Fewer crises and fewer decisions: one emergency at a time.
+
+## Memories recorded by decisions
+memory-stood-with-me = You stood with them over { $subject } ({ $year }).
+memory-stood-against-me = You took the other side over { $subject } ({ $year }).
+memory-ignored-me = You left them waiting over { $subject } ({ $year }).
+subject-decision = { $title }
+
+## NPC goals
+goal-organise-workers = Organising the workers
+goal-oppose-player = Out to stop you
+goal-seek-backing = Looking for your support
+goal-champion-fix = Pushing for a fix
+goal-traders-help = Rallying the traders
+
+## Dilemmas: titles are noun phrases (they are also what memories are about)
+dilemma-plant-layoffs = the layoffs at the plant
+dilemma-plant-layoffs-situation = Jobs are going in { $town }, and the town is choosing sides. { $owner } ({ $owner_role }) wants the council to hold off on anything that raises an employer's costs. { $steward } ({ $steward_role }) wants you on the picket line. In { $hood }, people are asking where you stand.
+dilemma-plant-layoffs-back-owner = Back { $owner }: no new costs on employers while jobs are at risk
+dilemma-plant-layoffs-back-owner-after = You sided with { $owner }. The party's business wing noticed, and so did { $steward }, who has not forgotten. Low-income voters in your ward cooled on you.
+dilemma-plant-layoffs-back-workers = Stand with the workers and draft a hardship fund for laid-off families
+dilemma-plant-layoffs-back-workers-after = You drafted a hardship fund and stood with { $steward }. Laid-off families took heart; { $owner } and the party's donors did not.
+dilemma-plant-layoffs-broker-talks = Spend a day getting { $owner } and { $steward } into one room
+dilemma-plant-layoffs-broker-talks-after = You spent a long day brokering talks. Neither side got what it wanted, but both saw you try.
+dilemma-plant-layoffs-stay-out = Stay out of it
+dilemma-plant-layoffs-stay-out-after = You said nothing. { $steward } took it personally, and { $hood } noticed the silence. { $owner } was relieved.
+
+dilemma-workers-campaign = the union's campaign
+dilemma-workers-campaign-situation = { $steward } is organising the laid-off workers of { $town } and plans a march past the council chamber. They want you at the front.
+dilemma-workers-campaign-march = March with them
+dilemma-workers-campaign-march-after = You marched at the front. Working families saw you there, and so did the party, which did not like it.
+dilemma-workers-campaign-statement = Send a statement of support
+dilemma-workers-campaign-statement-after = Your statement was read out at the rally. It was warm, and it was not you.
+dilemma-workers-campaign-decline = Stay away
+dilemma-workers-campaign-decline-after = You stayed away. { $steward } marched without you and told the crowd why; better-off voters were quietly glad.
+
+dilemma-housing-squeeze = the housing squeeze
+dilemma-housing-squeeze-situation = Rents in { $town } have outrun wages. { $organiser } ({ $organiser_role }) brings families from { $hood } who are one rise away from leaving.
+dilemma-housing-squeeze-upzone = Draft an upzoning bill so builders can add homes
+dilemma-housing-squeeze-upzone-after = You drafted upzoning. Renters liked the idea; homeowners worried about towers next door.
+dilemma-housing-squeeze-build = Draft an affordable housing programme
+dilemma-housing-squeeze-build-after = You drafted a housing programme. { $organiser } is grateful; better-off voters wonder who pays, and the party worries about the bill.
+dilemma-housing-squeeze-wait = Wait for the market to settle
+dilemma-housing-squeeze-wait-after = You waited. Families in { $hood } did not feel heard, and { $organiser } said so. Homeowners liked the calm.
+
+dilemma-disaster-relief = the rebuilding
+dilemma-disaster-relief-situation = After the disaster, { $hood } is still clearing up. { $helper } ({ $helper_role }) is running a relief effort out of a borrowed hall and asks what you will do.
+dilemma-disaster-relief-drive = Put your own campaign money and a day's work into the relief drive
+dilemma-disaster-relief-drive-after = You spent campaign money and a long day hauling boxes. { $hood } will remember who turned up.
+dilemma-disaster-relief-defences = Draft flood defences so it does not happen again
+dilemma-disaster-relief-defences-after = You drafted flood defences. It will take years, and people clearing up today wanted help now.
+dilemma-disaster-relief-leave = Leave it to the town's emergency services
+dilemma-disaster-relief-leave-after = You left it to the services and kept your strength. { $helper } noticed you were not there, and so did { $hood }.
+
+dilemma-fiscal-hole = the town's budget hole
+dilemma-fiscal-hole-situation = { $town } is borrowing to pay its bills. Mayor { $mayor } wants cuts and wants your vote for them. { $steward } ({ $steward_role }) says cuts will close services people rely on.
+dilemma-fiscal-hole-cuts = Back the mayor's cuts
+dilemma-fiscal-hole-cuts-after = You backed the cuts. The party welcomed your discipline; { $steward } and low-income families saw it differently.
+dilemma-fiscal-hole-tax = Draft a property tax rise instead
+dilemma-fiscal-hole-tax-after = You drafted a tax rise to keep services open. { $steward } is pleased; better-off homeowners are not.
+dilemma-fiscal-hole-refuse = Refuse both
+dilemma-fiscal-hole-refuse-after = You refused both. Your ward liked that you did not pick their pocket; the mayor and the party saw a councillor with no answer.
+
+dilemma-tax-revolt = the tax bills
+dilemma-tax-revolt-situation = Property tax is the talk of { $town }. { $trader } ({ $trader_role }) is collecting signatures for a cut. Mayor { $mayor } says the services it pays for are already thin.
+dilemma-tax-revolt-cut = Draft a property tax cut
+dilemma-tax-revolt-cut-after = You drafted a tax cut. { $trader } signed you up as a friend; the mayor did not, and families who rely on services worry.
+dilemma-tax-revolt-defend = Defend the services the tax pays for
+dilemma-tax-revolt-defend-after = You defended the services. { $trader } took it badly; the mayor and low-income families took note.
+dilemma-tax-revolt-nothing = Say nothing
+dilemma-tax-revolt-nothing-after = You kept your head down. { $trader } read it as a no, and so did the homeowners signing the petition.
+
+dilemma-pollution = the smoke over town
+dilemma-pollution-situation = Pollution has become one of { $town }'s worries. { $voice } ({ $voice_role }) wants an inspection of { $owner }'s operation. { $owner } ({ $owner_role }) says an inspection will cost jobs.
+dilemma-pollution-inspection = Demand an inspection
+dilemma-pollution-inspection-after = You demanded an inspection. { $voice } thanked you; { $owner } will not, and workers fear for their jobs.
+dilemma-pollution-jobs = Put jobs first
+dilemma-pollution-jobs-after = You put jobs first. { $owner } is relieved; { $voice } and voters worried about the air are not.
+dilemma-pollution-wait = Wait for better data
+dilemma-pollution-wait-after = You asked for more data. { $voice } heard a delay.
+
+dilemma-building-protest = the building work
+dilemma-building-protest-situation = The { $law } work has torn up streets in { $hood }. { $organiser } ({ $organiser_role }) has organised a protest and wants the work slowed down.
+dilemma-building-protest-residents = Side with the residents and press the council to slow the work
+dilemma-building-protest-residents-after = You sided with { $hood }. The residents cheered; the council and your party did not.
+dilemma-building-protest-defend = Defend the project
+dilemma-building-protest-defend-after = You defended the project. The party liked it; { $organiser } and { $hood } did not.
+dilemma-building-protest-meet = Spend time with them on the street
+dilemma-building-protest-meet-after = You spent an afternoon on the street with the protesters. It did not stop the diggers, but it softened the mood.
+dilemma-building-protest-ignore = Ignore it
+dilemma-building-protest-ignore-after = You stayed away and kept your evening. { $organiser } told the local paper you never came.
+
+dilemma-favour-called-in = the favour you owe
+dilemma-favour-called-in-situation = { $creditor } has not forgotten the favour you owe. Their bill, { $bill }, is before the council, and they expect your vote.
+dilemma-favour-called-in-pay = Vote for { $bill } and repay the favour
+dilemma-favour-called-in-pay-after = You voted for { $bill } and paid your debt. { $creditor } will remember you kept your word.
+dilemma-favour-called-in-refuse = Vote against { $bill }
+dilemma-favour-called-in-refuse-after = You voted against { $bill } while you still owed { $creditor }. They called it a betrayal.
+dilemma-favour-called-in-dodge = Abstain and hope it blows over
+dilemma-favour-called-in-dodge-after = You abstained. Nobody was fooled: { $creditor } counts it as a promise broken.
+
+dilemma-party-line = the party line
+dilemma-party-line-situation = Your party wants your vote one way on { $bill }, sponsored by { $sponsor }. Your ward leans the other way.
+dilemma-party-line-party = Vote with the party
+dilemma-party-line-party-after = You voted with the party. The whips were pleased; your ward was not.
+dilemma-party-line-ward = Vote with your ward
+dilemma-party-line-ward-after = You voted with your ward against the party line. The ward noticed; so did the whips.
+dilemma-party-line-abstain = Abstain
+dilemma-party-line-abstain-after = You abstained. It pleased no one.
+
+dilemma-donor-offer = the donor's offer
+dilemma-donor-offer-situation = { $donor } ({ $donor_role }) offers a generous donation to your campaign. They would like to be able to call you.
+dilemma-donor-offer-accept = Take the money
+dilemma-donor-offer-accept-after = You took { $donor }'s money. Your campaign is richer; you owe them, and a file somewhere notes the gift.
+dilemma-donor-offer-decline = Decline, politely but firmly
+dilemma-donor-offer-decline-after = You turned { $donor } down. They were offended; working voters liked hearing that you cannot be bought.
+dilemma-donor-offer-lapse = Let the offer lapse
+dilemma-donor-offer-lapse-after = You let the offer lapse. { $donor } felt snubbed, and the party wondered why you left money on the table.
+
+dilemma-rival-offer = the rival's offer
+dilemma-rival-offer-situation = { $rival } ({ $rival_role }) suggests a quiet pact: no attacks from either side until the votes are counted.
+dilemma-rival-offer-truce = Accept the pact
+dilemma-rival-offer-truce-after = You shook on it. { $rival } warmed to you, you owe them for their restraint, and your party thinks you have gone soft.
+dilemma-rival-offer-refuse = Refuse, in public
+dilemma-rival-offer-refuse-after = You refused, loudly. The party liked the fight; { $rival } will not forget it.
+dilemma-rival-offer-ignore = Ignore it
+dilemma-rival-offer-ignore-after = You never answered and slept on it. { $rival } took the silence as an answer.
+
+## Requests (an NPC's goal needs the player)
+request-back-workers = the workers' campaign
+request-back-workers-situation = { $holder } ({ $holder_role }) is organising the laid-off workers of { $town } and asks you to speak at their meeting.
+request-back-workers-back = Speak at the meeting
+request-back-workers-back-after = You spoke to the workers. They cheered; the party grumbled.
+request-back-workers-decline = Decline
+request-back-workers-decline-after = You declined. { $holder } will remember who did not come; better-off voters approved.
+
+request-ally-vote = a colleague's bill
+request-ally-vote-situation = { $holder } ({ $holder_role }) counts you as a friend and asks for your vote on their bill, { $bill }.
+request-ally-vote-yes = Promise your vote
+request-ally-vote-yes-after = You voted for { $bill }. { $holder } owes you one.
+request-ally-vote-no = Vote against it
+request-ally-vote-no-after = You voted against { $bill }. { $holder } was hurt.
+request-ally-vote-noncommittal = Stay noncommittal
+request-ally-vote-noncommittal-after = You never gave { $holder } an answer and spared yourself the argument. They noticed.
+
+request-traders-meeting = the traders' meeting
+request-traders-meeting-situation = { $holder } ({ $holder_role }) is rallying { $town }'s traders over the lost jobs and asks you to come and speak.
+request-traders-meeting-speak = Go and speak
+request-traders-meeting-speak-after = You spoke to the traders. It cost you a day; it won you a friend.
+request-traders-meeting-regrets = Send your regrets
+request-traders-meeting-regrets-after = You sent your regrets and kept the day. { $holder } was disappointed.
+
+## Scenes: what people say when you meet them about it
+scene-plant-steward = "{ $memory } And now you want to talk about the plant?"
+scene-plant-steward-fresh = "We've never really spoken, councillor. Today would be a good day to start."
+scene-plant-owner = "Every cost the council adds is another shift I can't keep."
+scene-workers-steward = "{ $memory } Are you marching with us or not?"
+scene-workers-steward-fresh = "We're marching on Saturday. The front row has room."
+scene-housing-organiser = "{ $memory } These families can't wait another year."
+scene-housing-organiser-fresh = "Come and meet the people on this street. Then tell me about the market."
+scene-disaster-helper = "{ $memory } We could use your hands, not just your sympathy."
+scene-disaster-helper-fresh = "We're short of everything. Whatever you can bring, bring it."
+scene-fiscal-mayor = "{ $memory } I need your vote on the cuts."
+scene-fiscal-mayor-fresh = "The numbers don't lie, councillor. Something has to give."
+scene-fiscal-steward = "Cut the clinic hours and see who you meet at the next election."
+scene-tax-trader = "{ $memory } Will you sign the petition?"
+scene-tax-trader-fresh = "Everyone on this street has signed. Will you?"
+scene-pollution-voice = "{ $memory } The children here can taste the air."
+scene-pollution-voice-fresh = "Smell that? We'd like someone to measure it."
+scene-pollution-owner = "Inspect us into the ground and see where your voters work then."
+scene-protest-organiser = "{ $memory } Have you seen what they've done to our street?"
+scene-protest-organiser-fresh = "Nobody asked us. Six months of diggers and nobody asked."
+scene-favour-creditor = "{ $memory } I'm calling it in."
+scene-favour-creditor-fresh = "You said you'd owe me one. This is the one."
+scene-party-sponsor = "{ $memory } The party needs you on this one."
+scene-party-sponsor-fresh = "The whips are counting. Don't make them count you twice."
+scene-donor-donor = "{ $memory } I'd like to help your campaign."
+scene-donor-donor-fresh = "I've been watching your work. I'd like to help."
+scene-rival-rival = "{ $memory } Let's keep this civil until the count."
+scene-rival-rival-fresh = "We don't need to tear each other apart. Not yet."
+scene-request-workers = "{ $memory } Will you speak to them?"
+scene-request-workers-fresh = "They want to hear it from someone on the council."
+scene-request-ally = "{ $memory } I'm counting on your vote."
+scene-request-ally-fresh = "I'd like you on my side for this one."
+scene-request-traders = "{ $memory } The traders want to hear from you."
+scene-request-traders-fresh = "Half the shops on the high street are worried. Come and talk to them."
+
+## Storylines
+story-plant = The plant
+story-plant-faded = The fight over the plant faded from the headlines.
+story-plant-layoffs = The plant began laying people off, and { $steward } and { $owner } came looking for allies.
+story-plant-walkout = With you on { $owner }'s side, { $steward } called a walkout.
+story-plant-organising = { $steward } began organising the laid-off workers.
+story-plant-resolution = The job losses slowed. The town remembers who stood where.
+story-rival = The rival
+story-rival-faded = The rivalry with { $rival } cooled, for now.
+story-rival-shadow = The campaign opened, and { $rival } started turning up wherever you went.
+story-rival-offer = { $rival } made you an offer.
+story-rival-pact = The pact with { $rival } held, for now.
+story-rival-showdown = With the vote close, { $rival } wanted a showdown.
+story-rival-verdict = The voters gave their verdict on you and { $rival }.
+story-favour = The favour
+story-favour-faded = The favour you owed { $creditor } was settled another way.
+story-favour-debt = You owe { $creditor } a favour.
+story-favour-reminder = { $creditor } reminded you, pleasantly, of what you owe.
+story-favour-called-in = { $creditor } called the favour in.
+story-favour-repaid = You paid { $creditor } back.
+story-favour-burned = You burned { $creditor }.
+
+## Director events and developments (the story so far)
+event-decision-opened = A decision awaits you: { $title }.
+event-decision-answered = You decided on { $title }.
+event-decision-defaulted = Time ran out on { $title }.
+event-decision-lapsed = The moment passed on { $title }.
+event-storyline-advanced = { $title }: a new chapter.
+event-development-crisis = { $town } now faces { $crisis }.
+event-development-crisis-worse = { $crisis } in { $town } is getting worse.
+event-development-goal = { $name } ({ $role }): { $goal }.
+event-development-rival = { $name } is your rival now.
+event-chapter-began = A new chapter begins: { $kind }.
+event-track-warning = Warning: your { $track } is in danger.
+event-director-hazard-held = The director held back a hazard in { $town }.
+event-fact-discoverable = Something you did may come to light.
+chapter-kind-session = a year in office
+chapter-kind-campaign = the campaign
+
+## Aftermath: what each effect did
+effect-opinion = { $name }: opinion of you { $delta }
+effect-approval = Approval of you ({ $who }): { $delta }
+effect-approval-hood = Approval of you in { $hood }: { $delta }
+effect-awareness = Name recognition ({ $who }): { $delta }
+effect-money = Campaign funds: { $delta }
+effect-health = Health: { $delta }
+effect-slots = Takes { $n } of your slots this turn
+effect-standing = Standing with your party: { $delta }
+effect-legal = Legal jeopardy: { $delta }
+effect-record = Record of work: { $delta }
+effect-favour-owed = You owe { $name } a favour
+effect-favour-owed-to-you = { $name } owes you a favour
+effect-repaid = You repaid { $name }
+effect-vote = Your vote on { $bill }: { $vote }
+effect-draft = You drafted { $bill }
+effect-skipped = Not possible any more: { $what }
+effect-who-ward = your ward
+effect-who-town = the town
+effect-who-hood = { $hood }
+effect-who-class-0 = low-income voters
+effect-who-class-1 = middle-income voters
+effect-who-class-2 = better-off voters
+effect-who-classes = { $who } ({ $classes })
+vote-yes = yes
+vote-no = no
+vote-abstain = abstain
+
+## Interface
+ui-decisions = Decisions
+ui-decisions-none = Nothing needs your answer right now.
+ui-decision-count = { $n ->
+    [one] 1 decision
+   *[other] { $n } decisions
+}
+ui-decide-by = Decide by { $date }
+ui-decide-days = { $n ->
+    [0] decide today
+    [1] 1 day left
+   *[other] { $n } days left
+}
+ui-if-you-dont = If you don't answer: { $option }
+ui-who-involved = Who is involved
+ui-choose = Choose
+ui-chosen = Decided
+ui-aftermath = What happened
+ui-aftermath-default = You did not answer in time.
+ui-why-these = Why this came up
+ui-scene-at = At { $place }
+ui-scene-go = Meet them there
+ui-scene-hint = Going there adds the conversation; you can decide from here.
+ui-story-so-far = Story so far
+ui-chapter = Chapter { $n }: { $kind }
+ui-tension = Tension
+ui-storylines = Storylines
+ui-decision-kind-climax = Climax
+ui-decision-kind-significant = Decision
+ui-decision-kind-request = Request
+ui-waiting-here = Waiting for you here
+ui-costs = Costs
+ui-gains = Gains
+ui-not-enough-time = Needs more time than you have left this turn
+ui-not-enough-money = Needs more money than you have
+alert-decisions = Decisions waiting for you: { $n }.
+alert-track-warning = Your { $track } is in danger. Act before it ends your career.
+why-crisis = { $crisis } in { $town }
+why-concern = Among the town's worries: { $concern }
+why-election = Your seat is up soon
+why-storyline = Part of the story of { $title }
+why-memory = { $name } remembers what you did
+why-goal = { $name } is { $goal }
+why-ward = It is happening in your ward
+why-pressure = Your { $track } is at stake
+vote-with-party = with your party
+vote-with-ward = with your ward
+event-director-intervention = The storyteller held chance back ({ $lever }) in { $town }.
+favour-decision = A promise over { $subject }
+
+## More dilemmas
+dilemma-jobs-plea = the jobless figures
+dilemma-jobs-plea-situation = Jobs are the first thing anyone in { $town } talks about. { $voice } ({ $voice_role }) asks what you will do for people out of work in { $hood }. { $employer } ({ $employer_role }) says a wage subsidy would let them hire.
+dilemma-jobs-plea-subsidy = Draft a wage subsidy for small employers
+dilemma-jobs-plea-subsidy-after = You drafted a wage subsidy. { $employer } is pleased; the party worries about the cost, and the jobless wonder when it will reach them.
+dilemma-jobs-plea-fair = Organise a jobs fair yourself
+dilemma-jobs-plea-fair-after = You spent a day and some campaign money on a jobs fair in { $hood }. A few people found work; many more saw you try.
+dilemma-jobs-plea-wait = Say the market will recover
+dilemma-jobs-plea-wait-after = You said the market would recover. { $voice } heard a shrug, and so did working families.
+dilemma-attack-ad = the attack ad
+dilemma-attack-ad-situation = Your party has an attack ad ready on { $rival }. It is sharp, it is mostly fair, and it is your call.
+dilemma-attack-ad-run = Pay for it and run it
+dilemma-attack-ad-run-after = The ad ran. Everyone knows your name now, including { $rival }, who will not forget it; better-off voters winced.
+dilemma-attack-ad-clean = Keep the campaign clean
+dilemma-attack-ad-clean-after = You pulled the ad. The party thinks you are going soft; { $rival } noticed the courtesy.
+dilemma-attack-ad-none = Leave it unanswered
+dilemma-attack-ad-none-after = You never answered. The ad sat in a drawer and the party decided you could not make up your mind.
+dilemma-debate = the debate
+dilemma-debate-situation = { $rival } challenges you to a public debate at the community centre, a week before the vote.
+dilemma-debate-accept = Accept the challenge
+dilemma-debate-accept-after = You debated { $rival } in front of a packed hall. The whole town heard you.
+dilemma-debate-decline = Decline
+dilemma-debate-decline-after = You declined. { $rival } debated an empty chair, and your ward noticed.
+scene-jobs-voice = "{ $memory } People here need work, not speeches."
+scene-jobs-voice-fresh = "Half this street is out of work. What are you going to do?"
+scene-jobs-employer = "Help with the wage bill and I'll take on three more."
+scene-attack-ad = The ad is on the desk at the party office, waiting for your signature.
+scene-debate-rival = "{ $memory } Let the voters see us side by side."
+scene-debate-rival-fresh = "One stage, two candidates. Unless you're afraid of the questions."

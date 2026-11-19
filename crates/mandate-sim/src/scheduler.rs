@@ -10,6 +10,7 @@ use crate::economy::EconomyState;
 use crate::environment::EnvironmentState;
 use crate::events::{EventId, EventLog};
 use crate::finance::FinanceState;
+use crate::narrative::NarrativeState;
 use crate::player::PlayerState;
 use crate::policy::PolicyState;
 use crate::politics::PoliticsState;
@@ -107,6 +108,7 @@ pub struct Reads<'a> {
     environment: Option<&'a EnvironmentState>,
     politics: Option<&'a PoliticsState>,
     policy: Option<&'a PolicyState>,
+    narrative: Option<&'a NarrativeState>,
     /// The player, if one exists (lab runs may have none).
     pub player: Option<&'a PlayerState>,
 }
@@ -130,6 +132,7 @@ impl<'a> Reads<'a> {
             environment: Some(&state.environment),
             politics: Some(&state.politics),
             policy: Some(&state.policy),
+            narrative: Some(&state.narrative),
             player: state.player.as_ref(),
         }
     }
@@ -158,6 +161,10 @@ impl<'a> Reads<'a> {
         self.policy
             .expect("policy is not readable from its own systems")
     }
+    pub fn narrative(&self) -> &'a NarrativeState {
+        self.narrative
+            .expect("narrative is not readable from its own systems")
+    }
 }
 
 /// Shared outputs every system may use.
@@ -178,6 +185,8 @@ pub enum SystemFn {
     Policy(fn(&mut PolicyState, &Reads<'_>, &mut Outs<'_>)),
     /// Runs only when a player exists.
     Player(fn(&mut PlayerState, &Reads<'_>, &mut Outs<'_>)),
+    /// The narrative director (DEC-033): writes only its own domain.
+    Narrative(fn(&mut NarrativeState, &Reads<'_>, &mut Outs<'_>)),
     /// Writes nothing but the event log.
     Log(fn(&Reads<'_>, &mut Outs<'_>)),
 }
@@ -210,10 +219,11 @@ impl Schedule {
         days: u32,
         on_day: &mut dyn FnMut(u32),
     ) {
-        self.advance_with(state, content, days, Vec::new(), on_day);
+        let _ = self.advance_with(state, content, days, Vec::new(), on_day);
     }
 
     /// Advance with effects pre-seeded into the queue (lab commands).
+    /// Returns effects still queued at the end (for a following advance).
     pub fn advance_with(
         &self,
         state: &mut State,
@@ -221,7 +231,7 @@ impl Schedule {
         days: u32,
         seed_effects: Vec<Effect>,
         on_day: &mut dyn FnMut(u32),
-    ) {
+    ) -> Vec<Effect> {
         let mut effects = EffectQueue {
             pending: seed_effects,
         };
@@ -235,6 +245,7 @@ impl Schedule {
             }
             on_day(d + 1);
         }
+        effects.pending
     }
 
     pub fn names(&self) -> Vec<&'static str> {
@@ -262,6 +273,7 @@ fn run_one(
         politics,
         policy,
         player,
+        narrative,
     } = state;
     let mut outs = Outs {
         rng,
@@ -272,6 +284,9 @@ fn run_one(
     // checker proves a system cannot read-and-write its own state through two paths.
     macro_rules! reads {
         ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr) => {
+            reads!($pop, $eco, $fin, $env, $pol, $poly, $ply, Some(&*narrative))
+        };
+        ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr, $narr:expr) => {
             Reads {
                 content,
                 date,
@@ -284,6 +299,7 @@ fn run_one(
                 environment: $env,
                 politics: $pol,
                 policy: $poly,
+                narrative: $narr,
                 player: $ply,
             }
         };
@@ -374,6 +390,19 @@ fn run_one(
                 );
                 g(p, &r, &mut outs)
             }
+        }
+        SystemFn::Narrative(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                Some(&*finance),
+                Some(&*environment),
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref(),
+                None
+            );
+            g(narrative, &r, &mut outs)
         }
         SystemFn::Log(g) => {
             let r = reads!(

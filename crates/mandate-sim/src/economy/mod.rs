@@ -12,7 +12,7 @@ use crate::world::{MunicipalityId, NeighborhoodKind, PlaceKind, SettlementClass,
 use housing::Housing;
 use mandate_content::{ContentBundle, ContentKey, ScenarioEconomy, SectorDriver};
 use mandate_core::math::{clamp, exp, ln, pow};
-use mandate_core::{SimRng, Stream};
+use mandate_core::{SimDate, SimRng, Stream};
 use serde::{Deserialize, Serialize};
 
 /// Commodities: agriculture, minerals, energy.
@@ -25,6 +25,17 @@ pub struct Global {
     pub recession: Option<Recession>,
     /// Commodity price indices (1.0 = long-run mean).
     pub commodities: [f64; COMMODITIES],
+    /// A recession whose onset the director holds back (DEC-033 B: timing
+    /// only; it begins, as drawn, within `director.chance.recession_hold_months`).
+    #[serde(default)]
+    pub held_recession: Option<HeldRecession>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct HeldRecession {
+    pub depth: f64,
+    pub months_total: u16,
+    pub held_on: SimDate,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -273,6 +284,7 @@ pub fn init(
             demand: 1.0,
             recession: None,
             commodities: [1.0; COMMODITIES],
+            held_recession: None,
         },
         national: National {
             price_level: 1.0,
@@ -397,24 +409,81 @@ pub fn global(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         g.recession = None;
         out.events
             .record(r.date, EventKind::GlobalRecoveryBegan, vec![]);
+    } else if g.recession.is_none() && g.held_recession.is_some() {
+        // A held onset begins once the hold lifts, or at the latest after
+        // the longest hold the director may impose.
+        let hold = r
+            .narrative()
+            .chance
+            .recession_hold
+            .is_some_and(|u| r.date < u);
+        let max_days = r.content.director.chance.recession_hold_months as u32 * 31;
+        if let Some(h) = g.held_recession.clone()
+            && (!hold || h.held_on.add_days(max_days) <= r.date)
+        {
+            g.held_recession = None;
+            out.events.record(
+                r.date,
+                EventKind::DirectorIntervention {
+                    lever: "recession_released".into(),
+                    municipality: u32::MAX,
+                },
+                vec![],
+            );
+            let ev = out.events.record(
+                r.date,
+                EventKind::GlobalRecessionBegan {
+                    depth_pct: (h.depth * 100.0).round() as u32,
+                },
+                vec![],
+            );
+            out.events.pin(ev);
+            g.recession = Some(Recession {
+                depth: h.depth,
+                months_total: h.months_total,
+                months_elapsed: 0,
+                event: Some(ev),
+            });
+        }
     } else if g.recession.is_none() && rng.chance(p.recession_monthly_chance) {
         let depth = rng.range_f64(p.recession_depth[0], p.recession_depth[1]);
         let months =
             rng.range_i64(p.recession_months[0] as i64, p.recession_months[1] as i64) as u16;
-        let ev = out.events.record(
-            r.date,
-            EventKind::GlobalRecessionBegan {
-                depth_pct: (depth * 100.0).round() as u32,
-            },
-            vec![],
-        );
-        out.events.pin(ev);
-        g.recession = Some(Recession {
-            depth,
-            months_total: months,
-            months_elapsed: 0,
-            event: Some(ev),
-        });
+        let hold = r
+            .narrative()
+            .chance
+            .recession_hold
+            .is_some_and(|u| r.date < u);
+        if hold {
+            g.held_recession = Some(HeldRecession {
+                depth,
+                months_total: months,
+                held_on: r.date,
+            });
+            out.events.record(
+                r.date,
+                EventKind::DirectorIntervention {
+                    lever: "recession_held".into(),
+                    municipality: u32::MAX,
+                },
+                vec![],
+            );
+        } else {
+            let ev = out.events.record(
+                r.date,
+                EventKind::GlobalRecessionBegan {
+                    depth_pct: (depth * 100.0).round() as u32,
+                },
+                vec![],
+            );
+            out.events.pin(ev);
+            g.recession = Some(Recession {
+                depth,
+                months_total: months,
+                months_elapsed: 0,
+                event: Some(ev),
+            });
+        }
     }
     g.demand = clamp(
         0.8 * g.demand + 0.2 * target + rng.normal(0.0, 0.004),

@@ -319,6 +319,88 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             "event-election-held"
         }
         EventKind::PlayerDeselected => "event-player-deselected",
+        EventKind::DecisionOpened { template, .. } => {
+            let t = engine.content().dilemma(template);
+            put(
+                "title_key",
+                t.map(|t| t.title_key.clone()).unwrap_or_default(),
+            );
+            "event-decision-opened"
+        }
+        EventKind::DecisionResolved {
+            template,
+            by_default,
+            ..
+        } => {
+            let t = engine.content().dilemma(template);
+            put(
+                "title_key",
+                t.map(|t| t.title_key.clone()).unwrap_or_default(),
+            );
+            if *by_default {
+                "event-decision-defaulted"
+            } else {
+                "event-decision-answered"
+            }
+        }
+        EventKind::DecisionLapsed { template, .. } => {
+            let t = engine.content().dilemma(template);
+            put(
+                "title_key",
+                t.map(|t| t.title_key.clone()).unwrap_or_default(),
+            );
+            "event-decision-lapsed"
+        }
+        EventKind::ChapterBegan { kind, .. } => {
+            put("kind_key", format!("chapter-kind-{kind}"));
+            "event-chapter-began"
+        }
+        EventKind::StorylineStage { run, stage, .. } => {
+            // The stage's own story line, with its cast.
+            let st = engine.state();
+            if let Some(r) = st.narrative.storylines.iter().find(|r| r.id.0 == *run)
+                && let Some(def) = engine.content().storyline(&r.template)
+                && let Some(s) = def.stages.iter().find(|s| &s.id == stage)
+            {
+                for (k, v) in crate::narrative::cast_args(engine, &r.cast) {
+                    put(&k, v);
+                }
+                return EventView {
+                    id: e.id.0,
+                    date: DateView::of(e.date),
+                    text_key: s.key.clone(),
+                    args,
+                };
+            }
+            "event-storyline-advanced"
+        }
+        EventKind::StoryDevelopment { fact, .. } => {
+            let st = engine.state();
+            if let Some(f) = st.narrative.facts.iter().find(|f| f.id == *fact)
+                && let Some(v) = crate::narrative::fact_event(engine, f)
+            {
+                return EventView {
+                    id: e.id.0,
+                    date: DateView::of(e.date),
+                    text_key: v.text_key,
+                    args: v.args,
+                };
+            }
+            "event-storyline-advanced"
+        }
+        EventKind::TrackWarning { track, .. } => {
+            put("track_key", format!("track-{track}"));
+            "event-track-warning"
+        }
+        EventKind::DirectorIntervention {
+            lever,
+            municipality,
+        } => {
+            put("lever", lever.clone());
+            put("town", muni_name(engine, *municipality));
+            "event-director-intervention"
+        }
+        EventKind::FactDiscoverable { .. } => "event-fact-discoverable",
         EventKind::RulesUpdated { to_engine, .. } => {
             put("version", to_engine.clone());
             "event-rules-updated"
@@ -355,7 +437,11 @@ pub fn overview(engine: &Engine) -> OverviewView {
         .filter(|e| {
             !matches!(
                 e.kind,
-                EventKind::TurnEnded { .. } | EventKind::YearBegan { .. }
+                EventKind::TurnEnded { .. }
+                    | EventKind::YearBegan { .. }
+                    // The director's levers are logged, not news (diagnostics).
+                    | EventKind::DirectorIntervention { .. }
+                    | EventKind::FactDiscoverable { .. }
             )
         })
         .take(15)

@@ -101,6 +101,23 @@ enum Cmd {
         #[command(flatten)]
         lab: LabArgs,
     },
+    /// Play a career with a bot strategy and print its story (DEC-033):
+    /// chapters, every decision as the player reads it (Fluent keys and
+    /// arguments), storylines, and the facts log.
+    Story {
+        #[arg(long, default_value_t = 777)]
+        seed: u64,
+        #[arg(long, value_enum, default_value_t = Size::Small)]
+        size: Size,
+        #[arg(long, default_value_t = 4)]
+        years: u32,
+        /// A bot strategy (`idle` never answers).
+        #[arg(long, default_value = "mixed")]
+        strategy: String,
+        /// Storyteller profile id (default: the content's).
+        #[arg(long)]
+        profile: Option<String>,
+    },
     /// Yearly economic trace (balancing diagnostics): jobs by sector, labour
     /// force, prices, and demand drivers.
     TraceEcon {
@@ -342,6 +359,47 @@ fn run(cli: Cli) -> Result<(), String> {
                 let overview = mandate_protocol::overview(&e);
                 out(serde_json::json!({ "state_hash": e.state_hash(), "overview": overview }));
             }
+            Ok(())
+        }
+        Cmd::Story {
+            seed,
+            size,
+            years,
+            strategy,
+            profile,
+        } => {
+            let content = load_content(&cli.content)?;
+            let mut e = generate(
+                &WorldConfig {
+                    seed,
+                    size: size.into(),
+                    scenario: None,
+                },
+                content.clone(),
+            )
+            .map_err(|e| e.to_string())?;
+            if let Some(p) = profile {
+                e.setup(|s| s.narrative.profile = p);
+            }
+            let end = e.state().calendar.date.add_days(years * 365);
+            while e.state().calendar.date < end {
+                bots::play_turn(&mut e, &content, &strategy);
+                e.apply(Command::EndTurn).map_err(|e| e.to_string())?;
+            }
+            let decisions: Vec<_> = e
+                .state()
+                .narrative
+                .decisions
+                .iter()
+                .filter_map(|d| mandate_protocol::decision_view(&e, d))
+                .collect();
+            out(serde_json::json!({
+                "seed": seed,
+                "story": mandate_protocol::story_view(&e),
+                "decisions": decisions,
+                "chapters": e.state().narrative.chapters,
+                "facts": e.state().narrative.facts.len(),
+            }));
             Ok(())
         }
         Cmd::Determinism { seed, turns } => {

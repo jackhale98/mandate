@@ -381,7 +381,7 @@ h2 { font-size: 1.1rem; }
 .actionbar { z-index: 7; align-items: center; justify-content: space-between; }
 .actionbar .btn-primary { flex: 0 1 auto; min-width: 120px; }
 .pocket-btn { display: inline-flex; align-items: center; gap: 6px; }
-.badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
+.badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--accent); color: var(--accent-ink); }
 .where { flex: 1; min-width: 0; text-align: center; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .viewbar { display: flex; align-items: center; gap: 10px; padding: 4px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .town { max-width: 1100px; }
@@ -483,3 +483,32 @@ h2 { font-size: 1.1rem; }
 .transfer-status p { margin: 0; }
 .transfer-error { border-left-color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, var(--surface)); }
 .transfer-detail { overflow-wrap: anywhere; }
+
+/* Decisions (DEC-077 §4) and the story so far (DEC-033). */
+.decision-scrim { z-index: 6; }
+.sheet.decision-sheet { z-index: 6; }
+.sheet.story-sheet { z-index: 6; }
+/* Scrolling something into view (keyboard focus, links) keeps it clear of the sticky
+   head and the bottom bar. Decisions get more of the screen on phones. */
+.sheet { scroll-padding-top: 30%; scroll-padding-bottom: 96px; }
+@media (max-width: 899px) { .sheet.decision-sheet { max-height: 85vh; } }
+@media (min-width: 900px) {
+  .decision-scrim { display: block; background: transparent; }
+  .decision-sheet, .story-sheet { top: 63px; bottom: 0; padding-top: 16px; max-height: none; }
+}
+.decision-title { margin: 4px 0; }
+.options { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.option { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.option-label { margin: 0; }
+.option-tradeoffs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 480px) {
+  .option-tradeoffs { grid-template-columns: 1fr; }
+}
+.option .btn { align-self: flex-start; }
+.effect-list { font-size: 0.9rem; display: flex; flex-direction: column; gap: 2px; }
+.effect-cost { border-left: 3px solid var(--bad); padding-left: 6px; }
+.effect-gain { border-left: 3px solid var(--good); padding-left: 6px; }
+.effect-mixed { border-left: 3px solid var(--border); padding-left: 6px; }
+.aftermath { border-color: var(--accent); }
+.badge-decisions { background: var(--accent); }
+.storyline + .storyline { margin-top: 8px; }

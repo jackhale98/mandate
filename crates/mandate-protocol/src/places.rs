@@ -153,6 +153,9 @@ pub struct PocketView {
     /// Where each action is done: town-wide actions once (and their late
     /// variant), neighbourhood actions once per neighbourhood.
     pub routes: Vec<RouteView>,
+    /// Decisions waiting for the player, soonest deadline first (DEC-079:
+    /// always listed here and answerable from here).
+    pub decisions: Vec<crate::narrative::DecisionView>,
 }
 
 /// One location on the town schematic, with what it offers.
@@ -315,6 +318,9 @@ pub struct PlacePanelView {
     /// passers-by. Listed wherever the panel is opened; meeting someone
     /// needs the player there.
     pub people: Vec<crate::characters::PersonRefView>,
+    /// Pending decisions whose scene happens here (DEC-079: going there adds
+    /// the conversation; they can always be answered from the pocket).
+    pub decisions_here: Vec<crate::narrative::DecisionView>,
 }
 
 pub fn location_view(st: &State, loc: Location) -> LocationView {
@@ -457,6 +463,24 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
     if pl.tracks.legal_jeopardy >= 50.0 {
         alerts.push(alert("alert-legal", &[]));
     }
+    let decisions = crate::narrative::pending_decisions(engine);
+    if !decisions.is_empty() {
+        alerts.push(alert(
+            "alert-decisions",
+            &[("n", decisions.len().to_string())],
+        ));
+    }
+    // DEC-006: every track in danger is warned about (the director's warning
+    // is also in the story so far).
+    let sched = mandate_sim::scheduler::Reads::of_state(st, content);
+    for (track, _, danger, _) in mandate_sim::narrative::director::track_dangers(&sched) {
+        if danger {
+            alerts.push(alert(
+                "alert-track-warning",
+                &[("track_key", format!("track-{track}"))],
+            ));
+        }
+    }
     if let Some(c) = &campaign
         && c.in_campaign
         && let Some(d) = c.days_to_election
@@ -491,6 +515,7 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
         next_election: campaign.as_ref().and_then(|c| c.election_day.clone()),
         days_to_election: campaign.as_ref().and_then(|c| c.days_to_election),
         in_campaign: campaign.as_ref().is_some_and(|c| c.in_campaign),
+        decisions,
         headlines: HeadlinesView {
             unemployment: econ.map(|e| coarse(e.unemployment, 0.01)).unwrap_or(0.0),
             monthly_rent: econ.map(|e| coarse(e.housing.rent, 10.0)).unwrap_or(0.0),
@@ -818,6 +843,15 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
             None
         },
         people: crate::characters::people_at(engine, loc),
+        decisions_here: crate::narrative::pending_decisions(engine)
+            .into_iter()
+            .filter(|d| {
+                d.scene
+                    .place
+                    .as_ref()
+                    .is_some_and(|p| p.location == LocationDto::of(loc))
+            })
+            .collect(),
         services,
     })
 }

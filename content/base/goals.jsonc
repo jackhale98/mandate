@@ -1,0 +1,43 @@
+// NPC goals (DEC-032): goals emerge from circumstances plus personality.
+// Each month the people of the player's town take up goals whose conditions
+// hold (role `holder` is the person) and give them up when the conditions
+// fail or after `max_days`. A goal drives the NPC AI (`drive`, the same
+// rules as the player, DEC-030); when it needs the player it surfaces as a
+// request (a dilemma of category `request`). Drives: none, oppose_player
+// (a council lean and lobbying against the player's bills), back_player,
+// champion (ranks bills that answer the live crisis higher).
+{
+  "kind": "goals",
+  "items": [
+    // Laid off and warm → organise the workers.
+    { "id": "goal.organise_workers", "name_key": "goal-organise-workers",
+      "holder": { "occupations": ["occupation.union_steward", "occupation.organiser"] },
+      "personality": { "warmth": [0.45, 1.0] },
+      "conditions": [ { "type": "crisis", "kind": "crisis.plant_closure", "min_severity": 0.05 } ],
+      "drive": { "type": "none" }, "request": "request.back_the_workers", "max_days": 365 },
+    // A grudge-holder with a betrayal to remember → oppose the player.
+    { "id": "goal.oppose_player", "name_key": "goal-oppose-player",
+      "holder": { "officeholders": true },
+      "conditions": [
+        { "type": "remembers", "role": "holder", "kinds": ["broke_promise", "defeated_me", "stood_against_me", "broke_ranks", "opposed_my_bill"] },
+        { "type": "opinion", "role": "holder", "max": -20 } ],
+      "drive": { "type": "oppose_player", "lean": 0.35 }, "max_days": 540 },
+    // A friend on the council with a bill of their own → wants the player's vote.
+    { "id": "goal.seek_backing", "name_key": "goal-seek-backing",
+      "holder": { "officeholders": true },
+      "conditions": [ { "type": "opinion", "role": "holder", "min": 25 } ],
+      "drive": { "type": "back_player", "lean": 0.2 }, "request": "request.ally_vote", "max_days": 240 },
+    // A warm officeholder in a town in crisis → champion a fix.
+    { "id": "goal.champion_fix", "name_key": "goal-champion-fix",
+      "holder": { "officeholders": true },
+      "personality": { "warmth": [0.6, 1.0], "boldness": [0.5, 1.0] },
+      "conditions": [ { "type": "live_crisis", "min_severity": 0.3 } ],
+      "drive": { "type": "champion", "bonus": 0.3 }, "max_days": 365 },
+    // Traders worried about jobs → want the player at their meeting.
+    { "id": "goal.traders_help", "name_key": "goal-traders-help",
+      "holder": { "occupations": ["occupation.shopkeeper", "occupation.diner_owner", "occupation.business_leader"] },
+      "personality": { "warmth": [0.4, 1.0], "ambition": [0.4, 1.0] },
+      "conditions": [ { "type": "concern", "concern": "concern.jobs", "top": 1 }, { "type": "months_in_play", "min": 3 } ],
+      "drive": { "type": "none" }, "request": "request.traders_meeting", "max_days": 300 },
+  ],
+}

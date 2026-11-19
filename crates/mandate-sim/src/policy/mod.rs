@@ -499,7 +499,13 @@ pub fn council_leans(
                         instance: inst,
                         ward_support,
                         mayor_lean,
-                        sway: pol.sway(p.id, inst.id.0) as f64,
+                        // Goals (DEC-032) lean on the player's bills like lobbying does.
+                        sway: pol.sway(p.id, inst.id.0) as f64
+                            + crate::characters::goals::lean_on(
+                                pol,
+                                p.character,
+                                sponsor_is_player,
+                            ),
                         sponsor_is_player,
                         player_opinion: player_opinion(pol, p.id, inst.sponsor, sponsor_is_player),
                         loyalty: loyalty(pol, p),

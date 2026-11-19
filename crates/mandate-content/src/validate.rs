@@ -71,7 +71,7 @@ pub fn fluent_keys(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-fn valid_key(id: &str) -> bool {
+pub(crate) fn valid_key(id: &str) -> bool {
     !id.is_empty()
         && id.split('.').all(|seg| {
             !seg.is_empty()
@@ -244,6 +244,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     validate_scenarios(b, &mut issues);
     validate_concerns(b, &mut issues);
     validate_characters(b, &mut issues);
+    crate::narrative::validate(b, &mut issues);
     for (name, v, lo, hi) in param_ranges(b) {
         if !(v.is_finite() && (lo..=hi).contains(&v)) {
             let kind = name.split('.').next().unwrap_or("parameters").to_string();
@@ -1096,6 +1097,7 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
         0.0,
         10.0,
     );
+    crate::narrative::director_ranges(&b.director, &mut out);
     out
 }
 

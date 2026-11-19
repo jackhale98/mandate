@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 11;
+pub const SAVE_FORMAT_VERSION: u16 = 12;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -164,7 +164,11 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
     // One step per format bump, applied in order. Pre-release policy:
     // development builds may bump the version without a migration; such
     // saves are rejected with a clear error instead.
-    let steps: &[(u16, MigrationStep)] = &[(9, v9_scenario_ids), (10, v10_characters)];
+    let steps: &[(u16, MigrationStep)] = &[
+        (9, v9_scenario_ids),
+        (10, v10_characters),
+        (11, v11_narrative),
+    ];
     let mut value = value;
     let mut v = from;
     while v < SAVE_FORMAT_VERSION {
@@ -265,6 +269,39 @@ fn v10_characters(mut value: serde_json::Value) -> Result<serde_json::Value, Sav
             "crisis_keys": [],
         }),
     );
+    Ok(value)
+}
+
+/// v11 → v12 (DEC-033, DEC-032, DEC-077 §4): the narrative domain (the
+/// director, decisions, storylines, facts), NPC goals, held hazards, and a
+/// held recession. The director starts fresh: its state is the default (no
+/// decisions, no storylines; the first chapter opens on the next director
+/// day), and so are goals (recomputed monthly) and the levers (none held).
+fn v11_narrative(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::{Value, json};
+    let st = value
+        .pointer_mut("/state")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    st.remove("narrative");
+    if let Some(ch) = st
+        .get_mut("politics")
+        .and_then(|p| p.get_mut("characters"))
+        .and_then(Value::as_object_mut)
+    {
+        ch.insert("goals".into(), json!([]));
+        ch.insert("ended_goals".into(), json!([]));
+    }
+    if let Some(env) = st.get_mut("environment").and_then(Value::as_object_mut) {
+        env.insert("deferred".into(), json!([]));
+    }
+    if let Some(g) = st
+        .get_mut("economy")
+        .and_then(|e| e.get_mut("global"))
+        .and_then(Value::as_object_mut)
+    {
+        g.insert("held_recession".into(), Value::Null);
+    }
     Ok(value)
 }
 

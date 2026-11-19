@@ -22,6 +22,8 @@ export class Translator {
     const resolved: Record<string, FluentVariable> = {};
     for (const [k, v] of Object.entries(args)) {
       if (k.endsWith("_key")) resolved[k.slice(0, -4)] = this.t(v);
+      // Counts select plural variants, which match numbers, not strings.
+      else if (k === "n" && /^\d+$/.test(v)) resolved[k] = Number(v);
       else resolved[k] = v;
     }
     return this.t(key, resolved);

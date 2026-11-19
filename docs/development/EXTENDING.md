@@ -10,7 +10,7 @@ How to add things to the game after release (DEC-075). There are three kinds of 
 
 - A pack is a folder under `content/` with a `pack.jsonc` manifest (`id`, `version`, `name_key`, `load_order`), JSONC files of any `kind`, and Fluent files under `locale/<lang>/`.
 - Every file is checked against `content/schemas/content.schema.json`, which is generated from the Rust types (DEC-053). After changing a content type, run `cargo run -p mandate-cli -- content schema` and commit the result.
-- Registries (sectors, attitudes, communities, concerns, scenarios, places, traits, occupations, crises) are in **load order**: files sorted by path, then item order. The engine stores registry data densely in that order. A pack whose path sorts before `base/` puts its entries first. That is supported: saves record registry keys, not positions.
+- Registries (sectors, attitudes, communities, concerns, scenarios, places, traits, occupations, crises, storytellers, dilemmas, goals, storylines, scenes) are in **load order**: files sorted by path, then item order. The engine stores registry data densely in that order. A pack whose path sorts before `base/` puts its entries first. That is supported: saves record registry keys, not positions.
 - Content ids are unique across all packs. Overriding an entry from an earlier pack ("pack patches") is not supported yet: a duplicate id is an error.
 - Every `name_key` and every other Fluent key that content references must exist in English, the reference locale (DEC-054). The engine never produces prose.
 - Check content with `cargo run -p mandate-cli -- content validate`.
@@ -29,10 +29,15 @@ How to add things to the game after release (DEC-075). There are three kinds of 
 | Character trait | `traits` | `id`, `name_key`, `chance`; optional `personality` (axis → offset), `memory_decay` and `opinion_change` (`positive`/`negative` multipliers), `excludes` | Axes are `ambition`, `integrity`, `warmth`, `boldness`, `loyalty`; offsets in [-1, 1]; multipliers in [0, 10]; excluded traits exist; the name exists in English | Characters store trait ids. Removing a trait a stored character has is refused (`missing_references`); a new trait is drawn only for characters created from then on. |
 | Occupation (a role of Named people) | `occupations` | `id`, `name_key`, `places` (place kinds or `streets`), `chance`, `class` ([low, middle, high] weights), `age` ([min, max]); optional `leader`, `influence`, `stake` (`drivers`, `crises`), `personality`, `competencies`, `expertise` (an attitude key), `ambient` | Known place kinds, attitudes, and crisis kinds; values in range; the name exists in English | Named characters store their occupation id. Removing one a stored character has is refused. New occupations appear in new games (Named people are generated once, when play begins) and as passers-by at once if `ambient`. |
 | Crisis kind | `crises` | `id`, `name_key`, `indicator`, `begin`, `end`, `severe`; optional `concern`, `policies` | `end` ≤ `begin` ≤ `severe`; the concern and policies exist; the name exists in English | Derived: `characters.crisis_keys`; content that adds or removes a kind recomputes every town's character on load. Never refused. |
+| Dilemma or request | `dilemmas` | `id`, `title_key` (a noun phrase: memories quote it), `situation_key`, `category` (`significant`, `climax`, `request`), `roles`, `cooldown_days`, 2–4 `options` (each `label_key`, `aftermath_key`, `effects`; exactly one `default`); optional `triggers`, `deadline_days`, `scene`, `opportunity`, `storyline_only` | Roles resolve (cast before use); every option has a cost and a benefit (DEC-073); one default, which costs no time; memory kinds, templates, occupations, scenes exist; a request is raised by a goal or a storyline; Fluent keys exist. An unknown crisis or concern in a condition is a warning (it never holds) | Decisions name their template. A pending decision whose template was removed lapses on load; nothing is refused |
+| NPC goal | `goals` | `id`, `name_key`, `holder` (`occupations`, `officeholders`), `drive`, `max_days`; optional `personality` ranges, `traits`, `conditions` (role `holder`), `request` | Known axes, traits, occupations; council drives need officeholders; the request is a `request` dilemma | `characters.goals` name their template; removed goals are dropped on load |
+| Storyline | `storylines` | `id`, `title_key`, `faded_key`, `roles`, `stages` (`id`, `key`, optional `advance`, `decision`, `branches`, `ends`, `timeout_days`, `wait_days`), `cooldown_days`; optional `start`, `follow_up` | Stage ids unique; branches name real options and stages; a stage ends the arc; roles shared with a stage's dilemma are cast the same way | Runs name their template; a run whose template was removed ends on load |
+| Scene | `scenes` | `id`, `place` (`workplace` of a role with a `fallback` kind, or a `kind`), `beats` (`speaker` role or `player`, `line`, optional `quote_fallback`) | Place kinds exist; every speaker is cast by each dilemma that uses the scene; keys exist | Read live |
+| Storyteller profile | `storytellers` | `id`, `name_key`, `desc_key`, `tension_curve`, `defer_hazards`, `hazard_rate`, `hold_recessions`, `budget_scale`; optional `crisis_cap` | Rates and scales in range; `director.default_profile` exists | `narrative.profile` names one; an unknown one falls back to the default |
 | Constitution | `constitution` | Tiers, bodies, offices, procedures, election calendars | Structural checks and Fluent keys | `meta.constitution`. Removing the save's constitution is refused. |
 | Language | `locale/<lang>/*.ftl` | Translations of the English keys | Referenced keys are checked against English only. The web currently requests `en`, so choosing another language is a small UI change. | None |
 | Tuning, economy, politics parameters | `tuning`, `economy`, `politics` | One file of each across all packs | Ranges | Read live. A balance patch changes results from load onwards, and a `RulesUpdated` event is recorded. |
-| Balance parameter blocks | `opinion`, `actions`, `council`, `career`, `npc`, `characters` | One file of each across all packs, every field written | Finite and in range (`validate::param_ranges`); `[min, max]` pairs ordered | Read live, as above. |
+| Balance parameter blocks | `opinion`, `actions`, `council`, `career`, `npc`, `characters`, `director` | One file of each across all packs, every field written | Finite and in range (`validate::param_ranges`); `[min, max]` pairs ordered | Read live, as above. |
 
 Community share model, as an example of the content format:
 
@@ -117,6 +122,48 @@ Read-only queries the narrative layer can build on:
 | A town's broker, rival, industry, priorities | `TownCharacter::{broker, rival, industry, priorities}` |
 | Who is at a place | `characters::ambient::{stored_at, ambient_at}` |
 
+### The narrative director (DEC-033, DEC-077 §4, DEC-032, DEC-035)
+
+`mandate_sim::narrative` is its own domain (`State::narrative`). Its systems (`narrative.fairness`, daily; `narrative.director`, weekly, in the Director phase) write only that domain; every draw is keyed (`Stream::Director`). It never changes an endogenous outcome:
+
+- **Spotlight.** Each week the director casts every dilemma's roles from live actors in the player's town (`narrative::cast`), checks its triggers on live state, scores relevance (`director.relevance`), and spotlights at most one decision (paced along the chapter's tension curve, within the chapter's budgets, `spacing_days` apart, at most `max_pending` at once), one request or storyline beat, and news of the town. Chapters are a campaign (its climax is the election) or a session (a budget year; its climax is the best grounded situation in `tension.climax_window`).
+- **Decisions change the world only when answered**: `PlayerCommand::Answer` (from anywhere: the pocket lists them, DEC-079), or the default when the deadline passes (`narrative::resolve_due`, at the start of the turn that would pass it). Effects are real engine changes; the aftermath records what each did (`Applied`).
+- **Exogenous levers** (`Chance`): a hold on hazards in the player's town while it carries `crisis_cap` crises (environment defers the strike, at its drawn severity, at most `chance.hazard_max_defer_days`), a thinner hazard rate (Steady), a hold on the onset of a global recession (economy, at most `chance.recession_hold_months`), and discovery dates of hidden facts within their window. The owning systems log every intervention (`EventKind::DirectorIntervention`). The levers read the simulation alone, never the spotlight (tested).
+- **Fairness (DEC-006).** A track in danger (`director.fairness`) gets a pinned warning; `NarrativeState::ending_allowed(content, track, date)` is the gate the ending systems must ask (a warning, then `response_days`).
+- **Facts log** (`NarrativeState::facts`, for the media task): every spotlit and unspotlit fact with its actors and a newsworthiness; `HiddenFact` (late-night deals and fundraising) with an evidence window and the director's discovery date (`FactKind::Discoverable`).
+
+Lab switches: `narrative.spotlight = false` (chance shaping unchanged, nothing spotlighted) and `narrative.resolve_defaults = false` (past-deadline decisions lapse without consequence). `mandate-cli story --seed N --years Y --strategy S [--profile P]` prints a career's decisions as Fluent keys and arguments.
+
+**A dilemma**, as content:
+
+```jsonc
+{ "id": "dilemma.pollution", "category": "significant",
+  "title_key": "dilemma-pollution", "situation_key": "dilemma-pollution-situation",
+  "roles": [
+    { "id": "owner", "cast": { "type": "occupation", "occupations": ["occupation.plant_manager"] } },
+    { "id": "voice", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.teacher"] } } ],
+  "triggers": [ { "type": "concern", "concern": "concern.environment", "top": 3 } ],
+  "deadline_days": 35, "cooldown_days": 400, "scene": "scene.pollution",
+  "options": [
+    { "id": "inspection", "label_key": "…", "aftermath_key": "…", "effects": [
+        { "type": "opinion", "role": "owner", "delta": -12, "memory": "stood_against_me" },
+        { "type": "opinion", "role": "voice", "delta": 12, "memory": "stood_with_me" },
+        { "type": "approval", "classes": [0], "delta": -0.01 } ] },
+    { "id": "wait_for_data", "default": true, "label_key": "…", "aftermath_key": "…", "effects": [
+        { "type": "opinion", "role": "voice", "delta": -8, "memory": "ignored_me" },
+        { "type": "opinion", "role": "owner", "delta": 3 } ] } ] }
+```
+
+Casts: `broker`, `rival` (in a campaign, whoever stands against the player), `mayor`, `occupation`, `colleague`, `creditor`, `bill` (optionally `sponsored_by` a cast role), `sponsor_of`, `ward_neighborhood`, `law` (optionally `building`), `goal_holder`. Conditions: `crisis`, `live_crisis`, `indicator`, `concern`, `industry`, `election_within`, `campaigning`, `office`, `track`, `money`, `opinion`, `favour`, `remembers`, `personality`, `trait`, `law_in_force`, `party_line_against_ward`, `can_vote`, `goal`, `months_in_play`. Effects: `opinion` (with a memory kind), `approval`, `awareness`, `money`, `health`, `slots`, `standing`, `legal_jeopardy`, `record`, `favour`, `repay`, `vote` (`yes`, `no`, `abstain`, `with_party`, `with_ward`; the council-vote rules apply), `draft` (with `params`). Fluent arguments: each role as `$<role>` (a bill or law by its policy name), a person's role as `$<role>_role`, and `$town`, `$crisis`, `$player`. Each new cast, condition, or effect is a code extension point (below).
+
+**Goals** (`characters::goals`, politics domain): each month the people of the player's town take up goals whose conditions hold and give them up when they fail or after `max_days`. Drives: `oppose_player` and `back_player` add to their council lean on the player's bills (like lobbying sway) and an opposer lobbies against them; `champion` ranks bills that answer the live crisis higher. A goal with a `request` surfaces it (once per adoption). Goals are kept for the player's town only (NPC goals elsewhere are deferred).
+
+**Storylines**: a run casts its roles once; if a person no longer fills their role (a rival stays cast while they stand against the player), the arc fades; stage decisions take the run's cast for shared role ids and cast the rest; a stage decision has priority over standalone dilemmas (it waits for room, not spacing). `follow_up` starts the same arc again later with the same cast where it still fits.
+
+**Scenes**: a decision's scene happens at the place resolved when it opens (`Decision::place`). The pocket and the sheet always list it with every option; at the place, the conversation appears, and a speaker with `quote_fallback` quotes their most salient memory of the player (`salient_memories`).
+
+**Storyteller profiles**: Classic (default, `director.default_profile`), Unfiltered (no levers, no tension gating), Steady (30% of strikes on the player's town miss, one crisis at a time, three quarters of the budgets). A new game can set `narrative.profile`.
+
 ### Scenarios (DEC-078 decision 4)
 
 A scenario only says what makes its world different. Anything omitted is drawn exactly as for a random country (a fixed value makes no draw).
@@ -163,6 +210,9 @@ Each of these is a closed enum by design, because new behaviour needs code. Addi
 | Information service | `PLACE_SERVICES` | Its payload builder in `protocol::places` | `PlacePanelView`, the web `PlacePanel`, and a place kind that offers it |
 | Place kind worldgen generates | `world::PlaceKind` | Worldgen placement | A `places` entry (`places::registry_issues` checks that one exists) |
 | Indicator (a measure of a town) | `Indicator` (`mandate-content/src/types.rs`) | `concerns::indicator` | `Indicator::ALL`; a test of its range. Concerns, crisis kinds, and (later) situational policies can then use it |
+| Narrative cast, condition, or effect | `Cast`, `Condition`, `EffectDef` (`mandate-content/src/narrative.rs`) | `narrative::cast::{candidates, holds}`, `narrative::resolve::apply_effect` | Validation in `narrative::validate`; `EffectDef::valence` (cost, benefit); the protocol's trade-off line (`protocol::narrative::preview`, `applied_line`); a test |
+| Goal drive | `GoalDrive` | `characters::goals::refresh` (what it stores) and its reader in the NPC AI or council lean | Validation; a test that it changes the AI |
+| Director lever (exogenous) | `narrative::Chance` | The owning system that clamps it, logging `DirectorIntervention` | The spotlight-independence test; never an endogenous outcome |
 | Memory kind | `characters::MemoryKind` and `MEMORY_KINDS` (`mandate-content`) | A `characters::remember` call where it happens (or an `Effect::Memory`) | A row in `characters.memories`, the Fluent key `memory-<kind>`, a test |
 
 Rules for code changes:
@@ -177,6 +227,7 @@ Rules for code changes:
 - If a serialised struct or enum changes shape, bump `SAVE_FORMAT_VERSION` (`mandate-save/src/lib.rs`) and update `EXPECTED` in `crates/mandate-save/tests/saves.rs`.
 - Until release, a bump may reject older development saves. After release, add a JSON-level step to `migrate` and a fixture save.
 - A purely additive field marked `#[serde(default)]` can keep the version.
+- Narrative state names templates (dilemmas, storylines, goals) but never needs them: `narrative::on_load` lapses decisions and ends runs whose template was removed (v12).
 - New registry-keyed state records its keys (as `sector_keys`, `attitude_keys`, `community_keys`, `concern_keys`, and `characters.crisis_keys` do), so that:
   - `Engine::from_state` can remap the data by key;
   - `engine::missing_references` can refuse content that removed an entry the save needs.

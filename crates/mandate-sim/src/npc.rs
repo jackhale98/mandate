@@ -241,6 +241,17 @@ fn inputs_memo(
                 ));
             }
         }
+        // A goal against the player (DEC-032) makes the player's bill the
+        // one to fight.
+        if crate::characters::goals::opposes_player(&state.politics, me.character)
+            && let Some(p) = pending.iter().find(|p| {
+                p.sponsor
+                    .and_then(|s| state.politics.get(s))
+                    .is_some_and(|s| s.is_player)
+            })
+        {
+            best = Some((p.id.0, 1.0, -1.0));
+        }
         if let Some((bill, stake, dir)) = best {
             x.bill_stake = stake;
             x.focus_bill = Some((bill, dir));
@@ -286,6 +297,18 @@ fn inputs_memo(
                 _ => (u32::MAX, state.world.hoods_of(MunicipalityId(m)).collect()),
             };
             let mut best_t: Option<(&str, f64, f64)> = None;
+            let champion = crate::characters::goals::champion_bonus(&state.politics, me.character);
+            let live = state
+                .politics
+                .characters
+                .towns
+                .get(m as usize)
+                .and_then(|tc| tc.crisis());
+            let crisis_severity = live.map(|c| c.severity as f64).unwrap_or(0.0);
+            let crisis_policies: Vec<String> = live
+                .and_then(|c| content.crises.iter().find(|d| d.id == c.kind))
+                .map(|d| d.policies.clone())
+                .unwrap_or_default();
             for t in content
                 .policies
                 .values()
@@ -312,7 +335,13 @@ fn inputs_memo(
                 // The town's character shapes which idea comes first, not
                 // how keen the NPC is to legislate at all.
                 let score = (1.0 - prag) * own + prag * public;
-                let ranked = score + agenda;
+                // A goal to champion a fix (DEC-032) ranks crisis answers higher.
+                let champion = if champion > 0.0 && crisis_policies.contains(&t.id) {
+                    champion * crisis_severity
+                } else {
+                    0.0
+                };
+                let ranked = score + agenda + champion;
                 if best_t.is_none_or(|b| ranked > b.1) {
                     best_t = Some((t.id.as_str(), ranked, score));
                 }

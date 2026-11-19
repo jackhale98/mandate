@@ -15,6 +15,27 @@ import { useSheetClose } from "../components/useSheetClose";
 import { Calendar, CampaignHub } from "../components/CampaignCards";
 import { PartyChip } from "../components/ElectionCharts";
 import { roleText } from "../components/CharacterSheet";
+import { capital } from "../components/DecisionSheet";
+
+/** Decisions whose scene happens here (DEC-079: here, the conversation). */
+function WaitingHere({ v }: { v: PlacePanelView }) {
+  const tr = useGame((s) => s.tr);
+  const openDecision = useGame((s) => s.openDecision);
+  return (
+    <section className="card" data-testid="decisions-here">
+      <h2>{tr.t("ui-waiting-here")}</h2>
+      <ul className="plain-list">
+        {v.decisions_here.map((d) => (
+          <li key={d.id}>
+            <button type="button" className="link-btn" onClick={() => void openDecision(d.id)}>
+              {capital(tr.event(d.title_key, d.args))}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function signed(v: number): string {
   const n = Math.round(v * 100);
@@ -324,6 +345,7 @@ export function PlacePanel() {
           {v.internal_poll && <InternalPoll p={v.internal_poll} />}
           {has("internal_polls") && v.here && <CampaignHub />}
           {v.overheard && <Overheard o={v.overheard} />}
+          {v.decisions_here.length > 0 && <WaitingHere v={v} />}
           <People v={v} />
           <Actions v={v} skip={skip} />
           {offers("rest") && <RecentActions />}

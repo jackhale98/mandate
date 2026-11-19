@@ -1,0 +1,498 @@
+// Dilemmas and requests (DEC-077 §4, DEC-032, DEC-033): moments where every
+// option costs someone. The director spotlights one when its triggers hold
+// on live state in the player's town and its roles can be cast from live
+// actors there. It is visible (with every option's trade-offs) from the day
+// it appears until its deadline; then the `default` option happens.
+//
+// Roles (`cast`): broker, rival, mayor, occupation, colleague, creditor,
+// bill (a bill before the council), sponsor_of, ward_neighborhood, law (a
+// law in force or being built), goal_holder (requests). Fluent arguments:
+// each role's name as `$<role>` (a bill or law: its policy name), a person's
+// role as `$<role>_role`, plus `$town`, `$crisis` (the live crisis), and
+// `$player`.
+//
+// Effects are real engine changes (DEC-073): opinion (with a memory),
+// approval and awareness (by class; ward, town, or a cast neighbourhood),
+// money, health, slots, standing, legal_jeopardy, record, favour, repay,
+// vote (the council-vote rules apply), draft. Validation requires at least
+// one cost and one benefit per option, and exactly one default.
+{
+  "kind": "dilemmas",
+  "items": [
+    // --- Jobs: the plant -------------------------------------------------------------
+    {
+      "id": "dilemma.plant_layoffs", "category": "significant",
+      "title_key": "dilemma-plant-layoffs", "situation_key": "dilemma-plant-layoffs-situation",
+      "roles": [
+        { "id": "steward", "cast": { "type": "occupation", "occupations": ["occupation.union_steward", "occupation.organiser"] } },
+        { "id": "owner", "cast": { "type": "occupation", "occupations": ["occupation.plant_manager", "occupation.business_leader"] } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "triggers": [ { "type": "crisis", "kind": "crisis.plant_closure", "min_severity": 0.05 } ],
+      "deadline_days": 35, "cooldown_days": 365, "scene": "scene.plant_layoffs",
+      "options": [
+        { "id": "back_owner", "label_key": "dilemma-plant-layoffs-back-owner", "aftermath_key": "dilemma-plant-layoffs-back-owner-after",
+          "effects": [
+            { "type": "opinion", "role": "owner", "delta": 14, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "steward", "delta": -14, "memory": "stood_against_me" },
+            { "type": "approval", "classes": [0], "delta": -0.02 },
+            { "type": "standing", "delta": 3 } ] },
+        { "id": "back_workers", "label_key": "dilemma-plant-layoffs-back-workers", "aftermath_key": "dilemma-plant-layoffs-back-workers-after",
+          "effects": [
+            { "type": "draft", "template": "policy.hardship_fund" },
+            { "type": "opinion", "role": "steward", "delta": 14, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "owner", "delta": -12, "memory": "stood_against_me" },
+            { "type": "approval", "classes": [0], "delta": 0.02 },
+            { "type": "approval", "classes": [2], "delta": -0.01 },
+            { "type": "standing", "delta": -2 } ] },
+        { "id": "broker_talks", "label_key": "dilemma-plant-layoffs-broker-talks", "aftermath_key": "dilemma-plant-layoffs-broker-talks-after",
+          "effects": [
+            { "type": "slots", "n": 1 }, { "type": "health", "delta": -3 },
+            { "type": "opinion", "role": "steward", "delta": 5 },
+            { "type": "opinion", "role": "owner", "delta": 5 },
+            { "type": "record", "delta": 0.03 } ] },
+        { "id": "stay_out", "default": true, "label_key": "dilemma-plant-layoffs-stay-out", "aftermath_key": "dilemma-plant-layoffs-stay-out-after",
+          "effects": [
+            { "type": "opinion", "role": "steward", "delta": -9, "memory": "ignored_me" },
+            { "type": "opinion", "role": "owner", "delta": 3 },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.02 } ] },
+      ],
+    },
+    // Part of the plant storyline: the union's campaign after the layoffs.
+    {
+      "id": "dilemma.workers_campaign", "category": "significant", "storyline_only": true,
+      "title_key": "dilemma-workers-campaign", "situation_key": "dilemma-workers-campaign-situation",
+      "roles": [
+        { "id": "steward", "cast": { "type": "occupation", "occupations": ["occupation.union_steward", "occupation.organiser"] } },
+      ],
+      "deadline_days": 28, "cooldown_days": 365, "scene": "scene.workers_campaign",
+      "options": [
+        { "id": "march", "label_key": "dilemma-workers-campaign-march", "aftermath_key": "dilemma-workers-campaign-march-after",
+          "effects": [
+            { "type": "slots", "n": 1 },
+            { "type": "opinion", "role": "steward", "delta": 12, "memory": "stood_with_me" },
+            { "type": "approval", "classes": [0], "delta": 0.02 },
+            { "type": "awareness", "delta": 0.03 },
+            { "type": "standing", "delta": -3 } ] },
+        { "id": "statement", "label_key": "dilemma-workers-campaign-statement", "aftermath_key": "dilemma-workers-campaign-statement-after",
+          "effects": [
+            { "type": "opinion", "role": "steward", "delta": 4 },
+            { "type": "approval", "classes": [0], "delta": 0.005 },
+            { "type": "standing", "delta": -1 } ] },
+        { "id": "decline", "default": true, "label_key": "dilemma-workers-campaign-decline", "aftermath_key": "dilemma-workers-campaign-decline-after",
+          "effects": [
+            { "type": "opinion", "role": "steward", "delta": -10, "memory": "ignored_me" },
+            { "type": "approval", "classes": [0], "delta": -0.015 },
+            { "type": "approval", "classes": [2], "delta": 0.005 } ] },
+      ],
+    },
+    // --- Housing ----------------------------------------------------------------------
+    {
+      "id": "dilemma.housing_squeeze", "category": "significant",
+      "title_key": "dilemma-housing-squeeze", "situation_key": "dilemma-housing-squeeze-situation",
+      "roles": [
+        { "id": "organiser", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.resident"] } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "triggers": [ { "type": "crisis", "kind": "crisis.housing_squeeze", "min_severity": 0.05 } ],
+      "deadline_days": 42, "cooldown_days": 365, "scene": "scene.housing_squeeze",
+      "options": [
+        { "id": "upzone", "label_key": "dilemma-housing-squeeze-upzone", "aftermath_key": "dilemma-housing-squeeze-upzone-after",
+          "effects": [
+            { "type": "draft", "template": "policy.upzoning" },
+            { "type": "approval", "classes": [2], "delta": -0.02 },
+            { "type": "approval", "classes": [0], "delta": 0.01 },
+            { "type": "opinion", "role": "organiser", "delta": 3 } ] },
+        { "id": "build", "label_key": "dilemma-housing-squeeze-build", "aftermath_key": "dilemma-housing-squeeze-build-after",
+          "effects": [
+            { "type": "draft", "template": "policy.affordable_housing" },
+            { "type": "opinion", "role": "organiser", "delta": 12, "memory": "stood_with_me" },
+            { "type": "approval", "classes": [2], "delta": -0.015 },
+            { "type": "standing", "delta": -2 } ] },
+        { "id": "wait", "default": true, "label_key": "dilemma-housing-squeeze-wait", "aftermath_key": "dilemma-housing-squeeze-wait-after",
+          "effects": [
+            { "type": "opinion", "role": "organiser", "delta": -9, "memory": "ignored_me" },
+            { "type": "approval", "neighborhood": "hood", "classes": [0, 1], "delta": -0.02 },
+            { "type": "approval", "classes": [2], "delta": 0.005 } ] },
+      ],
+    },
+    // --- Rebuilding after a disaster ------------------------------------------------------
+    {
+      "id": "dilemma.disaster_relief", "category": "significant",
+      "title_key": "dilemma-disaster-relief", "situation_key": "dilemma-disaster-relief-situation",
+      "roles": [
+        { "id": "helper", "cast": { "type": "occupation", "occupations": ["occupation.clergy", "occupation.organiser", "occupation.shopkeeper", "occupation.nurse"] } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "triggers": [ { "type": "crisis", "kind": "crisis.disaster_recovery", "min_severity": 0.05 } ],
+      "deadline_days": 28, "cooldown_days": 300, "scene": "scene.disaster_relief",
+      "options": [
+        { "id": "relief_drive", "label_key": "dilemma-disaster-relief-drive", "aftermath_key": "dilemma-disaster-relief-drive-after",
+          "effects": [
+            { "type": "money", "amount": -1500 }, { "type": "slots", "n": 1 }, { "type": "health", "delta": -3 },
+            { "type": "opinion", "role": "helper", "delta": 10, "memory": "stood_with_me" },
+            { "type": "approval", "neighborhood": "hood", "delta": 0.03 },
+            { "type": "awareness", "delta": 0.03 } ] },
+        { "id": "defences", "label_key": "dilemma-disaster-relief-defences", "aftermath_key": "dilemma-disaster-relief-defences-after",
+          "effects": [
+            { "type": "draft", "template": "policy.flood_defenses" },
+            { "type": "opinion", "role": "helper", "delta": 3 },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.01 },
+            { "type": "record", "delta": 0.02 } ] },
+        { "id": "leave_it", "default": true, "label_key": "dilemma-disaster-relief-leave", "aftermath_key": "dilemma-disaster-relief-leave-after",
+          "effects": [
+            { "type": "opinion", "role": "helper", "delta": -8, "memory": "ignored_me" },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.02 },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    // --- Public services: the fiscal hole --------------------------------------------------
+    {
+      "id": "dilemma.fiscal_hole", "category": "significant",
+      "title_key": "dilemma-fiscal-hole", "situation_key": "dilemma-fiscal-hole-situation",
+      "roles": [
+        { "id": "mayor", "cast": { "type": "mayor" } },
+        { "id": "steward", "cast": { "type": "occupation", "occupations": ["occupation.union_steward", "occupation.teacher", "occupation.nurse"] } },
+      ],
+      "triggers": [ { "type": "crisis", "kind": "crisis.fiscal_hole", "min_severity": 0.05 }, { "type": "office", "role": "councillor" } ],
+      "deadline_days": 35, "cooldown_days": 365, "scene": "scene.fiscal_hole",
+      "options": [
+        { "id": "back_cuts", "label_key": "dilemma-fiscal-hole-cuts", "aftermath_key": "dilemma-fiscal-hole-cuts-after",
+          "effects": [
+            { "type": "opinion", "role": "mayor", "delta": 10, "memory": "stood_with_me" },
+            { "type": "standing", "delta": 3 },
+            { "type": "opinion", "role": "steward", "delta": -14, "memory": "stood_against_me" },
+            { "type": "approval", "scope": "town", "classes": [0], "delta": -0.015 } ] },
+        { "id": "back_tax", "label_key": "dilemma-fiscal-hole-tax", "aftermath_key": "dilemma-fiscal-hole-tax-after",
+          "effects": [
+            { "type": "draft", "template": "policy.property_tax", "params": { "points": 0.1 } },
+            { "type": "opinion", "role": "steward", "delta": 8, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "mayor", "delta": 3 },
+            { "type": "approval", "scope": "town", "classes": [2], "delta": -0.02 } ] },
+        { "id": "refuse", "default": true, "label_key": "dilemma-fiscal-hole-refuse", "aftermath_key": "dilemma-fiscal-hole-refuse-after",
+          "effects": [
+            { "type": "opinion", "role": "mayor", "delta": -10, "memory": "ignored_me" },
+            { "type": "standing", "delta": -2 },
+            { "type": "approval", "delta": 0.005 } ] },
+      ],
+    },
+    // --- Taxes ------------------------------------------------------------------------------
+    {
+      "id": "dilemma.tax_revolt", "category": "significant",
+      "title_key": "dilemma-tax-revolt", "situation_key": "dilemma-tax-revolt-situation",
+      "roles": [
+        { "id": "trader", "cast": { "type": "occupation", "occupations": ["occupation.shopkeeper", "occupation.business_leader", "occupation.diner_owner", "occupation.retiree"] } },
+        { "id": "mayor", "cast": { "type": "mayor" } },
+      ],
+      "triggers": [ { "type": "concern", "concern": "concern.taxes", "top": 2 }, { "type": "months_in_play", "min": 2 } ],
+      "deadline_days": 35, "cooldown_days": 400, "scene": "scene.tax_revolt",
+      "options": [
+        { "id": "call_cut", "label_key": "dilemma-tax-revolt-cut", "aftermath_key": "dilemma-tax-revolt-cut-after",
+          "effects": [
+            { "type": "draft", "template": "policy.property_tax", "params": { "points": -0.1 } },
+            { "type": "opinion", "role": "trader", "delta": 12, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "mayor", "delta": -8, "memory": "stood_against_me" },
+            { "type": "approval", "scope": "town", "classes": [0], "delta": -0.01 } ] },
+        { "id": "defend_services", "label_key": "dilemma-tax-revolt-defend", "aftermath_key": "dilemma-tax-revolt-defend-after",
+          "effects": [
+            { "type": "opinion", "role": "trader", "delta": -10, "memory": "stood_against_me" },
+            { "type": "opinion", "role": "mayor", "delta": 6 },
+            { "type": "approval", "classes": [0], "delta": 0.01 } ] },
+        { "id": "say_nothing", "default": true, "label_key": "dilemma-tax-revolt-nothing", "aftermath_key": "dilemma-tax-revolt-nothing-after",
+          "effects": [
+            { "type": "opinion", "role": "trader", "delta": -6, "memory": "ignored_me" },
+            { "type": "approval", "classes": [2], "delta": -0.01 },
+            { "type": "opinion", "role": "mayor", "delta": 2 } ] },
+      ],
+    },
+    // --- Environment ------------------------------------------------------------------------
+    {
+      "id": "dilemma.pollution", "category": "significant",
+      "title_key": "dilemma-pollution", "situation_key": "dilemma-pollution-situation",
+      "roles": [
+        { "id": "owner", "cast": { "type": "occupation", "occupations": ["occupation.plant_manager", "occupation.business_leader", "occupation.farmer"] } },
+        { "id": "voice", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.teacher", "occupation.nurse", "occupation.clergy", "occupation.resident"] } },
+      ],
+      "triggers": [ { "type": "concern", "concern": "concern.environment", "top": 3 }, { "type": "months_in_play", "min": 2 } ],
+      "deadline_days": 35, "cooldown_days": 400, "scene": "scene.pollution",
+      "options": [
+        { "id": "inspection", "label_key": "dilemma-pollution-inspection", "aftermath_key": "dilemma-pollution-inspection-after",
+          "effects": [
+            { "type": "opinion", "role": "owner", "delta": -12, "memory": "stood_against_me" },
+            { "type": "opinion", "role": "voice", "delta": 12, "memory": "stood_with_me" },
+            { "type": "approval", "classes": [0], "delta": -0.01 },
+            { "type": "approval", "classes": [2], "delta": 0.015 } ] },
+        { "id": "jobs_first", "label_key": "dilemma-pollution-jobs", "aftermath_key": "dilemma-pollution-jobs-after",
+          "effects": [
+            { "type": "opinion", "role": "voice", "delta": -12, "memory": "stood_against_me" },
+            { "type": "opinion", "role": "owner", "delta": 10, "memory": "stood_with_me" },
+            { "type": "approval", "classes": [0], "delta": 0.01 },
+            { "type": "approval", "classes": [2], "delta": -0.015 } ] },
+        { "id": "wait_for_data", "default": true, "label_key": "dilemma-pollution-wait", "aftermath_key": "dilemma-pollution-wait-after",
+          "effects": [
+            { "type": "opinion", "role": "voice", "delta": -8, "memory": "ignored_me" },
+            { "type": "opinion", "role": "owner", "delta": 3 } ] },
+      ],
+    },
+    // --- Building work: a protest about a law being built ---------------------------------
+    {
+      "id": "dilemma.building_protest", "category": "significant",
+      "title_key": "dilemma-building-protest", "situation_key": "dilemma-building-protest-situation",
+      "roles": [
+        { "id": "law", "cast": { "type": "law", "building": true, "templates": ["policy.transit_frequency", "policy.affordable_housing", "policy.upzoning", "policy.flood_defenses", "policy.parks"] } },
+        { "id": "organiser", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.resident", "occupation.shopkeeper", "occupation.clergy", "occupation.retiree"] } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "triggers": [ { "type": "months_in_play", "min": 1 } ],
+      "deadline_days": 28, "cooldown_days": 365, "scene": "scene.building_protest",
+      "options": [
+        { "id": "side_residents", "label_key": "dilemma-building-protest-residents", "aftermath_key": "dilemma-building-protest-residents-after",
+          "effects": [
+            { "type": "opinion", "role": "organiser", "delta": 12, "memory": "stood_with_me" },
+            { "type": "approval", "neighborhood": "hood", "delta": 0.02 },
+            { "type": "standing", "delta": -3 } ] },
+        { "id": "defend_project", "label_key": "dilemma-building-protest-defend", "aftermath_key": "dilemma-building-protest-defend-after",
+          "effects": [
+            { "type": "opinion", "role": "organiser", "delta": -12, "memory": "stood_against_me" },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.02 },
+            { "type": "standing", "delta": 2 }, { "type": "record", "delta": 0.02 } ] },
+        { "id": "meet_them", "label_key": "dilemma-building-protest-meet", "aftermath_key": "dilemma-building-protest-meet-after",
+          "effects": [
+            { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 },
+            { "type": "opinion", "role": "organiser", "delta": 6 },
+            { "type": "approval", "neighborhood": "hood", "delta": 0.01 } ] },
+        { "id": "ignore", "default": true, "label_key": "dilemma-building-protest-ignore", "aftermath_key": "dilemma-building-protest-ignore-after",
+          "effects": [
+            { "type": "opinion", "role": "organiser", "delta": -8, "memory": "ignored_me" },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.015 },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    // --- A favour called in ----------------------------------------------------------------
+    {
+      "id": "dilemma.favour_called_in", "category": "significant",
+      "title_key": "dilemma-favour-called-in", "situation_key": "dilemma-favour-called-in-situation",
+      "roles": [
+        { "id": "creditor", "cast": { "type": "creditor" } },
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "other", "sponsored_by": "creditor" } },
+      ],
+      "triggers": [ { "type": "favour", "role": "creditor" }, { "type": "can_vote", "role": "bill" } ],
+      "deadline_days": 21, "cooldown_days": 150, "scene": "scene.favour_called_in",
+      "options": [
+        { "id": "pay_back", "label_key": "dilemma-favour-called-in-pay", "aftermath_key": "dilemma-favour-called-in-pay-after",
+          "effects": [ { "type": "vote", "role": "bill", "vote": "yes" } ] },
+        { "id": "refuse", "label_key": "dilemma-favour-called-in-refuse", "aftermath_key": "dilemma-favour-called-in-refuse-after",
+          "effects": [ { "type": "vote", "role": "bill", "vote": "no" } ] },
+        { "id": "dodge", "default": true, "label_key": "dilemma-favour-called-in-dodge", "aftermath_key": "dilemma-favour-called-in-dodge-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "abstain" },
+            { "type": "opinion", "role": "creditor", "delta": -8, "memory": "broke_promise" } ] },
+      ],
+    },
+    // --- Party line or ward ---------------------------------------------------------------
+    {
+      "id": "dilemma.party_line", "category": "significant",
+      "title_key": "dilemma-party-line", "situation_key": "dilemma-party-line-situation",
+      "roles": [
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "other" } },
+        { "id": "sponsor", "cast": { "type": "sponsor_of", "role": "bill" } },
+      ],
+      "triggers": [ { "type": "can_vote", "role": "bill" }, { "type": "party_line_against_ward", "role": "bill" } ],
+      "deadline_days": 21, "cooldown_days": 90, "scene": "scene.party_line",
+      "options": [
+        { "id": "with_party", "label_key": "dilemma-party-line-party", "aftermath_key": "dilemma-party-line-party-after",
+          "effects": [ { "type": "vote", "role": "bill", "vote": "with_party" } ] },
+        { "id": "with_ward", "label_key": "dilemma-party-line-ward", "aftermath_key": "dilemma-party-line-ward-after",
+          "effects": [ { "type": "vote", "role": "bill", "vote": "with_ward" }, { "type": "awareness", "delta": 0.02 } ] },
+        { "id": "abstain", "default": true, "label_key": "dilemma-party-line-abstain", "aftermath_key": "dilemma-party-line-abstain-after",
+          "effects": [ { "type": "vote", "role": "bill", "vote": "abstain" } ] },
+      ],
+    },
+    // --- A donor's offer (an opportunity: the director times its arrival) ------------------
+    {
+      "id": "dilemma.donor_offer", "category": "significant", "opportunity": true,
+      "title_key": "dilemma-donor-offer", "situation_key": "dilemma-donor-offer-situation",
+      "roles": [
+        { "id": "donor", "cast": { "type": "occupation", "occupations": ["occupation.business_leader", "occupation.plant_manager", "occupation.diner_owner"] } },
+      ],
+      "triggers": [ { "type": "months_in_play", "min": 3 }, { "type": "money", "max": 12000 }, { "type": "election_within", "days": 540 } ],
+      "deadline_days": 28, "cooldown_days": 365, "scene": "scene.donor_offer",
+      "options": [
+        { "id": "accept", "label_key": "dilemma-donor-offer-accept", "aftermath_key": "dilemma-donor-offer-accept-after",
+          "effects": [
+            { "type": "money", "amount": 3000 },
+            { "type": "favour", "role": "donor" },
+            { "type": "legal_jeopardy", "delta": 3 },
+            { "type": "opinion", "role": "donor", "delta": 8 } ] },
+        { "id": "decline", "label_key": "dilemma-donor-offer-decline", "aftermath_key": "dilemma-donor-offer-decline-after",
+          "effects": [
+            { "type": "opinion", "role": "donor", "delta": -8, "memory": "stood_against_me" },
+            { "type": "approval", "classes": [0], "delta": 0.01 } ] },
+        { "id": "let_lapse", "default": true, "label_key": "dilemma-donor-offer-lapse", "aftermath_key": "dilemma-donor-offer-lapse-after",
+          "effects": [
+            { "type": "opinion", "role": "donor", "delta": -5, "memory": "ignored_me" },
+            { "type": "standing", "delta": -1 },
+            { "type": "legal_jeopardy", "delta": -1 } ] },
+      ],
+    },
+    // --- A rival's offer (the rival storyline's turn) --------------------------------------
+    {
+      "id": "dilemma.rival_offer", "category": "significant", "opportunity": true, "storyline_only": true,
+      "title_key": "dilemma-rival-offer", "situation_key": "dilemma-rival-offer-situation",
+      "roles": [ { "id": "rival", "cast": { "type": "rival" } } ],
+      "triggers": [ { "type": "opinion", "role": "rival", "max": 40 } ],
+      "deadline_days": 28, "cooldown_days": 540, "scene": "scene.rival_offer",
+      "options": [
+        { "id": "truce", "label_key": "dilemma-rival-offer-truce", "aftermath_key": "dilemma-rival-offer-truce-after",
+          "effects": [
+            { "type": "opinion", "role": "rival", "delta": 15 },
+            { "type": "favour", "role": "rival" },
+            { "type": "standing", "delta": -3 } ] },
+        { "id": "refuse", "label_key": "dilemma-rival-offer-refuse", "aftermath_key": "dilemma-rival-offer-refuse-after",
+          "effects": [
+            { "type": "opinion", "role": "rival", "delta": -12, "memory": "stood_against_me" },
+            { "type": "standing", "delta": 2 },
+            { "type": "awareness", "scope": "town", "delta": 0.02 } ] },
+        { "id": "ignore", "default": true, "label_key": "dilemma-rival-offer-ignore", "aftermath_key": "dilemma-rival-offer-ignore-after",
+          "effects": [
+            { "type": "opinion", "role": "rival", "delta": -6, "memory": "ignored_me" },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    // --- Jobs: the jobless figures ----------------------------------------------------------
+    {
+      "id": "dilemma.jobs_plea", "category": "significant",
+      "title_key": "dilemma-jobs-plea", "situation_key": "dilemma-jobs-plea-situation",
+      "roles": [
+        { "id": "voice", "cast": { "type": "occupation", "occupations": ["occupation.resident", "occupation.organiser", "occupation.clergy", "occupation.union_steward"] } },
+        { "id": "employer", "cast": { "type": "occupation", "occupations": ["occupation.business_leader", "occupation.shopkeeper", "occupation.plant_manager", "occupation.diner_owner"] } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "triggers": [
+        { "type": "concern", "concern": "concern.jobs", "top": 2 },
+        { "type": "indicator", "indicator": "unemployment", "min": 0.055 },
+        { "type": "months_in_play", "min": 1 } ],
+      "deadline_days": 35, "cooldown_days": 365, "scene": "scene.jobs_plea",
+      "options": [
+        { "id": "wage_subsidy", "label_key": "dilemma-jobs-plea-subsidy", "aftermath_key": "dilemma-jobs-plea-subsidy-after",
+          "effects": [
+            { "type": "draft", "template": "policy.small_business_grants" },
+            { "type": "opinion", "role": "employer", "delta": 8, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "voice", "delta": 4 },
+            { "type": "standing", "delta": -1 } ] },
+        { "id": "jobs_fair", "label_key": "dilemma-jobs-plea-fair", "aftermath_key": "dilemma-jobs-plea-fair-after",
+          "effects": [
+            { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 }, { "type": "money", "amount": -800 },
+            { "type": "opinion", "role": "voice", "delta": 10, "memory": "stood_with_me" },
+            { "type": "approval", "neighborhood": "hood", "delta": 0.02 } ] },
+        { "id": "market_recovers", "default": true, "label_key": "dilemma-jobs-plea-wait", "aftermath_key": "dilemma-jobs-plea-wait-after",
+          "effects": [
+            { "type": "opinion", "role": "voice", "delta": -8, "memory": "ignored_me" },
+            { "type": "approval", "classes": [0], "delta": -0.015 },
+            { "type": "opinion", "role": "employer", "delta": 2 } ] },
+      ],
+    },
+    // --- The campaign: an attack ad -----------------------------------------------------------
+    {
+      "id": "dilemma.attack_ad", "category": "significant",
+      "title_key": "dilemma-attack-ad", "situation_key": "dilemma-attack-ad-situation",
+      "roles": [ { "id": "rival", "cast": { "type": "rival" } } ],
+      "triggers": [ { "type": "campaigning" } ],
+      "deadline_days": 14, "cooldown_days": 300, "scene": "scene.attack_ad",
+      "options": [
+        { "id": "run_it", "label_key": "dilemma-attack-ad-run", "aftermath_key": "dilemma-attack-ad-run-after",
+          "effects": [
+            { "type": "money", "amount": -1000 },
+            { "type": "opinion", "role": "rival", "delta": -15, "memory": "stood_against_me" },
+            { "type": "awareness", "scope": "town", "delta": 0.03 },
+            { "type": "approval", "classes": [2], "delta": -0.01 },
+            { "type": "standing", "delta": 2 } ] },
+        { "id": "keep_it_clean", "label_key": "dilemma-attack-ad-clean", "aftermath_key": "dilemma-attack-ad-clean-after",
+          "effects": [
+            { "type": "standing", "delta": -2 },
+            { "type": "opinion", "role": "rival", "delta": 4 },
+            { "type": "approval", "classes": [2], "delta": 0.005 } ] },
+        { "id": "no_answer", "default": true, "label_key": "dilemma-attack-ad-none", "aftermath_key": "dilemma-attack-ad-none-after",
+          "effects": [
+            { "type": "standing", "delta": -3 },
+            { "type": "legal_jeopardy", "delta": -1 } ] },
+      ],
+    },
+    // --- The rival's challenge (the rival storyline's showdown) ----------------------------
+    {
+      "id": "dilemma.debate_challenge", "category": "significant", "storyline_only": true,
+      "title_key": "dilemma-debate", "situation_key": "dilemma-debate-situation",
+      "roles": [ { "id": "rival", "cast": { "type": "rival" } } ],
+      "triggers": [ { "type": "campaigning" } ],
+      "deadline_days": 14, "cooldown_days": 300, "scene": "scene.debate",
+      "options": [
+        { "id": "accept", "label_key": "dilemma-debate-accept", "aftermath_key": "dilemma-debate-accept-after",
+          "effects": [
+            { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 },
+            { "type": "awareness", "scope": "town", "delta": 0.04 },
+            { "type": "opinion", "role": "rival", "delta": -4 } ] },
+        { "id": "decline", "default": true, "label_key": "dilemma-debate-decline", "aftermath_key": "dilemma-debate-decline-after",
+          "effects": [
+            { "type": "approval", "delta": -0.01 },
+            { "type": "opinion", "role": "rival", "delta": 3 },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    // --- Requests: an NPC's goal needs the player (DEC-032) -------------------------------
+    {
+      "id": "request.back_the_workers", "category": "request",
+      "title_key": "request-back-workers", "situation_key": "request-back-workers-situation",
+      "roles": [ { "id": "holder", "cast": { "type": "goal_holder" } } ],
+      "deadline_days": 28, "cooldown_days": 240, "scene": "scene.request_workers",
+      "options": [
+        { "id": "back", "label_key": "request-back-workers-back", "aftermath_key": "request-back-workers-back-after",
+          "effects": [
+            { "type": "slots", "n": 1 },
+            { "type": "opinion", "role": "holder", "delta": 10, "memory": "stood_with_me" },
+            { "type": "approval", "classes": [0], "delta": 0.015 },
+            { "type": "standing", "delta": -2 } ] },
+        { "id": "decline", "default": true, "label_key": "request-back-workers-decline", "aftermath_key": "request-back-workers-decline-after",
+          "effects": [
+            { "type": "opinion", "role": "holder", "delta": -7, "memory": "ignored_me" },
+            { "type": "approval", "classes": [2], "delta": 0.005 } ] },
+      ],
+    },
+    {
+      "id": "request.ally_vote", "category": "request",
+      "title_key": "request-ally-vote", "situation_key": "request-ally-vote-situation",
+      "roles": [
+        { "id": "holder", "cast": { "type": "goal_holder" } },
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "other", "sponsored_by": "holder" } },
+      ],
+      "triggers": [ { "type": "can_vote", "role": "bill" } ],
+      "deadline_days": 21, "cooldown_days": 180, "scene": "scene.request_ally",
+      "options": [
+        { "id": "yes", "label_key": "request-ally-vote-yes", "aftermath_key": "request-ally-vote-yes-after",
+          "effects": [ { "type": "vote", "role": "bill", "vote": "yes" }, { "type": "favour", "role": "holder", "owed_to_player": true } ] },
+        { "id": "no", "label_key": "request-ally-vote-no", "aftermath_key": "request-ally-vote-no-after",
+          "effects": [ { "type": "vote", "role": "bill", "vote": "no" } ] },
+        { "id": "noncommittal", "default": true, "label_key": "request-ally-vote-noncommittal", "aftermath_key": "request-ally-vote-noncommittal-after",
+          "effects": [
+            { "type": "opinion", "role": "holder", "delta": -5, "memory": "ignored_me" },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    {
+      "id": "request.traders_meeting", "category": "request",
+      "title_key": "request-traders-meeting", "situation_key": "request-traders-meeting-situation",
+      "roles": [ { "id": "holder", "cast": { "type": "goal_holder" } } ],
+      "deadline_days": 28, "cooldown_days": 300, "scene": "scene.request_traders",
+      "options": [
+        { "id": "speak", "label_key": "request-traders-meeting-speak", "aftermath_key": "request-traders-meeting-speak-after",
+          "effects": [
+            { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 },
+            { "type": "opinion", "role": "holder", "delta": 9, "memory": "stood_with_me" },
+            { "type": "awareness", "delta": 0.02 } ] },
+        { "id": "send_regrets", "default": true, "label_key": "request-traders-meeting-regrets", "aftermath_key": "request-traders-meeting-regrets-after",
+          "effects": [
+            { "type": "opinion", "role": "holder", "delta": -5, "memory": "ignored_me" },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+  ],
+}

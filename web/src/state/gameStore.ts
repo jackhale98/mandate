@@ -12,6 +12,8 @@ import type { PocketView } from "../engine/protocol/PocketView";
 import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 import type { PlacePanelView } from "../engine/protocol/PlacePanelView";
 import type { CharacterView } from "../engine/protocol/CharacterView";
+import type { DecisionView } from "../engine/protocol/DecisionView";
+import type { StoryView } from "../engine/protocol/StoryView";
 import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { LocationView } from "../engine/protocol/LocationView";
 import type { QueryDto } from "../engine/protocol/QueryDto";
@@ -52,6 +54,10 @@ interface GameState {
   place: PlacePanelView | null;
   /** The open character sheet (DEC-031), over the place panel. */
   character: CharacterView | null;
+  /** The open decision sheet (DEC-077 §4): pending, or its aftermath once answered. */
+  decision: DecisionView | null;
+  /** The story so far (DEC-033), when open. */
+  story: StoryView | null;
   pocketOpen: boolean;
   view: GameView;
   /** Auto-routing in progress: where the player is walking to. */
@@ -85,6 +91,12 @@ interface GameState {
   openCharacter(id: number | null): Promise<void>;
   /** Meet a passer-by where the player is, then open their sheet. */
   meet(slot: number): Promise<void>;
+  /** Open (or close, with null) a decision's sheet. */
+  openDecision(id: number | null): Promise<void>;
+  /** Answer a decision; the sheet then shows its aftermath. */
+  answer(id: number, option: string): Promise<void>;
+  /** Open (or close) the story so far. */
+  openStory(open: boolean): Promise<void>;
   skipWalk(): void;
   setPocketOpen(open: boolean): void;
   setView(view: GameView): void;
@@ -152,6 +164,8 @@ export const useGame = create<GameState>((set, get) => {
     openPlace: null,
     place: null,
     character: null,
+    decision: null,
+    story: null,
     pocketOpen: false,
     view: "town",
     walking: null,
@@ -191,7 +205,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, openPlace: null, view: "town", run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -218,8 +232,11 @@ export const useGame = create<GameState>((set, get) => {
         const place = open ? expectKind(await q({ type: "place", location: open }), "place") : null;
         const who = get().character;
         const character = who ? expectKind(await q({ type: "character", id: who.id }), "character") : null;
+        const open_decision = get().decision;
+        const decision = open_decision ? expectKind(await q({ type: "decision", id: open_decision.id }), "decision") : null;
         set({
           character,
+          decision,
           office: expectKind(office, "office"),
           campaign: expectKind(campaign, "campaign"),
           pocket: expectKind(pocket, "pocket"),
@@ -256,8 +273,8 @@ export const useGame = create<GameState>((set, get) => {
         const r = applied.result;
         set({
           overview: applied.overview,
-          // Walking somewhere is not news.
-          toast: r && r.outcome_key !== "outcome-moved" ? { key: r.outcome_key, args: r.args } : null,
+          // Walking somewhere is not news; a decision's aftermath is on its sheet.
+          toast: r && r.outcome_key !== "outcome-moved" && cmd.type !== "answer_decision" ? { key: r.outcome_key, args: r.args } : null,
         });
         await get().refreshDesk();
         return applied.result?.created ?? null;
@@ -328,6 +345,37 @@ export const useGame = create<GameState>((set, get) => {
       if (id !== null) await get().openCharacter(id);
     },
 
+    async openDecision(id) {
+      if (id === null) {
+        set({ decision: null });
+        return;
+      }
+      try {
+        // The decision sheet replaces the pocket rather than stacking on top of it.
+        set({ decision: expectKind(await engine().request({ kind: "query", payload: { type: "decision", id } }), "decision"), pocketOpen: false });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async answer(id, option) {
+      await get().command({ type: "answer_decision", decision: id, option });
+      // `command` refreshed the open sheet: it now shows the aftermath.
+      if (get().decision?.id !== id) await get().openDecision(id);
+    },
+
+    async openStory(open) {
+      if (!open) {
+        set({ story: null });
+        return;
+      }
+      try {
+        set({ story: expectKind(await engine().request({ kind: "query", payload: { type: "story" } }), "story"), pocketOpen: false });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
     skipWalk() {
       skipResolve?.();
     },
@@ -377,7 +425,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, openPlace: null, pocketOpen: false, view: "town", electionNight: false, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, pocketOpen: false, view: "town", electionNight: false, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -392,7 +440,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, openPlace: null, view: "town", run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });

@@ -839,6 +839,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Every stage must reference live simulation state. There are no fetch quests (brief §10.5).
   - Storylines persist across acts and level-of-detail changes. The rival arc follows you up the ladder.
 - **Dependencies:** DEC-024, DEC-030, DEC-031, DEC-033.
+- **Implemented (M5c, 2026-11-19):** goal templates in content (`goals.jsonc`: holders, personality, traits, live conditions, a drive, an optional request, `max_days`), taken up monthly in the player's town (`characters::goals`); drives add to the council lean on the player's bills, set an opposer's lobbying focus, or rank crisis answers higher; requests are lightweight dilemmas. Storyline templates (`storylines.jsonc`: the plant, the rival, the favour debt) cast roles from live actors, advance on conditions and answers, branch, fade on timeout or when a person no longer fills their role, and persist in saves. Not yet: goals for NPCs outside the player's town (they need no player), and goals that change candidacy.
 
 ### DEC-033 — Narrative director: authority & pacing
 
@@ -876,6 +877,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Enforces the DEC-006 fairness rules:** warning events before any terminal ending.
 - **Rationale:** RimWorld-grade pacing without the player ever being able to say "the game decided my policy failed". Chance is shaped; consequences are honest.
 - **Dependencies:** DEC-005, DEC-006, DEC-012, DEC-023, DEC-032, DEC-034.
+- **Implemented (M5c, 2026-11-19):** `mandate_sim::narrative` (option B): chapters (a campaign or a session year) with a tension curve, budgets and spacing in `director.jsonc`, cooldowns, a repetition penalty, relevance scoring, and fairness warnings with an ending gate. The director writes only its own domain; its exogenous requests (`Chance`: hazard holds at the crisis cap, a thinner hazard rate, a held recession onset, discovery dates of hidden facts) are applied and logged by the environment and economy. Tests: spotlight on vs off leaves every endogenous outcome identical; held hazards are the same hazards, each within the longest deferral. Storyteller profiles Classic (default), Unfiltered, and Steady are content (`storytellers.jsonc`); choosing one is a new-game setting (`narrative.profile`), not yet offered on the title screen. Hidden facts so far: the player's late-night deals and fundraising (the media task will expose them).
 
 ### DEC-034 — Media & information model
 
@@ -1548,6 +1550,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      - a party in or out of power.
   3. **Situational policies (M5).** Some policy templates unlock only when circumstances call for them: a closure-response package after a plant shuts, a rebuild fund after a disaster, an emergency rent measure in a housing crisis. They are content templates with unlock conditions, validated like all policies (DEC-073 trade-offs apply).
   4. **Dilemma events (M5, through the director, DEC-033).** These are moments where every option costs someone. They are built from live state, warned in advance, and explained afterwards.
+
+     **Implemented (M5c, 2026-11-19):** `dilemmas.jsonc` (12 base dilemmas, 3 storyline turns, 3 requests): roles cast from live actors, triggers on live state, visible with every option's trade-offs from the day they appear to their deadline, then the default; every option has at least one cost and one benefit (validated); effects are engine changes; the aftermath lists what each did.
   5. **A variety check in the lab (M5).** Beyond "no dominant strategy" (DEC-072), the bot tournament reports the best strategy per world. It must differ across worlds and situations, so that no single routine wins everywhere. It becomes a CI gate alongside the DEC-076 story targets.
 - **Dependencies:** DEC-032, DEC-033, DEC-036, DEC-073, DEC-075, DEC-076.
 
@@ -1713,7 +1717,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - The app's new worker is at `<base>play/sw.js`, scoped to `play/`.
   - The manifest keeps the old **`id`** (the site base, which was the old `start_url`), so browsers that update installed apps can move an existing install to `play/` instead of treating it as a new app. An installed app that still opens the site base in standalone mode is sent on to `play/` by the landing page.
   - Saved runs are unaffected: IndexedDB belongs to the origin, not the path.
-  - **Tested** (`web/e2e/sw-migration.spec.ts`): a stand-in for the old root-scoped worker gives way to the landing page, its caches go, the game's caches stay, and the game registers its own worker at `play/` (runs in CI). With `MANDATE_OLD_DIST` set to a build from before this change, the real old app is installed, a run is saved, the new build is deployed over it, and the landing page appears with "Continue your run", which continues the saved run at `play/` (run locally).
+  - **Tested** (`web/e2e/sw-migration.spec.ts`): a stand-in for the old root-scoped worker gives way to the landing page, its caches go, the game's caches stay, and the game registers its own worker at `play/` (runs in CI). A one-off test against a real build from before this change (install the old app, save a run, deploy the new build, continue the run from the landing page) passed locally before the move shipped; it was retired on 2026-11-19 once the move was live.
 - **Consequences:** links shared to the old base now land on the landing page, one tap from the game. `<base>sw.js` must stay in the build for as long as old installs may exist. The old installed icon opens the base, which forwards to `play/` (online); for offline use from the home screen, players should add the game again from `play/`.
 - **Dependencies:** DEC-048, DEC-049, DEC-051, DEC-052, DEC-064, DEC-079, DEC-081, DEC-082.
 

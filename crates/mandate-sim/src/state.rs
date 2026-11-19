@@ -72,6 +72,9 @@ pub struct State {
     pub politics: PoliticsState,
     pub policy: PolicyState,
     pub player: Option<PlayerState>,
+    /// The director, decisions, storylines, and the facts log (DEC-033).
+    #[serde(default)]
+    pub narrative: crate::narrative::NarrativeState,
 }
 
 impl State {

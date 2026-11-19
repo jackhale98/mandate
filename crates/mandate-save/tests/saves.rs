@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (11, "3ffe74db1c79446b");
+    const EXPECTED: (u16, &str) = (12, "bfb8f55a9d5abfcb");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -796,5 +796,122 @@ fn saves_and_the_character_registries() {
             .towns
             .iter()
             .all(|t| t.crises.is_empty())
+    );
+}
+
+/// v12 added the narrative domain (DEC-033), NPC goals, and the director's
+/// held hazards and recessions. A v11 save loads with the director starting
+/// fresh, and plays on.
+#[test]
+fn v11_saves_migrate_to_the_narrative() {
+    let c = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 61,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    e.apply(Command::AdvanceDays { days: 400 }).unwrap();
+    // The v11 shape: no narrative, goals, held hazards, or held recession.
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    let st = v.pointer_mut("/state").unwrap().as_object_mut().unwrap();
+    st.remove("narrative");
+    for (path, key) in [
+        ("/state/politics/characters", "goals"),
+        ("/state/politics/characters", "ended_goals"),
+        ("/state/environment", "deferred"),
+        ("/state/economy/global", "held_recession"),
+    ] {
+        v.pointer_mut(path)
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .remove(key);
+    }
+    let migrated = mandate_save::migrate(11, v).unwrap();
+    let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    assert!(state.narrative.decisions.is_empty());
+    assert!(state.narrative.chapter.is_none());
+    assert!(state.politics.characters.goals.is_empty());
+    let mut e2 = mandate_sim::Engine::from_state(state, c).unwrap();
+    for _ in 0..30 {
+        e2.apply(Command::EndTurn).unwrap();
+    }
+    // The director picked up where the save left off.
+    assert!(e2.state().narrative.chapter.is_some());
+    let (bytes, _) = encode(e2.state(), &req()).unwrap();
+    let (back, _) = decode(&bytes).unwrap();
+    assert_eq!(back.hash(), e2.state_hash());
+}
+
+/// Narrative templates are rules like any other, but a save never needs
+/// them: content that removes a dilemma lapses its pending decisions, one
+/// that removes a storyline ends its runs, and one that removes a goal drops
+/// it (DEC-074). Nothing is refused.
+#[test]
+fn a_removed_dilemma_template_does_not_break_loading() {
+    let c = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 62,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    // Play until something is pending.
+    for _ in 0..200 {
+        if e.state().narrative.pending().next().is_some() {
+            break;
+        }
+        e.apply(Command::EndTurn).unwrap();
+    }
+    let pending = e
+        .state()
+        .narrative
+        .pending()
+        .next()
+        .cloned()
+        .expect("a decision is pending");
+    let (bytes, _) = encode(e.state(), &req()).unwrap();
+    // Remove the pending decision's template, every storyline, and every goal.
+    let mut src =
+        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
+    for s in src.iter_mut() {
+        match s.path.as_str() {
+            "base/dilemmas.jsonc" => {
+                let mut v: serde_json::Value =
+                    serde_json::from_str(&mandate_content::jsonc::to_strict_json(&s.text)).unwrap();
+                v["items"].as_array_mut().unwrap().retain(|d| {
+                    d["id"] != serde_json::json!(pending.template)
+                        && d["category"] != serde_json::json!("request")
+                });
+                s.text = v.to_string();
+            }
+            "base/storylines.jsonc" => s.text = r#"{"kind":"storylines","items":[]}"#.into(),
+            "base/goals.jsonc" => s.text = r#"{"kind":"goals","items":[]}"#.into(),
+            _ => {}
+        }
+    }
+    let fewer = Arc::new(load(&src).unwrap().0);
+    let (state, _) = decode(&bytes).unwrap();
+    let mut e2 = mandate_sim::Engine::from_state(state, fewer).expect("loads");
+    let d = e2.state().narrative.decision(pending.id).unwrap();
+    assert_eq!(d.status, mandate_sim::narrative::DecisionStatus::Lapsed);
+    assert!(e2.state().narrative.active_runs().next().is_none());
+    assert!(e2.state().politics.characters.goals.is_empty());
+    for _ in 0..20 {
+        e2.apply(Command::EndTurn).unwrap();
+    }
+    assert!(
+        e2.state()
+            .narrative
+            .decisions
+            .iter()
+            .all(|d| d.template != pending.template || d.id == pending.id)
     );
 }
