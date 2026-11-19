@@ -43,7 +43,7 @@ pub enum Action {
     /// one it barely feels works worse; none is a general canvass.
     Canvass {
         neighborhood: u32,
-        #[serde(default)]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         issue: Option<String>,
     },
     Fundraise,

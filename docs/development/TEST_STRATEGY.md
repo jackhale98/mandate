@@ -106,10 +106,23 @@ The owner asked whether real-world-aligned ranges would make the game boring. Re
 - `mixed`: a blend of the above
 - `proxy`: the NPC AI drives the player (the time-skip proxy)
 - `corrupt`: mixed play plus every shady option and action (M5d); `bots --careers 8` reports its career distribution: elections, scandals, investigations, convictions, prison, careers ended
+- `explorer` (M6, DEC-091): `mixed`, but its first ten turns go on learning the town: it walks every place (first-visit introductions), says hello to the passers-by on its ward's streets, reads each ward neighbourhood's worries on the doorsteps, and talks to the people it has only heard of (asking who really runs things while that is a rumour); then it plays the mix
+- `explore_only` (M6, a probe like `idle`): only finds out (walks, meets, asks); it never campaigns, never answers a decision, never rests
 
 The earlier plan (passive, populist, policy wonk, coalition-builder, random) was replaced by these.
 
-**Gates** (`bots` exits non-zero if any fails): no dominant strategy (the best active win rate is within 0.3 of the median); effort matters (the best active strategy beats `idle`); `idle` rarely wins (at most 15%).
+**Bots know only what the player knows** (DEC-091; M6_ENGINE_CONTRACTS §1.10). Strategy code reads gated facts (worries, policy support, people, situational policies) only through `mandate_sim::player::knowledge::Knowing`, and lobbies by what the player can see (shown odds, parties, colleagues' memories of the player), never the whip's exact leans (they carry hidden goals). The shared mix canvasses on the worry the player knows a neighbourhood feels most and, with a campaign turn's odd slot, asks ward residents it has met for their support (shown odds at least 0.3, each once). `bots::tests::bots_are_blind_to_what_they_have_not_learned` perturbs truths a bot has not learned (the goals of people it does not know in detail; two unheard neighbourhoods' views, so their worries) and checks that six strategies send identical commands, turn by turn, from the start into the campaign. `--omniscient` (the lab switch) gives every bot's player every subject in detail, for baselines.
+
+**Gates** (`bots` exits non-zero if any fails; `idle` and `explore_only` are probes, outside the dominance and variety checks):
+- no dominant strategy: the best win rate is within 0.3 of the median;
+- effort matters: the best strategy beats `idle`;
+- `idle` rarely wins (at most 15%);
+- corruption does not dominate: `corrupt` wins at most 10 points more often than the best honest strategy;
+- variety (DEC-077 §5): at least two strategies are the sole best somewhere, none among the best in more than 60% of worlds;
+- exploring early pays (DEC-091): `explorer`'s mean first-election vote share is at least 1 point above `mixed`'s, and it wins at least as often (reported, not enforced, under `--omniscient`);
+- exploring alone never wins: `explore_only` wins at most 5 points more often than `idle`, and less often than the median strategy.
+
+CI runs 16 seeds, the nightly 32 (and a 32-seed `--omniscient` baseline, uploaded beside it).
 
 Measured:
 - win rate and ending distribution per strategy; any strategy that dominates is flagged;

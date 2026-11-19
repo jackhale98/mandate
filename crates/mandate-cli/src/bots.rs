@@ -80,7 +80,9 @@ thread_local! {
     static RECORD: std::cell::RefCell<Option<Vec<String>>> = const { std::cell::RefCell::new(None) };
 }
 
-/// Start (or stop and return) recording the commands bots send on this thread.
+/// Start (or stop and return) recording the commands bots send on this
+/// thread (the blind-invariance test; lab tools may record too).
+#[cfg(test)]
 pub fn record(on: bool) -> Vec<String> {
     RECORD.with(|r| {
         let mut r = r.borrow_mut();
