@@ -2,6 +2,8 @@
 
 Status: accepted (owner, 2026-11-19; DEC-090, all §16 recommendations). Nothing here is built yet; it starts M6. Sketches: `town-gen-sketches/` (illustrations made by a throwaway script, not the generator).
 
+**E1 built (2026-11-19, save format 14):** baselines are recorded once, as play begins (after the history burn-in), in whole units: residents per neighbourhood (`HoodPop::baseline_population`), jobs per sector (`SectorState::baseline_jobs`) and housing stock (`Housing::baseline_stock`), read together through `State::town_baseline(m)` (`TownBaseline`: population, neighbourhoods, sectors by content key, housing stock). No system reads or writes them. The derived terrain also carries the §4.1 patch layers it lacked: `downstream` (flow direction as `Compass16`, 255 none), `forest_pm` and `minerals_pm` (not in `terrain_hash`). Saves from before take their baselines from their values when migrated. The views (E2, E3) are not built.
+
 ## Executive summary
 
 - **The request.** The owner wants towns that are "real but readable": rivers with bridges, creeks, hills, actual mines, open-air markets. Town size should follow population and the simulation. The layout should link to gameplay and hold hidden places to discover. Today's layout (v1) is a grid of blocks around a square.

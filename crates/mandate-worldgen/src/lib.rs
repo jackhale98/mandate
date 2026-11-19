@@ -578,8 +578,8 @@ pub fn generate_world(
         temperature: clim.temperature.data.iter().map(|v| *v as f32).collect(),
         precipitation: clim.precipitation.data.iter().map(|v| *v as f32).collect(),
         // Layers for the town geography view (TOWN_GENERATION §4.1). They
-        // are not in `terrain_hash`, which predates them (it is part of the
-        // state and of saves).
+        // stay out of `terrain_hash`: that hash is stored in the state, and
+        // leaving it as it was keeps every existing world's hash.
         downstream: flow_compass(&elev, &hyd.downstream),
         forest_pm: per_mille(&prof.timber),
         minerals_pm: per_mille(&prof.minerals),
