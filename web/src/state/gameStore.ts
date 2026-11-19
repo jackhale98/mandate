@@ -27,6 +27,9 @@ import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
 import { EMPTY_TRANSLATOR, Translator } from "../i18n/fluent";
 import { saveStore } from "../persistence/indexedDbStore";
 import { deviceId, randomHex, type RunSummary } from "../persistence/saveStore";
+import { isWide, readPocketDocked, readPocketTab, writePocketDocked, writePocketTab, type PocketTab } from "./devicePrefs";
+
+export type { PocketTab } from "./devicePrefs";
 
 type Screen = "title" | "game";
 /** Main view of the game screen: the town (places), or the pocket's country views. */
@@ -81,6 +84,14 @@ interface GameState {
   /** The story so far (DEC-033), when open. */
   story: StoryView | null;
   pocketOpen: boolean;
+  /** The pocket's open tab (DEC-088 main screen), remembered per device. */
+  pocketTab: PocketTab;
+  /** Wide screens: the pocket stays open beside the town (remembered per device). */
+  pocketDocked: boolean;
+  /** Bumped to move the keyboard into the pocket's open tab (the "Skip to Places" link). */
+  pocketFocus: number;
+  /** The town map (DEC-086) over the street, full screen. */
+  townMapOpen: boolean;
   view: GameView;
   /** Auto-routing in progress: where the player is walking to. */
   walking: LocationView | null;
@@ -129,6 +140,11 @@ interface GameState {
   openStory(open: boolean): Promise<void>;
   skipWalk(): void;
   setPocketOpen(open: boolean): void;
+  /** Open the pocket on a tab; `focus` moves the keyboard into it. */
+  openPocket(tab?: PocketTab, focus?: boolean): void;
+  setPocketTab(tab: PocketTab): void;
+  setPocketDocked(docked: boolean): void;
+  setTownMapOpen(open: boolean): void;
   setView(view: GameView): void;
   dismissToast(): void;
   /** End the turn: the engine runs it while the night passes (`passage`). During a passage, finish it first. */
@@ -154,6 +170,9 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
 let skipResolve: (() => void) | null = null;
+
+/** Going somewhere or opening a sheet closes the pocket, unless it is docked open beside the town. */
+const pocketAfterMove = (s: { pocketOpen: boolean; pocketDocked: boolean }) => ({ pocketOpen: s.pocketOpen && s.pocketDocked && isWide() });
 let passageCount = 0;
 
 export const useGame = create<GameState>((set, get) => {
@@ -204,6 +223,10 @@ export const useGame = create<GameState>((set, get) => {
     decision: null,
     story: null,
     pocketOpen: false,
+    pocketTab: readPocketTab(),
+    pocketDocked: readPocketDocked(),
+    pocketFocus: 0,
+    townMapOpen: false,
     view: "town",
     walking: null,
     electionNight: false,
@@ -247,7 +270,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: false } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -343,7 +366,7 @@ export const useGame = create<GameState>((set, get) => {
       const to = route.to;
       // A place panel that is open follows the player to where the action is done.
       if (get().openPlace) set({ openPlace: to.location });
-      set({ walking: to, pocketOpen: false });
+      set({ walking: to, ...pocketAfterMove(get()) });
       const walk = new Promise<void>((resolve) => {
         skipResolve = resolve;
         window.setTimeout(resolve, reducedMotion() ? 0 : WALK_MS);
@@ -359,7 +382,7 @@ export const useGame = create<GameState>((set, get) => {
 
     async visit(location) {
       const here = get().pocket?.location.location;
-      set({ pocketOpen: false, view: "town" });
+      set({ ...pocketAfterMove(get()), view: "town" });
       if (!here || !sameLocation(here, location)) await get().command({ type: "move_to", location });
       await get().openPanel(location);
     },
@@ -403,7 +426,7 @@ export const useGame = create<GameState>((set, get) => {
       }
       try {
         // The decision sheet replaces the pocket rather than stacking on top of it.
-        set({ decision: expectKind(await engine().request({ kind: "query", payload: { type: "decision", id } }), "decision"), pocketOpen: false });
+        set({ decision: expectKind(await engine().request({ kind: "query", payload: { type: "decision", id } }), "decision"), ...pocketAfterMove(get()) });
       } catch (e) {
         set({ error: errText(e) });
       }
@@ -421,7 +444,7 @@ export const useGame = create<GameState>((set, get) => {
         return;
       }
       try {
-        set({ story: expectKind(await engine().request({ kind: "query", payload: { type: "story" } }), "story"), pocketOpen: false });
+        set({ story: expectKind(await engine().request({ kind: "query", payload: { type: "story" } }), "story"), ...pocketAfterMove(get()) });
       } catch (e) {
         set({ error: errText(e) });
       }
@@ -435,8 +458,27 @@ export const useGame = create<GameState>((set, get) => {
       set({ pocketOpen: open });
     },
 
+    openPocket(tab, focus = false) {
+      if (tab) get().setPocketTab(tab);
+      set((s) => ({ pocketOpen: true, pocketFocus: focus ? s.pocketFocus + 1 : s.pocketFocus }));
+    },
+
+    setPocketTab(tab) {
+      writePocketTab(tab);
+      set({ pocketTab: tab });
+    },
+
+    setPocketDocked(docked) {
+      writePocketDocked(docked);
+      set({ pocketDocked: docked });
+    },
+
+    setTownMapOpen(open) {
+      set({ townMapOpen: open });
+    },
+
     setView(view) {
-      set({ view, pocketOpen: false });
+      set({ view, townMapOpen: false, ...pocketAfterMove(get()) });
     },
 
     dismissToast() {
@@ -501,7 +543,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, pocketOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -516,7 +558,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });

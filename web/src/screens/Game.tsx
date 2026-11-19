@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useGame } from "../state/gameStore";
-import { formatCount, formatDate, formatMoney } from "../i18n/format";
+import { formatCount, formatDate } from "../i18n/format";
 import { WorldMap } from "../map/WorldMap";
 import { MunicipalityPanel } from "../components/MunicipalityPanel";
 import { NationalEconomy } from "../components/NationalEconomy";
@@ -18,6 +18,7 @@ import { StorySheet } from "../components/StorySheet";
 import { placeIcon, placeName } from "../places/labels";
 import { Loader } from "../components/Brand";
 import { RunBanner } from "../components/Newspaper";
+import { say } from "../components/townMapText";
 
 function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => void; selected: number | null }) {
   const tr = useGame((s) => s.tr);
@@ -143,6 +144,26 @@ function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
   );
 }
 
+/** A count on the pocket button: an icon and the number on screen (not colour alone), the words for screen readers and on hover. */
+function Badge({ icon, n, text, cls, testId }: { icon: string; n: number; text: string; cls: string; testId: string }) {
+  return (
+    <span className={`badge ${cls}`} data-testid={testId} title={text}>
+      <span aria-hidden="true">
+        {icon}
+        {n}
+      </span>
+      <span className="visually-hidden">{text}</span>
+    </span>
+  );
+}
+
+/**
+ * The game screen (DEC-088 main screen): the town's street full screen with a
+ * slim bar (the town map, the date and slots, the pocket, End turn). The
+ * country views (map, overview) are reached from the pocket and come back to
+ * the town. A "Skip to Places" link and landmarks reach the pocket and every
+ * place without the canvas (DEC-051).
+ */
 export function Game() {
   const tr = useGame((s) => s.tr);
   const overview = useGame((s) => s.overview);
@@ -150,13 +171,15 @@ export function Game() {
   const loadMap = useGame((s) => s.loadMap);
   const busy = useGame((s) => s.busy);
   const endTurn = useGame((s) => s.endTurn);
-  const run = useGame((s) => s.run);
   const pocket = useGame((s) => s.pocket);
   const refreshDesk = useGame((s) => s.refreshDesk);
   const view = useGame((s) => s.view);
   const setView = useGame((s) => s.setView);
   const pocketOpen = useGame((s) => s.pocketOpen);
   const setPocketOpen = useGame((s) => s.setPocketOpen);
+  const openPocket = useGame((s) => s.openPocket);
+  const docked = useGame((s) => s.pocketDocked);
+  const setTownMapOpen = useGame((s) => s.setTownMapOpen);
   const [selected, setSelected] = useState<number | null>(null);
   const panelOpen = useGame((s) => s.openPlace !== null);
 
@@ -169,28 +192,21 @@ export function Game() {
 
   if (!overview) return null;
 
+  const cls = ["game", panelOpen && view === "town" ? "with-panel" : "", pocketOpen ? "with-pocket" : "", pocketOpen && docked ? "with-pocket-docked" : ""].filter(Boolean).join(" ");
+  const notebookNew = pocket?.notebook_new ?? 0;
   return (
-    <div className={`game${panelOpen && view === "town" ? " with-panel" : ""}${pocketOpen ? " with-pocket" : ""}`}>
-      <header className="hud">
-        <div className="hud-date">
-          <strong>{formatDate(tr, overview.date)}</strong>
-          <span className="muted">
-            {tr.t("ui-turn", { turn: overview.turn })} · {tr.t("ui-turn-span", { days: overview.turn_days })}
-          </span>
-        </div>
-        <div className="hud-right">
-          {pocket && (
-            <span className="chip" data-testid="hud-slots" aria-label={tr.t("ui-slots", { left: pocket.slots_left })}>
-              {"●".repeat(pocket.slots_left)}
-              {"○".repeat(Math.max(0, pocket.slots_total - pocket.slots_left))}
-              {pocket.late_night_available ? " ☾" : ""}
-            </span>
-          )}
-          {pocket && <span className="chip chip-muted hud-money">{formatMoney(pocket.money)}</span>}
-          {pocket?.in_campaign && <span className="chip chip-warn">{tr.t("ui-campaign-season")}</span>}
-          <span className="chip chip-muted hud-mode">{run ? tr.t("ui-mode-label", { mode: run.mode }) : ""}</span>
-        </div>
-      </header>
+    <div className={cls}>
+      <a
+        href="#pocket-panel-places"
+        className="skip-link"
+        data-testid="skip-to-places"
+        onClick={(e) => {
+          e.preventDefault();
+          openPocket("places", true);
+        }}
+      >
+        {say(tr, "ui-skip-places")}
+      </a>
 
       {view !== "town" && (
         <div className="viewbar">
@@ -216,27 +232,55 @@ export function Game() {
 
       {pocket?.legal && <RunBanner l={pocket.legal} />}
 
-      <footer className="actionbar">
-        <button type="button" className="btn pocket-btn" aria-expanded={pocketOpen} onClick={() => setPocketOpen(!pocketOpen)} data-testid="pocket-button">
-          <span aria-hidden="true">📒 </span>
-          {tr.t("ui-pocket")}
-          {pocket && pocket.decisions.length > 0 && (
-            <span className="badge badge-decisions" data-testid="decision-badge">
-              {tr.t("ui-decision-count", { n: pocket.decisions.length })}
-            </span>
-          )}
-          {pocket && pocket.alerts.length > 0 && <span className="badge">{tr.t("ui-alert-count", { n: pocket.alerts.length })}</span>}
-        </button>
-        {pocket && (
-          <span className="where small" data-testid="where">
-            <span aria-hidden="true">{placeIcon(pocket.location.kind_key)} </span>
-            {placeName(tr, pocket.location)}
+      <nav className="gamebar" aria-label={say(tr, "ui-game-bar")} data-testid="gamebar">
+        <button
+          type="button"
+          className="btn gamebar-map"
+          onClick={() => {
+            if (view !== "town") setView("town");
+            setTownMapOpen(true);
+          }}
+          aria-label={say(tr, "ui-town-map")}
+          data-testid="town-map-button"
+        >
+          <span aria-hidden="true">🗺️</span>
+          <span className="gamebar-label" aria-hidden="true">
+            {say(tr, "ui-town-map-open")}
           </span>
-        )}
-        <button type="button" className="btn btn-primary" disabled={busy || pocket?.legal?.run.status === "ended"} onClick={() => void endTurn()} data-testid="end-turn">
+        </button>
+        <div className="gamebar-date">
+          <strong>{formatDate(tr, overview.date)}</strong>
+          <span className="gamebar-sub muted">
+            <span>{tr.t("ui-turn", { turn: overview.turn })}</span>
+            <span className="gamebar-span"> · {tr.t("ui-turn-span", { days: overview.turn_days })}</span>
+            {pocket && (
+              <>
+                {" · "}
+                <span className="gamebar-slots" data-testid="hud-slots" role="img" aria-label={tr.t("ui-slots", { left: pocket.slots_left })}>
+                  {"●".repeat(pocket.slots_left)}
+                  {"○".repeat(Math.max(0, pocket.slots_total - pocket.slots_left))}
+                  {pocket.late_night_available ? " ☾" : ""}
+                </span>
+                {" · "}
+                <span className="where" data-testid="where">
+                  <span aria-hidden="true">{placeIcon(pocket.location.kind_key)} </span>
+                  {placeName(tr, pocket.location)}
+                </span>
+              </>
+            )}
+          </span>
+        </div>
+        <button type="button" className="btn pocket-btn" aria-expanded={pocketOpen} onClick={() => setPocketOpen(!pocketOpen)} data-testid="pocket-button">
+          <span aria-hidden="true">📒</span>
+          <span className="gamebar-label">{tr.t("ui-pocket")}</span>
+          {pocket && pocket.decisions.length > 0 && <Badge icon="❗" n={pocket.decisions.length} text={tr.t("ui-decision-count", { n: pocket.decisions.length })} cls="badge-decisions" testId="decision-badge" />}
+          {pocket && pocket.alerts.length > 0 && <Badge icon="🔔" n={pocket.alerts.length} text={tr.t("ui-alert-count", { n: pocket.alerts.length })} cls="badge-alerts" testId="alert-badge" />}
+          {notebookNew > 0 && <Badge icon="✎" n={notebookNew} text={say(tr, "ui-notebook-new-count", { n: notebookNew })} cls="badge-notebook" testId="notebook-badge" />}
+        </button>
+        <button type="button" className="btn btn-primary gamebar-end" disabled={busy || pocket?.legal?.run.status === "ended"} onClick={() => void endTurn()} data-testid="end-turn">
           {pocket?.legal?.run.status === "imprisoned" ? tr.t("ui-serve-sentence") : tr.t("ui-end-turn")}
         </button>
-      </footer>
+      </nav>
     </div>
   );
 }

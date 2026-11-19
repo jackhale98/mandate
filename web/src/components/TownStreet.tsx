@@ -1,8 +1,10 @@
-// The walkable town (DEC-079, DEC-080, DEC-088): the town map zoomed down
-// into its streets, drawn by the hub renderer (../hub/hubView) in the
-// pixel-art pack (DEC-084). Tap a building and the player walks there along
-// the streets; arriving sends the same command the List view's button does
-// (`visit`: move there, free, and open its panel). Townsfolk walk about, and
+// The walkable town (DEC-079, DEC-080, DEC-088): the game's main screen, the
+// town's streets full screen, drawn by the hub renderer (../hub/hubView) in
+// the pixel-art pack (DEC-084). Tap a building, or a place on the town map
+// overlay (`walkTo`), and the player walks there along the streets; arriving
+// sends the same command as the pocket's Places tab (`visit`: move there,
+// free, and open its panel). With reduced motion there is no walk: the
+// player is there at once. Townsfolk walk about, and
 // the light follows the turn's slots like the town map's (../hub/turnClock):
 // it holds still between actions and eases forward when one is done.
 // Presentation only: the engine moves the player and says what a place offers.
@@ -22,13 +24,18 @@ import { useGame } from "../state/gameStore";
 import { sameLocation } from "../state/routing";
 import { say } from "./townMapText";
 
+/** Walk to a place picked on the town map; a new `id` is a new request. */
+export interface WalkRequest {
+  location: LocationDto;
+  id: number;
+}
+
 export interface TownStreetProps {
   town: TownPlacesView;
   /** The dressed layout v2 map (the same the town map draws). */
   map: TownMap;
-  /** Where to look first (tiles), or null: at the player. */
-  at: { x: number; y: number } | null;
-  onBack: () => void;
+  /** The latest place picked on the town map, to walk to. */
+  walkTo: WalkRequest | null;
 }
 
 /** What tests see (`window.__townStreet`). */
@@ -48,7 +55,7 @@ declare global {
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
+export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const tr = useGame((s) => s.tr);
   const pocket = useGame((s) => s.pocket);
   const busy = useGame((s) => s.busy);
@@ -56,7 +63,7 @@ export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
   const command = useGame((s) => s.command);
   const walking = useGame((s) => s.walking);
   const passage = useGame((s) => s.passage?.phase ?? null);
-  const covered = useGame((s) => s.openPlace !== null || s.character !== null || s.decision !== null || s.story !== null);
+  const covered = useGame((s) => s.townMapOpen || s.openPlace !== null || s.character !== null || s.decision !== null || s.story !== null);
   const stageRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HubView | null>(null);
   const artRef = useRef<PixelkitArt | null>(null);
@@ -69,13 +76,14 @@ export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
   const here = pocket?.location.location ?? town.location;
 
   // The latest values the view's callbacks read (it is made once per map).
-  const latest = useRef({ minutes, here, at, busy });
+  const latest = useRef({ minutes, here, busy });
   const arrive = useRef<(b: TownBuilding | null) => void>(() => {});
+  const arriveAt = useRef<(loc: LocationDto) => void>(() => {});
   useEffect(() => {
-    latest.current = { minutes, here, at, busy };
+    latest.current = { minutes, here, busy };
     arrive.current = (b) => {
       const v = viewRef.current;
-      if (!v || latest.current.busy) return;
+      if (!v) return;
       let loc: LocationDto | null = null;
       if (b?.home) loc = { type: "home" };
       else if (b && b.place !== null) loc = { type: "place", place: b.place };
@@ -84,7 +92,10 @@ export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
         const d = v.map.districts[v.map.district[v.scene.playerCell] ?? -1];
         if (d) loc = { type: "street", neighborhood: d.id };
       }
-      if (!loc) return;
+      if (loc) arriveAt.current(loc);
+    };
+    arriveAt.current = (loc) => {
+      if (latest.current.busy) return;
       const probe = window.__townStreet;
       if (probe) probe.arrivals++;
       if (loc.type === "street") {
@@ -111,7 +122,7 @@ export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
     artPack()
       .then((pack) => {
         if (!live) return;
-        const { minutes: m, here: loc, at: look } = latest.current;
+        const { minutes: m, here: loc } = latest.current;
         const art = new PixelkitArt(pack, { night: "moods" });
         art.setClock(m);
         if (!document.getElementById("hub-icon-sprite")) document.body.insertAdjacentHTML("afterbegin", art.iconSprite().replace("<svg ", '<svg id="hub-icon-sprite" '));
@@ -126,7 +137,6 @@ export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
           canvasLabel: say(tr, "ui-town-street-label", { town: town.municipality }),
           onArrive: (b) => arrive.current(b),
         });
-        if (look) view.centreOn(look.x, look.y);
         viewRef.current = view;
         artRef.current = art;
         window.__townStreet = {
@@ -178,6 +188,16 @@ export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
     if (walking && ready) viewRef.current?.goToLocation(walking.location, false);
   }, [walking, ready]);
 
+  // A place picked on the town map: walk there (at once with reduced motion), then arrive as on a tap.
+  // Each request is walked once (the view is remade when the town is redressed).
+  const walked = useRef(0);
+  useEffect(() => {
+    const v = viewRef.current;
+    if (!walkTo || !ready || !v || walkTo.id <= walked.current) return;
+    walked.current = walkTo.id;
+    if (sameLocation(walkTo.location, latest.current.here) || reducedMotion() || !v.goToLocation(walkTo.location, true)) arriveAt.current(walkTo.location);
+  }, [walkTo, ready]);
+
   // The engine moved the player some other way (a skipped walk, an action elsewhere): stand there.
   const hereKey = JSON.stringify(here);
   useEffect(() => {
@@ -199,15 +219,11 @@ export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
             {failed ? <p className="muted small">{failed}</p> : <Loader compact label={say(tr, "ui-town-street-loading")} />}
           </div>
         )}
-        <button type="button" className="btn btn-sm town-map-walk" onClick={onBack} data-testid="town-walk-back">
-          <span aria-hidden="true">🗺️ </span>
-          {say(tr, "ui-town-walk-back")}
-        </button>
       </div>
-      <p className="town-map-status small" role="status" data-testid="town-street-status">
+      <p className="town-street-status small" role="status" data-testid="town-street-status">
         {status}
       </p>
-      <p id="town-street-help" className="muted small town-map-help">
+      <p id="town-street-help" className="visually-hidden">
         {say(tr, "ui-town-street-help")}
       </p>
     </div>

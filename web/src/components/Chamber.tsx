@@ -6,7 +6,8 @@ import { useGame } from "../state/gameStore";
 import { formatDate } from "../i18n/format";
 import { personName } from "./Knowing";
 
-function Member({ m }: { m: MemberView }) {
+/** A council member: name (opens their sheet), role, stances as known, and how they stand with you. */
+export function Member({ m }: { m: MemberView }) {
   const tr = useGame((s) => s.tr);
   const openCharacter = useGame((s) => s.openCharacter);
   return (
