@@ -52,6 +52,26 @@ export const Terrain = {
   Pier: 15,
   /** Front gardens (open lawn). */
   Garden: 16,
+  // ---- Layout v2 vocabulary (DEC-090; TOWN_GENERATION.md §7.7). v1 never emits these.
+  // Codes must stay below 32 (the layout hash packs terrain into 5 bits).
+  /** A one-tile stream (its own autotile set; stepping stones and fords cross it). */
+  Creek: 17,
+  /** Bare rock: cliff tops, quarry and pit floors. Not walkable. */
+  Rock: 18,
+  /** A built water edge or retaining wall face (urban banks, level changes facing south). Not walkable. */
+  Embankment: 19,
+  /** Railway track (an autotile with 45° pieces). Crossed only at a level crossing (`Crossing`). */
+  Rail: 20,
+  /** Reeds and marsh on rural banks: walkable, slow. */
+  Reeds: 21,
+  /** A bridge deck over water, rail or a creek. */
+  Bridge: 22,
+  /** A shallow crossing of a creek: walkable, slow. */
+  Ford: 23,
+  /** An open pit or quarry floor below a rock face. Not walkable. */
+  Pit: 24,
+  /** Steps or a ramp where a path crosses a level change. */
+  Steps: 25,
 } as const;
 export type TerrainCode = (typeof Terrain)[keyof typeof Terrain];
 
@@ -69,12 +89,16 @@ export function surfaceOfTerrain(t: number): Surface {
     case Terrain.Dirt:
     case Terrain.Quay:
     case Terrain.Pier:
+    case Terrain.Bridge:
+    case Terrain.Steps:
       return "pavement";
     case Terrain.Grass:
     case Terrain.Park:
     case Terrain.Field:
     case Terrain.Sand:
     case Terrain.Garden:
+    case Terrain.Reeds:
+    case Terrain.Ford:
       return "grass";
     default:
       return "blocked";
@@ -108,6 +132,8 @@ export interface TownBuilding {
   landmark: boolean;
   /** Stable art variation. */
   style: number;
+  /** Layout v2 only: the plot's dress state; v1 buildings are built. */
+  state?: PlotState;
 }
 
 export interface TownDistrict {
@@ -124,7 +150,39 @@ export interface TownDistrict {
   bounds: { x: number; y: number; w: number; h: number };
 }
 
-export type PropKind = "tree" | "pine" | "lamp" | "bench" | "fountain" | "boat" | "crane" | "planter" | "flag" | "stall";
+export type PropKind =
+  | "tree"
+  | "pine"
+  | "lamp"
+  | "bench"
+  | "fountain"
+  | "boat"
+  | "crane"
+  | "planter"
+  | "flag"
+  | "stall"
+  // Layout v2 (DEC-090): a mine's winding tower and spoil heap; bank reeds; creek stepping stones.
+  | "headframe"
+  | "spoil_heap"
+  | "reeds"
+  | "stepping_stones";
+
+/** Layout v2 (DEC-090): what crosses water, rail or a creek. The cells it covers are `Bridge`, `Ford` or `Crossing`. */
+export interface TownConnector {
+  kind: "bridge" | "footbridge" | "ford" | "viaduct" | "level_crossing";
+  /** Covered cells, tiles. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** "ew": runs east–west (its south face, the arches, shows); "ns": runs north–south (the deck and parapets show). */
+  axis: "ew" | "ns";
+  /** A generated proper name ("the Old Bridge"), or "". */
+  name: string;
+}
+
+/** Layout v2 dress state of a building plot (DEC-090 D2). Absent on v1 maps, which are always "built". */
+export type PlotState = "built" | "reserved" | "construction" | "boarded" | "derelict";
 
 export interface TownProp {
   kind: PropKind;
@@ -145,6 +203,10 @@ export interface TownMap {
   height: number;
   /** Terrain code per cell. */
   terrain: Uint8Array;
+  /** Layout v2 only: ground level per cell (0–3, about a storey each; DEC-090, TOWN_GENERATION.md §7.7). Absent means flat. */
+  elevation?: Uint8Array;
+  /** Layout v2 only: bridges, fords, viaducts and level crossings. */
+  connectors?: TownConnector[];
   /** 1 where walking is blocked (buildings, water, trees, the fountain). */
   solid: Uint8Array;
   /** District index per cell, -1 outside the town. */
