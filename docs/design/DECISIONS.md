@@ -91,7 +91,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-082 | Save export and import (`.mandate` files; light Ironman rule) | Accepted |
 | DEC-083 | Landing page at the site root; the game moves to `play/` | Accepted |
 | DEC-084 | Pixel-art tool: hand-drawn parts composed by code; spike before M6 art | Accepted |
-| DEC-085 | Town layout on the client, versioned so a town never rearranges | Proposed |
+| DEC-085 | Town layout on the client, versioned so a town never rearranges | Accepted |
 
 ---
 
@@ -1744,7 +1744,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Dependencies:** DEC-009, DEC-013, DEC-018, DEC-031, DEC-049, DEC-051, DEC-065, DEC-077, DEC-080, DEC-081.
 ### DEC-085 — Town layout on the client, versioned so a town never rearranges
 
-- **Status:** Proposed (M6 groundwork, 2026-11-19). Needs the owner's approval before the app uses it.
+- **Status:** Accepted (owner, 2026-11-19: "I'm fine with the versioned town layout"). Proposed with the M6 groundwork. M6 must reserve plots for places that can be added during a run, so a town never rearranges mid-run.
 - **Context:** The walkable hub (DEC-009, DEC-079) needs a street plan with a building for every place. The engine knows which places and neighbourhoods a town has, but not where they stand. Walking is UI state (DEC-009), so the plan does not affect outcomes, but players will learn their town: it must look the same every time they open it, on every device, and after app updates.
 - **Options:**
   - A. The engine generates the plan (Rust, in worldgen) and stores it in the save.
