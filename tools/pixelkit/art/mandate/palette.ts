@@ -14,6 +14,14 @@ import { buildPalette, type PaletteSpec, type RampSpec } from "../../src/core/pa
 const INK = "#11131a";
 /** Outline colours (D2), shared so the outlines of a crowd read as one family: cool, warm, foliage, and a softer one for light skin. */
 export const LINES = { cool: "#181b2a", warm: "#26181a", green: "#11251b", skin: "#3e2722" } as const;
+/**
+ * Softer outlines for people (round 2: the owner found the figures "a little
+ * too 3d ish"): a lighter line per material family, so the outline reads as
+ * an edge, not a heavy sticker border. Light skin gets a mid-brown contrast
+ * tone, so a pale face never reads as a blank mask. Materials darker than
+ * their soft line keep the hard line (see characters.ts).
+ */
+export const SOFT_LINES = { cool: "#272b44", warm: "#3a2724", green: "#1d3829", skin: "#7d5546" } as const;
 
 /** World ramps: ground, materials, foliage, lights. No outline (tiles and buildings have none, D2) unless props use them. */
 const WORLD: RampSpec[] = [
@@ -48,10 +56,11 @@ export const SKIN_ANCHORS = ["#f6ede4", "#eadaba", "#d7bd96", "#a07e56", "#60413
 const SKIN: RampSpec[] = SKIN_ANCHORS.map((anchor, i) => ({
   name: `skin${i + 1}`,
   anchor,
+  // Flat people (round 2): one base and one shadow per skin, no highlight step.
   darker: 1,
-  lighter: 1,
-  // Light skin needs a deeper shade to keep a visible shadow; dark skin a brighter highlight.
-  dL: i < 2 ? [0.11, 0.05] : i < 4 ? [0.09, 0.07] : [0.06, 0.1],
+  lighter: 0,
+  // Light skin needs a deeper shade to keep a visible shadow.
+  dL: i < 2 ? 0.11 : i < 4 ? 0.09 : 0.06,
   shift: 10,
   coolHue: 25,
   warmHue: 70,
@@ -91,6 +100,9 @@ const COOL_CLOTH = new Set<string>(["navy", "charcoal", "teal", "sky", "green", 
 const FIXED_CLOTH: Partial<Record<(typeof CLOTH_NAMES)[number], readonly string[]>> = { charcoal: ["#393c4d", "#4a4f63", "#606273"], shirt: ["#aaa293", "#cfc8bb", "#ece5d6"] };
 const CLOTH: RampSpec[] = CLOTH_NAMES.map((n) => ({ name: `cloth_${n}`, anchor: CLOTH_ANCHORS[n], ...(FIXED_CLOTH[n] ? { fixed: FIXED_CLOTH[n] } : {}), darker: 1, lighter: 1, dL: n === "navy" || n === "charcoal" ? [0.07, 0.11] : 0.1, shift: 12, line: COOL_CLOTH.has(n) ? LINES.cool : LINES.warm }));
 
-export const PALETTE_SPEC: PaletteSpec = { ramps: [...WORLD, ...SKIN, ...HAIR, ...CLOTH], merge: 0.012, lineMerge: 0.05 };
+/** The soft outline colours as one-colour ramps (so the outline lint knows them as lines). */
+const SOFT: RampSpec[] = Object.entries(SOFT_LINES).map(([k, hex]) => ({ name: `line_${k}`, anchor: hex, fixed: [hex], darker: 0, lighter: 0, line: false }));
+
+export const PALETTE_SPEC: PaletteSpec = { ramps: [...WORLD, ...SKIN, ...HAIR, ...CLOTH, ...SOFT], merge: 0.012, lineMerge: 0.05 };
 
 export const buildMandatePalette = () => buildPalette(PALETTE_SPEC);

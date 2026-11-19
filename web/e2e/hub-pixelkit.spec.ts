@@ -40,7 +40,7 @@ test.describe("pixel-art spike toggle", () => {
     const placeholder = await page.locator("#stage canvas").screenshot();
 
     await open(page, "seed=4242&t=720&speed=0&n=8&preset=street&art=pixelkit");
-    expect(await probe(page)).toEqual({ name: "pixelkit", night: "multiply" });
+    expect(await probe(page)).toEqual({ name: "pixelkit", night: "moods" });
     const street = await page.evaluate(() => (window as unknown as { __hub: Probe }).__hub.showStreet());
     expect(street?.w).toBeGreaterThan(0);
     const pixelkit = await page.locator("#stage canvas").screenshot();

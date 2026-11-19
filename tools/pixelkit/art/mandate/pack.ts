@@ -9,11 +9,11 @@ import { paletteLightness } from "../../src/core/compose";
 import type { Palette } from "../../src/core/palette";
 import { buildLighting, type Lighting } from "./lighting";
 import { buildMandatePalette } from "./palette";
-import { buildProps, lampPool, type BuiltProp, type Pool } from "./props";
+import { buildProps, lampPool, windowSpill, type BuiltProp, type Pool, type Spill } from "./props";
 import { buildTiles, type TileSet } from "./tiles";
 
 /** Bump when any drawing or rule changes what an existing look or building looks like (§3.5 rule 8). */
-export const PACK_VERSION = "mandate-p0.1";
+export const PACK_VERSION = "mandate-p0.3";
 
 export interface ArtPack {
   version: string;
@@ -23,6 +23,8 @@ export interface ArtPack {
   tiles: TileSet;
   props: Record<string, BuiltProp[]>;
   pool: Pool;
+  /** Light from lit shop windows onto the pavement (round 2). */
+  spill: Spill;
   lighting: Lighting;
 }
 
@@ -48,6 +50,7 @@ export function buildPack(): ArtPack {
     tiles: buildTiles(palette),
     props: buildProps(palette, L),
     pool: lampPool(palette),
+    spill: windowSpill(palette),
     lighting: buildLighting(palette),
   };
 }

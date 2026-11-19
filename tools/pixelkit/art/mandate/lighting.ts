@@ -25,7 +25,7 @@ export interface GradeKey {
 }
 
 const NIGHT: Omit<GradeKey, "at"> = {
-  mul: "#5a66aa",
+  mul: "#6670b2",
   glow: "#1b2350",
   glowAlpha: 0.3,
   sat: 0.55,

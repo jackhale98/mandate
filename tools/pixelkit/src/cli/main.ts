@@ -22,7 +22,7 @@ import { buildFacade, kitPartList, kitTable, type FacadeSpec } from "../../art/m
 import { composeCharacter, faceLeft, lookFromSeed, partList, PLAYER_LOOK, slotTable } from "../../art/mandate/characters";
 import { buildPack, type ArtPack } from "../../art/mandate/pack";
 import { groundTile, TERRAINS } from "../../art/mandate/tiles";
-import { sampleBuildings } from "../../art/mandate/samples";
+import { sampleBuildings, sampleRows, varietyBuildings } from "../../art/mandate/samples";
 
 const args = process.argv.slice(2);
 const cmd = args[0] ?? "all";
@@ -118,9 +118,32 @@ function sheets(pack: ArtPack) {
   // ---- the building kit assembled several ways, by day and lit at night
   const specs = sampleBuildings();
   const label = (s: FacadeSpec) => `${s.kind.replace("_", " ")} ${s.hood} ${s.w}x${s.h}${s.conditions.length ? " boarded" : ""}`;
-  png("buildings.png", gridSheet("BUILDING KIT: THE TOWN-CENTRE FAMILY ASSEMBLED BY THE FACADE GRAMMAR", specs.map((s) => ({ img: buildFacade(s, pal).albedo, label: label(s) })), rgb, { cols: 6, scale: 3, ground: pavement }));
+  const cell = (s: FacadeSpec) => {
+    const f = buildFacade(s, pal);
+    return { img: f.albedo, label: label(s), groundY: f.ay };
+  };
+  png("buildings.png", gridSheet("BUILDING KIT: THE TOWN-CENTRE FAMILY ASSEMBLED BY THE FACADE GRAMMAR (ROUND 2)", specs.map(cell), rgb, { cols: 6, scale: 3, ground: pavement }));
   const lit = specs.map((s) => litPreview(pack, s));
-  png("buildings-night.png", gridSheet("THE SAME BUILDINGS AT NIGHT (MULTIPLY LOOK): LIT WINDOWS AND DOORS FROM THEIR EMISSIVE LAYERS", lit.map((l, i) => ({ img: l.img, label: label(specs[i] as FacadeSpec) })), lit[0]?.rgb ?? rgb, { cols: 6, scale: 3, ground: [40, 44, 70] }));
+  png("buildings-night.png", gridSheet("THE SAME BUILDINGS AT NIGHT (MULTIPLY LOOK): LIT WINDOWS AND DOORS FROM THEIR EMISSIVE LAYERS", lit.map((l, i) => ({ img: l.img, label: label(specs[i] as FacadeSpec), groundY: buildFacade(specs[i] as FacadeSpec, pal).ay })), lit[0]?.rgb ?? rgb, { cols: 6, scale: 3, ground: [40, 44, 70] }));
+  png("buildings-variety.png", gridSheet("24 GENERATED BUILDINGS: KINDS AND NEIGHBOURHOODS (TERRACES, HOUSES, SHOPS, LANDMARKS, INDUSTRY, RURAL)", varietyBuildings().map(cell), rgb, { cols: 8, scale: 3, ground: pavement }));
+  // Rows of neighbours as a town lays them out (each avoids its left neighbour's design).
+  const rows = sampleRows().slice(0, 7);
+  const rowW = Math.max(...rows.map((r) => r.reduce((a, s) => a + s.w * 16, 0)));
+  const rowH = 5 * 16 + 32;
+  const rs2 = new Sheet(rowW * 2 + 16, 30 + rows.length * (rowH * 2 + 12));
+  rs2.text("ROWS OF NEIGHBOURS (EACH BUILDING AVOIDS THE DESIGN OF THE ONE ON ITS LEFT)", 8, 8);
+  rows.forEach((row, ri) => {
+    let x = 8;
+    const y0 = 30 + ri * (rowH * 2 + 12);
+    for (const s of row) {
+      const f = buildFacade(s, pal);
+      const top = y0 + (rowH - f.albedo.h) * 2;
+      rs2.rect(x, top + f.ay * 2, f.albedo.w * 2, (f.albedo.h - f.ay) * 2, pavement);
+      rs2.paste(f.albedo, rgb, x, top, 2);
+      x += f.albedo.w * 2;
+    }
+  });
+  png("neighbour-rows.png", rs2);
 
   // ---- tiles: per terrain, the 47 blob tiles and the fill variants
   const tcells: Cell[] = [];
@@ -147,18 +170,32 @@ function sheets(pack: ArtPack) {
   png("props.png", gridSheet("PROPS (WITH THE AUTOMATIC OUTLINE) AND THEIR LIT PARTS", pcells, rgb, { cols: 8, scale: 4, ground: pavement }));
 }
 
+/** The middle w × h of a screenshot. */
+function cropRgba(src: Rgba, w: number, h: number): Rgba {
+  const cw = Math.min(w, src.w);
+  const ch = Math.min(h, src.h);
+  const x0 = Math.floor((src.w - cw) / 2);
+  const y0 = Math.floor((src.h - ch) / 2);
+  const data = new Uint8Array(cw * ch * 4);
+  for (let y = 0; y < ch; y++) data.set(src.data.subarray(((y0 + y) * src.w + x0) * 4, ((y0 + y) * src.w + x0 + cw) * 4), y * cw * 4);
+  return { w: cw, h: ch, data };
+}
+
 /** The street screenshots side by side (run web/spikes/hub/pixelkit-capture.mjs first). */
 function street() {
-  const dir = path.join(out, "street");
-  const load = (n: string) => {
-    const f = path.join(dir, `${n}.png`);
+  const load = (dir: string, n: string) => {
+    const f = path.join(out, dir, `${n}.png`);
     return existsSync(f) ? decodePng(readFileSync(f)) : null;
   };
-  const board = (name: string, title: string, rows: string[][], down: number) => {
-    const imgs = rows.map((cols) => cols.map(load));
+  /** A board of screenshots: rows of [directory, name, label]; `down` scales them down, `crop` keeps their middle. */
+  const board = (name: string, title: string, rows: [string, string, string][][], down: number, crop?: [number, number]) => {
+    const imgs = rows.map((cols) => cols.map(([dir, n]) => {
+      const img = load(dir, n);
+      return img && crop ? cropRgba(img, crop[0], crop[1]) : img;
+    }));
     const first = imgs.flat().find((x) => x);
     if (!first) {
-      console.log(`no screenshots in ${dir} for ${name}`);
+      console.log(`no screenshots for ${name}`);
       return;
     }
     const cw = Math.floor(first.w / down);
@@ -167,12 +204,12 @@ function street() {
     const s = new Sheet(16 + cols * (cw + 8), 40 + rows.length * (ch + 26));
     s.text(title, 8, 10);
     rows.forEach((names, r) => {
-      names.forEach((n, c) => {
+      names.forEach(([, , label], c) => {
         const img = imgs[r]?.[c];
         const x = 8 + c * (cw + 8);
         const y = 36 + r * (ch + 26);
         if (img) s.pasteRgba(img, x, y + 14, down);
-        s.text(n.split("-").slice(1).join(" "), x, y, [233, 234, 240], 2);
+        s.text(label, x, y, [233, 234, 240], 2);
       });
     });
     png(name, s);
@@ -181,17 +218,39 @@ function street() {
     const d = device === "phone" ? 2 : 1;
     board(
       `night-looks-${device}.png`,
-      `D12, THE TWO NIGHT LOOKS (${device.toUpperCase()}): MULTIPLY ONLY (LEFT), PALETTE MOODS (RIGHT)`,
-      ["golden", "dusk", "night"].map((t) => [`${device}-multiply-${t}`, `${device}-moods-${t}`]),
+      `D12, THE TWO NIGHT LOOKS (${device.toUpperCase()}): MULTIPLY ONLY (LEFT), PALETTE MOODS (RIGHT, THE DEFAULT)`,
+      ["golden", "dusk", "night"].map((t) => [["street", `${device}-multiply-${t}`, `multiply ${t}`], ["street", `${device}-moods-${t}`, `moods ${t}`]]),
       d,
     );
     board(
       `street-${device}.png`,
-      `THE SAMPLE STREET (${device.toUpperCase()}): CODE PLACEHOLDER (LEFT), PIXELKIT PACK (RIGHT)`,
-      ["noon", "dusk"].map((t) => [`${device}-placeholder-${t}`, `${device}-multiply-${t}`]),
+      `THE SAMPLE STREET (${device.toUpperCase()}): CODE PLACEHOLDER (LEFT), PIXELKIT PACK, ROUND 2, PALETTE MOODS (RIGHT)`,
+      ["noon", "dusk"].map((t) => [["street", `${device}-placeholder-${t}`, `placeholder ${t}`], ["street", `${device}-moods-${t}`, `pixelkit ${t}`]]),
       d,
     );
   }
+  // Round 1 (copied from its run into round1/street/) against round 2, the same street, seed and look.
+  board(
+    "round2-vs-round1.png",
+    "THE SAME STREET: ROUND 1 (LEFT) AND ROUND 2 (RIGHT), PALETTE MOODS, DESKTOP AT ZOOM 2",
+    ["noon", "dusk"].map((t): [string, string, string][] => [["round1/street", `desktop-moods-${t}`, `round 1 ${t}`], ["street", `desktop-moods-${t}`, `round 2 ${t}`]]),
+    1,
+  );
+  board(
+    "round2-vs-round1-phone.png",
+    "THE SAME STREET ON A PHONE (ZOOM 3): ROUND 1 (LEFT) AND ROUND 2 (RIGHT)",
+    ["noon", "dusk"].map((t): [string, string, string][] => [["round1/street", `phone-moods-${t}`, `round 1 ${t}`], ["street", `phone-moods-${t}`, `round 2 ${t}`]]),
+    2,
+  );
+  // Lamp close-ups: by a wall, at a corner, in the open; dusk and night.
+  const kinds = ["wall", "corner", "open"];
+  board(
+    "lamp-light.png",
+    "LAMP LIGHT (ZOOM 4): BESIDE A WALL, AT A CORNER, IN THE OPEN; DUSK AND NIGHT (PALETTE MOODS)",
+    kinds.map((k) => [0, 1].flatMap((i): [string, string, string][] => [["lamps", `${k}-${i}-dusk`, `${k} ${i + 1} dusk`], ["lamps", `${k}-${i}-night`, `${k} ${i + 1} night`]])),
+    1,
+    [360, 260],
+  );
 }
 
 function build(pack: ArtPack) {

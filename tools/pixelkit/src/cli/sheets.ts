@@ -6,6 +6,8 @@ import { Sheet, textWidth } from "../node/sheet";
 export interface Cell {
   img: Indexed;
   label?: string;
+  /** Rows (px) from the top where the ground starts (a building's roof row and headroom stay on the dark ground). */
+  groundY?: number;
 }
 
 /** A grid of images at a scale, with labels under them, over an optional ground colour. */
@@ -23,7 +25,8 @@ export function gridSheet(title: string, cells: readonly Cell[], rgb: readonly R
   cells.forEach((c, i) => {
     const x = pad + (i % o.cols) * colW;
     const y = 30 + Math.floor(i / o.cols) * rowH;
-    if (o.ground) s.rect(x, y, c.img.w * o.scale, c.img.h * o.scale, o.ground);
+    const gy = (c.groundY ?? 0) * o.scale;
+    if (o.ground) s.rect(x, y + gy, c.img.w * o.scale, c.img.h * o.scale - gy, o.ground);
     s.paste(c.img, rgb, x, y, o.scale, o.checker ?? false);
     if (c.label) s.text(c.label, x, y + c.img.h * o.scale + 2, [154, 160, 180], ls);
   });
