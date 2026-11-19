@@ -133,6 +133,8 @@ test("walk the streets: tap a place, the player walks there and its panel opens;
   // The nearest place with something to do (the list's buttons): the town's everyday places.
   const b = await tapBuilding(page, info, "nearest-place");
   await expect.poll(() => page.evaluate(() => (window as unknown as Probes).__townStreet?.view.scene.playerMoving ?? false), { timeout: 5000 }).toBe(true);
+  // The camera follows the walker back from the place it was looking at.
+  if (SCREENS) await page.waitForTimeout(900);
   await shot(page, info, "street-walking");
   // On arrival: the same command as the List's button, and the place's panel.
   const panel = page.getByTestId("place-panel");
