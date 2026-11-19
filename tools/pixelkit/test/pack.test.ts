@@ -23,6 +23,9 @@ import { CONNECTOR_KINDS, TERRAIN, TerrainPainter, tileOf, V1_NAMES, V2_CODES } 
 import { allPieces, bridgePieces, railPiece } from "../art/mandate/v2pieces";
 import { v2Scene } from "../art/mandate/v2scene";
 import { groundImage } from "../src/cli/scene";
+import { diagStats } from "../src/cli/lintDiag";
+import { diagScene } from "../art/mandate/diagscene";
+import { STREET_AXIS } from "../art/mandate/streets";
 
 const pack = buildPack();
 const pal = pack.palette;
@@ -161,7 +164,7 @@ describe("buildings", () => {
 describe("lints", () => {
   const f = lintPack(pack);
   it("palette, outline and crowd-clone lints pass", () => {
-    for (const lint of ["palette size", "no pure black or white", "palette conformance", "outline consistency", "crowd clones", "height bands", "silhouette readability", "neighbour similarity", "flatness", "head contrast", "v2 coverage", "connector kits", "plot states", "v2 seams"]) {
+    for (const lint of ["palette size", "no pure black or white", "palette conformance", "outline consistency", "crowd clones", "height bands", "silhouette readability", "neighbour similarity", "flatness", "head contrast", "v2 coverage", "connector kits", "plot states", "v2 seams", "diagonal coverage", "diagonal seams", "diagonal isolation", "diagonal palette"]) {
       const bad = f.filter((x) => x.lint === lint && x.level === "error");
       assert.deepEqual(bad, [], lint);
     }
@@ -264,6 +267,160 @@ describe("layout v2 (round 4)", () => {
   });
 });
 
+/** A grass map with one straight diagonal street: `r` road cells a row, pavements unless `bare`. */
+function oneDiagonal(r: number, axis: 1 | 2, bare = false) {
+  const W = 24;
+  const H = 20;
+  const terrain = new Uint8Array(W * H).fill(TERRAIN.Grass);
+  const streetAxis = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    const xs = axis === STREET_AXIS.DiagonalNW ? 2 + y : W - 3 - r - y + 1;
+    for (let x = xs - 1; x <= xs + r; x++) {
+      if (x < 0 || x >= W) continue;
+      const road = x >= xs && x < xs + r;
+      if (!road && bare) continue;
+      terrain[y * W + x] = road ? TERRAIN.Road : TERRAIN.Pavement;
+      streetAxis[y * W + x] = axis;
+    }
+  }
+  return { width: W, height: H, terrain, streetAxis };
+}
+
+describe("diagonal streets (round 5)", () => {
+  const scene = diagScene();
+  it("names the street axis codes as the layout does", () => {
+    assert.deepEqual({ ...STREET_AXIS }, { Orthogonal: 0, DiagonalNE: 1, DiagonalNW: 2, Junction: 3 });
+  });
+  it("changes nothing where no street is diagonal: an all-orthogonal axis, and cells away from the diagonals", () => {
+    const v2 = v2Scene();
+    assert.deepEqual(groundImage(pack, { ...v2, streetAxis: new Uint8Array(v2.width * v2.height) }).px, groundImage(pack, v2).px);
+    const p = new TerrainPainter(pack.tiles, pack.terrain, scene);
+    const a = groundImage(pack, scene);
+    const b = groundImage(pack, { ...scene, streetAxis: undefined });
+    let away = 0;
+    for (let y = 0; y < scene.height; y++) {
+      for (let x = 0; x < scene.width; x++) {
+        if (p.streets?.touched(x, y)) continue;
+        away++;
+        for (let k = 0; k < 16; k++) {
+          const i = (y * 16 + k) * a.w + x * 16;
+          assert.deepEqual(a.px.subarray(i, i + 16), b.px.subarray(i, i + 16), `cell ${x},${y}`);
+        }
+      }
+    }
+    assert.ok(away > 800, `${away} cells away from the diagonals`);
+  });
+  it("draws every width on both axes as a smooth 45° band, R × 16 px across a row, with its kerbs", () => {
+    for (const axis of [1, 2] as const) {
+      for (const r of [1, 2, 3, 4, 6]) {
+        for (const bare of [false, true]) {
+          const view = oneDiagonal(r, axis, bare);
+          const st = diagStats(pack, view);
+          assert.equal(st.stairs, 0, `axis ${axis} r ${r}: ${st.worstStair}`);
+          assert.equal(st.kerbBad, 0, `axis ${axis} r ${r} kerbs`);
+          // A bare street one cell a row has no cells side by side (they meet at corners).
+          if (r > 1 || !bare) assert.ok(st.edges > 20, `axis ${axis} r ${r}: ${st.edges} edges`);
+          if (!bare) assert.ok(st.kerbs > 100, `axis ${axis} r ${r}: ${st.kerbs} kerb pixels`);
+          // Across a row in the middle of the map the carriageway is exactly r cells wide (the staircase's area).
+          const p = new TerrainPainter(pack.tiles, pack.terrain, view);
+          for (const Y of [160, 161, 167, 175]) {
+            let w = 0;
+            for (let X = 0; X < view.width * 16; X++) if (p.streets?.mat(X, Y) === TERRAIN.Road) w++;
+            assert.equal(w, r * 16, `axis ${axis} r ${r} row ${Y}`);
+          }
+        }
+      }
+    }
+  });
+  it("is seamless in the test town: no staircase across a cell edge along a street, the kerbs drawn alike, no new colours", () => {
+    const st = diagStats(pack, scene);
+    assert.equal(st.stairs, 0, st.worstStair);
+    assert.ok(st.edges > 150);
+    assert.equal(st.kerbBad, 0);
+    assert.ok(st.kerbs > 1000);
+    assert.deepEqual(st.newColours, []);
+  });
+  it("marks the streets: whole centre dashes on carriageways of three or more a row, none on two, zebras on both axes, a level crossing", () => {
+    const img = groundImage(pack, scene);
+    const L = pack.terrain.legend;
+    const W = scene.width;
+    const cell = (X: number, Y: number) => (Y >> 4) * W + (X >> 4);
+    const nearCrossing = (X: number, Y: number) => {
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (scene.terrain[((Y >> 4) + dy) * W + (X >> 4) + dx] === TERRAIN.Crossing) return true;
+      return false;
+    };
+    const chalk = (X: number, Y: number) => img.px[Y * img.w + X] === L.M || img.px[Y * img.w + X] === L.m;
+    const dash = (X: number, Y: number) => {
+      const c = cell(X, Y);
+      return chalk(X, Y) && scene.terrain[c] === TERRAIN.Road && (scene.streetAxis[c] === 1 || scene.streetAxis[c] === 2);
+    };
+    const seen = new Uint8Array(img.w * img.h);
+    let dashes = 0;
+    for (let Y = 0; Y < img.h; Y++) {
+      for (let X = 0; X < img.w; X++) {
+        if (seen[Y * img.w + X] || !dash(X, Y)) continue;
+        let n = 0;
+        let zebra = false;
+        const stack: [number, number][] = [[X, Y]];
+        seen[Y * img.w + X] = 1;
+        while (stack.length) {
+          const [x, y] = stack.pop() as [number, number];
+          n++;
+          zebra ||= nearCrossing(x, y);
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const nx = x + dx;
+              const ny = y + dy;
+              if (nx < 0 || ny < 0 || nx >= img.w || ny >= img.h || seen[ny * img.w + nx] || !dash(nx, ny)) continue;
+              seen[ny * img.w + nx] = 1;
+              stack.push([nx, ny]);
+            }
+          }
+        }
+        // Stripes of a zebra (beside a crossing cell) are not dashes.
+        if (zebra && n !== 14) continue;
+        assert.equal(n, 14, `a broken dash at ${X},${Y}`);
+        dashes++;
+      }
+    }
+    assert.ok(dashes >= 8, `${dashes} dashes`);
+    // The narrow street (2 a row, north of North Road): no centre line.
+    for (let y = 1; y < 9; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (scene.streetAxis[i] !== 1 || scene.terrain[i] !== TERRAIN.Road || x > 40) continue;
+      for (let k = 0; k < 256; k++) assert.ok(!chalk(x * 16 + (k & 15), y * 16 + (k >> 4)), `a centre line on the narrow street at ${x},${y}`);
+    }
+    // Zebras on both axes; the level crossing has rails, posts and no zebra.
+    const p = new TerrainPainter(pack.tiles, pack.terrain, scene);
+    const stripes: Record<number, number> = { 1: 0, 2: 0 };
+    let rails = 0;
+    let posts = 0;
+    for (let y = 0; y < scene.height; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        if (scene.terrain[i] !== TERRAIN.Crossing) continue;
+        for (let k = 0; k < 256; k++) {
+          const v = img.px[(y * 16 + (k >> 4)) * img.w + x * 16 + (k & 15)];
+          if (p.isRail(x, y)) {
+            if (v === L.m) rails++;
+            if (v === L.R) posts++;
+          } else if (v === L.M) stripes[scene.streetAxis[i] as number] = (stripes[scene.streetAxis[i] as number] ?? 0) + 1;
+        }
+      }
+    }
+    assert.ok((stripes[1] ?? 0) > 50 && (stripes[2] ?? 0) > 50, JSON.stringify(stripes));
+    assert.ok(rails > 30 && posts >= 4, `rails ${rails}, posts ${posts}`);
+  });
+  it("is deterministic and never throws on odd axes (unknown codes, diagonal marks off streets, tiny maps)", () => {
+    assert.deepEqual(groundImage(pack, scene).px, groundImage(pack, diagScene()).px);
+    const odd = { width: 4, height: 3, terrain: new Uint8Array([1, 2, 0, 6, 1, 1, 2, 5, 3, 2, 22, 20]), streetAxis: new Uint8Array([7, 255, 1, 2, 3, 1, 2, 2, 1, 3, 2, 1]) };
+    const p = new TerrainPainter(pack.tiles, pack.terrain, odd);
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 4; x++) assert.equal(p.draw(x, y, 0).px.length, 256);
+    const one = new TerrainPainter(pack.tiles, pack.terrain, { width: 1, height: 1, terrain: new Uint8Array([1]), streetAxis: new Uint8Array([2]) });
+    assert.equal(one.draw(0, 0, 0).px.length, 256);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Golden images (§7.2): pixel hashes of pinned fixtures. A change fails here;
 // UPDATE_GOLDENS=1 rewrites test/golden.json, and the commit says what changed and why.
@@ -289,6 +446,9 @@ function goldens(): Record<string, string> {
   // Round 4: every v2 piece's ground, the v2 scene's ground, and every plot state of every family.
   for (const piece of allPieces()) g[`v2 ${piece.label}`] = hBig(groundImage(pack, piece));
   g["v2 scene ground"] = hBig(groundImage(pack, v2Scene()));
+  // Round 5: the diagonal-street test town's ground, and one street of each width on each axis.
+  g["diag scene ground"] = hBig(groundImage(pack, diagScene()));
+  for (const axis of [1, 2] as const) for (const r of [1, 2, 3, 4]) g[`diag street ${axis === 1 ? "ne" : "nw"} ${r}`] = hBig(groundImage(pack, oneDiagonal(r, axis)));
   for (const code of V2_CODES) g[`v2 tiles ${code}`] = hash32(...BLOB_MASKS.map((m) => Number.parseInt(h(tileOf(pack.tiles, pack.terrain, code, m, 0)), 16))).toString(16);
   for (const [fam, spec] of FAMILY_SPECS) for (const state of PLOT_STATES) g[`plot ${fam} ${state}`] = hBig(buildFacade({ ...spec, conditions: state === "built" ? [] : [state] }, pal).albedo);
   g.palette = hash32(...pal.colors).toString(16);

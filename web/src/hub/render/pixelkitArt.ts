@@ -23,7 +23,11 @@
 //     as v1 draws them use `ground`'s tiles, and drawn cells that come out the
 //     same share one frame. A v1 map always gets `ground`'s tiles. Plot states
 //     arrive as building conditions; unknown terrain codes draw as grass and
-//     unknown props as the placeholder's.
+//     unknown props as the placeholder's;
+//   - diagonal streets (round 5, DEC-090 D5 amended): a map whose
+//     `streetAxis` marks any cell diagonal is drawn through the painter too,
+//     which draws its 45° staircases as smooth 45° roads, kerbs and markings;
+//     an absent or all-orthogonal `streetAxis` changes nothing.
 import { gradeAt, shadowBucket, shadowVector, sunAt, wrapMinutes } from "../dayCycle";
 import type { TownMap } from "../townLayout";
 import {
@@ -74,9 +78,9 @@ export interface PixelkitArtOptions {
   maxCharacters?: number;
 }
 
-/** Whether a map uses the layout v2 vocabulary (levels, connectors, a v2 layout version). */
+/** Whether a map uses the layout v2 vocabulary (levels, connectors, diagonal streets, a v2 layout version). */
 function isV2(map: TownMap): boolean {
-  return map.version >= 2 || map.elevation !== undefined || (map.connectors !== undefined && map.connectors.length > 0);
+  return map.version >= 2 || map.elevation !== undefined || (map.connectors !== undefined && map.connectors.length > 0) || (map.streetAxis !== undefined && map.streetAxis.some((a) => a !== 0));
 }
 
 const T = 16;
@@ -162,6 +166,8 @@ export class PixelkitArt implements ArtProvider {
   /** Layout v2: a terrain painter and the frames of drawn cells, per map; drawn cells deduplicated by their pixels. */
   private readonly v2 = new WeakMap<TownMap, { painter: TerrainPainter; cells: Map<number, FrameRef> }>();
   private readonly v2Tiles = new Map<string, FrameRef>();
+  /** Maps known to be layout v1 (so `isV2` scans a map's street axes once). */
+  private readonly v1Maps = new WeakSet<TownMap>();
   private readonly glows = new Map<string, FrameRef>();
   private readonly props = new Map<string, PropSprite>();
   private readonly characters = new Map<string, Layer>();
@@ -277,8 +283,12 @@ export class PixelkitArt implements ArtProvider {
    */
   groundCell(map: TownMap, x: number, y: number, cornerMask: number, variant: number): FrameRef {
     const kind = (map.terrain[y * map.width + x] as number | undefined) ?? 0;
-    if (!isV2(map) || x < 0 || y < 0 || x >= map.width || y >= map.height) return this.ground(kind, cornerMask, variant);
     let v2 = this.v2.get(map);
+    if (!v2 && (this.v1Maps.has(map) || !isV2(map))) {
+      this.v1Maps.add(map);
+      return this.ground(kind, cornerMask, variant);
+    }
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height) return this.ground(kind, cornerMask, variant);
     if (!v2) {
       v2 = { painter: new TerrainPainter(this.pack.tiles, this.pack.terrain, map), cells: new Map() };
       this.v2.set(map, v2);
