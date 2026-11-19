@@ -177,7 +177,7 @@ interface Costs8 {
  * not allowed; water and the railway are crossed straight and square-on
  * (no diagonal steps onto them or past their corners).
  */
-function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], isGoal: (c: number, d: number) => boolean, target: number, k: Costs8): { c: number; d: number }[] | null {
+function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], isGoal: (c: number, d: number) => boolean, target: number, k: Costs8, exempt: (c: number) => boolean = (c) => c === target): { c: number; d: number }[] | null {
   const { CW, CH } = cg;
   const n = CW * CH;
   const g = new Float64Array(n * 8).fill(Infinity);
@@ -236,7 +236,7 @@ function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], 
       if (cg.rock[nc]) cost += k.rock;
       if (cg.road[nc]) cost -= k.road;
       else if (cg.near[nc]) cost += k.near;
-      if ((nx === 0 || ny === 0 || nx === CW - 1 || ny === CH - 1) && nc !== target) cost += k.border;
+      if ((nx === 0 || ny === 0 || nx === CW - 1 || ny === CH - 1) && !exempt(nc)) cost += k.border;
       if (turn === 1) cost += k.t45;
       else if (turn === 2) cost += k.t90;
       const ns = nc * 8 + nd;
@@ -296,7 +296,15 @@ function edgeCell(w: Work, cg: Coarse, b: number): number | null {
   let bestD = Infinity;
   const consider = (c: number) => {
     if (cg.sea[c] || cg.wet[c] || cg.rail[c]) return;
-    const d = Math.abs((c % cg.CW) - i) + Math.abs(Math.floor(c / cg.CW) - j);
+    let d = Math.abs((c % cg.CW) - i) + Math.abs(Math.floor(c / cg.CW) - j);
+    // Not beside the railway (the road and the line would leave side by side).
+    for (let k = -2; k <= 2; k++) {
+      for (let l = -2; l <= 2; l++) {
+        const x = (c % cg.CW) + k;
+        const y = Math.floor(c / cg.CW) + l;
+        if (x >= 0 && y >= 0 && x < cg.CW && y < cg.CH && cg.rail[y * cg.CW + x]) d += 2;
+      }
+    }
     if (d < bestD || (d === bestD && best !== null && c < best)) {
       bestD = d;
       best = c;
@@ -541,6 +549,10 @@ export function stageArterials(w: Work) {
     boxSeg("v", w.ring.x + w.ring.w - 4, w.ring.y, w.ring.x + w.ring.w - 1, w.ring.y + w.ring.h - 1, ringBase),
   ];
   for (let j = ry0; j <= ry1; j++) for (let i = rx0; i <= rx1; i++) cg.blocked[j * CW + i] = 1;
+  // Running alongside the railway costs as running alongside a road.
+  const railCells: number[] = [];
+  for (let c = 0; c < CW * CH; c++) if (cg.rail[c]) railCells.push(c);
+  markNear(cg, railCells);
   // Exits: two cells straight out from a side (in line with the ring's side streets, or clear of its corners, so
   // no road leaves a few cells off a street's line), or two cells out at 45° from a corner.
   const exits: { c: number; d: number; via: number[] }[] = [];
@@ -648,6 +660,7 @@ export function stageArterials(w: Work) {
   let bridges = 0;
   const names = new Set<string>();
   const lay = (art: Arterial, path: { c: number; d: number }[]) => {
+    (globalThis as unknown as { LOG?: string[] }).LOG?.push(`${art.name}: ${path.map((p) => `${p.c % CW},${Math.floor(p.c / CW)}:${p.d}`).join(" ")}`);
     const segs = roadSegs(cg, path, { cls: RoadClass.Arterial, style: "asphalt", district: -1, arterial: art.index });
     for (const s of segs) {
       for (const m of bridgeRuns(w, s, kinds)) {
@@ -682,7 +695,11 @@ export function stageArterials(w: Work) {
     const water = bridges >= caps.bridges ? 900 : 70 + bridges * 60;
     const starts = startsFor();
     const out = outward(cg, goal);
-    const path = coarsePath8(cg, starts, (c, d) => c === goal && d === out, goal, costs(water));
+    // Any border cell on that side within two of the bearing's, left straight out (no jog to hit one cell).
+    const gx = goal % CW;
+    const gy = Math.floor(goal / CW);
+    const near = (c: number) => !cg.wet[c] && !cg.rail[c] && outward(cg, c) === out && Math.abs((c % CW) - gx) + Math.abs(Math.floor(c / CW) - gy) <= 2 && (c % CW === 0 || c % CW === CW - 1 || c < CW || c >= CW * (CH - 1));
+    const path = coarsePath8(cg, starts, (c, d) => d === out && near(c), goal, costs(water), near);
     if (!path) continue;
     const toName = p.link?.to_name ?? "";
     let name = toName ? `${toName} Road` : `${COMPASS_NAMES[p.bearing] ?? "North"} Road`;

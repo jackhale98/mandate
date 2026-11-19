@@ -381,7 +381,8 @@ export function stageCentre(w: Work) {
   const coastV = geo.coast ? compassVec(geo.coast.sea) : null;
   const r = rngOf(w, "centre");
   let best: { bx: number; by: number; s: number } | null = null;
-  const margin = Math.max(12, countrysideMargin(W, H) + 6);
+  // A multiple of 4: the square sits on the arterials' 4-tile lattice.
+  const margin = Math.max(12, Math.ceil((countrysideMargin(W, H) + 6) / 4) * 4);
   // Summed-area tables: wet (or rock) cells and cells per level, so each candidate is O(1).
   const W1 = W + 1;
   const sat = Array.from({ length: 5 }, () => new Int32Array(W1 * (H + 1)));

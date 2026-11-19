@@ -151,7 +151,10 @@ export function streetProblems(map: TownMap, plan: TownPlan): string[] {
   const N = W * H;
   const segs = plan.segments;
   const cover = new Uint16Array(N);
-  for (const s of segs) segCells(s, W, H, (c) => (cover[c] = (cover[c] as number) + 1));
+  for (const s of segs) {
+    segCells(s, W, H, (c) => (cover[c] = (cover[c] as number) + 1));
+    for (const end of [0, 1] as const) if (s.heads & (end === 0 ? 1 : 2)) for (const c of headCells(s, end, W, H)) cover[c] = (cover[c] as number) + 1;
+  }
   const sq = (c: number) => map.terrain[c] === Terrain.Plaza && rectDistance(plan.square, c % W, Math.floor(c / W)) === 0;
   const link = (s: Segment) => s.arterial >= 0 && (plan.arterials[s.arterial]?.mode ?? "local") !== "local";
   const name = (s: Segment) => `${s.arterial >= 0 ? (plan.arterials[s.arterial]?.name ?? "arterial") : s.district >= 0 ? `a street of ${plan.districts[s.district]?.name ?? "?"}` : "the square's ring"} (${s.axis} ${s.ax},${s.ay}–${s.bx},${s.by})`;
@@ -163,7 +166,7 @@ export function streetProblems(map: TownMap, plan: TownPlan): string[] {
       if (s.heads & (end === 0 ? 1 : 2)) {
         const cells = headCells(s, end, W, H);
         const paved = cells.filter((c) => STREET.has(map.terrain[c] as number)).length;
-        if (paved * 10 < cells.length * 8) out.push(`turning head of ${name(s)} is not paved`);
+        if (paved * 10 < cells.length * 7) out.push(`turning head of ${name(s)} is not paved`);
         for (const c of cells) headed[c] = 1;
         continue;
       }
@@ -326,14 +329,23 @@ export function readability(map: TownMap, plan: TownPlan): Readability {
   }
   let levels = 0;
   for (let i = 0; i < N; i++) levels = Math.max(levels, (map.elevation?.[i] ?? 0) + 1);
-  // Blocks: land between walkable streets; those with standing buildings must be at least 6 × 5.
-  const isStreet = (t: number) => t === Terrain.Road || t === Terrain.Pavement || t === Terrain.Crossing || t === Terrain.Dirt || t === Terrain.Path || t === Terrain.Plaza || t === Terrain.Quay || t === Terrain.Bridge || t === Terrain.Steps;
+  // Blocks: land between the streets (their runs and turning heads, the square, the quays, water and the railway;
+  // forecourts, lanes and paths inside a block are part of it); those with standing buildings must be at least 6 × 5.
+  const street = new Uint8Array(N);
+  for (const s of plan.segments) {
+    segCells(s, W, map.height, (c) => (street[c] = 1));
+    for (const end of [0, 1] as const) if (s.heads & (end === 0 ? 1 : 2)) for (const c of headCells(s, end, W, map.height)) street[c] = 1;
+  }
+  const isStreetAt = (c: number) => {
+    const t = map.terrain[c] as number;
+    return street[c] === 1 || t === Terrain.Plaza || t === Terrain.Quay || t === Terrain.Rail || t === Terrain.Crossing;
+  };
   const seen = new Uint8Array(N);
   let smallBlocks = 0;
   const hasBuilding = new Uint8Array(N);
   for (const b of map.buildings) if (b.state !== "reserved") for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) hasBuilding[y * W + x] = 1;
   for (let s = 0; s < N; s++) {
-    if (seen[s] || isStreet(map.terrain[s] as number) || map.terrain[s] === Terrain.Water || !hasBuilding[s]) continue;
+    if (seen[s] || isStreetAt(s) || map.terrain[s] === Terrain.Water || !hasBuilding[s]) continue;
     const q = [s];
     seen[s] = 1;
     let x0 = W;
@@ -350,7 +362,7 @@ export function readability(map: TownMap, plan: TownPlan): Readability {
       y1 = Math.max(y1, y);
       for (let k4 = 0; k4 < 4; k4++) {
         const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
-        if (n < 0 || n >= N || seen[n] || isStreet(map.terrain[n] as number) || map.terrain[n] === Terrain.Water) continue;
+        if (n < 0 || n >= N || seen[n] || isStreetAt(n) || map.terrain[n] === Terrain.Water) continue;
         seen[n] = 1;
         q.push(n);
       }

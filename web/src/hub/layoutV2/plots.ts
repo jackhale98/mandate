@@ -157,13 +157,25 @@ function fits(w: Work, d: number, x: number, F: number, bw: number, bh: number, 
       if ((!allowAnyDistrict && w.district[c] !== d) || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv) return false;
     }
   }
-  // Every column has a frontage below (a door may be anywhere along the front).
+  // Every column has a frontage below (a door may be anywhere along the front), or, beside a north–south or
+  // 45° street, a forecourt to pave (an apron): the building steps along the street, its front a short
+  // paved strip that reaches the street's side within a few cells.
+  let apron = false;
+  let front = false;
   for (let xx = x; xx < x + bw; xx++) {
     const f = F * W + xx;
-    if (!frontageTerrain(w.terrain[f] as number) && !(s > 0)) return false;
     if (m.roofs[f - s * W]) return false;
+    if (frontageTerrain(w.terrain[f] as number)) {
+      front = true;
+      continue;
+    }
+    if (s > 0) continue;
+    if (!apronable(w, f, lv, m)) return false;
+    apron = true;
   }
-  if (!frontageTerrain(w.terrain[F * W + x + (bw >> 1)] as number)) return false;
+  const door = F * W + x + (bw >> 1);
+  if (!frontageTerrain(w.terrain[door] as number) && !(apron && s === 0)) return false;
+  if (apron && !front && apronReach(w, x, F, bw, lv, m) < 0) return false;
   // The roof row: never over a doorstep or another plot.
   for (let xx = x; xx < x + bw; xx++) {
     const c = (top - 1) * W + xx;
@@ -172,11 +184,58 @@ function fits(w: Work, d: number, x: number, F: number, bw: number, bh: number, 
   return true;
 }
 
+/** A cell a forecourt may be paved on: open buildable land on the building's level, under no roof. */
+function apronable(w: Work, c: number, lv: number, m: Masks): boolean {
+  return (w.district[c] as number) >= 0 && !w.use[c] && buildable(w.terrain[c] as number) && w.level[c] === lv && !m.roofs[c] && !w.blocked[c];
+}
+
+/** The side of a street: a paved or road cell of a street run (or the square). */
+function streetSide(w: Work, c: number): boolean {
+  const t = w.terrain[c] as number;
+  return (((w.use[c] as number) & Use.Road) !== 0 && (t === Terrain.Road || t === Terrain.Pavement || t === Terrain.Dirt)) || t === Terrain.Plaza;
+}
+
+/** Where a forecourt along row F from the footprint [x, x + bw) meets a street within three cells (its x), or -1. */
+function apronReach(w: Work, x: number, F: number, bw: number, lv: number, m: Masks): number {
+  const { W } = w;
+  for (const dir of [-1, 1]) {
+    for (let k = 1; k <= 3; k++) {
+      const xx = dir < 0 ? x - k : x + bw - 1 + k;
+      if (xx < 0 || xx >= W) break;
+      const c = F * W + xx;
+      if (streetSide(w, c)) return xx;
+      if (!apronable(w, c, lv, m)) break;
+    }
+  }
+  return -1;
+}
+
 function addPlot(w: Work, d: number, f: Fit, spec: { place: number | null; kind: string; name: string; landmark: boolean; ground: number }, doorAt?: number): number {
   const { W } = w;
   const m = masks(w);
   const bottom = f.F - 1 - f.s;
   const top = bottom - f.h + 1;
+  if (f.s === 0 && f.F < w.H) {
+    // A forecourt: the cells under the front not yet paved, and the gap to the street beside.
+    let any = false;
+    for (let x = f.x; x < f.x + f.w; x++) if (frontageTerrain(w.terrain[f.F * W + x] as number)) any = true;
+    const lv = w.level[bottom * W + f.x] as number;
+    let lo = f.x;
+    let hi = f.x + f.w - 1;
+    if (!any) {
+      const sx = apronReach(w, f.x, f.F, f.w, lv, m);
+      if (sx >= 0 && sx < f.x) lo = sx + 1;
+      if (sx >= 0 && sx > hi) hi = sx - 1;
+    }
+    const kind = (w.districts[d] as WorkDistrict | undefined)?.kind ?? "inner";
+    const t = kind === "rural" || kind === "suburb" ? Terrain.Path : Terrain.Pavement;
+    for (let x = lo; x <= hi; x++) {
+      const c = f.F * W + x;
+      if (frontageTerrain(w.terrain[c] as number) || (w.use[c] as number) & (Use.Road | Use.Square)) continue;
+      w.terrain[c] = t;
+      w.use[c] = (w.use[c] as number) | Use.Keep;
+    }
+  }
   const r = rngOf(w, "door", f.x, top);
   const doorX = doorAt ?? (f.w >= 3 ? f.x + Math.floor(f.w / 2) - (f.w % 2 === 0 && r.chance(0.5) ? 1 : 0) : f.x);
   const plot: PlanPlot = {
@@ -211,7 +270,7 @@ function frontageOf(w: Work, d: number, any = false): number[] {
     // One pass over the map for every district (kept for the stage; fits() rechecks what plots have taken since).
     const ix = (w as Work & { _front?: number[][] })._front ?? frontageIndex(w);
     (w as Work & { _front?: number[][] })._front = ix;
-    return (ix[d] ?? []).filter((c) => !w.use[c - W] && buildable(w.terrain[c - W] as number) && frontageTerrain(w.terrain[c] as number));
+    return (ix[d] ?? []).filter((c) => !w.use[c - W] && buildable(w.terrain[c - W] as number) && (frontageTerrain(w.terrain[c] as number) || (!w.use[c] && buildable(w.terrain[c] as number))));
   }
   const out: number[] = [];
   for (let F = 2; F < H; F++) {
@@ -230,9 +289,20 @@ function frontageOf(w: Work, d: number, any = false): number[] {
 function frontageIndex(w: Work): number[][] {
   const { W, H } = w;
   const out: number[][] = w.districts.map(() => []);
+  // A forecourt cell: open land beside a street's side in its row (the building above steps along the street).
+  const nearSide = (c: number) => {
+    const x = c % W;
+    for (let k = 1; k <= 4; k++) {
+      if (x - k >= 0 && streetSide(w, c - k)) return true;
+      if (x + k < W && streetSide(w, c + k)) return true;
+    }
+    return false;
+  };
   for (let c = 2 * W; c < W * H; c++) {
     const d = w.district[c - W] as number;
-    if (d < 0 || !frontageTerrain(w.terrain[c] as number)) continue;
+    if (d < 0) continue;
+    const t = w.terrain[c] as number;
+    if (!frontageTerrain(t) && !(buildable(t) && !w.use[c] && nearSide(c))) continue;
     (out[d] as number[]).push(c);
   }
   return out;

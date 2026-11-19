@@ -18,8 +18,8 @@
 // streams per district.
 import { Terrain } from "../townLayout";
 import { MinHeap } from "./imath";
-import { DIR8, axisOfDir, bandLo, forBand, headCells, isDiagDir, makeSeg, paintHead, paintSegment, parallelGap, segCells, segSteps, stepOf, streetAxes } from "./net";
-import { RoadClass, Use, WaterKind, distanceField, isWaterBody, rngOf, type Segment, type Work, type WorkDistrict } from "./work";
+import { DIR8, axisOfDir, bandLo, forBand, headCells, isDiagDir, levelCrossing, makeSeg, paintHead, paintSegment, parallelGap, segCells, segSteps, stepOf, streetAxes } from "./net";
+import { RoadClass, Use, WaterKind, countrysideMargin, distanceField, isWaterBody, rngOf, type Segment, type Work, type WorkDistrict } from "./work";
 
 /** How a street pattern grows (defaults by pattern name; the registry gives block and depth). */
 interface Growth {
@@ -98,14 +98,38 @@ export function stageStreets(w: Work) {
   const pre = w.ground?.terrain ?? new Uint8Array(w.terrain);
   const preLevel = w.ground?.level ?? new Uint8Array(w.level);
   const railDist = w.rail.length ? distanceField(W, H, (c) => ((w.use[c] as number) & Use.Rail) !== 0, () => true, 4) : null;
-  /** Land a street may be laid on. */
+  /**
+   * Land a street may be laid on: the districts, and the countryside within a
+   * few cells of them (so a street can reach a road that skirts the town), but
+   * never near the map's edge.
+   */
+  const townDist = distanceField(W, H, (c) => (w.district[c] as number) >= 0, () => true, 5);
+  const M = countrysideMargin(W, H);
   const land = new Uint8Array(N);
   for (let c = 0; c < N; c++) {
-    if ((w.district[c] as number) < 0 || isWaterBody(w, c) || (w.use[c] as number) & (Use.Road | Use.Square | Use.Rail | Use.Bridge) || w.terrain[c] === Terrain.Rock) continue;
+    if ((townDist[c] as number) > 4 || isWaterBody(w, c) || (w.use[c] as number) & (Use.Road | Use.Square | Use.Rail | Use.Bridge) || w.terrain[c] === Terrain.Rock) continue;
+    const x = c % W;
+    const y = (c - x) / W;
+    if ((w.district[c] as number) < 0 && Math.min(x, y, W - 1 - x, H - 1 - y) < Math.max(3, M - 4)) continue;
     if (railDist && (railDist[c] as number) <= 1) continue;
     land[c] = 1;
   }
   const isRoad = (c: number) => ((w.use[c] as number) & Use.Road) !== 0;
+  // The railway and the cell either side of it: a street may cross it square-on (a level crossing), a few times a town.
+  const railAx = new Uint8Array(N);
+  for (const s of w.rail) {
+    const code = s.axis === "h" ? 1 : 2;
+    for (let y = s.y0 - (code === 1 ? 1 : 0); y <= s.y1 + (code === 1 ? 1 : 0); y++) {
+      for (let x = s.x0 - (code === 2 ? 1 : 0); x <= s.x1 + (code === 2 ? 1 : 0); x++) {
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        const c = y * W + x;
+        if (isWaterBody(w, c) || (w.use[c] as number) & (Use.Bridge | Use.Road)) railAx[c] = 3;
+        else railAx[c] = railAx[c] && railAx[c] !== code ? 3 : code;
+      }
+    }
+  }
+  let crossingsLeft = w.rail.length ? 2 : 0;
+  const crossable = (c: number, dir: number) => crossingsLeft > 0 && ((railAx[c] === 1 && (dir & 3) === 2) || (railAx[c] === 2 && (dir & 3) === 0));
   // Segment cover: how many runs cover each cell (dead ends and the joined test).
   const cover = new Uint16Array(N);
   const owner = new Int32Array(N).fill(-1);
@@ -136,8 +160,8 @@ export function stageStreets(w: Work) {
       const x = c % W;
       for (let k4 = 0; k4 < 4; k4++) {
         const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
-        if (n < 0 || n >= N || !land[n]) continue;
-        const d = w.district[n] as number;
+        if (n < 0 || n >= N || (!land[n] && railAx[n] !== 1 && railAx[n] !== 2)) continue;
+        const d = (w.district[n] as number) >= 0 ? (w.district[n] as number) : Math.max(0, w.district[c] as number);
         const nd = dc + (k4 < 2 ? (cx[d] as number) : (cy[d] as number));
         if (nd < (dist[n] as number)) {
           dist[n] = nd;
@@ -197,7 +221,7 @@ export function stageStreets(w: Work) {
       if (bx < 0 || by < 0 || bx >= W || by >= H) return 2;
       const c = by * W + bx;
       if (isRoad(c) || (w.use[c] as number) & Use.Square) road = true;
-      else if (!land[c]) return 2;
+      else if (!land[c] && !crossable(c, dir)) return 2;
     }
     return road ? 1 : 0;
   };
@@ -283,7 +307,12 @@ export function stageStreets(w: Work) {
     });
     const cells: number[] = [];
     for (const s of made) {
-      paintSegment(w, s);
+      const crossed = paintSegment(w, s, crossingsLeft > 0);
+      if (crossed.length) {
+        const lc = levelCrossing(w, s, crossed);
+        if (lc) w.connectors.push(lc);
+        crossingsLeft--;
+      }
       const i = w.segments.length;
       w.segments.push(s);
       addCover(s, i);
@@ -291,7 +320,10 @@ export function stageStreets(w: Work) {
       if (s.heads) {
         const end = s.heads & 2 ? 1 : 0;
         paintHead(w, s, end);
-        for (const c of headCells(s, end, W, H)) cells.push(c);
+        for (const c of headCells(s, end, W, H)) {
+          cells.push(c);
+          cover[c] = (cover[c] as number) + 1;
+        }
       }
     }
     for (const c of cells) land[c] = 0;
@@ -495,7 +527,7 @@ export function stageStreets(w: Work) {
     let inner = x >= 2 && y >= 2 && x < W - 2 && y < H - 2;
     for (let yy = y - 2; yy <= y + 2 && inner; yy++) for (let xx = x - 2; xx <= x + 2 && inner; xx++) if (!land[yy * W + xx] && !isRoad(yy * W + xx)) inner = false;
     if (!inner) skip[c] = 1;
-    (cellsOf[w.district[c] as number] as number[]).push(c);
+    if ((w.district[c] as number) >= 0) (cellsOf[w.district[c] as number] as number[]).push(c);
   }
   for (const d of order) {
     const g = GROWTH[d.type.streets.pattern] ?? (GROWTH.grid as Growth);
@@ -507,10 +539,15 @@ export function stageStreets(w: Work) {
     const reach = Math.floor((g.maxRun * 2) / 3) * Math.max(cx[d.index] as number, cy[d.index] as number);
     for (let it = 0; it < guard; it++) {
       let best = 0;
+      let nearFar = INF;
       for (const c of cells) {
         const dc = dist[c] as number;
-        if (land[c] && !skip[c] && dc > best && dc <= reach) best = dc;
+        if (!land[c] || skip[c]) continue;
+        if (dc > best && dc <= reach) best = dc;
+        else if (dc > reach && dc < nearFar) nearFar = dc;
       }
+      // Nothing in reach but land beyond it: the nearest of that land (a street reaches out to it).
+      if (best <= COVERED && nearFar < INF) best = nearFar;
       if (best <= COVERED) break;
       const deep: number[] = [];
       for (const c of cells) if (land[c] && !skip[c] && (dist[c] as number) >= best - 150 && (dist[c] as number) <= best) deep.push(c);
@@ -618,6 +655,26 @@ export function endState(s: Segment, end: 0 | 1, W: number, H: number, cover: (c
     const c = y * W + x;
     if (cover(c) >= 1 || square(c)) joined = true;
   });
+  if (!joined && !edge) {
+    // A street met at the end's side (a corner joint, or a T onto the end): a neighbour of the end's band that the run itself does not cover.
+    const self = new Set<number>();
+    forBand(s, Math.min(t, t - 2 * out), Math.max(t, t - 2 * out), (x, y) => {
+      if (x >= 0 && y >= 0 && x < W && y < H) self.add(y * W + x);
+    });
+    forBand(s, t, t, (x, y) => {
+      for (const [nx, ny] of [
+        [x - 1, y],
+        [x + 1, y],
+        [x, y - 1],
+        [x, y + 1],
+      ] as const) {
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const n = ny * W + nx;
+        if (self.has(n)) continue;
+        if (cover(n) >= 1 || square(n)) joined = true;
+      }
+    });
+  }
   return joined ? "joined" : edge ? "edge" : "open";
 }
 
@@ -641,7 +698,7 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
     });
   };
   const free = (c: number) => land[c] === 1 || (pre[c] === Terrain.Grass && (w.district[c] as number) >= 0 && !(w.use[c] as number));
-  for (let round = 0; round < 4; round++) {
+  for (let round = 0; round < 8; round++) {
     let changed = false;
     for (let i = 0; i < w.segments.length; i++) {
       const s = w.segments[i] as Segment;
