@@ -329,9 +329,18 @@ function shoreOf(t: number): Shore {
   }
 }
 
-/** The autotile group of a terrain (as the renderer's `terrainGroup`, plus the v2 codes). */
+/**
+ * The autotile group of a terrain (as the renderer's `terrainGroup`, plus the
+ * v2 codes). Rail, creek and ford cells stand on grass (their own drawing
+ * covers the middle of the cell), so grass beside them draws no edge and a
+ * diagonal line does not leave a staircase of tile edges.
+ */
 function group(t: number): number {
   switch (t) {
+    case K.Rail:
+    case K.Creek:
+    case K.Ford:
+      return K.Grass;
     case K.Road:
     case K.Crossing:
       return K.Road;
