@@ -962,7 +962,8 @@ export function stageLevelEdges(w: Work) {
   for (let y = 0; y < H - 1; y++) {
     for (let x = 0; x < W; x++) {
       const c = y * W + x;
-      if (isWaterBody(w, c) || w.water[c] === WaterKind.Creek) continue;
+      // (A street end's track or footpath stays as laid.)
+      if (isWaterBody(w, c) || w.water[c] === WaterKind.Creek || (w.use[c] as number) & Use.End) continue;
       const lv = w.level[c] as number;
       const below = w.level[c + W] as number;
       const t = w.terrain[c] as number;

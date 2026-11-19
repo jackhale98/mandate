@@ -212,64 +212,95 @@ export function levelCrossing(w: Work, s: Segment, cells: number[]): PlanConnect
 /** Terminations that widen the road (a turning head is part of the street). */
 export const isHead = (k: StreetEndKind | null | undefined) => k === "turning_circle" || k === "hammerhead";
 
-/**
- * The cells of a turning head at a run's end: a turning circle is a square
- * bulb (the art rounds it) about the street's width plus two, pushed out so
- * the run's mouth stays open; a hammerhead is a bar across the run's last
- * cells, two cells wider each side (a T).
- */
-export function headCells(s: Segment, end: 0 | 1, W: number, H: number): number[] {
-  const kind = s.ends[end];
-  const cells: number[] = [];
-  const t = end === 0 ? 0 : segSteps(s);
-  const out = end === 0 ? -1 : 1;
-  if (kind === "hammerhead") {
-    const depth = Math.max(2, Math.min(3, s.width));
-    const n = s.width + 4;
-    const bar: Segment = { ...s, width: n };
-    forBand(bar, Math.min(t, t - out * (depth - 1)), Math.max(t, t - out * (depth - 1)), (x, y) => {
-      if (x >= 0 && y >= 0 && x < W && y < H) cells.push(y * W + x);
-    });
-    return [...new Set(cells)].sort((p, q) => p - q);
-  }
-  const cx = end === 0 ? s.ax : s.bx;
-  const cy = end === 0 ? s.ay : s.by;
-  const r = Math.max(2, (s.width >> 1) + 1);
+/** The cell at position `t` along a run and `k` across its band (k may lie outside the band, either side). */
+export function cellAt(s: Segment, t: number, k: number): [number, number] {
   const [sx, sy] = stepOf(s.axis);
-  const hx = cx + sx * out * (r - 1);
-  const hy = cy + sy * out * (r - 1);
-  for (let y = hy - r; y <= hy + r; y++) for (let x = hx - r; x <= hx + r; x++) if (x >= 0 && y >= 0 && x < W && y < H) cells.push(y * W + x);
-  return cells;
+  const lo = bandLo(s.width);
+  const cx = s.ax + sx * t;
+  const cy = s.ay + sy * t;
+  return s.axis === "h" ? [cx, cy - lo + k] : [cx - lo + k, cy];
 }
 
-/** Paint a turning head: road inside a kerb of pavement (dirt for country lanes). Returns false where it cannot fit. */
+/** The carriageway across a run's band: the first and last index of its road (or track) cells (the whole band for a lane or path). */
+export function carriageway(s: Segment): [number, number] {
+  const prof = profileOf(s.width, s.style, s.axis === "ne" || s.axis === "nw");
+  let a = -1;
+  let b = -1;
+  prof.forEach((t, k) => {
+    if (t === Terrain.Road || t === Terrain.Dirt) {
+      if (a < 0) a = k;
+      b = k;
+    }
+  });
+  return a < 0 ? [0, s.width - 1] : [a, b];
+}
+
+/**
+ * A turning head at a run's end (pixel-art round 6's contract): a turning
+ * circle is a block of (r + 2)² road cells beyond the street's last cells,
+ * r its carriageway's width, centred on it (the art rounds it into a bulb);
+ * a hammerhead is a bar two cells wider each side than the carriageway, as
+ * deep as it is wide (at least two). A ring of pavement goes round either.
+ * `road`: the head's road cells; `all`: with its pavement.
+ */
+export function headShape(s: Segment, end: 0 | 1, W: number, H: number): { road: number[]; all: number[] } {
+  const kind = s.ends[end];
+  const [k0, k1] = carriageway(s);
+  const r = k1 - k0 + 1;
+  const L = segSteps(s);
+  const out = end === 0 ? -1 : 1;
+  const t0 = end === 0 ? 0 : L;
+  let depth: number;
+  let a0: number;
+  let a1: number;
+  if (kind === "hammerhead") {
+    depth = Math.max(2, r - 1);
+    a0 = k0 - 2;
+    a1 = k1 + 2;
+  } else {
+    depth = r + 2;
+    a0 = k0 - 1;
+    a1 = k1 + 1;
+  }
+  const road: number[] = [];
+  const all: number[] = [];
+  for (let d = 0; d <= depth + 1; d++) {
+    for (let k = a0 - 1; k <= a1 + 1; k++) {
+      const [x, y] = cellAt(s, t0 + out * d, k);
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const c = y * W + x;
+      const isRoad = d >= 1 && d <= depth && k >= a0 && k <= a1;
+      // The street's own last cells stay the street's (the ring meets its pavements).
+      if (d === 0 && k >= 0 && k < s.width) continue;
+      if (isRoad) road.push(c);
+      all.push(c);
+    }
+  }
+  return { road, all };
+}
+
+/** Every cell of a turning head (its road and its pavement). */
+export function headCells(s: Segment, end: 0 | 1, W: number, H: number): number[] {
+  return headShape(s, end, W, H).all;
+}
+
+/** Paint a turning head: its road (a track's earth for country lanes) inside a ring of pavement. Returns false where it cannot fit. */
 export function paintHead(w: Work, s: Segment, end: 0 | 1, dry = false): boolean {
   const { W, H } = w;
-  const cells = headCells(s, end, W, H);
-  if (!cells.length) return false;
-  let x0 = W;
-  let y0 = H;
-  let x1 = -1;
-  let y1 = -1;
-  for (const c of cells) {
-    if (isWaterBody(w, c) || (w.use[c] as number) & (Use.Rail | Use.Square | Use.Plot) || w.terrain[c] === Terrain.Rock) return false;
+  const { road, all } = headShape(s, end, W, H);
+  if (!road.length) return false;
+  for (const c of all) {
     const x = c % W;
     const y = (c - x) / W;
-    x0 = Math.min(x0, x);
-    y0 = Math.min(y0, y);
-    x1 = Math.max(x1, x);
-    y1 = Math.max(y1, y);
-    if (x === 0 || y === 0 || x === W - 1 || y === H - 1) return false;
+    if (isWaterBody(w, c) || (w.use[c] as number) & (Use.Rail | Use.Square | Use.Plot) || w.terrain[c] === Terrain.Rock || x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return false;
   }
   if (dry) return true;
-  const set = new Set(cells);
-  const lv = w.level[(s.ends[end] === "hammerhead" ? (end === 0 ? s.ay : s.by) : (y0 + y1) >> 1) * W + (s.ends[end] === "hammerhead" ? (end === 0 ? s.ax : s.bx) : (x0 + x1) >> 1)] as number;
-  for (const c of cells) {
-    const x = c % W;
-    const y = (c - x) / W;
-    // The kerb: a head cell with a neighbour outside the head.
-    const rim = !set.has(c - 1) || !set.has(c + 1) || !set.has(c - W) || !set.has(c + W) || x === x0 || x === x1 || y === y0 || y === y1;
-    const t = s.style === "dirt" ? Terrain.Dirt : s.style === "lane" || s.style === "path" ? Terrain.Pavement : rim ? Terrain.Pavement : Terrain.Road;
+  const roadSet = new Set(road);
+  const [lx, ly] = cellAt(s, end === 0 ? 0 : segSteps(s), bandLo(s.width));
+  const lv = w.level[ly * W + lx] as number;
+  for (const c of all) {
+    const isRoad = roadSet.has(c);
+    const t = s.style === "dirt" ? (isRoad ? Terrain.Dirt : Terrain.Grass) : s.style === "lane" || s.style === "path" ? Terrain.Pavement : isRoad ? Terrain.Road : Terrain.Pavement;
     const cur = w.terrain[c] as number;
     if ((w.use[c] as number) & Use.Road && (RANK[cur] ?? 0) >= (RANK[t] ?? 0)) continue;
     if (w.water[c] === WaterKind.Creek) {
@@ -279,11 +310,13 @@ export function paintHead(w: Work, s: Segment, end: 0 | 1, dry = false): boolean
     }
     w.terrain[c] = t;
     w.level[c] = lv;
-    w.use[c] = (w.use[c] as number) | Use.Road;
+    if (t !== Terrain.Grass) w.use[c] = (w.use[c] as number) | Use.Road;
     if (!w.roadClass[c]) w.roadClass[c] = s.cls || RoadClass.Street;
   }
   return true;
 }
+
+const FACINGS: TownStreetEnd["facing"][] = ["n", "e", "s", "w", "ne", "nw", "se", "sw"];
 
 /** The direction a run travels into its end. */
 export function facingOf(s: Segment, end: 0 | 1): TownStreetEnd["facing"] {
@@ -299,18 +332,26 @@ export function facingOf(s: Segment, end: 0 | 1): TownStreetEnd["facing"] {
   }
 }
 
-/** A recorded street end: the end's last road cells (its head, for a turning head). */
+/** The prop variant of what closes an end (pixel-art round 6): the facing's index, plus 8 for the second look. */
+export const endPropVariant = (facing: TownStreetEnd["facing"], second = false) => FACINGS.indexOf(facing) + (second ? 8 : 0);
+
+/** The last road cells of a run's end (its carriageway on the end's cells, or the whole band of a lane). */
+export function endRoadCells(s: Segment, end: 0 | 1, W: number, H: number): number[] {
+  const [k0, k1] = carriageway(s);
+  const t = end === 0 ? 0 : segSteps(s);
+  const out: number[] = [];
+  for (let k = k0; k <= k1; k++) {
+    const [x, y] = cellAt(s, t, k);
+    if (x >= 0 && y >= 0 && x < W && y < H) out.push(y * W + x);
+  }
+  return out;
+}
+
+/** A recorded street end: the end's last road cells (a turning head's road block), their bounds, and the way the street runs into them. */
 export function streetEndOf(s: Segment, end: 0 | 1, W: number, H: number): TownStreetEnd | null {
   const kind = s.ends[end];
   if (!kind) return null;
-  const cells: number[] = [];
-  if (isHead(kind)) cells.push(...headCells(s, end, W, H));
-  else {
-    const t = end === 0 ? 0 : segSteps(s);
-    forBand(s, t, t, (x, y) => {
-      if (x >= 0 && y >= 0 && x < W && y < H) cells.push(y * W + x);
-    });
-  }
+  const cells = isHead(kind) ? headShape(s, end, W, H).road : endRoadCells(s, end, W, H);
   if (!cells.length) return null;
   let x0 = W;
   let y0 = H;

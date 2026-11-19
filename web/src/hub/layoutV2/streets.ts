@@ -19,7 +19,7 @@
 import { mix } from "../rng";
 import { Terrain, type StreetEndKind } from "../townLayout";
 import { MinHeap } from "./imath";
-import { DIR8, axisOfDir, bandLo, crowded, forBand, headCells, isDiagDir, isHead, levelCrossing, makeSeg, paintHead, paintSegment, segCells, segSteps, stepOf, streetAxes } from "./net";
+import { DIR8, axisOfDir, bandLo, carriageway, cellAt, crowded, endPropVariant, endRoadCells, facingOf, forBand, headCells, isDiagDir, isHead, levelCrossing, makeSeg, paintHead, paintSegment, segCells, segSteps, stepOf, streetAxes, streetEndOf } from "./net";
 import { RoadClass, Use, WaterKind, countrysideMargin, distanceField, isWaterBody, rngOf, type Segment, type Work, type WorkDistrict } from "./work";
 
 /** How a street pattern grows (defaults by pattern name; the registry gives block and depth). */
@@ -230,8 +230,11 @@ export function stageStreets(w: Work) {
     if (x0 < 0 || y0 < 0 || x1 >= W || y1 >= H) return 2;
     const use = w.use;
     const step = h ? W : 1;
+    const zone = w.endZone;
     for (let k = 0, c = y0 * W + x0; k < width; k++, c += step) {
       const u = use[c] as number;
+      // A street end's zone is closed to other streets (they would join its turning head or crowd its gate).
+      if (zone && zone[c]) return 2;
       if (u & (Use.Road | Use.Square)) road = true;
       else if (!land[c] && !crossable(c, dir)) return 2;
     }
@@ -322,6 +325,7 @@ export function stageStreets(w: Work) {
           cells.push(c);
           cover[c] = (cover[c] as number) + 1;
         }
+        holdZone(w, s, end, land);
       }
     }
     for (const c of cells) land[c] = 0;
@@ -472,7 +476,26 @@ export function stageStreets(w: Work) {
     return out;
   };
   /** A turning head stands on land only (never on another street). */
-  const headClear = (s: Segment) => headCells(s, s.ends[1] ? 1 : 0, W, H).every((c) => land[c] === 1);
+  const headClear = (s: Segment) => {
+    const end = s.ends[1] ? 1 : 0;
+    const cells = headCells(s, end, W, H);
+    if (!cells.every((c) => land[c] === 1)) return false;
+    // Two cells clear of every street round it (the end's art zone).
+    let x0 = W;
+    let y0 = H;
+    let x1 = -1;
+    let y1 = -1;
+    for (const c of cells) {
+      const x = c % W;
+      const y = (c - x) / W;
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x);
+      y1 = Math.max(y1, y);
+    }
+    for (let y = Math.max(0, y0 - 2); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 2); x <= Math.min(W - 1, x1 + 2); x++) if (isRoad(y * W + x) || (w.use[y * W + x] as number) & Use.Square) return false;
+    return true;
+  };
 
   const accept = (cand: Cand, d: number): boolean => {
     const segs = cand.legs.map((l) => segOf(l, isDiagDir(l.dir) ? cand.width + 1 : cand.width, cand.style, d, RoadClass.Street));
@@ -530,6 +553,7 @@ export function stageStreets(w: Work) {
         const by = (dir & 3) === 0 ? y - lo + k : y;
         if (bx < 3 || by < 3 || bx >= W - 3 || by >= H - 3) return 2;
         const c = by * W + bx;
+        if (w.endZone?.[c]) return 2;
         if (isRoad(c)) road = true;
         else if (railAx[c]) {
           if (!((railAx[c] === 1 && (dir & 3) === 2) || (railAx[c] === 2 && (dir & 3) === 0))) return 2;
@@ -740,6 +764,21 @@ export function stageStreets(w: Work) {
 }
 
 
+/** Hold a street end's art zone (its cells and two round them, three on a 45° street) from any other street. */
+function holdZone(w: Work, s: Segment, end: 0 | 1, land: Uint8Array) {
+  const { W, H } = w;
+  const rec = streetEndOf(s, end, W, H);
+  if (!rec) return;
+  const pad = s.axis === "ne" || s.axis === "nw" ? 3 : 2;
+  const zone = (w.endZone ??= new Uint8Array(W * H));
+  for (let y = Math.max(0, rec.y - pad); y < Math.min(H, rec.y + rec.h + pad); y++) {
+    for (let x = Math.max(0, rec.x - pad); x < Math.min(W, rec.x + rec.w + pad); x++) {
+      land[y * W + x] = 0;
+      zone[y * W + x] = 1;
+    }
+  }
+}
+
 const GROW_ORDER: Record<string, number> = { core: 0, inner: 1, waterfront: 2, industrial: 3, suburb: 4, rural: 5 };
 
 /** The nearest of the eight directions to a vector, as an axis-defining direction 0..3 (east, north-east, north, north-west). */
@@ -828,7 +867,25 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
     });
   };
   const free = (c: number) => land[c] === 1;
-  const prop = (kind: "bollards" | "railing" | "field_gate", x: number, y: number) => w.props.push({ kind, x, y, blocks: false, variant: mix(w.seed, x, y, 0xe7d) & 0xff });
+  const prop = (kind: "bollards" | "railing" | "field_gate", x: number, y: number, variant: number) => w.props.push({ kind, x, y, blocks: false, variant });
+  /** An end's art zone (its cells and two round them, three on a 45° street) holds no other street and no junction. */
+  const endClear = (s: Segment, end: 0 | 1): boolean => {
+    const rec = streetEndOf(s, end, W, H);
+    if (!rec) return false;
+    const pad = s.axis === "ne" || s.axis === "nw" ? 3 : 2;
+    const own = new Set<number>();
+    segCells(s, W, H, (c) => own.add(c));
+    for (const e of [0, 1] as const) if (isHead(s.ends[e])) for (const c of headCells(s, e, W, H)) own.add(c);
+    for (let y = rec.y - pad; y < rec.y + rec.h + pad; y++) {
+      for (let x = rec.x - pad; x < rec.x + rec.w + pad; x++) {
+        if (!inMap(x, y)) continue;
+        const c = y * W + x;
+        const n = cover[c] as number;
+        if ((own.has(c) ? n >= 2 : n >= 1) || sq(c)) return false;
+      }
+    }
+    return true;
+  };
   for (let round = 0; round < 8; round++) {
     let changed = false;
     for (let i = 0; i < w.segments.length; i++) {
@@ -863,7 +920,8 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
                 return;
               }
               const c = y * W + x;
-              if (cov(c) >= 1 || sq(c)) hit = true;
+              if (w.endZone?.[c]) ok = false;
+              else if (cov(c) >= 1 || sq(c)) hit = true;
               else if (!free(c)) ok = false;
             });
             if (hit) reach = k - 1;
@@ -872,22 +930,25 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
         }
         if (reach >= 0 && s.style === "lane" && reach >= 3) {
           // A paved lane in the old core: bollards across its end, a footpath on to the street ahead.
-          forBand(s, t, t, (x, y) => {
-            if (inMap(x, y)) prop("bollards", x, y);
-          });
-          for (let k = 1; k <= reach + 1; k++) {
-            const x = ex + sx * out * k;
-            const y = ey + sy * out * k;
-            if (!inMap(x, y)) break;
-            const c = y * W + x;
-            if (cov(c) >= 1 || sq(c)) break;
-            w.terrain[c] = Terrain.Path;
-            w.use[c] = (w.use[c] as number) | Use.Lane | Use.End;
-            land[c] = 0;
-          }
           s.ends[end] = "bollards";
-          changed = true;
-          continue;
+          if (endClear(s, end)) {
+            const v = endPropVariant(facingOf(s, end), (mix(w.seed, ex, ey, 0xb0) & 1) === 1);
+            for (const c of endRoadCells(s, end, W, H)) prop("bollards", c % W, Math.floor(c / W), v);
+            for (let k = 1; k <= reach + 1; k++) {
+              const x = ex + sx * out * k;
+              const y = ey + sy * out * k;
+              if (!inMap(x, y)) break;
+              const c = y * W + x;
+              if (cov(c) >= 1 || sq(c)) break;
+              w.terrain[c] = Terrain.Path;
+              w.use[c] = (w.use[c] as number) | Use.Lane | Use.End;
+              land[c] = 0;
+            }
+            holdZone(w, s, end, land);
+            changed = true;
+            continue;
+          }
+          s.ends[end] = null;
         }
         if (reach >= 0) {
           const grown: Segment = withBoxOf({ ...s, ends: [null, null] });
@@ -931,35 +992,54 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
           changed = true;
           continue;
         }
-        // ---- a termination by what the end meets
+        // ---- a termination by what the end meets (kept two cells clear of every other street)
         if (st !== "edge") {
+          // Water just beyond (or a quay): a railing; the countryside: a field gate with a track on into the fields.
           let water = false;
           let country = false;
-          for (let k = 1; k <= 2; k++) {
-            forBand(s, t + out * k, t + out * k, (x, y) => {
-              if (!inMap(x, y)) return;
-              const c = y * W + x;
-              if (isWaterBody(w, c)) water = true;
-              else if (k === 1 && (w.district[c] as number) < 0 && !((w.use[c] as number) & (Use.Rail | Use.Road))) country = true;
-            });
-          }
+          forBand(s, t + out, t + out, (x, y) => {
+            if (!inMap(x, y)) return;
+            const c = y * W + x;
+            if (isWaterBody(w, c) || w.terrain[c] === Terrain.Quay) water = true;
+            else if ((w.district[c] as number) < 0 && !((w.use[c] as number) & (Use.Rail | Use.Road))) country = true;
+          });
+          const [k0, k1] = carriageway(s);
           if (water) {
-            forBand(s, t, t, (x, y) => {
-              if (inMap(x, y)) prop("railing", x, y);
-            });
             s.ends[end] = "railing";
-            changed = true;
-            continue;
+            if (endClear(s, end)) {
+              const v = endPropVariant(facingOf(s, end));
+              for (let k = k0 - 1; k <= k1 + 1; k++) {
+                const [x, y] = cellAt(s, t, k);
+                if (inMap(x, y) && !isWaterBody(w, y * W + x)) prop("railing", x, y, v);
+              }
+              holdZone(w, s, end, land);
+              changed = true;
+              continue;
+            }
+            s.ends[end] = null;
           }
-          const gx = ex + sx * out;
-          const gy = ey + sy * out;
-          if (country && inMap(gx, gy) && !w.use[gy * W + gx] && !isWaterBody(w, gy * W + gx) && w.terrain[gy * W + gx] !== Terrain.Rock) {
-            prop("field_gate", gx, gy);
-            w.use[gy * W + gx] = (w.use[gy * W + gx] as number) | Use.End;
-            land[gy * W + gx] = 0;
+          const [gx, gy] = cellAt(s, t, (k0 + k1) >> 1);
+          const [bx2, by2] = cellAt(s, t + out, (k0 + k1) >> 1);
+          const bc = by2 * W + bx2;
+          if (country && inMap(bx2, by2) && !w.use[bc] && !isWaterBody(w, bc) && (w.terrain[bc] === Terrain.Grass || w.terrain[bc] === Terrain.Field) && Math.min(bx2, by2, W - 1 - bx2, H - 1 - by2) >= 3 && (w.district[bc] as number) < 0 && w.level[bc] === w.level[gy * W + gx]) {
             s.ends[end] = "field_gate";
-            changed = true;
-            continue;
+            if (endClear(s, end)) {
+              prop("field_gate", gx, gy, endPropVariant(facingOf(s, end), (mix(w.seed, gx, gy, 0x9a7e) & 3) === 0));
+              // The road gives way to a farm track a few cells on into the fields.
+              for (let k = 1; k <= 3; k++) {
+                const [x, y] = cellAt(s, t + out * k, (k0 + k1) >> 1);
+                if (!inMap(x, y)) break;
+                const c = y * W + x;
+                if (w.use[c] || isWaterBody(w, c) || !(w.terrain[c] === Terrain.Grass || w.terrain[c] === Terrain.Field) || Math.min(x, y, W - 1 - x, H - 1 - y) < 3 || w.level[c] !== w.level[bc]) break;
+                w.terrain[c] = Terrain.Dirt;
+                w.use[c] = (w.use[c] as number) | Use.End;
+                land[c] = 0;
+              }
+              holdZone(w, s, end, land);
+              changed = true;
+              continue;
+            }
+            s.ends[end] = null;
           }
           // A turning head where the district type has cul-de-sacs.
           const g = s.district >= 0 ? GROWTH[(w.districts[s.district] as WorkDistrict).type.streets.pattern] : undefined;
@@ -968,12 +1048,13 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
             const cells = headCells(s, end, W, H);
             const self = new Set<number>();
             segCells(s, W, H, (c) => self.add(c));
-            if (paintHead(w, s, end, true) && cells.every((c) => land[c] === 1 || self.has(c))) {
+            if (paintHead(w, s, end, true) && cells.every((c) => land[c] === 1 || self.has(c)) && endClear(s, end)) {
               paintHead(w, s, end);
               for (const c of cells) {
                 cover[c] = (cover[c] as number) + 1;
                 land[c] = 0;
               }
+              holdZone(w, s, end, land);
               changed = true;
               continue;
             }
