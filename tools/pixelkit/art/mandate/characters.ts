@@ -163,7 +163,7 @@ export function partList(): { name: string; img: Indexed }[] {
 // ---------------------------------------------------------------------------
 // Slots to palette
 
-function step(p: Palette, rampName: string, k: -1 | 0 | 1): number {
+function step(p: Palette, rampName: string, k: number): number {
   const r = ramp(p, rampName);
   const i = Math.min(r.steps.length - 1, Math.max(0, r.anchorStep + k));
   return r.steps[i] as number;
@@ -190,8 +190,8 @@ export function slotTable(l: Look, p: Palette): Uint8Array {
   t[SLOT.accS] = step(p, l.accentRamp, -1);
   t[SLOT.acc] = step(p, l.accentRamp, 0);
   t[SLOT.accL] = step(p, l.accentRamp, 1);
-  // Eyes: dark, except on the darkest skin, where a dark eye would vanish (a light iris reads instead).
-  t[SLOT.ink] = l.skin >= 5 ? step(p, "chalk", -1) : p.colors.indexOf(LINES.warm);
+  // Eyes: the darkest line colour on the darkest skin (a light eye there read as a mask at 1×), else the warm line.
+  t[SLOT.ink] = l.skin >= 5 ? step(p, "ink", -2) : p.colors.indexOf(LINES.warm);
   t[SLOT.white] = step(p, "chalk", 0);
   const long = l.top === "suit" || l.top === "apron";
   t[SLOT.armR] = long ? (t[SLOT.top] as number) : (t[SLOT.skin] as number);

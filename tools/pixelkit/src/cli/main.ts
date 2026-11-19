@@ -69,8 +69,18 @@ function sheets(pack: ArtPack) {
   png("parts-characters.png", gridSheet("CHARACTER PARTS (RECOLOURED FROM ONE LOOK; SIDE VIEWS FACE RIGHT)", charCells, rgb, { cols: 10, scale: 4, checker: true }));
   const kitSpec: FacadeSpec = { kind: "shop", hood: "inner", w: 3, h: 3, doorX: 1, storeys: 2, visualSeed: 202, named: true, home: false, landmark: false, conditions: [] };
   const kt = kitTable(kitSpec, pal);
-  const kitCells: Cell[] = kitPartList().map((p) => ({ img: remap(p.img, kt), label: p.name.replace("business_association", "business") }));
-  png("parts-kit.png", gridSheet("BUILDING KIT PARTS (RECOLOURED FROM ONE BUILDING'S MATERIALS)", kitCells, rgb, { cols: 10, scale: 4, checker: true }));
+  const board = kitPartList().find((p) => p.name === "sign board")?.img;
+  const kitCells: Cell[] = kitPartList().map((p) => {
+    // Pictograms are shown on their sign board, as they appear on a building.
+    let img = p.img;
+    if (p.name.startsWith("picto") && board) {
+      img = blank(board.w, board.h);
+      blit(img, board, 0, 0);
+      blit(img, p.img, 2, 2);
+    }
+    return { img: remap(img, kt), label: p.name.replace("business_association", "business").replace("_", " ") };
+  });
+  png("parts-kit.png", gridSheet("BUILDING KIT PARTS (RECOLOURED FROM THE MATERIALS OF ONE BUILDING)", kitCells, rgb, { cols: 10, scale: 4, checker: true }));
 
   // ---- townsfolk: 20 and the player, idle in four directions, then the walk down, up and right
   const folk: Cell[] = [];
@@ -92,7 +102,7 @@ function sheets(pack: ArtPack) {
     ["grass", stepColour(pack, "grass", 0)],
   ];
   const rs = new Sheet(20 * 18 * 3 + 20 * 18 + 48, 30 + grounds.length * 82);
-  rs.text("THE 20 TOWNSFOLK AT 1× AND 3× ON THE STREET'S GROUNDS", 8, 8);
+  rs.text("THE 20 TOWNSFOLK AT 1× AND 3× ON THE GROUNDS OF THE STREET", 8, 8);
   grounds.forEach(([name, c], gi) => {
     const y = 30 + gi * 82;
     rs.rect(8, y, 20 * 18 + 8, 30, c);
@@ -122,7 +132,7 @@ function sheets(pack: ArtPack) {
     if (t !== "crossing") terr.fills.forEach((f) => tcells.push({ img: f }));
     for (let k = t === "crossing" ? 0 : terr.fills.length; k < 3; k++) tcells.push({ img: blank(16, 16) });
   }
-  png("tiles.png", gridSheet("GROUND TILES: EACH TERRAIN'S 47 AUTOTILES, THEN ITS FILL VARIANTS", tcells, rgb, { cols: 51, scale: 3, pad: 3 }));
+  png("tiles.png", gridSheet("GROUND TILES: THE 47 AUTOTILES OF EACH TERRAIN, THEN ITS FILL VARIANTS", tcells, rgb, { cols: 51, scale: 3, pad: 3 }));
   const templates: Cell[] = TERRAINS.map((t) => ({ img: pack.tiles.terrains[t]?.template ?? blank(32, 48), label: t }));
   png("tile-templates.png", gridSheet("AUTOTILE TEMPLATES (32×48, BUILT FROM A HAND-DRAWN FILL AND FOUR EDGE PROFILES)", templates, rgb, { cols: 7, scale: 4 }));
 

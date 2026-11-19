@@ -113,6 +113,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # The pixel-art tool (DEC-084): typecheck (with web's TypeScript) and its own tests, goldens included.
+      - name: Pixel-art tool
+        working-directory: tools/pixelkit
+        run: npm run check
       # The site (DEC-083): the landing page at the base, the game at play/.
       - run: npm run build
       # Throwaway rendering prototype (DEC-050), published unlinked at /spike-hub/

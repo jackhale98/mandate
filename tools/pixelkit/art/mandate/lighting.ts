@@ -30,7 +30,7 @@ const NIGHT: Omit<GradeKey, "at"> = {
   glowAlpha: 0.3,
   sat: 0.55,
   lights: 1,
-  mood: { L: 0.4, lift: 0.035, C: 0.5, hue: 266, amt: 1 },
+  mood: { L: 0.4, lift: 0.035, C: 0.42, hue: 266, amt: 1 },
   sprite: 0.42,
 };
 
@@ -39,12 +39,12 @@ export const KEYS: readonly GradeKey[] = [
   { at: 0, ...NIGHT },
   { at: 270, ...NIGHT },
   { at: 330, mul: "#7c80b4", glow: "#38468a", glowAlpha: 0.22, sat: 0.6, lights: 0.9, mood: { L: 0.52, lift: 0.035, C: 0.6, hue: 258, amt: 0.9 }, sprite: 0.6 },
-  { at: 390, mul: "#f2b496", glow: "#ff8a40", glowAlpha: 0.32, sat: 0.85, lights: 0.3, mood: { L: 0.88, lift: 0.0, C: 1.08, hue: 42, amt: 0.6 }, sprite: 0.5 },
+  { at: 390, mul: "#f2b496", glow: "#ff8a40", glowAlpha: 0.32, sat: 0.85, lights: 0.3, mood: { L: 0.86, lift: 0.0, C: 1.1, hue: 42, amt: 1 }, sprite: 0.5 },
   { at: 480, mul: "#fff4e2", glow: "#ffd7a0", glowAlpha: 0.1, sat: 0.95, lights: 0, mood: { L: 1, lift: 0, C: 1, hue: 80, amt: 0.06 }, sprite: 0.5 },
   { at: 720, mul: "#ffffff", glow: "#ffffff", glowAlpha: 0, sat: 1, lights: 0, mood: { L: 1, lift: 0, C: 1, hue: 0, amt: 0 }, sprite: 1 },
   { at: 900, mul: "#fff8ec", glow: "#ffe4b0", glowAlpha: 0.06, sat: 1, lights: 0, mood: { L: 1, lift: 0, C: 1, hue: 75, amt: 0.04 }, sprite: 0.5 },
-  { at: 1080, mul: "#ffe0b4", glow: "#f0a848", glowAlpha: 0.28, sat: 1, lights: 0.1, mood: { L: 0.97, lift: 0, C: 1.15, hue: 62, amt: 0.65 }, sprite: 0.45 },
-  { at: 1170, mul: "#a892d0", glow: "#6a4aa8", glowAlpha: 0.28, sat: 0.8, lights: 0.7, mood: { L: 0.66, lift: 0.02, C: 0.95, hue: 318, amt: 0.85 }, sprite: 0.55 },
+  { at: 1080, mul: "#ffe0b4", glow: "#f0a848", glowAlpha: 0.28, sat: 1, lights: 0.1, mood: { L: 0.95, lift: 0, C: 1.04, hue: 58, amt: 1.1 }, sprite: 0.45 },
+  { at: 1170, mul: "#a892d0", glow: "#6a4aa8", glowAlpha: 0.28, sat: 0.8, lights: 0.7, mood: { L: 0.64, lift: 0.02, C: 0.95, hue: 318, amt: 1.1 }, sprite: 0.55 },
   { at: 1230, ...NIGHT },
 ];
 
