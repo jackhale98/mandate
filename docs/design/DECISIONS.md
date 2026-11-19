@@ -92,6 +92,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-083 | Landing page at the site root; the game moves to `play/` | Accepted |
 | DEC-084 | Pixel-art tool: hand-drawn parts composed by code; spike before M6 art | Accepted |
 | DEC-085 | Town layout on the client, versioned so a town never rearranges | Accepted |
+| DEC-086 | Town map overview replaces the place list as the main town view | Accepted |
 
 ---
 
@@ -1765,3 +1766,15 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Old layout versions accumulate as code. They are small, and could be retired at a save-format break.
   - Other clients (a native app) would have to port the algorithm bit-exactly, or switch to A.
 - **Dependencies:** DEC-009, DEC-041 (its ideas, applied on the client), DEC-044, DEC-074, DEC-079, DEC-080.
+
+### DEC-086 — Town map overview
+
+- **Status:** Accepted (owner, 2026-11-19). The owner's idea: "instead of showing a list of places like we have now we should consider a method for generating a lower resolution map of the area with the connections shown and the buildings listed. This would make it feel more like a game and less like a job and make you care more about the places since you can see how they're connected." Owner: "Yes add it to the queue."
+- **Decision:**
+  - The town screen's main view becomes an illustrated, low-resolution **town map** drawn from the same versioned layout as the walkable street (DEC-085), so the two always agree.
+  - It shows neighbourhoods as tinted districts, the main roads and the routes between places, landmarks as small recognisable buildings with names, your home and current location, and markers on places where something is waiting (a decision, a person to meet).
+  - Tapping a building travels there (the existing located-action rules, DEC-079). In M6 the map zooms into the walkable street.
+  - The place list stays as an accessible text view (DEC-051) and for screen readers; nothing is reachable only through the map.
+  - It is presentation only: no engine or protocol change. It ships before M6's walkable town, as soon as the UI polish round and M5d part 1 have landed.
+- **Later:** the same treatment for the region and the country in M7 (towns joined by roads and rail, for travel).
+- **Dependencies:** DEC-047, DEC-049, DEC-051, DEC-079, DEC-080, DEC-084, DEC-085.
