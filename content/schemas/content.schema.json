@@ -5655,6 +5655,83 @@
       ],
       "type": "object"
     },
+    "LocalConcernParams": {
+      "additionalProperties": false,
+      "description": "Neighbourhood concern levels: the town's indicators are measured per\ntown; each neighbourhood feels them through its own residents, homes and\nsurroundings. A neighbourhood's indicator is the town's × a relative\nfactor, scaled so the residents' weighted mean over the town is 1 (the\ntown's own figure is unchanged). Tax burden and budget stress are felt at\nthe town's level everywhere; a recent disaster by its impact (DEC-090 D8).",
+      "properties": {
+        "job_loss_decline": {
+          "description": "Weight of a sector's decline since play began (1 − jobs ÷ its\nstarting jobs) beside its cyclicality in who feels the town's job\nlosses.",
+          "format": "double",
+          "type": "number"
+        },
+        "jobs_sector_tilt": {
+          "description": "Share of the jobs a district's sectors lost since play began, beyond\nthe town's average, that adds to its unemployment rate (0: by income\nclass alone).",
+          "format": "double",
+          "type": "number"
+        },
+        "pollution": {
+          "$ref": "#/$defs/NeighborhoodLean",
+          "description": "Exposure to the region's pollution by neighbourhood kind, before\nworkplaces and water."
+        },
+        "pollution_floodplain": {
+          "description": "Added exposure × the district's flood exposure (0..1): the low land\nby the river or shore takes the runoff.",
+          "format": "double",
+          "type": "number"
+        },
+        "pollution_next_door": {
+          "description": "Added exposure per polluting workplace in a neighbouring district.",
+          "format": "double",
+          "type": "number"
+        },
+        "pollution_workplace": {
+          "description": "Added exposure per polluting workplace (an industrial or extraction\nworkplace in `workplaces`) in the district.",
+          "format": "double",
+          "type": "number"
+        },
+        "rent": {
+          "$ref": "#/$defs/NeighborhoodLean",
+          "description": "Rent by neighbourhood kind, relative (every kind > 0). A district's\nrent burden is its rent over its residents' incomes (the mean of\nrent ÷ income across its income classes)."
+        },
+        "rent_growth": {
+          "description": "Elasticity of a district's rent to how much faster it has grown since\nplay began than its town (residents against their baseline).",
+          "format": "double",
+          "type": "number"
+        },
+        "sector_kinds": {
+          "description": "A district's extra share of a sector's workers by its kind.",
+          "items": {
+            "$ref": "#/$defs/SectorKindLean"
+          },
+          "type": "array"
+        },
+        "workplace_affinity": {
+          "description": "A district's extra share of a sector's workers per workplace of that\nsector in it (half for one next door).",
+          "format": "double",
+          "type": "number"
+        },
+        "workplaces": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SectorDriver"
+          },
+          "description": "Place kinds (snake-case keys) that employ a sector driver's workers.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "rent",
+        "rent_growth",
+        "pollution",
+        "pollution_workplace",
+        "pollution_next_door",
+        "pollution_floodplain",
+        "workplaces",
+        "workplace_affinity",
+        "sector_kinds",
+        "job_loss_decline",
+        "jobs_sector_tilt"
+      ],
+      "type": "object"
+    },
     "MapLayerBreaks": {
       "description": "How a sequential layer's class breaks are drawn.",
       "oneOf": [
@@ -6635,6 +6712,10 @@
           "format": "double",
           "type": "number"
         },
+        "local_concerns": {
+          "$ref": "#/$defs/LocalConcernParams",
+          "description": "How a neighbourhood's own conditions turn its town's indicators into\nits own concern levels."
+        },
         "player_approval_rate": {
           "description": "Monthly pull of approval of the player toward reactions to their bills.",
           "format": "double",
@@ -6657,7 +6738,8 @@
         "law_reaction_weight",
         "gov_approval_rate",
         "player_approval_rate",
-        "player_reaction_scale"
+        "player_reaction_scale",
+        "local_concerns"
       ],
       "type": "object"
     },
@@ -8202,6 +8284,23 @@
           "type": "string"
         }
       ]
+    },
+    "SectorKindLean": {
+      "additionalProperties": false,
+      "description": "Extra share of one sector driver's workers by neighbourhood kind.",
+      "properties": {
+        "driver": {
+          "$ref": "#/$defs/SectorDriver"
+        },
+        "kinds": {
+          "$ref": "#/$defs/NeighborhoodLean"
+        }
+      },
+      "required": [
+        "driver",
+        "kinds"
+      ],
+      "type": "object"
     },
     "Selection": {
       "oneOf": [

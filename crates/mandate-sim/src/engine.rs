@@ -162,16 +162,30 @@ impl Engine {
         let keys: Vec<String> = content.concern_keys().cloned().collect();
         if state.population.concern_keys != keys
             || state.population.town_concerns.len() != state.world.municipalities.len()
-            || state
-                .population
-                .town_concerns
-                .iter()
-                .any(|t| t.salience.len() != state.population.attitude_count())
+            || state.population.town_concerns.iter().any(|t| {
+                t.salience.len() != state.population.attitude_count()
+                    || t.measured.len() != t.levels.len()
+            })
         {
-            let towns =
-                crate::concerns::compute_all(&crate::scheduler::Reads::of_state(&state, &content));
+            let (towns, hoods) = crate::concerns::compute_all(
+                &crate::scheduler::Reads::of_state(&state, &content),
+                &state.population,
+            );
             state.population.town_concerns = towns;
+            state.population.hood_concerns = hoods;
             state.population.concern_keys = keys;
+        } else if !crate::concerns::hoods_current(&state.population, &state.world) {
+            // A run from before neighbourhood concerns (save format v17):
+            // derive them, and the felt town levels that aggregate them. The
+            // measured levels and salience (the town's politics) are kept.
+            let (towns, hoods) = crate::concerns::compute_all(
+                &crate::scheduler::Reads::of_state(&state, &content),
+                &state.population,
+            );
+            for (t, n) in state.population.town_concerns.iter_mut().zip(towns) {
+                t.levels = n.levels;
+            }
+            state.population.hood_concerns = hoods;
         }
         // Characters (DEC-031): records for politicians from older saves,
         // Named characters for a game in play, and town characters for a

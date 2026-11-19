@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 17;
+pub const SAVE_FORMAT_VERSION: u16 = 18;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -180,6 +180,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Conversations (DEC-093): the previous format to the next.
         // Renumber only this key if another bump merges first.
         (16, talk_state),
+        // Neighbourhood concern levels (N1): the previous format to the
+        // next. Renumber only this key if another bump merges first.
+        (17, hood_concerns),
     ];
     let mut value = value;
     let mut v = from;
@@ -457,6 +460,31 @@ fn talk_state(mut value: serde_json::Value) -> Result<serde_json::Value, SaveErr
     if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
         p.remove("talk");
     }
+    Ok(value)
+}
+
+/// Previous format → next (v17 → v18 when written; N1): each
+/// neighbourhood's own concern levels, and a town's levels split into felt
+/// and measured. A town's stored levels were measured from its town-wide
+/// indicators: they become `measured`, beside the salience they produced
+/// (the town's politics are unchanged). Neighbourhood levels are derived
+/// state: the step leaves them empty and the engine derives them on load
+/// from the run's state and content, the same every time
+/// (`concerns::compute_all`), with the felt town levels that aggregate them.
+fn hood_concerns(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::Value;
+    let pop = value
+        .pointer_mut("/state/population")
+        .and_then(Value::as_object_mut)
+        .ok_or(SaveError::Malformed)?;
+    if let Some(towns) = pop.get_mut("town_concerns").and_then(Value::as_array_mut) {
+        for t in towns {
+            let t = t.as_object_mut().ok_or(SaveError::Malformed)?;
+            let levels = t.get("levels").cloned().unwrap_or(Value::Array(Vec::new()));
+            t.insert("measured".into(), levels);
+        }
+    }
+    pop.insert("hood_concerns".into(), Value::Array(Vec::new()));
     Ok(value)
 }
 
