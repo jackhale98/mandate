@@ -1441,6 +1441,11 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Verification:** the bot tournament (DEC-072) must show mixed approaches beating single-lever strategies, with no dominant strategy. Each new action added to content must list its costs here.
 - **Deferred:** NPC health and exhaustion (NPCs remain symmetric in slots and odds, but their health is abstracted).
 
+- **Honest odds (owner, 2026-11-19).** The owner asked whether shown probabilities are real.
+  - Shown and rolled odds come from the same function at the same moment: town hall hostility, press gaffe, lobbying, the shady-act exposure chance (rolled once at the act; the director shifts only the date), charges and conviction.
+  - The formulas' inputs are design values tuned in the lab, not real-world statistics.
+  - A **calibration gate** (M6 task L1) checks that, over many bot runs, events happen as often as the odds shown before them said, within statistical noise.
+
 ### DEC-074 — Saves across app updates (revises DEC-044 and DEC-070)
 
 - **Status:** Accepted (owner question, 2026-11-18: "is there a risk … a web update to the engine would make it not deterministic?").
