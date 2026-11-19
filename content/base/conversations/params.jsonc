@@ -37,6 +37,7 @@
       { "who": "leader", "subject": "broker", "level": "known" },
       { "who": "stake_overlap", "subject": "broker", "level": "detailed" },
       { "who": "broker", "subject": "broker", "level": "detailed" },
+      { "who": "politician", "subject": "broker", "level": "heard" },          // owner: politicians have at least heard who runs things
       { "who": "politician", "subject": "rival_plans", "level": "known" },
       { "who": "politician", "subject": "policy_support", "level": "known" },
       { "who": "sponsor", "subject": "sponsored_proposals", "level": "detailed" },
