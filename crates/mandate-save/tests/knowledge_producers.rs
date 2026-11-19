@@ -436,8 +436,9 @@ fn the_knows_condition_gates() {
     assert_eq!(parsed, knows(SubjectDef::Broker, Level::Heard));
 }
 
-/// Base content plus a test pack: a dilemma whose trigger is a `knows`
-/// condition and whose options `reveal_place` and `learn`.
+/// Base content plus a test pack: a dilemma whose options `reveal_place`
+/// and `learn` (its trigger is not a `knows` condition: those are refused
+/// in triggers, DEC-091, `knows_never_decides_what_happens`).
 fn content_with_tip() -> Arc<ContentBundle> {
     let mut src =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
@@ -446,7 +447,7 @@ fn content_with_tip() -> Arc<ContentBundle> {
         text: r#"{"kind":"dilemmas","items":[{"id":"dilemma.test_tip","category":"significant",
           "title_key":"test-tip","situation_key":"test-tip",
           "roles":[{"id":"hood","cast":{"type":"ward_neighborhood"}}],
-          "triggers":[{"type":"knows","subject":{"type":"broker"},"min":"known"}],
+          "triggers":[{"type":"months_in_play","min":1}],
           "cooldown_days":30,
           "options":[
             {"id":"follow","label_key":"test-tip","aftermath_key":"test-tip","effects":[
@@ -685,4 +686,71 @@ fn stories_and_decisions_teach_through_effects() {
     }
     assert!(story, "a story named someone");
     assert!(decision, "a decision named someone");
+}
+
+/// A decision opened on a turn's last day still teaches its cast `heard`
+/// (`known` for the goal holder who raised it): the director runs after
+/// the day's effect appliers, so its requests are applied when the turn
+/// ends (the engine's settle step) rather than dropped.
+#[test]
+fn a_decision_opened_on_a_turns_last_day_teaches_its_cast() {
+    let c = content();
+    let mut checked = 0;
+    for seed in 46..58u64 {
+        let mut e = game(seed, &c);
+        // Line the turns up with the director's week, so that it runs on
+        // each turn's last day.
+        let end = e.state().calendar.date.0 + e.turn_days();
+        let shift = (7 - end % 7) % 7;
+        if shift > 0 {
+            e.apply(Command::AdvanceDays { days: shift }).unwrap();
+        }
+        for _ in 0..40 {
+            let before = ledger(&e).clone();
+            e.apply(Command::EndTurn).unwrap();
+            let today = e.state().calendar.date;
+            let me = e.state().player.as_ref().unwrap().politician;
+            let me = e.state().politics.get(me).unwrap().character;
+            for d in e.state().narrative.decisions.iter() {
+                if d.opened != today {
+                    continue;
+                }
+                for x in &d.cast {
+                    let Actor::Person { id } = x.actor else {
+                        continue;
+                    };
+                    if id == me {
+                        continue;
+                    }
+                    let s = Subject::Person { person: id };
+                    let want = if d.goal.as_ref().is_some_and(|(h, _)| *h == id) {
+                        Level::Known
+                    } else {
+                        Level::Heard
+                    };
+                    assert!(
+                        level(&e, &s) >= want,
+                        "seed {seed}: decision {} opened {today:?} left {id:?} at {:?}",
+                        d.id.0,
+                        level(&e, &s)
+                    );
+                    if before.level(&s) < want {
+                        let learned = &ledger(&e).entries[&s].learned;
+                        assert!(
+                            learned
+                                .iter()
+                                .any(|l| l.source == Source::Decision { decision: d.id }
+                                    && l.on == today),
+                            "seed {seed}: the decision taught it"
+                        );
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        if checked >= 3 {
+            break;
+        }
+    }
+    assert!(checked > 0, "no decision opened on a turn's last day");
 }

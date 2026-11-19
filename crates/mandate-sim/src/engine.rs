@@ -22,10 +22,38 @@ pub struct Engine {
     terrain: Option<Arc<crate::world::TerrainData>>,
     content: Arc<ContentBundle>,
     schedule: Schedule,
+    /// The day's effect appliers, run once more after an advance's last day
+    /// so that nothing queued late in it is lost (`settle`).
+    appliers: Schedule,
     command_log: Vec<LoggedCommand>,
     next_command: u64,
-    /// Effects queued by lab commands, delivered on the next advance.
+    /// Effects delivered on the next advance: those queued by lab commands,
+    /// and those an advance left for an applier that runs monthly.
     pending_effects: Vec<crate::scheduler::Effect>,
+}
+
+/// The daily systems that only apply effect requests other systems made
+/// (OVERVIEW §4.3), in schedule order: run once more at the end of an
+/// advance (`Engine::settle`). Each must do nothing but drain its effects
+/// (re-running it on the same day with an empty queue changes nothing).
+const SETTLE_APPLIERS: [&str; 4] = [
+    "population.coverage",
+    "characters.effects",
+    "politics.media_effects",
+    "player.effects",
+];
+
+/// Effects whose applier runs monthly (the economy's and population's):
+/// still queued after an advance, they wait for the next one.
+fn waits_for_monthly(e: &crate::scheduler::Effect) -> bool {
+    use crate::scheduler::Effect;
+    matches!(
+        e,
+        Effect::HousingDamage { .. }
+            | Effect::SectorShock { .. }
+            | Effect::Displacement { .. }
+            | Effect::HoodDisaster { .. }
+    )
 }
 
 fn short(h: &str) -> String {
@@ -162,6 +190,12 @@ impl Engine {
             terrain: None,
             content,
             schedule: Schedule::new(default_systems()),
+            appliers: Schedule::new(
+                default_systems()
+                    .into_iter()
+                    .filter(|s| SETTLE_APPLIERS.contains(&s.name))
+                    .collect(),
+            ),
             command_log: Vec::new(),
             next_command: 0,
             pending_effects: Vec::new(),
@@ -369,6 +403,7 @@ impl Engine {
                     );
                     left -= step;
                 }
+                self.settle(seeded);
                 CommandOutcome {
                     days_advanced: *days,
                     turn: self.state.calendar.turn,
@@ -395,9 +430,10 @@ impl Engine {
         // NPCs act in the same turn as the player, before time moves (DEC-030).
         self.npc_turns();
         let seeded = std::mem::take(&mut self.pending_effects);
-        let _ =
+        let left =
             self.schedule
                 .advance_with(&mut self.state, &self.content, days, seeded, &mut |_| {});
+        self.settle(left);
         self.state.calendar.turn += 1;
         let turn = self.state.calendar.turn;
         self.state.events.record(
@@ -412,6 +448,33 @@ impl Engine {
         }
         self.update_phase();
         days
+    }
+
+    /// Deliver what an advance left queued (OVERVIEW §4.3): requests made
+    /// on its last day after their applier ran (the director opens a
+    /// decision after `player.effects`, so its cast's `heard` would be lost).
+    /// The day's effect appliers run once more, on the same date and in
+    /// schedule order; requests for a monthly applier wait for the next
+    /// advance. So a turn ends with nothing queued, and a save between
+    /// turns misses nothing. Nothing runs when nothing is left (a run without
+    /// late requests is unchanged), and no RNG is drawn.
+    fn settle(&mut self, left: Vec<crate::scheduler::Effect>) {
+        if left.is_empty() {
+            return;
+        }
+        // `advance_with` steps one day forward: start it from the day
+        // before, so the appliers run on today's date.
+        let today = self.state.calendar.date;
+        self.state.calendar.date = mandate_core::SimDate(today.0.saturating_sub(1));
+        let rest = self
+            .appliers
+            .advance_with(&mut self.state, &self.content, 1, left, &mut |_| {});
+        debug_assert_eq!(self.state.calendar.date, today);
+        self.state.calendar.date = today;
+        // What no applier took is either for a monthly applier, or for the
+        // player domain when there is no player (dropped).
+        self.pending_effects
+            .extend(rest.into_iter().filter(waits_for_monthly));
     }
 
     /// NPC-only history before play begins (DEC-022). Not logged as a command:

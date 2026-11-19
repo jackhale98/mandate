@@ -36,11 +36,12 @@ pub struct Composed<'c> {
 }
 
 /// The speaker's voice: the highest-priority voice whose conditions all
-/// hold (ties: load order).
+/// hold (ties: load order). A voice whose conditions name a voice (refused
+/// by validation) is skipped, so the `voice` condition cannot recurse.
 pub fn voice<'c>(ctx: &Ctx<'c>) -> Option<&'c VoiceDef> {
     let mut best: Option<&VoiceDef> = None;
     for v in &ctx.content.talk_voices {
-        if best.is_some_and(|b| b.priority >= v.priority) {
+        if best.is_some_and(|b| b.priority >= v.priority) || v.when.iter().any(names_voice) {
             continue;
         }
         if ctx.all_hold(&v.when, &mut Args::new()) {
@@ -48,6 +49,15 @@ pub fn voice<'c>(ctx: &Ctx<'c>) -> Option<&'c VoiceDef> {
         }
     }
     best
+}
+
+fn names_voice(c: &mandate_content::SituationCondition) -> bool {
+    use mandate_content::SituationCondition as U;
+    match c {
+        U::Voice { .. } => true,
+        U::Any { of } => of.iter().any(names_voice),
+        _ => false,
+    }
 }
 
 fn holding<'c>(

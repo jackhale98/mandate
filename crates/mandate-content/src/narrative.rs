@@ -465,6 +465,10 @@ pub enum Condition {
     MonthsInPlay { min: u32 },
     /// The player knows the subject at least this well (DEC-091; default
     /// `heard`). A subject naming several places holds if any is known.
+    /// Framing only (scene variants, lines, option framing, leads):
+    /// validation refuses it where a condition decides whether something
+    /// happens (dilemma triggers, goal conditions, storyline starts and
+    /// advances), because the world does not wait for the player.
     Knows {
         subject: SubjectDef,
         #[serde(default = "heard")]
@@ -1173,6 +1177,25 @@ impl Refs<'_> {
         check_subject(self.owner, self.b, s, issues);
     }
 
+    /// A condition that decides whether something happens: a dilemma's
+    /// triggers, a goal's conditions, a storyline's start and stage
+    /// advances. The world does not wait for the player (DEC-091): what
+    /// the player knows may frame what they are shown (scene variants,
+    /// lines, option framing, leads), never whether an event, decision,
+    /// goal or storyline step happens, so `knows` is refused here.
+    fn trigger(&self, what: &str, c: &Condition, issues: &mut Vec<Issue>) {
+        if matches!(c, Condition::Knows { .. }) {
+            issues.push(Issue::error(
+                self.owner,
+                &format!(
+                    "a `knows` condition in {what}: what the player knows frames what they \
+                     are shown, never whether something happens (DEC-091)"
+                ),
+            ));
+        }
+        self.condition(c, issues);
+    }
+
     fn condition(&self, c: &Condition, issues: &mut Vec<Issue>) {
         for r in c.roles() {
             self.role(r, issues);
@@ -1431,7 +1454,7 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
     let roles = check_roles(owner, b, &d.roles, request, issues);
     let scope = Refs { owner, b, roles };
     for c in &d.triggers {
-        scope.condition(c, issues);
+        scope.trigger("a dilemma's triggers", c, issues);
     }
     // A raised decision answers a story or a case: four answers and silence.
     let most = if d.raised_by.is_some() { 5 } else { 4 };
@@ -1759,7 +1782,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             roles: vec!["holder"],
         };
         for c in &g.conditions {
-            scope.condition(c, issues);
+            scope.trigger("a goal's conditions", c, issues);
         }
         let ok = match &g.drive {
             GoalDrive::None => true,
@@ -1830,7 +1853,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         let roles = check_roles(owner, b, &s.roles, false, issues);
         let scope = Refs { owner, b, roles };
         for c in &s.start {
-            scope.condition(c, issues);
+            scope.trigger("a storyline's start", c, issues);
         }
         if s.stages.is_empty() {
             issues.push(Issue::error(owner, "a storyline needs stages"));
@@ -1850,7 +1873,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 ));
             }
             for c in &st.advance {
-                scope.condition(c, issues);
+                scope.trigger("a storyline stage's advance", c, issues);
             }
             if let Some(dk) = &st.decision {
                 match b.dilemma(dk) {
