@@ -1,18 +1,20 @@
 // The layout v2 content registries (DEC-090 D4, TOWN_GENERATION.md §6):
-// district types, terrain features, connectors and place layout blocks, as
-// JSONC under ./registry, typed here and validated by `validateRecipe`.
+// district types, terrain features, connectors and place layout blocks.
 //
-// Stage A keeps them on the client because the content crates are being
-// changed elsewhere; stage B moves the four files into mandate-content
-// (Rust types, generated schemas, `mandate-cli content validate`) without
-// changing their shape, and the engine sends them as `LayoutContentView`.
+// They are content (content/base/layout/*.jsonc and the `layout` blocks of
+// content/base/places.jsonc), typed and validated in mandate-content
+// (crates/mandate-content/src/layout.rs, `mandate-cli content validate`).
+// The engine sends them as `LayoutContentView` (query `layout_content`, no
+// game needed) and never interprets them; `recipeFromView` turns the view
+// into the generator's recipe, cached by content hash. `BASE_RECIPE` is the
+// base content's view as a committed fixture (./registry/base.json, kept
+// equal to the engine's by a mandate-protocol test): the tests' recipe, and
+// the default for callers without an engine.
 // A recipe is the set of entries a plan was made with (§6.6, option C): a
 // run stores the snapshot of what its towns used, so later content changes
-// never rearrange them.
-import connectorsSrc from "./registry/connectors.jsonc?raw";
-import placesSrc from "./registry/place_layouts.jsonc?raw";
-import featuresSrc from "./registry/terrain_features.jsonc?raw";
-import districtsSrc from "./registry/town_districts.jsonc?raw";
+// never rearrange them (`recipeForTown`, `rememberRecipe`).
+import type { LayoutContentView } from "../../engine/protocol/LayoutContentView";
+import baseView from "./registry/base.json";
 import { parseJsonc } from "./jsonc";
 
 export const STREET_PATTERNS = ["organic", "grid", "curvy", "contour", "yards", "quay", "ribbon"] as const;
@@ -149,7 +151,7 @@ const items = <T>(src: string, kind: string): T[] => {
   return doc.items;
 };
 
-/** Read the four registry files (JSONC text) into a recipe. */
+/** Read four registry texts (JSONC) into a recipe: a pack's own files, for tests. The game reads the engine's view. */
 export function recipeFromSources(src: { districts: string; features: string; connectors: string; places: string }): Recipe {
   return {
     districts: items<DistrictType>(src.districts, "town_districts"),
@@ -159,11 +161,62 @@ export function recipeFromSources(src: { districts: string; features: string; co
   };
 }
 
-/** The base game's registries. */
-export const BASE_RECIPE: Recipe = recipeFromSources({ districts: districtsSrc, features: featuresSrc, connectors: connectorsSrc, places: placesSrc });
+const byHash = new Map<string, Recipe>();
+
+/**
+ * The engine's layout registries as the generator's recipe, cached by content
+ * hash. The generated view types must fit the recipe's types, so a change of
+ * shape on either side fails to compile.
+ */
+export function recipeFromView(v: LayoutContentView): Recipe {
+  const hit = v.content_hash ? byHash.get(v.content_hash) : undefined;
+  if (hit) return hit;
+  const r: Recipe = { districts: v.districts, features: v.features, connectors: v.connectors, places: v.places };
+  if (v.content_hash) byHash.set(v.content_hash, r);
+  return r;
+}
+
+/** The base game's registries: the engine's view of the base content (a fixture the Rust tests keep current). */
+export const BASE_RECIPE: Recipe = recipeFromView({ content_hash: "", ...(baseView as unknown as Omit<LayoutContentView, "content_hash">) });
 
 // ---------------------------------------------------------------------------
-// Validation (stage B: generated schemas and `mandate-cli content validate`)
+// Recipe snapshots (§6.6 option C)
+
+/** Where snapshots live: localStorage in the prototype; the run's metadata once runs keep their towns. */
+export interface RecipeStore {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+const snapshotKey = (run: string, town: string, version: number) => `mandate.layout.recipe:v${version}:${run}:${town}`;
+const isRecipe = (r: unknown): r is Recipe =>
+  typeof r === "object" && r !== null && (["districts", "features", "connectors", "places"] as const).every((k) => Array.isArray((r as Record<string, unknown>)[k]));
+
+/** The recipe to plan a town with: the snapshot stored when the town was first shown, else the live registries. */
+export function recipeForTown(store: RecipeStore | null, run: string, town: string, version: number, live: Recipe): { recipe: Recipe; from: "snapshot" | "live" } {
+  try {
+    const text = store?.getItem(snapshotKey(run, town, version));
+    const r: unknown = text ? JSON.parse(text) : null;
+    if (isRecipe(r)) return { recipe: r, from: "snapshot" };
+  } catch {
+    // Unreadable or blocked storage: plan from the live registries.
+  }
+  return { recipe: live, from: "live" };
+}
+
+/** Store the entries a town's plan used (`TownPlan.recipe`) the first time it is shown; later layouts of the town use them. */
+export function rememberRecipe(store: RecipeStore | null, run: string, town: string, version: number, used: Recipe): void {
+  try {
+    const key = snapshotKey(run, town, version);
+    if (store && store.getItem(key) === null) store.setItem(key, JSON.stringify(used));
+  } catch {
+    // Storage full or blocked: the town is planned from the live registries next time.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Validation. The engine validates content (mandate-content/src/layout.rs);
+// this is the client's check of a recipe built by hand (tests, packs).
 
 const isRange = (r: unknown, lo = 0, hi = 1e9): r is Range =>
   Array.isArray(r) && r.length === 2 && r.every((v) => typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi) && (r[0] as number) <= (r[1] as number);

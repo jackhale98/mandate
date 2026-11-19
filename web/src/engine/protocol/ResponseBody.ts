@@ -4,6 +4,7 @@ import type { CharacterView } from "./CharacterView";
 import type { CommandAppliedView } from "./CommandAppliedView";
 import type { DecisionView } from "./DecisionView";
 import type { DiagnosticsView } from "./DiagnosticsView";
+import type { LayoutContentView } from "./LayoutContentView";
 import type { LocaleView } from "./LocaleView";
 import type { MapView } from "./MapView";
 import type { MunicipalityView } from "./MunicipalityView";
@@ -18,4 +19,4 @@ import type { StoryView } from "./StoryView";
 import type { StorytellerListView } from "./StorytellerListView";
 import type { TownPlacesView } from "./TownPlacesView";
 
-export type ResponseBody = { "kind": "game_started", "payload": OverviewView } | { "kind": "command_applied", "payload": CommandAppliedView } | { "kind": "overview", "payload": OverviewView } | { "kind": "office", "payload": OfficeView } | { "kind": "campaign", "payload": CampaignView } | { "kind": "map", "payload": MapView } | { "kind": "municipality", "payload": MunicipalityView } | { "kind": "pocket", "payload": PocketView } | { "kind": "town", "payload": TownPlacesView } | { "kind": "place", "payload": PlacePanelView } | { "kind": "character", "payload": CharacterView } | { "kind": "decision", "payload": DecisionView } | { "kind": "story", "payload": StoryView } | { "kind": "newspaper", "payload": NewspaperView } | { "kind": "locale", "payload": LocaleView } | { "kind": "scenarios", "payload": ScenarioListView } | { "kind": "storytellers", "payload": StorytellerListView } | { "kind": "policy_preview", "payload": PolicyPreviewView } | { "kind": "diagnostics", "payload": DiagnosticsView };
+export type ResponseBody = { "kind": "game_started", "payload": OverviewView } | { "kind": "command_applied", "payload": CommandAppliedView } | { "kind": "overview", "payload": OverviewView } | { "kind": "office", "payload": OfficeView } | { "kind": "campaign", "payload": CampaignView } | { "kind": "map", "payload": MapView } | { "kind": "municipality", "payload": MunicipalityView } | { "kind": "pocket", "payload": PocketView } | { "kind": "town", "payload": TownPlacesView } | { "kind": "place", "payload": PlacePanelView } | { "kind": "character", "payload": CharacterView } | { "kind": "decision", "payload": DecisionView } | { "kind": "story", "payload": StoryView } | { "kind": "newspaper", "payload": NewspaperView } | { "kind": "locale", "payload": LocaleView } | { "kind": "scenarios", "payload": ScenarioListView } | { "kind": "storytellers", "payload": StorytellerListView } | { "kind": "policy_preview", "payload": PolicyPreviewView } | { "kind": "diagnostics", "payload": DiagnosticsView } | { "kind": "layout_content", "payload": LayoutContentView };
