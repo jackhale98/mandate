@@ -248,6 +248,7 @@ export function TownMap({ town }: { town: TownPlacesView }) {
                 type="button"
                 className={`town-map-hit${h.active ? "" : " town-map-hit-quiet"}`}
                 data-hotspot={h.key}
+                data-name={name}
                 data-testid={`map-${h.kind === "place" ? h.kindKey : h.kind === "home" ? "home" : `streets-${h.neighborhood}`}`}
                 aria-label={aria}
                 aria-current={isHere ? "location" : undefined}

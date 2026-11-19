@@ -77,6 +77,7 @@ test("draft, introduce, lobby and resume mid-turn", async ({ page }) => {
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
   await expect(page.getByTestId("hud-slots")).toHaveAttribute("aria-label", "3 slots left this turn");
+  await showList(page);
   await expect(page.getByTestId("you-are-here")).toContainText("You are here");
 
   // Tap the town hall: the player walks there (free) and its panel opens.
@@ -120,6 +121,7 @@ test("a full local election", async ({ page }) => {
   const pocket = await openPocket(page);
   await expect(pocket.getByTestId("pocket-election")).toContainText("3 November 2020");
   await pocket.getByRole("button", { name: "Close" }).click();
+  await showList(page);
   await page.getByTestId("spot-party_office").click();
   await expect(page.getByTestId("internal-poll")).toBeVisible();
   const endTurn = page.getByRole("button", { name: "End turn" });
@@ -160,6 +162,7 @@ test("town character, people at a place, and a character sheet", async ({ page }
   await expect(card.getByTestId("town-industry")).not.toHaveText("—");
   await expect(card.getByTestId("town-rival")).not.toHaveText("—");
 
+  await showList(page);
   await page.getByTestId("spot-market").first().click();
   const panel = page.getByTestId("place-panel");
   await expect(panel.getByTestId("you-are-here-panel")).toBeVisible();
@@ -181,3 +184,9 @@ test("town character, people at a place, and a character sheet", async ({ page }
     await expect(sheet.getByTestId("character-memories")).toContainText("first met");
   }
 });
+
+/** The town opens on its map (DEC-086); these tests use the List view's place buttons. */
+async function showList(page: Page) {
+  await page.getByTestId("town-tab-list").click();
+  await expect(page.getByRole("tabpanel", { name: /List/ })).toBeVisible();
+}
