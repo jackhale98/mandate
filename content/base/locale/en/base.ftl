@@ -14,7 +14,7 @@ sector-knowledge = Knowledge & tech
 sector-public = Public sector
 
 app-title = Mandate
-app-tagline = You can only do what you can get others to do.
+app-tagline = A strategy game about one politician’s career.
 
 ## Events (keys emitted by the engine; DEC-054)
 event-game-started = A new history begins (seed { $seed }).

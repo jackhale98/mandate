@@ -1811,3 +1811,25 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - M8: foreign policy as play (deals, treaties, crises, the foreign minister, summits).
   - After v1: deeper diplomacy; possibly starting a career in another country.
 - **Dependencies:** DEC-018, DEC-030, DEC-033, DEC-041, DEC-064, DEC-078, DEC-086.
+
+### DEC-088 — Enterable places and walking as the default
+
+- **Status:** Accepted (owner, 2026-11-19). The owner asked whether players should "actually enter buildings to interact with them and the people inside". Owner: "For the enterable places I'm good with your recommendations. For accessibility maybe we make it an option to turn on once we have the town walkable but I think my default preference would be for people to actually walk to places and talk to people."
+- **Decision:**
+  - **Key places can be entered.** Inside is a small, single-screen interior: a room with furniture, the people present standing where they work, and hotspots for the place's actions (the clerk's counter, the chamber's benches, the diner's booths). Talking to someone means walking up to them.
+  - **Interiors are data-driven.** Each place kind names an interior recipe in content (room size, furniture kit, where people stand, which action sits at which hotspot). Like the town layout, the interior is generated on the client from a keyed seed and a versioned recipe (DEC-085), and it is presentation only. Who is present and what they can do still comes from the engine's place view (DEC-079); the UI decides nothing.
+  - **M6 ships three interiors:** the chamber, the town hall and the diner. Other places keep the place panel until their interiors are added. A missing recipe always falls back to the panel.
+  - **Walking and talking is the default.** Once the town is walkable (M6), the default is to walk to places and talk to people.
+  - **A quick mode is an option to turn on** in Settings. It gives the town map plus place panels, with no walking, and the List view stays for screen readers (DEC-051). Both modes reach every action. The quick mode is also offered on the first run.
+- **Dependencies:** DEC-047, DEC-049, DEC-051, DEC-079, DEC-084, DEC-085, DEC-086.
+
+### DEC-089 — Map layers, with some gated by where you are
+
+- **Status:** Proposed (2026-11-19). The owner's idea: "make that button a dropdown so users can filter by different metrics … resources, population, income, rent, voting statistics etc but maybe have some details gated based off where they are like a polling location or town hall."
+- **Proposal:**
+  - The map's layer picker (built: terrain and unemployment) grows into a registry of layers. Each layer has a key, a source in the map view, a colour scale (sequential or diverging) and a legend. New layers are content plus one engine field.
+  - **Open layers** come from public statistics: population, density, unemployment, median income, rent, the main industries and resources.
+  - **Gated layers** need you to have been somewhere. The last election's results by town become available once you have visited a polling place or the town hall on election day, or read the newspaper's results. Party support and polling become available after commissioning a poll, or as a party member from the party office. The engine decides what you know (the knowledge already used for hidden facts, DEC-034). A gated layer shows its date ("as of March, from your poll"), and is greyed out with the place to unlock it while you don't know it.
+  - **The UI never computes these figures.** The map view carries each layer's values, or "unknown", per town.
+- **Timing:** the open layers in the M6 UI round; the gated layers with M7's regional play.
+- **Dependencies:** DEC-034, DEC-051, DEC-079, DEC-086.
