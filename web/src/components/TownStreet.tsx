@@ -23,6 +23,7 @@ import { Loader } from "./Brand";
 import { placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 import { sameLocation } from "../state/routing";
+import { usePocketCovers } from "./pocketCover";
 
 /** Walk to a place picked on the town map; a new `id` is a new request. */
 export interface WalkRequest {
@@ -58,6 +59,7 @@ const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(pre
 export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const tr = useGame((s) => s.tr);
   const pocket = useGame((s) => s.pocket);
+  const pocketOpen = useGame((s) => s.pocketOpen);
   const busy = useGame((s) => s.busy);
   const visit = useGame((s) => s.visit);
   const command = useGame((s) => s.command);
@@ -190,10 +192,11 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
     }
   }, [minutes, easeMs, ready]);
 
-  // Nothing animates behind a sheet.
+  // Nothing animates behind a sheet or the town map, nor behind the pocket where it covers most of the street (a phone).
+  const pocketCovers = usePocketCovers(stageRef, pocketOpen);
   useEffect(() => {
-    if (viewRef.current) viewRef.current.paused = covered;
-  }, [covered, ready]);
+    if (viewRef.current) viewRef.current.paused = covered || pocketCovers;
+  }, [covered, pocketCovers, ready]);
 
   // An auto-routed action (the agenda, a panel's button) walks the player here too; the engine does the
   // moving. Behind a sheet the street is paused, so the player is simply there (no walk nobody sees).

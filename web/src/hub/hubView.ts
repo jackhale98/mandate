@@ -3,10 +3,14 @@
 // the browser), HTML labels over it, pointer input through ./camera (pan,
 // pinch, wheel) and taps through ./townScene (a building walks to its door,
 // ground walks there); optionally the keyboard (arrows and WASD walk through
-// ./townScene's steering, Enter at a door arrives). The loop runs only while something moves, caps
-// ambient-only frames at 30 fps, and stops when the page is hidden or the
-// view is paused (a panel is open). Framework-free, so the prototype page
-// and the app's React screen can both mount it.
+// ./townScene's steering, Enter at a door arrives). The loop runs only while
+// something moves (DEC-080 "Battery"): the player, the camera and gestures at
+// full rate, frames where only townsfolk move at `ambientFps` (15); after
+// `idleMs` (20 s) without input the townsfolk stop where they are and nothing
+// is drawn until the next pointer, wheel, key or touch; it stops too when
+// the page is hidden or the view is paused (a panel or sheet over it).
+// Framework-free, so the prototype page and the app's React screen can both
+// mount it.
 import { HubCamera } from "./camera";
 import { DayClock, townsfolkShare, wrapMinutes } from "./dayCycle";
 import type { ArtProvider } from "./render/art";
@@ -36,8 +40,10 @@ export interface HubViewOptions {
   reducedMotion?: boolean;
   /** The clock driving the light; default: stopped at noon. */
   clock?: DayClock;
-  /** Frame cap while only townsfolk move (default 30). */
+  /** Frame cap while only townsfolk move (default 15). */
   ambientFps?: number;
+  /** Idle sleep: with no input for this long (ms; default 20 000), townsfolk pause and drawing stops until the next input. */
+  idleMs?: number;
   /** Called after every drawn frame (a HUD). */
   onFrame?: (v: HubView) => void;
   /**
@@ -107,6 +113,8 @@ export class HubView {
   readonly canvas: HTMLCanvasElement;
   /** Recent frame intervals and draw times, ms (HUD and measurements). */
   readonly timings = { intervals: [] as number[], draws: [] as number[], firstFrameMs: 0 };
+  /** Counters for measurements: frames drawn, and loop iterations (drawn or not). */
+  readonly stats = { frames: 0, ticks: 0 };
   private readonly labelLayer: HTMLDivElement;
   private readonly labels: { b: TownBuilding; el: HTMLButtonElement }[] = [];
   private readonly labelSize = new WeakMap<HTMLElement, { w: number; h: number }>();
@@ -114,8 +122,14 @@ export class HubView {
   private readonly opts: HubViewOptions;
   private readonly reducedMotion: boolean;
   private raf = 0;
+  /** A wait for the next ambient frame (setTimeout), so the loop does not wake every vsync for nothing. */
+  private timer = 0;
   private last = 0;
   private lastDraw = 0;
+  private lastInput = 0;
+  /** When the loop last drew or tried to (an unchanged frame is skipped by the renderer). */
+  private lastTry = 0;
+  private sleeping = false;
   private time = 0;
   private follow = true;
   private cssW = 1;
@@ -180,6 +194,19 @@ export class HubView {
     const vis = () => (document.hidden ? this.stop() : this.wake());
     document.addEventListener("visibilitychange", vis);
     this.cleanup.push(() => document.removeEventListener("visibilitychange", vis));
+    // Any input anywhere on the page (the pocket too) counts against idle sleep, and wakes a sleeping street.
+    const poke = () => {
+      this.lastInput = performance.now();
+      if (this.sleeping) {
+        this.sleeping = false;
+        this.wake();
+      }
+    };
+    for (const type of ["pointerdown", "pointermove", "wheel", "keydown", "touchstart"] as const) {
+      window.addEventListener(type, poke, { capture: true, passive: true });
+      this.cleanup.push(() => window.removeEventListener(type, poke, { capture: true }));
+    }
+    this.lastInput = performance.now();
     // First frame now, so the time to it is honest.
     this.last = performance.now();
     this.drawNow();
@@ -554,13 +581,23 @@ export class HubView {
   private stop() {
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = 0;
   }
 
-  /** Start the loop if it is not running (something may move). */
+  /** Start the loop if it is not running (something may move); a wait for an ambient frame ends now. */
   wake() {
     if (this.destroyed || this.pausedFlag || this.raf || (typeof document !== "undefined" && document.hidden)) return;
-    this.last = performance.now();
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = 0;
+    } else this.last = performance.now();
     this.raf = requestAnimationFrame((t) => this.frame(t));
+  }
+
+  /** Whether idle sleep stopped the loop (no input for `idleMs`); the next input wakes it. */
+  get asleep(): boolean {
+    return this.sleeping;
   }
 
   private walking(w: Walker) {
@@ -569,6 +606,7 @@ export class HubView {
 
   private frame(now: number) {
     this.raf = 0;
+    this.stats.ticks++;
     const dt = Math.min(0.1, Math.max(0, (now - this.last) / 1000));
     this.last = now;
     this.time += dt;
@@ -587,11 +625,29 @@ export class HubView {
     if (ticked) this.syncFolk();
     const playerMoving = this.walking(p) || this.scene.steering;
     const folkMoving = this.scene.activeFolk > 0;
-    const busy = playerMoving || eased || this.camera.gesturing || ticked || this.clock.running || this.renderer.animating;
+    // Full rate: the player, the camera (easing, following, a gesture) and the light changing.
+    const busy = playerMoving || eased || this.camera.gesturing || ticked || this.clock.running || this.renderer.animating || this.followSettling();
+    // Idle sleep (DEC-080 "Battery"): nobody has touched anything for a while; draw this frame and stop.
+    const idle = !busy && now - this.lastInput >= (this.opts.idleMs ?? 20_000);
     // Ambient-only frames are capped (DEC-080: battery).
-    const cap = 1000 / (this.opts.ambientFps ?? 30);
-    if (busy || now - this.lastDraw >= cap - 1) this.drawNow(now);
-    if (busy || folkMoving || this.renderer.animating || this.followSettling()) this.raf = requestAnimationFrame((t) => this.frame(t));
+    const cap = 1000 / (this.opts.ambientFps ?? 15);
+    if (busy || idle || now - this.lastTry >= cap - 1) {
+      this.lastTry = now;
+      this.drawNow(now);
+    }
+    this.sleeping = idle;
+    if (idle || this.pausedFlag) return;
+    if (busy) this.raf = requestAnimationFrame((t) => this.frame(t));
+    else if (folkMoving) {
+      // Wait for the next ambient frame off the vsync; a frame or less away, the next vsync.
+      const wait = this.lastTry + cap - performance.now();
+      if (wait < 12) this.raf = requestAnimationFrame((t) => this.frame(t));
+      else
+        this.timer = window.setTimeout(() => {
+          this.timer = 0;
+          this.raf = requestAnimationFrame((t) => this.frame(t));
+        }, wait - 8);
+    }
   }
 
   private followSettling(): boolean {
@@ -629,6 +685,7 @@ export class HubView {
     if (this.lastDraw) push(this.timings.intervals, now - this.lastDraw);
     push(this.timings.draws, t1 - t0);
     this.lastDraw = now;
+    this.stats.frames++;
     this.placeLabels();
     this.opts.onFrame?.(this);
   }
