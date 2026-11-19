@@ -1,0 +1,5947 @@
+[
+ {
+  "seed": "4242",
+  "source": "town",
+  "input": {
+   "municipality": "Larkobridge",
+   "neighborhoods": [
+    {
+     "id": 194,
+     "name": "Larkobridge",
+     "kind": "core"
+    },
+    {
+     "id": 195,
+     "name": "Orchardrow",
+     "kind": "waterfront"
+    },
+    {
+     "id": 196,
+     "name": "Bridgevale",
+     "kind": "industrial"
+    },
+    {
+     "id": 197,
+     "name": "Cross Quarter",
+     "kind": "rural"
+    },
+    {
+     "id": 198,
+     "name": "Queensheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 199,
+     "name": "Eastvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 200,
+     "name": "Castle Green",
+     "kind": "rural"
+    },
+    {
+     "id": 201,
+     "name": "Old Green",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 240,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 241,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 242,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 243,
+     "kind": "diner",
+     "name": "Vera's",
+     "neighborhood": 194
+    },
+    {
+     "id": 244,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 246,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 248,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 249,
+     "kind": "news_office",
+     "name": "The Larkobridge Chronicle",
+     "neighborhood": 194
+    },
+    {
+     "id": 250,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 253,
+     "kind": "port",
+     "name": "",
+     "neighborhood": 195
+    },
+    {
+     "id": 251,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 252,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 254,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 197
+    },
+    {
+     "id": 245,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 247,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 198
+    }
+   ],
+   "home": 196,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 15,
+   "name": "Larkobridge",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 135179,
+   "neighborhoods": [
+    {
+     "id": 194,
+     "name": "Larkobridge",
+     "kind": "core",
+     "baseline_population": 23162,
+     "adjacent": []
+    },
+    {
+     "id": 195,
+     "name": "Orchardrow",
+     "kind": "waterfront",
+     "baseline_population": 12669,
+     "adjacent": []
+    },
+    {
+     "id": 196,
+     "name": "Bridgevale",
+     "kind": "industrial",
+     "baseline_population": 8468,
+     "adjacent": []
+    },
+    {
+     "id": 197,
+     "name": "Cross Quarter",
+     "kind": "rural",
+     "baseline_population": 9297,
+     "adjacent": []
+    },
+    {
+     "id": 198,
+     "name": "Queensheath",
+     "kind": "suburb",
+     "baseline_population": 24128,
+     "adjacent": []
+    },
+    {
+     "id": 199,
+     "name": "Eastvale",
+     "kind": "suburb",
+     "baseline_population": 17924,
+     "adjacent": []
+    },
+    {
+     "id": 200,
+     "name": "Castle Green",
+     "kind": "rural",
+     "baseline_population": 10795,
+     "adjacent": []
+    },
+    {
+     "id": 201,
+     "name": "Old Green",
+     "kind": "suburb",
+     "baseline_population": 28736,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 240,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 241,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 242,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 243,
+     "kind": "diner",
+     "name": "Vera's",
+     "neighborhood": 194
+    },
+    {
+     "id": 244,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 246,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 248,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 249,
+     "kind": "news_office",
+     "name": "The Larkobridge Chronicle",
+     "neighborhood": 194
+    },
+    {
+     "id": 250,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 253,
+     "kind": "port",
+     "name": "",
+     "neighborhood": 195
+    },
+    {
+     "id": 251,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 252,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 254,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 197
+    },
+    {
+     "id": 245,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 247,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 198
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.manufacturing",
+     "driver": "",
+     "jobs": 12166
+    }
+   ],
+   "river": null,
+   "creeks": [],
+   "coast": {
+    "sea": 13,
+    "shore": "beach",
+    "bay": true
+   },
+   "lake": null,
+   "relief": {
+    "ruggedness_pm": 363,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 44
+   },
+   "woods": {
+    "share_pm": 0,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 572,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 216,
+    "timber": 0,
+    "minerals": 572,
+    "fishing": 614,
+    "energy": 189,
+    "scenic": 270
+   },
+   "links": [
+    {
+     "mode": "road",
+     "bearing": 6,
+     "to": 47,
+     "to_name": "Selridge",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 9,
+     "to": 8,
+     "to_name": "Marton",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 255,
+    "storm": 391,
+    "wildfire": 394,
+    "seismic": 0,
+    "drought": 420
+   },
+   "climate": {
+    "temperature_c": 7,
+    "precipitation_mm": 431,
+    "biome": "steppe",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 134,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.1,
+   "unemployment": 0.09,
+   "hoods": [
+    {
+     "id": 194,
+     "population": 23162
+    },
+    {
+     "id": 195,
+     "population": 12669
+    },
+    {
+     "id": 196,
+     "population": 8468
+    },
+    {
+     "id": 197,
+     "population": 9297
+    },
+    {
+     "id": 198,
+     "population": 24128
+    },
+    {
+     "id": 199,
+     "population": 17924
+    },
+    {
+     "id": 200,
+     "population": 10795
+    },
+    {
+     "id": 201,
+     "population": 28736
+    }
+   ]
+  }
+ },
+ {
+  "seed": "4242",
+  "source": "largest",
+  "input": {
+   "municipality": "Fenoport",
+   "neighborhoods": [
+    {
+     "id": 0,
+     "name": "Fenoport",
+     "kind": "core"
+    },
+    {
+     "id": 1,
+     "name": "Uppertown",
+     "kind": "industrial"
+    },
+    {
+     "id": 2,
+     "name": "Park Cross",
+     "kind": "inner"
+    },
+    {
+     "id": 3,
+     "name": "East Hill",
+     "kind": "inner"
+    },
+    {
+     "id": 4,
+     "name": "Westgate",
+     "kind": "inner"
+    },
+    {
+     "id": 5,
+     "name": "Lowerlands",
+     "kind": "inner"
+    },
+    {
+     "id": 6,
+     "name": "East Cross",
+     "kind": "inner"
+    },
+    {
+     "id": 7,
+     "name": "Foundrytown",
+     "kind": "inner"
+    },
+    {
+     "id": 8,
+     "name": "Kings Hill",
+     "kind": "inner"
+    },
+    {
+     "id": 9,
+     "name": "Upperrow",
+     "kind": "inner"
+    },
+    {
+     "id": 10,
+     "name": "Abbeygate",
+     "kind": "inner"
+    },
+    {
+     "id": 11,
+     "name": "Wharfvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 12,
+     "name": "South Quarter",
+     "kind": "suburb"
+    },
+    {
+     "id": 13,
+     "name": "Abbey Quarter",
+     "kind": "suburb"
+    },
+    {
+     "id": 14,
+     "name": "Queensvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 15,
+     "name": "Queenstown",
+     "kind": "suburb"
+    },
+    {
+     "id": 16,
+     "name": "Newheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 17,
+     "name": "Hill Cross",
+     "kind": "suburb"
+    },
+    {
+     "id": 18,
+     "name": "Kingslands",
+     "kind": "suburb"
+    },
+    {
+     "id": 19,
+     "name": "Greentown",
+     "kind": "suburb"
+    },
+    {
+     "id": 20,
+     "name": "Churchtown",
+     "kind": "suburb"
+    },
+    {
+     "id": 21,
+     "name": "Quarryend",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 0,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 1,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 2,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 3,
+     "kind": "diner",
+     "name": "Ilka's",
+     "neighborhood": 0
+    },
+    {
+     "id": 4,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 5,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 6,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 7,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 8,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 9,
+     "kind": "news_office",
+     "name": "The Fenoport Gazette",
+     "neighborhood": 0
+    },
+    {
+     "id": 10,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 11,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 12,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 13,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 14,
+     "kind": "hotel",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 15,
+     "kind": "university",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 16,
+     "kind": "tech_campus",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 17,
+     "kind": "regional_assembly",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 18,
+     "kind": "parliament",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 19,
+     "kind": "executive_residence",
+     "name": "",
+     "neighborhood": 2
+    }
+   ],
+   "home": null,
+   "location": {
+    "type": "street",
+    "neighborhood": 0
+   }
+  },
+  "geo": {
+   "municipality": 0,
+   "name": "Fenoport",
+   "class": "metro",
+   "regional_capital": true,
+   "national_capital": true,
+   "baseline_population": 3161146,
+   "neighborhoods": [
+    {
+     "id": 0,
+     "name": "Fenoport",
+     "kind": "core",
+     "baseline_population": 183921,
+     "adjacent": []
+    },
+    {
+     "id": 1,
+     "name": "Uppertown",
+     "kind": "industrial",
+     "baseline_population": 52368,
+     "adjacent": []
+    },
+    {
+     "id": 2,
+     "name": "Park Cross",
+     "kind": "inner",
+     "baseline_population": 177685,
+     "adjacent": []
+    },
+    {
+     "id": 3,
+     "name": "East Hill",
+     "kind": "inner",
+     "baseline_population": 150850,
+     "adjacent": []
+    },
+    {
+     "id": 4,
+     "name": "Westgate",
+     "kind": "inner",
+     "baseline_population": 143307,
+     "adjacent": []
+    },
+    {
+     "id": 5,
+     "name": "Lowerlands",
+     "kind": "inner",
+     "baseline_population": 181769,
+     "adjacent": []
+    },
+    {
+     "id": 6,
+     "name": "East Cross",
+     "kind": "inner",
+     "baseline_population": 159857,
+     "adjacent": []
+    },
+    {
+     "id": 7,
+     "name": "Foundrytown",
+     "kind": "inner",
+     "baseline_population": 133786,
+     "adjacent": []
+    },
+    {
+     "id": 8,
+     "name": "Kings Hill",
+     "kind": "inner",
+     "baseline_population": 142003,
+     "adjacent": []
+    },
+    {
+     "id": 9,
+     "name": "Upperrow",
+     "kind": "inner",
+     "baseline_population": 194371,
+     "adjacent": []
+    },
+    {
+     "id": 10,
+     "name": "Abbeygate",
+     "kind": "inner",
+     "baseline_population": 193492,
+     "adjacent": []
+    },
+    {
+     "id": 11,
+     "name": "Wharfvale",
+     "kind": "suburb",
+     "baseline_population": 126390,
+     "adjacent": []
+    },
+    {
+     "id": 12,
+     "name": "South Quarter",
+     "kind": "suburb",
+     "baseline_population": 111882,
+     "adjacent": []
+    },
+    {
+     "id": 13,
+     "name": "Abbey Quarter",
+     "kind": "suburb",
+     "baseline_population": 165934,
+     "adjacent": []
+    },
+    {
+     "id": 14,
+     "name": "Queensvale",
+     "kind": "suburb",
+     "baseline_population": 158424,
+     "adjacent": []
+    },
+    {
+     "id": 15,
+     "name": "Queenstown",
+     "kind": "suburb",
+     "baseline_population": 168982,
+     "adjacent": []
+    },
+    {
+     "id": 16,
+     "name": "Newheath",
+     "kind": "suburb",
+     "baseline_population": 127192,
+     "adjacent": []
+    },
+    {
+     "id": 17,
+     "name": "Hill Cross",
+     "kind": "suburb",
+     "baseline_population": 94629,
+     "adjacent": []
+    },
+    {
+     "id": 18,
+     "name": "Kingslands",
+     "kind": "suburb",
+     "baseline_population": 96269,
+     "adjacent": []
+    },
+    {
+     "id": 19,
+     "name": "Greentown",
+     "kind": "suburb",
+     "baseline_population": 94107,
+     "adjacent": []
+    },
+    {
+     "id": 20,
+     "name": "Churchtown",
+     "kind": "suburb",
+     "baseline_population": 130390,
+     "adjacent": []
+    },
+    {
+     "id": 21,
+     "name": "Quarryend",
+     "kind": "suburb",
+     "baseline_population": 173538,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 0,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 1,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 2,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 3,
+     "kind": "diner",
+     "name": "Ilka's",
+     "neighborhood": 0
+    },
+    {
+     "id": 4,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 5,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 6,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 7,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 8,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 9,
+     "kind": "news_office",
+     "name": "The Fenoport Gazette",
+     "neighborhood": 0
+    },
+    {
+     "id": 10,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 11,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 12,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 13,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 14,
+     "kind": "hotel",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 15,
+     "kind": "university",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 16,
+     "kind": "tech_campus",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 17,
+     "kind": "regional_assembly",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 18,
+     "kind": "parliament",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 19,
+     "kind": "executive_residence",
+     "name": "",
+     "neighborhood": 2
+    }
+   ],
+   "baseline_sectors": [],
+   "river": {
+    "class": 3,
+    "enters": 2,
+    "leaves": 10,
+    "through_centre": true
+   },
+   "creeks": [],
+   "coast": null,
+   "lake": {
+    "bearing": 6,
+    "near": true
+   },
+   "relief": {
+    "ruggedness_pm": 663,
+    "uphill": 14,
+    "high_ground": 14,
+    "relief_m": 80
+   },
+   "woods": {
+    "share_pm": 61,
+    "bearing": 14
+   },
+   "minerals": {
+    "value_pm": 489,
+    "bearing": 0
+   },
+   "resources_pm": {
+    "fertility": 377,
+    "timber": 61,
+    "minerals": 489,
+    "fishing": 348,
+    "energy": 102,
+    "scenic": 288
+   },
+   "links": [
+    {
+     "mode": "rail",
+     "bearing": 3,
+     "to": 49,
+     "to_name": "Halerport",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 3,
+     "to": 23,
+     "to_name": "Eldoford",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 10,
+     "to": 51,
+     "to_name": "Rosridge",
+     "foreign": false
+    },
+    {
+     "mode": "highway",
+     "bearing": 12,
+     "to": 11,
+     "to_name": "Oakby",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 12,
+     "to": 50,
+     "to_name": "Stratherford",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 15,
+     "to": 52,
+     "to_name": "Marford",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 15,
+     "to": 55,
+     "to_name": "Fenton",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 0,
+    "storm": 50,
+    "wildfire": 364,
+    "seismic": 129,
+    "drought": 316
+   },
+   "climate": {
+    "temperature_c": 15,
+    "precipitation_mm": 518,
+    "biome": "grassland",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 332,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.034955052154613586,
+   "unemployment": 0.0648793919696975,
+   "hoods": [
+    {
+     "id": 0,
+     "population": 183921
+    },
+    {
+     "id": 1,
+     "population": 52368
+    },
+    {
+     "id": 2,
+     "population": 177685
+    },
+    {
+     "id": 3,
+     "population": 150850
+    },
+    {
+     "id": 4,
+     "population": 143307
+    },
+    {
+     "id": 5,
+     "population": 181769
+    },
+    {
+     "id": 6,
+     "population": 159857
+    },
+    {
+     "id": 7,
+     "population": 133786
+    },
+    {
+     "id": 8,
+     "population": 142003
+    },
+    {
+     "id": 9,
+     "population": 194371
+    },
+    {
+     "id": 10,
+     "population": 193492
+    },
+    {
+     "id": 11,
+     "population": 126390
+    },
+    {
+     "id": 12,
+     "population": 111882
+    },
+    {
+     "id": 13,
+     "population": 165934
+    },
+    {
+     "id": 14,
+     "population": 158424
+    },
+    {
+     "id": 15,
+     "population": 168982
+    },
+    {
+     "id": 16,
+     "population": 127192
+    },
+    {
+     "id": 17,
+     "population": 94629
+    },
+    {
+     "id": 18,
+     "population": 96269
+    },
+    {
+     "id": 19,
+     "population": 94107
+    },
+    {
+     "id": 20,
+     "population": 130390
+    },
+    {
+     "id": 21,
+     "population": 173538
+    }
+   ]
+  }
+ },
+ {
+  "seed": "4242",
+  "source": "smallest",
+  "input": {
+   "municipality": "Marford",
+   "neighborhoods": [
+    {
+     "id": 387,
+     "name": "Marford",
+     "kind": "core"
+    },
+    {
+     "id": 388,
+     "name": "Quarryend",
+     "kind": "industrial"
+    },
+    {
+     "id": 389,
+     "name": "Westlands",
+     "kind": "rural"
+    },
+    {
+     "id": 390,
+     "name": "Millrow",
+     "kind": "rural"
+    }
+   ],
+   "places": [
+    {
+     "id": 766,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 767,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 768,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 769,
+     "kind": "diner",
+     "name": "Dagny's",
+     "neighborhood": 387
+    },
+    {
+     "id": 770,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 771,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 772,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 773,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 774,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 775,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 388
+    },
+    {
+     "id": 776,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 388
+    },
+    {
+     "id": 777,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 389
+    }
+   ],
+   "home": null,
+   "location": {
+    "type": "street",
+    "neighborhood": 387
+   }
+  },
+  "geo": {
+   "municipality": 52,
+   "name": "Marford",
+   "class": "rural",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 31598,
+   "neighborhoods": [
+    {
+     "id": 387,
+     "name": "Marford",
+     "kind": "core",
+     "baseline_population": 13024,
+     "adjacent": []
+    },
+    {
+     "id": 388,
+     "name": "Quarryend",
+     "kind": "industrial",
+     "baseline_population": 8167,
+     "adjacent": []
+    },
+    {
+     "id": 389,
+     "name": "Westlands",
+     "kind": "rural",
+     "baseline_population": 3479,
+     "adjacent": []
+    },
+    {
+     "id": 390,
+     "name": "Millrow",
+     "kind": "rural",
+     "baseline_population": 6928,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 766,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 767,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 768,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 769,
+     "kind": "diner",
+     "name": "Dagny's",
+     "neighborhood": 387
+    },
+    {
+     "id": 770,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 771,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 772,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 773,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 774,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 387
+    },
+    {
+     "id": 775,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 388
+    },
+    {
+     "id": 776,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 388
+    },
+    {
+     "id": 777,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 389
+    }
+   ],
+   "baseline_sectors": [],
+   "river": {
+    "class": 1,
+    "enters": 0,
+    "leaves": 8,
+    "through_centre": false
+   },
+   "creeks": [],
+   "coast": null,
+   "lake": null,
+   "relief": {
+    "ruggedness_pm": 439,
+    "uphill": 14,
+    "high_ground": 14,
+    "relief_m": 53
+   },
+   "woods": {
+    "share_pm": 0,
+    "bearing": 14
+   },
+   "minerals": {
+    "value_pm": 548,
+    "bearing": 0
+   },
+   "resources_pm": {
+    "fertility": 238,
+    "timber": 0,
+    "minerals": 548,
+    "fishing": 75,
+    "energy": 254,
+    "scenic": 157
+   },
+   "links": [
+    {
+     "mode": "rail",
+     "bearing": 1,
+     "to": 43,
+     "to_name": "Haloford",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 2,
+     "to": 38,
+     "to_name": "Corrby",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 4,
+     "to": 30,
+     "to_name": "Eldaby",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 6,
+     "to": 0,
+     "to_name": "Fenoport",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 6,
+     "to": 16,
+     "to_name": "Larkport",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 10,
+     "to": 0,
+     "to_name": "Fenoport",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 10,
+     "to": 9,
+     "to_name": "Duniby",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 14,
+     "to": 0,
+     "to_name": "Fenoport",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 14,
+     "to": 5,
+     "to_name": "Brinholm",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 0,
+    "storm": 50,
+    "wildfire": 427,
+    "seismic": 0,
+    "drought": 446
+   },
+   "climate": {
+    "temperature_c": 7,
+    "precipitation_mm": 391,
+    "biome": "steppe",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 347,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.09206253762206396,
+   "unemployment": 0.03827481995572757,
+   "hoods": [
+    {
+     "id": 387,
+     "population": 13024
+    },
+    {
+     "id": 388,
+     "population": 8167
+    },
+    {
+     "id": 389,
+     "population": 3479
+    },
+    {
+     "id": 390,
+     "population": 6928
+    }
+   ]
+  }
+ },
+ {
+  "seed": "2026",
+  "source": "town",
+  "input": {
+   "municipality": "Strathowick",
+   "neighborhoods": [
+    {
+     "id": 175,
+     "name": "Strathowick",
+     "kind": "core"
+    },
+    {
+     "id": 176,
+     "name": "Crossside",
+     "kind": "suburb"
+    },
+    {
+     "id": 177,
+     "name": "Harbourheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 178,
+     "name": "Orchardlands",
+     "kind": "rural"
+    },
+    {
+     "id": 179,
+     "name": "Greenrow",
+     "kind": "suburb"
+    },
+    {
+     "id": 180,
+     "name": "Newside",
+     "kind": "suburb"
+    },
+    {
+     "id": 181,
+     "name": "Marketgate",
+     "kind": "rural"
+    },
+    {
+     "id": 182,
+     "name": "Southvale",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 215,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 216,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 217,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 218,
+     "kind": "diner",
+     "name": "Sunniva's",
+     "neighborhood": 175
+    },
+    {
+     "id": 219,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 221,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 223,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 224,
+     "kind": "news_office",
+     "name": "The Strathowick Herald",
+     "neighborhood": 175
+    },
+    {
+     "id": 225,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 226,
+     "kind": "regional_assembly",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 220,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 222,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 176
+    }
+   ],
+   "home": 177,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 13,
+   "name": "Strathowick",
+   "class": "town",
+   "regional_capital": true,
+   "national_capital": false,
+   "baseline_population": 130349,
+   "neighborhoods": [
+    {
+     "id": 175,
+     "name": "Strathowick",
+     "kind": "core",
+     "baseline_population": 16232,
+     "adjacent": []
+    },
+    {
+     "id": 176,
+     "name": "Crossside",
+     "kind": "suburb",
+     "baseline_population": 22034,
+     "adjacent": []
+    },
+    {
+     "id": 177,
+     "name": "Harbourheath",
+     "kind": "suburb",
+     "baseline_population": 22401,
+     "adjacent": []
+    },
+    {
+     "id": 178,
+     "name": "Orchardlands",
+     "kind": "rural",
+     "baseline_population": 7502,
+     "adjacent": []
+    },
+    {
+     "id": 179,
+     "name": "Greenrow",
+     "kind": "suburb",
+     "baseline_population": 14488,
+     "adjacent": []
+    },
+    {
+     "id": 180,
+     "name": "Newside",
+     "kind": "suburb",
+     "baseline_population": 16631,
+     "adjacent": []
+    },
+    {
+     "id": 181,
+     "name": "Marketgate",
+     "kind": "rural",
+     "baseline_population": 8344,
+     "adjacent": []
+    },
+    {
+     "id": 182,
+     "name": "Southvale",
+     "kind": "suburb",
+     "baseline_population": 22717,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 215,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 216,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 217,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 218,
+     "kind": "diner",
+     "name": "Sunniva's",
+     "neighborhood": 175
+    },
+    {
+     "id": 219,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 221,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 223,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 224,
+     "kind": "news_office",
+     "name": "The Strathowick Herald",
+     "neighborhood": 175
+    },
+    {
+     "id": 225,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 226,
+     "kind": "regional_assembly",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 220,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 222,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 176
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.retail",
+     "driver": "",
+     "jobs": 17597
+    }
+   ],
+   "river": {
+    "class": 2,
+    "enters": 6,
+    "leaves": 14,
+    "through_centre": true
+   },
+   "creeks": [],
+   "coast": null,
+   "lake": {
+    "bearing": 14,
+    "near": true
+   },
+   "relief": {
+    "ruggedness_pm": 352,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 42
+   },
+   "woods": {
+    "share_pm": 27,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 299,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 167,
+    "timber": 27,
+    "minerals": 299,
+    "fishing": 228,
+    "energy": 81,
+    "scenic": 142
+   },
+   "links": [
+    {
+     "mode": "road",
+     "bearing": 5,
+     "to": 54,
+     "to_name": "Hollinamoor",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 7,
+     "to": 25,
+     "to_name": "Keshaven",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 10,
+     "to": 19,
+     "to_name": "Brinifield",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 10,
+     "to": 19,
+     "to_name": "Brinifield",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 11,
+     "to": 0,
+     "to_name": "Halermoor",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 44,
+    "storm": 50,
+    "wildfire": 132,
+    "seismic": 97,
+    "drought": 148
+   },
+   "climate": {
+    "temperature_c": 7,
+    "precipitation_mm": 539,
+    "biome": "lake",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 41,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.1,
+   "unemployment": 0.08,
+   "hoods": [
+    {
+     "id": 175,
+     "population": 16232
+    },
+    {
+     "id": 176,
+     "population": 22034
+    },
+    {
+     "id": 177,
+     "population": 22401
+    },
+    {
+     "id": 178,
+     "population": 7502
+    },
+    {
+     "id": 179,
+     "population": 14488
+    },
+    {
+     "id": 180,
+     "population": 16631
+    },
+    {
+     "id": 181,
+     "population": 8344
+    },
+    {
+     "id": 182,
+     "population": 22717
+    }
+   ]
+  }
+ },
+ {
+  "seed": "1",
+  "source": "town",
+  "input": {
+   "municipality": "Hollindale",
+   "neighborhoods": [
+    {
+     "id": 176,
+     "name": "Hollindale",
+     "kind": "core"
+    },
+    {
+     "id": 177,
+     "name": "Hill Quarter",
+     "kind": "industrial"
+    },
+    {
+     "id": 178,
+     "name": "Westfield",
+     "kind": "suburb"
+    },
+    {
+     "id": 179,
+     "name": "Abbeygate",
+     "kind": "rural"
+    },
+    {
+     "id": 180,
+     "name": "Station Cross",
+     "kind": "suburb"
+    },
+    {
+     "id": 181,
+     "name": "Harbourvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 182,
+     "name": "Queens Quarter",
+     "kind": "rural"
+    },
+    {
+     "id": 183,
+     "name": "Lowertown",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 217,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 218,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 219,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 220,
+     "kind": "diner",
+     "name": "Valen's",
+     "neighborhood": 176
+    },
+    {
+     "id": 221,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 223,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 225,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 226,
+     "kind": "news_office",
+     "name": "The Hollindale Ledger",
+     "neighborhood": 176
+    },
+    {
+     "id": 227,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 228,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 229,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 222,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 178
+    },
+    {
+     "id": 224,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 178
+    },
+    {
+     "id": 230,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 179
+    }
+   ],
+   "home": 181,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 13,
+   "name": "Hollindale",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 136485,
+   "neighborhoods": [
+    {
+     "id": 176,
+     "name": "Hollindale",
+     "kind": "core",
+     "baseline_population": 15429,
+     "adjacent": []
+    },
+    {
+     "id": 177,
+     "name": "Hill Quarter",
+     "kind": "industrial",
+     "baseline_population": 8684,
+     "adjacent": []
+    },
+    {
+     "id": 178,
+     "name": "Westfield",
+     "kind": "suburb",
+     "baseline_population": 25086,
+     "adjacent": []
+    },
+    {
+     "id": 179,
+     "name": "Abbeygate",
+     "kind": "rural",
+     "baseline_population": 6064,
+     "adjacent": []
+    },
+    {
+     "id": 180,
+     "name": "Station Cross",
+     "kind": "suburb",
+     "baseline_population": 14635,
+     "adjacent": []
+    },
+    {
+     "id": 181,
+     "name": "Harbourvale",
+     "kind": "suburb",
+     "baseline_population": 25232,
+     "adjacent": []
+    },
+    {
+     "id": 182,
+     "name": "Queens Quarter",
+     "kind": "rural",
+     "baseline_population": 9559,
+     "adjacent": []
+    },
+    {
+     "id": 183,
+     "name": "Lowertown",
+     "kind": "suburb",
+     "baseline_population": 31796,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 217,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 218,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 219,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 220,
+     "kind": "diner",
+     "name": "Valen's",
+     "neighborhood": 176
+    },
+    {
+     "id": 221,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 223,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 225,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 226,
+     "kind": "news_office",
+     "name": "The Hollindale Ledger",
+     "neighborhood": 176
+    },
+    {
+     "id": 227,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 228,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 229,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 222,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 178
+    },
+    {
+     "id": 224,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 178
+    },
+    {
+     "id": 230,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 179
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.manufacturing",
+     "driver": "",
+     "jobs": 15355
+    }
+   ],
+   "river": {
+    "class": 2,
+    "enters": 6,
+    "leaves": 14,
+    "through_centre": true
+   },
+   "creeks": [],
+   "coast": null,
+   "lake": null,
+   "relief": {
+    "ruggedness_pm": 337,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 40
+   },
+   "woods": {
+    "share_pm": 162,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 541,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 193,
+    "timber": 162,
+    "minerals": 541,
+    "fishing": 14,
+    "energy": 263,
+    "scenic": 249
+   },
+   "links": [
+    {
+     "mode": "road",
+     "bearing": 0,
+     "to": 37,
+     "to_name": "Thornfield",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 2,
+     "to": 29,
+     "to_name": "Quarrridge",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 2,
+     "to": 16,
+     "to_name": "Fenodale",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 4,
+     "to": 0,
+     "to_name": "Vellastead",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 8,
+     "to": 53,
+     "to_name": "Haloholm",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 14,
+     "to": 0,
+     "to_name": "Vellastead",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 14,
+     "to": 11,
+     "to_name": "Caloridge",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 15,
+     "to": 6,
+     "to_name": "Thornowell",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 181,
+    "storm": 50,
+    "wildfire": 350,
+    "seismic": 472,
+    "drought": 376
+   },
+   "climate": {
+    "temperature_c": 6,
+    "precipitation_mm": 477,
+    "biome": "steppe",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 363,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.12,
+   "unemployment": 0.08,
+   "hoods": [
+    {
+     "id": 176,
+     "population": 15429
+    },
+    {
+     "id": 177,
+     "population": 8684
+    },
+    {
+     "id": 178,
+     "population": 25086
+    },
+    {
+     "id": 179,
+     "population": 6064
+    },
+    {
+     "id": 180,
+     "population": 14635
+    },
+    {
+     "id": 181,
+     "population": 25232
+    },
+    {
+     "id": 182,
+     "population": 9559
+    },
+    {
+     "id": 183,
+     "population": 31796
+    }
+   ]
+  }
+ },
+ {
+  "seed": "777",
+  "source": "town",
+  "input": {
+   "municipality": "Hollinerton",
+   "neighborhoods": [
+    {
+     "id": 194,
+     "name": "Hollinerton",
+     "kind": "core"
+    },
+    {
+     "id": 195,
+     "name": "Westlands",
+     "kind": "waterfront"
+    },
+    {
+     "id": 196,
+     "name": "Abbeyfield",
+     "kind": "industrial"
+    },
+    {
+     "id": 197,
+     "name": "Station Cross",
+     "kind": "rural"
+    },
+    {
+     "id": 198,
+     "name": "Markettown",
+     "kind": "suburb"
+    },
+    {
+     "id": 199,
+     "name": "Westgate",
+     "kind": "suburb"
+    },
+    {
+     "id": 200,
+     "name": "Hillwood",
+     "kind": "rural"
+    },
+    {
+     "id": 201,
+     "name": "Orchardwood",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 239,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 240,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 241,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 242,
+     "kind": "diner",
+     "name": "Thea's",
+     "neighborhood": 194
+    },
+    {
+     "id": 243,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 245,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 247,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 248,
+     "kind": "news_office",
+     "name": "The Hollinerton Courier",
+     "neighborhood": 194
+    },
+    {
+     "id": 249,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 250,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 251,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 252,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 197
+    },
+    {
+     "id": 244,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 246,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 198
+    }
+   ],
+   "home": 195,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 15,
+   "name": "Hollinerton",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 140371,
+   "neighborhoods": [
+    {
+     "id": 194,
+     "name": "Hollinerton",
+     "kind": "core",
+     "baseline_population": 28956,
+     "adjacent": []
+    },
+    {
+     "id": 195,
+     "name": "Westlands",
+     "kind": "waterfront",
+     "baseline_population": 14969,
+     "adjacent": []
+    },
+    {
+     "id": 196,
+     "name": "Abbeyfield",
+     "kind": "industrial",
+     "baseline_population": 11291,
+     "adjacent": []
+    },
+    {
+     "id": 197,
+     "name": "Station Cross",
+     "kind": "rural",
+     "baseline_population": 7126,
+     "adjacent": []
+    },
+    {
+     "id": 198,
+     "name": "Markettown",
+     "kind": "suburb",
+     "baseline_population": 25227,
+     "adjacent": []
+    },
+    {
+     "id": 199,
+     "name": "Westgate",
+     "kind": "suburb",
+     "baseline_population": 20375,
+     "adjacent": []
+    },
+    {
+     "id": 200,
+     "name": "Hillwood",
+     "kind": "rural",
+     "baseline_population": 7714,
+     "adjacent": []
+    },
+    {
+     "id": 201,
+     "name": "Orchardwood",
+     "kind": "suburb",
+     "baseline_population": 24713,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 239,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 240,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 241,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 242,
+     "kind": "diner",
+     "name": "Thea's",
+     "neighborhood": 194
+    },
+    {
+     "id": 243,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 245,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 247,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 248,
+     "kind": "news_office",
+     "name": "The Hollinerton Courier",
+     "neighborhood": 194
+    },
+    {
+     "id": 249,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 250,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 251,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 252,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 197
+    },
+    {
+     "id": 244,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 246,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 198
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.manufacturing",
+     "driver": "",
+     "jobs": 12633
+    }
+   ],
+   "river": null,
+   "creeks": [],
+   "coast": {
+    "sea": 0,
+    "shore": "rocky",
+    "bay": true
+   },
+   "lake": null,
+   "relief": {
+    "ruggedness_pm": 590,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 71
+   },
+   "woods": {
+    "share_pm": 81,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 687,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 111,
+    "timber": 81,
+    "minerals": 687,
+    "fishing": 312,
+    "energy": 256,
+    "scenic": 444
+   },
+   "links": [
+    {
+     "mode": "road",
+     "bearing": 4,
+     "to": 13,
+     "to_name": "Larkagate",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 5,
+     "to": 18,
+     "to_name": "Dunwick",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 10,
+     "to": 40,
+     "to_name": "Dunaholm",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 12,
+     "to": 0,
+     "to_name": "Quarrenmoor",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 12,
+     "to": 7,
+     "to_name": "Thornaport",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 188,
+    "storm": 223,
+    "wildfire": 305,
+    "seismic": 602,
+    "drought": 413
+   },
+   "climate": {
+    "temperature_c": 6,
+    "precipitation_mm": 471,
+    "biome": "steppe",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 715,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.08,
+   "unemployment": 0.06,
+   "hoods": [
+    {
+     "id": 194,
+     "population": 28956
+    },
+    {
+     "id": 195,
+     "population": 14969
+    },
+    {
+     "id": 196,
+     "population": 11291
+    },
+    {
+     "id": 197,
+     "population": 7126
+    },
+    {
+     "id": 198,
+     "population": 25227
+    },
+    {
+     "id": 199,
+     "population": 20375
+    },
+    {
+     "id": 200,
+     "population": 7714
+    },
+    {
+     "id": 201,
+     "population": 24713
+    }
+   ]
+  }
+ },
+ {
+  "seed": "99",
+  "source": "town",
+  "input": {
+   "municipality": "Garbridge",
+   "neighborhoods": [
+    {
+     "id": 184,
+     "name": "Garbridge",
+     "kind": "core"
+    },
+    {
+     "id": 185,
+     "name": "Abbeyheath",
+     "kind": "industrial"
+    },
+    {
+     "id": 186,
+     "name": "Marketheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 187,
+     "name": "Foundrygate",
+     "kind": "rural"
+    },
+    {
+     "id": 188,
+     "name": "Hilltown",
+     "kind": "suburb"
+    },
+    {
+     "id": 189,
+     "name": "Bridgewood",
+     "kind": "suburb"
+    },
+    {
+     "id": 190,
+     "name": "Orchardlands",
+     "kind": "rural"
+    },
+    {
+     "id": 191,
+     "name": "Wharfheath",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 230,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 231,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 232,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 233,
+     "kind": "diner",
+     "name": "Xan's",
+     "neighborhood": 184
+    },
+    {
+     "id": 234,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 236,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 238,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 239,
+     "kind": "news_office",
+     "name": "The Garbridge Gazette",
+     "neighborhood": 184
+    },
+    {
+     "id": 240,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 241,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 242,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 235,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 237,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 243,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 187
+    }
+   ],
+   "home": 185,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 14,
+   "name": "Garbridge",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 134693,
+   "neighborhoods": [
+    {
+     "id": 184,
+     "name": "Garbridge",
+     "kind": "core",
+     "baseline_population": 20718,
+     "adjacent": []
+    },
+    {
+     "id": 185,
+     "name": "Abbeyheath",
+     "kind": "industrial",
+     "baseline_population": 9726,
+     "adjacent": []
+    },
+    {
+     "id": 186,
+     "name": "Marketheath",
+     "kind": "suburb",
+     "baseline_population": 16499,
+     "adjacent": []
+    },
+    {
+     "id": 187,
+     "name": "Foundrygate",
+     "kind": "rural",
+     "baseline_population": 9935,
+     "adjacent": []
+    },
+    {
+     "id": 188,
+     "name": "Hilltown",
+     "kind": "suburb",
+     "baseline_population": 22668,
+     "adjacent": []
+    },
+    {
+     "id": 189,
+     "name": "Bridgewood",
+     "kind": "suburb",
+     "baseline_population": 16146,
+     "adjacent": []
+    },
+    {
+     "id": 190,
+     "name": "Orchardlands",
+     "kind": "rural",
+     "baseline_population": 10562,
+     "adjacent": []
+    },
+    {
+     "id": 191,
+     "name": "Wharfheath",
+     "kind": "suburb",
+     "baseline_population": 28439,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 230,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 231,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 232,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 233,
+     "kind": "diner",
+     "name": "Xan's",
+     "neighborhood": 184
+    },
+    {
+     "id": 234,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 236,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 238,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 239,
+     "kind": "news_office",
+     "name": "The Garbridge Gazette",
+     "neighborhood": 184
+    },
+    {
+     "id": 240,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 241,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 242,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 235,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 237,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 243,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 187
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.manufacturing",
+     "driver": "",
+     "jobs": 12122
+    }
+   ],
+   "river": {
+    "class": 3,
+    "enters": 2,
+    "leaves": 10,
+    "through_centre": true
+   },
+   "creeks": [
+    {
+     "enters": 1,
+     "joins_river": true
+    }
+   ],
+   "coast": null,
+   "lake": null,
+   "relief": {
+    "ruggedness_pm": 916,
+    "uphill": 14,
+    "high_ground": 14,
+    "relief_m": 110
+   },
+   "woods": {
+    "share_pm": 16,
+    "bearing": 14
+   },
+   "minerals": {
+    "value_pm": 546,
+    "bearing": 0
+   },
+   "resources_pm": {
+    "fertility": 248,
+    "timber": 16,
+    "minerals": 546,
+    "fishing": 0,
+    "energy": 353,
+    "scenic": 229
+   },
+   "links": [
+    {
+     "mode": "road",
+     "bearing": 1,
+     "to": 34,
+     "to_name": "Holliniford",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 4,
+     "to": 45,
+     "to_name": "Marergate",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 8,
+     "to": 10,
+     "to_name": "Corriford",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 14,
+     "to": 31,
+     "to_name": "Brinridge",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 0,
+    "storm": 50,
+    "wildfire": 598,
+    "seismic": 186,
+    "drought": 496
+   },
+   "climate": {
+    "temperature_c": 14,
+    "precipitation_mm": 384,
+    "biome": "steppe",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 487,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.1,
+   "unemployment": 0.08,
+   "hoods": [
+    {
+     "id": 184,
+     "population": 20718
+    },
+    {
+     "id": 185,
+     "population": 9726
+    },
+    {
+     "id": 186,
+     "population": 16499
+    },
+    {
+     "id": 187,
+     "population": 9935
+    },
+    {
+     "id": 188,
+     "population": 22668
+    },
+    {
+     "id": 189,
+     "population": 16146
+    },
+    {
+     "id": 190,
+     "population": 10562
+    },
+    {
+     "id": 191,
+     "population": 28439
+    }
+   ]
+  }
+ },
+ {
+  "seed": "99",
+  "source": "largest",
+  "input": {
+   "municipality": "Belstead",
+   "neighborhoods": [
+    {
+     "id": 0,
+     "name": "Belstead",
+     "kind": "core"
+    },
+    {
+     "id": 1,
+     "name": "Castleend",
+     "kind": "waterfront"
+    },
+    {
+     "id": 2,
+     "name": "Market Quarter",
+     "kind": "industrial"
+    },
+    {
+     "id": 3,
+     "name": "Parktown",
+     "kind": "inner"
+    },
+    {
+     "id": 4,
+     "name": "Church Cross",
+     "kind": "inner"
+    },
+    {
+     "id": 5,
+     "name": "Upperfield",
+     "kind": "inner"
+    },
+    {
+     "id": 6,
+     "name": "Wharfheath",
+     "kind": "inner"
+    },
+    {
+     "id": 7,
+     "name": "Marketvale",
+     "kind": "inner"
+    },
+    {
+     "id": 8,
+     "name": "Wharfside",
+     "kind": "inner"
+    },
+    {
+     "id": 9,
+     "name": "Stationfield",
+     "kind": "inner"
+    },
+    {
+     "id": 10,
+     "name": "Marketside",
+     "kind": "inner"
+    },
+    {
+     "id": 11,
+     "name": "Millvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 12,
+     "name": "Lowerfield",
+     "kind": "suburb"
+    },
+    {
+     "id": 13,
+     "name": "Marketend",
+     "kind": "suburb"
+    },
+    {
+     "id": 14,
+     "name": "Quarryheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 15,
+     "name": "Cross Quarter",
+     "kind": "suburb"
+    },
+    {
+     "id": 16,
+     "name": "Westlands",
+     "kind": "suburb"
+    },
+    {
+     "id": 17,
+     "name": "Castle Green",
+     "kind": "suburb"
+    },
+    {
+     "id": 18,
+     "name": "Wharffield",
+     "kind": "suburb"
+    },
+    {
+     "id": 19,
+     "name": "East Hill",
+     "kind": "suburb"
+    },
+    {
+     "id": 20,
+     "name": "Southtown",
+     "kind": "suburb"
+    },
+    {
+     "id": 21,
+     "name": "Quarrylands",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 0,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 1,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 2,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 3,
+     "kind": "diner",
+     "name": "Hedda's",
+     "neighborhood": 0
+    },
+    {
+     "id": 4,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 5,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 6,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 3
+    },
+    {
+     "id": 7,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 8,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 3
+    },
+    {
+     "id": 9,
+     "kind": "news_office",
+     "name": "The Belstead Chronicle",
+     "neighborhood": 0
+    },
+    {
+     "id": 10,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 11,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 12,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 13,
+     "kind": "port",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 14,
+     "kind": "hotel",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 15,
+     "kind": "university",
+     "name": "",
+     "neighborhood": 3
+    },
+    {
+     "id": 16,
+     "kind": "tech_campus",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 17,
+     "kind": "regional_assembly",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 18,
+     "kind": "parliament",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 19,
+     "kind": "executive_residence",
+     "name": "",
+     "neighborhood": 3
+    }
+   ],
+   "home": null,
+   "location": {
+    "type": "street",
+    "neighborhood": 0
+   }
+  },
+  "geo": {
+   "municipality": 0,
+   "name": "Belstead",
+   "class": "metro",
+   "regional_capital": true,
+   "national_capital": true,
+   "baseline_population": 3335453,
+   "neighborhoods": [
+    {
+     "id": 0,
+     "name": "Belstead",
+     "kind": "core",
+     "baseline_population": 139167,
+     "adjacent": []
+    },
+    {
+     "id": 1,
+     "name": "Castleend",
+     "kind": "waterfront",
+     "baseline_population": 116601,
+     "adjacent": []
+    },
+    {
+     "id": 2,
+     "name": "Market Quarter",
+     "kind": "industrial",
+     "baseline_population": 93406,
+     "adjacent": []
+    },
+    {
+     "id": 3,
+     "name": "Parktown",
+     "kind": "inner",
+     "baseline_population": 159817,
+     "adjacent": []
+    },
+    {
+     "id": 4,
+     "name": "Church Cross",
+     "kind": "inner",
+     "baseline_population": 165242,
+     "adjacent": []
+    },
+    {
+     "id": 5,
+     "name": "Upperfield",
+     "kind": "inner",
+     "baseline_population": 227539,
+     "adjacent": []
+    },
+    {
+     "id": 6,
+     "name": "Wharfheath",
+     "kind": "inner",
+     "baseline_population": 193414,
+     "adjacent": []
+    },
+    {
+     "id": 7,
+     "name": "Marketvale",
+     "kind": "inner",
+     "baseline_population": 199466,
+     "adjacent": []
+    },
+    {
+     "id": 8,
+     "name": "Wharfside",
+     "kind": "inner",
+     "baseline_population": 229556,
+     "adjacent": []
+    },
+    {
+     "id": 9,
+     "name": "Stationfield",
+     "kind": "inner",
+     "baseline_population": 132998,
+     "adjacent": []
+    },
+    {
+     "id": 10,
+     "name": "Marketside",
+     "kind": "inner",
+     "baseline_population": 209504,
+     "adjacent": []
+    },
+    {
+     "id": 11,
+     "name": "Millvale",
+     "kind": "suburb",
+     "baseline_population": 107912,
+     "adjacent": []
+    },
+    {
+     "id": 12,
+     "name": "Lowerfield",
+     "kind": "suburb",
+     "baseline_population": 180565,
+     "adjacent": []
+    },
+    {
+     "id": 13,
+     "name": "Marketend",
+     "kind": "suburb",
+     "baseline_population": 178973,
+     "adjacent": []
+    },
+    {
+     "id": 14,
+     "name": "Quarryheath",
+     "kind": "suburb",
+     "baseline_population": 114715,
+     "adjacent": []
+    },
+    {
+     "id": 15,
+     "name": "Cross Quarter",
+     "kind": "suburb",
+     "baseline_population": 134653,
+     "adjacent": []
+    },
+    {
+     "id": 16,
+     "name": "Westlands",
+     "kind": "suburb",
+     "baseline_population": 117856,
+     "adjacent": []
+    },
+    {
+     "id": 17,
+     "name": "Castle Green",
+     "kind": "suburb",
+     "baseline_population": 171631,
+     "adjacent": []
+    },
+    {
+     "id": 18,
+     "name": "Wharffield",
+     "kind": "suburb",
+     "baseline_population": 119853,
+     "adjacent": []
+    },
+    {
+     "id": 19,
+     "name": "East Hill",
+     "kind": "suburb",
+     "baseline_population": 113717,
+     "adjacent": []
+    },
+    {
+     "id": 20,
+     "name": "Southtown",
+     "kind": "suburb",
+     "baseline_population": 105187,
+     "adjacent": []
+    },
+    {
+     "id": 21,
+     "name": "Quarrylands",
+     "kind": "suburb",
+     "baseline_population": 123681,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 0,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 1,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 2,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 3,
+     "kind": "diner",
+     "name": "Hedda's",
+     "neighborhood": 0
+    },
+    {
+     "id": 4,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 5,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 6,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 3
+    },
+    {
+     "id": 7,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 8,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 3
+    },
+    {
+     "id": 9,
+     "kind": "news_office",
+     "name": "The Belstead Chronicle",
+     "neighborhood": 0
+    },
+    {
+     "id": 10,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 11,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 12,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 13,
+     "kind": "port",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 14,
+     "kind": "hotel",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 15,
+     "kind": "university",
+     "name": "",
+     "neighborhood": 3
+    },
+    {
+     "id": 16,
+     "kind": "tech_campus",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 17,
+     "kind": "regional_assembly",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 18,
+     "kind": "parliament",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 19,
+     "kind": "executive_residence",
+     "name": "",
+     "neighborhood": 3
+    }
+   ],
+   "baseline_sectors": [],
+   "river": {
+    "class": 2,
+    "enters": 7,
+    "leaves": 15,
+    "through_centre": true
+   },
+   "creeks": [
+    {
+     "enters": 4,
+     "joins_river": true
+    }
+   ],
+   "coast": {
+    "sea": 14,
+    "shore": "beach",
+    "bay": true
+   },
+   "lake": null,
+   "relief": {
+    "ruggedness_pm": 132,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 16
+   },
+   "woods": {
+    "share_pm": 12,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 365,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 323,
+    "timber": 12,
+    "minerals": 365,
+    "fishing": 680,
+    "energy": 239,
+    "scenic": 270
+   },
+   "links": [
+    {
+     "mode": "highway",
+     "bearing": 2,
+     "to": 5,
+     "to_name": "Dunoport",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 3,
+     "to": 40,
+     "to_name": "Brinoton",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 3,
+     "to": 47,
+     "to_name": "Vellmouth",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 6,
+     "to": 11,
+     "to_name": "Kesimoor",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 6,
+     "to": 19,
+     "to_name": "Selenport",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 10,
+     "to": 29,
+     "to_name": "Hollinby",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 10,
+     "to": 29,
+     "to_name": "Hollinby",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 495,
+    "storm": 428,
+    "wildfire": 537,
+    "seismic": 0,
+    "drought": 426
+   },
+   "climate": {
+    "temperature_c": 13,
+    "precipitation_mm": 470,
+    "biome": "steppe",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 37,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.049962590143786234,
+   "unemployment": 0.054305740650400836,
+   "hoods": [
+    {
+     "id": 0,
+     "population": 139167
+    },
+    {
+     "id": 1,
+     "population": 116601
+    },
+    {
+     "id": 2,
+     "population": 93406
+    },
+    {
+     "id": 3,
+     "population": 159817
+    },
+    {
+     "id": 4,
+     "population": 165242
+    },
+    {
+     "id": 5,
+     "population": 227539
+    },
+    {
+     "id": 6,
+     "population": 193414
+    },
+    {
+     "id": 7,
+     "population": 199466
+    },
+    {
+     "id": 8,
+     "population": 229556
+    },
+    {
+     "id": 9,
+     "population": 132998
+    },
+    {
+     "id": 10,
+     "population": 209504
+    },
+    {
+     "id": 11,
+     "population": 107912
+    },
+    {
+     "id": 12,
+     "population": 180565
+    },
+    {
+     "id": 13,
+     "population": 178973
+    },
+    {
+     "id": 14,
+     "population": 114715
+    },
+    {
+     "id": 15,
+     "population": 134653
+    },
+    {
+     "id": 16,
+     "population": 117856
+    },
+    {
+     "id": 17,
+     "population": 171631
+    },
+    {
+     "id": 18,
+     "population": 119853
+    },
+    {
+     "id": 19,
+     "population": 113717
+    },
+    {
+     "id": 20,
+     "population": 105187
+    },
+    {
+     "id": 21,
+     "population": 123681
+    }
+   ]
+  }
+ },
+ {
+  "seed": "31337",
+  "source": "town",
+  "input": {
+   "municipality": "Strathport",
+   "neighborhoods": [
+    {
+     "id": 184,
+     "name": "Strathport",
+     "kind": "core"
+    },
+    {
+     "id": 185,
+     "name": "Churchheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 186,
+     "name": "Park Cross",
+     "kind": "suburb"
+    },
+    {
+     "id": 187,
+     "name": "Market Quarter",
+     "kind": "rural"
+    },
+    {
+     "id": 188,
+     "name": "Churchgate",
+     "kind": "suburb"
+    },
+    {
+     "id": 189,
+     "name": "Upperrow",
+     "kind": "suburb"
+    },
+    {
+     "id": 190,
+     "name": "Kingstown",
+     "kind": "rural"
+    }
+   ],
+   "places": [
+    {
+     "id": 222,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 223,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 224,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 225,
+     "kind": "diner",
+     "name": "Noor's",
+     "neighborhood": 184
+    },
+    {
+     "id": 226,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 228,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 230,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 231,
+     "kind": "news_office",
+     "name": "The Strathport Post",
+     "neighborhood": 184
+    },
+    {
+     "id": 232,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 227,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 229,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 185
+    }
+   ],
+   "home": 188,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 14,
+   "name": "Strathport",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 135744,
+   "neighborhoods": [
+    {
+     "id": 184,
+     "name": "Strathport",
+     "kind": "core",
+     "baseline_population": 19082,
+     "adjacent": []
+    },
+    {
+     "id": 185,
+     "name": "Churchheath",
+     "kind": "suburb",
+     "baseline_population": 28541,
+     "adjacent": []
+    },
+    {
+     "id": 186,
+     "name": "Park Cross",
+     "kind": "suburb",
+     "baseline_population": 20487,
+     "adjacent": []
+    },
+    {
+     "id": 187,
+     "name": "Market Quarter",
+     "kind": "rural",
+     "baseline_population": 10600,
+     "adjacent": []
+    },
+    {
+     "id": 188,
+     "name": "Churchgate",
+     "kind": "suburb",
+     "baseline_population": 20234,
+     "adjacent": []
+    },
+    {
+     "id": 189,
+     "name": "Upperrow",
+     "kind": "suburb",
+     "baseline_population": 23082,
+     "adjacent": []
+    },
+    {
+     "id": 190,
+     "name": "Kingstown",
+     "kind": "rural",
+     "baseline_population": 13718,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 222,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 223,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 224,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 225,
+     "kind": "diner",
+     "name": "Noor's",
+     "neighborhood": 184
+    },
+    {
+     "id": 226,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 228,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 230,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 231,
+     "kind": "news_office",
+     "name": "The Strathport Post",
+     "neighborhood": 184
+    },
+    {
+     "id": 232,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 227,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 229,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 185
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.retail",
+     "driver": "",
+     "jobs": 21380
+    }
+   ],
+   "river": {
+    "class": 2,
+    "enters": 0,
+    "leaves": 8,
+    "through_centre": true
+   },
+   "creeks": [],
+   "coast": null,
+   "lake": {
+    "bearing": 11,
+    "near": true
+   },
+   "relief": {
+    "ruggedness_pm": 639,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 77
+   },
+   "woods": {
+    "share_pm": 96,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 263,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 129,
+    "timber": 96,
+    "minerals": 263,
+    "fishing": 249,
+    "energy": 69,
+    "scenic": 274
+   },
+   "links": [
+    {
+     "mode": "road",
+     "bearing": 2,
+     "to": 42,
+     "to_name": "Yarmoor",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 5,
+     "to": 17,
+     "to_name": "Fenofield",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 12,
+     "to": 20,
+     "to_name": "Belwell",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 0,
+    "storm": 50,
+    "wildfire": 63,
+    "seismic": 39,
+    "drought": 49
+   },
+   "climate": {
+    "temperature_c": 12,
+    "precipitation_mm": 612,
+    "biome": "lake",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 395,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.04,
+   "unemployment": 0.04,
+   "hoods": [
+    {
+     "id": 184,
+     "population": 19082
+    },
+    {
+     "id": 185,
+     "population": 28541
+    },
+    {
+     "id": 186,
+     "population": 20487
+    },
+    {
+     "id": 187,
+     "population": 10600
+    },
+    {
+     "id": 188,
+     "population": 20234
+    },
+    {
+     "id": 189,
+     "population": 23082
+    },
+    {
+     "id": 190,
+     "population": 13718
+    }
+   ]
+  }
+ },
+ {
+  "seed": "5",
+  "source": "town",
+  "input": {
+   "municipality": "Halomouth",
+   "neighborhoods": [
+    {
+     "id": 187,
+     "name": "Halomouth",
+     "kind": "core"
+    },
+    {
+     "id": 188,
+     "name": "Kings Cross",
+     "kind": "industrial"
+    },
+    {
+     "id": 189,
+     "name": "Millwood",
+     "kind": "suburb"
+    },
+    {
+     "id": 190,
+     "name": "Station Hill",
+     "kind": "rural"
+    },
+    {
+     "id": 191,
+     "name": "Wharfend",
+     "kind": "suburb"
+    },
+    {
+     "id": 192,
+     "name": "Harbourvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 193,
+     "name": "Northside",
+     "kind": "rural"
+    },
+    {
+     "id": 194,
+     "name": "Abbey Quarter",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 233,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 234,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 235,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 236,
+     "kind": "diner",
+     "name": "Mina's",
+     "neighborhood": 187
+    },
+    {
+     "id": 237,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 239,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 241,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 242,
+     "kind": "news_office",
+     "name": "The Halomouth Ledger",
+     "neighborhood": 187
+    },
+    {
+     "id": 243,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 244,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 188
+    },
+    {
+     "id": 245,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 188
+    },
+    {
+     "id": 238,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 189
+    },
+    {
+     "id": 240,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 189
+    },
+    {
+     "id": 246,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 190
+    }
+   ],
+   "home": 187,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 14,
+   "name": "Halomouth",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 144581,
+   "neighborhoods": [
+    {
+     "id": 187,
+     "name": "Halomouth",
+     "kind": "core",
+     "baseline_population": 26555,
+     "adjacent": []
+    },
+    {
+     "id": 188,
+     "name": "Kings Cross",
+     "kind": "industrial",
+     "baseline_population": 11674,
+     "adjacent": []
+    },
+    {
+     "id": 189,
+     "name": "Millwood",
+     "kind": "suburb",
+     "baseline_population": 15741,
+     "adjacent": []
+    },
+    {
+     "id": 190,
+     "name": "Station Hill",
+     "kind": "rural",
+     "baseline_population": 9024,
+     "adjacent": []
+    },
+    {
+     "id": 191,
+     "name": "Wharfend",
+     "kind": "suburb",
+     "baseline_population": 23622,
+     "adjacent": []
+    },
+    {
+     "id": 192,
+     "name": "Harbourvale",
+     "kind": "suburb",
+     "baseline_population": 20497,
+     "adjacent": []
+    },
+    {
+     "id": 193,
+     "name": "Northside",
+     "kind": "rural",
+     "baseline_population": 8238,
+     "adjacent": []
+    },
+    {
+     "id": 194,
+     "name": "Abbey Quarter",
+     "kind": "suburb",
+     "baseline_population": 29230,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 233,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 234,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 235,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 236,
+     "kind": "diner",
+     "name": "Mina's",
+     "neighborhood": 187
+    },
+    {
+     "id": 237,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 239,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 241,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 242,
+     "kind": "news_office",
+     "name": "The Halomouth Ledger",
+     "neighborhood": 187
+    },
+    {
+     "id": 243,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 244,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 188
+    },
+    {
+     "id": 245,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 188
+    },
+    {
+     "id": 238,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 189
+    },
+    {
+     "id": 240,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 189
+    },
+    {
+     "id": 246,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 190
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.manufacturing",
+     "driver": "",
+     "jobs": 13012
+    }
+   ],
+   "river": {
+    "class": 2,
+    "enters": 2,
+    "leaves": 10,
+    "through_centre": true
+   },
+   "creeks": [],
+   "coast": null,
+   "lake": null,
+   "relief": {
+    "ruggedness_pm": 214,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 26
+   },
+   "woods": {
+    "share_pm": 161,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 505,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 430,
+    "timber": 161,
+    "minerals": 505,
+    "fishing": 0,
+    "energy": 344,
+    "scenic": 153
+   },
+   "links": [
+    {
+     "mode": "road",
+     "bearing": 0,
+     "to": 1,
+     "to_name": "Quarroport",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 3,
+     "to": 9,
+     "to_name": "Fenbridge",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 4,
+     "to": 3,
+     "to_name": "Mireabridge",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 7,
+     "to": 35,
+     "to_name": "Kesridge",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 11,
+     "to": 33,
+     "to_name": "Brinport",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 0,
+    "storm": 50,
+    "wildfire": 199,
+    "seismic": 84,
+    "drought": 260
+   },
+   "climate": {
+    "temperature_c": 6,
+    "precipitation_mm": 611,
+    "biome": "grassland",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 205,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.09,
+   "unemployment": 0.09,
+   "hoods": [
+    {
+     "id": 187,
+     "population": 26555
+    },
+    {
+     "id": 188,
+     "population": 11674
+    },
+    {
+     "id": 189,
+     "population": 15741
+    },
+    {
+     "id": 190,
+     "population": 9024
+    },
+    {
+     "id": 191,
+     "population": 23622
+    },
+    {
+     "id": 192,
+     "population": 20497
+    },
+    {
+     "id": 193,
+     "population": 8238
+    },
+    {
+     "id": 194,
+     "population": 29230
+    }
+   ]
+  }
+ },
+ {
+  "seed": "12345",
+  "source": "town",
+  "input": {
+   "municipality": "Garenmoor",
+   "neighborhoods": [
+    {
+     "id": 172,
+     "name": "Garenmoor",
+     "kind": "core"
+    },
+    {
+     "id": 173,
+     "name": "Quarrygate",
+     "kind": "industrial"
+    },
+    {
+     "id": 174,
+     "name": "Northlands",
+     "kind": "suburb"
+    },
+    {
+     "id": 175,
+     "name": "Abbeyvale",
+     "kind": "rural"
+    },
+    {
+     "id": 176,
+     "name": "Queenswood",
+     "kind": "suburb"
+    },
+    {
+     "id": 177,
+     "name": "Upper Green",
+     "kind": "suburb"
+    },
+    {
+     "id": 178,
+     "name": "Orchard Green",
+     "kind": "rural"
+    }
+   ],
+   "places": [
+    {
+     "id": 223,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 224,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 225,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 226,
+     "kind": "diner",
+     "name": "Mirela's",
+     "neighborhood": 172
+    },
+    {
+     "id": 227,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 229,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 231,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 232,
+     "kind": "news_office",
+     "name": "The Garenmoor Chronicle",
+     "neighborhood": 172
+    },
+    {
+     "id": 233,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 234,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 173
+    },
+    {
+     "id": 235,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 173
+    },
+    {
+     "id": 228,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 174
+    },
+    {
+     "id": 230,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 174
+    },
+    {
+     "id": 236,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 175
+    }
+   ],
+   "home": 173,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 13,
+   "name": "Garenmoor",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 137041,
+   "neighborhoods": [
+    {
+     "id": 172,
+     "name": "Garenmoor",
+     "kind": "core",
+     "baseline_population": 25340,
+     "adjacent": []
+    },
+    {
+     "id": 173,
+     "name": "Quarrygate",
+     "kind": "industrial",
+     "baseline_population": 11037,
+     "adjacent": []
+    },
+    {
+     "id": 174,
+     "name": "Northlands",
+     "kind": "suburb",
+     "baseline_population": 24626,
+     "adjacent": []
+    },
+    {
+     "id": 175,
+     "name": "Abbeyvale",
+     "kind": "rural",
+     "baseline_population": 11017,
+     "adjacent": []
+    },
+    {
+     "id": 176,
+     "name": "Queenswood",
+     "kind": "suburb",
+     "baseline_population": 26194,
+     "adjacent": []
+    },
+    {
+     "id": 177,
+     "name": "Upper Green",
+     "kind": "suburb",
+     "baseline_population": 23917,
+     "adjacent": []
+    },
+    {
+     "id": 178,
+     "name": "Orchard Green",
+     "kind": "rural",
+     "baseline_population": 14910,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 223,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 224,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 225,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 226,
+     "kind": "diner",
+     "name": "Mirela's",
+     "neighborhood": 172
+    },
+    {
+     "id": 227,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 229,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 231,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 232,
+     "kind": "news_office",
+     "name": "The Garenmoor Chronicle",
+     "neighborhood": 172
+    },
+    {
+     "id": 233,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 234,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 173
+    },
+    {
+     "id": 235,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 173
+    },
+    {
+     "id": 228,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 174
+    },
+    {
+     "id": 230,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 174
+    },
+    {
+     "id": 236,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 175
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.retail",
+     "driver": "",
+     "jobs": 18501
+    }
+   ],
+   "river": {
+    "class": 2,
+    "enters": 4,
+    "leaves": 12,
+    "through_centre": true
+   },
+   "creeks": [],
+   "coast": null,
+   "lake": {
+    "bearing": 10,
+    "near": true
+   },
+   "relief": {
+    "ruggedness_pm": 680,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 82
+   },
+   "woods": {
+    "share_pm": 143,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 537,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 268,
+    "timber": 143,
+    "minerals": 537,
+    "fishing": 215,
+    "energy": 308,
+    "scenic": 363
+   },
+   "links": [
+    {
+     "mode": "road",
+     "bearing": 5,
+     "to": 51,
+     "to_name": "Hollingate",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 6,
+     "to": 4,
+     "to_name": "Larkerhaven",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 14,
+     "to": 50,
+     "to_name": "Corrby",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 15,
+     "to": 32,
+     "to_name": "Mireohaven",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 0,
+    "storm": 50,
+    "wildfire": 267,
+    "seismic": 236,
+    "drought": 284
+   },
+   "climate": {
+    "temperature_c": 6,
+    "precipitation_mm": 527,
+    "biome": "steppe",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 652,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.05,
+   "unemployment": 0.06,
+   "hoods": [
+    {
+     "id": 172,
+     "population": 25340
+    },
+    {
+     "id": 173,
+     "population": 11037
+    },
+    {
+     "id": 174,
+     "population": 24626
+    },
+    {
+     "id": 175,
+     "population": 11017
+    },
+    {
+     "id": 176,
+     "population": 26194
+    },
+    {
+     "id": 177,
+     "population": 23917
+    },
+    {
+     "id": 178,
+     "population": 14910
+    }
+   ]
+  }
+ },
+ {
+  "seed": "8080",
+  "source": "town",
+  "input": {
+   "municipality": "Hollinigate",
+   "neighborhoods": [
+    {
+     "id": 184,
+     "name": "Hollinigate",
+     "kind": "core"
+    },
+    {
+     "id": 185,
+     "name": "Abbeytown",
+     "kind": "industrial"
+    },
+    {
+     "id": 186,
+     "name": "Eastlands",
+     "kind": "suburb"
+    },
+    {
+     "id": 187,
+     "name": "Crosslands",
+     "kind": "rural"
+    },
+    {
+     "id": 188,
+     "name": "Lowerwood",
+     "kind": "suburb"
+    },
+    {
+     "id": 189,
+     "name": "Orchardheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 190,
+     "name": "Millvale",
+     "kind": "rural"
+    },
+    {
+     "id": 191,
+     "name": "Newvale",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 232,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 233,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 234,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 235,
+     "kind": "diner",
+     "name": "Ursel's",
+     "neighborhood": 184
+    },
+    {
+     "id": 236,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 238,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 240,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 241,
+     "kind": "news_office",
+     "name": "The Hollinigate Ledger",
+     "neighborhood": 184
+    },
+    {
+     "id": 242,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 243,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 244,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 237,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 239,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 245,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 187
+    }
+   ],
+   "home": 189,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 14,
+   "name": "Hollinigate",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 148464,
+   "neighborhoods": [
+    {
+     "id": 184,
+     "name": "Hollinigate",
+     "kind": "core",
+     "baseline_population": 25046,
+     "adjacent": []
+    },
+    {
+     "id": 185,
+     "name": "Abbeytown",
+     "kind": "industrial",
+     "baseline_population": 12175,
+     "adjacent": []
+    },
+    {
+     "id": 186,
+     "name": "Eastlands",
+     "kind": "suburb",
+     "baseline_population": 22764,
+     "adjacent": []
+    },
+    {
+     "id": 187,
+     "name": "Crosslands",
+     "kind": "rural",
+     "baseline_population": 7460,
+     "adjacent": []
+    },
+    {
+     "id": 188,
+     "name": "Lowerwood",
+     "kind": "suburb",
+     "baseline_population": 18169,
+     "adjacent": []
+    },
+    {
+     "id": 189,
+     "name": "Orchardheath",
+     "kind": "suburb",
+     "baseline_population": 24946,
+     "adjacent": []
+    },
+    {
+     "id": 190,
+     "name": "Millvale",
+     "kind": "rural",
+     "baseline_population": 10552,
+     "adjacent": []
+    },
+    {
+     "id": 191,
+     "name": "Newvale",
+     "kind": "suburb",
+     "baseline_population": 27352,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 232,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 233,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 234,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 235,
+     "kind": "diner",
+     "name": "Ursel's",
+     "neighborhood": 184
+    },
+    {
+     "id": 236,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 238,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 240,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 241,
+     "kind": "news_office",
+     "name": "The Hollinigate Ledger",
+     "neighborhood": 184
+    },
+    {
+     "id": 242,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 243,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 244,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 237,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 239,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 245,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 187
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.retail",
+     "driver": "",
+     "jobs": 20043
+    }
+   ],
+   "river": {
+    "class": 3,
+    "enters": 2,
+    "leaves": 10,
+    "through_centre": true
+   },
+   "creeks": [],
+   "coast": null,
+   "lake": {
+    "bearing": 12,
+    "near": true
+   },
+   "relief": {
+    "ruggedness_pm": 807,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 97
+   },
+   "woods": {
+    "share_pm": 36,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 574,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 243,
+    "timber": 36,
+    "minerals": 574,
+    "fishing": 351,
+    "energy": 240,
+    "scenic": 441
+   },
+   "links": [
+    {
+     "mode": "road",
+     "bearing": 0,
+     "to": 36,
+     "to_name": "Pelliby",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 2,
+     "to": 19,
+     "to_name": "Brinenholm",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 5,
+     "to": 45,
+     "to_name": "Belford",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 9,
+     "to": 44,
+     "to_name": "Strathobridge",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 10,
+     "to": 9,
+     "to_name": "Oakford",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 0,
+    "storm": 50,
+    "wildfire": 244,
+    "seismic": 89,
+    "drought": 285
+   },
+   "climate": {
+    "temperature_c": 6,
+    "precipitation_mm": 507,
+    "biome": "steppe",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 840,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.07,
+   "unemployment": 0.04,
+   "hoods": [
+    {
+     "id": 184,
+     "population": 25046
+    },
+    {
+     "id": 185,
+     "population": 12175
+    },
+    {
+     "id": 186,
+     "population": 22764
+    },
+    {
+     "id": 187,
+     "population": 7460
+    },
+    {
+     "id": 188,
+     "population": 18169
+    },
+    {
+     "id": 189,
+     "population": 24946
+    },
+    {
+     "id": 190,
+     "population": 10552
+    },
+    {
+     "id": 191,
+     "population": 27352
+    }
+   ]
+  }
+ },
+ {
+  "seed": "60606",
+  "source": "town",
+  "input": {
+   "municipality": "Belton",
+   "neighborhoods": [
+    {
+     "id": 177,
+     "name": "Belton",
+     "kind": "core"
+    },
+    {
+     "id": 178,
+     "name": "Northwood",
+     "kind": "waterfront"
+    },
+    {
+     "id": 179,
+     "name": "Quarryend",
+     "kind": "industrial"
+    },
+    {
+     "id": 180,
+     "name": "Mill Green",
+     "kind": "rural"
+    },
+    {
+     "id": 181,
+     "name": "Abbey Hill",
+     "kind": "suburb"
+    },
+    {
+     "id": 182,
+     "name": "Churchend",
+     "kind": "suburb"
+    },
+    {
+     "id": 183,
+     "name": "Castlegate",
+     "kind": "rural"
+    },
+    {
+     "id": 184,
+     "name": "Southside",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 223,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 224,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 225,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 226,
+     "kind": "diner",
+     "name": "Basil's",
+     "neighborhood": 177
+    },
+    {
+     "id": 227,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 229,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 231,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 232,
+     "kind": "news_office",
+     "name": "The Belton Herald",
+     "neighborhood": 177
+    },
+    {
+     "id": 233,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 236,
+     "kind": "port",
+     "name": "",
+     "neighborhood": 178
+    },
+    {
+     "id": 234,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 179
+    },
+    {
+     "id": 235,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 179
+    },
+    {
+     "id": 237,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 180
+    },
+    {
+     "id": 238,
+     "kind": "mill",
+     "name": "",
+     "neighborhood": 180
+    },
+    {
+     "id": 228,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 181
+    },
+    {
+     "id": 230,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 181
+    }
+   ],
+   "home": 179,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 13,
+   "name": "Belton",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 136023,
+   "neighborhoods": [
+    {
+     "id": 177,
+     "name": "Belton",
+     "kind": "core",
+     "baseline_population": 18927,
+     "adjacent": []
+    },
+    {
+     "id": 178,
+     "name": "Northwood",
+     "kind": "waterfront",
+     "baseline_population": 12847,
+     "adjacent": []
+    },
+    {
+     "id": 179,
+     "name": "Quarryend",
+     "kind": "industrial",
+     "baseline_population": 10481,
+     "adjacent": []
+    },
+    {
+     "id": 180,
+     "name": "Mill Green",
+     "kind": "rural",
+     "baseline_population": 10115,
+     "adjacent": []
+    },
+    {
+     "id": 181,
+     "name": "Abbey Hill",
+     "kind": "suburb",
+     "baseline_population": 23963,
+     "adjacent": []
+    },
+    {
+     "id": 182,
+     "name": "Churchend",
+     "kind": "suburb",
+     "baseline_population": 17713,
+     "adjacent": []
+    },
+    {
+     "id": 183,
+     "name": "Castlegate",
+     "kind": "rural",
+     "baseline_population": 13136,
+     "adjacent": []
+    },
+    {
+     "id": 184,
+     "name": "Southside",
+     "kind": "suburb",
+     "baseline_population": 28841,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 223,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 224,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 225,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 226,
+     "kind": "diner",
+     "name": "Basil's",
+     "neighborhood": 177
+    },
+    {
+     "id": 227,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 229,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 231,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 232,
+     "kind": "news_office",
+     "name": "The Belton Herald",
+     "neighborhood": 177
+    },
+    {
+     "id": 233,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 236,
+     "kind": "port",
+     "name": "",
+     "neighborhood": 178
+    },
+    {
+     "id": 234,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 179
+    },
+    {
+     "id": 235,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 179
+    },
+    {
+     "id": 237,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 180
+    },
+    {
+     "id": 238,
+     "kind": "mill",
+     "name": "",
+     "neighborhood": 180
+    },
+    {
+     "id": 228,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 181
+    },
+    {
+     "id": 230,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 181
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.manufacturing",
+     "driver": "",
+     "jobs": 12242
+    }
+   ],
+   "river": {
+    "class": 1,
+    "enters": 2,
+    "leaves": 10,
+    "through_centre": false
+   },
+   "creeks": [],
+   "coast": {
+    "sea": 7,
+    "shore": "beach",
+    "bay": true
+   },
+   "lake": null,
+   "relief": {
+    "ruggedness_pm": 253,
+    "uphill": 14,
+    "high_ground": 14,
+    "relief_m": 30
+   },
+   "woods": {
+    "share_pm": 966,
+    "bearing": 14
+   },
+   "minerals": {
+    "value_pm": 548,
+    "bearing": 0
+   },
+   "resources_pm": {
+    "fertility": 431,
+    "timber": 716,
+    "minerals": 548,
+    "fishing": 300,
+    "energy": 110,
+    "scenic": 266
+   },
+   "links": [
+    {
+     "mode": "rail",
+     "bearing": 2,
+     "to": 11,
+     "to_name": "Belridge",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 2,
+     "to": 43,
+     "to_name": "Dunofield",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 3,
+     "to": 0,
+     "to_name": "Larkgate",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 14,
+     "to": 11,
+     "to_name": "Belridge",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 344,
+    "storm": 217,
+    "wildfire": 128,
+    "seismic": 0,
+    "drought": 48
+   },
+   "climate": {
+    "temperature_c": 14,
+    "precipitation_mm": 1142,
+    "biome": "temperate_forest",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 83,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.12,
+   "unemployment": 0.09,
+   "hoods": [
+    {
+     "id": 177,
+     "population": 18927
+    },
+    {
+     "id": 178,
+     "population": 12847
+    },
+    {
+     "id": 179,
+     "population": 10481
+    },
+    {
+     "id": 180,
+     "population": 10115
+    },
+    {
+     "id": 181,
+     "population": 23963
+    },
+    {
+     "id": 182,
+     "population": 17713
+    },
+    {
+     "id": 183,
+     "population": 13136
+    },
+    {
+     "id": 184,
+     "population": 28841
+    }
+   ]
+  }
+ }
+]

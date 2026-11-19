@@ -1228,7 +1228,8 @@ export function townGrid(map: TownMap, costs?: Parameters<typeof buildGrid>[3]):
 
 /** Tap targets for ./pathfinding's `resolveTap`, parallel to `map.buildings`. */
 export function townFootprints(map: TownMap): Footprint[] {
-  return map.buildings.map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.h, door: b.front, roofRows: ROOF_ROWS }));
+  // Layout v2: reserved land is open ground, not a building to tap (an empty footprint keeps the indices parallel).
+  return map.buildings.map((b) => (b.state === "reserved" ? { x: b.x, y: b.y, w: 0, h: 0, door: b.front, roofRows: 0 } : { x: b.x, y: b.y, w: b.w, h: b.h, door: b.front, roofRows: ROOF_ROWS }));
 }
 
 export function buildingOfPlace(map: TownMap, place: number): TownBuilding | null {

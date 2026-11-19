@@ -10,7 +10,7 @@
 // small palette in ./palette. Frames are made lazily and cached.
 import { gradeAt, shadowBucket, shadowVector, sunAt } from "../dayCycle";
 import { noise01 } from "../rng";
-import { ROOF_ROWS, Terrain } from "../townLayout";
+import { ROOF_ROWS, Terrain, type TownMap } from "../townLayout";
 import {
   domCanvasFactory,
   type AnimKey,
@@ -319,6 +319,7 @@ export class PlaceholderArt implements ArtProvider {
   readonly walkFrames = 2;
   private readonly make: CanvasFactory;
   private tiles = new Map<number, FrameRef>();
+  private cells = new Map<string, FrameRef>();
   private tileSheet: Sheet;
   private glowSheet: Sheet;
   private glows = new Map<string, FrameRef>();
@@ -388,6 +389,9 @@ export class PlaceholderArt implements ArtProvider {
     const W = spec.w * T;
     const H = (spec.h + ROOF_ROWS) * T;
     const { canvas, ctx } = this.layer(W, H);
+    // Layout v2 plot states (DEC-090 D2): an empty reserved lot and a building site have no building.
+    const state = spec.conditions.find((c) => c === "reserved" || c === "construction" || c === "boarded" || c === "derelict");
+    if (state === "reserved" || state === "construction") return this.lot(spec, canvas, ctx, state);
     const s = lookFor(spec);
     const n = (k: number) => noise01(spec.visualSeed, k);
     const use = lightUseOf(spec.kind);
@@ -454,6 +458,20 @@ export class PlaceholderArt implements ArtProvider {
       }
     }
     rect(ctx, 0, roofH - 1, W, 1, PAL.ink);
+    // Layout v2 landmarks without a place: the church's tower and spire, the station's canopy.
+    if (spec.kind === "church" || spec.kind === "chapel") {
+      const tw = spec.kind === "church" ? 10 : 8;
+      const tx = Math.floor(W / 2 - tw / 2);
+      rect(ctx, tx - 1, 0, tw + 2, roofH, PAL.ink);
+      rect(ctx, tx, 4, tw, roofH - 4, PAL.cream3);
+      for (let y = 0; y < 6; y++) rect(ctx, tx + Math.floor(tw / 2) - 1 - Math.floor(y / 2), y, 2 + Math.floor(y / 2) * 2, 1, PAL.slate2);
+      rect(ctx, tx + Math.floor(tw / 2) - 1, 7, 2, 3, PAL.ink);
+    } else if (spec.kind === "station") {
+      rect(ctx, 0, roofH - 5, W, 4, PAL.slate2);
+      for (let x = 2; x < W; x += 6) rect(ctx, x, roofH - 5, 3, 1, PAL.cream);
+      rect(ctx, Math.floor(W / 2) - 4, 1, 8, 6, PAL.cream);
+      rect(ctx, Math.floor(W / 2) - 1, 2, 2, 3, PAL.ink);
+    }
 
     // ---- front wall
     const [wl, wd] = s.wallC;
@@ -574,6 +592,23 @@ export class PlaceholderArt implements ArtProvider {
       }
     }
 
+    // Boarded up (vacancy, a closed works) and derelict (a sustained fall): planks over the openings, no lights.
+    if (state === "boarded" || state === "derelict") {
+      for (const o of [...windows, ...doors]) {
+        rect(ctx, o.x - 1, o.y - 1, o.w + 2, o.h + 2, PAL.wood2);
+        for (let y = o.y; y < o.y + o.h; y += 2) rect(ctx, o.x - 1, y, o.w + 2, 1, PAL.wood);
+      }
+      windows.length = 0;
+      doors.length = 0;
+      if (state === "derelict") {
+        // Holes in the roof and a grimy front.
+        for (let k = 0; k < Math.max(1, Math.floor(W / 20)); k++) rect(ctx, 3 + Math.floor(n(90 + k) * (W - 12)), 2 + Math.floor(n(95 + k) * Math.max(1, roofH - 8)), 6, 4, PAL.ink);
+        ctx.globalAlpha = 0.3;
+        rect(ctx, 0, wallTop, W, s.wallH, PAL.ink);
+        ctx.globalAlpha = 1;
+      }
+    }
+
     const fh = spec.h * T;
     return {
       albedo: { image: canvas, x: 0, y: 0, w: W, h: H, ax: 0, ay: ROOF_ROWS * T },
@@ -589,6 +624,104 @@ export class PlaceholderArt implements ArtProvider {
         height: Math.round(heightOf(spec) * T),
       },
     };
+  }
+
+  /** A plot with nothing standing yet: a reserved lot (rough grass, survey pegs) or a building site (slab, scaffold). */
+  private lot(spec: BuildingSpec, canvas: HTMLCanvasElement, ctx: Ctx, state: "reserved" | "construction"): BuiltBuilding {
+    const W = spec.w * T;
+    const H = (spec.h + ROOF_ROWS) * T;
+    const top = ROOF_ROWS * T;
+    const n = (k: number) => noise01(spec.visualSeed, k);
+    if (state === "reserved") {
+      for (let k = 0; k < spec.w * spec.h * 3; k++) rect(ctx, Math.floor(n(k) * (W - 2)), top + Math.floor(n(k + 500) * (H - top - 2)), 2, 1, PAL.grass2);
+      // Pegs and a string line round the plot.
+      for (const [x, y] of [
+        [1, top + 1],
+        [W - 3, top + 1],
+        [1, H - 4],
+        [W - 3, H - 4],
+      ] as const) {
+        rect(ctx, x, y - 3, 2, 5, PAL.wood);
+        rect(ctx, x, y - 3, 2, 1, PAL.flag);
+      }
+      ctx.globalAlpha = 0.6;
+      rect(ctx, 2, top, W - 4, 1, PAL.cream3);
+      rect(ctx, 2, H - 3, W - 4, 1, PAL.cream3);
+      ctx.globalAlpha = 1;
+      return { albedo: { image: canvas, x: 0, y: 0, w: W, h: H, ax: 0, ay: top }, windows: [], doors: [], shadow: { footprint: [], height: 0 } };
+    }
+    // A building site: a concrete slab, scaffold poles and boards, a little crane.
+    rect(ctx, 1, top + 4, W - 2, H - top - 5, PAL.pavement2);
+    rect(ctx, 1, H - 2, W - 2, 1, PAL.slate3);
+    for (let x = 2; x < W - 1; x += 8) rect(ctx, x, top - 6, 1, H - top + 4, PAL.gold);
+    for (let y = top; y < H - 2; y += 7) rect(ctx, 1, y, W - 2, 1, PAL.goldDark);
+    rect(ctx, W - 6, 2, 2, H - 6, PAL.gold);
+    rect(ctx, Math.max(0, W - 20), 2, 18, 2, PAL.gold);
+    const fh = spec.h * T;
+    return {
+      albedo: { image: canvas, x: 0, y: 0, w: W, h: H, ax: 0, ay: top },
+      windows: [],
+      doors: [],
+      shadow: {
+        footprint: [
+          [0, 0],
+          [W, 0],
+          [W, fh],
+          [0, fh],
+        ],
+        height: 6,
+      },
+    };
+  }
+
+  /**
+   * Layout v2: a cell with what the map says around it (DEC-090, §7.7): its
+   * ground tile, then lips where it stands above the cell north, east or west
+   * of it (a south-facing change is its own Embankment or Rock tile), and a
+   * lighter tone two levels up. A v1 map gets exactly `ground`.
+   */
+  groundCell(map: TownMap, x: number, y: number, cornerMask: number, variant: number): FrameRef {
+    const W = map.width;
+    const i = y * W + x;
+    const kind = map.terrain[i] as number;
+    if (kind === Terrain.Creek || kind === Terrain.Ford) {
+      // The channel runs on through fords and under bridges.
+      const wet = (nx: number, ny: number) => {
+        if (nx < 0 || ny < 0 || nx >= W || ny >= map.height) return true;
+        const t = map.terrain[ny * W + nx];
+        return t === Terrain.Creek || t === Terrain.Ford || t === Terrain.Bridge || t === Terrain.Water;
+      };
+      cornerMask = (wet(x, y - 1) ? 1 : 0) | (wet(x + 1, y) ? 2 : 0) | (wet(x, y + 1) ? 4 : 0) | (wet(x - 1, y) ? 8 : 0);
+    }
+    const base = this.ground(kind, cornerMask, variant);
+    const el = map.elevation;
+    if (!el || kind === Terrain.Water) return base;
+    const lv = el[i] as number;
+    const lower = (nx: number, ny: number) => nx >= 0 && ny >= 0 && nx < W && ny < map.height && (el[ny * W + nx] as number) < lv;
+    const edges = (lower(x, y - 1) ? 1 : 0) | (lower(x + 1, y) ? 2 : 0) | (lower(x - 1, y) ? 8 : 0);
+    const tone = lv >= 2 ? lv - 1 : 0;
+    if (!edges && !tone) return base;
+    const key = `${kind}:${cornerMask & 15}:${variant & 7}:${edges}:${tone}`;
+    const hit = this.cells.get(key);
+    if (hit) return hit;
+    const { layer, x: px, y: py } = this.tileSheet.alloc(T, T);
+    const g = layer.ctx;
+    g.drawImage(base.image, base.x, base.y, T, T, px, py, T, T);
+    if (tone) {
+      g.globalAlpha = 0.07 * tone;
+      rect(g, px, py, T, T, PAL.cream);
+      g.globalAlpha = 1;
+    }
+    // A lip: the edge of higher ground seen from above (a light line, a shadow just outside it).
+    if (edges & 1) {
+      rect(g, px, py, T, 1, PAL.cream3);
+      rect(g, px, py + 1, T, 1, PAL.grass2);
+    }
+    if (edges & 2) rect(g, px + T - 1, py, 1, T, PAL.tree2);
+    if (edges & 8) rect(g, px, py, 1, T, PAL.cream3);
+    const f: FrameRef = { image: layer.canvas, x: px, y: py, w: T, h: T, ax: 0, ay: 0 };
+    this.cells.set(key, f);
+    return f;
   }
 
   /** A lit window or doorway of a size, with a one-pixel halo (anchor: the opening's top-left). */
@@ -734,6 +867,57 @@ export class PlaceholderArt implements ArtProvider {
             rect(ctx, 5, 2, 9, 6, v === 1 ? PAL.flag : PAL.gold);
             rect(ctx, 5, 8, 9, 1, PAL.ink);
             rect(ctx, 2, 37, 4, 3, PAL.ink);
+          }),
+        };
+      // ---- layout v2 (DEC-090)
+      case "headframe": {
+        // A mine's winding tower: two legs, a cross beam, the wheel on top.
+        const albedo = frame(16, 48, 32, (ctx) => {
+          rect(ctx, 2, 10, 2, 37, PAL.ink);
+          rect(ctx, 12, 10, 2, 37, PAL.ink);
+          rect(ctx, 3, 10, 1, 36, PAL.red);
+          rect(ctx, 12, 10, 1, 36, PAL.red);
+          for (let y = 16; y < 46; y += 8) rect(ctx, 3, y, 10, 1, PAL.brick2);
+          rect(ctx, 1, 8, 14, 3, PAL.ink);
+          rect(ctx, 4, 1, 8, 8, PAL.ink);
+          rect(ctx, 5, 2, 6, 6, PAL.slate3);
+          rect(ctx, 7, 4, 2, 2, PAL.ink);
+          rect(ctx, 3, 46, 10, 2, PAL.ink);
+        });
+        return { albedo, shadow: { footprint: box(2, 6, 14, 14), height: 40 } };
+      }
+      case "spoil_heap": {
+        const albedo = frame(48, 32, 16, (ctx) => {
+          for (let y = 0; y < 30; y++) {
+            const half = Math.floor(((y + 2) * 23) / 30);
+            rect(ctx, 24 - half - 1, y + 1, (half + 1) * 2, 1, PAL.ink);
+            rect(ctx, 24 - half, y + 1, half * 2, 1, y < 8 ? PAL.slate3 : y < 20 ? PAL.slate2 : PAL.slate);
+          }
+          for (let k = 0; k < 12; k++) rect(ctx, 8 + ((k * 7) % 32), 12 + ((k * 5) % 16), 2, 1, PAL.ink);
+        });
+        return { albedo, shadow: { footprint: box(4, 18, 44, 32), height: 10 } };
+      }
+      case "reeds":
+        return {
+          albedo: frame(16, 20, 4, (ctx) => {
+            for (let k = 0; k < 6; k++) {
+              const x = 2 + k * 2;
+              rect(ctx, x, 4 + (k % 3) * 2, 1, 14 - (k % 3) * 2, k % 2 ? PAL.thatch2 : PAL.thatch);
+              rect(ctx, x, 3 + (k % 3) * 2, 1, 2, PAL.wood2);
+            }
+          }),
+        };
+      case "stepping_stones":
+        return {
+          albedo: frame(16, 16, 0, (ctx) => {
+            for (const [x, y] of [
+              [2, 6],
+              [7, 9],
+              [11, 4],
+            ] as const) {
+              rect(ctx, x, y, 4, 3, PAL.ink);
+              rect(ctx, x, y, 4, 2, PAL.cream3);
+            }
           }),
         };
       case "crane":
@@ -953,6 +1137,81 @@ function paintGround(ctx: Ctx, t: number, m: number, v: number, dx: number, dy: 
     case Terrain.Pier:
       rect(ctx, dx, dy, T, T, PAL.wood);
       for (let k = 0; k < T; k += 4) rect(ctx, dx, dy + k, T, 1, PAL.wood2);
+      break;
+    // ---- layout v2 (DEC-090, §7.7): readable without the pixel-art pack
+    case Terrain.Creek:
+    case Terrain.Ford: {
+      // A one-tile stream: a channel through the middle, reaching the sides it joins.
+      rect(ctx, dx, dy, T, T, PAL.grass);
+      const c = t === Terrain.Ford ? PAL.waterLight : PAL.water;
+      rect(ctx, dx + 4, dy + 4, 8, 8, c);
+      if (N) rect(ctx, dx + 5, dy, 6, 5, c);
+      if (S) rect(ctx, dx + 5, dy + 11, 6, 5, c);
+      if (Wj) rect(ctx, dx, dy + 5, 5, 6, c);
+      if (E) rect(ctx, dx + 11, dy + 5, 5, 6, c);
+      if (t === Terrain.Ford) for (let k = 0; k < 3; k++) rect(ctx, dx + 3 + k * 4, dy + 6 + (k % 2) * 3, 3, 2, PAL.cream3);
+      else fleck(PAL.waterLight, 30, 1, 2, 1);
+      break;
+    }
+    case Terrain.Rock:
+      rect(ctx, dx, dy, T, T, PAL.slate3);
+      fleck(PAL.grey, 20, 4, 3, 1);
+      fleck(PAL.slate2, 30, 3, 1, 3);
+      if (!N) rect(ctx, dx, dy, T, 2, PAL.grey);
+      if (!S) rect(ctx, dx, dy + T - 2, T, 2, PAL.slate);
+      break;
+    case Terrain.Embankment:
+      // A retaining wall or bank face (it faces south: the view sees it), a grass lip on top.
+      rect(ctx, dx, dy, T, T, PAL.cream3);
+      for (let y = 4; y < T; y += 4) rect(ctx, dx, dy + y, T, 1, PAL.slate3);
+      for (let y = 4; y < T; y += 4) for (let x = (y % 8) * 1; x < T; x += 8) rect(ctx, dx + x, dy + y, 1, 4, PAL.slate3);
+      rect(ctx, dx, dy, T, 3, PAL.grass3);
+      rect(ctx, dx, dy + 3, T, 1, PAL.grass2);
+      rect(ctx, dx, dy + T - 1, T, 1, PAL.ink);
+      break;
+    case Terrain.Rail: {
+      rect(ctx, dx, dy, T, T, PAL.dirt2);
+      fleck(PAL.grey, 20, 4);
+      const horiz = (E || Wj) && !(N && S && !(E || Wj));
+      if (horiz) {
+        for (let x = 1; x < T; x += 4) rect(ctx, dx + x, dy + 3, 2, 10, PAL.wood2);
+        rect(ctx, dx, dy + 5, T, 1, PAL.grey);
+        rect(ctx, dx, dy + 10, T, 1, PAL.grey);
+      } else {
+        for (let y = 1; y < T; y += 4) rect(ctx, dx + 3, dy + y, 10, 2, PAL.wood2);
+        rect(ctx, dx + 5, dy, 1, T, PAL.grey);
+        rect(ctx, dx + 10, dy, 1, T, PAL.grey);
+      }
+      break;
+    }
+    case Terrain.Reeds:
+      rect(ctx, dx, dy, T, T, PAL.grass2);
+      for (let k = 0; k < 6; k++) rect(ctx, dx + 1 + Math.floor(n(40 + k) * 13), dy + 3 + Math.floor(n(50 + k) * 6), 1, 6, PAL.thatch2);
+      break;
+    case Terrain.Bridge: {
+      // A deck: stone setts, parapets where the deck ends sideways, the arch face on its south side.
+      rect(ctx, dx, dy, T, T, PAL.plaza2);
+      for (let y = 3; y < T; y += 4) rect(ctx, dx, dy + y, T, 1, PAL.pavement2);
+      if (!N) rect(ctx, dx, dy, T, 3, PAL.cream3);
+      if (!Wj) rect(ctx, dx, dy, 3, T, PAL.cream3);
+      if (!E) rect(ctx, dx + T - 3, dy, 3, T, PAL.cream3);
+      if (!S) {
+        rect(ctx, dx, dy + T - 5, T, 5, PAL.slate3);
+        rect(ctx, dx + 4, dy + T - 3, 8, 3, PAL.water2);
+        rect(ctx, dx, dy + T - 5, T, 1, PAL.cream3);
+      }
+      break;
+    }
+    case Terrain.Pit:
+      rect(ctx, dx, dy, T, T, PAL.dirt2);
+      fleck(PAL.ink, 20, 3, 2, 1);
+      break;
+    case Terrain.Steps:
+      rect(ctx, dx, dy, T, T, PAL.pavement);
+      for (let y = 2; y < T; y += 4) {
+        rect(ctx, dx, dy + y, T, 1, PAL.slate3);
+        rect(ctx, dx, dy + y + 1, T, 1, PAL.cream2);
+      }
       break;
     default:
       rect(ctx, dx, dy, T, T, PAL.grass);

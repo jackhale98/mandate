@@ -39,6 +39,34 @@ export interface HubViewOptions {
 
 const TILE = 16;
 
+/** Labels shown at once when zoomed out (TOWN_GENERATION.md §8: at most 12 on the overview). */
+export const LABEL_CAP = 12;
+
+export interface LabelBox {
+  index: number;
+  /** Screen rect, CSS px. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Lower first. */
+  priority: number;
+}
+
+/** Which labels to show: by priority, skipping any that would overlap one already shown (2 px apart), at most `cap`. */
+export function chooseLabels(boxes: readonly LabelBox[], cap = Infinity): Set<number> {
+  const order = [...boxes].sort((a, b) => a.priority - b.priority || a.index - b.index);
+  const placed: LabelBox[] = [];
+  const out = new Set<number>();
+  for (const b of order) {
+    if (out.size >= cap) break;
+    if (b.w > 0 && b.h > 0 && placed.some((p) => b.x < p.x + p.w + 2 && b.x + b.w + 2 > p.x && b.y < p.y + p.h + 2 && b.y + b.h + 2 > p.y)) continue;
+    placed.push(b);
+    out.add(b.index);
+  }
+  return out;
+}
+
 export class HubView {
   readonly map: TownMap;
   readonly scene: TownScene;
@@ -50,6 +78,7 @@ export class HubView {
   readonly timings = { intervals: [] as number[], draws: [] as number[], firstFrameMs: 0 };
   private readonly labelLayer: HTMLDivElement;
   private readonly labels: { b: TownBuilding; el: HTMLButtonElement }[] = [];
+  private readonly labelSize = new WeakMap<HTMLElement, { w: number; h: number }>();
   private readonly ctx: CanvasRenderingContext2D;
   private readonly opts: HubViewOptions;
   private readonly reducedMotion: boolean;
@@ -237,12 +266,31 @@ export class HubView {
 
   private placeLabels() {
     const z = this.camera.state.zoom;
-    for (const { b, el } of this.labels) {
+    // Candidates on screen, then a greedy pass so no two labels overlap (zoomed far out they would pile up),
+    // landmarks first; zoomed out, at most LABEL_CAP at once (TOWN_GENERATION.md §8).
+    const cands: LabelBox[] = [];
+    const pos: { x: number; y: number }[] = [];
+    this.labels.forEach(({ b, el }, i) => {
       const p = this.camera.worldToScreen({ x: (b.x + b.w / 2) * TILE, y: (b.y - ROOF_ROWS) * TILE });
-      const show = (z >= 2 || b.landmark) && p.x > -120 && p.x < this.cssW + 120 && p.y > -10 && p.y < this.cssH + 40;
+      pos[i] = p;
+      const want = (z >= 2 || b.landmark) && p.x > -120 && p.x < this.cssW + 120 && p.y > -10 && p.y < this.cssH + 40;
+      if (!want) return;
+      let size = this.labelSize.get(el);
+      if (!size) {
+        // Measured once, while shown (0 × 0 where layout is not available, e.g. tests).
+        el.style.display = "";
+        size = { w: el.offsetWidth, h: el.offsetHeight };
+        this.labelSize.set(el, size);
+      }
+      cands.push({ index: i, x: p.x - size.w / 2, y: p.y - size.h, w: size.w, h: size.h, priority: (b.landmark ? 0 : b.home ? 1 : 2) * 100000 + b.index });
+    });
+    const shown = chooseLabels(cands, z < 2 ? LABEL_CAP : Infinity);
+    this.labels.forEach(({ el }, i) => {
+      const show = shown.has(i);
       el.style.display = show ? "" : "none";
+      const p = pos[i] as { x: number; y: number };
       if (show) el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
-    }
+    });
   }
 
   // ------------------------------------------------------------------ input

@@ -350,7 +350,10 @@ export class TownRenderer {
     for (let y = Math.floor(y0 / T); y < ty1; y++) {
       for (let x = Math.floor(x0 / T); x < tx1; x++) {
         const i = y * map.width + x;
-        tiles.push([this.art.ground(map.terrain[i] as number, this.ground.mask[i] as number, this.ground.variant[i] as number), x * T, y * T]);
+        const m = this.ground.mask[i] as number;
+        const v = this.ground.variant[i] as number;
+        // Layout v2: a provider that draws cells with their neighbours (levels, shores, bridges) does so (DEC-090).
+        tiles.push([this.art.groundCell?.(map, x, y, m, v) ?? this.art.ground(map.terrain[i] as number, m, v), x * T, y * T]);
       }
     }
     const items: [FrameRef, number, number][] = [];
