@@ -1,11 +1,12 @@
 // `pixelkit lint`: the P0 lints (PIXEL_ART_TOOL.md §7.1) over Mandate's pack,
 // with the starting thresholds from §7.1. Errors fail the command; warnings
 // and measurements are reported.
-import { hexToRgb, lightness, type Rgb8 } from "../core/color";
+import { hexToRgb, lightness, rgbToLab, type Rgb8 } from "../core/color";
 import { Prng } from "../core/hash";
 import { crop, remap, type Indexed } from "../core/image";
 import { colourCount, edgePixels, nearClonePairs, offPalette, openOutline, orphans, silhouetteIoU } from "../core/lint";
-import { composeCharacter, lookFromSeed, partList, PLAYER_LOOK, slotTable, visibleFeatures, type Look } from "../../art/mandate/characters";
+import { composeCharacter, composeSlots, FACINGS, FRAMES, HAIR_SKIN_MIN, hairSteps, lookFromSeed, lookLines, partList, PLAYER_LOOK, slotMaterials, slotTable, visibleFeatures, type Look } from "../../art/mandate/characters";
+import { HAIR_NAMES } from "../../art/mandate/palette";
 import { LEGEND, SLOT } from "../../art/mandate/characterParts";
 import { buildFacade, COPY_SIMILARITY, designOf, kitPartList, signatureOf, similarity } from "../../art/mandate/buildings";
 import { sampleRows } from "../../art/mandate/samples";
@@ -58,24 +59,99 @@ export function lintPack(pack: ArtPack): Finding[] {
   let worstColours = 0;
   let open = 0;
   let off = 0;
+  // Round 3: the outline is a darker colour of each material, so "is a line" is per look.
+  let lineSum = 0;
+  let linePx = 0;
+  let softPx = 0;
   for (const [, look] of looks) {
     const c = composeCharacter(look, pal, pack.lightness);
+    const lines = lookLines(look, pal);
     for (const row of c.frames) {
       for (const img of row) {
         off += offPalette(img, n);
-        open += openOutline(img, (v) => isLine.has(v));
+        open += openOutline(img, (v) => lines.has(v));
         worstColours = Math.max(worstColours, colourCount(img));
       }
+    }
+    for (const v of edgePixels(c.frames[0]?.[0] as Indexed)) {
+      const L = (pack.lightness[v] as number) / 1000;
+      lineSum += L;
+      linePx++;
+      if (L > 0.3) softPx++;
     }
   }
   f.push({ lint: "palette conformance", level: off ? "error" : "info", subject: "21 characters × 18 frames", value: off, limit: "0 off-palette pixels" });
   f.push({ lint: "outline consistency", level: open ? "error" : "info", subject: "21 characters × 18 frames", value: open, limit: "0 edge pixels without outline" });
   f.push({ lint: "colours per character", level: worstColours <= 14 ? "info" : "warn", subject: "worst frame", value: worstColours, limit: "≤ 14 including the outline" });
+  f.push({ lint: "outline softness", level: "info", subject: "outline pixels of the 21 people (idle down): mean Oklab L / share lighter than L 0.30 (near-black lines are about 0.19–0.23)", value: `${(lineSum / linePx).toFixed(2)} / ${Math.round((100 * softPx) / linePx)}%` });
+
+  // ---- flatness (round 3): one flat tone per material and at most one shade, in every frame of every look
+  {
+    let worst = 0;
+    let worstWhere = "";
+    let over = 0;
+    for (const [name, look] of [...looks, ...Array.from({ length: 180 }, (_, i) => [`seed ${i + 21}`, lookFromSeed(i + 21)] as [string, Look])]) {
+      const table = slotTable(look, pal);
+      const mat = slotMaterials(look);
+      FACINGS.forEach((facing) => {
+        FRAMES.forEach((_, k) => {
+          const tones = new Map<string, Set<number>>();
+          for (const sl of composeSlots(look, facing, k).px) {
+            const m = mat[sl];
+            if (!sl || !m) continue;
+            let set = tones.get(m);
+            if (!set) tones.set(m, (set = new Set()));
+            set.add(table[sl] as number);
+          }
+          for (const [m, set] of tones) {
+            if (set.size > 2) over++;
+            if (set.size > worst) {
+              worst = set.size;
+              worstWhere = `${name}, ${m}, ${facing} ${FRAMES[k]}`;
+            }
+          }
+        });
+      });
+    }
+    f.push({ lint: "flatness", level: over ? "error" : "info", subject: `tones per material (skin, hair, top, bottoms, shoes, accent, hat, bag) in every frame of 200 looks; worst: ${worstWhere}`, value: worst, limit: "≤ 2 (a base and one shade)" });
+  }
+
+  // ---- heads (round 3): hair parts from skin on every skin tone; eyes show on every skin
+  {
+    const lab = pal.colors.map((c) => rgbToLab(hexToRgb(c)));
+    let worstHair = Infinity;
+    let worstHairAt = "";
+    let worstEye = Infinity;
+    let worstEyeAt = "";
+    for (let sk = 0; sk < 6; sk++) {
+      const t = slotTable({ ...PLAYER_LOOK, skin: sk }, pal);
+      const skin = lab[t[SLOT.skin] as number];
+      for (const hc of HAIR_NAMES) {
+        const [base] = hairSteps(pal, sk, hc);
+        const h = lab[base];
+        if (!skin || !h) continue;
+        const d = Math.hypot(skin.L - h.L, skin.a - h.a, skin.b - h.b);
+        if (d < worstHair) {
+          worstHair = d;
+          worstHairAt = `skin ${sk + 1}, ${hc}`;
+        }
+      }
+      // The eye is two pixels (its top and the dark below); the one further from the skin is what shows.
+      const eyes = [lab[t[SLOT.eye] as number], lab[t[SLOT.ink] as number]].filter((e) => e !== undefined);
+      const eyeL = skin ? Math.max(...eyes.map((e) => Math.abs(skin.L - e.L))) : 0;
+      if (eyeL < worstEye) {
+        worstEye = eyeL;
+        worstEyeAt = `skin ${sk + 1}`;
+      }
+    }
+    f.push({ lint: "head contrast", level: worstHair >= HAIR_SKIN_MIN * 0.7 ? (worstHair >= HAIR_SKIN_MIN ? "info" : "warn") : "error", subject: `hair against skin, every skin × hair colour, Oklab ΔE (worst: ${worstHairAt})`, value: worstHair.toFixed(3), limit: `≥ ${HAIR_SKIN_MIN}` });
+    f.push({ lint: "head contrast", level: worstEye >= 0.2 ? "info" : "warn", subject: `the eye against the skin, Oklab ΔL (worst: ${worstEyeAt})`, value: worstEye.toFixed(3), limit: "≥ 0.2" });
+  }
 
   // ---- orphan pixels in parts (highlights and eyes allowed)
-  const allowedChar = new Set<number>([SLOT.ink, SLOT.white, SLOT.skinL, SLOT.hairL, SLOT.topL, SLOT.accL, LEGEND.I ?? -1]);
+  const allowedChar = new Set<number>([SLOT.ink, SLOT.eye, SLOT.white, SLOT.skinL, SLOT.hairL, SLOT.topL, SLOT.accL, LEGEND.I ?? -1]);
   // Measured on the parts recoloured for an everyday look (trousers, long sleeves), where slots that share a colour merge.
-  const table = slotTable({ ...lookFromSeed(1), top: "suit", bottom: "trousers" }, pal);
+  const table = slotTable({ ...lookFromSeed(1), top: "suit", bottom: "trousers", skin: 2 }, pal);
   const allowedColours = new Set([...allowedChar].map((sl) => table[sl] as number));
   for (const p of partList()) {
     const o = orphans(remap(p.img, table), allowedColours);
@@ -112,7 +188,7 @@ export function lintPack(pack: ArtPack): Finding[] {
   }
 
   // ---- silhouettes: builds must read apart at 1×, heights must step
-  const base = lookFromSeed(1);
+  const base: Look = { ...lookFromSeed(1), hat: "none", carry: "none", old: false, glasses: false, top: "tee", bottom: "trousers" };
   const sil = (l: Look) => composeCharacter(l, pal, pack.lightness).frames[0]?.[0] as Indexed;
   // Builds differ in shoulders, hips and arms, never in head size (§6), so the silhouettes are compared below the chin.
   const builds = (["slim", "average", "broad"] as const).map((b) => crop(sil({ ...base, build: b, height: 1, hair: "crop", top: "tee" }), 0, 12, 16, 12));
@@ -164,7 +240,8 @@ export function lintPack(pack: ArtPack): Finding[] {
         const edge = edgePixels(img);
         // The figure's edge (outline) and its body's mean lightness: the larger difference is what the eye separates.
         const eL = edge.reduce((s, v) => s + lightness(figColour(v)), 0) / edge.length;
-        const body = [...img.px].filter((v) => v !== 0 && !isLine.has(v));
+        const lines = lookLines(look, pal);
+        const body = [...img.px].filter((v) => v !== 0 && !lines.has(v));
         const bL = body.reduce((s, v) => s + lightness(figColour(v)), 0) / body.length;
         const d = Math.max(Math.abs(eL - gL), Math.abs(bL - gL));
         if (d < worst) {

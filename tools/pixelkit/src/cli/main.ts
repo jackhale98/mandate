@@ -91,7 +91,7 @@ function sheets(pack: ArtPack) {
     folk.push({ img: down[0] as Indexed, label: i === 0 ? "player" : `seed ${i}` }, { img: faceLeft(side[0] as Indexed) }, { img: up[0] as Indexed }, { img: side[0] as Indexed });
     for (const row of [down, up, side]) for (let k = 2; k < 6; k++) folk.push({ img: row[k] as Indexed });
   }
-  png("townsfolk.png", gridSheet("TOWNSFOLK: IDLE DOWN LEFT UP RIGHT / WALK DOWN / WALK UP / WALK RIGHT (4 FRAMES)", folk, rgb, { cols: 16, scale: 4, ground: pavement }));
+  png("townsfolk.png", gridSheet("TOWNSFOLK (ROUND 3): IDLE DOWN LEFT UP RIGHT / WALK DOWN / WALK UP / WALK RIGHT (4 FRAMES)", folk, rgb, { cols: 16, scale: 4, ground: pavement }));
 
   // The same crowd at 1× and 3× on the street's grounds (readability at real size).
   const crowd = Array.from({ length: 20 }, (_, i) => composeCharacter(lookFromSeed(i + 1), pal, pack.lightness).frames[0]?.[0] as Indexed);
@@ -102,7 +102,7 @@ function sheets(pack: ArtPack) {
     ["grass", stepColour(pack, "grass", 0)],
   ];
   const rs = new Sheet(20 * 18 * 3 + 20 * 18 + 48, 30 + grounds.length * 82);
-  rs.text("THE 20 TOWNSFOLK AT 1× AND 3× ON THE GROUNDS OF THE STREET", 8, 8);
+  rs.text("THE 20 TOWNSFOLK (ROUND 3) AT 1× AND 3× ON THE GROUNDS OF THE STREET", 8, 8);
   grounds.forEach(([name, c], gi) => {
     const y = 30 + gi * 82;
     rs.rect(8, y, 20 * 18 + 8, 30, c);
@@ -114,6 +114,7 @@ function sheets(pack: ArtPack) {
     rs.text(name, 8, y + 34, [154, 160, 180], 1);
   });
   png("townsfolk-scale.png", rs);
+  roundCompare(pack, pavement);
 
   // ---- the building kit assembled several ways, by day and lit at night
   const specs = sampleBuildings();
@@ -168,6 +169,55 @@ function sheets(pack: ArtPack) {
     });
   }
   png("props.png", gridSheet("PROPS (WITH THE AUTOMATIC OUTLINE) AND THEIR LIT PARTS", pcells, rgb, { cols: 8, scale: 4, ground: pavement }));
+}
+
+/**
+ * Round 2 against round 3 (the characters' look test): the same 21 people,
+ * idle facing down and the four walk frames facing right, at 1× and 3×.
+ * Round 2's frames are read from `round2/characters.json` (colours per pixel,
+ * dumped from round 2's code before it was replaced); without it, only round 3.
+ */
+function roundCompare(pack: ArtPack, ground: Rgb8) {
+  const file = path.join(out, "round2", "characters.json");
+  const r2 = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as { people: { label: string; frames: string[][] }[] }).people : null;
+  const rgb = pack.palette.colors.map(hexToRgb);
+  const r3 = Array.from({ length: 21 }, (_, i) => {
+    const c = composeCharacter(i === 0 ? PLAYER_LOOK : lookFromSeed(i), pack.palette, pack.lightness).frames;
+    return [c[0]?.[0], ...[2, 3, 4, 5].map((k) => c[2]?.[k])] as Indexed[];
+  });
+  const sideW = 5 * 18 + 8 + 5 * 52;
+  const rowH = 24 * 3 + 8;
+  const s = new Sheet(16 + (r2 ? 2 : 1) * (sideW + 24) + 40, 50 + 21 * rowH);
+  s.text("ROUND 2 (LEFT) AND ROUND 3 (RIGHT): THE SAME 21 SEEDS, IDLE DOWN AND WALK RIGHT, 1× AND 3×", 8, 8);
+  const draw = (x0: number, y0: number, frame: (k: number, x: number, y: number, scale: number) => void) => {
+    s.rect(x0, y0, 5 * 18 + 2, 26, ground);
+    s.rect(x0 + 5 * 18 + 8, y0, 5 * 52, 24 * 3 + 2, ground);
+    for (let k = 0; k < 5; k++) {
+      frame(k, x0 + 1 + k * 18, y0 + 1, 1);
+      frame(k, x0 + 5 * 18 + 10 + k * 52, y0 + 1, 3);
+    }
+  };
+  for (let i = 0; i < 21; i++) {
+    const y = 40 + i * rowH;
+    s.text(i === 0 ? "player" : `seed ${i}`, 8, y + 30, [154, 160, 180], 1);
+    let x = 48;
+    const old = r2?.[i];
+    if (old) {
+      draw(x, y, (k, fx, fy, sc) => {
+        const px = old.frames[k] ?? [];
+        px.forEach((hex, j) => {
+          if (hex) s.rect(fx + (j % 16) * sc, fy + Math.floor(j / 16) * sc, sc, sc, hexToRgb(hex));
+        });
+      });
+      x += sideW + 24;
+    }
+    draw(x, y, (k, fx, fy, sc) => s.paste(r3[i]?.[k] as Indexed, rgb, fx, fy, sc));
+  }
+  if (r2) {
+    s.text("ROUND 2", 48, 28, [154, 160, 180], 1);
+    s.text("ROUND 3", 48 + sideW + 24, 28, [154, 160, 180], 1);
+  }
+  png("characters-r2-vs-r3.png", s);
 }
 
 /** The middle w × h of a screenshot. */
@@ -242,6 +292,34 @@ function street() {
     ["noon", "dusk"].map((t): [string, string, string][] => [["round1/street", `phone-moods-${t}`, `round 1 ${t}`], ["street", `phone-moods-${t}`, `round 2 ${t}`]]),
     2,
   );
+  // Round 3: the townsfolk in the street (PARTS=people), noon and dusk, zoom 2 and 3, desktop and phone.
+  // Each shot's middle 600×440 (desktop, 1×) or 1200×880 shown at half size (phone), so every cell is the same size.
+  {
+    const cols: [string, number, string][] = [
+      ["desktop", 2, "desktop zoom 2"],
+      ["desktop", 3, "desktop zoom 3"],
+      ["phone", 2, "phone zoom 2"],
+      ["phone", 3, "phone zoom 3"],
+    ];
+    const rows = ["noon", "dusk"];
+    const cw = 600;
+    const ch = 440;
+    const shots = rows.map((t) => cols.map(([d, z]) => load("people", `${d}-z${z}-${t}`)));
+    if (shots.flat().some((x) => x)) {
+      const s = new Sheet(8 + cols.length * (cw + 8), 40 + rows.length * (ch + 26));
+      s.text("ROUND 3 TOWNSFOLK IN THE SAMPLE STREET (30 PEOPLE, PALETTE MOODS): NOON AND DUSK, ZOOM 2 AND 3, DESKTOP AND PHONE", 8, 10);
+      rows.forEach((t, r) => {
+        cols.forEach(([d, , label], c) => {
+          const img = shots[r]?.[c];
+          const x = 8 + c * (cw + 8);
+          const y = 36 + r * (ch + 26);
+          s.text(`${label}, ${t}`, x, y, [233, 234, 240], 2);
+          if (img) s.pasteRgba(d === "phone" ? cropRgba(img, cw * 2, ch * 2) : cropRgba(img, cw, ch), x, y + 14, d === "phone" ? 2 : 1);
+        });
+      });
+      png("street-characters.png", s);
+    } else console.log("no screenshots for street-characters.png");
+  }
   // Lamp close-ups: by a wall, at a corner, in the open; dusk and night.
   const kinds = ["wall", "corner", "open"];
   board(

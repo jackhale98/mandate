@@ -10,7 +10,9 @@
 // plazas) at dusk and night into target/pixelkit/lamps/ (`lamp-light.png`),
 // and a frame-rate run (30 people, dusk, the phone with the CPU slowed 4×).
 // Filters (comma lists): LOOKS=placeholder,multiply,moods TIMES=noon,golden,dusk,night
-// DEVICES=desktop,phone PARTS=street,lamps,fps.
+// DEVICES=desktop,phone PARTS=street,lamps,fps,people.
+// Round 3 adds PARTS=people: the street with 30 townsfolk at noon and dusk,
+// zoom 2 and 3, on both devices, into target/pixelkit/people/ (not run by default).
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { chromium, devices } from "@playwright/test";
@@ -69,6 +71,29 @@ if (parts.includes("street")) {
       if (errors.length) console.error(look, device, errors);
       await page.close();
     }
+    await ctx.close();
+  }
+}
+
+if (parts.includes("people")) {
+  // Round 3 (characters): the street with 30 townsfolk at noon and dusk, zoom 2 and 3, desktop and phone,
+  // in the default look, into target/pixelkit/people/ (`street-characters.png`).
+  const peopleDir = path.join(root, "people");
+  mkdirSync(peopleDir, { recursive: true });
+  for (const [device, opts] of targets) {
+    const ctx = await browser.newContext(opts);
+    const { page, errors } = await open(ctx, "n=30&art=pixelkit&night=moods");
+    for (const [name, minutes] of times.filter(([t]) => t === "noon" || t === "dusk")) {
+      await page.evaluate((m) => window.__hub.setClock(m), minutes);
+      for (const zoom of [2, 3]) {
+        await page.evaluate((z) => window.__hub.showStreet(z), zoom);
+        await page.waitForTimeout(1400);
+        const file = path.join(peopleDir, `${device}-z${zoom}-${name}.png`);
+        await page.locator("#stage").screenshot({ path: file });
+        console.log(file);
+      }
+    }
+    if (errors.length) console.error("people", device, errors);
     await ctx.close();
   }
 }

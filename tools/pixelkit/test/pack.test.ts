@@ -10,7 +10,9 @@ import { packToJson } from "../src/core/serial";
 import { lintPack } from "../src/cli/lint";
 import { sampleBuildings, sampleRows, varietyBuildings } from "../art/mandate/samples";
 import { buildFacade, COPY_SIMILARITY, designOf, signatureOf, similarity, type FacadeSpec } from "../art/mandate/buildings";
-import { ANCHOR, composeCharacter, faceLeft, lookFromSeed, PLAYER_LOOK } from "../art/mandate/characters";
+import { ANCHOR, composeCharacter, composeSlots, FACINGS, FRAMES, faceLeft, HAIR_SKIN_MIN, hairSteps, lookFromSeed, peopleLines, PLAYER_LOOK, slotMaterials, slotTable } from "../art/mandate/characters";
+import { hexToRgb, rgbToLab } from "../src/core/color";
+import { HAIR_NAMES } from "../art/mandate/palette";
 import { buildPack } from "../art/mandate/pack";
 import { SKIN_ANCHORS } from "../art/mandate/palette";
 import { groundTile, TERRAINS } from "../art/mandate/tiles";
@@ -60,6 +62,41 @@ describe("characters", () => {
     const c = composeCharacter(lookFromSeed(12), pal, pack.lightness).frames[0]?.[0] as Indexed;
     assert.deepEqual(a.px, b.px);
     assert.notDeepEqual(a.px, c.px);
+  });
+  it("are flat: at most two tones (a base and one shade) per material in every frame (round 3)", () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const look = lookFromSeed(seed);
+      const table = slotTable(look, pal);
+      const mat = slotMaterials(look);
+      for (const facing of FACINGS) {
+        FRAMES.forEach((_, k) => {
+          const tones = new Map<string, Set<number>>();
+          for (const sl of composeSlots(look, facing, k).px) {
+            const m = mat[sl];
+            if (sl && m) tones.set(m, (tones.get(m) ?? new Set()).add(table[sl] as number));
+          }
+          for (const [m, t] of tones) assert.ok(t.size <= 2, `seed ${seed} ${facing} ${k}: ${m} has ${t.size} tones`);
+        });
+      }
+    }
+  });
+  it("part hair from skin on every skin tone and hair colour (round 3: no blob heads)", () => {
+    const lab = pal.colors.map((c) => rgbToLab(hexToRgb(c)));
+    for (let skin = 0; skin < 6; skin++) {
+      const s = lab[slotTable({ ...PLAYER_LOOK, skin }, pal)[2] as number];
+      for (const hc of HAIR_NAMES) {
+        const h = lab[hairSteps(pal, skin, hc)[0]];
+        assert.ok(s && h);
+        assert.ok(Math.hypot(s.L - h.L, s.a - h.a, s.b - h.b) >= HAIR_SKIN_MIN, `skin ${skin + 1}, ${hc}`);
+      }
+    }
+  });
+  it("outline each material in a darker colour of its own: soft on light materials, never lighter than the material", () => {
+    const lines = peopleLines(pal);
+    const L = (i: number) => pack.lightness[i] as number;
+    const at = (ramp: string) => pal.ramps.find((r) => r.name === ramp)?.steps[0] as number;
+    for (const r of ["skin1", "skin3", "hair_blonde", "hair_grey", "cloth_shirt", "cloth_mustard"]) assert.ok(L(lines[at(r)] as number) > 300, `${r}: the line is near-black`);
+    for (let i = 1; i < pal.colors.length; i++) if ((pal.stepOf[i] as number) >= 0) assert.ok(L(lines[i] as number) <= L(i), `${pal.colors[i]}: its line is lighter`);
   });
   it("faces left by mirroring the right-facing side view about the figure's centre column", () => {
     const side = composeCharacter(PLAYER_LOOK, pal, pack.lightness).frames[2]?.[0] as Indexed;
@@ -118,7 +155,7 @@ describe("buildings", () => {
 describe("lints", () => {
   const f = lintPack(pack);
   it("palette, outline and crowd-clone lints pass", () => {
-    for (const lint of ["palette size", "no pure black or white", "palette conformance", "outline consistency", "crowd clones", "height bands", "silhouette readability", "neighbour similarity"]) {
+    for (const lint of ["palette size", "no pure black or white", "palette conformance", "outline consistency", "crowd clones", "height bands", "silhouette readability", "neighbour similarity", "flatness", "head contrast"]) {
       const bad = f.filter((x) => x.lint === lint && x.level === "error");
       assert.deepEqual(bad, [], lint);
     }
