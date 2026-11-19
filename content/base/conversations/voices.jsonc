@@ -7,8 +7,10 @@
 // Traits come first (they are rarer and say more), then personality, which
 // splits the rest into four regions: bold and cool (blunt), timid (anxious),
 // cool and steady (wry), warm (folksy); the middle is plain. Openers in a
-// voice repeat the voice's conditions (`lines.jsonc`), so a speaker's
-// openers and closers agree; the personality regions are kept apart there.
+// voice name it with a `voice` condition (`lines.jsonc`), so a speaker's
+// openers and closers always agree, however the voices' conditions overlap
+// (a cautious charmer speaks smoothly, and opens smoothly too). A voice's
+// own conditions cannot name a voice.
 {
   "kind": "talk_voices",
   "items": [

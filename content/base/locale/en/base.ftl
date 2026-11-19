@@ -346,6 +346,14 @@ concern-environment = Environment
 concern-taxes = Taxes
 concern-services = Public services
 concern-recovery = Rebuilding after the disaster
+# Concerns as people name them in conversation: lower-case noun phrases
+# that read mid-sentence.
+talk-concern-jobs = jobs
+talk-concern-housing = the rent
+talk-concern-environment = the pollution
+talk-concern-taxes = the tax bills
+talk-concern-services = the state of the services
+talk-concern-recovery = the rebuilding
 ui-agenda = Agenda
 ui-agenda-help = You have three slots a turn. Each action shows what it costs in time and health, and where it is done: choosing one walks you there (walking is free). A late-night meeting uses an extra slot but costs health and carries legal risk.
 action-canvass = Canvass a neighbourhood

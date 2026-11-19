@@ -614,6 +614,12 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
             referenced.push((&s.id, k));
         }
     }
+    // And its worries in conversation.
+    for c in &b.concerns {
+        if let Some(k) = &c.talk_key {
+            referenced.push((&c.id, k));
+        }
+    }
     for (owner, key) in referenced {
         if !en.contains(key) {
             issues.push(Issue::error(
@@ -1865,6 +1871,35 @@ pub fn check_situation_condition(
             }
             for x in of {
                 check_situation_condition(b, owner, x, slots, issues);
+            }
+        }
+        U::Voice { voices } => {
+            slot_ok("speaker", issues);
+            if voices.is_empty() {
+                issues.push(Issue::error(owner, "a voice condition needs voices"));
+            }
+            for v in voices {
+                if b.talk_voice(v).is_none() {
+                    issues.push(Issue::error(owner, &format!("unknown voice `{v}`")));
+                }
+            }
+        }
+        U::Concern { of, concerns } => {
+            if *of == crate::conversation::ConcernOf::Speaker {
+                slot_ok("speaker", issues);
+            }
+            if concerns.is_empty() {
+                issues.push(Issue::error(owner, "a concern condition needs concerns"));
+            }
+            for k in concerns {
+                // A pack may remove a concern: that alternative never holds
+                // (a warning, as for dilemma triggers and overheard lines).
+                if b.concern_index(k).is_none() {
+                    issues.push(Issue::warning(
+                        owner,
+                        &format!("unknown concern `{k}` (it never holds)"),
+                    ));
+                }
             }
         }
     }

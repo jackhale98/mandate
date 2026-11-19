@@ -576,6 +576,18 @@ pub enum SituationCondition {
     },
     /// Any one of these holds (the first that does gives the arguments).
     Any { of: Vec<SituationCondition> },
+    /// The speaker's voice (`talk_voices`) is one of these, so a line
+    /// (an opener) follows the voice the closers use. Conversations only;
+    /// not allowed in a voice's own conditions.
+    Voice { voices: Vec<ContentKey> },
+    /// The top concern of the speaker's home neighbourhood (`speaker`) or of
+    /// the town (`town`) is one of these: `$concern_key` (the name),
+    /// `$concern_talk_key` (the noun phrase of talk). The town form reads no
+    /// slot, so it may also stand in a town's situation.
+    Concern {
+        of: crate::conversation::ConcernOf,
+        concerns: Vec<ContentKey>,
+    },
 }
 
 fn yes() -> bool {
@@ -594,7 +606,11 @@ impl SituationCondition {
             U::Crisis { .. }
             | U::Indicator { .. }
             | U::PlantClosure { .. }
-            | U::Disaster { .. } => false,
+            | U::Disaster { .. }
+            | U::Concern {
+                of: crate::conversation::ConcernOf::Town,
+                ..
+            } => false,
             U::Any { of } => of.iter().any(|c| c.is_slot_relative()),
             _ => true,
         }
@@ -1094,6 +1110,11 @@ pub struct ConcernDef {
     pub id: ContentKey,
     /// Fluent key of the concern's name, e.g. `concern-jobs`.
     pub name_key: String,
+    /// Fluent key of the concern as people name it in talk: a lower-case
+    /// noun phrase for mid-sentence use ("the rent"), as sectors have; the
+    /// name is used without one.
+    #[serde(default)]
+    pub talk_key: Option<String>,
     pub indicator: Indicator,
     /// The attitudes behind the concern, by key. The magnitude is how much a
     /// worried town weighs that issue; the sign is the side worried voters

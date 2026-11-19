@@ -1,8 +1,11 @@
 ## Conversations (content/base/conversations/). Every line has $speaker,
 ## $player, $town and $here (and $about on topics with a subject); each
 ## condition adds its own: $broker, $broker_place, $stake (the broker's
-## stake, the town's industry), $rival, $person, $hood, $concern, $policy,
-## $support, $memory, $subject, $year, $n, $crisis. Lines use names, not
+## stake, the town's industry), $rival, $person, $hood, $concern (and
+## $concern_talk, a lower-case noun phrase for mid-sentence use), $policy,
+## $support, $memory, $subject, $year, $n, $crisis. A place without a proper
+## name comes as its kind's noun phrase (talk-place-*: "the union hall"), so
+## $here, $about and $broker_place read mid-sentence. Lines use names, not
 ## pronouns, until characters have a pronoun field.
 ##
 ## House style: British English. Openers are stage directions or a first
@@ -11,6 +14,32 @@
 ## ("Housing costs", "Transit frequency"), so lines put them at the start of
 ## a sentence or after a colon, never mid-sentence. Every claim a line makes
 ## must be true whenever its conditions hold.
+
+# Places without a proper name, as talk names them ($here, $about,
+# $broker_place): lower-case noun phrases.
+talk-place-town_hall = the town hall
+talk-place-council_chamber = the council chamber
+talk-place-community_centre = the community centre
+talk-place-news_office = the newspaper office
+talk-place-party_office = the party office
+talk-place-diner = the diner
+talk-place-market = the market
+talk-place-union_hall = the union hall
+talk-place-school = the school
+talk-place-clinic = the clinic
+talk-place-park = the park
+talk-place-business_association = the chamber of commerce
+talk-place-factory = the factory
+talk-place-port = the port
+talk-place-farm = the farm
+talk-place-mine = the mine
+talk-place-mill = the sawmill
+talk-place-hotel = the hotel
+talk-place-university = the university
+talk-place-tech_campus = the tech campus
+talk-place-regional_assembly = the regional assembly
+talk-place-parliament = parliament
+talk-place-executive_residence = the executive residence
 
 # Topics (buttons).
 talk-topic-worries = What are people worried about?
@@ -64,6 +93,7 @@ talk-open-smooth-trusted = "My favourite person in { $town }," says { $speaker }
 # Guarded.
 talk-open-guarded-cool = { $speaker } glances past your shoulder before answering at all.
 talk-open-guarded-neutral = { $speaker } considers the question as if it might be a trap. "That depends what you're asking."
+talk-open-guarded-here = { $speaker } glances round { $here } before answering, voice low.
 talk-open-guarded-warm = { $speaker } waits until the nearest pair of ears has drifted off.
 # Earnest.
 talk-open-earnest-cool = { $speaker } meets your eye. "I'll be honest with you, because somebody ought to be."
@@ -131,6 +161,9 @@ talk-worries-town = "{ $concern }. Ask anyone in { $town } and you'll get that a
 talk-worries-town-2 = "If you want one thing, it's this: { $concern }. Everything else is a long way behind."
 talk-worries-town-3 = "Honestly? { $concern }. It comes up at every table and in every queue."
 talk-worries-press = "{ $concern }. I can tell by the letters page. Nobody writes in about the things that are going well."
+talk-worries-street = "Round my way it's { $concern_talk }, every time. Ask anyone on my street."
+talk-worries-town-talk = "Ask ten people in { $town } what's wrong and nine will say { $concern_talk }. The tenth hasn't been paying attention."
+talk-worries-town-rent = "It's the rent. Everyone I know hands over more of their wages for it than they did a few years ago."
 talk-worries-home = "In { $hood }? { $concern }, plain and simple. Knock on any door on my road and you'll hear it."
 talk-worries-home-2 = "{ $concern }. I live in { $hood }, and I could name you six households on my street who'd say the same."
 talk-worries-home-3 = "You want the truth about { $hood }? { $concern }. It's at the kitchen table every night, and nobody's fixed it."
@@ -198,6 +231,7 @@ talk-runs-rumour-3 = "{ $broker }, if you listen to gossip. And I do, a bit."
 talk-runs-named = "{ $broker }. Nothing gets decided in this town without someone checking with { $broker } first."
 talk-runs-named-2 = "Officially? The council. In practice, { $broker }."
 talk-runs-named-3 = "{ $broker }. Not the loudest in the room. Never needs to be."
+talk-runs-named-where = "{ $broker }. Spend an afternoon at { $broker_place } and watch who gets offered a chair."
 talk-runs-stake = "{ $broker }. Follow the money in { $stake } and you'll find { $broker } at the end of it. Watch what happens there."
 talk-runs-stake-2 = "Ask yourself why every decision about { $stake } seems to suit { $broker } so well. Then ask { $broker }, and watch the face."
 talk-runs-stake-3 = "Everything round here comes back to { $stake }, and { $broker } has a hand in all of it. Cross { $broker } and you'll find doors shutting you didn't know were open."
@@ -315,6 +349,7 @@ talk-favour-cool = "A favour? From me? I'd want it in writing first."
 talk-favour-trusted = "That's what friends are for. I'll still write it down."
 
 ## Small talk.
+talk-small-concern = "Don't get me started on { $concern_talk }. No, really, don't; I'll be here all day."
 talk-small-weather = "Grim weather we're having."
 talk-small-family = "The kids are well, thanks for asking."
 talk-small-warm = "Always good to see you, { $player }."

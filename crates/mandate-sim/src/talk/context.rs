@@ -11,7 +11,7 @@ use crate::places::Location;
 use crate::player::knowledge::{self, Level, PolicyRef, Subject};
 use crate::state::State;
 use crate::world::{MunicipalityId, NeighborhoodId};
-use mandate_content::conversation::{HoodOf, SubjectRef};
+use mandate_content::conversation::{ConcernOf, HoodOf, SubjectRef};
 use mandate_content::{ContentBundle, SituationCondition};
 use std::collections::BTreeMap;
 
@@ -142,11 +142,52 @@ impl Ctx<'_> {
         characters::knows::tells(self.st, self.content, self.speaker, s, self.cap)
     }
 
-    fn concern_key(&self, i: usize) -> Option<String> {
-        self.content.concerns.get(i).map(|c| c.name_key.clone())
+    /// `$concern_key` and `$concern_talk_key` (the noun phrase of talk, or
+    /// the name without one) for the concern at registry index `i`.
+    fn concern_args(&self, i: usize, args: &mut Args) {
+        if let Some(c) = self.content.concerns.get(i) {
+            args.insert("concern_key".into(), c.name_key.clone());
+            let talk = c.talk_key.as_ref().unwrap_or(&c.name_key);
+            args.insert("concern_talk_key".into(), talk.clone());
+        }
     }
 
-    fn place_name_of(&self, c: CharacterId) -> String {
+    /// The registry index of a top concern (one that worries at all).
+    fn top_concern(&self, of: ConcernOf) -> Option<usize> {
+        let st = self.st;
+        let top = match of {
+            ConcernOf::Town => crate::concerns::top_concerns(&st.population, self.town.index()),
+            ConcernOf::Speaker => {
+                let home = self.hood(HoodOf::SpeakerHome)?;
+                let m = st.world.neighborhoods.get(home.index())?.municipality;
+                crate::concerns::felt_concerns(
+                    &st.population,
+                    self.content,
+                    m.index(),
+                    &[home.index()],
+                )
+            }
+        };
+        top.first().filter(|(_, l)| *l > 0.0).map(|(i, _)| *i)
+    }
+
+    /// A place's name as an argument: its proper name in `name`, or, for a
+    /// place without one, its kind's noun phrase of talk (`talk-place-<kind>`,
+    /// "the union hall") as the Fluent key `<name>_key`.
+    pub fn place_arg(&self, p: &crate::world::Place, name: &str, args: &mut Args) {
+        if p.name.is_empty() {
+            args.remove(name);
+            args.insert(format!("{name}_key"), place_talk_key(p.kind));
+        } else {
+            args.remove(&format!("{name}_key"));
+            args.insert(name.into(), p.name.clone());
+        }
+    }
+
+    /// Where a person is found, as the argument `name`: their workplace,
+    /// else their office (the town hall for the mayor, the council
+    /// chamber), else the town.
+    fn place_of(&self, c: CharacterId, name: &str, args: &mut Args) {
         let st = self.st;
         let named_place = st
             .politics
@@ -172,22 +213,24 @@ impl Ctx<'_> {
                 .iter()
                 .find(|p| p.municipality == self.town && p.kind == kind)
         };
-        named_place
-            .or_else(office)
-            .map(|p| p.name.clone())
-            .or_else(|| {
-                st.world
+        match named_place.or_else(office) {
+            Some(p) => self.place_arg(p, name, args),
+            None => {
+                let town = st
+                    .world
                     .municipalities
                     .get(self.town.index())
                     .map(|m| m.name.clone())
-            })
-            .unwrap_or_default()
+                    .unwrap_or_default();
+                args.insert(name.into(), town);
+            }
+        }
     }
 
     /// The broker's arguments: `$broker`, `$broker_place`, `$stake_key`.
     fn broker_args(&self, b: CharacterId, args: &mut Args) {
         args.insert("broker".into(), self.name_of(b));
-        args.insert("broker_place".into(), self.place_name_of(b));
+        self.place_of(b, "broker_place", args);
         let stake = self
             .town_character()
             .and_then(|t| t.industry.as_deref())
@@ -203,8 +246,8 @@ impl Ctx<'_> {
         match s {
             Subject::TownConcerns { town } => {
                 let top = crate::concerns::top_concerns(&st.population, town.index());
-                if let Some(k) = top.first().and_then(|(i, _)| self.concern_key(*i)) {
-                    args.insert("concern_key".into(), k);
+                if let Some((i, _)) = top.first() {
+                    self.concern_args(*i, args);
                 }
             }
             Subject::HoodConcerns { hood } => {
@@ -216,8 +259,8 @@ impl Ctx<'_> {
                         h.municipality.index(),
                         &[hood.index()],
                     );
-                    if let Some(k) = felt.first().and_then(|(i, _)| self.concern_key(*i)) {
-                        args.insert("concern_key".into(), k);
+                    if let Some((i, _)) = felt.first() {
+                        self.concern_args(*i, args);
                     }
                 }
             }
@@ -424,8 +467,32 @@ impl Ctx<'_> {
                 }
                 false
             }
+            U::Voice { voices } => {
+                super::reply::voice(self).is_some_and(|v| voices.contains(&v.id))
+            }
+            U::Concern { of, concerns } => {
+                let Some(i) = self.top_concern(*of) else {
+                    return false;
+                };
+                if !self
+                    .content
+                    .concerns
+                    .get(i)
+                    .is_some_and(|c| concerns.contains(&c.id))
+                {
+                    return false;
+                }
+                self.concern_args(i, args);
+                true
+            }
         }
     }
+}
+
+/// The Fluent key naming a place of this kind in talk ("the union hall"),
+/// for places without a proper name.
+pub fn place_talk_key(kind: crate::world::PlaceKind) -> String {
+    format!("talk-place-{}", kind.key())
 }
 
 /// The slot-free reading of a situation condition in town `m` (a policy's
@@ -445,6 +512,15 @@ pub fn holds_in_town(
         SituationCondition::Any { of } => of
             .iter()
             .any(|x| crate::policy::situation_holds(state, content, x, m)),
+        // The town's top concern (one that worries at all).
+        SituationCondition::Concern {
+            of: ConcernOf::Town,
+            concerns,
+        } => crate::concerns::top_concerns(&state.population, m as usize)
+            .first()
+            .filter(|(_, l)| *l > 0.0)
+            .and_then(|(i, _)| content.concerns.get(*i))
+            .is_some_and(|x| concerns.contains(&x.id)),
         _ => false,
     }
 }

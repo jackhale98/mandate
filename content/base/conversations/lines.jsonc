@@ -14,10 +14,13 @@
 //   below −50), neutral −15..15, warm from 15, trusted from 50 with trust
 //   0.5. Cool speakers tell nothing, so their answers are the fallbacks,
 //   which carry the role's voice (weight 3 against the shared ones' 1).
-// - Openers in a voice repeat the voice's conditions (`voices.jsonc`); the
-//   personality regions are kept apart (blunt: boldness ≥ 0.6, warmth ≤
-//   0.45; anxious: boldness ≤ 0.28; wry: warmth ≤ 0.45, boldness 0.28–0.6;
-//   folksy: warmth ≥ 0.68, boldness ≥ 0.28). Trait voices can overlap them.
+// - Openers in a voice name it (`{ "type": "voice", "voices": [...] }`),
+//   so they follow the speaker's chosen voice (`voices.jsonc`): a cautious
+//   charmer is smooth, opener and closer alike, never guarded then smooth.
+// - Places without a proper name are named by their kind in `$here`,
+//   `$about` and `$broker_place` ("the union hall", `talk-place-<kind>`).
+// - `concern` conditions give `$concern` (the name, a capitalised label) and
+//   `$concern_talk` (a lower-case noun phrase for mid-sentence use).
 // - Substance lines say only what their conditions make true: lay-offs need
 //   job losses, the clean-up a recent disaster, and so on. Expertise lines
 //   (DEC-095) are a role on the facts it sees at work: a nurse on the
@@ -25,13 +28,10 @@
 // - Role groups: politicians (councillor, mayor), the party (party chair),
 //   workers (union steward, organiser), business (business association
 //   chair, plant manager), trade (shopkeeper, diner owner), the farm, the
-//   press (journalist), clergy, care (teacher, nurse) and folk
+//   press (journalist, editor), clergy, care (teacher, nurse) and folk
 //   (resident, retiree).
 // Some base-file tests (`mandate-content` conversation tests) edit lines
-// here by their exact text; keep the lines they name as they are. The
-// editor occupation is named nowhere here on purpose: `mandate-save`'s
-// `saves_and_the_character_registries` removes an occupation only the
-// outlets name, so editors get only the lines everyone shares.
+// here by their exact text; keep the lines they name as they are.
 {
   "kind": "talk_lines",
   "items": [
@@ -75,111 +75,104 @@
     // --- Openers, by voice and relationship -----------------------------------------
     // Blunt.
     { "id": "line.open.blunt.cool", "part": "opener", "key": "talk-open-blunt-cool", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.6 },
-                { "type": "personality", "slot": "speaker", "axis": "warmth", "max": 0.45 },
+      "when": [ { "type": "voice", "voices": ["voice.blunt"] },
                 { "type": "opinion", "slot": "speaker", "max": -15 } ] },
     { "id": "line.open.blunt.neutral", "part": "opener", "key": "talk-open-blunt-neutral", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.6 },
-                { "type": "personality", "slot": "speaker", "axis": "warmth", "max": 0.45 },
+      "when": [ { "type": "voice", "voices": ["voice.blunt"] },
                 { "type": "opinion", "slot": "speaker", "min": -15, "max": 15 } ] },
     { "id": "line.open.blunt.warm", "part": "opener", "key": "talk-open-blunt-warm", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.6 },
-                { "type": "personality", "slot": "speaker", "axis": "warmth", "max": 0.45 },
+      "when": [ { "type": "voice", "voices": ["voice.blunt"] },
                 { "type": "opinion", "slot": "speaker", "min": 15 } ] },
     { "id": "line.open.blunt.trusted", "part": "opener", "key": "talk-open-blunt-trusted", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.6 },
-                { "type": "personality", "slot": "speaker", "axis": "warmth", "max": 0.45 },
+      "when": [ { "type": "voice", "voices": ["voice.blunt"] },
                 { "type": "opinion", "slot": "speaker", "min": 50 },
                 { "type": "trust", "slot": "speaker", "min": 0.5 } ] },
     // Folksy.
     { "id": "line.open.folksy.cool", "part": "opener", "key": "talk-open-folksy-cool", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "warmth", "min": 0.68 },
-                { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.28 },
+      "when": [ { "type": "voice", "voices": ["voice.folksy"] },
                 { "type": "opinion", "slot": "speaker", "max": -15 } ] },
     { "id": "line.open.folksy.neutral", "part": "opener", "key": "talk-open-folksy-neutral", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "warmth", "min": 0.68 },
-                { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.28 },
+      "when": [ { "type": "voice", "voices": ["voice.folksy"] },
                 { "type": "opinion", "slot": "speaker", "min": -15, "max": 15 } ] },
     { "id": "line.open.folksy.warm", "part": "opener", "key": "talk-open-folksy-warm", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "warmth", "min": 0.68 },
-                { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.28 },
+      "when": [ { "type": "voice", "voices": ["voice.folksy"] },
                 { "type": "opinion", "slot": "speaker", "min": 15 } ] },
     { "id": "line.open.folksy.trusted", "part": "opener", "key": "talk-open-folksy-trusted", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "warmth", "min": 0.68 },
-                { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.28 },
+      "when": [ { "type": "voice", "voices": ["voice.folksy"] },
                 { "type": "opinion", "slot": "speaker", "min": 50 },
                 { "type": "trust", "slot": "speaker", "min": 0.5 } ] },
     // Smooth.
     { "id": "line.open.smooth.cool", "part": "opener", "key": "talk-open-smooth-cool", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.charmer", "trait.schemer"] },
+      "when": [ { "type": "voice", "voices": ["voice.smooth"] },
                 { "type": "opinion", "slot": "speaker", "max": -15 } ] },
     { "id": "line.open.smooth.neutral", "part": "opener", "key": "talk-open-smooth-neutral", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.charmer", "trait.schemer"] },
+      "when": [ { "type": "voice", "voices": ["voice.smooth"] },
                 { "type": "opinion", "slot": "speaker", "min": -15, "max": 15 } ] },
     { "id": "line.open.smooth.warm", "part": "opener", "key": "talk-open-smooth-warm", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.charmer", "trait.schemer"] },
+      "when": [ { "type": "voice", "voices": ["voice.smooth"] },
                 { "type": "opinion", "slot": "speaker", "min": 15 } ] },
     { "id": "line.open.smooth.trusted", "part": "opener", "key": "talk-open-smooth-trusted", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.charmer", "trait.schemer"] },
+      "when": [ { "type": "voice", "voices": ["voice.smooth"] },
                 { "type": "opinion", "slot": "speaker", "min": 50 },
                 { "type": "trust", "slot": "speaker", "min": 0.5 } ] },
     // Guarded.
     { "id": "line.open.guarded.cool", "part": "opener", "key": "talk-open-guarded-cool", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.cautious"] },
+      "when": [ { "type": "voice", "voices": ["voice.guarded"] },
                 { "type": "opinion", "slot": "speaker", "max": -15 } ] },
     { "id": "line.open.guarded.neutral", "part": "opener", "key": "talk-open-guarded-neutral", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.cautious"] },
+      "when": [ { "type": "voice", "voices": ["voice.guarded"] },
                 { "type": "opinion", "slot": "speaker", "min": -15, "max": 15 } ] },
     { "id": "line.open.guarded.warm", "part": "opener", "key": "talk-open-guarded-warm", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.cautious"] },
+      "when": [ { "type": "voice", "voices": ["voice.guarded"] },
                 { "type": "opinion", "slot": "speaker", "min": 15 } ] },
     // Earnest.
     { "id": "line.open.earnest.cool", "part": "opener", "key": "talk-open-earnest-cool", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.zealous", "trait.reformer"] },
+      "when": [ { "type": "voice", "voices": ["voice.earnest"] },
                 { "type": "opinion", "slot": "speaker", "max": -15 } ] },
     { "id": "line.open.earnest.neutral", "part": "opener", "key": "talk-open-earnest-neutral", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.zealous", "trait.reformer"] },
+      "when": [ { "type": "voice", "voices": ["voice.earnest"] },
                 { "type": "opinion", "slot": "speaker", "min": -15, "max": 15 } ] },
     { "id": "line.open.earnest.warm", "part": "opener", "key": "talk-open-earnest-warm", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.zealous", "trait.reformer"] },
+      "when": [ { "type": "voice", "voices": ["voice.earnest"] },
                 { "type": "opinion", "slot": "speaker", "min": 15 } ] },
     // Wry.
     { "id": "line.open.wry.cool", "part": "opener", "key": "talk-open-wry-cool", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "warmth", "max": 0.45 },
-                { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.28, "max": 0.6 },
+      "when": [ { "type": "voice", "voices": ["voice.wry"] },
                 { "type": "opinion", "slot": "speaker", "max": -15 } ] },
     { "id": "line.open.wry.neutral", "part": "opener", "key": "talk-open-wry-neutral", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "warmth", "max": 0.45 },
-                { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.28, "max": 0.6 },
+      "when": [ { "type": "voice", "voices": ["voice.wry"] },
                 { "type": "opinion", "slot": "speaker", "min": -15, "max": 15 } ] },
     { "id": "line.open.wry.warm", "part": "opener", "key": "talk-open-wry-warm", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "warmth", "max": 0.45 },
-                { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.28, "max": 0.6 },
+      "when": [ { "type": "voice", "voices": ["voice.wry"] },
                 { "type": "opinion", "slot": "speaker", "min": 15 } ] },
     // Anxious.
     { "id": "line.open.anxious.cool", "part": "opener", "key": "talk-open-anxious-cool", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "boldness", "max": 0.28 },
+      "when": [ { "type": "voice", "voices": ["voice.anxious"] },
                 { "type": "opinion", "slot": "speaker", "max": -15 } ] },
     { "id": "line.open.anxious.neutral", "part": "opener", "key": "talk-open-anxious-neutral", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "boldness", "max": 0.28 },
+      "when": [ { "type": "voice", "voices": ["voice.anxious"] },
                 { "type": "opinion", "slot": "speaker", "min": -15, "max": 15 } ] },
     { "id": "line.open.anxious.warm", "part": "opener", "key": "talk-open-anxious-warm", "weight": 2,
-      "when": [ { "type": "personality", "slot": "speaker", "axis": "boldness", "max": 0.28 },
+      "when": [ { "type": "voice", "voices": ["voice.anxious"] },
                 { "type": "opinion", "slot": "speaker", "min": 15 } ] },
     // Pompous.
     { "id": "line.open.pompous.cool", "part": "opener", "key": "talk-open-pompous-cool", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.vain"] },
+      "when": [ { "type": "voice", "voices": ["voice.pompous"] },
                 { "type": "opinion", "slot": "speaker", "max": -15 } ] },
     { "id": "line.open.pompous.neutral", "part": "opener", "key": "talk-open-pompous-neutral", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.vain"] },
+      "when": [ { "type": "voice", "voices": ["voice.pompous"] },
                 { "type": "opinion", "slot": "speaker", "min": -15, "max": 15 } ] },
     { "id": "line.open.pompous.warm", "part": "opener", "key": "talk-open-pompous-warm", "weight": 3,
-      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.vain"] },
+      "when": [ { "type": "voice", "voices": ["voice.pompous"] },
                 { "type": "opinion", "slot": "speaker", "min": 15 } ] },
+    // Guarded, with an eye on who's about (`$here`).
+    { "id": "line.open.guarded.here", "part": "opener", "key": "talk-open-guarded-here", "weight": 3,
+      "when": [ { "type": "voice", "voices": ["voice.guarded"] },
+                { "type": "opinion", "slot": "speaker", "min": -15, "max": 15 } ] },
 
     // --- Openers, by role --------------------------------------------------------------
     { "id": "line.open.press", "part": "opener", "key": "talk-open-press",
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist", "occupation.editor"] },
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.open.politician", "part": "opener", "key": "talk-open-politician",
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["councillor", "mayor"] },
@@ -262,7 +255,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.worries.fb.press", "part": "substance", "topic": "topic.worries", "weight": 3,
       "key": "talk-worries-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist", "occupation.editor"] } ] },
     { "id": "line.worries.fb.clergy", "part": "substance", "topic": "topic.worries", "weight": 3,
       "key": "talk-worries-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ] },
@@ -297,7 +290,23 @@
       "teaches": [ { "subject": { "type": "town_concerns" }, "level": "known" } ] },
     { "id": "line.worries.press", "part": "substance", "topic": "topic.worries", "weight": 2,
       "key": "talk-worries-press",
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist", "occupation.editor"] },
+                { "type": "tells", "subject": { "type": "town_concerns" }, "min": "known" } ],
+      "teaches": [ { "subject": { "type": "town_concerns" }, "level": "known" } ] },
+    // What worries the speaker's street, and the town, by name (`concern`).
+    { "id": "line.worries.street", "part": "substance", "topic": "topic.worries", "weight": 2,
+      "key": "talk-worries-street",
+      "when": [ { "type": "concern", "of": "speaker", "concerns": ["concern.jobs", "concern.housing", "concern.environment", "concern.taxes", "concern.services", "concern.recovery"] },
+                { "type": "tells", "subject": { "type": "hood_concerns", "of": "speaker_home" }, "min": "known" } ],
+      "teaches": [ { "subject": { "type": "hood_concerns", "of": "speaker_home" }, "level": "known" } ] },
+    { "id": "line.worries.town.talk", "part": "substance", "topic": "topic.worries", "weight": 2,
+      "key": "talk-worries-town-talk",
+      "when": [ { "type": "concern", "of": "town", "concerns": ["concern.jobs", "concern.housing", "concern.environment", "concern.taxes", "concern.services", "concern.recovery"] },
+                { "type": "tells", "subject": { "type": "town_concerns" }, "min": "known" } ],
+      "teaches": [ { "subject": { "type": "town_concerns" }, "level": "known" } ] },
+    { "id": "line.worries.town.rent", "part": "substance", "topic": "topic.worries", "weight": 2,
+      "key": "talk-worries-town-rent",
+      "when": [ { "type": "concern", "of": "town", "concerns": ["concern.housing"] },
                 { "type": "tells", "subject": { "type": "town_concerns" }, "min": "known" } ],
       "teaches": [ { "subject": { "type": "town_concerns" }, "level": "known" } ] },
     { "id": "line.worries.home", "part": "substance", "topic": "topic.worries", "weight": 2,
@@ -447,7 +456,7 @@
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.worries.press.budget", "part": "substance", "topic": "topic.worries", "weight": 3,
       "key": "talk-worries-press-budget",
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist", "occupation.editor"] },
                 { "type": "indicator", "indicator": "budget_stress", "min": 0.3 },
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.worries.folk.tax", "part": "substance", "topic": "topic.worries", "weight": 3,
@@ -482,7 +491,7 @@
       "key": "talk-runs-deflect", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": [
         "occupation.union_steward", "occupation.business_leader", "occupation.party_chair",
-        "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.shopkeeper",
+        "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.editor", "occupation.shopkeeper",
         "occupation.organiser", "occupation.clergy", "occupation.teacher", "occupation.nurse",
         "occupation.resident", "occupation.retiree" ] } ],
       "lead": { "key": "lead-ask-diner", "to": { "type": "place_kind", "kind": "diner" },
@@ -491,7 +500,7 @@
       "key": "talk-runs-nobody", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": [
         "occupation.union_steward", "occupation.business_leader", "occupation.party_chair",
-        "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.shopkeeper",
+        "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.editor", "occupation.shopkeeper",
         "occupation.diner_owner", "occupation.organiser", "occupation.clergy", "occupation.teacher",
         "occupation.nurse", "occupation.resident", "occupation.retiree" ] } ] },
     { "id": "line.runs.easier", "part": "substance", "topic": "topic.who_runs",
@@ -526,7 +535,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.runs.fb.press", "part": "substance", "topic": "topic.who_runs", "weight": 3,
       "key": "talk-runs-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist", "occupation.editor"] } ] },
     { "id": "line.runs.fb.clergy", "part": "substance", "topic": "topic.who_runs", "weight": 3,
       "key": "talk-runs-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ],
@@ -573,6 +582,12 @@
       "teaches": [ { "subject": { "type": "broker" }, "level": "known" } ] },
     { "id": "line.runs.named.3", "part": "substance", "topic": "topic.who_runs",
       "key": "talk-runs-named-3",
+      "when": [ { "type": "tells", "subject": { "type": "broker" }, "min": "known" },
+                { "type": "is_broker", "slot": "speaker", "is": false } ],
+      "teaches": [ { "subject": { "type": "broker" }, "level": "known" } ] },
+    // Where to see it for yourself (`$broker_place`).
+    { "id": "line.runs.named.where", "part": "substance", "topic": "topic.who_runs",
+      "key": "talk-runs-named-where",
       "when": [ { "type": "tells", "subject": { "type": "broker" }, "min": "known" },
                 { "type": "is_broker", "slot": "speaker", "is": false } ],
       "teaches": [ { "subject": { "type": "broker" }, "level": "known" } ] },
@@ -665,7 +680,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.about.fb.press", "part": "substance", "topic": "topic.about", "weight": 3,
       "key": "talk-about-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist", "occupation.editor"] } ] },
     { "id": "line.about.fb.clergy", "part": "substance", "topic": "topic.about", "weight": 3,
       "key": "talk-about-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ] },
@@ -809,7 +824,7 @@
       "when": [ { "type": "is_rival", "slot": "about" },
                 { "type": "occupation", "slot": "speaker", "occupations": [
                   "occupation.union_steward", "occupation.business_leader", "occupation.party_chair",
-                  "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.shopkeeper",
+                  "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.editor", "occupation.shopkeeper",
                   "occupation.diner_owner", "occupation.organiser", "occupation.clergy", "occupation.teacher",
                   "occupation.nurse", "occupation.resident", "occupation.retiree" ] },
                 { "type": "tells", "subject": { "type": "person", "slot": "about" }, "min": "known" } ],
@@ -820,7 +835,7 @@
                 { "type": "personality", "slot": "about", "axis": "boldness", "min": 0.65 },
                 { "type": "occupation", "slot": "speaker", "occupations": [
                   "occupation.union_steward", "occupation.business_leader", "occupation.party_chair",
-                  "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.shopkeeper",
+                  "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.editor", "occupation.shopkeeper",
                   "occupation.diner_owner", "occupation.organiser", "occupation.clergy", "occupation.teacher",
                   "occupation.nurse", "occupation.resident", "occupation.retiree" ] },
                 { "type": "tells", "subject": { "type": "person", "slot": "about" }, "min": "known" } ],
@@ -866,7 +881,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.pitch.fb.press", "part": "substance", "topic": "topic.pitch", "weight": 3,
       "key": "talk-pitch-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist", "occupation.editor"] } ] },
     { "id": "line.pitch.fb.clergy", "part": "substance", "topic": "topic.pitch", "weight": 3,
       "key": "talk-pitch-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ] },
@@ -920,7 +935,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.support.fb.press", "part": "substance", "topic": "topic.support", "weight": 3,
       "key": "talk-support-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist", "occupation.editor"] } ] },
     { "id": "line.support.fb.clergy", "part": "substance", "topic": "topic.support", "weight": 3,
       "key": "talk-support-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ] },
@@ -979,6 +994,10 @@
 
     // --- Small talk -------------------------------------------------------------------
     // Everyone has something to say about their own life; the cool don't.
+    { "id": "line.small.concern", "part": "substance", "topic": "topic.small_talk",
+      "key": "talk-small-concern",
+      "when": [ { "type": "concern", "of": "speaker", "concerns": ["concern.jobs", "concern.housing", "concern.environment", "concern.taxes", "concern.services", "concern.recovery"] },
+                { "type": "opinion", "slot": "speaker", "min": 15 } ] },
     { "id": "line.small.weather", "part": "substance", "topic": "topic.small_talk",
       "key": "talk-small-weather", "fallback": true },
     { "id": "line.small.family", "part": "substance", "topic": "topic.small_talk",
@@ -1045,7 +1064,7 @@
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.small.press", "part": "substance", "topic": "topic.small_talk", "weight": 2,
       "key": "talk-small-press",
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist", "occupation.editor"] },
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.small.clergy", "part": "substance", "topic": "topic.small_talk", "weight": 2,
       "key": "talk-small-clergy",
