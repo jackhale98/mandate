@@ -536,3 +536,7 @@ h2 { font-size: 1.1rem; }
 .you-chip { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--accent); color: var(--accent-ink); vertical-align: 1px; }
 .town-list .town-home { margin-left: -12px; padding-left: 10px; border-left: 3px solid var(--accent); }
 .map-home { margin-left: auto; }
+
+/* Map layer picker: a dropdown, so more layers fit on phones (DEC-089 plan). */
+.map-layer { display: inline-flex; align-items: center; gap: 8px; }
+.map-layer select { min-height: 40px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; }

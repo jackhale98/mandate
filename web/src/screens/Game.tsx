@@ -43,14 +43,16 @@ function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => vo
         </div>
       )}
       <div className="map-tools">
-        <div className="segmented segmented-sm" role="radiogroup" aria-label={tr.t("ui-overlay")}>
-          {(["terrain", "unemployment"] as const).map((o) => (
-            <label key={o} className={overlay === o ? "seg seg-on" : "seg"}>
-              <input type="radio" name="overlay" checked={overlay === o} onChange={() => setOverlay(o)} />
-              {tr.t(`ui-overlay-${o}`)}
-            </label>
-          ))}
-        </div>
+        <label className="map-layer">
+          <span className="muted small">{tr.t("ui-overlay")}</span>
+          <select value={overlay} onChange={(e) => setOverlay(e.target.value as Overlay)} data-testid="map-layer">
+            {(["terrain", "unemployment"] as const).map((o) => (
+              <option key={o} value={o}>
+                {tr.t(`ui-overlay-${o}`)}
+              </option>
+            ))}
+          </select>
+        </label>
         {overlay === "unemployment" && (
           <div className="legend" aria-hidden="true">
             <span>{tr.t("ui-legend-low")} 2%</span>
