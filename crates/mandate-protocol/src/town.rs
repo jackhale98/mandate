@@ -518,7 +518,11 @@ fn river_summary(
         enters = opposite(leaves);
     } else if gap(enters, leaves) < 6 {
         let (a, b) = ((leaves + 6) & 15, (leaves + 10) & 15);
-        enters = if gap(enters, a) <= gap(enters, b) { a } else { b };
+        enters = if gap(enters, a) <= gap(enters, b) {
+            a
+        } else {
+            b
+        };
     }
     let river = TownRiverView {
         class: cls.min(3),
@@ -797,7 +801,7 @@ pub fn town_geography_view(engine: &Engine, id: u32) -> Option<TownGeographyView
             add(l.mode, &p[..=i], false, l.a);
         }
     }
-    links.sort_by(|x, y| (x.bearing, x.mode, x.to).cmp(&(y.bearing, y.mode, y.to)));
+    links.sort_by_key(|l| (l.bearing, l.mode, l.to));
 
     let snake = |v: &dyn std::fmt::Debug| crate::office::snake(&v);
     let neighborhoods = baseline
