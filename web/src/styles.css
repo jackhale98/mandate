@@ -532,3 +532,7 @@ h2 { font-size: 1.1rem; }
   .sheet.pocket { animation-name: sheet-from-left; }
   .sheet.pocket.sheet-closing { animation-name: sheet-to-left; }
 }
+/* The player's town in lists and under the map: a flag and "You", not colour alone (DEC-051). */
+.you-chip { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--accent); color: var(--accent-ink); vertical-align: 1px; }
+.town-list .town-home { margin-left: -12px; padding-left: 10px; border-left: 3px solid var(--accent); }
+.map-home { margin-left: auto; }

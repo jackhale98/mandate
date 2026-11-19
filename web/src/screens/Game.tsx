@@ -20,11 +20,21 @@ import { Loader } from "../components/Brand";
 function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => void; selected: number | null }) {
   const tr = useGame((s) => s.tr);
   const map = useGame((s) => s.map);
+  const homeId = useGame((s) => s.office?.player.municipality_id ?? null);
+  const home = map?.municipalities.find((m) => m.id === homeId);
   const [overlay, setOverlay] = useState<Overlay>("terrain");
   return (
     <main className="map-body">
       {map ? (
-        <WorldMap view={map} selected={selected} onSelect={onSelect} label={tr.t("ui-map-help")} overlay={overlay} />
+        <WorldMap
+          view={map}
+          selected={selected}
+          onSelect={onSelect}
+          label={home ? `${tr.t("ui-map-help")} ${tr.t("ui-you")}: ${home.name}.` : tr.t("ui-map-help")}
+          overlay={overlay}
+          home={home?.id ?? null}
+          homeLabel={tr.t("ui-you")}
+        />
       ) : (
         <div className="center">
           <Loader compact />
@@ -46,6 +56,12 @@ function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => vo
             <span>15% {tr.t("ui-legend-high")}</span>
           </div>
         )}
+        {home && (
+          <button type="button" className="btn btn-sm btn-ghost map-home" onClick={() => onSelect(home.id)} data-testid="map-home">
+            <span aria-hidden="true">⚑ </span>
+            {tr.t("ui-you")}: {home.name}
+          </button>
+        )}
       </div>
       <p className="map-help muted">{tr.t("ui-map-help")}</p>
     </main>
@@ -56,6 +72,8 @@ function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
   const tr = useGame((s) => s.tr);
   const overview = useGame((s) => s.overview);
   const map = useGame((s) => s.map);
+  const homeId = useGame((s) => s.office?.player.municipality_id ?? null);
+  const homeRegion = map?.municipalities.find((m) => m.id === homeId)?.region;
   const [openRegion, setOpenRegion] = useState<number | null>(null);
   if (!overview) return null;
   return (
@@ -70,7 +88,10 @@ function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
           {overview.regions.map((r) => (
             <li key={r.id}>
               <button type="button" className="row-btn" aria-expanded={openRegion === r.id} onClick={() => setOpenRegion(openRegion === r.id ? null : r.id)}>
-                <span>{r.name}</span>
+                <span>
+                  {r.name}
+                  {r.id === homeRegion && <span className="you-chip">⚑ {tr.t("ui-you")}</span>}
+                </span>
                 <span className="num">{formatCount(r.population)}</span>
               </button>
               {openRegion === r.id && map && (
@@ -78,10 +99,15 @@ function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
                   {map.municipalities
                     .filter((m) => m.region === r.id)
                     .map((m) => (
-                      <li key={m.id}>
-                        <button type="button" className="row-btn" onClick={() => onSelect(m.id)}>
+                      <li key={m.id} className={m.id === homeId ? "town-home" : undefined}>
+                        <button type="button" className="row-btn" onClick={() => onSelect(m.id)} aria-current={m.id === homeId ? "true" : undefined}>
                           <span>
                             {m.name} <span className="muted">· {tr.t(`class-${m.class}`)}</span>
+                            {m.id === homeId && (
+                              <span className="you-chip" data-testid="town-list-home">
+                                ⚑ {tr.t("ui-you")}
+                              </span>
+                            )}
                           </span>
                           <span className="num">{formatCount(m.population)}</span>
                         </button>

@@ -11,6 +11,10 @@ interface Props {
   onSelect: (municipalityId: number | null) => void;
   label: string;
   overlay: Overlay;
+  /** The player's home municipality: marked with a flag and labelled, and the map opens centred on it. */
+  home?: number | null;
+  /** The label drawn with the home marker, e.g. "You". */
+  homeLabel?: string;
 }
 
 interface Camera {
@@ -21,7 +25,49 @@ interface Camera {
 
 const CLASS_RADIUS: Record<string, number> = { metro: 5, city: 4, town: 3, rural: 2 };
 
-export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
+/** The flag of the logo (DEC-081), and its gold. */
+const FLAG = "#eb6834";
+const GOLD = "#e8b44c";
+const INK = "#141414";
+
+/**
+ * The player's town: a gold ring round its square, a flag on a pole, and a
+ * gold label with its name and "You" (shape and text, not colour alone:
+ * DEC-051). Returns the flag's centre in CSS pixels, for tests.
+ */
+function drawHomeMarker(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, text: string): string {
+  const ring = r + 4;
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = INK;
+  ctx.strokeRect(x - ring, y - ring, 2 * ring, 2 * ring);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = GOLD;
+  ctx.strokeRect(x - ring, y - ring, 2 * ring, 2 * ring);
+  // Pole from the top of the ring, flag flying to the right.
+  const top = y - ring - 26;
+  ctx.fillStyle = INK;
+  ctx.fillRect(x - 1.5, top - 1, 3, ring + 27);
+  ctx.fillRect(x + 0.5, top - 1, 17, 12);
+  ctx.fillStyle = FLAG;
+  ctx.fillRect(x + 1.5, top, 15, 10);
+  // Label, left of the pole top so it never covers the flag (right of the
+  // flag when the town is at the left edge of the view).
+  ctx.font = "700 12px system-ui, sans-serif";
+  const w = ctx.measureText(text).width + 12;
+  const lx = x - 4 - w < 4 ? x + 22 : x - 4 - w;
+  const ly = top - 2;
+  ctx.fillStyle = INK;
+  ctx.fillRect(lx - 1, ly - 1, w + 2, 20);
+  ctx.fillStyle = GOLD;
+  ctx.fillRect(lx, ly, w, 18);
+  ctx.fillStyle = "#1b1405";
+  ctx.textAlign = "left";
+  ctx.fillText(text, lx + 6, ly + 13);
+  ctx.textAlign = "center";
+  return `${Math.round(x + 9)},${Math.round(top + 5)}`;
+}
+
+export function WorldMap({ view, selected, onSelect, label, overlay, home = null, homeLabel = "" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const raster = useMemo(() => bakeRaster(view, selected, overlay), [view, selected, overlay]);
@@ -65,6 +111,7 @@ export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
   }, [raster, view]);
   const [size, setSize] = useState({ w: 320, h: 320 });
   const capital = view.municipalities.find((m) => m.national_capital);
+  const homeTown = home === null ? undefined : view.municipalities.find((m) => m.id === home);
 
   // The camera lives outside React state: gestures mutate it and request one
   // redraw per animation frame, so panning and zooming never re-render the tree.
@@ -77,21 +124,24 @@ export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
   const frame = useRef(0);
   const camera = (): Camera => {
     if (!cam.current) {
-      // Auto: fit the country; on portrait screens zoom in on the capital.
+      // Auto: centred on the player's town, zoomed in enough to find it
+      // (more on portrait screens). Without one: fit the country; on
+      // portrait screens zoom in on the capital.
+      const focus = homeTown ?? (portrait ? capital : undefined);
       cam.current = {
-        scale: portrait ? fitScale * 1.9 : fitScale,
-        x: portrait && capital ? capital.x : view.width / 2,
-        y: portrait && capital ? capital.y : view.height / 2,
+        scale: fitScale * (portrait ? 1.9 : homeTown ? 1.5 : 1),
+        x: focus ? focus.x + 0.5 : view.width / 2,
+        y: focus ? focus.y + 0.5 : view.height / 2,
       };
     }
     return cam.current;
   };
 
   // Latest drawing inputs, read by the frame callback.
-  const scene = useRef({ offscreen, size, view, selected, fitScale });
+  const scene = useRef({ offscreen, size, view, selected, fitScale, home, homeLabel });
   // Effects run in order: this sync runs before the redraw effects below.
   useEffect(() => {
-    scene.current = { offscreen, size, view, selected, fitScale };
+    scene.current = { offscreen, size, view, selected, fitScale, home, homeLabel };
   });
 
   const draw = () => {
@@ -99,7 +149,7 @@ export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    const { offscreen: img, size: sz, view: v, selected: sel, fitScale: fit } = scene.current;
+    const { offscreen: img, size: sz, view: v, selected: sel, fitScale: fit, home: homeId, homeLabel: youText } = scene.current;
     const { x: camX, y: camY, scale } = camera();
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -122,7 +172,7 @@ export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
       ctx.fillRect(x - r - 1, y - r - 1, 2 * r + 2, 2 * r + 2);
       ctx.fillStyle = m.national_capital ? "#ffd23f" : m.id === sel ? "#ffb347" : "#fafafa";
       ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
-      const show = m.class === "metro" || zoom > 1.6 || (m.class === "city" && zoom > 1.1) || m.id === sel;
+      const show = m.id !== homeId && (m.class === "metro" || zoom > 1.6 || (m.class === "city" && zoom > 1.1) || m.id === sel);
       if (show) {
         ctx.lineWidth = 3;
         ctx.strokeStyle = "rgba(10,10,14,0.85)";
@@ -142,6 +192,14 @@ export function WorldMap({ view, selected, onSelect, label, overlay }: Props) {
         ctx.fillStyle = "rgba(40,30,30,0.9)";
         ctx.fillText(rg.name.toUpperCase(), x, y);
       }
+    }
+    const mine = homeId === null ? undefined : v.municipalities.find((m) => m.id === homeId);
+    if (mine) {
+      const x = ox + (mine.x + 0.5) * scale;
+      const y = oy + (mine.y + 0.5) * scale;
+      const r = (CLASS_RADIUS[mine.class] ?? 2) * Math.min(2, Math.max(0.8, zoom * 0.6));
+      const flag = drawHomeMarker(ctx, x, y, r, youText ? `${mine.name} · ${youText}` : mine.name);
+      if (canvas.dataset.homeAt !== flag) canvas.dataset.homeAt = flag;
     }
   };
   const requestDraw = () => {

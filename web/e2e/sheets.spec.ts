@@ -135,6 +135,33 @@ test("phone: swiping a sheet down closes it, a short drag springs back", async (
   await expect(pocket).toHaveCount(0);
 });
 
+test("the player's town is marked on the map and in the town list", async ({ page }) => {
+  await start(page, "4242");
+  const town = await openPocket(page);
+  const home = (await town.locator(".sheet-head p").textContent())?.split(" · ").pop()?.trim() ?? "";
+  expect(home.length).toBeGreaterThan(0);
+  await town.getByRole("button", { name: "Map", exact: true }).click();
+  const canvas = page.getByRole("img", { name: new RegExp(`Drag to pan.*You: ${home}`) });
+  await expect(canvas).toBeVisible();
+  await expect(page.getByTestId("map-home")).toContainText(`You: ${home}`);
+  // The map opens on the player's town: its flag is drawn inside the view.
+  await expect(canvas).toHaveAttribute("data-home-at", /^\d+,\d+$/);
+  const flag = await canvas.evaluate((el: HTMLCanvasElement) => {
+    const [x, y] = (el.dataset.homeAt ?? "0,0").split(",").map(Number);
+    const dpr = window.devicePixelRatio || 1;
+    const inView = (x ?? -1) >= 0 && (y ?? -1) >= 0 && (x ?? 0) < el.clientWidth && (y ?? 0) < el.clientHeight;
+    const px = el.getContext("2d")?.getImageData(Math.round((x ?? 0) * dpr), Math.round((y ?? 0) * dpr), 1, 1).data;
+    return { inView, rgb: px ? [px[0], px[1], px[2]] : [] };
+  });
+  expect(flag.inView).toBe(true);
+  expect(flag.rgb).toEqual([235, 104, 52]);
+  // The town list flags it too, with text.
+  await (await openPocket(page)).getByRole("button", { name: "Overview", exact: true }).click();
+  await page.locator(".region-accordion > li > .row-btn", { has: page.locator(".you-chip") }).click();
+  await expect(page.getByTestId("town-list-home")).toBeVisible();
+  await expect(page.locator(".town-home")).toContainText(home);
+});
+
 test("Escape closes the sheet on top", async ({ page }) => {
   await start(page, "4242");
   const pocket = await openPocket(page);
