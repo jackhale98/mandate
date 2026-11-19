@@ -95,6 +95,8 @@ interface Cand {
   /** The far end's termination (a cul-de-sac's head), or null. */
   end: StreetEndKind | null;
   score: number;
+  /** An access street that runs on from this street end: its turning head gives way first. */
+  reopen?: [Segment, 0 | 1];
 }
 
 export function stageStreets(w: Work) {
@@ -152,7 +154,8 @@ export function stageStreets(w: Work) {
   for (const d of w.districts) {
     const b = (d.type.streets.block[0] + d.type.streets.block[1]) / 2;
     const dp = (d.type.streets.depth[0] + d.type.streets.depth[1]) / 2;
-    cx[d.index] = Math.round(2000 / b);
+    // A street across the blocks gives frontage only to its forecourts, so land beside one counts as further off than land above one.
+    cx[d.index] = Math.round(2000 / Math.max(5, b * 0.7));
     cy[d.index] = Math.round(2000 / dp);
   }
   const dist = new Int32Array(N).fill(INF);
@@ -382,7 +385,8 @@ export function stageStreets(w: Work) {
     };
     const dv = Math.min(runTo(0, -1), runTo(0, 1)) * (cy[d.index] as number);
     const dh = Math.min(runTo(-1, 0), runTo(1, 0)) * (cx[d.index] as number);
-    const need = dv >= dh ? "rows" : "cols";
+    // Rows of buildings front the east–west streets: one of those unless the land is far wider than deep.
+    const need = dh > dv * 2 ? "cols" : "rows";
     for (let dir = 0; dir < 4; dir++) {
       const diag = isDiagDir(dir);
       const width = diag ? wo.width + 1 : wo.width;
@@ -534,6 +538,91 @@ export function stageStreets(w: Work) {
   }
 
   /**
+   * A street with a turning head that faces a district no street reaches,
+   * run on along its own line into that district (over fields if it must,
+   * the railway square-on): the nearest such, entering the district within
+   * thirty-two steps and running at least three steps into it.
+   */
+  const runOn = (d: WorkDistrict): Cand | null => {
+    let best: Cand | null = null;
+    let bestIn = Infinity;
+    for (const s of w.segments) {
+      if (s.axis !== "h" && s.axis !== "v") continue;
+      for (const end of [0, 1] as const) {
+        if (!isHead(s.ends[end])) continue;
+        const [sx, sy] = stepOf(s.axis);
+        const out = end === 0 ? -1 : 1;
+        const ox = sx * out;
+        const oy = sy * out;
+        const dir = DIR8.findIndex(([a, b]) => a === ox && b === oy);
+        const ex = end === 0 ? s.ax : s.bx;
+        const ey = end === 0 ? s.ay : s.by;
+        const own = new Set(headCells(s, end, W, H));
+        // Its own head and the zone round it give way (a head reaches r + 2 beyond the end, its zone two more).
+        const ownReach = s.width + 6;
+        const slo = bandLo(s.width);
+        let first = -1;
+        let inside = 0;
+        let steps = 0;
+        for (let t = 1; t <= 40; t++) {
+          let ok = true;
+          let inD = false;
+          for (let k = 0; k < s.width && ok; k++) {
+            const x = (dir & 3) === 0 ? ex + ox * t : ex - slo + k;
+            const y = (dir & 3) === 0 ? ey - slo + k : ey + oy * t;
+            if (x < 3 || y < 3 || x >= W - 3 || y >= H - 3) {
+              ok = false;
+              break;
+            }
+            const c = y * W + x;
+            if (own.has(c)) continue;
+            if (isRoad(c) || (w.use[c] as number) & (Use.Square | Use.Bridge)) ok = false;
+            else if (railAx[c]) ok = (railAx[c] === 1 && (dir & 3) === 2) || (railAx[c] === 2 && (dir & 3) === 0);
+            else if (isWaterBody(w, c) || w.terrain[c] === Terrain.Rock || (w.use[c] as number) & Use.Rail) ok = false;
+            else if (t > ownReach && (w.endZone?.[c] || (!land[c] && (w.district[c] as number) >= 0))) ok = false;
+            if ((w.district[c] as number) === d.index) inD = true;
+          }
+          if (!ok) break;
+          if (inD) {
+            if (first < 0) first = t;
+            inside++;
+          }
+          steps = t;
+          if (inside >= 10 || (first < 0 && t >= 32)) break;
+        }
+        if (first < 0 || inside < 3 || first >= bestIn) continue;
+        const leg: Leg = { x: ex, y: ey, dir, steps };
+        if (crowded(w, segOf(leg, s.width, s.style, d.index, RoadClass.Street), s)) continue;
+        best = { legs: [leg], width: s.width, style: s.style, end: null, score: 0, reopen: [s, end] };
+        bestIn = first;
+      }
+    }
+    return best;
+  };
+  /** A turning head gives way to a street running on from its end (its cells back to the ground, its zone let go). */
+  const dropHead = (s: Segment, end: 0 | 1) => {
+    for (const c of headCells(s, end, W, H)) {
+      cover[c] = Math.max(0, (cover[c] as number) - 1);
+      if ((cover[c] as number) > 0 || (w.use[c] as number) & (Use.Bridge | Use.Rail)) continue;
+      w.terrain[c] = pre[c] as number;
+      w.level[c] = preLevel[c] as number;
+      w.use[c] = (w.use[c] as number) & ~Use.Road;
+      w.roadClass[c] = RoadClass.None;
+      if ((w.district[c] as number) >= 0 && !isWaterBody(w, c)) land[c] = 1;
+    }
+    s.ends[end] = null;
+    const zone = w.endZone;
+    if (!zone) return;
+    const was = zone.slice();
+    zone.fill(0);
+    for (const o of w.segments) for (const e of [0, 1] as const) if (isHead(o.ends[e])) holdZone(w, o, e, land);
+    for (let c = 0; c < N; c++) {
+      if (!was[c] || zone[c] || isRoad(c) || (w.district[c] as number) < 0 || isWaterBody(w, c) || (w.use[c] as number) & (Use.Square | Use.Rail)) continue;
+      land[c] = 1;
+    }
+  };
+
+  /**
    * An access street to a district out of the streets' reach: from its seed
    * the cheapest way to the nearest street, over fields if it must and across
    * the railway square-on, in a few straight runs (turns cost); the seed's
@@ -631,8 +720,10 @@ export function stageStreets(w: Work) {
         }
       }
     }
+    // Still nothing: a cul-de-sac of a neighbour that ends facing the district runs on into it (its head gives way).
+    if (!best) best = runOn(d);
     if (best && g.culDeSac > 0) {
-      const s = segOf(best.legs[best.legs.length - 1] as Leg, width, style, d.index, RoadClass.Street, g.head);
+      const s = segOf(best.legs[best.legs.length - 1] as Leg, best.width, best.style, d.index, RoadClass.Street, g.head);
       if (paintHead(w, s, s.ends[1] ? 1 : 0, true) && headClear(s)) best.end = g.head;
     }
     return best;
@@ -686,6 +777,7 @@ export function stageStreets(w: Work) {
     const access = () => {
       const cand = accessStreet(d, g);
       if (!cand) return;
+      if (cand.reopen) dropHead(cand.reopen[0], cand.reopen[1]);
       crossingsLeft = Math.max(crossingsLeft, cand.legs.length);
       commit(cand, d.index);
       resetSkip(cells);
@@ -893,7 +985,26 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
       if (s.arterial >= 0 && w.arterials[s.arterial]?.mode !== "local") continue;
       if (s.district < 0 && s.arterial < 0) continue;
       for (const end of [0, 1] as const) {
-        if (s.ends[end]) continue;
+        if (s.ends[end]) {
+          // A termination another street has since come near gives way: the end is open again (joined, re-ended or cut back).
+          if (s.ends[end] === "plaza" || endClear(s, end)) continue;
+          const kind = s.ends[end];
+          if (isHead(kind)) {
+            for (const c of headCells(s, end, W, H)) {
+              cover[c] = Math.max(0, (cover[c] as number) - 1);
+              if ((cover[c] as number) > 0 || (w.use[c] as number) & (Use.Bridge | Use.Rail)) continue;
+              w.terrain[c] = pre[c] as number;
+              w.level[c] = preLevel[c] as number;
+              w.use[c] = (w.use[c] as number) & ~Use.Road;
+              w.roadClass[c] = RoadClass.None;
+            }
+          } else {
+            const rec = streetEndOf(s, end, W, H);
+            if (rec) w.props = w.props.filter((pr) => !((pr.kind === "bollards" || pr.kind === "railing" || pr.kind === "field_gate") && pr.x >= rec.x - 1 && pr.x < rec.x + rec.w + 1 && pr.y >= rec.y - 1 && pr.y < rec.y + rec.h + 1));
+          }
+          s.ends[end] = null;
+          changed = true;
+        }
         const L = segSteps(s);
         if (L < 0) continue;
         const st = endState(s, end, W, H, cov, sq);

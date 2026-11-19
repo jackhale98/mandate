@@ -57,7 +57,8 @@ const probe = (page: Page) => page.evaluate(() => {
 test.describe("hub town prototype, layout v2", () => {
   test.skip(!built, "spike-hub is not built (see the comment at the top)");
 
-  for (const seed of ["4242", "2026", "99"]) {
+  // 632: the owner's town (Brinerford) where the street faults were reported (DEC-090 D5 amended).
+  for (const seed of ["4242", "2026", "99", "632"]) {
     test(`seed ${seed}: the v2 town loads with no console errors`, async ({ page }) => {
       const errors = await open(page, `seed=${seed}&layout=v2&t=720&speed=0&n=4`);
       await expect(page.locator("#loading")).toBeHidden();
@@ -73,6 +74,19 @@ test.describe("hub town prototype, layout v2", () => {
       expect(errors).toEqual([]);
     });
   }
+
+  test("seed 632: grown streets with 45° runs and recorded street ends reach the renderer", async ({ page }) => {
+    const errors = await open(page, "seed=632&layout=v2&t=720&speed=0&n=0");
+    const s = await page.evaluate(() => {
+      const m = (window as unknown as { __hub: { map: { streetAxis?: Record<string, number>; streetEnds?: { kind: string }[] } | null } }).__hub.map;
+      const axes = Object.values(m?.streetAxis ?? {});
+      return { diagonal: axes.filter((a) => a === 1 || a === 2).length, ends: (m?.streetEnds ?? []).map((e) => e.kind) };
+    });
+    expect(s.diagonal).toBeGreaterThan(20);
+    expect(s.ends.length).toBeGreaterThan(0);
+    for (const k of s.ends) expect(["turning_circle", "hammerhead", "bollards", "plaza", "field_gate", "railing"]).toContain(k);
+    expect(errors).toEqual([]);
+  });
 
   test("the player walks across a bridge", async ({ page }) => {
     // Strathowick (seed 2026) stands on a river (class 2): its arterial crosses on a bridge.
@@ -152,6 +166,7 @@ test.describe("hub town v2 captures", () => {
     writeFileSync(path.join(SCREENS, name), buf);
   };
   const cases: [string, string][] = [
+    ["632", ""],
     ["4242", ""],
     ["2026", ""],
     ["4242", "largest"],
