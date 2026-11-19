@@ -158,6 +158,8 @@ export interface Work {
   /** Ids of registry entries used (the recipe snapshot). */
   used: { districts: Set<string>; features: Set<string>; connectors: Set<string>; places: Set<string> };
   timings: Record<string, number>;
+  /** The station's site, held from the streets until it is built. */
+  station?: { x: number; y: number; bw: number; bh: number; d: number };
   /** The ground before any road was laid (stage 6 restores it under a street it cuts back). */
   ground?: { terrain: Uint8Array; level: Uint8Array };
 }

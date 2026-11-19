@@ -17,7 +17,7 @@ import { BASE_RECIPE, snapshotRecipe, type Recipe } from "./registry";
 import { stageDistricts } from "./districts";
 import { stageStreetAxes, stageStreets } from "./streets";
 import { streetEndOf } from "./net";
-import { stageConnect, stageMinimumFill, stageShortcuts, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
+import { reserveStation, stageConnect, stageMinimumFill, stageSlivers, stageShortcuts, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
 import { nameBridges, stageArterials, stageLevelEdges, stageRail, stageTerraces } from "./roads";
 import { stageCentre, stageTerrain, stageWater, townSize } from "./terrain";
 import { LayoutOverflow, RoadClass, Use, WaterKind, isWaterBody, type PlanConnector, type PlanPlot, type Rect, type Segment, type Work, type WorkDistrict } from "./work";
@@ -183,12 +183,15 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
     w.ground = { terrain: new Uint8Array(w.terrain), level: new Uint8Array(w.level) };
   });
   stage("arterials", () => {
+    const tr = now();
     stageRail(w);
+    w.timings["arterials.rail"] = now() - tr;
     stageArterials(w);
     nameBridges(w);
   });
   stage("districts", () => stageDistricts(w));
   stage("streets", () => {
+    reserveStation(w);
     stageStreets(w);
     stageTerraces(w);
     stageLevelEdges(w);
@@ -201,12 +204,17 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
   stage("fillers", () => {
     stageFillers(w);
     stageMinimumFill(w);
+    stageSlivers(w);
   });
   let baseline: number[] = [];
   stage("props", () => stageProps(w));
   stage("checks", () => {
+    const tc = now();
     stageConnect(w);
+    w.timings["checks.connect"] = now() - tc;
+    const ts = now();
     stageShortcuts(w);
+    w.timings["checks.shortcuts"] = now() - ts;
     baseline = stageRanks(w);
     stageStreetAxes(w);
   });
@@ -337,6 +345,19 @@ function finish(w: Work, baseline: number[]): TownPlan {
       if (d < 0) continue;
       if (x + 1 < W) note(d, w.district[c + 1] as number, c, c + 1);
       if (y + 1 < H) note(d, w.district[c + W] as number, c, c + W);
+      // Across a strip of fields or a road a few cells wide (the town is not one block of land).
+      for (let k = 2; k <= 4; k++) {
+        if (x + k < W && w.district[c + 1] === -1 && (w.district[c + k] as number) >= 0) {
+          note(d, w.district[c + k] as number, c + 1, c + k - 1);
+          break;
+        }
+      }
+      for (let k = 2; k <= 4; k++) {
+        if (y + k < H && w.district[c + W] === -1 && (w.district[c + k * W] as number) >= 0) {
+          note(d, w.district[c + k * W] as number, c + W, c + (k - 1) * W);
+          break;
+        }
+      }
     }
   }
   for (const e of [...pairs.values()].sort((p, q) => p.a - q.a || p.b - q.b)) {

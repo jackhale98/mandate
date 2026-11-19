@@ -401,6 +401,7 @@ export function readability(map: TownMap, plan: TownPlan): Readability {
   };
   const seen = new Uint8Array(N);
   let smallBlocks = 0;
+  SMALL_BLOCKS.length = 0;
   const hasBuilding = new Uint8Array(N);
   for (const b of map.buildings) if (b.state !== "reserved") for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) hasBuilding[y * W + x] = 1;
   for (let s = 0; s < N; s++) {
@@ -428,7 +429,10 @@ export function readability(map: TownMap, plan: TownPlan): Readability {
     }
     // The square's civic row stands on the square's paving: not a block.
     const onSquare = x0 >= plan.civic.x && x1 < plan.civic.x + plan.civic.w && y0 >= plan.civic.y - 1 && y1 < plan.civic.y + plan.civic.h;
-    if (!onSquare && (x1 - x0 + 1 < 6 || y1 - y0 + 1 < 5)) smallBlocks++;
+    if (!onSquare && (x1 - x0 + 1 < 6 || y1 - y0 + 1 < 5)) {
+      smallBlocks++;
+      SMALL_BLOCKS.push({ x0, y0, x1, y1 });
+    }
   }
   // Walking detours from the square.
   const grid = townGrid(map);
@@ -528,3 +532,6 @@ export function readabilityProblems(map: TownMap, plan: TownPlan): string[] {
   if (r.detourAcrossWater > 2.2) out.push(`walking detour across water ${r.detourAcrossWater.toFixed(2)} (at most 2.2)`);
   return out;
 }
+
+/** The last readability pass's small built blocks (bounds), for diagnostics. */
+export const SMALL_BLOCKS: { x0: number; y0: number; x1: number; y1: number }[] = [];

@@ -380,6 +380,7 @@ export function centreOffset(a: Segment, b: Segment): number {
 export function crowded(w: Work, s: Segment, self: Segment | null): boolean {
   for (const o of w.segments) {
     if (o === self || o.axis !== s.axis) continue;
+    if (o.x0 > s.x1 + 12 || o.x1 < s.x0 - 12 || o.y0 > s.y1 + 12 || o.y1 < s.y0 - 12) continue;
     const g = parallelGap(s, o);
     const off = centreOffset(s, o);
     if (off === 0) continue;

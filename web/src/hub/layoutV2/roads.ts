@@ -179,16 +179,21 @@ interface Costs8 {
  * not allowed; water and the railway are crossed straight and square-on
  * (no diagonal steps onto them or past their corners).
  */
+/** Search buffers, reused (each search resets what it uses). */
+let scratch8: { g: Int32Array; from: Int32Array } | null = null;
+
 function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], isGoal: (c: number, d: number) => boolean, target: number, k: Costs8, exempt: (c: number) => boolean = (c) => c === target): { c: number; d: number }[] | null {
   const { CW, CH } = cg;
   const n = CW * CH;
   // A state is (cell, direction entered, whether that step turned): a turn needs a straight step before the next (no staircase).
-  const g = new Float64Array(n * 16).fill(Infinity);
-  const from = new Int32Array(n * 16).fill(-1);
+  if (!scratch8 || scratch8.g.length < n * 16) scratch8 = { g: new Int32Array(n * 16), from: new Int32Array(n * 16) };
+  const g = scratch8.g.fill(0x3fffffff, 0, n * 16);
+  const from = scratch8.from.fill(-1, 0, n * 16);
   const heap = new MinHeap(1024);
   const gx = target % CW;
   const gy = Math.floor(target / CW);
-  const unit = Math.max(1, k.base - k.road);
+  // A steady estimate (most steps cost about this much off the roads): fast, and the paths stay straight.
+  const unit = Math.max(1, k.base - 2);
   const h = (c: number) => {
     const dx = Math.abs((c % CW) - gx);
     const dy = Math.abs(Math.floor(c / CW) - gy);
@@ -420,7 +425,7 @@ export function stageRail(w: Work) {
   const jitter = r.int(0, 1000);
 
   /** Cost of a line (or Infinity): cells, level changes, water, bends, how it passes the core, how near its ends are to the links. */
-  const cost = (runs: RailRun[]): number => {
+  const cost = (runs: RailRun[], bound = Infinity): number => {
     let s = runs.length * 70;
     let closest = 99;
     let station = false;
@@ -455,6 +460,7 @@ export function stageRail(w: Work) {
         if (first < 0) first = c;
         last = c;
         if (p === run.b) break;
+        if (s > bound) return Infinity;
       }
     }
     if (!station) return Infinity;
@@ -471,7 +477,7 @@ export function stageRail(w: Work) {
   let best: RailRun[] | null = null;
   let bestCost = Infinity;
   const consider = (runs: RailRun[], k: number) => {
-    const c = cost(runs) + ((k * 2654435761 + jitter) % 7);
+    const c = cost(runs, bestCost) + ((k * 2654435761 + jitter) % 7);
     if (c < bestCost) {
       bestCost = c;
       best = runs;

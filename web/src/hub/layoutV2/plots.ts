@@ -10,6 +10,7 @@ import { mix } from "../rng";
 import { Terrain, placeSize, type PropKind } from "../townLayout";
 import { MinHeap, NO_BEARING, compassVec, isqrt, valueNoise } from "./imath";
 import type { DistrictType, PlaceLayout } from "./registry";
+import { headCells, isHead, segCells } from "./net";
 import { LayoutOverflow, RoadClass, Use, WaterKind, buildable, distanceField, frontageTerrain, isWaterBody, rngOf, type PlanPlot, type Work, type WorkDistrict } from "./work";
 
 const CIVIC = ["town_hall", "council_chamber", "parliament", "regional_assembly", "executive_residence"];
@@ -289,21 +290,29 @@ function frontageOf(w: Work, d: number, any = false): number[] {
 function frontageIndex(w: Work): number[][] {
   const { W, H } = w;
   const out: number[][] = w.districts.map(() => []);
-  // A forecourt cell: open land beside a street's side in its row (the building above steps along the street).
-  const nearSide = (c: number) => {
-    const x = c % W;
-    for (let k = 1; k <= 4; k++) {
-      if (x - k >= 0 && streetSide(w, c - k)) return true;
-      if (x + k < W && streetSide(w, c + k)) return true;
+  // A forecourt cell: open land within four cells of a street's side in its row (the building above steps along the street).
+  const side = new Int32Array(W);
+  for (let y = 2; y < H; y++) {
+    const row = y * W;
+    // Cells to the nearest street side in the row, from the left and from the right.
+    let last = -99;
+    for (let x = 0; x < W; x++) {
+      if (streetSide(w, row + x)) last = x;
+      side[x] = x - last;
     }
-    return false;
-  };
-  for (let c = 2 * W; c < W * H; c++) {
-    const d = w.district[c - W] as number;
-    if (d < 0) continue;
-    const t = w.terrain[c] as number;
-    if (!frontageTerrain(t) && !(buildable(t) && !w.use[c] && nearSide(c))) continue;
-    (out[d] as number[]).push(c);
+    last = 9999;
+    for (let x = W - 1; x >= 0; x--) {
+      if (streetSide(w, row + x)) last = x;
+      side[x] = Math.min(side[x] as number, last - x);
+    }
+    for (let x = 0; x < W; x++) {
+      const c = row + x;
+      const d = w.district[c - W] as number;
+      if (d < 0) continue;
+      const t = w.terrain[c] as number;
+      if (!frontageTerrain(t) && !(buildable(t) && !w.use[c] && (side[x] as number) >= 1 && (side[x] as number) <= 4)) continue;
+      (out[d] as number[]).push(c);
+    }
   }
   return out;
 }
@@ -530,14 +539,24 @@ export function stagePlaces(w: Work) {
  * platform, as near the square as it fits; its door path is joined up by
  * the connectivity pass.
  */
-function stationBySide(w: Work, groundOf: (d: number) => number) {
+interface StationSite {
+  x: number;
+  y: number;
+  bw: number;
+  bh: number;
+  d: number;
+}
+
+/** The railway's distance field (cells from the track). */
+const railDistance = (w: Work) => distanceField(w.W, w.H, (c) => ((w.use[c] as number) & Use.Rail) !== 0 && w.terrain[c] === Terrain.Rail, () => true, 8);
+
+/** The best site for the station: a footprint one cell (or two) off the track, on dry open land, as near the square as it fits. */
+function stationSite(w: Work, rd: Uint16Array, m: Masks): StationSite | null {
   const { W, H } = w;
   const N = W * H;
-  const m = masks(w);
-  const rd = distanceField(W, H, (c) => ((w.use[c] as number) & Use.Rail) !== 0 && w.terrain[c] === Terrain.Rail, () => true, 8);
   const sx = w.plaza.x + (w.plaza.w >> 1);
   const sy = w.plaza.y + (w.plaza.h >> 1);
-  let best: { x: number; y: number; bw: number; bh: number; d: number; s: number } | null = null;
+  let best: (StationSite & { s: number }) | null = null;
   // Strictly first (one district, one cell of platform); then a footprint across districts or on the fields at the town's edge.
   const coreD = w.districts.find((d) => d.kind === "core")?.index ?? 0;
   for (let pass = 0; pass < 3 && !best; pass++) {
@@ -549,6 +568,7 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
       for (let y = 2; y + bh < H - 1; y++) {
         for (let x = 1; x + bw < W - 1; x++) {
           const c0 = y * W + x;
+          if ((rd[c0] as number) > bw + 3) continue;
           let d = w.district[c0] as number;
           if (d < 0 && pass === 0) continue;
           const lv = w.level[c0] as number;
@@ -558,7 +578,7 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
             for (let xx = x; xx < x + bw && ok; xx++) {
               const c = yy * W + xx;
               const dc = w.district[c] as number;
-              if ((pass === 0 && dc !== d) || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv || (rd[c] as number) < 2 || isWaterBody(w, c) || m.roofs[c]) ok = false;
+              if ((pass === 0 && dc !== d) || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv || (rd[c] as number) < 2 || isWaterBody(w, c) || m.roofs[c] || x < 3 || y < 3 || x + bw > W - 3 || y + bh > H - 3) ok = false;
               if (d < 0 && dc >= 0) d = dc;
               near = Math.min(near, rd[c] as number);
             }
@@ -576,6 +596,42 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
       }
     }
   }
+  return best;
+}
+
+/** The station's site, held from the streets (stage 4: the station on the line, a short walk from the square). */
+export function reserveStation(w: Work) {
+  if (!w.rail.length) return;
+  const { W, H } = w;
+  const site = stationSite(w, railDistance(w), masks(w));
+  if (!site) return;
+  w.station = site;
+  for (let y = site.y - 1; y <= site.y + site.bh; y++) {
+    for (let x = site.x - 1; x <= site.x + site.bw; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const c = y * W + x;
+      if (!w.use[c]) w.use[c] = Use.Keep;
+    }
+  }
+}
+
+function stationBySide(w: Work, groundOf: (d: number) => number) {
+  const { W, H } = w;
+  const m = masks(w);
+  const rd = railDistance(w);
+  let best: StationSite | null = null;
+  const held = w.station;
+  if (held) {
+    // The reserved site: give the hold back and stand there.
+    for (let y = held.y - 1; y <= held.y + held.bh; y++) {
+      for (let x = held.x - 1; x <= held.x + held.bw; x++) {
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        const c = y * W + x;
+        if (w.use[c] === Use.Keep) w.use[c] = 0;
+      }
+    }
+    best = stationSite(w, rd, m);
+  } else best = stationSite(w, rd, m);
   if (!best) return;
   const i = addPlot(w, best.d, { x: best.x, F: best.y + best.bh, w: best.bw, h: best.bh, s: 0 }, { place: null, kind: "station", name: "", landmark: true, ground: groundOf(best.d) }, best.x + (best.bw >> 1));
   w.landmarks.push({ kind: "station", x: best.x + (best.bw >> 1), y: best.y, name: "", plot: i });
@@ -601,11 +657,25 @@ function addPlotForce(w: Work, d: number, f: Fit, spec: { place: number | null; 
 function carveSpot(w: Work, d: number, sizes: [number, number][]): Fit | null {
   const { W, H } = w;
   const m = masks(w);
+  // Within the district's bounds.
+  let bx0 = W;
+  let by0 = H;
+  let bx1 = -1;
+  let by1 = -1;
+  for (let c = 0; c < W * H; c++) {
+    if (w.district[c] !== d) continue;
+    const x = c % W;
+    const y = (c - x) / W;
+    if (x < bx0) bx0 = x;
+    if (x > bx1) bx1 = x;
+    if (y < by0) by0 = y;
+    if (y > by1) by1 = y;
+  }
   // First on open land; then over the district's small greens (a junction green or a leftover corner gives way to a place).
   for (let pass = 0; pass < 2; pass++) {
     for (const [bw, bh] of [...sizes].reverse()) {
-      for (let F = bh + 2; F < H - 1; F++) {
-        for (let x = 1; x + bw < W - 1; x++) {
+      for (let F = Math.max(bh + 2, by0); F < Math.min(H - 1, by1 + 2); F++) {
+        for (let x = Math.max(1, bx0); x + bw < W - 1 && x <= bx1; x++) {
           const freed: number[] = [];
           if (pass === 1) {
             for (let y = F - bh - 1; y <= F; y++) {
@@ -828,6 +898,91 @@ export function stageFillers(w: Work) {
 }
 
 /** A district its streets gave no buildings still holds a few (§8: even the smallest district holds a street of buildings). */
+/**
+ * No sliver blocks (§8: minimum block 6 × 5): a block between streets too
+ * small for a row of buildings that took a filler anyway (a wedge between a
+ * 45° street and its neighbours, a corner by the water) gives its fillers
+ * up and becomes a green (a yard in industry, a field in the country).
+ */
+export function stageSlivers(w: Work) {
+  const { W, H } = w;
+  const N = W * H;
+  const street = new Uint8Array(N);
+  for (const s of w.segments) {
+    segCells(s, W, H, (c) => (street[c] = 1));
+    for (const end of [0, 1] as const) if (isHead(s.ends[end])) for (const c of headCells(s, end, W, H)) street[c] = 1;
+  }
+  const edge = (c: number) => {
+    const t = w.terrain[c] as number;
+    return street[c] === 1 || t === Terrain.Plaza || t === Terrain.Quay || t === Terrain.Rail || t === Terrain.Crossing || t === Terrain.Water || isWaterBody(w, c);
+  };
+  const plotAt = new Int32Array(N).fill(-1);
+  w.plots.forEach((p, i) => {
+    for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) plotAt[y * W + x] = i;
+  });
+  const seen = new Uint8Array(N);
+  const drop = new Set<number>();
+  const q = new Int32Array(N);
+  for (let s0 = 0; s0 < N; s0++) {
+    if (seen[s0] || (plotAt[s0] as number) < 0 || edge(s0)) continue;
+    let qt = 0;
+    q[qt++] = s0;
+    seen[s0] = 1;
+    let x0 = W;
+    let x1 = -1;
+    let y0 = H;
+    let y1 = -1;
+    for (let qh = 0; qh < qt; qh++) {
+      const c = q[qh] as number;
+      const x = c % W;
+      const y = (c - x) / W;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
+        if (n < 0 || n >= N || seen[n] || edge(n)) continue;
+        seen[n] = 1;
+        q[qt++] = n;
+      }
+    }
+    if (x1 - x0 + 1 >= 6 && y1 - y0 + 1 >= 5) continue;
+    // The square's civic row stands on the square's paving: not a block.
+    if (x0 >= w.civic.x && x1 < w.civic.x + w.civic.w && y0 >= w.civic.y - 1 && y1 < w.civic.y + w.civic.h) continue;
+    const here = new Set<number>();
+    for (let i = 0; i < qt; i++) if ((plotAt[q[i] as number] as number) >= 0) here.add(plotAt[q[i] as number] as number);
+    // Places and landmarks stay where they are (a block that holds one is the place's own).
+    if ([...here].some((i) => (w.plots[i] as PlanPlot).place !== null || (w.plots[i] as PlanPlot).landmark)) continue;
+    for (const i of here) drop.add(i);
+    for (let i = 0; i < qt; i++) {
+      const c = q[i] as number;
+      const d = w.district[c] as number;
+      if ((w.use[c] as number) & (Use.Road | Use.Lane)) continue;
+      const kind = d >= 0 ? (w.districts[d] as WorkDistrict).kind : "rural";
+      w.terrain[c] = kind === "industrial" ? Terrain.Yard : kind === "rural" ? Terrain.Field : Terrain.Park;
+      w.use[c] = ((w.use[c] as number) & ~Use.Plot) | Use.Keep;
+    }
+  }
+  if (!drop.size) return;
+  const m = masks(w);
+  for (const i of drop) {
+    const p = w.plots[i] as PlanPlot;
+    m.fronts[p.front] = 0;
+    for (let x = p.x; x < p.x + p.w; x++) if (p.y - 1 >= 0) m.roofs[(p.y - 1) * W + x] = 0;
+  }
+  const remap = new Map<number, number>();
+  const keep: PlanPlot[] = [];
+  w.plots.forEach((p, i) => {
+    if (drop.has(i)) return;
+    remap.set(i, keep.length);
+    keep.push(p);
+  });
+  w.plots.length = 0;
+  w.plots.push(...keep);
+  w.landmarks = w.landmarks.map((l) => ({ ...l, plot: remap.get(l.plot) ?? -1 }));
+}
+
 export function stageMinimumFill(w: Work) {
   for (const d of w.districts) {
     let have = 0;
