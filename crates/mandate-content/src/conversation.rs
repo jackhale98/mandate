@@ -571,7 +571,12 @@ pub fn param_ranges(b: &ContentBundle, r: &mut dyn FnMut(&str, f64, f64, f64)) {
         0.0,
         1.0,
     );
-    r("talk.favour_discretion", t.favour_discretion.into(), -3.0, 3.0);
+    r(
+        "talk.favour_discretion",
+        t.favour_discretion.into(),
+        -3.0,
+        3.0,
+    );
     r("talk.memory_lines", t.memory_lines.into(), 1.0, 64.0);
     r("talk.log_cap", t.log_cap.into(), 1.0, 400.0);
     r("talk.quote_share", t.quote_share, 0.0, 1.0);
@@ -591,15 +596,35 @@ pub fn param_ranges(b: &ContentBundle, r: &mut dyn FnMut(&str, f64, f64, f64)) {
     r("talk.support.min", s.min, 0.0, 1.0);
     r("talk.support.max", s.max, 0.0, 1.0);
     r("talk.support.sway", s.sway, 0.0, 5.0);
-    r("talk.support.endorse_approval", s.endorse_approval, 0.0, 0.2);
+    r(
+        "talk.support.endorse_approval",
+        s.endorse_approval,
+        0.0,
+        0.2,
+    );
     r("talk.support.bill_awareness", s.bill_awareness, 0.0, 1.0);
     r("talk.support.favour_below", s.favour_below, -100.0, 100.0);
-    r("talk.support.refused_opinion", s.refused_opinion, -20.0, 0.0);
+    r(
+        "talk.support.refused_opinion",
+        s.refused_opinion,
+        -20.0,
+        0.0,
+    );
     for (k, v) in &t.trait_discretion {
-        r(&format!("talk.trait_discretion.{k}"), (*v).into(), -3.0, 3.0);
+        r(
+            &format!("talk.trait_discretion.{k}"),
+            (*v).into(),
+            -3.0,
+            3.0,
+        );
     }
     for (k, v) in &t.flattered_discretion {
-        r(&format!("talk.flattered_discretion.{k}"), (*v).into(), -3.0, 3.0);
+        r(
+            &format!("talk.flattered_discretion.{k}"),
+            (*v).into(),
+            -3.0,
+            3.0,
+        );
     }
 }
 
@@ -726,9 +751,9 @@ fn subject_ok(s: &SubjectRef, about: &[AboutKind]) -> Result<(), String> {
         SubjectRef::Person { slot } if slot == "about" && !about.iter().any(|k| k.is_person()) => {
             Err("the `about` slot needs a topic about a person or the rival".into())
         }
-        SubjectRef::Proposal { sponsored_by } if sponsored_by != "speaker" => Err(format!(
-            "unknown sponsor slot `{sponsored_by}` (speaker)"
-        )),
+        SubjectRef::Proposal { sponsored_by } if sponsored_by != "speaker" => {
+            Err(format!("unknown sponsor slot `{sponsored_by}` (speaker)"))
+        }
         SubjectRef::PolicySupport { of } if of != "about" => {
             Err(format!("unknown policy slot `{of}` (about)"))
         }
@@ -842,7 +867,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             }
         }
         if p.mechanic == TalkMechanic::Pitch && !p.about_required {
-            issues.push(Issue::error(&p.id, "a pitch needs a subject (`about_required`)"));
+            issues.push(Issue::error(
+                &p.id,
+                "a pitch needs a subject (`about_required`)",
+            ));
         }
         for r in &p.offered.roles {
             if !roles.contains(r) {
@@ -947,7 +975,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     .iter()
                     .any(|c| matches!(c, SituationCondition::Remembers { .. })) =>
             {
-                issues.push(Issue::error(id, "a quote line needs a `remembers` condition"));
+                issues.push(Issue::error(
+                    id,
+                    "a quote line needs a `remembers` condition",
+                ));
             }
             _ => {}
         }
@@ -955,7 +986,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             issues.push(Issue::error(id, "only closers have a voice"));
         }
         if l.part != TalkPart::Substance && l.topic.is_some() && l.part != TalkPart::Opener {
-            issues.push(Issue::error(id, "only substance lines and openers have a topic"));
+            issues.push(Issue::error(
+                id,
+                "only substance lines and openers have a topic",
+            ));
         }
         if l.fallback && l.part != TalkPart::Substance {
             issues.push(Issue::error(id, "only substance lines are fallbacks"));
@@ -1017,7 +1051,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 issues.push(Issue::error(id, &e));
             }
             if lead.level == Level::Unknown {
-                issues.push(Issue::error(id, "a lead gives `heard`, `known` or `detailed`"));
+                issues.push(Issue::error(
+                    id,
+                    "a lead gives `heard`, `known` or `detailed`",
+                ));
             }
             match &lead.to {
                 LeadToDef::PlaceKind { kind }
@@ -1132,7 +1169,226 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
     use super::*;
+    use crate::bundle::{Source, load};
+
+    fn base() -> Vec<Source> {
+        fn walk(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<Source>) {
+            let mut v: Vec<_> = std::fs::read_dir(dir)
+                .unwrap()
+                .map(|e| e.unwrap().path())
+                .collect();
+            v.sort();
+            for p in v {
+                if p.is_dir() {
+                    walk(root, &p, out);
+                } else if matches!(
+                    p.extension().and_then(|x| x.to_str()),
+                    Some("jsonc" | "ftl")
+                ) {
+                    out.push(Source {
+                        path: p
+                            .strip_prefix(root)
+                            .unwrap()
+                            .to_string_lossy()
+                            .replace('\\', "/"),
+                        text: std::fs::read_to_string(&p).unwrap(),
+                    });
+                }
+            }
+        }
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+        let mut out = Vec::new();
+        walk(&root, &root, &mut out);
+        out
+    }
+
+    /// Every issue after replacing `from` with `to` in a base file.
+    fn issues_with(file: &str, from: &str, to: &str) -> String {
+        let mut s = base();
+        let f = s.iter_mut().find(|x| x.path == file).unwrap();
+        assert!(f.text.contains(from), "{from}");
+        f.text = f.text.replacen(from, to, 1);
+        let all = match load(&s) {
+            Ok((_, w)) => w,
+            Err(e) => e,
+        };
+        all.iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    const LINES: &str = "base/conversations/lines.jsonc";
+
+    #[test]
+    fn the_base_conversations_load() {
+        let (b, w) = load(&base()).unwrap();
+        assert!(w.is_empty(), "{w:?}");
+        assert_eq!(b.talk_topics.len(), 7);
+        let mechanics: BTreeSet<TalkMechanic> = b.talk_topics.iter().map(|t| t.mechanic).collect();
+        assert_eq!(mechanics.len(), 5, "every mechanic has a topic");
+        assert!(
+            b.talk_voice("voice.plain")
+                .is_some_and(|v| v.when.is_empty())
+        );
+        assert_eq!(b.talk.cost, TalkCost::HalfSlot);
+        assert_eq!(b.talk.trait_discretion.get("trait.schemer"), Some(&-1));
+        assert_eq!(b.talk.trait_discretion.get("trait.cautious"), Some(&-1));
+        assert_eq!(b.talk.flattered_discretion.get("trait.vain"), Some(&1));
+        assert_eq!(b.talk_roles().len(), b.occupations.len() + 2);
+    }
+
+    #[test]
+    fn validation_holds_the_conversation_rules() {
+        // Item 2: a fallback for every role.
+        let e = issues_with(
+            LINES,
+            r#""key": "talk-small-weather", "fallback": true },"#,
+            r#""key": "talk-small-weather" },"#,
+        );
+        assert!(
+            e.is_empty(),
+            "the other fallback still covers everyone: {e}"
+        );
+        let e = issues_with(
+            LINES,
+            r#""key": "talk-small-family", "fallback": true },"#,
+            r#""key": "talk-small-family", "fallback": true,
+               "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.nurse"] } ] },"#,
+        );
+        assert!(e.is_empty(), "{e}");
+        let mut s = base();
+        let f = s.iter_mut().find(|x| x.path == LINES).unwrap();
+        f.text = f
+            .text
+            .replacen(r#""key": "talk-small-weather", "fallback": true"#, r#""key": "talk-small-weather""#, 1)
+            .replacen(
+                r#""key": "talk-small-family", "fallback": true },"#,
+                r#""key": "talk-small-family", "fallback": true,
+                   "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.nurse"] } ] },"#,
+                1,
+            );
+        let e = load(&s).err().unwrap();
+        let e = e
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            e.contains("topic.small_talk: no fallback reply for occupation.union_steward"),
+            "{e}"
+        );
+        // A fallback's only conditions are on the role.
+        let e = issues_with(
+            LINES,
+            r#""key": "talk-pitch-listen", "fallback": true },"#,
+            r#""key": "talk-pitch-listen", "fallback": true,
+               "when": [ { "type": "opinion", "slot": "speaker", "min": 0 } ] },"#,
+        );
+        assert!(
+            e.contains("a fallback line's only conditions are on the speaker's role"),
+            "{e}"
+        );
+        // Item 4: discretion is never bypassed.
+        let e = issues_with(
+            LINES,
+            r#""teaches": [ { "subject": { "type": "broker" }, "level": "heard" } ] },"#,
+            r#""teaches": [ { "subject": { "type": "broker" }, "level": "known" } ] },"#,
+        );
+        assert!(
+            e.contains("needs a `tells` condition on it at that level or higher"),
+            "{e}"
+        );
+        let e = issues_with(
+            LINES,
+            r#""key": "talk-worries-shrug", "fallback": true },"#,
+            r#""key": "talk-worries-shrug", "fallback": true,
+               "teaches": [ { "subject": { "type": "person", "slot": "about" }, "level": "heard" } ] },"#,
+        );
+        assert!(
+            e.contains("the `about` slot needs a topic about a person"),
+            "{e}"
+        );
+        // Item 5: placeholders come from the conditions.
+        let e = issues_with(
+            "base/locale/en/talk.ftl",
+            r#"talk-pitch-listen = "Go on, then. I'm listening.""#,
+            r#"talk-pitch-listen = "Go on, { $broker }. I'm listening.""#,
+        );
+        assert!(
+            e.contains("uses `$broker`, which this line's conditions do not provide"),
+            "{e}"
+        );
+        let e = issues_with(
+            "base/locale/en/talk.ftl",
+            "talk-runs-self =",
+            "talk-runs-self-x =",
+        );
+        assert!(e.contains("missing Fluent key `talk-runs-self`"), "{e}");
+        // Item 6: a closing voice has an alternative.
+        let e = issues_with(
+            LINES,
+            r#""voice": "voice.blunt", "key": "talk-close-blunt-2" },"#,
+            r#""voice": "voice.plain", "key": "talk-close-blunt-2" },"#,
+        );
+        assert!(
+            e.contains("voice.blunt: a voice that closes needs at least two closers"),
+            "{e}"
+        );
+        // Item 1 and 3: real topics, voices, slots, roles, traits.
+        let e = issues_with(
+            LINES,
+            r#""topic": "topic.small_talk","#,
+            r#""topic": "topic.chat","#,
+        );
+        assert!(e.contains("unknown topic `topic.chat`"), "{e}");
+        let e = issues_with(
+            "base/conversations/voices.jsonc",
+            r#""traits": ["trait.cautious"]"#,
+            r#""traits": ["trait.sly"]"#,
+        );
+        assert!(e.contains("unknown trait `trait.sly`"), "{e}");
+        let e = issues_with(
+            LINES,
+            r#"{ "type": "remembers", "slot": "speaker", "kinds": ["broke_promise"] }"#,
+            r#"{ "type": "remembers", "slot": "here", "kinds": ["broke_promise"] }"#,
+        );
+        assert!(e.contains("unknown slot `here`"), "{e}");
+        let e = issues_with(
+            "base/conversations/topics.jsonc",
+            r#""roles": ["councillor", "mayor"]"#,
+            r#""roles": ["councillor", "pope"]"#,
+        );
+        assert!(e.contains("topic offered to unknown role `pope`"), "{e}");
+        // Item 7: weights and shares.
+        let e = issues_with(LINES, r#""weight": 5,"#, r#""weight": 50,"#);
+        assert!(e.contains("line weight must be in (0, 10]"), "{e}");
+        let e = issues_with(
+            "base/conversations/params.jsonc",
+            r#""quote_share": 0.5"#,
+            r#""quote_share": 1.5"#,
+        );
+        assert!(e.contains("talk.quote_share = 1.5 outside [0, 1]"), "{e}");
+    }
+
+    #[test]
+    fn slot_conditions_need_a_conversation() {
+        let e = issues_with(
+            "base/policies/situational.jsonc",
+            r#""any": ["#,
+            r#""any": [ { "type": "trait", "slot": "speaker", "traits": ["trait.vain"] },"#,
+        );
+        assert!(e.contains("this condition reads a slot"), "{e}");
+        // The player's ledger needs no slot.
+        let e = issues_with(
+            "base/policies/situational.jsonc",
+            r#""any": ["#,
+            r#""any": [ { "type": "player_knows", "subject": { "type": "broker" }, "min": "known" },"#,
+        );
+        assert!(e.is_empty(), "{e}");
+    }
 
     #[test]
     fn placeholders_by_message() {

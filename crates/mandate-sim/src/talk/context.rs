@@ -83,9 +83,12 @@ impl Ctx<'_> {
             }
             HoodOf::About => match self.about? {
                 AboutRef::Hood { hood } => Some(*hood),
-                AboutRef::Place { place } => {
-                    self.st.world.places.get(place.index()).map(|p| p.neighborhood)
-                }
+                AboutRef::Place { place } => self
+                    .st
+                    .world
+                    .places
+                    .get(place.index())
+                    .map(|p| p.neighborhood),
                 _ => None,
             },
         }
@@ -396,14 +399,19 @@ impl Ctx<'_> {
                 true
             }
             U::PlayerKnows { subject, min, max } => {
-                let Some(s) = self.subject(subject) else {
-                    return false;
-                };
-                let l = knowledge::knows(st, &s);
+                // Something that does not exist here (a town without a
+                // broker) is unknown to the player, and gives no arguments.
+                let s = self.subject(subject);
+                let l = s
+                    .as_ref()
+                    .map(|s| knowledge::knows(st, s))
+                    .unwrap_or_default();
                 if min.is_some_and(|a| l < a) || max.is_some_and(|z| l > z) {
                     return false;
                 }
-                self.subject_args(&s, args);
+                if let Some(s) = &s {
+                    self.subject_args(s, args);
+                }
                 true
             }
             U::Any { of } => {
@@ -440,16 +448,14 @@ pub fn holds_in_town(
             let tc = state.politics.characters.towns.get(town.index());
             let s = match subject {
                 SubjectRef::TownConcerns => Some(Subject::TownConcerns { town }),
-                SubjectRef::Broker => tc
-                    .and_then(|t| t.broker)
-                    .map(|_| Subject::Broker { town }),
-                SubjectRef::RivalPlans => tc.and_then(|t| t.rival).map(|_| Subject::RivalPlans { town }),
+                SubjectRef::Broker => tc.and_then(|t| t.broker).map(|_| Subject::Broker { town }),
+                SubjectRef::RivalPlans => tc
+                    .and_then(|t| t.rival)
+                    .map(|_| Subject::RivalPlans { town }),
                 _ => None,
             };
-            s.is_some_and(|s| {
-                let l = knowledge::knows(state, &s);
-                min.is_none_or(|a| l >= a) && max.is_none_or(|z| l <= z)
-            })
+            let l = s.map(|s| knowledge::knows(state, &s)).unwrap_or_default();
+            min.is_none_or(|a| l >= a) && max.is_none_or(|z| l <= z)
         }
         _ => false,
     }

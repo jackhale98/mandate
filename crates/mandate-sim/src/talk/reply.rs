@@ -128,7 +128,13 @@ pub fn guard<'c>(
 }
 
 /// The keyed draw for one part.
-pub fn draw_rng(ctx: &Ctx<'_>, topic: &str, week: u32, part: TalkPart, n: u32) -> mandate_core::SimRng {
+pub fn draw_rng(
+    ctx: &Ctx<'_>,
+    topic: &str,
+    week: u32,
+    part: TalkPart,
+    n: u32,
+) -> mandate_core::SimRng {
     mandate_core::rng::keyed(
         ctx.st.meta.seed,
         Stream::Dialogue,

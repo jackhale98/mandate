@@ -31,9 +31,7 @@ use crate::characters::knows::{self, Openness};
 use crate::characters::{self, CharacterId, MemoryKind};
 use crate::commands::EngineError;
 use crate::places::{Location, Offer};
-use crate::player::knowledge::{
-    self, FamilyInstanceId, Lead, LeadTarget, Level, Source, Subject,
-};
+use crate::player::knowledge::{self, FamilyInstanceId, Lead, LeadTarget, Level, Source, Subject};
 use crate::policy::{PolicyInstanceId, PolicyStatus};
 use crate::politics::PoliticianId;
 use crate::scheduler::Effect;
@@ -144,8 +142,8 @@ fn check_cost(state: &State, content: &ContentBundle, late_night: bool) -> Resul
         }
         return Ok(());
     }
-    let half_left = content.talk.cost == TalkCost::HalfSlot
-        && pl.talk.half_slot == Some(state.calendar.turn);
+    let half_left =
+        content.talk.cost == TalkCost::HalfSlot && pl.talk.half_slot == Some(state.calendar.turn);
     if !half_left && pl.slots_left() < 1 {
         return Err(bad("not enough time left this turn"));
     }
@@ -301,7 +299,9 @@ fn plan(
             _ => Mech::Endorse { policy: bill },
         },
         TalkMechanic::Favour => match (peer, bill) {
-            (Some(p), Some(policy)) if characters::favours_owed(&state.politics, speaker, me) > 0 => {
+            (Some(p), Some(policy))
+                if characters::favours_owed(&state.politics, speaker, me) > 0 =>
+            {
                 Mech::CallIn { debtor: p, policy }
             }
             (Some(target), Some(policy)) => {
@@ -346,9 +346,9 @@ pub fn odds(
     let t = content.talk_topic(topic)?;
     let me = characters::player_character(state)?;
     match plan(state, t, speaker, me, about).ok()? {
-        Mech::Pitch { target, .. } | Mech::Back { target, .. } => Some(
-            crate::actions::lobby_odds(state, content, target, late_night),
-        ),
+        Mech::Pitch { target, .. } | Mech::Back { target, .. } => Some(crate::actions::lobby_odds(
+            state, content, target, late_night,
+        )),
         Mech::Endorse { .. } => Some(support_odds(state, content, speaker)),
         _ => None,
     }
@@ -413,12 +413,13 @@ fn prepare(
         return Err(bad("they are not here to talk to"));
     }
     if late_night && !late_ok(state, content) {
-        return Err(bad("late at night, people talk only where private meetings are held"));
+        return Err(bad(
+            "late at night, people talk only where private meetings are held",
+        ));
     }
     check_about(state, content, topic, about)?;
     let o = &topic.offered;
-    if !o.roles.is_empty()
-        && !knows::role_key(state, speaker).is_some_and(|r| o.roles.contains(&r))
+    if !o.roles.is_empty() && !knows::role_key(state, speaker).is_some_and(|r| o.roles.contains(&r))
     {
         return Err(bad("they are not the person to ask about that"));
     }
@@ -439,7 +440,10 @@ fn prepare(
         .filter(|e| e.topic == topic.id)
         .collect();
     let n = earlier.len() as u32;
-    let same: Vec<&&Exchange> = earlier.iter().filter(|e| e.about.as_ref() == about).collect();
+    let same: Vec<&&Exchange> = earlier
+        .iter()
+        .filter(|e| e.about.as_ref() == about)
+        .collect();
     let repeat = !same.is_empty();
     let small_talks = talk
         .this_week(speaker, week)
@@ -777,7 +781,10 @@ fn talk_to(
         date,
         "action-talk",
         &res.outcome_key,
-        res.args.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+        res.args
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
     );
     let _ = p.week;
     Ok(res)
@@ -832,11 +839,7 @@ fn mechanic(
             } else {
                 lp.fail_gain
             } * content.talk.pitch.sway_share;
-            *state
-                .politics
-                .sway
-                .entry((target.0, policy.0))
-                .or_default() += gain as f32;
+            *state.politics.sway.entry((target.0, policy.0)).or_default() += gain as f32;
             characters::remember(
                 &mut state.politics,
                 content,
@@ -858,7 +861,11 @@ fn mechanic(
             if late_night {
                 late_deal(state, content, speaker);
             }
-            key(if success { "pitch-success" } else { "pitch-fail" })
+            key(if success {
+                "pitch-success"
+            } else {
+                "pitch-fail"
+            })
         }
         Mech::Back { target, policy } => {
             let odds = crate::actions::lobby_odds(state, content, target, late_night);
@@ -867,11 +874,7 @@ fn mechanic(
                 refused(state, content, speaker, me, subject(policy));
                 return key("support-refused");
             }
-            *state
-                .politics
-                .sway
-                .entry((target.0, policy.0))
-                .or_default() += s.sway as f32;
+            *state.politics.sway.entry((target.0, policy.0)).or_default() += s.sway as f32;
             characters::remember(
                 &mut state.politics,
                 content,
@@ -952,11 +955,8 @@ fn mechanic(
                     _ => 1.0,
                 }
             };
-            *state
-                .politics
-                .sway
-                .entry((debtor.0, policy.0))
-                .or_default() += (side * fx.trade_gain) as f32;
+            *state.politics.sway.entry((debtor.0, policy.0)).or_default() +=
+                (side * fx.trade_gain) as f32;
             characters::remember(
                 &mut state.politics,
                 content,
@@ -970,12 +970,16 @@ fn mechanic(
             key("favour-called-in")
         }
         Mech::Offer { target, policy } => {
-            *state
-                .politics
-                .sway
-                .entry((target.0, policy.0))
-                .or_default() += (fx.trade_gain * content.talk.favour.sway_share) as f32;
-            characters::owe(&mut state.politics, me, speaker, "favour-bill", subject(policy), date);
+            *state.politics.sway.entry((target.0, policy.0)).or_default() +=
+                (fx.trade_gain * content.talk.favour.sway_share) as f32;
+            characters::owe(
+                &mut state.politics,
+                me,
+                speaker,
+                "favour-bill",
+                subject(policy),
+                date,
+            );
             characters::remember(
                 &mut state.politics,
                 content,
@@ -1026,7 +1030,14 @@ fn ask_in_return(
         return false;
     }
     let date = state.calendar.date;
-    characters::owe(&mut state.politics, me, speaker, "favour-support", subject, date);
+    characters::owe(
+        &mut state.politics,
+        me,
+        speaker,
+        "favour-support",
+        subject,
+        date,
+    );
     true
 }
 

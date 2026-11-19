@@ -1638,31 +1638,28 @@ pub fn check_situation_condition(
     issues: &mut Vec<Issue>,
 ) {
     use crate::types::SituationCondition as U;
-    let range = |min: &Option<f64>,
-                 max: &Option<f64>,
-                 lo: f64,
-                 hi: f64,
-                 issues: &mut Vec<Issue>| {
-        if min.is_none() && max.is_none() {
-            issues.push(Issue::error(
-                owner,
-                "a range condition needs a min or a max",
-            ));
-        }
-        for v in min.iter().chain(max.iter()) {
-            if !(v.is_finite() && (lo..=hi).contains(v)) {
+    let range =
+        |min: &Option<f64>, max: &Option<f64>, lo: f64, hi: f64, issues: &mut Vec<Issue>| {
+            if min.is_none() && max.is_none() {
                 issues.push(Issue::error(
                     owner,
-                    &format!("a condition bound {v} is outside [{lo}, {hi}]"),
+                    "a range condition needs a min or a max",
                 ));
             }
-        }
-        if let (Some(a), Some(z)) = (min, max)
-            && a > z
-        {
-            issues.push(Issue::error(owner, "situation min is above max"));
-        }
-    };
+            for v in min.iter().chain(max.iter()) {
+                if !(v.is_finite() && (lo..=hi).contains(v)) {
+                    issues.push(Issue::error(
+                        owner,
+                        &format!("a condition bound {v} is outside [{lo}, {hi}]"),
+                    ));
+                }
+            }
+            if let (Some(a), Some(z)) = (min, max)
+                && a > z
+            {
+                issues.push(Issue::error(owner, "situation min is above max"));
+            }
+        };
     if slots.is_none() && c.is_slot_relative() && !matches!(c, U::Any { .. }) {
         issues.push(Issue::error(
             owner,
@@ -1696,9 +1693,7 @@ pub fn check_situation_condition(
             if b.crisis_index(kind).is_none() {
                 issues.push(Issue::warning(
                     owner,
-                    &format!(
-                        "situation names unknown crisis `{kind}` (the condition never holds)"
-                    ),
+                    &format!("situation names unknown crisis `{kind}` (the condition never holds)"),
                 ));
             }
             if !(0.0..=1.0).contains(min_severity) {

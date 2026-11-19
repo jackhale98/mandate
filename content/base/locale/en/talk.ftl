@@ -100,4 +100,6 @@ outcome-talk-favour-offered = You promised { $name } a favour for their support.
 outcome-talk-favour-called-in = { $name } repaid the favour on the bill.
 outcome-talk-favour-none = { $name } has nothing to trade.
 outcome-talk-small-talk = You passed the time with { $name }.
-action-talk = Talk
+
+# The action log.
+action-talk = Talk to someone

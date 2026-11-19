@@ -101,7 +101,13 @@ impl TalkState {
     }
 
     /// Remember the lines a person just used (capped, oldest dropped first).
-    pub fn record_used(&mut self, person: CharacterId, lines: &[ContentKey], on: SimDate, cap: usize) {
+    pub fn record_used(
+        &mut self,
+        person: CharacterId,
+        lines: &[ContentKey],
+        on: SimDate,
+        cap: usize,
+    ) {
         let v = self.used.entry(person).or_default();
         for l in lines {
             v.retain(|u| &u.line != l);

@@ -1026,6 +1026,8 @@ fn place_player(
         status: Default::default(),
         // Seeded from a start profile when play begins (DEC-091).
         knowledge: Default::default(),
+        // Nobody has talked with the player yet (DEC-093).
+        talk: Default::default(),
     })
 }
 
