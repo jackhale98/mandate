@@ -16,7 +16,10 @@
 // money, health, slots, standing, legal_jeopardy, record, favour, repay,
 // vote (the council-vote rules apply), rider (a ward project, optionally for
 // the ward of a cast councillor, or a sunset on a cast bill), call_in (a
-// favour owed to the player repaid on a cast bill), draft. Validation requires at least
+// favour owed to the player repaid on a cast bill), draft, learn (DEC-091:
+// a subject named by role raised to a level; see the SubjectDef schema),
+// reveal_place (a hidden place by kind, in a cast neighbourhood). The
+// `knows` condition gates on what the player knows. Validation requires at least
 // one cost and one benefit per option, and exactly one default.
 {
   "kind": "dilemmas",
@@ -52,7 +55,9 @@
             { "type": "slots", "n": 1 }, { "type": "health", "delta": -3 },
             { "type": "opinion", "role": "steward", "delta": 5 },
             { "type": "opinion", "role": "owner", "delta": 5 },
-            { "type": "record", "delta": 0.03 } ] },
+            { "type": "record", "delta": 0.03 },
+            { "type": "learn", "subject": { "type": "person", "role": "owner" }, "level": "detailed" },
+            { "type": "learn", "subject": { "type": "person", "role": "steward" }, "level": "detailed" } ] },
         { "id": "stay_out", "default": true, "label_key": "dilemma-plant-layoffs-stay-out", "aftermath_key": "dilemma-plant-layoffs-stay-out-after",
           "effects": [
             { "type": "opinion", "role": "steward", "delta": -9, "memory": "ignored_me" },
@@ -356,7 +361,8 @@
           "effects": [
             { "type": "opinion", "role": "rival", "delta": 15 },
             { "type": "favour", "role": "rival" },
-            { "type": "standing", "delta": -3 } ] },
+            { "type": "standing", "delta": -3 },
+            { "type": "learn", "subject": { "type": "rival_plans" }, "level": "detailed" } ] },
         { "id": "refuse", "label_key": "dilemma-rival-offer-refuse", "aftermath_key": "dilemma-rival-offer-refuse-after",
           "effects": [
             { "type": "opinion", "role": "rival", "delta": -12, "memory": "stood_against_me" },
@@ -447,7 +453,8 @@
           "effects": [
             { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 },
             { "type": "awareness", "scope": "town", "delta": 0.04 },
-            { "type": "opinion", "role": "rival", "delta": -4 } ] },
+            { "type": "opinion", "role": "rival", "delta": -4 },
+            { "type": "learn", "subject": { "type": "rival_plans" }, "level": "detailed" } ] },
         { "id": "decline", "default": true, "label_key": "dilemma-debate-decline", "aftermath_key": "dilemma-debate-decline-after",
           "effects": [
             { "type": "approval", "delta": -0.01 },
@@ -674,7 +681,8 @@
             { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 },
             { "type": "vote", "role": "bill", "vote": "with_party" },
             { "type": "money", "amount": 1200 },
-            { "type": "favour", "role": "whip", "owed_to_player": true } ] },
+            { "type": "favour", "role": "whip", "owed_to_player": true },
+            { "type": "learn", "subject": { "type": "person", "role": "whip" }, "level": "detailed" } ] },
         { "id": "refuse", "label_key": "dilemma-whip-deal-refuse", "aftermath_key": "dilemma-whip-deal-refuse-after",
           "effects": [
             { "type": "vote", "role": "bill", "vote": "with_ward" },

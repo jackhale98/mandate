@@ -326,6 +326,24 @@ pub fn validate_move(state: &State, loc: Location) -> Result<(), EngineError> {
     }
 }
 
+/// The arrival hook (DEC-091, §1.3): the player has just moved to `loc`
+/// (`MoveTo`, or a `Go` landing there, which the map, the List view and
+/// quick mode all send; the client-side walk teaches nothing). A place's
+/// first visit gives its introduction, and where people talk (`overheard`)
+/// this week's lines teach what they mention at `heard`. Arrival teaches
+/// lightly; anything deeper needs an action or a person. Returns how many
+/// subjects changed in the player's ledger.
+pub fn arrive(state: &mut State, content: &ContentBundle, loc: Location) -> usize {
+    let Location::Place { place } = loc else {
+        return 0;
+    };
+    let mut n = crate::player::knowledge::arrive_at(state, content, place);
+    if services_at(state, content, loc).contains(&"overheard") {
+        n += crate::overheard::overhear(state, content, loc);
+    }
+    n
+}
+
 /// Whether the player is at a location offering an information service.
 pub fn player_has_service(state: &State, content: &ContentBundle, service: &str) -> bool {
     let Some(pl) = state.player.as_ref() else {

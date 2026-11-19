@@ -8,6 +8,7 @@
 //! is scoped to the player's town: roles are cast from live actors there, and
 //! conditions read live state there.
 
+use crate::knowledge::Level;
 use crate::types::{ContentKey, Indicator, SectorDriver};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -263,6 +264,96 @@ pub enum OfficeRole {
     None,
 }
 
+/// A knowledge subject named by role, never by id (DEC-091;
+/// M6_ENGINE_CONTRACTS §1.3): resolved against the cast and the player's
+/// town by `mandate_sim::narrative::learn`. Used by narrative `learn`
+/// effects, scene `teaches` hooks, `knows` conditions, and overheard lines'
+/// `teaches` (which have no roles: there, the neighbourhood is where the
+/// line is heard).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SubjectDef {
+    /// The player's town's worries.
+    TownConcerns,
+    /// A neighbourhood's worries: the neighbourhood cast in `role`, or the
+    /// home neighbourhood of the person cast in it; without a role, where it
+    /// happens (where an overheard line is heard; a decision's scene, else
+    /// the player's home neighbourhood).
+    HoodConcerns {
+        #[serde(default)]
+        role: Option<String>,
+    },
+    /// Who really runs the player's town.
+    Broker,
+    /// The person cast in `role`.
+    Person { role: String },
+    /// The rival's plans.
+    RivalPlans,
+    /// Who supports a policy: the bill or law cast in `role`, or a template.
+    PolicySupport {
+        #[serde(default)]
+        role: Option<String>,
+        #[serde(default)]
+        template: Option<ContentKey>,
+    },
+    /// A situational policy on the table (transitional, until the M5d
+    /// templates become policy families).
+    Situational { template: ContentKey },
+    /// Places of these kinds (any kind if empty) in the player's town: in
+    /// the neighbourhood cast in `role` (or the home neighbourhood of the
+    /// person cast in it), else where it happens. Hidden places (DEC-090 D7)
+    /// use this; ordinary places are always known.
+    Place {
+        #[serde(default)]
+        role: Option<String>,
+        #[serde(default)]
+        kinds: Vec<String>,
+    },
+}
+
+impl SubjectDef {
+    /// The role a subject names, if any.
+    pub fn role(&self) -> Option<&str> {
+        match self {
+            SubjectDef::Person { role } => Some(role.as_str()),
+            SubjectDef::HoodConcerns { role }
+            | SubjectDef::PolicySupport { role, .. }
+            | SubjectDef::Place { role, .. } => role.as_deref(),
+            SubjectDef::TownConcerns
+            | SubjectDef::Broker
+            | SubjectDef::RivalPlans
+            | SubjectDef::Situational { .. } => None,
+        }
+    }
+
+    /// Snake-case type key.
+    pub fn key(&self) -> &'static str {
+        match self {
+            SubjectDef::TownConcerns => "town_concerns",
+            SubjectDef::HoodConcerns { .. } => "hood_concerns",
+            SubjectDef::Broker => "broker",
+            SubjectDef::Person { .. } => "person",
+            SubjectDef::RivalPlans => "rival_plans",
+            SubjectDef::PolicySupport { .. } => "policy_support",
+            SubjectDef::Situational { .. } => "situational",
+            SubjectDef::Place { .. } => "place",
+        }
+    }
+}
+
+/// A scene's teaching hook: what answering the decision it presents lets
+/// the player learn (DEC-091).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TeachDef {
+    pub subject: SubjectDef,
+    pub level: Level,
+}
+
+fn heard() -> Level {
+    Level::Heard
+}
+
 fn top_three() -> u8 {
     3
 }
@@ -372,6 +463,13 @@ pub enum Condition {
     Goal { role: String, goal: ContentKey },
     /// At least this many months since play began.
     MonthsInPlay { min: u32 },
+    /// The player knows the subject at least this well (DEC-091; default
+    /// `heard`). A subject naming several places holds if any is known.
+    Knows {
+        subject: SubjectDef,
+        #[serde(default = "heard")]
+        min: Level,
+    },
 }
 
 /// Which voters an approval or awareness effect reaches.
@@ -514,6 +612,21 @@ pub enum EffectDef {
         #[serde(default)]
         role: Option<String>,
     },
+    /// The player learns something (DEC-091): a subject raised to a level,
+    /// never lowered.
+    Learn {
+        subject: SubjectDef,
+        level: Level,
+    },
+    /// A hidden place is revealed (DEC-090 D7): places of these kinds in the
+    /// neighbourhood cast in `role` (or the home neighbourhood of the person
+    /// cast in it), else in the player's town, become `known`.
+    RevealPlace {
+        #[serde(default)]
+        role: Option<String>,
+        #[serde(default)]
+        kinds: Vec<String>,
+    },
 }
 
 /// A rider a decision can attach to a bill.
@@ -608,6 +721,8 @@ impl EffectDef {
             // A risk, never a benefit: the option's payoff is elsewhere.
             EffectDef::Hidden { .. } => (true, false),
             EffectDef::ScandalResponse { .. } | EffectDef::LegalResponse { .. } => (true, true),
+            // Knowledge is a benefit, never a cost.
+            EffectDef::Learn { .. } | EffectDef::RevealPlace { .. } => (false, true),
         }
     }
 
@@ -646,6 +761,8 @@ impl EffectDef {
             }
             EffectDef::Hidden { with_role, .. } => with_role.iter().map(|s| s.as_str()).collect(),
             EffectDef::LegalResponse { role, .. } => role.iter().map(|s| s.as_str()).collect(),
+            EffectDef::Learn { subject, .. } => subject.role().into_iter().collect(),
+            EffectDef::RevealPlace { role, .. } => role.iter().map(|s| s.as_str()).collect(),
             _ => Vec::new(),
         }
     }
@@ -663,6 +780,7 @@ impl Condition {
             | Condition::PartyLineAgainstWard { role }
             | Condition::CanVote { role }
             | Condition::Goal { role, .. } => vec![role.as_str()],
+            Condition::Knows { subject, .. } => subject.role().into_iter().collect(),
             _ => Vec::new(),
         }
     }
@@ -882,6 +1000,10 @@ pub struct SceneDef {
     pub id: ContentKey,
     pub place: ScenePlace,
     pub beats: Vec<BeatDef>,
+    /// What answering the decision this scene presents teaches (DEC-091),
+    /// with the dilemma's roles. The cast people are met (`known`) anyway.
+    #[serde(default)]
+    pub teaches: Vec<TeachDef>,
 }
 
 // --- Validation -------------------------------------------------------------------------
@@ -1045,6 +1167,12 @@ impl Refs<'_> {
         }
     }
 
+    /// A knowledge subject (DEC-091): its role is cast here (checked by the
+    /// caller through `roles()`), and what it names exists.
+    fn subject(&self, s: &SubjectDef, issues: &mut Vec<Issue>) {
+        check_subject(self.owner, self.b, s, issues);
+    }
+
     fn condition(&self, c: &Condition, issues: &mut Vec<Issue>) {
         for r in c.roles() {
             self.role(r, issues);
@@ -1158,6 +1286,15 @@ impl Refs<'_> {
                     bad(issues, format!("unknown goal `{goal}`"));
                 }
             }
+            Condition::Knows { subject, min } => {
+                self.subject(subject, issues);
+                if *min == Level::Unknown {
+                    bad(
+                        issues,
+                        "knows `min` must be heard, known or detailed".into(),
+                    );
+                }
+            }
             Condition::Campaigning { .. }
             | Condition::Office { .. }
             | Condition::Favour { .. }
@@ -1165,6 +1302,52 @@ impl Refs<'_> {
             | Condition::CanVote { .. }
             | Condition::MonthsInPlay { .. } => {}
         }
+    }
+}
+
+/// What a knowledge subject names exists: a policy template, a
+/// situational template, place kinds; a policy-support subject names a role
+/// or a template (exactly one).
+pub(crate) fn check_subject(
+    owner: &str,
+    b: &ContentBundle,
+    s: &SubjectDef,
+    issues: &mut Vec<Issue>,
+) {
+    match s {
+        SubjectDef::PolicySupport { role, template } => {
+            if role.is_some() == template.is_some() {
+                issues.push(Issue::error(
+                    owner,
+                    "a policy_support subject names a role or a template (exactly one)",
+                ));
+            }
+            if let Some(t) = template
+                && !b.policies.contains_key(t)
+            {
+                issues.push(Issue::error(owner, &format!("unknown policy `{t}`")));
+            }
+        }
+        SubjectDef::Situational { template } => match b.policies.get(template) {
+            None => issues.push(Issue::error(owner, &format!("unknown policy `{template}`"))),
+            Some(t) if t.unlock.is_none() => issues.push(Issue::error(
+                owner,
+                &format!("`{template}` is a standard policy, not a situational one"),
+            )),
+            Some(_) => {}
+        },
+        SubjectDef::Place { kinds, .. } => {
+            for k in kinds {
+                if b.place_kind(k).is_none() {
+                    issues.push(Issue::error(owner, &format!("unknown place kind `{k}`")));
+                }
+            }
+        }
+        SubjectDef::TownConcerns
+        | SubjectDef::HoodConcerns { .. }
+        | SubjectDef::Broker
+        | SubjectDef::Person { .. }
+        | SubjectDef::RivalPlans => {}
     }
 }
 
@@ -1413,6 +1596,28 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
                         ));
                     }
                 }
+                EffectDef::Learn { subject, level } => {
+                    scope.subject(subject, issues);
+                    if *level == Level::Unknown {
+                        issues.push(Issue::error(
+                            &at,
+                            "learn `level` must be heard, known or detailed",
+                        ));
+                    }
+                }
+                EffectDef::RevealPlace { role, kinds } => {
+                    if role.is_none() && kinds.is_empty() {
+                        issues.push(Issue::error(
+                            &at,
+                            "reveal_place names a role or place kinds (or both)",
+                        ));
+                    }
+                    for k in kinds {
+                        if b.place_kind(k).is_none() {
+                            issues.push(Issue::error(&at, &format!("unknown place kind `{k}`")));
+                        }
+                    }
+                }
                 EffectDef::LegalResponse { response, role } => {
                     if d.raised_by != Some(RaisedBy::Investigation) {
                         issues.push(Issue::error(
@@ -1457,6 +1662,9 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
                 let mut place_roles: Vec<&str> = Vec::new();
                 if let ScenePlace::Workplace { role, .. } = &sc.place {
                     place_roles.push(role);
+                }
+                for t in &sc.teaches {
+                    place_roles.extend(t.subject.role());
                 }
                 for r in speakers.chain(place_roles) {
                     if r != "player" && !scope.roles.contains(&r) {
@@ -1727,6 +1935,15 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 &sc.id,
                 &format!("unknown place kind `{kind}`"),
             ));
+        }
+        for t in &sc.teaches {
+            check_subject(&sc.id, b, &t.subject, issues);
+            if t.level == Level::Unknown {
+                issues.push(Issue::error(
+                    &sc.id,
+                    "a scene teaches at heard, known or detailed",
+                ));
+            }
         }
     }
     // Fluent keys (DEC-054): the engine emits keys; English must have them.

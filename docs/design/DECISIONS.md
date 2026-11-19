@@ -1441,6 +1441,11 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Verification:** the bot tournament (DEC-072) must show mixed approaches beating single-lever strategies, with no dominant strategy. Each new action added to content must list its costs here.
 - **Deferred:** NPC health and exhaustion (NPCs remain symmetric in slots and odds, but their health is abstracted).
 
+- **Honest odds (owner, 2026-11-19).** The owner asked whether shown probabilities are real.
+  - Shown and rolled odds come from the same function at the same moment: town hall hostility, press gaffe, lobbying, the shady-act exposure chance (rolled once at the act; the director shifts only the date), charges and conviction.
+  - The formulas' inputs are design values tuned in the lab, not real-world statistics.
+  - A **calibration gate** (M6 task L1) checks that, over many bot runs, events happen as often as the odds shown before them said, within statistical noise.
+
 ### DEC-074 — Saves across app updates (revises DEC-044 and DEC-070)
 
 - **Status:** Accepted (owner question, 2026-11-18: "is there a risk … a web update to the engine would make it not deterministic?").
@@ -1920,6 +1925,11 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
     - Bots learn by the same rules. A lab gate requires that exploring early pays off, but that exploring alone never wins.
 - **Timing:** the first M6 engine task, alongside town layout v2 (DEC-090), after M5d part 2 merges.
 - **Dependencies:** DEC-034, DEC-051, DEC-073, DEC-077, DEC-079, DEC-088, DEC-089, DEC-090.
+- **The world does not wait for the player (owner, 2026-11-19: "we shouldn't stop things from happening just because the user doesn't know about it yet. It's on them to investigate the town").** Knowledge gates only what the player sees and how well the player acts. It never gates what happens.
+  - Crises build, NPCs pursue goals and draft bills, policy-family proposals appear and expire, storylines advance, scandals surface and hazards strike, whether or not the player has learned of them.
+  - The `knows` condition may choose how something is framed for the player: which scene variant, which line, whether a lead is offered. It may not decide whether an event, decision, proposal or storyline step happens. Validation rejects `knows` in dilemma, storyline and family triggers.
+  - Things aimed at the player stay never-gated (above). Something the player hasn't learned of still happens, and its consequences reach them like anyone else's.
+  - **Lab guard:** with the same commands, an omniscient player and a default player produce identical worlds, except for the ledger and the player's own action outcomes (K4). Bots that take no knowledge-dependent action (idle) must match exactly. The test runs with the knowledge tests.
 
 ### DEC-092 — Policy families grounded in the town
 

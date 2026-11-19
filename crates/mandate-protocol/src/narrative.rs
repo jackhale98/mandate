@@ -498,6 +498,20 @@ fn preview(engine: &Engine, d: &Decision, e: &EffectDef) -> EffectLineView {
             vec![],
             "mixed",
         ),
+        // Knowledge (DEC-091): what kind of thing the option teaches.
+        EffectDef::Learn { subject, .. } => line(
+            "effect-learn",
+            vec![(
+                "what_key",
+                format!("knows-{}", subject.key().replace('_', "-")),
+            )],
+            "gain",
+        ),
+        EffectDef::RevealPlace { .. } => line(
+            "effect-learn",
+            vec![("what_key", "knows-place".into())],
+            "gain",
+        ),
     }
 }
 
@@ -644,6 +658,15 @@ fn applied_line(engine: &Engine, a: &Applied) -> EffectLineView {
         Applied::Skipped { effect } => {
             line("effect-skipped", vec![("what", effect.clone())], "mixed")
         }
+        // Knowledge (DEC-091): facts only; the notebook (K2/K5) shows what.
+        Applied::Learned { subject, n, .. } => line(
+            "effect-learned",
+            vec![
+                ("what_key", format!("knows-{}", subject.replace('_', "-"))),
+                ("n", n.to_string()),
+            ],
+            "gain",
+        ),
     }
 }
 

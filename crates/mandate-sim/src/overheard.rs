@@ -10,6 +10,11 @@
 //! stream (DEC-041), so two places in one town differ, the same place
 //! changes week to week, and last week's lines are avoided where others
 //! hold. No prose: Fluent keys and facts only (DEC-054).
+//!
+//! Reading draws nothing new. The one writer is [`overhear`]: when the
+//! player arrives at a place where people talk, each drawn line's
+//! `teaches` subjects are raised to `heard` in the player's knowledge
+//! ledger (DEC-091; the player's command writing the player's state).
 
 use crate::events::EventKind;
 use crate::places::{Location, hood_of};
@@ -458,6 +463,55 @@ pub fn lines(st: &State, content: &ContentBundle, loc: Location) -> Vec<HeardLin
         Vec::new()
     };
     draw(st, content, loc, week, LINES, &last)
+}
+
+/// What this week's lines at a place let the player hear of (DEC-091,
+/// §1.3): each drawn line's `teaches` subjects, with the line, in draw
+/// order. Lines have no cast: a neighbourhood or a place is where the line
+/// is heard. Read-only and draws nothing new (the week's draw is keyed).
+pub fn teachings(
+    st: &State,
+    content: &ContentBundle,
+    loc: Location,
+) -> Vec<(ContentKey, crate::player::knowledge::Subject)> {
+    let here = hood_of(st, loc);
+    let drawn = lines(st, content, loc);
+    let r = crate::scheduler::Reads::of_state(st, content);
+    let v = crate::narrative::cast::View::new(&r, &st.politics);
+    let mut out = Vec::new();
+    for l in drawn {
+        let Some(def) = content.overheard.iter().find(|d| d.id == l.id) else {
+            continue;
+        };
+        for t in &def.teaches {
+            for s in crate::narrative::learn::subjects(&v, t, &[], here) {
+                out.push((l.id.clone(), s));
+            }
+        }
+    }
+    out
+}
+
+/// The player overhears this week's talk at the place they arrived at:
+/// every subject a drawn line teaches is raised to `heard` (the player's
+/// command writes the player's ledger). Returns how many subjects changed.
+pub fn overhear(state: &mut State, content: &ContentBundle, loc: Location) -> usize {
+    let Location::Place { place } = loc else {
+        return 0;
+    };
+    let mut n = 0;
+    for (line, subject) in teachings(state, content, loc) {
+        let src = crate::player::knowledge::Source::Overheard { place, line };
+        if crate::player::knowledge::teach_one(
+            state,
+            subject,
+            crate::player::knowledge::Level::Heard,
+            src,
+        ) {
+            n += 1;
+        }
+    }
+    n
 }
 
 /// The Fluent key of a sector as residents name it (a noun phrase such as

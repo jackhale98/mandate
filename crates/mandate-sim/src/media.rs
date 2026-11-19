@@ -1260,6 +1260,30 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
         }
         let _ = cred;
     }
+    // The player reads the paper (DEC-091, §1.3): everyone a story in an
+    // outlet covering the player's town names is heard of. An effect
+    // request to the player domain, posted only when there is a player.
+    if let Some(pl) = r.player {
+        let town = pl.municipality.0;
+        for s in &ran {
+            let covers = m
+                .outlets
+                .get(s.outlet as usize)
+                .is_some_and(|o| o.covers(r.world, town));
+            let named = s
+                .subject
+                .filter(|p| *p != pl.politician)
+                .and_then(|p| pol.get(p))
+                .map(|p| p.character);
+            if let (true, Some(person)) = (covers, named) {
+                out.effects.push(Effect::Learn {
+                    subject: crate::player::knowledge::Subject::Person { person },
+                    level: crate::player::knowledge::Level::Heard,
+                    source: crate::player::knowledge::Source::Story { story: s.id },
+                });
+            }
+        }
+    }
     m.stories.extend(ran);
     m.last_event = last;
 }

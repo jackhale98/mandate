@@ -386,6 +386,13 @@ fn endogenous(e: &Engine) -> serde_json::Value {
     }
     let mut economy = serde_json::to_value(&st.economy).unwrap();
     economy["global"]["recession"]["event"] = serde_json::Value::Null;
+    // What the player knows (DEC-091) is what the spotlight shows them, not
+    // an outcome: a decision that opens names its cast (`heard`). Nothing
+    // reads the ledger for outcomes (K3); K4's terms must keep this so.
+    let mut player = serde_json::to_value(&st.player).unwrap();
+    if let Some(p) = player.as_object_mut() {
+        p.remove("knowledge");
+    }
     serde_json::json!({
         "elections": st.politics.elections,
         "politicians": st.politics.politicians,
@@ -397,7 +404,7 @@ fn endogenous(e: &Engine) -> serde_json::Value {
         "economy": economy,
         "finance": st.finance,
         "environment": st.environment,
-        "player": st.player,
+        "player": player,
     })
 }
 

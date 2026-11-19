@@ -8,8 +8,10 @@ use crate::actions::ActionResult;
 use crate::characters::{self, MemoryKind, Subject};
 use crate::commands::EngineError;
 use crate::events::EventKind;
+use crate::player::knowledge::{self, Level};
 use crate::politics::Vote;
 use crate::state::State;
+use crate::world::NeighborhoodId;
 use mandate_content::{ContentBundle, EffectDef, RiderKind, Scope, VoteChoice};
 use mandate_core::Money;
 use mandate_core::math::clamp;
@@ -86,12 +88,36 @@ pub fn affordable(state: &State, effects: &[EffectDef]) -> Result<(), &'static s
     Ok(())
 }
 
+/// The grants a knowledge definition gives for this decision.
+fn knowledge_grants(
+    state: &State,
+    content: &ContentBundle,
+    def: &mandate_content::SubjectDef,
+    level: Level,
+    cast: &[super::CastEntry],
+    here: Option<NeighborhoodId>,
+) -> Vec<knowledge::Grant> {
+    let r = crate::scheduler::Reads::of_state(state, content);
+    let v = super::cast::View::new(&r, &state.politics);
+    super::learn::grants(&v, def, level, cast, here)
+}
+
+/// Where a decision happens, for subjects named without a role: its
+/// scene's neighbourhood, else the player's home neighbourhood.
+fn decision_hood(state: &State, place: Option<crate::places::Location>) -> Option<NeighborhoodId> {
+    place
+        .and_then(|l| crate::places::hood_of(state, l))
+        .or_else(|| crate::places::home_neighborhood(state))
+}
+
+#[allow(clippy::too_many_arguments)]
 fn apply_effect(
     state: &mut State,
     content: &ContentBundle,
     id: DecisionId,
     cast: &[super::CastEntry],
     about: Option<super::About>,
+    here: Option<NeighborhoodId>,
     e: &EffectDef,
     by_default: bool,
 ) -> Applied {
@@ -491,6 +517,45 @@ fn apply_effect(
             }
             _ => skip("legal_response"),
         },
+        // Knowledge (DEC-091): the player domain's ledger, written by the
+        // answer (the Commands phase), as every option effect is.
+        EffectDef::Learn { subject, level } => {
+            let grants = knowledge_grants(state, content, subject, *level, cast, here);
+            learned(state, subject.key(), *level, grants, id)
+        }
+        EffectDef::RevealPlace { role, kinds } => {
+            let def = mandate_content::SubjectDef::Place {
+                role: role.clone(),
+                kinds: kinds.clone(),
+            };
+            // Without a role, a reveal is anywhere in town, not just here.
+            let at = if role.is_some() { here } else { None };
+            let grants = knowledge_grants(state, content, &def, Level::Known, cast, at);
+            learned(state, "place", Level::Known, grants, id)
+        }
+    }
+}
+
+/// Teach grants from a decision. The aftermath records how many subjects
+/// are now at the level (ones already known count: the effect held).
+fn learned(
+    state: &mut State,
+    subject: &str,
+    level: Level,
+    grants: Vec<knowledge::Grant>,
+    id: DecisionId,
+) -> Applied {
+    if grants.is_empty() || state.player.is_none() {
+        return Applied::Skipped {
+            effect: "learn".into(),
+        };
+    }
+    let n = grants.len() as u32;
+    knowledge::teach(state, grants, &knowledge::Source::Decision { decision: id });
+    Applied::Learned {
+        subject: subject.into(),
+        level: level.key().into(),
+        n,
     }
 }
 
@@ -534,11 +599,36 @@ pub fn answer(
     if !by_default {
         affordable(state, &opt.effects).map_err(bad)?;
     }
+    let here = decision_hood(state, d.place);
     let applied: Vec<Applied> = opt
         .effects
         .iter()
-        .map(|e| apply_effect(state, content, id, &d.cast, d.about, e, by_default))
+        .map(|e| apply_effect(state, content, id, &d.cast, d.about, here, e, by_default))
         .collect();
+    if !by_default {
+        // Answering is meeting (DEC-091, §1.3): every cast person `known`,
+        // plus what the scene teaches. A decision let pass teaches only its
+        // default option's own effects.
+        let mut grants: Vec<knowledge::Grant> = {
+            let r = crate::scheduler::Reads::of_state(state, content);
+            let v = super::cast::View::new(&r, &state.politics);
+            super::learn::cast_people(&v, &d.cast)
+                .into_iter()
+                .map(|person| knowledge::Grant {
+                    subject: knowledge::Subject::Person { person },
+                    level: Level::Known,
+                })
+                .collect()
+        };
+        if let Some(sc) = def.scene.as_deref().and_then(|s| content.scene(s)) {
+            for t in &sc.teaches {
+                grants.extend(knowledge_grants(
+                    state, content, &t.subject, t.level, &d.cast, here,
+                ));
+            }
+        }
+        knowledge::teach(state, grants, &knowledge::Source::Decision { decision: id });
+    }
     let n = &mut state.narrative;
     if let Some(x) = n.decisions.iter_mut().find(|x| x.id == id) {
         x.status = if by_default {
