@@ -14,7 +14,7 @@
 //   - palette moods (D12): the renderer bakes static layers once and grades
 //     everything with one multiply; in the "moods" look this provider repaints
 //     its static canvases with the moment's mood palette (`setClock`, which
-//     says when the caller must re-bake: `TownRenderer.dispose()`), and
+//     says when the caller must re-bake: `TownRenderer.crossFade()`), and
 //     `grade()` returns only the people's gentler multiply;
 //   - markers and icons are not in the tool plan: the placeholder draws them.
 import { gradeAt, shadowBucket, shadowVector, sunAt, wrapMinutes } from "../dayCycle";
@@ -204,7 +204,7 @@ export class PixelkitArt implements ArtProvider {
   /**
    * Tell the provider the time of day. In the "moods" look, returns true when
    * the static layers' palette changed (the caller re-bakes: the renderer's
-   * `dispose()`); always false in the "multiply" look.
+   * `crossFade()`, which re-bakes and fades from the old layers); always false in the "multiply" look.
    */
   setClock(minuteOfDay: number): boolean {
     if (this.night !== "moods") return false;
