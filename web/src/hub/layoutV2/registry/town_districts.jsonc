@@ -25,7 +25,7 @@
     {
       "id": "district.old_core",
       "name_key": "district-old_core",
-      "appears": { "hood_kinds": ["core"], "population": { "min": 60000 }, "weight": 3 },
+      "appears": { "hood_kinds": ["core"], "weight": 3 },
       "site": { "prefers": ["centre", "low_slope"], "avoids": ["floodplain"], "anchor": "square" },
       "streets": { "pattern": "organic", "block": [9, 13], "depth": [7, 9], "lanes": "back", "max_dead_ends": 1, "style": "asphalt" },
       "plots": { "frontage": [3, 5], "depth": [3, 4], "setback": 0, "joined": 0.85, "ground": "yard" },

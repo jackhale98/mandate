@@ -12,10 +12,10 @@
 import type { TownConnector, TownProp, WaterSide } from "../townLayout";
 import { Terrain } from "../townLayout";
 import { BAND_CAPS, bandOf, type Band, type TownGeo } from "./geo";
-import { NO_BEARING, bearingOf, isqrt } from "./imath";
+import { NO_BEARING, isqrt } from "./imath";
 import { BASE_RECIPE, snapshotRecipe, type Recipe } from "./registry";
 import { stageDistricts, stageStreets } from "./districts";
-import { stageConnect, stageShortcuts, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
+import { stageConnect, stageMinimumFill, stageShortcuts, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
 import { nameBridges, stageArterials, stageLevelEdges, stageRail, stageTerraces } from "./roads";
 import { stageCentre, stageTerrain, stageWater, townSize } from "./terrain";
 import { LayoutOverflow, RoadClass, Use, WaterKind, isWaterBody, type PlanConnector, type PlanPlot, type Rect, type Segment, type Work, type WorkDistrict } from "./work";
@@ -115,7 +115,18 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
     places: [...geoIn.places].sort((a, b) => a.id - b.id),
     links: [...geoIn.links].sort((a, b) => a.bearing - b.bearing || a.mode.localeCompare(b.mode) || a.to - b.to),
   };
-  const { W, H } = townSize(geo.baseline_population);
+  const size = townSize(geo.baseline_population);
+  // Room for what the town holds: a small town the engine gave many places (or many
+  // neighbourhoods) is drawn larger, and a retry after a failed fit adds room.
+  let need = geo.neighborhoods.length * 250;
+  for (const p of geo.places) {
+    const fp = recipe.places.find((x) => x.key === p.kind)?.layout.footprint[1] ?? [4, 3];
+    need += (fp[0] + 3) * (fp[1] + 6);
+  }
+  let grow = 100 + (attempt >= 2 ? (attempt - 1) * 12 : 0);
+  if (size.W * size.H * 45 < need * 100) grow = Math.max(grow, isqrt(Math.floor((need * 100 * 10000) / (size.W * size.H * 45))));
+  const W = Math.min(240, Math.floor((size.W * grow) / 400) * 4);
+  const H = Math.min(160, Math.floor((size.H * grow) / 400) * 4);
   const N = W * H;
   const w: Work = {
     seed,
@@ -174,7 +185,10 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
     stageLanes(w);
   });
   stage("places", () => stagePlaces(w));
-  stage("fillers", () => stageFillers(w));
+  stage("fillers", () => {
+    stageFillers(w);
+    stageMinimumFill(w);
+  });
   let baseline: number[] = [];
   stage("props", () => stageProps(w));
   stage("checks", () => {
@@ -282,7 +296,7 @@ function finish(w: Work, baseline: number[]): TownPlan {
         bestD[d] = dd;
         best[d] = c;
       }
-    } else if ((t === Terrain.Grass || t === Terrain.Plaza || t === Terrain.Yard || t === Terrain.Field) && dd < (anyD[d] as number)) {
+    } else if (dd < (anyD[d] as number)) {
       anyD[d] = dd;
       any[d] = c;
     }
@@ -341,10 +355,6 @@ function finish(w: Work, baseline: number[]): TownPlan {
   const marks = [{ kind: "square", x: w.plaza.x + (w.plaza.w >> 1), y: w.plaza.y + (w.plaza.h >> 1), name: "", plot: -1 }, ...w.landmarks];
   w.landmarks = marks.map((l, i) => ({ l, i })).sort((a, b) => rank(a.l.kind) - rank(b.l.kind) || a.i - b.i).slice(0, 12).map((x) => x.l);
   w.timings.finish = now() - t0;
-  void isqrt;
-  void bearingOf;
-  void isWaterBody;
-  void RoadClass;
   return {
     version: LAYOUT_V2,
     seed: w.seed,

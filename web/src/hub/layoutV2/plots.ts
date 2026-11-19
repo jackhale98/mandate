@@ -330,7 +330,6 @@ function placeScorer(w: Work, preds: string[], d: number, nearKind: (k: string) 
 function bestSpot(w: Work, d: number, sizes: [number, number][], setbacks: number[], score: Scorer, jitterKey: number, any = false): Fit | null {
   const m = masks(w);
   const front = frontageOf(w, d, any);
-  const r = rngOf(w, "spot", jitterKey);
   const jitter = (c: number) => mix(jitterKey, c) & 7;
   for (const [bw, bh] of sizes) {
     for (const s of setbacks) {
@@ -351,7 +350,6 @@ function bestSpot(w: Work, d: number, sizes: [number, number][], setbacks: numbe
       if (best) return best;
     }
   }
-  void r;
   return null;
 }
 
@@ -533,27 +531,33 @@ function parkAround(w: Work, plot: PlanPlot) {
 function mineYard(w: Work, plot: PlanPlot) {
   const { W } = w;
   const free = (x: number, y: number) => {
-    if (x < 0 || y < 0 || x >= W || y >= w.H) return false;
+    if (x < 1 || y < 1 || x >= W - 1 || y >= w.H - 1) return false;
     const c = y * W + x;
-    return w.district[c] === plot.district && !(w.use[c] as number) && buildable(w.terrain[c] as number);
+    const d = w.district[c] as number;
+    return (d === plot.district || d < 0) && !(w.use[c] as number) && !w.blocked[c] && buildable(w.terrain[c] as number);
   };
   const by = plot.y + plot.h - 1;
-  // The headframe stands beside the building, on its bottom row.
-  for (const hx of [plot.x + plot.w + 1, plot.x - 2, plot.x + plot.w, plot.x - 1]) {
-    if (!free(hx, by) || !free(hx, by - 1)) continue;
-    for (const c of [by * W + hx, (by - 1) * W + hx]) {
+  // The headframe stands beside the building (on its bottom row, else nearby).
+  const spots: [number, number][] = [];
+  for (const hx of [plot.x + plot.w + 1, plot.x - 2, plot.x + plot.w, plot.x - 1]) spots.push([hx, by]);
+  for (let r = 1; r <= 6; r++) for (let dx = -r; dx <= plot.w + r; dx++) spots.push([plot.x + dx, plot.y - 1 - r]);
+  for (const [hx, hy] of spots) {
+    if (!free(hx, hy) || !free(hx, hy - 1) || (hy === by ? false : !free(hx, hy + 1))) continue;
+    const by2 = hy;
+    for (const c of [by2 * W + hx, (by2 - 1) * W + hx]) {
       w.terrain[c] = Terrain.Yard;
       w.use[c] = (w.use[c] as number) | Use.Keep;
     }
-    w.blocked[by * W + hx] = 1;
-    w.props.push({ kind: "headframe", x: hx, y: by, blocks: true, variant: mix(w.seed, hx, by) & 0xff });
-    w.landmarks.push({ kind: "headframe", x: hx, y: by - 2, name: "", plot: w.plots.indexOf(plot) });
+    w.blocked[by2 * W + hx] = 1;
+    w.props.push({ kind: "headframe", x: hx, y: by2, blocks: true, variant: mix(w.seed, hx, by2) & 0xff });
+    w.landmarks.push({ kind: "headframe", x: hx, y: by2 - 2, name: "", plot: w.plots.indexOf(plot) });
     break;
   }
   // The spoil heap: three by two tiles behind or beside the pit.
   const tries: [number, number][] = [];
   for (let dy = -2; dy >= -8; dy--) for (const dx of [0, plot.w - 3, -4, plot.w + 1]) tries.push([plot.x + dx, plot.y + dy]);
   for (const dx of [plot.w + 3, -6, plot.w + 4, -7]) tries.push([plot.x + dx, by - 1]);
+  for (let r = 2; r <= 12; r++) for (let dx = -r - 3; dx <= plot.w + r; dx += 2) tries.push([plot.x + dx, plot.y - r - 1], [plot.x + dx, by + r]);
   for (const [sx, sy] of tries) {
     let ok = true;
     for (let y = sy; y < sy + 2 && ok; y++) for (let x = sx; x < sx + 3 && ok; x++) if (!free(x, y)) ok = false;
@@ -678,6 +682,20 @@ export function stageFillers(w: Work) {
         if (!placed) x++;
       }
       i = j + 1;
+    }
+  }
+}
+
+/** A district its streets gave no buildings still holds a few (§8: even the smallest district holds a street of buildings). */
+export function stageMinimumFill(w: Work) {
+  for (const d of w.districts) {
+    let have = 0;
+    for (const p of w.plots) if (p.district === d.index && p.place === null && !p.landmark) have++;
+    for (let k = have; k < 3; k++) {
+      const kind = pickKind(d.type, rngOf(w, "minfill", d.id, k));
+      const spot = bestSpot(w, d.index, [[3, 3], [3, 2]], [0], () => 0, mix(w.seed, d.id, k)) ?? carveSpot(w, d.index, [[3, 3], [3, 2]]);
+      if (!spot) break;
+      addPlot(w, d.index, spot, { place: null, kind, name: "", landmark: false, ground: GROUND[d.type.plots.ground] ?? Terrain.Grass });
     }
   }
 }
@@ -901,6 +919,15 @@ export function stageConnect(w: Work) {
     flood(made);
     return true;
   };
+  // Every district can be walked into ("the streets of" it): a district cut off gets a path from its seed.
+  const reached = new Uint8Array(w.districts.length);
+  for (let c = 0; c < N; c++) if (reach[c] && (w.district[c] as number) >= 0) reached[w.district[c] as number] = 1;
+  for (const d of w.districts) {
+    if (reached[d.index]) continue;
+    let from = -1;
+    for (let c = 0; c < N && from < 0; c++) if (w.district[c] === d.index && !solidPlot[c] && !isWaterBody(w, c) && w.terrain[c] !== Terrain.Rock) from = c;
+    if (from >= 0) carve(from);
+  }
   // Places and landmarks first; a filler that cannot be reached is dropped.
   const order = w.plots.map((_, i) => i).sort((a, b) => ((w.plots[a] as PlanPlot).place === null ? 1 : 0) - ((w.plots[b] as PlanPlot).place === null ? 1 : 0) || a - b);
   const drop = new Set<number>();
@@ -1114,7 +1141,6 @@ function footbridge(w: Work, p: PlanPlot, dSq: Int32Array): number {
   }
   if (!best) return -1;
   const horiz = best.dir === 1 || best.dir === -1;
-  const side = horiz ? W : 1;
   for (let k = 1; k <= best.span; k++) {
     const c = best.a + best.dir * k;
     w.terrain[c] = Terrain.Bridge;
@@ -1138,7 +1164,6 @@ function footbridge(w: Work, p: PlanPlot, dSq: Int32Array): number {
   });
   const used = w.recipe.connectors.find((c) => c.kind === "footbridge");
   if (used) w.used.connectors.add(used.id);
-  void side;
   for (const c of [best.a, best.b]) {
     if (c < 0 || c >= N || isWaterBody(w, c) || (w.use[c] as number) & (Use.Plot | Use.Square | Use.Rail)) continue;
     if (buildable(w.terrain[c] as number) || w.terrain[c] === Terrain.Sand || w.terrain[c] === Terrain.Reeds) w.terrain[c] = Terrain.Path;

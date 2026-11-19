@@ -257,7 +257,8 @@ export function validateRecipe(r: Recipe): string[] {
       out.push(`${p.id}: layout block missing`);
       continue;
     }
-    if (!isRange(l.footprint?.[0], 2, 16) || !isRange(l.footprint?.[1], 2, 16)) out.push(`${p.id}: footprint must be [[w, h], [w, h]] within 2..16`);
+    const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((n) => Number.isInteger(n) && n >= 2 && n <= 16);
+    if (!pair(l.footprint?.[0]) || !pair(l.footprint?.[1])) out.push(`${p.id}: footprint must be [[w, h], [w, h]] within 2..16`);
     else if (l.footprint[0][0] > l.footprint[1][0] || l.footprint[0][1] > l.footprint[1][1]) out.push(`${p.id}: footprint min exceeds max`);
     for (const pr of l.place ?? []) {
       const base = pr.split(":")[0] as string;

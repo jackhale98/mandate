@@ -29,6 +29,9 @@ export function layoutTownV2(input: TownInput, geo: TownGeo, seed: number, state
 
 /** A plain geography for a town the engine has described only by its places (tests, and towns without map data): flat, inland, roads four ways. */
 export function geoFromInput(input: TownInput, population = 60_000): TownGeo {
+  // Room for every neighbourhood: the engine gives a town about √pop / 50 of them.
+  const n50 = input.neighborhoods.length * 50;
+  population = Math.max(population, n50 * n50);
   const per = Math.max(1000, Math.floor(population / Math.max(1, input.neighborhoods.length)));
   return {
     municipality: 0,

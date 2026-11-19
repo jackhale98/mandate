@@ -14,7 +14,7 @@
 // protections and disasters.
 import type { MunicipalityView } from "../../engine/protocol/MunicipalityView";
 import type { TownLocation } from "../townInput";
-import { ROOF_ROWS, Terrain, locationCell, type PlotState, type TownBuilding, type TownDistrict, type TownMap } from "../townLayout";
+import { Terrain, locationCell, type PlotState, type TownBuilding, type TownDistrict, type TownMap } from "../townLayout";
 import { HOOD_KINDS, type HoodKind } from "../townInput";
 import { mix } from "../rng";
 import { mapConnectors, type TownPlan } from "./plan";
@@ -185,7 +185,6 @@ export function dressTown(plan: TownPlan, state: TownState): TownMap {
   };
   const core = plan.districts.find((d) => d.kind === "core") ?? plan.districts[0];
   map.start = locationCell(map, state.location) ?? core?.street ?? plan.square.y * W + plan.square.x;
-  void ROOF_ROWS;
   return map;
 }
 

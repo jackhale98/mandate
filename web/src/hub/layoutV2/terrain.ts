@@ -3,7 +3,7 @@
 // lake) and the centre with its square. Integer maths only (./imath).
 import { Terrain } from "../townLayout";
 import { bandOf } from "./geo";
-import { NO_BEARING, bearingGap, clamp, compassVec, isqrt, log2Q8, valueNoise } from "./imath";
+import { NO_BEARING, clamp, compassVec, isqrt, log2Q8, valueNoise } from "./imath";
 import { Use, WaterKind, distanceField, feature, inMap, isWaterBody, param, paramRange, rngOf, type Work } from "./work";
 
 /** Map size from population (§9.1, D6): side ≈ 40 + 22·log2(pop / 5,000), clamped to 56–240, aspect 1.4:1, capped at 240 × 160. Multiples of 4. */
@@ -138,7 +138,7 @@ function meander(w: Work, pts: Pt[], pm: number, rounds: number, label: string):
 }
 
 /** Walk a polyline cell by cell (4-connected), calling `visit` for each cell. */
-function walkLine(pts: Pt[], visit: (x: number, y: number) => boolean | void) {
+function walkLine(pts: Pt[], visit: (x: number, y: number) => boolean | undefined) {
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1] as Pt;
     const b = pts[i] as Pt;
@@ -464,5 +464,4 @@ export function stageCentre(w: Work) {
       w.use[c] = (w.use[c] as number) | Use.Square;
     }
   }
-  void bearingGap;
 }
