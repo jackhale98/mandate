@@ -33,6 +33,7 @@
 
 pub mod ambient;
 pub mod goals;
+pub mod knows;
 pub mod town;
 
 pub use town::{ActiveCrisis, TownCharacter};
@@ -150,6 +151,33 @@ impl MemoryKind {
             MemoryKind::IgnoredMe => "ignored_me",
             MemoryKind::BlamedMe => "blamed_me",
         }
+    }
+
+    /// Every kind, in declaration order.
+    pub const ALL: [MemoryKind; 18] = [
+        MemoryKind::BackedMyBill,
+        MemoryKind::OpposedMyBill,
+        MemoryKind::PromisedFavour,
+        MemoryKind::KeptPromise,
+        MemoryKind::BrokePromise,
+        MemoryKind::BrokeRanks,
+        MemoryKind::LobbiedMe,
+        MemoryKind::PressedMe,
+        MemoryKind::DefeatedMe,
+        MemoryKind::LostToMe,
+        MemoryKind::VetoedMyBill,
+        MemoryKind::SignedMyBill,
+        MemoryKind::Met,
+        MemoryKind::Scandal,
+        MemoryKind::StoodWithMe,
+        MemoryKind::StoodAgainstMe,
+        MemoryKind::IgnoredMe,
+        MemoryKind::BlamedMe,
+    ];
+
+    /// The kind with this content key (`broke_promise`).
+    pub fn from_key(key: &str) -> Option<MemoryKind> {
+        MemoryKind::ALL.into_iter().find(|k| k.key() == key)
     }
 
     /// Fluent key, e.g. `memory-broke-promise`.

@@ -106,6 +106,18 @@ pub struct ContentBundle {
     /// Town layout v2 connectors, in load order (the generator takes the first that fits).
     #[serde(default)]
     pub connectors: Vec<crate::layout::ConnectorDef>,
+    /// Conversation topics (DEC-093), in load order.
+    #[serde(default)]
+    pub talk_topics: Vec<crate::conversation::TopicDef>,
+    /// Conversation lines, in load order.
+    #[serde(default)]
+    pub talk_lines: Vec<crate::conversation::TalkLineDef>,
+    /// Conversation voices, in load order (ties in priority: the first).
+    #[serde(default)]
+    pub talk_voices: Vec<crate::conversation::VoiceDef>,
+    /// Conversation rules (cost, discretion, speaker knowledge, the guard).
+    #[serde(default)]
+    pub talk: crate::conversation::TalkParams,
 }
 
 impl ContentBundle {
@@ -301,6 +313,10 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut town_districts: Vec<crate::layout::TownDistrictDef> = Vec::new();
     let mut terrain_features: Vec<crate::layout::TerrainFeatureDef> = Vec::new();
     let mut connectors: Vec<crate::layout::ConnectorDef> = Vec::new();
+    let mut talk_topics: Vec<crate::conversation::TopicDef> = Vec::new();
+    let mut talk_lines: Vec<crate::conversation::TalkLineDef> = Vec::new();
+    let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
+    let mut talk: Option<(crate::conversation::TalkParams, String)> = None;
 
     for src in sorted {
         if src.path.ends_with(".ftl") {
@@ -584,6 +600,30 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::TalkTopics { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        talk_topics.push(x);
+                    }
+                }
+            }
+            ContentFile::TalkLines { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        talk_lines.push(x);
+                    }
+                }
+            }
+            ContentFile::TalkVoices { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        talk_voices.push(x);
+                    }
+                }
+            }
+            ContentFile::TalkParams { value } => {
+                once(&mut talk, *value, "talk_params", &src.path, &mut issues)
+            }
         }
     }
 
@@ -621,6 +661,10 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     };
     let Some((knowledge, _)) = knowledge else {
         issues.push(Issue::error("<content>", "no knowledge file found"));
+        return Err(issues);
+    };
+    let Some((talk, _)) = talk else {
+        issues.push(Issue::error("<content>", "no talk_params file found"));
         return Err(issues);
     };
     packs.sort_by(|a, b| (a.load_order, &a.id).cmp(&(b.load_order, &b.id)));
@@ -686,6 +730,10 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         town_districts,
         terrain_features,
         connectors,
+        talk_topics,
+        talk_lines,
+        talk_voices,
+        talk,
     };
     issues.extend(validate_bundle(&bundle));
     if issues.iter().any(|i| i.severity == Severity::Error) {

@@ -125,6 +125,18 @@ pub enum PlayerCommand {
         decision: u32,
         option: String,
     },
+    /// Talk to someone here on a topic (DEC-093): half a slot (late at
+    /// night, the late slot, where private meetings are held). The result's
+    /// `created` is the exchange's id.
+    Talk {
+        to: crate::talk::TalkTarget,
+        /// Topic content id, e.g. `topic.who_runs`.
+        topic: String,
+        #[serde(default)]
+        about: Option<crate::talk::AboutRef>,
+        #[serde(default)]
+        late_night: bool,
+    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -461,6 +473,14 @@ pub fn apply(
     crate::places::check_at(state, content, cmd)?;
     match cmd {
         PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. } | PlayerCommand::Answer { .. } => {}
+        PlayerCommand::Talk {
+            to,
+            topic,
+            about,
+            late_night,
+        } => {
+            res = crate::talk::apply(state, content, to, topic, about.as_ref(), *late_night)?;
+        }
         PlayerCommand::Meet { slot } => {
             let id = characters::ambient::promote(state, content, pl.location, *slot)
                 .ok_or_else(|| bad("nobody like that is here now"))?;

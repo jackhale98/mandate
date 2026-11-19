@@ -2,6 +2,7 @@
 //! pack (DEC-053, DEC-054, DEC-055).
 
 pub mod bundle;
+pub mod conversation;
 pub mod jsonc;
 pub mod knowledge;
 pub mod layout;

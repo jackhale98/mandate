@@ -109,6 +109,22 @@ pub enum ContentFile {
     Knowledge {
         value: Box<crate::knowledge::KnowledgeParams>,
     },
+    /// Conversation topics (DEC-093): what the player can raise, with whom, where.
+    TalkTopics {
+        items: Vec<crate::conversation::TopicDef>,
+    },
+    /// Conversation lines: openers, memory quotes, substance and closers (DEC-093).
+    TalkLines {
+        items: Vec<crate::conversation::TalkLineDef>,
+    },
+    /// Conversation voices: who speaks how (DEC-093).
+    TalkVoices {
+        items: Vec<crate::conversation::VoiceDef>,
+    },
+    /// Conversation rules as numbers: cost, discretion, speaker knowledge (DEC-093).
+    TalkParams {
+        value: Box<crate::conversation::TalkParams>,
+    },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -477,6 +493,113 @@ pub enum SituationCondition {
     PlantClosure { within_months: u16 },
     /// A disaster struck the town within this many months.
     Disaster { within_months: u16 },
+    // --- Slot-relative (DEC-093 conversations; DEC-092 family slots). In a
+    // conversation the slots are `speaker`, `about` and `player`; where no
+    // slots are bound (a policy's unlock) these never hold. Each names the
+    // Fluent arguments it provides when it holds; triggers ignore them.
+    /// The person in the slot has one of these roles: occupation ids,
+    /// `councillor` or `mayor`.
+    Occupation {
+        slot: String,
+        occupations: Vec<ContentKey>,
+    },
+    /// The person in the slot has one of these traits.
+    Trait {
+        slot: String,
+        traits: Vec<ContentKey>,
+    },
+    /// A personality axis of the person in the slot within [min, max] (0..1).
+    Personality {
+        slot: String,
+        axis: String,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The person in the slot holds this goal (DEC-032).
+    Goal { slot: String, goal: ContentKey },
+    /// Their opinion of the player within [min, max] (−100..100).
+    Opinion {
+        slot: String,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// Their trust in the player within [min, max] (0..1).
+    Trust {
+        slot: String,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// They remember the player doing one of these (memory kinds; the most
+    /// salient): `$memory_key`, `$subject_key`, `$year`.
+    Remembers { slot: String, kinds: Vec<String> },
+    /// The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.
+    Favour {
+        slot: String,
+        #[serde(default)]
+        owed_to_player: bool,
+    },
+    /// They are (or are not) the town's power broker. When they are:
+    /// `$broker`, `$broker_place`, `$stake_key`.
+    IsBroker {
+        slot: String,
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    /// They are (or are not) the player's rival. When they are: `$rival`.
+    IsRival {
+        slot: String,
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    /// The speaker would tell the player at least `min` about the subject
+    /// (what they know, capped by discretion): the subject's arguments.
+    Tells {
+        subject: crate::conversation::SubjectRef,
+        min: crate::knowledge::Level,
+    },
+    /// The player's ledger (DEC-091) holds the subject within [min, max]:
+    /// the subject's arguments.
+    PlayerKnows {
+        subject: crate::conversation::SubjectRef,
+        #[serde(default)]
+        min: Option<crate::knowledge::Level>,
+        #[serde(default)]
+        max: Option<crate::knowledge::Level>,
+    },
+    /// Any one of these holds (the first that does gives the arguments).
+    Any { of: Vec<SituationCondition> },
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl SituationCondition {
+    /// Whether the condition reads a bound slot (it never holds where none is).
+    pub fn is_slot_relative(&self) -> bool {
+        use SituationCondition as U;
+        match self {
+            U::Crisis { .. }
+            | U::Indicator { .. }
+            | U::PlantClosure { .. }
+            | U::Disaster { .. } => false,
+            U::PlayerKnows { subject, .. } => matches!(
+                subject,
+                crate::conversation::SubjectRef::Person { .. }
+                    | crate::conversation::SubjectRef::Proposal { .. }
+                    | crate::conversation::SubjectRef::PolicySupport { .. }
+                    | crate::conversation::SubjectRef::HoodConcerns { .. }
+            ),
+            U::Any { of } => of.iter().any(|c| c.is_slot_relative()),
+            _ => true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -2360,6 +2483,20 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         "knowledge" => ContentFile::Knowledge {
             value: Box::new(
                 serde_json::from_str::<ValueFile<crate::knowledge::KnowledgeParams>>(json)?.value,
+            ),
+        },
+        "talk_topics" => ContentFile::TalkTopics {
+            items: serde_json::from_str::<ItemsFile<crate::conversation::TopicDef>>(json)?.items,
+        },
+        "talk_lines" => ContentFile::TalkLines {
+            items: serde_json::from_str::<ItemsFile<crate::conversation::TalkLineDef>>(json)?.items,
+        },
+        "talk_voices" => ContentFile::TalkVoices {
+            items: serde_json::from_str::<ItemsFile<crate::conversation::VoiceDef>>(json)?.items,
+        },
+        "talk_params" => ContentFile::TalkParams {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::conversation::TalkParams>>(json)?.value,
             ),
         },
         other => {

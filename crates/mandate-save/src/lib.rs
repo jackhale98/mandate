@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 15;
+pub const SAVE_FORMAT_VERSION: u16 = 16;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -174,6 +174,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         (13, town_baselines),
         // The knowledge ledger (DEC-091): the previous format to the next.
         (14, knowledge_ledger),
+        // Conversations (DEC-093): the previous format to the next.
+        // Renumber only this key if another bump merges first.
+        (15, talk_state),
     ];
     let mut value = value;
     let mut v = from;
@@ -399,6 +402,22 @@ fn knowledge_ledger(mut value: serde_json::Value) -> Result<serde_json::Value, S
         .ok_or(SaveError::Malformed)?;
     if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
         p.remove("knowledge");
+    }
+    Ok(value)
+}
+
+/// Previous format → next (v15 → v16 when written; DEC-093): the player's
+/// conversation state (the repetition guard's used lines, the exchange log,
+/// the half slot). The step drops any a newer build might have left, so the
+/// serde default applies: nobody has said anything to the player yet, and no
+/// half slot is pending.
+fn talk_state(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let st = value
+        .pointer_mut("/state")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
+        p.remove("talk");
     }
     Ok(value)
 }

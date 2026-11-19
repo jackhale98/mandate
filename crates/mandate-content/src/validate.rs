@@ -248,6 +248,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     crate::narrative::validate(b, &mut issues);
     crate::media::validate(b, &mut issues);
     crate::knowledge::validate(b, &mut issues);
+    crate::conversation::validate(b, &mut issues);
     for (name, v, lo, hi) in param_ranges(b) {
         if !(v.is_finite() && (lo..=hi).contains(&v)) {
             let kind = name.split('.').next().unwrap_or("parameters").to_string();
@@ -1139,6 +1140,7 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
     crate::narrative::director_ranges(&b.director, &mut out);
     crate::media::param_ranges(b, &mut |n, v, lo, hi| out.push((n.to_string(), v, lo, hi)));
     crate::knowledge::param_ranges(b, &mut |n, v, lo, hi| out.push((n.to_string(), v, lo, hi)));
+    crate::conversation::param_ranges(b, &mut |n, v, lo, hi| out.push((n.to_string(), v, lo, hi)));
     out
 }
 
@@ -1605,7 +1607,8 @@ fn validate_communities(b: &ContentBundle, issues: &mut Vec<Issue>) {
 }
 
 /// A situation trigger (DEC-077 §3, reused by policy families): conditions
-/// name real crises and sane ranges.
+/// name real crises and sane ranges. No slots are bound in a town's
+/// situation, so slot-relative conditions are refused there.
 pub fn check_situation(
     b: &ContentBundle,
     owner: &str,
@@ -1619,43 +1622,207 @@ pub fn check_situation(
         ));
     }
     for c in &u.any {
-        use crate::types::SituationCondition as U;
-        match c {
-            U::Crisis { kind, min_severity } => {
-                // A pack may remove a crisis kind: the condition then never
-                // holds (a warning, as for dilemma triggers).
-                if b.crisis_index(kind).is_none() {
-                    issues.push(Issue::warning(
-                        owner,
-                        &format!(
-                            "situation names unknown crisis `{kind}` (the condition never holds)"
-                        ),
-                    ));
-                }
-                if !(0.0..=1.0).contains(min_severity) {
-                    issues.push(Issue::error(
-                        owner,
-                        "situation min_severity must be in [0, 1]",
-                    ));
-                }
+        check_situation_condition(b, owner, c, None, issues);
+    }
+}
+
+/// One situation condition (recursively): real crises, occupations, traits,
+/// goals, memory kinds and personality axes, sane ranges, and known slots.
+/// `slots` lists the slots bound where it is used (`None`: a town's
+/// situation, where slot-relative conditions are an error).
+pub fn check_situation_condition(
+    b: &ContentBundle,
+    owner: &str,
+    c: &crate::types::SituationCondition,
+    slots: Option<&[&str]>,
+    issues: &mut Vec<Issue>,
+) {
+    use crate::types::SituationCondition as U;
+    let range = |min: &Option<f64>,
+                 max: &Option<f64>,
+                 lo: f64,
+                 hi: f64,
+                 issues: &mut Vec<Issue>| {
+        if min.is_none() && max.is_none() {
+            issues.push(Issue::error(
+                owner,
+                "a range condition needs a min or a max",
+            ));
+        }
+        for v in min.iter().chain(max.iter()) {
+            if !(v.is_finite() && (lo..=hi).contains(v)) {
+                issues.push(Issue::error(
+                    owner,
+                    &format!("a condition bound {v} is outside [{lo}, {hi}]"),
+                ));
             }
-            U::Indicator { min, max, .. } => {
-                if min.is_none() && max.is_none() {
-                    issues.push(Issue::error(
-                        owner,
-                        "an indicator condition needs a min or a max",
-                    ));
-                }
-                if let (Some(a), Some(z)) = (min, max)
-                    && a > z
+        }
+        if let (Some(a), Some(z)) = (min, max)
+            && a > z
+        {
+            issues.push(Issue::error(owner, "situation min is above max"));
+        }
+    };
+    if slots.is_none() && c.is_slot_relative() && !matches!(c, U::Any { .. }) {
+        issues.push(Issue::error(
+            owner,
+            "this condition reads a slot (a conversation's speaker or subject); no slot is bound here",
+        ));
+        return;
+    }
+    let slot_ok = |slot: &str, issues: &mut Vec<Issue>| {
+        if let Some(s) = slots
+            && !s.contains(&slot)
+        {
+            issues.push(Issue::error(
+                owner,
+                &format!("unknown slot `{slot}` here (expected {})", s.join(", ")),
+            ));
+        }
+    };
+    let person_slot = |slot: &str, issues: &mut Vec<Issue>| {
+        slot_ok(slot, issues);
+        if slot == "player" {
+            issues.push(Issue::error(
+                owner,
+                "this condition is about someone's view of the player, not the player",
+            ));
+        }
+    };
+    match c {
+        U::Crisis { kind, min_severity } => {
+            // A pack may remove a crisis kind: the condition then never
+            // holds (a warning, as for dilemma triggers).
+            if b.crisis_index(kind).is_none() {
+                issues.push(Issue::warning(
+                    owner,
+                    &format!(
+                        "situation names unknown crisis `{kind}` (the condition never holds)"
+                    ),
+                ));
+            }
+            if !(0.0..=1.0).contains(min_severity) {
+                issues.push(Issue::error(
+                    owner,
+                    "situation min_severity must be in [0, 1]",
+                ));
+            }
+        }
+        U::Indicator { min, max, .. } => {
+            if min.is_none() && max.is_none() {
+                issues.push(Issue::error(
+                    owner,
+                    "an indicator condition needs a min or a max",
+                ));
+            }
+            if let (Some(a), Some(z)) = (min, max)
+                && a > z
+            {
+                issues.push(Issue::error(owner, "situation min is above max"));
+            }
+        }
+        U::PlantClosure { within_months } | U::Disaster { within_months } => {
+            if !(1..=120).contains(within_months) {
+                issues.push(Issue::error(owner, "situation within_months must be 1–120"));
+            }
+        }
+        U::Occupation { slot, occupations } => {
+            slot_ok(slot, issues);
+            if occupations.is_empty() {
+                issues.push(Issue::error(owner, "an occupation condition needs roles"));
+            }
+            for o in occupations {
+                if b.occupation(o).is_none()
+                    && !crate::conversation::POLITICIAN_ROLES.contains(&o.as_str())
                 {
-                    issues.push(Issue::error(owner, "situation min is above max"));
+                    issues.push(Issue::error(owner, &format!("unknown role `{o}`")));
                 }
             }
-            U::PlantClosure { within_months } | U::Disaster { within_months } => {
-                if !(1..=120).contains(within_months) {
-                    issues.push(Issue::error(owner, "situation within_months must be 1–120"));
+        }
+        U::Trait { slot, traits } => {
+            slot_ok(slot, issues);
+            if traits.is_empty() {
+                issues.push(Issue::error(owner, "a trait condition needs traits"));
+            }
+            for t in traits {
+                if b.trait_def(t).is_none() {
+                    issues.push(Issue::error(owner, &format!("unknown trait `{t}`")));
                 }
+            }
+        }
+        U::Personality {
+            slot,
+            axis,
+            min,
+            max,
+        } => {
+            slot_ok(slot, issues);
+            if !crate::types::PERSONALITY_AXES.contains(&axis.as_str()) {
+                issues.push(Issue::error(
+                    owner,
+                    &format!("unknown personality axis `{axis}`"),
+                ));
+            }
+            range(min, max, 0.0, 1.0, issues);
+        }
+        U::Goal { slot, goal } => {
+            person_slot(slot, issues);
+            if b.goal(goal).is_none() {
+                issues.push(Issue::error(owner, &format!("unknown goal `{goal}`")));
+            }
+        }
+        U::Opinion { slot, min, max } => {
+            person_slot(slot, issues);
+            range(min, max, -100.0, 100.0, issues);
+        }
+        U::Trust { slot, min, max } => {
+            person_slot(slot, issues);
+            range(min, max, 0.0, 1.0, issues);
+        }
+        U::Remembers { slot, kinds } => {
+            person_slot(slot, issues);
+            if kinds.is_empty() {
+                issues.push(Issue::error(
+                    owner,
+                    "a remembers condition needs memory kinds",
+                ));
+            }
+            for k in kinds {
+                if !crate::types::MEMORY_KINDS.contains(&k.as_str()) {
+                    issues.push(Issue::error(owner, &format!("unknown memory kind `{k}`")));
+                }
+            }
+        }
+        U::Favour { slot, .. } | U::IsBroker { slot, .. } | U::IsRival { slot, .. } => {
+            person_slot(slot, issues);
+        }
+        U::Tells { min, .. } => {
+            if *min == crate::knowledge::Level::Unknown {
+                issues.push(Issue::error(
+                    owner,
+                    "a tells condition needs `heard`, `known` or `detailed` (unknown always holds)",
+                ));
+            }
+        }
+        U::PlayerKnows { min, max, .. } => {
+            if min.is_none() && max.is_none() {
+                issues.push(Issue::error(
+                    owner,
+                    "a player_knows condition needs a min or a max",
+                ));
+            }
+            if let (Some(a), Some(z)) = (min, max)
+                && a > z
+            {
+                issues.push(Issue::error(owner, "player_knows min is above max"));
+            }
+        }
+        U::Any { of } => {
+            if of.is_empty() {
+                issues.push(Issue::error(owner, "an `any` condition needs alternatives"));
+            }
+            for x in of {
+                check_situation_condition(b, owner, x, slots, issues);
             }
         }
     }

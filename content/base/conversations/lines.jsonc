@@ -1,0 +1,146 @@
+// Conversation lines (DEC-093): a reply is an opener (by the relationship),
+// sometimes a memory quote, the substance (by the facts and what the speaker
+// will tell) and sometimes a closer (in the speaker's voice). Every `when`
+// condition must hold (the shared situation conditions; slots `speaker`,
+// `about`, `player`); each adds Fluent arguments, and every line has
+// `$speaker`, `$player`, `$town` and `$here` (and `$about` on topics with a
+// subject). Arguments named `x_key` are Fluent keys, written `{ $x }`.
+// `teaches` is capped at what the speaker will tell, and needs a `tells`
+// condition at that level or higher. `fallback` lines are a topic's safe
+// answer for the roles in their `occupation` condition (none: every role).
+// This is the minimal base set; the full set is task C3.
+{
+  "kind": "talk_lines",
+  "items": [
+    // Openers, by relationship (any topic).
+    { "id": "line.open.cool", "part": "opener", "key": "talk-open-cool",
+      "when": [ { "type": "opinion", "slot": "speaker", "max": -15 } ] },
+    { "id": "line.open.cool.2", "part": "opener", "key": "talk-open-cool-2",
+      "when": [ { "type": "opinion", "slot": "speaker", "max": -15 } ] },
+    { "id": "line.open.neutral", "part": "opener", "key": "talk-open-neutral",
+      "when": [ { "type": "opinion", "slot": "speaker", "min": -15, "max": 50 } ] },
+    { "id": "line.open.neutral.2", "part": "opener", "key": "talk-open-neutral-2",
+      "when": [ { "type": "opinion", "slot": "speaker", "min": -15, "max": 50 } ] },
+    { "id": "line.open.warm", "part": "opener", "key": "talk-open-warm",
+      "when": [ { "type": "opinion", "slot": "speaker", "min": 50 } ] },
+    { "id": "line.open.warm.2", "part": "opener", "key": "talk-open-warm-2",
+      "when": [ { "type": "opinion", "slot": "speaker", "min": 50 } ] },
+
+    // Memory quotes, layered on top.
+    { "id": "line.quote.broke_promise", "part": "quote", "key": "talk-quote-broke-promise",
+      "when": [ { "type": "remembers", "slot": "speaker", "kinds": ["broke_promise"] } ] },
+    { "id": "line.quote.kept_promise", "part": "quote", "key": "talk-quote-kept-promise",
+      "when": [ { "type": "remembers", "slot": "speaker", "kinds": ["kept_promise"] } ] },
+
+    // What people are worried about.
+    { "id": "line.worries.shrug", "part": "substance", "topic": "topic.worries",
+      "key": "talk-worries-shrug", "fallback": true },
+    { "id": "line.worries.weather", "part": "substance", "topic": "topic.worries",
+      "key": "talk-worries-weather", "fallback": true },
+    { "id": "line.worries.rumour", "part": "substance", "topic": "topic.worries",
+      "key": "talk-worries-rumour",
+      "when": [ { "type": "tells", "subject": { "type": "town_concerns" }, "min": "heard" } ],
+      "teaches": [ { "subject": { "type": "town_concerns" }, "level": "heard" } ] },
+    { "id": "line.worries.town", "part": "substance", "topic": "topic.worries",
+      "key": "talk-worries-town",
+      "when": [ { "type": "tells", "subject": { "type": "town_concerns" }, "min": "known" } ],
+      "teaches": [ { "subject": { "type": "town_concerns" }, "level": "known" } ] },
+    { "id": "line.worries.home", "part": "substance", "topic": "topic.worries", "weight": 2,
+      "key": "talk-worries-home",
+      "when": [ { "type": "tells", "subject": { "type": "hood_concerns", "of": "speaker_home" }, "min": "detailed" } ],
+      "teaches": [ { "subject": { "type": "hood_concerns", "of": "speaker_home" }, "level": "detailed" } ] },
+
+    // Who really runs things. The fallbacks deflect; one points to the diner.
+    { "id": "line.runs.deflect", "part": "substance", "topic": "topic.who_runs",
+      "key": "talk-runs-deflect", "fallback": true,
+      "lead": { "key": "lead-ask-diner", "to": { "type": "place_kind", "kind": "diner" },
+                "subject": { "type": "broker" }, "level": "heard" } },
+    { "id": "line.runs.nobody", "part": "substance", "topic": "topic.who_runs",
+      "key": "talk-runs-nobody", "fallback": true },
+    { "id": "line.runs.rumour", "part": "substance", "topic": "topic.who_runs",
+      "key": "talk-runs-rumour",
+      "when": [ { "type": "tells", "subject": { "type": "broker" }, "min": "heard" },
+                { "type": "is_broker", "slot": "speaker", "is": false } ],
+      "teaches": [ { "subject": { "type": "broker" }, "level": "heard" } ] },
+    { "id": "line.runs.named", "part": "substance", "topic": "topic.who_runs",
+      "key": "talk-runs-named",
+      "when": [ { "type": "tells", "subject": { "type": "broker" }, "min": "known" },
+                { "type": "is_broker", "slot": "speaker", "is": false } ],
+      "teaches": [ { "subject": { "type": "broker" }, "level": "known" } ] },
+    { "id": "line.runs.stake", "part": "substance", "topic": "topic.who_runs",
+      "key": "talk-runs-stake", "weight": 2,
+      "when": [ { "type": "tells", "subject": { "type": "broker" }, "min": "detailed" },
+                { "type": "is_broker", "slot": "speaker", "is": false } ],
+      "teaches": [ { "subject": { "type": "broker" }, "level": "detailed" } ],
+      "effects": [ { "type": "opinion", "delta": 1 } ] },
+    { "id": "line.runs.self", "part": "substance", "topic": "topic.who_runs",
+      "key": "talk-runs-self", "weight": 5,
+      "when": [ { "type": "is_broker", "slot": "speaker" },
+                { "type": "tells", "subject": { "type": "broker" }, "min": "detailed" } ],
+      "teaches": [ { "subject": { "type": "broker" }, "level": "detailed" } ] },
+
+    // About a subject.
+    { "id": "line.about.shrug", "part": "substance", "topic": "topic.about",
+      "key": "talk-about-shrug", "fallback": true },
+    { "id": "line.about.dunno", "part": "substance", "topic": "topic.about",
+      "key": "talk-about-dunno", "fallback": true },
+    { "id": "line.about.person", "part": "substance", "topic": "topic.about",
+      "key": "talk-about-person",
+      "when": [ { "type": "tells", "subject": { "type": "person", "slot": "about" }, "min": "known" } ],
+      "teaches": [ { "subject": { "type": "person", "slot": "about" }, "level": "known" } ] },
+    { "id": "line.about.hood", "part": "substance", "topic": "topic.about",
+      "key": "talk-about-hood",
+      "when": [ { "type": "tells", "subject": { "type": "hood_concerns", "of": "about" }, "min": "known" } ],
+      "teaches": [ { "subject": { "type": "hood_concerns", "of": "about" }, "level": "known" } ] },
+    { "id": "line.about.rival", "part": "substance", "topic": "topic.about",
+      "key": "talk-about-rival",
+      "when": [ { "type": "is_rival", "slot": "about" },
+                { "type": "tells", "subject": { "type": "rival_plans" }, "min": "known" } ],
+      "teaches": [ { "subject": { "type": "rival_plans" }, "level": "known" } ] },
+    { "id": "line.about.bill", "part": "substance", "topic": "topic.about",
+      "key": "talk-about-bill",
+      "when": [ { "type": "tells", "subject": { "type": "policy_support", "of": "about" }, "min": "known" } ],
+      "teaches": [ { "subject": { "type": "policy_support", "of": "about" }, "level": "known" } ] },
+
+    // Pitching a policy.
+    { "id": "line.pitch.consider", "part": "substance", "topic": "topic.pitch",
+      "key": "talk-pitch-consider", "fallback": true },
+    { "id": "line.pitch.listen", "part": "substance", "topic": "topic.pitch",
+      "key": "talk-pitch-listen", "fallback": true },
+
+    // Asking for support.
+    { "id": "line.support.see", "part": "substance", "topic": "topic.support",
+      "key": "talk-support-see", "fallback": true },
+    { "id": "line.support.depends", "part": "substance", "topic": "topic.support",
+      "key": "talk-support-depends", "fallback": true },
+
+    // Favours (offered to politicians only).
+    { "id": "line.favour.ledger", "part": "substance", "topic": "topic.favour",
+      "key": "talk-favour-ledger", "fallback": true,
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["councillor", "mayor"] } ] },
+    { "id": "line.favour.noted", "part": "substance", "topic": "topic.favour",
+      "key": "talk-favour-noted", "fallback": true },
+    { "id": "line.favour.owed", "part": "substance", "topic": "topic.favour",
+      "key": "talk-favour-owed",
+      "when": [ { "type": "favour", "slot": "speaker" } ] },
+
+    // Small talk.
+    { "id": "line.small.weather", "part": "substance", "topic": "topic.small_talk",
+      "key": "talk-small-weather", "fallback": true },
+    { "id": "line.small.family", "part": "substance", "topic": "topic.small_talk",
+      "key": "talk-small-family", "fallback": true },
+    { "id": "line.small.warm", "part": "substance", "topic": "topic.small_talk",
+      "key": "talk-small-warm",
+      "when": [ { "type": "opinion", "slot": "speaker", "min": 50 } ] },
+
+    // Closers, by voice.
+    { "id": "line.close.blunt.1", "part": "closer", "voice": "voice.blunt", "key": "talk-close-blunt-1" },
+    { "id": "line.close.blunt.2", "part": "closer", "voice": "voice.blunt", "key": "talk-close-blunt-2" },
+    { "id": "line.close.smooth.1", "part": "closer", "voice": "voice.smooth", "key": "talk-close-smooth-1" },
+    { "id": "line.close.smooth.2", "part": "closer", "voice": "voice.smooth", "key": "talk-close-smooth-2" },
+    { "id": "line.close.guarded.1", "part": "closer", "voice": "voice.guarded", "key": "talk-close-guarded-1" },
+    { "id": "line.close.guarded.2", "part": "closer", "voice": "voice.guarded", "key": "talk-close-guarded-2" },
+    { "id": "line.close.plain.1", "part": "closer", "voice": "voice.plain", "key": "talk-close-plain-1" },
+    { "id": "line.close.plain.2", "part": "closer", "voice": "voice.plain", "key": "talk-close-plain-2" },
+  ],
+}

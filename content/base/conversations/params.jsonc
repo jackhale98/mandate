@@ -1,0 +1,62 @@
+// Conversations (DEC-093; M6_ENGINE_CONTRACTS §3): the rules as numbers.
+// `cost`: a conversation takes half a slot (two fill one; "say hello" stays
+// free). `discretion`: the most a speaker tells by their opinion of the
+// player (ascending bands, the protocol's opinion bands), the friendliest
+// telling `top` only with trust at least `trust_for_detailed` (else one level
+// less). Traits shift the cap by whole levels (`trait_discretion`;
+// `flattered_discretion` after small talk with them this week); calling in a
+// favour they owe adds `favour_discretion`. `speaker_knows`: who knows what
+// (NPCs keep no ledgers; this is derived, never stored). `memory_lines`:
+// lines each person remembers using with the player (the repetition guard);
+// `log_cap`: exchanges kept for the notebook. `quote_share`: how often a
+// memory quote is used when one holds. The mechanics: a pitch gives
+// `sway_share` of a lobbying meeting's sway (half the time); asking for
+// support rolls `support` odds (the shared lobbying odds with a politician);
+// an offered favour gives `favour.sway_share` of a favour trade's sway.
+{
+  "kind": "talk_params",
+  "value": {
+    "cost": "half_slot",
+    "discretion": {
+      "bands": [
+        { "below": -15, "tells": "unknown" },  // hostile, cool: they deflect
+        { "below": 15, "tells": "heard" },     // neutral: a rumour
+        { "below": 50, "tells": "known" },     // warm: plainly
+      ],
+      "top": "detailed",                       // friendly and trusting: the detail
+      "trust_for_detailed": 0.5,
+    },
+    "trait_discretion": { "trait.schemer": -1, "trait.cautious": -1 },
+    "flattered_discretion": { "trait.vain": 1 },
+    "favour_discretion": 1,
+    "speaker_knows": [
+      { "who": "anyone_local", "subject": "town_concerns", "level": "known" },
+      { "who": "anyone_local", "subject": "home_concerns", "level": "detailed" },
+      { "who": "anyone_local", "subject": "council", "level": "known" },
+      { "who": "anyone_local", "subject": "themselves", "level": "detailed" },
+      { "who": "leader", "subject": "broker", "level": "known" },
+      { "who": "stake_overlap", "subject": "broker", "level": "detailed" },
+      { "who": "broker", "subject": "broker", "level": "detailed" },
+      { "who": "politician", "subject": "rival_plans", "level": "known" },
+      { "who": "politician", "subject": "policy_support", "level": "known" },
+      { "who": "sponsor", "subject": "sponsored_proposals", "level": "detailed" },
+      { "who": "workplace", "subject": "workplace_proposals", "level": "known" },
+      { "who": "workplace", "subject": "workplace_people", "level": "known" },
+    ],
+    "memory_lines": 12,
+    "log_cap": 40,
+    "quote_share": 0.5,
+    "small_talk_opinion": 2.0,
+    "small_talk_weekly_cap": 1,
+    "pitch": { "sway_share": 0.5 },
+    "support": {
+      "base": -0.5, "per_opinion": 2.0, "per_trust": 1.5, "min": 0.05, "max": 0.9,
+      "sway": 0.2,                 // a politician who agrees backs the bill
+      "endorse_approval": 0.02,    // a public endorsement, among their neighbours
+      "bill_awareness": 0.05,
+      "favour_below": 30.0,        // below this opinion they ask a favour in return
+      "refused_opinion": -1.0,
+    },
+    "favour": { "sway_share": 0.5 },
+  },
+}

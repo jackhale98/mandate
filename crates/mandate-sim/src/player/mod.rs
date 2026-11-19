@@ -71,6 +71,10 @@ pub struct PlayerState {
     /// are seeded on load (`knowledge::on_load`).
     #[serde(default)]
     pub knowledge: knowledge::KnowledgeLedger,
+    /// Conversations (DEC-093): the repetition guard, the exchange log,
+    /// and the half slot left over (`talk`).
+    #[serde(default)]
+    pub talk: crate::talk::TalkState,
 }
 
 /// Where a career stands (DEC-006): in play, out of politics for a while

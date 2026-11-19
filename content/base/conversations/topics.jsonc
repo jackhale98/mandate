@@ -1,0 +1,28 @@
+// Conversation topics (DEC-093): what the player can raise with someone.
+// `mechanic` is what a topic does besides the reply (`inform`, `pitch`,
+// `ask_support`, `favour`, `small_talk`); `about` the subjects it can be
+// about (`about_required`: it needs one); `offered` who offers it (`roles`:
+// occupation ids, `councillor`, `mayor`; empty: anyone), where (`places`:
+// place kinds; empty: anywhere) and when (conditions, slots `speaker` and
+// `player`). Every topic needs a fallback reply for every role it is
+// offered to (`lines.jsonc`).
+{
+  "kind": "talk_topics",
+  "items": [
+    { "id": "topic.worries", "name_key": "talk-topic-worries", "mechanic": "inform",
+      "about": ["hood"] },
+    { "id": "topic.who_runs", "name_key": "talk-topic-who-runs", "mechanic": "inform",
+      // Offered until the player knows the broker in detail.
+      "offered": { "when": [ { "type": "player_knows", "subject": { "type": "broker" }, "max": "known" } ] } },
+    { "id": "topic.about", "name_key": "talk-topic-about", "mechanic": "inform",
+      "about": ["place", "person", "hood", "bill", "template", "rival"], "about_required": true },
+    { "id": "topic.pitch", "name_key": "talk-topic-pitch", "mechanic": "pitch",
+      "about": ["bill", "template"], "about_required": true },
+    { "id": "topic.support", "name_key": "talk-topic-support", "mechanic": "ask_support",
+      "about": ["bill"] },
+    { "id": "topic.favour", "name_key": "talk-topic-favour", "mechanic": "favour",
+      "about": ["bill"], "about_required": true,
+      "offered": { "roles": ["councillor", "mayor"] } },
+    { "id": "topic.small_talk", "name_key": "talk-topic-small-talk", "mechanic": "small_talk" },
+  ],
+}

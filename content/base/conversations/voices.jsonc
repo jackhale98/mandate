@@ -1,0 +1,18 @@
+// Conversation voices (DEC-093): a blunt steward and a smooth developer say
+// the same fact differently. A speaker's voice is the highest-`priority`
+// voice whose conditions all hold (ties: load order); `voice.plain` has no
+// conditions. `closer_share`: how often a reply in the voice ends with one
+// of its closers (each voice that closes has at least two).
+{
+  "kind": "talk_voices",
+  "items": [
+    { "id": "voice.smooth", "priority": 3, "closer_share": 0.7,
+      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.charmer", "trait.schemer"] } ] },
+    { "id": "voice.guarded", "priority": 2, "closer_share": 0.6,
+      "when": [ { "type": "trait", "slot": "speaker", "traits": ["trait.cautious"] } ] },
+    { "id": "voice.blunt", "priority": 1, "closer_share": 0.6,
+      "when": [ { "type": "personality", "slot": "speaker", "axis": "boldness", "min": 0.6 },
+                { "type": "personality", "slot": "speaker", "axis": "warmth", "max": 0.45 } ] },
+    { "id": "voice.plain", "priority": 0, "closer_share": 0.3 },
+  ],
+}

@@ -357,6 +357,9 @@ pub fn situation_holds(
             .munis
             .get(m as usize)
             .is_some_and(|e| e.months_since_disaster < *within_months),
+        // Slot-relative conditions (conversations, DEC-093) need a context;
+        // in a town's situation only the slot-free ones can hold.
+        other => crate::talk::context::holds_in_town(state, content, other, m),
     }
 }
 
