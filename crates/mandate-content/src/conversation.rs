@@ -221,9 +221,10 @@ fn half() -> f64 {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SubjectRef {
-    /// The town's worries: `$concern_key` (the strongest).
+    /// The town's worries: `$concern_key` (the strongest; its noun phrase
+    /// of talk, `$concern_talk_key`).
     TownConcerns,
-    /// A neighbourhood's worries: `$hood`, `$concern_key`.
+    /// A neighbourhood's worries: `$hood`, `$concern_key`, `$concern_talk_key`.
     HoodConcerns { of: HoodOf },
     /// Who really runs the town: `$broker`, `$broker_place`, `$stake_key`.
     Broker,
@@ -254,8 +255,8 @@ impl SubjectRef {
     /// The Fluent arguments a condition on this subject provides.
     pub fn args(&self) -> &'static [&'static str] {
         match self {
-            SubjectRef::TownConcerns => &["concern_key"],
-            SubjectRef::HoodConcerns { .. } => &["hood", "concern_key"],
+            SubjectRef::TownConcerns => &["concern_key", "concern_talk_key"],
+            SubjectRef::HoodConcerns { .. } => &["hood", "concern_key", "concern_talk_key"],
             SubjectRef::Broker => &["broker", "broker_place", "stake_key"],
             SubjectRef::Person { .. } => &["person"],
             SubjectRef::RivalPlans => &["rival"],
@@ -263,6 +264,16 @@ impl SubjectRef {
             SubjectRef::PolicySupport { .. } => &["policy_key", "support_key"],
         }
     }
+}
+
+/// Whose top concern a `concern` condition reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ConcernOf {
+    /// The speaker's home neighbourhood (what worries them).
+    Speaker,
+    /// The player's town.
+    Town,
 }
 
 /// Which neighbourhood a subject names.
@@ -698,6 +709,7 @@ pub fn condition_args(c: &SituationCondition) -> BTreeSet<String> {
         U::IsBroker { is: true, .. } => set(&["broker", "broker_place", "stake_key"]),
         U::IsRival { is: true, .. } => set(&["rival"]),
         U::Tells { subject, .. } | U::PlayerKnows { subject, .. } => set(subject.args()),
+        U::Concern { .. } => set(&["concern_key", "concern_talk_key"]),
         U::Any { of } => {
             let mut it = of.iter().map(condition_args);
             let first = it.next().unwrap_or_default();
@@ -941,6 +953,24 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 Some(&["speaker", "player"]),
                 issues,
             );
+        }
+        let mut all = Vec::new();
+        walk(&v.when, &mut all);
+        if all
+            .iter()
+            .any(|c| matches!(c, SituationCondition::Voice { .. }))
+        {
+            issues.push(Issue::error(
+                &v.id,
+                "a voice's conditions cannot name a voice (it is what they decide)",
+            ));
+        }
+    }
+    // Talk names a place without a proper name by its kind
+    // (`talk-place-<kind>`, a lower-case noun phrase: "the union hall").
+    for p in &b.places {
+        if !crate::types::PSEUDO_PLACES.contains(&p.key.as_str()) {
+            key_exists(&p.id, &format!("talk-place-{}", p.key), issues);
         }
     }
     // Lines.
@@ -1238,6 +1268,45 @@ mod tests {
         assert_eq!(b.talk.trait_discretion.get("trait.cautious"), Some(&-1));
         assert_eq!(b.talk.flattered_discretion.get("trait.vain"), Some(&1));
         assert_eq!(b.talk_roles().len(), b.occupations.len() + 2);
+    }
+
+    /// The follow-ups' rules: `voice` names real voices and never stands in
+    /// a voice's own conditions; `concern` names real concerns; every place
+    /// kind has a talk name; concern talk keys exist.
+    #[test]
+    fn voice_concern_and_place_names_are_validated() {
+        const VOICES: &str = "base/conversations/voices.jsonc";
+        let e = issues_with(
+            LINES,
+            r#""voices": ["voice.blunt"]"#,
+            r#""voices": ["voice.nope"]"#,
+        );
+        assert!(e.contains("unknown voice `voice.nope`"), "{e}");
+        let e = issues_with(
+            VOICES,
+            r#"{ "id": "voice.plain", "priority": 0, "closer_share": 0.3 }"#,
+            r#"{ "id": "voice.plain", "priority": 0, "closer_share": 0.3,
+                 "when": [ { "type": "voice", "voices": ["voice.blunt"] } ] }"#,
+        );
+        assert!(e.contains("cannot name a voice"), "{e}");
+        let e = issues_with(
+            LINES,
+            r#""concerns": ["concern.housing"]"#,
+            r#""concerns": ["concern.nope"]"#,
+        );
+        assert!(e.contains("unknown concern `concern.nope`"), "{e}");
+        let e = issues_with(
+            "base/locale/en/talk.ftl",
+            "talk-place-union_hall = the union hall\n",
+            "",
+        );
+        assert!(e.contains("talk-place-union_hall"), "{e}");
+        let e = issues_with(
+            "base/locale/en/base.ftl",
+            "talk-concern-housing = the rent\n",
+            "",
+        );
+        assert!(e.contains("talk-concern-housing"), "{e}");
     }
 
     #[test]

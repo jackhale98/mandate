@@ -1,12 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openPocket, showPlaces } from "./pocket";
 
-// M5a: the town of places is the main screen; the pocket (a drawer from the
-// bottom bar) holds the agenda and links to the national views.
-const openPocket = async (page: Page) => {
-  if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
-  await expect(page.getByTestId("pocket")).toBeVisible();
-  return page.getByTestId("pocket");
-};
+// The town is the main screen (DEC-088: its street, full screen); the pocket
+// (a drawer from the bottom bar, with tabs) holds the agenda, the town card,
+// every place, and links to the national views.
 
 const stateHash = async (page: Page) => {
   const pocket = await openPocket(page);
@@ -77,7 +74,7 @@ test("draft, introduce, lobby and resume mid-turn", async ({ page }) => {
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
   await expect(page.getByTestId("hud-slots")).toHaveAttribute("aria-label", "3 slots left this turn");
-  await showList(page);
+  await showPlaces(page);
   await expect(page.getByTestId("you-are-here")).toContainText("You are here");
 
   // Tap the town hall: the player walks there (free) and its panel opens.
@@ -92,7 +89,8 @@ test("draft, introduce, lobby and resume mid-turn", async ({ page }) => {
   // Introducing is done in the council chamber: one tap walks there and acts.
   await panel.getByTestId("bills").getByRole("button", { name: "Introduce to council" }).click();
   await expect(page.getByTestId("toast")).toHaveText(/Bill introduced/);
-  await expect(page.getByTestId("where")).toContainText("Council chamber");
+  // The street walks the player across; the label at the top names the place on arrival.
+  await expect(page.getByTestId("where-place")).toHaveText("Council chamber", { timeout: 30_000 });
 
   // In the chamber the whip count is exact, member by member.
   const whip = panel.getByTestId("whip");
@@ -105,7 +103,7 @@ test("draft, introduce, lobby and resume mid-turn", async ({ page }) => {
   await page.reload();
   await page.getByRole("button", { name: "Continue" }).first().click();
   await expect(page.getByTestId("hud-slots")).toHaveAttribute("aria-label", "1 slot left this turn");
-  await expect(page.getByTestId("where")).toContainText("Council chamber");
+  await expect(page.getByTestId("where-place")).toHaveText("Council chamber");
   expect(await stateHash(page)).toBe(hash);
 });
 
@@ -121,7 +119,7 @@ test("a full local election", async ({ page }) => {
   const pocket = await openPocket(page);
   await expect(pocket.getByTestId("pocket-election")).toContainText("3 November 2020");
   await pocket.getByRole("button", { name: "Close" }).click();
-  await showList(page);
+  await showPlaces(page);
   await page.getByTestId("spot-party_office").click();
   await expect(page.getByTestId("internal-poll")).toBeVisible();
   const endTurn = page.getByRole("button", { name: "End turn" });
@@ -143,9 +141,12 @@ test("a full local election", async ({ page }) => {
   const agenda = (await openPocket(page)).getByTestId("agenda");
   await agenda.getByText("Canvass a neighbourhood", { exact: true }).click();
   await expect(agenda.getByTestId("route")).toContainText("Streets of");
+  const route = (await agenda.getByTestId("route").textContent()) ?? "";
   await agenda.getByRole("button", { name: "Go" }).click();
   await expect(page.getByTestId("toast")).toHaveText(/knocked on doors/);
-  await expect(page.getByTestId("where")).toContainText("Streets of");
+  // On the streets the label names the neighbourhood alone (no place).
+  await expect(page.getByTestId("where-place")).toHaveCount(0, { timeout: 30_000 });
+  await expect.poll(async () => route.includes(((await page.getByTestId("where-zone").textContent()) ?? "-").trim()), { timeout: 30_000 }).toBe(true);
   for (let i = 0; i < 12 && (await page.getByTestId("election-night").count()) === 0; i++) {
     await endTurn.click();
     await expect(endTurn).toBeEnabled();
@@ -159,19 +160,20 @@ test("a full local election", async ({ page }) => {
   await expect(night).toHaveCount(0);
 });
 
-// M5b: the town card shows the town's character (DEC-077 §1); a place lists
-// who is there; meeting a passer-by opens their character sheet (DEC-031).
+// M5b: the town card shows the town's character (DEC-077 §1; in the pocket's
+// Town tab, DEC-088); a place lists who is there; meeting a passer-by opens
+// their character sheet (DEC-031).
 test("town character, people at a place, and a character sheet", async ({ page }) => {
   await page.goto("./");
   await page.getByPlaceholder("e.g. 20260").fill("2718");
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
-  const card = page.getByTestId("town-card");
+  const card = (await openPocket(page, "town")).getByTestId("town-card");
   await expect(card).toBeVisible();
   await expect(card.getByTestId("town-industry")).not.toHaveText("—");
   await expect(card.getByTestId("town-rival")).not.toHaveText("—");
 
-  await showList(page);
+  await showPlaces(page);
   await page.getByTestId("spot-market").first().click();
   const panel = page.getByTestId("place-panel");
   await expect(panel.getByTestId("you-are-here-panel")).toBeVisible();
@@ -193,9 +195,3 @@ test("town character, people at a place, and a character sheet", async ({ page }
     await expect(sheet.getByTestId("character-memories")).toContainText("first met");
   }
 });
-
-/** The town opens on its map (DEC-086); these tests use the List view's place buttons. */
-async function showList(page: Page) {
-  await page.getByTestId("town-tab-list").click();
-  await expect(page.getByRole("tabpanel", { name: /List/ })).toBeVisible();
-}

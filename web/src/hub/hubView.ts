@@ -45,6 +45,8 @@ const TILE = 16;
 
 /** Labels shown at once when zoomed out (TOWN_GENERATION.md §8: at most 12 on the overview). */
 export const LABEL_CAP = 12;
+/** Zoom (CSS px per art px) from which every building label may show; below it, landmarks and at most LABEL_CAP. Slightly under 2 so a device-pixel step just below 2 (e.g. 1.9 at DPR 2.625) still counts. */
+export const LABEL_ZOOM = 1.75;
 
 export interface LabelBox {
   index: number;
@@ -292,7 +294,7 @@ export class HubView {
     this.labels.forEach(({ b, el }, i) => {
       const p = this.camera.worldToScreen({ x: (b.x + b.w / 2) * TILE, y: (b.y - ROOF_ROWS) * TILE });
       pos[i] = p;
-      const want = (z >= 2 || b.landmark) && p.x > -120 && p.x < this.cssW + 120 && p.y > -10 && p.y < this.cssH + 40;
+      const want = (z >= LABEL_ZOOM || b.landmark) && p.x > -120 && p.x < this.cssW + 120 && p.y > -10 && p.y < this.cssH + 40;
       if (!want) return;
       let size = this.labelSize.get(el);
       if (!size) {
@@ -303,7 +305,7 @@ export class HubView {
       }
       cands.push({ index: i, x: p.x - size.w / 2, y: p.y - size.h, w: size.w, h: size.h, priority: (b.landmark ? 0 : b.home ? 1 : 2) * 100000 + b.index });
     });
-    const shown = chooseLabels(cands, z < 2 ? LABEL_CAP : Infinity);
+    const shown = chooseLabels(cands, z < LABEL_ZOOM ? LABEL_CAP : Infinity);
     this.labels.forEach(({ el }, i) => {
       const show = shown.has(i);
       el.style.display = show ? "" : "none";
@@ -393,7 +395,8 @@ export class HubView {
     if (first) {
       // About fourteen tiles across the shorter side, on a whole zoom step.
       const z0 = Math.max(2, Math.min(4, Math.min(this.cssW, this.cssH) / (TILE * 14)));
-      const z = Math.max(step, Math.round(z0 / step) * step);
+      // Round up to a whole step: never open below the labelled range.
+      const z = Math.max(step, Math.ceil(z0 / step - 1e-9) * step);
       this.camera.state.zoom = z;
       const c = this.camera.clampCentre(this.scene.player.x * TILE, this.scene.player.y * TILE - 8, z);
       this.camera.state.x = c.x;

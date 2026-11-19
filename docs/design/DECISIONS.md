@@ -1695,6 +1695,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - `hubView.ts`: the DOM controller (canvas at CSS resolution, HTML labels, camera input, a loop that sleeps when idle, 30 fps for ambient-only frames, paused when hidden or a panel is open).
   - The hub spike's main page is now this town on the real engine (`/mandate/spike-hub/?seed=`); the original renderer comparison moved to `spike-hub/compare.html`. Measurements: `web/spikes/hub/RESULTS.md`.
 
+- **Battery (owner, 2026-11-19).** Townsfolk kept the street drawing at 30 fps whenever it was on screen, at device resolution. Agreed fixes (W3):
+  - idle sleep: after about 20 s without input, townsfolk pause and drawing stops, and any input wakes them;
+  - ambient townsfolk at 15 fps (the player and the camera stay smooth);
+  - the loop pauses while the pocket sheet covers most of the street on a phone, or the map overlay is open;
+  - a Playwright budget test with a throttled phone CPU measures idle CPU use on the street view.
+  - Later, with Settings: a battery saver (fewer townsfolk, no ambient animation, lower resolution), on automatically with reduced motion.
 ### DEC-081 — Logo and loading animation
 
 - **Status:** Accepted (owner, 2026-11-18: "I agree b for logo c for loader", choosing from four concepts: ballot box, rising poll line, career-ladder seal, pixel capitol).

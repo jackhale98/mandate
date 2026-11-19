@@ -1,15 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openPocket, showPlaces } from "./pocket";
 
 // M5d (DEC-034, DEC-006, DEC-073): a shady choice shows its risk before it is
 // made; months later the story comes out, the newspaper runs it, and an
 // investigation raises a legal-response decision, answered from the pocket.
 // Seed 37 (small) is a world where the envelope's fate is to come out within
 // a few months and prosecutors open a case (the engine is deterministic).
-const openPocket = async (page: Page) => {
-  if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
-  await expect(page.getByTestId("pocket")).toBeVisible();
-  return page.getByTestId("pocket");
-};
 
 const closeSheet = async (page: Page, testId: string) => {
   const sheet = page.getByTestId(testId);
@@ -55,10 +51,9 @@ test("a shady choice comes out later, makes the paper, and draws an investigatio
   await expect(pocket.getByTestId("pocket-legal").getByTestId("scandal").first()).toContainText("a cash bribe");
   await closeSheet(page, "pocket");
 
-  // The newspaper office runs it, with the outlet and its framing (from the List view;
-  // the town screen opens on the map, DEC-086).
-  await page.getByTestId("town-tab-list").click();
-  await expect(page.getByRole("tabpanel", { name: /List/ })).toBeVisible();
+  // The newspaper office runs it, with the outlet and its framing (from the
+  // pocket's Places tab, DEC-088).
+  await showPlaces(page);
   const office = (await page.getByTestId("spot-news_office").count()) > 0 ? "spot-news_office" : "spot-town_hall";
   const spot = page.getByTestId(office).first();
   await spot.evaluate((el) => el.scrollIntoView({ block: "center" }));

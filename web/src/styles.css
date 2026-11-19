@@ -120,12 +120,8 @@ h2 { font-size: 1.1rem; }
 .run-actions { display: flex; gap: 8px; }
 .foot { text-align: center; font-size: 0.8rem; }
 
-.game { min-height: 100%; display: flex; flex-direction: column; }
-.hud {
-  position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: var(--surface); border-bottom: 1px solid var(--border);
-}
-.hud-date { display: flex; flex-direction: column; }
+/* The game: the screen (the town's street, or a country view) above a slim bar. Sheets sit above the bar. */
+.game { min-height: 100%; display: flex; flex-direction: column; --bar-h: calc(60px + env(safe-area-inset-bottom)); }
 .chip { font-size: 0.8rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--accent); }
 .game-body { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: var(--gap); }
 .sub { font-size: 0.9rem; color: var(--muted); font-weight: 600; margin-top: 8px; }
@@ -135,11 +131,6 @@ h2 { font-size: 1.1rem; }
 .num { font-variant-numeric: tabular-nums; }
 .events li { display: flex; flex-direction: column; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .events time { font-size: 0.8rem; }
-.actionbar {
-  position: sticky; bottom: 0; display: flex; gap: 10px; justify-content: flex-end;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border);
-}
-.actionbar .btn-primary { flex: 1; max-width: 280px; }
 
 .banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 16px; }
 .banner-error { background: color-mix(in srgb, var(--danger) 22%, var(--surface)); }
@@ -177,7 +168,7 @@ h2 { font-size: 1.1rem; }
 .sheet {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; max-height: 70vh; overflow: auto;
   background: var(--surface); border-top: 1px solid var(--border); border-radius: 16px 16px 0 0;
-  box-shadow: 0 -8px 24px rgba(0,0,0,0.25); padding: 16px 16px calc(84px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.25); padding: 16px;
 }
 @media (min-width: 900px) {
   .sheet { left: auto; top: 0; width: 400px; max-height: none; border-radius: 0; border-left: 1px solid var(--border); padding-top: 72px; }
@@ -271,7 +262,6 @@ h2 { font-size: 1.1rem; }
 
 /* M3: office, bills, council */
 .small { font-size: 0.875rem; }
-.hud-right { display: flex; gap: 6px; align-items: center; }
 .chip-muted { border-color: var(--border); color: var(--muted); }
 .btn-sm { min-height: 40px; padding: 0 12px; font-size: 0.875rem; }
 .tabs { overflow-x: auto; scrollbar-width: none; }
@@ -368,9 +358,6 @@ h2 { font-size: 1.1rem; }
 .seg[aria-disabled="true"] { opacity: 0.5; }
 /* Compact HUD on phones */
 .chip { white-space: nowrap; }
-.hud-date .muted { font-size: 0.8rem; }
-.hud-right { flex-wrap: wrap; justify-content: flex-end; }
-@media (max-width: 480px) { .hud-right .chip-muted { display: none; } .hud { gap: 8px; } }
 .tradeoff { margin: 4px 0 8px; font-size: 0.85rem; color: var(--muted); border-left: 3px solid var(--border); padding-left: 8px; }
 .tradeoff strong { color: var(--text); font-weight: 600; }
 .ad-buy { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
@@ -378,14 +365,10 @@ h2 { font-size: 1.1rem; }
 
 /* M5a: places as the interface (DEC-079). The town is a list of
    neighbourhood sections with place buttons; it reads as a schematic. */
-.actionbar { z-index: 7; align-items: center; justify-content: space-between; }
-.actionbar .btn-primary { flex: 0 1 auto; min-width: 120px; }
 .pocket-btn { display: inline-flex; align-items: center; gap: 6px; }
 .badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--accent); color: var(--accent-ink); }
-.where { flex: 1; min-width: 0; text-align: center; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .viewbar { display: flex; align-items: center; gap: 10px; padding: 4px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
-.town { max-width: 1100px; }
-.town-title { font-size: 1.15rem; margin: 0; }
 .town-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
 @media (min-width: 700px) { .town-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1100px) { .town-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -394,7 +377,7 @@ h2 { font-size: 1.1rem; }
   background: repeating-linear-gradient(45deg, var(--surface), var(--surface) 10px, color-mix(in srgb, var(--surface-2) 55%, var(--surface)) 10px, color-mix(in srgb, var(--surface-2) 55%, var(--surface)) 20px);
 }
 .hood-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: 10px; }
-.hood-head h2 { margin: 0; font-size: 1rem; }
+.hood-head h2, .hood-head h3 { margin: 0; font-size: 1rem; }
 .spots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .spot {
   width: 100%; height: 100%; min-height: 64px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
@@ -445,7 +428,7 @@ h2 { font-size: 1.1rem; }
 .sheet-head { position: sticky; top: -16px; z-index: 1; background: var(--surface); margin: -16px -16px 8px; padding: 16px 16px 8px; border-bottom: 1px solid var(--border); }
 .pocket { max-height: 85vh; }
 @media (min-width: 900px) {
-  .pocket, .place-panel { top: 63px; bottom: 0; padding-top: 16px; max-height: none; }
+  .pocket, .place-panel { max-height: none; }
   .with-panel .game-body { padding-right: 416px; max-width: none; }
   .with-pocket .game-body { padding-left: 416px; max-width: none; }
 }
@@ -465,7 +448,7 @@ h2 { font-size: 1.1rem; }
 .memory-bad { border-left: 3px solid var(--bad); padding-left: 6px; }
 .memory-good { border-left: 3px solid var(--good); padding-left: 6px; }
 .memory-mixed { border-left: 3px solid var(--border); padding-left: 6px; }
-.town-card { margin-bottom: 12px; }
+
 .facts { margin: 0; display: grid; gap: 6px; }
 .facts > div { display: grid; grid-template-columns: minmax(7rem, 11rem) 1fr; gap: 8px; align-items: baseline; }
 .facts dt { color: var(--muted); font-size: 0.85rem; }
@@ -494,7 +477,7 @@ h2 { font-size: 1.1rem; }
 @media (max-width: 899px) { .sheet.decision-sheet { max-height: 85vh; } }
 @media (min-width: 900px) {
   .decision-scrim { display: block; background: transparent; }
-  .decision-sheet, .story-sheet { top: 63px; bottom: 0; padding-top: 16px; max-height: none; }
+  .decision-sheet, .story-sheet { max-height: none; }
 }
 .decision-title { margin: 4px 0; }
 .options { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
@@ -529,12 +512,13 @@ h2 { font-size: 1.1rem; }
 .run-ended { border-width: 2px; }
 /* Sheet heads stay flush with the top of the sheet's scroll area, so nothing
    scrolls into view above them. A sticky box is pinned inside its scroller's
-   padding, so sheets have no top padding (the head carries it), and on wide
-   screens every sheet docks below the HUD instead of behind it. */
-.sheet { padding-top: 0; }
+   padding, so sheets have no top padding (the head carries it). Sheets stand
+   on the game's bar (it stays in view); on wide screens they run from the top
+   of the screen down to it. */
+.sheet { padding-top: 0; bottom: var(--bar-h, 0px); }
 .sheet > .sheet-head { top: 0; margin-top: 0; }
 @media (min-width: 900px) {
-  .sheet { top: 63px; bottom: 0; max-height: none; padding-top: 0; }
+  .sheet { top: 0; max-height: none; padding-top: 0; }
 }
 /* The pocket docks on the left on wide screens: it slides in from, and out to, the left. */
 @keyframes sheet-from-left { from { transform: translateX(-100%); } }
@@ -560,32 +544,14 @@ h2 { font-size: 1.1rem; }
 @media (max-width: 599px) {
   .map-layer-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
-/* DEC-086: the town map overview. The map is the town screen's main view
-   (Map | List); the list stays the text view. Names and markers are HTML
-   over the canvas; the canvas has the town's colours (pixel-art palette). */
-.town { container-type: inline-size; container-name: town; }
-.town-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
-.town-layout > .town-card { margin-bottom: 0; }
-.town-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-@container town (min-width: 760px) {
-  .town-layout { grid-template-columns: minmax(0, 1fr) 290px; }
-  .town-layout > .town-card { grid-column: 2; grid-row: 1; position: sticky; top: 0; }
-  .town-layout > .town-main { grid-column: 1; grid-row: 1; }
-  .town-layout > .town-card .facts > div { grid-template-columns: 1fr; gap: 0; }
-}
-@media (max-width: 699px) {
-  .town-layout > .town-card { padding: 10px 12px; }
-  .town-layout > .town-card h2 { font-size: 0.95rem; margin: 0 0 6px; }
-  .town-layout > .town-card .facts { gap: 3px; font-size: 0.85rem; }
-  .town-layout > .town-card .facts > div { grid-template-columns: minmax(6rem, 8rem) 1fr; }
-}
-.town-tabs { padding: 0; background: none; border-bottom: 1px solid var(--border); }
-.town-map { display: flex; flex-direction: column; gap: 6px; }
+/* DEC-086: the town map overview, full screen over the street (DEC-088 main
+   screen). Names and markers are HTML over the canvas; the canvas has the
+   town's colours (pixel-art palette). */
+.town-map { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .town-map-wrap {
-  position: relative; width: 100%; min-height: 260px; max-height: min(66dvh, 760px); overflow: hidden;
-  border-radius: var(--radius); border: 1px solid var(--border); background: #4f8440; touch-action: none; user-select: none; -webkit-user-select: none;
+  position: relative; flex: 1; width: 100%; min-height: 0; overflow: hidden;
+  background: #4f8440; touch-action: none; user-select: none; -webkit-user-select: none;
 }
-@media (max-width: 699px) { .town-map-wrap { min-height: 320px; max-height: min(58dvh, 560px); } }
 .town-map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
 .town-map-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .town-map-hit {
@@ -619,27 +585,102 @@ h2 { font-size: 1.1rem; }
 .town-map-chip-streets.town-map-chip-here { background: #e8b44c; color: #1b1405; border: 2px solid #11131a; }
 .town-map-tools { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
 .town-map-tool { min-width: 40px; min-height: 40px; padding: 0; font-size: 1.1rem; line-height: 1; background: color-mix(in srgb, var(--surface) 88%, transparent); }
-.town-map-status { margin: 0; min-height: 1.2em; }
-.town-map-status:empty { display: none; }
-.town-map-help { margin: 0; }
+.town-map-status, .town-street-status {
+  position: absolute; left: 50%; top: 10px; z-index: 2; transform: translateX(-50%); max-width: calc(100% - 32px); margin: 0;
+  padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.town-map-status:empty, .town-street-status:empty { display: none; }
+.town-map-help { margin: 0; padding: 6px 16px calc(6px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); }
 @media (prefers-reduced-motion: reduce) { .town-map-hit, .town-map-chip { will-change: auto; } }
 
-/* The town while it is laid out (the plan is made in the town worker), and the walkable street (DEC-088). */
-.town-map-pending {
-  display: grid; place-items: center; width: 100%; min-height: 320px; aspect-ratio: 16 / 10; max-height: min(66dvh, 760px);
-  border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface);
-}
-.town-street { display: flex; flex-direction: column; gap: 6px; }
-.town-street-frame {
-  position: relative; width: 100%; height: min(66dvh, 760px); min-height: 320px; overflow: hidden;
-  border-radius: var(--radius); border: 1px solid var(--border); background: #3d6633;
-}
-@media (max-width: 699px) { .town-street-frame { height: min(60dvh, 600px); } }
+/* The main screen (DEC-088): the walkable street, full screen above the bar;
+   while the town is laid out (the plan is made in the town worker), a loader. */
+.town-screen { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #3d6633; }
+.town-map-pending { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface); }
+.town-error { margin: 16px; }
+.town-street, .town-street-frame { position: absolute; inset: 0; overflow: hidden; }
 .town-street-stage { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .town-street-loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface); }
-.town-map-walk {
-  position: absolute; left: 8px; top: 8px; z-index: 2; min-height: 40px; font-weight: 700;
-  background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+/* The top of the street: where you are (neighbourhood · place), the campaign chip and
+   messages. A translucent dark pill, readable by day and night; it never takes taps. */
+.town-top {
+  position: absolute; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top)); z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none;
+}
+.town-where {
+  margin: 0; max-width: min(100%, 560px); padding: 5px 14px; border-radius: 16px; text-align: center; line-height: 1.3;
+  background: rgba(17, 19, 26, 0.62); color: #f5f2ea; font-size: 0.9rem; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); overflow-wrap: anywhere;
+}
+.town-where-zone { font-weight: 700; letter-spacing: 0.02em; }
+.town-where-place { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.town-top-chip { background: var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+.town-top .town-street-status { position: static; transform: none; pointer-events: none; }
+/* The town map overlay: a full-screen dialog over the street and the bar. */
+.town-map-overlay { position: fixed; inset: 0; z-index: 8; display: flex; flex-direction: column; background: var(--bg); animation: fade-in 160ms ease-out; }
+.town-map-overlay-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: calc(6px + env(safe-area-inset-top)) 8px 6px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.town-map-overlay-head h2 { margin: 0; font-size: 1rem; }
+.town-map-overlay-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+@media (prefers-reduced-motion: reduce) { .town-map-overlay { animation: none; } }
+
+/* The bar (DEC-088 main screen): the town map, the date and slots, the pocket, End turn. */
+.gamebar {
+  position: relative; z-index: 7; display: flex; align-items: center; gap: 8px; height: var(--bar-h); flex: none;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border);
+}
+.gamebar .btn { flex: none; }
+.gamebar-map { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; }
+.gamebar-date { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.gamebar-date strong { font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gamebar-sub { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gamebar-slots { color: var(--text); letter-spacing: 0.05em; }
+.gamebar-end { min-width: 104px; }
+.pocket-btn { padding: 0 12px; }
+.pocket-btn .badge { display: inline-flex; gap: 2px; }
+@media (max-width: 599px) {
+  .gamebar { gap: 6px; padding-left: 8px; padding-right: 8px; }
+  .gamebar-span { display: none; }
+  /* The labels stay for screen readers (the pocket button's name). */
+  .gamebar-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .gamebar-map, .pocket-btn { padding: 0 10px; }
+  .gamebar-end { min-width: 0; padding: 0 12px; }
+}
+/* Skip link (DEC-051): hidden until focused, then the first thing on screen. */
+.skip-link {
+  position: fixed; left: 8px; top: 8px; z-index: 11; padding: 10px 16px; border-radius: 10px;
+  background: var(--accent); color: var(--accent-ink); font-weight: 700; text-decoration: none; transform: translateY(-200%);
+}
+.skip-link:focus, .skip-link:focus-visible { transform: none; outline: 3px solid var(--info); outline-offset: 2px; }
+
+/* The pocket's tabs (DEC-088): at the top of the sheet, in its sticky head. */
+.sheet-head.pocket-head { flex-direction: column; align-items: stretch; gap: 4px; padding-bottom: 0; }
+.pocket-head-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.pocket-head h2 { margin-bottom: 2px; }
+.pocket-head p { margin: 0 0 4px; }
+.pocket-tabs { padding: 0; margin: 0 -16px; padding-left: 8px; background: none; border-bottom: 0; }
+.pocket-tab { flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 0 8px; }
+.pocket-tab-badge { padding: 1px 6px; }
+.pocket-panel { display: flex; flex-direction: column; gap: 12px; }
+.pocket-panel:focus { outline: none; }
+.pocket-panel:focus-visible { outline: 3px solid var(--info); outline-offset: 4px; }
+.pocket-tab-title { margin: 0; font-size: 1.05rem; }
+.pocket .town-grid { grid-template-columns: 1fr; }
+.places-help { margin: 0; }
+.town-hoods li { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.town-hoods li:last-child { border-bottom: 0; }
+.town-hood-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.town-rival-plan { display: block; margin-top: 2px; }
+.people-figures li { padding: 6px 0; }
+.pocket-dock { display: none; }
+@media (min-width: 900px) {
+  .pocket-dock { display: inline-flex; align-items: center; }
+  /* Docked: the pocket stays open beside the town and the street makes room for it. */
+  .with-pocket-docked .town-screen, .with-pocket-docked .map-body, .with-pocket-docked .viewbar { margin-left: 400px; }
+  .with-pocket-docked .game-body { padding-left: 416px; max-width: none; }
+  .sheet.pocket-docked { box-shadow: none; }
 }
 .hub-label { border: 1px solid transparent; border-radius: 6px; padding: 1px 6px; background: rgba(17, 19, 26, 0.8); color: #fff; font: 600 12px var(--font); cursor: pointer; }
 .hub-label-landmark { border-color: #e8b44c; color: #e8b44c; }

@@ -1387,6 +1387,14 @@
         "name_key": {
           "description": "Fluent key of the concern's name, e.g. `concern-jobs`.",
           "type": "string"
+        },
+        "talk_key": {
+          "default": null,
+          "description": "Fluent key of the concern as people name it in talk: a lower-case\nnoun phrase for mid-sentence use (\"the rent\"), as sectors have; the\nname is used without one.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -1426,6 +1434,21 @@
         "max"
       ],
       "type": "object"
+    },
+    "ConcernOf": {
+      "description": "Whose top concern a `concern` condition reads.",
+      "oneOf": [
+        {
+          "const": "speaker",
+          "description": "The speaker's home neighbourhood (what worries them).",
+          "type": "string"
+        },
+        {
+          "const": "town",
+          "description": "The player's town.",
+          "type": "string"
+        }
+      ]
     },
     "Condition": {
       "description": "A condition on live state in the player's town. Roles name cast actors.",
@@ -1921,7 +1944,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "The player knows the subject at least this well (DEC-091; default\n`heard`). A subject naming several places holds if any is known.",
+          "description": "The player knows the subject at least this well (DEC-091; default\n`heard`). A subject naming several places holds if any is known.\nFraming only (scene variants, lines, option framing, leads):\nvalidation refuses it where a condition decides whether something\nhappens (dilemma triggers, goal conditions, storyline starts and\nadvances), because the world does not wait for the player.",
           "properties": {
             "min": {
               "$ref": "#/$defs/Level",
@@ -8600,6 +8623,52 @@
             "of"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The speaker's voice (`talk_voices`) is one of these, so a line\n(an opener) follows the voice the closers use. Conversations only;\nnot allowed in a voice's own conditions.",
+          "properties": {
+            "type": {
+              "const": "voice",
+              "type": "string"
+            },
+            "voices": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "type",
+            "voices"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The top concern of the speaker's home neighbourhood (`speaker`) or of\nthe town (`town`) is one of these: `$concern_key` (the name),\n`$concern_talk_key` (the noun phrase of talk). The town form reads no\nslot, so it may also stand in a town's situation.",
+          "properties": {
+            "concerns": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "of": {
+              "$ref": "#/$defs/ConcernOf"
+            },
+            "type": {
+              "const": "concern",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "of",
+            "concerns"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -9068,7 +9137,7 @@
       "oneOf": [
         {
           "additionalProperties": false,
-          "description": "The town's worries: `$concern_key` (the strongest).",
+          "description": "The town's worries: `$concern_key` (the strongest; its noun phrase\nof talk, `$concern_talk_key`).",
           "properties": {
             "type": {
               "const": "town_concerns",
@@ -9082,7 +9151,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "A neighbourhood's worries: `$hood`, `$concern_key`.",
+          "description": "A neighbourhood's worries: `$hood`, `$concern_key`, `$concern_talk_key`.",
           "properties": {
             "of": {
               "$ref": "#/$defs/HoodOf"

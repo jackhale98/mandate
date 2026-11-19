@@ -716,6 +716,29 @@ fn named_count(s: &mandate_sim::State) -> usize {
         .count()
 }
 
+/// Whether an item names a role list holding only `role`.
+fn only_for(x: &serde_json::Value, role: &serde_json::Value) -> bool {
+    match x {
+        serde_json::Value::Array(a) => {
+            (a.len() == 1 && &a[0] == role) || a.iter().any(|y| only_for(y, role))
+        }
+        serde_json::Value::Object(o) => o.values().any(|y| only_for(y, role)),
+        _ => false,
+    }
+}
+
+/// Remove `role` from every list in a value.
+fn strip(x: &mut serde_json::Value, role: &serde_json::Value) {
+    match x {
+        serde_json::Value::Array(a) => {
+            a.retain(|y| y != role);
+            a.iter_mut().for_each(|y| strip(y, role));
+        }
+        serde_json::Value::Object(o) => o.values_mut().for_each(|y| strip(y, role)),
+        _ => {}
+    }
+}
+
 /// Characters keep their traits and occupations: content that removes one
 /// the save uses is refused; content that adds or removes a crisis kind just
 /// recomputes town characters.
@@ -740,9 +763,9 @@ fn saves_and_the_character_registries() {
         let (state, _) = decode(&bytes).unwrap();
         mandate_sim::Engine::from_state(state, bundle)
     };
-    // A used occupation removed: refused, naming it. (One only outlets name
-    // besides its own file; the outlets lose it too, so the content itself
-    // still validates.)
+    // A used occupation removed: refused, naming it. (One only outlets and
+    // conversations name besides its own file; those lose it too, so the
+    // content itself still validates.)
     let all =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
     let named_elsewhere = |id: &str| {
@@ -750,7 +773,8 @@ fn saves_and_the_character_registries() {
             !matches!(
                 s.path.as_str(),
                 "base/occupations.jsonc" | "base/outlets.jsonc"
-            ) && s.text.contains(&format!("\"{id}\""))
+            ) && !s.path.starts_with("base/conversations/")
+                && s.text.contains(&format!("\"{id}\""))
         })
     };
     let used = e
@@ -786,6 +810,21 @@ fn saves_and_the_character_registries() {
             }
         }
         f.text = v.to_string();
+        // Conversations: the role leaves every list, and a line or topic
+        // left for no role at all goes.
+        for f in src
+            .iter_mut()
+            .filter(|s| s.path.starts_with("base/conversations/"))
+        {
+            let mut v: serde_json::Value =
+                serde_json::from_str(&mandate_content::jsonc::to_strict_json(&f.text)).unwrap();
+            let gone = serde_json::json!(used);
+            if let Some(items) = v.get_mut("items").and_then(|i| i.as_array_mut()) {
+                items.retain(|x| !only_for(x, &gone));
+            }
+            strip(&mut v, &gone);
+            f.text = v.to_string();
+        }
     });
     match r {
         Err(err) => assert!(err.to_string().contains(&used), "{err}"),

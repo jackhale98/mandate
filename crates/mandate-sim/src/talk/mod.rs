@@ -538,7 +538,9 @@ fn prepare(
 }
 
 /// `$speaker`, `$player`, `$town`, `$here`, and `$about` / `$about_key`.
-fn context_args(ctx: &Ctx<'_>) -> Args {
+/// A place without a proper name is named by its kind, as a Fluent key
+/// (`here_key`, `about_key`: "the union hall"; `Ctx::place_arg`).
+pub fn context_args(ctx: &Ctx<'_>) -> Args {
     let st = ctx.st;
     let mut a = Args::new();
     a.insert("speaker".into(), ctx.name_of(ctx.speaker));
@@ -546,19 +548,24 @@ fn context_args(ctx: &Ctx<'_>) -> Args {
     if let Some(m) = st.world.municipalities.get(ctx.town.index()) {
         a.insert("town".into(), m.name.clone());
     }
-    let here = match ctx.here {
-        Location::Place { place } => st.world.places.get(place.index()).map(|p| p.name.clone()),
-        Location::Street { .. } | Location::Home => crate::places::hood_of(st, ctx.here)
-            .and_then(|h| st.world.neighborhoods.get(h.index()))
-            .map(|h| h.name.clone()),
-    };
-    if let Some(h) = here {
-        a.insert("here".into(), h);
+    match ctx.here {
+        Location::Place { place } => {
+            if let Some(p) = st.world.places.get(place.index()) {
+                ctx.place_arg(p, "here", &mut a);
+            }
+        }
+        Location::Street { .. } | Location::Home => {
+            if let Some(h) = crate::places::hood_of(st, ctx.here)
+                .and_then(|h| st.world.neighborhoods.get(h.index()))
+            {
+                a.insert("here".into(), h.name.clone());
+            }
+        }
     }
     match ctx.about {
         Some(AboutRef::Place { place }) => {
             if let Some(p) = st.world.places.get(place.index()) {
-                a.insert("about".into(), p.name.clone());
+                ctx.place_arg(p, "about", &mut a);
             }
         }
         Some(AboutRef::Person { person }) => {
