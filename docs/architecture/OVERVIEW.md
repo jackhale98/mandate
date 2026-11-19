@@ -117,12 +117,14 @@ Player commands and NPC turns run before the calendar advances. Then the schedul
 | 5 | Environment | `environment.drift`, `environment.hazards` (monthly) |
 | 6 | Economy | `economy.global`, `economy.markets`, `economy.national`, `finance.accrue` (monthly); `finance.budget_year` (yearly) |
 | 7 | Population | `population.migration` (monthly), `population.demography` (yearly) |
-| 8 | Information | None yet (**planned**: media coverage and scandal discovery, M5d part 1) |
+| 8 | Information | Media coverage and scandal discovery (`media`, M5d part 1) |
 | 9 | Opinion | `population.concerns`, `population.opinion` (monthly) |
 | 10 | Elections | `politics.elections` (daily) |
 | 11 | Characters | `characters.effects` (daily); `player.monthly`, `politics.monthly`, `characters.monthly` (monthly); `politics.yearly` (yearly) |
 | 12 | Director | `narrative.fairness` (daily), `narrative.director` (weekly) |
 | 13 | Commit | `calendar.year` (yearly) |
+
+**Settle step (recorded 2026-11-19).** After an advance's last day (end of turn, `AdvanceDays`), if effects are still queued, the day's effect appliers run once more on the same date, in schedule order: `population.coverage`, `characters.effects`, `politics.media_effects`, `player.effects`. Effects applied only by monthly systems (`HousingDamage`, `SectorShock`, `Displacement`, `HoodDisaster`) carry to the next advance. Player effects with no player are dropped. It draws no RNG and does nothing on an empty queue, so a turn ends with nothing pending and a save between turns misses nothing. Before this, effects posted late on a turn's last day (e.g. the director's Learn effects for a decision opened that day) were lost. It lives in `engine.rs` (`Engine::settle`). Burn-in does not settle, to keep generated worlds unchanged. Tests: `a_decision_opened_on_a_turns_last_day_teaches_its_cast`, plus determinism and save/load/continue.
 
 Changing this order is a recorded architecture change and needs a determinism test update.
 
