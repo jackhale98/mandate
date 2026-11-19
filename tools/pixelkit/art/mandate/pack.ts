@@ -10,10 +10,11 @@ import type { Palette } from "../../src/core/palette";
 import { buildLighting, type Lighting } from "./lighting";
 import { buildMandatePalette } from "./palette";
 import { buildProps, lampPool, windowSpill, type BuiltProp, type Pool, type Spill } from "./props";
+import { buildTerrain, type TerrainSet } from "./terrain";
 import { buildTiles, type TileSet } from "./tiles";
 
 /** Bump when any drawing or rule changes what an existing look or building looks like (§3.5 rule 8). */
-export const PACK_VERSION = "mandate-p0.4";
+export const PACK_VERSION = "mandate-p0.5";
 
 export interface ArtPack {
   version: string;
@@ -21,6 +22,8 @@ export interface ArtPack {
   /** Oklab lightness ×1000 per colour, frozen (the runtime does no colour maths). */
   lightness: number[];
   tiles: TileSet;
+  /** Layout v2 terrain (round 4): shore templates, v2 grounds, the legend and step tables the painter draws with. */
+  terrain: TerrainSet;
   props: Record<string, BuiltProp[]>;
   pool: Pool;
   /** Light from lit shop windows onto the pavement (round 2). */
@@ -48,6 +51,7 @@ export function buildPack(): ArtPack {
     palette,
     lightness: L,
     tiles: buildTiles(palette),
+    terrain: buildTerrain(palette),
     props: buildProps(palette, L),
     pool: lampPool(palette),
     spill: windowSpill(palette),
@@ -58,3 +62,4 @@ export function buildPack(): ArtPack {
 export { composeCharacter, faceLeft, lookFromSeed, PLAYER_LOOK, FRAMES, FACINGS, ANCHOR, type Look } from "./characters";
 export { buildFacade, type FacadeSpec, type Facade } from "./buildings";
 export { groundTile, TERRAINS } from "./tiles";
+export { TerrainPainter, tileOf, TERRAIN, V1_NAMES, V2_CODES, V2_NAMES, CONNECTOR_KINDS, type TerrainView, type ConnectorView } from "./terrain";

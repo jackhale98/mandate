@@ -99,6 +99,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-090 | Town layout v2: terrain-first, data-driven districts, size from population, hidden places | Accepted |
 | DEC-091 | Knowledge is earned: who and what you know comes from places and people | Accepted |
 | DEC-092 | Policy families grounded in the town, with design choices and sponsors, all in content | Accepted |
+| DEC-093 | Conversations: talk to people by topic; replies composed from grounded content lines | Accepted |
 
 ---
 
@@ -1943,4 +1944,76 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - A first pack of 15–20 families, including the M5d part 2 situational policies converted.
   - The 11 standard templates are trimmed to the general levers.
   - Saves gain policy instances with a migration.
+- **Need-aware reactions (owner, 2026-11-19).** The owner asked whether a housing bill matters less in a town with many empty homes. Today a bill's anticipated reaction is need-blind value alignment, and only its outcomes (rents, jobs, services) respond to the town's state, without diminishing returns.
+  - Each policy and family option names the concerns it **addresses**.
+  - A group's reaction scales with how bad those concerns are in its neighbourhood (a base level plus a weight × the level).
+  - A waste term ("why spend on this?") applies from tax-averse groups when need is low, scaled by cost.
+  - Outcome models gain diminishing returns where they are real: homes above target vacancy, subsidies without spare labour, saturating services, hazard protection where there is no hazard.
+  - Previews and "Why?" show the need part.
+  - A lab **policy responsiveness** gate checks that each policy's effect differs between high-need and low-need towns.
+  - The contract is in `M6_ENGINE_CONTRACTS.md` §2.22.
+- **Open questions answered (owner, 2026-11-19): all recommendations** in `M6_ENGINE_CONTRACTS.md` §5:
+  - arrival teaches lightly;
+  - councillors' names are public;
+  - a heard proposal is a stub with a lead;
+  - a paid survey at the statistics desk;
+  - flood defences, the tech incubator and the wage floor are retired into families (8 standard levers remain);
+  - about two-thirds of eligible families per run, at most 4 open;
+  - sponsors ask a favour or an endorsement, never cash;
+  - lobbying the tier above is deferred to M7;
+  - NPCs keep no notebooks;
+  - small mod patches are allowed;
+  - unknowns show a placeholder with a lead;
+  - "Reopen the bridge" is deferred;
+  - a conversation costs half a slot, and "say hello" stays free;
+  - guardedness follows the relationship;
+  - repeat questions give a different line and nothing new;
+  - pronouns come with pixel-art P1.
 - **Dependencies:** DEC-024, DEC-026, DEC-041, DEC-053, DEC-073, DEC-077, DEC-078, DEC-079, DEC-090, DEC-091.
+
+### DEC-093 — Conversations
+
+- **Status:** Accepted (owner, 2026-11-19). The owner asked how robust sentence generation is, and whether NPCs just stand near the player while information updates, or whether the player actually talks to them. Owner: "Yes, record DEC-093 and add it to the brief."
+- **Context:** lines are hand-written Fluent templates with slots, chosen by the engine (DEC-054). They are grammatical, grounded, deterministic and translatable, but variety is limited by how many lines exist. Today talking means three things, and none of them lets the player choose what to say:
+  - passive overheard chatter at places;
+  - "Say hello" (`Meet`: free, builds the relationship, no dialogue);
+  - scripted two- or three-beat scenes for pending decisions (DEC-035).
+- **Decision:**
+  - **Topics, not dialogue trees.** Talking to someone (walking up to them, DEC-088, or choosing them in the List view) offers topics:
+    - what people are worried about;
+    - who really runs things;
+    - about a subject (the plant, the bridge, a bill, the rival);
+    - pitch a policy;
+    - ask for support or an endorsement;
+    - call in or offer a favour;
+    - small talk.
+
+    Topics are offered by role, place, relationship and what the player already knows.
+  - **Replies are chosen from content lines by conditions:**
+    - the speaker's role, traits and goals;
+    - what they know, and what they are willing to tell you, given your relationship and their discretion;
+    - their memories of you (quotes, DEC-031);
+    - the live facts.
+
+    Conditions use the same reusable condition type as situational policies and policy-family triggers (DEC-092).
+  - **Effects:**
+    - A reply can teach the player something (the DEC-091 ledger, with this person as the source), open a lead, reveal a proposal (DEC-092 sponsors), or change the relationship.
+    - Effects go through effect requests (OVERVIEW §4.3).
+    - Each conversation costs time (a slot, or part of one), so choosing whom to talk to is a decision.
+  - **Variety by composition:** a reply is up to three parts:
+    - an opener, which depends on the relationship;
+    - the substance, which depends on the facts;
+    - a closer, in the speaker's voice.
+
+    Voices come from traits: a blunt union steward and a smooth developer say the same fact differently. Memory quotes layer on top. A few hundred lines give thousands of distinct, grounded exchanges.
+  - **Repetition guard:** a person never repeats a line to you while an alternative exists. Picks are keyed by (person, topic, week) on a keyed RNG stream (DEC-041), with a short per-person memory of lines used. Overheard chatter follows the same rule.
+  - **Scenes stay:** decision scenes (DEC-035) remain authored beats. Conversations are the everyday layer around them.
+  - **Never prose from the engine:** the engine emits keys and facts. Fluent renders the text, with select expressions for gender, plurals and variants.
+  - **Everything is data:**
+    - topics, reply lines, voices and openers or closers go in content registries;
+    - schemas are generated from Rust types (DEC-053);
+    - validation checks that every topic has a fallback reply for every role, that conditions reference real fields, and that Fluent keys exist with the right arguments;
+    - a lab command samples conversations for a seed and reports repetition and coverage.
+  - **Accessibility:** topics are buttons, replies are text, and the List view and quick mode (DEC-088) reach the same conversations.
+- **Timing:** M6, with or right after the knowledge ledger (DEC-091). Conversations are the ledger's main source.
+- **Dependencies:** DEC-031, DEC-033, DEC-035, DEC-041, DEC-051, DEC-053, DEC-054, DEC-079, DEC-088, DEC-091, DEC-092.
