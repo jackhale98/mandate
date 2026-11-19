@@ -322,11 +322,19 @@ fn favours_are_traded_only_with_politicians() {
     let k = &e.state().player.as_ref().unwrap().knowledge;
     let entry = k.entry(&Subject::Person { person: named }).unwrap();
     assert_eq!(entry.level, Level::Known);
-    assert!(entry.learned.iter().all(|l| l.source
-        == Source::Talk {
+    // Arriving may have taught their name (`heard`); meeting them is the talk.
+    let known = entry
+        .learned
+        .iter()
+        .find(|l| l.level == Level::Known)
+        .unwrap();
+    assert_eq!(
+        known.source,
+        Source::Talk {
             person: named,
             topic: "topic.small_talk".into()
-        }));
+        }
+    );
 }
 
 #[test]
