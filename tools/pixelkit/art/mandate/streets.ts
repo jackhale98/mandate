@@ -316,9 +316,11 @@ export class DiagonalStreets {
 
   /** The material (autotile group) at a map pixel. */
   mat(X: number, Y: number): number {
-    const [cx, cy] = this.ext(Math.floor(X / 16), Math.floor(Y / 16));
-    const px = mod(X, 16);
-    const py = mod(Y, 16);
+    let cx = X >> 4;
+    let cy = Y >> 4;
+    if (cx < 0 || cy < 0 || cx >= this.W || cy >= this.H) [cx, cy] = this.ext(cx, cy);
+    const px = X & 15;
+    const py = Y & 15;
     const k = quarterOf(px, py);
     const c = this.cut[(cy * this.W + cx) * 4 + k] as number;
     if (c >= 0 && inCut(k, px, py)) return c;
@@ -327,8 +329,17 @@ export class DiagonalStreets {
 
   /** Whether a map pixel is in a quarter whose corner is cut (where 45° edges run). */
   cutQuarter(X: number, Y: number): boolean {
-    const [cx, cy] = this.ext(Math.floor(X / 16), Math.floor(Y / 16));
-    return (this.cut[(cy * this.W + cx) * 4 + quarterOf(mod(X, 16), mod(Y, 16))] as number) >= 0;
+    let cx = X >> 4;
+    let cy = Y >> 4;
+    if (cx < 0 || cy < 0 || cx >= this.W || cy >= this.H) [cx, cy] = this.ext(cx, cy);
+    return (this.cut[(cy * this.W + cx) * 4 + quarterOf(X & 15, Y & 15)] as number) >= 0;
+  }
+
+  /** Whether any corner of a cell (off the map, the cell `ext` stands it for) is cut. */
+  private anyCut(x: number, y: number): boolean {
+    const [cx, cy] = this.ext(x, y);
+    const i = (cy * this.W + cx) * 4;
+    return (this.cut[i] as number) >= 0 || (this.cut[i + 1] as number) >= 0 || (this.cut[i + 2] as number) >= 0 || (this.cut[i + 3] as number) >= 0;
   }
 
   private mask(x: number, y: number, g: number): number {
@@ -399,6 +410,10 @@ export class DiagonalStreets {
 
   /** 45° edges: each material's north profile under a 45° edge above it, its south profile over one below (south wins, as in the templates). */
   private edges(out: Indexed, X0: number, Y0: number) {
+    // 45° edges run only in cut quarters; their profiles reach 3 px up or down, so only into the cells above and below.
+    const x = X0 >> 4;
+    const y = Y0 >> 4;
+    if (!this.anyCut(x, y) && !this.anyCut(x, y - 1) && !this.anyCut(x, y + 1)) return;
     for (let py = 0; py < 16; py++) {
       for (let px = 0; px < 16; px++) {
         const X = X0 + px;
