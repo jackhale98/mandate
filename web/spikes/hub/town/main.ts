@@ -6,6 +6,10 @@
 // moves the player there in the engine and shows what the place offers.
 // URL: seed=<text>, t=<minutes>, speed=<game minutes per second>, n=<townsfolk>,
 // res=css|device, hud=1. Exposes window.__hub for tests and measurements.
+// The pixel-art tool's spike (DEC-084, P0): art=pixelkit swaps the code-drawn
+// placeholder for the tool's art pack; night=multiply|moods picks the night
+// look (D12); preset=street centres on one representative street of the town
+// centre (zoom=<1..6> overrides the zoom).
 import { engine, expectKind } from "../../../src/engine/client";
 import type { LocationDto } from "../../../src/engine/protocol/LocationDto";
 import type { PlacePanelView } from "../../../src/engine/protocol/PlacePanelView";
@@ -13,6 +17,8 @@ import type { TownPlacesView } from "../../../src/engine/protocol/TownPlacesView
 import { DayClock, clockText, phaseAt, type DayPhase } from "../../../src/hub/dayCycle";
 import { HubView } from "../../../src/hub/hubView";
 import { PlaceholderArt } from "../../../src/hub/render/placeholderArt";
+import { PixelkitArt, type NightLook } from "../../../src/hub/render/pixelkitArt";
+import pack, { buildMs as packBuildMs, bytes as packBytes } from "virtual:pixelkit-pack";
 import { townInputFromView } from "../../../src/hub/townInput";
 import { buildingOfPlace, layoutTown, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
 import { Translator } from "../../../src/i18n/fluent";
@@ -25,6 +31,10 @@ const startMinutes = Number(q.get("t") ?? 17 * 60 + 20);
 const speed = q.has("speed") ? Number(q.get("speed")) : 12;
 const townsfolk = Math.max(0, Math.min(400, Number(q.get("n") ?? 16) || 0));
 const resolution = q.get("res") === "device" ? "device" : "css";
+const artName = q.get("art") === "pixelkit" ? "pixelkit" : "placeholder";
+const night: NightLook = q.get("night") === "moods" ? "moods" : "multiply";
+const preset = q.get("preset");
+const presetZoom = q.has("zoom") ? Math.max(1, Math.min(6, Math.round(Number(q.get("zoom")) || 0))) : null;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const stage = $<HTMLDivElement>("stage");
@@ -58,14 +68,20 @@ if (!Array.from(speedSel.options).some((o) => Number(o.value) === speed) && spee
 else if (speed > 0) speedSel.value = String(speed);
 
 let tr = new Translator("en", "");
-// The placeholder art (the pixel-art tool's pack replaces it through the same ArtProvider calls).
-const art = new PlaceholderArt();
+// The placeholder art, or the pixel-art tool's pack through the same ArtProvider calls.
+// The hub view feeds walk frames 1..2 only (see pixelkitArt.ts), hence walkFrames: 2.
+const pixelkit = artName === "pixelkit" ? new PixelkitArt(pack, { night, walkFrames: 2 }) : null;
+const art = pixelkit ?? new PlaceholderArt();
 document.body.insertAdjacentHTML("afterbegin", art.iconSprite());
 let view: HubView | null = null;
 let map: TownMap | null = null;
 let town: TownPlacesView | null = null;
 let busy = false;
 const timings: Record<string, number> = {};
+if (pixelkit) {
+  timings.packBuildMs = packBuildMs;
+  timings.packBytes = packBytes;
+}
 
 // ---------------------------------------------------------------- engine
 
@@ -118,6 +134,8 @@ function mount(m: TownMap) {
   });
   timings.firstFrameMs = view.timings.firstFrameMs;
   timings.mountMs = performance.now() - t0;
+  syncMood();
+  if (preset === "street") showStreet(m);
   $<HTMLHeadingElement>("town-name").textContent = m.municipality;
   document.title = `${m.municipality} · town prototype`;
   buildPlaceList();
@@ -261,6 +279,53 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closePanel();
 });
 
+// ---------------------------------------------------------------- the pixel-art spike
+
+/**
+ * The palette-moods night look (D12) repaints the provider's static art when
+ * the moment's mood changes; the renderer then re-bakes its static layers.
+ */
+function syncMood() {
+  if (!pixelkit || !view) return;
+  if (pixelkit.setClock(clock.minutes)) {
+    view.renderer.dispose();
+    view.renderer.invalidate();
+    view.wake();
+  }
+}
+
+/**
+ * The "street" preset: the 24×16-tile window of the town centre with the most
+ * buildings (named places count double), as in the plan's sample street
+ * (PIXEL_ART_TOOL.md §8, P0-6). Zoom 2 on wide screens shows all of it; 3
+ * (the default phone zoom) on phones.
+ */
+export function streetWindow(m: TownMap): { x: number; y: number; w: number; h: number } {
+  const w = Math.min(24, m.width);
+  const h = Math.min(16, m.height);
+  const core = m.districts.findIndex((d) => d.kind === "core");
+  let best = { x: 0, y: 0, score: -1 };
+  for (let y = 0; y + h <= m.height; y++) {
+    for (let x = 0; x + w <= m.width; x++) {
+      let score = 0;
+      for (const b of m.buildings) {
+        if (b.x < x || b.y - 1 < y || b.x + b.w > x + w || b.y + b.h > y + h) continue;
+        if (core >= 0 && b.district !== core) continue;
+        score += b.place !== null ? 2 : 1;
+      }
+      if (score > best.score) best = { x, y, score };
+    }
+  }
+  return { x: best.x, y: best.y, w, h };
+}
+
+function showStreet(m: TownMap) {
+  if (!view) return;
+  const s = streetWindow(m);
+  view.camera.state.zoom = presetZoom ?? (matchMedia("(max-width: 899px)").matches ? 3 : 2);
+  view.centreOn(s.x + s.w / 2, s.y + s.h / 2);
+}
+
 // ---------------------------------------------------------------- the clock
 
 function syncClock() {
@@ -272,6 +337,7 @@ function syncClock() {
 }
 scrub.addEventListener("input", () => {
   view?.setClock(Number(scrub.value));
+  syncMood();
   syncClock();
 });
 play.addEventListener("click", () => {
@@ -286,6 +352,7 @@ speedSel.addEventListener("change", () => {
 });
 setInterval(() => {
   if (clock.running) syncClock();
+  syncMood();
 }, 250);
 
 const toggle = $<HTMLButtonElement>("places-toggle");
@@ -344,6 +411,16 @@ window.__hub = {
     return town;
   },
   timings,
+  /** Which art is showing (the pixel-art spike's toggle) and its night look. */
+  art: { name: artName, night: pixelkit ? night : null },
+  /** Look at the preset street (the capture script uses it). */
+  showStreet(zoom?: number) {
+    if (!map || !view) return null;
+    showStreet(map);
+    if (zoom) view.camera.state.zoom = zoom;
+    view.wake();
+    return streetWindow(map);
+  },
   /** Time to lay out any town here (measure-town.mjs times the largest capital under a CPU throttle). */
   layoutMs(input: Parameters<typeof layoutTown>[0], runs = 5) {
     let best = Infinity;
@@ -357,6 +434,7 @@ window.__hub = {
   setClock(m: number) {
     clock.running = false;
     view?.setClock(m);
+    syncMood();
     syncClock();
   },
 };

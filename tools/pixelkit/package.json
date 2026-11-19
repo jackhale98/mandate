@@ -1,0 +1,17 @@
+{
+  "name": "pixelkit",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pixel art from hand-drawn parts composed by code (working name; DEC-084). P0 validation spike.",
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "typecheck": "../../web/node_modules/.bin/tsc -p .",
+    "test": "node --import ./bin/hooks.mjs --test test/*.test.ts",
+    "check": "npm run typecheck && npm test",
+    "cli": "node bin/pixelkit.mjs"
+  }
+}
