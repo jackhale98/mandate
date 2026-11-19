@@ -92,3 +92,7 @@ export const FAMILY_SPECS: readonly (readonly [string, FacadeSpec])[] = [
   ["industrial", { ...base, kind: "warehouse", hood: "industrial", w: 5, doorX: 2, visualSeed: 7005, ends: { left: "gap", right: "gap" } }],
   ["institution", { ...base, kind: "school", hood: "suburb", w: 5, doorX: 2, named: true, visualSeed: 7006, ends: { left: "gap", right: "gap" } }],
 ];
+
+/** Interior samples (art round 7, DEC-088): every recipe at these seeds, by day and in the evening with the lamps on (minutes after midnight). */
+export const INTERIOR_SEEDS: readonly number[] = [11, 23, 47, 90];
+export const INTERIOR_TIMES = { day: 11 * 60, evening: 20 * 60 } as const;
