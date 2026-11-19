@@ -11,7 +11,9 @@ import { Sheet } from "../node/sheet";
 import { buildFacade } from "../../art/mandate/buildings";
 import { composeCharacter, lookFromSeed } from "../../art/mandate/characters";
 import type { ArtPack } from "../../art/mandate/pack";
-import { TerrainPainter, V1_NAMES, type ConnectorView } from "../../art/mandate/terrain";
+import type { StreetEndView } from "../../art/mandate/ends";
+import type { Pool } from "../../art/mandate/props";
+import { TerrainPainter, V1_NAMES, type ConnectorView, type TerrainView } from "../../art/mandate/terrain";
 import { groundTile } from "../../art/mandate/tiles";
 import type { SceneBuilding, SceneProp } from "../../art/mandate/v2scene";
 
@@ -21,6 +23,8 @@ export interface SceneInput {
   terrain: ArrayLike<number>;
   elevation?: ArrayLike<number> | undefined;
   connectors?: readonly ConnectorView[] | undefined;
+  streetAxis?: ArrayLike<number> | undefined;
+  streetEnds?: readonly StreetEndView[] | undefined;
   buildings?: readonly SceneBuilding[];
   props?: readonly SceneProp[];
   people?: readonly { x: number; y: number; seed: number }[];
@@ -32,7 +36,7 @@ export type Moment = "day" | "dusk" | "night";
 const variantOf = (x: number, y: number) => ((Math.imul(x * 73856093 ^ y * 19349663, 0x45d9f3b) >>> 7) & 6) | ((x + y) & 1);
 
 /** The ground of a whole map as one indexed image (what the hub bakes into its chunks). */
-export function groundImage(pack: ArtPack, s: SceneInput): Indexed {
+export function groundImage(pack: ArtPack, s: TerrainView): Indexed {
   const painter = new TerrainPainter(pack.tiles, pack.terrain, s);
   const img = blank(s.width * 16, s.height * 16);
   for (let y = 0; y < s.height; y++) {
@@ -53,7 +57,7 @@ interface Item {
   base: number;
   person?: boolean;
   lit?: { img: Indexed; x: number; y: number }[];
-  pool?: [number, number];
+  pool?: [number, number, Pool];
   shadows?: { footprint: readonly (readonly [number, number])[]; height: number; ox: number; oy: number }[];
 }
 
@@ -86,7 +90,7 @@ export function renderScene(pack: ArtPack, s: SceneInput, moment: Moment, scale:
     const it: Item = { img: sp.albedo, x, y, base: p.y * 16 + Math.max(16, sp.albedo.h - sp.ay) };
     if (sp.emissive) {
       it.lit = [{ img: sp.emissive, x, y }];
-      it.pool = [p.x * 16 + 8, p.y * 16 + 14];
+      it.pool = [p.x * 16 + 8, p.y * 16 + 14, sp.pool ?? pack.pool];
     }
     if (sp.shadow) it.shadows = [{ ...sp.shadow, ox: x, oy: y }];
     items.push(it);
@@ -150,10 +154,9 @@ export function renderScene(pack: ArtPack, s: SceneInput, moment: Moment, scale:
   }
   // Lamp pools on the ground (the hub shapes them to the town; here they go under everything that stands): stepped bands, added.
   if (night) {
-    const pool = pack.pool;
     for (const it of items) {
       if (!it.pool) continue;
-      const [cx, cy] = it.pool;
+      const [cx, cy, pool] = it.pool;
       for (let y = 0; y < pool.h; y++) {
         for (let x = 0; x < pool.w; x++) {
           const band = pool.bands[y * pool.w + x] as number;

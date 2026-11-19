@@ -2,6 +2,9 @@
 //! pressure tracks (DEC-006). Player commands are the Commands phase: they may
 //! write the immediate effects of an action into other domains (sway,
 //! awareness), which is the only cross-domain write outside effects.
+//! The knowledge ledger (DEC-091) is player state too (`knowledge`).
+
+pub mod knowledge;
 
 use crate::politics::PoliticianId;
 use crate::population::CLASSES;
@@ -64,6 +67,10 @@ pub struct PlayerState {
     /// In play, in prison, or over (DEC-006).
     #[serde(default)]
     pub status: RunStatus,
+    /// What the player knows (DEC-091). Older saves load it unseeded and
+    /// are seeded on load (`knowledge::on_load`).
+    #[serde(default)]
+    pub knowledge: knowledge::KnowledgeLedger,
 }
 
 /// Where a career stands (DEC-006): in play, out of politics for a while
@@ -110,16 +117,25 @@ impl RunStatus {
 
 /// Player domain, Characters phase, daily: track changes other domains asked
 /// for (a scandal's cost in Standing, a case's Legal Jeopardy floor), a
-/// sentence landing, and release from prison.
+/// sentence landing, release from prison, and what other systems taught the
+/// player (`Learn`, `Read`, `Lead`: the knowledge ledger, DEC-091).
 pub fn effects(pl: &mut PlayerState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let j = &r.content.justice;
     let me = pl.politician;
     for e in out.effects.take(|e| match e {
         crate::scheduler::Effect::PlayerTrack { .. } => true,
         crate::scheduler::Effect::Sentenced { politician, .. } => *politician == me,
+        crate::scheduler::Effect::Learn { .. }
+        | crate::scheduler::Effect::Read { .. }
+        | crate::scheduler::Effect::Lead { .. } => true,
         _ => false,
     }) {
         match e {
+            e @ (crate::scheduler::Effect::Learn { .. }
+            | crate::scheduler::Effect::Read { .. }
+            | crate::scheduler::Effect::Lead { .. }) => {
+                knowledge::apply_effect(&mut pl.knowledge, e, r.date, r.content);
+            }
             crate::scheduler::Effect::PlayerTrack {
                 standing,
                 viability,

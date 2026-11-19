@@ -1,8 +1,13 @@
 import { buildPack, TERRAIN } from "../../../../tools/pixelkit/art/mandate/pack";
-import { v2Scene } from "../../../../tools/pixelkit/art/mandate/v2scene";
+import { diagScene } from "../../../../tools/pixelkit/art/mandate/diagscene";
+import { STREET_AXIS } from "../../../../tools/pixelkit/art/mandate/streets";
+import { END_FACINGS, END_KINDS } from "../../../../tools/pixelkit/art/mandate/ends";
+import { endScene } from "../../../../tools/pixelkit/art/mandate/endscene";
+import { TerrainPainter } from "../../../../tools/pixelkit/art/mandate/terrain";
+import { v2Scene, type Scene } from "../../../../tools/pixelkit/art/mandate/v2scene";
 import { FIXTURES } from "../testTowns";
 import { TownScene } from "../townScene";
-import { layoutTown, Terrain, townSeed, type TownBuilding, type TownConnector, type TownMap, type TownProp } from "../townLayout";
+import { layoutTown, StreetAxis, Terrain, townSeed, type StreetEndKind, type TownBuilding, type TownConnector, type TownMap, type TownProp, type TownStreetEnd } from "../townLayout";
 import { buildingSpec, groundCells } from "./art";
 import { PixelkitArt } from "./pixelkitArt";
 import { newLog, stubCanvasFactory, stubContext } from "./stubCanvas";
@@ -203,9 +208,8 @@ describe("light that respects buildings (round 2)", () => {
 // ---------------------------------------------------------------------------
 // Round 4: layout v2 (DEC-090): levels, shores, creek, rail, bridges, props, plot states.
 
-/** The pack's hand-made v2 test scene as a town map (every v2 code, two levels, every connector kind, every plot state). */
-function v2Map(): TownMap {
-  const s = v2Scene();
+/** The pack's hand-made v2 test scene as a town map (every v2 code, two levels, every connector kind, every plot state); or another scene (round 5: the diagonal-street town). */
+function v2Map(s: Scene = v2Scene()): TownMap {
   const n = s.width * s.height;
   const buildings: TownBuilding[] = s.buildings.map((b, index) => ({
     index,
@@ -234,6 +238,8 @@ function v2Map(): TownMap {
     terrain: s.terrain,
     elevation: s.elevation,
     connectors: s.connectors.map((c) => ({ ...c, kind: c.kind as TownConnector["kind"] })),
+    ...(s.streetAxis ? { streetAxis: Uint8Array.from(s.streetAxis) } : {}),
+    ...(s.streetEnds ? { streetEnds: s.streetEnds.map((e) => ({ ...e, kind: e.kind as StreetEndKind, facing: e.facing as TownStreetEnd["facing"] })) } : {}),
     solid: new Uint8Array(n),
     district: new Int16Array(n),
     buildings,
@@ -335,6 +341,148 @@ describe("layout v2 (round 4)", () => {
       art.setClock(minutes);
       r.crossFade(0);
       expect(r.draw({ width: 412, height: 839, camX: 320, camY: 224, zoom: 2, minutes, walkers: [], player: null, target: null, time: 0 })).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Round 5: diagonal streets (DEC-090 D5 amended): `TownMap.streetAxis`.
+
+describe("diagonal streets (round 5)", () => {
+  it("knows the layout's street axis codes", () => {
+    expect({ ...STREET_AXIS }).toEqual({ ...StreetAxis });
+  });
+
+  it("draws the diagonal streets of a map through groundCell, and every other cell exactly as without them", () => {
+    const map = v2Map(diagScene());
+    const plain: TownMap = { ...map };
+    delete plain.streetAxis;
+    const art = new PixelkitArt(pack, { createCanvas: stubCanvasFactory(newLog()) });
+    const painter = new TerrainPainter(pack.tiles, pack.terrain, map);
+    const { mask, variant } = groundCells(map);
+    let diagonal = 0;
+    let same = 0;
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        const i = y * map.width + x;
+        const f = art.groundCell(map, x, y, mask[i] as number, variant[i] as number);
+        expect([f.w, f.h]).toEqual([16, 16]);
+        const g = art.groundCell(plain, x, y, mask[i] as number, variant[i] as number);
+        if (painter.streets?.touched(x, y)) {
+          const k = map.streetAxis?.[i];
+          if ((k === StreetAxis.DiagonalNE || k === StreetAxis.DiagonalNW) && map.terrain[i] === Terrain.Road && f !== g) diagonal++;
+        } else {
+          // Identical drawings share one frame, so a cell away from the diagonals gets the very frame it gets without them.
+          expect(f).toBe(g);
+          same++;
+        }
+      }
+    }
+    expect(diagonal).toBeGreaterThan(100);
+    expect(same).toBeGreaterThan(800);
+  });
+
+  it("gives a v1 town with an all-orthogonal street axis exactly ground()'s tiles", () => {
+    const map = { ...town() };
+    map.streetAxis = new Uint8Array(map.width * map.height).fill(StreetAxis.Orthogonal);
+    const art = new PixelkitArt(pack, { createCanvas: stubCanvasFactory(newLog()) });
+    const { mask, variant } = groundCells(map);
+    for (let i = 0; i < map.width * map.height; i += 5) {
+      const x = i % map.width;
+      const y = Math.floor(i / map.width);
+      expect(art.groundCell(map, x, y, mask[i] as number, variant[i] as number)).toBe(art.ground(map.terrain[i] as number, mask[i] as number, variant[i] as number));
+    }
+  });
+
+  it("renders a map with diagonal streets through the renderer by day and at night without errors", () => {
+    const map = v2Map(diagScene());
+    const make = stubCanvasFactory(newLog());
+    const art = new PixelkitArt(pack, { createCanvas: make, night: "moods" });
+    const r = new TownRenderer(stubContext(newLog(), { width: 412, height: 839 }), map, art, { createCanvas: make });
+    for (const minutes of [720, 1350]) {
+      art.setClock(minutes);
+      r.crossFade(0);
+      expect(r.draw({ width: 412, height: 839, camX: 360, camY: 300, zoom: 2, minutes, walkers: [], player: null, target: null, time: 0 })).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Round 6: street ends (DEC-090 D5 amended): `TownMap.streetEnds` and the props that close them.
+
+describe("street ends (round 6)", () => {
+  it("knows the layout's street-end kinds and facings", () => {
+    const kinds: Record<StreetEndKind, true> = { turning_circle: true, hammerhead: true, bollards: true, plaza: true, field_gate: true, railing: true };
+    const facings: Record<TownStreetEnd["facing"], true> = { n: true, e: true, s: true, w: true, ne: true, nw: true, se: true, sw: true };
+    expect([...END_KINDS].sort()).toEqual(Object.keys(kinds).sort());
+    expect([...END_FACINGS].sort()).toEqual(Object.keys(facings).sort());
+  });
+
+  it("draws a map's street ends through groundCell, and every other cell exactly as without them", () => {
+    const map = v2Map(endScene());
+    expect(map.streetEnds?.length).toBe(36);
+    const plain: TownMap = { ...map };
+    delete plain.streetEnds;
+    const art = new PixelkitArt(pack, { createCanvas: stubCanvasFactory(newLog()) });
+    const painter = new TerrainPainter(pack.tiles, pack.terrain, map);
+    const { mask, variant } = groundCells(map);
+    let changed = 0;
+    let same = 0;
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        const i = y * map.width + x;
+        const f = art.groundCell(map, x, y, mask[i] as number, variant[i] as number);
+        expect([f.w, f.h]).toEqual([16, 16]);
+        const g = art.groundCell(plain, x, y, mask[i] as number, variant[i] as number);
+        if (painter.ends?.touched(x, y)) {
+          if (f !== g) changed++;
+        } else {
+          expect(f).toBe(g);
+          same++;
+        }
+      }
+    }
+    expect(changed).toBeGreaterThan(300);
+    expect(same).toBeGreaterThan(5000);
+  });
+
+  it("gives a v1 town with an empty streetEnds exactly ground()'s tiles", () => {
+    const map = { ...town(), streetEnds: [] };
+    const art = new PixelkitArt(pack, { createCanvas: stubCanvasFactory(newLog()) });
+    const { mask, variant } = groundCells(map);
+    for (let i = 0; i < map.width * map.height; i += 5) {
+      const x = i % map.width;
+      const y = Math.floor(i / map.width);
+      expect(art.groundCell(map, x, y, mask[i] as number, variant[i] as number)).toBe(art.ground(map.terrain[i] as number, mask[i] as number, variant[i] as number));
+    }
+  });
+
+  it("draws the street-end props from the pack: a variant per facing, lit bollards with their own small pool", () => {
+    const art = new PixelkitArt(pack, { createCanvas: stubCanvasFactory(newLog()) });
+    for (const k of ["bollards", "field_gate", "railing"]) {
+      const list = pack.props[k] ?? [];
+      expect(list.length).toBeGreaterThanOrEqual(8);
+      for (let v = 0; v < list.length; v++) expect(art.prop(k, v).albedo.w).toBe(list[v]?.albedo.w);
+    }
+    expect(art.prop("bollards", 0).emissive).toBeUndefined();
+    const lit = art.prop("bollards", 8);
+    const lamp = art.prop("lamp", 0);
+    expect(lit.emissive).toBeDefined();
+    expect(lit.pool?.light?.rx).toBeLessThan(lamp.pool?.light?.rx ?? 0);
+    expect(lit.pool?.frame).not.toBe(lamp.pool?.frame);
+    // Lit bollards share one pool frame.
+    expect(art.prop("bollards", 9).pool?.frame).toBe(lit.pool?.frame);
+  });
+
+  it("renders a map with street ends through the renderer by day and at night without errors", () => {
+    const map = v2Map(endScene());
+    const make = stubCanvasFactory(newLog());
+    const art = new PixelkitArt(pack, { createCanvas: make, night: "moods" });
+    const r = new TownRenderer(stubContext(newLog(), { width: 412, height: 839 }), map, art, { createCanvas: make });
+    for (const minutes of [720, 1350]) {
+      art.setClock(minutes);
+      r.crossFade(0);
+      expect(r.draw({ width: 412, height: 839, camX: 400, camY: 300, zoom: 2, minutes, walkers: [], player: null, target: null, time: 0 })).toBe(true);
     }
   });
 });

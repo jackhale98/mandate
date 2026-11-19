@@ -165,7 +165,42 @@ export type PropKind =
   | "headframe"
   | "spoil_heap"
   | "reeds"
-  | "stepping_stones";
+  | "stepping_stones"
+  // Street ends (DEC-090 D5 amended): a row of bollards closing a road to traffic (a footpath carries on);
+  // a field gate where a road or track meets farmland; a railing where a road meets water (quay end, bank).
+  | "bollards"
+  | "field_gate"
+  | "railing";
+
+/**
+ * Layout v2: how a street that does not join another street ends. Every such end
+ * must be one of these (no street just stops); the generator records them, the
+ * art draws them, and the checks enforce them.
+ */
+export type StreetEndKind =
+  /** A round turning circle (the road widens into a rounded bulb). */
+  | "turning_circle"
+  /** A T- or L-shaped turning head. */
+  | "hammerhead"
+  /** Bollards across the road; a footpath carries on beyond them. */
+  | "bollards"
+  /** The road's paving runs into a square or market. */
+  | "plaza"
+  /** A field gate onto farmland, or a road becoming a farm track. */
+  | "field_gate"
+  /** A railing at a quay end or riverbank. */
+  | "railing";
+
+/** Layout v2: one street end (the last road cells of the street, tiles). */
+export interface TownStreetEnd {
+  kind: StreetEndKind;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** The direction the street runs into its end: "n", "e", "s", "w", or a diagonal "ne", "nw", "se", "sw". */
+  facing: "n" | "e" | "s" | "w" | "ne" | "nw" | "se" | "sw";
+}
 
 /** Layout v2 (DEC-090): what crosses water, rail or a creek. The cells it covers are `Bridge`, `Ford` or `Crossing`. */
 export interface TownConnector {
@@ -226,6 +261,8 @@ export interface TownMap {
    * form 45° staircases; the art draws them as smooth 45° roads and kerbs.
    */
   streetAxis?: Uint8Array;
+  /** Layout v2 only: how every street that does not join another street ends (`TownStreetEnd`). */
+  streetEnds?: TownStreetEnd[];
   /** 1 where walking is blocked (buildings, water, trees, the fountain). */
   solid: Uint8Array;
   /** District index per cell, -1 outside the town. */

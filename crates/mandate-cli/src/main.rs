@@ -104,6 +104,10 @@ enum Cmd {
         careers: Option<u32>,
         #[arg(long, default_values_t = vec!["corrupt".to_string(), "mixed".to_string()])]
         career_strategies: Vec<String>,
+        /// Lab switch (DEC-091): every bot's player knows every subject in
+        /// detail, for baselines against the knowledge ledger.
+        #[arg(long)]
+        omniscient: bool,
         #[command(flatten)]
         lab: LabArgs,
     },
@@ -587,8 +591,10 @@ fn run(cli: Cli) -> Result<(), String> {
             detail,
             careers,
             career_strategies,
+            omniscient,
             lab,
         } => {
+            bots::set_omniscient(omniscient);
             let runs = lab_runs(&cli.content, &lab)?;
             if !lab.grid.is_empty() {
                 // One summary row per combination: win rates and the gates.

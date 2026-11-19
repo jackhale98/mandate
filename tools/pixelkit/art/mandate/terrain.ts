@@ -26,6 +26,8 @@ import { edgeTemplate, type EdgeProfile } from "../../src/core/edges";
 import { hash32 } from "../../src/core/hash";
 import { blank, blit, crop, grid, type Indexed } from "../../src/core/image";
 import type { Palette } from "../../src/core/palette";
+import { StreetEnds, type EndPropView, type EndRules, type StreetEndView } from "./ends";
+import { DiagonalStreets, type StreetRules } from "./streets";
 import { groundTile, legendFor, TILE_LEGEND_RAMPS, type TileSet } from "./tiles";
 
 /** The layout's terrain codes (web/src/hub/townLayout.ts `Terrain`; a web test checks they agree). */
@@ -104,6 +106,12 @@ export interface TerrainView {
   terrain: ArrayLike<number>;
   elevation?: ArrayLike<number> | undefined;
   connectors?: readonly ConnectorView[] | undefined;
+  /** Layout v2 street axis per cell (`TownMap.streetAxis`, `STREET_AXIS` codes): diagonal streets (round 5). */
+  streetAxis?: ArrayLike<number> | undefined;
+  /** Layout v2 street ends (`TownMap.streetEnds`): how streets that join no other street end (round 6). */
+  streetEnds?: readonly StreetEndView[] | undefined;
+  /** The map's props (`TownMap.props`): a street end reads where its gate stands (round 6). */
+  props?: readonly EndPropView[] | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,6 +364,37 @@ function group(t: number): number {
   }
 }
 
+/** Terrains a diagonal street smooths (round 5): streets, squares, greens, yards and open ground. */
+const STREET_SOFT = new Set<number>([K.Grass, K.Road, K.Pavement, K.Crossing, K.Plaza, K.Park, K.Path, K.Yard, K.Dirt, K.Garden, K.Field]);
+const STREET_RANK: Readonly<Record<number, number>> = { [K.Road]: 5, [K.Pavement]: 4, [K.Plaza]: 3, [K.Yard]: 2, [K.Path]: 2 };
+const STREET_RULES: StreetRules = {
+  group,
+  soft: STREET_SOFT,
+  joins: new Set<number>([...STREET_SOFT, K.Building, K.Door]),
+  tileName: (t) => V1_NAMES[t] ?? "grass",
+  materialName: (g) => V1_NAMES[g] ?? "grass",
+  rank: (g) => STREET_RANK[g] ?? 1,
+  roadGroup: K.Road,
+  road: K.Road,
+  crossing: K.Crossing,
+};
+
+/** Terrains a street end may repaint (round 6): streets, squares, greens, yards, paths, open ground and quays. */
+const END_CLAIMABLE = new Set<number>([K.Grass, K.Road, K.Pavement, K.Plaza, K.Park, K.Path, K.Yard, K.Dirt, K.Garden, K.Field, K.Sand, K.Quay]);
+const END_RULES: EndRules = {
+  group,
+  claimable: END_CLAIMABLE,
+  materialName: (g) => V1_NAMES[g] ?? "grass",
+  road: K.Road,
+  pavement: K.Pavement,
+  plaza: K.Plaza,
+  path: K.Path,
+  dirt: K.Dirt,
+  grass: K.Grass,
+  park: K.Park,
+  quay: K.Quay,
+};
+
 const DIRS: readonly (readonly [number, number, number])[] = [
   [0, -1, NB.N],
   [1, 0, NB.E],
@@ -399,6 +438,10 @@ export class TerrainPainter {
   private readonly railMask: Uint8Array;
   /** Cells something v2 reaches (bridge faces and shadows, rail corners): never "simple". */
   private readonly touched: Uint8Array;
+  /** Diagonal streets (round 5), when the map marks any. */
+  readonly streets: DiagonalStreets | null;
+  /** Street ends (round 6), when the map records any. */
+  readonly ends: StreetEnds | null;
 
   constructor(ts: TileSet, t2: TerrainSet, view: TerrainView) {
     this.ts = ts;
@@ -448,6 +491,42 @@ export class TerrainPainter {
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (this.inside(x + dx, y + dy)) this.touched[(y + dy) * this.W + x + dx] = 1;
       }
     }
+    // Diagonal streets: only when the map marks a street axis other than orthogonal.
+    const axis = view.streetAxis;
+    const streets = axis
+      ? new DiagonalStreets(
+          {
+            width: this.W,
+            height: this.H,
+            t: (x, y) => this.t(x, y),
+            e: (x, y) => this.e(x, y),
+            axis: (x, y) => (this.inside(x, y) ? ((axis[y * this.W + x] as number | undefined) ?? 0) : 0),
+            levelCrossing: (x, y) => this.t(x, y) === K.Crossing && this.isRail(x, y),
+          },
+          STREET_RULES,
+          ts,
+          this.L,
+        )
+      : null;
+    this.streets = streets?.active ? streets : null;
+    // Street ends: only when the map records any.
+    const ends =
+      view.streetEnds && view.streetEnds.length > 0
+        ? new StreetEnds(
+            {
+              width: this.W,
+              height: this.H,
+              t: (x, y) => this.t(x, y),
+              mat: (X, Y) => (this.streets ? this.streets.mat(X, Y) : group(this.t(X >> 4, Y >> 4))),
+            },
+            END_RULES,
+            ts,
+            this.L,
+            view.streetEnds,
+            view.props ?? [],
+          )
+        : null;
+    this.ends = ends?.active ? ends : null;
   }
 
   private inside(x: number, y: number) {
@@ -492,7 +571,7 @@ export class TerrainPainter {
   /** Whether the cell looks exactly as v1 draws it: a v1 terrain, flat, nothing v2 around it. */
   simple(x: number, y: number): boolean {
     const t = this.t(x, y);
-    if (t > K.Garden || t === K.Water || t === K.Pier || this.touched[y * this.W + x]) return false;
+    if (t > K.Garden || t === K.Water || t === K.Pier || this.touched[y * this.W + x] || this.streets?.touched(x, y) || this.ends?.touched(x, y)) return false;
     const e0 = this.e(x, y);
     if (e0 >= 2) return false;
     for (let dy = -1; dy <= 1; dy++) {
@@ -525,6 +604,7 @@ export class TerrainPainter {
   draw(x: number, y: number, variant: number): Indexed {
     const t = this.t(x, y);
     const img = this.base(x, y, t, variant);
+    this.ends?.apply(img, x, y, variant);
     const e0 = this.e(x, y);
     if (e0 >= 2 && !WATERY.has(t)) this.remapAll(img, this.t2.lighter);
     this.levels(img, x, y, t);
@@ -550,6 +630,10 @@ export class TerrainPainter {
 
   /** The cell's own ground, before levels, rail and bridges. */
   private base(x: number, y: number, t: number, variant: number): Indexed {
+    if (this.streets?.draws(x, y)) {
+      const img = this.streets.draw(x, y, variant);
+      return t === K.Crossing && this.isRail(x, y) ? this.levelCrossing(x, y, img) : img;
+    }
     switch (t) {
       case K.Water:
       case K.Pier:
@@ -1056,6 +1140,8 @@ export class TerrainPainter {
   /** A platform: paving beside the track, a yellow line, its coping, and its face toward rail to the south. */
   private platform(img: Indexed, x: number, y: number, t: number) {
     if (t !== K.Pavement && t !== K.Plaza && t !== K.Quay && t !== K.Yard) return;
+    // A diagonal street's pavement beside the line is not a platform (round 5).
+    if ((this.v.streetAxis?.[y * this.W + x] ?? 0) !== 0) return;
     const L = this.L;
     const put = (px: number, py: number, c: string) => (img.px[py * 16 + px] = L[c] as number);
     if (this.t(x, y + 1) === K.Rail) {
@@ -1078,12 +1164,19 @@ export class TerrainPainter {
   }
 
   /** A level crossing: the road (its group's autotile) with the rails set in it, a stop line each side and barrier posts at the corners. */
-  private levelCrossing(x: number, y: number): Indexed {
+  private levelCrossing(x: number, y: number, under?: Indexed): Indexed {
     const L = this.L;
     const road = this.ts.terrains.road;
-    const img = road ? autotile(road.template, canonicalMask(this.mask(x, y, (n) => group(n) === K.Road)), road.fills[0]) : this.tile("road", 255, 0);
+    const img = under ?? (road ? autotile(road.template, canonicalMask(this.mask(x, y, (n) => group(n) === K.Road)), road.fills[0]) : this.tile("road", 255, 0));
     const railEW = this.isRail(x - 1, y) || this.isRail(x + 1, y);
     const put = (px: number, py: number, c: string) => (img.px[py * 16 + px] = L[c] as number);
+    const ax = this.v.streetAxis?.[y * this.W + x] ?? 0;
+    if (this.streets && ax !== 0) {
+      // Set into a diagonal road (round 5): stop lines where the carriageway meets it, posts on the verge side.
+      this.streets.levelCrossingMarks(img, x, y, railEW);
+      for (let k = 0; k < 16; k++) for (const r of [3, 10]) put(railEW ? k : r, railEW ? r : k, "A");
+      return img;
+    }
     // The road's edges along the track: a dashed white line where cars stop.
     for (let k = 0; k < 16; k++) {
       if (k % 4 === 3) continue;

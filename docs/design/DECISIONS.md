@@ -1769,6 +1769,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Quality control combines a style guide, automated lints, golden images, and contact sheets reviewed by the owner.
 - **Dependencies:** DEC-009, DEC-013, DEC-018, DEC-031, DEC-049, DEC-051, DEC-065, DEC-077, DEC-080, DEC-081.
 
+- **No commissioned artist for now (owner, 2026-11-19: "it's unlikely I hire an artist unless this game gets popular").** All art comes from the pixel-art tool: hand-drawn parts composed by code, made in our own art rounds. Items once listed as "an artist could add" become art-round tasks: rock strata, curved track and switches, paving laid along diagonals, kerb stones, a diagonal level-crossing set, and a drawn mine. Commissioning or buying art is reconsidered only if the game finds an audience. Packs from third parties are not mixed in, to keep one coherent style and clean licensing.
+
 ### DEC-085 — Town layout on the client, versioned so a town never rearranges
 
 - **Status:** Accepted (owner, 2026-11-19: "I'm fine with the versioned town layout"). Proposed with the M6 groundwork. M6 must reserve plots for places that can be added during a run, so a town never rearranges mid-run.
@@ -1788,6 +1790,13 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Old layout versions accumulate as code. They are small, and could be retired at a save-format break.
   - Other clients (a native app) would have to port the algorithm bit-exactly, or switch to A.
 - **Dependencies:** DEC-009, DEC-041 (its ideas, applied on the client), DEC-044, DEC-074, DEC-079, DEC-080.
+
+- **Pre-release (owner, 2026-11-19: "for town generation we don't need backward compatibility yet since this isn't released").** Until the first public release:
+  - Town layouts need no compatibility. The generator may change freely; a development run may show a rearranged town after an update; pinned layout hashes are updated as needed.
+  - Layout v1 is retired when v2 becomes the game's default (after the street rework and the town views, B2). The game's town map moves to v2 at the same time.
+  - Per-town recipe snapshots are not needed.
+  - **At release,** the rule above applies in full: the shipped layout version is frozen, recipe snapshots go into run metadata, and later changes ship as a new version that old runs never see.
+  - Save-format migrations for simulation state are unaffected by this note.
 
 ### DEC-086 — Town map overview
 
@@ -1872,6 +1881,14 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Accepted:** A + B, as layout v2 (no saved run uses v2 yet), with diagonal road and pavement art.
   - **The owner also reported connection faults:** roads starting from the wrong side, roads not joining straight, stubs ending in nothing, near-parallel duplicate roads, roads meeting rail with no crossing, rail looping round the centre. Fixing these is part of the same task, with checks.
   - **Curved roads (C)** stay for a later version with the art round.
+  - **Street ends (owner, 2026-11-19: "roads have terminations instead of just ending abruptly").** Only the declared links (roads to neighbouring towns), rail, rivers and the coast cross the map edge. Every other street ends in a junction, or in one of these terminations:
+    - a turning circle or hammerhead;
+    - bollards with a footpath beyond;
+    - paving into a square or market;
+    - a field gate or farm track at the countryside;
+    - a railing at water.
+
+    The generator records each (`TownMap.streetEnds`), the art draws them, and the checks reject a street that just stops.
 
 ### DEC-091 — Knowledge is earned
 

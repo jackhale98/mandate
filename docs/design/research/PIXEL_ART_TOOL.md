@@ -805,6 +805,263 @@ The five new warnings are colours per prop (limit 8):
 - **What an artist would add:** hand-drawn rock and cliff sets with real strata, curved track and switches, bridge set pieces with more character (a hump-backed stone bridge, an iron girder bridge), a drawn mine (winding house, ore bins, wagons), and textured banks with grass tufts and roots.
 - The recommendation of rounds 1–3 stands: commission the drawn sets for P1. The painter's rules (shores per quarter, links per track, faces per level, kits per connector) take an artist's tiles without change, as the facade grammar takes their building parts.
 
+### Round 5: diagonal streets (2026-11-19, agent-drawn parts)
+
+**Why.** DEC-090's D5 is amended to "A + B": layout v2 grows its streets (A) and adds 45° streets wherever terrain or radial roads call for them (B), with buildings staying square and stepping along the diagonals, and wedges at the junctions made into greens, yards or small squares (`town-gen-sketches/streets-3-option-b.png`). The vocabulary is fixed in `web/src/hub/townLayout.ts`: `StreetAxis` (0 orthogonal, 1 `/`, 2 `\`, 3 junction) and `TownMap.streetAxis`, which marks the road, crossing and pavement cells of a diagonal street. A diagonal street is a 45° staircase of cells. This round draws those staircases as smooth 45° streets in the flat three-quarter style of rounds 1–4. `PACK_VERSION` is `mandate-p0.6`.
+
+**How it draws** (`art/mandate/streets.ts`, used by the terrain painter).
+- **Corners, not tiles.** A cell's corner is cut by a 45° line from the middle of one side to the middle of the next when:
+  - both neighbours toward that corner are one other material (carriageway, pavement, square, yard, green, garden, grass, path, open ground, field);
+  - the cells around the corner carry a diagonal street of that corner's orientation, or a junction;
+  - the levels match.
+  - At a saddle (the cell's own material again across the corner) the higher-ranked material keeps the corner: carriageway, then pavement, then square, then yard and path.
+- **The neighbours' cuts dissolve the staircase's sides,** so every edge of a staircase becomes one straight line through the middles of the cell sides. A band of R cells a row stays R × 16 px wide across a row (R × 11.3 px square to the street): the staircase's area. Pixels on a line belong to its upper side, so both cells a line crosses agree on them. The material of each map pixel is a function of the map alone, so cells join without seams.
+- **Buildings and doors are never cut.** Their cells count as pavement, so the pavement fills the triangles in front of square buildings stepping along a diagonal, as in the sketch.
+- **Off the map, a diagonal street runs on** (a `/` street is the same one row up and one column right), so a street leaving the town keeps its 45° edges to the map's border.
+- **Edges.** A 45° edge takes the material's own edge profile from round 1, measured vertically, as faces are in the three-quarter view:
+  - the upper pavement shows its kerb top and its face over the gutter (`/` streets: the north-west side; `\`: the north-east);
+  - the lower pavement shows its gutter and kerb edge;
+  - greens, squares and yards keep their own edging.
+  - Orthogonal edges stay as the autotile draws them. Where a neighbour's cut dissolves a side, that quarter is taken from the autotile as if the neighbour were the same material. So diagonal kerbs run into orthogonal kerbs, squares and yards with the same profiles.
+- **Markings.**
+  - A **dashed centre line** on diagonal carriageways three or more cells a row wide. Two-cell streets (22.6 px across) have none, like one-tile lanes. A dash is drawn whole or not at all: only where the carriageway runs on at 45° over every row it covers, on cells marked diagonal, and clear of a zebra's approach.
+  - A **zebra** on diagonal crossing cells: stripes along the street, 3 px a row apart, kept 2 px off the kerbs, cut square to the street. Its position along the street is the mean of its crossing cells, so it reads the same whether the generator marks a crossing as one row of cells or as a line across the street.
+  - A **level crossing** set into a diagonal road: rails and flangeways as in round 4; stop lines only where carriageway meets it; barrier posts on the corners where the verge, not the road, continues.
+  - Orthogonal decals (dashes, zebras) are never drawn on diagonal cells.
+- **Isolation.** Only cells with a diagonal street at or beside them are drawn by this module. All other cells, every v1 map and any map whose `streetAxis` is absent or all orthogonal draw exactly as before (lint and tests). A diagonal street's pavement beside rail is not drawn as a platform.
+
+**The game side.** `PixelkitArt.groundCell` treats a map whose `streetAxis` marks any cell diagonal as v2 (one scan per map) and draws it through the painter, which reads `map.streetAxis`. v1 maps and orthogonal output are unchanged: no golden image of rounds 1–4 moved.
+
+**The test town** (`art/mandate/diagscene.ts`, 56 × 36 tiles), hand-authored in the layout's vocabulary. It does not depend on the generator. It holds:
+- diagonal streets on both axes, 2, 3 and 4 cells a row (and a one-cell back lane without pavements);
+- a radial leaving the square's corner, with a small square in the acute wedge where it meets Market Street;
+- X and offset junctions where the radial and the high street meet Market Street, and an X where the narrow street crosses North Road;
+- T junctions into North Road and the quay road;
+- the high street running down to a stone bridge;
+- zebras on both axes, and a level crossing with a siding into a goods yard;
+- a green, a paved yard and a small square as wedges;
+- square buildings stepping along four diagonals;
+- lamps on diagonal pavements on both sides of every street, and benches and planters in the wedges.
+
+**Lints** (`target/pixelkit/lint.txt`): 0 errors, 37 warnings (round 4: 35). New lints (`src/cli/lintDiag.ts`):
+- **diagonal coverage:** every cell of the test town drawn, opaque, on the palette. It shows widths `/` 2, 3, 4 and `\` 1, 2, 3, 4, zebras on both axes, a level crossing, 42 junction cells, a bridge, and green, yard and square wedges.
+- **diagonal seams:**
+  - Across 218 cell edges along diagonal streets (away from their ends, junctions and crossings), no edge changes surface on more than 3 of its 16 rows; the worst is 1. A staircase riser would be 8–16.
+  - All 1,776 kerb pixel pairs on 45° edges between pavement and carriageway are drawn as the kerb: the face over the gutter, or the gutter over the kerb edge. Sharp tips, where two kerbs meet within 4 px, are not checked.
+- **diagonal isolation:** the round 4 scene with an all-orthogonal axis changes 0 pixels, and the test town's cells away from its diagonals match the town drawn without an axis.
+- **diagonal palette:** no colour that no ground drew before; the palette stays at 114 (14 free). No colour was added.
+- **diagonal edge contrast,** Oklab ΔE by day / at night (moods, 22:30), for what meets at the new edges and the markings. All are ≥ 0.05 except one:
+  - carriageway / pavement 0.289 / 0.118;
+  - upper kerb face / gutter 0.180 / 0.074;
+  - lower kerb gutter / edge 0.278 / 0.112;
+  - kerb top / carriageway 0.366 / 0.147;
+  - pavement / grass 0.152 / 0.062;
+  - pavement / green 0.208 / 0.079;
+  - lane / grass 0.240 / 0.100;
+  - centre line 0.495 / 0.198;
+  - zebra end 0.407 / 0.162;
+  - barrier post 0.310 / 0.128;
+  - **square / pavement 0.118 / 0.044 (warning):** the same pair as on orthogonal streets, where the square's edge reads by its stone edging.
+- The other new warning is colours per tile: 11 in the most colourful diagonal cell (a pavement cell with carriageway, kerbs and grass in it; guide ≤ 8).
+
+**Tests and goldens.**
+- pixelkit (`npm run check`): 54 tests, round 4 had 47. The new tests cover:
+  - the axis codes;
+  - nothing changing away from diagonals;
+  - every width 1, 2, 3, 4 and 6 on both axes, with and without pavements, as a smooth band exactly R × 16 px across a row, with no staircase and every kerb drawn;
+  - seams, kerbs and colours in the test town;
+  - whole centre dashes (every dash 14 px), none on two-cell streets;
+  - zebras on both axes, and the level crossing's rails and posts;
+  - determinism, and odd input (unknown axis codes, diagonal marks off streets, a 1 × 1 map).
+- Goldens add 9 entries: the test town's ground, and one street of each width 1–4 on each axis. No existing hash changed.
+- Web (`pixelkitArt.test.ts`), 4 new tests:
+  - the pack's axis codes equal `StreetAxis`;
+  - every cell of the test town as a `TownMap` through `groundCell`, where every cell away from the diagonals gets the very frame it gets without `streetAxis`;
+  - a v1 town with an all-orthogonal axis gets `ground()`'s tiles;
+  - the renderer draws the town at noon and at night.
+- The hub Playwright specs (`hub-pixelkit`, `hub-town`, `hub-town-v2`) pass unchanged.
+
+**Sheets** (`node tools/pixelkit/bin/pixelkit.mjs diag`, in `target/pixelkit/`):
+- `diag-scene-day.png`, `diag-scene-dusk.png`, `diag-scene-night.png`: the test town at 2×.
+- `diag-details.png` and `diag-details-night.png`: close-ups at 4× of the radial and the square's wedge, the junctions at Market Street, the zebra and level crossing, the high street to the bridge, the narrow street across North Road, and the wide street with its zebra.
+
+**Cost.**
+- A diagonal cell takes about 50 µs once the JIT is warm, and 120–220 µs on the first pass, on a desktop. Round 4's cells take about 35 µs.
+- The test town draws 724 of its 2,016 cells this way, and 202 distinct frames come out.
+- A phone (about 4× slower) spends roughly 70–300 ms (warm to cold) on a 32 × 32 chunk that is a third diagonal streets, once per chunk bake.
+
+**Honest assessment.**
+- **Good enough for v2 towns with 45° streets to ship to testers: yes.** The diagonals read as the sketch's option B:
+  - smooth 45° carriageways with kerbs on both sides;
+  - centre lines and zebras that follow the street;
+  - chamfered corners at every junction;
+  - square buildings stepping along the street behind pavement triangles;
+  - wedges that read as a green, a yard or a small square.
+  - Nothing is a placeholder, nothing new was added to the palette, and the style, light and night looks are those of rounds 1–4.
+- **What reads well:**
+  - straight diagonals of every width;
+  - X and T junctions, whose pointed pavement tips look deliberate;
+  - zebras on both axes;
+  - the street's run into a bridge;
+  - wedges bordered by the street's pavement;
+  - the night look, where kerbs and markings stay legible.
+- **What is weak:**
+  - **One pavement cell a row is thin:** 11 px square to the street, against 16 px on orthogonal streets. A lamp on such a pavement stands on the kerb line. The generator can lay two pavement cells a row on busy streets; the art handles any number.
+  - **Paving slabs stay square to the grid** on diagonal pavements. This reads as paving, but not as paving laid along the street.
+  - **Street ends are square.** Where a diagonal stops (against a square's pavement, at the quay, at the deck of a bridge whose columns it meets), its last row ends in a short orthogonal step. It is plausible, not designed. The radial dead-ending into the pedestrian square is the clearest case.
+  - **The level crossing is axis-aligned:** the road panel is the rail row's rectangle, and the crossing's pavements stop at the rails.
+  - **Colours per cell** reach 11 where three materials meet in one cell.
+  - **The test town is hand-made.** The generator's real streets (junction marking, pavement widths, how crossings are laid) have not been drawn yet. The rules depend only on the vocabulary, but the first generated towns should be reviewed with these sheets beside them.
+- **What an artist would add:** paving laid along the street (diamond or running bond), kerb stones with joints, worn wheel tracks and repairs along carriageways, drawn corner pieces for the sharpest junction tips, and a diagonal set for the level crossing.
+
+### Round 6: street ends (2026-11-19, agent-drawn parts)
+
+**Why.** DEC-090's D5 amendment adds street ends: "roads have terminations instead of just ending abruptly". Only declared links, rail, rivers and the coast cross the map edge. Every other street ends in a junction or in one of six kinds of termination. The vocabulary is fixed in `web/src/hub/townLayout.ts`:
+- `StreetEndKind`;
+- `TownStreetEnd {kind, x, y, w, h, facing}`: the end's last road cells, and the way the street runs into them (n, e, s, w, ne, nw, se, sw);
+- `TownMap.streetEnds`;
+- three props: `bollards`, `field_gate` and `railing`.
+
+This round draws every kind in the flat three-quarter style of rounds 1–5, on orthogonal and 45° streets. DEC-084's addendum applies: no artist is commissioned, so this is our own art round. `PACK_VERSION` is `mandate-p0.7`.
+
+**How it draws** (`art/mandate/ends.ts`, called by the terrain painter after a cell's own ground):
+- **Each end is a shape in its own frame:** u runs along the street toward the end, v across it.
+  - The frame is measured from the street the map draws, so it works whether or not the street is diagonal. Several lines are scanned across the street just behind the end, and the narrowest carriageway found gives the street's centre line and width. Its pavements give the pavement width.
+  - The end line runs through the middle of the end's farthest road cell.
+- **Inside the end's zone** (its cells and one cell round them; two on diagonals and across a field gate's hedge), the shape decides each map pixel's material.
+  - Only cells of open terrain change: streets, squares, greens, yards, paths, fields and quays. Water, buildings, rail, bridges and crossings never do.
+  - Pixels whose material changes, and those within 4 px of a change (an edge profile's reach), are repainted from the materials' own fills and round 1 edge profiles: kerbs, gutters and edgings.
+  - The edges follow the autotile templates' rule. The north or south profile applies where another material lies within its reach, else the west or east one, and inner corners wrap. So curved and 45° kerbs join the orthogonal ones unchanged.
+  - Centre dashes in an end's cells are removed.
+  - Every other pixel keeps what the map draws without street ends. The material of a map pixel is a function of the map alone, so cells join without seams.
+- **The kinds:**
+  - **Turning circle.** A disc inscribed in the end's cells (the generator's (w + 2)² block), centred on the street's line. The street joins it through fillets: a morphological closing, radius 12 px.
+    - A pavement ring as wide as the street's pavement runs round it. The kerb shows its face on the upper half, as on every kerb in the town.
+    - Bulbs of five cells or more (streets 3 and 4 cells wide) get a planted island: its own kerb, a ring of shrubs, and flowers in the middle.
+  - **Hammerhead.** The T or L head the generator lays (on orthogonal streets, the end's cells; on 45° streets, a bar square to the street reaching the end's cells, arms up to 32 px past the carriageway).
+    - Outer corners are chamfered 6 px at 45° (a morphological opening with a diamond, or a square on diagonals). Inner corners are filled at 45° (a closing).
+    - The pavement and kerb follow.
+  - **Bollards.** The carriageway stops at the end line with a dark gutter line, then flush kerb stones: a light top, a second course and joints every 8 px, with no kerb face. Paving beyond meets the footpath (`Path` cells).
+  - **Plaza.** The asphalt gives way to two staggered courses of grey granite setts, then the square's paving. There is no kerb or edging across, and the pavements run into the square.
+  - **Field gate.**
+    - The asphalt edge breaks up raggedly in 2 px clusters, with chunks of asphalt in the first rows of an earth track.
+    - The track narrows toward the gate.
+    - The pavements give way to grass verges.
+    - A hedge 8 px deep crosses the end: an uneven top in 3 px clumps, a lit top, a dark body and foot, and a shadow below. It has a 16 px gap where the gate stands (the `field_gate` prop's cell when one is beside the end).
+  - **Railing.** The carriageway stops at a raised kerb, and a paved apron runs on to the water's edge. On a 45° street the apron fills the triangle between the end line and the orthogonal quay. The quay's own stone is kept.
+- **Isolation.**
+  - A map without `streetEnds` builds no end painter, so no pixel changes. This is checked on the round 4 and 5 scenes.
+  - Cells away from every end draw exactly as without them (lint and tests).
+  - `PixelkitArt` treats a map with street ends as v2.
+
+**The props** (`art/mandate/props3.ts`), laid out by shape rules into text grids. They get the automatic outline and the lints like any other prop.
+- **The variant is the index of the end's facing** in `n, e, s, w, ne, nw, se, sw` (`endPropVariant(facing, second)` in `ends.ts`), plus 8 for the second look. The generator needs this contract (see the follow-ups).
+- **Bollards:** cast-iron posts 3 × 8 px, lit from the left, with a white reflective band. They stand on the dropped kerb.
+  - Two a cell across a street running north–south.
+  - One a cell across a street running east–west: seen end on, two would read as a fence.
+  - Two a cell along a 45° line.
+  - **Lit bollards** (+8) have a glowing head (emissive) and cast their own small pool: 22 × 10 px, fainter bands, 6 px up a wall. Lamp light behaves as in round 2: the renderer shapes the pool to the town, and the head stays bright over the grade.
+- **Field gate:** two posts and a barred gate (three rails and a brace) in the hedge's gap. In timber, or galvanised steel (+8). Across a north–south line it is seen end on, as a strip of rails.
+- **Railing:** iron, two rails on posts every 4 px, 7 px tall, the top rail catching the light. It runs along the side of its cell where the water is (n, e, s, w), or along a 45° line.
+- By day and at night the props take the palette moods like every static prop. Only the lit bollards glow.
+
+**The game side** (`web/src/hub/render/pixelkitArt.ts`):
+- `isV2` counts `streetEnds`, so a map with street ends is drawn through the painter. The painter reads `map.streetEnds` and `map.props`.
+- A prop's pool comes from the prop: a lit bollard's own, else the lamp's. Pool frames are cached per pool.
+- v1 maps, and v2 maps without `streetEnds`, are unchanged: no existing golden moved, and the web tests compare frames.
+
+**The test town** (`art/mandate/endscene.ts`, 80 × 93 tiles), hand-made in the layout's vocabulary and independent of the generator.
+- It holds 36 ends: every kind facing n, s, e and w, and facing se (a "\" street) and ne (a "/" street). Street widths are 2, 3 and 4 cells, and every kind has each width.
+- Streets branch off avenues and end in pairs facing each other, sharing what lies between them:
+  - a footpath through a green (bollards);
+  - a square with a fountain and a stall;
+  - a field with a track from gate to gate;
+  - a basin with a stone quay;
+  - houses round the turning heads.
+- It also has one L-shaped hammerhead on each axis, lit bollards and steel gates, and lamps beside every end.
+
+**Lints** (`target/pixelkit/lint.txt`): 0 errors, 38 warnings (round 5: 37). New lints (`src/cli/lintEnds.ts`):
+- **street-end coverage:**
+  - every cell of the test town drawn, opaque, on the palette;
+  - every kind in all six facings, widths 2, 3 and 4;
+  - all 36 ends laid out;
+  - the three props in every facing.
+- **street-end kerbs:** all 4,734 pixel pairs where carriageway meets pavement round the bulbs and heads are drawn as gutter beside kerb. The kerb runs unbroken round every bulb, island and head.
+- **street-end seams:**
+  - no repainted pixel shows another surface (ramp) than without street ends, unless a material within an edge's reach changed or the end draws a detail there;
+  - every repainted pixel shows a colour of its own material's fill and edges, or a detail.
+- **street-end isolation:** no cell away from the ends changes.
+- **street-end palette:** no colour that no ground drew before. The palette stays at 114 (14 free); no colour was added.
+- **colours per prop:** bollards 7, field gates 8, railings 4 (guide ≤ 8).
+- **colours per tile (warning):** 12 in the most colourful end cell (guide ≤ 8). A cell holding a hedge, a gate's track, broken asphalt and grass, or an island with its flowers, is busy.
+- **street-end edge contrast,** Oklab ΔE by day / at night (moods, 22:30); all ≥ 0.05:
+  - dropped kerb stone / carriageway 0.484 / 0.193;
+  - dropped kerb stone / pavement 0.196 / 0.076;
+  - setts / carriageway 0.366 / 0.147;
+  - setts / square 0.276 / 0.111;
+  - hedge body / grass 0.171 / 0.063;
+  - hedge top / body 0.249 / 0.088;
+  - track / grass 0.122 / 0.051;
+  - track / carriageway 0.177 / 0.072;
+  - island kerb / carriageway 0.366 / 0.147;
+  - island / carriageway 0.240 / 0.100.
+
+**Tests and goldens.**
+- pixelkit (`npm run check`): 62 tests; round 5 had 54. The new tests cover:
+  - kind and facing names;
+  - nothing changing without ends or away from them;
+  - seams, kerbs and colours in the test town;
+  - round bulbs, measured on 16 rays and checked against the island rule;
+  - chamfered heads, with no square corner left and the head reaching past the street;
+  - each kind's end line: no carriageway past it; a dropped kerb and no raised one at bollards; setts and no kerb into a square; a kerb before a railing; a track and a hedge at a field gate;
+  - the props (a variant per facing, the second look, lit bollards with a smaller pool than the lamp's);
+  - determinism and odd ends: unknown kinds and facings, ends off the map, empty ends, ends on a 1 × 1 map.
+- Goldens add 41 entries: the test town's ground and the 40 new prop variants. No existing hash changed.
+- Web (`pixelkitArt.test.ts`), 5 new tests:
+  - the pack's kinds and facings equal `StreetEndKind` and `TownStreetEnd["facing"]`;
+  - every cell of the test town through `groundCell`, where every cell away from the ends gets the very frame it gets without `streetEnds`;
+  - a v1 town with an empty `streetEnds` gets `ground()`'s tiles;
+  - the new props come from the pack, and the lit bollards' pool is smaller than the lamp's and shared between them;
+  - the renderer draws the town at noon and at night.
+- The hub Playwright specs (`hub-pixelkit`, `hub-town`, `hub-town-v2`) pass unchanged.
+
+**Sheets** (`node tools/pixelkit/bin/pixelkit.mjs ends`, in `target/pixelkit/`):
+- `ends-scene-day.png`, `ends-scene-dusk.png`, `ends-scene-night.png`: the test town at 2×.
+- `ends-details-sn.png`, `ends-details-ew.png`, `ends-details-diag.png`, each with a `-night` twin: close-ups at 4× of every kind facing s and n, e and w, and se and ne.
+- `ends-props.png`: every variant of the three props, with the lit parts.
+
+**Cost.** An end cell takes about 100 µs once the JIT is warm, and about 250 µs on the first pass, which builds each end's material grid and its shape operations. The test town draws 2,195 cells near its 36 ends, and 733 distinct frames come out. A real town has far fewer ends per chunk. A phone (about 4× slower) spends roughly 0.4–1 ms per end cell, once per chunk bake.
+
+**Honest assessment.**
+- **Good enough for v2 towns to ship to testers: yes, for the orthogonal ends; the 45° ends are plausible but plainer.** Every kind has art in the established style, palette and light, and nothing is a placeholder. No street in the test town just stops, every check passes, and nothing else moved.
+- **What reads well:**
+  - turning circles: round bulbs with continuous kerbs, a fillet where the street joins, and planted islands;
+  - orthogonal T and L hammerheads with chamfered corners;
+  - bollard closures with a footpath beyond, and the lit bollards at night;
+  - streets running into a square through a band of setts;
+  - the railing at a basin;
+  - the field gate's hedge line with the asphalt giving way to a track.
+- **What is weak:**
+  - **The hedge is ground.** Like round 4's faces and parapets, walkers are never hidden behind it. It reads as a dark band with a lit top more than as a hedge with depth, and its ends are cut, not rounded. The gate is small at 1×.
+  - **The field gate's track** is drawn only inside the end's zone. Beyond it the generator's `Dirt` cells carry on. If the generator lays `Field` there, the track stops at the zone's edge.
+  - **45° hammerheads** are bars square to the street. They read as a T at 2× but are heavy where the street is four cells wide, and the generator's square pavements round them leave stepped outer edges.
+  - **45° turning circles** sit in the generator's square pavement, so the outer pavement edge is a staircase while the kerb is round.
+  - **Paths and tracks beyond 45° ends** are staircases of cells. They are the generator's cells, not drawn as 45° paths.
+  - **Bollards across east–west streets** are one a cell, against two across north–south streets. It looks deliberate at 2× but is uneven.
+  - **The plaza transition** is a straight band of setts. It is subtle but regular; a real square's edge would have a pattern change or a gutter line in stone.
+  - **Colours per cell** reach 12 in the busiest end cells.
+  - **Zones are fixed in size:** the end's cells and one cell round them, two on diagonals. A junction or a second street within a cell of an end would have its carriageway turned to pavement there. The generator should keep ends at least two cells from other streets; the hand-made town does.
+  - **The props' variants** must follow the facing rule. A generator that passes another variant gets a prop drawn for another facing.
+  - **The test town is hand-made.** The generator's real end cells have not been drawn yet, in particular how it lays a 45° end's rectangle (taken here as the bounding box of the end's cells). The rules depend only on the vocabulary, but the first generated towns should be reviewed with these sheets beside them.
+- **What a later art round should add** (DEC-084: these are art-round tasks, not an artist's):
+  - a hedge drawn as a standing prop set, with ends and occlusion;
+  - rounded hedge ends and gate posts set into them;
+  - 45° path and track pieces;
+  - paving laid round a turning circle's island;
+  - a drawn kerb-stone texture for dropped kerbs;
+  - a stone gutter line at plaza edges;
+  - a quay coping with mooring rings where a railing meets water.
+
 ### P1 — MVP for M6 (about 16 tasks)
 
 | Task | Output | Tasks |

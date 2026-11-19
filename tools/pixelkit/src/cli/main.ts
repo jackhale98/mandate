@@ -7,7 +7,9 @@
 //   build     the built pack as the game would load it: pack.json and a tile atlas
 //   street    lays the spike's street screenshots (web/spikes/hub/pixelkit-capture.mjs) side by side
 //   v2        round 4: layout v2 terrain, bridges, props and plot states, and the v2 test scene by day and night
-//   all       palette, sheets, v2, build and lint
+//   diag      round 5: the diagonal-street test town by day, at dusk and at night, and close-ups
+//   ends      round 6: the street-end test town by day, at dusk and at night, close-ups, the new props
+//   all       palette, sheets, v2, diag, ends, build and lint
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { hexToRgb, type Rgb8 } from "../core/color";
@@ -24,6 +26,8 @@ import { composeCharacter, faceLeft, lookFromSeed, partList, PLAYER_LOOK, slotTa
 import { buildPack, type ArtPack } from "../../art/mandate/pack";
 import { groundTile, TERRAINS } from "../../art/mandate/tiles";
 import { sampleBuildings, sampleRows, varietyBuildings } from "../../art/mandate/samples";
+import { diagSheets } from "./diagsheets";
+import { endSheets } from "./endsheets";
 import { v2Sheets } from "./v2sheets";
 
 const args = process.argv.slice(2);
@@ -359,6 +363,8 @@ async function main() {
   }
   if (cmd === "sheets" || cmd === "all") sheets(pack);
   if (cmd === "v2" || cmd === "all") v2Sheets(pack, png);
+  if (cmd === "diag" || cmd === "all") diagSheets(pack, png);
+  if (cmd === "ends" || cmd === "all") endSheets(pack, png);
   if (cmd === "build" || cmd === "all") build(pack);
   if (cmd === "street") street();
   if (cmd === "lint" || cmd === "all") {
