@@ -10,7 +10,10 @@ Pushes to `main` deploy to GitHub Pages:
 
 - Landing page: <https://jackhale98.github.io/mandate/>
 - The game: <https://jackhale98.github.io/mandate/play/>
-- Walkable town prototype (M6 groundwork, unlinked): <https://jackhale98.github.io/mandate/spike-hub/>
+- Walkable town prototype (M6 groundwork, unlinked), with the new town generator (layout v2, DEC-090) and the pixel art: <https://jackhale98.github.io/mandate/spike-hub/?layout=v2>
+  - Pick a world with `seed`, e.g. [`?seed=2026&layout=v2`](https://jackhale98.github.io/mandate/spike-hub/?seed=2026&layout=v2), or press "New town".
+  - `town=largest` (or `smallest`, or a town's name) visits another town; `dress=grow`, `shrink` or `closed` shows the monthly dress pass; `art=placeholder` shows the stand-in art.
+  - Without `layout=v2` it shows the old layout (v1), which is what the game itself still uses.
 
 ## Repository layout
 
