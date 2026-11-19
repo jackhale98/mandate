@@ -1,6 +1,7 @@
 import { SHADOW_BUCKETS, SUNRISE, SUNSET, shadowBucket } from "../dayCycle";
 import { FIXTURES, randomInput } from "../testTowns";
-import { layoutTown, townSeed, type TownMap } from "../townLayout";
+import { ROOF_ROWS, layoutTown, townSeed, type TownMap } from "../townLayout";
+import { buildingSpec, groundCells } from "./art";
 import { TownScene } from "../townScene";
 import { PlaceholderArt } from "./placeholderArt";
 import { newLog, stubCanvasFactory, stubContext, type StubLog } from "./stubCanvas";
@@ -128,27 +129,86 @@ describe("town renderer (stubbed canvas)", () => {
     }
   });
 
-  it("the placeholder art draws every place kind, filler and walker, once each", () => {
-    const maps = [town(1), ...Array.from({ length: 30 }, (_, s) => layoutTown(randomInput(s + 1), s + 1))];
-    const log = newLog();
-    const art = new PlaceholderArt({ createCanvas: stubCanvasFactory(log) });
-    const ctx = stubContext(log, { width: 16, height: 16 });
+  it("draws side-facing walkers mirrored for facing right", () => {
+    const map = town(0);
+    const { r, screenLog } = setup(map);
+    const scene = new TownScene(map, { townsfolk: 0 });
+    r.draw(frame(map, scene, 12 * 60, { walkers: [{ x: scene.player.x, y: scene.player.y, dir: 3, frame: 1, variant: -1 }] }));
+    expect(calls(screenLog, "scale")).toBe(1);
+    r.draw(frame(map, scene, 12 * 60, { walkers: [{ x: scene.player.x, y: scene.player.y, dir: 2, frame: 1, variant: -1 }] }));
+    expect(calls(screenLog, "scale")).toBe(1);
+  });
+});
+
+describe("placeholder art: the ArtProvider contract (PIXEL_ART_TOOL.md §5.1)", () => {
+  const maps = [town(1), ...Array.from({ length: 30 }, (_, s) => layoutTown(randomInput(s + 1), s + 1))];
+
+  it("buildings: albedo of footprint plus roof, windows and doors with emissive frames and use tags, a shadow footprint and height", () => {
+    const art = new PlaceholderArt({ createCanvas: stubCanvasFactory(newLog()) });
+    const uses = new Set<string>();
     for (const map of maps) {
       for (const b of map.buildings) {
-        const s = art.building(map, b);
-        expect(s.w).toBe(b.w * 16);
-        expect(art.building(map, b)).toBe(s);
-        art.buildingLights(map, b);
+        const spec = buildingSpec(map, b);
+        const a = art.building(spec);
+        expect(a.albedo.w).toBe(b.w * 16);
+        expect(a.albedo.h).toBe((b.h + ROOF_ROWS) * 16);
+        expect(a.albedo.ay).toBe(ROOF_ROWS * 16);
+        expect(a.shadow.footprint.length).toBeGreaterThanOrEqual(3);
+        expect(a.shadow.height).toBeGreaterThan(0);
+        expect(a.doors).toHaveLength(1);
+        for (const o of [...a.windows, ...a.doors]) {
+          expect(o.x).toBeGreaterThanOrEqual(0);
+          expect(o.x + o.w).toBeLessThanOrEqual(a.albedo.w);
+          expect(o.y + o.h).toBeLessThanOrEqual(a.albedo.h);
+          uses.add(o.use);
+        }
+        if (b.place !== null) expect(a.doors[0]?.emissive).not.toBeNull();
+        // The same place looks the same wherever the layout puts it.
+        if (b.place !== null) expect(spec.visualSeed).toBe(buildingSpec({ ...map }, { ...b, x: b.x + 5 }).visualSeed);
       }
-      for (const p of map.props) art.prop(map, p);
-      for (let y = 0; y < map.height; y += 3) for (let x = 0; x < map.width; x += 3) art.ground(ctx, map, x, y, 0, 0);
     }
-    for (let v = -1; v < 70; v++) for (let d = 0; d < 4; d++) for (let f = 0; f < 3; f++) art.walker(v, d, f);
+    expect([...uses].sort()).toEqual(["civic", "home", "industrial", "office", "shop"]);
+  });
+
+  it("characters are 16×24, anchored at the feet, in three facings; frames are cached", () => {
+    const log = newLog();
+    const art = new PlaceholderArt({ createCanvas: stubCanvasFactory(log) });
+    for (let v = -1; v < 70; v++) {
+      for (const facing of ["down", "up", "side"] as const) {
+        for (let f = 0; f <= art.walkFrames; f++) {
+          const c = art.character({ seed: v, player: v < 0 }, f ? "walk" : "idle", facing, f);
+          expect([c.w, c.h, c.ax, c.ay]).toEqual([16, 24, 8, 23]);
+        }
+      }
+    }
     const before = art.made;
-    art.walker(5, 2, 1);
-    art.lightPool();
-    art.lightPool();
-    for (const k of ["here", "pin", "target", "door"] as const) art.marker(k);
-    expect(art.made).toBeLessThanOrEqual(before + 5);
+    art.character({ seed: 5 }, "walk", "side", 1);
+    expect(art.made).toBe(before);
+  });
+
+  it("ground tiles, props, grade and icons", () => {
+    const art = new PlaceholderArt({ createCanvas: stubCanvasFactory(newLog()) });
+    for (const map of maps) {
+      const g = groundCells(map);
+      for (let i = 0; i < map.terrain.length; i += 7) {
+        const f = art.ground(map.terrain[i] as number, g.mask[i] as number, g.variant[i] as number);
+        expect([f.w, f.h]).toEqual([16, 16]);
+      }
+      for (const p of map.props) art.prop(p.kind, p.variant);
+    }
+    // Ground tiles share sheets: a town draws from a handful of canvases.
+    expect(art.made).toBeLessThan(maps.reduce((a, m) => a + m.buildings.length, 0) / 10 + 40);
+    const lamp = art.prop("lamp", 0);
+    expect(lamp.emissive).toBeDefined();
+    expect(lamp.pool).toBeDefined();
+    expect(art.prop("tree", 1).shadow?.height).toBeGreaterThan(0);
+    // Grading: shadows by day only, lights by night only.
+    expect(art.grade(12 * 60).shadow.alpha).toBeGreaterThan(0.2);
+    expect(art.grade(12 * 60).emissive).toBe(0);
+    expect(art.grade(23 * 60).shadow.alpha).toBe(0);
+    expect(art.grade(23 * 60).emissive).toBe(1);
+    expect(art.icon("council_chamber")).toBe("hub-icon-dome");
+    expect(art.iconSprite()).toContain('id="hub-icon-dome"');
+    for (const k of ["here", "pin", "target", "door"] as const) expect(art.marker(k).w).toBeGreaterThan(0);
   });
 });

@@ -12,6 +12,7 @@ import type { PlacePanelView } from "../../../src/engine/protocol/PlacePanelView
 import type { TownPlacesView } from "../../../src/engine/protocol/TownPlacesView";
 import { DayClock, clockText, phaseAt, type DayPhase } from "../../../src/hub/dayCycle";
 import { HubView } from "../../../src/hub/hubView";
+import { PlaceholderArt } from "../../../src/hub/render/placeholderArt";
 import { townInputFromView } from "../../../src/hub/townInput";
 import { buildingOfPlace, layoutTown, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
 import { Translator } from "../../../src/i18n/fluent";
@@ -57,6 +58,9 @@ if (!Array.from(speedSel.options).some((o) => Number(o.value) === speed) && spee
 else if (speed > 0) speedSel.value = String(speed);
 
 let tr = new Translator("en", "");
+// The placeholder art (the pixel-art tool's pack replaces it through the same ArtProvider calls).
+const art = new PlaceholderArt();
+document.body.insertAdjacentHTML("afterbegin", art.iconSprite());
 let view: HubView | null = null;
 let map: TownMap | null = null;
 let town: TownPlacesView | null = null;
@@ -103,7 +107,9 @@ function mount(m: TownMap) {
   const t0 = performance.now();
   view = new HubView(stage, {
     map: m,
+    art,
     label: placeLabel,
+    labelIcon: (b) => (b.place !== null || b.home ? art.icon(b.home ? "home" : b.kind) : null),
     townsfolk,
     resolution,
     clock,

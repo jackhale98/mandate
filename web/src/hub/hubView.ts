@@ -8,7 +8,7 @@
 // and the app's React screen can both mount it.
 import { HubCamera } from "./camera";
 import { DayClock, wrapMinutes } from "./dayCycle";
-import type { TownArt } from "./render/art";
+import type { ArtProvider } from "./render/art";
 import { PlaceholderArt } from "./render/placeholderArt";
 import { TownRenderer, type WalkerView } from "./render/townRenderer";
 import { ROOF_ROWS, buildingOfPlace, type TownBuilding, type TownMap } from "./townLayout";
@@ -17,9 +17,11 @@ import { TownScene, type Walker } from "./townScene";
 
 export interface HubViewOptions {
   map: TownMap;
-  art?: TownArt;
+  art?: ArtProvider;
   /** Text of a building's label (a place's translated name), or null for none. */
   label?: (b: TownBuilding) => string | null;
+  /** An SVG symbol id to show in a building's label (the provider's `icon`), or null. */
+  labelIcon?: (b: TownBuilding) => string | null;
   /** The player reached a building's door (or open ground: null). */
   onArrive?: (b: TownBuilding | null) => void;
   /** Ambient townsfolk (default 14). */
@@ -207,7 +209,17 @@ export class HubView {
       const el = document.createElement("button");
       el.type = "button";
       el.className = b.landmark ? "hub-label hub-label-landmark" : "hub-label";
-      el.textContent = text;
+      const icon = this.opts.labelIcon?.(b);
+      if (icon) {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", "hub-label-icon");
+        svg.setAttribute("aria-hidden", "true");
+        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        use.setAttribute("href", `#${icon}`);
+        svg.appendChild(use);
+        el.appendChild(svg);
+      }
+      el.append(text);
       // The place list is the keyboard and screen-reader route (DEC-051).
       el.tabIndex = -1;
       el.setAttribute("aria-hidden", "true");

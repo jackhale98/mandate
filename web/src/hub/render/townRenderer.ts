@@ -1,28 +1,45 @@
 // Canvas 2D town renderer (DEC-080). Static layers are pre-rendered in
 // chunks of the map, baked lazily when first seen and kept in a small LRU:
 //   - base: the ground, buildings and props (baked once);
-//   - shadow: building shadows for one sun-angle bucket (./dayCycle), at half
-//     resolution, re-baked only when the bucket changes.
-// Each drawn frame is one blit per visible chunk, the shadows at the sun's
+//   - shadow: shadows projected from each caster's footprint and height along
+//     the grade's shadow vector, at half resolution, re-baked only when that
+//     vector changes (the provider steps it with the sun).
+// Each drawn frame is one blit per visible chunk, the shadows at the grade's
 // strength, the walkers (y-sorted) with the roofs and canopies they walk
-// behind drawn again over them, the day's grade as three full-view
-// composites (saturation, multiply, soft light), then lit windows, lamp
-// pools and the "you are here" pin over the grade. A frame identical to the
-// last is skipped, so an idle town costs nothing. Text is never drawn here:
-// labels are HTML over the canvas (./hubView).
-import { gradeAt, lightLevel, shadowBucket, shadowVector, sunAt, type Rgb } from "../dayCycle";
-import { noise01 } from "../rng";
+// behind drawn again over them, the grade as three full-view composites
+// (saturation, multiply, soft light), then lit windows, doors and lamps and
+// their pools over the grade, and the "you are here" pin. A frame identical
+// to the last is skipped, so an idle town costs nothing. All colour comes
+// from the art provider (./art); text is HTML over the canvas (../hubView).
+import { lightLevel } from "../dayCycle";
+import { mix, noise01 } from "../rng";
 import { ROOF_ROWS, type TownBuilding, type TownMap, type TownProp } from "../townLayout";
-import { domCanvasFactory, type CanvasFactory, type Ctx, type Layer, type Sprite, type TownArt } from "./art";
+import {
+  buildingSpec,
+  domCanvasFactory,
+  groundCells,
+  type ArtProvider,
+  type BuiltBuilding,
+  type CanvasFactory,
+  type Ctx,
+  type FrameRef,
+  type Grade,
+  type Layer,
+  type LightUse,
+  type PropSprite,
+  type Rgb,
+  type ShadowCaster,
+} from "./art";
 
 export interface WalkerView {
   /** Feet, tiles. */
   x: number;
   y: number;
+  /** 0 down, 1 up, 2 left, 3 right. */
   dir: number;
   /** 0 standing, 1..art.walkFrames stepping. */
   frame: number;
-  /** Appearance; < 0 is the player. */
+  /** Appearance seed; < 0 is the player. */
   variant: number;
 }
 
@@ -35,7 +52,7 @@ export interface FrameState {
   camY: number;
   /** Backing px per art px (whole numbers keep the pixels even). */
   zoom: number;
-  /** Clock, minutes after midnight (./dayCycle). */
+  /** Clock, minutes after midnight. */
   minutes: number;
   /** Everyone to draw, the player included. */
   walkers: readonly WalkerView[];
@@ -76,7 +93,7 @@ interface Static {
   index: number;
   /** Sort key: the bottom of its footprint, art px. */
   base: number;
-  /** Conservative world rect of what it draws, art px. */
+  /** World rect of what it draws, art px. */
   l: number;
   t: number;
   r: number;
@@ -91,9 +108,28 @@ interface Chunk {
   cy: number;
   base: Layer | null;
   shadow: Layer | null;
-  shadowBucket: number;
+  shadowKey: string;
   used: number;
 }
+
+/** A light: a lit opening of a building, or a lamp head or pool. */
+interface Light {
+  frame: FrameRef;
+  /** Where the frame's anchor goes, art px. */
+  x: number;
+  y: number;
+  /** Switch-on point, 0..1 of the grade's emissive level. */
+  threshold: number;
+}
+
+/** Switch-on points by use (start, spread): shops and civic early, homes through the evening, industry late. */
+const USE_SHIFT: Record<LightUse, [number, number]> = {
+  shop: [0.08, 0.25],
+  civic: [0.12, 0.25],
+  home: [0.15, 0.6],
+  office: [0.3, 0.5],
+  industrial: [0.7, 0.4],
+};
 
 const css = (c: Rgb) => `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
 const q = (v: number, step: number) => Math.round(v / step);
@@ -108,12 +144,15 @@ export class TownRenderer {
   private readonly maxChunks: number;
   private readonly reducedMotion: boolean;
   private readonly now: () => number;
+  private readonly ground: { mask: Uint8Array; variant: Uint8Array };
   private chunks = new Map<number, Chunk>();
   private statics: Static[] = [];
+  private built = new Map<number, BuiltBuilding>();
+  private lightCache = new Map<number, Light[]>();
+  private propSprites: PropSprite[] = [];
   /** Statics whose overhang (roof rows, canopies) covers a cell. */
   private overhang = new Map<number, number[]>();
-  private lamps: { p: TownProp; light: { x: number; y: number }; threshold: number }[] = [];
-  private windowThreshold: number[];
+  private lamps: { light: Light | null; pool: Light | null }[] = [];
   private lastKey: number[] = [];
   private frameNo = 0;
   private scratch: Layer | null = null;
@@ -122,7 +161,7 @@ export class TownRenderer {
   constructor(
     private readonly ctx: Ctx,
     readonly map: TownMap,
-    readonly art: TownArt,
+    readonly art: ArtProvider,
     options: RendererOptions = {},
   ) {
     this.T = art.tile;
@@ -133,15 +172,8 @@ export class TownRenderer {
     this.maxChunks = Math.max(4, options.maxChunks ?? 24);
     this.reducedMotion = options.reducedMotion ?? false;
     this.now = options.now ?? (() => performance.now());
+    this.ground = groundCells(map);
     this.indexStatics();
-    // Each building lights up at its own point of the evening; shops and
-    // named places early, warehouses and sheds late (some never).
-    this.windowThreshold = map.buildings.map((b) => {
-      const n = noise01(b.style, 99);
-      if (b.kind === "warehouse" || b.kind === "shed" || b.kind === "factory") return 0.7 + n * 0.4;
-      if (b.place !== null || b.kind === "shop") return 0.1 + n * 0.3;
-      return 0.15 + n * 0.65;
-    });
   }
 
   private indexStatics() {
@@ -151,21 +183,24 @@ export class TownRenderer {
       this.statics.push({ kind: "b", index: b.index, base: (b.y + b.h) * T, l: b.x * T, t: (b.y - ROOF_ROWS) * T, r: (b.x + b.w) * T, b: (b.y + b.h) * T, x: b.x * T, y: b.y * T });
     }
     map.props.forEach((p, index) => {
-      const s = this.art.prop(map, p);
+      const ps = this.art.prop(p.kind, p.variant);
+      this.propSprites.push(ps);
+      const s = ps.albedo;
       const x = p.x * T;
       const y = p.y * T;
       this.statics.push({ kind: "p", index, base: y + Math.max(T, s.h - s.ay), l: x - s.ax, t: y - s.ay, r: x - s.ax + s.w, b: y - s.ay + s.h, x, y });
-      const light = this.art.lampLight(p);
-      if (light) this.lamps.push({ p, light, threshold: 0.32 + noise01(p.x, p.y, 7) * 0.16 });
+      const threshold = 0.32 + noise01(p.x, p.y, 7) * 0.16;
+      this.lamps.push({
+        light: ps.emissive ? { frame: ps.emissive, x, y, threshold } : null,
+        pool: ps.pool ? { frame: ps.pool.frame, x: x + ps.pool.x, y: y + ps.pool.y, threshold } : null,
+      });
     });
     this.statics.sort((a, b) => a.base - b.base || a.l - b.l || (a.kind === b.kind ? a.index - b.index : a.kind === "b" ? -1 : 1));
     // Overhang cells: rows above a building's footprint, and above a blocking prop's cell.
     this.statics.forEach((s, si) => {
-      let rows: [number, number] | null = null;
-      if (s.kind === "b") rows = [Math.floor(s.t / T), Math.floor(s.y / T) - 1];
-      else if ((map.props[s.index] as TownProp).blocks && s.t < s.y) rows = [Math.floor(s.t / T), Math.floor(s.y / T) - 1];
-      if (!rows) return;
-      for (let cy = rows[0]; cy <= rows[1]; cy++) {
+      const blocks = s.kind === "b" || (map.props[s.index] as TownProp).blocks;
+      if (!blocks || s.t >= s.y) return;
+      for (let cy = Math.floor(s.t / T); cy <= Math.floor(s.y / T) - 1; cy++) {
         for (let cx = Math.floor(s.l / T); cx < Math.ceil(s.r / T); cx++) {
           if (cx < 0 || cy < 0 || cx >= map.width || cy >= map.height) continue;
           const c = cy * map.width + cx;
@@ -177,8 +212,22 @@ export class TownRenderer {
     });
   }
 
-  private spriteOf(s: Static): Sprite {
-    return s.kind === "b" ? this.art.building(this.map, this.map.buildings[s.index] as TownBuilding) : this.art.prop(this.map, this.map.props[s.index] as TownProp);
+  /** A building as the art draws it (made on first use, kept). */
+  private buildingArt(b: TownBuilding): BuiltBuilding {
+    let a = this.built.get(b.index);
+    if (!a) {
+      a = this.art.building(buildingSpec(this.map, b));
+      this.built.set(b.index, a);
+    }
+    return a;
+  }
+
+  private frameOf(s: Static): FrameRef {
+    return s.kind === "b" ? this.buildingArt(this.map.buildings[s.index] as TownBuilding).albedo : (this.propSprites[s.index] as PropSprite).albedo;
+  }
+
+  private casterOf(s: Static): ShadowCaster | undefined {
+    return s.kind === "b" ? this.buildingArt(this.map.buildings[s.index] as TownBuilding).shadow : (this.propSprites[s.index] as PropSprite).shadow;
   }
 
   /** Forget the last frame, so the next `draw` draws (after a resize, or new art). */
@@ -207,7 +256,7 @@ export class TownRenderer {
     const k = cy * this.nx + cx;
     let c = this.chunks.get(k);
     if (!c) {
-      c = { cx, cy, base: null, shadow: null, shadowBucket: -2, used: 0 };
+      c = { cx, cy, base: null, shadow: null, shadowKey: "", used: 0 };
       this.chunks.set(k, c);
     }
     c.used = this.frameNo;
@@ -224,6 +273,10 @@ export class TownRenderer {
     }
   }
 
+  private drawFrame(g: Ctx, f: FrameRef, x: number, y: number) {
+    g.drawImage(f.image, f.x, f.y, f.w, f.h, Math.round(x - f.ax), Math.round(y - f.ay), f.w, f.h);
+  }
+
   private bakeBase(c: Chunk): Layer {
     const { CP, T, map } = this;
     const layer = this.make(CP, CP);
@@ -234,23 +287,25 @@ export class TownRenderer {
     g.setTransform(1, 0, 0, 1, -x0, -y0);
     g.fillStyle = this.art.outside;
     g.fillRect(x0, y0, CP, CP);
-    const tx0 = Math.floor(x0 / T);
-    const ty0 = Math.floor(y0 / T);
     const tx1 = Math.min(map.width, Math.ceil((x0 + CP) / T));
     const ty1 = Math.min(map.height, Math.ceil((y0 + CP) / T));
-    for (let y = ty0; y < ty1; y++) for (let x = tx0; x < tx1; x++) this.art.ground(g, map, x, y, x * T, y * T);
+    for (let y = Math.floor(y0 / T); y < ty1; y++) {
+      for (let x = Math.floor(x0 / T); x < tx1; x++) {
+        const i = y * map.width + x;
+        this.drawFrame(g, this.art.ground(map.terrain[i] as number, this.ground.mask[i] as number, this.ground.variant[i] as number), x * T, y * T);
+      }
+    }
     for (const s of this.statics) {
       if (s.r <= x0 || s.l >= x0 + CP || s.b <= y0 || s.t >= y0 + CP) continue;
-      const sp = this.spriteOf(s);
-      g.drawImage(sp.image, sp.sx, sp.sy, sp.w, sp.h, s.x - sp.ax, s.y - sp.ay, sp.w, sp.h);
+      this.drawFrame(g, this.frameOf(s), s.x, s.y);
     }
     g.setTransform(1, 0, 0, 1, 0, 0);
     this.stats.baseBakes++;
     return layer;
   }
 
-  private bakeShadow(c: Chunk, bucket: number): Layer {
-    const { CP, T, map } = this;
+  private bakeShadow(c: Chunk, grade: Grade): Layer {
+    const { CP, map } = this;
     const half = CP / 2;
     const layer = c.shadow ?? this.make(half, half);
     const g = layer.ctx;
@@ -260,49 +315,42 @@ export class TownRenderer {
     const x0 = c.cx * CP;
     const y0 = c.cy * CP;
     g.setTransform(0.5, 0, 0, 0.5, -x0 / 2, -y0 / 2);
-    const v = shadowVector(bucket);
-    const reach = 4 * T * 3;
+    const { dx, dy } = grade.shadow;
+    // Offsets snap to whole shadow pixels (2 art px), so axis-aligned edges stay crisp.
     const even = (n: number) => Math.round(n / 2) * 2;
+    const reach = 3 * 4 * this.T;
     g.beginPath();
-    const sweep = (x: number, y: number, w: number, h: number, height: number) => {
-      const vx = v.dx * height * T;
-      const vy = v.dy * height * T;
-      const steps = Math.max(1, Math.ceil(Math.max(Math.abs(vx), Math.abs(vy)) / 2));
-      for (let k = 0; k <= steps; k++) g.rect(even(x + (vx * k) / steps), even(y + (vy * k) / steps), w, h);
-    };
-    const near = (s: Static) => !(s.r + reach <= x0 || s.l - reach >= x0 + CP || s.b + reach <= y0 || s.t - reach >= y0 + CP);
     for (const s of this.statics) {
-      if (!near(s)) continue;
-      if (s.kind === "b") {
-        const b = map.buildings[s.index] as TownBuilding;
-        sweep(b.x * T, b.y * T, b.w * T, b.h * T, this.art.buildingHeight(b));
-      } else {
-        const p = map.props[s.index] as TownProp;
-        const h = this.art.propHeight(p);
-        if (h > 0) sweep(s.x + 3, s.y + 4, T - 6, T - 6, h);
+      if (s.r + reach <= x0 || s.l - reach >= x0 + CP || s.b + reach <= y0 || s.t - reach >= y0 + CP) continue;
+      const caster = this.casterOf(s);
+      if (!caster || caster.height <= 0 || caster.footprint.length < 3) continue;
+      const vx = dx * caster.height;
+      const vy = dy * caster.height;
+      const steps = Math.max(1, Math.ceil(Math.max(Math.abs(vx), Math.abs(vy)) / 2));
+      for (let k = 0; k <= steps; k++) {
+        const ox = s.x + even((vx * k) / steps);
+        const oy = s.y + even((vy * k) / steps);
+        caster.footprint.forEach(([px, py], i) => (i === 0 ? g.moveTo(ox + px, oy + py) : g.lineTo(ox + px, oy + py)));
+        g.closePath();
       }
     }
-    g.fillStyle = this.art.shadow;
-    g.fill();
+    g.fillStyle = grade.shadow.color;
+    g.fill("nonzero");
     // Shadows fall on the ground, not on the buildings and trees that stand in them.
     g.globalCompositeOperation = "destination-out";
     for (const s of this.statics) {
       if (s.r <= x0 || s.l >= x0 + CP || s.b <= y0 || s.t >= y0 + CP) continue;
       if (s.kind === "p" && !(map.props[s.index] as TownProp).blocks) continue;
-      const sp = this.spriteOf(s);
-      g.drawImage(sp.image, sp.sx, sp.sy, sp.w, sp.h, s.x - sp.ax, s.y - sp.ay, sp.w, sp.h);
+      this.drawFrame(g, this.frameOf(s), s.x, s.y);
     }
     g.globalCompositeOperation = "source-over";
     g.setTransform(1, 0, 0, 1, 0, 0);
-    c.shadowBucket = bucket;
     this.stats.shadowBakes++;
     return layer;
   }
 
   /** Everything that decides what a frame looks like, quantised to what can be seen. */
-  private frameKey(f: FrameState, tx: number, ty: number): number[] {
-    const g = gradeAt(f.minutes);
-    const sun = sunAt(f.minutes);
+  private frameKey(f: FrameState, g: Grade, tx: number, ty: number): number[] {
     const key = [
       f.width,
       f.height,
@@ -317,9 +365,11 @@ export class TownRenderer {
       q(g.glow[2], 1),
       q(g.glowAlpha, 1 / 512),
       q(g.sat, 1 / 512),
-      q(g.lights, 1 / 512),
-      q(sun.shadowAlpha, 1 / 512),
-      shadowBucket(f.minutes),
+      q(g.emissive, 1 / 512),
+      q(g.pool, 1 / 512),
+      q(g.shadow.alpha, 1 / 512),
+      q(g.shadow.dx, 1 / 256),
+      q(g.shadow.dy, 1 / 256),
       f.player ? Math.round(f.player.x * this.T * f.zoom) : -1e9,
       f.player ? Math.round(f.player.y * this.T * f.zoom) : -1e9,
       f.target ? f.target.cell : -1,
@@ -336,7 +386,8 @@ export class TownRenderer {
     const s = f.zoom;
     const tx = Math.round(f.width / 2 - f.camX * s);
     const ty = Math.round(f.height / 2 - f.camY * s);
-    const key = this.frameKey(f, tx, ty);
+    const grade = this.art.grade(f.minutes);
+    const key = this.frameKey(f, grade, tx, ty);
     if (key.length === this.lastKey.length && key.every((v, i) => v === this.lastKey[i])) {
       this.stats.skipped++;
       return false;
@@ -357,13 +408,9 @@ export class TownRenderer {
     const vy0 = -ty / s;
     const vx1 = (f.width - tx) / s;
     const vy1 = (f.height - ty) / s;
-    const cx0 = Math.max(0, Math.floor(vx0 / CP));
-    const cy0 = Math.max(0, Math.floor(vy0 / CP));
-    const cx1 = Math.min(this.nx - 1, Math.floor(vx1 / CP));
-    const cy1 = Math.min(this.ny - 1, Math.floor(vy1 / CP));
     const visible: Chunk[] = [];
-    for (let cy = cy0; cy <= cy1; cy++) {
-      for (let cx = cx0; cx <= cx1; cx++) {
+    for (let cy = Math.max(0, Math.floor(vy0 / CP)); cy <= Math.min(this.ny - 1, Math.floor(vy1 / CP)); cy++) {
+      for (let cx = Math.max(0, Math.floor(vx0 / CP)); cx <= Math.min(this.nx - 1, Math.floor(vx1 / CP)); cx++) {
         const c = this.chunk(cx, cy);
         c.base ??= this.bakeBase(c);
         ctx.drawImage(c.base.canvas, cx * CP, cy * CP);
@@ -371,13 +418,15 @@ export class TownRenderer {
       }
     }
 
-    // Shadows at the sun's strength.
-    const sun = sunAt(f.minutes);
-    const bucket = shadowBucket(f.minutes);
-    if (bucket >= 0 && sun.shadowAlpha > 0.002) {
-      ctx.globalAlpha = sun.shadowAlpha;
+    // Shadows at the grade's strength.
+    if (grade.shadow.alpha > 0.002) {
+      const sk = `${grade.shadow.dx},${grade.shadow.dy},${grade.shadow.color}`;
+      ctx.globalAlpha = grade.shadow.alpha;
       for (const c of visible) {
-        if (!c.shadow || c.shadowBucket !== bucket) c.shadow = this.bakeShadow(c, bucket);
+        if (!c.shadow || c.shadowKey !== sk) {
+          c.shadow = this.bakeShadow(c, grade);
+          c.shadowKey = sk;
+        }
         ctx.drawImage(c.shadow.canvas, 0, 0, CP / 2, CP / 2, c.cx * CP, c.cy * CP, CP, CP);
       }
       ctx.globalAlpha = 1;
@@ -387,14 +436,12 @@ export class TownRenderer {
     const bob = this.reducedMotion ? 0 : Math.round(Math.sin(f.time * 5) * 1.5);
     if (f.target) {
       const tc = f.target.cell;
-      const gx = (tc % map.width) * T + T / 2;
-      const gy = Math.floor(tc / map.width) * T + T / 2;
       if (f.target.building !== null) {
         const b = map.buildings[f.target.building] as TownBuilding;
-        this.sprite(art.marker("door"), b.doorX * T + T / 2, (b.doorY + 1) * T + 1);
-      } else this.sprite(art.marker("target"), gx, gy + bob);
+        this.drawFrame(ctx, art.marker("door"), b.doorX * T + T / 2, (b.doorY + 1) * T + 1);
+      } else this.drawFrame(ctx, art.marker("target"), (tc % map.width) * T + T / 2, Math.floor(tc / map.width) * T + T / 2 + bob);
     }
-    if (f.player) this.sprite(art.marker("here"), Math.round(f.player.x * T), Math.round(f.player.y * T) + 1);
+    if (f.player) this.drawFrame(ctx, art.marker("here"), f.player.x * T, f.player.y * T + 1);
 
     // Walkers, back to front, with soft feet shadows.
     const walkers = this.sortBuf;
@@ -406,84 +453,79 @@ export class TownRenderer {
       walkers.push(w);
     }
     walkers.sort((a, b) => a.y - b.y || a.x - b.x);
-    ctx.fillStyle = art.shadow;
+    ctx.fillStyle = grade.shadow.color;
     ctx.globalAlpha = 0.3;
     for (const w of walkers) ctx.fillRect(Math.round(w.x * T) - 4, Math.round(w.y * T) - 1, 8, 2);
     ctx.globalAlpha = 1;
-    for (const w of walkers) this.sprite(art.walker(w.variant, w.dir, w.frame), Math.round(w.x * T), Math.round(w.y * T));
+    for (const w of walkers) this.drawWalker(ctx, w, Math.round(w.x * T), Math.round(w.y * T));
 
     // Roofs and canopies over the walkers behind them.
     this.drawOverhangs(walkers);
 
-    // The day's grade, over the whole view.
-    const g = gradeAt(f.minutes);
+    // The grade, over the whole view.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (g.sat < 0.995) {
+    if (grade.sat < 0.995) {
       ctx.globalCompositeOperation = "saturation";
-      ctx.globalAlpha = 1 - g.sat;
+      ctx.globalAlpha = 1 - grade.sat;
       ctx.fillStyle = "#808080";
       ctx.fillRect(0, 0, f.width, f.height);
     }
-    if (g.mul[0] < 254.5 || g.mul[1] < 254.5 || g.mul[2] < 254.5) {
+    if (grade.mul[0] < 254.5 || grade.mul[1] < 254.5 || grade.mul[2] < 254.5) {
       ctx.globalCompositeOperation = "multiply";
       ctx.globalAlpha = 1;
-      ctx.fillStyle = css(g.mul);
+      ctx.fillStyle = css(grade.mul);
       ctx.fillRect(0, 0, f.width, f.height);
     }
-    if (g.glowAlpha > 0.002) {
+    if (grade.glowAlpha > 0.002) {
       ctx.globalCompositeOperation = "soft-light";
-      ctx.globalAlpha = g.glowAlpha;
-      ctx.fillStyle = css(g.glow);
+      ctx.globalAlpha = grade.glowAlpha;
+      ctx.fillStyle = css(grade.glow);
       ctx.fillRect(0, 0, f.width, f.height);
     }
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
     ctx.setTransform(s, 0, 0, s, tx, ty);
 
-    // Lights over the grade: windows (not over walkers in front of them), then lamps.
-    if (g.lights > 0.002) {
+    // Lights over the grade: windows and doors (not over walkers in front of them), lamp heads, then pools.
+    if (grade.emissive > 0.002) {
       for (const b of map.buildings) {
-        const l = b.x * T;
-        const t = (b.y - ROOF_ROWS) * T;
-        if (l > vx1 || l + b.w * T < vx0 || t > vy1 || (b.y + b.h) * T < vy0) continue;
-        const lvl = lightLevel(g.lights, this.windowThreshold[b.index] as number);
-        if (lvl <= 0.002) continue;
-        const sp = art.buildingLights(map, b);
-        if (!sp) continue;
-        ctx.globalAlpha = lvl;
-        this.lightsOverWalkers(sp, b.x * T, b.y * T, walkers);
+        if (b.x * T > vx1 || (b.x + b.w) * T < vx0 || (b.y - ROOF_ROWS) * T > vy1 || (b.y + b.h) * T < vy0) continue;
+        for (const l of this.buildingLights(b)) {
+          const lvl = lightLevel(grade.emissive, l.threshold);
+          if (lvl <= 0.002) continue;
+          ctx.globalAlpha = lvl;
+          this.lightOverWalkers(l, walkers);
+        }
       }
-      ctx.globalCompositeOperation = "lighter";
-      const pool = art.lightPool();
       for (const lamp of this.lamps) {
-        const lx = lamp.p.x * T + lamp.light.x;
-        const ly = lamp.p.y * T + lamp.light.y;
-        if (lx < vx0 - pool.w || lx > vx1 + pool.w || ly < vy0 - pool.h || ly > vy1 + pool.h) continue;
-        const lvl = lightLevel(g.lights, lamp.threshold, 0.1);
+        const l = lamp.light;
+        if (!l || l.x < vx0 - T || l.x > vx1 + T || l.y < vy0 - T || l.y > vy1 + 2 * T) continue;
+        const lvl = lightLevel(grade.emissive, l.threshold, 0.1);
+        if (lvl <= 0.002) continue;
+        ctx.globalAlpha = lvl;
+        this.drawFrame(ctx, l.frame, l.x, l.y);
+      }
+    }
+    if (grade.pool > 0.002) {
+      ctx.globalCompositeOperation = "lighter";
+      for (const lamp of this.lamps) {
+        const p = lamp.pool;
+        if (!p || p.x < vx0 - p.frame.w || p.x > vx1 + p.frame.w || p.y < vy0 - p.frame.h || p.y > vy1 + p.frame.h) continue;
+        const lvl = lightLevel(grade.pool, p.threshold, 0.1);
         if (lvl <= 0.002) continue;
         ctx.globalAlpha = lvl * 0.85;
-        this.sprite(pool, lx, ly + T);
+        this.drawFrame(ctx, p.frame, p.x, p.y);
       }
       ctx.globalCompositeOperation = "source-over";
-      for (const lamp of this.lamps) {
-        const lvl = lightLevel(g.lights, lamp.threshold, 0.1);
-        if (lvl <= 0.002) continue;
-        const lx = lamp.p.x * T + lamp.light.x;
-        const ly = lamp.p.y * T + lamp.light.y;
-        if (lx < vx0 || lx > vx1 || ly < vy0 || ly > vy1) continue;
-        ctx.globalAlpha = lvl;
-        ctx.fillStyle = "#fff1c4";
-        ctx.fillRect(lx - 2, ly - 13, 4, 2);
-      }
-      ctx.globalAlpha = 1;
     }
+    ctx.globalAlpha = 1;
 
     // "You are here", always bright, and the pin over the place being walked to.
     if (f.target && f.target.building !== null) {
       const b = map.buildings[f.target.building] as TownBuilding;
-      this.sprite(art.marker("pin"), b.doorX * T + T / 2, (b.y - ROOF_ROWS) * T - 2 + bob);
+      this.drawFrame(ctx, art.marker("pin"), b.doorX * T + T / 2, (b.y - ROOF_ROWS) * T - 2 + bob);
     }
-    if (f.player) this.sprite(art.marker("pin"), Math.round(f.player.x * T), Math.round(f.player.y * T) - 20);
+    if (f.player) this.drawFrame(ctx, art.marker("pin"), f.player.x * T, f.player.y * T - 26);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.evict();
@@ -493,8 +535,42 @@ export class TownRenderer {
     return true;
   }
 
-  private sprite(sp: Sprite, x: number, y: number) {
-    this.ctx.drawImage(sp.image, sp.sx, sp.sy, sp.w, sp.h, Math.round(x - sp.ax), Math.round(y - sp.ay), sp.w, sp.h);
+  private walkerFrame(w: WalkerView): FrameRef {
+    const facing = w.dir === 0 ? "down" : w.dir === 1 ? "up" : "side";
+    return this.art.character({ seed: w.variant, player: w.variant < 0 }, w.frame > 0 ? "walk" : "idle", facing, w.frame);
+  }
+
+  /** A walker at (x, y) art px; side frames face left and are mirrored for facing right. */
+  private drawWalker(g: Ctx, w: WalkerView, x: number, y: number) {
+    const fr = this.walkerFrame(w);
+    if (w.dir !== 3) {
+      this.drawFrame(g, fr, x, y);
+      return;
+    }
+    g.save();
+    g.translate(x, 0);
+    g.scale(-1, 1);
+    g.drawImage(fr.image, fr.x, fr.y, fr.w, fr.h, -fr.ax, y - fr.ay, fr.w, fr.h);
+    g.restore();
+  }
+
+  /** A building's lit openings, each with its own switch-on point (by use, then a little by chance). */
+  private buildingLights(b: TownBuilding): Light[] {
+    let ls = this.lightCache.get(b.index);
+    if (ls) return ls;
+    const a = this.buildingArt(b);
+    const ox = b.x * this.T - a.albedo.ax;
+    const oy = b.y * this.T - a.albedo.ay;
+    ls = [];
+    for (const [k, o] of [...a.windows, ...a.doors].entries()) {
+      if (!o.emissive) continue;
+      const [lo, span] = USE_SHIFT[o.use];
+      // A building's windows come on close together, not all at once.
+      const threshold = lo + span * noise01(mix(b.style, 0x11), 0) + 0.06 * noise01(b.style, k);
+      ls.push({ frame: o.emissive, x: ox + o.x, y: oy + o.y, threshold });
+    }
+    this.lightCache.set(b.index, ls);
+    return ls;
   }
 
   private drawOverhangs(walkers: readonly WalkerView[]) {
@@ -502,12 +578,8 @@ export class TownRenderer {
     const map = this.map;
     const hit = new Set<number>();
     for (const w of walkers) {
-      const x0 = Math.floor(w.x - 0.5);
-      const x1 = Math.floor(w.x + 0.49);
-      const y0 = Math.floor(w.y - 1);
-      const y1 = Math.floor(w.y);
-      for (let cy = y0; cy <= y1; cy++) {
-        for (let cx = x0; cx <= x1; cx++) {
+      for (let cy = Math.floor(w.y - 1.6); cy <= Math.floor(w.y); cy++) {
+        for (let cx = Math.floor(w.x - 0.5); cx <= Math.floor(w.x + 0.49); cx++) {
           if (cx < 0 || cy < 0 || cx >= map.width || cy >= map.height) continue;
           for (const si of this.overhang.get(cy * map.width + cx) ?? []) hit.add(si);
         }
@@ -515,42 +587,40 @@ export class TownRenderer {
     }
     for (const si of [...hit].sort((a, b) => a - b)) {
       const s = this.statics[si] as Static;
-      const sp = this.spriteOf(s);
-      if (sp.ay <= 0) continue;
-      this.ctx.drawImage(sp.image, sp.sx, sp.sy, sp.w, sp.ay, s.x - sp.ax, s.y - sp.ay, sp.w, sp.ay);
+      const fr = this.frameOf(s);
+      if (fr.ay <= 0) continue;
+      this.ctx.drawImage(fr.image, fr.x, fr.y, fr.w, fr.ay, s.x - fr.ax, s.y - fr.ay, fr.w, fr.ay);
     }
   }
 
-  /** A building's lit windows, cut out where a walker stands in front of them. */
-  private lightsOverWalkers(sp: Sprite, x: number, y: number, walkers: readonly WalkerView[]) {
+  /** A light, cut out where a walker stands in front of it. */
+  private lightOverWalkers(l: Light, walkers: readonly WalkerView[]) {
     const T = this.T;
-    const left = x - sp.ax;
-    const top = y - sp.ay;
+    const fr = l.frame;
+    const left = Math.round(l.x - fr.ax);
+    const top = Math.round(l.y - fr.ay);
     const over = walkers.filter((w) => {
       const wx = w.x * T;
       const wy = w.y * T;
-      return wx + 8 > left && wx - 8 < left + sp.w && wy > top && wy - 16 < top + sp.h;
+      return wx + 8 > left && wx - 8 < left + fr.w && wy > top && wy - 24 < top + fr.h;
     });
     if (over.length === 0) {
-      this.ctx.drawImage(sp.image, sp.sx, sp.sy, sp.w, sp.h, left, top, sp.w, sp.h);
+      this.ctx.drawImage(fr.image, fr.x, fr.y, fr.w, fr.h, left, top, fr.w, fr.h);
       return;
     }
-    let s = this.scratch;
-    if (!s || s.canvas.width < sp.w || s.canvas.height < sp.h) {
-      s = this.make(Math.max(sp.w, s?.canvas.width ?? 0), Math.max(sp.h, s?.canvas.height ?? 0));
-      this.scratch = s;
+    let sc = this.scratch;
+    if (!sc || sc.canvas.width < fr.w || sc.canvas.height < fr.h) {
+      sc = this.make(Math.max(fr.w, sc?.canvas.width ?? 0, 64), Math.max(fr.h, sc?.canvas.height ?? 0, 64));
+      this.scratch = sc;
     }
-    const g = s.ctx;
+    const g = sc.ctx;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = "source-over";
-    g.clearRect(0, 0, s.canvas.width, s.canvas.height);
-    g.drawImage(sp.image, sp.sx, sp.sy, sp.w, sp.h, 0, 0, sp.w, sp.h);
+    g.clearRect(0, 0, sc.canvas.width, sc.canvas.height);
+    g.drawImage(fr.image, fr.x, fr.y, fr.w, fr.h, 0, 0, fr.w, fr.h);
     g.globalCompositeOperation = "destination-out";
-    for (const w of over) {
-      const ws = this.art.walker(w.variant, w.dir, w.frame);
-      g.drawImage(ws.image, ws.sx, ws.sy, ws.w, ws.h, Math.round(w.x * T) - ws.ax - left, Math.round(w.y * T) - ws.ay - top, ws.w, ws.h);
-    }
+    for (const w of over) this.drawWalker(g, w, Math.round(w.x * T) - left, Math.round(w.y * T) - top);
     g.globalCompositeOperation = "source-over";
-    this.ctx.drawImage(s.canvas, 0, 0, sp.w, sp.h, left, top, sp.w, sp.h);
+    this.ctx.drawImage(sc.canvas, 0, 0, fr.w, fr.h, left, top, fr.w, fr.h);
   }
 }
