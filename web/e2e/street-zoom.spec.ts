@@ -66,6 +66,9 @@ test.describe("street zoom on a phone at DPR 3", () => {
     expect(await page.evaluate(() => window.devicePixelRatio)).toBe(DPR);
     const canvas = await page.locator(".town-street-stage canvas").evaluate((c: HTMLCanvasElement) => ({ w: c.width, css: c.clientWidth }));
     expect(canvas.w).toBe(Math.round(canvas.css * DPR));
+    // The opening zoom is in the labelled range: building labels show from the start
+    // (a device-pixel step just below 2 once hid them all).
+    await expect.poll(async () => page.locator(".hub-labels > *").evaluateAll((els) => els.filter((e) => (e as HTMLElement).style.display !== "none").length)).toBeGreaterThan(0);
 
     const box = await stage.boundingBox();
     if (!box) throw new Error("no street");
