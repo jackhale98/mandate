@@ -63,11 +63,11 @@ describe("town map scene (DEC-086)", () => {
       for (const h of scene.hotspots) {
         const r = cache.route(scene.hub, h.cell);
         expect({ s, key: h.key, ok: r !== null }).toEqual({ s, key: h.key, ok: true });
-        // Routes run along the grid: every leg is horizontal or vertical.
+        // Routes run along the grid: every leg is horizontal, vertical or at 45° (a staircase is drawn as one diagonal).
         for (let i = 1; i < (r?.length ?? 0); i++) {
           const a = (r as { x: number; y: number }[])[i - 1] as { x: number; y: number };
           const b = (r as { x: number; y: number }[])[i] as { x: number; y: number };
-          expect(a.x === b.x || a.y === b.y).toBe(true);
+          expect(a.x === b.x || a.y === b.y || Math.abs(b.x - a.x) === Math.abs(b.y - a.y)).toBe(true);
         }
       }
       // Hit areas of buildings never overlap (one building per tap).
