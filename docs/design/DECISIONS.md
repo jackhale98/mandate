@@ -843,6 +843,18 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - NPC AI reads personality (DEC-030, the same rules for the player): loyalty scales party discipline (`council.loyalty_discipline`), integrity resists lobbying (`council.lobby.integrity`), warmth and traits scale opinion changes. A politician who becomes the player keeps the relationships their seat-holder had with colleagues.
   - Protocol `CharacterView` (facts and keys: role, tier, personality labels, opinion and trust bands, bonds, favours, three most salient memories); character sheets in the web. Save format v11 with a v10 migration.
 
+- **Daily routines (owner, 2026-11-19: "Yeah let's do it").** Characters move through the day instead of standing in one place.
+  - **Today:** placement is static (`characters/ambient.rs`). Council members are always in the chamber, the mayor always at the town hall, a named person always at their workplace or on their home street.
+  - **The routines registry** (`content/base/routines.jsonc`) places people by post or occupation, time slot, weekday, season and events:
+    - session days and votes;
+    - lunch at the diner;
+    - the broker in the back booth late at night;
+    - meeting nights at the community centre.
+  - **Placement is deterministic,** with a little keyed variation, so players can learn routines. The notebook records where someone was last seen.
+  - **Nothing depends on walking (DEC-051).** "Go to them" from Places, People and quick mode reaches anyone.
+  - **Posts come from the constitution** (DEC-098, R1); no office name in code.
+  - **Task S1,** after R1, because R1 rewrites the hard-coded chamber and mayor placement.
+
 ### DEC-032 — NPC goals & storylines
 
 - **Status:** Accepted (owner, 2026-11-18; no objection raised).
