@@ -46,7 +46,7 @@ export function diagScene(): DiagScene {
    * crosses another street the cells become a junction; it never paves over
    * water, bridges or buildings. `crossingRows` (counted from `y0`) are zebras.
    */
-  const diagonal = (x0: number, y0: number, rows: number, dir: 1 | -1, r: number, crossingRows: readonly number[] = []) => {
+  const diagonal = (x0: number, y0: number, rows: number, dir: 1 | -1, r: number, crossingRows: readonly number[] = [], pavements = true) => {
     const axis = dir === 1 ? AX.DiagonalNW : AX.DiagonalNE;
     const pav: [number, number][] = [];
     for (let k = 0; k < rows; k++) {
@@ -62,7 +62,8 @@ export function diagScene(): DiagScene {
         if (road) {
           terrain[i] = t === K.Rail || crossingRows.includes(k) ? K.Crossing : K.Road;
           streetAxis[i] = street ? AX.Junction : axis;
-        } else if (t === K.Grass || t === K.Park || t === K.Yard) {
+        } else if (!pavements) continue;
+        else if (t === K.Grass || t === K.Park || t === K.Yard) {
           terrain[i] = K.Pavement;
           streetAxis[i] = axis;
           pav.push([x, y]);
@@ -88,12 +89,11 @@ export function diagScene(): DiagScene {
   rect(K.Pavement, 1, 1, 10, 9);
   rect(K.Plaza, 2, 2, 8, 7);
   // A small square in the acute wedge where the radial meets Market Street (west side).
-  rect(K.Plaza, 11, 15, 3, 2);
-  rect(K.Plaza, 11, 17, 5, 1);
-  rect(K.Plaza, 12, 14, 1, 1);
+  for (let y = 14; y <= 17; y++) rect(K.Plaza, 10, y, y - 12, 1);
 
   // ---- greens and yards that the diagonals cut into wedges
-  rect(K.Park, 27, 14, 7, 4); // the acute wedge east of the narrow street, between Market Street and North Road
+  // The acute wedge east of the narrow street, between Market Street and North Road (its west side follows the street).
+  for (let y = 14; y <= 17; y++) rect(K.Park, 42 - y, y, y - 8, 1);
   rect(K.Yard, 15, 22, 7, 4); // the paved yard in the V between the southern diagonals (the siding ends in it)
 
   // ---- diagonals
@@ -105,11 +105,16 @@ export function diagScene(): DiagScene {
   diagonal(54, 0, 11, -1, 4, [6]);
   // The high street: "\" four cells a row, from Market Street (offset from the radial) down to the bridge, with a zebra.
   diagonal(19, 21, 10, 1, 4, [4]);
+  // A back lane: "\\" one cell a row, no pavements, from the square's side down to Market Street.
+  diagonal(0, 11, 8, 1, 1, [], false);
   // A street "/" three cells a row, from Market Street down over the railway (a level crossing) to the quay road, with a zebra.
   diagonal(16, 21, 7, -1, 3, [2]);
 
   // The siding: east of the level crossing into the goods yard (laid after the streets: it takes the pavement it crosses).
   rect(K.Rail, 15, 25, 5, 1);
+
+  // A side street: "\\" two cells a row, from Market Street down to the river's edge.
+  diagonal(40, 21, 10, 1, 2);
 
   // ---- the bridge at the high street's foot
   rect(K.Bridge, 28, 31, 4, 5);
@@ -152,6 +157,11 @@ export function diagScene(): DiagScene {
   put(30, 26, 2, 2, "terrace", "inner");
   put(32, 28, 3, 2, "warehouse", "industrial");
   put(23, 29, 2, 2, "house", "inner");
+  // Beside the side street.
+  put(37, 23, 2, 2, "house", "suburb");
+  put(40, 26, 2, 2, "house", "suburb");
+  put(46, 23, 2, 2, "terrace", "inner");
+  put(48, 25, 3, 2, "shop", "inner");
   // Beside the wide street.
   put(45, 2, 3, 2, "shop", "inner");
   put(43, 5, 3, 3, "terrace", "inner");
@@ -167,11 +177,11 @@ export function diagScene(): DiagScene {
     });
   });
   prop("bench", 28, 16);
-  prop("bench", 13, 15);
+  prop("bench", 11, 16);
   prop("bench", 17, 24);
   prop("tree", 29, 15, 0, true);
   prop("tree", 32, 16, 1, true);
-  prop("planter", 14, 16);
+  prop("planter", 12, 17);
   prop("planter", 18, 23);
 
   const people = [

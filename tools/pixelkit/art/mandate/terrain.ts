@@ -418,7 +418,7 @@ export class TerrainPainter {
   /** Cells something v2 reaches (bridge faces and shadows, rail corners): never "simple". */
   private readonly touched: Uint8Array;
   /** Diagonal streets (round 5), when the map marks any. */
-  private readonly streets: DiagonalStreets | null;
+  readonly streets: DiagonalStreets | null;
 
   constructor(ts: TileSet, t2: TerrainSet, view: TerrainView) {
     this.ts = ts;

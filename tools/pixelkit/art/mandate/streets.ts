@@ -171,34 +171,75 @@ export class DiagonalStreets {
     this.findZebras(touch);
   }
 
+  /**
+   * The cell standing for (x, y): itself on the map; off the map, a diagonal
+   * street at the border runs on past it (a "/" street is the same one row up
+   * and one column right, a "\\" street one row up and one column left), so a
+   * street leaving the map keeps its 45° edges to the border. Anything else
+   * clamps to the nearest cell, as the terrain painter does.
+   */
+  private ext(x: number, y: number): [number, number] {
+    const W = this.W;
+    const H = this.H;
+    if (x >= 0 && y >= 0 && x < W && y < H) return [x, y];
+    const cx = Math.max(0, Math.min(W - 1, x));
+    const cy = Math.max(0, Math.min(H - 1, y));
+    const a = this.h.axis(cx, cy);
+    if (a !== A.DiagonalNE && a !== A.DiagonalNW) return [cx, cy];
+    // Translate along the street (dx = s * dy) until on the map, then clamp.
+    const s = a === A.DiagonalNE ? -1 : 1;
+    let k = 0;
+    if (y < 0) k = -y;
+    else if (y >= H) k = H - 1 - y;
+    else if (x < 0) k = -x * s;
+    else k = (W - 1 - x) * s;
+    return [Math.max(0, Math.min(W - 1, x + s * k)), Math.max(0, Math.min(H - 1, y + k))];
+  }
+
+  /** Terrain, ground level and street axis at a cell, off the map as `ext` says. */
+  private tt(x: number, y: number): number {
+    const [cx, cy] = this.ext(x, y);
+    return this.h.t(cx, cy);
+  }
+
+  private ee(x: number, y: number): number {
+    const [cx, cy] = this.ext(x, y);
+    return this.h.e(cx, cy);
+  }
+
+  private aa(x: number, y: number): number {
+    const [cx, cy] = this.ext(x, y);
+    return this.h.axis(cx, cy);
+  }
+
   /** The material a corner's cut takes, or -1 when the corner stays square. */
   private cutOf(x: number, y: number, k: number): number {
-    const h = this.h;
     const r = this.r;
-    const t = h.t(x, y);
+    const t = this.tt(x, y);
     if (!r.soft.has(t)) return -1;
     const c = CORNER[k] as (typeof CORNER)[number];
     const hx = x + c.hx;
     const vy = y + c.vy;
-    if (hx < 0 || vy < 0 || hx >= this.W || vy >= this.H) return -1;
-    const th = h.t(hx, y);
-    const tv = h.t(x, vy);
+    const th = this.tt(hx, y);
+    const tv = this.tt(x, vy);
     if (!r.joins.has(th) || !r.joins.has(tv)) return -1;
     const g = r.group(t);
     const gh = r.group(th);
     if (gh !== r.group(tv) || gh === g) return -1;
-    const e0 = h.e(x, y);
-    if (h.e(hx, y) !== e0 || h.e(x, vy) !== e0) return -1;
+    const e0 = this.ee(x, y);
+    if (this.ee(hx, y) !== e0 || this.ee(x, vy) !== e0) return -1;
     // A diagonal street of this corner's orientation (or a junction) at the corner.
     const fits = (a: number) => a === c.axis || a === A.Junction;
-    if (!fits(h.axis(x, y)) && !fits(h.axis(hx, y)) && !fits(h.axis(x, vy)) && !fits(h.axis(hx, vy))) return -1;
+    if (!fits(this.aa(x, y)) && !fits(this.aa(hx, y)) && !fits(this.aa(x, vy)) && !fits(this.aa(hx, vy))) return -1;
     // A saddle (this material again across the corner): the higher-ranked material keeps the corner.
-    if (r.group(h.t(hx, vy)) === g && r.rank(gh) <= r.rank(g)) return -1;
+    if (r.group(this.tt(hx, vy)) === g && r.rank(gh) <= r.rank(g)) return -1;
     return gh;
   }
 
+  /** A cell's corner cut (off the map, the cell `ext` stands it for). */
   private cutAt(x: number, y: number, k: number): number {
-    if (x < 0 || y < 0 || x >= this.W || y >= this.H) return -1;
+    const [cx, cy] = this.ext(x, y);
+    if (cx !== x || cy !== y) return this.cutOf(x, y, k);
     return this.cut[(y * this.W + x) * 4 + k] as number;
   }
 
@@ -275,8 +316,7 @@ export class DiagonalStreets {
 
   /** The material (autotile group) at a map pixel. */
   mat(X: number, Y: number): number {
-    const cx = Math.max(0, Math.min(this.W - 1, Math.floor(X / 16)));
-    const cy = Math.max(0, Math.min(this.H - 1, Math.floor(Y / 16)));
+    const [cx, cy] = this.ext(Math.floor(X / 16), Math.floor(Y / 16));
     const px = mod(X, 16);
     const py = mod(Y, 16);
     const k = quarterOf(px, py);
@@ -286,20 +326,14 @@ export class DiagonalStreets {
   }
 
   /** Whether a map pixel is in a quarter whose corner is cut (where 45° edges run). */
-  private cutQuarter(X: number, Y: number): boolean {
-    const cx = Math.floor(X / 16);
-    const cy = Math.floor(Y / 16);
-    if (cx < 0 || cy < 0 || cx >= this.W || cy >= this.H) return false;
+  cutQuarter(X: number, Y: number): boolean {
+    const [cx, cy] = this.ext(Math.floor(X / 16), Math.floor(Y / 16));
     return (this.cut[(cy * this.W + cx) * 4 + quarterOf(mod(X, 16), mod(Y, 16))] as number) >= 0;
   }
 
   private mask(x: number, y: number, g: number): number {
     let m = 0;
-    for (const [dx, dy, bit] of DIRS) {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H || this.r.group(this.h.t(nx, ny)) === g) m |= bit;
-    }
+    for (const [dx, dy, bit] of DIRS) if (this.r.group(this.tt(x + dx, y + dy)) === g) m |= bit;
     return m;
   }
 
@@ -427,7 +461,7 @@ export class DiagonalStreets {
             if (clear && mod(across, 6) < 3) out.px[py * 16 + px] = (d >= 10 ? L.m : L.M) as number;
             continue;
           }
-          if (d <= 15) continue;
+          if (d <= 24) continue;
         }
         if (!diagonal || t !== this.r.road) continue;
         // The centre line: carriageways three or more cells a row wide (two lanes), dashed along the street.
