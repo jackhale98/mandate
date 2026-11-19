@@ -5,6 +5,7 @@ import { useGame } from "../state/gameStore";
 import { routeFor } from "../state/routing";
 import { formatMoney } from "../i18n/format";
 import { placeName } from "../places/labels";
+import { WorryPicker, useCanvassPreview } from "./talk/WorryPicker";
 
 export type FormAction = "canvass" | "town_hall" | "press" | "fundraise" | "rest" | "advertise" | "lobby" | "trade_favor" | "take_bribe" | "dip_funds" | "leak_file";
 
@@ -29,6 +30,11 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   const [bill, setBill] = useState<number | null>(null);
   const [member, setMember] = useState<number | null>(null);
   const [late, setLate] = useState(lateOnly || LATE_ONLY.has(action));
+  // Canvassing on a worry (DEC-091): the worries and their match come from the engine's preview.
+  const [issue, setIssue] = useState<string | null>(null);
+  const [landed, setLanded] = useState<{ fit: string; nameKey: string } | null>(null);
+  const canvassHood = action === "canvass" ? (fixedHood ?? hoodSel ?? o?.town.neighborhoods[0]?.id ?? null) : null;
+  const canvass = useCanvassPreview(canvassHood);
   if (!o || !pocket) return null;
   const shady = o.player.shady.find((x) => x.action === action);
   const p = o.player;
@@ -49,7 +55,7 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   let act: ActionDto | null;
   switch (action) {
     case "canvass":
-      act = { type: "canvass", neighborhood: hood };
+      act = issue ? { type: "canvass", neighborhood: hood, issue } : { type: "canvass", neighborhood: hood };
       break;
     case "town_hall":
       act = { type: "town_hall", neighborhood: hood, policy: bill };
@@ -94,6 +100,7 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
           </select>
         </label>
       )}
+      {action === "canvass" && <WorryPicker view={canvass} issue={issue} onChange={setIssue} />}
       {(action === "town_hall" || action === "press") && (
         <label className="field">
           <span>{tr.t("ui-about-bill")}</span>
@@ -171,7 +178,27 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
           {route.here ? tr.t("ui-route-here") : tr.t("ui-route-to", { place: placeName(tr, route.to) })}
         </p>
       )}
-      <button type="button" className="btn btn-primary btn-block" disabled={busy || !enough || !cmd} onClick={() => cmd && void perform(cmd)}>
+      {landed && (
+        <p className="canvass-landed" role="status" data-testid="canvass-landed">
+          {tr.t(`ui-canvass-landed-${landed.fit}`, { issue: tr.t(landed.nameKey) })}
+        </p>
+      )}
+      <button
+        type="button"
+        className="btn btn-primary btn-block"
+        disabled={busy || !enough || !cmd}
+        onClick={() => {
+          if (!cmd) return;
+          const worry = canvass?.worries.find((w) => w.id === issue) ?? null;
+          setLanded(null);
+          void perform(cmd).then(() => {
+            // How the worry went down on the doorsteps (the engine's word for it, in the outcome).
+            const t = useGame.getState().toast;
+            const fit = t?.key === "outcome-canvass" ? t.args.fit : undefined;
+            if (worry && fit) setLanded({ fit, nameKey: worry.name_key });
+          });
+        }}
+      >
         {action === "advertise" ? tr.t("ui-buy-ads", { cost: formatMoney(p.ad_cost), left: p.ads_left }) : route?.here ? tr.t("ui-do-here") : tr.t("ui-do")}
       </button>
     </div>

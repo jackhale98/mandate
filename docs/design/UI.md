@@ -73,3 +73,14 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
 - **Progressive disclosure.** Each panel has a summary level (Casual/Standard). Advanced detail expands in place (DEC-038).
 - **Every important number has a "Why?"** that opens its causal breakdown.
 - **Decisions before data.** Panels lead with what needs a decision, then supporting information.
+
+## 3. Talking to people (DEC-093)
+- **The talk panel** is a sheet over the place panel and the character sheet (bottom sheet on phones, side panel from 900 px). It opens from:
+  - the place panel's **People here** (a Talk button beside each person; a passer-by is met as the talk starts);
+  - the pocket's **People** tab (the council, the mayor, the power broker, the rival);
+  - the **walkable street**: the engine's people on the street the player is on stand about it with a name tag; a tap on them (or their tag) walks up to them and opens the panel; with the keyboard, standing beside them shows "Enter: talk to …" (the door-hint pattern) and Enter opens it. At a place, its people are in the place panel.
+- **Topics are buttons.** A topic about something has a subject picker (grouped by kind) and an Ask button. Contested topics (a pitch, an ask for support) show the engine's odds, the same figure the roll uses (DEC-073). An unavailable topic is disabled with the engine's reason (`talk-why-*`). Topics a person is not asked (their role, the place, conditions) are left out.
+- **The cost is stated:** half a slot; the next conversation uses the half left over; late at night, the late slot. Out of time, a warning says so and every topic waits.
+- **Someone elsewhere:** the panel says where they are, with a button to go there (free); topics show no odds until the player is there.
+- **The reply** shows as a short dialogue: the question, an opener as a stage direction, then the speaker's lines in their voice, the outcome and any change in how warm they are. Then **What you learned** (the notebook's entries, with their level) and **Leads** (with a button to go there). Everything is Fluent keys and facts from `ExchangeView`; the UI composes nothing.
+- **Canvassing on a worry (DEC-091):** the canvass form has a **Talk about** picker, "No particular issue" first, then only the worries the player knows of in that neighbourhood (its own, then the town's). The match comes from the engine's preview (`CanvassView`): a word (strong, fair, weak fit) once the neighbourhood's worries are known, the multiplier once known in detail, "isn't known yet" before. After the canvass, a line says how the worry went down (the engine's outcome).

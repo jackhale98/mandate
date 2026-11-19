@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { MemberView } from "../engine/protocol/MemberView";
 import type { BillView } from "../engine/protocol/BillView";
 import type { VoteDto } from "../engine/protocol/VoteDto";
@@ -7,7 +7,7 @@ import { formatDate } from "../i18n/format";
 import { personName } from "./Knowing";
 
 /** A council member: name (opens their sheet), role, stances as known, and how they stand with you. */
-export function Member({ m }: { m: MemberView }) {
+export function Member({ m, children }: { m: MemberView; children?: ReactNode }) {
   const tr = useGame((s) => s.tr);
   const openCharacter = useGame((s) => s.openCharacter);
   return (
@@ -35,6 +35,7 @@ export function Member({ m }: { m: MemberView }) {
         <div className="member-side small">
           <span>{tr.t("ui-opinion-of-you", { n: Math.round(m.opinion_of_player) })}</span>
           <span className="muted">{m.favors >= 0 ? tr.t("ui-favors", { n: m.favors }) : tr.t("ui-owe", { n: -m.favors })}</span>
+          {children}
         </div>
       )}
     </li>

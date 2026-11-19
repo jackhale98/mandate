@@ -21,6 +21,12 @@ import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { LocationView } from "../engine/protocol/LocationView";
 import type { DateView } from "../engine/protocol/DateView";
 import type { QueryDto } from "../engine/protocol/QueryDto";
+import type { TalkView } from "../engine/protocol/TalkView";
+import type { ExchangeView } from "../engine/protocol/ExchangeView";
+import type { AboutRefDto } from "../engine/protocol/AboutRefDto";
+import type { CanvassView } from "../engine/protocol/CanvassView";
+import type { PersonRefView } from "../engine/protocol/PersonRefView";
+import type { TalkTargetDto } from "../engine/protocol/TalkTargetDto";
 import { findRoute, sameLocation } from "./routing";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
@@ -83,6 +89,14 @@ interface GameState {
   decision: DecisionView | null;
   /** The story so far (DEC-033), when open. */
   story: StoryView | null;
+  /** The talk panel (DEC-093): whom the player is talking to, as the engine offers it. */
+  talk: TalkView | null;
+  /** Whom the talk panel is for: someone stored, or a passer-by here (met as the talk starts). */
+  talkTo: TalkTargetDto | null;
+  /** The panel is for a late-night conversation (the late slot). */
+  talkLate: boolean;
+  /** The latest exchange in the talk panel (what was said, what was learned). */
+  exchange: ExchangeView | null;
   pocketOpen: boolean;
   /** The pocket's open tab (DEC-088 main screen), remembered per device. */
   pocketTab: PocketTab;
@@ -140,6 +154,18 @@ interface GameState {
   answer(id: number, option: string): Promise<void>;
   /** Open (or close) the story so far. */
   openStory(open: boolean): Promise<void>;
+  /** Open the talk panel for someone (or close it, with null). */
+  openTalk(to: TalkTargetDto | null): Promise<void>;
+  /** Talk on a topic (half a slot): the engine composes the reply; the panel shows the exchange. */
+  talkAbout(topic: string, about: AboutRefDto | null): Promise<void>;
+  /** The talk panel for a late-night conversation, or not. */
+  setTalkLate(late: boolean): Promise<void>;
+  /** Go (free) to where the person in the talk panel is, keeping the panel open. */
+  goToTalk(): Promise<void>;
+  /** The worries the player can canvass on in a neighbourhood, with the engine's match (null if unavailable). */
+  previewCanvass(neighborhood: number): Promise<CanvassView | null>;
+  /** Who is at a location (the street's passers-by, to walk up to). */
+  peopleAt(location: LocationDto): Promise<PersonRefView[]>;
   skipWalk(): void;
   setPocketOpen(open: boolean): void;
   /** Open the pocket on a tab; `focus` moves the keyboard into it. */
@@ -227,6 +253,10 @@ export const useGame = create<GameState>((set, get) => {
     character: null,
     decision: null,
     story: null,
+    talk: null,
+    talkTo: null,
+    talkLate: false,
+    exchange: null,
     pocketOpen: false,
     pocketTab: readPocketTab(),
     pocketDocked: readPocketDocked(),
@@ -276,7 +306,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: false } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, talk: null, exchange: null, openPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -305,9 +335,14 @@ export const useGame = create<GameState>((set, get) => {
         const character = who ? expectKind(await q({ type: "character", id: who.id }), "character") : null;
         const open_decision = get().decision;
         const decision = open_decision ? expectKind(await q({ type: "decision", id: open_decision.id }), "decision") : null;
+        const talking = get().talkTo;
+        // A passer-by met elsewhere (or gone with the period) is no longer there to talk to: the panel closes.
+        const talk = talking ? await q({ type: "talk", to: talking, late_night: get().talkLate }).then((b) => expectKind(b, "talk"), () => null) : null;
         set({
+          talkTo: talk ? talking : null,
           character,
           decision,
+          talk,
           office: expectKind(office, "office"),
           campaign: expectKind(campaign, "campaign"),
           pocket: expectKind(pocket, "pocket"),
@@ -354,7 +389,7 @@ export const useGame = create<GameState>((set, get) => {
         set({
           overview: applied.overview,
           // Walking somewhere is not news; a decision's aftermath is on its sheet.
-          toast: r && r.outcome_key !== "outcome-moved" && cmd.type !== "answer_decision" ? { key: r.outcome_key, args: r.args } : null,
+          toast: r && r.outcome_key !== "outcome-moved" && cmd.type !== "answer_decision" && cmd.type !== "talk" ? { key: r.outcome_key, args: r.args } : null,
         });
         await get().refreshDesk();
         return applied.result?.created ?? null;
@@ -453,6 +488,74 @@ export const useGame = create<GameState>((set, get) => {
         set({ story: expectKind(await engine().request({ kind: "query", payload: { type: "story" } }), "story"), ...pocketAfterMove(get()) });
       } catch (e) {
         set({ error: errText(e) });
+      }
+    },
+
+    async openTalk(to) {
+      if (to === null) {
+        set({ talk: null, talkTo: null, exchange: null, talkLate: false });
+        return;
+      }
+      try {
+        const talk = expectKind(await engine().request({ kind: "query", payload: { type: "talk", to, late_night: false } }), "talk");
+        // The talk panel replaces the character sheet and the pocket (unless docked) rather than stacking on them.
+        set({ talk, talkTo: to, exchange: null, talkLate: false, character: null, ...pocketAfterMove(get()) });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async talkAbout(topic, about) {
+      const to = get().talkTo;
+      if (!to) return;
+      const id = await get().command({ type: "talk", to, topic, about, late_night: get().talkLate });
+      if (id === null) return;
+      try {
+        const exchange = expectKind(await engine().request({ kind: "query", payload: { type: "exchange", id } }), "exchange");
+        const speaker = exchange.speaker.id;
+        // A passer-by is met now: the panel goes on with them as someone the engine knows.
+        if (to.type === "ambient" && speaker !== null) {
+          const met: TalkTargetDto = { type: "person", person: speaker };
+          const talk = expectKind(await engine().request({ kind: "query", payload: { type: "talk", to: met, late_night: get().talkLate } }), "talk");
+          set({ exchange, talk, talkTo: met });
+        } else set({ exchange });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async setTalkLate(late) {
+      const to = get().talkTo;
+      if (!to) return;
+      try {
+        set({ talk: expectKind(await engine().request({ kind: "query", payload: { type: "talk", to, late_night: late } }), "talk"), talkLate: late });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async goToTalk() {
+      const to = get().talk?.route?.to;
+      if (!to) return;
+      // A place panel that is open follows the player.
+      if (get().openPlace) set({ openPlace: to.location });
+      await get().command({ type: "move_to", location: to.location });
+    },
+
+    async previewCanvass(neighborhood) {
+      try {
+        return expectKind(await engine().request({ kind: "query", payload: { type: "canvass", neighborhood } }), "canvass");
+      } catch {
+        // A preview is a convenience: the form still offers a general canvass.
+        return null;
+      }
+    },
+
+    async peopleAt(location) {
+      try {
+        return expectKind(await engine().request({ kind: "query", payload: { type: "place", location } }), "place").people;
+      } catch {
+        return [];
       }
     },
 
@@ -559,7 +662,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, talk: null, exchange: null, openPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -574,7 +677,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, talk: null, exchange: null, openPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });

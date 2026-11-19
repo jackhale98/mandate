@@ -24,6 +24,7 @@ import { placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 import { sameLocation } from "../state/routing";
 import { useSheetsCover } from "./sheetCover";
+import { streetPeople } from "./talk/streetPeople";
 
 /** Walk to a place picked on the town map; a new `id` is a new request. */
 export interface WalkRequest {
@@ -68,7 +69,10 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   // What may cover the street: the map overlay and election night always do; a sheet does where it is a
   // phone's bottom sheet over most of it (measured below), not beside the street on a wide screen.
   const modal = useGame((s) => s.townMapOpen || s.electionNight);
-  const sheets = useGame((s) => [s.pocketOpen && "pocket", s.openPlace !== null && "place", s.character !== null && "character", s.decision !== null && "decision", s.story !== null && "story"].filter(Boolean).join(" "));
+  const sheets = useGame((s) => [s.pocketOpen && "pocket", s.openPlace !== null && "place", s.character !== null && "character", s.decision !== null && "decision", s.story !== null && "story", s.talk !== null && "talk"].filter(Boolean).join(" "));
+  // The talk hook (DEC-093): people standing in the street to walk up to.
+  const peopleAt = useGame((s) => s.peopleAt);
+  const openTalk = useGame((s) => s.openTalk);
   const stageRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HubView | null>(null);
   const artRef = useRef<PixelkitArt | null>(null);
@@ -77,6 +81,10 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const [status, setStatus] = useState<string | null>(null);
   // The door hint shown to keyboard walkers, announced too.
   const [door, setDoor] = useState<string | null>(null);
+  // Who the player stands next to in the street, announced (the talk hook).
+  const [near, setNear] = useState<string | null>(null);
+  const names = useRef(new Map<string, string>());
+  const talkTo = useRef<(key: string) => void>(() => {});
   // The turn's time of day, eased forward when a slot is spent; night and the new morning when a turn ends.
   const minutes = shownMinutes(pocket, passage) ?? 12 * 60;
   const easeMs = passage ? PASSAGE_EASE_MS : LIGHT_EASE_MS;
@@ -88,6 +96,11 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const arriveAt = useRef<(loc: LocationDto) => void>(() => {});
   useEffect(() => {
     latest.current = { minutes, here, busy };
+    talkTo.current = (key) => {
+      if (latest.current.busy) return;
+      const id = Number(key.slice(1));
+      void openTalk(key.startsWith("c") ? { type: "person", person: id } : { type: "ambient", slot: id });
+    };
     arrive.current = (b) => {
       const v = viewRef.current;
       if (!v) return;
@@ -152,6 +165,10 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
           keyboard: true,
           doorHint: enter,
           onDoor: (b) => setDoor(b ? enter(b) : null),
+          // Walk up to someone in the street (a tap, or Enter beside them) and talk (DEC-093).
+          onTalk: (key) => talkTo.current(key),
+          personHint: (key) => tr.t("ui-talk-street-hint", { name: names.current.get(key) ?? tr.t("ui-talk-street-someone") }),
+          onPersonNear: (key) => setNear(key === null ? null : tr.t("ui-talk-street-near", { name: names.current.get(key) ?? tr.t("ui-talk-street-someone") })),
         });
         viewRef.current = view;
         artRef.current = art;
@@ -242,6 +259,32 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const zone = (ready && !spot.at ? hoodName(spot.hood) : null) ?? (engineAt?.neighborhood_name || null) ?? hoodName(spot.hood) ?? town.municipality;
   const place = engineAt && engineAt.location.type !== "street" && (!ready || spot.at) ? placeName(tr, engineAt) : null;
 
+  // The people on the street the player is on stand about it, to walk up to and talk to (DEC-093). At a
+  // place they are inside: its panel lists them. The engine says who is here; the street only places them.
+  const hereNow = pocket?.location.location ?? null;
+  // Fetched again after every command (the pocket is new then): meeting a passer-by makes them someone stored.
+  const peopleKey = hereNow?.type === "street" ? String(hereNow.neighborhood) : "";
+  useEffect(() => {
+    const v = viewRef.current;
+    if (!v || !ready) return;
+    if (!peopleKey || !hereNow) {
+      v.setPeople([]);
+      return;
+    }
+    let live = true;
+    void peopleAt(hereNow).then((list) => {
+      if (!live || viewRef.current !== v) return;
+      const people = streetPeople(tr, list);
+      names.current = new Map(people.map((p) => [p.key, p.name]));
+      v.setPeople(people);
+    });
+    return () => {
+      live = false;
+    };
+    // `hereNow` is read through `peopleKey` (its neighbourhood).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peopleKey, pocket, ready, peopleAt, tr]);
+
   // A place picked on the town map: walk there (at once with reduced motion), then arrive as on a tap.
   // Each request is walked once (the view is remade when the town is redressed).
   const walked = useRef(0);
@@ -304,6 +347,9 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       </span>
       <span className="visually-hidden" aria-live="polite" data-testid="door-announce">
         {door}
+      </span>
+      <span className="visually-hidden" aria-live="polite" data-testid="person-announce">
+        {near}
       </span>
       <p id="town-street-help" className="visually-hidden">
         {tr.t("ui-town-street-help")}

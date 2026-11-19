@@ -27,4 +27,10 @@ level: KnowledgeLevelDto,
 /**
  * The name is only a rumour (the power broker, heard of).
  */
-rumoured: boolean, };
+rumoured: boolean, 
+/**
+ * They are where the player is, so the player can talk to them now
+ * (DEC-093; a passer-by: meet them first). Elsewhere, `QueryDto::Talk`
+ * says where to find them.
+ */
+can_talk: boolean, };

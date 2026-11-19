@@ -1,0 +1,887 @@
+//! Conversations for the client (DEC-093; M6_ENGINE_CONTRACTS §3.9): the
+//! talk panel (`TalkView`: the topics the player can raise with someone,
+//! each with its odds where it is contested, its cost and whether it can be
+//! asked now, with the reason when not), and an exchange as it was spoken
+//! (`ExchangeView`: the line keys and their arguments in the speaker's
+//! voice, what the player learned, the leads it opened, how the
+//! relationship moved). Also the canvass preview (`CanvassView`): the
+//! worries the player knows of in a neighbourhood, with the match the
+//! engine would apply (DEC-091 §1.6).
+//!
+//! Facts and Fluent keys only (DEC-054). Every check, every odds figure and
+//! every match comes from the engine's own functions (`mandate_sim::talk`,
+//! `actions::canvass_match`), the same ones the commands use: the odds shown
+//! are the odds rolled (DEC-073). Knowledge gates what is listed (subjects
+//! the player knows of; worries as far as they know them), never the odds
+//! or the rules (DEC-091). Views never write.
+
+use crate::characters::{PersonRefView, opinion_band, person_ref_known, trust_band};
+use crate::knowledge::{Gate, KnowledgeLevelDto, KnowledgeView, LeadView, SubjectDto};
+use crate::places::{LocationView, RouteView, location_view};
+use crate::views::DateView;
+use mandate_content::conversation::AboutKind;
+use mandate_content::{ContentBundle, TierKey};
+use mandate_sim::characters::{self, CharacterId, ambient};
+use mandate_sim::commands::EngineError;
+use mandate_sim::places::{self, Location};
+use mandate_sim::player::knowledge::{Level, Subject};
+use mandate_sim::policy::PolicyStatus;
+use mandate_sim::talk::{self, AboutRef, Exchange, ExchangeId, TalkTarget};
+use mandate_sim::world::{NeighborhoodId, PlaceId, PlaceKind};
+use mandate_sim::{Engine, State};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use ts_rs::TS;
+
+// --- Commands -----------------------------------------------------------------------
+
+/// Whom the player talks to: someone stored (`person`, a character id), or
+/// a passer-by where the player is (`slot`; they become a character, as
+/// with `Meet`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum TalkTargetDto {
+    Person { person: u32 },
+    Ambient { slot: u8 },
+}
+
+impl TalkTargetDto {
+    pub fn to_sim(self) -> TalkTarget {
+        match self {
+            TalkTargetDto::Person { person } => TalkTarget::Person {
+                person: CharacterId(person),
+            },
+            TalkTargetDto::Ambient { slot } => TalkTarget::Ambient { slot },
+        }
+    }
+}
+
+/// What a conversation is about, with plain ids (mirrors the engine's
+/// `AboutRef`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AboutRefDto {
+    Place { place: u32 },
+    Person { person: u32 },
+    Hood { hood: u32 },
+    Bill { policy: u32 },
+    Template { template: String },
+    Proposal { proposal: u32 },
+    Rival,
+}
+
+impl AboutRefDto {
+    pub fn to_sim(&self) -> AboutRef {
+        use mandate_sim::player::knowledge::FamilyInstanceId;
+        use mandate_sim::policy::PolicyInstanceId;
+        match self {
+            AboutRefDto::Place { place } => AboutRef::Place {
+                place: PlaceId(*place),
+            },
+            AboutRefDto::Person { person } => AboutRef::Person {
+                person: CharacterId(*person),
+            },
+            AboutRefDto::Hood { hood } => AboutRef::Hood {
+                hood: NeighborhoodId(*hood),
+            },
+            AboutRefDto::Bill { policy } => AboutRef::Bill {
+                policy: PolicyInstanceId(*policy),
+            },
+            AboutRefDto::Template { template } => AboutRef::Template {
+                template: template.clone(),
+            },
+            AboutRefDto::Proposal { proposal } => AboutRef::Proposal {
+                proposal: FamilyInstanceId(*proposal),
+            },
+            AboutRefDto::Rival => AboutRef::Rival,
+        }
+    }
+
+    pub fn of(a: &AboutRef) -> Self {
+        match a {
+            AboutRef::Place { place } => AboutRefDto::Place { place: place.0 },
+            AboutRef::Person { person } => AboutRefDto::Person { person: person.0 },
+            AboutRef::Hood { hood } => AboutRefDto::Hood { hood: hood.0 },
+            AboutRef::Bill { policy } => AboutRefDto::Bill { policy: policy.0 },
+            AboutRef::Template { template } => AboutRefDto::Template {
+                template: template.clone(),
+            },
+            AboutRef::Proposal { proposal } => AboutRefDto::Proposal {
+                proposal: proposal.0,
+            },
+            AboutRef::Rival => AboutRefDto::Rival,
+        }
+    }
+}
+
+// --- The talk panel ----------------------------------------------------------------
+
+/// A subject the player can raise on a topic: only things they know of
+/// (DEC-091). Named by `label` (a name) or, where that is empty, by
+/// `label_key` (a Fluent key: a policy's or a place kind's name).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct AboutChoiceView {
+    pub about: AboutRefDto,
+    /// `place` | `person` | `hood` | `bill` | `template` | `rival`.
+    pub kind: String,
+    pub label: String,
+    pub label_key: Option<String>,
+    /// The odds of a contested topic on this subject (DEC-073): the
+    /// engine's, the ones the roll uses. `None` where nothing is rolled.
+    pub odds: Option<f64>,
+    pub available: bool,
+    /// Why not, as a Fluent key (`talk-why-…`), when not available.
+    pub unavailable_key: Option<String>,
+}
+
+/// A topic the player can raise with this person.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TopicView {
+    /// Topic content id (`topic.who_runs`): the `Talk` command's `topic`.
+    pub id: String,
+    /// The button's Fluent key.
+    pub name_key: String,
+    /// `inform` | `pitch` | `ask_support` | `favour` | `small_talk`.
+    pub mechanic: String,
+    /// It needs a subject (`about`); otherwise one is optional.
+    pub about_required: bool,
+    /// The subjects it can be about, as far as the player knows of them.
+    pub about: Vec<AboutChoiceView>,
+    /// Asked with no subject: the odds, where something is rolled.
+    pub odds: Option<f64>,
+    /// Asked with no subject: can it be asked now? (A topic that needs a
+    /// subject is never available without one.)
+    pub available: bool,
+    pub unavailable_key: Option<String>,
+    /// Asked of this person already this week: another line, nothing new
+    /// unless the relationship changed (and no second roll).
+    pub asked_this_week: bool,
+}
+
+/// The talk panel for someone (§3.9): who they are, whether they are here
+/// (else where to find them), what a conversation costs, and the topics.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TalkView {
+    /// Gated as everywhere (DEC-091): a stranger shows only their role.
+    pub person: PersonRefView,
+    /// They are where the player is: topics can be raised now.
+    pub here: bool,
+    /// Where they can be found (auto-routing, DEC-079: `go`), when not here.
+    /// `None`: nowhere the player can walk to now.
+    pub route: Option<RouteView>,
+    /// How they feel about the player and how far they trust them (never
+    /// gated: about the player).
+    pub opinion_band: String,
+    pub trust_band: String,
+    /// What a conversation costs, in half slots (1: half a slot).
+    pub cost_halves: u32,
+    /// A conversation earlier this turn left half a slot: the next one uses it.
+    pub half_slot_left: bool,
+    pub slots_left: u32,
+    /// The view is for a late-night conversation (the late slot).
+    pub late_night: bool,
+    /// A late-night conversation is possible here now.
+    pub late_night_possible: bool,
+    /// No time left for a conversation now (no slot, no half slot; late at
+    /// night, the late slot used).
+    pub out_of_time: bool,
+    pub topics: Vec<TopicView>,
+}
+
+/// The reason key for a refused conversation. The engine's checks are the
+/// authority (`talk::check`); this only names them for the panel.
+fn why(e: &EngineError) -> &'static str {
+    let EngineError::InvalidCommand(m) = e else {
+        return "talk-why-other";
+    };
+    let m = m.as_str();
+    if m.contains("not enough time") {
+        "talk-why-time"
+    } else if m.contains("late night already used") {
+        "talk-why-late-used"
+    } else if m.contains("late at night") {
+        "talk-why-late-here"
+    } else if m.contains("needs a subject") {
+        "talk-why-needs-subject"
+    } else if m.contains("not the person to ask") {
+        "talk-why-role"
+    } else if m.contains("not talked about here") {
+        "talk-why-place"
+    } else if m.contains("not something to ask them now") {
+        "talk-why-not-now"
+    } else if m.contains("owe them too much") {
+        "talk-why-owe"
+    } else if m.contains("not here to talk") {
+        "talk-why-away"
+    } else if m.contains("nothing like that") || m.contains("not something to raise") {
+        "talk-why-about"
+    } else {
+        "talk-why-other"
+    }
+}
+
+/// A topic is not offered to this person here and now (their role, the
+/// place, its conditions): it is left out of the panel, not shown greyed.
+fn not_offered(key: &str) -> bool {
+    matches!(key, "talk-why-role" | "talk-why-place" | "talk-why-not-now")
+}
+
+/// Where someone can be talked to: their workplace, the chamber or the town
+/// hall (politicians in office), or their home neighbourhood's streets — the
+/// first of these where the engine has them (`ambient::stored_at`).
+pub fn talk_location(engine: &Engine, id: CharacterId) -> Option<Location> {
+    let st = engine.state();
+    let pl = st.player.as_ref()?;
+    let p = characters::profile(&st.politics, &st.world, id)?;
+    let mut cands: Vec<Location> = Vec::new();
+    if let Some(place) = p.place {
+        cands.push(Location::Place { place });
+    }
+    for x in st.world.places.iter().filter(|x| {
+        x.municipality == pl.municipality
+            && matches!(x.kind, PlaceKind::CouncilChamber | PlaceKind::TownHall)
+    }) {
+        cands.push(Location::Place { place: x.id });
+    }
+    cands.push(Location::Street {
+        neighborhood: NeighborhoodId(p.home),
+    });
+    cands.into_iter().find(|loc| {
+        places::validate_move(st, *loc).is_ok()
+            && ambient::stored_at(&st.politics, st, *loc).contains(&id)
+    })
+}
+
+/// The subjects the player knows of for each kind a topic can be about.
+fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<AboutChoiceView> {
+    let st = engine.state();
+    let content = engine.content();
+    let gate = Gate::of(engine);
+    let Some(pl) = st.player.as_ref() else {
+        return Vec::new();
+    };
+    let town = pl.municipality;
+    let me = characters::player_character(st);
+    let mut out = Vec::new();
+    let mut push = |about: AboutRef, label: String, label_key: Option<String>| {
+        out.push(AboutChoiceView {
+            kind: about.kind().key().into(),
+            about: AboutRefDto::of(&about),
+            label,
+            label_key,
+            odds: None,
+            available: false,
+            unavailable_key: None,
+        });
+    };
+    for k in kinds {
+        match k {
+            AboutKind::Hood => {
+                for h in st.world.hoods_of(town) {
+                    if let Some(n) = st.world.neighborhoods.get(h) {
+                        push(AboutRef::Hood { hood: n.id }, n.name.clone(), None);
+                    }
+                }
+            }
+            AboutKind::Place => {
+                for p in st.world.places.iter().filter(|p| {
+                    p.municipality == town
+                        && p.is_open()
+                        && crate::knowledge::place_listed(&gate, st, p.id)
+                }) {
+                    push(
+                        AboutRef::Place { place: p.id },
+                        p.name.clone(),
+                        Some(format!("place-{}", p.kind.key())),
+                    );
+                }
+            }
+            AboutKind::Person => {
+                // People the player has at least heard of (the ledger), in
+                // town, not the speaker, the player or the rival (who has a
+                // kind of their own).
+                let rival = st
+                    .politics
+                    .characters
+                    .towns
+                    .get(town.index())
+                    .and_then(|t| t.rival);
+                for s in pl.knowledge.entries.keys() {
+                    let Subject::Person { person } = s else {
+                        continue;
+                    };
+                    if *person == speaker || Some(*person) == me || Some(*person) == rival {
+                        continue;
+                    }
+                    if gate.person(*person) < Level::Heard {
+                        continue;
+                    }
+                    let Some(p) = characters::profile(&st.politics, &st.world, *person) else {
+                        continue;
+                    };
+                    if p.municipality.is_some_and(|m| m != town.0) {
+                        continue;
+                    }
+                    let role = crate::characters::person_ref(engine, *person)
+                        .map(|r| r.role_key)
+                        .filter(|r| !r.is_empty());
+                    push(AboutRef::Person { person: *person }, p.full_name(), role);
+                }
+            }
+            AboutKind::Bill => {
+                for b in st
+                    .policy
+                    .in_municipality(town.0)
+                    .filter(|b| b.status != PolicyStatus::Ended)
+                {
+                    if let Some(t) = content.policies.get(&b.template) {
+                        push(
+                            AboutRef::Bill { policy: b.id },
+                            String::new(),
+                            Some(t.name_key.clone()),
+                        );
+                    }
+                }
+            }
+            AboutKind::Template => {
+                // The standard menu is never gated; situational policies
+                // once heard of (DEC-091).
+                for t in content
+                    .policies
+                    .values()
+                    .filter(|t| t.tier == TierKey::Local)
+                {
+                    if t.unlock.is_some()
+                        && gate.level(&Subject::Situational {
+                            town,
+                            template: t.id.clone(),
+                        }) < Level::Heard
+                    {
+                        continue;
+                    }
+                    push(
+                        AboutRef::Template {
+                            template: t.id.clone(),
+                        },
+                        String::new(),
+                        Some(t.name_key.clone()),
+                    );
+                }
+            }
+            AboutKind::Rival => {
+                // The rival's identity is never gated (DEC-091).
+                if let Some(r) = st
+                    .politics
+                    .characters
+                    .towns
+                    .get(town.index())
+                    .and_then(|t| t.rival)
+                    .filter(|r| *r != speaker)
+                    && let Some(p) = characters::profile(&st.politics, &st.world, r)
+                {
+                    push(AboutRef::Rival, p.full_name(), Some("ui-your-rival".into()));
+                }
+            }
+            // Policy families (F-series) bring proposals.
+            AboutKind::Proposal => {}
+        }
+    }
+    out
+}
+
+/// The talk panel (`QueryDto::Talk`) for someone stored or a passer-by
+/// where the player is. `late_night`: the panel for a conversation in the
+/// late slot. `None` for the player, an unknown id, nobody in that slot, or
+/// no game.
+///
+/// A passer-by is met as the conversation starts (the `Talk` command
+/// promotes them, as `Meet` does): their panel is worked out on a copy of
+/// the state where that has happened, so it says exactly what the command
+/// will do. Views never write: the copy is dropped.
+pub fn talk_view(engine: &Engine, to: TalkTargetDto, late_night: bool) -> Option<TalkView> {
+    match to {
+        TalkTargetDto::Person { person } => person_talk_view(engine, person, late_night),
+        TalkTargetDto::Ambient { slot } => {
+            let st = engine.state();
+            let content = engine.content();
+            let loc = st.player.as_ref()?.location;
+            let mut trial = st.clone();
+            let id = ambient::promote(&mut trial, content, loc, slot)?;
+            if let Some(me) = characters::player_character(&trial) {
+                let date = trial.calendar.date;
+                characters::remember(
+                    &mut trial.politics,
+                    content,
+                    date,
+                    id,
+                    me,
+                    characters::MemoryKind::Met,
+                    None,
+                    None,
+                );
+            }
+            let met = Engine::from_state(trial, engine.content_arc()).ok()?;
+            let mut v = person_talk_view(&met, id.0, late_night)?;
+            v.person.id = None;
+            v.person.ambient_slot = Some(slot);
+            v.person.tier = "ambient".into();
+            Some(v)
+        }
+    }
+}
+
+fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<TalkView> {
+    let st = engine.state();
+    let content = engine.content();
+    let pl = st.player.as_ref()?;
+    let id = CharacterId(person);
+    let me = characters::player_character(st)?;
+    if id == me {
+        return None;
+    }
+    characters::profile(&st.politics, &st.world, id)?;
+    let gate = Gate::of(engine);
+    let mut person_view = person_ref_known(engine, &gate, id)?;
+    let here = talk::can_talk(st, id);
+    person_view.can_talk = here;
+    let route = if here {
+        None
+    } else {
+        talk_location(engine, id).map(|loc| RouteView {
+            action: "go".into(),
+            late_night: false,
+            neighborhood: places::hood_of(st, loc).map(|h| h.0),
+            to: Some(location_view(st, loc)),
+            here: false,
+        })
+    };
+    let turn = st.calendar.turn;
+    let half_slot_left = pl.talk.half_slot == Some(turn) && talk::cost_halves(content) == 1;
+    let late_possible = here && !pl.late_night_used && talk::late_ok(st, content);
+    let late = late_night && late_possible;
+    let out_of_time = if late_night {
+        pl.late_night_used
+    } else {
+        pl.slots_left() == 0 && !half_slot_left
+    };
+    let role = characters::knows::role_key(st, id);
+    let mut topics = Vec::new();
+    for t in &content.talk_topics {
+        // Who it is offered to does not depend on where they stand.
+        if !t.offered.roles.is_empty()
+            && !role.as_ref().is_some_and(|r| t.offered.roles.contains(r))
+        {
+            continue;
+        }
+        let asked = talk::asked_this_week(st, id, &t.id);
+        let mut about = choices(engine, &t.about, id);
+        let judge = |a: Option<&AboutRef>| -> (Option<f64>, bool, Option<&'static str>) {
+            if !here {
+                return (None, false, Some("talk-why-away"));
+            }
+            match talk::check(st, content, id, &t.id, a, late) {
+                Ok(()) => (talk::odds(st, content, id, &t.id, a, late), true, None),
+                Err(e) => (None, false, Some(why(&e))),
+            }
+        };
+        let (odds, available, reason) = if !here {
+            (None, false, Some("talk-why-away"))
+        } else if t.about_required {
+            (None, false, Some("talk-why-needs-subject"))
+        } else {
+            judge(None)
+        };
+        if reason.is_some_and(not_offered) {
+            continue;
+        }
+        for c in &mut about {
+            let (o, ok, r) = judge(Some(&c.about.to_sim()));
+            c.odds = o;
+            c.available = ok;
+            c.unavailable_key = r.map(String::from);
+        }
+        // A subject the engine would never take here (it is not talked about
+        // on this topic, or not with them) is left out.
+        about.retain(|c| !c.unavailable_key.as_deref().is_some_and(not_offered));
+        if t.about_required && about.is_empty() {
+            // Nothing the player knows of to raise: the topic waits.
+            continue;
+        }
+        if t.about_required && here && about.iter().all(|c| !c.available) {
+            // Every subject refused for the same reason (no time): say so on
+            // the topic itself.
+            let shared = about[0].unavailable_key.clone();
+            if about.iter().all(|c| c.unavailable_key == shared) {
+                topics.push(TopicView {
+                    id: t.id.clone(),
+                    name_key: t.name_key.clone(),
+                    mechanic: t.mechanic.key().into(),
+                    about_required: true,
+                    about,
+                    odds: None,
+                    available: false,
+                    unavailable_key: shared,
+                    asked_this_week: asked,
+                });
+                continue;
+            }
+        }
+        topics.push(TopicView {
+            id: t.id.clone(),
+            name_key: t.name_key.clone(),
+            mechanic: t.mechanic.key().into(),
+            about_required: t.about_required,
+            about,
+            odds,
+            available,
+            unavailable_key: reason.map(String::from),
+            asked_this_week: asked,
+        });
+    }
+    Some(TalkView {
+        person: person_view,
+        here,
+        route,
+        opinion_band: opinion_band(characters::opinion(&st.politics, id, me) as f64),
+        trust_band: trust_band(characters::trust(&st.politics, content, id, me) as f64),
+        cost_halves: talk::cost_halves(content),
+        half_slot_left,
+        slots_left: pl.slots_left() as u32,
+        late_night: late,
+        late_night_possible: late_possible,
+        out_of_time,
+        topics,
+    })
+}
+
+// --- An exchange ---------------------------------------------------------------------
+
+/// One part of a reply as spoken: a Fluent key and its arguments (names and
+/// numbers captured when it was said; `…_key` arguments are Fluent keys).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SpokenLineView {
+    /// `opener` | `quote` | `substance` | `closer`.
+    pub part: String,
+    pub key: String,
+    pub args: BTreeMap<String, String>,
+}
+
+/// Something the player learned in a conversation, as the notebook names it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct LearnedItemView {
+    pub subject: SubjectDto,
+    /// Fluent key `notebook-<subject type>`.
+    pub title_key: String,
+    pub args: BTreeMap<String, String>,
+    /// The level reached in this conversation.
+    pub level: KnowledgeLevelDto,
+}
+
+/// A conversation the player had (`QueryDto::Exchange`; the `Talk`
+/// command's `created`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ExchangeView {
+    pub id: u32,
+    pub date: DateView,
+    pub speaker: PersonRefView,
+    /// Where it happened, if at a place.
+    pub place: Option<LocationView>,
+    /// Topic content id, and its Fluent name key.
+    pub topic: String,
+    pub topic_key: String,
+    /// What it was about: a name (`about_label`) or a Fluent key.
+    pub about_label: Option<String>,
+    pub about_label_key: Option<String>,
+    /// The reply, in order (opener, quote, substance, closer).
+    pub parts: Vec<SpokenLineView>,
+    /// What the player learned from it (only what was new).
+    pub learned: Vec<LearnedItemView>,
+    /// Leads it opened (where to go, whom to ask).
+    pub leads: Vec<LeadView>,
+    /// `warmer` | `cooler`, when the speaker's opinion of the player moved.
+    pub relationship: Option<String>,
+    /// The result in a line (`outcome-talk…`) and its arguments (`name`).
+    pub outcome_key: String,
+    pub outcome_args: BTreeMap<String, String>,
+    /// Asked the same thing of them earlier that week.
+    pub repeat: bool,
+}
+
+/// What a subject is called, for a choice or an exchange's "about".
+fn about_label(engine: &Engine, a: &AboutRef) -> (Option<String>, Option<String>) {
+    let st = engine.state();
+    let content = engine.content();
+    let gate = Gate::of(engine);
+    match a {
+        AboutRef::Place { place } => st
+            .world
+            .places
+            .get(place.index())
+            .map(|p| {
+                (
+                    Some(p.name.clone()),
+                    Some(format!("place-{}", p.kind.key())),
+                )
+            })
+            .unwrap_or((None, None)),
+        AboutRef::Person { person } => {
+            let name = characters::profile(&st.politics, &st.world, *person)
+                .map(|p| gate.name(*person, p.full_name()));
+            let role = crate::characters::person_ref(engine, *person).map(|r| r.role_key);
+            (name, role)
+        }
+        AboutRef::Hood { hood } => (
+            st.world
+                .neighborhoods
+                .get(hood.index())
+                .map(|h| h.name.clone()),
+            None,
+        ),
+        AboutRef::Bill { policy } => (
+            None,
+            st.policy
+                .instances
+                .get(policy.index())
+                .and_then(|p| content.policies.get(&p.template))
+                .map(|t| t.name_key.clone()),
+        ),
+        AboutRef::Template { template } => (
+            None,
+            content.policies.get(template).map(|t| t.name_key.clone()),
+        ),
+        AboutRef::Proposal { .. } => (None, None),
+        AboutRef::Rival => (
+            st.player
+                .as_ref()
+                .and_then(|pl| st.politics.characters.towns.get(pl.municipality.index()))
+                .and_then(|t| t.rival)
+                .and_then(|r| characters::profile(&st.politics, &st.world, r))
+                .map(|p| p.full_name()),
+            Some("ui-your-rival".into()),
+        ),
+    }
+}
+
+fn exchange_view_of(engine: &Engine, e: &Exchange) -> Option<ExchangeView> {
+    let st = engine.state();
+    let content = engine.content();
+    let gate = Gate::of(engine);
+    let speaker = person_ref_known(engine, &gate, e.speaker)?;
+    let topic_key = content
+        .talk_topic(&e.topic)
+        .map(|t| t.name_key.clone())
+        .unwrap_or_default();
+    let (about_label, about_label_key) = e
+        .about
+        .as_ref()
+        .map(|a| about_label(engine, a))
+        .unwrap_or((None, None));
+    let mut outcome_args: BTreeMap<String, String> = e.outcome_args.iter().cloned().collect();
+    outcome_args.insert("name".into(), speaker.name.clone());
+    let outcome_key = match (&e.outcome, e.repeat) {
+        (Some(k), _) => k.clone(),
+        (None, true) => "outcome-talk-again".into(),
+        (None, false) => "outcome-talk".into(),
+    };
+    Some(ExchangeView {
+        id: e.id.0,
+        date: DateView::of(e.on),
+        place: e
+            .place
+            .map(|place| location_view(st, Location::Place { place })),
+        speaker,
+        topic: e.topic.clone(),
+        topic_key,
+        about_label,
+        about_label_key,
+        parts: e
+            .parts
+            .iter()
+            .map(|p| SpokenLineView {
+                part: p.part.key().into(),
+                key: p.key.clone(),
+                args: p.args.iter().cloned().collect(),
+            })
+            .collect(),
+        learned: e
+            .learned
+            .iter()
+            .map(|(s, level)| LearnedItemView {
+                subject: SubjectDto::of(s),
+                title_key: format!("notebook-{}", s.key().replace('_', "-")),
+                args: crate::knowledge::subject_args(&gate, s, *level),
+                level: (*level).into(),
+            })
+            .collect(),
+        leads: e
+            .leads
+            .iter()
+            .map(|l| crate::knowledge::lead_view(&gate, l))
+            .collect(),
+        relationship: if e.opinion >= 0.5 {
+            Some("warmer".into())
+        } else if e.opinion <= -0.5 {
+            Some("cooler".into())
+        } else {
+            None
+        },
+        outcome_key,
+        outcome_args,
+        repeat: e.repeat,
+    })
+}
+
+/// A conversation by id (`QueryDto::Exchange`), while it is in the log.
+pub fn exchange_view(engine: &Engine, id: u32) -> Option<ExchangeView> {
+    let pl = engine.state().player.as_ref()?;
+    let e = pl.talk.exchange(ExchangeId(id))?;
+    exchange_view_of(engine, e)
+}
+
+/// The exchange a notebook entry learned from a conversation came from: the
+/// newest with that person, on that topic and day, that taught it.
+pub fn exchange_for(
+    st: &State,
+    person: CharacterId,
+    topic: &str,
+    on: mandate_core::SimDate,
+    subject: &Subject,
+) -> Option<u32> {
+    let pl = st.player.as_ref()?;
+    pl.talk
+        .log
+        .iter()
+        .rev()
+        .find(|e| {
+            e.speaker == person
+                && e.topic == topic
+                && e.on == on
+                && e.learned.iter().any(|(s, _)| s == subject)
+        })
+        .map(|e| e.id.0)
+}
+
+// --- Canvassing on a worry (DEC-091 §1.6) ---------------------------------------------
+
+/// A worry the player can raise on the doorsteps of a neighbourhood.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct CanvassWorryView {
+    /// Concern content id: the canvass action's `issue`.
+    pub id: String,
+    pub name_key: String,
+    /// What the player knows it from: `hood` (this neighbourhood's worries)
+    /// or `town` (the town's).
+    pub source: String,
+    /// The neighbourhood's strongest worry, as far as the player knows.
+    pub top: bool,
+    /// How well it fits here, in a word (`strong` | `fair` | `weak`), once
+    /// the player knows the neighbourhood's worries (`known` and up).
+    pub fit_band: Option<String>,
+    /// The engine's multiplier on the canvass's approval gain
+    /// (`actions::canvass_match`, the command's own), shown once the player
+    /// knows the neighbourhood's worries in detail.
+    pub fit: Option<f64>,
+}
+
+/// The canvass preview for a neighbourhood (`QueryDto::Canvass`): the
+/// worries the player knows of (DEC-091: never one they don't), each with
+/// the match the engine would apply as far as they know the place.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct CanvassView {
+    pub neighborhood: u32,
+    pub name: String,
+    pub worries: Vec<CanvassWorryView>,
+    /// What the player knows of this neighbourhood's worries (and the lead).
+    pub knowledge: KnowledgeView,
+}
+
+/// A canvass fit in words, on the thresholds the canvass outcome uses
+/// (`knowledge.effects.canvass`: halfway to the ceiling, halfway to the floor).
+pub fn fit_band(content: &ContentBundle, fit: f64) -> &'static str {
+    let k = &content.knowledge.effects.canvass;
+    if fit > 1.0 && fit >= 1.0 + 0.5 * (k.ceiling - 1.0) {
+        "strong"
+    } else if fit < 1.0 && fit <= 1.0 - 0.5 * (1.0 - k.floor) {
+        "weak"
+    } else {
+        "fair"
+    }
+}
+
+pub fn canvass_view(engine: &Engine, neighborhood: u32) -> Option<CanvassView> {
+    let st = engine.state();
+    let content = engine.content();
+    let pl = st.player.as_ref()?;
+    let town = pl.municipality;
+    let hood = NeighborhoodId(neighborhood);
+    let n = st.world.neighborhoods.get(hood.index())?;
+    if n.municipality != town {
+        return None;
+    }
+    let gate = Gate::of(engine);
+    let hood_subject = Subject::HoodConcerns { hood };
+    let hood_level = gate.level(&hood_subject);
+    let town_level = gate.town_concerns(town);
+    let mine = crate::knowledge::gate_concerns(
+        hood_level,
+        crate::office::concerns_for(st, content, town, &[hood.index()]),
+        false,
+        usize::MAX,
+    );
+    let hoods: Vec<usize> = st.world.hoods_of(town).collect();
+    let theirs = crate::knowledge::gate_concerns(
+        town_level,
+        crate::office::concerns_for(st, content, town, &hoods),
+        false,
+        usize::MAX,
+    );
+    let mut worries: Vec<CanvassWorryView> = Vec::new();
+    for (i, c) in mine.iter().enumerate() {
+        worries.push(CanvassWorryView {
+            id: c.id.clone(),
+            name_key: c.name_key.clone(),
+            source: "hood".into(),
+            top: i == 0,
+            fit_band: None,
+            fit: None,
+        });
+    }
+    for c in theirs {
+        if worries.iter().any(|w| w.id == c.id) {
+            continue;
+        }
+        worries.push(CanvassWorryView {
+            id: c.id,
+            name_key: c.name_key,
+            source: "town".into(),
+            top: false,
+            fit_band: None,
+            fit: None,
+        });
+    }
+    if hood_level >= Level::Known {
+        for w in &mut worries {
+            let fit = mandate_sim::actions::canvass_match(st, content, hood, Some(&w.id));
+            w.fit_band = Some(fit_band(content, fit).into());
+            if hood_level >= Level::Detailed {
+                w.fit = Some(fit);
+            }
+        }
+    }
+    Some(CanvassView {
+        neighborhood,
+        name: n.name.clone(),
+        worries,
+        knowledge: gate.view(&hood_subject),
+    })
+}

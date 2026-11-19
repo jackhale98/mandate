@@ -11,6 +11,7 @@
 import { useGame } from "../state/gameStore";
 import { Member } from "./Chamber";
 import { Who } from "./TownCard";
+import { TalkButton } from "./talk/TalkButton";
 
 function NotebookSeam({ n }: { n: number }) {
   const tr = useGame((s) => s.tr);
@@ -41,15 +42,22 @@ export function PeopleList() {
           </h3>
           <ul className="plain-list people-figures">
             {c.broker && (
-              <li>
-                <span className="muted small">{tr.t("ui-power-broker-line")}: </span>
-                <Who p={c.broker} />
+              <li className="people-figure">
+                <span>
+                  <span className="muted small">{tr.t("ui-power-broker-line")}: </span>
+                  <Who p={c.broker} />
+                </span>
+                {/* Talk to them (DEC-093): the panel says where to find them. */}
+                <TalkButton person={c.broker.id} name={c.broker.name} />
               </li>
             )}
             {c.rival && (
-              <li>
-                <span className="muted small">{tr.t("ui-rival-line")}: </span>
-                <Who p={c.rival} />
+              <li className="people-figure">
+                <span>
+                  <span className="muted small">{tr.t("ui-rival-line")}: </span>
+                  <Who p={c.rival} />
+                </span>
+                <TalkButton person={c.rival.id} name={c.rival.name} />
               </li>
             )}
           </ul>
@@ -60,9 +68,15 @@ export function PeopleList() {
           {tr.t("ui-council")}
         </h3>
         <ul className="member-list">
-          {mayor && <Member m={mayor} />}
+          {mayor && (
+            <Member m={mayor}>
+              <TalkButton person={mayor.character} name={mayor.name} />
+            </Member>
+          )}
           {council.map((m) => (
-            <Member key={m.id} m={m} />
+            <Member key={m.id} m={m}>
+              <TalkButton person={m.character} name={m.name} />
+            </Member>
           ))}
         </ul>
       </section>
