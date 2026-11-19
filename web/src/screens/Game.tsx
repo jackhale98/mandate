@@ -21,6 +21,7 @@ function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => vo
   const tr = useGame((s) => s.tr);
   const map = useGame((s) => s.map);
   const homeId = useGame((s) => s.office?.player.municipality_id ?? null);
+  const seed = useGame((s) => s.overview?.seed ?? "");
   const home = map?.municipalities.find((m) => m.id === homeId);
   const [overlay, setOverlay] = useState<Overlay>("terrain");
   return (
@@ -34,6 +35,7 @@ function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => vo
           overlay={overlay}
           home={home?.id ?? null}
           homeLabel={tr.t("ui-you")}
+          seed={seed}
         />
       ) : (
         <div className="center">

@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MapView } from "../engine/protocol/MapView";
 import { bakeRaster, type Overlay } from "./render";
+import { extendWorld, paintSurroundings } from "./surroundings";
 
 interface Props {
   view: MapView;
@@ -15,6 +16,8 @@ interface Props {
   home?: number | null;
   /** The label drawn with the home marker, e.g. "You". */
   homeLabel?: string;
+  /** The world seed: the surroundings beyond the grid are generated from it. */
+  seed?: string;
 }
 
 interface Camera {
@@ -24,6 +27,13 @@ interface Camera {
 }
 
 const CLASS_RADIUS: Record<string, number> = { metro: 5, city: 4, town: 3, rural: 2 };
+const SEA = "#26466f";
+
+/** The scale that fits the country with a margin of its surroundings around it. */
+function fitFor(sz: { w: number; h: number }, view: { width: number; height: number }): number {
+  const m = Math.round(0.05 * Math.max(view.width, view.height));
+  return Math.min(sz.w / (view.width + 2 * m), sz.h / (view.height + 2 * m));
+}
 
 /** The flag of the logo (DEC-081), and its gold. */
 const FLAG = "#eb6834";
@@ -67,27 +77,37 @@ function drawHomeMarker(ctx: CanvasRenderingContext2D, x: number, y: number, r: 
   return `${Math.round(x + 9)},${Math.round(top + 5)}`;
 }
 
-export function WorldMap({ view, selected, onSelect, label, overlay, home = null, homeLabel = "" }: Props) {
+export function WorldMap({ view, selected, onSelect, label, overlay, home = null, homeLabel = "", seed = "" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const raster = useMemo(() => bakeRaster(view, selected, overlay), [view, selected, overlay]);
-  // Terrain plus the transport network, baked once into a high-resolution
-  // image (DEC-049 pixel art). Gestures only scale this image, so zooming never
-  // re-strokes thousands of road segments per frame.
+  // Sea and foreign land beyond the grid (presentation only), so the view
+  // never ends at a hard edge. It does not depend on the selection or overlay.
+  const ring = useMemo(() => {
+    const s = extendWorld(view, seed);
+    return { margin: s.margin, image: new ImageData(paintSurroundings(s), s.width, s.height) };
+  }, [view, seed]);
+  const margin = ring.margin;
+  // Terrain, its surroundings, and the transport network, baked once into a
+  // high-resolution image (DEC-049 pixel art). Gestures only scale this image,
+  // so zooming never re-strokes thousands of road segments per frame.
   const offscreen = useMemo(() => {
     const k = Math.max(1, Math.min(6, Math.floor(2048 / Math.max(raster.width, raster.height))));
+    const e = ring.margin;
     const base = document.createElement("canvas");
-    base.width = raster.width;
-    base.height = raster.height;
-    base.getContext("2d")?.putImageData(raster.image, 0, 0);
+    base.width = ring.image.width;
+    base.height = ring.image.height;
+    const bctx = base.getContext("2d");
+    bctx?.putImageData(ring.image, 0, 0);
+    bctx?.putImageData(raster.image, e, e);
     const c = document.createElement("canvas");
-    c.width = raster.width * k;
-    c.height = raster.height * k;
+    c.width = base.width * k;
+    c.height = base.height * k;
     const ctx = c.getContext("2d");
     if (!ctx) return c;
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(base, 0, 0, c.width, c.height);
-    const at = (cell: number) => [((cell % view.width) + 0.5) * k, (Math.floor(cell / view.width) + 0.5) * k] as const;
+    const at = (cell: number) => [((cell % view.width) + e + 0.5) * k, (Math.floor(cell / view.width) + e + 0.5) * k] as const;
     for (const l of view.links) {
       if (l.path.length < 2) continue;
       ctx.beginPath();
@@ -108,14 +128,14 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
       ctx.stroke();
     }
     return c;
-  }, [raster, view]);
+  }, [raster, ring, view]);
   const [size, setSize] = useState({ w: 320, h: 320 });
   const capital = view.municipalities.find((m) => m.national_capital);
   const homeTown = home === null ? undefined : view.municipalities.find((m) => m.id === home);
 
   // The camera lives outside React state: gestures mutate it and request one
   // redraw per animation frame, so panning and zooming never re-render the tree.
-  const fitScale = Math.min(size.w / view.width, size.h / view.height);
+  const fitScale = fitFor(size, view);
   const portrait = size.h > size.w * 1.2;
   const cam = useRef<Camera | null>(null);
   const lastSize = useRef<{ w: number; h: number } | null>(null);
@@ -138,10 +158,10 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
   };
 
   // Latest drawing inputs, read by the frame callback.
-  const scene = useRef({ offscreen, size, view, selected, fitScale, home, homeLabel });
+  const scene = useRef({ offscreen, margin, size, view, selected, fitScale, home, homeLabel });
   // Effects run in order: this sync runs before the redraw effects below.
   useEffect(() => {
-    scene.current = { offscreen, size, view, selected, fitScale, home, homeLabel };
+    scene.current = { offscreen, margin, size, view, selected, fitScale, home, homeLabel };
   });
 
   const draw = () => {
@@ -149,16 +169,24 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    const { offscreen: img, size: sz, view: v, selected: sel, fitScale: fit, home: homeId, homeLabel: youText } = scene.current;
+    const { offscreen: img, margin: e, size: sz, view: v, selected: sel, fitScale: fit, home: homeId, homeLabel: youText } = scene.current;
     const { x: camX, y: camY, scale } = camera();
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "#26466f";
-    ctx.fillRect(0, 0, sz.w, sz.h);
     const ox = sz.w / 2 - camX * scale;
     const oy = sz.h / 2 - camY * scale;
+    // The baked image (grid plus surroundings); open sea beyond it, which
+    // matches the surroundings' outer ring, only when the view reaches past it.
+    const ix = ox - e * scale;
+    const iy = oy - e * scale;
+    const iw = (v.width + 2 * e) * scale;
+    const ih = (v.height + 2 * e) * scale;
+    if (ix > 0 || iy > 0 || ix + iw < sz.w || iy + ih < sz.h) {
+      ctx.fillStyle = SEA;
+      ctx.fillRect(0, 0, sz.w, sz.h);
+    }
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, ox, oy, v.width * scale, v.height * scale);
+    ctx.drawImage(img, ix, iy, iw, ih);
 
     // Settlements and labels.
     const zoom = scale / fit;
@@ -237,7 +265,7 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
     if (!touched.current) {
       cam.current = null; // still the automatic view: fit the new size
     } else if (cam.current && prev) {
-      const fit = Math.min(size.w / view.width, size.h / view.height);
+      const fit = fitFor(size, view);
       const c = cam.current;
       const scale = Math.min(Math.max(c.scale, fit * 0.8), fit * 10);
       cam.current = {
