@@ -359,9 +359,17 @@ export function stageStreets(w: Work) {
       if (reach < 0) continue;
       const ext: Segment = s.axis === "h" ? { ...s, x0: Math.min(end + dir, reach), x1: Math.max(end + dir, reach) } : { ...s, y0: Math.min(end + dir, reach), y1: Math.max(end + dir, reach) };
       paintSegment(w, ext);
-      w.segments.push(ext);
+      // The street itself runs on (one segment, never a stub shorter than a street).
+      if (s.axis === "h") {
+        s.x0 = Math.min(s.x0, ext.x0);
+        s.x1 = Math.max(s.x1, ext.x1);
+      } else {
+        s.y0 = Math.min(s.y0, ext.y0);
+        s.y1 = Math.max(s.y1, ext.y1);
+      }
     }
   }
+  connectToMainRoads(w);
   // ---- quays along the water in waterfront districts with a quay pattern
   for (let c = 0; c < N; c++) {
     const d = w.district[c] as number;
@@ -523,4 +531,72 @@ function districtStreets(w: Work, d: WorkDistrict): Segment[] {
     queue = queue.concat(components(comp));
   }
   return segs;
+}
+
+/**
+ * Every district touches a main road (§5 stage 5): a district the arterials
+ * miss gets a main street to the nearest one, along the shortest way over
+ * land (straight runs, painted as streets of the arterial class).
+ */
+function connectToMainRoads(w: Work) {
+  const { W, H } = w;
+  const N = W * H;
+  const main = (c: number) => w.roadClass[c] === RoadClass.Arterial || ((w.use[c] as number) & Use.Square) !== 0;
+  for (const d of w.districts) {
+    let touches = false;
+    for (let c = 0; c < N && !touches; c++) {
+      if (w.district[c] !== d.index) continue;
+      const x = c % W;
+      for (const n of [c, x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) if (n >= 0 && n < N && main(n)) touches = true;
+    }
+    if (touches) continue;
+    // Breadth-first from the main roads to the district, over land that can take a street.
+    const prev = new Int32Array(N).fill(-2);
+    const q = new Int32Array(N);
+    let qt = 0;
+    for (let c = 0; c < N; c++) {
+      if (main(c) && !((w.use[c] as number) & Use.Square)) {
+        prev[c] = -1;
+        q[qt++] = c;
+      }
+    }
+    let hit = -1;
+    for (let qh = 0; qh < qt && hit < 0; qh++) {
+      const c = q[qh] as number;
+      const x = c % W;
+      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+        if (n < 0 || n >= N || (prev[n] as number) !== -2) continue;
+        if (isWaterBody(w, n) || (w.use[n] as number) & (Use.Square | Use.Rail) || w.terrain[n] === Terrain.Rock) continue;
+        prev[n] = c;
+        if (w.district[n] === d.index) {
+          hit = n;
+          break;
+        }
+        q[qt++] = n;
+      }
+    }
+    if (hit < 0) continue;
+    const path: number[] = [];
+    for (let c = hit; c >= 0; c = prev[c] as number) path.push(c);
+    // Straight runs of the path, each a street two tiles wide on the path's line.
+    let i = 0;
+    while (i < path.length - 1) {
+      const a = path[i] as number;
+      const horiz = Math.floor(a / W) === Math.floor((path[i + 1] as number) / W);
+      let j = i + 1;
+      while (j + 1 < path.length && (Math.floor((path[j] as number) / W) === Math.floor((path[j + 1] as number) / W)) === horiz) j++;
+      const b = path[j] as number;
+      const ax = a % W;
+      const ay = Math.floor(a / W);
+      const bx = b % W;
+      const by = Math.floor(b / W);
+      const s: Segment = horiz
+        ? { axis: "h", x0: Math.min(ax, bx), x1: Math.max(ax, bx), y0: ay, y1: Math.min(H - 1, ay + 1), cls: RoadClass.Arterial, style: "asphalt", district: d.index, arterial: -1 }
+        : { axis: "v", x0: ax, x1: Math.min(W - 1, ax + 1), y0: Math.min(ay, by), y1: Math.max(ay, by), cls: RoadClass.Arterial, style: "asphalt", district: d.index, arterial: -1 };
+      paintSegment(w, s);
+      // A turn of the path is a street corner, not a street of its own.
+      if (Math.max(s.x1 - s.x0, s.y1 - s.y0) + 1 >= 3) w.segments.push(s);
+      i = j;
+    }
+  }
 }

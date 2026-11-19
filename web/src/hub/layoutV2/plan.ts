@@ -15,7 +15,7 @@ import { BAND_CAPS, bandOf, type Band, type TownGeo } from "./geo";
 import { NO_BEARING, bearingOf, isqrt } from "./imath";
 import { BASE_RECIPE, snapshotRecipe, type Recipe } from "./registry";
 import { stageDistricts, stageStreets } from "./districts";
-import { stageConnect, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
+import { stageConnect, stageShortcuts, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
 import { nameBridges, stageArterials, stageLevelEdges, stageRail, stageTerraces } from "./roads";
 import { stageCentre, stageTerrain, stageWater, townSize } from "./terrain";
 import { LayoutOverflow, RoadClass, Use, WaterKind, isWaterBody, type PlanConnector, type PlanPlot, type Rect, type Segment, type Work, type WorkDistrict } from "./work";
@@ -70,6 +70,8 @@ export interface TownPlan {
   props: TownProp[];
   connectors: PlanConnector[];
   arterials: { index: number; name: string; mode: string; bearing: number; toName: string; length: number }[];
+  /** 1 on the main roads (arterials, the ring road, district main streets and the square's ring). */
+  mainRoad: Uint8Array;
   /** Every street run (arterials, the square's ring, district streets), tiles. */
   segments: Segment[];
   landmarks: { kind: string; x: number; y: number; name: string; plot: number }[];
@@ -177,6 +179,7 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
   stage("props", () => stageProps(w));
   stage("checks", () => {
     stageConnect(w);
+    stageShortcuts(w);
     baseline = stageRanks(w);
   });
   return finish(w, baseline);
@@ -313,6 +316,10 @@ function finish(w: Work, baseline: number[]): TownPlan {
   const sea = w.geo.coast?.sea;
   const waterSide: WaterSide | null = sea === undefined || sea === NO_BEARING ? null : sea >= 14 || sea <= 1 ? "north" : sea <= 5 ? "east" : sea <= 9 ? "south" : "west";
   const roadLen = (cells: number[]) => new Set(cells).size;
+  // Landmarks (§8: 3–12 unique silhouettes): the square's fountain, civic buildings, the spire, the station, the headframe, then the rest.
+  const rank = (k: string) => (k === "square" ? 0 : ["town_hall", "council_chamber", "parliament", "regional_assembly", "executive_residence"].includes(k) ? 1 : k === "spire" ? 2 : k === "station" ? 3 : k === "headframe" ? 4 : 5);
+  const marks = [{ kind: "square", x: w.plaza.x + (w.plaza.w >> 1), y: w.plaza.y + (w.plaza.h >> 1), name: "", plot: -1 }, ...w.landmarks];
+  w.landmarks = marks.map((l, i) => ({ l, i })).sort((a, b) => rank(a.l.kind) - rank(b.l.kind) || a.i - b.i).slice(0, 12).map((x) => x.l);
   w.timings.finish = now() - t0;
   void isqrt;
   void bearingOf;
@@ -337,6 +344,7 @@ function finish(w: Work, baseline: number[]): TownPlan {
     arterials: w.arterials.map((a) => ({ index: a.index, name: a.name, mode: a.mode, bearing: a.bearing, toName: a.toName, length: roadLen(a.cells) })),
     landmarks: w.landmarks,
     segments: w.segments,
+    mainRoad: Uint8Array.from(w.roadClass, (k) => (k === RoadClass.Arterial ? 1 : 0)),
     square: w.plaza,
     civic: w.civic,
     waterSide,

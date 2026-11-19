@@ -8,7 +8,7 @@
 // reachable.
 import { mix } from "../rng";
 import { Terrain, placeSize, type PropKind } from "../townLayout";
-import { NO_BEARING, compassVec, isqrt, valueNoise } from "./imath";
+import { MinHeap, NO_BEARING, compassVec, isqrt, valueNoise } from "./imath";
 import type { DistrictType, PlaceLayout } from "./registry";
 import { LayoutOverflow, RoadClass, Use, WaterKind, buildable, distanceField, frontageTerrain, isWaterBody, rngOf, type PlanPlot, type Work, type WorkDistrict } from "./work";
 
@@ -111,8 +111,8 @@ export function stageLanes(w: Work) {
         D = Math.min(D, depth(b + 1));
         b++;
       }
-      if (b - x + 1 >= 8 && D >= 8) {
-        const L = D >= 10 ? F - 6 : F - 5;
+      if (b - x + 1 >= 8 && D >= 11) {
+        const L = F - 6;
         let lo = x;
         let hi = b;
         while (lo > x - 3 && lo > 0 && !walkable(L * W + lo - 1) && land(L * W + lo - 1, d)) lo--;
@@ -485,7 +485,7 @@ function parkAround(w: Work, plot: PlanPlot) {
   const { W, H } = w;
   const N = W * H;
   const start = (plot.y - 1) * W + plot.x;
-  if (start < 0) return;
+  if (start < 0 || !buildable(w.terrain[start] as number) || (w.use[start] as number) & (Use.Road | Use.Plot) || w.district[start] !== plot.district) return;
   const q = [start];
   const seen = new Set([start]);
   for (let qi = 0; qi < q.length && q.length < 260; qi++) {
@@ -839,7 +839,7 @@ export function stageConnect(w: Work) {
       for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
         if (n < 0 || n >= N || prev.has(n) || solidPlot[n]) continue;
         const t = w.terrain[n] as number;
-        if ((isWaterBody(w, n) && !walkableGround(w, n)) || t === Terrain.Rock || (t === Terrain.Rail && !((w.use[n] as number) & Use.Road))) continue;
+        if ((isWaterBody(w, n) && !walkableGround(w, n)) || t === Terrain.Rock) continue;
         prev.set(n, c);
         bq.push(n);
       }
@@ -854,6 +854,10 @@ export function stageConnect(w: Work) {
           w.connectors.push({ kind: "ford", type: "connector.ford", x: c % W, y: Math.floor(c / W), w: 1, h: 1, axis: "ns", name: "", crosses: "creek", arterial: -1 });
           w.used.connectors.add("connector.ford");
         } else if (t === Terrain.Embankment) w.terrain[c] = Terrain.Steps;
+        else if (t === Terrain.Rail) {
+          w.terrain[c] = Terrain.Crossing;
+          w.connectors.push({ kind: "level_crossing", type: "connector.level_crossing", x: c % W, y: Math.floor(c / W), w: 1, h: 1, axis: "ns", name: "", crosses: "rail", arterial: -1 });
+        }
         else if (t !== Terrain.Door) w.terrain[c] = Terrain.Path;
         w.use[c] = (w.use[c] as number) | Use.Road;
         w.blocked[c] = 0;
@@ -884,10 +888,16 @@ export function stageConnect(w: Work) {
     }
   }
   if (drop.size) {
-    const keep = w.plots.filter((_, i) => !drop.has(i));
+    const remap = new Map<number, number>();
+    const keep: PlanPlot[] = [];
+    w.plots.forEach((p, i) => {
+      if (drop.has(i)) return;
+      remap.set(i, keep.length);
+      keep.push(p);
+    });
     w.plots.length = 0;
     w.plots.push(...keep);
-    w.landmarks = w.landmarks.filter((l) => !drop.has(l.plot));
+    w.landmarks = w.landmarks.filter((l) => !drop.has(l.plot)).map((l) => ({ ...l, plot: remap.get(l.plot) ?? -1 }));
   }
 }
 
@@ -898,4 +908,205 @@ function walkableGround(w: Work, c: number): boolean {
   if (t === Terrain.Bridge || t === Terrain.Pier || t === Terrain.Ford || t === Terrain.Crossing || t === Terrain.Steps) return !(t === Terrain.Bridge && (w.use[c] as number) & Use.Rail && !((w.use[c] as number) & Use.Road));
   if (isWaterBody(w, c) || w.water[c] === WaterKind.Creek) return false;
   return !(t === Terrain.Rock || t === Terrain.Embankment || t === Terrain.Rail || t === Terrain.Pit || t === Terrain.Water || t === Terrain.Creek);
+}
+
+// ---------------------------------------------------------------------------
+// Stage 12b: no long way round (§8: every place within a walking-detour factor of 1.6 of the square, 2.2 across water)
+
+const DETOUR = 1.6;
+const DETOUR_WATER = 2.2;
+
+/**
+ * Where the walk from the square to a place goes a long way round (behind a
+ * creek, the railway, a row of blocks), a path is cut along the shortest line
+ * over land that can take one (fields, yards, a ford over a creek, steps up a
+ * bank, a level crossing over the line); where the long way is round the
+ * river, a footbridge crosses it straight, at the narrowest place that
+ * shortens the walk most (the doc's mitigation for bridges as choke points).
+ */
+export function stageShortcuts(w: Work) {
+  const { W, H } = w;
+  const N = W * H;
+  const solidPlot = new Uint8Array(N);
+  for (const p of w.plots) for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) solidPlot[y * W + x] = 1;
+  const walk = (c: number) => !solidPlot[c] && walkableGround(w, c);
+  const sq = (w.plaza.y + (w.plaza.h >> 1)) * W + w.plaza.x + (w.plaza.w >> 1);
+  const sx = sq % W;
+  const sy = Math.floor(sq / W);
+  const fromSquare = (): Int32Array => {
+    const d = new Int32Array(N).fill(-1);
+    const q = new Int32Array(N);
+    let qt = 0;
+    // From the whole square (its open plaza), as the readability check measures.
+    for (let y = w.plaza.y; y < w.plaza.y + w.plaza.h; y++) {
+      for (let x = w.plaza.x; x < w.plaza.x + w.plaza.w; x++) {
+        const c = y * W + x;
+        if (!walk(c)) continue;
+        d[c] = 0;
+        q[qt++] = c;
+      }
+    }
+    for (let qh = 0; qh < qt; qh++) {
+      const c = q[qh] as number;
+      const x = c % W;
+      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+        if (n < 0 || n >= N || (d[n] as number) >= 0 || !walk(n)) continue;
+        d[n] = (d[c] as number) + 1;
+        q[qt++] = n;
+      }
+    }
+    return d;
+  };
+  /** Extra cost of cutting a path through a cell (0: walkable already; -1: never). */
+  const cutCost = (c: number): number => {
+    if (walk(c)) return 0;
+    if (solidPlot[c] || (w.use[c] as number) & (Use.Plot | Use.Square) || w.blocked[c] || isWaterBody(w, c)) return -1;
+    const t = w.terrain[c] as number;
+    if (t === Terrain.Rock || t === Terrain.Pit) return -1;
+    if (w.water[c] === WaterKind.Creek) return 3;
+    if (t === Terrain.Embankment) return 3;
+    if (t === Terrain.Rail) return 6;
+    return 2;
+  };
+  const cut = (c: number) => {
+    const t = w.terrain[c] as number;
+    if (walk(c)) return;
+    if (w.water[c] === WaterKind.Creek) {
+      w.terrain[c] = Terrain.Ford;
+      w.connectors.push({ kind: "ford", type: "connector.ford", x: c % W, y: Math.floor(c / W), w: 1, h: 1, axis: "ns", name: "", crosses: "creek", arterial: -1 });
+      w.used.connectors.add("connector.ford");
+    } else if (t === Terrain.Embankment) w.terrain[c] = Terrain.Steps;
+    else if (t === Terrain.Rail) {
+      w.terrain[c] = Terrain.Crossing;
+      w.connectors.push({ kind: "level_crossing", type: "connector.level_crossing", x: c % W, y: Math.floor(c / W), w: 1, h: 1, axis: "ns", name: "", crosses: "rail", arterial: -1 });
+    } else w.terrain[c] = Terrain.Path;
+    w.use[c] = (w.use[c] as number) | Use.Road;
+  };
+  /** The cheapest way from a door to the square's network, cutting what it must; carved. */
+  const desireLine = (from: number, dSq: Int32Array, scale: number) => {
+    const g = new Float64Array(N).fill(Infinity);
+    const prev = new Int32Array(N).fill(-1);
+    const heap = new MinHeap(256);
+    g[from] = 0;
+    heap.push(0, from);
+    let best = Infinity;
+    let bestCell = -1;
+    while (heap.size) {
+      const c = heap.pop();
+      const gc = heap.lastKey;
+      if (gc > (g[c] as number) || gc >= best) continue;
+      if ((dSq[c] as number) >= 0 && gc + (dSq[c] as number) < best) {
+        best = gc + (dSq[c] as number);
+        bestCell = c;
+      }
+      const x = c % W;
+      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+        if (n < 0 || n >= N) continue;
+        const k = cutCost(n);
+        if (k < 0) continue;
+        const ng = gc + 1 + k * scale;
+        if (ng < (g[n] as number)) {
+          g[n] = ng;
+          prev[n] = c;
+          heap.push(ng, n);
+        }
+      }
+    }
+    for (let c = bestCell; c >= 0; c = prev[c] as number) cut(c);
+  };
+  const places = w.plots.filter((p) => p.place !== null || p.landmark);
+  for (let round = 0; round < 3; round++) {
+    let dSq = fromSquare();
+    for (const p of places) {
+      const f = p.front;
+      const md = rectDistance(w.plaza, f % W, Math.floor(f / W));
+      if (md < 16) continue;
+      const steps = dSq[f] as number;
+      const wet = crossesWater(w, sx, sy, f % W, Math.floor(f / W));
+      if (steps >= 0 && steps <= (wet ? DETOUR_WATER : DETOUR) * md) continue;
+      if (wet && round >= 1) {
+        // The far landing joins the streets on its own side too.
+        const far = footbridge(w, p, dSq);
+        if (far >= 0) desireLine(far, fromSquare(), 1);
+      }
+      // A second pass cuts straighter (cheaper cuts) where the first still left a long way round.
+      desireLine(f, dSq, round === 0 ? 1 : round === 1 ? 0.25 : 0.05);
+      dSq = fromSquare();
+    }
+  }
+}
+
+/** Whether the straight line between two cells crosses a river, lake or the sea. */
+function crossesWater(w: Work, x0: number, y0: number, x1: number, y1: number): boolean {
+  for (let k = 0; k <= 32; k++) {
+    const x = Math.round(x0 + ((x1 - x0) * k) / 32);
+    const y = Math.round(y0 + ((y1 - y0) * k) / 32);
+    if (isWaterBody(w, y * w.W + x)) return true;
+  }
+  return false;
+}
+
+/** A straight footbridge over the river where it shortens the walk from the square to a plot most. */
+function footbridge(w: Work, p: PlanPlot, dSq: Int32Array): number {
+  const { W, H } = w;
+  const N = W * H;
+  const max = w.recipe.connectors.find((c) => c.kind === "footbridge")?.max_span ?? 10;
+  const fx = p.front % W;
+  const fy = Math.floor(p.front / W);
+  const land = (c: number) => c >= 0 && c < N && !isWaterBody(w, c) && !((w.use[c] as number) & (Use.Plot | Use.Square | Use.Rail)) && w.terrain[c] !== Terrain.Rock;
+  let best: { a: number; b: number; dir: number; span: number; s: number } | null = null;
+  const dirs = [1, -1, W, -W];
+  for (let a = 0; a < N; a++) {
+    if (!land(a) || (dSq[a] as number) < 0) continue;
+    const ax = a % W;
+    for (const d of dirs) {
+      const n = a + d;
+      if (n < 0 || n >= N || !isWaterBody(w, n) || (d === 1 && ax === W - 1) || (d === -1 && ax === 0)) continue;
+      let k = 1;
+      while (k <= max + 1 && a + d * k >= 0 && a + d * k < N && isWaterBody(w, a + d * k)) k++;
+      const b = a + d * k;
+      if (k > max || !land(b) || Math.abs((b % W) - ax) > max + 1) continue;
+      // The far end is the plot's side: score by the walk it makes.
+      const s = (dSq[a] as number) + k + Math.abs((b % W) - fx) + Math.abs(Math.floor(b / W) - fy);
+      if (!best || s < best.s) best = { a, b, dir: d, span: k - 1, s };
+    }
+  }
+  if (!best) return -1;
+  const horiz = best.dir === 1 || best.dir === -1;
+  const side = horiz ? W : 1;
+  for (let k = 1; k <= best.span; k++) {
+    const c = best.a + best.dir * k;
+    w.terrain[c] = Terrain.Bridge;
+    w.use[c] = (w.use[c] as number) | Use.Road | Use.Bridge;
+  }
+  const c0 = best.a + best.dir;
+  const c1 = best.a + best.dir * best.span;
+  const x0 = Math.min(c0 % W, c1 % W);
+  const y0 = Math.min(Math.floor(c0 / W), Math.floor(c1 / W));
+  w.connectors.push({
+    kind: "footbridge",
+    type: w.recipe.connectors.find((c) => c.kind === "footbridge")?.id ?? "connector.timber_footbridge",
+    x: x0,
+    y: y0,
+    w: horiz ? best.span : 1,
+    h: horiz ? 1 : best.span,
+    axis: horiz ? "ew" : "ns",
+    name: "",
+    crosses: w.water[c0] === WaterKind.Sea ? "sea" : w.water[c0] === WaterKind.Lake ? "lake" : "river",
+    arterial: -1,
+  });
+  const used = w.recipe.connectors.find((c) => c.kind === "footbridge");
+  if (used) w.used.connectors.add(used.id);
+  void side;
+  for (const c of [best.a, best.b]) {
+    if (c < 0 || c >= N || isWaterBody(w, c) || (w.use[c] as number) & (Use.Plot | Use.Square | Use.Rail)) continue;
+    if (buildable(w.terrain[c] as number) || w.terrain[c] === Terrain.Sand || w.terrain[c] === Terrain.Reeds) w.terrain[c] = Terrain.Path;
+    w.use[c] = (w.use[c] as number) | Use.Road;
+  }
+  return best.b;
+}
+
+/** Manhattan distance from a cell to the nearest cell of a rectangle (0 inside). */
+export function rectDistance(r: { x: number; y: number; w: number; h: number }, x: number, y: number): number {
+  return Math.max(r.x - x, 0, x - (r.x + r.w - 1)) + Math.max(r.y - y, 0, y - (r.y + r.h - 1));
 }

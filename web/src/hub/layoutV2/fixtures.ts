@@ -33,6 +33,16 @@ export function randomGeo(seed: number): { input: TownInput; geo: TownGeo } {
   }
   const band = r.int(0, 4);
   const population = [r.int(8_000, 29_000), r.int(30_000, 99_000), r.int(100_000, 299_000), r.int(300_000, 990_000), r.int(1_000_000, 3_500_000)][band] as number;
+  // The engine's neighbourhood count follows population (`count_for(pop) = round(√pop / 50)`, 1–22).
+  const most = Math.max(1, Math.min(22, Math.round(Math.sqrt(population) / 50) + 1));
+  if (input.neighborhoods.length > most) {
+    input.neighborhoods = input.neighborhoods.slice(0, most);
+    const ids = new Set(input.neighborhoods.map((h) => h.id));
+    const first = (input.neighborhoods[0] as { id: number }).id;
+    input.places = input.places.map((p) => (ids.has(p.neighborhood) ? p : { ...p, neighborhood: first }));
+    if (input.home !== null && !ids.has(input.home)) input.home = first;
+    if (input.location.type === "street" && !ids.has(input.location.neighborhood)) input.location = { type: "street", neighborhood: first };
+  }
   const per = Math.floor(population / Math.max(1, input.neighborhoods.length));
   const river = r.chance(0.55) ? { class: r.pick([1, 2, 2, 3] as const), enters: r.int(0, 15), leaves: 0, through_centre: r.chance(0.6) } : null;
   if (river) river.leaves = (river.enters + 8 + r.int(-2, 2)) & 15;

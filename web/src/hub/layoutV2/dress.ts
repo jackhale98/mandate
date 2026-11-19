@@ -147,7 +147,7 @@ export function dressTown(plan: TownPlan, state: TownState): TownMap {
         : 0;
   }
   // Viaducts carry the railway, not walkers.
-  for (const k of plan.connectors) if (k.kind === "viaduct") for (let y = k.y; y < k.y + k.h; y++) for (let x = k.x; x < k.x + k.w; x++) solid[y * W + x] = 1;
+  for (const k of plan.connectors) if (k.kind === "viaduct") for (let y = k.y; y < k.y + k.h; y++) for (let x = k.x; x < k.x + k.w; x++) if (terrain[y * W + x] === Terrain.Rail) solid[y * W + x] = 1;
 
   const districts: TownDistrict[] = plan.districts.map((d) => ({
     index: d.index,
