@@ -65,6 +65,8 @@ export class TownScene {
   readonly folk: Walker[] = [];
   /** Where the player is walking to (the renderer highlights it), or null. */
   target: SceneTarget | null = null;
+  /** How many of `folk` are out (the first ones; the rest stay in, e.g. at night). */
+  activeFolk: number;
   private reach: Uint8Array;
   private rng: Rng;
   private spots: number[] = [];
@@ -91,6 +93,12 @@ export class TownScene {
       w.wait = this.rng.next() * 3;
       this.folk.push(w);
     }
+    this.activeFolk = this.folk.length;
+  }
+
+  /** The townsfolk who are out. */
+  get outFolk(): readonly Walker[] {
+    return this.activeFolk >= this.folk.length ? this.folk : this.folk.slice(0, Math.max(0, this.activeFolk));
   }
 
   /** The cell the player stands on. */
@@ -158,7 +166,7 @@ export class TownScene {
   step(dt: number): boolean {
     let any = this.stepWalker(this.player, dt);
     if (!this.player.walk && !this.player.moving) this.target = null;
-    for (const w of this.folk) {
+    for (const w of this.outFolk) {
       const m = this.stepWalker(w, dt);
       any ||= m;
       if (!w.walk) {

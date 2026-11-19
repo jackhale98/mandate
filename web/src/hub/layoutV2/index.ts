@@ -1,17 +1,16 @@
-// Town layout v2 (DEC-090): plan + dress, beside v1 (../townLayout, which
-// stays the default everywhere; DEC-085 keeps v1 callable for runs that
-// started with it). Stage A: selected only by `?layout=v2` in the walkable
-// town prototype.
+// Town layout v2 (DEC-090): plan + dress, the town layout everywhere (the
+// game's town map and walkable street, the prototype). The game plans in a
+// worker and caches plans (../townPlanCache).
 import type { TownInput } from "../townInput";
 import type { TownMap } from "../townLayout";
 import { dressTown, type TownState } from "./dress";
 import type { GeoHood, TownGeo } from "./geo";
 import { NO_BEARING } from "./imath";
-import { LAYOUT_V2, planTown, type TownPlan } from "./plan";
+import { planTown, type TownPlan } from "./plan";
 import { BASE_RECIPE, type Recipe } from "./registry";
 
 export { dressTown, dressHash, stateFromViews, type TownState } from "./dress";
-export { LAYOUT_V2, planHash, planTown, type PlanDistrict, type TownPlan } from "./plan";
+export { planHash, planTown, type PlanDistrict, type TownPlan } from "./plan";
 export { BASE_RECIPE, validateRecipe, type Recipe } from "./registry";
 export type { TownGeo } from "./geo";
 
@@ -22,7 +21,7 @@ export function layoutTownV2(input: TownInput, geo: TownGeo, seed: number, state
   const known = new Set(g.neighborhoods.map((h) => h.id));
   const extra: GeoHood[] = input.neighborhoods.filter((h) => !known.has(h.id)).map((h) => ({ id: h.id, name: h.name, kind: h.kind, baseline_population: Math.max(1000, Math.floor(g.baseline_population / Math.max(1, input.neighborhoods.length))), adjacent: [] }));
   g.neighborhoods = [...g.neighborhoods.filter((h) => input.neighborhoods.some((x) => x.id === h.id)), ...extra];
-  const plan = planTown(g, seed, LAYOUT_V2, recipe);
+  const plan = planTown(g, seed, recipe);
   const map = dressTown(plan, { home: input.home, location: input.location, ...state });
   return { plan, map };
 }

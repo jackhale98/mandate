@@ -10,49 +10,36 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { PocketView } from "../engine/protocol/PocketView";
 import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
-import { clockForDayPart } from "../hub/dayCycle";
 import { bakeTownMap, type BakedTownMap } from "../hub/render/townMapRenderer";
-import { townInputFromView, type TownInput } from "../hub/townInput";
-import { LAYOUT_VERSION, layoutTown, townSeed } from "../hub/townLayout";
+import type { TownInput } from "../hub/townInput";
+import { dressTown } from "../hub/layoutV2/dress";
+import { townSeed, type TownMap as TownMapModel } from "../hub/townLayout";
 import { buildTownMapScene, hotspotOf, viewForInput, type MapHotspot, type TownMapScene } from "../hub/townMapScene";
 import { TownMapView, WALK_MAX_MS } from "../hub/townMapView";
+import { turnMinutes } from "../hub/turnClock";
+import type { TownGeo } from "../hub/layoutV2/geo";
+import { planInWorker, townJobs } from "../hub/townWorkerClient";
+import { BASE_RECIPE } from "../hub/layoutV2/registry";
 import type { Translator } from "../i18n/fluent";
 import { placeIcon, placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 import { say } from "./townMapText";
 
 // ---------------------------------------------------------------------------
-// The layout version a run's town is drawn with (DEC-085): recorded when the
-// run first shows its town, so an app update never rearranges it.
-
-const versionKey = (runId: string) => `mandate.townLayoutVersion.${runId}`;
-
-export function layoutVersionFor(runId: string | null): number {
-  if (!runId) return LAYOUT_VERSION;
-  try {
-    const v = Number(localStorage.getItem(versionKey(runId)));
-    if (Number.isInteger(v) && v >= 1 && v <= LAYOUT_VERSION) return v;
-    localStorage.setItem(versionKey(runId), String(LAYOUT_VERSION));
-  } catch {
-    // Storage blocked (private mode): the current version.
-  }
-  return LAYOUT_VERSION;
-}
-
-// ---------------------------------------------------------------------------
-// Layout, scene and bake, made once per town and version (moving around does not change them)
+// Scene and bake, made once per dressed map and place list (moving around does not change them)
 
 export interface BuiltTownMap {
   key: string;
+  map: TownMapModel;
   scene: TownMapScene;
   baked: BakedTownMap;
-  /** ms: layout (DEC-085), scene (hotspots, main routes), bake, and the bake's stages. */
-  timings: { layoutMs: number; sceneMs: number; bakeMs: number } & BakedTownMap["stages"];
+  /** ms: scene (hotspots, main routes), bake, and the bake's stages. */
+  timings: { sceneMs: number; bakeMs: number } & BakedTownMap["stages"];
 }
 
-/** What the map depends on: the town's neighbourhoods and places, not where the player is. */
-function townKey(town: TownPlacesView, seed: string, version: number): string {
-  const parts = [seed, version, town.municipality, town.home_neighborhood ?? "-"];
+/** What the scene depends on besides the map: the town's place list, not where the player is. */
+function townKey(town: TownPlacesView): string {
+  const parts = [town.municipality, town.home_neighborhood ?? "-"];
   for (const h of town.neighborhoods) {
     parts.push(`${h.id}:${h.kind}:${h.name}`);
     for (const s of h.spots) parts.push(`${JSON.stringify(s.location.location)}${s.location.kind_key}${s.location.name}${s.actions.length + s.services.length > 0 ? "+" : "-"}`);
@@ -60,21 +47,23 @@ function townKey(town: TownPlacesView, seed: string, version: number): string {
   return parts.join("|");
 }
 
-export function buildTownMap(input: TownInput, view: TownPlacesView, seed: string, version: number): Omit<BuiltTownMap, "key"> {
+export function buildTownMap(map: TownMapModel, view: TownPlacesView): Omit<BuiltTownMap, "key"> {
   const t0 = performance.now();
-  const map = layoutTown(input, townSeed(seed, view.municipality), version);
-  const t1 = performance.now();
   const scene = buildTownMapScene(map, view);
-  const t2 = performance.now();
+  const t1 = performance.now();
   const baked = bakeTownMap(scene);
-  const t3 = performance.now();
-  return { scene, baked, timings: { layoutMs: t1 - t0, sceneMs: t2 - t1, bakeMs: t3 - t2, ...baked.stages } };
+  const t2 = performance.now();
+  return { map, scene, baked, timings: { sceneMs: t1 - t0, bakeMs: t2 - t1, ...baked.stages } };
 }
 
 let cached: BuiltTownMap | null = null;
-function townMapFor(town: TownPlacesView, seed: string, version: number): BuiltTownMap {
-  const key = townKey(town, seed, version);
-  if (cached?.key !== key) cached = { key, ...buildTownMap(townInputFromView(town), town, seed, version) };
+const mapIds = new WeakMap<TownMapModel, number>();
+let nextMapId = 1;
+function townMapFor(map: TownMapModel, town: TownPlacesView): BuiltTownMap {
+  let id = mapIds.get(map);
+  if (id === undefined) mapIds.set(map, (id = nextMapId++));
+  const key = `${id}|${townKey(town)}`;
+  if (cached?.key !== key) cached = { key, ...buildTownMap(map, town) };
   return cached;
 }
 
@@ -116,14 +105,6 @@ function waitingText(tr: Translator, w: Waiting | undefined): string | null {
   return parts.join(" · ") || null;
 }
 
-/** A gentle time of day from the pocket: morning to evening as the turn's slots are used, then late night. */
-function minutesOf(p: PocketView | null): number | null {
-  if (!p) return null;
-  if (p.slots_left <= 0) return clockForDayPart(p.late_night_available ? "evening" : "late_night", p.late_night_available ? 0.75 : 0.2);
-  const used = Math.max(0, p.slots_total - p.slots_left) / Math.max(1, p.slots_total);
-  return used < 0.5 ? clockForDayPart("morning", 0.35 + used) : clockForDayPart("afternoon", (used - 0.5) * 1.6);
-}
-
 // ---------------------------------------------------------------------------
 
 function hotspotName(tr: Translator, h: MapHotspot): string {
@@ -137,8 +118,8 @@ interface Probe {
   px: number;
   size: { width: number; height: number };
   view: TownMapView | null;
-  /** Lay out, build and bake another town (measurements), ms. */
-  bench(input: TownInput, seed: string): BuiltTownMap["timings"] & { px: number; width: number; height: number };
+  /** Plan (in the town worker, uncached), dress, build and bake another town (measurements), ms. */
+  bench(input: TownInput, geo: TownGeo, seed: string): Promise<BuiltTownMap["timings"] & { planMs: number; workerMs: number; dressMs: number; px: number; width: number; height: number }>;
 }
 
 declare global {
@@ -147,16 +128,34 @@ declare global {
   }
 }
 
-export function TownMap({ town }: { town: TownPlacesView }) {
+/** Plan, dress, build and bake a town as the game does, timed (the `bench` probe). */
+async function bench(input: TownInput, geo: TownGeo, seed: string) {
+  const t0 = performance.now();
+  const { plan, ms } = await planInWorker(townJobs(), { ...geo, places: input.places.map((p) => ({ ...p })) }, townSeed(seed, input.municipality), BASE_RECIPE);
+  const t1 = performance.now();
+  const map = dressTown(plan, { home: input.home, location: { type: "home" } });
+  const t2 = performance.now();
+  const b = buildTownMap(map, viewForInput(input));
+  return { ...b.timings, planMs: ms, workerMs: t1 - t0, dressMs: t2 - t1, px: b.baked.px, width: b.baked.width, height: b.baked.height };
+}
+
+export interface TownMapProps {
+  town: TownPlacesView;
+  /** The dressed layout v2 map (../hub/gameTown). */
+  map: TownMapModel;
+  /** Go down into the walkable street, looking at a point of the town (tiles), or from where the player is (null). */
+  onWalk?: (at: { x: number; y: number } | null) => void;
+  /** The time of day shown (minutes), when something other than the turn sets it (the turn's passage). */
+  minutesOverride?: number | null;
+}
+
+export function TownMap({ town, map, onWalk, minutesOverride = null }: TownMapProps) {
   const tr = useGame((s) => s.tr);
   const pocket = useGame((s) => s.pocket);
-  const seed = useGame((s) => s.overview?.seed ?? "");
-  const runId = useGame((s) => s.run?.runId ?? null);
   const busy = useGame((s) => s.busy);
   const visit = useGame((s) => s.visit);
   const walking = useGame((s) => s.walking);
-  const version = useMemo(() => layoutVersionFor(runId), [runId]);
-  const built = townMapFor(town, seed, version);
+  const built = townMapFor(map, town);
   const { scene, baked } = built;
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -166,7 +165,7 @@ export function TownMap({ town }: { town: TownPlacesView }) {
 
   const here = useMemo(() => hotspotOf(scene.hotspots, pocket?.location.location ?? town.location)?.key ?? null, [scene, pocket, town.location]);
   const waiting = useMemo(() => waitingAt(pocket), [pocket]);
-  const minutes = minutesOf(pocket);
+  const minutes = minutesOverride ?? (pocket ? turnMinutes(pocket) : null);
 
   // The latest activation handler, read by the view (created once per town).
   const activate = useRef<(h: MapHotspot) => void>(() => {});
@@ -196,10 +195,7 @@ export function TownMap({ town }: { town: TownPlacesView }) {
       px: baked.px,
       size: { width: baked.width, height: baked.height },
       view,
-      bench(input, s) {
-        const b = buildTownMap(input, viewForInput(input), s, LAYOUT_VERSION);
-        return { ...b.timings, px: b.baked.px, width: b.baked.width, height: b.baked.height };
-      },
+      bench,
     };
     return () => {
       view.destroy();
@@ -272,6 +268,23 @@ export function TownMap({ town }: { town: TownPlacesView }) {
             );
           })}
         </div>
+        {onWalk && (
+          <button
+            type="button"
+            className="btn btn-sm town-map-walk"
+            data-map-control=""
+            data-testid="town-walk"
+            onClick={() => {
+              const v = viewRef.current;
+              // Zoomed in on part of the town: walk there; else from where the player is.
+              const s = v?.camera.state;
+              onWalk(v && s && s.zoom > v.fitZoom * 1.6 ? { x: s.x, y: s.y } : null);
+            }}
+          >
+            <span aria-hidden="true">🚶 </span>
+            {say(tr, "ui-town-walk")}
+          </button>
+        )}
         <div className="town-map-tools" data-map-control="">
           <button type="button" className="btn btn-sm town-map-tool" onClick={() => viewRef.current?.zoomBy(1.5)} aria-label={say(tr, "ui-town-map-zoom-in")} title={say(tr, "ui-town-map-zoom-in")}>
             +

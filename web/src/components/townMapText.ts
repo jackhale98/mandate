@@ -18,6 +18,13 @@ const FALLBACK: Record<string, string> = {
   "ui-town-map-waiting": "{ $what } waiting",
   "ui-town-map-vote": "Vote to cast",
   "ui-town-map-quiet": "{ $place }: nothing to do here yet.",
+  "ui-town-walk": "Walk the streets",
+  "ui-town-walk-back": "Back to the map",
+  "ui-town-street": "Street",
+  "ui-town-street-label": "The streets of { $town }, drawn. Tap a building to walk to it; the List view has the same places as text.",
+  "ui-town-street-help": "Tap a building to walk there. Drag to look around, pinch or scroll to zoom.",
+  "ui-town-street-loading": "Drawing the streets…",
+  "ui-town-planning": "Laying out the town…",
 };
 
 /** Translate a key, or use the English fallback when the content pack does not have it yet. */

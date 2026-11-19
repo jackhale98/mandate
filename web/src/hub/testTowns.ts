@@ -1,63 +1,28 @@
-// Towns for the hub tests: real ones dumped from the engine
-// (fixtures/dump-towns.mjs) and seeded random ones. Test-only.
-import towns from "./fixtures/towns.json";
-import { Rng } from "./rng";
-import { HOOD_KINDS, type TownInput } from "./townInput";
+// Towns for the hub tests (test-only): the layout v2 maps of the real towns
+// dumped from the engine (./layoutV2/fixtures, ./fixtures/towns-v2.json) and
+// of seeded random geographies, planned once per test file.
+import { GEO_FIXTURES, randomGeo, type GeoFixture } from "./layoutV2/fixtures";
+import { layoutTownV2, type TownPlan } from "./layoutV2";
+import type { TownInput } from "./townInput";
+import { townSeed, type TownMap } from "./townLayout";
 
-export interface Fixture {
-  seed: string;
-  source: "town" | "largest";
-  input: TownInput;
-}
-export const FIXTURES = towns as Fixture[];
+export type { GeoFixture };
+export const FIXTURES: readonly GeoFixture[] = GEO_FIXTURES;
 
-/** Place kinds from content/base/places.jsonc (worldgen's PlaceKind). */
-export const PLACE_KINDS = [
-  "town_hall",
-  "council_chamber",
-  "diner",
-  "market",
-  "school",
-  "clinic",
-  "community_centre",
-  "park",
-  "news_office",
-  "party_office",
-  "union_hall",
-  "business_association",
-  "factory",
-  "port",
-  "farm",
-  "mine",
-  "mill",
-  "hotel",
-  "university",
-  "tech_campus",
-  "regional_assembly",
-  "parliament",
-  "executive_residence",
-];
-
-/** A random but plausible town: 1-14 neighbourhoods, civic places in the first, others anywhere. */
-export function randomInput(seed: number): TownInput {
-  const r = new Rng(seed);
-  const n = r.int(1, 14);
-  const neighborhoods = Array.from({ length: n }, (_, i) => ({ id: 100 + i * 3, name: `Hood ${i}`, kind: i === 0 && r.chance(0.8) ? "core" : r.pick(HOOD_KINDS) }));
-  const places: TownInput["places"] = [];
-  let id = 500;
-  const add = (kind: string, hood: number) => places.push({ id: id++, kind, name: r.chance(0.3) ? `The ${kind}` : "", neighborhood: hood });
-  const centre = (neighborhoods[0] as { id: number }).id;
-  if (r.chance(0.9)) add("town_hall", centre);
-  if (r.chance(0.9)) add("council_chamber", r.chance(0.9) ? centre : r.pick(neighborhoods).id);
-  if (r.chance(0.2)) add("parliament", centre);
-  if (r.chance(0.2)) add("regional_assembly", centre);
-  const extra = r.int(0, 24);
-  for (let k = 0; k < extra; k++) add(r.pick(PLACE_KINDS.slice(2)), r.pick(neighborhoods).id);
-  const home = r.chance(0.85) ? r.pick(neighborhoods).id : null;
-  const someHood = r.pick(neighborhoods).id;
-  const loc = r.next();
-  const location: TownInput["location"] =
-    loc < 0.4 || places.length === 0 ? (home !== null ? { type: "home" } : { type: "street", neighborhood: someHood }) : loc < 0.7 ? { type: "place", place: r.pick(places).id } : { type: "street", neighborhood: someHood };
-  return { municipality: `Town ${seed}`, neighborhoods, places, home, location };
+const real = new Map<number, { plan: TownPlan; map: TownMap }>();
+/** The v2 plan and map of real fixture `i` (its own town seed, its state as play began). */
+export function fixtureTown(i: number): { plan: TownPlan; map: TownMap; fixture: GeoFixture } {
+  const f = FIXTURES[i] as GeoFixture;
+  let t = real.get(i);
+  if (!t) {
+    t = layoutTownV2(f.input, f.geo, townSeed(f.seed, f.input.municipality), { home: f.input.home, location: f.input.location, hoods: f.state.hoods, vacancy: f.state.vacancy, unemployment: f.state.unemployment });
+    real.set(i, t);
+  }
+  return { ...t, fixture: f };
 }
 
+/** The v2 map of a seeded random geography (./layoutV2/fixtures `randomGeo`). */
+export function randomTown(seed: number): { map: TownMap; input: TownInput } {
+  const { input, geo } = randomGeo(seed);
+  return { map: layoutTownV2(input, geo, seed).map, input };
+}

@@ -1,11 +1,15 @@
 import type { SpotView } from "../engine/protocol/SpotView";
+import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 import { useGame } from "../state/gameStore";
 import { placeIcon, placeName } from "../places/labels";
 import { Loader } from "../components/Brand";
 import type { TownCharacterView } from "../engine/protocol/TownCharacterView";
 import type { PersonRefView } from "../engine/protocol/PersonRefView";
 import { roleText } from "../components/CharacterSheet";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { TownMap } from "../components/TownMap";
+import { say } from "../components/townMapText";
+import { useTownLayout } from "../components/useTownLayout";
 import { TownViewTabs, townPanelId, townTabId, useTownViewMode } from "../components/TownViewTabs";
 
 function Who({ p }: { p: PersonRefView }) {
@@ -97,6 +101,74 @@ function Spot({ s }: { s: SpotView }) {
   );
 }
 
+// The walkable street: a chunk of its own (the hub renderer and the pixel-art provider), loaded when first walked.
+const TownStreet = lazy(() => import("../components/TownStreet"));
+
+/**
+ * The town drawn (DEC-086, DEC-088): its map, and from the map its walkable
+ * streets, both from one layout v2 plan made in the town worker
+ * (../components/useTownLayout). The loader shows while the town is laid
+ * out; the List view never waits for it.
+ */
+function TownPicture({ town }: { town: TownPlacesView }) {
+  const tr = useGame((s) => s.tr);
+  const layout = useTownLayout(town);
+  // Walking is reached from the map (DEC-088); the screen opens on the map (a quick-mode setting comes later).
+  const [street, setStreet] = useState<{ at: { x: number; y: number } | null } | null>(null);
+  const [moved, setMoved] = useState(false);
+  // Keep the keyboard where it was: on the way down the back button, on the way up the walk button.
+  useEffect(() => {
+    if (!moved) return;
+    const id = requestAnimationFrame(() => document.querySelector<HTMLElement>(street ? "[data-testid='town-walk-back']" : "[data-testid='town-walk']")?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [street, moved, layout.status]);
+  if (layout.status === "loading") {
+    return (
+      <div className="town-map-pending" data-testid="town-map-loading">
+        <Loader compact label={say(tr, "ui-town-planning")} />
+      </div>
+    );
+  }
+  if (layout.status === "error") {
+    return (
+      <p className="error small" role="alert" data-testid="town-map-error">
+        {layout.message}
+      </p>
+    );
+  }
+  if (street) {
+    return (
+      <Suspense
+        fallback={
+          <div className="town-map-pending">
+            <Loader compact label={say(tr, "ui-town-street-loading")} />
+          </div>
+        }
+      >
+        <TownStreet
+          town={town}
+          map={layout.map}
+          at={street.at}
+          onBack={() => {
+            setMoved(true);
+            setStreet(null);
+          }}
+        />
+      </Suspense>
+    );
+  }
+  return (
+    <TownMap
+      town={town}
+      map={layout.map}
+      onWalk={(at) => {
+        setMoved(true);
+        setStreet({ at });
+      }}
+    />
+  );
+}
+
 /**
  * The town (M5 interim, DEC-079): a schematic of neighbourhoods with their
  * places as tappable buildings. It is also a plain list of sections and
@@ -127,7 +199,7 @@ export function Town() {
       <TownViewTabs mode={mode} onChange={setMode} />
       {mode === "map" ? (
         <div role="tabpanel" id={townPanelId("map")} aria-labelledby={townTabId("map")}>
-          <TownMap town={town} />
+          <TownPicture town={town} />
         </div>
       ) : (
       <div className="town-grid" role="tabpanel" id={townPanelId("list")} aria-labelledby={townTabId("list")}>

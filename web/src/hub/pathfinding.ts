@@ -376,6 +376,17 @@ export function dejog(g: Grid, points: readonly Point[], clearance = 0.25, slack
         changed = true;
         break;
       }
+      // A short leg between two long ones (a one-cell step along a 45° street's pavement): fold its two
+      // turns into one at its midpoint, when the walker fits and it costs at most `slack` more.
+      const d = out[i + 2];
+      if (!d || Math.hypot(c.x - b.x, c.y - b.y) >= maxLeg) continue;
+      const m = { x: (b.x + c.x) / 2, y: (b.y + c.y) / 2 };
+      const folded = segmentCost(g, a, m) + segmentCost(g, m, d);
+      if (folded <= segmentCost(g, a, b) + segmentCost(g, b, c) + segmentCost(g, c, d) + slack + 1e-6 && clearSegment(g, a, m, clearance) && clearSegment(g, m, d, clearance)) {
+        out.splice(i, 2, m);
+        changed = true;
+        break;
+      }
     }
   }
   return out;

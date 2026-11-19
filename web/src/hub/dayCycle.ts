@@ -197,25 +197,69 @@ export function clockForDayPart(part: DayPart, progress: number): number {
   return wrapMinutes(p.from + (p.to - p.from) * Math.min(1, Math.max(0, progress)));
 }
 
-/** A clock that runs on its own (the prototype): `speed` game minutes per real second. */
+/**
+ * A clock that runs on its own (the prototype: `speed` game minutes per real
+ * second), or that holds still and eases forward to a new time when told
+ * (the game: the turn's slots drive it, `easeTo`).
+ */
 export class DayClock {
   minutes: number;
   speed: number;
   running: boolean;
+  private ease: { from: number; by: number; t: number; secs: number } | null = null;
   constructor(minutes = 12 * 60, speed = 20, running = true) {
     this.minutes = wrapMinutes(minutes);
     this.speed = speed;
     this.running = running;
   }
   set(minutes: number) {
+    this.ease = null;
     this.minutes = wrapMinutes(minutes);
+  }
+  /** Move forward to `minutes` (always forward: evening to the next morning passes through the night) over `ms`. */
+  easeTo(minutes: number, ms: number) {
+    const by = wrapMinutes(minutes - this.minutes);
+    if (ms <= 0 || by < 0.5) {
+      this.set(minutes);
+      return;
+    }
+    this.ease = { from: this.minutes, by, t: 0, secs: ms / 1000 };
+  }
+  /** Whether an `easeTo` is under way. */
+  get easing(): boolean {
+    return this.ease !== null;
+  }
+  /** Where an ease is going (or the time now). */
+  get target(): number {
+    return this.ease ? wrapMinutes(this.ease.from + this.ease.by) : this.minutes;
   }
   /** Advance by `dt` real seconds; returns whether the clock moved. */
   advance(dt: number): boolean {
-    if (!this.running || this.speed === 0 || !(dt > 0)) return false;
+    if (!(dt > 0)) return false;
+    const e = this.ease;
+    if (e) {
+      e.t = Math.min(1, e.t + dt / e.secs);
+      const k = e.t < 0.5 ? 2 * e.t * e.t : 1 - (-2 * e.t + 2) ** 2 / 2;
+      this.minutes = wrapMinutes(e.from + e.by * k);
+      if (e.t >= 1) this.ease = null;
+      return true;
+    }
+    if (!this.running || this.speed === 0) return false;
     this.minutes = wrapMinutes(this.minutes + dt * this.speed);
     return true;
   }
+}
+
+/** How many of a town's townsfolk are out at a time of day, 0..1: everyone by day, a few late at night. */
+export function townsfolkShare(minutes: number): number {
+  const m = wrapMinutes(minutes);
+  // Out from about 6:00, all out 8:00–19:00, fewer through the evening, a quarter after 23:00.
+  const ramp = (a: number, b: number, x: number) => Math.min(1, Math.max(0, (x - a) / (b - a)));
+  if (m < 6 * 60) return 0.25;
+  if (m < 8 * 60) return 0.25 + 0.75 * ramp(6 * 60, 8 * 60, m);
+  if (m < 19 * 60) return 1;
+  if (m < 23 * 60) return 1 - 0.75 * ramp(19 * 60, 23 * 60, m);
+  return 0.25;
 }
 
 // ---------------------------------------------------------------------------

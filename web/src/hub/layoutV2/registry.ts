@@ -10,9 +10,10 @@
 // base content's view as a committed fixture (./registry/base.json, kept
 // equal to the engine's by a mandate-protocol test): the tests' recipe, and
 // the default for callers without an engine.
-// A recipe is the set of entries a plan was made with (§6.6, option C): a
-// run stores the snapshot of what its towns used, so later content changes
-// never rearrange them (`recipeForTown`, `rememberRecipe`).
+// A recipe is the set of entries a plan was made with (§6.6, option C;
+// `TownPlan.recipe`). Before release no run stores it (DEC-085's
+// pre-release note): towns are planned from the live registries, and the
+// game's plan cache is keyed by the content hash (../townPlanCache).
 import type { LayoutContentView } from "../../engine/protocol/LayoutContentView";
 import baseView from "./registry/base.json";
 import { parseJsonc } from "./jsonc";
@@ -180,41 +181,6 @@ export function recipeFromView(v: LayoutContentView): Recipe {
 export const BASE_RECIPE: Recipe = recipeFromView({ content_hash: "", ...(baseView as unknown as Omit<LayoutContentView, "content_hash">) });
 
 // ---------------------------------------------------------------------------
-// Recipe snapshots (§6.6 option C)
-
-/** Where snapshots live: localStorage in the prototype; the run's metadata once runs keep their towns. */
-export interface RecipeStore {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-}
-
-const snapshotKey = (run: string, town: string, version: number) => `mandate.layout.recipe:v${version}:${run}:${town}`;
-const isRecipe = (r: unknown): r is Recipe =>
-  typeof r === "object" && r !== null && (["districts", "features", "connectors", "places"] as const).every((k) => Array.isArray((r as Record<string, unknown>)[k]));
-
-/** The recipe to plan a town with: the snapshot stored when the town was first shown, else the live registries. */
-export function recipeForTown(store: RecipeStore | null, run: string, town: string, version: number, live: Recipe): { recipe: Recipe; from: "snapshot" | "live" } {
-  try {
-    const text = store?.getItem(snapshotKey(run, town, version));
-    const r: unknown = text ? JSON.parse(text) : null;
-    if (isRecipe(r)) return { recipe: r, from: "snapshot" };
-  } catch {
-    // Unreadable or blocked storage: plan from the live registries.
-  }
-  return { recipe: live, from: "live" };
-}
-
-/** Store the entries a town's plan used (`TownPlan.recipe`) the first time it is shown; later layouts of the town use them. */
-export function rememberRecipe(store: RecipeStore | null, run: string, town: string, version: number, used: Recipe): void {
-  try {
-    const key = snapshotKey(run, town, version);
-    if (store && store.getItem(key) === null) store.setItem(key, JSON.stringify(used));
-  } catch {
-    // Storage full or blocked: the town is planned from the live registries next time.
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Validation. The engine validates content (mandate-content/src/layout.rs);
 // this is the client's check of a recipe built by hand (tests, packs).
 
@@ -324,7 +290,7 @@ export function validateRecipe(r: Recipe): string[] {
   return out;
 }
 
-/** The registry entries a plan used (§6.6 option C): what a run stores beside LAYOUT_VERSION for a town. */
+/** The registry entries a plan used (§6.6 option C): what a run will store beside LAYOUT_VERSION for a town from the first release. */
 export function snapshotRecipe(r: Recipe, used: { districts: Iterable<string>; features: Iterable<string>; connectors: Iterable<string>; places: Iterable<string> }): Recipe {
   const pick = <T extends { id: string }>(all: T[], ids: Iterable<string>) => {
     const s = new Set(ids);

@@ -1,16 +1,16 @@
 // Town layout v2 (DEC-090, TOWN_GENERATION.md §3, §5): the static plan.
 //
-// `planTown(geo, seed, version, recipe)` is a pure function of the town's
-// geography (./geo; stage A derives it on the client, ../townGeoAdapter),
-// the town seed, the layout version and the registry recipe (./registry). It
+// `planTown(geo, seed, recipe)` is a pure function of the town's geography
+// (./geo; from the engine's `TownGeographyView`, ../townGeoAdapter), the
+// town seed and the registry recipe (./registry), for `LAYOUT_VERSION`. It
 // holds every street, plot, reserved slot and landmark the town will ever
 // use; `dressTown` (./dress) then shows the simulation's state on it without
 // moving anything. Integer maths only (./imath), keyed random streams per
 // stage (../rng), so changing one stage never shifts another's draws. A stage
 // that cannot fit what it must throws `LayoutOverflow`; the plan retries with
-// more room (a new attempt number keys every stream), as v1 does.
+// more room (a new attempt number keys every stream).
 import type { TownConnector, TownProp, TownStreetEnd, WaterSide } from "../townLayout";
-import { Terrain } from "../townLayout";
+import { LAYOUT_VERSION, Terrain } from "../townLayout";
 import { BAND_CAPS, bandOf, type Band, type TownGeo } from "./geo";
 import { NO_BEARING, isqrt } from "./imath";
 import { BASE_RECIPE, snapshotRecipe, type Recipe } from "./registry";
@@ -21,8 +21,6 @@ import { reserveStation, stageConnect, stageMinimumFill, stageSlivers, stageShor
 import { nameBridges, stageArterials, stageLevelEdges, stageRail, stageTerraces } from "./roads";
 import { stageCentre, stageTerrain, stageWater, townSize } from "./terrain";
 import { LayoutOverflow, RoadClass, Use, WaterKind, isWaterBody, type PlanConnector, type PlanPlot, type Rect, type Segment, type Work, type WorkDistrict } from "./work";
-
-export const LAYOUT_V2 = 2;
 
 export interface PlanDistrict {
   index: number;
@@ -89,7 +87,7 @@ export interface TownPlan {
   waterSide: WaterSide | null;
   /** Ms per stage (§13 budgets). */
   stages: Record<string, number>;
-  /** Registry entries this plan used (§6.6 option C: stored with the run). */
+  /** Registry entries this plan used (§6.6 option C: stored with the run from the first release, DEC-085). */
   recipe: Recipe;
   attempt: number;
   /** Why earlier attempts were retried (empty when the first one fitted). */
@@ -98,9 +96,8 @@ export interface TownPlan {
 
 const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
-/** Plan a town. Deterministic for (geo, seed, version, recipe). */
-export function planTown(geo: TownGeo, seed: number, version: number = LAYOUT_V2, recipe: Recipe = BASE_RECIPE): TownPlan {
-  if (version !== LAYOUT_V2) throw new Error(`layout v2 planner asked for version ${version}`);
+/** Plan a town. Deterministic for (geo, seed, recipe). */
+export function planTown(geo: TownGeo, seed: number, recipe: Recipe = BASE_RECIPE): TownPlan {
   const retries: string[] = [];
   for (let attempt = 0; attempt < 6; attempt++) {
     try {
@@ -391,7 +388,7 @@ function finish(w: Work, baseline: number[]): TownPlan {
   w.landmarks = marks.map((l, i) => ({ l, i })).sort((a, b) => rank(a.l.kind) - rank(b.l.kind) || a.i - b.i).slice(0, 12).map((x) => x.l);
   w.timings.finish = now() - t0;
   return {
-    version: LAYOUT_V2,
+    version: LAYOUT_VERSION,
     seed: w.seed,
     municipality: w.geo.name,
     width: W,

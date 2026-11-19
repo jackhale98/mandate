@@ -623,3 +623,25 @@ h2 { font-size: 1.1rem; }
 .town-map-status:empty { display: none; }
 .town-map-help { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .town-map-hit, .town-map-chip { will-change: auto; } }
+
+/* The town while it is laid out (the plan is made in the town worker), and the walkable street (DEC-088). */
+.town-map-pending {
+  display: grid; place-items: center; width: 100%; min-height: 320px; aspect-ratio: 16 / 10; max-height: min(66dvh, 760px);
+  border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface);
+}
+.town-street { display: flex; flex-direction: column; gap: 6px; }
+.town-street-frame {
+  position: relative; width: 100%; height: min(66dvh, 760px); min-height: 320px; overflow: hidden;
+  border-radius: var(--radius); border: 1px solid var(--border); background: #3d6633;
+}
+@media (max-width: 699px) { .town-street-frame { height: min(60dvh, 600px); } }
+.town-street-stage { position: absolute; inset: 0; cursor: pointer; }
+.town-street-loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface); }
+.town-map-walk {
+  position: absolute; left: 8px; top: 8px; z-index: 2; min-height: 40px; font-weight: 700;
+  background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.hub-label { border: 1px solid transparent; border-radius: 6px; padding: 1px 6px; background: rgba(17, 19, 26, 0.8); color: #fff; font: 600 12px var(--font); cursor: pointer; }
+.hub-label-landmark { border-color: #e8b44c; color: #e8b44c; }
+.hub-label-icon { width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; fill: currentColor; shape-rendering: crispEdges; }
+.hub-label:hover { border-color: #e8b44c; }
