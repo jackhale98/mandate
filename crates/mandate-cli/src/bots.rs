@@ -14,6 +14,34 @@ use serde_json::json;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+/// The lab switch (`--omniscient`, DEC-091 §1.10): every bot's player
+/// reads every subject as `detailed`, for baselines. Process-wide for a lab
+/// run; worlds stay independent and deterministic.
+static OMNISCIENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn set_omniscient(on: bool) {
+    OMNISCIENT.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn omniscient() -> bool {
+    OMNISCIENT.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// A bot's new game, with the lab switch applied.
+fn new_game(content: &Arc<ContentBundle>, seed: u64) -> Option<Engine> {
+    let mut e = generate(
+        &WorldConfig {
+            seed,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        content.clone(),
+    )
+    .ok()?;
+    e.set_lab_omniscient(omniscient());
+    Some(e)
+}
+
 pub const STRATEGIES: [&str; 7] = [
     "idle",
     "canvass",
@@ -552,15 +580,7 @@ fn situation(e: &Engine) -> (String, String) {
 }
 
 pub fn play_full(content: &Arc<ContentBundle>, seed: u64, strategy: &str) -> Option<Played> {
-    let mut e = generate(
-        &WorldConfig {
-            seed,
-            size: WorldSize::Small,
-            scenario: None,
-        },
-        content.clone(),
-    )
-    .ok()?;
+    let mut e = new_game(content, seed)?;
     let (crisis, industry) = situation(&e);
     let lost = |crisis: String, industry: String| Played {
         won: false,
@@ -788,6 +808,7 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
     let variety = variety(&shares, &situations);
     json!({
         "seeds": seeds,
+        "omniscient": omniscient(),
         "strategies": rows,
         // DEC-077 §5: the best routine differs across worlds and situations.
         "variety_ok": variety["pass"],
@@ -811,15 +832,7 @@ pub fn career(
     strategy: &str,
     years: u32,
 ) -> Option<serde_json::Value> {
-    let mut e = generate(
-        &WorldConfig {
-            seed,
-            size: WorldSize::Small,
-            scenario: None,
-        },
-        content.clone(),
-    )
-    .ok()?;
+    let mut e = new_game(content, seed)?;
     let me = e.state().player.as_ref()?.politician;
     let start = e.state().calendar.date;
     let end = start.add_days(years * 365);

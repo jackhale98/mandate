@@ -107,6 +107,23 @@ pub enum Effect {
         case: u32,
         sentence: crate::justice::Sentence,
     },
+    /// The player learns something (the player applies to the knowledge
+    /// ledger, DEC-091): a subject raised to a level, never lowered.
+    Learn {
+        subject: crate::player::knowledge::Subject,
+        level: crate::player::knowledge::Level,
+        source: crate::player::knowledge::Source,
+    },
+    /// A dated reading of a numeric subject the player already knows (the
+    /// player applies; it raises the subject to `detailed`).
+    Read {
+        subject: crate::player::knowledge::Subject,
+        reading: crate::player::knowledge::Reading,
+    },
+    /// A lead for the player's notebook (the player applies).
+    Lead {
+        lead: crate::player::knowledge::Lead,
+    },
 }
 
 #[derive(Clone, Debug, Default)]

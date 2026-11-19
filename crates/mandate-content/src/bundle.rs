@@ -88,6 +88,10 @@ pub struct ContentBundle {
     pub media: crate::media::MediaParams,
     /// The legal path (DEC-006 Legal Jeopardy).
     pub justice: crate::media::JusticeParams,
+    /// Knowledge is earned (DEC-091): start profiles, the option, the primer,
+    /// introductions, and the effectiveness terms.
+    #[serde(default)]
+    pub knowledge: crate::knowledge::KnowledgeParams,
     /// Fluent sources by language, then by file path.
     pub locales: BTreeMap<String, BTreeMap<String, String>>,
     /// Hash over every source path and text, in path order (DEC-053).
@@ -279,6 +283,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut outlets: Vec<crate::media::OutletDef> = Vec::new();
     let mut media: Option<(crate::media::MediaParams, String)> = None;
     let mut justice: Option<(crate::media::JusticeParams, String)> = None;
+    let mut knowledge: Option<(crate::knowledge::KnowledgeParams, String)> = None;
     let mut traits: Vec<TraitDef> = Vec::new();
     let mut occupations: Vec<OccupationDef> = Vec::new();
     let mut crises: Vec<CrisisDef> = Vec::new();
@@ -437,6 +442,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             }
             ContentFile::Justice { value } => {
                 once(&mut justice, *value, "justice", &src.path, &mut issues)
+            }
+            ContentFile::Knowledge { value } => {
+                once(&mut knowledge, *value, "knowledge", &src.path, &mut issues)
             }
             ContentFile::Traits { items } => {
                 for t in items {
@@ -611,6 +619,10 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         ));
         return Err(issues);
     };
+    let Some((knowledge, _)) = knowledge else {
+        issues.push(Issue::error("<content>", "no knowledge file found"));
+        return Err(issues);
+    };
     packs.sort_by(|a, b| (a.load_order, &a.id).cmp(&(b.load_order, &b.id)));
     // Resolve keyed policy signatures to dense registry order (unknown keys
     // are reported by validation).
@@ -668,6 +680,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         outlets,
         media,
         justice,
+        knowledge,
         locales,
         content_hash,
         town_districts,
