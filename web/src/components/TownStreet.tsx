@@ -15,7 +15,7 @@ import { DayClock } from "../hub/dayCycle";
 import { HubView } from "../hub/hubView";
 import { PixelkitArt } from "../hub/render/pixelkitArt";
 import { locationCell, type TownBuilding, type TownMap } from "../hub/townLayout";
-import { LIGHT_EASE_MS, turnMinutes } from "../hub/turnClock";
+import { LIGHT_EASE_MS, PASSAGE_EASE_MS, shownMinutes } from "../hub/turnClock";
 import { artPack } from "../hub/townWorkerClient";
 import { Loader } from "./Brand";
 import { useGame } from "../state/gameStore";
@@ -28,8 +28,6 @@ export interface TownStreetProps {
   /** Where to look first (tiles), or null: at the player. */
   at: { x: number; y: number } | null;
   onBack: () => void;
-  /** The time of day shown (minutes), when something other than the turn sets it (the turn's passage). */
-  minutesOverride?: number | null;
 }
 
 /** What tests see (`window.__townStreet`). */
@@ -51,13 +49,14 @@ const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(pre
 
 const sameLocation = (a: LocationDto, b: LocationDto) => JSON.stringify(a) === JSON.stringify(b);
 
-export default function TownStreet({ town, map, at, onBack, minutesOverride = null }: TownStreetProps) {
+export default function TownStreet({ town, map, at, onBack }: TownStreetProps) {
   const tr = useGame((s) => s.tr);
   const pocket = useGame((s) => s.pocket);
   const busy = useGame((s) => s.busy);
   const visit = useGame((s) => s.visit);
   const command = useGame((s) => s.command);
   const walking = useGame((s) => s.walking);
+  const passage = useGame((s) => s.passage?.phase ?? null);
   const covered = useGame((s) => s.openPlace !== null || s.character !== null || s.decision !== null || s.story !== null);
   const stageRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HubView | null>(null);
@@ -65,7 +64,9 @@ export default function TownStreet({ town, map, at, onBack, minutesOverride = nu
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const minutes = minutesOverride ?? (pocket ? turnMinutes(pocket) : 12 * 60);
+  // The turn's time of day, eased forward when a slot is spent; night and the new morning when a turn ends.
+  const minutes = shownMinutes(pocket, passage) ?? 12 * 60;
+  const easeMs = passage ? PASSAGE_EASE_MS : LIGHT_EASE_MS;
   const here = pocket?.location.location ?? town.location;
 
   // The latest values the view's callbacks read (it is made once per map).
@@ -161,12 +162,12 @@ export default function TownStreet({ town, map, at, onBack, minutesOverride = nu
     if (!ready || !v || !art) return;
     if (Math.abs(v.clock.target - minutes) < 0.5) return;
     const quick = reducedMotion();
-    v.easeClockTo(minutes, quick ? 0 : LIGHT_EASE_MS);
+    v.easeClockTo(minutes, quick ? 0 : easeMs);
     if (art.setClock(minutes)) {
-      v.renderer.crossFade(quick ? 0 : 900);
+      v.renderer.crossFade(quick ? 0 : Math.min(900, easeMs));
       v.wake();
     }
-  }, [minutes, ready]);
+  }, [minutes, easeMs, ready]);
 
   // Nothing animates behind a sheet.
   useEffect(() => {

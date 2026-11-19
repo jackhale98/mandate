@@ -645,3 +645,21 @@ h2 { font-size: 1.1rem; }
 .hub-label-landmark { border-color: #e8b44c; color: #e8b44c; }
 .hub-label-icon { width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; fill: currentColor; shape-rendering: crispEdges; }
 .hub-label:hover { border-color: #e8b44c; }
+
+/* The night between two turns: a veil and the new date over the town (the bottom bar stays above it). */
+.turn-passage {
+  position: fixed; inset: 0; z-index: 6; display: grid; place-items: start center; padding: 22vh 16px 0;
+  background: rgba(5, 6, 14, 0.18); transition: background 700ms ease; animation: fade-in 300ms ease-out; cursor: default;
+}
+.turn-passage-night { background: rgba(5, 6, 14, 0.34); }
+.turn-passage-dawn { background: rgba(5, 6, 14, 0); animation: fade-out 800ms ease-in forwards; }
+.turn-passage-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 220px; padding: 14px 22px;
+  border-radius: var(--radius); background: var(--sheet); border: 1px solid var(--sheet-border); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45); text-align: center;
+}
+.turn-passage-date { font-family: var(--font-display); font-size: 1.35rem; }
+.turn-passage-span { font-weight: 600; color: var(--accent); }
+.turn-passage-quick, .turn-passage-quick.turn-passage-night { transition: none; animation: fade-in 120ms linear; }
+.turn-passage-quick.turn-passage-dawn { animation: fade-out 200ms linear forwards; }
+@keyframes fade-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .turn-passage { transition: none; } }

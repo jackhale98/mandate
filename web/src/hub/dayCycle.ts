@@ -219,7 +219,7 @@ export class DayClock {
   /** Move forward to `minutes` (always forward: evening to the next morning passes through the night) over `ms`. */
   easeTo(minutes: number, ms: number) {
     const by = wrapMinutes(minutes - this.minutes);
-    if (ms <= 0 || by < 0.5) {
+    if (ms <= 0 || by < 0.5 || by > DAY_MINUTES - 0.5) {
       this.set(minutes);
       return;
     }

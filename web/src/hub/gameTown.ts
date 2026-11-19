@@ -56,6 +56,11 @@ function layoutContent(): Promise<LayoutContentView> {
   return content;
 }
 
+/** The layout registries the engine serves, as the generator's recipe. */
+export async function liveRecipe() {
+  return recipeFromView(await layoutContent());
+}
+
 /** The town's state this month. */
 export function townState(id: number): Promise<TownStateView> {
   return ask({ type: "town_state", id }).then((b) => expectKind(b, "town_state"));

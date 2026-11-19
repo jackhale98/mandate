@@ -178,7 +178,7 @@ export function recipeFromView(v: LayoutContentView): Recipe {
 }
 
 /** The base game's registries: the engine's view of the base content (a fixture the Rust tests keep current). */
-export const BASE_RECIPE: Recipe = recipeFromView({ content_hash: "", ...(baseView as unknown as Omit<LayoutContentView, "content_hash">) });
+export const BASE_RECIPE: Recipe = /* @__PURE__ */ recipeFromView({ content_hash: "", ...(baseView as unknown as Omit<LayoutContentView, "content_hash">) });
 
 // ---------------------------------------------------------------------------
 // Validation. The engine validates content (mandate-content/src/layout.rs);

@@ -21,3 +21,16 @@ export const NIGHT_MINUTES = clockForDayPart("late_night", 0.55);
 
 /** How long the light takes to move to the next time after an action, ms (instant with reduced motion). */
 export const LIGHT_EASE_MS = 1400;
+
+/** How long the light takes in each step of the night between turns, ms. */
+export const PASSAGE_EASE_MS = 750;
+
+/**
+ * The time of day the town shows: the passage's while the night between turns
+ * is shown (night, then the new morning at dawn), else the turn's.
+ */
+export function shownMinutes(pocket: Pick<PocketView, "slots_left" | "slots_total" | "late_night_available"> | null, passage: "dusk" | "night" | "dawn" | null): number | null {
+  if (passage === "dusk" || passage === "night") return NIGHT_MINUTES;
+  if (passage === "dawn") return MORNING_MINUTES;
+  return pocket ? turnMinutes(pocket) : null;
+}

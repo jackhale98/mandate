@@ -12,6 +12,7 @@
 // calls `syncElements()` after each render; this positions them.
 import { HubCamera } from "./camera";
 import type { Point } from "./pathfinding";
+import { wrapMinutes } from "./dayCycle";
 import { GLYPH_RISE, drawTownMapFrame, type BakedTownMap, type MapMarker } from "./render/townMapRenderer";
 import { RouteCache, alongRoute, cellPoint, routeLength, type MapHotspot, type TownMapScene } from "./townMapScene";
 
@@ -75,6 +76,8 @@ export class TownMapView {
   private last = 0;
   private hover: string | null = null;
   private focused: string | null = null;
+  /** The time of day drawn, and an ease toward a new one (always forward: evening to morning passes the night). */
+  private light: { shown: number | null; from: number; by: number; start: number; ms: number } = { shown: null, from: 0, by: 0, start: 0, ms: 0 };
   /** The walk being shown: its route, when it started, how long it takes. */
   private walk: { route: Point[]; start: number; ms: number; to: string } | null = null;
   /** Where the "you" marker rests (a walk's end until the engine says otherwise). */
@@ -215,8 +218,19 @@ export class TownMapView {
 
   // ------------------------------------------------------------------ overlays and walks
 
-  setOverlay(o: TownMapOverlay) {
+  /** What the map marks, and its time of day (eased forward over `easeMs`, e.g. after a slot is spent). */
+  setOverlay(o: TownMapOverlay, easeMs = 0) {
     const moved = o.here !== this.overlay.here;
+    const l = this.light;
+    if (o.minutes === null || l.shown === null || easeMs <= 0 || this.opts.reducedMotion) {
+      l.shown = o.minutes;
+      l.ms = 0;
+    } else if (Math.min(wrapMinutes(o.minutes - this.lightTarget), wrapMinutes(this.lightTarget - o.minutes)) > 0.5) {
+      l.from = l.shown;
+      l.by = wrapMinutes(o.minutes - l.shown);
+      l.start = performance.now();
+      l.ms = easeMs;
+    }
     this.overlay = o;
     if (moved && !this.walk) {
       this.youKey = o.here;
@@ -252,7 +266,30 @@ export class TownMapView {
   /** Show the light of another time of day until the game's next update (previews and screenshots). */
   previewMinutes(minutes: number | null) {
     this.overlay = { ...this.overlay, minutes };
+    this.light.shown = minutes;
+    this.light.ms = 0;
     this.requestDraw();
+  }
+
+  /** The time of day drawn now (minutes; tests). */
+  get minutes(): number | null {
+    return this.light.shown;
+  }
+
+  /** Where the light is going. */
+  private get lightTarget(): number {
+    const l = this.light;
+    return l.ms > 0 ? wrapMinutes(l.from + l.by) : (l.shown ?? 0);
+  }
+
+  private stepLight(): boolean {
+    const l = this.light;
+    if (l.ms <= 0) return false;
+    const t = Math.min(1, (performance.now() - l.start) / l.ms);
+    const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+    l.shown = wrapMinutes(l.from + l.by * e);
+    if (t >= 1) l.ms = 0;
+    return t < 1;
   }
 
   /** Whether a walk is being shown (tests). */
@@ -485,10 +522,11 @@ export class TownMapView {
     const easing = this.camera.update(dt);
     const t0 = performance.now();
     const walking = this.stepWalk();
+    const lighting = this.stepLight();
     this.draw();
     this.lastDrawMs = performance.now() - t0;
     this.frames++;
-    if (easing || walking || this.camera.gesturing) this.requestDraw();
+    if (easing || walking || lighting || this.camera.gesturing) this.requestDraw();
     else this.last = 0;
   }
 
@@ -532,7 +570,7 @@ export class TownMapView {
       width: this.cssW,
       height: this.cssH,
       scale: this.scale,
-      minutes: o.minutes,
+      minutes: this.light.shown,
       gradeStrength: this.opts.gradeStrength ?? 0.5,
       route,
       walked: null,

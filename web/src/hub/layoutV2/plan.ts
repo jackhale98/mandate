@@ -9,7 +9,7 @@
 // stage (../rng), so changing one stage never shifts another's draws. A stage
 // that cannot fit what it must throws `LayoutOverflow`; the plan retries with
 // more room (a new attempt number keys every stream).
-import type { TownConnector, TownProp, TownStreetEnd, WaterSide } from "../townLayout";
+import type { TownProp, TownStreetEnd, WaterSide } from "../townLayout";
 import { LAYOUT_VERSION, Terrain } from "../townLayout";
 import { BAND_CAPS, bandOf, type Band, type TownGeo } from "./geo";
 import { NO_BEARING, isqrt } from "./imath";
@@ -443,11 +443,6 @@ export function planHash(plan: TownPlan): string {
   for (const c of plan.connectors) for (const n of [c.x, c.y, c.w, c.h, c.axis === "ns" ? 1 : 0, c.name.length]) feed(n);
   for (const p of plan.props) feed(p.x * 31 + p.y);
   return (h >>> 0).toString(16).padStart(8, "0");
-}
-
-/** The connectors as the map carries them (DEC-090 vocabulary). */
-export function mapConnectors(plan: TownPlan): TownConnector[] {
-  return plan.connectors.map((c) => ({ kind: c.kind, x: c.x, y: c.y, w: c.w, h: c.h, axis: c.axis, name: c.name }));
 }
 
 /** Terrain a walker crosses (water, buildings, walls, rock and the track are not). */

@@ -14,10 +14,10 @@
 // protections and disasters.
 import type { MunicipalityView } from "../../engine/protocol/MunicipalityView";
 import type { TownLocation } from "../townInput";
-import { Terrain, locationCell, type PlotState, type TownBuilding, type TownDistrict, type TownMap } from "../townLayout";
+import { Terrain, locationCell, type PlotState, type TownBuilding, type TownConnector, type TownDistrict, type TownMap } from "../townLayout";
 import { HOOD_KINDS, type HoodKind } from "../townInput";
 import { mix } from "../rng";
-import { mapConnectors, type TownPlan } from "./plan";
+import type { TownPlan } from "./plan";
 import { WaterKind, type PlanPlot } from "./work";
 
 export interface TownState {
@@ -51,6 +51,11 @@ export function stateFromViews(muni: Pick<MunicipalityView, "neighborhoods" | "e
 
 const RESIDENTIAL = new Set(["house", "terrace", "farmhouse", "cottage"]);
 const hoodKind = (k: string): HoodKind => ((HOOD_KINDS as readonly string[]).includes(k) ? (k as HoodKind) : "inner");
+
+/** The connectors as the map carries them (DEC-090 vocabulary). */
+function mapConnectors(plan: TownPlan): TownConnector[] {
+  return plan.connectors.map((c) => ({ kind: c.kind, x: c.x, y: c.y, w: c.w, h: c.h, axis: c.axis, name: c.name }));
+}
 
 /** Dress a plan for a state: the TownMap the hub, the overview and the text alternative draw. */
 export function dressTown(plan: TownPlan, state: TownState): TownMap {

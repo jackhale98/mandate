@@ -9,6 +9,7 @@ import { ElectionNight } from "../components/CampaignCards";
 import { Toast } from "../components/Toast";
 import { Pocket } from "../components/Pocket";
 import { Walking } from "../components/Walking";
+import { TurnPassage } from "../components/TurnPassage";
 import { Town } from "./Town";
 import { PlacePanel } from "./PlacePanel";
 import { CharacterSheet } from "../components/CharacterSheet";
@@ -210,6 +211,7 @@ export function Game() {
       <DecisionSheet />
       <CharacterSheet />
       <Walking />
+      <TurnPassage />
       {selected !== null && <MunicipalityPanel id={selected} onClose={() => setSelected(null)} />}
 
       {pocket?.legal && <RunBanner l={pocket.legal} />}

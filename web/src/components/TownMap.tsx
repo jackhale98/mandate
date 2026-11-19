@@ -16,10 +16,10 @@ import { dressTown } from "../hub/layoutV2/dress";
 import { townSeed, type TownMap as TownMapModel } from "../hub/townLayout";
 import { buildTownMapScene, hotspotOf, viewForInput, type MapHotspot, type TownMapScene } from "../hub/townMapScene";
 import { TownMapView, WALK_MAX_MS } from "../hub/townMapView";
-import { turnMinutes } from "../hub/turnClock";
+import { LIGHT_EASE_MS, PASSAGE_EASE_MS, shownMinutes } from "../hub/turnClock";
 import type { TownGeo } from "../hub/layoutV2/geo";
 import { planInWorker, townJobs } from "../hub/townWorkerClient";
-import { BASE_RECIPE } from "../hub/layoutV2/registry";
+import { liveRecipe } from "../hub/gameTown";
 import type { Translator } from "../i18n/fluent";
 import { placeIcon, placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
@@ -131,7 +131,7 @@ declare global {
 /** Plan, dress, build and bake a town as the game does, timed (the `bench` probe). */
 async function bench(input: TownInput, geo: TownGeo, seed: string) {
   const t0 = performance.now();
-  const { plan, ms } = await planInWorker(townJobs(), { ...geo, places: input.places.map((p) => ({ ...p })) }, townSeed(seed, input.municipality), BASE_RECIPE);
+  const { plan, ms } = await planInWorker(townJobs(), { ...geo, places: input.places.map((p) => ({ ...p })) }, townSeed(seed, input.municipality), await liveRecipe());
   const t1 = performance.now();
   const map = dressTown(plan, { home: input.home, location: { type: "home" } });
   const t2 = performance.now();
@@ -145,16 +145,15 @@ export interface TownMapProps {
   map: TownMapModel;
   /** Go down into the walkable street, looking at a point of the town (tiles), or from where the player is (null). */
   onWalk?: (at: { x: number; y: number } | null) => void;
-  /** The time of day shown (minutes), when something other than the turn sets it (the turn's passage). */
-  minutesOverride?: number | null;
 }
 
-export function TownMap({ town, map, onWalk, minutesOverride = null }: TownMapProps) {
+export function TownMap({ town, map, onWalk }: TownMapProps) {
   const tr = useGame((s) => s.tr);
   const pocket = useGame((s) => s.pocket);
   const busy = useGame((s) => s.busy);
   const visit = useGame((s) => s.visit);
   const walking = useGame((s) => s.walking);
+  const passage = useGame((s) => s.passage?.phase ?? null);
   const built = townMapFor(map, town);
   const { scene, baked } = built;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -165,7 +164,9 @@ export function TownMap({ town, map, onWalk, minutesOverride = null }: TownMapPr
 
   const here = useMemo(() => hotspotOf(scene.hotspots, pocket?.location.location ?? town.location)?.key ?? null, [scene, pocket, town.location]);
   const waiting = useMemo(() => waitingAt(pocket), [pocket]);
-  const minutes = minutesOverride ?? (pocket ? turnMinutes(pocket) : null);
+  // The turn's time of day, eased forward when a slot is spent; night and the new morning when a turn ends.
+  const minutes = shownMinutes(pocket, passage);
+  const easeMs = passage ? PASSAGE_EASE_MS : LIGHT_EASE_MS;
 
   // The latest activation handler, read by the view (created once per town).
   const activate = useRef<(h: MapHotspot) => void>(() => {});
@@ -208,8 +209,8 @@ export function TownMap({ town, map, onWalk, minutesOverride = null }: TownMapPr
   });
 
   useEffect(() => {
-    viewRef.current?.setOverlay({ here, waiting: new Set(waiting.keys()), minutes });
-  }, [here, waiting, minutes]);
+    viewRef.current?.setOverlay({ here, waiting: new Set(waiting.keys()), minutes }, easeMs);
+  }, [here, waiting, minutes, easeMs]);
 
   // An auto-routed action (the agenda) walks the player on the map too.
   useEffect(() => {

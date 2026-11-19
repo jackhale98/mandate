@@ -25,6 +25,12 @@ const FALLBACK: Record<string, string> = {
   "ui-town-street-help": "Tap a building to walk there. Drag to look around, pinch or scroll to zoom.",
   "ui-town-street-loading": "Drawing the streets…",
   "ui-town-planning": "Laying out the town…",
+  "ui-passage-day": "A day later",
+  "ui-passage-week": "A week later",
+  "ui-passage-weeks": "{ $n } weeks later",
+  "ui-passage-days": "{ $n } days later",
+  "ui-passage-working": "The days pass…",
+  "ui-passage-skip": "Tap to carry on",
 };
 
 /** Translate a key, or use the English fallback when the content pack does not have it yet. */
