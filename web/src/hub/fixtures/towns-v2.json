@@ -149,63 +149,97 @@
    "class": "town",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 135179,
+   "baseline_population": 138354,
    "neighborhoods": [
     {
      "id": 194,
      "name": "Larkobridge",
      "kind": "core",
-     "baseline_population": 23162,
-     "adjacent": []
+     "baseline_population": 23807,
+     "adjacent": [
+      195,
+      196,
+      197,
+      198,
+      199,
+      200
+     ]
     },
     {
      "id": 195,
      "name": "Orchardrow",
      "kind": "waterfront",
-     "baseline_population": 12669,
-     "adjacent": []
+     "baseline_population": 13031,
+     "adjacent": [
+      194,
+      196,
+      201
+     ]
     },
     {
      "id": 196,
      "name": "Bridgevale",
      "kind": "industrial",
-     "baseline_population": 8468,
-     "adjacent": []
+     "baseline_population": 8725,
+     "adjacent": [
+      194,
+      195,
+      197
+     ]
     },
     {
      "id": 197,
      "name": "Cross Quarter",
      "kind": "rural",
-     "baseline_population": 9297,
-     "adjacent": []
+     "baseline_population": 9487,
+     "adjacent": [
+      194,
+      196,
+      198
+     ]
     },
     {
      "id": 198,
      "name": "Queensheath",
      "kind": "suburb",
-     "baseline_population": 24128,
-     "adjacent": []
+     "baseline_population": 24736,
+     "adjacent": [
+      194,
+      197,
+      199
+     ]
     },
     {
      "id": 199,
      "name": "Eastvale",
      "kind": "suburb",
-     "baseline_population": 17924,
-     "adjacent": []
+     "baseline_population": 18375,
+     "adjacent": [
+      194,
+      198,
+      200
+     ]
     },
     {
      "id": 200,
      "name": "Castle Green",
      "kind": "rural",
-     "baseline_population": 10795,
-     "adjacent": []
+     "baseline_population": 11048,
+     "adjacent": [
+      194,
+      199,
+      201
+     ]
     },
     {
      "id": 201,
      "name": "Old Green",
      "kind": "suburb",
-     "baseline_population": 28736,
-     "adjacent": []
+     "baseline_population": 29145,
+     "adjacent": [
+      195,
+      200
+     ]
     }
    ],
    "places": [
@@ -302,9 +336,44 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 2055
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 2240
+    },
+    {
      "sector": "sector.manufacturing",
-     "driver": "",
-     "jobs": 12166
+     "driver": "industrial",
+     "jobs": 11581
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 1234
+    },
+    {
+     "sector": "sector.retail",
+     "driver": "local_services",
+     "jobs": 16216
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 2618
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 7577
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 17385
     }
    ],
    "river": null,
@@ -316,18 +385,18 @@
    },
    "lake": null,
    "relief": {
-    "ruggedness_pm": 363,
-    "uphill": 6,
+    "ruggedness_pm": 304,
+    "uphill": 4,
     "high_ground": 6,
-    "relief_m": 44
+    "relief_m": 76
    },
    "woods": {
     "share_pm": 0,
-    "bearing": 6
+    "bearing": 255
    },
    "minerals": {
     "value_pm": 572,
-    "bearing": 8
+    "bearing": 1
    },
    "resources_pm": {
     "fertility": 216,
@@ -366,45 +435,45 @@
     "biome": "steppe",
     "snow": false
    },
-   "wind_from": 12,
+   "wind_from": 4,
    "elevation_m": 134,
    "era": null
   },
   "state": {
-   "vacancy": 0.1,
-   "unemployment": 0.09,
+   "vacancy": 0.07,
+   "unemployment": 0.08,
    "hoods": [
     {
      "id": 194,
-     "population": 23162
+     "population": 23800
     },
     {
      "id": 195,
-     "population": 12669
+     "population": 13000
     },
     {
      "id": 196,
-     "population": 8468
+     "population": 8700
     },
     {
      "id": 197,
-     "population": 9297
+     "population": 9500
     },
     {
      "id": 198,
-     "population": 24128
+     "population": 24700
     },
     {
      "id": 199,
-     "population": 17924
+     "population": 18400
     },
     {
      "id": 200,
-     "population": 10795
+     "population": 11000
     },
     {
      "id": 201,
-     "population": 28736
+     "population": 29100
     }
    ]
   }
@@ -660,161 +729,237 @@
    "class": "metro",
    "regional_capital": true,
    "national_capital": true,
-   "baseline_population": 3161146,
+   "baseline_population": 3148688,
    "neighborhoods": [
     {
      "id": 0,
      "name": "Fenoport",
      "kind": "core",
-     "baseline_population": 183921,
-     "adjacent": []
+     "baseline_population": 183155,
+     "adjacent": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+     ]
     },
     {
      "id": 1,
      "name": "Uppertown",
      "kind": "industrial",
-     "baseline_population": 52368,
-     "adjacent": []
+     "baseline_population": 52145,
+     "adjacent": [
+      0,
+      2,
+      21
+     ]
     },
     {
      "id": 2,
      "name": "Park Cross",
      "kind": "inner",
-     "baseline_population": 177685,
-     "adjacent": []
+     "baseline_population": 176972,
+     "adjacent": [
+      0,
+      1,
+      3
+     ]
     },
     {
      "id": 3,
      "name": "East Hill",
      "kind": "inner",
-     "baseline_population": 150850,
-     "adjacent": []
+     "baseline_population": 150257,
+     "adjacent": [
+      0,
+      2,
+      4
+     ]
     },
     {
      "id": 4,
      "name": "Westgate",
      "kind": "inner",
-     "baseline_population": 143307,
-     "adjacent": []
+     "baseline_population": 142712,
+     "adjacent": [
+      0,
+      3,
+      5
+     ]
     },
     {
      "id": 5,
      "name": "Lowerlands",
      "kind": "inner",
-     "baseline_population": 181769,
-     "adjacent": []
+     "baseline_population": 181065,
+     "adjacent": [
+      0,
+      4,
+      6
+     ]
     },
     {
      "id": 6,
      "name": "East Cross",
      "kind": "inner",
-     "baseline_population": 159857,
-     "adjacent": []
+     "baseline_population": 159209,
+     "adjacent": [
+      0,
+      5,
+      7
+     ]
     },
     {
      "id": 7,
      "name": "Foundrytown",
      "kind": "inner",
-     "baseline_population": 133786,
-     "adjacent": []
+     "baseline_population": 133245,
+     "adjacent": [
+      6,
+      8
+     ]
     },
     {
      "id": 8,
      "name": "Kings Hill",
      "kind": "inner",
-     "baseline_population": 142003,
-     "adjacent": []
+     "baseline_population": 141387,
+     "adjacent": [
+      7,
+      9
+     ]
     },
     {
      "id": 9,
      "name": "Upperrow",
      "kind": "inner",
-     "baseline_population": 194371,
-     "adjacent": []
+     "baseline_population": 193572,
+     "adjacent": [
+      8,
+      10
+     ]
     },
     {
      "id": 10,
      "name": "Abbeygate",
      "kind": "inner",
-     "baseline_population": 193492,
-     "adjacent": []
+     "baseline_population": 192721,
+     "adjacent": [
+      9,
+      11
+     ]
     },
     {
      "id": 11,
      "name": "Wharfvale",
      "kind": "suburb",
-     "baseline_population": 126390,
-     "adjacent": []
+     "baseline_population": 125874,
+     "adjacent": [
+      10,
+      12
+     ]
     },
     {
      "id": 12,
      "name": "South Quarter",
      "kind": "suburb",
-     "baseline_population": 111882,
-     "adjacent": []
+     "baseline_population": 111474,
+     "adjacent": [
+      11,
+      13
+     ]
     },
     {
      "id": 13,
      "name": "Abbey Quarter",
      "kind": "suburb",
-     "baseline_population": 165934,
-     "adjacent": []
+     "baseline_population": 165304,
+     "adjacent": [
+      12,
+      14
+     ]
     },
     {
      "id": 14,
      "name": "Queensvale",
      "kind": "suburb",
-     "baseline_population": 158424,
-     "adjacent": []
+     "baseline_population": 157799,
+     "adjacent": [
+      13,
+      15
+     ]
     },
     {
      "id": 15,
      "name": "Queenstown",
      "kind": "suburb",
-     "baseline_population": 168982,
-     "adjacent": []
+     "baseline_population": 168358,
+     "adjacent": [
+      14,
+      16
+     ]
     },
     {
      "id": 16,
      "name": "Newheath",
      "kind": "suburb",
-     "baseline_population": 127192,
-     "adjacent": []
+     "baseline_population": 126699,
+     "adjacent": [
+      15,
+      17
+     ]
     },
     {
      "id": 17,
      "name": "Hill Cross",
      "kind": "suburb",
-     "baseline_population": 94629,
-     "adjacent": []
+     "baseline_population": 94290,
+     "adjacent": [
+      16,
+      18
+     ]
     },
     {
      "id": 18,
      "name": "Kingslands",
      "kind": "suburb",
-     "baseline_population": 96269,
-     "adjacent": []
+     "baseline_population": 95946,
+     "adjacent": [
+      17,
+      19
+     ]
     },
     {
      "id": 19,
      "name": "Greentown",
      "kind": "suburb",
-     "baseline_population": 94107,
-     "adjacent": []
+     "baseline_population": 93765,
+     "adjacent": [
+      18,
+      20
+     ]
     },
     {
      "id": 20,
      "name": "Churchtown",
      "kind": "suburb",
-     "baseline_population": 130390,
-     "adjacent": []
+     "baseline_population": 129883,
+     "adjacent": [
+      19,
+      21
+     ]
     },
     {
      "id": 21,
      "name": "Quarryend",
      "kind": "suburb",
-     "baseline_population": 173538,
-     "adjacent": []
+     "baseline_population": 172856,
+     "adjacent": [
+      1,
+      20
+     ]
     }
    ],
    "places": [
@@ -939,11 +1084,52 @@
      "neighborhood": 2
     }
    ],
-   "baseline_sectors": [],
+   "baseline_sectors": [
+    {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 3885
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 4224
+    },
+    {
+     "sector": "sector.manufacturing",
+     "driver": "industrial",
+     "jobs": 187648
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 17897
+    },
+    {
+     "sector": "sector.retail",
+     "driver": "local_services",
+     "jobs": 278552
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 26314
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 482368
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 439718
+    }
+   ],
    "river": {
     "class": 3,
-    "enters": 2,
-    "leaves": 10,
+    "enters": 14,
+    "leaves": 8,
     "through_centre": true
    },
    "creeks": [],
@@ -953,18 +1139,18 @@
     "near": true
    },
    "relief": {
-    "ruggedness_pm": 663,
+    "ruggedness_pm": 220,
     "uphill": 14,
     "high_ground": 14,
-    "relief_m": 80
+    "relief_m": 55
    },
    "woods": {
-    "share_pm": 61,
-    "bearing": 14
+    "share_pm": 44,
+    "bearing": 9
    },
    "minerals": {
     "value_pm": 489,
-    "bearing": 0
+    "bearing": 10
    },
    "resources_pm": {
     "fertility": 377,
@@ -976,17 +1162,17 @@
    },
    "links": [
     {
-     "mode": "rail",
-     "bearing": 3,
-     "to": 49,
-     "to_name": "Halerport",
-     "foreign": false
-    },
-    {
      "mode": "road",
      "bearing": 3,
      "to": 23,
      "to_name": "Eldoford",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 3,
+     "to": 12,
+     "to_name": "Yarohaven",
      "foreign": false
     },
     {
@@ -1006,15 +1192,8 @@
     {
      "mode": "rail",
      "bearing": 12,
-     "to": 50,
-     "to_name": "Stratherford",
-     "foreign": false
-    },
-    {
-     "mode": "rail",
-     "bearing": 15,
-     "to": 52,
-     "to_name": "Marford",
+     "to": 19,
+     "to_name": "Corriwell",
      "foreign": false
     },
     {
@@ -1022,6 +1201,13 @@
      "bearing": 15,
      "to": 55,
      "to_name": "Fenton",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 15,
+     "to": 5,
+     "to_name": "Brinholm",
      "foreign": false
     }
    ],
@@ -1038,101 +1224,101 @@
     "biome": "grassland",
     "snow": false
    },
-   "wind_from": 12,
+   "wind_from": 4,
    "elevation_m": 332,
    "era": null
   },
   "state": {
-   "vacancy": 0.034955052154613586,
-   "unemployment": 0.0648793919696975,
+   "vacancy": 0.04,
+   "unemployment": 0.06,
    "hoods": [
     {
      "id": 0,
-     "population": 183921
+     "population": 183200
     },
     {
      "id": 1,
-     "population": 52368
+     "population": 52100
     },
     {
      "id": 2,
-     "population": 177685
+     "population": 177000
     },
     {
      "id": 3,
-     "population": 150850
+     "population": 150300
     },
     {
      "id": 4,
-     "population": 143307
+     "population": 142700
     },
     {
      "id": 5,
-     "population": 181769
+     "population": 181100
     },
     {
      "id": 6,
-     "population": 159857
+     "population": 159200
     },
     {
      "id": 7,
-     "population": 133786
+     "population": 133200
     },
     {
      "id": 8,
-     "population": 142003
+     "population": 141400
     },
     {
      "id": 9,
-     "population": 194371
+     "population": 193600
     },
     {
      "id": 10,
-     "population": 193492
+     "population": 192700
     },
     {
      "id": 11,
-     "population": 126390
+     "population": 125900
     },
     {
      "id": 12,
-     "population": 111882
+     "population": 111500
     },
     {
      "id": 13,
-     "population": 165934
+     "population": 165300
     },
     {
      "id": 14,
-     "population": 158424
+     "population": 157800
     },
     {
      "id": 15,
-     "population": 168982
+     "population": 168400
     },
     {
      "id": 16,
-     "population": 127192
+     "population": 126700
     },
     {
      "id": 17,
-     "population": 94629
+     "population": 94300
     },
     {
      "id": 18,
-     "population": 96269
+     "population": 95900
     },
     {
      "id": 19,
-     "population": 94107
+     "population": 93800
     },
     {
      "id": 20,
-     "population": 130390
+     "population": 129900
     },
     {
      "id": 21,
-     "population": 173538
+     "population": 172900
     }
    ]
   }
@@ -1250,35 +1436,51 @@
    "class": "rural",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 31598,
+   "baseline_population": 33044,
    "neighborhoods": [
     {
      "id": 387,
      "name": "Marford",
      "kind": "core",
-     "baseline_population": 13024,
-     "adjacent": []
+     "baseline_population": 13652,
+     "adjacent": [
+      388,
+      389,
+      390
+     ]
     },
     {
      "id": 388,
      "name": "Quarryend",
      "kind": "industrial",
-     "baseline_population": 8167,
-     "adjacent": []
+     "baseline_population": 8595,
+     "adjacent": [
+      387,
+      389,
+      390
+     ]
     },
     {
      "id": 389,
      "name": "Westlands",
      "kind": "rural",
-     "baseline_population": 3479,
-     "adjacent": []
+     "baseline_population": 3632,
+     "adjacent": [
+      387,
+      388,
+      390
+     ]
     },
     {
      "id": 390,
      "name": "Millrow",
      "kind": "rural",
-     "baseline_population": 6928,
-     "adjacent": []
+     "baseline_population": 7165,
+     "adjacent": [
+      387,
+      388,
+      389
+     ]
     }
    ],
    "places": [
@@ -1355,7 +1557,48 @@
      "neighborhood": 389
     }
    ],
-   "baseline_sectors": [],
+   "baseline_sectors": [
+    {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 1004
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 660
+    },
+    {
+     "sector": "sector.manufacturing",
+     "driver": "industrial",
+     "jobs": 1978
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 1386
+    },
+    {
+     "sector": "sector.retail",
+     "driver": "local_services",
+     "jobs": 4024
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 326
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 1084
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 4789
+    }
+   ],
    "river": {
     "class": 1,
     "enters": 0,
@@ -1366,18 +1609,18 @@
    "coast": null,
    "lake": null,
    "relief": {
-    "ruggedness_pm": 439,
-    "uphill": 14,
+    "ruggedness_pm": 364,
+    "uphill": 13,
     "high_ground": 14,
-    "relief_m": 53
+    "relief_m": 91
    },
    "woods": {
     "share_pm": 0,
-    "bearing": 14
+    "bearing": 255
    },
    "minerals": {
     "value_pm": 548,
-    "bearing": 0
+    "bearing": 7
    },
    "resources_pm": {
     "fertility": 238,
@@ -1391,8 +1634,8 @@
     {
      "mode": "rail",
      "bearing": 1,
-     "to": 43,
-     "to_name": "Haloford",
+     "to": 20,
+     "to_name": "Velliholm",
      "foreign": false
     },
     {
@@ -1410,13 +1653,6 @@
      "foreign": false
     },
     {
-     "mode": "rail",
-     "bearing": 6,
-     "to": 0,
-     "to_name": "Fenoport",
-     "foreign": false
-    },
-    {
      "mode": "road",
      "bearing": 6,
      "to": 16,
@@ -1425,7 +1661,7 @@
     },
     {
      "mode": "rail",
-     "bearing": 10,
+     "bearing": 6,
      "to": 0,
      "to_name": "Fenoport",
      "foreign": false
@@ -1439,13 +1675,20 @@
     },
     {
      "mode": "rail",
-     "bearing": 14,
-     "to": 0,
-     "to_name": "Fenoport",
+     "bearing": 11,
+     "to": 9,
+     "to_name": "Duniby",
      "foreign": false
     },
     {
      "mode": "road",
+     "bearing": 14,
+     "to": 5,
+     "to_name": "Brinholm",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
      "bearing": 14,
      "to": 5,
      "to_name": "Brinholm",
@@ -1465,29 +1708,29 @@
     "biome": "steppe",
     "snow": false
    },
-   "wind_from": 12,
+   "wind_from": 4,
    "elevation_m": 347,
    "era": null
   },
   "state": {
-   "vacancy": 0.09206253762206396,
-   "unemployment": 0.03827481995572757,
+   "vacancy": 0.11,
+   "unemployment": 0.06,
    "hoods": [
     {
      "id": 387,
-     "population": 13024
+     "population": 13700
     },
     {
      "id": 388,
-     "population": 8167
+     "population": 8600
     },
     {
      "id": 389,
-     "population": 3479
+     "population": 3600
     },
     {
      "id": 390,
-     "population": 6928
+     "population": 7200
     }
    ]
   }
@@ -1613,7 +1856,7 @@
      "neighborhood": 176
     }
    ],
-   "home": 177,
+   "home": 182,
    "location": {
     "type": "home"
    }
@@ -1624,63 +1867,97 @@
    "class": "town",
    "regional_capital": true,
    "national_capital": false,
-   "baseline_population": 130349,
+   "baseline_population": 130359,
    "neighborhoods": [
     {
      "id": 175,
      "name": "Strathowick",
      "kind": "core",
-     "baseline_population": 16232,
-     "adjacent": []
+     "baseline_population": 16201,
+     "adjacent": [
+      176,
+      177,
+      178,
+      179,
+      180,
+      181
+     ]
     },
     {
      "id": 176,
      "name": "Crossside",
      "kind": "suburb",
-     "baseline_population": 22034,
-     "adjacent": []
+     "baseline_population": 22023,
+     "adjacent": [
+      175,
+      177,
+      182
+     ]
     },
     {
      "id": 177,
      "name": "Harbourheath",
      "kind": "suburb",
-     "baseline_population": 22401,
-     "adjacent": []
+     "baseline_population": 22392,
+     "adjacent": [
+      175,
+      176,
+      178
+     ]
     },
     {
      "id": 178,
      "name": "Orchardlands",
      "kind": "rural",
-     "baseline_population": 7502,
-     "adjacent": []
+     "baseline_population": 7474,
+     "adjacent": [
+      175,
+      177,
+      179
+     ]
     },
     {
      "id": 179,
      "name": "Greenrow",
      "kind": "suburb",
-     "baseline_population": 14488,
-     "adjacent": []
+     "baseline_population": 14511,
+     "adjacent": [
+      175,
+      178,
+      180
+     ]
     },
     {
      "id": 180,
      "name": "Newside",
      "kind": "suburb",
-     "baseline_population": 16631,
-     "adjacent": []
+     "baseline_population": 16612,
+     "adjacent": [
+      175,
+      179,
+      181
+     ]
     },
     {
      "id": 181,
      "name": "Marketgate",
      "kind": "rural",
-     "baseline_population": 8344,
-     "adjacent": []
+     "baseline_population": 8390,
+     "adjacent": [
+      175,
+      180,
+      182
+     ]
     },
     {
      "id": 182,
      "name": "Southvale",
      "kind": "suburb",
-     "baseline_population": 22717,
-     "adjacent": []
+     "baseline_population": 22756,
+     "adjacent": [
+      176,
+      181
+     ]
     }
    ],
    "places": [
@@ -1759,9 +2036,44 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 1976
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 1169
+    },
+    {
+     "sector": "sector.manufacturing",
+     "driver": "industrial",
+     "jobs": 4515
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 1211
+    },
+    {
      "sector": "sector.retail",
-     "driver": "",
-     "jobs": 17597
+     "driver": "local_services",
+     "jobs": 15134
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 1337
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 9511
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 19589
     }
    ],
    "river": {
@@ -1777,18 +2089,18 @@
     "near": true
    },
    "relief": {
-    "ruggedness_pm": 352,
-    "uphill": 6,
-    "high_ground": 6,
-    "relief_m": 42
+    "ruggedness_pm": 236,
+    "uphill": 5,
+    "high_ground": 3,
+    "relief_m": 59
    },
    "woods": {
-    "share_pm": 27,
-    "bearing": 6
+    "share_pm": 0,
+    "bearing": 255
    },
    "minerals": {
     "value_pm": 299,
-    "bearing": 8
+    "bearing": 12
    },
    "resources_pm": {
     "fertility": 167,
@@ -1814,13 +2126,6 @@
      "foreign": false
     },
     {
-     "mode": "rail",
-     "bearing": 10,
-     "to": 19,
-     "to_name": "Brinifield",
-     "foreign": false
-    },
-    {
      "mode": "road",
      "bearing": 10,
      "to": 19,
@@ -1829,7 +2134,7 @@
     },
     {
      "mode": "rail",
-     "bearing": 11,
+     "bearing": 12,
      "to": 0,
      "to_name": "Halermoor",
      "foreign": false
@@ -1848,45 +2153,45 @@
     "biome": "lake",
     "snow": false
    },
-   "wind_from": 12,
+   "wind_from": 4,
    "elevation_m": 41,
    "era": null
   },
   "state": {
-   "vacancy": 0.1,
-   "unemployment": 0.08,
+   "vacancy": 0.12,
+   "unemployment": 0.1,
    "hoods": [
     {
      "id": 175,
-     "population": 16232
+     "population": 16200
     },
     {
      "id": 176,
-     "population": 22034
+     "population": 22000
     },
     {
      "id": 177,
-     "population": 22401
+     "population": 22400
     },
     {
      "id": 178,
-     "population": 7502
+     "population": 7500
     },
     {
      "id": 179,
-     "population": 14488
+     "population": 14500
     },
     {
      "id": 180,
-     "population": 16631
+     "population": 16600
     },
     {
      "id": 181,
-     "population": 8344
+     "population": 8400
     },
     {
      "id": 182,
-     "population": 22717
+     "population": 22800
     }
    ]
   }
@@ -2035,63 +2340,97 @@
    "class": "town",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 136485,
+   "baseline_population": 137672,
    "neighborhoods": [
     {
      "id": 176,
      "name": "Hollindale",
      "kind": "core",
-     "baseline_population": 15429,
-     "adjacent": []
+     "baseline_population": 15582,
+     "adjacent": [
+      177,
+      178,
+      179,
+      180,
+      181,
+      182
+     ]
     },
     {
      "id": 177,
      "name": "Hill Quarter",
      "kind": "industrial",
-     "baseline_population": 8684,
-     "adjacent": []
+     "baseline_population": 8759,
+     "adjacent": [
+      176,
+      178,
+      183
+     ]
     },
     {
      "id": 178,
      "name": "Westfield",
      "kind": "suburb",
-     "baseline_population": 25086,
-     "adjacent": []
+     "baseline_population": 25287,
+     "adjacent": [
+      176,
+      177,
+      179
+     ]
     },
     {
      "id": 179,
      "name": "Abbeygate",
      "kind": "rural",
-     "baseline_population": 6064,
-     "adjacent": []
+     "baseline_population": 6094,
+     "adjacent": [
+      176,
+      178,
+      180
+     ]
     },
     {
      "id": 180,
      "name": "Station Cross",
      "kind": "suburb",
-     "baseline_population": 14635,
-     "adjacent": []
+     "baseline_population": 14773,
+     "adjacent": [
+      176,
+      179,
+      181
+     ]
     },
     {
      "id": 181,
      "name": "Harbourvale",
      "kind": "suburb",
-     "baseline_population": 25232,
-     "adjacent": []
+     "baseline_population": 25437,
+     "adjacent": [
+      176,
+      180,
+      182
+     ]
     },
     {
      "id": 182,
      "name": "Queens Quarter",
      "kind": "rural",
-     "baseline_population": 9559,
-     "adjacent": []
+     "baseline_population": 9638,
+     "adjacent": [
+      176,
+      181,
+      183
+     ]
     },
     {
      "id": 183,
      "name": "Lowertown",
      "kind": "suburb",
-     "baseline_population": 31796,
-     "adjacent": []
+     "baseline_population": 32102,
+     "adjacent": [
+      177,
+      182
+     ]
     }
    ],
    "places": [
@@ -2182,14 +2521,49 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 2272
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 2131
+    },
+    {
      "sector": "sector.manufacturing",
-     "driver": "",
-     "jobs": 15355
+     "driver": "industrial",
+     "jobs": 12942
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 1130
+    },
+    {
+     "sector": "sector.retail",
+     "driver": "local_services",
+     "jobs": 14873
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 1866
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 8985
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 14933
     }
    ],
    "river": {
     "class": 2,
-    "enters": 6,
+    "enters": 5,
     "leaves": 14,
     "through_centre": true
    },
@@ -2197,18 +2571,18 @@
    "coast": null,
    "lake": null,
    "relief": {
-    "ruggedness_pm": 337,
-    "uphill": 6,
-    "high_ground": 6,
-    "relief_m": 40
+    "ruggedness_pm": 740,
+    "uphill": 9,
+    "high_ground": 10,
+    "relief_m": 185
    },
    "woods": {
-    "share_pm": 162,
-    "bearing": 6
+    "share_pm": 136,
+    "bearing": 10
    },
    "minerals": {
     "value_pm": 541,
-    "bearing": 8
+    "bearing": 5
    },
    "resources_pm": {
     "fertility": 193,
@@ -2227,17 +2601,17 @@
      "foreign": false
     },
     {
-     "mode": "rail",
-     "bearing": 2,
-     "to": 29,
-     "to_name": "Quarrridge",
-     "foreign": false
-    },
-    {
      "mode": "road",
      "bearing": 2,
      "to": 16,
      "to_name": "Fenodale",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 2,
+     "to": 3,
+     "to_name": "Calihaven",
      "foreign": false
     },
     {
@@ -2252,13 +2626,6 @@
      "bearing": 8,
      "to": 53,
      "to_name": "Haloholm",
-     "foreign": false
-    },
-    {
-     "mode": "rail",
-     "bearing": 14,
-     "to": 0,
-     "to_name": "Vellastead",
      "foreign": false
     },
     {
@@ -2289,7 +2656,7 @@
     "biome": "steppe",
     "snow": false
    },
-   "wind_from": 12,
+   "wind_from": 4,
    "elevation_m": 363,
    "era": null
   },
@@ -2299,35 +2666,35 @@
    "hoods": [
     {
      "id": 176,
-     "population": 15429
+     "population": 15600
     },
     {
      "id": 177,
-     "population": 8684
+     "population": 8800
     },
     {
      "id": 178,
-     "population": 25086
+     "population": 25300
     },
     {
      "id": 179,
-     "population": 6064
+     "population": 6100
     },
     {
      "id": 180,
-     "population": 14635
+     "population": 14800
     },
     {
      "id": 181,
-     "population": 25232
+     "population": 25400
     },
     {
      "id": 182,
-     "population": 9559
+     "population": 9600
     },
     {
      "id": 183,
-     "population": 31796
+     "population": 32100
     }
    ]
   }
@@ -2465,7 +2832,7 @@
      "neighborhood": 198
     }
    ],
-   "home": 195,
+   "home": 201,
    "location": {
     "type": "home"
    }
@@ -2476,63 +2843,97 @@
    "class": "town",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 140371,
+   "baseline_population": 139428,
    "neighborhoods": [
     {
      "id": 194,
      "name": "Hollinerton",
      "kind": "core",
-     "baseline_population": 28956,
-     "adjacent": []
+     "baseline_population": 28785,
+     "adjacent": [
+      195,
+      196,
+      197,
+      198,
+      199,
+      200
+     ]
     },
     {
      "id": 195,
      "name": "Westlands",
      "kind": "waterfront",
-     "baseline_population": 14969,
-     "adjacent": []
+     "baseline_population": 14873,
+     "adjacent": [
+      194,
+      196,
+      201
+     ]
     },
     {
      "id": 196,
      "name": "Abbeyfield",
      "kind": "industrial",
-     "baseline_population": 11291,
-     "adjacent": []
+     "baseline_population": 11289,
+     "adjacent": [
+      194,
+      195,
+      197
+     ]
     },
     {
      "id": 197,
      "name": "Station Cross",
      "kind": "rural",
-     "baseline_population": 7126,
-     "adjacent": []
+     "baseline_population": 7115,
+     "adjacent": [
+      194,
+      196,
+      198
+     ]
     },
     {
      "id": 198,
      "name": "Markettown",
      "kind": "suburb",
-     "baseline_population": 25227,
-     "adjacent": []
+     "baseline_population": 25067,
+     "adjacent": [
+      194,
+      197,
+      199
+     ]
     },
     {
      "id": 199,
      "name": "Westgate",
      "kind": "suburb",
-     "baseline_population": 20375,
-     "adjacent": []
+     "baseline_population": 20251,
+     "adjacent": [
+      194,
+      198,
+      200
+     ]
     },
     {
      "id": 200,
      "name": "Hillwood",
      "kind": "rural",
-     "baseline_population": 7714,
-     "adjacent": []
+     "baseline_population": 7721,
+     "adjacent": [
+      194,
+      199,
+      201
+     ]
     },
     {
      "id": 201,
      "name": "Orchardwood",
      "kind": "suburb",
-     "baseline_population": 24713,
-     "adjacent": []
+     "baseline_population": 24327,
+     "adjacent": [
+      195,
+      200
+     ]
     }
    ],
    "places": [
@@ -2623,32 +3024,67 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 1354
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 2321
+    },
+    {
      "sector": "sector.manufacturing",
-     "driver": "",
-     "jobs": 12633
+     "driver": "industrial",
+     "jobs": 12159
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 1141
+    },
+    {
+     "sector": "sector.retail",
+     "driver": "local_services",
+     "jobs": 15305
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 4421
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 8704
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 15866
     }
    ],
    "river": null,
    "creeks": [],
    "coast": {
     "sea": 0,
-    "shore": "rocky",
+    "shore": "beach",
     "bay": true
    },
    "lake": null,
    "relief": {
-    "ruggedness_pm": 590,
-    "uphill": 6,
-    "high_ground": 6,
-    "relief_m": 71
+    "ruggedness_pm": 308,
+    "uphill": 7,
+    "high_ground": 7,
+    "relief_m": 77
    },
    "woods": {
-    "share_pm": 81,
-    "bearing": 6
+    "share_pm": 141,
+    "bearing": 2
    },
    "minerals": {
     "value_pm": 687,
-    "bearing": 8
+    "bearing": 4
    },
    "resources_pm": {
     "fertility": 111,
@@ -2669,8 +3105,8 @@
     {
      "mode": "rail",
      "bearing": 5,
-     "to": 18,
-     "to_name": "Dunwick",
+     "to": 2,
+     "to_name": "Pelliford",
      "foreign": false
     },
     {
@@ -2681,17 +3117,17 @@
      "foreign": false
     },
     {
-     "mode": "rail",
-     "bearing": 12,
-     "to": 0,
-     "to_name": "Quarrenmoor",
-     "foreign": false
-    },
-    {
      "mode": "road",
      "bearing": 12,
      "to": 7,
      "to_name": "Thornaport",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 12,
+     "to": 0,
+     "to_name": "Quarrenmoor",
      "foreign": false
     }
    ],
@@ -2713,40 +3149,40 @@
    "era": null
   },
   "state": {
-   "vacancy": 0.08,
-   "unemployment": 0.06,
+   "vacancy": 0.07,
+   "unemployment": 0.07,
    "hoods": [
     {
      "id": 194,
-     "population": 28956
+     "population": 28800
     },
     {
      "id": 195,
-     "population": 14969
+     "population": 14900
     },
     {
      "id": 196,
-     "population": 11291
+     "population": 11300
     },
     {
      "id": 197,
-     "population": 7126
+     "population": 7100
     },
     {
      "id": 198,
-     "population": 25227
+     "population": 25100
     },
     {
      "id": 199,
-     "population": 20375
+     "population": 20300
     },
     {
      "id": 200,
-     "population": 7714
+     "population": 7700
     },
     {
      "id": 201,
-     "population": 24713
+     "population": 24300
     }
    ]
   }
@@ -2884,7 +3320,7 @@
      "neighborhood": 187
     }
    ],
-   "home": 185,
+   "home": 188,
    "location": {
     "type": "home"
    }
@@ -2895,63 +3331,97 @@
    "class": "town",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 134693,
+   "baseline_population": 134320,
    "neighborhoods": [
     {
      "id": 184,
      "name": "Garbridge",
      "kind": "core",
-     "baseline_population": 20718,
-     "adjacent": []
+     "baseline_population": 20641,
+     "adjacent": [
+      185,
+      186,
+      187,
+      188,
+      189,
+      190
+     ]
     },
     {
      "id": 185,
      "name": "Abbeyheath",
      "kind": "industrial",
-     "baseline_population": 9726,
-     "adjacent": []
+     "baseline_population": 9680,
+     "adjacent": [
+      184,
+      186,
+      191
+     ]
     },
     {
      "id": 186,
      "name": "Marketheath",
      "kind": "suburb",
-     "baseline_population": 16499,
-     "adjacent": []
+     "baseline_population": 16470,
+     "adjacent": [
+      184,
+      185,
+      187
+     ]
     },
     {
      "id": 187,
      "name": "Foundrygate",
      "kind": "rural",
-     "baseline_population": 9935,
-     "adjacent": []
+     "baseline_population": 9894,
+     "adjacent": [
+      184,
+      186,
+      188
+     ]
     },
     {
      "id": 188,
      "name": "Hilltown",
      "kind": "suburb",
-     "baseline_population": 22668,
-     "adjacent": []
+     "baseline_population": 22612,
+     "adjacent": [
+      184,
+      187,
+      189
+     ]
     },
     {
      "id": 189,
      "name": "Bridgewood",
      "kind": "suburb",
-     "baseline_population": 16146,
-     "adjacent": []
+     "baseline_population": 16144,
+     "adjacent": [
+      184,
+      188,
+      190
+     ]
     },
     {
      "id": 190,
      "name": "Orchardlands",
      "kind": "rural",
-     "baseline_population": 10562,
-     "adjacent": []
+     "baseline_population": 10519,
+     "adjacent": [
+      184,
+      189,
+      191
+     ]
     },
     {
      "id": 191,
      "name": "Wharfheath",
      "kind": "suburb",
-     "baseline_population": 28439,
-     "adjacent": []
+     "baseline_population": 28360,
+     "adjacent": [
+      185,
+      190
+     ]
     }
    ],
    "places": [
@@ -3042,38 +3512,68 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 2761
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 1898
+    },
+    {
      "sector": "sector.manufacturing",
-     "driver": "",
-     "jobs": 12122
+     "driver": "industrial",
+     "jobs": 11995
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 1115
+    },
+    {
+     "sector": "sector.retail",
+     "driver": "local_services",
+     "jobs": 14259
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 1498
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 8308
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 15361
     }
    ],
    "river": {
     "class": 3,
-    "enters": 2,
+    "enters": 0,
     "leaves": 10,
     "through_centre": true
    },
-   "creeks": [
-    {
-     "enters": 1,
-     "joins_river": true
-    }
-   ],
+   "creeks": [],
    "coast": null,
    "lake": null,
    "relief": {
-    "ruggedness_pm": 916,
-    "uphill": 14,
+    "ruggedness_pm": 692,
+    "uphill": 1,
     "high_ground": 14,
-    "relief_m": 110
+    "relief_m": 173
    },
    "woods": {
-    "share_pm": 16,
-    "bearing": 14
+    "share_pm": 0,
+    "bearing": 255
    },
    "minerals": {
     "value_pm": 546,
-    "bearing": 0
+    "bearing": 5
    },
    "resources_pm": {
     "fertility": 248,
@@ -3126,45 +3626,45 @@
     "biome": "steppe",
     "snow": false
    },
-   "wind_from": 12,
+   "wind_from": 4,
    "elevation_m": 487,
    "era": null
   },
   "state": {
-   "vacancy": 0.1,
+   "vacancy": 0.09,
    "unemployment": 0.08,
    "hoods": [
     {
      "id": 184,
-     "population": 20718
+     "population": 20600
     },
     {
      "id": 185,
-     "population": 9726
+     "population": 9700
     },
     {
      "id": 186,
-     "population": 16499
+     "population": 16500
     },
     {
      "id": 187,
-     "population": 9935
+     "population": 9900
     },
     {
      "id": 188,
-     "population": 22668
+     "population": 22600
     },
     {
      "id": 189,
-     "population": 16146
+     "population": 16100
     },
     {
      "id": 190,
-     "population": 10562
+     "population": 10500
     },
     {
      "id": 191,
-     "population": 28439
+     "population": 28400
     }
    ]
   }
@@ -3420,161 +3920,237 @@
    "class": "metro",
    "regional_capital": true,
    "national_capital": true,
-   "baseline_population": 3335453,
+   "baseline_population": 3353616,
    "neighborhoods": [
     {
      "id": 0,
      "name": "Belstead",
      "kind": "core",
-     "baseline_population": 139167,
-     "adjacent": []
+     "baseline_population": 140062,
+     "adjacent": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+     ]
     },
     {
      "id": 1,
      "name": "Castleend",
      "kind": "waterfront",
-     "baseline_population": 116601,
-     "adjacent": []
+     "baseline_population": 117230,
+     "adjacent": [
+      0,
+      2,
+      21
+     ]
     },
     {
      "id": 2,
      "name": "Market Quarter",
      "kind": "industrial",
-     "baseline_population": 93406,
-     "adjacent": []
+     "baseline_population": 93910,
+     "adjacent": [
+      0,
+      1,
+      3
+     ]
     },
     {
      "id": 3,
      "name": "Parktown",
      "kind": "inner",
-     "baseline_population": 159817,
-     "adjacent": []
+     "baseline_population": 160786,
+     "adjacent": [
+      0,
+      2,
+      4
+     ]
     },
     {
      "id": 4,
      "name": "Church Cross",
      "kind": "inner",
-     "baseline_population": 165242,
-     "adjacent": []
+     "baseline_population": 166257,
+     "adjacent": [
+      0,
+      3,
+      5
+     ]
     },
     {
      "id": 5,
      "name": "Upperfield",
      "kind": "inner",
-     "baseline_population": 227539,
-     "adjacent": []
+     "baseline_population": 228908,
+     "adjacent": [
+      0,
+      4,
+      6
+     ]
     },
     {
      "id": 6,
      "name": "Wharfheath",
      "kind": "inner",
-     "baseline_population": 193414,
-     "adjacent": []
+     "baseline_population": 194559,
+     "adjacent": [
+      0,
+      5,
+      7
+     ]
     },
     {
      "id": 7,
      "name": "Marketvale",
      "kind": "inner",
-     "baseline_population": 199466,
-     "adjacent": []
+     "baseline_population": 200618,
+     "adjacent": [
+      6,
+      8
+     ]
     },
     {
      "id": 8,
      "name": "Wharfside",
      "kind": "inner",
-     "baseline_population": 229556,
-     "adjacent": []
+     "baseline_population": 230983,
+     "adjacent": [
+      7,
+      9
+     ]
     },
     {
      "id": 9,
      "name": "Stationfield",
      "kind": "inner",
-     "baseline_population": 132998,
-     "adjacent": []
+     "baseline_population": 133801,
+     "adjacent": [
+      8,
+      10
+     ]
     },
     {
      "id": 10,
      "name": "Marketside",
      "kind": "inner",
-     "baseline_population": 209504,
-     "adjacent": []
+     "baseline_population": 210765,
+     "adjacent": [
+      9,
+      11
+     ]
     },
     {
      "id": 11,
      "name": "Millvale",
      "kind": "suburb",
-     "baseline_population": 107912,
-     "adjacent": []
+     "baseline_population": 108429,
+     "adjacent": [
+      10,
+      12
+     ]
     },
     {
      "id": 12,
      "name": "Lowerfield",
      "kind": "suburb",
-     "baseline_population": 180565,
-     "adjacent": []
+     "baseline_population": 181428,
+     "adjacent": [
+      11,
+      13
+     ]
     },
     {
      "id": 13,
      "name": "Marketend",
      "kind": "suburb",
-     "baseline_population": 178973,
-     "adjacent": []
+     "baseline_population": 179801,
+     "adjacent": [
+      12,
+      14
+     ]
     },
     {
      "id": 14,
      "name": "Quarryheath",
      "kind": "suburb",
-     "baseline_population": 114715,
-     "adjacent": []
+     "baseline_population": 115259,
+     "adjacent": [
+      13,
+      15
+     ]
     },
     {
      "id": 15,
      "name": "Cross Quarter",
      "kind": "suburb",
-     "baseline_population": 134653,
-     "adjacent": []
+     "baseline_population": 135334,
+     "adjacent": [
+      14,
+      16
+     ]
     },
     {
      "id": 16,
      "name": "Westlands",
      "kind": "suburb",
-     "baseline_population": 117856,
-     "adjacent": []
+     "baseline_population": 118422,
+     "adjacent": [
+      15,
+      17
+     ]
     },
     {
      "id": 17,
      "name": "Castle Green",
      "kind": "suburb",
-     "baseline_population": 171631,
-     "adjacent": []
+     "baseline_population": 172487,
+     "adjacent": [
+      16,
+      18
+     ]
     },
     {
      "id": 18,
      "name": "Wharffield",
      "kind": "suburb",
-     "baseline_population": 119853,
-     "adjacent": []
+     "baseline_population": 120429,
+     "adjacent": [
+      17,
+      19
+     ]
     },
     {
      "id": 19,
      "name": "East Hill",
      "kind": "suburb",
-     "baseline_population": 113717,
-     "adjacent": []
+     "baseline_population": 114280,
+     "adjacent": [
+      18,
+      20
+     ]
     },
     {
      "id": 20,
      "name": "Southtown",
      "kind": "suburb",
-     "baseline_population": 105187,
-     "adjacent": []
+     "baseline_population": 105645,
+     "adjacent": [
+      19,
+      21
+     ]
     },
     {
      "id": 21,
      "name": "Quarrylands",
      "kind": "suburb",
-     "baseline_population": 123681,
-     "adjacent": []
+     "baseline_population": 124223,
+     "adjacent": [
+      1,
+      20
+     ]
     }
    ],
    "places": [
@@ -3699,11 +4275,52 @@
      "neighborhood": 3
     }
    ],
-   "baseline_sectors": [],
+   "baseline_sectors": [
+    {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 4284
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 4662
+    },
+    {
+     "sector": "sector.manufacturing",
+     "driver": "industrial",
+     "jobs": 191966
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 19312
+    },
+    {
+     "sector": "sector.retail",
+     "driver": "local_services",
+     "jobs": 281632
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 43207
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 527369
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 459454
+    }
+   ],
    "river": {
     "class": 2,
-    "enters": 7,
-    "leaves": 15,
+    "enters": 6,
+    "leaves": 14,
     "through_centre": true
    },
    "creeks": [
@@ -3719,18 +4336,18 @@
    },
    "lake": null,
    "relief": {
-    "ruggedness_pm": 132,
-    "uphill": 6,
-    "high_ground": 6,
-    "relief_m": 16
+    "ruggedness_pm": 60,
+    "uphill": 4,
+    "high_ground": 2,
+    "relief_m": 15
    },
    "woods": {
-    "share_pm": 12,
-    "bearing": 6
+    "share_pm": 89,
+    "bearing": 12
    },
    "minerals": {
     "value_pm": 365,
-    "bearing": 8
+    "bearing": 2
    },
    "resources_pm": {
     "fertility": 323,
@@ -3749,13 +4366,6 @@
      "foreign": false
     },
     {
-     "mode": "rail",
-     "bearing": 3,
-     "to": 40,
-     "to_name": "Brinoton",
-     "foreign": false
-    },
-    {
      "mode": "road",
      "bearing": 3,
      "to": 47,
@@ -3764,9 +4374,9 @@
     },
     {
      "mode": "rail",
-     "bearing": 6,
-     "to": 11,
-     "to_name": "Kesimoor",
+     "bearing": 3,
+     "to": 17,
+     "to_name": "Wexmoor",
      "foreign": false
     },
     {
@@ -3778,9 +4388,9 @@
     },
     {
      "mode": "rail",
-     "bearing": 10,
-     "to": 29,
-     "to_name": "Hollinby",
+     "bearing": 6,
+     "to": 1,
+     "to_name": "Fenaby",
      "foreign": false
     },
     {
@@ -3788,6 +4398,13 @@
      "bearing": 10,
      "to": 29,
      "to_name": "Hollinby",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 10,
+     "to": 9,
+     "to_name": "Larkafield",
      "foreign": false
     }
    ],
@@ -3804,101 +4421,101 @@
     "biome": "steppe",
     "snow": false
    },
-   "wind_from": 12,
+   "wind_from": 4,
    "elevation_m": 37,
    "era": null
   },
   "state": {
-   "vacancy": 0.049962590143786234,
-   "unemployment": 0.054305740650400836,
+   "vacancy": 0.05,
+   "unemployment": 0.05,
    "hoods": [
     {
      "id": 0,
-     "population": 139167
+     "population": 140100
     },
     {
      "id": 1,
-     "population": 116601
+     "population": 117200
     },
     {
      "id": 2,
-     "population": 93406
+     "population": 93900
     },
     {
      "id": 3,
-     "population": 159817
+     "population": 160800
     },
     {
      "id": 4,
-     "population": 165242
+     "population": 166300
     },
     {
      "id": 5,
-     "population": 227539
+     "population": 228900
     },
     {
      "id": 6,
-     "population": 193414
+     "population": 194600
     },
     {
      "id": 7,
-     "population": 199466
+     "population": 200600
     },
     {
      "id": 8,
-     "population": 229556
+     "population": 231000
     },
     {
      "id": 9,
-     "population": 132998
+     "population": 133800
     },
     {
      "id": 10,
-     "population": 209504
+     "population": 210800
     },
     {
      "id": 11,
-     "population": 107912
+     "population": 108400
     },
     {
      "id": 12,
-     "population": 180565
+     "population": 181400
     },
     {
      "id": 13,
-     "population": 178973
+     "population": 179800
     },
     {
      "id": 14,
-     "population": 114715
+     "population": 115300
     },
     {
      "id": 15,
-     "population": 134653
+     "population": 135300
     },
     {
      "id": 16,
-     "population": 117856
+     "population": 118400
     },
     {
      "id": 17,
-     "population": 171631
+     "population": 172500
     },
     {
      "id": 18,
-     "population": 119853
+     "population": 120400
     },
     {
      "id": 19,
-     "population": 113717
+     "population": 114300
     },
     {
      "id": 20,
-     "population": 105187
+     "population": 105600
     },
     {
      "id": 21,
-     "population": 123681
+     "population": 124200
     }
    ]
   }
@@ -4024,56 +4641,87 @@
    "class": "town",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 135744,
+   "baseline_population": 137422,
    "neighborhoods": [
     {
      "id": 184,
      "name": "Strathport",
      "kind": "core",
-     "baseline_population": 19082,
-     "adjacent": []
+     "baseline_population": 19305,
+     "adjacent": [
+      185,
+      186,
+      187,
+      188,
+      189,
+      190
+     ]
     },
     {
      "id": 185,
      "name": "Churchheath",
      "kind": "suburb",
-     "baseline_population": 28541,
-     "adjacent": []
+     "baseline_population": 28894,
+     "adjacent": [
+      184,
+      186,
+      190
+     ]
     },
     {
      "id": 186,
      "name": "Park Cross",
      "kind": "suburb",
-     "baseline_population": 20487,
-     "adjacent": []
+     "baseline_population": 20725,
+     "adjacent": [
+      184,
+      185,
+      187
+     ]
     },
     {
      "id": 187,
      "name": "Market Quarter",
      "kind": "rural",
-     "baseline_population": 10600,
-     "adjacent": []
+     "baseline_population": 10791,
+     "adjacent": [
+      184,
+      186,
+      188
+     ]
     },
     {
      "id": 188,
      "name": "Churchgate",
      "kind": "suburb",
-     "baseline_population": 20234,
-     "adjacent": []
+     "baseline_population": 20412,
+     "adjacent": [
+      184,
+      187,
+      189
+     ]
     },
     {
      "id": 189,
      "name": "Upperrow",
      "kind": "suburb",
-     "baseline_population": 23082,
-     "adjacent": []
+     "baseline_population": 23385,
+     "adjacent": [
+      184,
+      188,
+      190
+     ]
     },
     {
      "id": 190,
      "name": "Kingstown",
      "kind": "rural",
-     "baseline_population": 13718,
-     "adjacent": []
+     "baseline_population": 13910,
+     "adjacent": [
+      184,
+      185,
+      189
+     ]
     }
    ],
    "places": [
@@ -4146,15 +4794,50 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 1959
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 1242
+    },
+    {
+     "sector": "sector.manufacturing",
+     "driver": "industrial",
+     "jobs": 3999
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 1524
+    },
+    {
      "sector": "sector.retail",
-     "driver": "",
-     "jobs": 21380
+     "driver": "local_services",
+     "jobs": 22434
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 1850
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 8234
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 25365
     }
    ],
    "river": {
     "class": 2,
-    "enters": 0,
-    "leaves": 8,
+    "enters": 6,
+    "leaves": 14,
     "through_centre": true
    },
    "creeks": [],
@@ -4164,18 +4847,18 @@
     "near": true
    },
    "relief": {
-    "ruggedness_pm": 639,
-    "uphill": 6,
-    "high_ground": 6,
-    "relief_m": 77
+    "ruggedness_pm": 112,
+    "uphill": 1,
+    "high_ground": 2,
+    "relief_m": 28
    },
    "woods": {
-    "share_pm": 96,
-    "bearing": 6
+    "share_pm": 212,
+    "bearing": 15
    },
    "minerals": {
     "value_pm": 263,
-    "bearing": 8
+    "bearing": 9
    },
    "resources_pm": {
     "fertility": 129,
@@ -4227,35 +4910,35 @@
   },
   "state": {
    "vacancy": 0.04,
-   "unemployment": 0.04,
+   "unemployment": 0.03,
    "hoods": [
     {
      "id": 184,
-     "population": 19082
+     "population": 19300
     },
     {
      "id": 185,
-     "population": 28541
+     "population": 28900
     },
     {
      "id": 186,
-     "population": 20487
+     "population": 20700
     },
     {
      "id": 187,
-     "population": 10600
+     "population": 10800
     },
     {
      "id": 188,
-     "population": 20234
+     "population": 20400
     },
     {
      "id": 189,
-     "population": 23082
+     "population": 23400
     },
     {
      "id": 190,
-     "population": 13718
+     "population": 13900
     }
    ]
   }
@@ -4404,63 +5087,97 @@
    "class": "town",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 144581,
+   "baseline_population": 149598,
    "neighborhoods": [
     {
      "id": 187,
      "name": "Halomouth",
      "kind": "core",
-     "baseline_population": 26555,
-     "adjacent": []
+     "baseline_population": 27551,
+     "adjacent": [
+      188,
+      189,
+      190,
+      191,
+      192,
+      193
+     ]
     },
     {
      "id": 188,
      "name": "Kings Cross",
      "kind": "industrial",
-     "baseline_population": 11674,
-     "adjacent": []
+     "baseline_population": 12087,
+     "adjacent": [
+      187,
+      189,
+      194
+     ]
     },
     {
      "id": 189,
      "name": "Millwood",
      "kind": "suburb",
-     "baseline_population": 15741,
-     "adjacent": []
+     "baseline_population": 16278,
+     "adjacent": [
+      187,
+      188,
+      190
+     ]
     },
     {
      "id": 190,
      "name": "Station Hill",
      "kind": "rural",
-     "baseline_population": 9024,
-     "adjacent": []
+     "baseline_population": 9334,
+     "adjacent": [
+      187,
+      189,
+      191
+     ]
     },
     {
      "id": 191,
      "name": "Wharfend",
      "kind": "suburb",
-     "baseline_population": 23622,
-     "adjacent": []
+     "baseline_population": 24417,
+     "adjacent": [
+      187,
+      190,
+      192
+     ]
     },
     {
      "id": 192,
      "name": "Harbourvale",
      "kind": "suburb",
-     "baseline_population": 20497,
-     "adjacent": []
+     "baseline_population": 21252,
+     "adjacent": [
+      187,
+      191,
+      193
+     ]
     },
     {
      "id": 193,
      "name": "Northside",
      "kind": "rural",
-     "baseline_population": 8238,
-     "adjacent": []
+     "baseline_population": 8617,
+     "adjacent": [
+      187,
+      192,
+      194
+     ]
     },
     {
      "id": 194,
      "name": "Abbey Quarter",
      "kind": "suburb",
-     "baseline_population": 29230,
-     "adjacent": []
+     "baseline_population": 30062,
+     "adjacent": [
+      188,
+      193
+     ]
     }
    ],
    "places": [
@@ -4551,33 +5268,68 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 3878
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 1787
+    },
+    {
      "sector": "sector.manufacturing",
-     "driver": "",
-     "jobs": 13012
+     "driver": "industrial",
+     "jobs": 11911
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 1303
+    },
+    {
+     "sector": "sector.retail",
+     "driver": "local_services",
+     "jobs": 18574
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 1188
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 7826
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 20079
     }
    ],
    "river": {
     "class": 2,
-    "enters": 2,
-    "leaves": 10,
+    "enters": 9,
+    "leaves": 2,
     "through_centre": true
    },
    "creeks": [],
    "coast": null,
    "lake": null,
    "relief": {
-    "ruggedness_pm": 214,
-    "uphill": 6,
-    "high_ground": 6,
-    "relief_m": 26
+    "ruggedness_pm": 372,
+    "uphill": 11,
+    "high_ground": 12,
+    "relief_m": 93
    },
    "woods": {
-    "share_pm": 161,
-    "bearing": 6
+    "share_pm": 68,
+    "bearing": 14
    },
    "minerals": {
     "value_pm": 505,
-    "bearing": 8
+    "bearing": 7
    },
    "resources_pm": {
     "fertility": 430,
@@ -4642,40 +5394,40 @@
    "era": null
   },
   "state": {
-   "vacancy": 0.09,
-   "unemployment": 0.09,
+   "vacancy": 0.07,
+   "unemployment": 0.07,
    "hoods": [
     {
      "id": 187,
-     "population": 26555
+     "population": 27600
     },
     {
      "id": 188,
-     "population": 11674
+     "population": 12100
     },
     {
      "id": 189,
-     "population": 15741
+     "population": 16300
     },
     {
      "id": 190,
-     "population": 9024
+     "population": 9300
     },
     {
      "id": 191,
-     "population": 23622
+     "population": 24400
     },
     {
      "id": 192,
-     "population": 20497
+     "population": 21300
     },
     {
      "id": 193,
-     "population": 8238
+     "population": 8600
     },
     {
      "id": 194,
-     "population": 29230
+     "population": 30100
     }
    ]
   }
@@ -4808,7 +5560,7 @@
      "neighborhood": 175
     }
    ],
-   "home": 173,
+   "home": 178,
    "location": {
     "type": "home"
    }
@@ -4819,56 +5571,87 @@
    "class": "town",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 137041,
+   "baseline_population": 136108,
    "neighborhoods": [
     {
      "id": 172,
      "name": "Garenmoor",
      "kind": "core",
-     "baseline_population": 25340,
-     "adjacent": []
+     "baseline_population": 25121,
+     "adjacent": [
+      173,
+      174,
+      175,
+      176,
+      177,
+      178
+     ]
     },
     {
      "id": 173,
      "name": "Quarrygate",
      "kind": "industrial",
-     "baseline_population": 11037,
-     "adjacent": []
+     "baseline_population": 10963,
+     "adjacent": [
+      172,
+      174,
+      178
+     ]
     },
     {
      "id": 174,
      "name": "Northlands",
      "kind": "suburb",
-     "baseline_population": 24626,
-     "adjacent": []
+     "baseline_population": 24439,
+     "adjacent": [
+      172,
+      173,
+      175
+     ]
     },
     {
      "id": 175,
      "name": "Abbeyvale",
      "kind": "rural",
-     "baseline_population": 11017,
-     "adjacent": []
+     "baseline_population": 10929,
+     "adjacent": [
+      172,
+      174,
+      176
+     ]
     },
     {
      "id": 176,
      "name": "Queenswood",
      "kind": "suburb",
-     "baseline_population": 26194,
-     "adjacent": []
+     "baseline_population": 25989,
+     "adjacent": [
+      172,
+      175,
+      177
+     ]
     },
     {
      "id": 177,
      "name": "Upper Green",
      "kind": "suburb",
-     "baseline_population": 23917,
-     "adjacent": []
+     "baseline_population": 23793,
+     "adjacent": [
+      172,
+      176,
+      178
+     ]
     },
     {
      "id": 178,
      "name": "Orchard Green",
      "kind": "rural",
-     "baseline_population": 14910,
-     "adjacent": []
+     "baseline_population": 14874,
+     "adjacent": [
+      172,
+      173,
+      177
+     ]
     }
    ],
    "places": [
@@ -4959,15 +5742,50 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 2515
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 1858
+    },
+    {
+     "sector": "sector.manufacturing",
+     "driver": "industrial",
+     "jobs": 10108
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 1282
+    },
+    {
      "sector": "sector.retail",
-     "driver": "",
-     "jobs": 18501
+     "driver": "local_services",
+     "jobs": 18926
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 1954
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 6715
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 20660
     }
    ],
    "river": {
     "class": 2,
-    "enters": 4,
-    "leaves": 12,
+    "enters": 2,
+    "leaves": 10,
     "through_centre": true
    },
    "creeks": [],
@@ -4977,18 +5795,18 @@
     "near": true
    },
    "relief": {
-    "ruggedness_pm": 680,
+    "ruggedness_pm": 360,
     "uphill": 6,
-    "high_ground": 6,
-    "relief_m": 82
+    "high_ground": 4,
+    "relief_m": 90
    },
    "woods": {
-    "share_pm": 143,
-    "bearing": 6
+    "share_pm": 161,
+    "bearing": 4
    },
    "minerals": {
     "value_pm": 537,
-    "bearing": 8
+    "bearing": 11
    },
    "resources_pm": {
     "fertility": 268,
@@ -5046,36 +5864,36 @@
    "era": null
   },
   "state": {
-   "vacancy": 0.05,
-   "unemployment": 0.06,
+   "vacancy": 0.03,
+   "unemployment": 0.03,
    "hoods": [
     {
      "id": 172,
-     "population": 25340
+     "population": 25100
     },
     {
      "id": 173,
-     "population": 11037
+     "population": 11000
     },
     {
      "id": 174,
-     "population": 24626
+     "population": 24400
     },
     {
      "id": 175,
-     "population": 11017
+     "population": 10900
     },
     {
      "id": 176,
-     "population": 26194
+     "population": 26000
     },
     {
      "id": 177,
-     "population": 23917
+     "population": 23800
     },
     {
      "id": 178,
-     "population": 14910
+     "population": 14900
     }
    ]
   }
@@ -5224,63 +6042,97 @@
    "class": "town",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 148464,
+   "baseline_population": 148793,
    "neighborhoods": [
     {
      "id": 184,
      "name": "Hollinigate",
      "kind": "core",
-     "baseline_population": 25046,
-     "adjacent": []
+     "baseline_population": 25115,
+     "adjacent": [
+      185,
+      186,
+      187,
+      188,
+      189,
+      190
+     ]
     },
     {
      "id": 185,
      "name": "Abbeytown",
      "kind": "industrial",
-     "baseline_population": 12175,
-     "adjacent": []
+     "baseline_population": 12193,
+     "adjacent": [
+      184,
+      186,
+      191
+     ]
     },
     {
      "id": 186,
      "name": "Eastlands",
      "kind": "suburb",
-     "baseline_population": 22764,
-     "adjacent": []
+     "baseline_population": 22827,
+     "adjacent": [
+      184,
+      185,
+      187
+     ]
     },
     {
      "id": 187,
      "name": "Crosslands",
      "kind": "rural",
-     "baseline_population": 7460,
-     "adjacent": []
+     "baseline_population": 7478,
+     "adjacent": [
+      184,
+      186,
+      188
+     ]
     },
     {
      "id": 188,
      "name": "Lowerwood",
      "kind": "suburb",
-     "baseline_population": 18169,
-     "adjacent": []
+     "baseline_population": 18220,
+     "adjacent": [
+      184,
+      187,
+      189
+     ]
     },
     {
      "id": 189,
      "name": "Orchardheath",
      "kind": "suburb",
-     "baseline_population": 24946,
-     "adjacent": []
+     "baseline_population": 24981,
+     "adjacent": [
+      184,
+      188,
+      190
+     ]
     },
     {
      "id": 190,
      "name": "Millvale",
      "kind": "rural",
-     "baseline_population": 10552,
-     "adjacent": []
+     "baseline_population": 10563,
+     "adjacent": [
+      184,
+      189,
+      191
+     ]
     },
     {
      "id": 191,
      "name": "Newvale",
      "kind": "suburb",
-     "baseline_population": 27352,
-     "adjacent": []
+     "baseline_population": 27416,
+     "adjacent": [
+      185,
+      190
+     ]
     }
    ],
    "places": [
@@ -5371,15 +6223,50 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 2632
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 2033
+    },
+    {
+     "sector": "sector.manufacturing",
+     "driver": "industrial",
+     "jobs": 11823
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 3288
+    },
+    {
      "sector": "sector.retail",
-     "driver": "",
-     "jobs": 20043
+     "driver": "local_services",
+     "jobs": 19453
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 2703
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 7645
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 19794
     }
    ],
    "river": {
     "class": 3,
     "enters": 2,
-    "leaves": 10,
+    "leaves": 12,
     "through_centre": true
    },
    "creeks": [],
@@ -5389,18 +6276,18 @@
     "near": true
    },
    "relief": {
-    "ruggedness_pm": 807,
-    "uphill": 6,
-    "high_ground": 6,
-    "relief_m": 97
+    "ruggedness_pm": 260,
+    "uphill": 3,
+    "high_ground": 5,
+    "relief_m": 65
    },
    "woods": {
-    "share_pm": 36,
-    "bearing": 6
+    "share_pm": 127,
+    "bearing": 14
    },
    "minerals": {
     "value_pm": 574,
-    "bearing": 8
+    "bearing": 10
    },
    "resources_pm": {
     "fertility": 243,
@@ -5465,40 +6352,40 @@
    "era": null
   },
   "state": {
-   "vacancy": 0.07,
+   "vacancy": 0.06,
    "unemployment": 0.04,
    "hoods": [
     {
      "id": 184,
-     "population": 25046
+     "population": 25100
     },
     {
      "id": 185,
-     "population": 12175
+     "population": 12200
     },
     {
      "id": 186,
-     "population": 22764
+     "population": 22800
     },
     {
      "id": 187,
-     "population": 7460
+     "population": 7500
     },
     {
      "id": 188,
-     "population": 18169
+     "population": 18200
     },
     {
      "id": 189,
-     "population": 24946
+     "population": 25000
     },
     {
      "id": 190,
-     "population": 10552
+     "population": 10600
     },
     {
      "id": 191,
-     "population": 27352
+     "population": 27400
     }
    ]
   }
@@ -5648,7 +6535,7 @@
      "neighborhood": 181
     }
    ],
-   "home": 179,
+   "home": 183,
    "location": {
     "type": "home"
    }
@@ -5659,63 +6546,97 @@
    "class": "town",
    "regional_capital": false,
    "national_capital": false,
-   "baseline_population": 136023,
+   "baseline_population": 137862,
    "neighborhoods": [
     {
      "id": 177,
      "name": "Belton",
      "kind": "core",
-     "baseline_population": 18927,
-     "adjacent": []
+     "baseline_population": 19221,
+     "adjacent": [
+      178,
+      179,
+      180,
+      181,
+      182,
+      183
+     ]
     },
     {
      "id": 178,
      "name": "Northwood",
      "kind": "waterfront",
-     "baseline_population": 12847,
-     "adjacent": []
+     "baseline_population": 13013,
+     "adjacent": [
+      177,
+      179,
+      184
+     ]
     },
     {
      "id": 179,
      "name": "Quarryend",
      "kind": "industrial",
-     "baseline_population": 10481,
-     "adjacent": []
+     "baseline_population": 10623,
+     "adjacent": [
+      177,
+      178,
+      180
+     ]
     },
     {
      "id": 180,
      "name": "Mill Green",
      "kind": "rural",
-     "baseline_population": 10115,
-     "adjacent": []
+     "baseline_population": 10271,
+     "adjacent": [
+      177,
+      179,
+      181
+     ]
     },
     {
      "id": 181,
      "name": "Abbey Hill",
      "kind": "suburb",
-     "baseline_population": 23963,
-     "adjacent": []
+     "baseline_population": 24242,
+     "adjacent": [
+      177,
+      180,
+      182
+     ]
     },
     {
      "id": 182,
      "name": "Churchend",
      "kind": "suburb",
-     "baseline_population": 17713,
-     "adjacent": []
+     "baseline_population": 17943,
+     "adjacent": [
+      177,
+      181,
+      183
+     ]
     },
     {
      "id": 183,
      "name": "Castlegate",
      "kind": "rural",
-     "baseline_population": 13136,
-     "adjacent": []
+     "baseline_population": 13313,
+     "adjacent": [
+      177,
+      182,
+      184
+     ]
     },
     {
      "id": 184,
      "name": "Southside",
      "kind": "suburb",
-     "baseline_population": 28841,
-     "adjacent": []
+     "baseline_population": 29236,
+     "adjacent": [
+      178,
+      183
+     ]
     }
    ],
    "places": [
@@ -5818,15 +6739,50 @@
    ],
    "baseline_sectors": [
     {
+     "sector": "sector.agriculture",
+     "driver": "land_based",
+     "jobs": 3539
+    },
+    {
+     "sector": "sector.resources",
+     "driver": "extraction",
+     "jobs": 2705
+    },
+    {
      "sector": "sector.manufacturing",
-     "driver": "",
-     "jobs": 12242
+     "driver": "industrial",
+     "jobs": 12125
+    },
+    {
+     "sector": "sector.construction",
+     "driver": "building",
+     "jobs": 2797
+    },
+    {
+     "sector": "sector.retail",
+     "driver": "local_services",
+     "jobs": 13634
+    },
+    {
+     "sector": "sector.tourism",
+     "driver": "visitor",
+     "jobs": 2768
+    },
+    {
+     "sector": "sector.knowledge",
+     "driver": "knowledge",
+     "jobs": 8203
+    },
+    {
+     "sector": "sector.public",
+     "driver": "public",
+     "jobs": 14349
     }
    ],
    "river": {
     "class": 1,
-    "enters": 2,
-    "leaves": 10,
+    "enters": 1,
+    "leaves": 8,
     "through_centre": false
    },
    "creeks": [],
@@ -5837,18 +6793,18 @@
    },
    "lake": null,
    "relief": {
-    "ruggedness_pm": 253,
-    "uphill": 14,
-    "high_ground": 14,
-    "relief_m": 30
+    "ruggedness_pm": 136,
+    "uphill": 0,
+    "high_ground": 15,
+    "relief_m": 34
    },
    "woods": {
-    "share_pm": 966,
-    "bearing": 14
+    "share_pm": 581,
+    "bearing": 0
    },
    "minerals": {
     "value_pm": 548,
-    "bearing": 0
+    "bearing": 11
    },
    "resources_pm": {
     "fertility": 431,
@@ -5860,17 +6816,17 @@
    },
    "links": [
     {
-     "mode": "rail",
-     "bearing": 2,
-     "to": 11,
-     "to_name": "Belridge",
-     "foreign": false
-    },
-    {
      "mode": "road",
      "bearing": 2,
      "to": 43,
      "to_name": "Dunofield",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 2,
+     "to": 4,
+     "to_name": "Yariwick",
      "foreign": false
     },
     {
@@ -5906,40 +6862,40 @@
    "era": null
   },
   "state": {
-   "vacancy": 0.12,
-   "unemployment": 0.09,
+   "vacancy": 0.11,
+   "unemployment": 0.08,
    "hoods": [
     {
      "id": 177,
-     "population": 18927
+     "population": 19200
     },
     {
      "id": 178,
-     "population": 12847
+     "population": 13000
     },
     {
      "id": 179,
-     "population": 10481
+     "population": 10600
     },
     {
      "id": 180,
-     "population": 10115
+     "population": 10300
     },
     {
      "id": 181,
-     "population": 23963
+     "population": 24200
     },
     {
      "id": 182,
-     "population": 17713
+     "population": 17900
     },
     {
      "id": 183,
-     "population": 13136
+     "population": 13300
     },
     {
      "id": 184,
-     "population": 28841
+     "population": 29200
     }
    ]
   }

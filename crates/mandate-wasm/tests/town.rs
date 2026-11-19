@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 /// FNV-1a (32-bit) of the view's JSON, as the client test computes it from
 /// the WASM build's response.
-const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "00000000");
+const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "b532d081");
 
 fn fnv1a(s: &str) -> String {
     let mut h: u32 = 0x811c_9dc5;
@@ -147,13 +147,24 @@ fn geography_is_well_formed_for_every_town() {
         let ok = |b: u8| b < 16 || b == 255;
         assert!(ok(g.wind_from) && ok(g.relief.uphill) && ok(g.relief.high_ground));
         assert!(ok(g.woods.bearing) && ok(g.minerals.bearing));
-        assert!(g.patch.downstream.iter().all(|b| ok(*b) && (*b == 255 || b % 2 == 0)));
+        assert!(
+            g.patch
+                .downstream
+                .iter()
+                .all(|b| ok(*b) && (*b == 255 || b % 2 == 0))
+        );
         // Neighbourhoods are the town's, in its order, with baselines.
         let ids: Vec<u32> = mu.neighborhoods.iter().map(|h| h.0).collect();
-        assert_eq!(g.neighborhoods.iter().map(|h| h.id).collect::<Vec<_>>(), ids);
+        assert_eq!(
+            g.neighborhoods.iter().map(|h| h.id).collect::<Vec<_>>(),
+            ids
+        );
         assert_eq!(
             g.baseline_population,
-            g.neighborhoods.iter().map(|h| h.baseline_population).sum::<u32>()
+            g.neighborhoods
+                .iter()
+                .map(|h| h.baseline_population)
+                .sum::<u32>()
         );
         for h in &g.neighborhoods {
             assert!(h.adjacent.iter().all(|a| ids.contains(a) && *a != h.id));
@@ -163,8 +174,8 @@ fn geography_is_well_formed_for_every_town() {
             assert!((1..=3).contains(&r.class));
             assert!(r.enters < 16 && r.leaves < 16);
             assert!(
-                (r.enters as i32 - r.leaves as i32).rem_euclid(16) >= 4
-                    && (r.leaves as i32 - r.enters as i32).rem_euclid(16) >= 4,
+                (r.enters as i32 - r.leaves as i32).rem_euclid(16) >= 6
+                    && (r.leaves as i32 - r.enters as i32).rem_euclid(16) >= 6,
                 "a river crosses the town"
             );
         }
@@ -172,6 +183,10 @@ fn geography_is_well_formed_for_every_town() {
         if let Some(c) = &g.coast {
             coasts += 1;
             assert!(c.sea < 16);
+            if g.minerals.bearing != 255 {
+                let d = (i32::from(g.minerals.bearing) - i32::from(c.sea)).rem_euclid(16);
+                assert!((4..=12).contains(&d), "a seam is on land");
+            }
         }
         assert_eq!(g.coast.is_some() || mu.coastal, g.coast.is_some());
         // Every link of the town leaves it toward a real municipality.
@@ -200,11 +215,19 @@ fn town_state_is_rounded_except_at_the_town_hall() {
     let id = home_id(&s);
     let at_home = town_state(&mut s, id);
     assert!(!at_home.detailed);
-    assert!(at_home.sectors.is_empty(), "no jobs per sector away from the hall");
+    assert!(
+        at_home.sectors.is_empty(),
+        "no jobs per sector away from the hall"
+    );
     assert_eq!(at_home.population % 100, 0);
     assert_eq!(at_home.housing.stock % 100, 0);
     assert_eq!(at_home.housing.vacancy_pm % 10, 0);
-    assert!(at_home.neighborhoods.iter().all(|h| h.population % 100 == 0));
+    assert!(
+        at_home
+            .neighborhoods
+            .iter()
+            .all(|h| h.population % 100 == 0)
+    );
     assert!(
         at_home
             .places
@@ -237,7 +260,10 @@ fn town_state_is_rounded_except_at_the_town_hall() {
     let base = st.town_baseline(MunicipalityId(id)).unwrap();
     for (h, b) in precise.neighborhoods.iter().zip(&base.neighborhoods) {
         assert_eq!(h.id, b.id.0);
-        assert_eq!(u64::from(h.population), st.population.hood_total(b.id.index()));
+        assert_eq!(
+            u64::from(h.population),
+            st.population.hood_total(b.id.index())
+        );
     }
     // As play began, population and housing are at their baselines.
     assert!(
@@ -329,7 +355,11 @@ fn closed_places_are_kept_and_offer_nothing() {
     // A place added during the run takes the next id and shows as new.
     let hood = e.state().world.municipalities[id as usize].neighborhoods[0];
     let mut added = None;
-    e.setup(|st| added = st.world.open_place(PlaceKind::Clinic, hood, String::new(), today));
+    e.setup(|st| {
+        added = st
+            .world
+            .open_place(PlaceKind::Clinic, hood, String::new(), today)
+    });
     let added = added.unwrap();
     assert_eq!(added.index(), n_places);
     let v = town_state_view(&e, id).unwrap();

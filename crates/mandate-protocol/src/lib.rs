@@ -21,8 +21,8 @@ pub use media::*;
 pub use narrative::*;
 pub use office::*;
 pub use places::*;
-pub use town::*;
 use serde::{Deserialize, Serialize};
+pub use town::*;
 use ts_rs::TS;
 pub use views::*;
 

@@ -17,8 +17,7 @@
 use crate::DateView;
 use mandate_sim::Engine;
 use mandate_sim::world::{
-    Biome, COMPASS_NONE, Cover, LinkMode, MunicipalityId, PlaceStatus, SettlementClass,
-    TerrainData,
+    Biome, COMPASS_NONE, Cover, LinkMode, MunicipalityId, PlaceStatus, SettlementClass, TerrainData,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -512,9 +511,14 @@ fn river_summary(
             fallback_leaves
         };
     }
-    // A river crosses the town: it never enters and leaves on the same side.
-    if enters == COMPASS_NONE || gap(enters, leaves) < 4 {
+    // A river crosses the town: the layout draws it from one side of the map
+    // to the other, so a bend sharper than 135° within the patch is drawn as
+    // the nearest crossing (enters turned away from where it leaves).
+    if enters == COMPASS_NONE {
         enters = opposite(leaves);
+    } else if gap(enters, leaves) < 6 {
+        let (a, b) = ((leaves + 6) & 15, (leaves + 10) & 15);
+        enters = if gap(enters, a) <= gap(enters, b) { a } else { b };
     }
     let river = TownRiverView {
         class: cls.min(3),
@@ -665,7 +669,10 @@ pub fn town_geography_view(engine: &Engine, id: u32) -> Option<TownGeographyView
             }
         }
         let n = shore.len() as i64;
-        let beaches = shore.iter().filter(|&&i| t.biome[i] == Biome::Beach).count() as i64;
+        let beaches = shore
+            .iter()
+            .filter(|&&i| t.biome[i] == Biome::Beach)
+            .count() as i64;
         let highest = shore.iter().map(|&i| a.elev(i)).max().unwrap_or(0);
         // Sand where most of the shore is beach; otherwise rock, or cliffs
         // where the land around is steep.
@@ -718,9 +725,23 @@ pub fn town_geography_view(engine: &Engine, id: u32) -> Option<TownGeographyView
             lean(&a, &|i| i64::from(t.forest_pm[i]))
         },
     };
+    // A seam is worked on land: richer cells toward the sea turn the bearing
+    // to the nearer landward side (at least 90° from the sea).
+    let mut minerals_bearing = lean(&a, &|i| i64::from(t.minerals_pm[i]));
+    if minerals_bearing != COMPASS_NONE
+        && sea_bearing != COMPASS_NONE
+        && gap(minerals_bearing, sea_bearing) < 4
+    {
+        let (l, r) = ((sea_bearing + 4) & 15, (sea_bearing + 12) & 15);
+        minerals_bearing = if gap(minerals_bearing, l) <= gap(minerals_bearing, r) {
+            l
+        } else {
+            r
+        };
+    }
     let minerals = TownMineralsView {
         value_pm: pm(g.minerals),
-        bearing: lean(&a, &|i| i64::from(t.minerals_pm[i])),
+        bearing: minerals_bearing,
     };
 
     // ---- links
@@ -743,8 +764,7 @@ pub fn town_geography_view(engine: &Engine, id: u32) -> Option<TownGeographyView
             LinkMode::Highway => TownLinkMode::Highway,
             LinkMode::Rail => TownLinkMode::Rail,
         };
-        if bearing == COMPASS_NONE || links.iter().any(|l| l.mode == mode && l.bearing == bearing)
-        {
+        if bearing == COMPASS_NONE || links.iter().any(|l| l.mode == mode && l.bearing == bearing) {
             return;
         }
         links.push(TownLinkView {
@@ -777,9 +797,7 @@ pub fn town_geography_view(engine: &Engine, id: u32) -> Option<TownGeographyView
             add(l.mode, &p[..=i], false, l.a);
         }
     }
-    links.sort_by(|x, y| {
-        (x.bearing, x.mode, x.to).cmp(&(y.bearing, y.mode, y.to))
-    });
+    links.sort_by(|x, y| (x.bearing, x.mode, x.to).cmp(&(y.bearing, y.mode, y.to)));
 
     let snake = |v: &dyn std::fmt::Debug| crate::office::snake(&v);
     let neighborhoods = baseline
@@ -1010,7 +1028,11 @@ pub fn town_state_view(engine: &Engine, id: u32) -> Option<TownStateView> {
         home && mandate_sim::places::player_has_service(st, content, "town_data_detailed");
     let count = |v: f64| -> u32 {
         let v = v.max(0.0).round();
-        let v = if detailed { v } else { (v / 100.0).round() * 100.0 };
+        let v = if detailed {
+            v
+        } else {
+            (v / 100.0).round() * 100.0
+        };
         v.min(f64::from(u32::MAX)) as u32
     };
     let share = |num: f64, den: f64| -> u32 {
@@ -1018,7 +1040,11 @@ pub fn town_state_view(engine: &Engine, id: u32) -> Option<TownStateView> {
             return 1000;
         }
         let v = (num.max(0.0) * 1000.0 / den).round();
-        let v = if detailed { v } else { (v / 10.0).round() * 10.0 };
+        let v = if detailed {
+            v
+        } else {
+            (v / 10.0).round() * 10.0
+        };
         v.min(f64::from(u32::MAX)) as u32
     };
     let frac = |v: f64| share(v, 1.0);
@@ -1075,9 +1101,8 @@ pub fn town_state_view(engine: &Engine, id: u32) -> Option<TownStateView> {
             }
         })
         .collect();
-    let mods = mandate_sim::policy::mods_for(&st.policy, content, id, &|p| {
-        st.finance.funded_share(p)
-    });
+    let mods =
+        mandate_sim::policy::mods_for(&st.policy, content, id, &|p| st.finance.funded_share(p));
     let last_disaster = st.events.iter().rev().find_map(|ev| match &ev.kind {
         mandate_sim::events::EventKind::Disaster {
             municipality,
