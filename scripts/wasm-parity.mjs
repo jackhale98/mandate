@@ -2,10 +2,13 @@
 // Usage: node scripts/wasm-parity.mjs <seed> <turns> <expected-native-hash>
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
+const path = require("node:path");
+const here = path.dirname(new URL(import.meta.url).pathname);
+// MANDATE_WASM_NODE points at another node build (side-by-side checkouts).
 const nodeDir = process.env.MANDATE_WASM_NODE
-  ? require("node:path").resolve(process.env.MANDATE_WASM_NODE)
-  : require("node:path").join(__dirname, "../target/wasm-node");
-const { WasmSession } = require(require("node:path").join(nodeDir, "mandate_wasm.js"));
+  ? path.resolve(process.env.MANDATE_WASM_NODE)
+  : path.join(here, "../target/wasm-node");
+const { WasmSession } = require(path.join(nodeDir, "mandate_wasm.js"));
 
 const [seed = "1", turns = "50", expected] = process.argv.slice(2);
 const s = new WasmSession();
