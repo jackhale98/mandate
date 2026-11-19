@@ -75,7 +75,7 @@ const exchange: ExchangeView = {
     { subject: { type: "town_concerns", town: 1 }, title_key: "notebook-town-concerns", args: { town: "Ashford", concern_key: "concern-housing" }, level: "heard" },
     { subject: { type: "person", person: 7 }, title_key: "notebook-person", args: { name: "Dana Price", role_key: "role-councillor" }, level: "known" },
   ],
-  leads: [{ key: "lead-ask-diner", args: {}, level: "heard", to: null, route: null, since: date }],
+  leads: [{ key: "lead-ask-diner", args: {}, subject: { type: "broker", town: 0 }, level: "heard", to: null, route: null, since: date }],
   relationship: "warmer",
   outcome_key: "outcome-talk",
   outcome_args: { name: "Dana Price" },

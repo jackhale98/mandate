@@ -34,7 +34,7 @@ export const brokerLead: LeadView = {
 export const talkLead: LeadView = { ...brokerLead, key: "lead-ask-market", args: { town: "Ashford", to_kind_key: "place-market" }, since: d(2) };
 
 export function notebookFixture(): NotebookView {
-  const start = { level: "known" as const, on: d(1), key: "learned-start", args: { profile: "start.sitting_councillor" } };
+  const start = { level: "known" as const, on: d(1), key: "learned-start", args: { profile: "start.sitting_councillor" }, exchange: null };
   return {
     zone: "Ashford",
     origin: "profile",
@@ -48,8 +48,8 @@ export function notebookFixture(): NotebookView {
             title_key: "notebook-person",
             args: { name: "Vera Holt", role_key: "role-councillor", cares_key: "issue-environment" },
             history: [
-              { level: "heard", on: d(1), key: "learned-start", args: { profile: "start.sitting_councillor" } },
-              { level: "known", on: d(1), key: "learned-start", args: { profile: "start.sitting_councillor" } },
+              { level: "heard", on: d(1), key: "learned-start", args: { profile: "start.sitting_councillor" }, exchange: null },
+              { level: "known", on: d(1), key: "learned-start", args: { profile: "start.sitting_councillor" }, exchange: null },
             ],
             as_of: null,
             stale: false,
@@ -61,7 +61,7 @@ export function notebookFixture(): NotebookView {
             level: "heard",
             title_key: "notebook-person",
             args: { name: "Albert Crane", role_key: "role-councillor" },
-            history: [{ level: "heard", on: d(1), key: "learned-start", args: { profile: "start.sitting_councillor" } }],
+            history: [{ level: "heard", on: d(1), key: "learned-start", args: { profile: "start.sitting_councillor" }, exchange: null }],
             as_of: null,
             stale: false,
             new_this_turn: false,
@@ -77,7 +77,7 @@ export function notebookFixture(): NotebookView {
             level: "known",
             title_key: "notebook-town-concerns",
             args: { town: "Ashford", concern_key: "concern-jobs", concern2_key: "concern-housing", concern3_key: "concern-services" },
-            history: [{ level: "heard", on: d(1), key: "learned-start", args: {} }, start],
+            history: [{ level: "heard", on: d(1), key: "learned-start", args: {}, exchange: null }, start],
             as_of: null,
             stale: false,
             new_this_turn: false,
@@ -89,8 +89,8 @@ export function notebookFixture(): NotebookView {
             title_key: "notebook-hood-concerns",
             args: { hood: "Westfield", concern_key: "concern-taxes" },
             history: [
-              { level: "heard", on: d(8), key: "learned-action", args: { action_key: "action-canvass" } },
-              { level: "known", on: d(8), key: "learned-action", args: { action_key: "action-canvass" } },
+              { level: "heard", on: d(8), key: "learned-action", args: { action_key: "action-canvass" }, exchange: null },
+              { level: "known", on: d(8), key: "learned-action", args: { action_key: "action-canvass" }, exchange: null },
             ],
             as_of: null,
             stale: false,
