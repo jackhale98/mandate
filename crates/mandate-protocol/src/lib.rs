@@ -4,6 +4,7 @@
 
 pub mod campaign;
 pub mod characters;
+pub mod layout;
 pub mod map;
 pub mod media;
 pub mod narrative;
@@ -13,6 +14,7 @@ pub mod views;
 
 pub use campaign::*;
 pub use characters::*;
+pub use layout::*;
 pub use map::*;
 pub use media::*;
 pub use narrative::*;
@@ -291,6 +293,8 @@ pub enum QueryDto {
         params: Vec<ParamValue>,
     },
     Diagnostics,
+    /// The town layout v2 registries (no game needed; cache by `content_hash`).
+    LayoutContent,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -344,6 +348,7 @@ pub enum ResponseBody {
     Storytellers(StorytellerListView),
     PolicyPreview(PolicyPreviewView),
     Diagnostics(DiagnosticsView),
+    LayoutContent(LayoutContentView),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

@@ -1854,6 +1854,81 @@
         }
       ]
     },
+    "ConnectorDef": {
+      "additionalProperties": false,
+      "description": "What carries a road, a path or the railway over water, a creek or the\ntrack (§6.1, §7.7). The generator picks, per crossing, the first entry in\nload order that allows it.",
+      "properties": {
+        "art": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Art keys by role; `kit` is required.",
+          "type": "object"
+        },
+        "crosses": {
+          "description": "What it crosses (`river`, `sea`, `lake`, `creek`, `rail`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "era": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Content id, e.g. `connector.stone_arch`.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ConnectorKind"
+        },
+        "max_span": {
+          "description": "The longest crossing, tiles (1..32).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "roads": {
+          "description": "Ways that may use it (`arterial`, `street`, `lane`, `path`, `rail`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "town_class": {
+          "default": [],
+          "description": "Town classes it is built in (empty: everywhere).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "max_span",
+        "roads",
+        "crosses",
+        "art"
+      ],
+      "type": "object"
+    },
+    "ConnectorKind": {
+      "description": "The kind of crossing, as the town map's connectors name it.",
+      "enum": [
+        "bridge",
+        "footbridge",
+        "ford",
+        "viaduct",
+        "level_crossing"
+      ],
+      "type": "string"
+    },
     "Consideration": {
       "additionalProperties": false,
       "properties": {
@@ -2358,6 +2433,13 @@
         }
       ]
     },
+    "DeclineLook": {
+      "enum": [
+        "boarded",
+        "derelict"
+      ],
+      "type": "string"
+    },
     "DilemmaCategory": {
       "description": "The weight of a decision in the director's budgets.",
       "oneOf": [
@@ -2719,6 +2801,341 @@
         "window_weak",
         "horizon_days",
         "bands"
+      ],
+      "type": "object"
+    },
+    "DistrictAppears": {
+      "additionalProperties": false,
+      "description": "When a district type may be chosen. Among the eligible types the\ngenerator picks by weighted rendezvous hashing.",
+      "properties": {
+        "era": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "geo": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GeoCondition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hood_kinds": {
+          "description": "Neighbourhood kinds it can stand for.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "population": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The town's baseline population."
+        },
+        "requires_place": {
+          "description": "Place kinds the town must have (e.g. a mine for pit rows).",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "town_class": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "weight": {
+          "description": "Rendezvous tickets (a positive integer).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hood_kinds",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "DistrictArt": {
+      "additionalProperties": false,
+      "description": "A district's art keys (§7.1): keys, never files. `family` is the required\nlast-resort parent of the fallback chain (§7.3).",
+      "properties": {
+        "family": {
+          "type": "string"
+        },
+        "ground": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lamps": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "props": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "roof": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "trim_ramps": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "walls": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "family"
+      ],
+      "type": "object"
+    },
+    "DistrictBuildings": {
+      "additionalProperties": false,
+      "description": "Filler buildings: `[kind, weight]` pairs, storeys and density.",
+      "properties": {
+        "density": {
+          "description": "Share of plots built on (0..1).",
+          "format": "double",
+          "type": "number"
+        },
+        "mix": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "format": "double",
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "storeys": {
+          "description": "Storeys range (1..8).",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "mix",
+        "storeys",
+        "density"
+      ],
+      "type": "object"
+    },
+    "DistrictGrowth": {
+      "additionalProperties": false,
+      "description": "Growth behaviour (reserved land, §9.2).",
+      "properties": {
+        "decline": {
+          "$ref": "#/$defs/DeclineLook"
+        },
+        "fill": {
+          "$ref": "#/$defs/GrowthFill"
+        },
+        "reserve": {
+          "description": "Share of plots held back for growth (0..0.5).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "reserve",
+        "fill",
+        "decline"
+      ],
+      "type": "object"
+    },
+    "DistrictPlots": {
+      "additionalProperties": false,
+      "description": "Building footprints and the open ground of the district's blocks.",
+      "properties": {
+        "depth": {
+          "description": "Footprint depth range (2..8 tiles).",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "frontage": {
+          "description": "Footprint width range (2..12 tiles).",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "ground": {
+          "$ref": "#/$defs/PlotGround"
+        },
+        "joined": {
+          "description": "Share of plots joined to the next (0..1).",
+          "format": "double",
+          "type": "number"
+        },
+        "setback": {
+          "description": "Front-garden rows (0..2).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "frontage",
+        "depth",
+        "setback",
+        "joined",
+        "ground"
+      ],
+      "type": "object"
+    },
+    "DistrictSite": {
+      "additionalProperties": false,
+      "description": "Siting preferences for the district's seed.",
+      "properties": {
+        "anchor": {
+          "description": "What the district is laid out around (`square`, `harbour`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "avoids": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "prefers": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "prefers"
+      ],
+      "type": "object"
+    },
+    "DistrictStreets": {
+      "additionalProperties": false,
+      "description": "The district's street pattern and its parameters (tiles).",
+      "properties": {
+        "block": {
+          "description": "Block width range (6..40; §8: the minimum block is 6 × 5).",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "depth": {
+          "description": "Block depth range (5..20).",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "lanes": {
+          "$ref": "#/$defs/LaneStyle"
+        },
+        "max_dead_ends": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pattern": {
+          "$ref": "#/$defs/StreetPattern"
+        },
+        "style": {
+          "$ref": "#/$defs/StreetSurface"
+        }
+      },
+      "required": [
+        "pattern",
+        "block",
+        "depth",
+        "lanes",
+        "max_dead_ends",
+        "style"
       ],
       "type": "object"
     },
@@ -3434,6 +3851,51 @@
       ],
       "type": "object"
     },
+    "FeatureAppears": {
+      "additionalProperties": false,
+      "properties": {
+        "geo": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GeoCondition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "FeatureParam": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "format": "int32",
+          "type": "integer"
+        },
+        {
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        {
+          "items": {
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        }
+      ],
+      "description": "One generator parameter."
+    },
     "FundraiseEffects": {
       "additionalProperties": false,
       "properties": {
@@ -3469,6 +3931,103 @@
         "late_night_legal",
         "donor_ties"
       ],
+      "type": "object"
+    },
+    "GeoCondition": {
+      "additionalProperties": false,
+      "description": "Geography conditions (each a field of the town's geography, §6.5). Every\ncondition given must hold; per-mille ranges are 0..1000.",
+      "properties": {
+        "coast": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "creeks": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "fishing_pm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "flood_pm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lake": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "minerals_pm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "port": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "river": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ruggedness_pm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shore": {
+          "description": "Shore kinds (`beach`, `rocky`, `cliff`); the town's must be one of them.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "woods_pm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
       "type": "object"
     },
     "GoalDef": {
@@ -3643,6 +4202,14 @@
         "ethics",
         "misconduct",
         "crime"
+      ],
+      "type": "string"
+    },
+    "GrowthFill": {
+      "enum": [
+        "infill_first",
+        "outward",
+        "edge_estates"
       ],
       "type": "string"
     },
@@ -4219,6 +4786,14 @@
         "removal_viability"
       ],
       "type": "object"
+    },
+    "LaneStyle": {
+      "enum": [
+        "none",
+        "back",
+        "stepped"
+      ],
+      "type": "string"
     },
     "LegalResponseKind": {
       "description": "How the player answers an investigation (DEC-006 Legal Jeopardy).",
@@ -5141,6 +5716,29 @@
         }
       ]
     },
+    "OpenRange": {
+      "additionalProperties": false,
+      "description": "An inclusive range; either end may be left open.",
+      "properties": {
+        "max": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "min": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "OpinionParams": {
       "additionalProperties": false,
       "description": "Monthly opinion dynamics (DEC-025): experienced conditions and reactions\nto laws and bills move approval of the local government and the player.",
@@ -5569,6 +6167,25 @@
       ],
       "type": "object"
     },
+    "PlaceArt": {
+      "additionalProperties": false,
+      "description": "A place's art keys: an optional kit and the required family.",
+      "properties": {
+        "family": {
+          "type": "string"
+        },
+        "kit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "family"
+      ],
+      "type": "object"
+    },
     "PlaceKindDef": {
       "additionalProperties": false,
       "description": "One kind of place and what it offers (DEC-079). Worldgen decides which\nplaces exist; this registry supplies their behaviour.",
@@ -5605,6 +6222,17 @@
           },
           "type": "array"
         },
+        "layout": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlaceLayoutBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How the town layout draws it (DEC-090 D4, TOWN_GENERATION.md §6.3):\npresentation data, validated but never read by the simulation."
+        },
         "name_key": {
           "type": "string"
         },
@@ -5623,6 +6251,79 @@
         "name_key"
       ],
       "type": "object"
+    },
+    "PlaceLayoutBlock": {
+      "additionalProperties": false,
+      "description": "A place kind's `layout` block (§6.3), in `places.jsonc`.",
+      "properties": {
+        "art": {
+          "$ref": "#/$defs/PlaceArt"
+        },
+        "footprint": {
+          "description": "`[[min w, min h], [max w, max h]]`, tiles (2..16); the largest is tried first.",
+          "items": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "landmark": {
+          "type": "boolean"
+        },
+        "place": {
+          "description": "Placement predicates in order of preference.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "signature": {
+          "description": "The landmark silhouette prop.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "slot": {
+          "description": "Slot kind (`civic`, `square`, `works`, `community`, `commercial`, `green`, `harbour`).",
+          "type": "string"
+        },
+        "with": {
+          "description": "Companion features the plan reserves.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "slot",
+        "footprint",
+        "place",
+        "landmark",
+        "art"
+      ],
+      "type": "object"
+    },
+    "PlotGround": {
+      "enum": [
+        "yard",
+        "grass",
+        "field",
+        "garden"
+      ],
+      "type": "string"
     },
     "PolicyTemplate": {
       "additionalProperties": false,
@@ -7147,6 +7848,25 @@
       ],
       "type": "object"
     },
+    "StreetPattern": {
+      "enum": [
+        "organic",
+        "grid",
+        "curvy",
+        "contour",
+        "yards",
+        "quay",
+        "ribbon"
+      ],
+      "type": "string"
+    },
+    "StreetSurface": {
+      "enum": [
+        "asphalt",
+        "dirt"
+      ],
+      "type": "string"
+    },
     "TaxParams": {
       "additionalProperties": false,
       "properties": {
@@ -7292,6 +8012,59 @@
       ],
       "type": "object"
     },
+    "TerrainFeatureDef": {
+      "additionalProperties": false,
+      "description": "A terrain feature (§6.1): its generator, when it applies, the generator's\ninteger parameters, and art keys.",
+      "properties": {
+        "appears": {
+          "$ref": "#/$defs/FeatureAppears",
+          "default": {}
+        },
+        "art": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Art keys by role (`water`, `edge_urban`, `bank`, …).",
+          "type": "object"
+        },
+        "generator": {
+          "$ref": "#/$defs/TerrainGenerator"
+        },
+        "id": {
+          "description": "Content id, e.g. `feature.river`.",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FeatureParam"
+          },
+          "default": {},
+          "description": "The generator's parameters: integers (per mille where a share), lists\nand tables of integers, or flags. The generator is integer-only.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "generator",
+        "art"
+      ],
+      "type": "object"
+    },
+    "TerrainGenerator": {
+      "description": "The code that draws a terrain feature (an extension point, §6.5).",
+      "enum": [
+        "river",
+        "creek",
+        "coast",
+        "lake",
+        "hills",
+        "cliff",
+        "woods",
+        "marsh",
+        "beach"
+      ],
+      "type": "string"
+    },
     "TierDef": {
       "additionalProperties": false,
       "properties": {
@@ -7376,6 +8149,69 @@
         "trend_months",
         "broker_seniority",
         "broker_stake"
+      ],
+      "type": "object"
+    },
+    "TownDistrictDef": {
+      "additionalProperties": false,
+      "description": "A district type (§6.2): when the generator may choose it for a\nneighbourhood, how its streets, plots and buildings are laid out, and its\nart keys.",
+      "properties": {
+        "appears": {
+          "$ref": "#/$defs/DistrictAppears"
+        },
+        "art": {
+          "$ref": "#/$defs/DistrictArt"
+        },
+        "buildings": {
+          "$ref": "#/$defs/DistrictBuildings"
+        },
+        "growth": {
+          "$ref": "#/$defs/DistrictGrowth"
+        },
+        "hosts": {
+          "default": [],
+          "description": "Place kinds this district hosts.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Content id, e.g. `district.old_core`.",
+          "type": "string"
+        },
+        "name_key": {
+          "description": "Fluent key, `district-<name>`.",
+          "type": "string"
+        },
+        "plots": {
+          "$ref": "#/$defs/DistrictPlots"
+        },
+        "site": {
+          "$ref": "#/$defs/DistrictSite"
+        },
+        "streets": {
+          "$ref": "#/$defs/DistrictStreets"
+        },
+        "tags": {
+          "default": [],
+          "description": "Gameplay tags (`flood_prone`, `storm_surge`, `mine_risk`, `pollution_downwind`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "appears",
+        "site",
+        "streets",
+        "plots",
+        "buildings",
+        "growth",
+        "art"
       ],
       "type": "object"
     },
@@ -8608,6 +9444,69 @@
       "required": [
         "kind",
         "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Town layout v2 district types (DEC-090 D4).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TownDistrictDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "town_districts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Town layout v2 terrain features (DEC-090 D4).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TerrainFeatureDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "terrain_features",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Town layout v2 connectors: bridges, fords, viaducts, level crossings (DEC-090 D4).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ConnectorDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "connectors",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
       ],
       "type": "object"
     }

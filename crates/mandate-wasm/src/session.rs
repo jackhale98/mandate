@@ -16,6 +16,8 @@ pub struct Session {
     engine: Option<Engine>,
     /// Called with (stage key, fraction) during long operations.
     progress: Option<ProgressFn>,
+    /// `LayoutContentView`, built once per content hash.
+    layout: Option<LayoutContentView>,
 }
 
 fn err(code: ErrorCode, message: impl Into<String>) -> ProtocolError {
@@ -40,6 +42,7 @@ impl Session {
             content: Arc::new(content),
             engine: None,
             progress: None,
+            layout: None,
         })
     }
 
@@ -220,6 +223,17 @@ impl Session {
                     ftl: self.content.locale_text(&lang),
                     lang,
                 })),
+                QueryDto::LayoutContent => {
+                    let hash = &self.content.content_hash;
+                    if self.layout.as_ref().is_none_or(|v| &v.content_hash != hash) {
+                        self.layout = Some(layout_content(&self.content));
+                    }
+                    Ok(ResponseBody::LayoutContent(
+                        self.layout
+                            .clone()
+                            .unwrap_or_else(|| layout_content(&self.content)),
+                    ))
+                }
             },
         }
     }
