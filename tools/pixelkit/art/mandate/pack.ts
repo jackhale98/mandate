@@ -14,7 +14,7 @@ import { buildTerrain, type TerrainSet } from "./terrain";
 import { buildTiles, type TileSet } from "./tiles";
 
 /** Bump when any drawing or rule changes what an existing look or building looks like (§3.5 rule 8). */
-export const PACK_VERSION = "mandate-p0.5";
+export const PACK_VERSION = "mandate-p0.6";
 
 export interface ArtPack {
   version: string;
@@ -22,7 +22,7 @@ export interface ArtPack {
   /** Oklab lightness ×1000 per colour, frozen (the runtime does no colour maths). */
   lightness: number[];
   tiles: TileSet;
-  /** Layout v2 terrain (round 4): shore templates, v2 grounds, the legend and step tables the painter draws with. */
+  /** Layout v2 terrain (round 4; diagonal streets, round 5): shore templates, v2 grounds, the legend and step tables the painter draws with. */
   terrain: TerrainSet;
   props: Record<string, BuiltProp[]>;
   pool: Pool;

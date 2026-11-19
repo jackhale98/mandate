@@ -14,6 +14,7 @@ import { BSLOT } from "../../art/mandate/buildingParts";
 import type { ArtPack } from "../../art/mandate/pack";
 import type { LightEntry } from "../../art/mandate/lighting";
 import { groundTile } from "../../art/mandate/tiles";
+import { lintDiag } from "./lintDiag";
 import { lintV2 } from "./lintV2";
 
 export type Level = "error" | "warn" | "info";
@@ -311,6 +312,7 @@ export function lintPack(pack: ArtPack): Finding[] {
   f.push({ lint: "crowd clones", level: "info", subject: "the 20-person sheet", value: nearClonePairs(twenty, 5), limit: "pairs sharing 5 of 6" });
   // ---- round 4: layout v2 terrain, connectors, plot states
   f.push(...lintV2(pack));
+  f.push(...lintDiag(pack));
   return f;
 }
 

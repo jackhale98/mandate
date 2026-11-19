@@ -21,6 +21,7 @@ export interface SceneInput {
   terrain: ArrayLike<number>;
   elevation?: ArrayLike<number> | undefined;
   connectors?: readonly ConnectorView[] | undefined;
+  streetAxis?: ArrayLike<number> | undefined;
   buildings?: readonly SceneBuilding[];
   props?: readonly SceneProp[];
   people?: readonly { x: number; y: number; seed: number }[];
