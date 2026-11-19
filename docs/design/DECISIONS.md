@@ -102,6 +102,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-093 | Conversations: talk to people by topic; replies composed from grounded content lines | Accepted |
 | DEC-094 | Credit and blame for laws; endorsements that move their followers' votes | Accepted |
 | DEC-095 | Every character attribute changes behaviour; a lab check forbids decorative attributes | Accepted |
+| DEC-096 | The power broker acts: lobbies, backs people, and helps or hinders the player | Accepted |
 
 ---
 
@@ -2108,3 +2109,21 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Views:** the character sheet's "Why?" lines say what each notable attribute does ("Loyal: rarely breaks with the party").
 - **Timing:** M6, beside K4 (effectiveness terms and bots). It is in `M6_ENGINE_CONTRACTS.md` §4 as task A1.
 - **Dependencies:** DEC-030, DEC-031, DEC-032, DEC-034, DEC-073, DEC-078, DEC-093, DEC-094.
+
+### DEC-096 — The power broker acts
+
+- **Status:** Accepted (owner, 2026-11-19: "Yeah let's do it"). The owner asked what role the town's power broker plays.
+- **Context:** each town's broker is recomputed monthly (DEC-077 §1). It is the organisation leader with the most influence and a stake in the defining industry or the live crisis; failing that, the most senior officeholder (the mayor counts double). Today the broker is cast in scenes and dilemmas, offers the player bribes, is recorded as the briber in NPC corruption, is named in overheard chatter and conversations, and is a knowledge subject. The broker has no direct power over votes, money or careers.
+- **Decision:** the broker becomes an actor with real weight, under the same rules as everyone else (DEC-030):
+  1. **Lobbies the council** for their stake, with the standard lobbying formula. They push bills that help their industry or crisis interests and fight bills that hurt them, and the effect shows in whip counts.
+  2. **Backs people:**
+     - endorsements with a large follower weight among the cohorts they speak for (DEC-094 V2);
+     - campaign money for candidates who line up with their interests, through the existing funds path.
+  3. **Helps or hinders the player, by relationship and alignment:**
+     - **An ally** lends lobbying help, endorsements and donations. The strings come through existing systems: favours called in, sponsor deals (DEC-092), and scandal risk if the help is shady (DEC-034).
+     - **An opponent** feeds rumours through media contacts (as stories with their usual discovery rules, DEC-034), funds the player's rival, and turns council votes against the player's bills.
+  4. **The role changes hands** as crises and industries shift. A falling broker loses influence, and a later-career player can become a broker.
+  5. **The world does not wait (DEC-091 note):** the broker acts whether or not the player knows who they are. Learning who they are and what they want is how the player stops being surprised.
+- **Balance:** magnitudes in content parameter blocks (DEC-078). The lab gates require that broker alignment matters (measurable vote and money effects) but never dominates, and that the variety check still passes.
+- **Timing:** M6, with endorsements (V2) and attributes (A1). It is in `M6_ENGINE_CONTRACTS.md` §4 as task P1.
+- **Dependencies:** DEC-030, DEC-031, DEC-032, DEC-034, DEC-077, DEC-078, DEC-091, DEC-092, DEC-094, DEC-095.
