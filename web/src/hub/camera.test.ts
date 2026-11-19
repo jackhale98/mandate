@@ -174,6 +174,31 @@ describe("limits", () => {
     for (let i = 0; i < 120; i++) cam.update(1 / 60);
     expect(cam.state.zoom).toBe(4);
   });
+
+  it("can settle on whole device-pixel steps (zoomStep = 1/dpr)", () => {
+    const cam = make({ integerZoom: true, zoomStep: 1 / 3, minZoom: 1 / 3 });
+    cam.wheel({ x: 200, y: 400 }, -150); // 9 → 11.27 device px; zooming in snaps up to 12
+    for (let i = 0; i < 120; i++) cam.update(1 / 60);
+    expect(cam.state.zoom * 3).toBeCloseTo(12, 9);
+    expect(cam.settledZoom(0.1)).toBeCloseTo(1 / 3, 9); // floor: one device pixel per art pixel
+  });
+});
+
+describe("whole steps follow the direction of travel", () => {
+  it("one small wheel notch always takes a step, in and out", () => {
+    const cam = make({ integerZoom: true, zoomStep: 1 / 3, minZoom: 1 / 3 });
+    const settle = () => {
+      for (let i = 0; i < 120; i++) cam.update(1 / 60);
+    };
+    settle();
+    const start = Math.round(cam.state.zoom * 3);
+    cam.wheel({ x: 200, y: 400 }, -40); // a small notch in: well under half a step
+    settle();
+    expect(Math.round(cam.state.zoom * 3)).toBe(start + 1);
+    cam.wheel({ x: 200, y: 400 }, 40); // and back out
+    settle();
+    expect(Math.round(cam.state.zoom * 3)).toBe(start);
+  });
 });
 
 describe("pan, tap, wheel", () => {

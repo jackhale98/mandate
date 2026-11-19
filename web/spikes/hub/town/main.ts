@@ -30,7 +30,9 @@ const seed = (q.get("seed") ?? "4242").trim() || "4242";
 const startMinutes = Number(q.get("t") ?? 17 * 60 + 20);
 const speed = q.has("speed") ? Number(q.get("speed")) : 12;
 const townsfolk = Math.max(0, Math.min(400, Number(q.get("n") ?? 16) || 0));
-const resolution = q.get("res") === "device" ? "device" : "css";
+// Device resolution by default: crisp whole-device-pixel zoom steps, and far more
+// of them on a phone (?res=css draws at CSS pixels as before).
+const resolution = q.get("res") === "css" ? "css" : "device";
 const artName = q.get("art") === "pixelkit" ? "pixelkit" : "placeholder";
 // Palette moods are the default night look from round 2 (the owner's lean, D12); multiply stays for comparison.
 const night: NightLook = q.get("night") === "multiply" ? "multiply" : "moods";

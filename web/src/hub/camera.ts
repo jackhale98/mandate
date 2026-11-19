@@ -46,6 +46,11 @@ export interface CameraOptions {
   overshoot?: number;
   /** Settle on whole-number zoom steps after a gesture (crisp pixel art, DEC-080). */
   integerZoom?: boolean;
+  /**
+   * The step `integerZoom` settles on (default 1). Use 1 / devicePixelRatio when
+   * drawing at device resolution, so every step is a whole number of device pixels.
+   */
+  zoomStep?: number;
   /** Wheel zoom factor per wheel delta unit. */
   wheelRate?: number;
 }
@@ -80,6 +85,8 @@ export class HubCamera {
   private multi = false;
   /** Screen point the ease back keeps still (the last gesture focus). */
   private easeFocus: Vec | null = null;
+  /** The zoom the camera last settled on: whole steps snap away from it in the direction moved. */
+  private rest: number;
 
   constructor(state: CameraState, viewport: { width: number; height: number }, options: CameraOptions) {
     this.state = { ...state };
@@ -89,11 +96,20 @@ export class HubCamera {
       tapSlop: 8,
       overshoot: 0.35,
       integerZoom: false,
+      zoomStep: 1,
       wheelRate: 0.0015,
       ...options,
       bounds: options.bounds ?? null,
     };
     this.raw = this.state.zoom;
+    this.rest = this.state.zoom;
+  }
+
+  /** Change the zoom limits and step (e.g. when the device pixel ratio changes). */
+  setZoomLimits(minZoom: number, maxZoom: number, zoomStep = this.opts.zoomStep) {
+    this.opts.minZoom = minZoom;
+    this.opts.maxZoom = maxZoom;
+    this.opts.zoomStep = zoomStep;
   }
 
   resize(width: number, height: number) {
@@ -225,12 +241,18 @@ export class HubCamera {
 
   /** Zoom the camera settles on: inside the limits, on a whole step if asked. */
   settledZoom(z = this.state.zoom): number {
-    const { minZoom, maxZoom, integerZoom } = this.opts;
+    const { minZoom, maxZoom, integerZoom, zoomStep } = this.opts;
     let t = Math.min(maxZoom, Math.max(minZoom, z));
     if (integerZoom) {
-      const lo = Math.ceil(minZoom - 1e-9);
-      const hi = Math.floor(maxZoom + 1e-9);
-      if (lo <= hi) t = Math.min(hi, Math.max(lo, Math.round(t)));
+      const step = zoomStep > 0 ? zoomStep : 1;
+      const lo = Math.ceil(minZoom / step - 1e-9);
+      const hi = Math.floor(maxZoom / step + 1e-9);
+      // Snap in the direction of travel once the zoom has moved a little from where
+      // it last rested, so a single wheel notch or a small pinch always takes a step.
+      const r = t / step;
+      const from = this.rest / step;
+      const n = r > from + 0.02 ? Math.ceil(r - 1e-9) : r < from - 0.02 ? Math.floor(r + 1e-9) : Math.round(r);
+      if (lo <= hi) t = Math.min(hi, Math.max(lo, n)) * step;
     }
     return t;
   }
@@ -266,6 +288,7 @@ export class HubCamera {
     } else if (dz !== 0) {
       this.state.zoom = target;
     }
+    if (Math.abs(this.state.zoom - target) <= SETTLE) this.rest = target;
     this.raw = this.state.zoom;
     const c = this.clampCentre(this.state.x, this.state.y);
     const dx = c.x - this.state.x;

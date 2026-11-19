@@ -318,9 +318,14 @@ export class HubView {
     this.canvas.height = Math.round(this.cssH * this.dpr);
     this.ctx.imageSmoothingEnabled = false;
     this.camera.resize(this.cssW, this.cssH);
+    // Zoom in whole device pixels: at device resolution a phone gets many crisp
+    // steps, out to one device pixel per art pixel (most of a town on screen).
+    const step = 1 / this.dpr;
+    this.camera.setZoomLimits(step, 6, step);
     if (first) {
       // About fourteen tiles across the shorter side, on a whole zoom step.
-      const z = Math.max(2, Math.min(4, Math.round(Math.min(this.cssW, this.cssH) / (TILE * 14))));
+      const z0 = Math.max(2, Math.min(4, Math.min(this.cssW, this.cssH) / (TILE * 14)));
+      const z = Math.max(step, Math.round(z0 / step) * step);
       this.camera.state.zoom = z;
       const c = this.camera.clampCentre(this.scene.player.x * TILE, this.scene.player.y * TILE - 8, z);
       this.camera.state.x = c.x;
