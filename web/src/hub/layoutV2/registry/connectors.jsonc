@@ -1,0 +1,75 @@
+// Connectors for town layout v2 (DEC-090, TOWN_GENERATION.md §6.1, §7.7):
+// what carries a road, a path or the railway over water, a creek or the
+// track. Stage A keeps this registry on the client; stage B moves it to
+// content/base/connectors.jsonc unchanged in shape.
+//
+// `kind` is the map's `TownConnector.kind`. `max_span`: the longest crossing,
+// tiles. `roads`: which ways may use it (arterial, street, lane, path, rail).
+// `crosses`: river, sea, lake, creek, rail. `town_class`: where it is built
+// (empty: everywhere). The generator picks, per crossing, the first entry in
+// this order that allows it.
+{
+  "kind": "connectors",
+  "items": [
+    {
+      "id": "connector.iron_girder",
+      "kind": "bridge",
+      "max_span": 16,
+      "roads": ["arterial"],
+      "crosses": ["river", "lake"],
+      "town_class": ["metro", "city"],
+      "era": null,
+      "art": { "kit": "bridge.iron_girder" },
+    },
+    {
+      "id": "connector.stone_arch",
+      "kind": "bridge",
+      "max_span": 14,
+      "roads": ["arterial", "street"],
+      "crosses": ["river", "lake", "creek"],
+      "town_class": [],
+      "era": null,
+      "art": { "kit": "bridge.stone_arch" },
+    },
+    {
+      "id": "connector.rail_viaduct",
+      "kind": "viaduct",
+      "max_span": 24,
+      "roads": ["rail"],
+      "crosses": ["river", "lake", "creek"],
+      "town_class": [],
+      "era": null,
+      "art": { "kit": "bridge.rail_viaduct" },
+    },
+    {
+      "id": "connector.timber_footbridge",
+      "kind": "footbridge",
+      "max_span": 10,
+      "roads": ["path", "lane"],
+      "crosses": ["river", "creek"],
+      "town_class": [],
+      "era": null,
+      "art": { "kit": "bridge.timber_footbridge" },
+    },
+    {
+      "id": "connector.ford",
+      "kind": "ford",
+      "max_span": 2,
+      "roads": ["lane", "path"],
+      "crosses": ["creek"],
+      "town_class": [],
+      "era": null,
+      "art": { "kit": "connector.ford", "prop": "prop.stepping_stones" },
+    },
+    {
+      "id": "connector.level_crossing",
+      "kind": "level_crossing",
+      "max_span": 1,
+      "roads": ["arterial", "street", "lane"],
+      "crosses": ["rail"],
+      "town_class": [],
+      "era": null,
+      "art": { "kit": "connector.level_crossing" },
+    },
+  ],
+}
