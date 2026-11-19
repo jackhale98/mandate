@@ -1,7 +1,7 @@
 import { FIXTURES, randomInput } from "./testTowns";
 import { layoutTown, townSeed, type TownMap } from "./townLayout";
 import { buildTownMapScene, hotspotOf, mapHotspots, routeLength, alongRoute, RouteCache, viewForInput } from "./townMapScene";
-import { bakeTownMap, paintGround, pixelHash } from "./render/townMapRenderer";
+import { bakeTownMap, cellColours, pixelHash } from "./render/townMapRenderer";
 import { newLog, stubCanvasFactory } from "./render/stubCanvas";
 import type { TownInput } from "./townInput";
 import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
@@ -90,7 +90,7 @@ describe("town map scene (DEC-086)", () => {
       expect(b.hotspots).toEqual(a.hotspots);
       expect(b.routes).toEqual(a.routes);
       expect(b.hub).toBe(a.hub);
-      expect(pixelHash(paintGround(b.map, 6))).toBe(pixelHash(paintGround(a.map, 6)));
+      expect(pixelHash(cellColours(b.map))).toBe(pixelHash(cellColours(a.map)));
     }
   });
 
@@ -101,7 +101,7 @@ describe("town map scene (DEC-086)", () => {
     const a = buildTownMapScene(layout(f.input, seed), viewForInput(f.input));
     const b = buildTownMapScene(layout(elsewhere, seed), viewForInput(elsewhere));
     expect(b.hotspots).toEqual(a.hotspots);
-    expect(pixelHash(paintGround(b.map, 4))).toBe(pixelHash(paintGround(a.map, 4)));
+    expect(pixelHash(cellColours(b.map))).toBe(pixelHash(cellColours(a.map)));
   });
 
   it("walks along a route at a steady pace and ends at the door", () => {
@@ -124,9 +124,9 @@ describe("town map scene (DEC-086)", () => {
       const log = newLog();
       const baked = bakeTownMap(scene, { createCanvas: stubCanvasFactory(log) });
       expect(baked.px).toBeGreaterThanOrEqual(4);
-      expect(Math.max(baked.width, baked.height) * baked.px).toBeLessThanOrEqual(1600);
-      // Two layers: the map and its lights.
-      expect(log.canvases).toBe(2);
+      expect(Math.max(baked.width, baked.height) * baked.px).toBeLessThanOrEqual(1400);
+      // The map and its lights, plus the one-pixel-per-tile ground and the small texture tiles.
+      expect(log.canvases).toBeLessThanOrEqual(12);
       expect(log.calls.fillRect ?? 0).toBeGreaterThan(scene.map.buildings.length);
     }
   });

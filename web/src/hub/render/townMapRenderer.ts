@@ -31,24 +31,24 @@ export interface BakedTownMap {
   height: number;
   /** Time the bake took, ms, and by stage. */
   ms: number;
-  stages: { ground: number; put: number; routes: number; buildings: number; props: number };
+  stages: { ground: number; routes: number; buildings: number; props: number };
 }
 
 export interface BakeOptions {
   createCanvas?: CanvasFactory;
   /** Canvas px per tile (default: as many as fit `maxSide`, 4..8). */
   px?: number;
-  /** Longest side of the baked canvas, px (default 1600). */
+  /** Longest side of the baked canvas, px (default 1400). */
   maxSide?: number;
 }
 
-/** Px per tile for a map: crisp when zoomed in, bounded memory for the largest capital. */
-export function bakePx(map: TownMap, maxSide = 1600): number {
+/** Px per tile for a map: crisp when zoomed in, bounded memory and bake time for the largest capital. */
+export function bakePx(map: TownMap, maxSide = 1400): number {
   return Math.max(4, Math.min(8, Math.floor(maxSide / Math.max(map.width, map.height))));
 }
 
 // ---------------------------------------------------------------------------
-// Ground: written straight into RGBA pixels (fast on a phone; no per-cell draw calls)
+// Ground: one pixel per tile scaled up natively, then textures drawn over runs of cells
 
 const C = Object.fromEntries(Object.entries(MAP).map(([k, v]) => [k, rgb(v)])) as Record<keyof typeof MAP, Rgb>;
 
@@ -94,118 +94,36 @@ const isRoad = (t: number) => t === Terrain.Road || t === Terrain.Crossing;
 const tinted = (t: number) => !isRoad(t) && !isWater(t) && t !== Terrain.Plaza && t !== Terrain.Pier;
 
 /**
- * The ground as RGBA pixels (W·px × H·px). Pure and deterministic for the map
- * and px (tests hash it).
+ * Every cell's ground colour (the district tint folded in) as RGBA pixels, one
+ * per tile (W × H). The bake scales it up natively, so a large town costs a
+ * few thousand pixels of script, not millions. Pure and deterministic (tests
+ * hash it).
  */
-export function paintGround(map: TownMap, px: number): Uint8ClampedArray {
-  const W = map.width;
-  const H = map.height;
-  const PW = W * px;
-  const out = new Uint8ClampedArray(PW * H * px * 4);
-  // One 32-bit write per pixel and native row fills: a large town paints in a few ms on a phone.
-  const u32 = new Uint32Array(out.buffer);
-  const tAt = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? Terrain.Grass : (map.terrain[y * W + x] as number));
-  const dAt = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? -1 : (map.district[y * W + x] as number));
-  const P = {
-    chalkDark: pack(C.chalkDark),
-    fieldDark: pack(C.fieldDark),
-    stoneDark: pack(C.stoneDark),
-    woodDark: pack(C.woodDark),
-    waterLight: pack(C.waterLight),
-    waterDark: pack(C.waterDark),
-    foliage: pack(C.foliage),
-    grassDark: pack(C.grassDark),
-    line: pack(C.line),
-  };
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const i = y * W + x;
-      const t = map.terrain[i] as number;
-      const d = map.district[i] as number;
-      let base = terrainColour(t);
+export function cellColours(map: TownMap): Uint8ClampedArray {
+  const n = map.width * map.height;
+  const out = new Uint8ClampedArray(n * 4);
+  const cache = new Map<number, Rgb>();
+  for (let i = 0; i < n; i++) {
+    const t = map.terrain[i] as number;
+    const d = map.district[i] as number;
+    const key = t * 65536 + d + 1;
+    let c = cache.get(key);
+    if (!c) {
+      c = terrainColour(t);
       // Neighbourhoods as soft tints (alternating strength, so neighbours of one kind still read apart).
       if (d >= 0 && tinted(t)) {
         const tint = DISTRICT_TINT[map.districts[d]?.kind ?? "inner"] ?? DISTRICT_TINT.inner;
         const a = d % 2 === 0 ? 0.3 : 0.2;
-        if (tint) base = [base[0] + (tint[0] - base[0]) * a, base[1] + (tint[1] - base[1]) * a, base[2] + (tint[2] - base[2]) * a];
+        if (tint) c = [Math.round(c[0] + (tint[0] - c[0]) * a), Math.round(c[1] + (tint[1] - c[1]) * a), Math.round(c[2] + (tint[2] - c[2]) * a)];
       }
-      const fill = pack(base);
-      const X0 = x * px;
-      const Y0 = y * px;
-      for (let v = 0; v < px; v++) {
-        const row = (Y0 + v) * PW + X0;
-        u32.fill(fill, row, row + px);
-      }
-      const set = (u: number, v: number, c: number) => {
-        u32[(Y0 + v) * PW + X0 + u] = c;
-      };
-      switch (t) {
-        case Terrain.Crossing: {
-          // Zebra bars across the walking direction.
-          const roadH = isRoad(tAt(x - 1, y)) || isRoad(tAt(x + 1, y));
-          for (let a = 0; a < px; a += 2) for (let b = 1; b < px - 1; b++) set(roadH ? a : b, roadH ? b : a, P.chalkDark);
-          break;
-        }
-        case Terrain.Field:
-          for (let v = 0; v < px; v++) if ((((Y0 + v) >> 1) & 1) === 0) u32.fill(P.fieldDark, (Y0 + v) * PW + X0, (Y0 + v) * PW + X0 + px);
-          break;
-        case Terrain.Plaza:
-          u32.fill(P.stoneDark, Y0 * PW + X0, Y0 * PW + X0 + px);
-          for (let v = 1; v < px; v++) set(0, v, P.stoneDark);
-          break;
-        case Terrain.Pier:
-          for (let v = 0; v < px; v += 3) u32.fill(P.woodDark, (Y0 + v) * PW + X0, (Y0 + v) * PW + X0 + px);
-          break;
-        case Terrain.Water: {
-          const speck = mix(map.seed, x, y, 0x7a3) & 7;
-          for (let v = 0; v < px; v++)
-            for (let u = 0; u < px; u++) {
-              const X = X0 + u;
-              const Y = Y0 + v;
-              if (((X * 7 + Y * 13 + speck) & 31) === 0) set(u, v, P.waterLight);
-              else if ((Y & 3) === 0 && ((X + (Y >> 2) * 3) & 7) < 3) set(u, v, P.waterDark);
-            }
-          // A light line where the water meets the land.
-          if (!isWater(tAt(x, y - 1))) u32.fill(P.waterLight, Y0 * PW + X0, Y0 * PW + X0 + px);
-          if (!isWater(tAt(x, y + 1))) u32.fill(P.waterLight, (Y0 + px - 1) * PW + X0, (Y0 + px - 1) * PW + X0 + px);
-          if (!isWater(tAt(x - 1, y))) for (let v = 0; v < px; v++) set(0, v, P.waterLight);
-          if (!isWater(tAt(x + 1, y))) for (let v = 0; v < px; v++) set(px - 1, v, P.waterLight);
-          break;
-        }
-        case Terrain.Grass:
-        case Terrain.Garden:
-        case Terrain.Park: {
-          // A few darker tufts per tile, at stable spots.
-          const speck = mix(map.seed, x, y, 0x7a3);
-          const c = t === Terrain.Park ? P.foliage : P.grassDark;
-          for (let k = 0; k < 3; k++) {
-            const r = speck >>> (k * 9);
-            if ((r & 3) !== 0) set((r >>> 2) % px, (r >>> 5) % px, c);
-          }
-          break;
-        }
-        default:
-          break;
-      }
-      // Dotted borders between neighbourhoods (off the streets, which already part them).
-      if (d >= 0 && !isRoad(t)) {
-        const dr = dAt(x + 1, y);
-        if (dr >= 0 && dr !== d && !isRoad(tAt(x + 1, y))) for (let v = 0; v < px; v += 2) set(px - 1, v, P.line);
-        const db = dAt(x, y + 1);
-        if (db >= 0 && db !== d && !isRoad(tAt(x, y + 1))) for (let u = 0; u < px; u += 2) set(u, px - 1, P.line);
-      }
+      cache.set(key, c);
     }
+    out[i * 4] = c[0];
+    out[i * 4 + 1] = c[1];
+    out[i * 4 + 2] = c[2];
+    out[i * 4 + 3] = 255;
   }
   return out;
-}
-
-const LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
-/** An opaque colour as one 32-bit RGBA pixel (in memory order). */
-function pack(c: Rgb): number {
-  const r = Math.round(c[0]) & 255;
-  const g = Math.round(c[1]) & 255;
-  const b = Math.round(c[2]) & 255;
-  return (LITTLE_ENDIAN ? ((255 << 24) | (b << 16) | (g << 8) | r) : ((r << 24) | (g << 16) | (b << 8) | 255)) >>> 0;
 }
 
 /** A short hash of a pixel buffer (determinism tests). */
@@ -216,6 +134,120 @@ export function pixelHash(px: Uint8ClampedArray): string {
     h = Math.imul(h, 0x01000193);
   }
   return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+/** Runs of cells in a row that pass a test: [y, x0, x1) — one draw call per run, not per cell. */
+function forRuns(map: TownMap, test: (t: number) => boolean, draw: (y: number, x0: number, x1: number) => void) {
+  const W = map.width;
+  for (let y = 0; y < map.height; y++) {
+    let x0 = -1;
+    for (let x = 0; x <= W; x++) {
+      const on = x < W && test(map.terrain[y * W + x] as number);
+      if (on && x0 < 0) x0 = x;
+      else if (!on && x0 >= 0) {
+        draw(y, x0, x);
+        x0 = -1;
+      }
+    }
+  }
+}
+
+/** A small repeating texture (ripples, furrows, tufts), drawn over runs of its terrain. */
+function texture(make: CanvasFactory, w: number, h: number, dots: (put: (x: number, y: number, c: string) => void) => void, ctx: Ctx): CanvasPattern | string {
+  const tile = make(w, h);
+  dots((x, y, c) => {
+    tile.ctx.fillStyle = c;
+    tile.ctx.fillRect(x, y, 1, 1);
+  });
+  return ctx.createPattern(tile.canvas, "repeat") ?? "transparent";
+}
+
+/** The ground at `px` per tile: cell colours scaled up, then textures, crossings, shores and district borders. */
+function drawGround(ctx: Ctx, map: TownMap, px: number, make: CanvasFactory) {
+  const W = map.width;
+  const H = map.height;
+  const cells = make(W, H);
+  if (typeof ImageData !== "undefined") cells.ctx.putImageData(new ImageData(cellColours(map) as Uint8ClampedArray<ArrayBuffer>, W, H), 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(cells.canvas, 0, 0, W * px, H * px);
+  const seed = map.seed;
+  const scatter = (w: number, h: number, n: number, colour: string, salt: number) => (put: (x: number, y: number, c: string) => void) => {
+    for (let k = 0; k < n; k++) {
+      const r = mix(seed, salt, k);
+      put(r % w, (r >>> 12) % h, colour);
+    }
+  };
+  // Water: ripples and glints.
+  const ripples = texture(make, 4 * px, 2 * px, (put) => {
+    for (let k = 0; k < 3; k++) {
+      const r = mix(seed, 0x51, k);
+      const x = r % (4 * px);
+      const y = (r >>> 10) % (2 * px);
+      for (let u = 0; u < 3; u++) put((x + u) % (4 * px), y, MAP.waterDark);
+    }
+    scatter(4 * px, 2 * px, 2, MAP.waterLight, 0x52)(put);
+  }, ctx);
+  const furrows = texture(make, 1, 4, (put) => {
+    put(0, 0, MAP.fieldDark);
+    put(0, 1, MAP.fieldDark);
+  }, ctx);
+  const tufts = texture(make, 5 * px + 3, 4 * px + 1, scatter(5 * px + 3, 4 * px + 1, 14, MAP.grassDark, 0x53), ctx);
+  const leaves = texture(make, 5 * px + 3, 4 * px + 1, scatter(5 * px + 3, 4 * px + 1, 16, MAP.foliage, 0x54), ctx);
+  const flags = texture(make, px, px, (put) => {
+    for (let u = 0; u < px; u++) put(u, 0, MAP.stoneDark);
+    for (let v = 1; v < px; v++) put(0, v, MAP.stoneDark);
+  }, ctx);
+  const planks = texture(make, 1, 3, (put) => put(0, 0, MAP.woodDark), ctx);
+  const layer = (pattern: CanvasPattern | string, test: (t: number) => boolean) => {
+    ctx.fillStyle = pattern;
+    forRuns(map, test, (y, x0, x1) => ctx.fillRect(x0 * px, y * px, (x1 - x0) * px, px));
+  };
+  layer(ripples, (t) => t === Terrain.Water);
+  layer(furrows, (t) => t === Terrain.Field);
+  layer(tufts, (t) => t === Terrain.Grass || t === Terrain.Garden);
+  layer(leaves, (t) => t === Terrain.Park);
+  layer(flags, (t) => t === Terrain.Plaza);
+  layer(planks, (t) => t === Terrain.Pier);
+  // Zebra crossings, light shores, and dotted borders between neighbourhoods (off the streets, which already part them).
+  const tAt = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? Terrain.Grass : (map.terrain[y * W + x] as number));
+  const dAt = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? -1 : (map.district[y * W + x] as number));
+  const dots = texture(make, 2, 2, (put) => {
+    put(0, 0, MAP.line);
+    put(1, 1, MAP.line);
+  }, ctx);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const t = map.terrain[y * W + x] as number;
+      const X = x * px;
+      const Y = y * px;
+      if (t === Terrain.Crossing) {
+        const roadH = isRoad(tAt(x - 1, y)) || isRoad(tAt(x + 1, y));
+        ctx.fillStyle = MAP.chalkDark;
+        for (let a = 0; a < px; a += 2) {
+          if (roadH) ctx.fillRect(X + a, Y + 1, 1, px - 2);
+          else ctx.fillRect(X + 1, Y + a, px - 2, 1);
+        }
+      } else if (t === Terrain.Water) {
+        ctx.fillStyle = MAP.waterLight;
+        if (!isWater(tAt(x, y - 1))) ctx.fillRect(X, Y, px, 1);
+        if (!isWater(tAt(x, y + 1))) ctx.fillRect(X, Y + px - 1, px, 1);
+        if (!isWater(tAt(x - 1, y))) ctx.fillRect(X, Y, 1, px);
+        if (!isWater(tAt(x + 1, y))) ctx.fillRect(X + px - 1, Y, 1, px);
+      }
+      const d = map.district[y * W + x] as number;
+      if (d >= 0 && !isRoad(t)) {
+        const dr = dAt(x + 1, y);
+        const db = dAt(x, y + 1);
+        const right = dr >= 0 && dr !== d && !isRoad(tAt(x + 1, y));
+        const below = db >= 0 && db !== d && !isRoad(tAt(x, y + 1));
+        if (right || below) {
+          ctx.fillStyle = dots;
+          if (right) ctx.fillRect(X + px - 1, Y, 1, px);
+          if (below) ctx.fillRect(X, Y + px - 1, px, 1);
+        }
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -369,6 +401,7 @@ function drawPlace(p: Pen, b: TownBuilding, seed: number) {
       const tw = Math.max(5, Math.round(px * 1.5));
       const tx = Math.round(box.x + box.w / 2 - tw / 2);
       const top = box.y - Math.round(px * 1.2);
+      rect(ctx, MAP.line, tx - 1, top - 1, tw + 2, box.roofH + Math.round(px * 1.2) + 1);
       rect(ctx, MAP.stone, tx, top, tw, box.roofH + Math.round(px * 1.2));
       rect(ctx, MAP.stoneDark, tx + tw - 1, top, 1, box.roofH + Math.round(px * 1.2));
       poly(ctx, MAP.slateDark, [[tx - 1, top], [tx + tw / 2, top - Math.round(px * 1.0)], [tx + tw + 1, top]]);
@@ -678,6 +711,30 @@ function prop(p: Pen, pr: TownProp, seed: number) {
   }
 }
 
+/**
+ * How far (tiles) a place's glyph rises above its roof row: clock towers,
+ * chimneys, cranes, flags. Name chips sit above it, so a name never hides a
+ * landmark's most recognisable part.
+ */
+export const GLYPH_RISE: Readonly<Record<string, number>> = {
+  town_hall: 3.2,
+  council_chamber: 0.8,
+  parliament: 1.2,
+  regional_assembly: 1.2,
+  executive_residence: 1.0,
+  factory: 2.3,
+  port: 1.6,
+  mine: 1.5,
+  school: 1.1,
+  university: 1.6,
+  diner: 1.0,
+  news_office: 0.5,
+  party_office: 1.4,
+  hotel: 1.4,
+  union_hall: 0.4,
+  community_centre: 0.3,
+};
+
 // ---------------------------------------------------------------------------
 // The bake
 
@@ -693,11 +750,9 @@ export function bakeTownMap(scene: TownMapScene, options: BakeOptions = {}): Bak
   const lights = make(PW, PH);
   const ctx = base.ctx;
   ctx.imageSmoothingEnabled = false;
-  // Ground (pixels).
-  const ground = paintGround(map, px);
+  // Ground.
+  drawGround(ctx, map, px, make);
   const t1 = performance.now();
-  if (typeof ImageData !== "undefined") ctx.putImageData(new ImageData(ground as Uint8ClampedArray<ArrayBuffer>, PW, PH), 0, 0);
-  const t2 = performance.now();
   // Main routes: the streets that join the square to every place, drawn as a lighter line along them.
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
@@ -730,7 +785,7 @@ export function bakeTownMap(scene: TownMapScene, options: BakeOptions = {}): Bak
     width: map.width,
     height: map.height,
     ms: t5 - t0,
-    stages: { ground: t1 - t0, put: t2 - t1, routes: t3 - t2, buildings: t4 - t3, props: t5 - t4 },
+    stages: { ground: t1 - t0, routes: t3 - t1, buildings: t4 - t3, props: t5 - t4 },
   };
 }
 
@@ -769,7 +824,7 @@ export interface MapFrame {
 }
 
 /** The colour beyond the map's edge: the countryside the town sits in. */
-export const OUTSIDE = MAP.grassDark;
+export const OUTSIDE = MAP.grass;
 
 /** Draw one frame: the baked map scaled, the grade, the lights, the overlays. */
 export function drawTownMapFrame(ctx: Ctx, baked: BakedTownMap, f: MapFrame) {

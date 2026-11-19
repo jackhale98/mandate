@@ -12,7 +12,7 @@
 // calls `syncElements()` after each render; this positions them.
 import { HubCamera } from "./camera";
 import type { Point } from "./pathfinding";
-import { drawTownMapFrame, type BakedTownMap, type MapMarker } from "./render/townMapRenderer";
+import { GLYPH_RISE, drawTownMapFrame, type BakedTownMap, type MapMarker } from "./render/townMapRenderer";
 import { RouteCache, alongRoute, cellPoint, routeLength, type MapHotspot, type TownMapScene } from "./townMapScene";
 
 export interface TownMapOverlay {
@@ -29,7 +29,7 @@ export interface TownMapViewOptions {
   baked: BakedTownMap;
   /** A hotspot was tapped, clicked or activated from the keyboard. */
   onActivate: (h: MapHotspot) => void;
-  /** Strength of the time-of-day grade (default 0.4: subtle, never at the cost of legibility). */
+  /** Strength of the time-of-day grade (default 0.5: subtle, never at the cost of legibility). */
   gradeStrength?: number;
   reducedMotion?: boolean;
 }
@@ -246,6 +246,12 @@ export class TownMapView {
     }
     const ms = Math.min(maxMs, Math.max(WALK_MIN_MS, routeLength(route) * 9));
     this.walk = { route, start: performance.now(), ms, to: h.key };
+    this.requestDraw();
+  }
+
+  /** Show the light of another time of day until the game's next update (previews and screenshots). */
+  previewMinutes(minutes: number | null) {
+    this.overlay = { ...this.overlay, minutes };
     this.requestDraw();
   }
 
@@ -527,7 +533,7 @@ export class TownMapView {
       height: this.cssH,
       scale: this.scale,
       minutes: o.minutes,
-      gradeStrength: this.opts.gradeStrength ?? 0.4,
+      gradeStrength: this.opts.gradeStrength ?? 0.5,
       route,
       walked: null,
       markers,
@@ -567,25 +573,33 @@ export class TownMapView {
       }
       pl.chipRect = null;
       if (!pl.chip) continue;
-      const a = this.camera.worldToScreen(h.anchor);
+      const a = this.camera.worldToScreen(h.kind === "place" ? { x: h.anchor.x, y: h.anchor.y - (GLYPH_RISE[h.kindKey] ?? 0) } : h.anchor);
       const k = rank(pl);
       // Quiet places are named only when zoomed in (or focused); the neighbourhoods only when zoomed out a little.
       let want = k <= 3 || (k === 7 ? z >= 9 : true);
       if (h.kind === "streets" && z > 18 && k > 3) want = false;
       const cw = pl.cw || 60;
       const ch = pl.ch || 20;
-      let x = a.x - cw / 2;
-      let y = h.kind === "streets" ? a.y - ch / 2 : a.y - ch - 3;
-      x = Math.min(this.cssW - cw - 2, Math.max(2, x));
-      y = Math.min(this.cssH - ch - 2, Math.max(2, y));
       const onScreen = a.x > -10 && a.y > -10 && a.x < this.cssW + 10 && a.y < this.cssH + 10;
-      const box = { x: x - 2, y: y - 1, w: cw + 4, h: ch + 2 };
-      const free = !shown.some((q) => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y);
-      const show = onScreen && want && (k === 0 || free);
-      if (show) {
-        shown.push(box);
-        pl.chipRect = { x, y, w: cw, h: ch };
+      // Above the building, else below it (a neighbourhood's name sits on its centre).
+      const bottom = this.camera.worldToScreen({ x: h.anchor.x, y: h.rect.y + h.rect.h }).y;
+      const tries = h.kind === "streets" ? [a.y - ch / 2] : [a.y - ch - 3, bottom + 3];
+      let x = Math.min(this.cssW - cw - 2, Math.max(2, a.x - cw / 2));
+      let y = 0;
+      let show = false;
+      for (const ty of tries) {
+        y = Math.min(this.cssH - ch - 2, Math.max(2, ty));
+        const box = { x: x - 2, y: y - 1, w: cw + 4, h: ch + 2 };
+        const free = !shown.some((q) => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y);
+        if (onScreen && want && (k === 0 || free)) {
+          shown.push(box);
+          show = true;
+          break;
+        }
       }
+      if (!show) y = Math.min(this.cssH - ch - 2, Math.max(2, tries[0] as number));
+      x = Math.round(x);
+      if (show) pl.chipRect = { x, y, w: cw, h: ch };
       const st = pl.chip.style;
       st.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
       if (show !== (pl.chip.dataset.shown === "1")) pl.chip.dataset.shown = show ? "1" : "0";
