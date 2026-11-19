@@ -151,13 +151,13 @@ export function Pocket() {
   const busy = useGame((s) => s.busy);
   const saveAndQuit = useGame((s) => s.saveAndQuit);
   const openStory = useGame((s) => s.openStory);
-  const [closing, requestClose] = useSheetClose(() => setOpen(false));
+  const [closing, requestClose, sheetRef] = useSheetClose(() => setOpen(false));
   if (!open || !p) return null;
   const h = p.headlines;
   return (
     <>
       <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />
-    <aside className={closing ? "sheet pocket sheet-closing" : "sheet pocket"} aria-label={tr.t("ui-pocket")} data-testid="pocket">
+    <aside ref={sheetRef} className={closing ? "sheet pocket sheet-closing" : "sheet pocket"} aria-label={tr.t("ui-pocket")} data-testid="pocket">
       <div className="sheet-head">
         <div>
           <h2>{tr.t("ui-pocket")}</h2>

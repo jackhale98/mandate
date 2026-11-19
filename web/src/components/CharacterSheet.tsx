@@ -30,8 +30,8 @@ export function CharacterSheet() {
   const visit = useGame((s) => s.visit);
   const campaign = useGame((s) => s.campaign);
   const busy = useGame((s) => s.busy);
-  const [closing, requestClose] = useSheetClose(() => void open(null));
   const sheet = useRef<HTMLElement>(null);
+  const [closing, requestClose, sheetRef] = useSheetClose(() => void open(null), sheet);
   useLayoutEffect(() => {
     if (sheet.current) sheet.current.scrollTop = 0;
   }, [c?.id]);
@@ -39,7 +39,7 @@ export function CharacterSheet() {
   return (
     <>
       <div className={closing ? "sheet-scrim character-scrim sheet-closing" : "sheet-scrim character-scrim"} onClick={requestClose} aria-hidden="true" />
-      <aside ref={sheet} className={closing ? "sheet character-sheet sheet-closing" : "sheet character-sheet"} aria-labelledby="character-title" data-testid="character-sheet">
+      <aside ref={sheetRef} className={closing ? "sheet character-sheet sheet-closing" : "sheet character-sheet"} aria-labelledby="character-title" data-testid="character-sheet">
         <div className="sheet-head">
           <div>
             <h2 id="character-title">{c.name}</h2>

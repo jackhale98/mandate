@@ -89,3 +89,63 @@ test("the pocket's agenda starts with no action chosen", async ({ page }) => {
   await expect(agenda.getByTestId("route")).toContainText("Streets of");
   await expect(agenda.getByTestId("agenda-choose")).toHaveCount(0);
 });
+
+/** A real touch drag (through the browser's input pipeline, so scrolling and
+ * pointercancel behave as on a phone). */
+const touchDrag = async (page: Page, x: number, y0: number, y1: number, steps: number, stepMs: number, holdMs = 0) => {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: y0 }] });
+  for (let i = 1; i <= steps; i++) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y0 + ((y1 - y0) * i) / steps }] });
+    await page.waitForTimeout(stepMs);
+  }
+  if (holdMs) await page.waitForTimeout(holdMs);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
+};
+
+test("phone: swiping a sheet down closes it, a short drag springs back", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone", "bottom sheets are a phone layout");
+  await start(page, "4242");
+  let pocket = await openPocket(page);
+  await page.waitForTimeout(400);
+  const head = await pocket.locator(".sheet-head").boundingBox();
+  if (!head) throw new Error("no head");
+  const x = head.x + head.width / 3;
+  // A short, slow drag: the sheet follows, then springs back.
+  await touchDrag(page, x, head.y + 12, head.y + 70, 6, 30, 150);
+  await expect(pocket).toBeVisible();
+  await expect.poll(() => pocket.evaluate((el) => getComputedStyle(el).transform)).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+  // Dragging the head well down closes it.
+  await touchDrag(page, x, head.y + 12, head.y + 400, 12, 20);
+  await expect(pocket).toHaveCount(0);
+
+  // From the body: scrolled down, a downward drag scrolls the content back up instead.
+  pocket = await openPocket(page);
+  await page.waitForTimeout(400);
+  await pocket.evaluate((el) => (el.scrollTop = 600));
+  const box = await pocket.boundingBox();
+  if (!box) throw new Error("no sheet");
+  await touchDrag(page, x, box.y + 300, box.y + 450, 8, 20);
+  await expect(pocket).toBeVisible();
+  expect(await pocket.evaluate((el) => el.scrollTop)).toBeLessThan(600);
+  // At the top of the body, a quick downward flick (shorter than the close distance) closes it.
+  await pocket.evaluate((el) => (el.scrollTop = 0));
+  await touchDrag(page, x, box.y + 300, box.y + 435, 3, 0);
+  await expect(pocket).toHaveCount(0);
+});
+
+test("Escape closes the sheet on top", async ({ page }) => {
+  await start(page, "4242");
+  const pocket = await openPocket(page);
+  await pocket.getByRole("button", { name: "Overview", exact: true }).click();
+  await page.locator(".region-accordion > li > .row-btn").first().click();
+  await page.locator(".town-list .row-btn").first().click();
+  await expect(page.getByRole("heading", { name: "Resources" })).toBeVisible();
+  await openPocket(page);
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("pocket")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Resources" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("aside.sheet")).toHaveCount(0);
+});

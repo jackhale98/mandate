@@ -81,7 +81,7 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
   const tr = useGame((s) => s.tr);
   const [view, setView] = useState<MunicipalityView | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [closing, requestClose] = useSheetClose(onClose);
+  const [closing, requestClose, sheetRef] = useSheetClose(onClose);
 
   useEffect(() => {
     let live = true;
@@ -97,7 +97,7 @@ export function MunicipalityPanel({ id, onClose }: { id: number; onClose: () => 
   return (
     <>
       <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />
-    <aside className={closing ? "sheet sheet-closing" : "sheet"} aria-label={view?.name ?? ""}>
+    <aside ref={sheetRef} className={closing ? "sheet sheet-closing" : "sheet"} aria-label={view?.name ?? ""}>
       <div className="sheet-head">
         <div>
           <h2>{view?.name ?? "…"}</h2>
