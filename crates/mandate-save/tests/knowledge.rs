@@ -358,7 +358,9 @@ fn the_ledger_changes_nothing_else_and_is_deterministic() {
         v
     };
     assert_eq!(strip(&a), strip(&b));
-    // Nothing produces knowledge yet (K3): the start is all there is.
+    // Producers (K3) only ever add: everything the start knew is still known.
     let start = game(27, &c);
-    assert_eq!(ledger(&a), ledger(&start));
+    for (s, x) in &ledger(&start).entries {
+        assert!(ledger(&a).level(s) >= x.level, "{s:?}");
+    }
 }

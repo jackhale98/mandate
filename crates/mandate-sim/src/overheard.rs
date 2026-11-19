@@ -10,6 +10,11 @@
 //! stream (DEC-041), so two places in one town differ, the same place
 //! changes week to week, and last week's lines are avoided where others
 //! hold. No prose: Fluent keys and facts only (DEC-054).
+//!
+//! Reading draws nothing new. The one writer is [`overhear`]: when the
+//! player arrives at a place where people talk, each drawn line's
+//! `teaches` subjects are raised to `heard` in the player's knowledge
+//! ledger (DEC-091; the player's command writing the player's state).
 
 use crate::events::EventKind;
 use crate::places::{Location, hood_of};
@@ -494,21 +499,19 @@ pub fn overhear(state: &mut State, content: &ContentBundle, loc: Location) -> us
     let Location::Place { place } = loc else {
         return 0;
     };
-    let taught = teachings(state, content, loc);
-    taught
-        .into_iter()
-        .filter(|(line, s)| {
-            crate::player::knowledge::teach_one(
-                state,
-                s.clone(),
-                crate::player::knowledge::Level::Heard,
-                crate::player::knowledge::Source::Overheard {
-                    place,
-                    line: line.clone(),
-                },
-            )
-        })
-        .count()
+    let mut n = 0;
+    for (line, subject) in teachings(state, content, loc) {
+        let src = crate::player::knowledge::Source::Overheard { place, line };
+        if crate::player::knowledge::teach_one(
+            state,
+            subject,
+            crate::player::knowledge::Level::Heard,
+            src,
+        ) {
+            n += 1;
+        }
+    }
+    n
 }
 
 /// The Fluent key of a sector as residents name it (a noun phrase such as
