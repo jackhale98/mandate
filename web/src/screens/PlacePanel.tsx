@@ -16,6 +16,7 @@ import { Calendar, CampaignHub } from "../components/CampaignCards";
 import { PartyChip } from "../components/ElectionCharts";
 import { roleText } from "../components/CharacterSheet";
 import { capital } from "../components/DecisionSheet";
+import { Newspaper } from "../components/Newspaper";
 
 /** Decisions whose scene happens here (DEC-079: here, the conversation). */
 function WaitingHere({ v }: { v: PlacePanelView }) {
@@ -238,9 +239,10 @@ function People({ v }: { v: PlacePanelView }) {
 /** Generic actions a place offers, each with its costs and risks. */
 function Actions({ v, skip }: { v: PlacePanelView; skip: Set<string> }) {
   const tr = useGame((s) => s.tr);
-  const forms = new Set<FormAction>(["canvass", "town_hall", "press", "fundraise", "rest", "advertise", "lobby", "trade_favor"]);
+  const forms = new Set<FormAction>(["canvass", "town_hall", "press", "fundraise", "rest", "advertise", "lobby", "trade_favor", "take_bribe", "dip_funds", "leak_file"]);
   const campaign = useGame((s) => s.campaign);
-  const shown = v.actions.filter((a) => !a.late_night && !skip.has(a.action) && forms.has(a.action as FormAction) && (a.action !== "advertise" || campaign?.in_campaign));
+  // Late-only actions (an envelope at the diner) are listed by their late variant.
+  const shown = v.actions.filter((a) => (!a.late_night || a.action === "take_bribe") && !skip.has(a.action) && forms.has(a.action as FormAction) && (a.action !== "advertise" || campaign?.in_campaign));
   if (shown.length === 0) return null;
   const lateHere = new Set(v.actions.filter((a) => a.late_night).map((a) => a.action));
   return (
@@ -345,6 +347,7 @@ export function PlacePanel() {
           {v.internal_poll && <InternalPoll p={v.internal_poll} />}
           {has("internal_polls") && v.here && <CampaignHub />}
           {v.overheard && <Overheard o={v.overheard} />}
+          {v.newspaper && <Newspaper n={v.newspaper} />}
           {v.decisions_here.length > 0 && <WaitingHere v={v} />}
           <People v={v} />
           <Actions v={v} skip={skip} />

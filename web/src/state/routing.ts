@@ -47,7 +47,11 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
         case "press":
         case "advertise":
         case "rest":
+        case "dip_funds":
+        case "leak_file":
           return k(a.type);
+        case "take_bribe":
+          return k("take_bribe", true);
       }
       return null;
     }

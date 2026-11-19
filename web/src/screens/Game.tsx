@@ -16,6 +16,7 @@ import { DecisionSheet } from "../components/DecisionSheet";
 import { StorySheet } from "../components/StorySheet";
 import { placeIcon, placeName } from "../places/labels";
 import { Loader } from "../components/Brand";
+import { RunBanner } from "../components/Newspaper";
 
 function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => void; selected: number | null }) {
   const tr = useGame((s) => s.tr);
@@ -181,6 +182,8 @@ export function Game() {
       <Walking />
       {selected !== null && <MunicipalityPanel id={selected} onClose={() => setSelected(null)} />}
 
+      {pocket?.legal && <RunBanner l={pocket.legal} />}
+
       <footer className="actionbar">
         <button type="button" className="btn pocket-btn" aria-expanded={pocketOpen} onClick={() => setPocketOpen(!pocketOpen)} data-testid="pocket-button">
           <span aria-hidden="true">📒 </span>
@@ -198,8 +201,8 @@ export function Game() {
             {placeName(tr, pocket.location)}
           </span>
         )}
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void endTurn()}>
-          {tr.t("ui-end-turn")}
+        <button type="button" className="btn btn-primary" disabled={busy || pocket?.legal?.run.status === "ended"} onClick={() => void endTurn()} data-testid="end-turn">
+          {pocket?.legal?.run.status === "imprisoned" ? tr.t("ui-serve-sentence") : tr.t("ui-end-turn")}
         </button>
       </footer>
     </div>

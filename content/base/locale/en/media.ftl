@@ -85,7 +85,7 @@ scene-relative-sponsor-fresh = { $sponsor }: "We should help each other."
 
 ## Raised decisions: a story about you, an investigation of you.
 dilemma-scandal-response = the story about you
-dilemma-scandal-response-situation = { $outlet } has the story: { $fact_key }. How you answer decides how long it runs.
+dilemma-scandal-response-situation = { $outlet } has the story: { $fact }. How you answer decides how long it runs.
 dilemma-scandal-response-deny = Deny it flatly
 dilemma-scandal-response-deny-after = You denied it. If they had little, the story died; if they had a lot, the denial became the story.
 dilemma-scandal-response-explain = Give a full explanation
@@ -98,7 +98,7 @@ dilemma-scandal-response-nothing = Say nothing
 dilemma-scandal-response-nothing-after = You said nothing. The story ran its course.
 
 dilemma-legal-response = the investigation
-dilemma-legal-response-situation = Prosecutors have opened an investigation into { $fact_key }. You can help them, fight them, or point them elsewhere.
+dilemma-legal-response-situation = Prosecutors have opened an investigation into { $fact }. You can help them, fight them, or point them elsewhere.
 dilemma-legal-response-cooperate = Cooperate fully
 dilemma-legal-response-cooperate-after = You cooperated. They found more, but charges are less likely and any sentence lighter. The party hated the headlines.
 dilemma-legal-response-lawyer = Hire a good lawyer
@@ -217,3 +217,31 @@ event-player-released = You were released from prison.
 event-career-ended = Your career is over: { $reason }.
 event-rumour-spread = A rumour about { $name } began to spread.
 event-rumour-corrected = The rumour about { $name } was corrected.
+
+## The newspaper, the pocket, and the end of a run (web).
+ui-newspaper-empty = Nothing about your town this week.
+ui-newspaper-note = Outlets choose what to run and how to frame it: coverage is not the truth.
+ui-about-you = about you
+ui-news = In the news
+ui-legal = Scandals and the law
+ui-scandals = Stories about you
+ui-cases = Cases
+ui-scandal-line = { $fact } ({ $severity }), since { $date }
+ui-scandal-over = over
+ui-case-line = { $fact }: { $stage }
+ui-case-next = next step by { $date }
+ui-case-odds-charge = { $risk } chance of charges
+ui-case-odds-convict = { $risk } chance of conviction
+ui-years = { $n ->
+    [one] { $n } year
+   *[other] { $n } years
+}
+ui-in-prison = You are in prison until { $date }.
+ui-in-prison-why = Convicted over { $fact }. Out of politics for { $n ->
+    [one] a year
+   *[other] { $n } years
+}; ending the turn lets the time pass. You can run again when you are out.
+ui-serve-sentence = Serve your sentence
+ui-career-over = Your career is over
+ui-career-over-why = Convicted over { $fact }: { $reason }.
+ui-career-over-note = The run has ended. The full Legacy screen comes later; your save keeps the story so far.

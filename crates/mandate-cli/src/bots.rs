@@ -378,23 +378,25 @@ pub fn answer_decisions(e: &mut Engine, content: &ContentBundle, strategy: &str)
 }
 
 /// The corrupt strategy's shady actions (DEC-034): an envelope at the diner
-/// about once a year, the campaign card instead of rest when worn out (at
-/// most once a year), and a rival's file leaked once a campaign.
+/// every eighteen months or so, the campaign card instead of rest when worn
+/// out (as often), and a rival's file leaked once a campaign.
 fn shady_actions(e: &mut Engine, camp: bool) {
     let st = e.state();
     let Some(pl) = st.player.as_ref() else { return };
     let turn = st.calendar.turn;
-    let recent = |key: &str, turns: u32| {
-        pl.actions
-            .iter()
-            .rev()
-            .any(|a| a.action == key && a.date.days_until(st.calendar.date) < turns * 14)
+    // Its own hidden acts of a kind within `days` (the facts it left behind).
+    let recent = |kind: &str, days: u32| {
+        st.narrative.hidden.iter().any(|h| {
+            h.subject == Some(pl.politician)
+                && h.kind == kind
+                && h.date.days_until(st.calendar.date) < days
+        })
     };
     let money = pl.money.units();
     let tired = pl.tracks.health < 45.0;
-    let bribe = !recent("action-take-bribe", 26) && !pl.late_night_used && turn > 2;
-    let dip = tired && money > 2500 && !recent("action-dip-funds", 26);
-    let leak = camp && !recent("action-leak-file", 20);
+    let bribe = !recent("bribe", 540) && !pl.late_night_used && turn > 2;
+    let dip = tired && money > 2500 && !recent("campaign_funds", 540);
+    let leak = camp && !recent("leaked_file", 300);
     let go = |e: &mut Engine, a: Action, late: bool| {
         let _ = e.apply(e.route(PlayerCommand::Act {
             action: a,
@@ -675,10 +677,14 @@ pub fn career(
         .iter()
         .filter(|h| h.subject == Some(me))
         .count();
+    let mut kinds: BTreeMap<String, u32> = BTreeMap::new();
+    for h in st.narrative.hidden.iter().filter(|h| h.subject == Some(me)) {
+        *kinds.entry(h.kind.clone()).or_default() += 1;
+    }
     let npc_scandals = st.media.scandals.iter().filter(|s| s.subject != me).count();
     let npc_cases = st.justice.cases.iter().filter(|c| c.subject != me).count();
     Some(json!({
-        "seed": seed, "won": won, "lost": lost, "hidden_acts": hidden, "scandals": scandals,
+        "seed": seed, "won": won, "lost": lost, "hidden_acts": hidden, "acts": kinds, "scandals": scandals,
         "cases": cases.len(), "convicted": convicted, "prison": prison > 0 || imprisoned, "career_ended": ended,
         "in_office": st.politics.get(me).is_some_and(|p| p.in_office()),
         "money": st.player.as_ref().map(|p| p.money.units()).unwrap_or(0),

@@ -6,9 +6,13 @@ import { routeFor } from "../state/routing";
 import { formatMoney } from "../i18n/format";
 import { placeName } from "../places/labels";
 
-export type FormAction = "canvass" | "town_hall" | "press" | "fundraise" | "rest" | "advertise" | "lobby" | "trade_favor";
+export type FormAction = "canvass" | "town_hall" | "press" | "fundraise" | "rest" | "advertise" | "lobby" | "trade_favor" | "take_bribe" | "dip_funds" | "leak_file";
 
-const LATE: ReadonlySet<FormAction> = new Set(["lobby", "trade_favor", "fundraise"]);
+const LATE: ReadonlySet<FormAction> = new Set(["lobby", "trade_favor", "fundraise", "take_bribe"]);
+/** Only late at night (an envelope under the table). */
+const LATE_ONLY: ReadonlySet<FormAction> = new Set(["take_bribe"]);
+/** Borderline and illegal actions (DEC-034): a payoff now, a risk later. */
+export const SHADY: ReadonlySet<FormAction> = new Set(["take_bribe", "dip_funds", "leak_file"]);
 
 /**
  * One action with its choices, cost, and risks (DEC-073). Choosing it
@@ -24,8 +28,9 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   const [hoodSel, setHood] = useState<number | null>(null);
   const [bill, setBill] = useState<number | null>(null);
   const [member, setMember] = useState<number | null>(null);
-  const [late, setLate] = useState(lateOnly);
+  const [late, setLate] = useState(lateOnly || LATE_ONLY.has(action));
   if (!o || !pocket) return null;
+  const shady = o.player.shady.find((x) => x.action === action);
   const p = o.player;
   const hood = fixedHood ?? hoodSel ?? o.town.neighborhoods[0]?.id ?? 0;
   const live = o.bills.filter((b) => b.status === "under_consideration" || b.status === "enacted" || b.status === "in_effect");
@@ -34,7 +39,7 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   const colleagues = o.council.filter((m) => !m.is_player).concat(o.mayor && !o.mayor.is_player ? [o.mayor] : []);
   const target = colleagues.find((m) => m.id === member) ?? colleagues[0];
   const lateAllowed = allowLate && LATE.has(action);
-  const useLate = (late || lateOnly) && lateAllowed;
+  const useLate = (late || lateOnly || LATE_ONLY.has(action)) && lateAllowed;
   const cost = p.action_costs.find((c) => c.action === action) ?? { action, slots: 1, health: 0 };
   const hoodScoped = action === "canvass" || action === "town_hall";
   const route = routeFor(pocket, { action, lateNight: useLate, neighborhood: hoodScoped ? hood : null });
@@ -65,9 +70,14 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
     case "trade_favor":
       act = lobbyBill && target ? { type: action, politician: target.id, policy: lobbyBill.id } : null;
       break;
+    case "take_bribe":
+    case "dip_funds":
+    case "leak_file":
+      act = { type: action };
+      break;
   }
   const cmd: CommandDto | null = act ? { type: "act", action: act, late_night: useLate } : null;
-  const enough = action === "advertise" ? p.ads_left > 0 && p.money >= p.ad_cost : useLate ? p.late_night_available : p.slots_left >= cost.slots;
+  const enough = (action === "advertise" ? p.ads_left > 0 && p.money >= p.ad_cost : useLate ? p.late_night_available : p.slots_left >= cost.slots) && !shady?.unavailable_key;
   const exactOdds = lobbyBill?.whip_exact ? lobbyBill.whip.find((w) => w.politician === target?.id) : undefined;
 
   return (
@@ -140,7 +150,17 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
         {(action === "lobby" || action === "trade_favor") && useLate && <strong> {tr.t("ui-risk-late-deal")}</strong>}
         {action === "lobby" && (exactOdds ? <strong> {tr.t("ui-odds", { pct: pct(useLate ? exactOdds.lobby_odds_late : exactOdds.lobby_odds) })}</strong> : <span> {tr.t("ui-odds-in-chamber")}</span>)}
       </p>
-      {lateAllowed && !lateOnly && (
+      {/* DEC-073: the chance it comes out, before you commit (a coarse band). */}
+      {shady && (
+        <p className="tradeoff risk-line" data-testid="risk-line">
+          {shady.money > 0 && <>{tr.t("ui-shady-pays", { amount: formatMoney(shady.money) })} </>}
+          {shady.money < 0 && <>{tr.t("ui-shady-costs", { amount: formatMoney(-shady.money) })} </>}
+          {shady.health > 0 && <>{tr.t("ui-shady-heals", { n: Math.round(shady.health) })} </>}
+          <strong>{tr.t("ui-risk-exposure", { risk: tr.t(`risk-${shady.risk}`), severity: tr.t(`severity-${shady.severity}`) })}</strong>
+          {shady.unavailable_key && <span className="muted"> {tr.t(shady.unavailable_key)}</span>}
+        </p>
+      )}
+      {lateAllowed && !lateOnly && !LATE_ONLY.has(action) && (
         <label className="check">
           <input type="checkbox" checked={late} disabled={!p.late_night_available} onChange={(e) => setLate(e.target.checked)} />
           {tr.t("ui-late-night-meeting")}
@@ -159,4 +179,4 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
 }
 
 /** The agenda kinds, in the order the pocket lists them. */
-export const AGENDA: FormAction[] = ["canvass", "town_hall", "press", "fundraise", "lobby", "trade_favor", "rest", "advertise"];
+export const AGENDA: FormAction[] = ["canvass", "town_hall", "press", "fundraise", "lobby", "trade_favor", "rest", "advertise", "take_bribe", "dip_funds", "leak_file"];

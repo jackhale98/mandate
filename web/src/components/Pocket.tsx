@@ -9,6 +9,7 @@ import { ActionForm, AGENDA, type FormAction } from "./ActionForm";
 import { placeIcon, placeName } from "../places/labels";
 import { useSheetClose } from "./useSheetClose";
 import { capital, deadlineText } from "./DecisionSheet";
+import { Headlines, Legal } from "./Newspaper";
 
 const TRACKS = ["record", "viability", "standing", "health", "legal_jeopardy", "threat"] as const;
 /** Tracks where a high value is bad (shown with a "risk" bar plus the text label). */
@@ -183,6 +184,7 @@ export function Pocket() {
           </ul>
         )}
         <Decisions p={p} />
+        {p.legal && <Legal l={p.legal} />}
         <Agenda p={p} />
         <h3 className="sub">{tr.t("ui-your-bills")}</h3>
         {p.bills.length === 0 ? (
@@ -207,6 +209,7 @@ export function Pocket() {
           <StatTile label={tr.t("ui-you-in-ward")} value={`${Math.round(h.awareness_ward * 100)}%`} delta={{ text: `${tr.t("ui-awareness")} · ${signed(h.approval_ward)} ${tr.t("ui-approval")}`, good: null }} />
         </div>
         {h.top_concern_keys.length > 0 && <p className="small">{tr.t("ui-top-concerns", { list: h.top_concern_keys.map((k) => tr.t(k)).join(", ") })}</p>}
+        <Headlines news={p.news} />
         <p className="hint">{tr.t("ui-headlines-note")}</p>
         <h3 className="sub">{tr.t("ui-tracks")}</h3>
         <Tracks p={p} />

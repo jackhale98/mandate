@@ -508,3 +508,18 @@ h2 { font-size: 1.1rem; }
 .aftermath { border-color: var(--accent); }
 .badge-decisions { background: var(--accent); }
 .storyline + .storyline { margin-top: 8px; }
+
+/* Media, scandals, and the legal path (DEC-034, DEC-006). */
+.articles { display: flex; flex-direction: column; gap: 10px; }
+.article { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.article:last-child { border-bottom: 0; }
+.article-head { margin: 0 0 2px; }
+.article-you { border-left: 3px solid var(--accent); padding-left: 8px; }
+.chip-framing { font-size: 0.75rem; padding: 0 6px; }
+.chip-hostile { border-color: var(--bad); }
+.chip-sympathetic { border-color: var(--good); }
+.risk-line strong { color: var(--bad); }
+.run-banner { margin: 0 16px 8px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--surface)); }
+.run-banner p { margin: 0; }
+.run-banner h2 { margin: 0 0 4px; }
+.run-ended { border-width: 2px; }

@@ -251,14 +251,34 @@ pub fn newspaper_view(engine: &Engine, limit: usize) -> Option<NewspaperView> {
         .iter()
         .filter(|o| o.covers(&st.world, m))
         .collect();
-    let articles = st
+    // The latest stories in town, with the latest about the player always
+    // among them; newest first.
+    let reach = |s: &&Story| outlets.iter().any(|o| o.id == s.outlet);
+    let mut picked: Vec<&Story> = st
         .media
         .stories
         .iter()
         .rev()
-        .filter(|s| outlets.iter().any(|o| o.id == s.outlet))
-        .filter(|s| s.town == m || s.subject == Some(pl.politician))
-        .take(limit)
+        .filter(reach)
+        .filter(|s| s.subject == Some(pl.politician))
+        .take(limit.min(6))
+        .collect();
+    for s in st
+        .media
+        .stories
+        .iter()
+        .rev()
+        .filter(reach)
+        .filter(|s| s.town == m && s.subject != Some(pl.politician))
+    {
+        if picked.len() >= limit {
+            break;
+        }
+        picked.push(s);
+    }
+    picked.sort_by(|a, b| b.id.cmp(&a.id));
+    let articles = picked
+        .into_iter()
         .filter_map(|s| article(engine, s))
         .collect();
     Some(NewspaperView {
