@@ -65,4 +65,23 @@ describe("people standing in the street", () => {
     expect(s.goToPerson("c1", () => arrived++)).toBe(true);
     expect(arrived).toBe(2);
   });
+
+  it("dialogue mode: the player stands beside them (face to face), and the townsfolk stand still", () => {
+    const s = new TownScene(map, { townsfolk: 6 });
+    s.setStanding([{ key: "c1", variant: 101 }]);
+    const who = s.standing[0]?.w;
+    if (!who) throw new Error("someone stands");
+    expect(s.goToPerson("c1")).toBe(true);
+    stepUntilStill(s);
+    // Beside them, on their row (people stand on pavements, which run both ways).
+    expect(Math.floor(s.player.y)).toBe(Math.floor(who.y));
+    expect(Math.abs(Math.floor(s.player.x) - Math.floor(who.x))).toBe(1);
+    s.folkPaused = true;
+    const before = s.folk.map((w) => [w.x, w.y]);
+    for (let i = 0; i < 90; i++) s.step(1 / 30);
+    expect(s.folk.map((w) => [w.x, w.y])).toEqual(before);
+    s.folkPaused = false;
+    for (let i = 0; i < 300; i++) s.step(1 / 30);
+    expect(s.folk.map((w) => [w.x, w.y])).not.toEqual(before);
+  });
 });

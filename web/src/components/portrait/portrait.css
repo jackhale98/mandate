@@ -1,0 +1,18 @@
+/* A pixel portrait: the bust in whole art pixels (8 CSS px each; 7 on narrow
+   phones) in a framed window with a sky-to-wall backdrop, the conversation's
+   pixel frame (../talk/talk.css). */
+.portrait {
+  --p: 8px;
+  --n: 3px;
+  position: relative; display: grid; place-items: end center; overflow: hidden;
+  width: calc(var(--p) * 16 + 18px); height: calc(var(--p) * 16 + 14px);
+  background: linear-gradient(#7fb3d9 0 58%, #c9b48a 58% 100%);
+  border: 3px solid var(--dlg-ink, #07080d);
+  box-shadow: inset 0 0 0 3px var(--dlg-rim, #e8b44c), inset 0 0 0 6px var(--dlg-ink, #07080d);
+  clip-path: polygon(0 var(--n), var(--n) var(--n), var(--n) 0, calc(100% - var(--n)) 0, calc(100% - var(--n)) var(--n), 100% var(--n), 100% calc(100% - var(--n)), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n)) 100%, var(--n) 100%, var(--n) calc(100% - var(--n)), 0 calc(100% - var(--n)));
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.4));
+}
+.portrait-canvas { display: block; width: calc(var(--p) * 16); height: calc(var(--p) * 16); image-rendering: pixelated; margin-bottom: 6px; }
+@media (max-width: 380px) {
+  .portrait { --p: 7px; }
+}

@@ -1,11 +1,13 @@
 // The people on the street the player is on, as the walkable town stands them
 // about (the talk hook, DEC-093): who is here comes from the engine (the
-// place view's `people`); this only names them and picks a look. A stranger
-// is named by their role ("a retiree"), as everywhere (DEC-091).
+// place view's `people`); this only names them and picks a look (../portrait/look:
+// the same look the conversation's portrait draws). A stranger is named by
+// their role ("a retiree"), as everywhere (DEC-091).
 import type { PersonRefView } from "../../engine/protocol/PersonRefView";
 import type { Translator } from "../../i18n/fluent";
 import { personName } from "../Knowing";
 import { roleText } from "../CharacterSheet";
+import { lookVariant, personKey } from "../portrait/look";
 
 export interface StreetPersonEntry {
   /** `c<id>` for someone stored, `a<slot>` for a passer-by. */
@@ -18,14 +20,10 @@ export interface StreetPersonEntry {
   variant: number;
 }
 
-/** A stable small hash of a string (FNV-1a). */
-function hash(s: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h;
+/** How a person is named in the street and in a conversation: their name, or their role for a stranger ("Retiree"). */
+export function displayName(tr: Translator, p: PersonRefView): string {
+  const role = roleText(tr, p);
+  return p.name === "" ? (role ? capitalise(role) : personName(tr, p.name)) : p.name;
 }
 
 /** Who stands in the street: everyone listed who can be talked to here (stored people and passers-by). */
@@ -33,11 +31,10 @@ export function streetPeople(tr: Translator, people: readonly PersonRefView[]): 
   const out: StreetPersonEntry[] = [];
   for (const p of people) {
     if (!p.can_talk) continue;
-    const key = p.id !== null ? `c${p.id}` : p.ambient_slot !== null ? `a${p.ambient_slot}` : null;
+    const key = personKey(p);
     if (key === null) continue;
-    const role = roleText(tr, p);
-    const name = p.name === "" ? (role ? capitalise(role) : personName(tr, p.name)) : p.name;
-    out.push({ key, label: name, name, variant: 100 + (hash(key) % 997) });
+    const name = displayName(tr, p);
+    out.push({ key, label: name, name, variant: lookVariant(key) });
   }
   return out;
 }

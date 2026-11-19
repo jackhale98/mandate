@@ -1,6 +1,7 @@
 // "Talk" beside someone in a list (the place panel's people, the pocket's
-// People tab): opens the talk panel for them (DEC-093). Someone elsewhere is
-// fine too: the panel says where they are and walks the player there. A
+// People tab): starts a conversation with them (DEC-093, dialogue mode over
+// their portrait). Someone elsewhere is fine too: the box says where they are
+// and offers to go there. A
 // passer-by (no id yet) is met as the conversation starts.
 import { useGame } from "../../state/gameStore";
 import { personName } from "../Knowing";
