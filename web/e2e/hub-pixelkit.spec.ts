@@ -34,12 +34,12 @@ async function open(page: Page, query: string) {
 test.describe("pixel-art spike toggle", () => {
   test.skip(!built, "spike-hub is not built (see hub-town.spec.ts)");
 
-  test("the placeholder stays the default; art=pixelkit draws the tool's pack on the street preset", async ({ page }) => {
-    const errors = await open(page, "seed=4242&t=720&speed=0&n=8&preset=street");
+  test("the tool's pack is the default on the street preset; art=placeholder shows the stand-in", async ({ page }) => {
+    const errors = await open(page, "seed=4242&t=720&speed=0&n=8&preset=street&art=placeholder");
     expect(await probe(page)).toEqual({ name: "placeholder", night: null });
     const placeholder = await page.locator("#stage canvas").screenshot();
 
-    await open(page, "seed=4242&t=720&speed=0&n=8&preset=street&art=pixelkit");
+    await open(page, "seed=4242&t=720&speed=0&n=8&preset=street");
     expect(await probe(page)).toEqual({ name: "pixelkit", night: "moods" });
     const street = await page.evaluate(() => (window as unknown as { __hub: Probe }).__hub.showStreet());
     expect(street?.w).toBeGreaterThan(0);

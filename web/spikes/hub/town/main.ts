@@ -6,8 +6,8 @@
 // moves the player there in the engine and shows what the place offers.
 // URL: seed=<text>, t=<minutes>, speed=<game minutes per second>, n=<townsfolk>,
 // res=css|device, hud=1. Exposes window.__hub for tests and measurements.
-// The pixel-art tool's spike (DEC-084, P0): art=pixelkit swaps the code-drawn
-// placeholder for the tool's art pack; night=multiply|moods picks the night
+// The pixel-art tool's spike (DEC-084, P0): the tool's art pack is the default;
+// art=placeholder shows the code-drawn placeholder instead; night=multiply|moods picks the night
 // look (D12; moods by default); preset=street centres on one representative street of the town
 // centre (zoom=<1..6> overrides the zoom).
 import { engine, expectKind } from "../../../src/engine/client";
@@ -33,7 +33,8 @@ const townsfolk = Math.max(0, Math.min(400, Number(q.get("n") ?? 16) || 0));
 // Device resolution by default: crisp whole-device-pixel zoom steps, and far more
 // of them on a phone (?res=css draws at CSS pixels as before).
 const resolution = q.get("res") === "css" ? "css" : "device";
-const artName = q.get("art") === "pixelkit" ? "pixelkit" : "placeholder";
+// The pixel-art pack is the default (owner, 2026-11-19); ?art=placeholder shows the code-drawn stand-in.
+const artName = q.get("art") === "placeholder" ? "placeholder" : "pixelkit";
 // Palette moods are the default night look from round 2 (the owner's lean, D12); multiply stays for comparison.
 const night: NightLook = q.get("night") === "multiply" ? "multiply" : "moods";
 const preset = q.get("preset");
@@ -124,6 +125,9 @@ function placeLabel(b: TownBuilding): string | null {
 
 function mount(m: TownMap) {
   const t0 = performance.now();
+  // Paint the moment's mood before the first bake, so a new town opens in the right
+  // light instead of cross-fading into it (and an idle town is idle from the start).
+  pixelkit?.setClock(clock.minutes);
   view = new HubView(stage, {
     map: m,
     art,
