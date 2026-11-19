@@ -39,7 +39,7 @@ Every milestone ends with a playable or inspectable increment, CI green, docs up
 | M8 | Acts 3–4 (national, presidency) | National legislature, cabinet and appointments, macro levers, presidency, Mandate Test, full endings | A complete career is playable |
 | M9 | Variety and polish | Archetypes 2–4 plus quirks (curveball pool), storyteller profiles, era volatility UI, content expansion, art pass, performance, save migration hardening, mod-pack loading, audio | Release candidate |
 
-**After v1 (idea, owner 2026-11-18):** a companion tool for tuning and generating the game's pixel art (objects, characters, buildings) from parameters, possibly spun out into its own repository if it proves useful. Not scheduled.
+**After v1 (idea, owner 2026-11-18):** a companion tool for tuning and generating the game's pixel art (objects, characters, buildings) from parameters, possibly spun out into its own repository if it proves useful. Not scheduled. Plan: `docs/design/research/PIXEL_ART_TOOL.md` (proposes a validation spike before M6 art integration; owner decision D15).
 
 ## 3. Initial backlog — M0 (agent-sized tasks)
 

@@ -6,15 +6,15 @@
 
 ## Executive summary
 
-1. A generator cannot invent good pixel art. It can multiply a small library of good hand-drawn parts into thousands of consistent sprites. Shipped games of this kind work this way: Stardew Valley's farmer, RimWorld's pawns, Caves of Qud's recoloured tiles [SDV-FS, RW, CoQ].
-2. Recommendation: **hand-drawn part libraries, composed by code, coloured from designed palette ramps.** Code handles selection, layering, recolouring, outlines, autotiling and facade layout. People draw the parts.
-3. Characters are composed on the device from a part atlas and an appearance "genome" that the engine stores (DEC-031). Tiles, autotile sets and icons are built ahead of time. Buildings are assembled on the device from modular kits by a small facade grammar.
-4. Lighting follows DEC-080: no per-pixel lighting. Every asset ships with an emissive layer (lit windows, lamps), shadow metadata (footprint and height, so the renderer can draw shadows that follow the sun), and the palette ships with day-cycle grading keyframes.
-5. Tool form: a TypeScript library with a CLI, a browser "studio" for tuning (sliders, seed browsing, contact sheets, favourites), and a small runtime the game imports. One compositor serves the tool, the tests and the game, so a preview and the game always agree.
-6. Quality control: a written style guide, automated lints (palette, orphan pixels, outlines, contrast, colour-blind checks, clone rate in crowds), golden-image tests, and contact sheets the owner reviews.
-7. AI image generation: not for shipped pixels. At 16 px it gives off-grid, off-palette output that needs a redraw anyway, and purely generated images cannot be copyrighted in the US [AI-CLEAN, USCO].
-8. Start with a **validation spike** (about 6 agent tasks): one palette, one building kit, one tile set, 20 townsfolk, rendered as one street at day and dusk and judged against a rubric. Then an MVP for M6 (about 14 tasks) and an expansion for M7–M8 (about 12 tasks).
-9. Keep it in this repo (`tools/pixelkit/`, a working name) with a hard boundary, and split it out after M6 once its interface has held steady.
+1. A generator can't invent good pixel art; it multiplies a small library of good hand-drawn parts. Stardew Valley, RimWorld and Caves of Qud work this way [SDV-FS, RW, CoQ].
+2. Recommended: **hand-drawn parts, composed by code, coloured from designed palette ramps.** Code selects, layers, recolours, outlines, autotiles and lays out facades.
+3. Characters are composed on the device from the engine's stored appearance ids (DEC-031); buildings from modular kits; tiles, props and icons are built ahead of time.
+4. Lighting stays pre-rendered (DEC-080): assets ship emissive layers, shadow footprints for sun-following shadows, and the palette ships day-cycle grading keyframes.
+5. Tool: a TypeScript library with a CLI, a browser studio for tuning, and a small runtime the game imports, so previews and the game always match.
+6. Quality: a style guide, automated lints (palette, noise, outlines, contrast, colour blindness, crowd clones), golden images, and owner-reviewed contact sheets.
+7. No AI-generated pixels in shipped art: at 16 px they need a redraw anyway, and raw output can't be copyrighted in the US [AI-CLEAN, USCO].
+8. First a **validation spike** (~6 agent tasks): one palette, building kit and tile set, 20 townsfolk, one street at noon and dusk, judged on a rubric. Then MVP with M6 (~16), expansion for M7–M8 (~12).
+9. It lives in `tools/pixelkit/` (working name) behind a hard boundary, and splits into its own repository once its interface holds for a milestone.
 
 ## 1. What makes pixel art look good, and what makes it look like programmer art
 
@@ -43,14 +43,14 @@ The sources agree on a short list. Each item becomes a rule in the style guide (
 ### 2.1 Layered characters (paper doll)
 
 - **Stardew Valley's farmer** is 16×32 per frame, stacked bottom to top as body, pants, shirt, accessories, hair, hat, arms. The game recolours skin, eyes, boots, pants and sleeves by matching specific palette colours in the base sprite. Left and right are mirrors [SDV-FS]. NPC sprites are 16×32 and portraits 64×64 [SDV-SZ]. One person drew all of it and had never done pixel art before; he got better through practice [SDV-PCG]. This is the closest precedent for Mandate's scale.
-- **RimWorld** overlays head and body apparel 1:1 onto heads and bodies, needs three facings (south, north, east; west mirrors east), draws apparel per body type (five), and colours apparel through masks: red marks the primary-colour area, black stays uncoloured [RW]. Players report layering bugs (outer clothes over hair, back hair between layers) [RW-LAYER]. Lesson: the layer order and occlusion rules need to be explicit data, and every combination needs testing.
+- **RimWorld** overlays head and body apparel 1:1 onto heads and bodies, needs three facings for headwear (south, north, east; west mirrors east), draws apparel per body type (five), and colours apparel through masks: red marks the primary-colour area, black stays uncoloured [RW]. Layer order is a recurring modding topic: a popular mod exists only to add a hair layer behind the pawn [RW-LAYER]. Lesson: the layer order and occlusion rules need to be explicit data, and every combination needs testing.
 - **Caves of Qud** draws tiles in three "colours": black takes the foreground colour, white the detail colour, transparent the background. A fourth colour blends by its red channel. Tiles are 16×24 [CoQ]. Lesson: a recolour-by-slot format makes one drawing serve hundreds of creatures.
 - **LPC Universal Spritesheet Character Generator** is the largest open paper-doll library. The generator code is GPL-3.0. Each image has its own licence (CC0, CC-BY, OGA-BY, CC-BY-SA, GPL), and CC-BY-SA requires credit, no DRM, and share-alike for derivatives [LPC-GEN]. The style is a 32×32 grid [LPC-SG], with larger characters than Mandate's 16 px tiles. **Assessment:** a useful reference for animation tables and layer naming, but a poor source of art. It does not match the 16 px scale (DEC-065), share-alike conflicts with the permissive-only policy (OVERVIEW §9), and crediting hundreds of authors per sprite is a real burden.
 - **Kenney** packs are CC0 [KEN]. Tiny Town is 16×16 and is DEC-065's initial art. Kenney's modular Roguelike Characters (16×16) can be assembled from parts but come without animation [KEN-RC]. They are good placeholders and proportion references, and too small and too generic to be Mandate's final look.
 
 ### 2.2 Fully procedural sprites
 
-- **Dave Bollinger's pixel spaceships** and their many ports (zfedoran's MIT JavaScript version is the best known) start from a 2D mask of cell types, randomise it, mirror it, then outline and colour the result [PSG]. This works for symmetric, abstract subjects (ships, bugs, emblems). It produces neither readable people nor architecture.
+- **Dave Bollinger's pixel spaceships** and their many ports (zfedoran's MIT JavaScript version is the best known) start from a 2D mask, randomise it and mirror it into a symmetric template, then draw it [PSG]. This works for symmetric, abstract subjects (ships, bugs, emblems). It produces neither readable people nor architecture.
 - **Assessment:** procedural *shapes* hit a low quality ceiling for people and buildings. Procedural *selection, placement and recolouring* of hand-made parts is where code adds value.
 
 ### 2.3 Palette swaps and colour ramps
@@ -85,7 +85,7 @@ All three shipped examples above recolour by slot (key colours, masks, or 3-colo
 
 ### 2.8 AI-assisted pixel art
 
-- **Output quality:** diffusion models paint images that resemble pixel art: block sizes vary, pixels sit off the grid, edges anti-alias, and colour counts explode (one sprite asked to use 12 colours came back with 44,725). Cleanup means detecting the grid, downscaling, quantising, then fixing by hand. One practitioner says at 32×32 and below conversion does not keep a character's detail, and the output is better used as a reference [AI-CLEAN]. Dedicated tools (Retro Diffusion, an Aseprite extension) add palette control and grid snapping [RD], but output sizes are fixed (32, 64) and each generation is a separate drawing, so parts generated one at a time don't line up on shared anchors.
+- **Output quality:** diffusion models paint images that resemble pixel art: most "pixels" don't land inside a grid, edges blur, and colour counts explode [AI-CLEAN]. One vendor reports a sprite asked for about 12 colours that came back with 44,725, with blocks 26 to 32 px wide [AI-RANGY]. Cleanup means detecting the grid, downscaling, quantising, then fixing noise by hand [AI-CLEAN]. Our assessment: at 16×24 there are too few pixels for a downscaled painting to keep a face or a hand, so the cleanup becomes a redraw. Dedicated tools (Retro Diffusion, an Aseprite extension) add palette control and grid snapping [RD], but each generation is still a separate drawing, so parts generated one at a time don't line up on shared anchors.
 - **Consistency:** a paper doll needs every hair style aligned to the same head in three facings and four walk frames. Generation does not guarantee alignment between images, so each part would be redrawn by hand anyway.
 - **Copyright:** the US Copyright Office's 2025 report says outputs generated from a prompt alone are not copyrightable, and choosing one output from several is not authorship. Human selection, arrangement, and creative modification can be protected [USCO]. Shipped AI pixels could be copied freely.
 - **Stores:** Steam requires disclosure of AI-generated content that players see (rules rewritten in 2026 to cover only player-facing content) [STEAM-AI]. Mandate ships on the web, but a store release later would need the disclosure.
@@ -115,7 +115,7 @@ All three shipped examples above recolour by slot (key colours, masks, or 3-colo
 | R5 | An art update must not change a known character's look unless intended | Owner brief | Stored keys never remapped; alias table; golden diffs reviewed |
 | R6 | Buildings for every place kind (23 in `PlaceKind`) and neighbourhood kind (6), plus filler housing | DEC-079, `places.jsonc`, `world.rs` | Coverage lint against the registries |
 | R7 | Visible conditions from the simulation: boarded storefronts, construction, flood damage, protests | DEC-009 | Condition overlays in every shop and house kit |
-| R8 | Towns feel distinct | DEC-077 | Owner side-by-side test of two towns (§8 rubric) |
+| R8 | Towns feel distinct | DEC-077 | Owner side-by-side of two generated towns at the P1 review (§8) |
 | R9 | Continuous day cycle with pre-rendered lighting: grading keyframes, lit windows and lamps at dusk, sun-following shadows | DEC-013, DEC-080 | Each asset ships emissive and shadow data; dusk contact sheet |
 | R10 | Canvas 2D: no shaders; static layers pre-rendered; one atlas for sprites | DEC-080 | Runtime uses only `drawImage`, composite modes, and `ImageData` |
 | R11 | Mobile PWA budgets: hub ≥ 30 fps on a mid-range phone; small download | DEC-048, OVERVIEW §8 | Art payload and decoded-memory budgets (§3.5) |
@@ -153,7 +153,7 @@ Buildings are wall faces and roofs in three-quarter view (as in the spike). One 
 |---|---|---|
 | Civic | town hall, council chamber; M7/M8: regional assembly, parliament, executive residence | Columns, pediment, steps, flagpole, clock, dome (M8) |
 | Small commercial | diner, market, news office, party office, hotel, shops (filler) | Shopfronts, awnings (recolourable), pictogram signs, market stalls |
-| Community | school, clinic, community centre, union hall, business association, university | Entrance canopies, noticeboards, playground fence, cross-free clinic sign |
+| Community | school, clinic, community centre, union hall, business association, university | Entrance canopies, noticeboards, playground fence, a clinic sign that avoids the legally protected red-cross emblem |
 | Industrial | factory, mill, mine, port, tech campus | Sawtooth roofs, chimneys, loading doors, cranes, headframe, glass curtain wall (tech) |
 | Residential (filler) | houses, terraces, apartment blocks, farmhouses | Porches, gardens, balconies, garages |
 
@@ -178,7 +178,7 @@ Street lamps (2 styles, emissive head plus light pool), benches, bins, bollards,
 
 | Item | P1 count | Notes |
 |---|---|---|
-| Frame | 16×24 (decision D1) | Figures 18–23 px tall by height band |
+| Frame | 16×24 (decision D1) | Figures 17–22 px tall by height band and age |
 | Facings | down, up, side (mirrored for the other side) | [SLY-22] |
 | Animations | walk 4 frames, idle 2, talk 2, sit 1 (down and up), cheer 2 | Scenes need talk, sit and cheer (DEC-009 staged scenes) |
 | Body builds | 4 (slim, average, broad, heavy) × 3 heights | Independent of class and occupation |
@@ -195,9 +195,11 @@ Street lamps (2 styles, emissive head plus light pool), benches, bins, bollards,
 
 **Interiors (M6 needs one or two; M7/M8 more):** council chamber and a town hall office first: floor and wall tiles, desks, chairs, benches, a dais, windows. About 30 parts. Parliament and the executive residence at M8.
 
-**UI icons:** about 50 icons on a 16×16 grid in one colour, exported as SVG so they take the theme's `--text` or `--accent`, as the logo does (DEC-081): place kinds (23 plus home and streets), actions (~15), information services (5), pressure tracks (5), resources. Shapes must differ, because colour is never the only signal (DEC-051).
+**UI icons:** about 55 icons on a 16×16 grid in one colour, exported as SVG so they take the theme's `--text` or `--accent`, as the logo does (DEC-081): place kinds (23 plus home and streets), actions (~15), information services (5), pressure tracks (5), resources. Shapes must differ, because colour is never the only signal (DEC-051).
 
 **Strategic map:** the map keeps its own data-visualisation ramps (they must stay perceptually ordered and colour-blind safe), but its biome, water and land colours come from the palette's terrain ramps, and its town markers come from the icon set.
+
+**Total for P1:** about 200 building parts, 175 character parts, 90 tile templates and tiles, 40 props and 30 interior parts, so about 500 drawings, plus about 55 icons. Everything else comes from composition and recolouring.
 
 ### 3.3 Variety, inclusivity and accessibility
 
@@ -246,10 +248,27 @@ Notes:
 3. Ambient people get their genome from the existing keyed ambient generation (seed, place, week, slot), as a pure function; promotion to Named stores it.
 4. **Stored choices are never remapped.** A genome stores ids, not indices. Ids are never deleted: a retired id gets `replaced_by` in the registry.
 5. Choices that are derived rather than stored (outfit from current occupation, greying from age, campaign rosette from party and campaign state, art-side micro-variation from the art seed) change when the underlying fact changes. That is intended: a mayor dresses differently from a shopkeeper.
-6. Derived picks use **rendezvous (highest-random-weight) hashing**: each candidate gets a score from a fixed hash of (seed, candidate id), weighted, and the highest wins. Adding a new candidate only takes over the picks where it now scores highest; every other pick stays the same. The same method is used in the engine's weighted appearance draws for unstored ambient people.
+6. Derived picks use **rendezvous (highest-random-weight) hashing**: each candidate gets a score from a fixed hash of (seed, candidate id), weighted, and the highest wins. Adding a new candidate only takes over the picks where it now scores highest; every other pick stays the same. The engine's weighted appearance draws should use the same method (with scores from its keyed stream), so adding a hair style to the registry reshuffles only the ambient people it now wins for.
 7. Redrawing a part changes everyone who uses it. That is an art release, reviewed through golden-image diffs (§7) before merge.
 8. The art pack has a version and a content hash. Saves don't record it, because looks are not simulation state.
 9. The hash used by the compositor is a fixed, specified function with shared test vectors in Rust and TypeScript, so engine and UI agree where they need to.
+
+**From appearance to layers**
+
+| Genome field (engine, stored) | Derived at view time (art pack) | Layers it drives (bottom to top) |
+|---|---|---|
+| `build`, `height` | Age form from `age` (posture, stride) | Body base (per facing and frame), arms |
+| `skin` | | Slot recolour of body, arms, head |
+| `hair`, `hair_colour` | Greying from `age` and the art seed | Back hair (behind the body), front hair; a hat swaps in the style's "under hat" variant |
+| `facial_hair` | | Face detail |
+| `wear` preferences (glasses, hat liking, colour leaning) | | Accessories |
+| | Outfit from occupation, class, age and context (office, campaign) | Legs, top, outer layer, sleeves (on the arms layer) |
+| | Campaign rosette from party and campaign state | Accessory, in the party's colour plus symbol |
+| `art_seed` | Micro-variation: cloth colour within the outfit's allowed ramps, shoe colour, small details | Slot choices only, never shape |
+
+Layer order: shadow blob, back hair, legs, body, top, outer layer, head, face detail, front hair, hat, accessories, arms. The exterior outline is added last. Each part declares occlusion tags (`covers_hair_top`, `needs_hat_variant`, `hides_arms`) that the compositor obeys and the clash lint checks.
+
+The space of distinct looks is large: 4 builds × 3 heights × 10 skin ramps × 16 hair styles × 8 hair colours × 22 outfits × about 12 cloth colour choices is over 8 million combinations. The risk is not running out of combinations but generating many that *read* the same at 16 px, which is what the clone-rate lint measures.
 
 **What the renderer consumes**
 
@@ -279,7 +298,7 @@ interface ArtProvider {
 }
 ```
 
-`BuildingSpec` is the view model the engine already has or can add: place kind, neighbourhood kind, footprint in tiles, door side, storeys, condition flags (boarded, construction, flooded), and a `visual_seed` the engine derives from (world seed, place id). The UI never invents seeds.
+`BuildingSpec` combines what the engine already knows (place kind, neighbourhood kind, condition flags such as boarded, construction or flooded, from simulation state) with what the M6 town layout decides (footprint in tiles, door side, storeys), plus a `visual_seed` computed with the shared fixed hash from (world seed, place id). The look then never depends on load order or on which screen asked first.
 
 **Build time or on the device**
 
@@ -287,8 +306,8 @@ interface ArtProvider {
 |---|---|---|
 | Tiles, autotile sets, props, icons | Build time | Fixed set; pre-expanded sets are cheap to draw |
 | Buildings | On the device, once per town load, into the static layer | Footprints vary per town; pre-rendering every combination would be thousands of images; the static layer is pre-rendered anyway (DEC-080) |
-| Characters | On the device, per character, cached | The combination space is far too large to pre-render; composing one character (4 facings × ~11 frames at 16×24) is a few thousand pixel operations |
-| Palette moods | On the device, at town load | Remapping a 1024×1024 static layer through a palette lookup takes a few milliseconds |
+| Characters | On the device, per character, cached | The combination space is far too large to pre-render; composing one character (3 drawn facings × ~11 frames × ~8 layers at 16×24) is about 100,000 pixel operations, well under a millisecond |
+| Palette moods | On the device, at town load | If the static layer is also kept as palette indices, remapping a 1024×1024 layer is one array lookup per pixel, a few milliseconds per keyframe |
 
 **Budgets (proposed)**
 
@@ -308,13 +327,13 @@ interface ArtProvider {
 
 | Option | Cost | Quality ceiling | Tunability | Licensing | Verdict |
 |---|---|---|---|---|---|
-| A. Hand-drawn part libraries, composed by code, coloured from palette ramps (paper doll) | Medium: ~400 parts for P1, then mostly free variety | High: as good as the parts | High: weights, ramps, rules, seeds | Clean: we own the parts | **Recommended core** |
+| A. Hand-drawn part libraries, composed by code, coloured from palette ramps (paper doll) | Medium: ~500 parts for P1, then mostly free variety | High: as good as the parts | High: weights, ramps, rules, seeds | Clean: we own the parts | **Recommended core** |
 | B. Fully procedural shapes (masks, primitives) | Low drawing cost, high tuning cost | Low for people and buildings | High, but tuning cannot fix a low ceiling | Clean | Use only for placement, layout and decoration |
 | C. AI drafts cleaned by hand | Low to start, high to clean at 16 px | Medium; consistency between parts is the problem | Low: no parameters, only prompts | Unprotectable raw output [USCO]; disclosure on stores [STEAM-AI] | Not for shipped pixels; mood boards at most |
 | D. Licensed packs plus recolouring | Lowest | Medium; generic look | Low to medium | Kenney: CC0, fine [KEN]. LPC: share-alike and per-asset credit [LPC-GEN]. Commercial packs often forbid redistribution of source files, which a public repository does | Kenney as placeholder and reference only |
 | E. 3D models rendered to pixels (Dead Cells) | High: modelling and rigging skills | Medium at 16 px; smooth, not crisp | Medium | Clean | Not for v1; possibly for shadow masks later |
 
-**Who draws the parts** is the real question behind option A. DEC-049 notes that art is where AI agents are weakest. Agents can write small parts as text grids (as the 16×16 logo was, DEC-081), and the spike tests whether that reaches the rubric. If it doesn't, the plan changes in one place: a commissioned pixel artist draws the part library (about 400 parts for P1, not thousands of sprites), and the tool does the rest. The tool is worth building either way.
+**Who draws the parts** is the real question behind option A. DEC-049 notes that art is where AI agents are weakest. Agents can write small parts as text grids (the 16×16 logo was drawn in code on a pixel grid, DEC-081), and the spike tests whether that reaches the rubric. If it doesn't, the plan changes in one place: a commissioned pixel artist draws the part library (about 500 parts for P1, not thousands of sprites), and the tool does the rest. The tool is worth building either way.
 
 ### 4.2 Tool form
 
@@ -344,37 +363,48 @@ interface ArtProvider {
 ```mermaid
 flowchart LR
   subgraph Engine["Engine (Rust, no art)"]
-    REG["appearance.jsonc\nsemantic options + weights"]
-    GEN["Appearance stream\n(keyed: seed, character id)"]
-    VM["View models\nLookView, BuildingSpec,\nvisual_seed, conditions"]
+    REG["appearance.jsonc<br/>semantic options + weights"]
+    GEN["Appearance stream<br/>(keyed: seed, character id)"]
+    VM["View models<br/>LookView, BuildingSpec,<br/>visual_seed, conditions"]
     REG --> GEN --> VM
   end
   subgraph Sources["art/mandate (hand-made)"]
-    PAL["palette.jsonc\nramps, slots, grading"]
-    PARTS["parts: PNG or text grid\n+ JSONC sidecars"]
-    KITS["building kits\n+ facade rules"]
-    TPL["autotile templates,\nprops, icons"]
+    PAL["palette.jsonc<br/>ramps, slots, grading"]
+    PARTS["parts: PNG or text grid<br/>+ JSONC sidecars"]
+    KITS["building kits<br/>+ facade rules"]
+    TPL["autotile templates,<br/>props, icons"]
   end
   subgraph Tool["tools/pixelkit (TypeScript)"]
-    CORE["core: compose, recolour,\noutline, facade grammar,\nautotile, rasterise, lint"]
-    CLI["CLI: build, lint,\nsheet, golden"]
-    STUDIO["Studio (browser):\nsliders, seeds, contact\nsheets, favourites"]
-    RT["runtime (≤10 KB)"]
+    CORE["core: compose, recolour,<br/>outline, facade grammar,<br/>autotile, rasterise, lint"]
+    CLI["CLI: build, lint,<br/>sheet, golden"]
+    STUDIO["Studio (browser):<br/>sliders, seeds, contact<br/>sheets, favourites"]
+    RT["runtime (at most 10 KB)"]
     CORE --- CLI
     CORE --- STUDIO
     CORE --- RT
   end
   Sources --> CLI
-  CLI --> PACK["web/public/art/<version>\nmanifest.json, palette.json,\natlases, icons.svg"]
-  CLI --> QA["contact sheets,\ngolden diffs, lint report"]
+  CLI --> PACK["web/public/art/VERSION<br/>manifest.json, palette.json,<br/>atlases, icons.svg"]
+  CLI --> QA["contact sheets,<br/>golden diffs, lint report"]
   QA --> OWNER["Owner review"]
-  PACK --> RENDER["M6 hub renderer\n(Canvas 2D)"]
+  PACK --> RENDER["M6 hub renderer<br/>(Canvas 2D)"]
   VM --> RENDER
   RT --> RENDER
   REG -. "coverage check" .- CLI
 ```
 
 Data flow for one townsperson at dusk: the engine sends a `LookView` (genome ids, age, occupation, class, campaign state). The runtime picks parts (stored ids, plus derived outfit and greying by rendezvous hashing), stacks them in manifest layer order, recolours slots from the palette, adds the exterior outline, and caches the frames. The renderer draws the cached frame, multiplies by the dusk grade, and draws a blob shadow offset by the sun vector.
+
+### 5.1 What the M6 renderer can rely on now
+
+The M6 renderer is being built with code-drawn placeholder art behind a sprite and tile provider. If the placeholder provider follows these points, the real art pack drops in without renderer changes:
+
+1. The provider has the shape of `ArtProvider` (§3.5); the placeholder implements the same calls.
+2. Character frames are 16×24 with the anchor at the feet (bottom centre); facings are down, up and side, with the side mirrored.
+3. Buildings come back as albedo frames plus a list of windows and doors, each with its own emissive frame and a use tag.
+4. Every shadow caster has a footprint polygon and a height in art pixels; the renderer projects shadows itself.
+5. Grading comes from `grade(minuteOfDay)`; the renderer does no colour design of its own.
+6. Everything is drawn at art resolution and scaled by whole numbers.
 
 ## 6. Style guide draft
 
@@ -446,6 +476,16 @@ These are starting values for the spike to confirm or change.
 | Determinism | Building twice gives identical decoded pixels and an identical manifest | Error |
 | Boundary | Core imports nothing from `web/` or `art/` | Error |
 
+Starting thresholds, to be tuned in the spike against what the owner judges readable:
+
+| Check | Starting threshold |
+|---|---|
+| Figure against ground, Oklab lightness difference (mean over the figure's edge pixels) | ≥ 0.15 by day, ≥ 0.10 at night |
+| Colour-blind cue pairs, Oklab distance after simulation | ≥ 0.08 |
+| Near-clone pairs (5 of 6 features) per crowd of 20 | ≤ 0.5 on average (of 190 pairs) |
+| Silhouette overlap between builds (intersection over union) | ≤ 0.85 |
+| Orphan pixels per part | ≤ 2, outside highlight colours |
+
 ### 7.2 Golden images
 
 - A fixture set: 40 characters (pinned genomes covering every build, skin ramp and hair style), 12 buildings (one per family and condition), each autotile set, and one sample street at 06:00, 12:00, 18:30 and 22:00.
@@ -486,17 +526,21 @@ Effort is in agent tasks (one brief per `WORKFLOW.md`, roughly one focused sessi
 
 **Exit:** a pass on 1, 2 and 5 at least, and the owner's go. The spike also answers: is 16×24 enough room (otherwise 16×32)? Are agent-drawn parts good enough, or is a commissioned artist needed? Multiply-only grading or palette moods?
 
-### P1 — MVP for M6 (about 14 tasks)
+### P1 — MVP for M6 (about 16 tasks)
 
-- Full palette (10 skin ramps) and final style guide in `docs/design/`.
-- Kits for all five families with the P1 place kinds, all six neighbourhood material sets, condition overlays, filler housing.
-- All terrain pairs as autotile sets; ~40 props; council chamber and town hall interiors.
-- Character library (§3.2) with walk, idle, talk, sit and cheer; sprite-bust portraits.
-- `appearance.jsonc` and the genome in the engine and protocol (save format bump with a load-time fill for old saves); coverage check in `content validate`.
-- Runtime integrated behind the M6 renderer's provider interface, replacing the placeholder provider; lighting data wired to the day cycle.
-- ~50 UI icons as SVG.
-- Studio app; all lints and goldens in CI; budgets checked.
-- **Exit:** the M6 game-quality gate (owner plus testers) judges the town's art, the clone-rate and contrast lints pass, budgets hold on a real phone.
+| Task | Output | Tasks |
+|---|---|---|
+| P1-1 Palette and style guide | Full palette (10 skin ramps, all materials); the style guide moves to `docs/design/` as an accepted reference | 1 |
+| P1-2 Appearance in the engine | `appearance.jsonc` registry, the genome on `Character`, the `Appearance` keyed stream, `LookView` in the protocol, a save format bump with a load-time fill for old saves, a coverage check in `content validate` | 2 |
+| P1-3 Runtime and integration | Character compositor with cache, facade builder, shadow rasteriser; the real provider behind the M6 renderer's interface, replacing the placeholder; lighting data wired to the day cycle | 2 |
+| P1-4 Building kits | Small commercial and residential (2), civic and community (1), industrial (1); all six neighbourhood material sets; condition overlays | 4 |
+| P1-5 Tiles and props | All terrain pairs as autotile sets; ~40 props | 2 |
+| P1-6 Character library | Bodies, age forms and animations (1); hair, outfits and accessories (1) | 2 |
+| P1-7 Interiors | Council chamber and town hall office | 1 |
+| P1-8 Icons | ~55 UI icons as SVG | 1 |
+| P1-9 Studio and CI | Studio app; all lints, goldens and budgets in CI | 1 |
+
+**Exit:** the M6 game-quality gate (owner plus testers) judges the town's art; two generated towns side by side are told apart (R8); clone-rate and contrast lints pass; budgets hold on a real phone. If an artist is commissioned (D5), they replace most of P1-4 to P1-8 drawing work, and agents keep the tool, integration and lint tasks.
 
 ### P2 — Expansion for M7–M8 (about 12 tasks)
 
@@ -506,6 +550,8 @@ Regional and national capital kits (denser cores, grander civic buildings, regio
 ### P3 — Spin-out (about 4 tasks, when the criteria in §4.4 hold)
 
 Generic documentation, a CC0 sample pack, a public repository, a published package; Mandate pins a version.
+
+**Total:** about 38 agent tasks across P0–P3, plus the owner's review time at the end of each phase.
 
 ## 9. Decisions for the owner
 
@@ -532,8 +578,8 @@ Generic documentation, a CC0 sample pack, a public repository, a published packa
 
 | Risk | Likelihood | Effect | Mitigation |
 |---|---|---|---|
-| Parts drawn by agents look amateur, and the tool multiplies the amateurishness | High | High | The spike tests exactly this; fallback is a commissioned artist for ~400 parts |
-| Layering bugs (hair through hats, sleeves over bags), as RimWorld players report [RW-LAYER] | High | Medium | Explicit layer order and occlusion tags; exhaustive or sampled clash lint |
+| Parts drawn by agents look amateur, and the tool multiplies the amateurishness | High | High | The spike tests exactly this; fallback is a commissioned artist for ~500 parts |
+| Layering bugs (hair through hats, sleeves over bags), a recurring topic in RimWorld modding [RW-LAYER] | High | Medium | Explicit layer order and occlusion tags; exhaustive or sampled clash lint |
 | Baked light direction disagrees with moving shadows | Medium | Low–medium | Soft baked shading; the spike reviews dusk |
 | Canvas anti-aliasing softens shadow edges | Certain without care | Low | Integer rasteriser into `ImageData` |
 | Memory on low-end phones (palette-mood layers, character cache) | Medium | Medium | Budgets in §3.5; drop palette moods on low memory; least-recently-used cache |
@@ -581,6 +627,7 @@ Generic documentation, a CC0 sample pack, a public repository, a published packa
 - [CVD-LIN] colorspace R package, `simulate_cvd` (notes the model assumes linear RGB): https://www.rdocumentation.org/packages/colorspace/versions/2.1-0/topics/simulate_cvd
 - [MST] Google, "Improving skin tone representation" (Monk Skin Tone scale): https://blog.google/products/search/monk-skin-tone-scale/ ; values and licence: https://en.wikipedia.org/wiki/Monk_Skin_Tone_Scale
 - [AI-CLEAN] "How to tame your AI pixel art" (DEV Community): https://dev.to/jenissimo/how-to-tame-your-ai-pixel-art-3pk5 ; Sprite Fusion, Pixel Snapper: https://www.spritefusion.com/pixel-snapper
+- [AI-RANGY] Rangy (an AI tool vendor), "AI Pixel Art: Why It Isn't Really Pixel Art": https://rangy.ai/blog/ai-pixel-art
 - [RD] Astropulse, Retro Diffusion: https://astropulse.itch.io/retrodiffusion
 - [USCO] Jones Day, "Copyrightability of AI Outputs: U.S. Copyright Office Analyzes Human Authorship Requirement" (2025): https://www.jonesday.com/en/insights/2025/02/copyrightability-of-ai-outputs-us-copyright-office-analyzes-human-authorship-requirement ; the report: https://www.copyright.gov/ai/
 - [STEAM-AI] Video Games Chronicle, "Valve has 'significantly' rewritten Steam's rules for how developers must disclose AI use": https://www.videogameschronicle.com/news/valve-has-significantly-rewritten-steams-rules-for-how-developers-much-disclose-ai-use
