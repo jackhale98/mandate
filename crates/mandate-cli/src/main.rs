@@ -392,8 +392,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 e.setup(|s| s.narrative.profile = p);
             }
             let end = e.state().calendar.date.add_days(years * 365);
+            let start_turn = e.state().calendar.turn;
             while e.state().calendar.date < end {
-                bots::play_turn(&mut e, &content, &strategy);
+                bots::play_turn_from(&mut e, &content, &strategy, start_turn);
                 if e.apply(Command::EndTurn).is_err() {
                     // The career ended (DEC-006).
                     break;
@@ -609,17 +610,17 @@ fn run(cli: Cli) -> Result<(), String> {
                                 .collect()
                         })
                         .unwrap_or_default();
-                    let row = serde_json::json!({
+                    let mut row = serde_json::json!({
                         "set": point,
                         "win_rates": rates,
                         "best_minus_median": r["best_minus_median"],
-                        "no_dominant_strategy": r["no_dominant_strategy"],
-                        "effort_matters": r["effort_matters"],
-                        "idle_rarely_wins": r["idle_rarely_wins"],
-                        "variety_ok": r["variety_ok"],
                         "distinct_best": r["variety"]["distinct_best"],
                         "top_best_share": r["variety"]["top_best_share"],
+                        "explorer_minus_mixed_share": r["explorer_minus_mixed_share"],
                     });
+                    for g in bots::GATES {
+                        row[g] = r[g].clone();
+                    }
                     eprintln!("{}", serde_json::to_string(&row).unwrap_or_default());
                     rows.push(row);
                 }
@@ -657,18 +658,12 @@ fn run(cli: Cli) -> Result<(), String> {
                 return Ok(());
             }
             let report = bots::run(&content, seeds);
-            let ok = report["no_dominant_strategy"].as_bool().unwrap_or(false)
-                && report["effort_matters"].as_bool().unwrap_or(false)
-                && report["idle_rarely_wins"].as_bool().unwrap_or(false)
-                && report["variety_ok"].as_bool().unwrap_or(false);
+            let failed = bots::failed_gates(&report);
             out(report);
-            if ok {
+            if failed.is_empty() {
                 Ok(())
             } else {
-                Err(
-                    "a dominant strategy exists, effort does not matter, idling wins too often, or one routine is best everywhere"
-                        .into(),
-                )
+                Err(format!("bot gates failed: {}", failed.join(", ")))
             }
         }
         Cmd::TraceEcon { seed, years, size } => {

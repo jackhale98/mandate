@@ -38,9 +38,13 @@ pub enum Action {
     Press {
         policy: Option<u32>,
     },
-    /// Door-knocking in a neighbourhood.
+    /// Door-knocking in a neighbourhood, optionally on one worry (a concern
+    /// id, DEC-091 §1.6): the neighbourhood's real top worry works better,
+    /// one it barely feels works worse; none is a general canvass.
     Canvass {
         neighborhood: u32,
+        #[serde(default)]
+        issue: Option<String>,
     },
     Fundraise,
     Rest,
@@ -208,6 +212,56 @@ pub fn powers_for(content: &ContentBundle, constitution: &str, role: Role) -> Ve
             .collect(),
         // Out of office: no institutional powers, only campaigning and networking.
         Role::Private { .. } => Vec::new(),
+    }
+}
+
+/// How well a canvass's worry fits the neighbourhood (DEC-091 "ignorance
+/// costs effectiveness, never fairness"; M6_ENGINE_CONTRACTS §1.6): the
+/// multiplier on its approval gain, `1 + match_bonus × (salience − 1)`
+/// within [`floor`, `ceiling`] (`knowledge.effects.canvass`). Salience is the
+/// neighbourhood's true felt level of that concern over the mean of its
+/// felt concerns (1: an average worry, 0: one nobody feels here). No issue
+/// (a general canvass) is 1. The truth decides; what the player knows only
+/// decides which worry they can aim at. The command and any preview share
+/// this function.
+pub fn canvass_match(
+    state: &State,
+    content: &ContentBundle,
+    hood: NeighborhoodId,
+    issue: Option<&str>,
+) -> f64 {
+    let Some(issue) = issue else {
+        return 1.0;
+    };
+    let Some(h) = state.world.neighborhoods.get(hood.index()) else {
+        return 1.0;
+    };
+    let felt = crate::concerns::felt_concerns(
+        &state.population,
+        content,
+        h.municipality.index(),
+        &[hood.index()],
+    );
+    let mean = felt.iter().map(|x| x.1).sum::<f64>() / felt.len().max(1) as f64;
+    let mine = felt
+        .iter()
+        .find(|(i, _)| content.concerns.get(*i).is_some_and(|c| c.id == issue))
+        .map(|x| x.1)
+        .unwrap_or(0.0);
+    let salience = if mean > 0.0 { mine / mean } else { 1.0 };
+    let k = &content.knowledge.effects.canvass;
+    clamp(1.0 + k.match_bonus * (salience - 1.0), k.floor, k.ceiling)
+}
+
+/// A canvass fit in words (`strong` | `fair` | `weak`), for the outcome.
+fn fit_band(content: &ContentBundle, fit: f64) -> &'static str {
+    let k = &content.knowledge.effects.canvass;
+    if fit > 1.0 && fit >= 1.0 + 0.5 * (k.ceiling - 1.0) {
+        "strong"
+    } else if fit < 1.0 && fit <= 1.0 - 0.5 * (1.0 - k.floor) {
+        "weak"
+    } else {
+        "fair"
     }
 }
 
@@ -935,7 +989,10 @@ pub fn apply(
                     }
                     .into();
                 }
-                Action::Canvass { neighborhood } => {
+                Action::Canvass {
+                    neighborhood,
+                    issue,
+                } => {
                     let h = state
                         .world
                         .neighborhoods
@@ -944,6 +1001,18 @@ pub fn apply(
                     if h.municipality.0 != m {
                         return Err(bad("that neighbourhood is not in your town"));
                     }
+                    if let Some(i) = issue
+                        && !content.concerns.iter().any(|c| &c.id == i)
+                    {
+                        return Err(bad("no such worry"));
+                    }
+                    // Decided before the doorsteps change anything.
+                    let fit = canvass_match(
+                        state,
+                        content,
+                        NeighborhoodId(*neighborhood),
+                        issue.as_deref(),
+                    );
                     spend(state, content, "canvass", false)?;
                     crate::politics::add_record(
                         &mut state.politics,
@@ -960,13 +1029,22 @@ pub fn apply(
                         let aw = c.player_awareness as f64;
                         c.player_awareness = clamp(aw + fx.awareness * (1.0 - aw), 0.0, 1.0) as f32;
                         let room = 1.0 - (c.player_approval as f64).abs();
-                        c.player_approval =
-                            clamp(c.player_approval as f64 + fx.approval * room, -1.0, 1.0) as f32;
+                        c.player_approval = clamp(
+                            c.player_approval as f64 + fx.approval * fit * room,
+                            -1.0,
+                            1.0,
+                        ) as f32;
                     }
                     // A full day on the doorsteps: deeper than any other contact.
                     campaign_contact(state, content, Some(*neighborhood), fx.contact);
                     learn_canvass(state, content, NeighborhoodId(*neighborhood));
                     res.outcome_key = "outcome-canvass".into();
+                    if let Some(i) = issue {
+                        // How the worry landed (the player has just heard
+                        // the doorsteps, so this tells nothing hidden).
+                        res.args.insert("issue".into(), i.clone());
+                        res.args.insert("fit".into(), fit_band(content, fit).into());
+                    }
                     res.args.insert(
                         "place".into(),
                         state.world.neighborhoods[*neighborhood as usize]

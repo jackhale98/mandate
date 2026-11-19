@@ -236,6 +236,12 @@ pub enum ActionDto {
     },
     Canvass {
         neighborhood: u32,
+        /// The worry raised on the doorsteps (a concern id, DEC-091): the
+        /// neighbourhood's real top worry works better, one it barely feels
+        /// worse. Omitted: a general canvass.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        issue: Option<String>,
     },
     Fundraise,
     Rest,

@@ -911,8 +911,39 @@ fn buy_ads(
     }
 }
 
+/// The knowledge term of lobbying odds (DEC-091 "ignorance costs
+/// effectiveness, never fairness"; M6_ENGINE_CONTRACTS §1.6): a logit by
+/// how well the actor knows the target as a person (`knowledge.effects.
+/// lobby_logit`; `detailed` is knowing their goals). The player reads their
+/// ledger (every subject `detailed` under the lab switch); NPCs keep no
+/// ledger and use `known`, so the shared formula stays symmetric.
+pub fn lobby_knowledge_logit(
+    state: &State,
+    content: &ContentBundle,
+    actor: PoliticianId,
+    target: PoliticianId,
+) -> f64 {
+    use crate::player::knowledge::{Level, Subject, level_of};
+    let (Some(me), Some(t)) = (state.politics.get(actor), state.politics.get(target)) else {
+        return 0.0;
+    };
+    let level = if me.is_player {
+        level_of(
+            state.player.as_ref(),
+            &Subject::Person {
+                person: t.character,
+            },
+        )
+    } else {
+        Level::Known
+    };
+    content.knowledge.effects.lobby_logit.get(level)
+}
+
 /// Lobbying odds for any actor (the player's formula, with party ties in place
-/// of the player's personal standing for NPC-to-NPC deals).
+/// of the player's personal standing for NPC-to-NPC deals). The odds shown to
+/// the player and the roll both come from here (DEC-073), knowledge term
+/// included.
 pub fn lobby_odds_between(
     state: &State,
     content: &ContentBundle,
@@ -934,7 +965,8 @@ pub fn lobby_odds_between(
     };
     let x = (skill - 0.5) * l.skill_scale + t.pragmatism as f64 * l.pragmatism + l.bias + ties
         - l.integrity * (t.integrity as f64 - 0.5)
-        + if late_night { l.late_night } else { 0.0 };
+        + if late_night { l.late_night } else { 0.0 }
+        + lobby_knowledge_logit(state, content, actor, target);
     clamp(sigmoid(x), l.odds_min, l.odds_max)
 }
 

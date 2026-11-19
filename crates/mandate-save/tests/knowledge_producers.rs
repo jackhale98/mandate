@@ -66,6 +66,7 @@ fn canvass(e: &mut Engine, hood: NeighborhoodId) {
     let cmd = e.route(PlayerCommand::Act {
         action: Action::Canvass {
             neighborhood: hood.0,
+            issue: None,
         },
         late_night: false,
     });
@@ -579,7 +580,10 @@ fn learning_is_deterministic_and_changes_nothing_else() {
                 .collect();
             let h = hoods[t as usize % hoods.len()];
             let cmd = e.route(PlayerCommand::Act {
-                action: Action::Canvass { neighborhood: h },
+                action: Action::Canvass {
+                    neighborhood: h,
+                    issue: None,
+                },
                 late_night: false,
             });
             let _ = e.apply(cmd);

@@ -155,7 +155,10 @@ fn actions_spend_slots_and_validate() {
     let hood = e.state().world.municipalities[pl.municipality.index()].neighborhoods[0].0;
     // Canvassing takes two slots (a long day), press one: three in all.
     e.apply(e.route(PlayerCommand::Act {
-        action: Action::Canvass { neighborhood: hood },
+        action: Action::Canvass {
+            neighborhood: hood,
+            issue: None,
+        },
         late_night: false,
     }))
     .unwrap();
@@ -165,7 +168,10 @@ fn actions_spend_slots_and_validate() {
     );
     assert!(
         e.apply(e.route(PlayerCommand::Act {
-            action: Action::Canvass { neighborhood: hood },
+            action: Action::Canvass {
+                neighborhood: hood,
+                issue: None
+            },
             late_night: false,
         }))
         .is_err(),
@@ -185,7 +191,10 @@ fn actions_spend_slots_and_validate() {
     // Late night is only for private meetings and fundraising.
     assert!(
         e.apply(e.route(PlayerCommand::Act {
-            action: Action::Canvass { neighborhood: hood },
+            action: Action::Canvass {
+                neighborhood: hood,
+                issue: None
+            },
             late_night: true
         }))
         .is_err()
@@ -224,7 +233,8 @@ fn actions_spend_slots_and_validate() {
     assert!(
         e.apply(e.route(PlayerCommand::Act {
             action: Action::Canvass {
-                neighborhood: other
+                neighborhood: other,
+                issue: None
             },
             late_night: false
         }))
