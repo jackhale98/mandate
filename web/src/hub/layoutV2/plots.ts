@@ -154,7 +154,7 @@ function fits(w: Work, d: number, x: number, F: number, bw: number, bh: number, 
   for (let y = top; y <= F - 1; y++) {
     for (let xx = x; xx < x + bw; xx++) {
       const c = y * W + xx;
-      if ((!allowAnyDistrict && w.district[c] !== d) || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv) return false;
+      if ((!allowAnyDistrict && w.district[c] !== d) || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv || (y <= F - 1 - s && m.roofs[c])) return false;
     }
   }
   // Every column has a frontage below (a door may be anywhere along the front), or, beside a north–south or
@@ -186,7 +186,7 @@ function fits(w: Work, d: number, x: number, F: number, bw: number, bh: number, 
 
 /** A cell a forecourt may be paved on: open buildable land on the building's level, under no roof. */
 function apronable(w: Work, c: number, lv: number, m: Masks): boolean {
-  return (w.district[c] as number) >= 0 && !w.use[c] && buildable(w.terrain[c] as number) && w.level[c] === lv && !m.roofs[c] && !w.blocked[c];
+  return (w.district[c] as number) >= 0 && !w.use[c] && buildable(w.terrain[c] as number) && w.level[c] === lv && !m.roofs[c] && !w.blocked[c] && w.water[c] === WaterKind.None;
 }
 
 /** The side of a street: a paved or road cell of a street run (or the square). */
@@ -231,7 +231,7 @@ function addPlot(w: Work, d: number, f: Fit, spec: { place: number | null; kind:
     const t = kind === "rural" || kind === "suburb" ? Terrain.Path : Terrain.Pavement;
     for (let x = lo; x <= hi; x++) {
       const c = f.F * W + x;
-      if (frontageTerrain(w.terrain[c] as number) || (w.use[c] as number) & (Use.Road | Use.Square)) continue;
+      if (frontageTerrain(w.terrain[c] as number) || (w.use[c] as number) & (Use.Road | Use.Square) || !buildable(w.terrain[c] as number) || w.water[c] !== WaterKind.None) continue;
       w.terrain[c] = t;
       w.use[c] = (w.use[c] as number) | Use.Keep;
     }
@@ -559,7 +559,7 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
             for (let xx = x; xx < x + bw && ok; xx++) {
               const c = yy * W + xx;
               const dc = w.district[c] as number;
-              if ((pass === 0 && dc !== d) || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv || (rd[c] as number) < 2 || isWaterBody(w, c)) ok = false;
+              if ((pass === 0 && dc !== d) || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv || (rd[c] as number) < 2 || isWaterBody(w, c) || m.roofs[c]) ok = false;
               if (d < 0 && dc >= 0) d = dc;
               near = Math.min(near, rd[c] as number);
             }
@@ -749,10 +749,10 @@ function pier(w: Work, plot: PlanPlot) {
   let c = shore + step;
   let made = 0;
   for (let k = 0; k < 7; k++, c += step) {
-    if (c < 0 || c >= N || !isWaterBody(w, c)) break;
+    if (c < 0 || c >= N || !isWaterBody(w, c) || (w.use[c] as number) & (Use.Bridge | Use.Rail)) break;
     for (const o of [-side, 0, side]) {
       const cc = c + o;
-      if (cc < 0 || cc >= N || !isWaterBody(w, cc)) continue;
+      if (cc < 0 || cc >= N || !isWaterBody(w, cc) || (w.use[cc] as number) & (Use.Bridge | Use.Rail)) continue;
       w.terrain[cc] = Terrain.Pier;
       w.use[cc] = (w.use[cc] as number) | Use.Road;
     }
