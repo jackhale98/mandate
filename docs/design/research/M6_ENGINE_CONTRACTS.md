@@ -1322,6 +1322,21 @@ DEC-092 §1: the standard menu holds the general levers and stays always known.
 
 ---
 
+### 2.22 Need-aware reactions (DEC-092 addendum, owner 2026-11-19)
+
+Today a bill's anticipated reaction is pure value alignment (`policy::public_support`, `population` law reactions): the same in a town that needs it and one that does not. Accepted change:
+
+- **Content:** each template and family option names the concerns it addresses: `"addresses": [{ "concern": "concern.housing", "weight": 1.0 }]` (validated against the concern registry; at least one entry for every non-administrative policy).
+- **Reaction:** a cohort's reaction = alignment × (`need.base` + `need.weight` × the cohort's neighbourhood level of the addressed concerns, weighted). A **waste term** from tax-averse attitudes, scaled by annual cost ÷ (1 + need), applies when need is low ("why spend on this?"). The parameters go in `opinion.jsonc` under `need`, and `--set` reaches them.
+- **Outcomes, with diminishing returns where they are real:**
+  - Housing: public homes lower rents less as vacancy rises above target. Empty new units cost upkeep (a budget line) and add blight to the neighbourhood.
+  - Job subsidies: capped by spare labour and by the sector's spare capacity.
+  - Services: an effect that saturates (each unit adds less).
+  - Hazard protection: worth nothing where the hazard is absent (DEC-090 D8 exposure).
+- **Views:** the policy preview (M5d part 2) and the "Why?" breakdown show the need part ("rents here are low; few see the point").
+- **Lab gate, policy responsiveness:** for each policy, `mandate-cli` runs it in high-need and low-need towns of the same seed set. Approval and outcome effects must differ by at least a set margin in the expected direction. It runs in CI with the bots.
+- **Task:** F7 in §4, alongside F3 (needs `addresses` in the family format) and before the F-series balance pass.
+
 ## 3. Conversations (DEC-093)
 
 ### 3.1 What a conversation is
@@ -1795,6 +1810,7 @@ Topics, lines, voices, discretion and costs are content.
 | **F4** | Content: the first pack (§2.21) with Fluent, the trim (§2.19), the four conversions (§2.20), proposal overheard lines, crisis and dilemma references | F2b (drafting can start after F1 with validation only) | `content/base/policy_families/**`; `content/base/policies/**`; `content/base/locale/en/families.ftl` (new); `content/base/{overheard,crises,dilemmas}.jsonc` | F3, F5 |
 | **F5** | Lab: `policies --seed`, `--coverage` (CI gate: no family never binds), binding check 11, `--set` paths into families, variety counts families | F2b | `crates/mandate-cli/src/{policies.rs (new), main.rs, bots.rs (variety only)}`; `crates/mandate-content/src/overrides.rs`; `.github/workflows/ci.yml` | F3, F4 |
 | **F6** | Web: the proposal sheet (axes with per-option cost and support from the preview, sponsors and their prices, the lead), Desk and place panel entries, Playwright | F3 | `web/src/**` except `engine/protocol` | — |
+| **F7** | Need-aware reactions (§2.22): `addresses` on templates and family options, need-scaled reactions and the waste term, diminishing returns in housing, subsidies, services and hazard protection, the need part in previews and "Why?", the policy responsiveness lab gate | F2b, F3 | `crates/mandate-sim/src/{policy,population,economy}/**`, `content/base/{opinion.jsonc,policies/**,policy_families/**}`, `crates/mandate-cli/src/responsiveness.rs` (new) | F4, F5 |
 | **D1** | Docs: OVERVIEW §4.2 and §4.3, DATA_MODEL, EXTENDING (extension points §2.15, families, knowledge), TEST_STRATEGY (gates), PROGRESS, DEC implementation notes | each merge | `docs/**` | — |
 
 Then the rest of M6 (enterable places DEC-088, map layers DEC-089, the draft of three with background profiles, pixel-art integration) builds on these contracts. The draft of three only needs to name a start profile per background.
@@ -1802,6 +1818,8 @@ Then the rest of M6 (enterable places DEC-088, map layers DEC-089, the draft of 
 ---
 
 ## 5. Open questions for the owner
+
+**Answered (owner, 2026-11-19): "Go with all recommendations."** Every recommendation below is accepted, and every **Proposed** item in §1–§3 that refers to these questions is now settled as recommended. Need-aware reactions (DEC-092 addendum) are specified in §2.22.
 
 | # | Question | Recommendation |
 |---|---|---|
