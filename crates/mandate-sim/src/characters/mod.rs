@@ -32,6 +32,7 @@
 //! they are evaluated (DEC-018).
 
 pub mod ambient;
+pub mod goals;
 pub mod town;
 
 pub use town::{ActiveCrisis, TownCharacter};
@@ -117,6 +118,11 @@ pub enum MemoryKind {
     SignedMyBill,
     Met,
     Scandal,
+    /// Decisions (DEC-077 §4): the player took their side, the other side,
+    /// or left them waiting.
+    StoodWithMe,
+    StoodAgainstMe,
+    IgnoredMe,
 }
 
 impl MemoryKind {
@@ -137,6 +143,9 @@ impl MemoryKind {
             MemoryKind::SignedMyBill => "signed_my_bill",
             MemoryKind::Met => "met",
             MemoryKind::Scandal => "scandal",
+            MemoryKind::StoodWithMe => "stood_with_me",
+            MemoryKind::StoodAgainstMe => "stood_against_me",
+            MemoryKind::IgnoredMe => "ignored_me",
         }
     }
 
@@ -154,6 +163,8 @@ pub enum Subject {
     Policy { id: u32 },
     /// An office: a ward seat or a mayoralty.
     Seat { seat: Seat },
+    /// A decision the player took (`narrative::DecisionId`).
+    Decision { id: u32 },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -269,6 +280,12 @@ pub struct CharactersState {
     /// Registry ids the town characters were computed with (recomputed on
     /// load when they differ).
     pub crisis_keys: Vec<ContentKey>,
+    /// Goals held in the player's town (DEC-032).
+    #[serde(default)]
+    pub goals: Vec<goals::Goal>,
+    /// Goals given up recently (not taken up again for a while).
+    #[serde(default)]
+    pub ended_goals: Vec<goals::EndedGoal>,
 }
 
 impl CharactersState {
@@ -967,6 +984,7 @@ pub fn monthly(
     let towns = town::compute_all(pol, r);
     pol.characters.towns = towns;
     pol.characters.crisis_keys = r.content.crisis_keys().cloned().collect();
+    goals::refresh(pol, r);
 }
 
 /// Memory upkeep for every stored character.

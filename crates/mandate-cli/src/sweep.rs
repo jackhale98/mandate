@@ -31,6 +31,17 @@ pub struct RunMetrics {
     /// Crises seen beginning and ending (sampled yearly) across all towns.
     pub crises_begun: u32,
     pub crises_ended: u32,
+    /// Story density (DEC-033): closed chapters, and per chapter the
+    /// decisions (climax plus significant) and minor developments the
+    /// director spotlighted, and the share of chapters with a climax. The
+    /// player is idle in a sweep, so every decision takes its default.
+    pub chapters: u32,
+    pub decisions_per_chapter: f64,
+    pub minor_per_chapter: f64,
+    pub climax_share: f64,
+    /// Chapters whose spotlight exceeded a budget (must be 0).
+    pub over_budget: u32,
+    pub storylines: u32,
     pub state_hash: String,
 }
 
@@ -128,7 +139,25 @@ pub fn run_one(
             _ => {}
         }
     }
+    let ch = &s.narrative.chapters;
+    let nch = ch.len().max(1) as f64;
+    let d = &content.director;
+    let b = mandate_sim::narrative::director::budget(d, s.narrative.profile(content));
+    let over = ch
+        .iter()
+        .filter(|c| c.climaxes > b.climax || c.significant > b.sig_max || c.minor > b.minor_max)
+        .count() as u32;
     RunMetrics {
+        chapters: ch.len() as u32,
+        decisions_per_chapter: ch
+            .iter()
+            .map(|c| (c.climaxes + c.significant) as f64)
+            .sum::<f64>()
+            / nch,
+        minor_per_chapter: ch.iter().map(|c| c.minor as f64).sum::<f64>() / nch,
+        climax_share: ch.iter().filter(|c| c.climaxes > 0).count() as f64 / nch,
+        over_budget: over,
+        storylines: s.narrative.storylines.len() as u32,
         seed,
         population_change_per_decade: mandate_core::math::pow(
             (pop1 / pop0.max(1.0)).max(1e-6),
@@ -233,6 +262,21 @@ pub fn report(rows: &[RunMetrics], years: u32) -> serde_json::Value {
         "crises_ended_median": med(&|r| r.crises_ended as f64) * scale30,
         "pass": industry_min >= 1.0,
     });
-    let pass = all(&bands) && all(&floors) && town["pass"].as_bool().unwrap_or(false);
-    serde_json::json!({ "pass": pass, "seeds": rows.len(), "years": years, "bands": bands, "drama_floors": floors, "town_character": town, "runs": rows })
+    // Story density (DEC-033): decisions and developments per chapter; no
+    // chapter may exceed the director's budgets.
+    let over = rows.iter().map(|r| r.over_budget).sum::<u32>();
+    let story = serde_json::json!({
+        "chapters_median": med(&|r| r.chapters as f64),
+        "decisions_per_chapter_median": med(&|r| r.decisions_per_chapter),
+        "minor_per_chapter_median": med(&|r| r.minor_per_chapter),
+        "climax_share_median": med(&|r| r.climax_share),
+        "storylines_median": med(&|r| r.storylines as f64),
+        "chapters_over_budget": over,
+        "pass": over == 0,
+    });
+    let pass = all(&bands)
+        && all(&floors)
+        && town["pass"].as_bool().unwrap_or(false)
+        && story["pass"].as_bool().unwrap_or(false);
+    serde_json::json!({ "pass": pass, "seeds": rows.len(), "years": years, "bands": bands, "drama_floors": floors, "town_character": town, "story_density": story, "runs": rows })
 }

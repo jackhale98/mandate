@@ -161,7 +161,172 @@ fn buy_ads(e: &mut Engine, n: usize) {
     }
 }
 
-fn play_turn(e: &mut Engine, content: &ContentBundle, strategy: &str) {
+/// How a strategy weighs an option's effects (DEC-073): a simple,
+/// deterministic policy per strategy for answering decisions.
+struct Taste {
+    opinion: f64,
+    approval: f64,
+    awareness: f64,
+    money: f64,
+    health: f64,
+    slot: f64,
+    standing: f64,
+    legal: f64,
+    record: f64,
+    owe: f64,
+    draft: f64,
+}
+
+fn taste(strategy: &str) -> Taste {
+    let base = Taste {
+        opinion: 0.05,
+        approval: 60.0,
+        awareness: 20.0,
+        money: 0.0003,
+        health: 0.2,
+        slot: -1.0,
+        standing: 0.4,
+        legal: -0.5,
+        record: 20.0,
+        owe: -0.5,
+        draft: 0.3,
+    };
+    match strategy {
+        "canvass" => Taste {
+            approval: 100.0,
+            awareness: 50.0,
+            slot: -1.5,
+            ..base
+        },
+        "media" => Taste {
+            money: 0.001,
+            approval: 30.0,
+            standing: 0.6,
+            slot: -1.2,
+            ..base
+        },
+        "legislator" => Taste {
+            draft: 2.0,
+            record: 40.0,
+            standing: 0.6,
+            approval: 40.0,
+            ..base
+        },
+        "mixed" => Taste {
+            approval: 80.0,
+            opinion: 0.08,
+            standing: 0.5,
+            health: 0.3,
+            slot: -0.8,
+            legal: -1.0,
+            draft: 0.5,
+            ..base
+        },
+        // The NPC AI's pragmatist (the time-skip proxy).
+        _ => Taste {
+            standing: 0.8,
+            opinion: 0.1,
+            ..base
+        },
+    }
+}
+
+fn option_score(
+    e: &Engine,
+    content: &ContentBundle,
+    d: &mandate_sim::narrative::Decision,
+    o: &mandate_content::OptionDef,
+    t: &Taste,
+) -> f64 {
+    use mandate_content::{EffectDef, VoteChoice};
+    let st = e.state();
+    let r = mandate_sim::scheduler::Reads::of_state(st, content);
+    let v = mandate_sim::narrative::cast::View::new(&r, &st.politics);
+    let k = &content.actions.vote;
+    o.effects
+        .iter()
+        .map(|x| match x {
+            EffectDef::Opinion { delta, .. } => t.opinion * delta,
+            EffectDef::Approval { delta, .. } => t.approval * delta,
+            EffectDef::Awareness { delta, .. } => t.awareness * delta,
+            EffectDef::Money { amount } => t.money * amount,
+            EffectDef::Health { delta } => t.health * delta,
+            EffectDef::Slots { n } => t.slot * *n as f64,
+            EffectDef::Standing { delta } => t.standing * delta,
+            EffectDef::LegalJeopardy { delta } => t.legal * delta,
+            EffectDef::Record { delta } => t.record * delta,
+            EffectDef::Favour { owed_to_player, .. } => {
+                if *owed_to_player {
+                    -t.owe
+                } else {
+                    t.owe
+                }
+            }
+            EffectDef::Repay { .. } => 0.0,
+            EffectDef::Draft { .. } => t.draft,
+            EffectDef::Vote { role, vote } => {
+                let Some(mandate_sim::narrative::Actor::Policy { id }) =
+                    mandate_sim::narrative::actor_of(&d.cast, role)
+                else {
+                    return 0.0;
+                };
+                let line = v.party_line(id) as f64;
+                let lean = v.ward_lean(id);
+                let sign = match vote {
+                    VoteChoice::Yes => 1.0,
+                    VoteChoice::No => -1.0,
+                    VoteChoice::Abstain => 0.0,
+                    VoteChoice::WithParty => line,
+                    VoteChoice::WithWard => lean.signum(),
+                };
+                let standing = if sign == 0.0 {
+                    k.standing_abstain
+                } else if line == 0.0 {
+                    0.0
+                } else if line == sign {
+                    k.standing_loyal
+                } else {
+                    k.standing_defy
+                };
+                t.standing * standing + t.approval * k.ward_reaction * lean * sign
+            }
+        })
+        .sum()
+}
+
+/// Answer every pending decision by the strategy's taste (idle never does:
+/// its decisions take their defaults at the deadline).
+pub fn answer_decisions(e: &mut Engine, content: &ContentBundle, strategy: &str) {
+    if strategy == "idle" {
+        return;
+    }
+    let t = taste(strategy);
+    let pending: Vec<mandate_sim::narrative::Decision> =
+        e.state().narrative.pending().cloned().collect();
+    for d in pending {
+        let Some(def) = content.dilemma(&d.template) else {
+            continue;
+        };
+        let mut opts: Vec<(f64, &str)> = def
+            .options
+            .iter()
+            .map(|o| (option_score(e, content, &d, o, &t), o.id.as_str()))
+            .collect();
+        opts.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(b.1)));
+        for (_, id) in opts {
+            let cmd = Command::Player(PlayerCommand::Answer {
+                decision: d.id.0,
+                option: id.to_string(),
+            });
+            if e.apply(cmd).is_ok() {
+                break;
+            }
+        }
+    }
+}
+
+pub fn play_turn(e: &mut Engine, content: &ContentBundle, strategy: &str) {
+    answer_decisions(e, content, strategy);
     let camp = campaigning(e);
     // Money, not time: ads take no slot.
     if camp && matches!(strategy, "media" | "mixed") {

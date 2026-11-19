@@ -99,6 +99,56 @@ pub enum EventKind {
     },
     /// The player's party refused to renominate them (Standing too low).
     PlayerDeselected,
+    /// The director spotlighted a decision (DEC-033, DEC-077 §4).
+    DecisionOpened {
+        decision: u32,
+        /// Dilemma content id.
+        template: String,
+    },
+    /// A decision was answered (or its default happened at the deadline).
+    DecisionResolved {
+        decision: u32,
+        template: String,
+        option: String,
+        by_default: bool,
+    },
+    /// A decision's situation dissolved before an answer.
+    DecisionLapsed {
+        decision: u32,
+        template: String,
+    },
+    /// A chapter began (DEC-005): `session` or `campaign`.
+    ChapterBegan {
+        index: u32,
+        kind: String,
+    },
+    /// A storyline reached a stage (DEC-032).
+    StorylineStage {
+        run: u32,
+        storyline: String,
+        stage: String,
+    },
+    /// A development the director spotlighted (an entry in the facts log).
+    StoryDevelopment {
+        fact: u32,
+        municipality: u32,
+    },
+    /// A pressure track reached danger (DEC-006 fairness warning).
+    TrackWarning {
+        track: String,
+        value: i32,
+    },
+    /// The director's exogenous lever was applied by the owning system
+    /// (`hazard_held`, `hazard_struck_late`, `hazard_averted`,
+    /// `recession_held`, `recession_released`).
+    DirectorIntervention {
+        lever: String,
+        municipality: u32,
+    },
+    /// A hidden fact may now be discovered (DEC-034's hook).
+    FactDiscoverable {
+        hidden: u32,
+    },
     /// The game's rules were updated under a running career (an app update).
     RulesUpdated {
         from_content: String,

@@ -125,6 +125,18 @@ pub fn default_systems() -> Vec<SystemDef> {
             run: SystemFn::Politics(crate::characters::monthly),
         },
         SystemDef {
+            name: "narrative.fairness",
+            phase: P::Director,
+            cadence: Daily,
+            run: SystemFn::Narrative(crate::narrative::daily),
+        },
+        SystemDef {
+            name: "narrative.director",
+            phase: P::Director,
+            cadence: Weekly,
+            run: SystemFn::Narrative(crate::narrative::weekly),
+        },
+        SystemDef {
             name: "calendar.year",
             phase: P::Commit,
             cadence: Yearly,

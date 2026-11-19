@@ -27,6 +27,10 @@
       "signed_my_bill":  { "sentiment": 0.4,  "magnitude": 0.25, "decay": 0.8,  "opinion": 4.0,   "trust": 0.02,  "tags": ["vote"] },
       "met":             { "sentiment": 0.1,  "magnitude": 0.1,  "decay": 2.0,  "opinion": 0.0,   "trust": 0.0,   "tags": ["meeting"] },
       "scandal":         { "sentiment": -0.6, "magnitude": 0.6,  "decay": 0.3,  "opinion": -10.0, "trust": -0.1,  "tags": ["scandal"] },
+      // Recorded by decisions (DEC-077 §4); dilemmas set their own opinion change.
+      "stood_with_me":   { "sentiment": 0.7,  "magnitude": 0.6,  "decay": 0.2,  "opinion": 0.0,   "trust": 0.06,  "tags": ["decision"] },
+      "stood_against_me": { "sentiment": -0.7, "magnitude": 0.6, "decay": 0.2,  "opinion": 0.0,   "trust": -0.06, "tags": ["decision"] },
+      "ignored_me":      { "sentiment": -0.4, "magnitude": 0.35, "decay": 0.5,  "opinion": 0.0,   "trust": -0.03, "tags": ["decision"] },
     },
     "generation": {
       "personality": [0.15, 0.85],  // axes drawn uniformly here, plus trait and occupation offsets

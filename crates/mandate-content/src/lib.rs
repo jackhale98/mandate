@@ -3,6 +3,7 @@
 
 pub mod bundle;
 pub mod jsonc;
+pub mod narrative;
 pub mod overrides;
 pub mod types;
 pub mod validate;
@@ -11,6 +12,7 @@ pub mod validate;
 pub mod embedded;
 
 pub use bundle::{ContentBundle, Source, load};
+pub use narrative::*;
 pub use types::*;
 pub use validate::{Issue, Severity};
 

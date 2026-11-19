@@ -5,6 +5,7 @@
 pub mod campaign;
 pub mod characters;
 pub mod map;
+pub mod narrative;
 pub mod office;
 pub mod places;
 pub mod views;
@@ -12,6 +13,7 @@ pub mod views;
 pub use campaign::*;
 pub use characters::*;
 pub use map::*;
+pub use narrative::*;
 pub use office::*;
 pub use places::*;
 use serde::{Deserialize, Serialize};
@@ -139,6 +141,11 @@ pub enum CommandDto {
     Meet {
         slot: u8,
     },
+    /// Answer a pending decision (DEC-077 §4), from anywhere (DEC-079).
+    AnswerDecision {
+        decision: u32,
+        option: String,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -217,6 +224,12 @@ pub enum QueryDto {
     Character {
         id: u32,
     },
+    /// A decision, pending or answered (with its aftermath).
+    Decision {
+        id: u32,
+    },
+    /// The story so far: chapter, tension, storylines, past decisions.
+    Story,
     /// Fluent sources for a language (DEC-054).
     Locale {
         lang: String,
@@ -269,6 +282,8 @@ pub enum ResponseBody {
     Town(TownPlacesView),
     Place(PlacePanelView),
     Character(CharacterView),
+    Decision(DecisionView),
+    Story(StoryView),
     Locale(LocaleView),
     Scenarios(ScenarioListView),
     Diagnostics(DiagnosticsView),

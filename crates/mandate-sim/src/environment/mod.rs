@@ -42,11 +42,25 @@ pub enum HazardKind {
     Earthquake,
 }
 
+/// A hazard the director held back (DEC-033 B: timing only). It strikes at
+/// its drawn severity once the hold lifts, and at the latest
+/// `director.chance.hazard_max_defer_days` after it was drawn.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DeferredHazard {
+    pub municipality: u32,
+    pub kind: HazardKind,
+    pub severity: f64,
+    pub drawn: mandate_core::SimDate,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct EnvironmentState {
     pub trajectory: Trajectory,
     pub regions: Vec<RegionEnv>,
     pub disasters_total: u32,
+    /// Hazards held by the director, waiting to strike.
+    #[serde(default)]
+    pub deferred: Vec<DeferredHazard>,
 }
 
 pub fn init(
@@ -87,6 +101,7 @@ pub fn init(
         trajectory,
         regions,
         disasters_total: 0,
+        deferred: Vec::new(),
     }
 }
 
@@ -156,7 +171,6 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
         let fin = r.finance();
         let mods =
             crate::policy::mods_for(r.policy(), r.content, m as u32, &|id| fin.funded_share(id));
-        let rng = out.rng.get(Stream::Environment);
         let checks = [
             (HazardKind::Flood, 0.0035 * g.flood * e.storm_multiplier),
             // Droughts are regional; see `regional_droughts`.
@@ -179,97 +193,224 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
             (HazardKind::Earthquake, 0.0003 * g.seismic),
         ];
         for (kind, p) in checks {
+            // The same sequential stream as ever (re-borrowed per check).
+            let rng = out.rng.get(Stream::Environment);
             if !rng.chance(p) {
                 continue;
             }
             let severity = rng.range_f64(0.2, 1.0);
-            env.disasters_total += 1;
-            let ev = out.events.record(
+            // The director's levers (DEC-033 B) apply to the player's town:
+            // a held strike waits (timing only); under a thinner profile some
+            // strikes miss. Neither draws from this stream.
+            match director_lever(r, m as u32) {
+                Lever::Hold => {
+                    env.deferred.push(DeferredHazard {
+                        municipality: m as u32,
+                        kind,
+                        severity,
+                        drawn: r.date,
+                    });
+                    out.events.record(
+                        r.date,
+                        EventKind::DirectorIntervention {
+                            lever: "hazard_held".into(),
+                            municipality: m as u32,
+                        },
+                        vec![],
+                    );
+                    continue;
+                }
+                Lever::Miss => {
+                    out.events.record(
+                        r.date,
+                        EventKind::DirectorIntervention {
+                            lever: "hazard_averted".into(),
+                            municipality: m as u32,
+                        },
+                        vec![],
+                    );
+                    continue;
+                }
+                Lever::None => {}
+            }
+            strike(env, r, out, m as u32, kind, severity, &mods);
+        }
+    }
+    // Held hazards strike once the hold lifts, or at the latest after the
+    // longest deferral the director may impose.
+    let max = r.content.director.chance.hazard_max_defer_days;
+    let due: Vec<DeferredHazard> = {
+        let (due, keep): (Vec<_>, Vec<_>) = std::mem::take(&mut env.deferred)
+            .into_iter()
+            .partition(|h| h.drawn.add_days(max) <= r.date || !held(r, h.municipality));
+        env.deferred = keep;
+        due
+    };
+    for h in due {
+        // A thinner profile thins late strikes too.
+        if missed(r, h.municipality) {
+            out.events.record(
                 r.date,
-                EventKind::Disaster {
-                    municipality: m as u32,
-                    hazard: kind,
-                    severity_pct: (severity * 100.0).round() as u32,
+                EventKind::DirectorIntervention {
+                    lever: "hazard_averted".into(),
+                    municipality: h.municipality,
                 },
                 vec![],
             );
-            if severity > 0.7 {
-                out.events.pin(ev);
-            }
-            let cause = Some(ev);
-            let municipality = m as u32;
-            match kind {
-                HazardKind::Flood | HazardKind::Storm | HazardKind::Earthquake => {
-                    // Protective policies (flood defences) reduce the damage.
-                    let protection = match kind {
-                        HazardKind::Flood => mods.flood_protection,
-                        HazardKind::Storm => mods.storm_protection,
-                        _ => 0.0,
-                    };
-                    let damage = (1.0 - protection)
-                        * severity
-                        * if kind == HazardKind::Earthquake {
-                            0.04
-                        } else {
-                            0.02
-                        };
-                    out.effects.push(Effect::HousingDamage {
-                        municipality,
-                        fraction: damage,
-                        cause,
-                    });
-                    out.effects.push(Effect::Displacement {
-                        municipality,
-                        fraction: damage * 0.25,
-                        cause,
-                    });
-                    sector_shock(
-                        out.effects,
-                        r.content,
-                        SectorDriver::Visitor,
-                        municipality,
-                        1.0 - 0.4 * severity,
-                        6,
-                        cause,
-                    );
-                }
-                HazardKind::Drought => {
-                    sector_shock(
-                        out.effects,
-                        r.content,
-                        SectorDriver::LandBased,
-                        municipality,
-                        1.0 - 0.45 * severity,
-                        12,
-                        cause,
-                    );
-                }
-                HazardKind::Wildfire => {
-                    out.effects.push(Effect::HousingDamage {
-                        municipality,
-                        fraction: severity * 0.008 * (1.0 - mods.wildfire_protection),
-                        cause,
-                    });
-                    sector_shock(
-                        out.effects,
-                        r.content,
-                        SectorDriver::Visitor,
-                        municipality,
-                        1.0 - 0.5 * severity,
-                        9,
-                        cause,
-                    );
-                    sector_shock(
-                        out.effects,
-                        r.content,
-                        SectorDriver::Extraction,
-                        municipality,
-                        1.0 - 0.3 * severity,
-                        12,
-                        cause,
-                    );
-                }
-            }
+            continue;
+        }
+        let fin = r.finance();
+        let mods = crate::policy::mods_for(r.policy(), r.content, h.municipality, &|id| {
+            fin.funded_share(id)
+        });
+        out.events.record(
+            r.date,
+            EventKind::DirectorIntervention {
+                lever: "hazard_struck_late".into(),
+                municipality: h.municipality,
+            },
+            vec![],
+        );
+        strike(env, r, out, h.municipality, h.kind, h.severity, &mods);
+    }
+}
+
+enum Lever {
+    None,
+    Hold,
+    Miss,
+}
+
+/// The director holds hazards on this town now.
+fn held(r: &Reads<'_>, m: u32) -> bool {
+    r.narrative()
+        .chance
+        .hazard_hold
+        .is_some_and(|(t, until)| t == m && r.date < until)
+}
+
+fn director_lever(r: &Reads<'_>, m: u32) -> Lever {
+    if held(r, m) {
+        return Lever::Hold;
+    }
+    if missed(r, m) {
+        return Lever::Miss;
+    }
+    Lever::None
+}
+
+/// Under a thinner profile, does this strike on the town miss?
+fn missed(r: &Reads<'_>, m: u32) -> bool {
+    if let Some((t, keep)) = r.narrative().chance.hazard_keep
+        && t == m
+    {
+        // Keyed by the director's stream (never this system's sequence).
+        let mut k = mandate_core::rng::keyed(
+            r.meta.seed,
+            Stream::Director,
+            &[crate::narrative::KEY_HAZARD_KEEP, r.date.0 as u64, m as u64],
+        );
+        if !k.chance(keep as f64) {
+            return true;
+        }
+    }
+    false
+}
+
+/// A hazard strikes a municipality: the event and its consequences as effects.
+fn strike(
+    env: &mut EnvironmentState,
+    r: &Reads<'_>,
+    out: &mut Outs<'_>,
+    municipality: u32,
+    kind: HazardKind,
+    severity: f64,
+    mods: &crate::policy::PolicyMods,
+) {
+    env.disasters_total += 1;
+    let ev = out.events.record(
+        r.date,
+        EventKind::Disaster {
+            municipality,
+            hazard: kind,
+            severity_pct: (severity * 100.0).round() as u32,
+        },
+        vec![],
+    );
+    if severity > 0.7 {
+        out.events.pin(ev);
+    }
+    let cause = Some(ev);
+    match kind {
+        HazardKind::Flood | HazardKind::Storm | HazardKind::Earthquake => {
+            // Protective policies (flood defences) reduce the damage.
+            let protection = match kind {
+                HazardKind::Flood => mods.flood_protection,
+                HazardKind::Storm => mods.storm_protection,
+                _ => 0.0,
+            };
+            let damage = (1.0 - protection)
+                * severity
+                * if kind == HazardKind::Earthquake {
+                    0.04
+                } else {
+                    0.02
+                };
+            out.effects.push(Effect::HousingDamage {
+                municipality,
+                fraction: damage,
+                cause,
+            });
+            out.effects.push(Effect::Displacement {
+                municipality,
+                fraction: damage * 0.25,
+                cause,
+            });
+            sector_shock(
+                out.effects,
+                r.content,
+                SectorDriver::Visitor,
+                municipality,
+                1.0 - 0.4 * severity,
+                6,
+                cause,
+            );
+        }
+        HazardKind::Drought => {
+            sector_shock(
+                out.effects,
+                r.content,
+                SectorDriver::LandBased,
+                municipality,
+                1.0 - 0.45 * severity,
+                12,
+                cause,
+            );
+        }
+        HazardKind::Wildfire => {
+            out.effects.push(Effect::HousingDamage {
+                municipality,
+                fraction: severity * 0.008 * (1.0 - mods.wildfire_protection),
+                cause,
+            });
+            sector_shock(
+                out.effects,
+                r.content,
+                SectorDriver::Visitor,
+                municipality,
+                1.0 - 0.5 * severity,
+                9,
+                cause,
+            );
+            sector_shock(
+                out.effects,
+                r.content,
+                SectorDriver::Extraction,
+                municipality,
+                1.0 - 0.3 * severity,
+                12,
+                cause,
+            );
         }
     }
 }

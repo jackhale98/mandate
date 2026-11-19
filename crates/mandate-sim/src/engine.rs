@@ -149,6 +149,9 @@ impl Engine {
         // Named characters for a game in play, and town characters for a
         // changed crisis registry (derived state, recomputed).
         crate::characters::on_load(&mut state, &content);
+        // Narrative (DEC-074): pending decisions and storylines whose
+        // template was removed lapse; nothing is refused.
+        crate::narrative::on_load(&mut state, &content);
         Ok(Engine {
             state,
             terrain: None,
@@ -221,11 +224,15 @@ impl Engine {
     pub fn apply(&mut self, command: Command) -> Result<CommandOutcome, EngineError> {
         let outcome = match &command {
             Command::EndTurn => {
+                let days = self.turn_days();
+                // Decisions whose deadline falls in this turn take their
+                // default: the player let them pass (DEC-077 §4).
+                let until = self.state.calendar.date.add_days(days);
+                crate::narrative::resolve_due(&mut self.state, &self.content, until);
                 // NPCs act in the same turn as the player, before time moves (DEC-030).
                 self.npc_turns();
-                let days = self.turn_days();
                 let seeded = std::mem::take(&mut self.pending_effects);
-                self.schedule.advance_with(
+                let _ = self.schedule.advance_with(
                     &mut self.state,
                     &self.content,
                     days,
@@ -309,14 +316,23 @@ impl Engine {
                         "advance limited to 100 years".into(),
                     ));
                 }
-                let seeded = std::mem::take(&mut self.pending_effects);
-                self.schedule.advance_with(
-                    &mut self.state,
-                    &self.content,
-                    *days,
-                    seeded,
-                    &mut |_| {},
-                );
+                // In weeks, so that decisions falling due take their default
+                // on time (the same result as one advance otherwise).
+                let mut seeded = std::mem::take(&mut self.pending_effects);
+                let mut left = *days;
+                while left > 0 {
+                    let step = left.min(7);
+                    let until = self.state.calendar.date.add_days(step);
+                    crate::narrative::resolve_due(&mut self.state, &self.content, until);
+                    seeded = self.schedule.advance_with(
+                        &mut self.state,
+                        &self.content,
+                        step,
+                        std::mem::take(&mut seeded),
+                        &mut |_| {},
+                    );
+                    left -= step;
+                }
                 CommandOutcome {
                     days_advanced: *days,
                     turn: self.state.calendar.turn,

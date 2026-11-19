@@ -94,6 +94,12 @@ pub enum PlayerCommand {
     Meet {
         slot: u8,
     },
+    /// Answer a pending decision (DEC-077 §4) with one of its options. It
+    /// can be done from anywhere: the pocket lists every decision (DEC-079).
+    Answer {
+        decision: u32,
+        option: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -122,13 +128,18 @@ pub fn player_powers(state: &State, content: &ContentBundle) -> Vec<Power> {
     let Some(me) = state.politics.get(pl.politician) else {
         return Vec::new();
     };
-    let Some(c) = content.constitutions.get(&state.meta.constitution) else {
+    powers_for(content, &state.meta.constitution, me.role)
+}
+
+/// Powers a role holds under a constitution (the local tier).
+pub fn powers_for(content: &ContentBundle, constitution: &str, role: Role) -> Vec<Power> {
+    let Some(c) = content.constitutions.get(constitution) else {
         return Vec::new();
     };
     let Some(local) = c.tier(TierKey::Local) else {
         return Vec::new();
     };
-    match me.role {
+    match role {
         Role::Councillor { .. } => local
             .bodies
             .iter()
@@ -388,6 +399,15 @@ pub fn apply(
     let mut res = ActionResult::default();
     match cmd {
         PlayerCommand::MoveTo { location } => return move_to(state, *location),
+        PlayerCommand::Answer { decision, option } => {
+            return crate::narrative::answer(
+                state,
+                content,
+                crate::narrative::DecisionId(*decision),
+                option,
+                false,
+            );
+        }
         PlayerCommand::Go { location, then } => {
             if then.as_deref().is_some_and(|c| {
                 matches!(c, PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. })
@@ -405,7 +425,7 @@ pub fn apply(
     // Located actions (DEC-079): each is done at a place that offers it.
     crate::places::check_at(state, content, cmd)?;
     match cmd {
-        PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. } => {}
+        PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. } | PlayerCommand::Answer { .. } => {}
         PlayerCommand::Meet { slot } => {
             let id = characters::ambient::promote(state, content, pl.location, *slot)
                 .ok_or_else(|| bad("nobody like that is here now"))?;
@@ -428,163 +448,7 @@ pub fn apply(
             }
         }
         PlayerCommand::CastVote { policy, vote } => {
-            use crate::politics::Vote;
-            let p = local_policy(state, *policy)?;
-            if p.status != PolicyStatus::UnderConsideration {
-                return Err(bad("only bills before the council can be voted on"));
-            }
-            if p.sponsor == Some(pl.politician) {
-                return Err(bad("sponsors vote for their own bills"));
-            }
-            let powers = player_powers(state, content);
-            if !powers.contains(&Power::ApproveOrdinance) && !powers.contains(&Power::Veto) {
-                return Err(bad("you have no vote on this bill"));
-            }
-            let key = (pl.politician.0, *policy);
-            if state.politics.declared_votes.contains_key(&key) {
-                return Err(bad("you have already declared your vote"));
-            }
-            let template = p.template.clone();
-            let sponsor = p.sponsor;
-            let awareness = p.awareness as f64;
-            let sig = content
-                .policies
-                .get(&template)
-                .map(|t| t.signature_weights.clone())
-                .unwrap_or_default();
-            let line = party_line(state, *policy);
-            let sign = match vote {
-                Vote::Yes => 1.0,
-                Vote::No => -1.0,
-                Vote::Abstain => 0.0,
-            };
-            state.politics.declared_votes.insert(key, sign as i8);
-            let fx = &content.actions.vote;
-            crate::politics::add_record(
-                &mut state.politics,
-                pl.politician,
-                content.career.record_gain.vote as f32,
-            );
-            // Party: loyalty is noticed a little, rebellion a lot.
-            if let Some(pls) = state.player.as_mut() {
-                let d = if line == 0 || *vote == Vote::Abstain {
-                    if *vote == Vote::Abstain {
-                        fx.standing_abstain
-                    } else {
-                        0.0
-                    }
-                } else if (line as f64) == sign {
-                    fx.standing_loyal
-                } else {
-                    fx.standing_defy
-                };
-                pls.tracks.standing = clamp(pls.tracks.standing as f64 + d, 0.0, 100.0) as f32;
-            }
-            // The ward: voters who care reward or punish the stand; dodging costs a little.
-            for h in crate::policy::ward_hoods(&state.world, pl.ward) {
-                for c in state.population.hoods[h].cohorts.iter_mut() {
-                    let a = crate::politics::alignment(&sig, &c.attitudes);
-                    let room = 1.0 - (c.player_approval as f64).abs();
-                    let delta = if *vote == Vote::Abstain {
-                        fx.ward_abstain
-                    } else {
-                        fx.ward_reaction * a * sign * (0.5 + awareness) * room
-                    };
-                    c.player_approval = clamp(c.player_approval as f64 + delta, -1.0, 1.0) as f32;
-                }
-            }
-            // The sponsor: support earns goodwill and repays an owed favour;
-            // voting against them while owing them is a broken promise.
-            let me = state.politics.get(pl.politician).map(|p| p.character);
-            let subject = Some(Subject::Policy { id: *policy });
-            if let Some(sid) = sponsor
-                && let Some(sp) = state.politics.get(sid)
-                && !sp.is_player
-                && let Some(me) = me
-            {
-                let (sc, name) = (sp.character, sp.full_name());
-                let owed = characters::favours_owed(&state.politics, me, sc) > 0;
-                let pol = &mut state.politics;
-                match vote {
-                    Vote::Yes => {
-                        characters::remember(
-                            pol,
-                            content,
-                            date,
-                            sc,
-                            me,
-                            MemoryKind::BackedMyBill,
-                            subject,
-                            Some(fx.sponsor_yes),
-                        );
-                        if owed && let Some(f) = characters::repay(pol, me, sc) {
-                            characters::remember(
-                                pol,
-                                content,
-                                date,
-                                sc,
-                                me,
-                                MemoryKind::KeptPromise,
-                                f.subject.or(subject),
-                                None,
-                            );
-                            res.args.insert("repaid".into(), name);
-                        }
-                    }
-                    Vote::No => {
-                        let (kind, hit) = if owed {
-                            (MemoryKind::BrokePromise, fx.sponsor_no_owed)
-                        } else {
-                            (MemoryKind::OpposedMyBill, fx.sponsor_no)
-                        };
-                        characters::remember(pol, content, date, sc, me, kind, subject, Some(-hit));
-                    }
-                    Vote::Abstain => {}
-                }
-            }
-            // Breaking with the party line is noticed by party colleagues.
-            if line != 0
-                && *vote != Vote::Abstain
-                && (line as f64) != sign
-                && let Some(me) = me
-            {
-                let party = state.politics.get(pl.politician).and_then(|p| p.party);
-                let colleagues: Vec<_> = state
-                    .politics
-                    .councils
-                    .get(m as usize)
-                    .map(|c| {
-                        c.members
-                            .iter()
-                            .chain(c.mayor.iter())
-                            .copied()
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default()
-                    .into_iter()
-                    .filter_map(|id| state.politics.get(id))
-                    .filter(|p| !p.is_player && p.party.is_some() && p.party == party)
-                    .map(|p| p.character)
-                    .collect();
-                for c in colleagues {
-                    characters::remember(
-                        &mut state.politics,
-                        content,
-                        date,
-                        c,
-                        me,
-                        MemoryKind::BrokeRanks,
-                        subject,
-                        None,
-                    );
-                }
-            }
-            res.outcome_key = match vote {
-                Vote::Yes => "outcome-vote-yes",
-                Vote::No => "outcome-vote-no",
-                Vote::Abstain => "outcome-vote-abstain",
-            }
-            .into();
+            res = declare_vote(state, content, policy, vote)?;
         }
         PlayerCommand::File { filing } => {
             if let Some(p) = state.player.as_mut() {
@@ -600,41 +464,7 @@ pub fn apply(
             .into();
         }
         PlayerCommand::DraftPolicy { template, params } => {
-            let t = content
-                .policies
-                .get(template)
-                .ok_or_else(|| bad("unknown policy template"))?;
-            if t.tier != TierKey::Local {
-                return Err(bad(
-                    "that policy is not available at your level of government",
-                ));
-            }
-            if !player_powers(state, content).contains(&t.requires) {
-                return Err(bad("your office cannot propose this"));
-            }
-            let params = validate_params(content, template, params)?;
-            let id = state.policy.ids.alloc();
-            state.policy.instances.push(PolicyInstance {
-                id,
-                template: template.clone(),
-                tier: TierKey::Local,
-                jurisdiction: m,
-                sponsor: Some(pl.politician),
-                params,
-                clauses: Vec::new(),
-                status: PolicyStatus::Draft,
-                stage: 0,
-                next_stage_on: None,
-                votes: Vec::new(),
-                introduced_on: None,
-                enacted_on: None,
-                progress: 0.0,
-                awareness: 0.0,
-                end_reason: None,
-                cause: None,
-                ledger: BTreeMap::new(),
-            });
-            res.created = Some(id.0);
+            res.created = Some(draft(state, content, template, params)?);
             res.outcome_key = "outcome-drafted".into();
         }
         PlayerCommand::AmendPolicy {
@@ -846,6 +676,16 @@ pub fn apply(
                         p.tracks.legal_jeopardy =
                             (p.tracks.legal_jeopardy + fx.late_night_legal as f32).min(100.0);
                     }
+                    if *late_night {
+                        // A back-room deal is a hidden fact (DEC-034 hook):
+                        // the director times when it may come to light.
+                        state.narrative.hide(
+                            content,
+                            date,
+                            "late_night_deal",
+                            vec![crate::narrative::Actor::Person { id: tc }],
+                        );
+                    }
                     res.outcome_key = if trade {
                         "outcome-favor-traded"
                     } else if success {
@@ -1044,6 +884,11 @@ pub fn apply(
                                 (p.tracks.legal_jeopardy + fx.late_night_legal as f32).min(100.0);
                         }
                     }
+                    if *late_night {
+                        state
+                            .narrative
+                            .hide(content, date, "late_night_fundraising", Vec::new());
+                    }
                     // Donor ties: low-income voters who know you notice who you court.
                     let hoods: Vec<usize> = state.world.hoods_of(MunicipalityId(m)).collect();
                     for h in hoods {
@@ -1125,6 +970,233 @@ pub fn apply(
         }
     }
     Ok(res)
+}
+
+/// Declare the player's vote on a bill (public and final): party, ward, and
+/// colleagues react now. Shared by the council chamber and decisions.
+pub(crate) fn declare_vote(
+    state: &mut State,
+    content: &ContentBundle,
+    policy: &u32,
+    vote: &crate::politics::Vote,
+) -> Result<ActionResult, EngineError> {
+    let date = state.calendar.date;
+    let pl = state
+        .player
+        .as_ref()
+        .ok_or_else(|| bad("no player"))?
+        .clone();
+    let m = pl.municipality.0;
+    let mut res = ActionResult::default();
+    use crate::politics::Vote;
+    let p = local_policy(state, *policy)?;
+    if p.status != PolicyStatus::UnderConsideration {
+        return Err(bad("only bills before the council can be voted on"));
+    }
+    if p.sponsor == Some(pl.politician) {
+        return Err(bad("sponsors vote for their own bills"));
+    }
+    let powers = player_powers(state, content);
+    if !powers.contains(&Power::ApproveOrdinance) && !powers.contains(&Power::Veto) {
+        return Err(bad("you have no vote on this bill"));
+    }
+    let key = (pl.politician.0, *policy);
+    if state.politics.declared_votes.contains_key(&key) {
+        return Err(bad("you have already declared your vote"));
+    }
+    let template = p.template.clone();
+    let sponsor = p.sponsor;
+    let awareness = p.awareness as f64;
+    let sig = content
+        .policies
+        .get(&template)
+        .map(|t| t.signature_weights.clone())
+        .unwrap_or_default();
+    let line = party_line(state, *policy);
+    let sign = match vote {
+        Vote::Yes => 1.0,
+        Vote::No => -1.0,
+        Vote::Abstain => 0.0,
+    };
+    state.politics.declared_votes.insert(key, sign as i8);
+    let fx = &content.actions.vote;
+    crate::politics::add_record(
+        &mut state.politics,
+        pl.politician,
+        content.career.record_gain.vote as f32,
+    );
+    // Party: loyalty is noticed a little, rebellion a lot.
+    if let Some(pls) = state.player.as_mut() {
+        let d = if line == 0 || *vote == Vote::Abstain {
+            if *vote == Vote::Abstain {
+                fx.standing_abstain
+            } else {
+                0.0
+            }
+        } else if (line as f64) == sign {
+            fx.standing_loyal
+        } else {
+            fx.standing_defy
+        };
+        pls.tracks.standing = clamp(pls.tracks.standing as f64 + d, 0.0, 100.0) as f32;
+    }
+    // The ward: voters who care reward or punish the stand; dodging costs a little.
+    for h in crate::policy::ward_hoods(&state.world, pl.ward) {
+        for c in state.population.hoods[h].cohorts.iter_mut() {
+            let a = crate::politics::alignment(&sig, &c.attitudes);
+            let room = 1.0 - (c.player_approval as f64).abs();
+            let delta = if *vote == Vote::Abstain {
+                fx.ward_abstain
+            } else {
+                fx.ward_reaction * a * sign * (0.5 + awareness) * room
+            };
+            c.player_approval = clamp(c.player_approval as f64 + delta, -1.0, 1.0) as f32;
+        }
+    }
+    // The sponsor: support earns goodwill and repays an owed favour;
+    // voting against them while owing them is a broken promise.
+    let me = state.politics.get(pl.politician).map(|p| p.character);
+    let subject = Some(Subject::Policy { id: *policy });
+    if let Some(sid) = sponsor
+        && let Some(sp) = state.politics.get(sid)
+        && !sp.is_player
+        && let Some(me) = me
+    {
+        let (sc, name) = (sp.character, sp.full_name());
+        let owed = characters::favours_owed(&state.politics, me, sc) > 0;
+        let pol = &mut state.politics;
+        match vote {
+            Vote::Yes => {
+                characters::remember(
+                    pol,
+                    content,
+                    date,
+                    sc,
+                    me,
+                    MemoryKind::BackedMyBill,
+                    subject,
+                    Some(fx.sponsor_yes),
+                );
+                if owed && let Some(f) = characters::repay(pol, me, sc) {
+                    characters::remember(
+                        pol,
+                        content,
+                        date,
+                        sc,
+                        me,
+                        MemoryKind::KeptPromise,
+                        f.subject.or(subject),
+                        None,
+                    );
+                    res.args.insert("repaid".into(), name);
+                }
+            }
+            Vote::No => {
+                let (kind, hit) = if owed {
+                    (MemoryKind::BrokePromise, fx.sponsor_no_owed)
+                } else {
+                    (MemoryKind::OpposedMyBill, fx.sponsor_no)
+                };
+                characters::remember(pol, content, date, sc, me, kind, subject, Some(-hit));
+            }
+            Vote::Abstain => {}
+        }
+    }
+    // Breaking with the party line is noticed by party colleagues.
+    if line != 0
+        && *vote != Vote::Abstain
+        && (line as f64) != sign
+        && let Some(me) = me
+    {
+        let party = state.politics.get(pl.politician).and_then(|p| p.party);
+        let colleagues: Vec<_> = state
+            .politics
+            .councils
+            .get(m as usize)
+            .map(|c| {
+                c.members
+                    .iter()
+                    .chain(c.mayor.iter())
+                    .copied()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|id| state.politics.get(id))
+            .filter(|p| !p.is_player && p.party.is_some() && p.party == party)
+            .map(|p| p.character)
+            .collect();
+        for c in colleagues {
+            characters::remember(
+                &mut state.politics,
+                content,
+                date,
+                c,
+                me,
+                MemoryKind::BrokeRanks,
+                subject,
+                None,
+            );
+        }
+    }
+    res.outcome_key = match vote {
+        Vote::Yes => "outcome-vote-yes",
+        Vote::No => "outcome-vote-no",
+        Vote::Abstain => "outcome-vote-abstain",
+    }
+    .into();
+
+    Ok(res)
+}
+
+/// Draft a bill sponsored by the player. Returns the new policy id.
+pub(crate) fn draft(
+    state: &mut State,
+    content: &ContentBundle,
+    template: &String,
+    params: &BTreeMap<String, f64>,
+) -> Result<u32, EngineError> {
+    let pl = state
+        .player
+        .as_ref()
+        .ok_or_else(|| bad("no player"))?
+        .clone();
+    let m = pl.municipality.0;
+    let t = content
+        .policies
+        .get(template)
+        .ok_or_else(|| bad("unknown policy template"))?;
+    if t.tier != TierKey::Local {
+        return Err(bad(
+            "that policy is not available at your level of government",
+        ));
+    }
+    if !player_powers(state, content).contains(&t.requires) {
+        return Err(bad("your office cannot propose this"));
+    }
+    let params = validate_params(content, template, params)?;
+    let id = state.policy.ids.alloc();
+    state.policy.instances.push(PolicyInstance {
+        id,
+        template: template.clone(),
+        tier: TierKey::Local,
+        jurisdiction: m,
+        sponsor: Some(pl.politician),
+        params,
+        clauses: Vec::new(),
+        status: PolicyStatus::Draft,
+        stage: 0,
+        next_stage_on: None,
+        votes: Vec::new(),
+        introduced_on: None,
+        enacted_on: None,
+        progress: 0.0,
+        awareness: 0.0,
+        end_reason: None,
+        cause: None,
+        ledger: BTreeMap::new(),
+    });
+    Ok(id.0)
 }
 
 /// Move within the town: free (DEC-079 rule 1).

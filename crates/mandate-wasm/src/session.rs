@@ -182,6 +182,10 @@ impl Session {
                 QueryDto::Character { id } => character_view(self.engine_mut()?, id)
                     .map(ResponseBody::Character)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no character {id}"))),
+                QueryDto::Decision { id } => decision_by_id(self.engine_mut()?, id)
+                    .map(ResponseBody::Decision)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, format!("no decision {id}"))),
+                QueryDto::Story => Ok(ResponseBody::Story(story_view(self.engine_mut()?))),
                 QueryDto::Scenarios => Ok(ResponseBody::Scenarios(scenario_list(&self.content))),
                 QueryDto::Locale { lang } => Ok(ResponseBody::Locale(LocaleView {
                     ftl: self.content.locale_text(&lang),
@@ -263,6 +267,7 @@ fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, 
             location: location.to_sim(),
         },
         CommandDto::Meet { slot } => P::Meet { slot },
+        CommandDto::AnswerDecision { decision, option } => P::Answer { decision, option },
         CommandDto::Go { location, then } => P::Go {
             location: location.to_sim(),
             then: match then {

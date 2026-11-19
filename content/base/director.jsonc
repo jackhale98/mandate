@@ -1,0 +1,54 @@
+// The narrative director (DEC-033, option B: a storyteller of chance, not of
+// consequence). One file across all packs; every field is required.
+//
+// Chapters (DEC-005): a campaign (the player is standing; its climax is the
+// election) or a session (a budget year in office). Each chapter's tension
+// curve rises to one climax; budgets cap what the director spotlights.
+{
+  "kind": "director",
+  "value": {
+    "default_profile": "storyteller.classic",
+    "session_min_days": 180,          // a session shorter than this runs on to the next year
+    "budgets": {
+      "climax": 1,                    // one climax per chapter
+      "significant": [2, 4],          // significant decisions, [target minimum, maximum]
+      "minor": [5, 10],               // requests, storyline beats, news of the town
+    },
+    "tension": {
+      "start": 0.25, "peak": 0.85, "peak_at": 0.75, "end": 0.35,
+      "climax_window": [0.6, 0.92],   // where in a session the climax may come
+      "slack": 0.15,                  // spotlight while live tension < curve + slack
+      "catch_up_at": 0.7,             // a chapter short of its minimum then takes what is ready
+      // Live tension: worst crisis, pending decisions, the player's race, danger on a track.
+      "crisis_weight": 0.35, "pending_weight": 0.25, "race_weight": 0.25, "danger_weight": 0.15,
+    },
+    "spacing_days": 21,               // least days between two spotlighted decisions
+    "development_spacing_days": 7,    // and between two minor developments
+    "max_pending": 2,                 // decisions waiting on the player at once
+    "crisis_cap": 2,                  // crises the player's town carries before hazards are held back
+    "repeat_penalty": 0.4,            // a template or person already spotlighted this chapter
+    "min_relevance": 0.6,
+    "relevance": {
+      "base": 0.5, "player": 0.4, "ward": 0.3, "crisis": 0.8, "memory": 0.15,
+      "storyline": 1.0, "pressure": 0.4, "election": 0.3, "concern": 0.3, "jitter": 0.2,
+    },
+    "deadline_days": 35,
+    // DEC-006: no terminal ending without a visible track, a prior warning,
+    // and an explanation. Warn at these levels (0 or 100 is the end).
+    "fairness": {
+      "standing": 30.0, "viability": 20.0, "health": 25.0,
+      "legal_jeopardy": 70.0, "threat": 75.0,
+      "repeat_days": 120,             // repeat while the danger lasts
+      "response_days": 28,            // an ending may follow a warning only after this
+    },
+    // Exogenous levers (DEC-033 B): timing only, within the hazard model.
+    "chance": {
+      "hazard_hold_days": 28,
+      "hazard_max_defer_days": 120,   // a held hazard still strikes, at most this late
+      "recession_hold_months": 3,
+      "discovery_days": [60, 540],    // when a hidden fact may come to light
+    },
+    "storylines_active": 2,
+    "history": 120,
+  },
+}

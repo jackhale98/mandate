@@ -61,6 +61,23 @@ pub struct ContentBundle {
     pub crises: Vec<CrisisDef>,
     /// Character, memory, and town-character numbers (DEC-031, DEC-077).
     pub characters: CharacterParams,
+    /// The narrative director (DEC-033).
+    pub director: crate::narrative::DirectorParams,
+    /// Storyteller profiles, in load order.
+    #[serde(default)]
+    pub storytellers: Vec<crate::narrative::StorytellerDef>,
+    /// Dilemmas and requests (DEC-077 §4), in load order.
+    #[serde(default)]
+    pub dilemmas: Vec<crate::narrative::DilemmaDef>,
+    /// NPC goal templates (DEC-032), in load order.
+    #[serde(default)]
+    pub goals: Vec<crate::narrative::GoalDef>,
+    /// Storyline templates (DEC-032), in load order.
+    #[serde(default)]
+    pub storylines: Vec<crate::narrative::StorylineDef>,
+    /// Scene templates (DEC-035), in load order.
+    #[serde(default)]
+    pub scenes: Vec<crate::narrative::SceneDef>,
     /// Fluent sources by language, then by file path.
     pub locales: BTreeMap<String, BTreeMap<String, String>>,
     /// Hash over every source path and text, in path order (DEC-053).
@@ -168,6 +185,31 @@ impl ContentBundle {
         self.crises.iter().map(|c| &c.id)
     }
 
+    /// A storyteller profile by id.
+    pub fn storyteller(&self, id: &str) -> Option<&crate::narrative::StorytellerDef> {
+        self.storytellers.iter().find(|s| s.id == id)
+    }
+
+    /// A dilemma (or request) by id.
+    pub fn dilemma(&self, id: &str) -> Option<&crate::narrative::DilemmaDef> {
+        self.dilemmas.iter().find(|d| d.id == id)
+    }
+
+    /// A goal template by id.
+    pub fn goal(&self, id: &str) -> Option<&crate::narrative::GoalDef> {
+        self.goals.iter().find(|g| g.id == id)
+    }
+
+    /// A storyline template by id.
+    pub fn storyline(&self, id: &str) -> Option<&crate::narrative::StorylineDef> {
+        self.storylines.iter().find(|s| s.id == id)
+    }
+
+    /// A scene template by id.
+    pub fn scene(&self, id: &str) -> Option<&crate::narrative::SceneDef> {
+        self.scenes.iter().find(|s| s.id == id)
+    }
+
     /// All Fluent text for a language, concatenated in path order.
     pub fn locale_text(&self, lang: &str) -> String {
         self.locales
@@ -202,6 +244,12 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut career: Option<(CareerParams, String)> = None;
     let mut npc: Option<(NpcParams, String)> = None;
     let mut characters: Option<(CharacterParams, String)> = None;
+    let mut director: Option<(crate::narrative::DirectorParams, String)> = None;
+    let mut storytellers: Vec<crate::narrative::StorytellerDef> = Vec::new();
+    let mut dilemmas: Vec<crate::narrative::DilemmaDef> = Vec::new();
+    let mut goals: Vec<crate::narrative::GoalDef> = Vec::new();
+    let mut storylines: Vec<crate::narrative::StorylineDef> = Vec::new();
+    let mut scenes: Vec<crate::narrative::SceneDef> = Vec::new();
     let mut traits: Vec<TraitDef> = Vec::new();
     let mut occupations: Vec<OccupationDef> = Vec::new();
     let mut crises: Vec<CrisisDef> = Vec::new();
@@ -300,6 +348,44 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                 &src.path,
                 &mut issues,
             ),
+            ContentFile::Director { value } => {
+                once(&mut director, *value, "director", &src.path, &mut issues)
+            }
+            ContentFile::Storytellers { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        storytellers.push(x);
+                    }
+                }
+            }
+            ContentFile::Dilemmas { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        dilemmas.push(x);
+                    }
+                }
+            }
+            ContentFile::Goals { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        goals.push(x);
+                    }
+                }
+            }
+            ContentFile::Storylines { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        storylines.push(x);
+                    }
+                }
+            }
+            ContentFile::Scenes { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        scenes.push(x);
+                    }
+                }
+            }
             ContentFile::Traits { items } => {
                 for t in items {
                     if claim(&t.id, &mut issues) {
@@ -439,11 +525,12 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         Some((career, _)),
         Some((npc, _)),
         Some((characters, _)),
-    ) = (opinion, actions, council, career, npc, characters)
+        Some((director, _)),
+    ) = (opinion, actions, council, career, npc, characters, director)
     else {
         issues.push(Issue::error(
             "<content>",
-            "the opinion, actions, council, career, npc, and characters parameter files are all required",
+            "the opinion, actions, council, career, npc, characters, and director parameter files are all required",
         ));
         return Err(issues);
     };
@@ -494,6 +581,12 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         occupations,
         crises,
         characters,
+        director,
+        storytellers,
+        dilemmas,
+        goals,
+        storylines,
+        scenes,
         locales,
         content_hash,
     };

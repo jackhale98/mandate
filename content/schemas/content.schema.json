@@ -416,6 +416,49 @@
       ],
       "type": "object"
     },
+    "BeatDef": {
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "description": "Fluent key, with the cast as arguments.",
+          "type": "string"
+        },
+        "quote_fallback": {
+          "default": null,
+          "description": "The speaker quotes their most salient memory of the player in this\nline (arguments `memory`, `subject`, `year`); this key is used when\nthey remember nothing.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "speaker": {
+          "description": "A role id, or `player`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "speaker",
+        "line"
+      ],
+      "type": "object"
+    },
+    "BillSponsor": {
+      "description": "Who sponsored a cast bill.",
+      "oneOf": [
+        {
+          "enum": [
+            "any",
+            "player"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "other",
+          "description": "Anyone but the player.",
+          "type": "string"
+        }
+      ]
+    },
     "BodyDef": {
       "additionalProperties": false,
       "properties": {
@@ -749,6 +792,246 @@
       ],
       "type": "object"
     },
+    "Cast": {
+      "description": "How a role is cast from live actors in the player's town.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The town's power broker (DEC-077 §1).",
+          "properties": {
+            "type": {
+              "const": "broker",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's named rival.",
+          "properties": {
+            "type": {
+              "const": "rival",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The mayor (when the player is not the mayor).",
+          "properties": {
+            "type": {
+              "const": "mayor",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A Named person with one of these occupations: one with a stake in the\nlive crisis first, then leaders, then the most influential.",
+          "properties": {
+            "occupations": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "occupation",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "occupations"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A council colleague (not the player).",
+          "properties": {
+            "party": {
+              "$ref": "#/$defs/PartyRel",
+              "default": "any"
+            },
+            "type": {
+              "const": "colleague",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Someone the player owes a favour (the largest debt).",
+          "properties": {
+            "type": {
+              "const": "creditor",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A bill before the council.",
+          "properties": {
+            "sponsor": {
+              "$ref": "#/$defs/BillSponsor",
+              "default": "any"
+            },
+            "sponsored_by": {
+              "default": null,
+              "description": "Sponsored by the person cast in this role.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "bill",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The sponsor of the bill cast in `role`.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "sponsor_of",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A neighbourhood of the player's ward: the one least pleased with\nthe town government (where a crisis bites).",
+          "properties": {
+            "type": {
+              "const": "ward_neighborhood",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A law of one of these templates in force or being built in town\n(`building`: only one still being built).",
+          "properties": {
+            "building": {
+              "default": false,
+              "type": "boolean"
+            },
+            "templates": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "law",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "templates"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person whose goal raised this request (requests only).",
+          "properties": {
+            "type": {
+              "const": "goal_holder",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ChanceParams": {
+      "additionalProperties": false,
+      "description": "The director's exogenous levers (DEC-033 B).",
+      "properties": {
+        "discovery_days": {
+          "description": "A hidden fact becomes discoverable within this window after it happened, [from, to] days.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "hazard_hold_days": {
+          "description": "A hold on hazards in the player's town lasts this long before it is reviewed.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "hazard_max_defer_days": {
+          "description": "A held hazard strikes at most this many days after it was drawn.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "recession_hold_months": {
+          "description": "The onset of a global recession may be held at most this many months.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hazard_hold_days",
+        "hazard_max_defer_days",
+        "recession_hold_months",
+        "discovery_days"
+      ],
+      "type": "object"
+    },
     "CharacterGenParams": {
       "additionalProperties": false,
       "description": "Generation of characters (DEC-031): personality and competency ranges.",
@@ -1015,6 +1298,500 @@
         "max"
       ],
       "type": "object"
+    },
+    "Condition": {
+      "description": "A condition on live state in the player's town. Roles name cast actors.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The town lives through a crisis of this kind (`crises.jsonc`).",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "min_severity": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "crisis",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The town lives through any crisis at least this severe.",
+          "properties": {
+            "min_severity": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "live_crisis",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An engine indicator of the town, within [min, max].",
+          "properties": {
+            "indicator": {
+              "$ref": "#/$defs/Indicator"
+            },
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "indicator",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "indicator"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The concern is among the town's top `top` priorities.",
+          "properties": {
+            "concern": {
+              "type": "string"
+            },
+            "top": {
+              "default": 3,
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "concern",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "concern"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The town's defining industry has one of these drivers.",
+          "properties": {
+            "drivers": {
+              "items": {
+                "$ref": "#/$defs/SectorDriver"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "industry",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "drivers"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's next local election is within this many days.",
+          "properties": {
+            "days": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "election_within",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "days"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player is (or is not) standing in a running campaign.",
+          "properties": {
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "type": {
+              "const": "campaigning",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player holds this office.",
+          "properties": {
+            "role": {
+              "$ref": "#/$defs/OfficeRole"
+            },
+            "type": {
+              "const": "office",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A track within [min, max].",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "track": {
+              "$ref": "#/$defs/TrackKey"
+            },
+            "type": {
+              "const": "track",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "track"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's campaign funds within [min, max] (currency units).",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "money",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The role's opinion of the player within [min, max] (−100..100).",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "opinion",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player owes the role a favour (or, `owed_to_player`, the reverse).",
+          "properties": {
+            "owed_to_player": {
+              "default": false,
+              "type": "boolean"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "favour",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The role remembers the player doing one of these (memory kinds).",
+          "properties": {
+            "kinds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "remembers",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "kinds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A personality axis of the role within [min, max] (0..1).",
+          "properties": {
+            "axis": {
+              "type": "string"
+            },
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "personality",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "axis"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The role has one of these traits.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "traits": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "trait",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "traits"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A law of one of these templates is in force or being built in town\n(`absent`: none is).",
+          "properties": {
+            "absent": {
+              "default": false,
+              "type": "boolean"
+            },
+            "templates": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "law_in_force",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "templates"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's party line on the bill in `role` runs against the mood of\nthe player's ward.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "party_line_against_ward",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player can still declare a vote on the bill in `role`.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "can_vote",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The role holds this goal (DEC-032).",
+          "properties": {
+            "goal": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "goal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "goal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "At least this many months since play began.",
+          "properties": {
+            "min": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "months_in_play",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "min"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "Consideration": {
       "additionalProperties": false,
@@ -1453,6 +2230,257 @@
         }
       ]
     },
+    "DilemmaCategory": {
+      "description": "The weight of a decision in the director's budgets.",
+      "oneOf": [
+        {
+          "const": "climax",
+          "description": "Only ever a chapter's climax.",
+          "type": "string"
+        },
+        {
+          "const": "significant",
+          "description": "A significant decision (may also be chosen as a chapter's climax).",
+          "type": "string"
+        },
+        {
+          "const": "request",
+          "description": "A request raised by an NPC's goal: a lightweight dilemma (minor).",
+          "type": "string"
+        }
+      ]
+    },
+    "DilemmaDef": {
+      "additionalProperties": false,
+      "description": "A dilemma (DEC-077 §4): a moment where every option costs someone, built\nfrom live state, warned in advance, and explained afterwards.",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/DilemmaCategory"
+        },
+        "cooldown_days": {
+          "description": "Days before the same dilemma may be spotlighted again.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deadline_days": {
+          "default": null,
+          "description": "Days to decide (default: the director's `deadline_days`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "opportunity": {
+          "default": false,
+          "description": "An opportunity: its arrival is timed by the director rather than\nforced by a crisis (DEC-033 B).",
+          "type": "boolean"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/OptionDef"
+          },
+          "type": "array"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/RoleDef"
+          },
+          "type": "array"
+        },
+        "scene": {
+          "default": null,
+          "description": "The scene that presents it (`scenes`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "situation_key": {
+          "description": "The situation, with the cast as arguments.",
+          "type": "string"
+        },
+        "storyline_only": {
+          "default": false,
+          "description": "Only presented as a storyline stage, never on its own.",
+          "type": "boolean"
+        },
+        "title_key": {
+          "type": "string"
+        },
+        "triggers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title_key",
+        "situation_key",
+        "category",
+        "roles",
+        "cooldown_days",
+        "options"
+      ],
+      "type": "object"
+    },
+    "DirectorBudgets": {
+      "additionalProperties": false,
+      "description": "Decisions and developments allowed per chapter (DEC-033 pacing model).",
+      "properties": {
+        "climax": {
+          "description": "Climaxes per chapter (a campaign chapter's climax is its election).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minor": {
+          "description": "Minor developments (requests, storyline beats, news of the town), [target minimum, maximum].",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "significant": {
+          "description": "Significant decisions per chapter, [target minimum, maximum].",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "climax",
+        "significant",
+        "minor"
+      ],
+      "type": "object"
+    },
+    "DirectorParams": {
+      "additionalProperties": false,
+      "description": "The narrative director (DEC-033): one file across all packs.",
+      "properties": {
+        "budgets": {
+          "$ref": "#/$defs/DirectorBudgets"
+        },
+        "chance": {
+          "$ref": "#/$defs/ChanceParams"
+        },
+        "crisis_cap": {
+          "description": "Crises the player's town may carry before the director holds\nexogenous hazards back (the cap on simultaneous unresolved crises).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deadline_days": {
+          "description": "Days to decide when a dilemma gives none.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "default_profile": {
+          "description": "Storyteller profile of new games (a `storytellers` id).",
+          "type": "string"
+        },
+        "development_spacing_days": {
+          "description": "Least days between two minor developments.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "fairness": {
+          "$ref": "#/$defs/FairnessParams"
+        },
+        "history": {
+          "description": "Resolved decisions kept for the story so far.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_pending": {
+          "description": "Most decisions pending at once.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "min_relevance": {
+          "description": "Least relevance for a situation to be spotlighted.",
+          "format": "double",
+          "type": "number"
+        },
+        "relevance": {
+          "$ref": "#/$defs/RelevanceWeights"
+        },
+        "repeat_penalty": {
+          "description": "Score multiplier for a template or a person already spotlighted this chapter.",
+          "format": "double",
+          "type": "number"
+        },
+        "session_min_days": {
+          "description": "A session chapter (a budget year in office) lasts at least this many\ndays; a shorter one runs on to the following year.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "spacing_days": {
+          "description": "Least days between two spotlighted decisions.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "storylines_active": {
+          "description": "Storylines active at once.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tension": {
+          "$ref": "#/$defs/TensionParams"
+        }
+      },
+      "required": [
+        "default_profile",
+        "session_min_days",
+        "budgets",
+        "tension",
+        "spacing_days",
+        "development_spacing_days",
+        "max_pending",
+        "crisis_cap",
+        "repeat_penalty",
+        "min_relevance",
+        "relevance",
+        "deadline_days",
+        "fairness",
+        "chance",
+        "storylines_active",
+        "history"
+      ],
+      "type": "object"
+    },
     "EconomyParams": {
       "additionalProperties": false,
       "description": "Economy and demography parameters (REQ-005).",
@@ -1579,6 +2607,305 @@
       ],
       "type": "object"
     },
+    "EffectDef": {
+      "description": "One real engine effect of choosing an option (DEC-073: costs and benefits\nare simulated, not narrated).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The role's opinion of the player changes (scaled by their personality,\nas every opinion change is), remembered as `memory` if given.",
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "memory": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "opinion",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Approval of the player among voters (−1..1 scale), by income class\n(0 low, 1 middle, 2 high; empty = all), in the ward or the town, or in\nthe neighbourhood cast in `neighborhood`.",
+          "properties": {
+            "classes": {
+              "default": [],
+              "items": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "neighborhood": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope",
+              "default": "ward"
+            },
+            "type": {
+              "const": "approval",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Name recognition among voters.",
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope",
+              "default": "ward"
+            },
+            "type": {
+              "const": "awareness",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Campaign funds (currency units; negative is a cost).",
+          "properties": {
+            "amount": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "money",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "amount"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "health",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Time this turn (an option that needs more time than is left cannot be chosen).",
+          "properties": {
+            "n": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "slots",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "n"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "standing",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "legal_jeopardy",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Visible work in office (0..1 scale).",
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "record",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A favour: the player owes the role one (or, `owed_to_player`, the reverse).",
+          "properties": {
+            "owed_to_player": {
+              "default": false,
+              "type": "boolean"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "favour",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player repays a favour owed to the role (a kept promise).",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "repay",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player declares a vote on the bill in `role` (the council-vote\nrules apply: party, ward, and sponsor react).",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "vote",
+              "type": "string"
+            },
+            "vote": {
+              "$ref": "#/$defs/VoteChoice"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "vote"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player drafts a bill of this template (parameters not given take\ntheir defaults).",
+          "properties": {
+            "params": {
+              "additionalProperties": {
+                "format": "double",
+                "type": "number"
+              },
+              "default": {},
+              "type": "object"
+            },
+            "template": {
+              "type": "string"
+            },
+            "type": {
+              "const": "draft",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "template"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "ElectionCalendarDef": {
       "additionalProperties": false,
       "properties": {
@@ -1679,6 +3006,56 @@
       ],
       "type": "object"
     },
+    "FairnessParams": {
+      "additionalProperties": false,
+      "description": "Fairness (DEC-006): a warning before any terminal ending. A track at or\npast its threshold is warned about (pinned event, the pocket's alerts).",
+      "properties": {
+        "health": {
+          "format": "double",
+          "type": "number"
+        },
+        "legal_jeopardy": {
+          "description": "Warn at or above these (100 is the terminal end).",
+          "format": "double",
+          "type": "number"
+        },
+        "repeat_days": {
+          "description": "Repeat a warning while the track stays in danger after this many days.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "response_days": {
+          "description": "An ending may follow a warning only after this many days (a chance to respond).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "standing": {
+          "description": "Warn at or below these (0 is the terminal end of each track).",
+          "format": "double",
+          "type": "number"
+        },
+        "threat": {
+          "format": "double",
+          "type": "number"
+        },
+        "viability": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "standing",
+        "viability",
+        "health",
+        "legal_jeopardy",
+        "threat",
+        "repeat_days",
+        "response_days"
+      ],
+      "type": "object"
+    },
     "FundraiseEffects": {
       "additionalProperties": false,
       "properties": {
@@ -1714,6 +3091,172 @@
         "late_night_legal",
         "donor_ties"
       ],
+      "type": "object"
+    },
+    "GoalDef": {
+      "additionalProperties": false,
+      "description": "An NPC goal template (DEC-032): emerges from circumstances plus personality.",
+      "properties": {
+        "conditions": {
+          "default": [],
+          "description": "Conditions on the town and the holder (role `holder`).",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
+        "drive": {
+          "$ref": "#/$defs/GoalDrive"
+        },
+        "holder": {
+          "$ref": "#/$defs/GoalHolder"
+        },
+        "id": {
+          "type": "string"
+        },
+        "max_days": {
+          "description": "A goal is given up after this many days (or when its conditions fail).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "personality": {
+          "additionalProperties": {
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "default": {},
+          "description": "Personality axes of the holder within [min, max].",
+          "type": "object"
+        },
+        "request": {
+          "default": null,
+          "description": "When the goal needs the player: a request (a dilemma of category `request`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "traits": {
+          "default": [],
+          "description": "The holder has one of these traits (empty = no requirement).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "holder",
+        "drive",
+        "max_days"
+      ],
+      "type": "object"
+    },
+    "GoalDrive": {
+      "description": "How a goal drives the NPC AI (DEC-030 utility AI; the same rules as the player).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "No AI change: the goal only surfaces as a request.",
+          "properties": {
+            "type": {
+              "const": "none",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Leans against the player's bills (added to their council lean) and\nlobbies against them.",
+          "properties": {
+            "lean": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "oppose_player",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "lean"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Leans toward the player's bills.",
+          "properties": {
+            "lean": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "back_player",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "lean"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Ranks bills that answer the town's live crisis higher (added to the\nagenda bonus, like `npc.crisis_agenda`).",
+          "properties": {
+            "bonus": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "champion",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "bonus"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "GoalHolder": {
+      "additionalProperties": false,
+      "description": "Who may hold a goal.",
+      "properties": {
+        "occupations": {
+          "default": [],
+          "description": "Named people with one of these occupations.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "officeholders": {
+          "default": false,
+          "description": "Council members and the mayor (not the player).",
+          "type": "boolean"
+        }
+      },
       "type": "object"
     },
     "HazardKey": {
@@ -2542,6 +4085,28 @@
       ],
       "type": "object"
     },
+    "OfficeRole": {
+      "description": "The office a condition asks the player to hold.",
+      "oneOf": [
+        {
+          "enum": [
+            "councillor",
+            "mayor"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "any",
+          "description": "Either.",
+          "type": "string"
+        },
+        {
+          "const": "none",
+          "description": "Out of office.",
+          "type": "string"
+        }
+      ]
+    },
     "OpinionParams": {
       "additionalProperties": false,
       "description": "Monthly opinion dynamics (DEC-025): experienced conditions and reactions\nto laws and bills move approval of the local government and the player.",
@@ -2583,6 +4148,39 @@
         "gov_approval_rate",
         "player_approval_rate",
         "player_reaction_scale"
+      ],
+      "type": "object"
+    },
+    "OptionDef": {
+      "additionalProperties": false,
+      "properties": {
+        "aftermath_key": {
+          "description": "What happened and why, after the choice (with the cast as arguments).",
+          "type": "string"
+        },
+        "default": {
+          "default": false,
+          "description": "What happens when the deadline passes without an answer (exactly one\noption per dilemma; usually the costly one).",
+          "type": "boolean"
+        },
+        "effects": {
+          "items": {
+            "$ref": "#/$defs/EffectDef"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label_key",
+        "aftermath_key",
+        "effects"
       ],
       "type": "object"
     },
@@ -2693,6 +4291,15 @@
         "by_attitude"
       ],
       "type": "object"
+    },
+    "PartyRel": {
+      "description": "Which party a cast colleague belongs to, relative to the player.",
+      "enum": [
+        "any",
+        "same",
+        "other"
+      ],
+      "type": "string"
     },
     "PersonalityAiParams": {
       "additionalProperties": false,
@@ -3074,6 +4681,91 @@
       ],
       "type": "object"
     },
+    "RelevanceWeights": {
+      "additionalProperties": false,
+      "description": "Relevance scoring (DEC-033): what connects a situation to the player.",
+      "properties": {
+        "base": {
+          "format": "double",
+          "type": "number"
+        },
+        "concern": {
+          "description": "It answers one of the town's top concerns.",
+          "format": "double",
+          "type": "number"
+        },
+        "crisis": {
+          "description": "× the live crisis's severity, when the situation answers to it.",
+          "format": "double",
+          "type": "number"
+        },
+        "election": {
+          "description": "The player's seat is up within a year.",
+          "format": "double",
+          "type": "number"
+        },
+        "jitter": {
+          "description": "Keyed random jitter (variety among equals).",
+          "format": "double",
+          "type": "number"
+        },
+        "memory": {
+          "description": "Per salient memory a cast person holds of the player (up to three).",
+          "format": "double",
+          "type": "number"
+        },
+        "player": {
+          "description": "A cast person has history with the player (an edge, a favour).",
+          "format": "double",
+          "type": "number"
+        },
+        "pressure": {
+          "description": "It reads one of the player's pressure tracks.",
+          "format": "double",
+          "type": "number"
+        },
+        "storyline": {
+          "description": "Part of an active storyline.",
+          "format": "double",
+          "type": "number"
+        },
+        "ward": {
+          "description": "The situation is in the player's ward.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "base",
+        "player",
+        "ward",
+        "crisis",
+        "memory",
+        "storyline",
+        "pressure",
+        "election",
+        "concern",
+        "jitter"
+      ],
+      "type": "object"
+    },
+    "RoleDef": {
+      "additionalProperties": false,
+      "properties": {
+        "cast": {
+          "$ref": "#/$defs/Cast"
+        },
+        "id": {
+          "description": "Role id, referenced by conditions, effects, and Fluent arguments\n(`<id>` is the person's name, `<id>-role` their role key).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "cast"
+      ],
+      "type": "object"
+    },
     "ScenarioDef": {
       "additionalProperties": false,
       "description": "A starting world: biases on world generation (geography, economy, era,\npolitics). Everything left out is drawn at random, as for a random\ncountry, so a scenario only says what makes it different.",
@@ -3293,6 +4985,90 @@
         }
       },
       "type": "object"
+    },
+    "SceneDef": {
+      "additionalProperties": false,
+      "description": "A scene template: a short exchange with a character at a place.",
+      "properties": {
+        "beats": {
+          "items": {
+            "$ref": "#/$defs/BeatDef"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "place": {
+          "$ref": "#/$defs/ScenePlace"
+        }
+      },
+      "required": [
+        "id",
+        "place",
+        "beats"
+      ],
+      "type": "object"
+    },
+    "ScenePlace": {
+      "description": "Where a scene happens.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Where the person in `role` works, else a place of the `fallback` kind.",
+          "properties": {
+            "fallback": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "workplace",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "fallback"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A place of this kind in town (`streets` = the streets of the cast\nneighbourhood or the player's home neighbourhood).",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "type": {
+              "const": "kind",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Scope": {
+      "description": "Which voters an approval or awareness effect reaches.",
+      "oneOf": [
+        {
+          "const": "ward",
+          "description": "The player's ward.",
+          "type": "string"
+        },
+        {
+          "const": "town",
+          "description": "The whole town.",
+          "type": "string"
+        }
+      ]
     },
     "SectorClass": {
       "enum": [
@@ -3614,6 +5390,186 @@
         }
       ]
     },
+    "StoryStageDef": {
+      "additionalProperties": false,
+      "properties": {
+        "advance": {
+          "default": [],
+          "description": "Conditions to reach this stage (checked weekly once the previous\nstage is done).",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
+        "branches": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Option id → the next stage id (others go to the next stage in order).",
+          "type": "object"
+        },
+        "decision": {
+          "default": null,
+          "description": "The decision presented at this stage (a dilemma whose roles are the\nstoryline's), if any.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ends": {
+          "default": false,
+          "description": "The storyline ends at this stage.",
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "key": {
+          "description": "What this stage is, with the cast as arguments (the story so far).",
+          "type": "string"
+        },
+        "timeout_days": {
+          "default": null,
+          "description": "The storyline fades if this stage is not reached within this many days.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "wait_days": {
+          "default": 0,
+          "description": "Days after the previous stage before this one can be reached.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "key"
+      ],
+      "type": "object"
+    },
+    "StorylineDef": {
+      "additionalProperties": false,
+      "description": "A storyline template: roles cast from live actors, stages that advance on\nconditions and the player's choices, outcomes written back only through\nengine commands (decision options).",
+      "properties": {
+        "cooldown_days": {
+          "description": "Days before the storyline may start again after it ends.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "faded_key": {
+          "description": "What the story so far says when a stage times out (the arc fades).",
+          "type": "string"
+        },
+        "follow_up": {
+          "default": null,
+          "description": "A storyline that may start after this one ends, with the same cast\nwhere its roles match (a follow-up hook).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/RoleDef"
+          },
+          "type": "array"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/$defs/StoryStageDef"
+          },
+          "type": "array"
+        },
+        "start": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
+        "title_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title_key",
+        "faded_key",
+        "roles",
+        "stages",
+        "cooldown_days"
+      ],
+      "type": "object"
+    },
+    "StorytellerDef": {
+      "additionalProperties": false,
+      "description": "A storyteller profile (DEC-033 addendum): a transparent difficulty and\nflavour lever over chance and pacing, never over consequences.",
+      "properties": {
+        "budget_scale": {
+          "description": "Multiplies the significant and minor budgets.",
+          "format": "double",
+          "type": "number"
+        },
+        "crisis_cap": {
+          "default": null,
+          "description": "Overrides the director's `crisis_cap`.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "defer_hazards": {
+          "description": "Hold hazards in the player's town while it carries `crisis_cap`\ncrises. Timing only: a held hazard still strikes, at its drawn severity.",
+          "type": "boolean"
+        },
+        "desc_key": {
+          "type": "string"
+        },
+        "hazard_rate": {
+          "description": "Share of hazard strikes in the player's town that happen (1 = the\nhazard model as drawn).",
+          "format": "double",
+          "type": "number"
+        },
+        "hold_recessions": {
+          "description": "Hold the onset of a global recession while the player's town is at the cap.",
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "tension_curve": {
+          "description": "Pace decisions along the chapter's tension curve (otherwise spotlight\nwhatever is ready, within the budgets).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "desc_key",
+        "tension_curve",
+        "defer_hazards",
+        "hazard_rate",
+        "hold_recessions",
+        "budget_scale"
+      ],
+      "type": "object"
+    },
     "TaxParams": {
       "additionalProperties": false,
       "properties": {
@@ -3648,6 +5604,79 @@
         "sales",
         "income",
         "business"
+      ],
+      "type": "object"
+    },
+    "TensionParams": {
+      "additionalProperties": false,
+      "description": "The chapter's tension curve: it rises from `start` to `peak` at `peak_at`\n(a share of the chapter), then falls to `end`.",
+      "properties": {
+        "catch_up_at": {
+          "description": "From this share of a chapter on, a chapter short of its minimum spotlights whatever is ready.",
+          "format": "double",
+          "type": "number"
+        },
+        "climax_window": {
+          "description": "The share of a session chapter in which its climax may come, [from, to].",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "crisis_weight": {
+          "description": "Weights of live tension: the town's worst crisis, pending decisions, the player's race, and track danger.",
+          "format": "double",
+          "type": "number"
+        },
+        "danger_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "end": {
+          "format": "double",
+          "type": "number"
+        },
+        "peak": {
+          "format": "double",
+          "type": "number"
+        },
+        "peak_at": {
+          "format": "double",
+          "type": "number"
+        },
+        "pending_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "race_weight": {
+          "format": "double",
+          "type": "number"
+        },
+        "slack": {
+          "description": "A significant decision is spotlighted while tension is below the curve plus this.",
+          "format": "double",
+          "type": "number"
+        },
+        "start": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "peak",
+        "peak_at",
+        "end",
+        "climax_window",
+        "slack",
+        "catch_up_at",
+        "crisis_weight",
+        "pending_weight",
+        "race_weight",
+        "danger_weight"
       ],
       "type": "object"
     },
@@ -3821,6 +5850,27 @@
         "risk_max"
       ],
       "type": "object"
+    },
+    "TrackKey": {
+      "description": "A pressure track, record, or Mandate (DEC-006, DEC-011, DEC-076).",
+      "oneOf": [
+        {
+          "enum": [
+            "viability",
+            "legal_jeopardy",
+            "threat",
+            "standing",
+            "health",
+            "mandate"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "record",
+          "description": "Visible work in office, 0..100.",
+          "type": "string"
+        }
+      ]
     },
     "TraitDef": {
       "additionalProperties": false,
@@ -4031,6 +6081,29 @@
         "habit_propensity"
       ],
       "type": "object"
+    },
+    "VoteChoice": {
+      "description": "How the player votes through an option.",
+      "oneOf": [
+        {
+          "enum": [
+            "yes",
+            "no",
+            "abstain"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "with_party",
+          "description": "As the player's party expects.",
+          "type": "string"
+        },
+        {
+          "const": "with_ward",
+          "description": "As the player's ward leans.",
+          "type": "string"
+        }
+      ]
     },
     "VoteParams": {
       "additionalProperties": false,
@@ -4702,6 +6775,129 @@
       "required": [
         "kind",
         "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The narrative director's pacing, fairness, and chance numbers (DEC-033).",
+      "properties": {
+        "kind": {
+          "const": "director",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/DirectorParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Storyteller profiles (DEC-033 addendum).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/StorytellerDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "storytellers",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Dilemmas and requests: decisions where every option costs someone (DEC-077 §4).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/DilemmaDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "dilemmas",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "NPC goal templates (DEC-032).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/GoalDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "goals",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Storyline templates (DEC-032).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/StorylineDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "storylines",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Scene templates: short exchanges at a place (DEC-035, DEC-079).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/SceneDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "scenes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
       ],
       "type": "object"
     }

@@ -210,7 +210,7 @@ pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
     })
 }
 
-fn subject_view(engine: &Engine, s: Option<Subject>) -> Option<SubjectView> {
+pub(crate) fn subject_view(engine: &Engine, s: Option<Subject>) -> Option<SubjectView> {
     let st = engine.state();
     match s? {
         Subject::Policy { id } => {
@@ -218,6 +218,15 @@ fn subject_view(engine: &Engine, s: Option<Subject>) -> Option<SubjectView> {
             let t = engine.content().policies.get(&inst.template)?;
             Some(SubjectView {
                 key: t.name_key.clone(),
+                n: None,
+            })
+        }
+        Subject::Decision { id } => {
+            let d = st
+                .narrative
+                .decision(mandate_sim::narrative::DecisionId(id))?;
+            Some(SubjectView {
+                key: engine.content().dilemma(&d.template)?.title_key.clone(),
                 n: None,
             })
         }
@@ -234,7 +243,7 @@ fn subject_view(engine: &Engine, s: Option<Subject>) -> Option<SubjectView> {
     }
 }
 
-fn tone(sentiment: f32) -> String {
+pub(crate) fn tone(sentiment: f32) -> String {
     if sentiment > 0.15 {
         "good"
     } else if sentiment < -0.15 {

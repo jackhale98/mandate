@@ -1,0 +1,968 @@
+//! Decisions, scenes, and the story so far for the client (DEC-033, DEC-077
+//! §4, DEC-035, DEC-079): facts and Fluent keys only. The engine decides what
+//! the player sees: a scene's conversation only where it happens.
+
+use crate::characters::{MemoryView, PersonRefView, person_ref};
+use crate::places::{LocationView, location_view};
+use crate::views::{DateView, EventView};
+use mandate_content::{ContentBundle, DilemmaCategory, EffectDef, Scope, VoteChoice};
+use mandate_sim::Engine;
+use mandate_sim::characters::{self, MemoryKind};
+use mandate_sim::narrative::{
+    Actor, Applied, CastEntry, Chapter, Decision, DecisionId, DecisionStatus, FactKind, Reason,
+    RunEnd, Weight, resolve,
+};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use ts_rs::TS;
+
+/// One line of a trade-off or an aftermath: a Fluent key with arguments.
+/// Arguments named `*_key` are Fluent keys themselves.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct EffectLineView {
+    pub key: String,
+    pub args: BTreeMap<String, String>,
+    /// `cost` | `gain` | `mixed`.
+    pub tone: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct DecisionOptionView {
+    pub id: String,
+    pub label_key: String,
+    pub default: bool,
+    pub costs: Vec<EffectLineView>,
+    pub gains: Vec<EffectLineView>,
+    /// Why it cannot be chosen now (Fluent key), if it cannot.
+    pub unavailable_key: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BeatView {
+    /// The speaker's name (or empty for the player).
+    pub speaker: String,
+    pub key: String,
+    /// The memory the speaker quotes (rendered first, passed as `memory`).
+    pub quote: Option<MemoryView>,
+}
+
+/// Where a decision's scene happens, and the conversation if the player is there.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SceneView {
+    pub place: Option<LocationView>,
+    pub here: bool,
+    /// Only where it happens (DEC-079: going there adds context).
+    pub beats: Vec<BeatView>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct AftermathView {
+    pub option: String,
+    pub label_key: String,
+    pub key: String,
+    pub by_default: bool,
+    pub date: DateView,
+    pub lines: Vec<EffectLineView>,
+}
+
+/// A decision (a dilemma, a request, or a storyline's turn).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct DecisionView {
+    pub id: u32,
+    pub template: String,
+    pub title_key: String,
+    pub situation_key: String,
+    /// `climax` | `significant` | `request`.
+    pub kind: String,
+    /// Fluent arguments: the cast, the town, the live crisis, the player.
+    pub args: BTreeMap<String, String>,
+    pub people: Vec<PersonRefView>,
+    pub opened: DateView,
+    pub deadline: DateView,
+    pub days_left: u32,
+    /// `pending` | `answered` | `defaulted` | `lapsed`.
+    pub status: String,
+    pub options: Vec<DecisionOptionView>,
+    pub default_option: String,
+    /// Why this came up (Fluent keys with arguments).
+    pub reasons: Vec<EffectLineView>,
+    pub scene: SceneView,
+    /// The storyline it belongs to (its title key).
+    pub storyline_key: Option<String>,
+    pub aftermath: Option<AftermathView>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ChapterView {
+    pub index: u32,
+    /// `session` | `campaign`.
+    pub kind: String,
+    pub start: DateView,
+    pub end: DateView,
+    /// 0..1.
+    pub progress: f64,
+    pub climaxes: u32,
+    pub significant: u32,
+    pub minor: u32,
+    pub peak_tension: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StorylineView {
+    pub title_key: String,
+    /// The stages reached, as story lines (Fluent keys with the cast).
+    pub stages: Vec<EventView>,
+    /// `ended` | `faded` | `removed`, or none while it runs.
+    pub ended: Option<String>,
+    pub args: BTreeMap<String, String>,
+}
+
+/// The story so far: chapter and tension, storylines, and what happened.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StoryView {
+    pub profile_key: String,
+    pub chapter: Option<ChapterView>,
+    pub chapters: Vec<ChapterView>,
+    /// 0..1.
+    pub tension: f64,
+    pub storylines: Vec<StorylineView>,
+    /// Spotlit facts, newest first.
+    pub entries: Vec<EventView>,
+    /// Decisions taken (or let pass), newest first.
+    pub past: Vec<DecisionView>,
+}
+
+fn put(args: &mut BTreeMap<String, String>, k: &str, v: String) {
+    args.insert(k.to_string(), v);
+}
+
+/// Fluent arguments for a cast: `$<role>` names (a bill or law by its
+/// policy name), `$<role>_role` a person's role, plus town, crisis, player.
+pub fn cast_args(engine: &Engine, cast: &[CastEntry]) -> BTreeMap<String, String> {
+    let st = engine.state();
+    let content = engine.content();
+    let mut a = BTreeMap::new();
+    for e in cast {
+        match e.actor {
+            Actor::Person { id } => {
+                if let Some(p) = person_ref(engine, id) {
+                    put(&mut a, &e.role, p.name);
+                    put(&mut a, &format!("{}_role_key", e.role), p.role_key);
+                }
+            }
+            Actor::Neighborhood { id } => {
+                if let Some(h) = st.world.neighborhoods.get(id as usize) {
+                    put(&mut a, &e.role, h.name.clone());
+                }
+            }
+            Actor::Policy { id } => {
+                if let Some(t) = st
+                    .policy
+                    .instances
+                    .get(id as usize)
+                    .and_then(|p| content.policies.get(&p.template))
+                {
+                    put(&mut a, &format!("{}_key", e.role), t.name_key.clone());
+                }
+            }
+        }
+    }
+    if let Some(pl) = st.player.as_ref() {
+        if let Some(m) = st.world.municipalities.get(pl.municipality.index()) {
+            put(&mut a, "town", m.name.clone());
+        }
+        if let Some(p) = st.politics.get(pl.politician) {
+            put(&mut a, "player", p.full_name());
+        }
+        if let Some(c) = st
+            .politics
+            .characters
+            .towns
+            .get(pl.municipality.index())
+            .and_then(|t| t.crisis())
+            .and_then(|c| content.crises.iter().find(|d| d.id == c.kind))
+        {
+            put(&mut a, "crisis_key", c.name_key.clone());
+        }
+    }
+    a
+}
+
+fn signed(v: f64, digits: usize) -> String {
+    if v > 0.0 {
+        format!("+{v:.digits$}")
+    } else if v < 0.0 {
+        format!("−{:.digits$}", -v)
+    } else {
+        format!("{v:.digits$}")
+    }
+}
+
+fn who_key(scope: &str, classes: &[u8]) -> String {
+    if let [c] = classes {
+        return format!("effect-who-class-{c}");
+    }
+    match scope {
+        "town" => "effect-who-town",
+        "hood" => "effect-who-hood",
+        _ => "effect-who-ward",
+    }
+    .into()
+}
+
+fn line(key: &str, args: Vec<(&str, String)>, tone: &str) -> EffectLineView {
+    EffectLineView {
+        key: key.into(),
+        args: args.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+        tone: tone.into(),
+    }
+}
+
+fn approval_line(
+    key: &str,
+    scope: &str,
+    hood: Option<String>,
+    classes: &[u8],
+    delta: f64,
+) -> EffectLineView {
+    let mut args = vec![
+        ("delta", signed(delta * 100.0, 0)),
+        ("who_key", who_key(scope, classes)),
+    ];
+    if let Some(h) = hood {
+        args.push(("hood", h));
+    }
+    line(key, args, if delta < 0.0 { "cost" } else { "gain" })
+}
+
+fn name_of(engine: &Engine, id: characters::CharacterId) -> String {
+    person_ref(engine, id).map(|p| p.name).unwrap_or_default()
+}
+
+/// The trade-off lines of an option, before it is chosen (DEC-073).
+fn preview(engine: &Engine, d: &Decision, e: &EffectDef) -> EffectLineView {
+    let st = engine.state();
+    let content = engine.content();
+    let person = |role: &str| mandate_sim::narrative::person_of(&d.cast, role);
+    let tone = |cost: bool| if cost { "cost" } else { "gain" };
+    match e {
+        EffectDef::Opinion { role, delta, .. } => line(
+            "effect-opinion",
+            vec![
+                (
+                    "name",
+                    person(role).map(|p| name_of(engine, p)).unwrap_or_default(),
+                ),
+                ("delta", signed(*delta, 0)),
+            ],
+            tone(*delta < 0.0),
+        ),
+        EffectDef::Approval {
+            scope,
+            classes,
+            neighborhood,
+            delta,
+        } => {
+            let hood =
+                neighborhood.as_deref().and_then(|r| {
+                    match mandate_sim::narrative::actor_of(&d.cast, r) {
+                        Some(Actor::Neighborhood { id }) => st
+                            .world
+                            .neighborhoods
+                            .get(id as usize)
+                            .map(|h| h.name.clone()),
+                        _ => None,
+                    }
+                });
+            let scope = if hood.is_some() {
+                "hood"
+            } else if *scope == Scope::Town {
+                "town"
+            } else {
+                "ward"
+            };
+            approval_line("effect-approval", scope, hood, classes, *delta)
+        }
+        EffectDef::Awareness { scope, delta } => line(
+            "effect-awareness",
+            vec![
+                ("delta", signed(delta * 100.0, 0)),
+                (
+                    "who_key",
+                    who_key(
+                        if *scope == Scope::Town {
+                            "town"
+                        } else {
+                            "ward"
+                        },
+                        &[],
+                    ),
+                ),
+            ],
+            tone(*delta < 0.0),
+        ),
+        EffectDef::Money { amount } => line(
+            "effect-money",
+            vec![("delta", signed(*amount, 0))],
+            tone(*amount < 0.0),
+        ),
+        EffectDef::Health { delta } => line(
+            "effect-health",
+            vec![("delta", signed(*delta, 0))],
+            tone(*delta < 0.0),
+        ),
+        EffectDef::Slots { n } => line("effect-slots", vec![("n", n.to_string())], "cost"),
+        EffectDef::Standing { delta } => line(
+            "effect-standing",
+            vec![("delta", signed(*delta, 0))],
+            tone(*delta < 0.0),
+        ),
+        EffectDef::LegalJeopardy { delta } => line(
+            "effect-legal",
+            vec![("delta", signed(*delta, 0))],
+            tone(*delta > 0.0),
+        ),
+        EffectDef::Record { delta } => line(
+            "effect-record",
+            vec![("delta", signed(delta * 100.0, 0))],
+            tone(*delta < 0.0),
+        ),
+        EffectDef::Favour {
+            role,
+            owed_to_player,
+        } => line(
+            if *owed_to_player {
+                "effect-favour-owed-to-you"
+            } else {
+                "effect-favour-owed"
+            },
+            vec![(
+                "name",
+                person(role).map(|p| name_of(engine, p)).unwrap_or_default(),
+            )],
+            tone(!owed_to_player),
+        ),
+        EffectDef::Repay { role } => line(
+            "effect-repaid",
+            vec![(
+                "name",
+                person(role).map(|p| name_of(engine, p)).unwrap_or_default(),
+            )],
+            "mixed",
+        ),
+        EffectDef::Vote { role, vote } => {
+            let bill = match mandate_sim::narrative::actor_of(&d.cast, role) {
+                Some(Actor::Policy { id }) => st
+                    .policy
+                    .instances
+                    .get(id as usize)
+                    .and_then(|p| content.policies.get(&p.template))
+                    .map(|t| t.name_key.clone())
+                    .unwrap_or_default(),
+                _ => String::new(),
+            };
+            let v = match vote {
+                VoteChoice::Yes => "vote-yes",
+                VoteChoice::No => "vote-no",
+                VoteChoice::Abstain => "vote-abstain",
+                VoteChoice::WithParty => "vote-with-party",
+                VoteChoice::WithWard => "vote-with-ward",
+            };
+            line(
+                "effect-vote",
+                vec![("bill_key", bill), ("vote_key", v.into())],
+                "mixed",
+            )
+        }
+        EffectDef::Draft { template, .. } => line(
+            "effect-draft",
+            vec![(
+                "bill_key",
+                content
+                    .policies
+                    .get(template)
+                    .map(|t| t.name_key.clone())
+                    .unwrap_or_default(),
+            )],
+            "gain",
+        ),
+    }
+}
+
+/// What an answered decision did (facts for the aftermath card).
+fn applied_line(engine: &Engine, a: &Applied) -> EffectLineView {
+    let st = engine.state();
+    let content = engine.content();
+    let tone = |cost: bool| if cost { "cost" } else { "gain" };
+    match a {
+        Applied::Opinion { person, delta } => line(
+            "effect-opinion",
+            vec![
+                ("name", name_of(engine, *person)),
+                ("delta", signed(*delta as f64, 0)),
+            ],
+            tone(*delta < 0.0),
+        ),
+        Applied::Approval {
+            scope,
+            neighborhood,
+            classes,
+            delta,
+        } => approval_line(
+            "effect-approval",
+            scope,
+            neighborhood.and_then(|h| {
+                st.world
+                    .neighborhoods
+                    .get(h as usize)
+                    .map(|x| x.name.clone())
+            }),
+            classes,
+            *delta as f64,
+        ),
+        Applied::Awareness { scope, delta } => line(
+            "effect-awareness",
+            vec![
+                ("delta", signed(*delta as f64 * 100.0, 1)),
+                ("who_key", who_key(scope, &[])),
+            ],
+            tone(*delta < 0.0),
+        ),
+        Applied::Money { amount } => line(
+            "effect-money",
+            vec![("delta", signed(*amount, 0))],
+            tone(*amount < 0.0),
+        ),
+        Applied::Health { delta } => line(
+            "effect-health",
+            vec![("delta", signed(*delta as f64, 0))],
+            tone(*delta < 0.0),
+        ),
+        Applied::Slots { n } => line("effect-slots", vec![("n", n.to_string())], "cost"),
+        Applied::Standing { delta } => line(
+            "effect-standing",
+            vec![("delta", signed(*delta as f64, 1))],
+            tone(*delta < 0.0),
+        ),
+        Applied::LegalJeopardy { delta } => line(
+            "effect-legal",
+            vec![("delta", signed(*delta as f64, 0))],
+            tone(*delta > 0.0),
+        ),
+        Applied::Record { delta } => line(
+            "effect-record",
+            vec![("delta", signed(*delta as f64 * 100.0, 0))],
+            tone(*delta < 0.0),
+        ),
+        Applied::Favour {
+            person,
+            owed_to_player,
+        } => line(
+            if *owed_to_player {
+                "effect-favour-owed-to-you"
+            } else {
+                "effect-favour-owed"
+            },
+            vec![("name", name_of(engine, *person))],
+            tone(!owed_to_player),
+        ),
+        Applied::Repaid { person } => line(
+            "effect-repaid",
+            vec![("name", name_of(engine, *person))],
+            "mixed",
+        ),
+        Applied::Vote { policy, vote } => line(
+            "effect-vote",
+            vec![
+                (
+                    "bill_key",
+                    st.policy
+                        .instances
+                        .get(*policy as usize)
+                        .and_then(|p| content.policies.get(&p.template))
+                        .map(|t| t.name_key.clone())
+                        .unwrap_or_default(),
+                ),
+                ("vote_key", format!("vote-{vote}")),
+            ],
+            "mixed",
+        ),
+        Applied::Drafted { policy } => line(
+            "effect-draft",
+            vec![(
+                "bill_key",
+                st.policy
+                    .instances
+                    .get(*policy as usize)
+                    .and_then(|p| content.policies.get(&p.template))
+                    .map(|t| t.name_key.clone())
+                    .unwrap_or_default(),
+            )],
+            "gain",
+        ),
+        Applied::Skipped { effect } => {
+            line("effect-skipped", vec![("what", effect.clone())], "mixed")
+        }
+    }
+}
+
+fn reason_line(engine: &Engine, d: &Decision, r: &Reason) -> Option<EffectLineView> {
+    let content = engine.content();
+    let town = cast_args(engine, &d.cast)
+        .get("town")
+        .cloned()
+        .unwrap_or_default();
+    Some(match r {
+        Reason::Crisis { kind, .. } => line(
+            "why-crisis",
+            vec![
+                (
+                    "crisis_key",
+                    content
+                        .crises
+                        .iter()
+                        .find(|c| &c.id == kind)?
+                        .name_key
+                        .clone(),
+                ),
+                ("town", town),
+            ],
+            "mixed",
+        ),
+        Reason::Concern { concern } => line(
+            "why-concern",
+            vec![(
+                "concern_key",
+                content
+                    .concerns
+                    .iter()
+                    .find(|c| &c.id == concern)?
+                    .name_key
+                    .clone(),
+            )],
+            "mixed",
+        ),
+        Reason::Election { .. } => line("why-election", vec![], "mixed"),
+        Reason::Storyline { storyline } => line(
+            "why-storyline",
+            vec![("title_key", content.storyline(storyline)?.title_key.clone())],
+            "mixed",
+        ),
+        Reason::Memory { person } => line(
+            "why-memory",
+            vec![("name", name_of(engine, *person))],
+            "mixed",
+        ),
+        Reason::Goal { person, goal } => line(
+            "why-goal",
+            vec![
+                ("name", name_of(engine, *person)),
+                ("goal_key", content.goal(goal)?.name_key.clone()),
+            ],
+            "mixed",
+        ),
+        Reason::Ward => line("why-ward", vec![], "mixed"),
+        Reason::Pressure { track } => line(
+            "why-pressure",
+            vec![("track_key", format!("track-{track}"))],
+            "mixed",
+        ),
+        Reason::Opportunity => return None,
+    })
+}
+
+fn weight_key(w: Weight, c: DilemmaCategory) -> &'static str {
+    match (w, c) {
+        (Weight::Climax, _) => "climax",
+        (_, DilemmaCategory::Request) => "request",
+        _ => "significant",
+    }
+}
+
+fn scene_view(engine: &Engine, d: &Decision) -> SceneView {
+    let st = engine.state();
+    let content = engine.content();
+    let place = d.place.map(|l| location_view(st, l));
+    let here = d.place.is_some() && st.player.as_ref().map(|p| p.location) == d.place;
+    let mut beats = Vec::new();
+    let me = characters::player_character(st);
+    if here
+        && let Some(sc) = content
+            .dilemma(&d.template)
+            .and_then(|t| t.scene.as_deref())
+            .and_then(|s| content.scene(s))
+    {
+        for b in &sc.beats {
+            let speaker = mandate_sim::narrative::person_of(&d.cast, &b.speaker);
+            let name = speaker.map(|p| name_of(engine, p)).unwrap_or_default();
+            let (key, quote) = match (&b.quote_fallback, speaker, me) {
+                (Some(fallback), Some(p), Some(me)) => {
+                    // Quoted memories ("You promised the bridge in '31").
+                    match characters::salient_memories(
+                        &st.politics,
+                        p,
+                        Some(me),
+                        st.calendar.date,
+                        1,
+                    )
+                    .into_iter()
+                    .next()
+                    {
+                        Some(m) => (
+                            b.line.clone(),
+                            Some(MemoryView {
+                                key: MemoryKind::fluent_key(m.kind),
+                                subject: crate::characters::subject_view(engine, m.subject),
+                                year: m.date.calendar().year,
+                                tone: crate::characters::tone(m.sentiment),
+                            }),
+                        ),
+                        None => (fallback.clone(), None),
+                    }
+                }
+                (Some(fallback), _, _) => (fallback.clone(), None),
+                (None, _, _) => (b.line.clone(), None),
+            };
+            beats.push(BeatView {
+                speaker: name,
+                key,
+                quote,
+            });
+        }
+    }
+    SceneView { place, here, beats }
+}
+
+fn status_key(s: DecisionStatus) -> &'static str {
+    match s {
+        DecisionStatus::Pending => "pending",
+        DecisionStatus::Answered => "answered",
+        DecisionStatus::Defaulted => "defaulted",
+        DecisionStatus::Lapsed => "lapsed",
+    }
+}
+
+fn unavailable(st: &mandate_sim::State, effects: &[EffectDef]) -> Option<String> {
+    match resolve::affordable(st, effects) {
+        Ok(()) => None,
+        Err(e) if e.contains("time") => Some("ui-not-enough-time".into()),
+        Err(_) => Some("ui-not-enough-money".into()),
+    }
+}
+
+/// A decision as the player sees it.
+pub fn decision_view(engine: &Engine, d: &Decision) -> Option<DecisionView> {
+    let st = engine.state();
+    let content: &ContentBundle = engine.content();
+    let def = content.dilemma(&d.template)?;
+    let pending = d.status == DecisionStatus::Pending;
+    let options = def
+        .options
+        .iter()
+        .map(|o| {
+            let (mut costs, mut gains) = (Vec::new(), Vec::new());
+            for e in &o.effects {
+                let l = preview(engine, d, e);
+                match e.valence() {
+                    (true, false) => costs.push(l),
+                    (false, true) => gains.push(l),
+                    _ => {
+                        costs.push(l.clone());
+                        gains.push(l);
+                    }
+                }
+            }
+            // The tone of a one-sided effect follows its sign.
+            costs.retain(|l| l.tone != "gain");
+            gains.retain(|l| l.tone != "cost");
+            DecisionOptionView {
+                id: o.id.clone(),
+                label_key: o.label_key.clone(),
+                default: o.default,
+                costs,
+                gains,
+                unavailable_key: if pending && !o.default {
+                    unavailable(st, &o.effects)
+                } else {
+                    None
+                },
+            }
+        })
+        .collect();
+    let people = d
+        .cast
+        .iter()
+        .filter_map(|e| match e.actor {
+            Actor::Person { id } => person_ref(engine, id),
+            _ => None,
+        })
+        .collect();
+    let aftermath = d.resolution.as_ref().filter(|_| !pending).and_then(|r| {
+        let o = def.options.iter().find(|o| o.id == r.option)?;
+        Some(AftermathView {
+            option: o.id.clone(),
+            label_key: o.label_key.clone(),
+            key: o.aftermath_key.clone(),
+            by_default: r.by_default,
+            date: DateView::of(r.date),
+            lines: r.applied.iter().map(|a| applied_line(engine, a)).collect(),
+        })
+    });
+    Some(DecisionView {
+        id: d.id.0,
+        template: d.template.clone(),
+        title_key: def.title_key.clone(),
+        situation_key: def.situation_key.clone(),
+        kind: weight_key(d.weight, def.category).into(),
+        args: cast_args(engine, &d.cast),
+        people,
+        opened: DateView::of(d.opened),
+        deadline: DateView::of(d.deadline),
+        days_left: st.calendar.date.days_until(d.deadline),
+        status: status_key(d.status).into(),
+        options,
+        default_option: def
+            .options
+            .iter()
+            .find(|o| o.default)
+            .map(|o| o.id.clone())
+            .unwrap_or_default(),
+        reasons: d
+            .reasons
+            .iter()
+            .filter_map(|r| reason_line(engine, d, r))
+            .collect(),
+        scene: scene_view(engine, d),
+        storyline_key: d.storyline.and_then(|rid| {
+            let run = st.narrative.storylines.iter().find(|r| r.id == rid)?;
+            content
+                .storyline(&run.template)
+                .map(|s| s.title_key.clone())
+        }),
+        aftermath,
+    })
+}
+
+/// Pending decisions, soonest deadline first.
+pub fn pending_decisions(engine: &Engine) -> Vec<DecisionView> {
+    let mut v: Vec<&Decision> = engine.state().narrative.pending().collect();
+    v.sort_by_key(|d| (d.deadline, d.id));
+    v.into_iter()
+        .filter_map(|d| decision_view(engine, d))
+        .collect()
+}
+
+pub fn decision_by_id(engine: &Engine, id: u32) -> Option<DecisionView> {
+    let d = engine.state().narrative.decision(DecisionId(id))?;
+    decision_view(engine, d)
+}
+
+fn chapter_view(c: &Chapter, on: mandate_core::SimDate) -> ChapterView {
+    ChapterView {
+        index: c.index,
+        kind: c.kind.key().into(),
+        start: DateView::of(c.start),
+        end: DateView::of(c.closed.unwrap_or(c.end)),
+        progress: if c.closed.is_some() {
+            1.0
+        } else {
+            c.progress(on)
+        },
+        climaxes: c.climaxes as u32,
+        significant: c.significant as u32,
+        minor: c.minor as u32,
+        peak_tension: c.peak_tension as f64,
+    }
+}
+
+/// A fact as a story line (Fluent key and arguments), if it is one the
+/// player sees.
+pub fn fact_event(engine: &Engine, f: &mandate_sim::narrative::Fact) -> Option<EventView> {
+    let st = engine.state();
+    let content = engine.content();
+    let mut args = BTreeMap::new();
+    let town = st
+        .player
+        .as_ref()
+        .and_then(|p| st.world.municipalities.get(p.municipality.index()))
+        .map(|m| m.name.clone())
+        .unwrap_or_default();
+    let key: String = match &f.kind {
+        FactKind::CrisisBegan { kind } | FactKind::CrisisWorse { kind } => {
+            let c = content.crises.iter().find(|c| &c.id == kind)?;
+            put(&mut args, "crisis_key", c.name_key.clone());
+            put(&mut args, "town", town);
+            if matches!(f.kind, FactKind::CrisisBegan { .. }) {
+                "event-development-crisis".into()
+            } else {
+                "event-development-crisis-worse".into()
+            }
+        }
+        FactKind::GoalTaken { person, goal } => {
+            let p = person_ref(engine, *person)?;
+            put(&mut args, "name", p.name);
+            put(&mut args, "role_key", p.role_key);
+            put(&mut args, "goal_key", content.goal(goal)?.name_key.clone());
+            "event-development-goal".into()
+        }
+        FactKind::RivalNamed { person } => {
+            put(&mut args, "name", name_of(engine, *person));
+            "event-development-rival".into()
+        }
+        FactKind::StorylineStage { run, stage } => {
+            let r = st.narrative.storylines.iter().find(|x| x.id == *run)?;
+            let def = content.storyline(&r.template)?;
+            let s = def.stages.iter().find(|s| &s.id == stage)?;
+            args = cast_args(engine, &r.cast);
+            s.key.clone()
+        }
+        FactKind::StorylineEnded { run, end } => {
+            let r = st.narrative.storylines.iter().find(|x| x.id == *run)?;
+            let def = content.storyline(&r.template)?;
+            if *end != RunEnd::Faded {
+                return None;
+            }
+            args = cast_args(engine, &r.cast);
+            def.faded_key.clone()
+        }
+        FactKind::DecisionOpened { decision } => {
+            let d = st.narrative.decision(*decision)?;
+            put(
+                &mut args,
+                "title_key",
+                content.dilemma(&d.template)?.title_key.clone(),
+            );
+            "event-decision-opened".into()
+        }
+        FactKind::DecisionResolved {
+            decision,
+            by_default,
+            ..
+        } => {
+            let d = st.narrative.decision(*decision)?;
+            put(
+                &mut args,
+                "title_key",
+                content.dilemma(&d.template)?.title_key.clone(),
+            );
+            if *by_default {
+                "event-decision-defaulted".into()
+            } else {
+                "event-decision-answered".into()
+            }
+        }
+        FactKind::TrackWarning { track, .. } => {
+            put(&mut args, "track_key", format!("track-{track}"));
+            "event-track-warning".into()
+        }
+        FactKind::ChapterBegan { kind, .. } => {
+            put(
+                &mut args,
+                "kind_key",
+                format!("chapter-kind-{}", kind.key()),
+            );
+            "event-chapter-began".into()
+        }
+        FactKind::TownEvent { event } => {
+            let e = st.events.get(*event)?;
+            let v = crate::views::event_view(e, engine);
+            return Some(EventView {
+                id: f.id,
+                date: v.date,
+                text_key: v.text_key,
+                args: v.args,
+            });
+        }
+        FactKind::DecisionLapsed { .. } | FactKind::Discoverable { .. } => return None,
+    };
+    Some(EventView {
+        id: f.id,
+        date: DateView::of(f.date),
+        text_key: key,
+        args,
+    })
+}
+
+/// The story so far.
+pub fn story_view(engine: &Engine) -> StoryView {
+    let st = engine.state();
+    let content = engine.content();
+    let n = &st.narrative;
+    let on = st.calendar.date;
+    let storylines = n
+        .storylines
+        .iter()
+        .rev()
+        .take(12)
+        .filter_map(|r| {
+            let def = content.storyline(&r.template)?;
+            let args = cast_args(engine, &r.cast);
+            Some(StorylineView {
+                title_key: def.title_key.clone(),
+                stages: r
+                    .stages
+                    .iter()
+                    .filter_map(|(sid, date)| {
+                        let s = def.stages.iter().find(|s| &s.id == sid)?;
+                        Some(EventView {
+                            id: r.id.0,
+                            date: DateView::of(*date),
+                            text_key: s.key.clone(),
+                            args: args.clone(),
+                        })
+                    })
+                    .collect(),
+                ended: r.ended.map(|(_, e)| {
+                    match e {
+                        RunEnd::Ended => "ended",
+                        RunEnd::Faded => "faded",
+                        RunEnd::Removed => "removed",
+                    }
+                    .into()
+                }),
+                args,
+            })
+        })
+        .collect();
+    StoryView {
+        profile_key: n
+            .profile(content)
+            .map(|p| p.name_key.clone())
+            .unwrap_or_default(),
+        chapter: n.chapter.as_ref().map(|c| chapter_view(c, on)),
+        chapters: n
+            .chapters
+            .iter()
+            .rev()
+            .take(12)
+            .map(|c| chapter_view(c, on))
+            .collect(),
+        tension: n.tension as f64,
+        storylines,
+        entries: n
+            .facts
+            .iter()
+            .rev()
+            .filter(|f| f.spotlit)
+            .filter_map(|f| fact_event(engine, f))
+            .take(40)
+            .collect(),
+        past: n
+            .decisions
+            .iter()
+            .rev()
+            .filter(|d| d.status != DecisionStatus::Pending && d.status != DecisionStatus::Lapsed)
+            .take(20)
+            .filter_map(|d| decision_view(engine, d))
+            .collect(),
+    }
+}

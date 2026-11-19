@@ -1,0 +1,55 @@
+// Scene templates (DEC-035, DEC-079): a short exchange with a character at a
+// place. Scenes happen somewhere, but nothing critical is only there: the
+// pocket lists every pending decision with its options. Going to the place
+// adds the conversation, where the speaker may quote what they remember of
+// the player (`quote_fallback` is used when they remember nothing).
+// Places: `workplace` (where a cast person works, else `fallback`) or `kind`.
+{
+  "kind": "scenes",
+  "items": [
+    { "id": "scene.plant_layoffs", "place": { "type": "workplace", "role": "steward", "fallback": "union_hall" },
+      "beats": [
+        { "speaker": "steward", "line": "scene-plant-steward", "quote_fallback": "scene-plant-steward-fresh" },
+        { "speaker": "owner", "line": "scene-plant-owner" } ] },
+    { "id": "scene.workers_campaign", "place": { "type": "workplace", "role": "steward", "fallback": "union_hall" },
+      "beats": [ { "speaker": "steward", "line": "scene-workers-steward", "quote_fallback": "scene-workers-steward-fresh" } ] },
+    { "id": "scene.housing_squeeze", "place": { "type": "kind", "kind": "streets" },
+      "beats": [ { "speaker": "organiser", "line": "scene-housing-organiser", "quote_fallback": "scene-housing-organiser-fresh" } ] },
+    { "id": "scene.disaster_relief", "place": { "type": "kind", "kind": "streets" },
+      "beats": [ { "speaker": "helper", "line": "scene-disaster-helper", "quote_fallback": "scene-disaster-helper-fresh" } ] },
+    { "id": "scene.fiscal_hole", "place": { "type": "kind", "kind": "town_hall" },
+      "beats": [
+        { "speaker": "mayor", "line": "scene-fiscal-mayor", "quote_fallback": "scene-fiscal-mayor-fresh" },
+        { "speaker": "steward", "line": "scene-fiscal-steward" } ] },
+    { "id": "scene.tax_revolt", "place": { "type": "workplace", "role": "trader", "fallback": "market" },
+      "beats": [ { "speaker": "trader", "line": "scene-tax-trader", "quote_fallback": "scene-tax-trader-fresh" } ] },
+    { "id": "scene.pollution", "place": { "type": "workplace", "role": "voice", "fallback": "community_centre" },
+      "beats": [
+        { "speaker": "voice", "line": "scene-pollution-voice", "quote_fallback": "scene-pollution-voice-fresh" },
+        { "speaker": "owner", "line": "scene-pollution-owner" } ] },
+    { "id": "scene.building_protest", "place": { "type": "kind", "kind": "streets" },
+      "beats": [ { "speaker": "organiser", "line": "scene-protest-organiser", "quote_fallback": "scene-protest-organiser-fresh" } ] },
+    { "id": "scene.favour_called_in", "place": { "type": "kind", "kind": "diner" },
+      "beats": [ { "speaker": "creditor", "line": "scene-favour-creditor", "quote_fallback": "scene-favour-creditor-fresh" } ] },
+    { "id": "scene.party_line", "place": { "type": "kind", "kind": "party_office" },
+      "beats": [ { "speaker": "sponsor", "line": "scene-party-sponsor", "quote_fallback": "scene-party-sponsor-fresh" } ] },
+    { "id": "scene.donor_offer", "place": { "type": "workplace", "role": "donor", "fallback": "diner" },
+      "beats": [ { "speaker": "donor", "line": "scene-donor-donor", "quote_fallback": "scene-donor-donor-fresh" } ] },
+    { "id": "scene.rival_offer", "place": { "type": "kind", "kind": "diner" },
+      "beats": [ { "speaker": "rival", "line": "scene-rival-rival", "quote_fallback": "scene-rival-rival-fresh" } ] },
+    { "id": "scene.jobs_plea", "place": { "type": "kind", "kind": "streets" },
+      "beats": [
+        { "speaker": "voice", "line": "scene-jobs-voice", "quote_fallback": "scene-jobs-voice-fresh" },
+        { "speaker": "employer", "line": "scene-jobs-employer" } ] },
+    { "id": "scene.attack_ad", "place": { "type": "kind", "kind": "party_office" },
+      "beats": [ { "speaker": "player", "line": "scene-attack-ad" } ] },
+    { "id": "scene.debate", "place": { "type": "kind", "kind": "community_centre" },
+      "beats": [ { "speaker": "rival", "line": "scene-debate-rival", "quote_fallback": "scene-debate-rival-fresh" } ] },
+    { "id": "scene.request_workers", "place": { "type": "workplace", "role": "holder", "fallback": "union_hall" },
+      "beats": [ { "speaker": "holder", "line": "scene-request-workers", "quote_fallback": "scene-request-workers-fresh" } ] },
+    { "id": "scene.request_ally", "place": { "type": "kind", "kind": "council_chamber" },
+      "beats": [ { "speaker": "holder", "line": "scene-request-ally", "quote_fallback": "scene-request-ally-fresh" } ] },
+    { "id": "scene.request_traders", "place": { "type": "workplace", "role": "holder", "fallback": "market" },
+      "beats": [ { "speaker": "holder", "line": "scene-request-traders", "quote_fallback": "scene-request-traders-fresh" } ] },
+  ],
+}
