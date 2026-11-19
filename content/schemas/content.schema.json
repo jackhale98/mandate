@@ -587,6 +587,35 @@
       ],
       "type": "object"
     },
+    "ByLevel": {
+      "additionalProperties": false,
+      "description": "A number per knowledge level.",
+      "properties": {
+        "detailed": {
+          "format": "double",
+          "type": "number"
+        },
+        "heard": {
+          "format": "double",
+          "type": "number"
+        },
+        "known": {
+          "format": "double",
+          "type": "number"
+        },
+        "unknown": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "unknown",
+        "heard",
+        "known",
+        "detailed"
+      ],
+      "type": "object"
+    },
     "CampaignParams": {
       "additionalProperties": false,
       "properties": {
@@ -684,6 +713,25 @@
         "awareness",
         "approval",
         "contact"
+      ],
+      "type": "object"
+    },
+    "CanvassMatch": {
+      "additionalProperties": false,
+      "description": "Canvassing on an issue (DEC-091 \"ignorance costs effectiveness\"): the\napproval gain is multiplied by `1 + match_bonus × (salience − 1)`, at\nleast `floor`.",
+      "properties": {
+        "floor": {
+          "format": "double",
+          "type": "number"
+        },
+        "match_bonus": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "match_bonus",
+        "floor"
       ],
       "type": "object"
     },
@@ -4196,6 +4244,72 @@
       },
       "type": "object"
     },
+    "GrantDef": {
+      "additionalProperties": false,
+      "description": "One grant: every subject of a kind that a selector picks, raised to a\nlevel. Selectors: `home` (the player's home neighbourhood), `ward` (the\nneighbourhoods of the player's ward), `town` (the zone's town), `here`\n(the place being introduced: introductions only), or a place kind.",
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/Level"
+        },
+        "subject": {
+          "$ref": "#/$defs/GrantSubject"
+        },
+        "which": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "which",
+        "level"
+      ],
+      "type": "object"
+    },
+    "GrantSubject": {
+      "description": "The kind of subject a grant gives.",
+      "oneOf": [
+        {
+          "const": "town_concerns",
+          "description": "The town's worries (`which`: `town`).",
+          "type": "string"
+        },
+        {
+          "const": "hood_concerns",
+          "description": "Neighbourhoods' worries (`which`: `home`, `ward`, `town`, `here`).",
+          "type": "string"
+        },
+        {
+          "const": "broker",
+          "description": "Who really runs things (`which`: `town`; `here`: only if the broker\nis found at the place).",
+          "type": "string"
+        },
+        {
+          "const": "council",
+          "description": "Every councillor and the mayor, as people (`which`: `town`).",
+          "type": "string"
+        },
+        {
+          "const": "people_at",
+          "description": "The people found at places (`which`: `town` for every place, `here`,\nor a place kind such as `union_hall`).",
+          "type": "string"
+        },
+        {
+          "const": "rival_plans",
+          "description": "The rival's plans (`which`: `town`).",
+          "type": "string"
+        },
+        {
+          "const": "policy_support",
+          "description": "Who supports each standard policy (`which`: `town`).",
+          "type": "string"
+        },
+        {
+          "const": "proposals",
+          "description": "The proposals on the table (`which`: `town`).",
+          "type": "string"
+        }
+      ]
+    },
     "Gravity": {
       "description": "How serious a hidden fact is (DEC-006 Legal Jeopardy): a lapse of\nethics, misconduct in office, or a crime.",
       "enum": [
@@ -4787,6 +4901,98 @@
       ],
       "type": "object"
     },
+    "KnowledgeEffects": {
+      "additionalProperties": false,
+      "description": "The effectiveness terms, applied symmetrically by the shared formulas.",
+      "properties": {
+        "canvass": {
+          "$ref": "#/$defs/CanvassMatch"
+        },
+        "lobby_logit": {
+          "$ref": "#/$defs/ByLevel",
+          "description": "A logit term on lobbying odds by the actor's knowledge of the\ntarget as a person (NPCs, who keep no ledger, use `known`)."
+        }
+      },
+      "required": [
+        "lobby_logit",
+        "canvass"
+      ],
+      "type": "object"
+    },
+    "KnowledgeParams": {
+      "additionalProperties": false,
+      "description": "The knowledge parameter block (`kind: \"knowledge\"`, one file across packs).",
+      "properties": {
+        "default_start": {
+          "type": "string"
+        },
+        "effects": {
+          "$ref": "#/$defs/KnowledgeEffects"
+        },
+        "fresh_days": {
+          "description": "A reading older than this many days is shown as stale.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "leads_cap": {
+          "description": "Leads kept at once (oldest dropped first).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "local_option": {
+          "description": "\"Start with local knowledge\" (off by default), applied on top of the\nprofile. Never `detailed`, never hidden places.",
+          "items": {
+            "$ref": "#/$defs/GrantDef"
+          },
+          "type": "array"
+        },
+        "primer": {
+          "description": "A party contact's primer on entering a new zone.",
+          "items": {
+            "$ref": "#/$defs/GrantDef"
+          },
+          "type": "array"
+        },
+        "starts": {
+          "description": "Start profiles. The draft of three (DEC-036) names one per\nbackground; until then every run uses `default_start`.",
+          "items": {
+            "$ref": "#/$defs/StartProfile"
+          },
+          "type": "array"
+        },
+        "visit_all": {
+          "default": [],
+          "description": "Given at the first visit to any place in a zone (beside its kind's\nintroduction).",
+          "items": {
+            "$ref": "#/$defs/GrantDef"
+          },
+          "type": "array"
+        },
+        "visit_intro": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/GrantDef"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "description": "First-visit introductions by place kind (`union_hall`, …).",
+          "type": "object"
+        }
+      },
+      "required": [
+        "starts",
+        "default_start",
+        "local_option",
+        "primer",
+        "fresh_days",
+        "leads_cap",
+        "effects"
+      ],
+      "type": "object"
+    },
     "LaneStyle": {
       "enum": [
         "none",
@@ -4876,6 +5082,31 @@
         "blame_valence"
       ],
       "type": "object"
+    },
+    "Level": {
+      "description": "How much the player knows of a subject. Ordered; a subject's level only\never rises (identities never fade, DEC-091).",
+      "oneOf": [
+        {
+          "const": "unknown",
+          "description": "Nothing.",
+          "type": "string"
+        },
+        {
+          "const": "heard",
+          "description": "A rumour or a name.",
+          "type": "string"
+        },
+        {
+          "const": "known",
+          "description": "Met or seen first-hand.",
+          "type": "string"
+        },
+        {
+          "const": "detailed",
+          "description": "From the right place or person.",
+          "type": "string"
+        }
+      ]
     },
     "LobbyEffects": {
       "additionalProperties": false,
@@ -7668,6 +7899,27 @@
         }
       ]
     },
+    "StartProfile": {
+      "additionalProperties": false,
+      "description": "What a background knows when play begins (DEC-091).",
+      "properties": {
+        "grants": {
+          "items": {
+            "$ref": "#/$defs/GrantDef"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Content id, e.g. `start.grew_up_here`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grants"
+      ],
+      "type": "object"
+    },
     "StoryStageDef": {
       "additionalProperties": false,
       "properties": {
@@ -9507,6 +9759,24 @@
       "required": [
         "kind",
         "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Knowledge is earned (DEC-091): start profiles, the local option, the\nparty primer, place introductions, and the effectiveness terms.",
+      "properties": {
+        "kind": {
+          "const": "knowledge",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/KnowledgeParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
       ],
       "type": "object"
     }

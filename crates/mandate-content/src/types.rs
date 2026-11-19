@@ -104,6 +104,11 @@ pub enum ContentFile {
     Connectors {
         items: Vec<crate::layout::ConnectorDef>,
     },
+    /// Knowledge is earned (DEC-091): start profiles, the local option, the
+    /// party primer, place introductions, and the effectiveness terms.
+    Knowledge {
+        value: Box<crate::knowledge::KnowledgeParams>,
+    },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -2351,6 +2356,11 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "connectors" => ContentFile::Connectors {
             items: serde_json::from_str::<ItemsFile<crate::layout::ConnectorDef>>(json)?.items,
+        },
+        "knowledge" => ContentFile::Knowledge {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::knowledge::KnowledgeParams>>(json)?.value,
+            ),
         },
         other => {
             use serde::de::Error;

@@ -154,6 +154,9 @@ impl Engine {
         crate::narrative::on_load(&mut state, &content);
         // Media (DEC-034): a save from before the press gets its outlets.
         crate::media::on_load(&mut state, &content);
+        // Knowledge (DEC-091): a run from before the ledger is seeded
+        // generously (`Migrated`); a seeded ledger is kept as it is.
+        crate::player::knowledge::on_load(&mut state, &content);
         Ok(Engine {
             state,
             terrain: None,
@@ -165,8 +168,12 @@ impl Engine {
         })
     }
 
-    /// Record the start-of-game event. Called once by worldgen for new games.
+    /// Record the start-of-game event and seed the player's knowledge from
+    /// the content's default start profile (DEC-091; the draft of three will
+    /// name a profile per background). Called once by worldgen for new games.
     pub fn mark_started(&mut self) {
+        // Validated content always has its default profile.
+        let _ = crate::player::knowledge::seed(&mut self.state, &self.content, None, false);
         let seed = self.state.meta.seed;
         let id = self.state.events.record(
             self.state.calendar.date,
@@ -174,6 +181,31 @@ impl Engine {
             vec![],
         );
         self.state.events.pin(id);
+    }
+
+    /// Choose the run's starting knowledge (DEC-091): a start profile
+    /// (`None`: the content's default) and the "Start with local knowledge"
+    /// option. New-game setup only: refused once a command has been applied.
+    pub fn set_knowledge_start(
+        &mut self,
+        profile: Option<&str>,
+        local_option: bool,
+    ) -> Result<(), EngineError> {
+        if self.next_command > 0 || self.state.calendar.turn > 0 {
+            return Err(EngineError::InvalidCommand(
+                "starting knowledge is chosen before play begins".into(),
+            ));
+        }
+        crate::player::knowledge::seed(&mut self.state, &self.content, profile, local_option)
+            .map_err(EngineError::InvalidCommand)
+    }
+
+    /// Lab only (`mandate-cli … --omniscient`): every subject reads as
+    /// `detailed`, for baselines. Never offered to players.
+    pub fn set_lab_omniscient(&mut self, on: bool) {
+        if let Some(p) = self.state.player.as_mut() {
+            p.knowledge.lab_omniscient = on;
+        }
     }
 
     pub fn set_terrain(&mut self, t: Arc<crate::world::TerrainData>) {

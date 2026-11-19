@@ -26,6 +26,7 @@ import { edgeTemplate, type EdgeProfile } from "../../src/core/edges";
 import { hash32 } from "../../src/core/hash";
 import { blank, blit, crop, grid, type Indexed } from "../../src/core/image";
 import type { Palette } from "../../src/core/palette";
+import { StreetEnds, type EndPropView, type EndRules, type StreetEndView } from "./ends";
 import { DiagonalStreets, type StreetRules } from "./streets";
 import { groundTile, legendFor, TILE_LEGEND_RAMPS, type TileSet } from "./tiles";
 
@@ -107,6 +108,10 @@ export interface TerrainView {
   connectors?: readonly ConnectorView[] | undefined;
   /** Layout v2 street axis per cell (`TownMap.streetAxis`, `STREET_AXIS` codes): diagonal streets (round 5). */
   streetAxis?: ArrayLike<number> | undefined;
+  /** Layout v2 street ends (`TownMap.streetEnds`): how streets that join no other street end (round 6). */
+  streetEnds?: readonly StreetEndView[] | undefined;
+  /** The map's props (`TownMap.props`): a street end reads where its gate stands (round 6). */
+  props?: readonly EndPropView[] | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -374,6 +379,22 @@ const STREET_RULES: StreetRules = {
   crossing: K.Crossing,
 };
 
+/** Terrains a street end may repaint (round 6): streets, squares, greens, yards, paths, open ground and quays. */
+const END_CLAIMABLE = new Set<number>([K.Grass, K.Road, K.Pavement, K.Plaza, K.Park, K.Path, K.Yard, K.Dirt, K.Garden, K.Field, K.Sand, K.Quay]);
+const END_RULES: EndRules = {
+  group,
+  claimable: END_CLAIMABLE,
+  materialName: (g) => V1_NAMES[g] ?? "grass",
+  road: K.Road,
+  pavement: K.Pavement,
+  plaza: K.Plaza,
+  path: K.Path,
+  dirt: K.Dirt,
+  grass: K.Grass,
+  park: K.Park,
+  quay: K.Quay,
+};
+
 const DIRS: readonly (readonly [number, number, number])[] = [
   [0, -1, NB.N],
   [1, 0, NB.E],
@@ -419,6 +440,8 @@ export class TerrainPainter {
   private readonly touched: Uint8Array;
   /** Diagonal streets (round 5), when the map marks any. */
   readonly streets: DiagonalStreets | null;
+  /** Street ends (round 6), when the map records any. */
+  readonly ends: StreetEnds | null;
 
   constructor(ts: TileSet, t2: TerrainSet, view: TerrainView) {
     this.ts = ts;
@@ -486,6 +509,24 @@ export class TerrainPainter {
         )
       : null;
     this.streets = streets?.active ? streets : null;
+    // Street ends: only when the map records any.
+    const ends =
+      view.streetEnds && view.streetEnds.length > 0
+        ? new StreetEnds(
+            {
+              width: this.W,
+              height: this.H,
+              t: (x, y) => this.t(x, y),
+              mat: (X, Y) => (this.streets ? this.streets.mat(X, Y) : group(this.t(X >> 4, Y >> 4))),
+            },
+            END_RULES,
+            ts,
+            this.L,
+            view.streetEnds,
+            view.props ?? [],
+          )
+        : null;
+    this.ends = ends?.active ? ends : null;
   }
 
   private inside(x: number, y: number) {
@@ -530,7 +571,7 @@ export class TerrainPainter {
   /** Whether the cell looks exactly as v1 draws it: a v1 terrain, flat, nothing v2 around it. */
   simple(x: number, y: number): boolean {
     const t = this.t(x, y);
-    if (t > K.Garden || t === K.Water || t === K.Pier || this.touched[y * this.W + x] || this.streets?.touched(x, y)) return false;
+    if (t > K.Garden || t === K.Water || t === K.Pier || this.touched[y * this.W + x] || this.streets?.touched(x, y) || this.ends?.touched(x, y)) return false;
     const e0 = this.e(x, y);
     if (e0 >= 2) return false;
     for (let dy = -1; dy <= 1; dy++) {
@@ -563,6 +604,7 @@ export class TerrainPainter {
   draw(x: number, y: number, variant: number): Indexed {
     const t = this.t(x, y);
     const img = this.base(x, y, t, variant);
+    this.ends?.apply(img, x, y, variant);
     const e0 = this.e(x, y);
     if (e0 >= 2 && !WATERY.has(t)) this.remapAll(img, this.t2.lighter);
     this.levels(img, x, y, t);

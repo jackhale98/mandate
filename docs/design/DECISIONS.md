@@ -1791,6 +1791,13 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Other clients (a native app) would have to port the algorithm bit-exactly, or switch to A.
 - **Dependencies:** DEC-009, DEC-041 (its ideas, applied on the client), DEC-044, DEC-074, DEC-079, DEC-080.
 
+- **Pre-release (owner, 2026-11-19: "for town generation we don't need backward compatibility yet since this isn't released").** Until the first public release:
+  - Town layouts need no compatibility. The generator may change freely; a development run may show a rearranged town after an update; pinned layout hashes are updated as needed.
+  - Layout v1 is retired when v2 becomes the game's default (after the street rework and the town views, B2). The game's town map moves to v2 at the same time.
+  - Per-town recipe snapshots are not needed.
+  - **At release,** the rule above applies in full: the shipped layout version is frozen, recipe snapshots go into run metadata, and later changes ship as a new version that old runs never see.
+  - Save-format migrations for simulation state are unaffected by this note.
+
 ### DEC-086 — Town map overview
 
 - **Status:** Accepted (owner, 2026-11-19). The owner's idea: "instead of showing a list of places like we have now we should consider a method for generating a lower resolution map of the area with the connections shown and the buildings listed. This would make it feel more like a game and less like a job and make you care more about the places since you can see how they're connected." Owner: "Yes add it to the queue."
