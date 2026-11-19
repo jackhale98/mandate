@@ -1866,6 +1866,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - D12: built at the start of M6. The town map (DEC-086) ships on v1 and moves to v2.
 - **Versioning:** v1 stays callable for runs that started with it (DEC-085).
 - **Dependencies:** DEC-051, DEC-053, DEC-075, DEC-078, DEC-079, DEC-084, DEC-085, DEC-086, DEC-087.
+- **D5 amended (owner, 2026-11-19: "Go with A + B").** Stage A's towns still read as grids: every street pattern was rectangular subdivision. Sketches compared three options (`town-gen-sketches/streets-*.png`).
+  - **A:** streets grow from the square along desire lines to the bridges, gates and neighbouring towns, then side streets branch. This gives irregular L and T blocks, T-junctions and offset crossings, mixed widths (high streets wide, old-core lanes 1–2 tiles), greens at junctions, and cul-de-sacs with turning heads.
+  - **B:** A plus 45° streets anywhere terrain or radial roads call for them, with buildings staying square and stepping along the diagonals. Wedges left by diagonals become greens, yards or small triangular plazas.
+  - **Accepted:** A + B, as layout v2 (no saved run uses v2 yet), with diagonal road and pavement art.
+  - **The owner also reported connection faults:** roads starting from the wrong side, roads not joining straight, stubs ending in nothing, near-parallel duplicate roads, roads meeting rail with no crossing, rail looping round the centre. Fixing these is part of the same task, with checks.
+  - **Curved roads (C)** stay for a later version with the art round.
 
 ### DEC-091 — Knowledge is earned
 
