@@ -37,6 +37,15 @@
       #clock-time strong { color: var(--text); }
       #scrub { flex: 1; min-width: 80px; accent-color: var(--accent); height: 28px; }
       #speed { min-height: 36px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+      /* Phones: let the controls wrap instead of running off the screen. */
+      @media (max-width: 599px) {
+        #bar h1 { flex: 1 1 auto; min-width: 0; max-width: none; }
+        #seed-form { flex: 0 1 auto; min-width: 0; }
+        #seed { width: 5.5em; min-width: 0; }
+        #clock { flex-wrap: wrap; }
+        #scrub { flex: 1 1 140px; }
+        #clock-time { min-width: 0; white-space: nowrap; }
+      }
       #main { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); min-height: 0; overflow: hidden; }
       #stage { position: relative; min-height: 0; background: #4f7f42; }
       #status { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 16px); padding: 4px 10px; border-radius: 999px; background: rgba(17, 19, 26, 0.82); font-size: 13px; pointer-events: none; z-index: 1; }
