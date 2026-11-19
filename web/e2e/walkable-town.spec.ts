@@ -155,7 +155,9 @@ test("walk the streets: tap a place, the player walks there and its panel opens;
   expect(await page.evaluate(() => (window as unknown as Probes).__townStreet?.arrivals ?? 0)).toBeGreaterThan(0);
   const name = (await panel.locator("#place-title").textContent()) ?? "";
   expect(name.length).toBeGreaterThan(0);
-  await expect(page.getByTestId("where")).toContainText(name.trim());
+  // The label at the top names the place (the panel's title carries its icon too).
+  await expect(page.getByTestId("where-place")).not.toBeEmpty();
+  expect(name).toContain(((await page.getByTestId("where-place").textContent()) ?? "-").trim());
   await shot(page, info, "street-place-panel");
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);

@@ -48,7 +48,10 @@ test("landmarks, the bar, and the skip link to Places", async ({ page }) => {
   const name = ((await page.locator(".spot:focus .spot-name").textContent()) ?? "").trim();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("place-panel").locator("#place-title")).toContainText(name);
-  await expect(page.getByTestId("where")).toContainText(name);
+  // The label at the top says where you are: the neighbourhood for its streets, else the place.
+  const streets = /^Streets of (.+)$/.exec(name)?.[1];
+  if (streets) await expect(page.getByTestId("where-zone")).toHaveText(streets);
+  else await expect(page.getByTestId("where-place")).toHaveText(name);
 });
 
 test("where you are: a label at the top of the street names the neighbourhood and the place", async ({ page }) => {

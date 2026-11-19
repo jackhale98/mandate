@@ -185,9 +185,20 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
     if (viewRef.current) viewRef.current.paused = covered;
   }, [covered, ready]);
 
-  // An auto-routed action (the agenda) walks the player here too; the engine does the moving.
+  // An auto-routed action (the agenda, a panel's button) walks the player here too; the engine does the
+  // moving. Behind a sheet the street is paused, so the player is simply there (no walk nobody sees).
+  const coveredNow = useRef(covered);
   useEffect(() => {
-    if (walking && ready) viewRef.current?.goToLocation(walking.location, false);
+    coveredNow.current = covered;
+  }, [covered]);
+  useEffect(() => {
+    const v = viewRef.current;
+    if (!walking || !ready || !v) return;
+    const cell = coveredNow.current ? locationCell(v.map, walking.location) : null;
+    if (cell !== null) {
+      v.scene.placePlayer(cell);
+      v.wake();
+    } else v.goToLocation(walking.location, false);
   }, [walking, ready]);
 
   // Where the player stands, for the location label: the neighbourhood under them (from the dressed
