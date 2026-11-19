@@ -93,10 +93,11 @@ fn exposure_is_higher_on_floodplains() {
         .count();
     assert!(varied > 0, "a river town has a flood-prone district");
     // Every exposure is a per mille.
-    assert!(env
-        .exposure
-        .iter()
-        .all(|x| x.flood <= 1000 && x.wildfire <= 1000 && x.storm <= 1000));
+    assert!(
+        env.exposure
+            .iter()
+            .all(|x| x.flood <= 1000 && x.wildfire <= 1000 && x.storm <= 1000)
+    );
 }
 
 /// A town with differing flood exposure, and its shares of a flood.
@@ -177,7 +178,10 @@ fn protections_reduce_the_damage() {
     for (a, b) in open.iter().zip(&walled) {
         assert_eq!(a.neighborhood, b.neighborhood);
         assert!((b.damage - a.damage * 0.4).abs() < 1e-9);
-        assert_eq!(a.relative, b.relative, "protection scales, never moves, the damage");
+        assert_eq!(
+            a.relative, b.relative,
+            "protection scales, never moves, the damage"
+        );
     }
     // A neighbourhood without exposure gains nothing from protection.
     let st2 = {
@@ -233,10 +237,8 @@ fn the_displaced_return_over_time() {
         .unwrap()
         .clone();
     let home = NeighborhoodId(hit.neighborhood);
-    let town = |s: &mandate_sim::State| {
-        s.population
-            .municipality_total(&s.world, MunicipalityId(m))
-    };
+    let town =
+        |s: &mandate_sim::State| s.population.municipality_total(&s.world, MunicipalityId(m));
     let before_home = st.population.hood_total(home.index());
     let before_town = town(&st);
     let effects: Vec<Effect> = hits
@@ -275,7 +277,10 @@ fn play_is_deterministic_and_damage_falls_where_exposed() {
     let cfg = WorldConfig::new(84, WorldSize::Small);
     let mut a = generate(&cfg, c.clone()).unwrap();
     let mut b = generate(&cfg, c.clone()).unwrap();
-    assert_eq!(a.state().environment.exposure, b.state().environment.exposure);
+    assert_eq!(
+        a.state().environment.exposure,
+        b.state().environment.exposure
+    );
     assert_eq!(a.state_hash(), b.state_hash());
     // Month by month: whenever a flood strikes a town with differing
     // exposure, its most exposed neighbourhood is damaged at least as much
@@ -303,11 +308,7 @@ fn play_is_deterministic_and_damage_falls_where_exposed() {
         for (m, _) in new {
             let hoods = &st.world.municipalities[m as usize].neighborhoods;
             let ex = |h: &NeighborhoodId| st.environment.exposure[h.index()].flood;
-            let dmg = |h: &NeighborhoodId| {
-                st.environment
-                    .damage(*h)
-                    .map_or(0, |d| d.damaged_pm)
-            };
+            let dmg = |h: &NeighborhoodId| st.environment.damage(*h).map_or(0, |d| d.damaged_pm);
             let most = hoods.iter().max_by_key(|h| (ex(h), std::cmp::Reverse(h.0)));
             let least = hoods.iter().min_by_key(|h| (ex(h), h.0));
             if let (Some(hi), Some(lo)) = (most, least)

@@ -1196,7 +1196,12 @@ fn v14_saves_migrate_to_hazard_exposure() {
     assert!(state.environment.hood_damage.is_empty());
     assert!(state.population.displaced.is_empty() && state.population.hood_impact.is_empty());
     // A flood-prone town's waterfront is more exposed than its suburbs.
-    for mu in state.world.municipalities.iter().filter(|m| m.geo.flood > 0.2) {
+    for mu in state
+        .world
+        .municipalities
+        .iter()
+        .filter(|m| m.geo.flood > 0.2)
+    {
         let of = |k: mandate_sim::world::NeighborhoodKind| {
             mu.neighborhoods
                 .iter()
