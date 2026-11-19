@@ -2,7 +2,7 @@
 
 **Purpose:** A decision-ready plan for a tool that produces attractive, consistent, tunable pixel art for Mandate (characters, buildings, tiles, props, icons), robust enough to become its own project. P0 is built (see P0 results); P1 is part of M6. The owner asked for this plan before any tool is built ("plan that before actually building the tool to ensure it's robust, provides what we need and can actually be designed to output attractive and nice pixel art").
 **Date:** 2026-11-19. One research pass over web sources (listed at the end, cited as [ID]). Most are practitioner guides, modding wikis and developer interviews, not measured studies.
-**Status:** Accepted (DEC-084); D16 open; P0 built. Nothing here changes an accepted decision. Section 9 lists what the owner must decide.
+**Status:** Accepted (DEC-084); D16 open; P0 built; round 4 (layout v2 terrain) built. Nothing here changes an accepted decision. Section 9 lists what the owner must decide.
 
 ## Executive summary
 
@@ -405,6 +405,7 @@ The renderer is built (`web/src/hub/render/`) with code-drawn placeholder art be
 4. Every shadow caster has a footprint polygon and a height in art pixels; the renderer projects shadows itself.
 5. Grading comes from `grade(minuteOfDay)`; the renderer does no colour design of its own.
 6. Everything is drawn at art resolution and scaled by whole numbers.
+7. Layout v2 (round 4): the ground of a v2 map comes from the optional `groundCell(map, x, y, mask, variant)`, which sees the cell's neighbours, levels and connectors; plot states arrive as building conditions. See "Round 4: v2 terrain".
 
 ## 6. Style guide draft
 
@@ -662,6 +663,147 @@ Effort is in agent tasks (one brief per `WORKFLOW.md`, roughly one focused sessi
   - Colour choices per outfit, rather than ramps picked by rule. A pale bald man with a dark beard still looks stark at 4×.
   - A palette slot or two for people's lines: the 128-colour budget forced lines from existing colours, so up to 17 colours show in one frame.
 - The recommendation of rounds 1 and 2 is unchanged: commission the character library for P1. Round 3's rules (one shade per material, per-material lines, the contrast and flatness lints, 1×2 eyes) are the brief an artist can draw to, and the compositor takes their parts unchanged.
+
+### Round 4: v2 terrain (2026-11-19, agent-drawn parts)
+
+**Why.** Town layout v2 (DEC-090; `TOWN_GENERATION.md` §7.7) adds terrain codes (creek, rock, embankment, rail, reeds, bridge, ford, pit, steps), ground levels 0–3 (`TownMap.elevation`), connectors (bridge, footbridge, ford, viaduct, level crossing; `TownMap.connectors`), plot states (`TownBuilding.state`) and four props (headframe, spoil heap, reeds, stepping stones). The vocabulary is fixed in `web/src/hub/townLayout.ts`. This round gives the pack art for all of it in the flat three-quarter style of rounds 1–3, so v2 towns render with real art and not fallbacks. It also frees palette headroom (D11). `PACK_VERSION` is `mandate-p0.5`.
+
+**Palette headroom (D11).**
+- Before: 124 colours in 47 ramp entries (43 ramps and 4 outline colours). The P0 count of 126 in 46 ramps that `TOWN_GENERATION.md` §7.4 quotes is from before round 3.
+- After: 114 colours, so 14 are free. The ramp entries are unchanged and round 4 adds no colour: every new look reuses ramps.
+- How: each ramp can now take its own merge limit (`RampSpec.merge`, `RAMP_MERGES` in `art/mandate/palette.ts`). Below that limit, a step reuses the nearest colour already in the palette. Ramps keep their names, so no part or kit changes. The merges, all below Oklab ΔE 0.031:
+  - foliage's shade becomes grass's base (ΔE 0.016);
+  - glass's shade becomes slate's light (0.016);
+  - earth's base and light become wood's light and stone's base (0.018 and 0.016);
+  - grey hair becomes the warm greys of paving and chalk (0.018–0.026);
+  - mustard cloth becomes blonde hair's ramp (0.025–0.030);
+  - sky cloth's base becomes water's light (0.018).
+- **v1 towns change only by these merges**, measured by RGB over every pinned fixture (3,526 images):
+  - tiles: 15.3% of pixels, almost all of them the earth of paths, lanes and field furrows (ΔE ≤ 0.018);
+  - buildings: 3.8% (glass shade, mustard and sky walls and awnings);
+  - people: 9.0% (grey and blonde hair, mustard and sky cloth). About 1,100 outline pixels over 41 people take a near-black line where a navy or dark-brown one used to be picked.
+  - The one deliberate drawing change to a v1 golden is the boarded sample shop: its doors and half its upper windows are now boarded too.
+  - v1 maps never take the v2 drawing path (below).
+- Lints unchanged: 0 errors. The 30 round-3 warnings remain; round 4 adds 5 (below).
+
+**What was built.**
+- **Terrain painter** (`art/mandate/terrain.ts`, `TerrainPainter`). It draws a cell from what the map says around it, in map pixels, so pieces join across cells. Everything is integer pixel rules over palette indices, deterministic for the map.
+  - *Water edges by shore.* Each quarter of a water tile takes the edge of the neighbour it touches: an earth bank under grass; reeds standing in the water beside a reed bed; wet sand and a line of foam on a beach; a grey rock edge; a quay's dark lap; the deep shade at the foot of an embankment wall. Where two shores meet at a corner, the harder one draws it. Six shore templates are built by round 1's edge-profile method.
+  - *Creek.* A one-tile channel 6 px wide, drawn from the four sides it joins, with a pool when it joins none. The north bank's earth face shows and the water darkens under it; the south bank has a light lap; the current shows as a light dash. Creeks join rivers. A **ford** is the channel made shallow with a track's ruts across it, or shallow water with pebbles where it crosses a river. **Stepping stones** are a prop.
+  - *Levels.* A south-facing change is drawn at the top of the lower cell, 8, 12 or 16 px tall for 1, 2 or 3 levels:
+    - an earth bank under grass, with turf overhanging, stones and a dark foot;
+    - a coursed stone retaining wall under paving, with a light coping and its shadow;
+    - a rock face under rock or beside a pit.
+    - `Embankment` and `Rock` cells below a change are whole faces, so walls and cliffs run one to three tiles tall, with a top lip and a foot.
+    - Face ends slope (banks) or square off with a lit or shaded edge (walls, rock).
+    - A north-facing change is only a lip line (dark, then light); east and west drops are a shade or light line; the crest above a south face catches the light.
+    - Every two levels up lift the ground one tone step (each colour to its ramp's next step). There are no gradients and no hillshade.
+    - Steps are stone treads rising north, with cheeks where no steps continue beside them. Water dropping a level runs over a weir.
+  - *Rail.* Track drawn link by link from cell centre to cell centre: orthogonal links, and 45° links where no orthogonal path turns the corner. Each link is a band of ballast with sleepers and two rails, each rail a polished head over a shadow. A diagonal link crosses the shared corner of two other cells, which draw their part, so diagonals have no seams. Rail, creek and ford cells stand on grass, so grass beside them draws no tile edge.
+    - **Platforms:** paving beside the track with a yellow line, a coping, and a face toward rail to the south.
+    - **Level crossings:** the road with the rails set in it, flangeways, a dashed stop line each side, and red-and-white posts at the corners.
+  - *Bridges,* one kit per connector kind, in both axes. A bridge cell no connector covers is drawn as a stone bridge along its run, so a generator that leaves connectors out still gets a bridge.
+    - **Stone road bridge:** asphalt between stone parapets. Running east–west, its south face shows the parapet, a string course, the spandrel's courses, arches with a lit and shaded ring and a dark intrados, piers with ripples, and abutments; its shade falls on the water below.
+    - **Timber footbridge:** planks and handrails, open at the sides. Running east–west: a beam and trestles.
+    - **Brick viaduct:** the track on a ballasted deck between brick parapets, two tiers of tall arches (a single low arch when it is one or two tiles long, as over a creek).
+    - **North–south (every kind):** the deck and parapets with end posts, a 5 px shadow on the water to the east, and cutwaters with ripples on both sides.
+  - *Grounds:* rock tops (slabs with cracks), pit floors (rubble), reed beds (clumps of golden and green stems with seed heads, seamless), shallow water.
+- **Props** (`art/mandate/props2.ts`), laid out by shape rules into the same text grids, so they get the automatic outline, shadows and lints:
+  - a **headframe**: red-painted steel on tapering legs braced in open panels (wide enough that the outline leaves sky between the members), two winding wheels, the ropes and cage, and a stone banksman's house; 28 × 62;
+  - **spoil heaps** in three sizes: shale lit on the left, wandering gullies, scrub at the foot;
+  - two **reed** clumps and two sets of **stepping stones**;
+  - **market stalls:** round 1's stall stays variant 0 (v1 emits no stalls), then four muted awnings over fruit, vegetables, fish and bread, and a closed stall under a tied canvas.
+- **Plot states** (`buildings.ts`), in every family, in the built building's frame and anchor. Vacant plots are never lit.
+  - *Reserved:* rough grass and bare earth inside a low timber fence, a gate at the door, a board on posts with a house pictogram, a heap of spoil.
+  - *Construction:* a slab, and walls rising about a storey in the design's own material with ragged tops; openings without glass; scaffolding (standards, ledgers, boards, a brace, a ladder, netting on the top lift); materials on the slab; a skip.
+  - *Boarded:* the building, its ground floor, doors and about half its upper windows boarded.
+  - *Derelict:* boarded below, broken panes above, ragged holes in the roof with rafters showing, a crack down the wall, ivy, and weeds at the foot of the walls and through forecourts and yards.
+  - Five kit slots were added (earth, netting, hazard paint), all from existing ramps.
+- **The game side.**
+  - `ArtProvider` gains one optional method, `groundCell(map, x, y, cornerMask, variant)`; `PixelkitArt` implements it.
+  - A v1 map always gets `ground()`'s tiles, and so do v2 cells that look as v1 draws them: a v1 terrain, flat, nothing v2 within a cell.
+  - Other cells are drawn once per map and cached. Identical drawings share one frame: 334 frames for the 711 drawn cells of the test scene.
+  - The frames are painted as static art, so the palette-moods night repaints them like any ground tile.
+  - `ground()` also draws every v2 code from its mask alone (flat, no connectors), so a renderer that never calls `groundCell` still shows v2 art.
+  - Unknown terrain codes draw as grass, levels above 3 count as 3, unknown connector kinds as stone bridges, and unknown props as the placeholder's.
+  - `buildingSpec()` passes `TownBuilding.state` as a condition.
+- **Integration still needed (outside this round's files).** The hub renderer bakes ground through `ground()`. For v2 towns it should call `art.groundCell?.(map, x, y, mask, variant) ?? art.ground(...)` in `TownRenderer.bakeBase`, and draw no faces, decks or water edges of its own when the art has `groundCell`. Until then, v2 codes draw flat through `ground()`.
+
+**Night and lamp light.**
+- All v2 ground is static art in palette indices, so the moods look recolours it like any other tile, and the multiply look grades it.
+- Vacant plots and building sites have no emissive openings. Built neighbours still light their windows and pavements.
+- Lamp pools are shaped by the renderer as in round 2. Faces are ground, not walls, so a pool at the foot of a retaining wall lights the ground and does not splash up the wall.
+- Edge contrast is measured by a new lint, by day and in the moods night at 22:30 (Oklab ΔE). Every pair passes ≥ 0.05. The weakest is an earth bank against grass at night (0.051), which also reads by its dark foot (0.063).
+
+**Lints** (`target/pixelkit/lint.txt`): 0 errors, 35 warnings (round 3: 30). New lints:
+- **palette headroom:** 14 free (limit ≥ 10).
+- **v2 coverage:**
+  - every v2 code through `ground()` over 47 masks × 2 variants: 16×16, opaque, palette colours;
+  - every cell of the review pieces and the test scene (2,038 cells), with every code shown;
+  - an unknown code and an out-of-range level draw a fallback.
+- **connector kits:** each of bridge, footbridge and viaduct in both axes draws a deck, plus a south face (east–west) or a shadow (north–south); the three kits differ; the ford differs from the creek; the level crossing has rails.
+- **plot states:** reserved, construction, boarded and derelict in civic, shop, house, industrial and institution. Each keeps the built frame, has a door, shadow and receivers, is unlit and on the palette, and changes at least 5% of its pixels (boarded 1.5%).
+- **v2 seams:**
+  - creek water matches across all 20 joined cell edges (a creek dropping a level crosses a weir and is not checked);
+  - no rail-head pixel is isolated on rail cells.
+- **colours per v2 tile:** reported, limit 8 (v1 tiles: 6); creek, rail and ford reach 8.
+- **v2 edge contrast:** 10 pairs, all ≥ 0.05.
+
+The five new warnings are colours per prop (limit 8):
+- the headframe, 12;
+- market stalls 1–4, 10–13 each (round 1's stall has 14).
+
+**Tests and goldens.**
+- pixelkit (`npm run check`): 47 tests, round 3 had 38. New tests cover:
+  - headroom;
+  - every code drawn from its mask;
+  - a v2 cell matching v1 exactly where nothing v2 is near;
+  - no throws on unknown codes, levels or connectors;
+  - determinism and seams;
+  - distinct kits per connector;
+  - plot-state contracts in every family;
+  - the new props;
+  - the terrain codes.
+- Goldens add 64 entries: every review piece's ground, the scene's ground, every v2 code's 47 tiles, every family in every plot state (51), and the 13 new prop variants. The palette merge rewrote every hash (indices moved). The RGB comparison above is the check that looks did not move.
+- Web (`pixelkitArt.test.ts`), 7 new tests:
+  - the pack's codes equal `Terrain`;
+  - every cell of the test scene as a `TownMap` through `groundCell`, with frames shared;
+  - a v1 town gets exactly `ground()`'s tiles;
+  - fallbacks;
+  - the new props come from the pack;
+  - plot states arrive as conditions and stay unlit;
+  - a v2 map renders through the renderer at noon and night.
+
+**Sheets** (`node tools/pixelkit/bin/pixelkit.mjs v2`, in `target/pixelkit/`):
+- `v2-scene-day.png`, `v2-scene-dusk.png`, `v2-scene-night.png`: the hand-authored test town (`art/mandate/v2scene.ts`, 40 × 28 tiles) at 2×. It holds every v2 code, an upland at level 2 over the town at 0, every connector kind (stone bridges in both axes, a viaduct, a rail bridge over the creek, a footbridge, a ford, a level crossing), the mine and the market, and plots in every state. The sheets are drawn by `src/cli/scene.ts`, a small compositor that follows the hub: the moods night, lit windows and lamp heads unmoved, banded pools under everything that stands (the hub also clips them to the ground), and simple day shadows.
+- `v2-terrain.png` and `v2-terrain-night.png` (3×): water against each shore; the creek with stepping stones, a ford and footbridges; rail with 45° pieces, platforms and a level crossing; levels (bank, retaining wall, cliff, embankment, steps, lips); the mine.
+- `v2-bridges.png`: each kit in both axes.
+- `v2-plot-states-day.png` and `v2-plot-states-night.png`: five families × five states.
+- `v2-props.png`.
+
+**Cost.** Drawing a v2 cell takes about 35 µs on a desktop; 711 of the scene's 1,120 cells need drawing, about 25 ms. The provider draws a cell only when its chunk first bakes and caches it per map, so a phone (about 4× slower) spends up to about 140 ms baking a 32 × 32 chunk that is all v2 (rivers, rail, levels).
+
+**Honest assessment.**
+- **Good enough for v2 towns to ship to testers: yes.** Every vocabulary item has art in the established style, in one palette and one light. Nothing is a placeholder. Every check passes, and v1 towns look the same apart from the documented merges.
+- **What reads well:**
+  - the viaduct and stone bridges (arches, piers and parapets read at 1×);
+  - rail with clean 45° pieces and the level crossing;
+  - creek, ford and footbridge;
+  - the retaining wall and the steps;
+  - the headframe as a landmark;
+  - the plot states (the reserved lot, the scaffolded site, boarded and derelict buildings) by day, and dark at night.
+- **What is weak:**
+  - **Rock faces** are vertical prisms with staggered ledges: better than round 4's first try, which read as coursed masonry, but closer to standing stones than to a natural cliff, and the quarry face is too regular.
+  - **Banks** are thin earth bands. They read by their dark foot more than by their face.
+  - **Reed beds** are a little striped.
+  - **Spoil heaps** are plain cones.
+  - **Rock tops and pit floors** use the same slab texture, which can read as crazy paving.
+  - **Rail** has no switches: crossing or branching lines overlap. Track ends have no buffer stops, and bends are a single 45° kink, not a curve.
+  - **Occlusion:** faces and bridge parapets are ground, so walkers are never hidden behind a retaining wall or a parapet.
+  - **Levels and buildings:** faces show only on south sides, by design. Buildings do not sit differently on higher ground, beyond the lighter ground tone.
+  - **Colour counts:** the market stalls and the headframe are over the prop colour guide (warnings).
+- **What an artist would add:** hand-drawn rock and cliff sets with real strata, curved track and switches, bridge set pieces with more character (a hump-backed stone bridge, an iron girder bridge), a drawn mine (winding house, ore bins, wagons), and textured banks with grass tufts and roots.
+- The recommendation of rounds 1–3 stands: commission the drawn sets for P1. The painter's rules (shores per quarter, links per track, faces per level, kits per connector) take an artist's tiles without change, as the facade grammar takes their building parts.
 
 ### P1 — MVP for M6 (about 16 tasks)
 
