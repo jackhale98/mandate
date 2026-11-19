@@ -460,6 +460,57 @@ pub fn lines(st: &State, content: &ContentBundle, loc: Location) -> Vec<HeardLin
     draw(st, content, loc, week, LINES, &last)
 }
 
+/// What this week's lines at a place let the player hear of (DEC-091,
+/// §1.3): each drawn line's `teaches` subjects, with the line, in draw
+/// order. Lines have no cast: a neighbourhood or a place is where the line
+/// is heard. Read-only and draws nothing new (the week's draw is keyed).
+pub fn teachings(
+    st: &State,
+    content: &ContentBundle,
+    loc: Location,
+) -> Vec<(ContentKey, crate::player::knowledge::Subject)> {
+    let here = hood_of(st, loc);
+    let drawn = lines(st, content, loc);
+    let r = crate::scheduler::Reads::of_state(st, content);
+    let v = crate::narrative::cast::View::new(&r, &st.politics);
+    let mut out = Vec::new();
+    for l in drawn {
+        let Some(def) = content.overheard.iter().find(|d| d.id == l.id) else {
+            continue;
+        };
+        for t in &def.teaches {
+            for s in crate::narrative::learn::subjects(&v, t, &[], here) {
+                out.push((l.id.clone(), s));
+            }
+        }
+    }
+    out
+}
+
+/// The player overhears this week's talk at the place they arrived at:
+/// every subject a drawn line teaches is raised to `heard` (the player's
+/// command writes the player's ledger). Returns how many subjects changed.
+pub fn overhear(state: &mut State, content: &ContentBundle, loc: Location) -> usize {
+    let Location::Place { place } = loc else {
+        return 0;
+    };
+    let taught = teachings(state, content, loc);
+    taught
+        .into_iter()
+        .filter(|(line, s)| {
+            crate::player::knowledge::teach_one(
+                state,
+                s.clone(),
+                crate::player::knowledge::Level::Heard,
+                crate::player::knowledge::Source::Overheard {
+                    place,
+                    line: line.clone(),
+                },
+            )
+        })
+        .count()
+}
+
 /// The Fluent key of a sector as residents name it (a noun phrase such as
 /// "the factories"), else its name.
 pub fn talk_key(s: &mandate_content::SectorDef) -> String {
