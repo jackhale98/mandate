@@ -1,6 +1,6 @@
 # Mandate — Agentic Development Workflow
 
-**Status:** Proposed final baseline. Implements brief §23–25 and §29.
+**Status:** Accepted with the system plan (DEC-067). Implements brief §23–25 and §29. §7 describes current practice for parallel agents (2026-11-19).
 
 ## 1. Roles
 The **lead agent** owns architecture consistency, decision and requirement traceability, interface stability, integration, quality gates, and scope. Specialist roles (simulation, worldgen, politics, narrative, frontend, test, reviewer) are logical hats, not standing agents. Spin them up per bounded task.
@@ -97,3 +97,12 @@ Reports summarize outcomes and evidence. No narration.
 ## 6. Change control
 - Accepted decisions change only through a new or superseding DEC entry, with the owner's approval for gameplay or architecture tradeoffs.
 - `PROGRESS.md` is updated at the end of every working session.
+
+## 7. Parallel agents in practice
+
+- **One worktree per agent.** Each agent works in its own git worktree under `.claude/worktrees/` (ignored by git) on its own branch, and never edits another worktree or the main checkout. The lead merges branches into `main`. Files another agent owns at the time are listed in the brief's `OUT OF SCOPE`; changes they need go into the report as suggested edits.
+- **Ports.** The lead gives each agent its own ports for dev and preview servers (`npx vite --port <n>`, `npx vite preview -c landing/vite.config.ts --port <n>`). The Playwright config serves on port 4173 and reuses a server already running there, so an agent running E2E tests in parallel uses a temporary config on its own port with `reuseExistingServer: false`, and deletes it before committing.
+- **Commit early.** Commit at each working step on your own branch (WIP commits are fine). A container restart can interrupt any agent, and uncommitted work in a worktree is the work most at risk. Never use a bare `git stash`: the stash is shared by every worktree.
+- **Shared machine.** Builds compete for a few cores. Limit Rust build parallelism with `CARGO_BUILD_JOBS` (the lead sets the number in the brief; for example 2 on a 4-core machine), build and test only the crates the task touches while iterating, and leave full-workspace and WASM builds to the end or to CI. Docs-only tasks run no heavy builds.
+- **Generated files.** WASM bindings (`web/src/engine/pkg/`) and `web/node_modules` are not in a fresh worktree. Build them, or link or copy them from the main checkout for a check, and remove the link before committing.
+

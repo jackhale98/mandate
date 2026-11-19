@@ -1,6 +1,12 @@
-# Mandate — Roadmap & Initial Backlog
+# Mandate — Roadmap
 
-**Status:** Proposed final baseline, part of the system plan awaiting owner approval. Based on DEC-062 (MVP scope) and DEC-063 (systems-first order with checkpoints).
+**Status:** Accepted with the system plan (DEC-062, DEC-063, DEC-067). Updated 2026-11-19. Detailed status and demo notes: `docs/development/PROGRESS.md`.
+
+## Now / Next
+
+- **Now:** M5d part 1: media, scandals, and legal jeopardy (DEC-034, DEC-006). In parallel: the UI polish round, and round 2 of the pixel-art tool (DEC-084).
+- **Next:** M5d part 2 (situational policies, bill and favour dilemmas, the variety check, choosing a storyteller profile); then the town map overview (DEC-086), once the UI polish round and M5d part 1 have landed; then M6.
+- **Waiting on the owner:** rubric scores for the pixel-art P0 spike, which decide whether a pixel artist is commissioned for the M6 part library (DEC-084 D5).
 
 ## 1. MVP = the M6 vertical slice (DEC-062)
 
@@ -25,23 +31,38 @@
 
 Every milestone ends with a playable or inspectable increment, CI green, docs updated, and a demo note in `PROGRESS.md`.
 
-| # | Milestone | Key deliverables | Exit gate |
-|---|---|---|---|
-| **M0** | Foundation | 8-crate workspace; core primitives; JSONC content pipeline and validator; engine skeleton (scheduler, commands, event log, state hash); save v1; protocol and TS generation; WASM worker; React PWA shell; `SaveStore`; Fluent scaffold; CI fast tier | Command round-trip through the worker; offline shell; native = WASM state hash on a stub world |
-| **M1** | Deterministic world and lab | Worldgen steps 1–10 (terrain → districts, hub layout data); `mandate-cli` lab (`gen`, `inspect`, `export`, `diff`); canonical world overrides; world view model plus basic browser overview | Reproducible worlds by seed; world invariants pass; worldgen within budget |
-| **M1s** | Rendering spikes (parallel; each needs owner go-ahead, DEC-050) | Hub spike; map spike | Budgets met on a real mid-range phone; renderer confirmed |
-| **M2** | Society, economy, environment | Cohorts and demography; sectors, employment, wages, housing; per-tier public finance; national macro loop; environment drift and hazards; burn-in v1 (no politics yet); Monte Carlo sweep with stability bands | Stability bands pass; causal traces for shocks (factory closure chain) |
-| **M3** | Local government and policy | Constitution primitives and the Federal Presidential archetype; municipal bodies, offices, procedures; policy templates, lifecycle, mechanisms, implementation gap; budget procedure; anticipated and experienced opinion; player model (slots, Mandate, resources, Authority); first panel UI (desk, budget, "Why?") | **Owner checkpoint:** propose, negotiate, and enact policy in a generated town; consequences are visible and explained |
-| **M4** | Elections and political career | Parties and factions; election pipeline with plurality tabulator; polling; campaign actions; NPC AI (symmetric) and player-proxy; pressure tracks; local career ladder; burn-in with politics; bot players; drama floors | **Owner checkpoint:** play a full local election; no dominant bot strategy; drama floors pass |
-| **M5** | Characters, places, and narrative | **Places as the interface (DEC-079):** player location, place-kind registry, located actions, auto-routing, the pocket, information depth by place, interim schematic town screen; **hub rendering prototype** on a phone. **Characters:** Principal/Named/Ambient tiers; relationships, favors, memory; goals and storylines. **Narrative:** director (B) with budgets and fairness; media layers and scandals; dialogue; scene-template framework; **dilemma events**. **Town character** (concern registry, DEC-078; defining industry, live crisis, power broker, named rival, local priorities); **situational policies**; DEC-075 stage 3 (communities) | Events grounded in state; pacing within budgets; storylines span chapters; actions are located and nothing critical is only at a place; **variety check: the best bot strategy differs across worlds** |
-| **M6** | **Vertical slice** | Walkable pixel-art hub replaces the M5 schematic, with art from the pixel-art tool (DEC-084: spike first, then the MVP); representative-day UX; draft of 3 with **varied opening situations** (challenger or incumbent, safe or marginal, inherited scandal, town in crisis, hostile council; DEC-077); household, health, finances; detours (1–2); time skips with directives and interrupts; Act 1 endings and Legacy; Ironman/Story; accessibility layer; tutorial and onboarding (first chapter as a guided chapter); settings; PWA polish; **refresh the landing page with the walkable town** (DEC-083) | **Game-quality gate: owner plus 3–5 testers**; brief §29.3 questions; M7 starts only on approval (REQ-004) |
-| M7 | Act 2 (regional) | Regional institutions, governor path, travel between hubs, LOD tier promotion and demotion at scale, homecoming; **registries for budget categories, revenue and tax types, hazards, and commodities** (DEC-078, before national play) | Gate review |
-| M8 | Acts 3–4 (national, presidency) | National legislature, cabinet and appointments, macro levers, presidency, Mandate Test, full endings | A complete career is playable |
-| M9 | Variety and polish | Archetypes 2–4 plus quirks (curveball pool), storyteller profiles, era volatility UI, content expansion, art pass, performance, save migration hardening, mod-pack loading, audio | Release candidate |
+| # | Milestone | Key deliverables | Exit gate | Status |
+|---|---|---|---|---|
+| **M0** | Foundation | 8-crate workspace; core primitives; JSONC content pipeline and validator; engine skeleton (scheduler, commands, event log, state hash); save v1; protocol and TS generation; WASM worker; React PWA shell; `SaveStore`; Fluent scaffold; CI fast tier | Command round-trip through the worker; offline shell; native = WASM state hash on a stub world | **Done** 2026-11-18 |
+| **M1** | Deterministic world and lab | Worldgen steps 1–10 (terrain → districts, hub layout data); `mandate-cli` lab (`gen`, `inspect`, `export`, `diff`); canonical world overrides; world view model plus basic browser overview | Reproducible worlds by seed; world invariants pass; worldgen within budget | **Done** 2026-11-18 |
+| **M1s** | Rendering spikes (parallel; each needs owner go-ahead, DEC-050) | Hub spike; map spike | Budgets met on a real mid-range phone; renderer confirmed | **Done**: the map is Canvas 2D (M1); the hub is Canvas 2D (DEC-080), confirmed on the owner's phone |
+| **M2** | Society, economy, environment | Cohorts and demography; sectors, employment, wages, housing; per-tier public finance; national macro loop; environment drift and hazards; burn-in v1 (no politics yet); Monte Carlo sweep with stability bands | Stability bands pass; causal traces for shocks (factory closure chain) | **Done** 2026-11-18 |
+| **M3** | Local government and policy | Constitution primitives and the Federal Presidential archetype; municipal bodies, offices, procedures; policy templates, lifecycle, mechanisms, implementation gap; budget procedure; anticipated and experienced opinion; player model (slots, Mandate, resources, Authority); first panel UI (desk, budget, "Why?") | **Owner checkpoint:** propose, negotiate, and enact policy in a generated town; consequences are visible and explained | **Done** 2026-11-18 (owner checkpoint) |
+| **M4** | Elections and political career | Parties and factions; election pipeline with plurality tabulator; polling; campaign actions; NPC AI (symmetric) and player-proxy; pressure tracks; local career ladder; burn-in with politics; bot players; drama floors | **Owner checkpoint:** play a full local election; no dominant bot strategy; drama floors pass | **Done** 2026-11-18 (owner checkpoint) |
+| **M5** | Characters, places, and narrative | **Places as the interface (DEC-079):** player location, place-kind registry, located actions, auto-routing, the pocket, information depth by place, interim schematic town screen; **hub rendering prototype** on a phone. **Characters:** Principal/Named/Ambient tiers; relationships, favors, memory; goals and storylines. **Narrative:** director (B) with budgets and fairness; media layers and scandals; dialogue; scene-template framework; **dilemma events**. **Town character** (concern registry, DEC-078; defining industry, live crisis, power broker, named rival, local priorities); **situational policies**; DEC-075 stage 3 (communities) | Events grounded in state; pacing within budgets; storylines span chapters; actions are located and nothing critical is only at a place; **variety check: the best bot strategy differs across worlds** | **In progress.** M5a places (DEC-079): done. M5b characters and town character (DEC-031, DEC-077 §1): done. M5c director, dilemmas, goals, storylines, scenes (DEC-033, DEC-077 §4, DEC-032): done. M5d part 1, media, scandals, legal jeopardy (DEC-034): in progress. M5d part 2, situational policies (DEC-077 §3), bill and favour dilemmas, the variety check (DEC-077 §5), and choosing a storyteller profile at new game (DEC-033): next. DEC-075 stage 3 (communities) and DEC-078 decisions 1–4: done |
+| **M6** | **Vertical slice** | Town map overview (DEC-086, shipped before M6) zooms into a walkable pixel-art hub that replaces the M5 schematic, with art from the pixel-art tool (DEC-084: spike first, then the MVP); representative-day UX; draft of 3 with **varied opening situations** (challenger or incumbent, safe or marginal, inherited scandal, town in crisis, hostile council; DEC-077); household, health, finances; detours (1–2); time skips with directives and interrupts; Act 1 endings and Legacy; Ironman/Story; accessibility layer; tutorial and onboarding (first chapter as a guided chapter); settings; PWA polish; **refresh the landing page with the walkable town** (DEC-083); place kinds carry art and interaction data (DEC-078 decision 6); reserved plots so a town never rearranges mid-run (DEC-085); a real screen-reader playtest (VoiceOver/TalkBack) at the tester checkpoint (DEC-051); the performance pass (budget re-baseline, React Compiler evaluation); save migrations for every format change from here on (DEC-074); DEC-076 difficulty and story targets become gates | **Game-quality gate: owner plus 3–5 testers**; brief §29.3 questions; M7 starts only on approval (REQ-004) | Not started; groundwork done (see the parallel tracks) |
+| M7 | Act 2 (regional) | Regional institutions, governor path, travel between hubs, LOD tier promotion and demotion at scale, homecoming; **registries for budget categories, revenue and tax types, hazards, and commodities** (DEC-078, before national play) | Gate review | Not started |
+| M8 | Acts 3–4 (national, presidency) | National legislature, cabinet and appointments, macro levers, presidency, Mandate Test, full endings | A complete career is playable | Not started |
+| M9 | Variety and polish | Archetypes 2–4 plus quirks (curveball pool), more storyteller profiles (the first three were built in M5c), era volatility UI, content expansion, art pass, performance, save migration hardening, mod-pack loading, audio | Release candidate | Not started |
 
-**Pixel-art tool (DEC-084, accepted 2026-11-19):** hand-drawn parts composed by code. The validation spike (P0) runs before M6 art integration and the MVP (P1) is part of M6; the spin-out to its own repository comes later (P3). Plan: `docs/design/research/PIXEL_ART_TOOL.md`.
+### Parallel tracks
+
+Work outside the milestone sequence, each with its own decision.
+
+| Track | Decision | Status |
+|---|---|---|
+| Save export and import (`.mandate` files, light Ironman rule) | DEC-082 | **Done** |
+| Landing page at the site root; the game moves to `play/` | DEC-083 | **Done** (live). Refresh with the walkable town in M6 |
+| Walkable-town groundwork (`web/src/hub`: versioned town layout, Canvas 2D renderer, day cycle, `ArtProvider`; the prototype at `spike-hub/`) | DEC-080, DEC-085 | **Done** (not yet in the app) |
+| Pixel-art tool: plan and P0 validation spike (`tools/pixelkit`, Mandate's first pack) | DEC-084 | **Done**; awaiting the owner's rubric scores. Round 2: **in progress** |
+| UI polish round | — | **In progress** |
+| Town map overview (replaces the place list as the town screen's main view) | DEC-086 | **Queued**: after the UI polish round and M5d part 1 |
+
+**Pixel-art tool phases (DEC-084):** hand-drawn parts composed by code. P0 (the validation spike) ran before M6 art integration; P1 (the MVP: full palette, appearance genome in the engine, building kits, character library, interiors, icons, studio and CI) is part of M6; P2 (regional and national kits) comes with M7–M8; the spin-out to its own repository is P3. Plan: `docs/design/research/PIXEL_ART_TOOL.md`.
 
 ## 3. Initial backlog — M0 (agent-sized tasks)
+
+**Done** (2026-11-18). Kept as a record of how M0 was split. Choices made along the way: `ts-rs`, `schemars`, a JSONC pre-parser over `serde_json`, DEFLATE via `miniz_oxide`, BLAKE3. `cargo-deny` and `cargo-audit` (M0-01, M0-12) are not wired into CI yet.
 
 Each task is delegated using the brief template in `docs/development/WORKFLOW.md`. Dependencies are listed in the table. Library and version choices marked "select" must be verified (maintenance, license, WASM compatibility) and recorded as DEC entries.
 
@@ -65,6 +86,8 @@ Each task is delegated using the brief template in `docs/development/WORKFLOW.md
 
 ## 4. Backlog outline — M1 (to be refined into tasks at the end of M0)
 
+**Done** (2026-11-18). M1-09 (hub layout data) moved to the client as M6 groundwork (DEC-068, DEC-085).
+
 - M1-01 Terrain: elevation noise, ridge shaping, sea level, coastline.
 - M1-02 Hydrology: flow direction and accumulation, rivers, lakes, watersheds.
 - M1-03 Climate: temperature by latitude and elevation, precipitation with prevailing wind and rain shadow.
@@ -80,13 +103,14 @@ Each task is delegated using the brief template in `docs/development/WORKFLOW.md
 - M1-13 World invariants (property tests); worldgen benchmarks.
 - M1s-01 / M1s-02 Hub and map rendering spikes (owner go-ahead required).
 
-## 5. Open items carried into implementation
+## 5. Open items
 
-| Item | Owner | Needed by |
-|---|---|---|
-| Source of final art (DEC-049) | Owner | Before M6 art integration (placeholders until then) |
-| Library selections marked "select" in M0 | Agents, recorded as DECs | During M0 |
-| Performance budget re-baseline (DEC-046) | Agents | End of M1s / M2 |
-| Era volatility and drama floor tuning (DEC-059) | Agents plus owner | M2–M4 |
-| Hosting target (static host choice, domain) | Owner | Before the first public deploy (not blocking M0–M6) |
-| License and monetization (brief §19) | Owner | Deferred; permissive dependencies keep it open |
+| Item | Owner | Needed by | Status |
+|---|---|---|---|
+| Source of final art (DEC-049) | Owner | Before M6 art integration | The pixel-art tool decides the pipeline (DEC-084). Whether a pixel artist draws the part library depends on the owner's P0 rubric scores (D5) |
+| Library selections marked "select" in M0 | Agents, recorded as DECs | During M0 | Done |
+| Performance budget re-baseline (DEC-046) | Agents | M6 performance pass | Measurements so far in OVERVIEW §8 |
+| Era volatility and drama floor tuning (DEC-059) | Agents plus owner | M2–M4 | Bands and floors pass in every scenario sweep; difficulty targets (DEC-076) wait for full careers |
+| Hosting target (static host choice, domain) | Owner | Before the first public deploy | GitHub Pages at `/mandate/` (DEC-064, DEC-083); a custom domain stays possible with `MANDATE_BASE=/` |
+| License and monetization (brief §19) | Owner | Deferred | Open; permissive dependencies keep it open |
+| `cargo-deny` and `cargo-audit` in CI (OVERVIEW §9) | Agents | Before testers (M6) | Not wired yet |

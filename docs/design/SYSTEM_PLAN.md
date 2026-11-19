@@ -3,6 +3,17 @@
 **Status:** Final baseline, **approved by the owner on 2026-11-18** (DEC-067). Hosting, art, and CI follow DEC-064 to DEC-066.
 **How to read it:** this is the single entry point. Each section summarizes the accepted design and links to the authoritative decision (DEC) or spec. Where this document and a DEC entry disagree, the DEC entry wins and this document gets fixed.
 
+**Since approval (2026-11-19).** The plan below is kept as approved. These later decisions change parts of it; read them first:
+- Renderer: the map and the walkable town use Canvas 2D, not PixiJS (DEC-080; §9, §11).
+- Saves: a versioned JSON snapshot with JSON migrations, saved in full after every action, with no command log; saves load under updated rules (DEC-044 rev. 2, DEC-074; §14).
+- Places as the interface: actions happen at places, with auto-routing and the pocket, from M5 (DEC-079); a town map overview comes before M6 (DEC-086).
+- Storyteller profiles were built in M5c, earlier than "after the MVP" (DEC-033; §8).
+- Site: a landing page at the site root and the game at `play/` (DEC-083); `.mandate` export and import (DEC-082).
+- Art: the pixel-art tool (DEC-084) replaces Kenney packs as the art source from M6; the town layout is derived on the client (DEC-085).
+- Extensibility: sectors, attitudes, communities, concerns, scenarios, and other dimensions are content registries (DEC-075, DEC-078).
+- `cargo-deny` and `cargo-audit` (§9) are not wired into CI yet.
+Current architecture: `docs/architecture/OVERVIEW.md`; status: `docs/development/ROADMAP.md`.
+
 ---
 
 ## 1. Final game design
