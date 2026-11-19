@@ -90,6 +90,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-081 | Logo (poll-line M) and loading animation (career ladder) | Accepted |
 | DEC-082 | Save export and import (`.mandate` files; light Ironman rule) | Accepted |
 | DEC-083 | Landing page at the site root; the game moves to `play/` | Accepted |
+| DEC-084 | Pixel-art tool: hand-drawn parts composed by code; spike before M6 art | Accepted |
 | DEC-085 | Town layout on the client, versioned so a town never rearranges | Proposed |
 
 ---
@@ -1716,6 +1717,31 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Consequences:** links shared to the old base now land on the landing page, one tap from the game. `<base>sw.js` must stay in the build for as long as old installs may exist. The old installed icon opens the base, which forwards to `play/` (online); for offline use from the home screen, players should add the game again from `play/`.
 - **Dependencies:** DEC-048, DEC-049, DEC-051, DEC-052, DEC-064, DEC-079, DEC-081, DEC-082.
 
+### DEC-084 — Pixel-art tool
+
+- **Status:** Accepted (owner, 2026-11-19: "I approve the plan"). Plan and research: `docs/design/research/PIXEL_ART_TOOL.md`.
+- **Decision:** the game's pixel art comes from a tool that **composes hand-drawn parts with code**, coloured from designed palette ramps. Code selects, layers, recolours, outlines, autotiles and lays out facades. It does not invent shapes. All of the plan's recommendations (D1–D15) are accepted:
+  - **D1:** characters are 16×24 frames in 4 directions, confirmed or overturned by the spike's readability check. Tiles stay 16 px (DEC-065).
+  - **D2:** an automatic 1 px dark-tone outline on people, vehicles and props; no outline on tiles and buildings.
+  - **D3:** our own palette, at most 128 colours, built in OKLCH and anchored on the brand tokens (DEC-081). Skin ramps span the Monk Skin Tone scale.
+  - **D4:** no AI-generated pixels in shipped art; mood boards only.
+  - **D5:** agents draw the parts for the spike. If the spike's rubric items 1 or 2 fail, a pixel artist is commissioned for the MVP part library (about 500 parts).
+  - **D6:** the tool lives in `tools/pixelkit/` (working name) behind a hard boundary, and moves to its own repository later (P3).
+  - **D7:** the tool is licensed MIT OR Apache-2.0.
+  - **D8:** Mandate's own art is all rights reserved; a CC0 sample pack ships with the tool.
+  - **D9:** the tool is written in TypeScript; the appearance registry and genome live in Rust content.
+  - **D10:** characters and buildings are composed on the device from engine data; tiles, props and icons are built ahead of time.
+  - **D11:** portraits are sprite-bust crops in M6; dedicated 64×64 portraits are decided after seeing the town.
+  - **D12:** the night look (multiply grading only, or palette moods) is decided from the spike, which renders both.
+  - **D13:** parked cars only in M6.
+  - **D14:** no community-specific appearance by default.
+  - **D15:** timing. The validation spike (P0, about 6 tasks) runs before M6 art integration, and the MVP (P1, about 16 tasks) is part of M6. This replaces the "after v1" roadmap note.
+  - **D16:** the tool's name is open until the spin-out.
+- **Rules:**
+  - The same appearance parameters always produce the same sprite. Art changes are versioned, so a known character does not change look mid-run unless intended.
+  - Assets carry emissive layers and shadow footprints for the continuous day cycle; lighting stays pre-rendered (DEC-080).
+  - Quality control combines a style guide, automated lints, golden images, and contact sheets reviewed by the owner.
+- **Dependencies:** DEC-009, DEC-013, DEC-018, DEC-031, DEC-049, DEC-051, DEC-065, DEC-077, DEC-080, DEC-081.
 ### DEC-085 — Town layout on the client, versioned so a town never rearranges
 
 - **Status:** Proposed (M6 groundwork, 2026-11-19). Needs the owner's approval before the app uses it.
