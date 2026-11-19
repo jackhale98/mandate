@@ -3,6 +3,9 @@ import { FIXTURES, fixtureTown, randomTown } from "./testTowns";
 import { buildingOfPlace, surfaceOfTerrain, townGrid, ROOF_ROWS, type TownMap } from "./townLayout";
 import { ROUTE_SLACK, TownScene } from "./townScene";
 
+// Layout v2 plans take tens of ms each; the route test plans all 13 real towns.
+vi.setConfig({ testTimeout: 120_000 });
+
 /** Signed heading changes along a polyline (radians), skipping changes under half a degree. */
 function turnsOf(points: readonly Point[]): { angle: number; before: number; after: number; at: number }[] {
   const out: { angle: number; before: number; after: number; at: number }[] = [];
