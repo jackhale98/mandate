@@ -370,7 +370,12 @@ fn concern_of<'a>(content: &'a ContentBundle, id: &str) -> Option<&'a ContentKey
         .and_then(|d: &OverheardDef| d.concern.as_ref())
 }
 
-/// Draw `n` lines for a week (keyed; `avoid` lines are much less likely).
+/// Draw `n` lines for a week. Each line gets its own keyed score for the
+/// week (weighted sampling without replacement, Efraimidis–Spirakis: the
+/// largest `ln(u) / weight` win), so a line's draw does not depend on which
+/// other lines hold, and last week's picks can be recomputed. Lines are taken
+/// best first, one per concern while others are left; `avoid` lines (last
+/// week's) only when nothing else is left.
 fn draw(
     st: &State,
     content: &ContentBundle,
@@ -379,12 +384,7 @@ fn draw(
     n: usize,
     avoid: &[ContentKey],
 ) -> Vec<HeardLine> {
-    let mut pool = candidates(st, content, loc);
-    for (w, l) in pool.iter_mut() {
-        if avoid.contains(&l.id) {
-            *w *= 0.05;
-        }
-    }
+    let pool = candidates(st, content, loc);
     let (m, h) = hood_of(st, loc)
         .and_then(|h| {
             st.world
@@ -393,35 +393,55 @@ fn draw(
                 .map(|x| (x.municipality.0, h.0))
         })
         .unwrap_or((0, 0));
-    let mut rng = st.rng.keyed(
-        Stream::Dialogue,
-        &[0x0E4D_4EAD, m as u64, h as u64, week, location_key(loc)],
-    );
+    let mut scored: Vec<(f64, HeardLine)> = pool
+        .into_iter()
+        .filter(|(w, _)| *w > 0.0)
+        .map(|(w, l)| {
+            let index = content
+                .overheard
+                .iter()
+                .position(|d| d.id == l.id)
+                .unwrap_or(usize::MAX) as u64;
+            let mut rng = st.rng.keyed(
+                Stream::Dialogue,
+                &[
+                    0x0E4D_4EAD,
+                    m as u64,
+                    h as u64,
+                    week,
+                    location_key(loc),
+                    index,
+                ],
+            );
+            let u = rng.next_f64().max(1e-12);
+            (mandate_core::math::ln(u) / w, l)
+        })
+        .collect();
+    // Best first; ties by registry order (the sort is stable).
+    scored.sort_by(|a, b| b.0.total_cmp(&a.0));
     let mut out: Vec<HeardLine> = Vec::new();
-    while out.len() < n && !pool.is_empty() {
-        let total: f64 = pool.iter().map(|(w, _)| *w).sum();
-        if total <= 0.0 {
-            break;
-        }
-        let mut x = rng.range_f64(0.0, total);
-        let mut pick = pool.len() - 1;
-        for (i, (w, _)) in pool.iter().enumerate() {
-            if x < *w {
-                pick = i;
+    let mut concerns: Vec<&ContentKey> = Vec::new();
+    // Pass 1: fresh lines, one per concern; pass 2: fresh lines; pass 3: any.
+    for pass in 0..3 {
+        for (_, l) in &scored {
+            if out.len() >= n {
                 break;
             }
-            x -= w;
-        }
-        let (_, line) = pool.remove(pick);
-        // Variety: a second line on the same concern is less likely.
-        if let Some(c) = concern_of(content, &line.id) {
-            for (w, l) in pool.iter_mut() {
-                if concern_of(content, &l.id) == Some(c) {
-                    *w *= 0.35;
-                }
+            if out.iter().any(|x| x.id == l.id) {
+                continue;
             }
+            if pass < 2 && avoid.contains(&l.id) {
+                continue;
+            }
+            let c = concern_of(content, &l.id);
+            if pass == 0 && c.is_some_and(|c| concerns.contains(&c)) {
+                continue;
+            }
+            if let Some(c) = c {
+                concerns.push(c);
+            }
+            out.push(l.clone());
         }
-        out.push(line);
     }
     out
 }
