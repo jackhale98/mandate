@@ -1,4 +1,5 @@
-// The pocket's tabs (DEC-088 main screen): Today, Town, Places, People. A
+// The pocket's tabs (DEC-088 main screen): Today, Town, Places, Notebook
+// (what you know, DEC-091; K5), People. A
 // WAI-ARIA tab list (arrow keys, Home and End move between tabs; the open
 // tab is the one in the Tab order). Badges count what waits on a tab and say
 // so in words for screen readers. The choice is remembered per device
@@ -10,7 +11,7 @@ import { useGame } from "../state/gameStore";
 export const pocketTabId = (t: PocketTab) => `pocket-tab-${t}`;
 export const pocketPanelId = (t: PocketTab) => `pocket-panel-${t}`;
 
-const ICON: Record<PocketTab, string> = { today: "📅", town: "🏛️", places: "📍", people: "👥" };
+const ICON: Record<PocketTab, string> = { today: "📅", town: "🏛️", places: "📍", notebook: "📓", people: "👥" };
 
 /** A count on a tab, with what it counts in words (read after the tab's name). */
 export interface TabBadge {

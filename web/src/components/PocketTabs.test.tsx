@@ -18,8 +18,8 @@ describe("the pocket's tabs", () => {
   it("is a tab list: one tab in the Tab order, arrows, Home and End move and select", () => {
     render(<Harness />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["📅Today", "🏛️Town", "📍Places", "👥People"]);
-    expect(tabs.map((t) => t.getAttribute("tabindex"))).toEqual(["0", "-1", "-1", "-1"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["📅Today", "🏛️Town", "📍Places", "📓Notebook", "👥People"]);
+    expect(tabs.map((t) => t.getAttribute("tabindex"))).toEqual(["0", "-1", "-1", "-1", "-1"]);
     expect(tabs[0]?.getAttribute("aria-controls")).toBe("pocket-panel-today");
     fireEvent.keyDown(tabs[0] as HTMLElement, { key: "ArrowLeft" });
     expect(screen.getByRole("tab", { selected: true }).id).toBe("pocket-tab-people");

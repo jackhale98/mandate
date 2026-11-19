@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { openPocket } from "./pocket";
 
 // DEC-088 main screen (owner, 2026-11-19): the street full screen with a slim
-// bar; the pocket has tabs (Today, Town, Places, People) with badges, docks
+// bar; the pocket has tabs (Today, Town, Places, Notebook, People) with badges, docks
 // beside the town on wide screens, and with the skip link and landmarks
 // reaches every place without the canvas (DEC-051). Desktop and phone.
 
@@ -91,7 +91,7 @@ test("the pocket's tabs: a tab list with arrow keys, panels, and badges that cou
   await start(page, "4242");
   const pocket = await openPocket(page, "today");
   const tabs = pocket.getByRole("tablist");
-  await expect(tabs.getByRole("tab")).toHaveText([/Today/, /Town/, /Places/, /People/]);
+  await expect(tabs.getByRole("tab")).toHaveText([/Today/, /Town/, /Places/, /Notebook/, /People/]);
   // Only the open tab is in the Tab order; arrows, Home and End move between tabs.
   await pocket.getByTestId("pocket-tab-today").focus();
   await page.keyboard.press("ArrowRight");
@@ -118,13 +118,12 @@ test("the pocket's tabs: a tab list with arrow keys, panels, and badges that cou
   await expect(sheet.getByTestId("character-relationship")).toBeVisible();
   await sheet.getByRole("button", { name: "Close" }).click();
 
-  // Badges: the People tab counts what the notebook learned this turn, and says so in words.
-  const learned = await pocket.getByTestId("pocket-tab-badge-people").count();
+  // Badges: the Notebook tab counts what was learned this turn, and says so in words.
+  const learned = await pocket.getByTestId("pocket-tab-badge-notebook").count();
   if (learned > 0) {
-    const n = (await pocket.getByTestId("pocket-tab-badge-people").textContent()) ?? "";
-    await expect(pocket.getByTestId("pocket-tab-people")).toHaveAccessibleName(new RegExp(`People ?, ${n} new in your notebook`));
+    const n = (await pocket.getByTestId("pocket-tab-badge-notebook").textContent()) ?? "";
+    await expect(pocket.getByTestId("pocket-tab-notebook")).toHaveAccessibleName(new RegExp(`Notebook ?, ${n} new in your notebook`));
     await expect(page.getByTestId("notebook-badge")).toContainText(n);
-    await expect(pocket.getByTestId("people-notebook")).toContainText(n);
   }
   // The Today badge counts decisions and alerts, as the pocket button's do.
   const decisions = await page.getByTestId("decision-badge").count();
@@ -197,18 +196,18 @@ test("the notebook badge: none on a new game (what you start with is not news); 
   await start(page, "4242");
   await expect(page.getByTestId("notebook-badge")).toHaveCount(0);
   const pocket = await openPocket(page, "people");
-  await expect(pocket.getByTestId("pocket-tab-badge-people")).toHaveCount(0);
+  await expect(pocket.getByTestId("pocket-tab-badge-notebook")).toHaveCount(0);
   await learnSomething(page);
   await expect(page.getByTestId("notebook-badge")).toBeVisible();
   expect(Number(((await page.getByTestId("notebook-badge").textContent()) ?? "").replace(/\D/g, ""))).toBeGreaterThan(0);
 });
 
-test("phone: the pocket's four tabs and their badges fit at 360 and 412 px", async ({ page }, info) => {
+test("phone: the pocket's five tabs and their badges fit at 360 and 412 px", async ({ page }, info) => {
   test.skip(info.project.name !== "phone", "a phone layout");
   await start(page, "4242");
   await learnSomething(page);
   await expect(page.getByTestId("notebook-badge")).toBeVisible();
-  const tabs = ["today", "town", "places", "people"];
+  const tabs = ["today", "town", "places", "notebook", "people"];
   for (const width of [360, 412]) {
     await page.setViewportSize({ width, height: 780 });
     const pocket = await openPocket(page, "today");
@@ -217,7 +216,7 @@ test("phone: the pocket's four tabs and their badges fit at 360 and 412 px", asy
     expect(await list.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     const lb = await list.boundingBox();
     const right = Math.min(width, (lb?.x ?? 0) + (lb?.width ?? 0)) + 0.5;
-    for (const el of [...tabs.map((t) => pocket.getByTestId(`pocket-tab-${t}`)), pocket.getByTestId("pocket-tab-badge-people")]) {
+    for (const el of [...tabs.map((t) => pocket.getByTestId(`pocket-tab-${t}`)), pocket.getByTestId("pocket-tab-badge-notebook")]) {
       await expect(el).toBeVisible();
       const b = await el.boundingBox();
       expect(b?.x ?? -1, `${width} px`).toBeGreaterThanOrEqual((lb?.x ?? 0) - 0.5);

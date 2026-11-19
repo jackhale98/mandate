@@ -351,6 +351,16 @@ impl Engine {
                     result: Some(result),
                 }
             }
+            Command::NotebookSeen => {
+                if let Some(p) = self.state.player.as_mut() {
+                    p.knowledge.mark_seen();
+                }
+                CommandOutcome {
+                    days_advanced: 0,
+                    turn: self.state.calendar.turn,
+                    result: None,
+                }
+            }
             Command::LabSectorShock {
                 municipality,
                 sector,

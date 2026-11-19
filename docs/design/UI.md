@@ -8,7 +8,9 @@
 Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-039) ── Settings
   │
   └─ New Game
-       ├─ World setup: seed, size, constitution (or random), storyteller, difficulty (DEC-038)
+       ├─ World setup: seed, size, constitution (or random), storyteller, difficulty (DEC-038),
+       │    "Start with local knowledge" (DEC-091: off by default; "You grew up here: start knowing
+       │    the town's people and worries, and who really runs things")
        ├─ Generation & burn-in progress: world visibly forming; history ticker (DEC-022)
        ├─ Constitution card (DEC-007)
        └─ Candidate draft: 3 cards, rerolls (DEC-036)
@@ -27,15 +29,34 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
                takes taps and announces only a change of neighbourhood
           Pocket (bottom sheet on phones with its tabs at the top; a side panel on desktop that can
                stay docked open beside the town, the street resizing to fit). Tabs, remembered per device:
-            ├─ Today → slots, money, Mandate, alerts, decisions waiting, legal, Agenda (auto-routed
+            ├─ Today → slots, money, Mandate, "You learned N new things · Open the notebook" (when
+            │          something is new), alerts, decisions waiting, legal, Agenda (auto-routed
             │          actions), your bills and votes, next election, tracks
             ├─ Town → the town card (industry, crisis, power broker, rival and their plan, priorities),
             │          headline numbers, neighbourhoods and their worries, news; gated by knowledge
             │          (DEC-091: placeholders and leads where something is not known yet)
             ├─ Places → every place in town as a button, by neighbourhood, reachable without walking
             │          (the accessible path, DEC-051, and quick mode's future home)
+            ├─ Notebook → what you know about the town (DEC-091, K5), organised for finding things,
+            │          not as a log. Its own tabs, styled like the pocket's (icon over label):
+            │          People (who runs things, the rival's plans, people with their role, what they
+            │          care about and, in detail, whom they owe; gossip), Places (hidden places found),
+            │          Worries (the whole town, then by neighbourhood), Policies (support, proposals),
+            │          Leads (those picked up, newest first, then ways to find out what is not known).
+            │          Each entry: title, level as dots and in words (heard / known / detailed; never
+            │          colour alone), where and when it was learned ("Canvass a neighbourhood, 1 March"),
+            │          a reading's date and "old figures", "How you learned this" when the steps came
+            │          from different places, a lead to learn more, and for people a link to their
+            │          sheet. Placeholders (dashed) for public things not known yet (the town's and
+            │          each neighbourhood's worries, who runs things, the rival's plans, support for
+            │          the standard menu; never people or hidden places) with the lead that would
+            │          reveal them and "Go there" (auto-routed). New entries come first, marked "New",
+            │          with counts on the notebook's tabs; it opens on the first tab with news.
+            │          Opening it is seeing it: the engine is told (`notebook_seen`), the badge
+            │          clears and stays clear after a reload; the marks stay while you look. A search
+            │          box filters the open tab and names the other tabs with matches
             └─ People → who matters in town (council and mayor, broker, rival) and how they stand
-                       with you; the notebook (K5) joins this tab
+                       with you
             plus links: national map, overview, the story so far, save & quit
           Accessibility: a "Skip to Places" link (visible on focus), landmarks (main: the town;
                complementary: the pocket; navigation: the bar), the canvas labelled with a pointer to
