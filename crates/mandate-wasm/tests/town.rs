@@ -49,6 +49,7 @@ fn new_game(seed: u64) -> Session {
             size: WorldSizeDto::Small,
             scenario: None,
             storyteller: None,
+            local_knowledge: false,
         }),
     );
     s

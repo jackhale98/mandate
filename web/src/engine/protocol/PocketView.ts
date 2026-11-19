@@ -39,4 +39,8 @@ news: Array<ArticleView>,
 /**
  * Scandals, cases, and where the career stands (DEC-006, DEC-034).
  */
-legal: LegalView | null, };
+legal: LegalView | null, 
+/**
+ * Subjects learned of this turn (the notebook's badge, DEC-091).
+ */
+notebook_new: number, };

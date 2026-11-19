@@ -2,6 +2,7 @@
 
 export type HoodDataView = { id: number, name: string, kind: string, population: number, gov_approval: number, player_awareness: number, player_approval: number, town_hall_risk: number, 
 /**
- * Fluent name key of the neighbourhood's strongest concern.
+ * Fluent name key of the neighbourhood's strongest concern, once the
+ * player has heard of its worries (DEC-091).
  */
 top_concern_key: string | null, };

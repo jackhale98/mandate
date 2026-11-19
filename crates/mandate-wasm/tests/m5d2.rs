@@ -81,6 +81,7 @@ fn new_game(s: &mut Session, seed: u64, storyteller: Option<&str>) -> OverviewVi
             size: WorldSizeDto::Small,
             scenario: None,
             storyteller: storyteller.map(String::from),
+            local_knowledge: false,
         }),
     )
     .unwrap()
@@ -300,6 +301,7 @@ fn the_storyteller_is_chosen_at_new_game_and_saved() {
             size: WorldSizeDto::Small,
             scenario: None,
             storyteller: Some("storyteller.nope".into()),
+            local_knowledge: false,
         }),
     );
     assert!(bad.is_err());

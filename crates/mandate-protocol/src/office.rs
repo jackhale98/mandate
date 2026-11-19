@@ -2,9 +2,11 @@
 //! the policy catalogue, and town opinion. Estimates shown here are what the
 //! player can know (whip counts are probabilities, REQ-013).
 
+use crate::knowledge::{Gate, KnowledgeLevelDto, gate_concerns, gate_support, gate_ward_support};
 use crate::views::DateView;
 use mandate_content::{ParamDef, TierKey};
 use mandate_sim::actions::{lobby_odds, player_powers};
+use mandate_sim::player::knowledge::{Level, Subject};
 use mandate_sim::policy::{
     Clause, PolicyInstance, PolicyStatus, council_leans, mayor_lean, public_support,
     sign_probability, support_by_class, yes_probability,
@@ -158,11 +160,18 @@ pub struct ParamView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct SupportView {
-    /// −1..1 by class and overall (turnout-weighted).
-    pub low: f64,
-    pub middle: f64,
-    pub high: f64,
-    pub overall: f64,
+    /// −1..1 by class and overall (turnout-weighted): to 0.1 when the
+    /// player knows who supports it, exact in detail, `None` below that
+    /// (DEC-091).
+    pub low: Option<f64>,
+    pub middle: Option<f64>,
+    pub high: Option<f64>,
+    pub overall: Option<f64>,
+    /// The overall figure in a word, always shown: `popular` | `divisive` |
+    /// `unpopular` (Fluent `support-band-<band>`).
+    pub band: String,
+    /// What the player knows of this policy's support.
+    pub level: crate::knowledge::KnowledgeLevelDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -186,6 +195,11 @@ pub struct TemplateView {
     pub available: bool,
     /// Fluent key of the circumstances a situational policy answers.
     pub unlock_reason_key: Option<String>,
+    /// What the player knows of a situational policy (DEC-091; `None` for
+    /// the standard menu, which is never gated). Below `known` the entry is
+    /// a stub: its name, reason and lead, with no parameters, cost or side
+    /// effects, and it cannot be drafted from here.
+    pub knowledge: Option<crate::knowledge::KnowledgeView>,
 }
 
 /// What a draft with these parameters would cost and do, computed by the
@@ -218,6 +232,8 @@ pub struct WhipView {
     pub lobby_odds: f64,
     pub lobby_odds_late: f64,
     pub is_player: bool,
+    /// What the player knows of this member (`name` is empty below `heard`).
+    pub level: crate::knowledge::KnowledgeLevelDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -268,6 +284,7 @@ pub struct BillView {
     pub params: Vec<ParamValue>,
     pub clauses: Vec<ClauseDto>,
     pub sponsor_is_player: bool,
+    /// Empty when the player has not heard of the sponsor.
     pub sponsor_name: String,
     pub next_vote: Option<DateView>,
     /// Fluent key of the next stage, e.g. `stage-vote-council`.
@@ -295,7 +312,8 @@ pub struct BillView {
     pub can_vote: bool,
     /// The party line for the player: `yes` | `no` | `free`.
     pub party_line: String,
-    /// Support for the bill among the player's ward voters (−1..1).
+    /// Support for the bill among the player's ward voters (−1..1): to 0.25
+    /// below `known` (`support.level`), 0.1 at `known`, exact in detail.
     pub ward_support: f64,
     /// The player owes the sponsor a favour.
     pub owe_sponsor: bool,
@@ -317,9 +335,14 @@ pub struct MemberView {
     pub opinion_of_player: f64,
     /// Favours: positive = they owe the player; negative = the player owes them.
     pub favors: i32,
-    /// The member's two strongest convictions (attitude keys with sign).
+    /// The member's two strongest convictions (attitude keys with sign),
+    /// once the player knows them (DEC-091; empty below `known`).
     pub convictions: Vec<String>,
-    pub pragmatism: f64,
+    /// How readily they trade votes, in detail only.
+    pub pragmatism: Option<f64>,
+    /// What the player knows of this member (`name` is empty below `heard`;
+    /// role and ward are public).
+    pub level: crate::knowledge::KnowledgeLevelDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -353,7 +376,11 @@ pub struct TownView {
     pub player_approval_ward: f64,
     pub player_awareness_town: f64,
     pub player_approval_town: f64,
+    /// As known (DEC-091): none, the top one, the top three to 0.1, or all
+    /// (exact only at the statistics desk: the stricter of place and
+    /// knowledge wins).
     pub concerns: Vec<ConcernView>,
+    pub concerns_knowledge: crate::knowledge::KnowledgeView,
     pub neighborhoods: Vec<PlaceRef>,
     pub wards: Vec<PlaceRef>,
     /// Chance of a hostile town hall, aligned with `neighborhoods`.
@@ -415,8 +442,11 @@ fn lean_label(p: f64) -> &'static str {
     }
 }
 
-fn member_view(st: &State, content: &mandate_content::ContentBundle, p: &Politician) -> MemberView {
+fn member_view(gate: &Gate<'_>, engine: &Engine, p: &Politician) -> MemberView {
+    let st = engine.state();
+    let content = engine.content();
     let player = mandate_sim::characters::player_character(st);
+    let level = gate.person(p.character);
     // Convictions iterate the attitude registry (DEC-075).
     let n = p.attitudes.len().min(content.attitudes.len());
     let mut idx: Vec<usize> = (0..n).collect();
@@ -428,7 +458,7 @@ fn member_view(st: &State, content: &mandate_content::ContentBundle, p: &Politic
     });
     let convictions = idx
         .iter()
-        .take(2)
+        .take(if level >= Level::Known { 2 } else { 0 })
         .map(|&k| {
             format!(
                 "{}{}",
@@ -448,7 +478,7 @@ fn member_view(st: &State, content: &mandate_content::ContentBundle, p: &Politic
     };
     MemberView {
         id: p.id.0,
-        name: full_name(p),
+        name: gate.name(p.character, full_name(p)),
         party: p.party.map(|x| x.0),
         role_key: role_key.into(),
         ward_number: ward,
@@ -461,22 +491,31 @@ fn member_view(st: &State, content: &mandate_content::ContentBundle, p: &Politic
             .map(|me| mandate_sim::characters::favour_balance(&st.politics, p.character, me))
             .unwrap_or(0),
         convictions,
-        pragmatism: p.pragmatism as f64,
+        pragmatism: (level >= Level::Detailed).then_some(p.pragmatism as f64),
+        level: level.into(),
     }
 }
 
-fn support_view(c: [f64; 3], overall: f64) -> SupportView {
-    SupportView {
-        low: c[0],
-        middle: c[1],
-        high: c[2],
-        overall,
-    }
+/// A template's support in a town, as the player knows it (DEC-091).
+fn support_view(
+    gate: &Gate<'_>,
+    t: &mandate_content::PolicyTemplate,
+    st: &State,
+    town: MunicipalityId,
+    hoods: &[usize],
+) -> SupportView {
+    gate_support(
+        gate.support(town, &t.id),
+        support_by_class(t, &st.population, hoods),
+        public_support(t, &st.population, hoods),
+    )
 }
 
 pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
     let st = engine.state();
     let content = engine.content();
+    let gate = Gate::of(engine);
+    let town = MunicipalityId(p.jurisdiction);
     let t = content.policies.get(&p.template)?;
     let hoods: Vec<usize> = st.world.hoods_of(MunicipalityId(p.jurisdiction)).collect();
     let pending = p.status == PolicyStatus::UnderConsideration || p.status == PolicyStatus::Draft;
@@ -500,7 +539,8 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
             let prob = yes_probability(&content.council, *lean);
             Some(WhipView {
                 politician: id.0,
-                name: full_name(m),
+                name: gate.name(m.character, full_name(m)),
+                level: gate.person(m.character).into(),
                 party: m.party.map(|x| x.0),
                 ward_number: match m.role {
                     Role::Councillor { ward, .. } => ward_number(st, ward),
@@ -583,10 +623,13 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
             || powers.contains(&mandate_content::Power::Veto));
     let ward_support = me
         .map(|pl| {
-            public_support(
-                t,
-                &st.population,
-                &mandate_sim::policy::ward_hoods(&st.world, pl.ward),
+            gate_ward_support(
+                gate.support(town, &t.id),
+                public_support(
+                    t,
+                    &st.population,
+                    &mandate_sim::policy::ward_hoods(&st.world, pl.ward),
+                ),
             )
         })
         .unwrap_or(0.0);
@@ -635,7 +678,9 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
             })
             .collect(),
         sponsor_is_player: sponsor.is_some_and(|s| s.is_player),
-        sponsor_name: sponsor.map(full_name).unwrap_or_default(),
+        sponsor_name: sponsor
+            .map(|s| gate.name(s.character, full_name(s)))
+            .unwrap_or_default(),
         next_vote: p.next_stage_on.map(DateView::of),
         next_stage_key,
         est_annual_cost: mandate_sim::actions::estimate_cost(st, content, p),
@@ -672,10 +717,7 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
                 value: *v,
             })
             .collect(),
-        support: support_view(
-            support_by_class(t, &st.population, &hoods),
-            public_support(t, &st.population, &hoods),
-        ),
+        support: support_view(&gate, t, st, town, &hoods),
     })
 }
 
@@ -717,10 +759,7 @@ pub fn policy_preview(
         est_annual_cost: cost,
         budget_share: if budget > 0.0 { cost / budget } else { 0.0 },
         side_effects: side_effects_view(t, &probe),
-        support: support_view(
-            support_by_class(t, &st.population, &hoods),
-            public_support(t, &st.population, &hoods),
-        ),
+        support: support_view(&Gate::of(engine), t, st, m, &hoods),
         available: mandate_sim::policy::unlocked(st, content, t, m.0),
     })
 }
@@ -753,30 +792,54 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
     let ward_hoods = mandate_sim::policy::ward_hoods(&st.world, pl.ward);
     let residents = st.population.municipality_total(&st.world, m) as f64;
     let price = st.economy.national.price_level;
+    let gate = Gate::of(engine);
     let catalog = content
         .policies
         .values()
         .filter(|t| t.tier == TierKey::Local)
-        .map(|t| {
+        .filter_map(|t| {
+            // Situational policies are learned (DEC-091): omitted while
+            // unknown, a stub once heard of, in full once known.
+            let knowledge = t.unlock.as_ref().map(|_| {
+                gate.view(&Subject::Situational {
+                    town: m,
+                    template: t.id.clone(),
+                })
+            });
+            let level = knowledge.as_ref().map(|k| k.level);
+            if level == Some(KnowledgeLevelDto::Unknown) {
+                return None;
+            }
+            let stub = level == Some(KnowledgeLevelDto::Heard);
             let probe = mandate_sim::policy::probe(t, m.0, &Default::default());
-            TemplateView {
+            Some(TemplateView {
                 id: t.id.clone(),
                 name_key: t.name_key.clone(),
                 desc_key: t.desc_key.clone(),
                 category: snake(&t.category),
-                params: t.params.iter().map(param_view).collect(),
+                params: if stub {
+                    Vec::new()
+                } else {
+                    t.params.iter().map(param_view).collect()
+                },
                 implementation_months: t.implementation_months as u32,
                 secondary_keys: t.secondary_keys.clone(),
-                support: support_view(
-                    support_by_class(t, &st.population, &hoods),
-                    public_support(t, &st.population, &hoods),
-                ),
-                est_cost_default: mandate_sim::policy::annual_cost(t, &probe, residents, price),
-                side_effects: side_effects_view(t, &probe),
+                support: support_view(&gate, t, st, m, &hoods),
+                est_cost_default: if stub {
+                    0.0
+                } else {
+                    mandate_sim::policy::annual_cost(t, &probe, residents, price)
+                },
+                side_effects: if stub {
+                    Vec::new()
+                } else {
+                    side_effects_view(t, &probe)
+                },
                 situational: t.unlock.is_some(),
                 available: mandate_sim::policy::unlocked(st, content, t, m.0),
                 unlock_reason_key: t.unlock.as_ref().map(|u| u.reason_key.clone()),
-            }
+                knowledge,
+            })
         })
         .collect();
     let mut bills: Vec<BillView> = st
@@ -787,7 +850,13 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
     bills.sort_by_key(|b| (b.status == "ended", std::cmp::Reverse(b.id)));
     let council = st.politics.councils.get(m.index());
     let detailed = mandate_sim::places::player_has_service(st, content, "town_data_detailed");
-    let concerns = concerns_for(st, content, m, &hoods);
+    let concerns_subject = Subject::TownConcerns { town: m };
+    let concerns = gate_concerns(
+        gate.level(&concerns_subject),
+        concerns_for(st, content, m, &hoods),
+        detailed,
+        usize::MAX,
+    );
     let fine = |v: f64| if detailed { v } else { coarse(v, 0.05) };
     let can_propose =
         player_powers(st, content).contains(&mandate_content::Power::ProposeOrdinance);
@@ -858,14 +927,14 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
                 c.members
                     .iter()
                     .filter_map(|id| st.politics.get(*id))
-                    .map(|p| member_view(st, content, p))
+                    .map(|p| member_view(&gate, engine, p))
                     .collect()
             })
             .unwrap_or_default(),
         mayor: council
             .and_then(|c| c.mayor)
             .and_then(|id| st.politics.get(id))
-            .map(|p| member_view(st, content, p)),
+            .map(|p| member_view(&gate, engine, p)),
         town: TownView {
             detailed,
             gov_approval: fine(weighted(st, &hoods, |c| c.gov_approval as f64)),
@@ -873,17 +942,8 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
             player_approval_ward: fine(weighted(st, &ward_hoods, |c| c.player_approval as f64)),
             player_awareness_town: fine(weighted(st, &hoods, |c| c.player_awareness as f64)),
             player_approval_town: fine(weighted(st, &hoods, |c| c.player_approval as f64)),
-            concerns: concerns
-                .into_iter()
-                .map(|c| ConcernView {
-                    weight: if detailed {
-                        c.weight
-                    } else {
-                        coarse(c.weight, 0.1)
-                    },
-                    ..c
-                })
-                .collect(),
+            concerns,
+            concerns_knowledge: gate.view(&concerns_subject),
             neighborhoods: mu
                 .neighborhoods
                 .iter()

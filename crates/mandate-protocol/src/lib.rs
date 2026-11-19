@@ -4,6 +4,7 @@
 
 pub mod campaign;
 pub mod characters;
+pub mod knowledge;
 pub mod layout;
 pub mod map;
 pub mod media;
@@ -15,6 +16,7 @@ pub mod views;
 
 pub use campaign::*;
 pub use characters::*;
+pub use knowledge::*;
 pub use layout::*;
 pub use map::*;
 pub use media::*;
@@ -70,6 +72,11 @@ pub struct NewGameParams {
     /// `None` = the content's default.
     #[serde(default)]
     pub storyteller: Option<String>,
+    /// "Start with local knowledge" (DEC-091; off by default): the town's
+    /// worries, the broker, the council and who works where, as a local
+    /// would know them. Engine state, chosen only at new game.
+    #[serde(default)]
+    pub local_knowledge: bool,
 }
 
 /// A starting world the title screen offers (DEC-078 decision 4).
@@ -307,6 +314,8 @@ pub enum QueryDto {
     TownState {
         id: u32,
     },
+    /// What the player knows, by subject, with leads (DEC-091 notebook).
+    Notebook,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -363,6 +372,7 @@ pub enum ResponseBody {
     LayoutContent(LayoutContentView),
     TownGeography(TownGeographyView),
     TownState(TownStateView),
+    Notebook(NotebookView),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -448,12 +458,13 @@ mod tests {
                 size: WorldSizeDto::Small,
                 scenario: None,
                 storyteller: None,
+                local_knowledge: false,
             }),
         };
         let j = serde_json::to_string(&r).unwrap_or_default();
         assert_eq!(
             j,
-            r#"{"protocol_version":1,"request_id":7,"body":{"kind":"new_game","payload":{"seed":"18446744073709551615","size":"small","scenario":null,"storyteller":null}}}"#
+            r#"{"protocol_version":1,"request_id":7,"body":{"kind":"new_game","payload":{"seed":"18446744073709551615","size":"small","scenario":null,"storyteller":null,"local_knowledge":false}}}"#
         );
         let back: Request = serde_json::from_str(&j).unwrap_or(r.clone());
         assert_eq!(back, r);
