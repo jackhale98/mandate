@@ -1851,7 +1851,11 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Walking and talking is the default.** Once the town is walkable (M6), the default is to walk to places and talk to people.
   - **A quick mode is an option to turn on** in Settings. It gives the town map plus place panels, with no walking, and the List view stays for screen readers (DEC-051). Both modes reach every action. The quick mode is also offered on the first run.
 - **Dependencies:** DEC-047, DEC-049, DEC-051, DEC-079, DEC-084, DEC-085, DEC-086.
-
+- **Main screen (owner, 2026-11-19: "The main screen default should really show the town for you to walk around in so you can optimize screen real estate. The town info should probably go in the pocket. The pocket ui should have tabs").**
+  - The game's main screen is the walkable street view, full screen, with a slim bar: a map button (the town map, DEC-086, as a full-screen overlay; tapping a place walks there), the date and slots, and End turn.
+  - The town card moves into the pocket.
+  - The pocket gets tabs: **Today** (slots, actions, decisions, alerts, votes), **Town** (the town card, gated by knowledge, DEC-091), **Places** (the place list, every place reachable without walking: the accessible path, DEC-051, and quick mode's home), and **People** (who you have met; it later joins the notebook, K5). Tabs keep their last choice and show badges. On desktop the pocket can stay docked open beside the town.
+  - A skip link and landmarks reach Places and the pocket without the canvas.
 ### DEC-089 — Map layers, with some gated by where you are
 
 - **Status:** Accepted (owner, 2026-11-19: "Yes to DEC-089"). The owner's idea: "make that button a dropdown so users can filter by different metrics … resources, population, income, rent, voting statistics etc but maybe have some details gated based off where they are like a polling location or town hall."
