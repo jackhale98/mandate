@@ -134,7 +134,7 @@ export function stageStreets(w: Work) {
       }
     }
   }
-  let crossingsLeft = w.rail.length ? 2 + Math.floor(w.rail.reduce((n, s) => n + segSteps(s) + 1, 0) / 60) : 0;
+  let crossingsLeft = w.rail.length ? 1 + Math.floor(w.rail.reduce((n, s) => n + segSteps(s) + 1, 0) / 100) : 0;
   const crossable = (c: number, dir: number) => crossingsLeft > 0 && ((railAx[c] === 1 && (dir & 3) === 2) || (railAx[c] === 2 && (dir & 3) === 0));
   // Segment cover: how many runs cover each cell (dead ends and the joined test).
   const cover = new Uint16Array(N);
@@ -333,12 +333,12 @@ export function stageStreets(w: Work) {
     if (ax === "v") s += need === "cols" ? 160 : 0;
     const radial = snap8(x - sqx, y - sqy);
     const toSquare = (Math.abs(x - sqx) + Math.abs(y - sqy)) < 70;
-    if (tan && axisOfDir(tan.dir) === ax) s += tan.kind === "contour" ? 260 : 200;
+    if (tan && axisOfDir(tan.dir) === ax) s += tan.kind === "contour" ? 340 : 300;
     if (diag) {
       const okRadial = g.diagonal.radial && toSquare && axisOfDir(radial) === ax;
       const okTerrain = g.diagonal.terrain && tan !== null && axisOfDir(tan.dir) === ax;
       if (!okRadial && !okTerrain) return -INF;
-      if (okRadial) s += 140;
+      if (okRadial) s += 240;
     }
     return s;
   };

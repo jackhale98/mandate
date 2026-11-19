@@ -164,7 +164,7 @@ function fits(w: Work, d: number, x: number, F: number, bw: number, bh: number, 
   let front = false;
   for (let xx = x; xx < x + bw; xx++) {
     const f = F * W + xx;
-    if (m.roofs[f - s * W]) return false;
+    if (m.roofs[f - s * W] || w.water[f] !== WaterKind.None) return false;
     if (frontageTerrain(w.terrain[f] as number)) {
       front = true;
       continue;

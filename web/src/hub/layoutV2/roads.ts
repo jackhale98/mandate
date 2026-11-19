@@ -825,7 +825,15 @@ export function stageArterials(w: Work) {
       const goal = Math.floor(ty / G) * CW + Math.floor(tx / G);
       const water = bridges >= caps.bridges ? 900 : 70 + bridges * 60;
       const starts = startsFor();
-      const path = route(starts, (c) => c === goal, goal, water);
+      let path = route(starts, (c) => c === goal, goal, water);
+      // The street ends a little past its bridge (the far bank's streets grow from it).
+      if (path) {
+        let last = -1;
+        path.forEach((q, i) => {
+          if (cg.wet[q.c]) last = i;
+        });
+        if (last >= 0) path = path.slice(0, Math.min(path.length, last + 3));
+      }
       if (path && path.some((q) => cg.wet[q.c])) {
         const name = names.has("Bridge Street") ? "Bridge Road" : "Bridge Street";
         names.add(name);
