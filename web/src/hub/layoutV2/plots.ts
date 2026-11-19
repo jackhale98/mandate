@@ -493,7 +493,6 @@ export function stagePlaces(w: Work) {
     let spot = bestSpot(w, d, sizesOf(l, p.kind), [type.plots.setback, 0], score, mix(w.seed, p.id));
     if (!spot) spot = bestSpot(w, d, [[3, 2]], [0], score, mix(w.seed, p.id, 1), false);
     if (!spot) spot = carveSpot(w, d, sizesOf(l, p.kind));
-    if (!spot && process.env.DEV_SKIPPLACE) continue;
     if (!spot) throw new LayoutOverflow(`no room for ${p.kind} in ${(w.districts[d] as WorkDistrict).name}`);
     const isLandmark = l?.layout.landmark ?? false;
     const i = addPlot(w, d, spot, { place: p.id, kind: p.kind, name: p.name, landmark: CIVIC.includes(p.kind) || (isLandmark && spot.w * spot.h >= 20), ground: groundOf(d) });
@@ -541,7 +540,7 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
   let best: { x: number; y: number; bw: number; bh: number; d: number; s: number } | null = null;
   // Strictly first (one district, one cell of platform); then a footprint across districts or on the fields at the town's edge.
   const coreD = w.districts.find((d) => d.kind === "core")?.index ?? 0;
-  for (let pass = 0; pass < 2 && !best; pass++) {
+  for (let pass = 0; pass < 3 && !best; pass++) {
     for (const [bw, bh] of [
       [6, 3],
       [5, 3],
@@ -564,7 +563,7 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
               near = Math.min(near, rd[c] as number);
             }
           }
-          if (!ok || near !== 2) continue;
+          if (!ok || near < 2 || near > (pass < 2 ? 2 : 3)) continue;
           if (d < 0) d = coreD;
           const front = (y + bh) * W + x + (bw >> 1);
           if (front >= N || isWaterBody(w, front) || (w.use[front] as number) & (Use.Plot | Use.Square) || w.blocked[front] || m.roofs[front] || !(frontageTerrain(w.terrain[front] as number) || buildable(w.terrain[front] as number))) continue;
@@ -581,11 +580,11 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
   const i = addPlot(w, best.d, { x: best.x, F: best.y + best.bh, w: best.bw, h: best.bh, s: 0 }, { place: null, kind: "station", name: "", landmark: true, ground: groundOf(best.d) }, best.x + (best.bw >> 1));
   w.landmarks.push({ kind: "station", x: best.x + (best.bw >> 1), y: best.y, name: "", plot: i });
   // The platform: the cells between the building and the track.
-  for (let y = best.y - 1; y <= best.y + best.bh; y++) {
-    for (let x = best.x - 1; x <= best.x + best.bw; x++) {
+  for (let y = best.y - 2; y <= best.y + best.bh + 1; y++) {
+    for (let x = best.x - 2; x <= best.x + best.bw + 1; x++) {
       if (x < 0 || y < 0 || x >= W || y >= H) continue;
       const c = y * W + x;
-      if ((rd[c] as number) !== 1 || w.use[c] || !buildable(w.terrain[c] as number)) continue;
+      if ((rd[c] as number) < 1 || (rd[c] as number) > 2 || w.use[c] || !buildable(w.terrain[c] as number) || w.water[c] !== WaterKind.None) continue;
       w.terrain[c] = Terrain.Pavement;
       w.use[c] = (w.use[c] as number) | Use.Keep;
     }

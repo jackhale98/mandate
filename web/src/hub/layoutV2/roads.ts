@@ -394,6 +394,26 @@ export function stageRail(w: Work) {
   const rx1 = (w.ring.x + w.ring.w) / G - 1;
   const ry1 = (w.ring.y + w.ring.h) / G - 1;
   const ringGap = (i: number, j: number) => Math.max(rx0 - i, i - rx1, ry0 - j, j - ry1, 0) || -1;
+  // Land joined to the square without crossing water: the station stands on the town's side of any river.
+  const dry = new Uint8Array(CW * CH);
+  {
+    const q: number[] = [];
+    for (let j = ry0; j <= ry1; j++) {
+      for (let i = rx0; i <= rx1; i++) {
+        dry[j * CW + i] = 1;
+        q.push(j * CW + i);
+      }
+    }
+    for (let qi = 0; qi < q.length; qi++) {
+      const c = q[qi] as number;
+      const x = c % CW;
+      for (const n of [x > 0 ? c - 1 : -1, x < CW - 1 ? c + 1 : -1, c - CW, c + CW]) {
+        if (n < 0 || n >= CW * CH || dry[n] || cg.wet[n] || cg.sea[n]) continue;
+        dry[n] = 1;
+        q.push(n);
+      }
+    }
+  }
   const viaduct = w.recipe.connectors.filter((k) => k.roads.includes("rail")).reduce((m, k) => Math.max(m, k.max_span), 8);
   const maxWet = Math.max(1, Math.floor((viaduct + 2) / G));
   const r = rngOf(w, "rail");
@@ -403,6 +423,7 @@ export function stageRail(w: Work) {
   const cost = (runs: RailRun[]): number => {
     let s = runs.length * 70;
     let closest = 99;
+    let station = false;
     let first = -1;
     let last = -1;
     for (let ri = 0; ri < runs.length; ri++) {
@@ -419,6 +440,7 @@ export function stageRail(w: Work) {
         if (gap > 0 && gap < 2) return Infinity;
         if (gap < 0) return Infinity;
         closest = Math.min(closest, gap);
+        if (gap <= 6 && dry[c] && !cg.wet[c]) station = true;
         const bend = (p === run.a && ri > 0) || (p === run.b && ri < runs.length - 1);
         if (cg.wet[c]) {
           if (bend) return Infinity;
@@ -435,6 +457,7 @@ export function stageRail(w: Work) {
         if (p === run.b) break;
       }
     }
+    if (!station) return Infinity;
     s += Math.abs(closest - 4) * 30;
     const fx = first % CW;
     const fy = Math.floor(first / CW);
@@ -677,7 +700,6 @@ export function stageArterials(w: Work) {
   const names = new Set<string>();
   const artPath = new Uint8Array(CW * CH);
   const lay = (art: Arterial, path: { c: number; d: number }[]) => {
-    (globalThis as unknown as { LOG?: string[] }).LOG?.push(`${art.name}: ${path.map((p) => `${p.c % CW},${Math.floor(p.c / CW)}:${p.d}`).join(" ")}`);
     const segs = roadSegs(cg, path, { cls: RoadClass.Arterial, style: "asphalt", district: -1, arterial: art.index });
     for (const s of segs) {
       for (const m of bridgeRuns(w, s, kinds)) {

@@ -156,7 +156,6 @@ export function stageStreets(w: Work) {
     cy[d.index] = Math.round(2000 / dp);
   }
   const dist = new Int32Array(N).fill(INF);
-  (STATS as unknown as { dist: Int32Array }).dist = dist;
   const heap = new MinHeap(4096);
   const relax = () => {
     while (heap.size) {
@@ -471,10 +470,7 @@ export function stageStreets(w: Work) {
 
   const accept = (cand: Cand, d: number): boolean => {
     const segs = cand.legs.map((l) => segOf(l, isDiagDir(l.dir) ? cand.width + 1 : cand.width, cand.style, d, RoadClass.Street));
-    for (const s of segs) if (segSteps(s) < 2 || crowds(s)) {
-      STATS.crowd++;
-      return false;
-    }
+    for (const s of segs) if (segSteps(s) < 2 || crowds(s)) return false;
     return true;
   };
 
@@ -555,20 +551,13 @@ export function stageStreets(w: Work) {
             break;
           }
         }
-        if (hit < 0) ACC.nohit++;
         if (hit < 3 || hit >= bestLen) continue;
         const ex = x + dx * (hit - 1);
         const ey = y + dy * (hit - 1);
-        if (across(ex, ey, dir, width).jog) {
-          ACC.jog++;
-          continue;
-        }
+        if (across(ex, ey, dir, width).jog) continue;
         // From the street reached, inward to the district (the far end is the district's).
         const leg: Leg = { x: x + dx * hit, y: y + dy * hit, dir: (dir + 4) & 7, steps: hit };
-        if (crowds(segOf(leg, width, style, d.index, RoadClass.Street))) {
-          ACC.crowd++;
-          continue;
-        }
+        if (crowds(segOf(leg, width, style, d.index, RoadClass.Street))) continue;
         best = { legs: [leg], width, style, end: null, score: 0 };
         bestLen = hit;
       }
@@ -664,7 +653,6 @@ export function stageStreets(w: Work) {
     // A district no street can reach from the town (beyond fields, across the railway) gets an access street.
     const access = () => {
       const cand = accessStreet(d, g);
-      (STATS as unknown as Record<string, unknown>)[`acc${d.index}p${pass}`] = cand ? JSON.stringify(cand.legs) : `null ${JSON.stringify(ACC)}`;
       if (!cand) return;
       crossingsLeft = Math.max(crossingsLeft, cand.legs.length);
       commit(cand, d.index);
@@ -699,42 +687,23 @@ export function stageStreets(w: Work) {
       const tx = target % W;
       const ty = (target - tx) / W;
       const cands = candidates(d, g, tx, ty, r, headsLeft).sort((a, b) => b.score - a.score);
-      STATS.cands += cands.length;
-      if (!cands.length) STATS.none++;
       let done = false;
       for (const cand of cands.slice(0, 12)) {
         if (!accept(cand, d.index)) continue;
         commit(cand, d.index);
         if (cand.end) headsLeft--;
         done = true;
-        STATS.ok++;
         grown++;
         break;
       }
-      if (!done) STATS.fail++;
       if (!done) for (let yy = ty - 2; yy <= ty + 2; yy++) for (let xx = tx - 2; xx <= tx + 2; xx++) if (xx >= 0 && yy >= 0 && xx < W && yy < H) skip[yy * W + xx] = 1;
     }
-    let inf = 0;
-    let far = 0;
-    let open = 0;
-    let cov = 0;
-    let sk = 0;
-    for (const c of cells) {
-      if (!land[c]) continue;
-      const dc = dist[c] as number;
-      if (skip[c]) sk++;
-      else if (dc >= INF) inf++;
-      else if (dc > reach) far++;
-      else if (dc > COVERED) open++;
-      else cov++;
-    }
-    (STATS as unknown as Record<string, string>)[`d${d.index}`] = `${d.type.streets.pattern} inf${inf} far${far} open${open} cov${cov} skip${sk}`;
   }
   w.timings["streets.grow"] = performance.now() - t0;
 
   // ---- every end joined (or a designed head): a stray end is run on to the street ahead, else cut back to its last junction
   const t1 = performance.now();
-  if (!process.env.DEV_NORESOLVE) resolveEnds(w, cover, land, pre, preLevel);
+  resolveEnds(w, cover, land, pre, preLevel);
   // ---- main streets: a district the arterials miss gets the chain of streets that joins it to one promoted
   promoteMainStreets(w);
   w.timings["streets.ends"] = performance.now() - t1;
@@ -756,9 +725,6 @@ export function stageStreets(w: Work) {
   }
 }
 
-/** Dev counters (scratch). */
-export const STATS = { ok: 0, fail: 0, none: 0, crowd: 0, cands: 0 };
-export const ACC = { nohit: 0, jog: 0, crowd: 0 };
 
 const GROW_ORDER: Record<string, number> = { core: 0, inner: 1, waterfront: 2, industrial: 3, suburb: 4, rural: 5 };
 
@@ -1161,7 +1127,6 @@ function promoteMainStreets(w: Work) {
         q.push(o);
       }
     }
-    (STATS as unknown as Record<string, unknown>)[`prom${d.index}`] = `${d.name} hit ${hit} touching ${w.segments.map((_, i) => i).filter((i) => touchesD(i)).length} reach ${[...prev].filter((p) => p !== -2).length}`;
     for (let i = hit; i >= 0 && !isMain(w.segments[i] as Segment); i = prev[i] as number) {
       const s = w.segments[i] as Segment;
       s.cls = RoadClass.Arterial;
