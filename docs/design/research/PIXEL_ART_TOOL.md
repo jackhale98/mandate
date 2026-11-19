@@ -423,12 +423,12 @@ These are starting values for the spike to confirm or change.
 - Never pure black or pure white in the scene.
 
 **Light**
-- Baked key light from the upper left, slightly in front. Soft: two shade steps on walls, three on people.
+- Baked key light from the upper left, slightly in front. Soft: two shade steps on walls, three on people. (Round 3: people are flat, with one base and at most one shade per material; see "Round 3 results (characters)".)
 - Time of day comes from grading, emissives and moving shadows (§3.4), not from redrawn art.
 - Night emissives: homes warm (gold), offices and shops cooler white, street lamps by town (sodium orange in older and industrial towns, white in newer cores) as a town-identity lever.
 
 **Outlines**
-- People, vehicles and props: a 1 px exterior outline added automatically after layering, in the darkest step of the touching pixel's ramp shifted cooler. Parts never contain their own outer outline, so layers never double up.
+- People, vehicles and props: a 1 px exterior outline added automatically after layering, in the darkest step of the touching pixel's ramp shifted cooler. Parts never contain their own outer outline, so layers never double up. (Round 3: people take a darker colour of each material's own hue, and gaps inside the figure take the shade tone.)
 - Tiles and building faces: no outline. Edges come from value: a dark eave line under roofs, a dark base line where walls meet the ground.
 - No sel-out on anything that moves, because its background is unknown [PJ].
 
@@ -586,6 +586,83 @@ Effort is in agent tasks (one brief per `WORKFLOW.md`, roughly one focused sessi
 
 **Where agent-drawn art stands.** Round 2 is what code can add to a small part library: structure, variety, rules and light. It answers the owner's three points at the level of the street. What it cannot add is the hand: drawn silhouettes rather than rectangles with parts, roofs with real material texture and wear, expressive faces and hair at 16 px, a walk with weight, hand anti-aliasing. Those are still the artist's. The recommendation stands: commission the character library and a drawn building kit (silhouette pieces, roof sets, landmark set pieces) for P1, and keep agents on the grammar, palette, tiles, props, light, lints and integration; the grammar, receiver maps and light shapes built here take an artist's parts without change.
 
+### Round 3 results (characters) (2026-11-19, agent-drawn parts)
+
+**What the owner and reviewers said.** Round 1's people looked "a little too 3d ish ... can look more flat". Round 2 changed them only slightly: reviewers still saw rounded, shaded heads, and a few heads that read as white blobs or helmets (seeds 3, 14 and 16 in the 21-person sheet), with faces that were two dots. The owner: "let's do one more round of characters. Even if they aren't perfect after we can still use for our tester play." Round 3 changes characters only. Buildings, tiles, props and lighting are untouched: their golden hashes and the palette's hash are unchanged.
+
+**Sources (one short pass).**
+- Coloured outlines [LOS-OL]: outline an object in a darker shade of its own colour. Black outlines "can be very versatile, but sometimes they're a bit overpowering or too retro feeling". An outline "should always increase contrast, and never decrease it". On unknown backgrounds, lean darker.
+- Flat, graphic sprites [IKF]: Ikenfell borrows Mother 3's "dark outlines, bold colours" and flat blocks of colour. Inside a sprite it uses a light edge, not a dark line, because dark lines throughout an object "tend to look really messy and ugly when done at such a low resolution". Overworld characters are too small for expressive eyes, so portraits carry expression.
+- Faces at this size [BC-PPL]: EarthBound's Ness is a 16×24 figure (head about 54% of the height) with 1×2 eyes and no mouth, and Pokémon's overworld sprites use the same face. A "one-by-two mark is the smallest thing that reads as an eye at any distance".
+- Edges without black [BC-WLD]: measured edge pixels of Ness are 0% near-black, "dark brown and navy edges".
+
+**What changed** (`characterParts.ts`, `characters.ts`; PACK_VERSION `mandate-p0.4`).
+- **Shading.**
+  - Every material (skin, hair, top, bottoms, shoes, accent, hat, bag) has one flat colour and at most one darker tone. The darker tone is used only as a hard shape: a fringe's cut, a parting, curls, a bun's wrap, the hem, a pocket, the hood, the far limb in the side view.
+  - No highlights anywhere. Round 2's hair glint and every highlight slot are gone.
+  - The light rule of §6 holds as flat shapes: the far side (the far arm and leg in profile) is the shade.
+- **Outlines (D2 kept, softened).**
+  - Each material's outline is a palette colour of its own hue family, about 0.2 darker (Oklab L) than its darkest tone and never lighter than L 0.36 (`peopleLines`). Pale skin, blonde and grey hair, white shirts and mustard get a coloured brown, grey or blue edge. Navy, charcoal and black keep a near-black edge.
+  - One-pixel gaps inside the figure (between an arm and the body, between the legs) take the shade tone instead of the outline (`innerGaps`), so only the silhouette is outlined [IKF].
+  - No palette colours were added (124 of 128).
+  - A first try at a lighter cap (L 0.5) read softer but failed the night contrast lint on asphalt (multiply look, ΔL 0.052). The cap was lowered until the lint passed (0.080, better than round 2's 0.072).
+- **Faces.**
+  - 1×2 eyes [BC-PPL] and a 1 px mouth in the skin's shade, facing down only. Side views show one eye, a 1 px nose and an ear where the hair leaves it bare. Nothing shows from behind.
+  - On light skins (MST 1, 4 and 5) the top of the eye is the skin's shade, a soft brow over a 1 px eye: two dark pixels on a pale face read as sockets. On MST 6 and 8 the eye is two dark pixels.
+  - On the darkest skin (MST 10) the top of the eye is a light catch (chalk), because a dark eye vanishes there.
+- **Blob and helmet heads, fixed explicitly.**
+  - Contrast rule (`hairSteps`): hair must sit at least ΔE 0.10 from the skin, or it moves one step away from it. Black hair on MST 10, which is exactly the skin's colour, is drawn as a soft charcoal black.
+  - Seed 3 (pale, grey buzz, beard) and seed 16 (pale, black buzz) now have a brown outline, a soft brow and a 1 px eye. They read as faces.
+  - The bald style no longer has side tufts at eye level. Those tufts made seed 14 read as a skull. It keeps only a band of hair at the back.
+  - The bob lost its blunt shaded visor and square corners (the "helmet") for a swept fringe and tucked ends.
+  - Grey hair is now tied to age: 12% of people are old, with grey hair and a stoop, rather than a random 1 in 13; three grey heads show in the 21-person sheet.
+- **Shapes first.**
+  - Hair: crop (a flat top), buzz, bob, long, bun, coily, ponytail and bald. A cap goes over any hair that fits under it; a headscarf replaces the hair.
+  - Beards sit on the jaw.
+  - Glasses: a frame with lens glints.
+  - Clothing cuts: suit (shirt V and tie), scrubs (V-neck, pocket), apron, tee, hoodie (hood, strings, pocket; the hood on the back), overalls (bib and straps), hi-vis vest (a reflective band) and dress (a long skirt in the top's colour).
+  - Carried things: a lanyard with a card, and a backpack. The backpack shows straps from the front, the pack from behind and a bump in the side view.
+  - Occupations by outfit: office (suit, lanyard), clinic (scrubs, lanyard), shop (apron), work (overalls, hi-vis), students (hoodie, backpack).
+- **Proportions and walk.** 16×24 frames, builds and heights as in round 2. Older people stoop: the head sits 1 px lower, and 1 px forward in profile. The walk keeps its four frames, and its 1 px body bob (passing frames are 1 px higher) is unchanged and visible in the sheets.
+
+**Lints** (`target/pixelkit/lint.txt`): 0 errors, 30 warnings (round 2: 32).
+- New lints:
+  - **flatness**: tones per material in every frame of 200 looks. Worst 2, limit 2 (error above).
+  - **head contrast**: hair against skin over every skin × hair colour, worst ΔE 0.103 (MST 10, black), limit 0.10. Eye against skin, worst ΔL 0.219 (MST 8), limit 0.2.
+  - **outline softness** (reported only): mean outline L 0.23, and 22% of outline pixels lighter than L 0.30. Round 2's lines were almost all near-black or one of four soft colours.
+- Outline consistency is now checked against each look's own line colours: 0 open edges.
+- Crowd clones: 0.12 near-clone pairs per crowd of 20 (round 2: 0.45), none in the sheet. The six compared features now include hats, glasses and what people carry.
+- Silhouettes by build: IoU 0.83, 0.83, 0.69. Heights: 16, 17, 18 px.
+- Contrast against the ground:
+  - By day: all pass. The worst is 0.165 on asphalt.
+  - Moods night: all pass.
+  - Multiply night on asphalt: warns (0.080).
+- Warnings that remain:
+  - Up to 17 colours in a frame (guide 14). Per-material outlines and hats or bags add colours.
+  - Orphan pixels in the suit (4) and scrubs (3) details: the tie and the V-neck.
+- Goldens: only the 41 characters changed (deliberately).
+- Composing a character takes about 0.46 ms on a desktop (18 frames).
+
+**Sheets** (in `target/pixelkit/`):
+- `townsfolk.png` and `townsfolk-scale.png`, regenerated.
+- New: `characters-r2-vs-r3.png`, the same 21 seeds with round 2 on the left and round 3 on the right, idle facing down and the walk facing right, at 1× and 3×. Round 2's frames were dumped to `round2/characters.json` before its code was replaced.
+- New: `street-characters.png`, the sample street with 30 people at noon and dusk, zoom 2 and 3, on desktop and phone. The capture script's `PARTS=people` centres each shot on the busiest part of the street, because 30 people spread over a whole town.
+
+**Honest assessment.**
+- **Good enough for M6 testers: yes.**
+  - The people now read as a deliberate flat style: flat colour blocks, coloured edges, no shine.
+  - Every skin tone has a face, and no head reads as a blob or a helmet in the 21-person sheet.
+  - Outfits and ages are told apart by shape: a hi-vis vest, overalls, scrubs with a lanyard, a suit and tie, a hoodie with a backpack, a headscarf, a cap, grey hair with a stoop.
+  - The step from round 2 is clear in the side-by-side but not dramatic. Round 2 was already mostly flat; round 3 takes out the shine, the heavy lines and the problem heads, and adds variety.
+- **What an artist would still improve:**
+  - Hand-drawn hair silhouettes per style and facing, rather than one grid per style.
+  - Heads drawn to the style instead of one shared oval.
+  - Faces with a little expression for the bust portraits (D11).
+  - A walk with weight: the arms and the head lagging, and a contact pose that compresses.
+  - Colour choices per outfit, rather than ramps picked by rule. A pale bald man with a dark beard still looks stark at 4×.
+  - A palette slot or two for people's lines: the 128-colour budget forced lines from existing colours, so up to 17 colours show in one frame.
+- The recommendation of rounds 1 and 2 is unchanged: commission the character library for P1. Round 3's rules (one shade per material, per-material lines, the contrast and flatness lints, 1×2 eyes) are the brief an artist can draw to, and the compositor takes their parts unchanged.
+
 ### P1 — MVP for M6 (about 16 tasks)
 
 | Task | Output | Tasks |
@@ -652,6 +729,10 @@ Generic documentation, a CC0 sample pack, a public repository, a published packa
 
 ## Sources
 
+- [LOS-OL] Lospec, "Pixel Art Outlines Part 2: Using Color": https://lospec.com/articles/pixel-art-outlines-part-2-using-color
+- [IKF] Game Developer, "The art & visual language of Ikenfell": https://gamedeveloper.com/design/the-art-visual-language-of-ikenfell
+- [BC-PPL] Blake Crosley, "Pixel-Art People: Characters and a Creator on iPhone" (measured sprite proportions and faces): https://blakecrosley.com/blog/pixel-art-characters-on-iphone
+- [BC-WLD] Blake Crosley, "Pixel-Art Worlds on iPhone: What the 16-Bit Masters Knew" (measured edge colours): https://blakecrosley.com/blog/pixel-art-world-on-iphone
 - [PJ] PixelJoint forum, "Pixel Art Tutorial" (classic thread, things to avoid and core advice): https://pixeljoint.com/forum/forum_posts.asp?TID=11299
 - [PP-AA] Pixel Parmesan, "Anti-Aliasing Fundamentals for Pixel Artists": https://pixelparmesan.com/anti-aliasing-fundamentals-for-pixel-artists
 - [PP-COL] Pixel Parmesan, "Color Theory for Pixel Artists: It's All Relative": https://pixelparmesan.com/color-theory-for-pixel-artists-its-all-relative/

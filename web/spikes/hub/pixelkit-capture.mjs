@@ -86,7 +86,24 @@ if (parts.includes("people")) {
     for (const [name, minutes] of times.filter(([t]) => t === "noon" || t === "dusk")) {
       await page.evaluate((m) => window.__hub.setClock(m), minutes);
       for (const zoom of [2, 3]) {
-        await page.evaluate((z) => window.__hub.showStreet(z), zoom);
+        // The 30 people wander the whole town: centre on the busiest spot of the street window (most people
+        // within the middle of the screen), so the review shows people rather than an empty pavement.
+        await page.evaluate((z) => {
+          const h = window.__hub;
+          const s = h.showStreet(z);
+          const folk = h.view.scene.folk;
+          const r = (h.view.camera.state.zoom || z) * 16;
+          const hw = Math.min(innerWidth, 600) / r / 2;
+          const hh = Math.min(innerHeight, 440) / r / 2;
+          const inStreet = (w) => !s || (w.x >= s.x - 4 && w.x <= s.x + s.w + 4 && w.y >= s.y - 4 && w.y <= s.y + s.h + 4);
+          let best = null;
+          let bestN = 0;
+          for (const c of folk.filter(inStreet)) {
+            const n = folk.filter((w) => Math.abs(w.x - c.x) <= hw && Math.abs(w.y - c.y) <= hh).length;
+            if (n > bestN) [best, bestN] = [c, n];
+          }
+          if (best) h.look(Math.floor(best.x), Math.floor(best.y), z);
+        }, zoom);
         await page.waitForTimeout(1400);
         const file = path.join(peopleDir, `${device}-z${zoom}-${name}.png`);
         await page.locator("#stage").screenshot({ path: file });
