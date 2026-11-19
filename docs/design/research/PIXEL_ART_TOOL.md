@@ -781,7 +781,7 @@ The five new warnings are colours per prop (limit 8):
 - `v2-plot-states-day.png` and `v2-plot-states-night.png`: five families × five states.
 - `v2-props.png`.
 
-**Cost.** Drawing a v2 cell takes about 35 µs on a desktop; 711 of the scene's 1,120 cells need drawing, about 25 ms. The provider draws a cell only when its chunk first bakes and caches it per map, so a phone (about 4× slower) spends up to about 140 ms baking a 32 × 32 chunk that is all v2 (rivers, rail, levels).
+**Cost.** Drawing a v2 cell takes about 35 µs on a desktop; 711 of the scene's 1,120 cells need drawing, about 25 ms. The provider draws a cell only when its chunk first bakes and caches it per map, so a phone (about 4× slower) spends up to about 140 ms baking a 32 × 32 chunk that is all v2 (rivers, rail, levels). The built pack grows by 36 KB, to 215 KB of JSON: the shore and ground templates, and the new props.
 
 **Honest assessment.**
 - **Good enough for v2 towns to ship to testers: yes.** Every vocabulary item has art in the established style, in one palette and one light. Nothing is a placeholder. Every check passes, and v1 towns look the same apart from the documented merges.
