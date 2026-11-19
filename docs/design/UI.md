@@ -18,8 +18,11 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
           street of the player's town, full screen (phone and desktop), opened when a run starts and
           when returning to the town. Tap a building to walk there; arriving opens its place panel
           Bar (one slim row): Map (the town map, DEC-086, as a full-screen overlay; tapping a place
-               closes it and walks there in the street) · date, turn, slots, where you are ·
+               closes it and walks there in the street) · date, turn, slots ·
                Pocket (badges: decisions, alerts, new notebook items) · End Turn
+          Where you are: a translucent label at the top of the street (neighbourhood · place),
+               following the neighbourhood underfoot and naming the place on arrival; it never
+               takes taps and announces only a change of neighbourhood
           Pocket (bottom sheet on phones with its tabs at the top; a side panel on desktop that can
                stay docked open beside the town, the street resizing to fit). Tabs, remembered per device:
             ├─ Today → slots, money, Mandate, alerts, decisions waiting, legal, Agenda (auto-routed
