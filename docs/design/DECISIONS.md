@@ -100,6 +100,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-091 | Knowledge is earned: who and what you know comes from places and people | Accepted |
 | DEC-092 | Policy families grounded in the town, with design choices and sponsors, all in content | Accepted |
 | DEC-093 | Conversations: talk to people by topic; replies composed from grounded content lines | Accepted |
+| DEC-094 | Credit and blame for laws; endorsements that move their followers' votes | Accepted |
 
 ---
 
@@ -2023,3 +2024,24 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Accessibility:** topics are buttons, replies are text, and the List view and quick mode (DEC-088) reach the same conversations.
 - **Timing:** M6, with or right after the knowledge ledger (DEC-091). Conversations are the ledger's main source.
 - **Dependencies:** DEC-031, DEC-033, DEC-035, DEC-041, DEC-051, DEC-053, DEC-054, DEC-079, DEC-088, DEC-091, DEC-092.
+
+### DEC-094 — Credit, blame, and endorsements
+
+- **Status:** Accepted (owner, 2026-11-19: "Yes add it to the plan"). Two gaps came up while reviewing how the simulation turns state into votes. First, a law's outcomes reach votes only through general approval of the government (and approval of the player for the player's own bills), so voters don't credit or blame the politicians who passed it. Second, relationships with characters don't move mass votes.
+- **Decision:**
+  - **Credit and blame for laws.**
+    - Each law already keeps an attribution ledger (homes built, jobs supported, and so on).
+    - Each month, a law's experienced effects are credited (or blamed) to its sponsor, and with a smaller share to everyone who voted for it (or against it, when the law turned out well and the vote is remembered).
+    - Each politician gains a per-neighbourhood **track record** that decays slowly.
+    - The vote model's record term reads it for every candidate, not only incumbents, scaled by how aware the voter is of the candidate and by media attention.
+    - Need-aware reactions (DEC-092) feed it: a law that met a real need earns more credit.
+    - The media (DEC-034) can attach a law to a name ("the Hale rent freeze"), raising awareness of that credit or blame.
+  - **Endorsements.**
+    - Characters with a following (union leaders, business association heads, community and faith leaders, the power broker, popular local figures) can endorse a candidate or a bill.
+    - An endorsement moves the cohorts the endorser speaks for, through a **follower weight** per community, class and occupation (data-driven, per role), scaled by the endorser's standing with those cohorts. It shifts persuasion and turnout, and never more than a cap.
+    - The player earns endorsements through conversations (DEC-093: the "ask for support" topic), favours, and policy-family sponsors (DEC-092: adopting a sponsor's version can carry their endorsement). NPCs seek and give endorsements by the same rules (DEC-030).
+    - Endorsing has a cost to the endorser: their standing falls with followers who disagree.
+  - **Transparency:** the "Why?" breakdown and election night show credit, blame and endorsements as named factors ("The union's backing: +3 in Millside").
+  - **Lab:** bots can seek endorsements. A gate requires that endorsements matter (a measurable effect in the races where they occur) but never dominate. Credit and blame must track outcomes: in the lab, sponsors of laws that did well gain votes on average.
+- **Timing:** M6, after conversations (C1) and alongside policy families. It is in `M6_ENGINE_CONTRACTS.md` §4 as tasks V1 (credit and blame) and V2 (endorsements).
+- **Dependencies:** DEC-025, DEC-027, DEC-030, DEC-031, DEC-034, DEC-051, DEC-073, DEC-092, DEC-093.
