@@ -5,4 +5,9 @@ export type NewGameParams = { seed: string, size: WorldSizeDto,
 /**
  * Scenario content id (from `QueryDto::Scenarios`); `None` = a random country.
  */
-scenario: string | null, };
+scenario: string | null, 
+/**
+ * Storyteller profile id (from `QueryDto::Storytellers`, DEC-033);
+ * `None` = the content's default.
+ */
+storyteller: string | null, };

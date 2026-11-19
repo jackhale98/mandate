@@ -473,6 +473,10 @@ pub enum EffectDef {
     Rider {
         role: String,
         rider: RiderKind,
+        /// A ward project for the ward of the councillor cast in this role
+        /// (the vote it buys); the player's ward without one.
+        #[serde(default)]
+        ward_of: Option<String>,
     },
     /// The role repays a favour they owe the player by backing the player's
     /// side of the bill in `bill` (their lean moves as a traded favour does).
@@ -632,8 +636,10 @@ impl EffectDef {
             EffectDef::Opinion { role, .. }
             | EffectDef::Favour { role, .. }
             | EffectDef::Repay { role }
-            | EffectDef::Vote { role, .. }
-            | EffectDef::Rider { role, .. } => vec![role.as_str()],
+            | EffectDef::Vote { role, .. } => vec![role.as_str()],
+            EffectDef::Rider { role, ward_of, .. } => std::iter::once(role.as_str())
+                .chain(ward_of.as_deref())
+                .collect(),
             EffectDef::CallIn { role, bill } => vec![role.as_str(), bill.as_str()],
             EffectDef::Approval { neighborhood, .. } => {
                 neighborhood.iter().map(|s| s.as_str()).collect()

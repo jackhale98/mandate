@@ -217,3 +217,75 @@ fn balance_parameter_blocks_are_validated() {
     });
     assert!(errors(&s).contains("npc defined twice"));
 }
+
+/// DEC-077 §3: the base pack answers each kind of crisis with a situational
+/// policy, every unlock names a real crisis, and each has a trade-off.
+#[test]
+fn situational_policies_answer_the_base_crises() {
+    let (b, _) = load(&base_sources()).unwrap();
+    let situational: Vec<_> = b.policies.values().filter(|p| p.unlock.is_some()).collect();
+    assert!(situational.len() >= 4, "{} situational", situational.len());
+    for c in &b.crises {
+        let answered = situational.iter().any(|p| {
+            p.unlock.as_ref().unwrap().any.iter().any(|x| {
+                matches!(x, mandate_content::SituationCondition::Crisis { kind, .. } if kind == &c.id)
+            })
+        });
+        assert!(answered, "no situational policy for {}", c.id);
+    }
+    for p in &situational {
+        assert!(!p.side_effects.is_empty(), "{} has no trade-off", p.id);
+    }
+}
+
+/// A situation trigger naming an unknown crisis is refused.
+#[test]
+fn an_unlock_with_an_unknown_crisis_is_an_error() {
+    let mut src = base_sources();
+    let f = src
+        .iter_mut()
+        .find(|s| s.path.ends_with("policies/situational.jsonc"))
+        .unwrap();
+    f.text = f.text.replacen(
+        "\"kind\": \"crisis.plant_closure\"",
+        "\"kind\": \"crisis.nope\"",
+        1,
+    );
+    let e = load(&src).err().unwrap();
+    assert!(
+        e.iter().any(|i| i.to_string().contains("crisis.nope")),
+        "{e:?}"
+    );
+}
+
+/// Overheard talk (DEC-079): at least five lines per concern, and the river
+/// lines need a river.
+#[test]
+fn overheard_lines_cover_every_concern() {
+    use mandate_content::{HeardCondition, WaterFeature};
+    let (b, _) = load(&base_sources()).unwrap();
+    for c in &b.concerns {
+        let n = b
+            .overheard
+            .iter()
+            .filter(|o| o.concern.as_ref() == Some(&c.id))
+            .count();
+        assert!(n >= 5, "{} has {n} overheard lines", c.id);
+    }
+    for o in b
+        .overheard
+        .iter()
+        .filter(|o| o.key.contains("river") || o.key.contains("weir"))
+    {
+        assert!(
+            o.when.iter().any(|w| matches!(
+                w,
+                HeardCondition::Water {
+                    feature: WaterFeature::River
+                }
+            )),
+            "{} mentions a river without needing one",
+            o.id
+        );
+    }
+}

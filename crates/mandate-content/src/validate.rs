@@ -1626,7 +1626,10 @@ pub fn check_situation(
                     ));
                 }
                 if !(0.0..=1.0).contains(min_severity) {
-                    issues.push(Issue::error(owner, "situation min_severity must be in [0, 1]"));
+                    issues.push(Issue::error(
+                        owner,
+                        "situation min_severity must be in [0, 1]",
+                    ));
                 }
             }
             U::Indicator { min, max, .. } => {

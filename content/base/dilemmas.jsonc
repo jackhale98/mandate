@@ -14,7 +14,9 @@
 // Effects are real engine changes (DEC-073): opinion (with a memory),
 // approval and awareness (by class; ward, town, or a cast neighbourhood),
 // money, health, slots, standing, legal_jeopardy, record, favour, repay,
-// vote (the council-vote rules apply), draft. Validation requires at least
+// vote (the council-vote rules apply), rider (a ward project, optionally for
+// the ward of a cast councillor, or a sunset on a cast bill), call_in (a
+// favour owed to the player repaid on a cast bill), draft. Validation requires at least
 // one cost and one benefit per option, and exactly one default.
 {
   "kind": "dilemmas",
@@ -590,6 +592,173 @@
           "effects": [
             { "type": "opinion", "role": "sponsor", "delta": -4, "memory": "ignored_me" },
             { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    // --- Bills in progress and the favour ledger (M5d part 2) -------------------------
+    // A colleague's vote on the player's own bill, for a project in their ward.
+    {
+      "id": "dilemma.amendment_for_vote", "category": "significant",
+      "title_key": "dilemma-amendment-for-vote", "situation_key": "dilemma-amendment-for-vote-situation",
+      "roles": [
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "player" } },
+        { "id": "swing", "cast": { "type": "colleague" } },
+      ],
+      "triggers": [ { "type": "opinion", "role": "swing", "min": -30, "max": 35 } ],
+      "deadline_days": 21, "cooldown_days": 200, "scene": "scene.amendment_for_vote",
+      "options": [
+        { "id": "their_project", "label_key": "dilemma-amendment-for-vote-project", "aftermath_key": "dilemma-amendment-for-vote-project-after",
+          "effects": [
+            { "type": "rider", "role": "bill", "rider": "ward_project", "ward_of": "swing" },
+            { "type": "opinion", "role": "swing", "delta": 8, "memory": "stood_with_me" },
+            { "type": "approval", "delta": -0.01 },
+            { "type": "standing", "delta": -1 } ] },
+        { "id": "sunset", "label_key": "dilemma-amendment-for-vote-sunset", "aftermath_key": "dilemma-amendment-for-vote-sunset-after",
+          "effects": [
+            { "type": "rider", "role": "bill", "rider": "sunset" },
+            { "type": "opinion", "role": "swing", "delta": 3 } ] },
+        { "id": "on_its_merits", "default": true, "label_key": "dilemma-amendment-for-vote-merits", "aftermath_key": "dilemma-amendment-for-vote-merits-after",
+          "effects": [
+            { "type": "opinion", "role": "swing", "delta": -6, "memory": "ignored_me" },
+            { "type": "standing", "delta": 1 } ] },
+      ],
+    },
+    // A sponsor wants the player's vote and offers a rider for their ward.
+    {
+      "id": "dilemma.sponsor_rider", "category": "significant",
+      "title_key": "dilemma-sponsor-rider", "situation_key": "dilemma-sponsor-rider-situation",
+      "roles": [
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "other" } },
+        { "id": "sponsor", "cast": { "type": "sponsor_of", "role": "bill" } },
+      ],
+      "triggers": [ { "type": "can_vote", "role": "bill" }, { "type": "months_in_play", "min": 2 } ],
+      "deadline_days": 21, "cooldown_days": 240, "scene": "scene.sponsor_rider",
+      "options": [
+        { "id": "take_project", "label_key": "dilemma-sponsor-rider-take", "aftermath_key": "dilemma-sponsor-rider-take-after",
+          "effects": [
+            { "type": "rider", "role": "bill", "rider": "ward_project" },
+            { "type": "vote", "role": "bill", "vote": "yes" },
+            { "type": "opinion", "role": "sponsor", "delta": 8, "memory": "backed_my_bill" } ] },
+        { "id": "with_ward", "label_key": "dilemma-sponsor-rider-ward", "aftermath_key": "dilemma-sponsor-rider-ward-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "with_ward" },
+            { "type": "opinion", "role": "sponsor", "delta": -3 } ] },
+        { "id": "decline", "default": true, "label_key": "dilemma-sponsor-rider-decline", "aftermath_key": "dilemma-sponsor-rider-decline-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "abstain" },
+            { "type": "opinion", "role": "sponsor", "delta": -5, "memory": "ignored_me" } ] },
+      ],
+    },
+    // The whip: loyalty against the ward, for campaign money.
+    {
+      "id": "dilemma.whip_deal", "category": "significant",
+      "title_key": "dilemma-whip-deal", "situation_key": "dilemma-whip-deal-situation",
+      "roles": [
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "other" } },
+        { "id": "whip", "cast": { "type": "occupation", "occupations": ["occupation.party_chair"] } },
+      ],
+      "triggers": [
+        { "type": "can_vote", "role": "bill" },
+        { "type": "party_line_against_ward", "role": "bill" },
+        { "type": "election_within", "days": 720 },
+      ],
+      "deadline_days": 21, "cooldown_days": 300, "scene": "scene.whip_deal",
+      "options": [
+        { "id": "take_deal", "label_key": "dilemma-whip-deal-take", "aftermath_key": "dilemma-whip-deal-take-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "with_party" },
+            { "type": "money", "amount": 2500 },
+            { "type": "standing", "delta": 3 },
+            { "type": "opinion", "role": "whip", "delta": 6, "memory": "stood_with_me" } ] },
+        { "id": "haggle", "label_key": "dilemma-whip-deal-haggle", "aftermath_key": "dilemma-whip-deal-haggle-after",
+          "effects": [
+            { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 },
+            { "type": "vote", "role": "bill", "vote": "with_party" },
+            { "type": "money", "amount": 1200 },
+            { "type": "favour", "role": "whip", "owed_to_player": true } ] },
+        { "id": "refuse", "default": true, "label_key": "dilemma-whip-deal-refuse", "aftermath_key": "dilemma-whip-deal-refuse-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "with_ward" },
+            { "type": "standing", "delta": -3 },
+            { "type": "opinion", "role": "whip", "delta": -8, "memory": "stood_against_me" } ] },
+      ],
+    },
+    // Someone owes the player a favour, and the player's bill is short.
+    {
+      "id": "dilemma.call_in_favour", "category": "significant",
+      "title_key": "dilemma-call-in-favour", "situation_key": "dilemma-call-in-favour-situation",
+      "roles": [
+        { "id": "debtor", "cast": { "type": "colleague" } },
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "player" } },
+      ],
+      "triggers": [ { "type": "favour", "role": "debtor", "owed_to_player": true } ],
+      "deadline_days": 21, "cooldown_days": 150, "scene": "scene.call_in_favour",
+      "options": [
+        { "id": "call_in", "label_key": "dilemma-call-in-favour-call", "aftermath_key": "dilemma-call-in-favour-call-after",
+          "effects": [
+            { "type": "call_in", "role": "debtor", "bill": "bill" },
+            { "type": "opinion", "role": "debtor", "delta": -3 } ] },
+        { "id": "call_in_publicly", "label_key": "dilemma-call-in-favour-public", "aftermath_key": "dilemma-call-in-favour-public-after",
+          "effects": [
+            { "type": "call_in", "role": "debtor", "bill": "bill" },
+            { "type": "record", "delta": 0.02 },
+            { "type": "opinion", "role": "debtor", "delta": -10, "memory": "pressed_me" } ] },
+        { "id": "save_it", "default": true, "label_key": "dilemma-call-in-favour-save", "aftermath_key": "dilemma-call-in-favour-save-after",
+          "effects": [
+            { "type": "opinion", "role": "debtor", "delta": 3 },
+            { "type": "standing", "delta": -1 } ] },
+      ],
+    },
+    // A colleague's bill, and a favour offered in return for a yes.
+    {
+      "id": "dilemma.favour_for_vote", "category": "significant",
+      "title_key": "dilemma-favour-for-vote", "situation_key": "dilemma-favour-for-vote-situation",
+      "roles": [
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "other" } },
+        { "id": "sponsor", "cast": { "type": "sponsor_of", "role": "bill" } },
+      ],
+      "triggers": [ { "type": "can_vote", "role": "bill" }, { "type": "opinion", "role": "sponsor", "min": -10 } ],
+      "deadline_days": 21, "cooldown_days": 180, "scene": "scene.favour_for_vote",
+      "options": [
+        { "id": "deal", "label_key": "dilemma-favour-for-vote-deal", "aftermath_key": "dilemma-favour-for-vote-deal-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "yes" },
+            { "type": "favour", "role": "sponsor", "owed_to_player": true },
+            { "type": "opinion", "role": "sponsor", "delta": 4 } ] },
+        { "id": "with_ward", "label_key": "dilemma-favour-for-vote-ward", "aftermath_key": "dilemma-favour-for-vote-ward-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "with_ward" },
+            { "type": "opinion", "role": "sponsor", "delta": -4 } ] },
+        { "id": "not_yet", "default": true, "label_key": "dilemma-favour-for-vote-not-yet", "aftermath_key": "dilemma-favour-for-vote-not-yet-after",
+          "effects": [
+            { "type": "opinion", "role": "sponsor", "delta": -3, "memory": "ignored_me" },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    // A creditor wants the debt paid by sinking the rival's bill.
+    {
+      "id": "dilemma.creditor_against_rival", "category": "significant",
+      "title_key": "dilemma-creditor-against-rival", "situation_key": "dilemma-creditor-against-rival-situation",
+      "roles": [
+        { "id": "creditor", "cast": { "type": "creditor" } },
+        { "id": "rival", "cast": { "type": "rival" } },
+        { "id": "bill", "cast": { "type": "bill", "sponsor": "other", "sponsored_by": "rival" } },
+      ],
+      "triggers": [ { "type": "favour", "role": "creditor" }, { "type": "can_vote", "role": "bill" } ],
+      "deadline_days": 21, "cooldown_days": 240, "scene": "scene.creditor_against_rival",
+      "options": [
+        { "id": "sink_it", "label_key": "dilemma-creditor-against-rival-sink", "aftermath_key": "dilemma-creditor-against-rival-sink-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "no" },
+            { "type": "repay", "role": "creditor" },
+            { "type": "opinion", "role": "rival", "delta": -6, "memory": "opposed_my_bill" } ] },
+        { "id": "on_merits", "label_key": "dilemma-creditor-against-rival-merits", "aftermath_key": "dilemma-creditor-against-rival-merits-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "with_ward" },
+            { "type": "opinion", "role": "creditor", "delta": -6, "memory": "broke_promise" } ] },
+        { "id": "dodge", "default": true, "label_key": "dilemma-creditor-against-rival-dodge", "aftermath_key": "dilemma-creditor-against-rival-dodge-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "abstain" },
+            { "type": "opinion", "role": "creditor", "delta": -4, "memory": "ignored_me" } ] },
       ],
     },
     // --- Raised by a story or an investigation (DEC-034, DEC-006) -----------------------

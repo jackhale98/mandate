@@ -19,4 +19,8 @@ older: boolean,
 /**
  * Size at these parameters (positive = harm).
  */
-amount: number, };
+amount: number, 
+/**
+ * The size in words: `small` | `moderate` | `large` | `relief`.
+ */
+size: string, };

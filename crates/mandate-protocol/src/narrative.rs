@@ -411,19 +411,34 @@ fn preview(engine: &Engine, d: &Decision, e: &EffectDef) -> EffectLineView {
                 "mixed",
             )
         }
-        EffectDef::Rider { role, rider } => {
+        EffectDef::Rider {
+            role,
+            rider,
+            ward_of,
+        } => {
             let bill = match mandate_sim::narrative::actor_of(&d.cast, role) {
                 Some(Actor::Policy { id }) => bill_key(engine, id),
                 _ => String::new(),
             };
-            line(
-                match rider {
-                    mandate_content::RiderKind::WardProject => "effect-rider-ward-project",
-                    mandate_content::RiderKind::Sunset => "effect-rider-sunset",
-                },
-                vec![("bill_key", bill)],
-                "mixed",
-            )
+            let whose = ward_of
+                .as_deref()
+                .and_then(person)
+                .map(|p| name_of(engine, p));
+            match (rider, whose) {
+                (mandate_content::RiderKind::WardProject, Some(name)) => line(
+                    "effect-rider-ward-project-for",
+                    vec![("bill_key", bill), ("name", name)],
+                    "mixed",
+                ),
+                (mandate_content::RiderKind::WardProject, None) => line(
+                    "effect-rider-ward-project",
+                    vec![("bill_key", bill)],
+                    "mixed",
+                ),
+                (mandate_content::RiderKind::Sunset, _) => {
+                    line("effect-rider-sunset", vec![("bill_key", bill)], "mixed")
+                }
+            }
         }
         EffectDef::CallIn { role, bill } => {
             let bill = match mandate_sim::narrative::actor_of(&d.cast, bill) {

@@ -343,11 +343,29 @@ fn apply_effect(
                 Err(_) => skip("vote"),
             }
         }
-        EffectDef::Rider { role, rider } => {
+        EffectDef::Rider {
+            role,
+            rider,
+            ward_of,
+        } => {
             let Some(Actor::Policy { id: bill }) = super::actor_of(cast, role) else {
                 return skip("rider");
             };
-            let Some(ward) = state.player.as_ref().map(|p| p.ward) else {
+            let ward = match ward_of {
+                Some(r) => person_of(cast, r).and_then(|c| {
+                    state
+                        .politics
+                        .politicians
+                        .iter()
+                        .find(|p| p.character == c)
+                        .and_then(|p| match p.role {
+                            crate::politics::Role::Councillor { ward, .. } => Some(ward),
+                            _ => None,
+                        })
+                }),
+                None => state.player.as_ref().map(|p| p.ward),
+            };
+            let Some(ward) = ward else {
                 return skip("rider");
             };
             let Some(p) = state
