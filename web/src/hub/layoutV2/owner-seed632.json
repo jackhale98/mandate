@@ -1,0 +1,352 @@
+[
+ {
+  "seed": "632",
+  "source": "town",
+  "input": {
+   "municipality": "Brinerford",
+   "neighborhoods": [
+    {
+     "id": 196,
+     "name": "Brinerford",
+     "kind": "core"
+    },
+    {
+     "id": 197,
+     "name": "Hillvale",
+     "kind": "waterfront"
+    },
+    {
+     "id": 198,
+     "name": "Abbey Cross",
+     "kind": "suburb"
+    },
+    {
+     "id": 199,
+     "name": "Oldfield",
+     "kind": "rural"
+    },
+    {
+     "id": 200,
+     "name": "Station Green",
+     "kind": "suburb"
+    },
+    {
+     "id": 201,
+     "name": "Harbour Hill",
+     "kind": "suburb"
+    },
+    {
+     "id": 202,
+     "name": "Church Green",
+     "kind": "rural"
+    }
+   ],
+   "places": [
+    {
+     "id": 245,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 246,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 247,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 248,
+     "kind": "diner",
+     "name": "Esme's",
+     "neighborhood": 196
+    },
+    {
+     "id": 249,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 251,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 253,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 254,
+     "kind": "news_office",
+     "name": "The Brinerford Herald",
+     "neighborhood": 196
+    },
+    {
+     "id": 255,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 250,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 252,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 256,
+     "kind": "mill",
+     "name": "",
+     "neighborhood": 199
+    }
+   ],
+   "home": 199,
+   "location": {
+    "type": "home"
+   }
+  },
+  "geo": {
+   "municipality": 15,
+   "name": "Brinerford",
+   "class": "town",
+   "regional_capital": false,
+   "national_capital": false,
+   "baseline_population": 134002,
+   "neighborhoods": [
+    {
+     "id": 196,
+     "name": "Brinerford",
+     "kind": "core",
+     "baseline_population": 20270,
+     "adjacent": []
+    },
+    {
+     "id": 197,
+     "name": "Hillvale",
+     "kind": "waterfront",
+     "baseline_population": 14790,
+     "adjacent": []
+    },
+    {
+     "id": 198,
+     "name": "Abbey Cross",
+     "kind": "suburb",
+     "baseline_population": 31860,
+     "adjacent": []
+    },
+    {
+     "id": 199,
+     "name": "Oldfield",
+     "kind": "rural",
+     "baseline_population": 12266,
+     "adjacent": []
+    },
+    {
+     "id": 200,
+     "name": "Station Green",
+     "kind": "suburb",
+     "baseline_population": 20936,
+     "adjacent": []
+    },
+    {
+     "id": 201,
+     "name": "Harbour Hill",
+     "kind": "suburb",
+     "baseline_population": 19870,
+     "adjacent": []
+    },
+    {
+     "id": 202,
+     "name": "Church Green",
+     "kind": "rural",
+     "baseline_population": 14010,
+     "adjacent": []
+    }
+   ],
+   "places": [
+    {
+     "id": 245,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 246,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 247,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 248,
+     "kind": "diner",
+     "name": "Esme's",
+     "neighborhood": 196
+    },
+    {
+     "id": 249,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 251,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 253,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 254,
+     "kind": "news_office",
+     "name": "The Brinerford Herald",
+     "neighborhood": 196
+    },
+    {
+     "id": 255,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 250,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 252,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 256,
+     "kind": "mill",
+     "name": "",
+     "neighborhood": 199
+    }
+   ],
+   "baseline_sectors": [
+    {
+     "sector": "sector.retail",
+     "driver": "",
+     "jobs": 18090
+    }
+   ],
+   "river": null,
+   "creeks": [],
+   "coast": {
+    "sea": 14,
+    "shore": "rocky",
+    "bay": true
+   },
+   "lake": null,
+   "relief": {
+    "ruggedness_pm": 510,
+    "uphill": 6,
+    "high_ground": 6,
+    "relief_m": 61
+   },
+   "woods": {
+    "share_pm": 808,
+    "bearing": 6
+   },
+   "minerals": {
+    "value_pm": 386,
+    "bearing": 8
+   },
+   "resources_pm": {
+    "fertility": 264,
+    "timber": 558,
+    "minerals": 386,
+    "fishing": 669,
+    "energy": 157,
+    "scenic": 379
+   },
+   "links": [
+    {
+     "mode": "rail",
+     "bearing": 3,
+     "to": 0,
+     "to_name": "Fenenmoor",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 3,
+     "to": 12,
+     "to_name": "Wexowell",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 7,
+     "to": 37,
+     "to_name": "Brinerby",
+     "foreign": false
+    },
+    {
+     "mode": "rail",
+     "bearing": 11,
+     "to": 20,
+     "to_name": "Gardale",
+     "foreign": false
+    },
+    {
+     "mode": "road",
+     "bearing": 11,
+     "to": 20,
+     "to_name": "Gardale",
+     "foreign": false
+    }
+   ],
+   "hazards_pm": {
+    "flood": 300,
+    "storm": 422,
+    "wildfire": 108,
+    "seismic": 698,
+    "drought": 77
+   },
+   "climate": {
+    "temperature_c": 7,
+    "precipitation_mm": 1055,
+    "biome": "temperate_forest",
+    "snow": false
+   },
+   "wind_from": 12,
+   "elevation_m": 159,
+   "era": null
+  },
+  "state": {
+   "vacancy": 0.05,
+   "unemployment": 0.06,
+   "hoods": []
+  }
+ }
+]

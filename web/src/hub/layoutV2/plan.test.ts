@@ -247,7 +247,8 @@ describe("layout v2: the dress pass (D2, §9.2)", () => {
 
   it("reserves land at baseline, builds on it as the town grows, shows building sites", () => {
     const start = dressTown(plan, base);
-    const grown = dressTown(plan, { ...base, housingPm: 1300, pipelinePm: 40 });
+    // +20%: within this town's reserve (at +30% its outer district fills its reserve outright, leaving no sites under way).
+    const grown = dressTown(plan, { ...base, housingPm: 1200, pipelinePm: 40 });
     expect(start.buildings.some((b) => b.state === "reserved")).toBe(true);
     expect(grown.buildings.filter((b) => b.state === "reserved").length).toBeLessThan(start.buildings.filter((b) => b.state === "reserved").length);
     expect(grown.buildings.some((b) => b.state === "construction")).toBe(true);

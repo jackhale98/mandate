@@ -121,7 +121,7 @@ async function start() {
   await e.ready;
   timings.engineReady = performance.now() - tStart;
   loadingText.textContent = `Generating the world for seed “${seed}”…`;
-  await e.request({ kind: "new_game", payload: { seed, size: "medium", scenario: null } });
+  await e.request({ kind: "new_game", payload: { seed, size: "medium", scenario: null, storyteller: null } });
   timings.world = performance.now() - tStart;
   const locale = await request({ kind: "query", payload: { type: "locale", lang: "en" } }, "locale");
   tr = new Translator(locale.lang, locale.ftl);
