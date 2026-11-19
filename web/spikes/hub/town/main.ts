@@ -28,7 +28,8 @@ import { townInputFromView } from "../../../src/hub/townInput";
 import { buildingOfPlace, layoutTown, Terrain, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
 import { geoFromViews } from "../../../src/hub/townGeoAdapter";
 import { townInputFromMunicipality, type TownInput } from "../../../src/hub/townInput";
-import { dressTown, planTown, stateFromViews, type TownPlan, type TownState } from "../../../src/hub/layoutV2";
+import { dressTown, LAYOUT_V2, planTown, stateFromViews, type TownPlan, type TownState } from "../../../src/hub/layoutV2";
+import { recipeForTown, recipeFromView, rememberRecipe } from "../../../src/hub/layoutV2/registry";
 import { describeTown, type TownText } from "../../../src/hub/layoutV2/text";
 import { buildTownMapScene, viewForInput } from "../../../src/hub/townMapScene";
 import { bakeTownMap } from "../../../src/hub/render/townMapRenderer";
@@ -141,8 +142,21 @@ async function start() {
     if (layoutV === 2 && muni) {
       const geo = geoFromViews({ municipality: muni, map: mapView, input, character: visiting ? null : town.character });
       timings.geoMs = performance.now() - t0;
+      // The layout registries come from the engine (LayoutContentView); a town shown before
+      // is planned from the snapshot of the entries it used then (§6.6 option C).
+      const live = recipeFromView(await request({ kind: "query", payload: { type: "layout_content" } }, "layout_content"));
+      const store = (() => {
+        try {
+          return window.localStorage;
+        } catch {
+          return null;
+        }
+      })();
+      const chosen = recipeForTown(store, seed, input.municipality, LAYOUT_V2, live);
+      timings.recipeFromSnapshot = chosen.from === "snapshot" ? 1 : 0;
       const t1 = performance.now();
-      plan = planTown({ ...geo, places: input.places.map((p) => ({ ...p })) }, townSeed(seed, input.municipality));
+      plan = planTown({ ...geo, places: input.places.map((p) => ({ ...p })) }, townSeed(seed, input.municipality), LAYOUT_V2, chosen.recipe);
+      rememberRecipe(store, seed, input.municipality, LAYOUT_V2, plan.recipe);
       timings.planMs = performance.now() - t1;
       for (const [k, v] of Object.entries(plan.stages)) timings[`plan.${k}`] = Math.round(v * 100) / 100;
       const t2 = performance.now();

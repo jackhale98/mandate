@@ -88,6 +88,11 @@ pub struct SectorState {
     /// Annual wage per worker (nominal).
     pub wage: f64,
     pub productivity: f64,
+    /// Whole jobs in this sector as play began (TOWN_GENERATION §4.1, §15
+    /// E1): recorded once by `record_baselines`, never changed after. A
+    /// presentation input for the town layout (no system reads it); a sector
+    /// that content adds later had none (0).
+    pub baseline_jobs: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -252,6 +257,8 @@ pub fn init(
                     jobs,
                     wage: def.base_wage * local_wage_factor(mu.class) * wealth,
                     productivity: 1.0,
+                    // Recorded as play begins, after the history burn-in.
+                    baseline_jobs: 0,
                 }
             })
             .collect();
@@ -365,6 +372,8 @@ pub fn remap_sectors(
                     jobs: 0.0,
                     wage: def.base_wage * local_wage_factor(class) * price * productivity,
                     productivity,
+                    // Not part of the town as play began.
+                    baseline_jobs: 0,
                 },
             })
             .collect();
@@ -373,6 +382,24 @@ pub fn remap_sectors(
     }
     econ.sector_keys = keys;
     true
+}
+
+/// Record every town's economic baselines as play begins (TOWN_GENERATION
+/// §15 E1): whole jobs per sector and whole dwellings of housing stock. Called
+/// once for a new game (worldgen) and never by a system, so a town's layout
+/// plan, sized from these, never moves during a run (DEC-085).
+pub fn record_baselines(econ: &mut EconomyState) {
+    for mu in &mut econ.munis {
+        for s in &mut mu.sectors {
+            s.baseline_jobs = whole(s.jobs);
+        }
+        mu.housing.baseline_stock = whole(mu.housing.stock);
+    }
+}
+
+/// A non-negative quantity rounded to whole units (saturating; NaN is 0).
+pub fn whole(x: f64) -> u32 {
+    x.max(0.0).round() as u32
 }
 
 // --- Systems --------------------------------------------------------------------

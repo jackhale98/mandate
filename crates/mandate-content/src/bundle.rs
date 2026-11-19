@@ -92,6 +92,16 @@ pub struct ContentBundle {
     pub locales: BTreeMap<String, BTreeMap<String, String>>,
     /// Hash over every source path and text, in path order (DEC-053).
     pub content_hash: String,
+    /// Town layout v2 district types (DEC-090 D4), in load order. Presentation
+    /// data for the client's generator: validated, never read by the simulation.
+    #[serde(default)]
+    pub town_districts: Vec<crate::layout::TownDistrictDef>,
+    /// Town layout v2 terrain features, in load order.
+    #[serde(default)]
+    pub terrain_features: Vec<crate::layout::TerrainFeatureDef>,
+    /// Town layout v2 connectors, in load order (the generator takes the first that fits).
+    #[serde(default)]
+    pub connectors: Vec<crate::layout::ConnectorDef>,
 }
 
 impl ContentBundle {
@@ -283,6 +293,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut places: Vec<PlaceKindDef> = Vec::new();
     let mut locales: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
     let mut origin: BTreeMap<String, String> = BTreeMap::new();
+    let mut town_districts: Vec<crate::layout::TownDistrictDef> = Vec::new();
+    let mut terrain_features: Vec<crate::layout::TerrainFeatureDef> = Vec::new();
+    let mut connectors: Vec<crate::layout::ConnectorDef> = Vec::new();
 
     for src in sorted {
         if src.path.ends_with(".ftl") {
@@ -542,6 +555,27 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::TownDistricts { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        town_districts.push(x);
+                    }
+                }
+            }
+            ContentFile::TerrainFeatures { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        terrain_features.push(x);
+                    }
+                }
+            }
+            ContentFile::Connectors { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        connectors.push(x);
+                    }
+                }
+            }
         }
     }
 
@@ -636,6 +670,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         justice,
         locales,
         content_hash,
+        town_districts,
+        terrain_features,
+        connectors,
     };
     issues.extend(validate_bundle(&bundle));
     if issues.iter().any(|i| i.severity == Severity::Error) {

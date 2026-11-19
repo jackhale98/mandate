@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (13, "ec5105b97d76c075");
+    const EXPECTED: (u16, &str) = (14, "d9997cbe831e6d13");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -1006,4 +1006,125 @@ fn v12_saves_migrate_to_media_and_justice() {
     let (bytes, _) = encode(e2.state(), &req()).unwrap();
     let (back, _) = decode(&bytes).unwrap();
     assert_eq!(back.hash(), e2.state_hash());
+}
+
+/// Strip the town baselines (TOWN_GENERATION §15 E1) from a payload: the
+/// shape of the format before them.
+fn without_baselines(v: &mut serde_json::Value) {
+    for h in v
+        .pointer_mut("/state/population/hoods")
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+    {
+        h.as_object_mut().unwrap().remove("baseline_population");
+    }
+    for mu in v
+        .pointer_mut("/state/economy/munis")
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+    {
+        let mu = mu.as_object_mut().unwrap();
+        for s in mu["sectors"].as_array_mut().unwrap() {
+            s.as_object_mut().unwrap().remove("baseline_jobs");
+        }
+        mu["housing"]
+            .as_object_mut()
+            .unwrap()
+            .remove("baseline_stock");
+    }
+}
+
+/// The format after v13 added town baselines (TOWN_GENERATION §15 E1):
+/// residents per neighbourhood, jobs per sector, and housing stock, as play
+/// began. A save from before takes them from its current values (whole
+/// units), keeps them through play, and round-trips.
+#[test]
+fn v13_saves_migrate_to_town_baselines() {
+    let c = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 65,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    e.apply(Command::AdvanceDays { days: 500 }).unwrap();
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    without_baselines(&mut v);
+    assert!(
+        serde_json::from_value::<mandate_sim::State>(v["state"].clone()).is_err(),
+        "the older payload lacks the baselines"
+    );
+    let migrated = mandate_save::migrate(13, v.clone()).unwrap();
+    assert_eq!(migrated, mandate_save::migrate(13, v).unwrap());
+    let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    // The baselines are the save's own values, in whole units.
+    for (h, hp) in state.population.hoods.iter().enumerate() {
+        assert_eq!(
+            u64::from(hp.baseline_population),
+            state.population.hood_total(h)
+        );
+    }
+    for mu in &state.economy.munis {
+        for s in &mu.sectors {
+            assert_eq!(s.baseline_jobs, s.jobs.round() as u32);
+        }
+        assert_eq!(mu.housing.baseline_stock, mu.housing.stock.round() as u32);
+    }
+    let m = state.player.as_ref().unwrap().municipality;
+    let before = state.town_baseline(m).unwrap();
+    assert_eq!(
+        before.population,
+        state.population.municipality_total(&state.world, m)
+    );
+    assert!(before.housing_stock > 0 && before.sectors.iter().any(|s| s.jobs > 0));
+    // Play on: the baselines never move.
+    let mut e2 = mandate_sim::Engine::from_state(state, c).unwrap();
+    for _ in 0..12 {
+        e2.apply(Command::EndTurn).unwrap();
+    }
+    assert_eq!(e2.state().town_baseline(m).unwrap(), before);
+    let (bytes, meta) = encode(e2.state(), &req()).unwrap();
+    assert_eq!(meta.format_version, SAVE_FORMAT_VERSION);
+    let (back, _) = decode(&bytes).unwrap();
+    assert_eq!(back.hash(), e2.state_hash());
+    assert_eq!(back.town_baseline(m).unwrap(), before);
+}
+
+/// A file in the format before the baselines (v13: its header, its payload
+/// shape) decodes through the whole chain. For a game saved as play begins,
+/// the migrated baselines equal the ones a new game records, so the state
+/// is identical.
+#[test]
+fn v13_files_decode_with_town_baselines() {
+    let c = content();
+    let e = generate(
+        &WorldConfig {
+            seed: 66,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    without_baselines(&mut v);
+    let payload = serde_json::to_vec(&v).unwrap();
+    let (_, mut meta) = encode(e.state(), &req()).unwrap();
+    meta.format_version = 13;
+    meta.payload_hash = mandate_core::hash::StableHash::of_bytes(&payload).hex();
+    let meta_json = serde_json::to_vec(&meta).unwrap();
+    let mut bytes = MAGIC.to_vec();
+    bytes.extend_from_slice(&13u16.to_le_bytes());
+    bytes.extend_from_slice(&(meta_json.len() as u32).to_le_bytes());
+    bytes.extend_from_slice(&meta_json);
+    bytes.extend_from_slice(&miniz_oxide::deflate::compress_to_vec(&payload, 6));
+    let (state, read) = decode(&bytes).unwrap();
+    assert_eq!(read.format_version, 13);
+    assert_eq!(state.hash(), e.state_hash());
+    mandate_sim::Engine::from_state(state, c).unwrap();
 }

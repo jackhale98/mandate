@@ -2,7 +2,9 @@
 //!
 //! Serialized world data holds everything the simulation reads. The terrain
 //! raster is *derived*: it is regenerated deterministically from the seed and
-//! cached outside the state (`TerrainData`), which keeps saves small.
+//! cached outside the state (`TerrainData`), which keeps saves small. Town
+//! baselines (TOWN_GENERATION §15 E1) are stored by their domains and read
+//! through `State::town_baseline`.
 
 use mandate_core::define_id;
 use serde::{Deserialize, Serialize};
@@ -78,6 +80,33 @@ pub struct TerrainData {
     /// Mean temperature (°C) and precipitation (mm/yr).
     pub temperature: Vec<f32>,
     pub precipitation: Vec<f32>,
+    /// Flow direction per cell as a 16-point compass (0 = north, clockwise
+    /// in 22.5° steps; only the eight even values occur), or `COMPASS_NONE`
+    /// for the sea and outlets (TOWN_GENERATION §4.1 `downstream`).
+    pub downstream: Vec<u8>,
+    /// Forest per cell, per mille (the timber layer; §4.1 `forest_pm`).
+    pub forest_pm: Vec<u16>,
+    /// Mineral endowment per cell, per mille (§4.1 `minerals_pm`).
+    pub minerals_pm: Vec<u16>,
+}
+
+/// "No direction" on a 16-point compass (TOWN_GENERATION §4.1 `Compass16`).
+pub const COMPASS_NONE: u8 = 255;
+
+/// The 16-point compass bearing of a grid step (x east, y south), or
+/// `COMPASS_NONE` for no step. Only the eight neighbour steps have a bearing.
+pub fn compass8(dx: i32, dy: i32) -> u8 {
+    match (dx.signum(), dy.signum()) {
+        (0, -1) => 0,
+        (1, -1) => 2,
+        (1, 0) => 4,
+        (1, 1) => 6,
+        (0, 1) => 8,
+        (-1, 1) => 10,
+        (-1, 0) => 12,
+        (-1, -1) => 14,
+        _ => COMPASS_NONE,
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

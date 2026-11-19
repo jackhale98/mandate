@@ -25,6 +25,10 @@ pub struct Housing {
     pub last_starts: f64,
     /// Local build cost at price level 1.0 (land and labour are local).
     pub build_cost: f64,
+    /// Whole dwellings as play began (TOWN_GENERATION §4.2, §15 E1):
+    /// recorded once by `economy::record_baselines`, never changed after.
+    /// The town layout reserves land over it; no system reads it.
+    pub baseline_stock: u32,
 }
 
 pub fn init(mu: &Municipality, adults: f64, e: &EconomyParams, wealth: f64) -> Housing {
@@ -50,6 +54,8 @@ pub fn init(mu: &Municipality, adults: f64, e: &EconomyParams, wealth: f64) -> H
         last_starts: base_starts,
         // Building is mildly profitable at the starting equilibrium.
         build_cost: price * 0.85,
+        // Recorded as play begins, after the history burn-in.
+        baseline_stock: 0,
     }
 }
 

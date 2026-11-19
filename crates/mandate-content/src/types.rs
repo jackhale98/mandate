@@ -92,6 +92,18 @@ pub enum ContentFile {
     Justice {
         value: Box<crate::media::JusticeParams>,
     },
+    /// Town layout v2 district types (DEC-090 D4).
+    TownDistricts {
+        items: Vec<crate::layout::TownDistrictDef>,
+    },
+    /// Town layout v2 terrain features (DEC-090 D4).
+    TerrainFeatures {
+        items: Vec<crate::layout::TerrainFeatureDef>,
+    },
+    /// Town layout v2 connectors: bridges, fords, viaducts, level crossings (DEC-090 D4).
+    Connectors {
+        items: Vec<crate::layout::ConnectorDef>,
+    },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -1263,6 +1275,10 @@ pub struct PlaceKindDef {
     /// neighbourhood actions, a neighbourhood) that has no such place.
     #[serde(default)]
     pub fallback: Option<String>,
+    /// How the town layout draws it (DEC-090 D4, TOWN_GENERATION.md §6.3):
+    /// presentation data, validated but never read by the simulation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout: Option<crate::layout::PlaceLayoutBlock>,
 }
 
 // --- Politics parameters (DEC-027 to DEC-030, DEC-071) -----------------------
@@ -2326,6 +2342,15 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
             value: Box::new(
                 serde_json::from_str::<ValueFile<crate::media::JusticeParams>>(json)?.value,
             ),
+        },
+        "town_districts" => ContentFile::TownDistricts {
+            items: serde_json::from_str::<ItemsFile<crate::layout::TownDistrictDef>>(json)?.items,
+        },
+        "terrain_features" => ContentFile::TerrainFeatures {
+            items: serde_json::from_str::<ItemsFile<crate::layout::TerrainFeatureDef>>(json)?.items,
+        },
+        "connectors" => ContentFile::Connectors {
+            items: serde_json::from_str::<ItemsFile<crate::layout::ConnectorDef>>(json)?.items,
         },
         other => {
             use serde::de::Error;
