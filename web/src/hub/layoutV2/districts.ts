@@ -69,7 +69,7 @@ const GROWTH_ORDER: Record<string, number> = { core: 0, inner: 1, waterfront: 2,
 const hoodKind = (k: string) => ((HOOD_KINDS as readonly string[]).includes(k) ? k : "inner");
 
 /** Land the town may spread over: connected to the square over land, bridges and fords. */
-function reachableLand(w: Work): Uint8Array {
+function reachableLand(w: Work, M = 0): Uint8Array {
   const { W, H } = w;
   const N = W * H;
   const reach = new Uint8Array(N);
@@ -84,6 +84,9 @@ function reachableLand(w: Work): Uint8Array {
     for (let k4 = 0; k4 < 4; k4++) {
         const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
       if (n < 0 || n >= N || reach[n]) continue;
+      const nx = n % W;
+      const ny = (n - nx) / W;
+      if (nx < M || ny < M || nx >= W - M || ny >= H - M) continue;
       if (isWaterBody(w, n) && !((w.use[n] as number) & Use.Bridge)) continue;
       reach[n] = 1;
       q[qt++] = n;
@@ -103,14 +106,8 @@ export function stageDistricts(w: Work) {
   const placeLayouts = new Map(w.recipe.places.map((p) => [p.key, p]));
 
   // ---- types and quotas
-  const reach = reachableLand(w);
-  // The countryside margin: no district within it.
-  const M = countrysideMargin(W, H);
-  for (let c = 0; c < N; c++) {
-    const x = c % W;
-    const y = (c - x) / W;
-    if (x < M || y < M || x >= W - M || y >= H - M) reach[c] = 0;
-  }
+  // Land joined to the square inside the countryside margin (no district within it, nor one reached only through it).
+  const reach = reachableLand(w, countrysideMargin(W, H));
   let land = 0;
   for (let c = 0; c < N; c++) if (reach[c] && !isWaterBody(w, c)) land++;
   const total = Math.floor((land * (BAND_SHARE[w.band] ?? 700)) / 1000) * (1 + 0) + 0;

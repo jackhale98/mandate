@@ -529,10 +529,10 @@ export function stageStreets(w: Work) {
         if (bx < 3 || by < 3 || bx >= W - 3 || by >= H - 3) return 2;
         const c = by * W + bx;
         if (isRoad(c)) road = true;
-        else if (isWaterBody(w, c) || w.terrain[c] === Terrain.Rock || (w.use[c] as number) & (Use.Square | Use.Bridge | Use.Rail)) {
+        else if (railAx[c]) {
           if (!((railAx[c] === 1 && (dir & 3) === 2) || (railAx[c] === 2 && (dir & 3) === 0))) return 2;
-        } else if (!land[c] && (w.district[c] as number) >= 0) return 2;
-        else if (railAx[c] === 3) return 2;
+        } else if (isWaterBody(w, c) || w.terrain[c] === Terrain.Rock || (w.use[c] as number) & (Use.Square | Use.Bridge | Use.Rail)) return 2;
+        else if (!land[c] && (w.district[c] as number) >= 0) return 2;
       }
       return road ? 1 : 0;
     };
@@ -555,13 +555,20 @@ export function stageStreets(w: Work) {
             break;
           }
         }
+        if (hit < 0) ACC.nohit++;
         if (hit < 3 || hit >= bestLen) continue;
         const ex = x + dx * (hit - 1);
         const ey = y + dy * (hit - 1);
-        if (across(ex, ey, dir, width).jog) continue;
+        if (across(ex, ey, dir, width).jog) {
+          ACC.jog++;
+          continue;
+        }
         // From the street reached, inward to the district (the far end is the district's).
         const leg: Leg = { x: x + dx * hit, y: y + dy * hit, dir: (dir + 4) & 7, steps: hit };
-        if (crowds(segOf(leg, width, style, d.index, RoadClass.Street))) continue;
+        if (crowds(segOf(leg, width, style, d.index, RoadClass.Street))) {
+          ACC.crowd++;
+          continue;
+        }
         best = { legs: [leg], width, style, end: null, score: 0 };
         bestLen = hit;
       }
@@ -652,6 +659,7 @@ export function stageStreets(w: Work) {
     // A district no street can reach from the town (beyond fields, across the railway) gets an access street.
     const access = () => {
       const cand = accessStreet(d, g);
+      (STATS as unknown as Record<string, unknown>)[`acc${d.index}p${pass}`] = cand ? JSON.stringify(cand.legs) : `null ${JSON.stringify(ACC)}`;
       if (!cand) return;
       crossingsLeft = Math.max(crossingsLeft, cand.legs.length);
       commit(cand, d.index);
@@ -744,6 +752,7 @@ export function stageStreets(w: Work) {
 
 /** Dev counters (scratch). */
 export const STATS = { ok: 0, fail: 0, none: 0, crowd: 0, cands: 0 };
+export const ACC = { nohit: 0, jog: 0, crowd: 0 };
 
 const GROW_ORDER: Record<string, number> = { core: 0, inner: 1, waterfront: 2, industrial: 3, suburb: 4, rural: 5 };
 
