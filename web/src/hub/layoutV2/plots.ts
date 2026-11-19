@@ -451,20 +451,65 @@ export function stagePlaces(w: Work) {
     const i = addPlot(w, churchD, church, { place: null, kind: churchKind, name: "", landmark: true, ground: groundOf(churchD) });
     w.landmarks.push({ kind: "spire", x: church.x + (church.w >> 1), y: church.F - church.h, name: "", plot: i });
   }
-  if (w.railCells.length) {
-    const sc = placeScorer(w, ["near_rail", "near_square"], coreD, () => null);
-    let best: Fit | null = null;
-    let bestD = -1;
-    for (const d of w.districts) {
-      const s = bestSpot(w, d.index, [[6, 3], [5, 3]], [0], sc, mix(w.seed, 0x57, d.index));
-      if (s && (!best || sc(s.x, s.F - s.h, s.w, s.h) > sc(best.x, best.F - best.h, best.w, best.h))) {
-        best = s;
-        bestD = d.index;
+  if (w.rail.length) stationBySide(w, groundOf);
+}
+
+/**
+ * The station stands beside the track (§5 stage 4: the station on the line,
+ * at the core's edge): its footprint one cell off the railway, that cell a
+ * platform, as near the square as it fits; its door path is joined up by
+ * the connectivity pass.
+ */
+function stationBySide(w: Work, groundOf: (d: number) => number) {
+  const { W, H } = w;
+  const N = W * H;
+  const m = masks(w);
+  const rd = distanceField(W, H, (c) => ((w.use[c] as number) & Use.Rail) !== 0 && w.terrain[c] === Terrain.Rail, () => true, 8);
+  const sx = w.plaza.x + (w.plaza.w >> 1);
+  const sy = w.plaza.y + (w.plaza.h >> 1);
+  let best: { x: number; y: number; bw: number; bh: number; d: number; s: number } | null = null;
+  for (const [bw, bh] of [
+    [6, 3],
+    [5, 3],
+    [4, 3],
+  ] as const) {
+    for (let y = 2; y + bh < H - 1; y++) {
+      for (let x = 1; x + bw < W - 1; x++) {
+        const c0 = y * W + x;
+        const d = w.district[c0] as number;
+        if (d < 0) continue;
+        const lv = w.level[c0] as number;
+        let ok = true;
+        let near = 99;
+        for (let yy = y; yy < y + bh && ok; yy++) {
+          for (let xx = x; xx < x + bw && ok; xx++) {
+            const c = yy * W + xx;
+            if (w.district[c] !== d || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv || (rd[c] as number) < 2) ok = false;
+            near = Math.min(near, rd[c] as number);
+          }
+        }
+        if (!ok || near !== 2) continue;
+        const front = (y + bh) * W + x + (bw >> 1);
+        if (front >= N || isWaterBody(w, front) || (w.use[front] as number) & (Use.Plot | Use.Square) || w.blocked[front]) continue;
+        let roofOk = true;
+        for (let xx = x; xx < x + bw; xx++) if (m.fronts[(y - 1) * W + xx] || (w.use[(y - 1) * W + xx] as number) & Use.Plot) roofOk = false;
+        if (!roofOk) continue;
+        const s = -(Math.abs(x + (bw >> 1) - sx) + Math.abs(y + bh - sy)) - (bw === 6 ? 0 : 12);
+        if (!best || s > best.s) best = { x, y, bw, bh, d, s };
       }
     }
-    if (best) {
-      const i = addPlot(w, bestD, best, { place: null, kind: "station", name: "", landmark: true, ground: groundOf(bestD) });
-      w.landmarks.push({ kind: "station", x: best.x + (best.w >> 1), y: best.F - best.h, name: "", plot: i });
+  }
+  if (!best) return;
+  const i = addPlot(w, best.d, { x: best.x, F: best.y + best.bh, w: best.bw, h: best.bh, s: 0 }, { place: null, kind: "station", name: "", landmark: true, ground: groundOf(best.d) }, best.x + (best.bw >> 1));
+  w.landmarks.push({ kind: "station", x: best.x + (best.bw >> 1), y: best.y, name: "", plot: i });
+  // The platform: the cells between the building and the track.
+  for (let y = best.y - 1; y <= best.y + best.bh; y++) {
+    for (let x = best.x - 1; x <= best.x + best.bw; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const c = y * W + x;
+      if ((rd[c] as number) !== 1 || w.use[c] || !buildable(w.terrain[c] as number)) continue;
+      w.terrain[c] = Terrain.Pavement;
+      w.use[c] = (w.use[c] as number) | Use.Keep;
     }
   }
 }

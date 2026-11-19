@@ -5,9 +5,11 @@ import { reachableFrom } from "../pathfinding";
 import { ROOF_ROWS, Terrain, surfaceOfTerrain, townGrid, type TownMap } from "../townLayout";
 import type { TownInput } from "../townInput";
 import { BAND_CAPS } from "./geo";
+import { forBand, headCells, parallelGap, segCells, segSteps } from "./net";
 import type { TownPlan } from "./plan";
 import { rectDistance } from "./plots";
-import { RoadClass, WaterKind } from "./work";
+import { centreOffset, endState } from "./streets";
+import { RoadClass, WaterKind, type Segment } from "./work";
 
 const isWaterBody = (k: number) => k === WaterKind.River || k === WaterKind.Sea || k === WaterKind.Lake;
 
@@ -119,7 +121,181 @@ export function checkTownV2(map: TownMap, plan: TownPlan, input: TownInput): str
     }
     if (q.length !== count) out.push(`district ${d.name} is split (${q.length} of ${count} cells connected)`);
   }
+  out.push(...streetProblems(map, plan));
   return out;
+}
+
+const STREET = new Set<number>([Terrain.Road, Terrain.Pavement, Terrain.Crossing, Terrain.Bridge, Terrain.Plaza, Terrain.Quay, Terrain.Steps, Terrain.Dirt, Terrain.Path, Terrain.Ford]);
+
+/**
+ * The street network's faults (DEC-090 D5 amended; each a check that would
+ * have caught a fault the owner reported):
+ * - an end that meets nothing (only designed turning heads, and the roads to
+ *   the neighbouring towns at the map's edge, may end), including a street
+ *   that stops at the railway with no crossing;
+ * - streets that do not join the network (one walkable network of streets);
+ * - near-parallel duplicates (two runs alongside within three cells) and jogs
+ *   (a street continuing a few cells aside across a junction);
+ * - a road painted with no street run under it (a stray stub);
+ * - the railway: crossed only square-on at level crossings or by bridges;
+ *   a plausible line (at most three runs, no loop round the centre, ends on
+ *   the map's edge, clear of the square), the station beside it;
+ * - arterials: no staircase (no short run between two turns);
+ * - the map's edge: crossed only by the roads to the neighbouring towns (and
+ *   at most two farm tracks).
+ */
+export function streetProblems(map: TownMap, plan: TownPlan): string[] {
+  const out: string[] = [];
+  const W = map.width;
+  const H = map.height;
+  const N = W * H;
+  const segs = plan.segments;
+  const cover = new Uint16Array(N);
+  for (const s of segs) segCells(s, W, H, (c) => (cover[c] = (cover[c] as number) + 1));
+  const sq = (c: number) => map.terrain[c] === Terrain.Plaza && rectDistance(plan.square, c % W, Math.floor(c / W)) === 0;
+  const link = (s: Segment) => s.arterial >= 0 && (plan.arterials[s.arterial]?.mode ?? "local") !== "local";
+  const name = (s: Segment) => `${s.arterial >= 0 ? (plan.arterials[s.arterial]?.name ?? "arterial") : s.district >= 0 ? `a street of ${plan.districts[s.district]?.name ?? "?"}` : "the square's ring"} (${s.axis} ${s.ax},${s.ay}–${s.bx},${s.by})`;
+  const railAt = (c: number) => map.terrain[c] === Terrain.Rail;
+  // ---- ends
+  const headed = new Uint8Array(N);
+  for (const s of segs) {
+    for (const end of [0, 1] as const) {
+      if (s.heads & (end === 0 ? 1 : 2)) {
+        const cells = headCells(s, end, W, H);
+        const paved = cells.filter((c) => STREET.has(map.terrain[c] as number)).length;
+        if (paved * 10 < cells.length * 8) out.push(`turning head of ${name(s)} is not paved`);
+        for (const c of cells) headed[c] = 1;
+        continue;
+      }
+      const st = endState(s, end, W, H, (c) => cover[c] as number, sq);
+      if (st === "joined") continue;
+      if (st === "edge" && link(s)) continue;
+      let rail = false;
+      const t = end === 0 ? -1 : segSteps(s) + 1;
+      forBand(s, t, t, (x, y) => {
+        if (x >= 0 && y >= 0 && x < W && y < H && railAt(y * W + x)) rail = true;
+      });
+      out.push(st === "edge" ? `${name(s)} leaves the map but is no road to another town` : rail ? `${name(s)} stops at the railway with no crossing` : `${name(s)} ends in nothing`);
+    }
+  }
+  // ---- every road cell under a run (or a turning head); no run broken by the railway; crossings square-on
+  for (const s of segs) {
+    let onRail = 0;
+    let crossings = 0;
+    segCells(s, W, H, (c) => {
+      if (railAt(c)) onRail++;
+      if (map.terrain[c] === Terrain.Crossing) crossings++;
+    });
+    if (onRail) out.push(`${name(s)} meets the railway with no crossing (${onRail} cells)`);
+    if (crossings && s.axis !== "h" && s.axis !== "v") out.push(`${name(s)} crosses the railway at 45°`);
+  }
+  for (let c = 0; c < N; c++) {
+    const t = map.terrain[c] as number;
+    if (t === Terrain.Road && !cover[c] && !headed[c]) out.push(`road at ${c % W},${Math.floor(c / W)} belongs to no street`);
+  }
+  // ---- duplicates and jogs
+  for (let i = 0; i < segs.length; i++) {
+    const a = segs[i] as Segment;
+    for (let j = i + 1; j < segs.length; j++) {
+      const b = segs[j] as Segment;
+      if (a.axis !== b.axis) continue;
+      const g = parallelGap(a, b);
+      const off = centreOffset(a, b);
+      if (off === 0) continue;
+      if (g.overlap >= 4 && g.gap <= 3) out.push(`${name(a)} and ${name(b)} run alongside ${Math.max(0, g.gap)} cells apart`);
+      else if (g.overlap > -7 && g.overlap < 4 && off <= 5 && g.gap > -Math.max(a.width, b.width)) out.push(`${name(a)} and ${name(b)} jog ${off} cells`);
+    }
+    for (const r of plan.rail) {
+      if (a.axis !== r.axis) continue;
+      const g = parallelGap(a, r);
+      if (g.overlap >= 4 && g.gap <= 2 && g.gap >= -1) out.push(`${name(a)} runs alongside the railway ${Math.max(0, g.gap)} cells away`);
+    }
+  }
+  // ---- one network: every street joined to the square
+  {
+    const seen = new Uint8Array(N);
+    const q: number[] = [];
+    const c0 = plan.square.y * W + plan.square.x;
+    seen[c0] = 1;
+    q.push(c0);
+    const street = (c: number) => STREET.has(map.terrain[c] as number);
+    for (let qi = 0; qi < q.length; qi++) {
+      const c = q[qi] as number;
+      const x = c % W;
+      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+        if (n < 0 || n >= N || seen[n] || !street(n)) continue;
+        seen[n] = 1;
+        q.push(n);
+      }
+    }
+    for (const s of segs) {
+      let any = false;
+      let reached = false;
+      segCells(s, W, H, (c) => {
+        const t = map.terrain[c];
+        if (t === Terrain.Road || t === Terrain.Pavement || t === Terrain.Dirt) {
+          any = true;
+          if (seen[c]) reached = true;
+        }
+      });
+      if (any && !reached) out.push(`${name(s)} does not join the town's streets`);
+    }
+  }
+  // ---- the railway
+  if (plan.rail.length) {
+    if (plan.rail.length > 3) out.push(`the railway has ${plan.rail.length} runs (at most 3)`);
+    let len = 0;
+    for (const r of plan.rail) len += segSteps(r) + 1;
+    const ends = railEnds(plan.rail);
+    const onEdge = (p: { x: number; y: number }) => p.x <= 0 || p.y <= 0 || p.x >= W - 2 || p.y >= H - 2;
+    if (!ends || !onEdge(ends[0]) || !onEdge(ends[1])) out.push("the railway does not run edge to edge");
+    else {
+      const md = Math.abs(ends[0].x - ends[1].x) + Math.abs(ends[0].y - ends[1].y);
+      if (len > 1.15 * md + 12) out.push(`the railway loops (${len} tiles between ends ${md} apart)`);
+    }
+    let near = Infinity;
+    for (const r of plan.rail) segCells(r, W, H, (c) => (near = Math.min(near, rectDistance(plan.square, c % W, Math.floor(c / W)))));
+    if (near < 6) out.push(`the railway passes ${near} tiles from the square`);
+    const st = map.buildings.find((b) => b.kind === "station");
+    if (!st) out.push("the railway has no station");
+    else {
+      let d = Infinity;
+      for (const r of plan.rail) segCells(r, W, H, (c) => (d = Math.min(d, rectDistance(st, c % W, Math.floor(c / W)))));
+      if (d > 3) out.push(`the station is ${d} tiles from the railway`);
+    }
+  }
+  // ---- arterials: straight runs and clean 45° runs, no staircase
+  for (const a of plan.arterials) {
+    if (a.name === "Ring Road") continue;
+    const legs = segs.filter((s) => s.arterial === a.index);
+    for (let k = 1; k < legs.length - 1; k++) {
+      const l = legs[k] as Segment;
+      if (segSteps(l) + 1 < 8) out.push(`${a.name} zigzags (a run of ${segSteps(l) + 1} tiles between turns)`);
+    }
+  }
+  // ---- the map's edge
+  let tracks = 0;
+  const border: number[] = [];
+  for (let x = 0; x < W; x++) border.push(x, (H - 1) * W + x);
+  for (let y = 1; y < H - 1; y++) border.push(y * W, y * W + W - 1);
+  const linkCell = new Uint8Array(N);
+  for (const s of segs) if (link(s)) segCells(s, W, H, (c) => (linkCell[c] = 1));
+  for (const c of border) {
+    const t = map.terrain[c] as number;
+    if (t === Terrain.Dirt || t === Terrain.Path || t === Terrain.Ford) tracks++;
+    else if (STREET.has(t) && !linkCell[c]) out.push(`a street reaches the map's edge at ${c % W},${Math.floor(c / W)}`);
+  }
+  if (tracks > 4) out.push(`${tracks} track cells on the map's edge (at most two tracks)`);
+  return out;
+}
+
+/** The two ends of the railway (its runs share their bend cells). */
+function railEnds(rail: Segment[]): [{ x: number; y: number }, { x: number; y: number }] | null {
+  const pts: { x: number; y: number }[] = [];
+  for (const r of rail) pts.push({ x: r.ax, y: r.ay }, { x: r.bx, y: r.by });
+  // An end is a point no other run comes near.
+  const ends = pts.filter((p, i) => !pts.some((q, j) => Math.floor(j / 2) !== Math.floor(i / 2) && Math.abs(p.x - q.x) + Math.abs(p.y - q.y) <= 3));
+  return ends.length === 2 ? [ends[0] as { x: number; y: number }, ends[1] as { x: number; y: number }] : null;
 }
 
 export interface Readability {
@@ -241,7 +417,7 @@ export function readability(map: TownMap, plan: TownPlan): Readability {
     minBridgeGap: minGap,
     landmarks: plan.landmarks.length,
     levels,
-    shortStreets: plan.segments.filter((s) => Math.max(s.x1 - s.x0, s.y1 - s.y0) + 1 < 3).length,
+    shortStreets: plan.segments.filter((s) => segSteps(s) + 1 < 3).length,
     smallBlocks,
     detour,
     detourAcrossWater: detourAcross,
@@ -253,7 +429,7 @@ export function offMainRoads(map: TownMap, plan: TownPlan): string[] {
   const W = map.width;
   const N = W * map.height;
   const main = new Uint8Array(plan.mainRoad);
-  for (const s of plan.segments) if (s.cls === RoadClass.Arterial || (s.district < 0 && s.arterial < 0)) for (let y = s.y0; y <= s.y1; y++) for (let x = s.x0; x <= s.x1; x++) main[y * W + x] = 1;
+  for (const s of plan.segments) if (s.cls === RoadClass.Arterial || (s.district < 0 && s.arterial < 0)) segCells(s, W, map.height, (c) => (main[c] = 1));
   const touches = new Uint8Array(map.districts.length);
   for (let i = 0; i < N; i++) {
     const d = map.district[i] as number;

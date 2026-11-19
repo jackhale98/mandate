@@ -14,7 +14,8 @@ import { Terrain } from "../townLayout";
 import { BAND_CAPS, bandOf, type Band, type TownGeo } from "./geo";
 import { NO_BEARING, isqrt } from "./imath";
 import { BASE_RECIPE, snapshotRecipe, type Recipe } from "./registry";
-import { stageDistricts, stageStreets } from "./districts";
+import { stageDistricts } from "./districts";
+import { stageStreetAxes, stageStreets } from "./streets";
 import { stageConnect, stageMinimumFill, stageShortcuts, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
 import { nameBridges, stageArterials, stageLevelEdges, stageRail, stageTerraces } from "./roads";
 import { stageCentre, stageTerrain, stageWater, townSize } from "./terrain";
@@ -74,6 +75,10 @@ export interface TownPlan {
   mainRoad: Uint8Array;
   /** Every street run (arterials, the square's ring, district streets), tiles. */
   segments: Segment[];
+  /** The railway's runs. */
+  rail: Segment[];
+  /** `StreetAxis` per cell: the direction of diagonal streets (the art draws them smooth). */
+  streetAxis: Uint8Array;
   landmarks: { kind: string; x: number; y: number; name: string; plot: number }[];
   /** The square's open plaza and the civic row above it. */
   square: Rect;
@@ -151,6 +156,8 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
     plaza: { x: 0, y: 0, w: 0, h: 0 },
     ring: { x: 0, y: 0, w: 0, h: 0 },
     segments: [],
+    rail: [],
+    axis: new Uint8Array(N),
     arterials: [],
     connectors: [],
     railCells: [],
@@ -168,10 +175,13 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
   };
   stage("terrain", () => stageTerrain(w));
   stage("water", () => stageWater(w));
-  stage("centre", () => stageCentre(w));
+  stage("centre", () => {
+    stageCentre(w);
+    w.ground = { terrain: new Uint8Array(w.terrain), level: new Uint8Array(w.level) };
+  });
   stage("arterials", () => {
-    stageArterials(w);
     stageRail(w);
+    stageArterials(w);
     nameBridges(w);
   });
   stage("districts", () => stageDistricts(w));
@@ -195,6 +205,7 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
     stageConnect(w);
     stageShortcuts(w);
     baseline = stageRanks(w);
+    stageStreetAxes(w);
   });
   return finish(w, baseline);
 }
@@ -374,6 +385,8 @@ function finish(w: Work, baseline: number[]): TownPlan {
     arterials: w.arterials.map((a) => ({ index: a.index, name: a.name, mode: a.mode, bearing: a.bearing, toName: a.toName, length: roadLen(a.cells) })),
     landmarks: w.landmarks,
     segments: w.segments,
+    rail: w.rail,
+    streetAxis: w.axis,
     mainRoad: Uint8Array.from(w.roadClass, (k) => (k === RoadClass.Arterial ? 1 : 0)),
     square: w.plaza,
     civic: w.civic,
@@ -402,6 +415,7 @@ export function planHash(plan: TownPlan): string {
   feed(plan.width);
   feed(plan.height);
   for (let i = 0; i < plan.terrain.length; i++) feed((plan.terrain[i] as number) | ((plan.elevation[i] as number) << 5) | (((plan.district[i] as number) + 1) << 7));
+  for (let i = 0; i < plan.streetAxis.length; i++) if (plan.streetAxis[i]) feed(i * 4 + (plan.streetAxis[i] as number));
   for (const p of plan.plots) for (const n of [p.x, p.y, p.w, p.h, p.doorX, p.place ?? 0xffff, p.district, p.fillRank, p.declineRank]) feed(n);
   for (const c of plan.connectors) for (const n of [c.x, c.y, c.w, c.h, c.axis === "ns" ? 1 : 0, c.name.length]) feed(n);
   for (const p of plan.props) feed(p.x * 31 + p.y);

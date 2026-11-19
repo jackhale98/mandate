@@ -4,7 +4,7 @@
 import { Terrain } from "../townLayout";
 import { bandOf } from "./geo";
 import { NO_BEARING, clamp, compassVec, isqrt, log2Q8, valueNoise } from "./imath";
-import { Use, WaterKind, distanceField, feature, inMap, isWaterBody, param, paramRange, rngOf, type Work } from "./work";
+import { Use, WaterKind, countrysideMargin, distanceField, feature, inMap, isWaterBody, param, paramRange, rngOf, type Work } from "./work";
 
 /** Map size from population (§9.1, D6): side ≈ 40 + 22·log2(pop / 5,000), clamped to 56–240, aspect 1.4:1, capped at 240 × 160. Multiples of 4. */
 export function townSize(population: number): { W: number; H: number } {
@@ -381,7 +381,7 @@ export function stageCentre(w: Work) {
   const coastV = geo.coast ? compassVec(geo.coast.sea) : null;
   const r = rngOf(w, "centre");
   let best: { bx: number; by: number; s: number } | null = null;
-  const margin = 12;
+  const margin = Math.max(12, countrysideMargin(W, H) + 6);
   // Summed-area tables: wet (or rock) cells and cells per level, so each candidate is O(1).
   const W1 = W + 1;
   const sat = Array.from({ length: 5 }, () => new Int32Array(W1 * (H + 1)));

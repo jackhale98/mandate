@@ -24,19 +24,39 @@ export interface Rect {
   h: number;
 }
 
-/** An axis-aligned street run, tiles (inclusive bounds of its whole width). */
+/**
+ * The direction of a street run: "h" east–west, "v" north–south, "ne" a 45°
+ * run toward the north-east ("/"), "nw" one toward the north-west ("\\").
+ */
+export type SegAxis = "h" | "v" | "ne" | "nw";
+
+/**
+ * A straight street run (or a run of the railway), tiles. The centre line
+ * runs from (ax, ay) to (bx, by), both included, with ax ≤ bx (ay ≤ by for
+ * "v"); a diagonal steps one tile across and one along per tile. The band
+ * around it is `width` cells across: rows for "h", columns for "v", and
+ * cells per row for the diagonals (a 45° staircase the art draws smooth).
+ */
 export interface Segment {
+  axis: SegAxis;
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  width: number;
+  /** Bounding box of the band, inclusive. */
   x0: number;
   y0: number;
   x1: number;
   y1: number;
-  /** "h": runs east–west (rows y0..y1 are its width); "v": north–south. */
-  axis: "h" | "v";
   cls: number;
-  style: "asphalt" | "dirt" | "path";
+  /** "lane": a paved lane (pavement only); "dirt": a country lane; "path": a footpath. */
+  style: "asphalt" | "dirt" | "path" | "lane";
   district: number;
   /** The arterial it belongs to, or -1. */
   arterial: number;
+  /** Designed turning heads (cul-de-sacs): bit 1 at the a end, bit 2 at the b end. */
+  heads: number;
 }
 
 export interface Arterial {
@@ -124,6 +144,10 @@ export interface Work {
   /** The square block with its ring of streets. */
   ring: Rect;
   segments: Segment[];
+  /** The railway's runs (width 2, orthogonal). */
+  rail: Segment[];
+  /** Street direction codes per cell (`StreetAxis`), filled when the streets are painted. */
+  axis: Uint8Array;
   arterials: Arterial[];
   connectors: PlanConnector[];
   railCells: number[];
@@ -134,6 +158,13 @@ export interface Work {
   /** Ids of registry entries used (the recipe snapshot). */
   used: { districts: Set<string>; features: Set<string>; connectors: Set<string>; places: Set<string> };
   timings: Record<string, number>;
+  /** The ground before any road was laid (stage 6 restores it under a street it cuts back). */
+  ground?: { terrain: Uint8Array; level: Uint8Array };
+}
+
+/** Tiles of countryside between the town and the map's edge (only the roads to the neighbouring towns cross it). */
+export function countrysideMargin(W: number, H: number): number {
+  return 4 + Math.floor(Math.min(W, H) / 16);
 }
 
 export function rngOf(w: Work, label: string, ...i: number[]): Rng {
