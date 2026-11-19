@@ -180,7 +180,10 @@ fn go_moves_and_acts_in_one_command_and_keeps_the_move_on_failure() {
         mandate_sim::policy::ward_hoods(&st.world, st.player.as_ref().unwrap().ward)[0] as u32
     };
     let canvass = PlayerCommand::Act {
-        action: Action::Canvass { neighborhood: hood },
+        action: Action::Canvass {
+            neighborhood: hood,
+            issue: None,
+        },
         late_night: false,
     };
     let street = Location::Street {
@@ -287,7 +290,10 @@ fn routed_play_is_deterministic() {
         };
         for _ in 0..6 {
             e.apply(e.route(PlayerCommand::Act {
-                action: Action::Canvass { neighborhood: hood },
+                action: Action::Canvass {
+                    neighborhood: hood,
+                    issue: None,
+                },
                 late_night: false,
             }))
             .unwrap();

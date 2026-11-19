@@ -84,8 +84,11 @@
     "effects": {
       // Logit term on lobbying odds by the actor's knowledge of the target.
       "lobby_logit": { "unknown": -0.5, "heard": -0.3, "known": 0.0, "detailed": 0.25 },
-      // Canvassing on an issue: gain × max(floor, 1 + match_bonus × (salience − 1)).
-      "canvass": { "match_bonus": 0.5, "floor": 0.6 },
+      // Canvassing on a worry: the approval gain × clamp(1 + match_bonus ×
+      // (salience − 1), floor, ceiling), where salience is the
+      // neighbourhood's true felt level of that worry over the mean of its
+      // worries (1: average). No worry named: × 1.
+      "canvass": { "match_bonus": 0.5, "floor": 0.6, "ceiling": 1.6 },
     },
   },
 }

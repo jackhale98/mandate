@@ -1015,6 +1015,67 @@ impl<'a> Knowing<'a> {
         })
     }
 
+    /// A policy's support among the player's ward voters (−1..1), as the bill
+    /// view shows it: to 0.25 below `known`, 0.1 at `known`, exact at
+    /// `detailed`. Family proposals read `None` until F2b.
+    pub fn ward_support_of(&self, policy: &PolicyRef) -> Option<f64> {
+        let pl = self.state.player.as_ref()?;
+        let PolicyRef::Template { template } = policy else {
+            return None;
+        };
+        let t = self.content.policies.get(template)?;
+        let level = self.level(&Subject::PolicySupport {
+            town: pl.municipality,
+            policy: policy.clone(),
+        });
+        let hoods = crate::policy::ward_hoods(&self.state.world, pl.ward);
+        let v = crate::policy::public_support(t, &self.state.population, &hoods);
+        let coarse = |step: f64| (v / step).round() * step;
+        Some(match level {
+            Level::Unknown | Level::Heard => coarse(0.25),
+            Level::Known => coarse(0.1),
+            Level::Detailed => v,
+        })
+    }
+
+    /// Whether a local template is on the player's menu: the standard menu
+    /// is never gated; a situational template must be on the table and seen
+    /// properly (`known`, as the catalogue shows it).
+    pub fn on_menu(&self, template: &mandate_content::PolicyTemplate) -> bool {
+        if template.tier != TierKey::Local {
+            return false;
+        }
+        if template.unlock.is_none() {
+            return true;
+        }
+        let Some(town) = self.town() else {
+            return false;
+        };
+        self.proposals().contains(&Subject::Situational {
+            town,
+            template: template.id.clone(),
+        })
+    }
+
+    /// Whether the player has had a place's first-visit introduction (their
+    /// own memory; the lab switch does not pretend they have been).
+    pub fn visited(&self, place: PlaceId) -> bool {
+        self.state
+            .player
+            .as_ref()
+            .is_some_and(|p| p.knowledge.visited.contains(&place))
+    }
+
+    /// How well the player knows a person.
+    pub fn person(&self, person: CharacterId) -> Level {
+        self.level(&Subject::Person { person })
+    }
+
+    /// The worry a neighbourhood feels most, once heard of.
+    pub fn top_worry(&self, hood: NeighborhoodId) -> Option<ContentKey> {
+        self.concerns_of(hood).and_then(|v| v.into_iter().next())
+    }
+
     /// The proposals the player has seen properly (`known`), in subject order.
     pub fn proposals(&self) -> Vec<Subject> {
         let Some(town) = self.town() else {

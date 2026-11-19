@@ -731,8 +731,14 @@
     },
     "CanvassMatch": {
       "additionalProperties": false,
-      "description": "Canvassing on an issue (DEC-091 \"ignorance costs effectiveness\"): the\napproval gain is multiplied by `1 + match_bonus × (salience − 1)`, at\nleast `floor`.",
+      "description": "Canvassing on an issue (DEC-091 \"ignorance costs effectiveness\"): the\napproval gain is multiplied by `1 + match_bonus × (salience − 1)`, at\nleast `floor` and at most `ceiling` (salience: the neighbourhood's felt\nlevel of that worry over the mean of its worries).",
       "properties": {
+        "ceiling": {
+          "default": 2.0,
+          "description": "The most a well-chosen worry multiplies the gain by (a neighbourhood\nwith one overwhelming worry would otherwise make a canvass several\ntimes as strong). Older packs: no cap beyond 2.",
+          "format": "double",
+          "type": "number"
+        },
         "floor": {
           "format": "double",
           "type": "number"

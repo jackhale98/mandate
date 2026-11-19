@@ -161,12 +161,22 @@ impl ByLevel {
 
 /// Canvassing on an issue (DEC-091 "ignorance costs effectiveness"): the
 /// approval gain is multiplied by `1 + match_bonus × (salience − 1)`, at
-/// least `floor`.
+/// least `floor` and at most `ceiling` (salience: the neighbourhood's felt
+/// level of that worry over the mean of its worries).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CanvassMatch {
     pub match_bonus: f64,
     pub floor: f64,
+    /// The most a well-chosen worry multiplies the gain by (a neighbourhood
+    /// with one overwhelming worry would otherwise make a canvass several
+    /// times as strong). Older packs: no cap beyond 2.
+    #[serde(default = "default_ceiling")]
+    pub ceiling: f64,
+}
+
+fn default_ceiling() -> f64 {
+    2.0
 }
 
 /// The effectiveness terms, applied symmetrically by the shared formulas.
@@ -234,6 +244,7 @@ impl Default for KnowledgeParams {
                 canvass: CanvassMatch {
                     match_bonus: 0.0,
                     floor: 1.0,
+                    ceiling: 1.0,
                 },
             },
         }
@@ -264,6 +275,12 @@ pub fn param_ranges(b: &ContentBundle, r: &mut dyn FnMut(&str, f64, f64, f64)) {
         k.effects.canvass.floor,
         0.0,
         1.0,
+    );
+    r(
+        "knowledge.effects.canvass.ceiling",
+        k.effects.canvass.ceiling,
+        1.0,
+        4.0,
     );
 }
 
@@ -384,6 +401,13 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         issues.push(Issue::warning(
             "knowledge.effects.lobby_logit",
             "knowing someone better should never make lobbying them harder",
+        ));
+    }
+    let c = &k.effects.canvass;
+    if !(c.floor <= 1.0 && 1.0 <= c.ceiling) {
+        issues.push(Issue::warning(
+            "knowledge.effects.canvass",
+            "a general canvass (×1) should lie between the floor and the ceiling",
         ));
     }
 }

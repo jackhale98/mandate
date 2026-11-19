@@ -218,7 +218,7 @@ pub fn action_of(state: &State, cmd: &PlayerCommand) -> Option<(&'static str, bo
             Action::Fundraise => ("fundraise", *late_night, None),
             // Other actions have no late-night variant; `apply` rejects them.
             Action::TownHall { neighborhood, .. } => ("town_hall", false, Some(*neighborhood)),
-            Action::Canvass { neighborhood } => ("canvass", false, Some(*neighborhood)),
+            Action::Canvass { neighborhood, .. } => ("canvass", false, Some(*neighborhood)),
             Action::Press { .. } => ("press", false, None),
             Action::Advertise => ("advertise", false, None),
             Action::Rest => ("rest", false, None),
