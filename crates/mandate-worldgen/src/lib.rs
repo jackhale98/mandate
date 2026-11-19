@@ -577,6 +577,12 @@ pub fn generate_world(
         owner: owner.data.clone(),
         temperature: clim.temperature.data.iter().map(|v| *v as f32).collect(),
         precipitation: clim.precipitation.data.iter().map(|v| *v as f32).collect(),
+        // Layers for the town geography view (TOWN_GENERATION §4.1). They
+        // stay out of `terrain_hash`: that hash is stored in the state, and
+        // leaving it as it was keeps every existing world's hash.
+        downstream: flow_compass(&elev, &hyd.downstream),
+        forest_pm: per_mille(&prof.timber),
+        minerals_pm: per_mille(&prof.minerals),
     };
     let world = World {
         geo: Some(WorldGeo {
@@ -721,6 +727,29 @@ fn assign_regions(
     region
         .iter()
         .map(|r| if *r == usize::MAX { 0 } else { *r })
+        .collect()
+}
+
+/// Each cell's downstream neighbour as a 16-point compass bearing.
+fn flow_compass(g: &Grid<f64>, downstream: &[usize]) -> Vec<u8> {
+    downstream
+        .iter()
+        .enumerate()
+        .map(|(i, &d)| {
+            if d == usize::MAX || d >= g.len() {
+                return mandate_sim::world::COMPASS_NONE;
+            }
+            let ((x, y), (dx, dy)) = (g.xy(i), g.xy(d));
+            mandate_sim::world::compass8(dx as i32 - x as i32, dy as i32 - y as i32)
+        })
+        .collect()
+}
+
+/// A `[0, 1]` layer quantised to per mille.
+fn per_mille(g: &Grid<f64>) -> Vec<u16> {
+    g.data
+        .iter()
+        .map(|v| (v.clamp(0.0, 1.0) * 1000.0).round() as u16)
         .collect()
 }
 
@@ -895,6 +924,9 @@ pub fn generate_with_progress(
         mandate_sim::characters::refresh_towns(state, &content2);
         // The press, as play begins (DEC-034): outlets and their journalists.
         mandate_sim::media::generate(state, &content2);
+        // The towns as play begins: the baselines their layouts are planned
+        // from (TOWN_GENERATION §15 E1). Never recorded again.
+        state.record_baselines();
     });
     engine.mark_started();
     progress("progress-done", 1.0);
