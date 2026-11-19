@@ -483,3 +483,28 @@ h2 { font-size: 1.1rem; }
 .transfer-status p { margin: 0; }
 .transfer-error { border-left-color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, var(--surface)); }
 .transfer-detail { overflow-wrap: anywhere; }
+
+/* Decisions (DEC-077 §4) and the story so far (DEC-033). */
+.decision-scrim { z-index: 6; }
+.sheet.decision-sheet { z-index: 6; }
+.sheet.story-sheet { z-index: 6; }
+@media (min-width: 900px) {
+  .decision-scrim { display: block; background: transparent; }
+  .decision-sheet, .story-sheet { top: 63px; bottom: 0; padding-top: 16px; max-height: none; }
+}
+.decision-title { margin: 4px 0; }
+.options { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.option { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.option-label { margin: 0; }
+.option-tradeoffs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 480px) {
+  .option-tradeoffs { grid-template-columns: 1fr; }
+}
+.option .btn { align-self: flex-start; }
+.effect-list { font-size: 0.9rem; display: flex; flex-direction: column; gap: 2px; }
+.effect-cost { border-left: 3px solid var(--bad); padding-left: 6px; }
+.effect-gain { border-left: 3px solid var(--good); padding-left: 6px; }
+.effect-mixed { border-left: 3px solid var(--border); padding-left: 6px; }
+.aftermath { border-color: var(--accent); }
+.badge-decisions { background: var(--accent); }
+.storyline + .storyline { margin-top: 8px; }

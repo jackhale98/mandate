@@ -8,6 +8,7 @@ import { StatTile } from "./StatTile";
 import { ActionForm, AGENDA, type FormAction } from "./ActionForm";
 import { placeIcon, placeName } from "../places/labels";
 import { useSheetClose } from "./useSheetClose";
+import { capital, deadlineText } from "./DecisionSheet";
 
 const TRACKS = ["record", "viability", "standing", "health", "legal_jeopardy", "threat"] as const;
 /** Tracks where a high value is bad (shown with a "risk" bar plus the text label). */
@@ -63,6 +64,36 @@ function PocketBill({ b }: { b: PocketBillView }) {
   );
 }
 
+/** Decisions waiting for the player (DEC-079: always listed and answerable here). */
+function Decisions({ p }: { p: PocketView }) {
+  const tr = useGame((s) => s.tr);
+  const openDecision = useGame((s) => s.openDecision);
+  return (
+    <section className="card" data-testid="pocket-decisions">
+      <h2>{tr.t("ui-decisions")}</h2>
+      {p.decisions.length === 0 ? (
+        <p className="muted small">{tr.t("ui-decisions-none")}</p>
+      ) : (
+        <ul className="plain-list">
+          {p.decisions.map((d) => (
+            <li key={d.id} className="pocket-bill">
+              <div>
+                <strong>{capital(tr.event(d.title_key, d.args))}</strong>
+                <div className="muted small">
+                  {tr.t(`ui-decision-kind-${d.kind}`)} · {deadlineText(tr, d)}
+                </div>
+              </div>
+              <button type="button" className="btn btn-sm" onClick={() => void openDecision(d.id)} data-testid={`open-decision-${d.id}`}>
+                {tr.t("ui-choose")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /** The always-available agenda: every action, auto-routed to where it is done (DEC-079). */
 function Agenda({ p }: { p: PocketView }) {
   const tr = useGame((s) => s.tr);
@@ -112,6 +143,7 @@ export function Pocket() {
   const setView = useGame((s) => s.setView);
   const busy = useGame((s) => s.busy);
   const saveAndQuit = useGame((s) => s.saveAndQuit);
+  const openStory = useGame((s) => s.openStory);
   const [closing, requestClose] = useSheetClose(() => setOpen(false));
   if (!open || !p) return null;
   const h = p.headlines;
@@ -145,11 +177,12 @@ export function Pocket() {
           <ul className="alerts" aria-label={tr.t("ui-alerts")}>
             {p.alerts.map((a, i) => (
               <li key={i} className="note">
-                {tr.t(a.key, a.args)}
+                {tr.event(a.key, a.args)}
               </li>
             ))}
           </ul>
         )}
+        <Decisions p={p} />
         <Agenda p={p} />
         <h3 className="sub">{tr.t("ui-your-bills")}</h3>
         {p.bills.length === 0 ? (
@@ -186,6 +219,9 @@ export function Pocket() {
           </button>
           <button type="button" className="btn" onClick={() => setView("overview")}>
             {tr.t("ui-overview")}
+          </button>
+          <button type="button" className="btn" onClick={() => void openStory(true)} data-testid="open-story">
+            {tr.t("ui-story-so-far")}
           </button>
           <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void saveAndQuit()}>
             {tr.t("ui-save-quit")}

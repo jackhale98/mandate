@@ -56,6 +56,7 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "move_to":
     case "go":
     case "meet":
+    case "answer_decision": // decisions are answered from anywhere (DEC-079)
       return null;
   }
 }

@@ -12,6 +12,8 @@ import { Walking } from "../components/Walking";
 import { Town } from "./Town";
 import { PlacePanel } from "./PlacePanel";
 import { CharacterSheet } from "../components/CharacterSheet";
+import { DecisionSheet } from "../components/DecisionSheet";
+import { StorySheet } from "../components/StorySheet";
 import { placeIcon, placeName } from "../places/labels";
 import { Loader } from "../components/Brand";
 
@@ -172,8 +174,10 @@ export function Game() {
       <Toast />
       <ElectionNight />
       <PlacePanel />
-      <CharacterSheet />
       <Pocket />
+      <StorySheet />
+      <DecisionSheet />
+      <CharacterSheet />
       <Walking />
       {selected !== null && <MunicipalityPanel id={selected} onClose={() => setSelected(null)} />}
 
@@ -181,6 +185,11 @@ export function Game() {
         <button type="button" className="btn pocket-btn" aria-expanded={pocketOpen} onClick={() => setPocketOpen(!pocketOpen)} data-testid="pocket-button">
           <span aria-hidden="true">📒 </span>
           {tr.t("ui-pocket")}
+          {pocket && pocket.decisions.length > 0 && (
+            <span className="badge badge-decisions" data-testid="decision-badge">
+              {tr.t("ui-decision-count", { n: pocket.decisions.length })}
+            </span>
+          )}
           {pocket && pocket.alerts.length > 0 && <span className="badge">{tr.t("ui-alert-count", { n: pocket.alerts.length })}</span>}
         </button>
         {pocket && (
