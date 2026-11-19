@@ -992,6 +992,8 @@ fn place_player(
         last_election_seen: None,
         location: mandate_sim::places::Location::Home,
         status: Default::default(),
+        // Seeded from a start profile when play begins (DEC-091).
+        knowledge: Default::default(),
     })
 }
 

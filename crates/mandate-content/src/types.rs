@@ -92,6 +92,11 @@ pub enum ContentFile {
     Justice {
         value: Box<crate::media::JusticeParams>,
     },
+    /// Knowledge is earned (DEC-091): start profiles, the local option, the
+    /// party primer, place introductions, and the effectiveness terms.
+    Knowledge {
+        value: Box<crate::knowledge::KnowledgeParams>,
+    },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------

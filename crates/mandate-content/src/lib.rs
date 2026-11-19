@@ -3,6 +3,7 @@
 
 pub mod bundle;
 pub mod jsonc;
+pub mod knowledge;
 pub mod media;
 pub mod narrative;
 pub mod overrides;

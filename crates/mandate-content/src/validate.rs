@@ -246,6 +246,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     validate_characters(b, &mut issues);
     crate::narrative::validate(b, &mut issues);
     crate::media::validate(b, &mut issues);
+    crate::knowledge::validate(b, &mut issues);
     for (name, v, lo, hi) in param_ranges(b) {
         if !(v.is_finite() && (lo..=hi).contains(&v)) {
             let kind = name.split('.').next().unwrap_or("parameters").to_string();
@@ -1136,6 +1137,7 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
     );
     crate::narrative::director_ranges(&b.director, &mut out);
     crate::media::param_ranges(b, &mut |n, v, lo, hi| out.push((n.to_string(), v, lo, hi)));
+    crate::knowledge::param_ranges(b, &mut |n, v, lo, hi| out.push((n.to_string(), v, lo, hi)));
     out
 }
 

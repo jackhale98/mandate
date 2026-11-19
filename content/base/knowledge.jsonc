@@ -1,0 +1,91 @@
+// Knowledge is earned (DEC-091; M6_ENGINE_CONTRACTS §1): what the player
+// knows when play begins, the "Start with local knowledge" option, a party
+// contact's primer on entering a new zone, first-visit introductions by place
+// kind, and the numbers.
+//
+// A grant: { "subject": <kind>, "which": <selector>, "level": <level> }
+//   subject: town_concerns | hood_concerns | broker | council | people_at
+//            | rival_plans | policy_support | proposals
+//   which:   home | ward | town | here (introductions only) | <place kind> (people_at)
+//   level:   heard | known | detailed
+// The engine resolves grants against the live town; ordinary places are
+// always known and the rules, the player's own state, the standard menu
+// and public statistics are never gated.
+{
+  "kind": "knowledge",
+  "value": {
+    "starts": [
+      { "id": "start.grew_up_here", "grants": [
+        { "subject": "town_concerns", "which": "town", "level": "known" },
+        { "subject": "hood_concerns", "which": "home", "level": "known" },
+        { "subject": "hood_concerns", "which": "town", "level": "heard" },
+        { "subject": "council", "which": "town", "level": "heard" },
+        { "subject": "policy_support", "which": "town", "level": "heard" },
+      ] },
+      { "id": "start.newcomer", "grants": [
+        // Councillors' names are on the noticeboard (owner, 2026-11-19).
+        { "subject": "council", "which": "town", "level": "heard" },
+      ] },
+      // Today's start: a sitting councillor in a marginal ward (worldgen),
+      // until the M6 draft of three names a profile per background.
+      { "id": "start.sitting_councillor", "grants": [
+        { "subject": "town_concerns", "which": "town", "level": "known" },
+        { "subject": "hood_concerns", "which": "ward", "level": "known" },
+        { "subject": "council", "which": "town", "level": "known" },
+        { "subject": "policy_support", "which": "town", "level": "known" },
+      ] },
+    ],
+    "default_start": "start.sitting_councillor",
+    // "Start with local knowledge" (off by default), on top of the profile.
+    // Never detailed, never hidden places: depth still comes from exploring.
+    "local_option": [
+      { "subject": "town_concerns", "which": "town", "level": "known" },
+      { "subject": "hood_concerns", "which": "town", "level": "known" },
+      { "subject": "broker", "which": "town", "level": "known" },
+      { "subject": "council", "which": "town", "level": "known" },
+      { "subject": "people_at", "which": "town", "level": "heard" },
+      { "subject": "proposals", "which": "town", "level": "heard" },
+    ],
+    // A party contact's primer on entering a new zone (the region, the capital).
+    "primer": [
+      { "subject": "town_concerns", "which": "town", "level": "heard" },
+      { "subject": "broker", "which": "town", "level": "heard" },
+      { "subject": "council", "which": "town", "level": "heard" },
+    ],
+    // The first visit to any place in a zone: who works there, by name.
+    "visit_all": [
+      { "subject": "people_at", "which": "here", "level": "heard" },
+    ],
+    // First-visit introductions by place kind (arrival teaches lightly;
+    // anything deeper needs an action or a person).
+    "visit_intro": {
+      "council_chamber": [
+        { "subject": "council", "which": "town", "level": "known" },
+      ],
+      "union_hall": [
+        { "subject": "people_at", "which": "here", "level": "known" },
+        { "subject": "broker", "which": "here", "level": "heard" },
+      ],
+      "business_association": [
+        { "subject": "people_at", "which": "here", "level": "known" },
+        { "subject": "broker", "which": "here", "level": "heard" },
+      ],
+      "factory": [ { "subject": "broker", "which": "here", "level": "heard" } ],
+      "mill": [ { "subject": "broker", "which": "here", "level": "heard" } ],
+      "mine": [ { "subject": "broker", "which": "here", "level": "heard" } ],
+      "port": [ { "subject": "broker", "which": "here", "level": "heard" } ],
+      "market": [ { "subject": "hood_concerns", "which": "here", "level": "heard" } ],
+      "diner": [ { "subject": "hood_concerns", "which": "here", "level": "heard" } ],
+      "community_centre": [ { "subject": "hood_concerns", "which": "here", "level": "heard" } ],
+    },
+    "fresh_days": 90,   // older readings are flagged stale (nothing is removed)
+    "leads_cap": 24,    // leads kept at once, oldest dropped first
+    // Ignorance costs effectiveness, never fairness (K4 applies these).
+    "effects": {
+      // Logit term on lobbying odds by the actor's knowledge of the target.
+      "lobby_logit": { "unknown": -0.5, "heard": -0.3, "known": 0.0, "detailed": 0.25 },
+      // Canvassing on an issue: gain × max(floor, 1 + match_bonus × (salience − 1)).
+      "canvass": { "match_bonus": 0.5, "floor": 0.6 },
+    },
+  },
+}
