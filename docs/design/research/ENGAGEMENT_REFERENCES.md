@@ -1,5 +1,7 @@
 # Engagement references (DEC-097): what other games teach
 
+> **Folded in (owner, 2026-11-19: "Yes do it"):** §3's proposals are accepted and now live in `ENGAGEMENT.md` (§3–§7, tasks E1–E13), the document to implement from; this file keeps the sources and reasoning.
+
 **Status:** Research for DEC-097 and `ENGAGEMENT.md` (2026-11-19). Nothing here changes an accepted decision. Changes to `ENGAGEMENT.md` are proposals for the owner (§3).
 **Read with:** `ENGAGEMENT.md` (E1–E12), DEC-033, DEC-077, DEC-091, DEC-093, DEC-097; `M6_ENGINE_CONTRACTS.md` §3 (conversations).
 **Method:** One web research pass. Primary sources were used where they could be reached: designer slides, designer blogs, developer diaries, and talk write-ups. Each claim is tagged:
