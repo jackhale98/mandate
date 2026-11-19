@@ -2,42 +2,120 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <title>Hub render spike</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <meta name="color-scheme" content="dark" />
+    <title>Town prototype</title>
     <style>
-      html, body { margin: 0; height: 100%; background: #11131a; color: #eee; font: 13px system-ui, sans-serif; overflow: hidden; }
-      #stage { position: fixed; inset: 0; touch-action: none; user-select: none; -webkit-user-select: none; }
-      #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; display: block; }
-      #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-      .label { position: absolute; left: 0; top: 0; pointer-events: auto; border: 0; border-radius: 4px; padding: 2px 6px;
-        background: rgba(17, 19, 26, 0.78); color: #fff; font: 600 12px system-ui, sans-serif; white-space: nowrap; will-change: transform; }
-      .label.enterable { background: #2f3c58; outline: 1px solid #ffe066; }
-      #hud { position: fixed; left: 6px; top: 6px; margin: 0; padding: 4px 6px; background: rgba(0, 0, 0, 0.6); font: 11px/1.35 ui-monospace, monospace; pointer-events: none; }
-      #places { position: fixed; right: 6px; bottom: 6px; max-width: 46vw; background: rgba(17, 19, 26, 0.85); border-radius: 6px; padding: 4px 8px; }
-      #places ul { list-style: none; margin: 4px 0; padding: 0; }
-      #places button { background: none; border: 0; color: #9fd0ff; padding: 3px 0; font: inherit; text-align: left; cursor: pointer; }
-      #interior { position: fixed; inset: 10% 6%; background: #1d2230; border: 2px solid #ffe066; border-radius: 10px; padding: 16px 18px; overflow: auto; }
-      #interior h2 { margin: 0 0 8px; font-size: 20px; }
-      #interior button { font: inherit; padding: 8px 14px; margin: 6px 6px 0 0; border-radius: 6px; border: 0; background: #3a4766; color: #fff; }
-      #toast { position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%); background: rgba(0, 0, 0, 0.8); padding: 8px 12px; border-radius: 6px; }
+      :root {
+        --bg: #11131a;
+        --surface: #1a1d27;
+        --surface-2: #232736;
+        --border: #2f3446;
+        --text: #e9eaf0;
+        --muted: #9aa0b4;
+        --accent: #e8b44c;
+        --accent-ink: #1b1405;
+        --sheet: #20263a;
+        --sheet-border: #3a4363;
+        --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --font-display: Georgia, "Times New Roman", serif;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 15px/1.4 var(--font); overflow: hidden; }
+      button, input, select { font: inherit; color: inherit; }
+      #app { position: fixed; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+      #bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px calc(6px) max(10px, env(safe-area-inset-left)); background: var(--surface); border-bottom: 1px solid var(--border); z-index: 2; }
+      #bar h1 { margin: 0; font: 600 17px var(--font-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+      #seed-form { display: flex; gap: 4px; margin-left: auto; }
+      #seed { width: 7.5em; min-height: 36px; padding: 4px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+      .btn { min-height: 36px; min-width: 44px; padding: 4px 12px; border-radius: 8px; border: 1px solid var(--sheet-border); background: var(--surface-2); cursor: pointer; }
+      .btn:hover { border-color: var(--accent); }
+      .btn-accent { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+      #clock { display: flex; align-items: center; gap: 6px; flex: 1 1 100%; }
+      #clock-time { font-variant-numeric: tabular-nums; min-width: 9.5em; color: var(--muted); }
+      #clock-time strong { color: var(--text); }
+      #scrub { flex: 1; min-width: 80px; accent-color: var(--accent); height: 28px; }
+      #speed { min-height: 36px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+      #main { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); min-height: 0; overflow: hidden; }
+      #stage { position: relative; min-height: 0; background: #4f7f42; }
+      #status { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 16px); padding: 4px 10px; border-radius: 999px; background: rgba(17, 19, 26, 0.82); font-size: 13px; pointer-events: none; z-index: 1; }
+      #status strong { color: var(--accent); }
+      #hud { position: absolute; right: 8px; top: 8px; margin: 0; padding: 4px 6px; border-radius: 6px; background: rgba(0, 0, 0, 0.6); font: 11px/1.35 ui-monospace, monospace; pointer-events: none; z-index: 1; }
+      .hub-label { border: 1px solid rgba(232, 180, 76, 0.0); border-radius: 6px; padding: 1px 6px; background: rgba(17, 19, 26, 0.8); color: #fff; font: 600 12px var(--font); cursor: pointer; }
+      .hub-label-landmark { border-color: var(--accent); color: var(--accent); }
+      .hub-label:hover { border-color: var(--accent); }
+      #places { position: absolute; left: 0; right: 0; bottom: 0; max-height: 46%; display: flex; flex-direction: column; background: var(--sheet); border-top: 1px solid var(--sheet-border); border-radius: 14px 14px 0 0; z-index: 2; padding-bottom: env(safe-area-inset-bottom); }
+      #places[data-open="false"] #place-list { display: none; }
+      #places-toggle { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 44px; padding: 6px 14px; background: none; border: 0; cursor: pointer; font-weight: 600; }
+      #places-toggle::after { content: "▾"; color: var(--muted); }
+      #places[data-open="false"] #places-toggle::after { content: "▴"; }
+      #place-list { overflow: auto; padding: 0 10px 10px; }
+      #place-list h2 { margin: 10px 4px 4px; font: 600 12px var(--font); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+      #place-list ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }
+      #place-list button { width: 100%; min-height: 44px; text-align: left; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; }
+      #place-list button:hover, #place-list button:focus-visible { border-color: var(--accent); }
+      #place-list button[aria-current="location"] { border-color: var(--accent); background: #2a2a24; }
+      #place-list .icon { margin-right: 6px; }
+      #panel { position: absolute; left: 8px; right: 8px; bottom: 8px; max-height: 60%; overflow: auto; padding: 14px 16px; background: var(--sheet); border: 1px solid var(--accent); border-radius: 14px; z-index: 3; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); }
+      #panel h2 { margin: 0 0 2px; font: 600 20px var(--font-display); }
+      #panel p { margin: 4px 0; color: var(--muted); }
+      #panel ul { margin: 6px 0; padding-left: 18px; }
+      #loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 4; text-align: center; padding: 20px; }
+      #loading p { color: var(--muted); }
+      @media (min-width: 900px) {
+        #main { grid-template-columns: minmax(0, 1fr) 320px; }
+        #places { min-height: 0; overflow: hidden; }
+        #places { position: static; max-height: none; border-radius: 0; border-top: 0; border-left: 1px solid var(--sheet-border); }
+        #places-toggle { pointer-events: none; }
+        #places-toggle::after, #places[data-open="false"] #places-toggle::after { content: ""; }
+        #places[data-open="false"] #place-list { display: block; }
+        #place-list ul { grid-template-columns: 1fr; }
+        #panel { left: auto; right: 12px; width: 340px; bottom: 12px; }
+        #clock { flex: 1 1 auto; max-width: 640px; }
+      }
       [hidden] { display: none !important; }
+      @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
     </style>
   </head>
   <body>
-    <div id="stage"><div id="labels"></div></div>
-    <pre id="hud" aria-hidden="true">loading…</pre>
-    <details id="places">
-      <summary>Places</summary>
-      <ul id="place-list"></ul>
-    </details>
-    <div id="interior" role="dialog" aria-modal="true" aria-labelledby="interior-title" hidden>
-      <h2 id="interior-title">Council chamber</h2>
-      <p>The interior of a place opens as a DOM overlay over the paused hub (DEC-079): text, lists and controls are ordinary accessible HTML.</p>
-      <p><strong>Whip count</strong> (placeholder): 7 for, 5 against, 3 undecided.</p>
-      <button type="button">Declare vote (stub)</button>
-      <button type="button" id="interior-close">Leave</button>
+    <div id="app">
+      <header id="bar">
+        <h1 id="town-name">Town prototype</h1>
+        <form id="seed-form" aria-label="World seed">
+          <input id="seed" name="seed" inputmode="text" autocomplete="off" aria-label="World seed" />
+          <button class="btn" type="submit">New town</button>
+        </form>
+        <div id="clock" role="group" aria-label="Time of day">
+          <button class="btn" id="play" type="button" aria-pressed="true">Pause</button>
+          <input id="scrub" type="range" min="0" max="1439" step="1" aria-label="Time of day" />
+          <span id="clock-time" aria-live="off"></span>
+          <select id="speed" aria-label="Clock speed">
+            <option value="2">Slow</option>
+            <option value="12" selected>Normal</option>
+            <option value="60">Fast</option>
+            <option value="240">Very fast</option>
+          </select>
+        </div>
+      </header>
+      <div id="main">
+        <div id="stage">
+          <p id="status" role="status" aria-live="polite"></p>
+          <pre id="hud" aria-hidden="true" hidden></pre>
+        </div>
+        <nav id="places" aria-label="Places" data-open="true">
+          <button id="places-toggle" type="button" aria-expanded="true" aria-controls="place-list">Places</button>
+          <div id="place-list"></div>
+        </nav>
+        <section id="panel" role="dialog" aria-labelledby="panel-title" hidden>
+          <h2 id="panel-title"></h2>
+          <p id="panel-sub"></p>
+          <div id="panel-body"></div>
+          <button class="btn btn-accent" id="panel-close" type="button">Back to the street</button>
+        </section>
+        <div id="loading" role="status"><div><p id="loading-text">Starting the engine…</p></div></div>
+      </div>
     </div>
-    <div id="toast" role="status" hidden></div>
-    <script type="module" src="./src/main.ts"></script>
+    <script type="module" src="./town/main.ts"></script>
   </body>
 </html>

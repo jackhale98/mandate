@@ -19,7 +19,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "../..");
 const dist = path.join(here, "dist");
 const PORT = 5199;
-const BASE = `http://localhost:${PORT}/`;
+const BASE = `http://localhost:${PORT}/compare.html`;
 const smoke = process.argv.includes("--smoke");
 const RUN_MS = smoke ? 3000 : 10000;
 
