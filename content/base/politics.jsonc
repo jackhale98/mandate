@@ -36,7 +36,7 @@
       "national_swing_sd": 0.2,
       "strategic_weight": 1.6,
       "minor_party_threshold": 0.16,
-      "record_penalty": 4.0,
+      "record_penalty": 5.0,
       "record_bonus": 0.15,
       "record_baseline": 0.35,
       "renomination_standing": 25.0,
@@ -89,7 +89,7 @@
       "npc_effort_base": 0.5,          // abstracted effort × (base + oratory)
       "contact_memory": 0.8,           // share of recent contacts remembered each week
       "ad_saturation": 0.7,            // each further ad in a turn is worth this much of the last
-      "ad_persuasion_share": 0.25,     // an ad persuades this share of a canvass contact
+      "ad_persuasion_share": 0.05,     // an ad persuades this share of a canvass contact (M5d part 2: 0.25 → 0.05, BALANCE_LOG)
     },
     "ai": {
       // Utility AI (DEC-030, DEC-071 §8). Score = weight × profile × Π curve(input).

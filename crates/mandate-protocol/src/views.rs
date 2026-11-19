@@ -59,6 +59,9 @@ pub struct OverviewView {
     pub regions: Vec<RegionView>,
     pub recent_events: Vec<EventView>,
     pub economy: NationalView,
+    /// The run's storyteller profile (DEC-033): id and Fluent name key.
+    pub storyteller: String,
+    pub storyteller_name_key: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -504,7 +507,10 @@ pub fn overview(engine: &Engine) -> OverviewView {
         .as_ref()
         .map(|t| t.debt.units() as f64)
         .unwrap_or(0.0);
+    let profile = s.narrative.profile(engine.content());
     OverviewView {
+        storyteller: profile.map(|p| p.id.clone()).unwrap_or_default(),
+        storyteller_name_key: profile.map(|p| p.name_key.clone()).unwrap_or_default(),
         date: DateView::of(s.calendar.date),
         turn: s.calendar.turn,
         turn_days: engine.turn_days(),

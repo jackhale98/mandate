@@ -1320,14 +1320,6 @@
         "name_key": {
           "description": "Fluent key of the concern's name, e.g. `concern-jobs`.",
           "type": "string"
-        },
-        "overheard_key": {
-          "default": null,
-          "description": "Fluent key of what residents say about it (the \"overheard\" service).",
-          "type": [
-            "string",
-            "null"
-          ]
         }
       },
       "required": [
@@ -3129,6 +3121,58 @@
         },
         {
           "additionalProperties": false,
+          "description": "The bill in `role` gains a rider: a ward project for the player's\nward, or a sunset (its sponsor agrees, or it is the player's bill).\nThe council-vote rules price it (other wards' members grate at a\nward project; a sunset makes passage easier and the law temporary).",
+          "properties": {
+            "rider": {
+              "$ref": "#/$defs/RiderKind"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "rider",
+              "type": "string"
+            },
+            "ward_of": {
+              "default": null,
+              "description": "A ward project for the ward of the councillor cast in this role\n(the vote it buys); the player's ward without one.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "rider"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The role repays a favour they owe the player by backing the player's\nside of the bill in `bill` (their lean moves as a traded favour does).",
+          "properties": {
+            "bill": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "call_in",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "bill"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "The player drafts a bill of this template (parameters not given take\ntheir defaults).",
           "properties": {
             "params": {
@@ -3607,6 +3651,320 @@
         "flood",
         "storm",
         "wildfire"
+      ],
+      "type": "string"
+    },
+    "HeardCondition": {
+      "description": "A fact a line needs. Each names the Fluent arguments it provides.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The town (or neighbourhood) has this water.",
+          "properties": {
+            "feature": {
+              "$ref": "#/$defs/WaterFeature"
+            },
+            "type": {
+              "const": "water",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "feature"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "No water at all: no river, no coast, no waterfront.",
+          "properties": {
+            "type": {
+              "const": "dry",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A live crisis in the town (of this kind, if given): `$crisis_key`.",
+          "properties": {
+            "kind": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "crisis",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A plant closed in the town within this many months: `$industry_key`\n(the closed plant's sector), `$jobs`.",
+          "properties": {
+            "type": {
+              "const": "plant_closure",
+              "type": "string"
+            },
+            "within_months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "within_months"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A disaster struck the town within this many months.",
+          "properties": {
+            "type": {
+              "const": "disaster",
+              "type": "string"
+            },
+            "within_months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "within_months"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The town has a defining industry: `$industry_key`.",
+          "properties": {
+            "type": {
+              "const": "industry",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The town has a power broker: `$broker`.",
+          "properties": {
+            "type": {
+              "const": "broker",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player has a named rival: `$rival`.",
+          "properties": {
+            "type": {
+              "const": "rival",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's name recognition in the neighbourhood within [min, max]\n(0..1): `$player`.",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "player_awareness",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Approval of the player among neighbourhood residents (−1..1), within\n[min, max]; only where at least a fifth know them: `$player`.",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "player_approval",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The rival's record of visible work within [min, max] (0..1): `$rival`.",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "rival_record",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A scandal running in the town (DEC-034) about this subject:\n`$subject` (their name), `$fact_key`.",
+          "properties": {
+            "about": {
+              "$ref": "#/$defs/HeardSubject",
+              "default": "anyone"
+            },
+            "type": {
+              "const": "scandal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A story about the town within the last eight weeks: `$outlet_key`\n(with `$place`), `$headline_key`, and the headline's own arguments.",
+          "properties": {
+            "type": {
+              "const": "headline",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's next local election is within this many days.",
+          "properties": {
+            "days": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "election_within",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "days"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Any one of these holds (the first that does gives the arguments).",
+          "properties": {
+            "of": {
+              "items": {
+                "$ref": "#/$defs/HeardCondition"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "any",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "of"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "HeardSubject": {
+      "description": "Whose scandal a line is about.",
+      "enum": [
+        "anyone",
+        "player",
+        "rival"
       ],
       "type": "string"
     },
@@ -4977,6 +5335,47 @@
         }
       ]
     },
+    "OverheardDef": {
+      "additionalProperties": false,
+      "description": "One thing residents may be heard saying at a diner, market, or union hall\n(the \"overheard\" service). Each week every such place draws a few lines\nthat hold for its neighbourhood: lines about the neighbourhood's top\nconcerns, and opinions and news grounded in facts. Registry order is\nload order. Fluent arguments always include `$town` and `$hood`; each\ncondition adds its own (see `HeardCondition`).",
+      "properties": {
+        "concern": {
+          "default": null,
+          "description": "Heard only where this concern is among the neighbourhood's top three\n(a concern id); the stronger the concern, the likelier the line.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Content id, e.g. `overheard.jobs.hiring`.",
+          "type": "string"
+        },
+        "key": {
+          "description": "Fluent key of the line.",
+          "type": "string"
+        },
+        "weight": {
+          "default": 1.0,
+          "description": "Relative chance among the lines that hold (default 1).",
+          "format": "double",
+          "type": "number"
+        },
+        "when": {
+          "default": [],
+          "description": "Every condition must hold.",
+          "items": {
+            "$ref": "#/$defs/HeardCondition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "key"
+      ],
+      "type": "object"
+    },
     "ParamDef": {
       "additionalProperties": false,
       "properties": {
@@ -5290,6 +5689,18 @@
         },
         "tier": {
           "$ref": "#/$defs/TierKey"
+        },
+        "unlock": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SituationTrigger"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A situational policy (DEC-077 §3): on the table (offered, and\ndraftable by the player or an NPC) only while this trigger holds in\nthe town. A bill already drafted or a law already passed stays.\nAlways available without one."
         }
       },
       "required": [
@@ -5680,6 +6091,21 @@
         "ad_heat"
       ],
       "type": "object"
+    },
+    "RiderKind": {
+      "description": "A rider a decision can attach to a bill.",
+      "oneOf": [
+        {
+          "const": "ward_project",
+          "description": "A project in the player's ward (costs the town money).",
+          "type": "string"
+        },
+        {
+          "const": "sunset",
+          "description": "The law expires after four years.",
+          "type": "string"
+        }
+      ]
     },
     "RoleDef": {
       "additionalProperties": false,
@@ -6100,6 +6526,14 @@
           "description": "Annual productivity growth (fraction).",
           "format": "double",
           "type": "number"
+        },
+        "talk_key": {
+          "default": null,
+          "description": "Fluent key of the sector as residents name it in talk (a noun phrase\nsuch as \"the factories\"); the name is used without one.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -6348,6 +6782,132 @@
           "type": "object"
         }
       ]
+    },
+    "SituationCondition": {
+      "description": "A typed condition on one town's live situation, read from engine state\n(the town's character, its indicators, the event log, the economy).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A live crisis of this kind (`crises.jsonc`), at least this severe.",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "min_severity": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "crisis",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An engine indicator of the town within [min, max].",
+          "properties": {
+            "indicator": {
+              "$ref": "#/$defs/Indicator"
+            },
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "indicator",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "indicator"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A plant closed in the town within this many months (the event log).",
+          "properties": {
+            "type": {
+              "const": "plant_closure",
+              "type": "string"
+            },
+            "within_months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "within_months"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A disaster struck the town within this many months.",
+          "properties": {
+            "type": {
+              "const": "disaster",
+              "type": "string"
+            },
+            "within_months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "within_months"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SituationTrigger": {
+      "additionalProperties": false,
+      "description": "A trigger on a town's situation: it holds while any of its conditions\ndoes. Reusable wherever content needs \"when this town is in this kind of\nsituation\" (situational policies now; policy families later).",
+      "properties": {
+        "any": {
+          "description": "Any one of these holds.",
+          "items": {
+            "$ref": "#/$defs/SituationCondition"
+          },
+          "type": "array"
+        },
+        "reason_key": {
+          "description": "Fluent key naming the circumstances, e.g. `unlock-closure`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "any",
+        "reason_key"
+      ],
+      "type": "object"
     },
     "StageDef": {
       "oneOf": [
@@ -7381,6 +7941,26 @@
         "list_pr"
       ],
       "type": "string"
+    },
+    "WaterFeature": {
+      "description": "Water a town or neighbourhood can have.",
+      "oneOf": [
+        {
+          "const": "river",
+          "description": "The town is on a river.",
+          "type": "string"
+        },
+        {
+          "const": "coast",
+          "description": "The town is on the coast.",
+          "type": "string"
+        },
+        {
+          "const": "any",
+          "description": "A river, the coast, or a waterfront neighbourhood.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -7860,6 +8440,27 @@
         },
         "kind": {
           "const": "storytellers",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Overheard talk: what residents say at diners, markets, and union halls (DEC-079).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/OverheardDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "overheard",
           "type": "string"
         }
       },

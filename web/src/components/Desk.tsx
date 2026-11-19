@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { OfficeView } from "../engine/protocol/OfficeView";
 import type { ParamValue } from "../engine/protocol/ParamValue";
+import type { PolicyPreviewView } from "../engine/protocol/PolicyPreviewView";
 import type { TemplateView } from "../engine/protocol/TemplateView";
 import { useGame } from "../state/gameStore";
 import { formatDate, formatMoney } from "../i18n/format";
@@ -41,12 +42,48 @@ export function TownOpinion({ o }: { o: OfficeView }) {
   );
 }
 
+/** How long the sliders must rest before the engine is asked for an estimate. */
+export const PREVIEW_DEBOUNCE_MS = 150;
+
+const paramsKey = (params: ParamValue[]) =>
+  [...params]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((p) => `${p.id}=${p.value}`)
+    .join("&");
+
+/** The engine's estimate for the current slider values (debounced). The UI
+ * never computes costs or side effects itself; until the first answer it
+ * shows the catalogue's default estimate. */
+function usePolicyPreview(template: string, params: ParamValue[], enabled: boolean) {
+  const previewPolicy = useGame((s) => s.previewPolicy);
+  const [answer, setAnswer] = useState<{ key: string; view: PolicyPreviewView } | null>(null);
+  const key = paramsKey(params);
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    const h = window.setTimeout(() => {
+      void previewPolicy(template, params).then((view) => {
+        if (live && view) setAnswer({ key, view });
+      });
+    }, PREVIEW_DEBOUNCE_MS);
+    return () => {
+      live = false;
+      window.clearTimeout(h);
+    };
+  }, [enabled, key, params, previewPolicy, template]);
+  return { view: answer?.view ?? null, stale: enabled && answer?.key !== key };
+}
+
 export function TemplateCard({ t }: { t: TemplateView }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
   const perform = useGame((s) => s.perform);
   const [open, setOpen] = useState(false);
   const [params, setParams] = useState<ParamValue[]>(t.params.map((p) => ({ id: p.id, value: p.default })));
+  const touched = params.some((p) => p.value !== t.params.find((d) => d.id === p.id)?.default);
+  const preview = usePolicyPreview(t.id, params, open && touched);
+  const cost = touched && preview.view ? preview.view.est_annual_cost : t.est_cost_default;
+  const effects = touched && preview.view ? preview.view.side_effects : t.side_effects;
   return (
     <li className="template">
       <button type="button" className="row-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -58,13 +95,16 @@ export function TemplateCard({ t }: { t: TemplateView }) {
       {open && (
         <div className="template-body">
           <p className="small">{tr.t(t.desc_key)}</p>
-          <p className="muted small">
-            {tr.t("ui-est-cost", { amount: formatMoney(t.est_cost_default) })} · {tr.t("ui-impl-months", { n: t.implementation_months })}
+          {t.situational && t.unlock_reason_key && <p className="hint">{tr.t("ui-policy-situational", { reason: tr.t(t.unlock_reason_key) })}</p>}
+          <p className="muted small" data-testid="policy-estimate" aria-live="polite" aria-busy={preview.stale}>
+            <span data-testid="policy-cost">{tr.t("ui-est-cost", { amount: formatMoney(cost) })}</span>
+            {touched && preview.view && preview.view.budget_share > 0 && <> · {tr.t("ui-budget-share", { pct: (preview.view.budget_share * 100).toFixed(1) })}</>} · {tr.t("ui-impl-months", { n: t.implementation_months })}
+            {preview.stale && <> · {tr.t("ui-preview-updating")}</>}
           </p>
           <ParamSliders defs={t.params} values={params} onChange={setParams} />
           <h4 className="sub">{tr.t("ui-support")}</h4>
           <SupportBars s={t.support} />
-          <TradeOffs effects={t.side_effects} />
+          <TradeOffs effects={effects} />
           {t.secondary_keys.length > 0 && (
             <>
               <h4 className="sub">{tr.t("ui-secondary")}</h4>
@@ -114,11 +154,34 @@ export function Catalog() {
       <h2>{tr.t("ui-catalog")}</h2>
       <p className="hint">{tr.t("ui-catalog-help")}</p>
       <ul className="region-list template-list">
-        {o.catalog.map((t) => (
-          <TemplateCard key={t.id} t={t} />
+        {o.catalog
+          .filter((t) => t.available)
+          .map((t) => (
+            <TemplateCard key={t.id} t={t} />
+          ))}
+      </ul>
+      <LockedPolicies o={o} />
+    </section>
+  );
+}
+
+/** Situational policies not on the table yet (DEC-077 §3), with what opens them. */
+function LockedPolicies({ o }: { o: OfficeView }) {
+  const tr = useGame((s) => s.tr);
+  const locked = o.catalog.filter((t) => !t.available);
+  if (locked.length === 0) return null;
+  return (
+    <>
+      <h3 className="sub">{tr.t("ui-catalog-situational")}</h3>
+      <p className="hint">{tr.t("ui-catalog-situational-help")}</p>
+      <ul className="plain" data-testid="catalog-locked">
+        {locked.map((t) => (
+          <li key={t.id} className="muted small">
+            <strong>{tr.t(t.name_key)}</strong> · {t.unlock_reason_key ? tr.t("ui-policy-locked", { reason: tr.t(t.unlock_reason_key) }) : null}
+          </li>
         ))}
       </ul>
-    </section>
+    </>
   );
 }
 

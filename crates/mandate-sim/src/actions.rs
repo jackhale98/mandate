@@ -1353,6 +1353,11 @@ pub(crate) fn draft(
     if !player_powers(state, content).contains(&t.requires) {
         return Err(bad("your office cannot propose this"));
     }
+    if !crate::policy::unlocked(state, content, t, m) {
+        return Err(bad(
+            "that policy is not on the table while the town's situation does not call for it",
+        ));
+    }
     let params = validate_params(content, template, params)?;
     let id = state.policy.ids.alloc();
     state.policy.instances.push(PolicyInstance {

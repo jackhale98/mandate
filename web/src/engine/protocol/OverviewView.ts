@@ -4,4 +4,8 @@ import type { EventView } from "./EventView";
 import type { NationalView } from "./NationalView";
 import type { RegionView } from "./RegionView";
 
-export type OverviewView = { date: DateView, turn: number, turn_days: number, seed: string, content_hash: string, state_hash: string, total_population: number, regions: Array<RegionView>, recent_events: Array<EventView>, economy: NationalView, };
+export type OverviewView = { date: DateView, turn: number, turn_days: number, seed: string, content_hash: string, state_hash: string, total_population: number, regions: Array<RegionView>, recent_events: Array<EventView>, economy: NationalView, 
+/**
+ * The run's storyteller profile (DEC-033): id and Fluent name key.
+ */
+storyteller: string, storyteller_name_key: string, };

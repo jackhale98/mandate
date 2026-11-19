@@ -66,6 +66,9 @@ pub struct ContentBundle {
     /// Storyteller profiles, in load order.
     #[serde(default)]
     pub storytellers: Vec<crate::narrative::StorytellerDef>,
+    /// Overheard talk (DEC-079), in load order.
+    #[serde(default)]
+    pub overheard: Vec<OverheardDef>,
     /// Dilemmas and requests (DEC-077 §4), in load order.
     #[serde(default)]
     pub dilemmas: Vec<crate::narrative::DilemmaDef>,
@@ -259,6 +262,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut director: Option<(crate::narrative::DirectorParams, String)> = None;
     let mut storytellers: Vec<crate::narrative::StorytellerDef> = Vec::new();
     let mut dilemmas: Vec<crate::narrative::DilemmaDef> = Vec::new();
+    let mut overheard: Vec<OverheardDef> = Vec::new();
     let mut goals: Vec<crate::narrative::GoalDef> = Vec::new();
     let mut storylines: Vec<crate::narrative::StorylineDef> = Vec::new();
     let mut scenes: Vec<crate::narrative::SceneDef> = Vec::new();
@@ -370,6 +374,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                 for x in items {
                     if claim(&x.id, &mut issues) {
                         storytellers.push(x);
+                    }
+                }
+            }
+            ContentFile::Overheard { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        overheard.push(x);
                     }
                 }
             }
@@ -615,6 +626,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         characters,
         director,
         storytellers,
+        overheard,
         dilemmas,
         goals,
         storylines,

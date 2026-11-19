@@ -5,6 +5,9 @@ import { engine, expectKind } from "../engine/client";
 import type { OverviewView } from "../engine/protocol/OverviewView";
 import type { MapView } from "../engine/protocol/MapView";
 import type { ScenarioView } from "../engine/protocol/ScenarioView";
+import type { StorytellerView } from "../engine/protocol/StorytellerView";
+import type { ParamValue } from "../engine/protocol/ParamValue";
+import type { PolicyPreviewView } from "../engine/protocol/PolicyPreviewView";
 import type { OfficeView } from "../engine/protocol/OfficeView";
 import type { CampaignView } from "../engine/protocol/CampaignView";
 import type { CommandDto } from "../engine/protocol/CommandDto";
@@ -70,9 +73,13 @@ interface GameState {
   runs: RunSummary[];
   /** Starting worlds from the content registry (title screen). */
   scenarios: ScenarioView[];
+  /** Storyteller profiles (DEC-033), chosen at new game. */
+  storytellers: StorytellerView[];
   boot(): Promise<void>;
   refreshRuns(): Promise<void>;
-  newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; scenario: string | null }): Promise<void>;
+  newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; scenario: string | null; storyteller?: string | null }): Promise<void>;
+  /** The engine's estimate for a draft with these parameters (the UI never computes it). */
+  previewPolicy(template: string, params: ParamValue[]): Promise<PolicyPreviewView | null>;
   loadMap(): Promise<void>;
   loadOffice(): Promise<void>;
   loadCampaign(): Promise<void>;
@@ -145,6 +152,7 @@ export const useGame = create<GameState>((set, get) => {
       bytes,
       updatedAt: meta.saved_at,
       name: get().town?.municipality,
+      storyteller: get().overview?.storyteller_name_key,
     });
     set({ run: { ...run, revision } });
   }
@@ -175,6 +183,7 @@ export const useGame = create<GameState>((set, get) => {
     run: null,
     runs: [],
     scenarios: [],
+    storytellers: [],
 
     async boot() {
       try {
@@ -183,6 +192,8 @@ export const useGame = create<GameState>((set, get) => {
         set({ tr: new Translator(locale.lang, locale.ftl) });
         const list = expectKind(await engine().request({ kind: "query", payload: { type: "scenarios" } }), "scenarios");
         set({ scenarios: list.scenarios });
+        const tellers = expectKind(await engine().request({ kind: "query", payload: { type: "storytellers" } }), "storytellers");
+        set({ storytellers: tellers.storytellers });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -199,11 +210,11 @@ export const useGame = create<GameState>((set, get) => {
       }
     },
 
-    async newGame({ seed, size, mode, scenario }) {
+    async newGame({ seed, size, mode, scenario, storyteller }) {
       set({ busy: true, error: null, map: null, progress: { stage: "progress-terrain", fraction: 0 } });
       const off = engine().onProgress((stage, fraction) => set({ progress: { stage, fraction } }));
       try {
-        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario } });
+        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null } });
         const overview = expectKind(body, "game_started");
         set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
@@ -245,6 +256,15 @@ export const useGame = create<GameState>((set, get) => {
         });
       } catch (e) {
         set({ error: errText(e) });
+      }
+    },
+
+    async previewPolicy(template, params) {
+      try {
+        return expectKind(await engine().request({ kind: "query", payload: { type: "policy_preview", template, params } }), "policy_preview");
+      } catch {
+        // A preview is a convenience: the catalogue keeps its default estimate.
+        return null;
       }
     },
 

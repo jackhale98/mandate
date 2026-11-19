@@ -1,0 +1,126 @@
+// Situational policy templates (DEC-077 §3): on the table only while the
+// town's situation calls for them (`unlock.any`: a live crisis from
+// crises.jsonc, a recent plant closure or disaster, or an indicator past a
+// threshold). A bill already drafted and a law already passed stay when the
+// situation eases. They are validated like every policy: each has a
+// simulated downside besides its money (DEC-073).
+{
+  "kind": "policies",
+  "items": [
+    // After a plant shuts: stipends while people retrain, and wage subsidies
+    // for the firms that hire them.
+    {
+      "id": "policy.closure_response", "name_key": "policy-closure-response", "desc_key": "policy-closure-response-desc",
+      "tier": "local", "category": "economic_development", "requires": "propose_ordinance",
+      "unlock": {
+        "any": [
+          { "type": "crisis", "kind": "crisis.plant_closure" },
+          { "type": "plant_closure", "within_months": 12 },
+          { "type": "indicator", "indicator": "job_loss", "min": 0.03 },
+        ],
+        "reason_key": "unlock-closure",
+      },
+      "params": [
+        { "id": "stipend", "name_key": "param-stipend", "min": 500, "max": 3000, "default": 1500, "step": 250, "unit_key": "unit-currency-per-year" },
+        { "id": "rehire", "name_key": "param-rehire", "min": 1, "max": 8, "default": 3, "step": 1, "unit_key": "unit-percent-wages" },
+      ],
+      "cost": { "per_capita": 18, "per_capita_per_unit": 0.1, "param": "stipend" },
+      "mechanisms": [
+        { "type": "transfer", "class": "low", "param": "stipend" },
+        { "type": "sector_subsidy", "sector": "sector.manufacturing", "param": "rehire", "elasticity": 1.5 },
+        { "type": "sector_subsidy", "sector": "sector.construction", "param": "rehire", "elasticity": 1.2 },
+      ],
+      "implementation_months": 2,
+      "signature": { "redistribution": 0.6, "tax_tolerance": 0.2, "localism": 0.3, "tradition": 0.1, "reform_appetite": 0.2 },
+      "secondary_keys": ["secondary-closure-retraining", "secondary-closure-subsidy"],
+      "side_effects": [
+        { "type": "labour_supply", "class": "low", "per_unit": -0.000004, "param": "stipend" },
+        { "type": "grievance", "class": "middle", "per_unit": 0.012, "param": "rehire" },
+      ],
+    },
+    // After a disaster: rebuild homes to a higher standard against the next one.
+    {
+      "id": "policy.rebuild_fund", "name_key": "policy-rebuild-fund", "desc_key": "policy-rebuild-fund-desc",
+      "tier": "local", "category": "housing", "requires": "propose_ordinance",
+      "unlock": {
+        "any": [
+          { "type": "crisis", "kind": "crisis.disaster_recovery" },
+          { "type": "disaster", "within_months": 18 },
+        ],
+        "reason_key": "unlock-disaster",
+      },
+      "params": [ { "id": "homes", "name_key": "param-rebuilt-homes", "min": 50, "max": 1500, "default": 200, "step": 50, "unit_key": "unit-homes-per-year" } ],
+      "cost": { "per_unit": 36000, "param": "homes" },
+      "mechanisms": [
+        { "type": "housing_supply", "param": "homes" },
+        { "type": "hazard_protection", "hazard": "flood", "param": "homes", "per_unit": 0.0002 },
+        { "type": "hazard_protection", "hazard": "storm", "param": "homes", "per_unit": 0.0002 },
+      ],
+      "implementation_months": 9,
+      "signature": { "redistribution": 0.3, "tax_tolerance": 0.3, "environment": 0.2, "law_and_order": 0.2, "localism": 0.3 },
+      "secondary_keys": ["secondary-rebuild-standard", "secondary-rebuild-wait"],
+      "side_effects": [
+        { "type": "disruption", "per_unit": 0.0003, "param": "homes" },
+        { "type": "grievance", "class": "high", "min_age_band": 2, "per_unit": 0.0002, "param": "homes" },
+      ],
+    },
+    // In a housing squeeze: rent relief for tenants now, and a freeze that
+    // makes builders and landlords hold back.
+    {
+      "id": "policy.emergency_rent", "name_key": "policy-emergency-rent", "desc_key": "policy-emergency-rent-desc",
+      "tier": "local", "category": "housing", "requires": "propose_ordinance",
+      "unlock": {
+        "any": [
+          { "type": "crisis", "kind": "crisis.housing_squeeze" },
+          { "type": "indicator", "indicator": "rent_burden", "min": 0.2 },
+        ],
+        "reason_key": "unlock-rent",
+      },
+      "params": [
+        { "id": "relief", "name_key": "param-rent-relief", "min": 100, "max": 1500, "default": 400, "step": 100, "unit_key": "unit-currency-per-year" },
+        { "id": "freeze", "name_key": "param-rent-freeze", "min": 0, "max": 3, "default": 1, "step": 1, "unit_key": "unit-level" },
+      ],
+      "cost": { "per_capita_per_unit": 0.25, "param": "relief" },
+      "mechanisms": [
+        { "type": "transfer", "class": "low", "param": "relief" },
+        { "type": "zoning", "param": "freeze", "per_unit": -0.08 },
+      ],
+      "implementation_months": 2,
+      "signature": { "redistribution": 0.8, "tax_tolerance": 0.2, "social_liberalism": 0.2, "localism": 0.1, "tradition": -0.1, "reform_appetite": 0.3 },
+      "secondary_keys": ["secondary-rent-relief", "secondary-rent-supply"],
+      "side_effects": [
+        { "type": "grievance", "class": "high", "min_age_band": 2, "per_unit": 0.05, "param": "freeze" },
+        { "type": "grievance", "class": "middle", "per_unit": 0.00002, "param": "relief" },
+      ],
+    },
+    // In a fiscal hole: a levy to close the gap, with a rebate for the
+    // poorest households.
+    {
+      "id": "policy.fiscal_bridge", "name_key": "policy-fiscal-bridge", "desc_key": "policy-fiscal-bridge-desc",
+      "tier": "local", "category": "administration", "requires": "propose_ordinance",
+      "unlock": {
+        "any": [
+          { "type": "crisis", "kind": "crisis.fiscal_hole" },
+          { "type": "indicator", "indicator": "budget_stress", "min": 0.3 },
+        ],
+        "reason_key": "unlock-fiscal",
+      },
+      "params": [
+        { "id": "points", "name_key": "param-levy", "min": 0.05, "max": 0.4, "default": 0.15, "step": 0.05, "unit_key": "unit-percent-points" },
+        { "id": "rebate", "name_key": "param-rebate", "min": 0, "max": 300, "default": 100, "step": 50, "unit_key": "unit-currency-per-year" },
+      ],
+      "cost": { "per_capita_per_unit": 0.3, "param": "rebate" },
+      "mechanisms": [
+        { "type": "local_tax_rate", "param": "points" },
+        { "type": "transfer", "class": "low", "param": "rebate" },
+      ],
+      "implementation_months": 1,
+      "signature": { "redistribution": 0.3, "tax_tolerance": 0.7, "law_and_order": 0.1, "tradition": 0.1 },
+      "secondary_keys": ["secondary-bridge-temporary", "secondary-bridge-credit"],
+      "side_effects": [
+        { "type": "grievance", "min_age_band": 1, "per_unit": 0.5, "param": "points" },
+        { "type": "grievance", "class": "high", "per_unit": 0.2, "param": "points" },
+      ],
+    },
+  ],
+}

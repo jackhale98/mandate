@@ -303,8 +303,18 @@ pub struct InternalPollView {
 pub struct OverheardView {
     pub neighborhood: u32,
     pub neighborhood_name: String,
-    /// Fluent keys, e.g. `overheard-jobs`.
-    pub keys: Vec<String>,
+    /// What people are saying this week, grounded in facts.
+    pub lines: Vec<OverheardLineView>,
+}
+
+/// One overheard line: a Fluent key with arguments (names and facts;
+/// argument names ending in `_key` are Fluent keys, DEC-054).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct OverheardLineView {
+    pub id: String,
+    pub key: String,
+    pub args: std::collections::BTreeMap<String, String>,
 }
 
 /// A place panel: what can be done and learned there.
@@ -815,25 +825,38 @@ fn internal_poll(engine: &Engine) -> Option<InternalPollView> {
 
 fn overheard(engine: &Engine, loc: Location) -> Option<OverheardView> {
     let st = engine.state();
-    let pl = st.player.as_ref()?;
+    st.player.as_ref()?;
     let h = places::hood_of(st, loc)?;
     let n = st.world.neighborhoods.get(h.index())?;
     let content = engine.content();
-    let keys = concerns_for(st, content, pl.municipality, &[h.index()])
+    let lines = mandate_sim::overheard::lines(st, content, loc)
         .into_iter()
-        .filter_map(|c| {
-            content
-                .concerns
-                .iter()
-                .find(|d| d.id == c.id)
-                .and_then(|d| d.overheard_key.clone())
+        .map(|l| {
+            let mut args = l.args;
+            // A retold story carries its headline (and the outlet's name).
+            if let Some(a) = l
+                .story
+                .and_then(|id| st.media.stories.iter().find(|s| s.id == id))
+                .and_then(|s| crate::media::article(engine, s))
+            {
+                for (k, v) in a.args {
+                    args.entry(k).or_insert(v);
+                }
+                args.insert("headline_key".into(), a.headline_key);
+                args.insert("outlet_key".into(), a.outlet.name_key);
+                args.insert("outlet_place".into(), a.outlet.place);
+            }
+            OverheardLineView {
+                id: l.id,
+                key: l.key,
+                args,
+            }
         })
-        .take(2)
         .collect();
     Some(OverheardView {
         neighborhood: h.0,
         neighborhood_name: n.name.clone(),
-        keys,
+        lines,
     })
 }
 

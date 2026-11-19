@@ -137,6 +137,8 @@ pub struct Memo {
     leans: BTreeMap<u32, (f64, f64)>,
     support: BTreeMap<(u32, String), f64>,
     agenda: BTreeMap<(u32, String), f64>,
+    /// Situational templates on the table by (town, template) (DEC-077 §3).
+    unlocked: BTreeMap<(u32, String), bool>,
 }
 
 /// Compute an NPC's decision inputs (from polls and public knowledge only).
@@ -314,6 +316,15 @@ fn inputs_memo(
                 .values()
                 .filter(|t| t.tier == TierKey::Local)
             {
+                // Situational policies only while the town's situation calls for them.
+                if t.unlock.is_some()
+                    && !*memo
+                        .unlocked
+                        .entry((m, t.id.clone()))
+                        .or_insert_with(|| crate::policy::unlocked(state, content, t, m))
+                {
+                    continue;
+                }
                 if pending.iter().any(|p| p.template == t.id)
                     || local.iter().any(|p| {
                         p.template == t.id

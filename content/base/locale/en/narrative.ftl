@@ -342,3 +342,78 @@ scene-jobs-employer = "Help with the wage bill and I'll take on three more."
 scene-attack-ad = The ad is on the desk at the party office, waiting for your signature.
 scene-debate-rival = "{ $memory } Let the voters see us side by side."
 scene-debate-rival-fresh = "One stage, two candidates. Unless you're afraid of the questions."
+
+## Bills in progress and the favour ledger (M5d part 2)
+effect-rider-ward-project = A project for your ward is added to { $bill }
+effect-rider-ward-project-for = A project for { $name }'s ward is added to { $bill }
+effect-rider-sunset = { $bill } gains a four-year sunset
+effect-call-in = { $name } repays the favour they owe you on { $bill }
+
+dilemma-amendment-for-vote = a vote for a project
+dilemma-amendment-for-vote-situation = { $swing } is the vote { $bill } is waiting on. The price: a project in their ward, written into your bill.
+dilemma-amendment-for-vote-project = Write in their ward project
+dilemma-amendment-for-vote-project-after = { $bill } now pays for a project in { $swing }'s ward. They are on board; other wards grumble at the cost, and so does your party.
+dilemma-amendment-for-vote-sunset = Offer a sunset instead
+dilemma-amendment-for-vote-sunset-after = You put a four-year sunset on { $bill }. { $swing } is warmer, and the law, if it passes, will need renewing.
+dilemma-amendment-for-vote-merits = Let it pass on its merits
+dilemma-amendment-for-vote-merits-after = You kept { $bill } clean and spent the evening at home. { $swing } took it as a no.
+
+dilemma-sponsor-rider = a rider on someone else's bill
+dilemma-sponsor-rider-situation = { $sponsor } wants your yes on { $bill }, and offers to write in a project for your ward.
+dilemma-sponsor-rider-take = Take the project and vote yes
+dilemma-sponsor-rider-take-after = Your ward gets its project in { $bill }, and you voted yes. Other wards' councillors noticed what it cost.
+dilemma-sponsor-rider-ward = Vote as your ward wants, no project
+dilemma-sponsor-rider-ward-after = You voted on { $bill } as your ward leans, and turned down the project. { $sponsor } expected better.
+dilemma-sponsor-rider-decline = Decline and abstain
+dilemma-sponsor-rider-decline-after = You abstained on { $bill }. { $sponsor } read it as a snub.
+
+dilemma-whip-deal = the whip's offer
+dilemma-whip-deal-situation = { $whip } has a deal: vote with the party on { $bill }, against your ward's mood, and the party pays toward your campaign.
+dilemma-whip-deal-take = Take the deal
+dilemma-whip-deal-take-after = You voted with the party on { $bill }. The money arrived; your ward noticed which way you went.
+dilemma-whip-deal-haggle = Haggle for a promise
+dilemma-whip-deal-haggle-after = A long evening at the party office: less money, but { $whip } now owes you one. You voted with the party on { $bill }.
+dilemma-whip-deal-refuse = Refuse and vote with your ward
+dilemma-whip-deal-refuse-after = You voted with your ward on { $bill }. { $whip } will not forget it, and neither will the party.
+dilemma-whip-deal-counted = Say nothing; the whip counts you in
+dilemma-whip-deal-counted-after = You never answered, so { $whip } counted you with the party on { $bill }: no money, and your ward saw how you voted.
+
+dilemma-call-in-favour = the favour you are owed
+dilemma-call-in-favour-situation = { $debtor } owes you a favour, and { $bill } is short of votes.
+dilemma-call-in-favour-call = Call it in quietly
+dilemma-call-in-favour-call-after = { $debtor } paid what they owed: their vote leans to { $bill } now. The debt is clear, and so is the slight chill.
+dilemma-call-in-favour-public = Call it in where others can see
+dilemma-call-in-favour-public-after = Everyone saw { $debtor } come round on { $bill }. It looks like work; { $debtor } feels used.
+dilemma-call-in-favour-save = Save it for something bigger
+dilemma-call-in-favour-save-after = You kept the favour in your pocket. { $debtor } was relieved; the party wonders why { $bill } is stuck.
+
+dilemma-favour-for-vote = a favour for a vote
+dilemma-favour-for-vote-situation = { $sponsor } needs votes for { $bill } and offers you a favour in return.
+dilemma-favour-for-vote-deal = Vote yes; they owe you one
+dilemma-favour-for-vote-deal-after = You voted for { $bill }, and { $sponsor } owes you a favour. Your ward will judge the vote on its own.
+dilemma-favour-for-vote-ward = Vote as your ward wants
+dilemma-favour-for-vote-ward-after = You voted on { $bill } as your ward leans and took nothing for it. { $sponsor } wanted more.
+dilemma-favour-for-vote-not-yet = Say you need to think
+dilemma-favour-for-vote-not-yet-after = You put { $sponsor } off. They took the hint.
+
+dilemma-creditor-against-rival = the debt and the rival's bill
+dilemma-creditor-against-rival-situation = { $creditor } is calling in the favour you owe: vote down { $rival }'s bill, { $bill }.
+dilemma-creditor-against-rival-sink = Vote it down and clear the debt
+dilemma-creditor-against-rival-sink-after = You voted against { $bill }. The debt to { $creditor } is paid; { $rival } knows who sank it.
+dilemma-creditor-against-rival-merits = Vote on the merits
+dilemma-creditor-against-rival-merits-after = You voted on { $bill } as your ward leans, debt or no debt. { $creditor } calls it a promise broken.
+dilemma-creditor-against-rival-dodge = Abstain
+dilemma-creditor-against-rival-dodge-after = You abstained on { $bill }. Neither side thanks you.
+
+scene-amendment-swing = "{ $memory } Put my ward in your bill and you have my vote."
+scene-amendment-swing-fresh = "I could vote for your bill. My ward would need a reason to let me."
+scene-rider-sponsor = "{ $memory } There's room in this bill for something in your ward."
+scene-rider-sponsor-fresh = "Help me get this through, and your ward gets something out of it."
+scene-whip-whip = "{ $memory } The party looks after those who look after it."
+scene-whip-whip-fresh = "One vote, with the party. The campaign fund is generous to friends."
+scene-call-in-debtor = "{ $memory } I know what I owe you. Is this when you want it?"
+scene-call-in-debtor-fresh = "I haven't forgotten I owe you. Just tell me when."
+scene-favour-vote-sponsor = "{ $memory } Vote with me on this, and I'll be there when you need me."
+scene-favour-vote-sponsor-fresh = "I need one more yes. I don't forget people who help."
+scene-creditor-rival-creditor = "{ $memory } You owe me. Sink that bill and we're square."
+scene-creditor-rival-creditor-fresh = "You remember our arrangement. Here's how you settle it."

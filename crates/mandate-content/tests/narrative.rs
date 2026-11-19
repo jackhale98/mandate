@@ -53,7 +53,7 @@ fn the_base_narrative_content_is_valid() {
                 && d.raised_by.is_none()
         })
         .count();
-    assert!((8..=20).contains(&standalone), "{standalone} base dilemmas");
+    assert!((8..=32).contains(&standalone), "{standalone} base dilemmas");
     assert!(b.storylines.len() >= 2);
     assert_eq!(b.storytellers.len(), 3);
 }

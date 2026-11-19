@@ -27,6 +27,22 @@ pub struct SideEffectView {
     pub older: bool,
     /// Size at these parameters (positive = harm).
     pub amount: f64,
+    /// The size in words: `small` | `moderate` | `large` | `relief`.
+    pub size: String,
+}
+
+/// The size of a side effect in words (DEC-073: trade-offs before the choice).
+pub fn side_effect_size(amount: f64) -> &'static str {
+    let v = amount.abs();
+    if amount < 0.0 {
+        "relief"
+    } else if v < 0.04 {
+        "small"
+    } else if v < 0.12 {
+        "moderate"
+    } else {
+        "large"
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -67,6 +83,7 @@ pub fn side_effects_view(
                 group: group.into(),
                 older,
                 amount,
+                size: side_effect_size(amount).into(),
             }
         })
         .collect()
@@ -162,6 +179,30 @@ pub struct TemplateView {
     pub support: SupportView,
     pub est_cost_default: f64,
     pub side_effects: Vec<SideEffectView>,
+    /// A situational policy (DEC-077 §3): offered only while the town's
+    /// situation calls for it.
+    pub situational: bool,
+    /// On the table now (always true for a policy that is not situational).
+    pub available: bool,
+    /// Fluent key of the circumstances a situational policy answers.
+    pub unlock_reason_key: Option<String>,
+}
+
+/// What a draft with these parameters would cost and do, computed by the
+/// engine for the catalogue's sliders (`QueryDto::PolicyPreview`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PolicyPreviewView {
+    pub template: String,
+    /// The parameters as the engine reads them (clamped, snapped to the step).
+    pub params: Vec<ParamValue>,
+    /// Estimated annual cost for the player's town (nominal currency).
+    pub est_annual_cost: f64,
+    /// That cost as a share of the town's annual budget.
+    pub budget_share: f64,
+    pub side_effects: Vec<SideEffectView>,
+    pub support: SupportView,
+    pub available: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -638,6 +679,52 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     })
 }
 
+/// The engine's estimate for a draft of `template` with these parameters in
+/// the player's town: cost, share of the budget, side effects, and support.
+pub fn policy_preview(
+    engine: &Engine,
+    template: &str,
+    params: &[ParamValue],
+) -> Option<PolicyPreviewView> {
+    let st = engine.state();
+    let content = engine.content();
+    let pl = st.player.as_ref()?;
+    let t = content.policies.get(template)?;
+    let m = pl.municipality;
+    let given: std::collections::BTreeMap<String, f64> =
+        params.iter().map(|p| (p.id.clone(), p.value)).collect();
+    let probe = mandate_sim::policy::probe(t, m.0, &given);
+    let residents = st.population.municipality_total(&st.world, m) as f64;
+    let price = st.economy.national.price_level;
+    let cost = mandate_sim::policy::annual_cost(t, &probe, residents, price);
+    let budget = st
+        .finance
+        .local
+        .get(m.index())
+        .map(|x| x.budget_total().units() as f64)
+        .unwrap_or(0.0);
+    let hoods: Vec<usize> = st.world.hoods_of(m).collect();
+    Some(PolicyPreviewView {
+        template: t.id.clone(),
+        params: t
+            .params
+            .iter()
+            .map(|p| ParamValue {
+                id: p.id.clone(),
+                value: probe.param(&p.id),
+            })
+            .collect(),
+        est_annual_cost: cost,
+        budget_share: if budget > 0.0 { cost / budget } else { 0.0 },
+        side_effects: side_effects_view(t, &probe),
+        support: support_view(
+            support_by_class(t, &st.population, &hoods),
+            public_support(t, &st.population, &hoods),
+        ),
+        available: mandate_sim::policy::unlocked(st, content, t, m.0),
+    })
+}
+
 fn weighted<F: Fn(&mandate_sim::population::Cohort) -> f64>(
     st: &State,
     hoods: &[usize],
@@ -671,28 +758,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
         .values()
         .filter(|t| t.tier == TierKey::Local)
         .map(|t| {
-            let defaults: std::collections::BTreeMap<String, f64> =
-                t.params.iter().map(|p| (p.id.clone(), p.default)).collect();
-            let probe = PolicyInstance {
-                id: mandate_sim::policy::PolicyInstanceId(u32::MAX),
-                template: t.id.clone(),
-                tier: TierKey::Local,
-                jurisdiction: m.0,
-                sponsor: None,
-                params: defaults,
-                clauses: Vec::new(),
-                status: PolicyStatus::Draft,
-                stage: 0,
-                next_stage_on: None,
-                votes: Vec::new(),
-                introduced_on: None,
-                enacted_on: None,
-                progress: 0.0,
-                awareness: 0.0,
-                end_reason: None,
-                cause: None,
-                ledger: Default::default(),
-            };
+            let probe = mandate_sim::policy::probe(t, m.0, &Default::default());
             TemplateView {
                 id: t.id.clone(),
                 name_key: t.name_key.clone(),
@@ -707,6 +773,9 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
                 ),
                 est_cost_default: mandate_sim::policy::annual_cost(t, &probe, residents, price),
                 side_effects: side_effects_view(t, &probe),
+                situational: t.unlock.is_some(),
+                available: mandate_sim::policy::unlocked(st, content, t, m.0),
+                unlock_reason_key: t.unlock.as_ref().map(|u| u.reason_key.clone()),
             }
         })
         .collect();

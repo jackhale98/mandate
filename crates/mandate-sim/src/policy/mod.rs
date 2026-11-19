@@ -311,6 +311,118 @@ pub fn mods_for(
     out
 }
 
+// --- Situational policies (DEC-077 §3) ------------------------------------------------
+
+/// Does a situation condition hold in town `m`? Read-only: the town's
+/// character (crises), its indicators, the event log, and the economy.
+pub fn situation_holds(
+    state: &crate::state::State,
+    content: &ContentBundle,
+    c: &mandate_content::SituationCondition,
+    m: u32,
+) -> bool {
+    use mandate_content::SituationCondition as U;
+    let today = state.calendar.date;
+    match c {
+        U::Crisis { kind, min_severity } => state
+            .politics
+            .characters
+            .towns
+            .get(m as usize)
+            .is_some_and(|t| {
+                t.crises
+                    .iter()
+                    .any(|x| &x.kind == kind && x.severity as f64 >= *min_severity)
+            }),
+        U::Indicator {
+            indicator,
+            min,
+            max,
+        } => {
+            let r = Reads::of_state(state, content);
+            let v = crate::concerns::indicator(&r, m as usize, *indicator);
+            min.is_none_or(|a| v >= a) && max.is_none_or(|z| v <= z)
+        }
+        U::PlantClosure { within_months } => {
+            let days = *within_months as u32 * 30;
+            state
+                .events
+                .iter()
+                .rev()
+                .take_while(|e| e.date.days_until(today) <= days)
+                .any(|e| matches!(e.kind, EventKind::PlantClosure { municipality, .. } if municipality == m))
+        }
+        U::Disaster { within_months } => state
+            .economy
+            .munis
+            .get(m as usize)
+            .is_some_and(|e| e.months_since_disaster < *within_months),
+    }
+}
+
+/// Is a template on the table in town `m`? Templates without an unlock
+/// always are; a situational one while any of its conditions holds.
+pub fn unlocked(
+    state: &crate::state::State,
+    content: &ContentBundle,
+    t: &PolicyTemplate,
+    m: u32,
+) -> bool {
+    match &t.unlock {
+        None => true,
+        Some(u) => triggered(state, content, u, m),
+    }
+}
+
+/// Does a situation trigger hold in town `m` (any of its conditions)?
+pub fn triggered(
+    state: &crate::state::State,
+    content: &ContentBundle,
+    t: &mandate_content::SituationTrigger,
+    m: u32,
+) -> bool {
+    t.any.iter().any(|c| situation_holds(state, content, c, m))
+}
+
+/// A draft-shaped instance of a template with the given parameters
+/// (validated: unknown ones ignored, missing ones at their default, values
+/// clamped and snapped to the step), for previews of cost and side effects.
+pub fn probe(t: &PolicyTemplate, m: u32, params: &BTreeMap<String, f64>) -> PolicyInstance {
+    let params = t
+        .params
+        .iter()
+        .map(|p| {
+            let v = params
+                .get(&p.id)
+                .copied()
+                .filter(|v| v.is_finite())
+                .unwrap_or(p.default);
+            let snapped = p.min + ((v.clamp(p.min, p.max) - p.min) / p.step).round() * p.step;
+            (p.id.clone(), clamp(snapped, p.min, p.max))
+        })
+        .collect();
+    PolicyInstance {
+        id: PolicyInstanceId(u32::MAX),
+        template: t.id.clone(),
+        tier: t.tier,
+        jurisdiction: m,
+        sponsor: None,
+        params,
+        clauses: Vec::new(),
+        status: PolicyStatus::Draft,
+        stage: 0,
+        next_stage_on: None,
+        votes: Vec::new(),
+        introduced_on: None,
+        enacted_on: None,
+        progress: 0.0,
+        awareness: 0.0,
+        end_reason: None,
+        cause: None,
+        ledger: Default::default(),
+    }
+}
+
 // --- Support and voting --------------------------------------------------------------------
 
 /// Anticipated support (−1..1) among the voters of some neighbourhoods

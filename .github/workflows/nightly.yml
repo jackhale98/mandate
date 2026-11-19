@@ -31,7 +31,8 @@ jobs:
           path: sweep.json
           retention-days: 14
 
-  # Bot-player tournament (M4): no dominant strategy, effort matters.
+  # Bot-player tournament (M4): no dominant strategy, effort matters, and the
+  # best routine differs across worlds (the variety gate, DEC-077 §5).
   bots:
     runs-on: ubuntu-latest
     steps:

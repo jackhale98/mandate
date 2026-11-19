@@ -260,6 +260,18 @@ fn approval_line(
     )
 }
 
+/// The policy name key of a bill or law.
+fn bill_key(engine: &Engine, id: u32) -> String {
+    engine
+        .state()
+        .policy
+        .instances
+        .get(id as usize)
+        .and_then(|p| engine.content().policies.get(&p.template))
+        .map(|t| t.name_key.clone())
+        .unwrap_or_default()
+}
+
 fn name_of(engine: &Engine, id: characters::CharacterId) -> String {
     person_ref(engine, id).map(|p| p.name).unwrap_or_default()
 }
@@ -396,6 +408,52 @@ fn preview(engine: &Engine, d: &Decision, e: &EffectDef) -> EffectLineView {
             line(
                 "effect-vote",
                 vec![("bill_key", bill), ("vote_key", v.into())],
+                "mixed",
+            )
+        }
+        EffectDef::Rider {
+            role,
+            rider,
+            ward_of,
+        } => {
+            let bill = match mandate_sim::narrative::actor_of(&d.cast, role) {
+                Some(Actor::Policy { id }) => bill_key(engine, id),
+                _ => String::new(),
+            };
+            let whose = ward_of
+                .as_deref()
+                .and_then(person)
+                .map(|p| name_of(engine, p));
+            match (rider, whose) {
+                (mandate_content::RiderKind::WardProject, Some(name)) => line(
+                    "effect-rider-ward-project-for",
+                    vec![("bill_key", bill), ("name", name)],
+                    "mixed",
+                ),
+                (mandate_content::RiderKind::WardProject, None) => line(
+                    "effect-rider-ward-project",
+                    vec![("bill_key", bill)],
+                    "mixed",
+                ),
+                (mandate_content::RiderKind::Sunset, _) => {
+                    line("effect-rider-sunset", vec![("bill_key", bill)], "mixed")
+                }
+            }
+        }
+        EffectDef::CallIn { role, bill } => {
+            let bill = match mandate_sim::narrative::actor_of(&d.cast, bill) {
+                Some(Actor::Policy { id }) => bill_key(engine, id),
+                _ => String::new(),
+            };
+            line(
+                "effect-call-in",
+                vec![
+                    (
+                        "name",
+                        person(role).map(|p| name_of(engine, p)).unwrap_or_default(),
+                    ),
+                    ("bill_key", bill),
+                ],
                 "mixed",
             )
         }
@@ -538,6 +596,19 @@ fn applied_line(engine: &Engine, a: &Applied) -> EffectLineView {
                         .unwrap_or_default(),
                 ),
                 ("vote_key", format!("vote-{vote}")),
+            ],
+            "mixed",
+        ),
+        Applied::Rider { policy, rider } => line(
+            &format!("effect-rider-{}", rider.replace('_', "-")),
+            vec![("bill_key", bill_key(engine, *policy))],
+            "mixed",
+        ),
+        Applied::CalledIn { person, policy } => line(
+            "effect-call-in",
+            vec![
+                ("name", name_of(engine, *person)),
+                ("bill_key", bill_key(engine, *policy)),
             ],
             "mixed",
         ),

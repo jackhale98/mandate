@@ -7,4 +7,17 @@ export type TemplateView = { id: string, name_key: string, desc_key: string,
 /**
  * Budget category in snake case.
  */
-category: string, params: Array<ParamView>, implementation_months: number, secondary_keys: Array<string>, support: SupportView, est_cost_default: number, side_effects: Array<SideEffectView>, };
+category: string, params: Array<ParamView>, implementation_months: number, secondary_keys: Array<string>, support: SupportView, est_cost_default: number, side_effects: Array<SideEffectView>, 
+/**
+ * A situational policy (DEC-077 §3): offered only while the town's
+ * situation calls for it.
+ */
+situational: boolean, 
+/**
+ * On the table now (always true for a policy that is not situational).
+ */
+available: boolean, 
+/**
+ * Fluent key of the circumstances a situational policy answers.
+ */
+unlock_reason_key: string | null, };
