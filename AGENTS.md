@@ -33,7 +33,7 @@ cargo fmt --check && cargo clippy --workspace -- -D warnings && cargo test --wor
 cargo build -p mandate-wasm --target wasm32-unknown-unknown
 cargo run -p mandate-cli -- content validate
 cd web && npm run typecheck && npm run lint && npm test && npm run build
-cd web && npx playwright test --trace off
+cd web && npx playwright test --trace off   # PW_PORT=<port> to run beside another checkout
 cd tools/pixelkit && npm run check
 ```
 

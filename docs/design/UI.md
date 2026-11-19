@@ -20,7 +20,7 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
           In-world portals (each also in a global menu):
             ├─ Office desk → Bills & policies · Budget · Agencies & appointments (DEC-024/026)
             ├─ News (paper / TV / feed) → coverage, polls (DEC-029/034)
-            ├─ Map room → national / regional map with overlays (DEC-021)
+            ├─ Map room → national / regional map with overlays (DEC-021): a layer picker (terrain, unemployment; more layers proposed in DEC-089)
             ├─ Phone / contacts → relationships, favors, requests (DEC-031/032)
             ├─ Campaign HQ (campaign phase) → strategy, spending, canvassing
             └─ Places / people → conversations & located actions (DEC-035)
