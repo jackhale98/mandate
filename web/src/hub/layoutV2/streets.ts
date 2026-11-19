@@ -624,9 +624,26 @@ export function stageStreets(w: Work) {
     if (!inner) skip[c] = 1;
     if ((w.district[c] as number) >= 0) (cellsOf[w.district[c] as number] as number[]).push(c);
   }
+  /** Targets stand two cells clear of the town's edge, water and the railway (and of the streets laid). */
+  const resetSkip = (cells: number[]) => {
+    for (const c of cells) {
+      skip[c] = 0;
+      const x = c % W;
+      const y = (c - x) / W;
+      for (let yy = y - 2; yy <= y + 2 && !skip[c]; yy++) for (let xx = x - 2; xx <= x + 2; xx++) if (xx < 0 || yy < 0 || xx >= W || yy >= H || (!land[yy * W + xx] && !isRoad(yy * W + xx))) skip[c] = 1;
+    }
+  };
+  // Twice over: a district grown before its neighbours had streets is reached from them the second time.
+  for (let pass = 0; pass < 2; pass++)
   for (const d of order) {
     const g = GROWTH[d.type.streets.pattern] ?? (GROWTH.grid as Growth);
-    const r = rngOf(w, "grow", d.id);
+    const r = rngOf(w, "grow", d.id, pass);
+    if (pass > 0) {
+      // Only a district part of which no street reached the first time.
+      const lim = Math.floor((g.maxRun * 2) / 3) * Math.max(cx[d.index] as number, cy[d.index] as number);
+      if (!(cellsOf[d.index] as number[]).some((c) => land[c] && (dist[c] as number) > lim)) continue;
+      resetSkip(cellsOf[d.index] as number[]);
+    }
     let headsLeft = d.type.streets.max_dead_ends;
     const cells = cellsOf[d.index] as number[];
     const guard = Math.floor(cells.length / 12) + 30;
@@ -638,12 +655,7 @@ export function stageStreets(w: Work) {
       if (!cand) return;
       crossingsLeft = Math.max(crossingsLeft, cand.legs.length);
       commit(cand, d.index);
-      for (const c of cells) skip[c] = 0;
-      for (const c of cells) {
-        const x = c % W;
-        const y = (c - x) / W;
-        for (let yy = y - 2; yy <= y + 2 && !skip[c]; yy++) for (let xx = x - 2; xx <= x + 2; xx++) if (xx < 0 || yy < 0 || xx >= W || yy >= H || (!land[yy * W + xx] && !isRoad(yy * W + xx))) skip[c] = 1;
-      }
+      resetSkip(cells);
     };
     let grown = 0;
     let accessed = false;

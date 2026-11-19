@@ -493,6 +493,7 @@ export function stagePlaces(w: Work) {
     let spot = bestSpot(w, d, sizesOf(l, p.kind), [type.plots.setback, 0], score, mix(w.seed, p.id));
     if (!spot) spot = bestSpot(w, d, [[3, 2]], [0], score, mix(w.seed, p.id, 1), false);
     if (!spot) spot = carveSpot(w, d, sizesOf(l, p.kind));
+    if (!spot && process.env.DEV_SKIPPLACE) continue;
     if (!spot) throw new LayoutOverflow(`no room for ${p.kind} in ${(w.districts[d] as WorkDistrict).name}`);
     const isLandmark = l?.layout.landmark ?? false;
     const i = addPlot(w, d, spot, { place: p.id, kind: p.kind, name: p.name, landmark: CIVIC.includes(p.kind) || (isLandmark && spot.w * spot.h >= 20), ground: groundOf(d) });
@@ -601,24 +602,43 @@ function addPlotForce(w: Work, d: number, f: Fit, spec: { place: number | null; 
 function carveSpot(w: Work, d: number, sizes: [number, number][]): Fit | null {
   const { W, H } = w;
   const m = masks(w);
-  for (const [bw, bh] of [...sizes].reverse()) {
-    for (let F = bh + 2; F < H - 1; F++) {
-      for (let x = 1; x + bw < W - 1; x++) {
-        // A row of open land of the district below the footprint becomes its frontage path.
-        let open = true;
-        for (let xx = x; xx < x + bw && open; xx++) {
-          const fc = F * W + xx;
-          const t = w.terrain[fc] as number;
-          if (w.district[fc] !== d || (w.use[fc] as number) & (Use.Plot | Use.Square | Use.Rail | Use.Keep) || isWaterBody(w, fc) || (!buildable(t) && !frontageTerrain(t))) open = false;
+  // First on open land; then over the district's small greens (a junction green or a leftover corner gives way to a place).
+  for (let pass = 0; pass < 2; pass++) {
+    for (const [bw, bh] of [...sizes].reverse()) {
+      for (let F = bh + 2; F < H - 1; F++) {
+        for (let x = 1; x + bw < W - 1; x++) {
+          const freed: number[] = [];
+          if (pass === 1) {
+            for (let y = F - bh - 1; y <= F; y++) {
+              for (let xx = x; xx < x + bw; xx++) {
+                const c = y * W + xx;
+                if (w.use[c] === Use.Keep && w.terrain[c] === Terrain.Park && !m.fronts[c] && w.district[c] === d) {
+                  freed.push(c);
+                  w.use[c] = 0;
+                }
+              }
+            }
+            if (!freed.length) continue;
+          }
+          // A row of open land of the district below the footprint becomes its frontage path.
+          let open = true;
+          for (let xx = x; xx < x + bw && open; xx++) {
+            const fc = F * W + xx;
+            const t = w.terrain[fc] as number;
+            if (w.district[fc] !== d || (w.use[fc] as number) & (Use.Plot | Use.Square | Use.Rail | Use.Keep) || isWaterBody(w, fc) || (!buildable(t) && !frontageTerrain(t))) open = false;
+          }
+          if (open) {
+            const was = Array.from({ length: bw }, (_, k) => w.terrain[F * W + x + k] as number);
+            for (let k = 0; k < bw; k++) if (!frontageTerrain(was[k] as number)) w.terrain[F * W + x + k] = Terrain.Path;
+            if (fits(w, d, x, F, bw, bh, 0, m)) {
+              for (let k = 0; k < bw; k++) w.use[F * W + x + k] = (w.use[F * W + x + k] as number) | Use.Road;
+              for (const c of freed) if (!((w.use[c] as number) & Use.Road)) w.terrain[c] = Terrain.Grass;
+              return { x, F, w: bw, h: bh, s: 0 };
+            }
+            for (let k = 0; k < bw; k++) w.terrain[F * W + x + k] = was[k] as number;
+          }
+          for (const c of freed) w.use[c] = Use.Keep;
         }
-        if (!open) continue;
-        const was = Array.from({ length: bw }, (_, k) => w.terrain[F * W + x + k] as number);
-        for (let k = 0; k < bw; k++) if (!frontageTerrain(was[k] as number)) w.terrain[F * W + x + k] = Terrain.Path;
-        if (fits(w, d, x, F, bw, bh, 0, m)) {
-          for (let k = 0; k < bw; k++) w.use[F * W + x + k] = (w.use[F * W + x + k] as number) | Use.Road;
-          return { x, F, w: bw, h: bh, s: 0 };
-        }
-        for (let k = 0; k < bw; k++) w.terrain[F * W + x + k] = was[k] as number;
       }
     }
   }
