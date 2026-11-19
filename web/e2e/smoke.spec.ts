@@ -131,6 +131,7 @@ test("a full local election", async ({ page }) => {
   await expect(page.getByText("Campaign season", { exact: true })).toBeVisible();
   // Campaign: one canvass from the agenda (it walks to the streets), then let the weeks run.
   const agenda = (await openPocket(page)).getByTestId("agenda");
+  await agenda.getByText("Canvass a neighbourhood", { exact: true }).click();
   await expect(agenda.getByTestId("route")).toContainText("Streets of");
   await agenda.getByRole("button", { name: "Go" }).click();
   await expect(page.getByTestId("toast")).toHaveText(/knocked on doors/);

@@ -76,3 +76,16 @@ test("reduced motion: the pocket opens without sliding", async ({ page }) => {
   await page.getByTestId("pocket-button").click();
   await expect(page.getByTestId("pocket")).toHaveCSS("animation-name", "none");
 });
+
+test("the pocket's agenda starts with no action chosen", async ({ page }) => {
+  await start(page, "4242");
+  const agenda = (await openPocket(page)).getByTestId("agenda");
+  await expect(agenda.getByTestId("agenda-choose")).toBeVisible();
+  await expect(agenda.locator(".agenda-kinds .seg-on")).toHaveCount(0);
+  await expect(agenda.locator('.agenda-kinds input[type="radio"]:checked')).toHaveCount(0);
+  await expect(agenda.getByRole("button", { name: "Go" })).toHaveCount(0);
+  await agenda.getByText("Canvass a neighbourhood", { exact: true }).click();
+  await expect(agenda.locator(".agenda-kinds .seg-on")).toHaveCount(1);
+  await expect(agenda.getByTestId("route")).toContainText("Streets of");
+  await expect(agenda.getByTestId("agenda-choose")).toHaveCount(0);
+});

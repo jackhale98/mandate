@@ -98,7 +98,8 @@ function Decisions({ p }: { p: PocketView }) {
 function Agenda({ p }: { p: PocketView }) {
   const tr = useGame((s) => s.tr);
   const visit = useGame((s) => s.visit);
-  const [kind, setKind] = useState<FormAction>("canvass");
+  // Nothing is chosen until the player picks an action.
+  const [kind, setKind] = useState<FormAction | null>(null);
   const kinds = AGENDA.filter((k) => k !== "advertise" || p.in_campaign);
   const go = (action: string) => {
     const to = routeFor(p, { action, lateNight: false, neighborhood: null })?.to;
@@ -116,7 +117,13 @@ function Agenda({ p }: { p: PocketView }) {
           </label>
         ))}
       </div>
-      <ActionForm key={kind} action={kind} showRoute />
+      {kind ? (
+        <ActionForm key={kind} action={kind} showRoute />
+      ) : (
+        <p className="muted small" data-testid="agenda-choose">
+          {tr.has("ui-agenda-choose") ? tr.t("ui-agenda-choose") : "Choose an action."}
+        </p>
+      )}
       <h3 className="sub">{tr.t("ui-agenda-places")}</h3>
       <div className="bill-actions">
         <button type="button" className="btn btn-sm" onClick={() => go("draft")}>
