@@ -389,6 +389,23 @@ fn open(
             _ => None,
         })
         .collect();
+    // A decision names its cast (DEC-091, §1.3): the player hears of them;
+    // someone who comes to the player with a request is met (`known`).
+    // Effect requests to the player domain, posted only when there is one.
+    if v.player().is_some() {
+        let holder = c.goal.as_ref().map(|(h, _)| *h);
+        for person in super::learn::cast_people(v, &c.cast) {
+            out.effects.push(crate::scheduler::Effect::Learn {
+                subject: crate::player::knowledge::Subject::Person { person },
+                level: if Some(person) == holder {
+                    crate::player::knowledge::Level::Known
+                } else {
+                    crate::player::knowledge::Level::Heard
+                },
+                source: crate::player::knowledge::Source::Decision { decision: id },
+            });
+        }
+    }
     let actors: Vec<Actor> = c.cast.iter().map(|e| e.actor).collect();
     let chapter_index = n.chapter.as_ref().map(|ch| ch.index).unwrap_or(0);
     // A raised decision (a story, an investigation) is fairness, not pacing:

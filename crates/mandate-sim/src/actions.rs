@@ -5,10 +5,11 @@
 use crate::characters::{self, MemoryKind, Subject};
 use crate::commands::EngineError;
 use crate::events::EventKind;
+use crate::player::knowledge::{self, Level};
 use crate::policy::{Clause, PolicyInstance, PolicyStatus, annual_cost};
 use crate::politics::{PoliticianId, Role};
 use crate::state::State;
-use crate::world::{ConstituencyId, MunicipalityId, Tier};
+use crate::world::{ConstituencyId, MunicipalityId, NeighborhoodId, Tier};
 use mandate_content::{Constituency, ContentBundle, Power, Selection, TierKey};
 use mandate_core::math::clamp;
 use mandate_core::{Money, Stream};
@@ -433,7 +434,7 @@ pub fn apply(
         }
     }
     match cmd {
-        PlayerCommand::MoveTo { location } => return move_to(state, *location),
+        PlayerCommand::MoveTo { location } => return move_to(state, content, *location),
         PlayerCommand::Answer { decision, option } => {
             return crate::narrative::answer(
                 state,
@@ -449,7 +450,7 @@ pub fn apply(
             }) {
                 return Err(bad("a move cannot be followed by another move"));
             }
-            let moved = move_to(state, *location)?;
+            let moved = move_to(state, content, *location)?;
             return match then {
                 Some(c) => apply(state, content, c),
                 None => Ok(moved),
@@ -476,6 +477,13 @@ pub fn apply(
                     None,
                 );
             }
+            // Meeting someone is knowing them (DEC-091).
+            knowledge::teach_one(
+                state,
+                knowledge::Subject::Person { person: id },
+                Level::Known,
+                knowledge::Source::Met { person: id },
+            );
             res.created = Some(id.0);
             res.outcome_key = "outcome-met".into();
             if let Some(p) = characters::profile(&state.politics, &state.world, id) {
@@ -484,6 +492,7 @@ pub fn apply(
         }
         PlayerCommand::CastVote { policy, vote } => {
             res = declare_vote(state, content, policy, vote)?;
+            learn_council_work(state, *policy);
         }
         PlayerCommand::File { filing } => {
             if let Some(p) = state.player.as_mut() {
@@ -573,6 +582,7 @@ pub fn apply(
                 p.awareness = content.actions.introduce.awareness as f32;
                 p.cause = Some(ev);
             }
+            learn_council_work(state, *policy);
             res.outcome_key = "outcome-introduced".into();
             res.args.insert("days".into(), days.to_string());
         }
@@ -712,6 +722,21 @@ pub fn apply(
                             fx.opinion_fail
                         }),
                     );
+                    // Lobbying is meeting (DEC-091): `known`; a second
+                    // meeting, or one at the diner late at night, `detailed`.
+                    let deep = *late_night
+                        || state.player.as_ref().is_some_and(|p| {
+                            p.knowledge
+                                .level(&knowledge::Subject::Person { person: tc })
+                                >= Level::Known
+                        });
+                    let src = knowledge::action_source(state, action.key());
+                    knowledge::teach_one(
+                        state,
+                        knowledge::Subject::Person { person: tc },
+                        if deep { Level::Detailed } else { Level::Known },
+                        src,
+                    );
                     if *late_night && let Some(p) = state.player.as_mut() {
                         // Back-room deals carry legal exposure (DEC-006).
                         p.tracks.legal_jeopardy =
@@ -808,6 +833,29 @@ pub fn apply(
                     let scale = (fx.contact_base + fx.contact_oratory * oratory)
                         * if hostile { fx.hostile_contact } else { 1.0 };
                     campaign_contact(state, content, Some(*neighborhood), scale);
+                    // A meeting hears the neighbourhood out (DEC-091); with
+                    // a bill, who supports it.
+                    let src = knowledge::action_source(state, "town_hall");
+                    knowledge::learn_hood(
+                        state,
+                        content,
+                        NeighborhoodId(*neighborhood),
+                        src.clone(),
+                    );
+                    if let Some(t) = policy
+                        .and_then(|id| state.policy.instances.get(id as usize))
+                        .map(|p| p.template.clone())
+                    {
+                        knowledge::teach_one(
+                            state,
+                            knowledge::Subject::PolicySupport {
+                                town: MunicipalityId(m),
+                                policy: knowledge::PolicyRef::Template { template: t },
+                            },
+                            Level::Known,
+                            src,
+                        );
+                    }
                     res.outcome_key = if hostile {
                         "outcome-town-hall-hostile"
                     } else {
@@ -897,6 +945,7 @@ pub fn apply(
                     }
                     // A full day on the doorsteps: deeper than any other contact.
                     campaign_contact(state, content, Some(*neighborhood), fx.contact);
+                    learn_canvass(state, content, NeighborhoodId(*neighborhood));
                     res.outcome_key = "outcome-canvass".into();
                     res.args.insert(
                         "place".into(),
@@ -954,6 +1003,29 @@ pub fn apply(
                             ) as f32;
                         }
                     }
+                    // The party office (DEC-091): whoever is found there is
+                    // met, and there is talk of the rival's plans.
+                    let src = knowledge::action_source(state, "fundraise");
+                    let met: Vec<characters::CharacterId> = state
+                        .player
+                        .as_ref()
+                        .map(|p| characters::ambient::stored_at(&state.politics, state, p.location))
+                        .unwrap_or_default();
+                    let mut grants: Vec<knowledge::Grant> = met
+                        .into_iter()
+                        .filter(|c| Some(*c) != characters::player_character(state))
+                        .map(|person| knowledge::Grant {
+                            subject: knowledge::Subject::Person { person },
+                            level: Level::Known,
+                        })
+                        .collect();
+                    grants.push(knowledge::Grant {
+                        subject: knowledge::Subject::RivalPlans {
+                            town: MunicipalityId(m),
+                        },
+                        level: Level::Heard,
+                    });
+                    knowledge::teach(state, grants, &src);
                     res.outcome_key = "outcome-fundraise".into();
                     res.args.insert("amount".into(), money.units().to_string());
                 }
@@ -1383,9 +1455,66 @@ pub(crate) fn draft(
     Ok(id.0)
 }
 
-/// Move within the town: free (DEC-079 rule 1).
+/// Canvassing a neighbourhood (DEC-091, §1.3): its worries `known` (a
+/// second canvass reads them: `detailed`, dated), and one resident found on
+/// its streets met. Nobody new is created: only people already stored.
+fn learn_canvass(state: &mut State, content: &ContentBundle, hood: NeighborhoodId) {
+    let src = knowledge::action_source(state, "canvass");
+    knowledge::learn_hood(state, content, hood, src.clone());
+    let me = characters::player_character(state);
+    let Some(pl) = state.player.as_ref() else {
+        return;
+    };
+    let resident = state.politics.characters.people.iter().find(|c| {
+        Some(c.id) != me
+            && c.named.as_deref().is_some_and(|n| n.home == hood.0)
+            && pl
+                .knowledge
+                .level(&knowledge::Subject::Person { person: c.id })
+                < Level::Known
+    });
+    if let Some(person) = resident.map(|c| c.id) {
+        knowledge::teach_one(
+            state,
+            knowledge::Subject::Person { person },
+            Level::Known,
+            src,
+        );
+    }
+}
+
+/// Council work on a bill (introducing it, declaring a vote, DEC-091): the
+/// debate shows every colleague's stance (`known`) and who backs the bill.
+fn learn_council_work(state: &mut State, policy: u32) {
+    let Some(p) = state.policy.instances.get(policy as usize) else {
+        return;
+    };
+    let (template, town) = (p.template.clone(), MunicipalityId(p.jurisdiction));
+    let src = knowledge::Source::Council {
+        policy: crate::policy::PolicyInstanceId(policy),
+    };
+    let mut grants: Vec<knowledge::Grant> = knowledge::council_people(state)
+        .into_iter()
+        .map(|person| knowledge::Grant {
+            subject: knowledge::Subject::Person { person },
+            level: Level::Known,
+        })
+        .collect();
+    grants.push(knowledge::Grant {
+        subject: knowledge::Subject::PolicySupport {
+            town,
+            policy: knowledge::PolicyRef::Template { template },
+        },
+        level: Level::Known,
+    });
+    knowledge::teach(state, grants, &src);
+}
+
+/// Move within the town: free (DEC-079 rule 1). Arriving teaches lightly
+/// (DEC-091: a place's introduction, overheard names and rumours).
 fn move_to(
     state: &mut State,
+    content: &ContentBundle,
     location: crate::places::Location,
 ) -> Result<ActionResult, EngineError> {
     crate::places::validate_move(state, location)?;
@@ -1393,6 +1522,7 @@ fn move_to(
     if let Some(p) = state.player.as_mut() {
         p.location = location;
     }
+    crate::places::arrive(state, content, location);
     let mut res = ActionResult {
         outcome_key: "outcome-moved".into(),
         ..Default::default()

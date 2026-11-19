@@ -1899,6 +1899,28 @@
             "min"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player knows the subject at least this well (DEC-091; default\n`heard`). A subject naming several places holds if any is known.",
+          "properties": {
+            "min": {
+              "$ref": "#/$defs/Level",
+              "default": "heard"
+            },
+            "subject": {
+              "$ref": "#/$defs/SubjectDef"
+            },
+            "type": {
+              "const": "knows",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "subject"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -3756,6 +3778,56 @@
           "required": [
             "type",
             "response"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player learns something (DEC-091): a subject raised to a level,\nnever lowered.",
+          "properties": {
+            "level": {
+              "$ref": "#/$defs/Level"
+            },
+            "subject": {
+              "$ref": "#/$defs/SubjectDef"
+            },
+            "type": {
+              "const": "learn",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "subject",
+            "level"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A hidden place is revealed (DEC-090 D7): places of these kinds in the\nneighbourhood cast in `role` (or the home neighbourhood of the person\ncast in it), else in the player's town, become `known`.",
+          "properties": {
+            "kinds": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "role": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "reveal_place",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
           ],
           "type": "object"
         }
@@ -6241,6 +6313,14 @@
           "description": "Fluent key of the line.",
           "type": "string"
         },
+        "teaches": {
+          "default": [],
+          "description": "What hearing the line lets the player hear of (DEC-091): each subject\nis raised to `heard`. Lines have no roles; a neighbourhood or a place\nis where the line is heard.",
+          "items": {
+            "$ref": "#/$defs/SubjectDef"
+          },
+          "type": "array"
+        },
         "weight": {
           "default": 1.0,
           "description": "Relative chance among the lines that hold (default 1).",
@@ -7402,6 +7482,14 @@
         },
         "place": {
           "$ref": "#/$defs/ScenePlace"
+        },
+        "teaches": {
+          "default": [],
+          "description": "What answering the decision this scene presents teaches (DEC-091),\nwith the dilemma's roles. The cast people are met (`known`) anyway.",
+          "items": {
+            "$ref": "#/$defs/TeachDef"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -8176,6 +8264,166 @@
       ],
       "type": "string"
     },
+    "SubjectDef": {
+      "description": "A knowledge subject named by role, never by id (DEC-091;\nM6_ENGINE_CONTRACTS §1.3): resolved against the cast and the player's\ntown by `mandate_sim::narrative::learn`. Used by narrative `learn`\neffects, scene `teaches` hooks, `knows` conditions, and overheard lines'\n`teaches` (which have no roles: there, the neighbourhood is where the\nline is heard).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The player's town's worries.",
+          "properties": {
+            "type": {
+              "const": "town_concerns",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A neighbourhood's worries: the neighbourhood cast in `role`, or the\nhome neighbourhood of the person cast in it; without a role, where it\nhappens (where an overheard line is heard; a decision's scene, else\nthe player's home neighbourhood).",
+          "properties": {
+            "role": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "hood_concerns",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Who really runs the player's town.",
+          "properties": {
+            "type": {
+              "const": "broker",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person cast in `role`.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "person",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The rival's plans.",
+          "properties": {
+            "type": {
+              "const": "rival_plans",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Who supports a policy: the bill or law cast in `role`, or a template.",
+          "properties": {
+            "role": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "template": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "policy_support",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A situational policy on the table (transitional, until the M5d\ntemplates become policy families).",
+          "properties": {
+            "template": {
+              "type": "string"
+            },
+            "type": {
+              "const": "situational",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "template"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Places of these kinds (any kind if empty) in the player's town: in\nthe neighbourhood cast in `role` (or the home neighbourhood of the\nperson cast in it), else where it happens. Hidden places (DEC-090 D7)\nuse this; ordinary places are always known.",
+          "properties": {
+            "kinds": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "role": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "place",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "TaxParams": {
       "additionalProperties": false,
       "properties": {
@@ -8210,6 +8458,23 @@
         "sales",
         "income",
         "business"
+      ],
+      "type": "object"
+    },
+    "TeachDef": {
+      "additionalProperties": false,
+      "description": "A scene's teaching hook: what answering the decision it presents lets\nthe player learn (DEC-091).",
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/Level"
+        },
+        "subject": {
+          "$ref": "#/$defs/SubjectDef"
+        }
+      },
+      "required": [
+        "subject",
+        "level"
       ],
       "type": "object"
     },

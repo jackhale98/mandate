@@ -512,6 +512,16 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         for w in &o.when {
             check_heard(b, &o.id, w, &mut issues);
         }
+        // What a line teaches (DEC-091): lines have no cast, so no roles.
+        for t in &o.teaches {
+            if t.role().is_some() || matches!(t, crate::narrative::SubjectDef::Person { .. }) {
+                issues.push(Issue::error(
+                    &o.id,
+                    &format!("overheard lines teach without roles (`{}`)", t.key()),
+                ));
+            }
+            crate::narrative::check_subject(&o.id, b, t, &mut issues);
+        }
     }
 
     // Every referenced Fluent key must exist in English (the reference locale).

@@ -1027,6 +1027,11 @@ pub struct OverheardDef {
     /// Relative chance among the lines that hold (default 1).
     #[serde(default = "one_f64")]
     pub weight: f64,
+    /// What hearing the line lets the player hear of (DEC-091): each subject
+    /// is raised to `heard`. Lines have no roles; a neighbourhood or a place
+    /// is where the line is heard.
+    #[serde(default)]
+    pub teaches: Vec<crate::narrative::SubjectDef>,
 }
 
 fn one_f64() -> f64 {

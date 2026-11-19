@@ -736,6 +736,7 @@ pub fn holds(v: &View<'_>, c: &Condition, cast: &[CastEntry]) -> bool {
         Condition::MonthsInPlay { min } => {
             v.play_began().days_until(v.date()) >= min * 30 && v.date() >= v.play_began()
         }
+        Condition::Knows { subject, min } => super::learn::knows(v, subject, *min, cast, None),
     }
 }
 

@@ -325,6 +325,9 @@ fn option_score(
                 }
             }
             EffectDef::Repay { .. } => 0.0,
+            // Knowledge never sways a bot's choice (DEC-091: it costs
+            // effectiveness, never fairness; K4 adds the effectiveness).
+            EffectDef::Learn { .. } | EffectDef::RevealPlace { .. } => 0.0,
             // A rider or a favour called in helps a bill pass; a favour
             // called in is spent.
             EffectDef::Rider { .. } => 0.5 * t.draft,

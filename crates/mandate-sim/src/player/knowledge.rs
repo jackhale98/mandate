@@ -374,11 +374,7 @@ impl KnowledgeLedger {
 /// (lab runs) or the lab switch is on. Views and bots use this, never the
 /// ledger directly.
 pub fn knows(state: &State, s: &Subject) -> Level {
-    match &state.player {
-        None => Level::Detailed,
-        Some(p) if p.knowledge.lab_omniscient => Level::Detailed,
-        Some(p) => p.knowledge.level(s),
-    }
+    level_of(state.player.as_ref(), s)
 }
 
 // --- Resolving grants ------------------------------------------------------------
@@ -709,6 +705,162 @@ pub fn visit_intro(state: &State, content: &ContentBundle, place: PlaceId) -> Ve
         out.extend(resolve(state, content, defs, &scope));
     }
     out
+}
+
+// --- Producers (K3; M6_ENGINE_CONTRACTS §1.3) ---------------------------------------
+//
+// The player's own commands write the ledger directly through these (the
+// player domain writing its own state, Commands phase). Other systems post
+// `Effect::Learn` / `Read` / `Lead`, and only when a player exists. Nothing
+// here draws randomness, and nothing reads the ledger for outcomes.
+
+/// What a player knows of a subject (`knows` for a player that may be
+/// absent): `Detailed` without a player or with the lab switch on.
+pub fn level_of(player: Option<&crate::player::PlayerState>, s: &Subject) -> Level {
+    match player {
+        None => Level::Detailed,
+        Some(p) if p.knowledge.lab_omniscient => Level::Detailed,
+        Some(p) => p.knowledge.level(s),
+    }
+}
+
+/// Raise each grant in the player's ledger (dated today, from `src`).
+/// Returns how many subjects changed; nothing without a player.
+pub fn teach(state: &mut State, grants: impl IntoIterator<Item = Grant>, src: &Source) -> usize {
+    let on = state.calendar.date;
+    let Some(pl) = state.player.as_mut() else {
+        return 0;
+    };
+    grants
+        .into_iter()
+        .filter(|g| {
+            pl.knowledge
+                .learn(g.subject.clone(), g.level, on, src.clone())
+        })
+        .count()
+}
+
+/// Raise one subject in the player's ledger. Returns whether it changed.
+pub fn teach_one(state: &mut State, subject: Subject, level: Level, src: Source) -> bool {
+    teach(state, [Grant { subject, level }], &src) > 0
+}
+
+/// Store a dated reading for a subject the player already knows (raising
+/// it to `detailed`). Returns whether it was stored.
+pub fn read_now(
+    state: &mut State,
+    subject: Subject,
+    values: Vec<(String, i32)>,
+    src: Source,
+) -> bool {
+    let on = state.calendar.date;
+    let Some(pl) = state.player.as_mut() else {
+        return false;
+    };
+    pl.knowledge.read(
+        subject,
+        Reading {
+            on,
+            source: src,
+            values,
+        },
+    )
+}
+
+/// A neighbourhood's worries as felt there now, per mille by concern id,
+/// strongest first (a `hood_concerns` reading).
+pub fn hood_reading(
+    state: &State,
+    content: &ContentBundle,
+    hood: NeighborhoodId,
+) -> Vec<(String, i32)> {
+    let Some(h) = state.world.neighborhoods.get(hood.index()) else {
+        return Vec::new();
+    };
+    crate::concerns::felt_concerns(
+        &state.population,
+        content,
+        h.municipality.index(),
+        &[hood.index()],
+    )
+    .into_iter()
+    .filter_map(|(i, w)| {
+        let c = content.concerns.get(i)?;
+        Some((c.id.clone(), (w * 1000.0).round() as i32))
+    })
+    .collect()
+}
+
+/// A neighbourhood's worries learned first-hand (canvassing, a town hall):
+/// `known` the first time; once known, a dated reading (`detailed`).
+pub fn learn_hood(state: &mut State, content: &ContentBundle, hood: NeighborhoodId, src: Source) {
+    let s = Subject::HoodConcerns { hood };
+    let current = state.player.as_ref().map(|p| p.knowledge.level(&s));
+    match current {
+        None => {}
+        Some(l) if l >= Level::Known => {
+            let values = hood_reading(state, content, hood);
+            read_now(state, s, values, src);
+        }
+        Some(_) => {
+            teach_one(state, s, Level::Known, src);
+        }
+    }
+}
+
+/// The player's place, if they stand at one (the `place` of a source).
+pub fn here(state: &State) -> Option<PlaceId> {
+    match state.player.as_ref()?.location {
+        Location::Place { place } => Some(place),
+        _ => None,
+    }
+}
+
+/// Where a player action was done (`Source::Action`).
+pub fn action_source(state: &State, action: &str) -> Source {
+    Source::Action {
+        action: action.into(),
+        place: here(state),
+    }
+}
+
+/// Every councillor and the mayor of the player's town, as people (not
+/// the player).
+pub fn council_people(state: &State) -> Vec<CharacterId> {
+    let Some(pl) = state.player.as_ref() else {
+        return Vec::new();
+    };
+    let me = crate::characters::player_character(state);
+    let pol = &state.politics;
+    pol.councils
+        .get(pl.municipality.index())
+        .map(|c| {
+            c.members
+                .iter()
+                .chain(c.mayor.iter())
+                .filter_map(|id| pol.get(*id))
+                .map(|p| p.character)
+                .filter(|c| Some(*c) != me)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Arriving at a place (`MoveTo`, or a `Go` landing there): the first visit
+/// in the zone gives the place's introduction (`visit_all` and the kind's
+/// `visit_intro`), once. Arrival teaches lightly (the owner, 2026-11-19):
+/// introductions and names; anything deeper needs an action or a person.
+/// Returns how many subjects changed.
+pub fn arrive_at(state: &mut State, content: &ContentBundle, place: PlaceId) -> usize {
+    let first = match state.player.as_mut() {
+        Some(pl) => pl.knowledge.visit(place),
+        None => return 0,
+    };
+    if !first {
+        return 0;
+    }
+    let intro = visit_intro(state, content, place);
+    teach(state, intro, &Source::Visit { place })
 }
 
 // --- Effects (OVERVIEW §4.3) ------------------------------------------------------

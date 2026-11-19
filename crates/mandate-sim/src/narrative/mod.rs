@@ -21,6 +21,7 @@
 pub mod audit;
 pub mod cast;
 pub mod director;
+pub mod learn;
 pub mod resolve;
 
 use crate::characters::CharacterId;
@@ -196,6 +197,13 @@ pub enum Applied {
     /// The effect could not happen any more (e.g. the vote was already held).
     Skipped {
         effect: String,
+    },
+    /// The player learned something (DEC-091): `n` subjects of this type
+    /// (`person`, `hood_concerns`, `place`, …) are now at `level` or above.
+    Learned {
+        subject: String,
+        level: String,
+        n: u32,
     },
 }
 
