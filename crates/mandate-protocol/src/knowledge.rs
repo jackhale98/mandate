@@ -844,15 +844,27 @@ fn this_turn(engine: &Engine, on: mandate_core::SimDate) -> bool {
 }
 
 /// How many subjects the player learned something of this turn (the
-/// pocket's notebook badge).
+/// pocket's notebook badge). What the player starts with (the start
+/// profile, the local-knowledge option, the party primer) and what a save
+/// migration seeded is not news: only what was learned in play counts.
 pub fn notebook_new(engine: &Engine) -> u32 {
     let Some(pl) = engine.state().player.as_ref() else {
         return 0;
     };
+    let starting = |s: &Source| {
+        matches!(
+            s,
+            Source::Start { .. } | Source::LocalOption | Source::Primer { .. } | Source::Migrated
+        )
+    };
     pl.knowledge
         .entries
         .values()
-        .filter(|e| e.learned.iter().any(|l| this_turn(engine, l.on)))
+        .filter(|e| {
+            e.learned
+                .iter()
+                .any(|l| !starting(&l.source) && this_turn(engine, l.on))
+        })
         .count() as u32
 }
 
