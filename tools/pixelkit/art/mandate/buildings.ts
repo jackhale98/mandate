@@ -1170,7 +1170,7 @@ function decay(c: Canvas, geos: readonly Geo[], broken: readonly Placed[], seed:
     // Roof holes: one or two ragged gaps with rafters across them.
     const roofH = g.wallTop - g.roofTop;
     if (roofH >= 6 && m.roof !== "canopy") {
-      const holes = w >= 40 ? 2 : 1;
+      const holes = 1 + Math.floor(w / 32);
       for (let hI = 0; hI < holes; hI++) {
         const hw = Math.min(w - 8, 9 + (hash32(seed, "hw", gi, hI) % 7));
         const hh = Math.max(3, Math.min(roofH - 3, 4 + (hash32(seed, "hh", gi, hI) % 3)));

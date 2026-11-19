@@ -3,27 +3,17 @@
 // family; the new props; and the v2 terrain pieces.
 import { hexToRgb } from "../core/color";
 import type { Rgba } from "../node/png";
-import type { Sheet } from "../node/sheet";
-import { PLOT_STATES, type FacadeSpec } from "../../art/mandate/buildings";
+import { Sheet } from "../node/sheet";
+import { PLOT_STATES } from "../../art/mandate/buildings";
+import { FAMILY_SPECS } from "../../art/mandate/samples";
 import type { ArtPack } from "../../art/mandate/pack";
 import { TERRAIN as K } from "../../art/mandate/terrain";
+import { bridgePieces, creekPiece, levelPiece, minePiece, railPiece, shorePieces, type Piece } from "../../art/mandate/v2pieces";
 import { v2Scene, type SceneBuilding } from "../../art/mandate/v2scene";
 import { renderScene, type Moment } from "./scene";
 import { gridSheet, type Cell } from "./sheets";
 
 const V2_PROPS = ["headframe", "spoil_heap", "reeds", "stepping_stones", "stall"] as const;
-
-/** One building of each family, for the plot-state sheet. */
-export const FAMILY_SPECS: readonly (readonly [string, FacadeSpec])[] = (() => {
-  const base: FacadeSpec = { kind: "terrace", hood: "inner", w: 3, h: 3, doorX: 1, storeys: 2, visualSeed: 7001, named: false, home: false, landmark: false, conditions: [], headroom: 32, ends: { left: "gap", right: "gap" } };
-  return [
-    ["civic", { ...base, kind: "town_hall", hood: "core", w: 5, doorX: 2, storeys: 3, named: true, landmark: true, visualSeed: 7002 }],
-    ["shop", { ...base, kind: "shop", w: 4, visualSeed: 7003 }],
-    ["house", { ...base, kind: "terrace", visualSeed: 7004 }],
-    ["industrial", { ...base, kind: "warehouse", hood: "industrial", w: 5, doorX: 2, visualSeed: 7005 }],
-    ["institution", { ...base, kind: "school", hood: "suburb", w: 5, doorX: 2, named: true, visualSeed: 7006 }],
-  ] as const;
-})();
 
 /** Every family in every plot state on one street block per row. */
 function plotScene() {
@@ -52,6 +42,36 @@ function labelled(s: Sheet, labels: readonly [string, number, number][]): Sheet 
   return s;
 }
 
+/** Mini maps rendered at a scale, labelled, in rows of a sheet at most `maxW` px wide. */
+function board(pack: ArtPack, title: string, pieces: readonly Piece[], scale: number, moment: Moment = "day", maxW = 1800): Sheet {
+  const shots = pieces.map((p) => ({ p, img: renderScene(pack, p, moment, scale) }));
+  const rows: (typeof shots)[] = [[]];
+  let x = 8;
+  for (const s of shots) {
+    if (x + s.img.w > maxW && (rows[rows.length - 1] as typeof shots).length) {
+      rows.push([]);
+      x = 8;
+    }
+    (rows[rows.length - 1] as typeof shots).push(s);
+    x += s.img.w + 12;
+  }
+  const rowH = rows.map((r) => Math.max(...r.map((s) => s.img.h)) + 22);
+  const W = Math.max(...rows.map((r) => r.reduce((a, s) => a + s.img.w + 12, 8)));
+  const sheet = new Sheet(Math.max(W, title.length * 8 + 16), 30 + rowH.reduce((a, b) => a + b, 0));
+  sheet.text(title, 8, 8);
+  let y = 30;
+  rows.forEach((r, ri) => {
+    let xx = 8;
+    for (const s of r) {
+      sheet.text(s.p.label, xx, y, [154, 160, 180], 1);
+      sheet.pasteRgba(s.img, xx, y + 10);
+      xx += s.img.w + 12;
+    }
+    y += rowH[ri] as number;
+  });
+  return sheet;
+}
+
 export function v2Sheets(pack: ArtPack, png: (name: string, img: Rgba) => void) {
   const rgb = pack.palette.colors.map(hexToRgb);
   const scene = v2Scene();
@@ -63,6 +83,12 @@ export function v2Sheets(pack: ArtPack, png: (name: string, img: Rgba) => void) 
   PLOT_STATES.forEach((st, ci) => labels.push([st, ci * 6 * 32 + 4, 4]));
   FAMILY_SPECS.forEach(([fam], r) => labels.push([fam, 4, (r * 7 + 6) * 32 + 8]));
   for (const m of ["day", "night"] as Moment[]) png(`v2-plot-states-${m}.png`, labelled(renderScene(pack, ps, m, 2), labels));
+
+  // ---- terrain pieces and bridge kits
+  const pieces = [...shorePieces(), creekPiece(), railPiece(), levelPiece(), minePiece()];
+  png("v2-terrain.png", board(pack, "ROUND 4 TERRAIN: SHORES, CREEK AND CROSSINGS, RAIL, LEVELS, THE MINE (3x)", pieces, 3));
+  png("v2-terrain-night.png", board(pack, "ROUND 4 TERRAIN AT NIGHT (PALETTE MOODS, 22:30)", pieces, 3, "night"));
+  png("v2-bridges.png", board(pack, "ROUND 4 BRIDGE KITS: STONE BRIDGE, TIMBER FOOTBRIDGE, BRICK VIADUCT; EAST-WEST (SOUTH FACE) AND NORTH-SOUTH (DECK, SHADOW) (3x)", bridgePieces(), 3, "day", 1400));
 
   // ---- props
   const cells: Cell[] = [];

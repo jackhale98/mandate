@@ -148,17 +148,17 @@ function headframe(): PropDef2 {
   // Ropes from the wheels' far sides down into the shaft, and the cage hanging in the tower.
   c.line(1, 8, 11, 44, "O");
   c.line(26, 8, 16, 44, "O");
-  c.rect(11, 44, 6, 5, "j");
-  c.rect(11, 44, 6, 1, "c");
-  c.rect(12, 46, 4, 2, "J");
-  // The banksman's house at the foot: stone, a dark roof edge, a door and a window.
-  c.rect(0, footY + 1, 28, 1, "Q");
+  c.rect(11, 44, 6, 5, "i");
+  c.rect(11, 44, 6, 1, "I");
+  c.rect(12, 46, 4, 2, "O");
+  // The banksman's house at the foot: stone, a dark roof edge, a door and a dark window (few colours: the tower is the picture).
+  c.rect(0, footY + 1, 28, 1, "P");
   c.rect(0, footY + 2, 28, 5, "p");
   c.rect(0, footY + 2, 28, 1, "q");
   for (let x = 2; x < 28; x += 6) c.rect(x, footY + 4, 1, 3, "P");
-  c.rect(4, footY + 3, 3, 4, "w");
-  c.rect(19, footY + 3, 4, 2, "g");
-  c.set(19, footY + 3, "y");
+  c.rect(4, footY + 3, 3, 4, "T");
+  c.rect(19, footY + 3, 4, 2, "O");
+  c.set(19, footY + 3, "c");
   return { grid: c.text(), base: baseY, shadow: { box: [2, 54, 26, 62], height: 56 } };
 }
 

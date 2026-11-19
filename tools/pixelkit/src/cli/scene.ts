@@ -19,8 +19,8 @@ export interface SceneInput {
   width: number;
   height: number;
   terrain: ArrayLike<number>;
-  elevation?: ArrayLike<number>;
-  connectors?: readonly ConnectorView[];
+  elevation?: ArrayLike<number> | undefined;
+  connectors?: readonly ConnectorView[] | undefined;
   buildings?: readonly SceneBuilding[];
   props?: readonly SceneProp[];
   people?: readonly { x: number; y: number; seed: number }[];
@@ -148,10 +148,8 @@ export function renderScene(pack: ArtPack, s: SceneInput, moment: Moment, scale:
       for (let k = 0; k < 3; k++) rgb[i * 3 + k] = (rgb[i * 3 + k] as number) * (1 - a) + (sc[k] as number) * a;
     }
   }
-  for (const it of items) put(it.img, it.x, it.y, it.person ? people : statics);
+  // Lamp pools on the ground (the hub shapes them to the town; here they go under everything that stands): stepped bands, added.
   if (night) {
-    for (const it of items) for (const l of it.lit ?? []) put(l.img, l.x, l.y, base);
-    // Lamp pools: stepped bands, added.
     const pool = pack.pool;
     for (const it of items) {
       if (!it.pool) continue;
@@ -172,6 +170,9 @@ export function renderScene(pack: ArtPack, s: SceneInput, moment: Moment, scale:
       }
     }
   }
+  for (const it of items) put(it.img, it.x, it.y, it.person ? people : statics);
+  // Lit windows, doors and lamp heads, over the grade.
+  if (night) for (const it of items) for (const l of it.lit ?? []) put(l.img, l.x, l.y, base);
   const sheet = new Sheet(W * scale, H * scale);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {

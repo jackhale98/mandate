@@ -110,7 +110,6 @@ export function v2Scene(): Scene {
   // ---- the town (level 0): a north–south road over a level crossing and a bridge, an east–west road over the river
   rect(K.Road, 14, 10, 2, 18);
   rect(K.Crossing, 14, 11, 2, 1);
-  rect(K.Pavement, 16, 12, 9, 1);
   rect(K.Pavement, 16, 14, 10, 1);
   rect(K.Road, 16, 15, 24, 1);
   rect(K.Road, 26, 15, 3, 1);
@@ -130,14 +129,14 @@ export function v2Scene(): Scene {
   // ---- buildings (footprints are Building, doors Door; doors face south)
   const buildings: SceneBuilding[] = [];
   const base = { named: false, home: false, landmark: false, headroom: 16, ends: { left: "gap" as const, right: "gap" as const } };
-  const put = (x: number, y: number, w: number, h: number, kind: string, hood: string, state: SceneBuilding["state"], seed: number, doorX = 1) => {
+  const put = (x: number, y: number, w: number, h: number, kind: string, hood: string, state: SceneBuilding["state"], seed: number, doorX = 1, headroom = 16) => {
     rect(K.Building, x, y, w, h);
     rect(K.Door, x + doorX, y + h - 1, 1, 1);
     const conditions = state === "built" ? [] : [state];
-    buildings.push({ x, y, state, spec: { ...base, kind, hood, w, h, doorX, storeys: h >= 3 ? 2 : 1, visualSeed: seed, conditions } });
+    buildings.push({ x, y, state, spec: { ...base, kind, hood, w, h, doorX, storeys: h >= 3 ? 2 : 1, visualSeed: seed, conditions, headroom } });
   };
-  put(17, 12, 3, 2, "house", "inner", "built", 4101);
-  put(21, 12, 4, 2, "shop", "inner", "boarded", 4102);
+  put(17, 13, 3, 2, "house", "inner", "built", 4101, 1, 0);
+  put(21, 13, 4, 2, "shop", "inner", "boarded", 4102, 1, 0);
   put(30, 16, 4, 2, "terrace", "inner", "derelict", 4103);
   put(34, 16, 3, 2, "terrace", "inner", "built", 4104);
   put(1, 22, 4, 3, "house", "suburb", "built", 4105);
