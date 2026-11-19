@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (14, "287e706e13da6304");
+    const EXPECTED: (u16, &str) = (15, "d64d45f71d3d2613");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -1008,12 +1008,141 @@ fn v12_saves_migrate_to_media_and_justice() {
     assert_eq!(back.hash(), e2.state_hash());
 }
 
-/// v14 added the player's knowledge ledger (DEC-091). A v13 save loads with
-/// an unseeded ledger and is seeded generously on load (`Migrated`): the
-/// default profile, the local option, and everyone with a relationship to
-/// the player known; then it plays on and round-trips.
+/// Strip the town baselines (TOWN_GENERATION §15 E1) from a payload: the
+/// shape of the format before them.
+fn without_baselines(v: &mut serde_json::Value) {
+    for h in v
+        .pointer_mut("/state/population/hoods")
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+    {
+        h.as_object_mut().unwrap().remove("baseline_population");
+    }
+    for mu in v
+        .pointer_mut("/state/economy/munis")
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+    {
+        let mu = mu.as_object_mut().unwrap();
+        for s in mu["sectors"].as_array_mut().unwrap() {
+            s.as_object_mut().unwrap().remove("baseline_jobs");
+        }
+        mu["housing"]
+            .as_object_mut()
+            .unwrap()
+            .remove("baseline_stock");
+    }
+}
+
+/// The format after v13 added town baselines (TOWN_GENERATION §15 E1):
+/// residents per neighbourhood, jobs per sector, and housing stock, as play
+/// began. A save from before takes them from its current values (whole
+/// units), keeps them through play, and round-trips.
 #[test]
-fn v13_saves_migrate_to_the_knowledge_ledger() {
+fn v13_saves_migrate_to_town_baselines() {
+    let c = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 65,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    e.apply(Command::AdvanceDays { days: 500 }).unwrap();
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    without_baselines(&mut v);
+    assert!(
+        serde_json::from_value::<mandate_sim::State>(v["state"].clone()).is_err(),
+        "the older payload lacks the baselines"
+    );
+    let migrated = mandate_save::migrate(13, v.clone()).unwrap();
+    assert_eq!(migrated, mandate_save::migrate(13, v).unwrap());
+    let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    // The baselines are the save's own values, in whole units.
+    for (h, hp) in state.population.hoods.iter().enumerate() {
+        assert_eq!(
+            u64::from(hp.baseline_population),
+            state.population.hood_total(h)
+        );
+    }
+    for mu in &state.economy.munis {
+        for s in &mu.sectors {
+            assert_eq!(s.baseline_jobs, s.jobs.round() as u32);
+        }
+        assert_eq!(mu.housing.baseline_stock, mu.housing.stock.round() as u32);
+    }
+    let m = state.player.as_ref().unwrap().municipality;
+    let before = state.town_baseline(m).unwrap();
+    assert_eq!(
+        before.population,
+        state.population.municipality_total(&state.world, m)
+    );
+    assert!(before.housing_stock > 0 && before.sectors.iter().any(|s| s.jobs > 0));
+    // Play on: the baselines never move.
+    let mut e2 = mandate_sim::Engine::from_state(state, c).unwrap();
+    for _ in 0..12 {
+        e2.apply(Command::EndTurn).unwrap();
+    }
+    assert_eq!(e2.state().town_baseline(m).unwrap(), before);
+    let (bytes, meta) = encode(e2.state(), &req()).unwrap();
+    assert_eq!(meta.format_version, SAVE_FORMAT_VERSION);
+    let (back, _) = decode(&bytes).unwrap();
+    assert_eq!(back.hash(), e2.state_hash());
+    assert_eq!(back.town_baseline(m).unwrap(), before);
+}
+
+/// A file in the format before the baselines (v13: its header, its payload
+/// shape) decodes through the whole chain. For a game saved as play begins,
+/// the migrated baselines equal the ones a new game records, so the state
+/// is identical.
+#[test]
+fn v13_files_decode_with_town_baselines() {
+    let c = content();
+    let e = generate(
+        &WorldConfig {
+            seed: 66,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    without_baselines(&mut v);
+    let payload = serde_json::to_vec(&v).unwrap();
+    let (_, mut meta) = encode(e.state(), &req()).unwrap();
+    meta.format_version = 13;
+    meta.payload_hash = mandate_core::hash::StableHash::of_bytes(&payload).hex();
+    let meta_json = serde_json::to_vec(&meta).unwrap();
+    let mut bytes = MAGIC.to_vec();
+    bytes.extend_from_slice(&13u16.to_le_bytes());
+    bytes.extend_from_slice(&(meta_json.len() as u32).to_le_bytes());
+    bytes.extend_from_slice(&meta_json);
+    bytes.extend_from_slice(&miniz_oxide::deflate::compress_to_vec(&payload, 6));
+    let (state, read) = decode(&bytes).unwrap();
+    assert_eq!(read.format_version, 13);
+    // The knowledge ledger (a later step) is seeded on load, not migrated:
+    // everything else is identical.
+    let strip = |s: &mandate_sim::State| {
+        let mut v = serde_json::to_value(s).unwrap();
+        v["player"].as_object_mut().unwrap().remove("knowledge");
+        v
+    };
+    assert_eq!(strip(&state), strip(e.state()));
+    mandate_sim::Engine::from_state(state, c).unwrap();
+}
+
+/// The format after v14 added the player's knowledge ledger (DEC-091). An
+/// older save loads with an unseeded ledger and is seeded generously on load
+/// (`Migrated`): the default profile, the local option, and everyone with a
+/// relationship to the player known; then it plays on and round-trips. A v13
+/// save (no baselines, no ledger) goes through both steps (13 → 14 → 15).
+#[test]
+fn older_saves_migrate_to_the_knowledge_ledger() {
     use mandate_sim::player::knowledge::{LedgerOrigin, Level, Source, Subject};
     let c = content();
     let mut e = generate(
@@ -1030,14 +1159,30 @@ fn v13_saves_migrate_to_the_knowledge_ledger() {
     }
     let fresh = e.state().player.as_ref().unwrap().knowledge.clone();
     assert!(matches!(fresh.origin, LedgerOrigin::Profile { .. }));
-    // The v13 shape: no ledger on the player.
-    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
-    v.pointer_mut("/state/player")
+    // The v14 shape: no ledger on the player.
+    let mut v14 = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    v14.pointer_mut("/state/player")
         .unwrap()
         .as_object_mut()
         .unwrap()
         .remove("knowledge");
-    let migrated = mandate_save::migrate(13, v).unwrap();
+    // The v13 shape: no baselines either.
+    let mut v13 = v14.clone();
+    without_baselines(&mut v13);
+    let from13 = mandate_save::migrate(13, v13).unwrap();
+    let migrated = mandate_save::migrate(14, v14).unwrap();
+    // Through both steps: baselines from the save's values, the ledger unseeded.
+    let s13: mandate_sim::State = serde_json::from_value(from13["state"].clone()).unwrap();
+    assert_eq!(
+        s13.player.as_ref().unwrap().knowledge.origin,
+        LedgerOrigin::Unseeded
+    );
+    assert_eq!(from13["state"]["player"], migrated["state"]["player"]);
+    let e13 = mandate_sim::Engine::from_state(s13, c.clone()).unwrap();
+    assert_eq!(
+        e13.state().player.as_ref().unwrap().knowledge.origin,
+        LedgerOrigin::Migrated
+    );
     let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
     assert_eq!(
         state.player.as_ref().unwrap().knowledge.origin,
@@ -1076,7 +1221,8 @@ fn v13_saves_migrate_to_the_knowledge_ledger() {
     for _ in 0..10 {
         e2.apply(Command::EndTurn).unwrap();
     }
-    let (bytes, _) = encode(e2.state(), &req()).unwrap();
+    let (bytes, meta) = encode(e2.state(), &req()).unwrap();
+    assert_eq!(meta.format_version, SAVE_FORMAT_VERSION);
     let (back, _) = decode(&bytes).unwrap();
     assert_eq!(back.hash(), e2.state_hash());
     // A seeded ledger is kept as it is on the next load.

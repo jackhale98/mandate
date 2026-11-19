@@ -181,6 +181,18 @@ export interface TownConnector {
   name: string;
 }
 
+/** Layout v2 street directions per cell (`TownMap.streetAxis`). */
+export const StreetAxis = {
+  /** Orthogonal, or not a street: the shape comes from the neighbours. */
+  Orthogonal: 0,
+  /** A diagonal street running north-east to south-west ("/"). */
+  DiagonalNE: 1,
+  /** A diagonal street running north-west to south-east ("\\"). */
+  DiagonalNW: 2,
+  /** A junction where a diagonal street meets another street. */
+  Junction: 3,
+} as const;
+
 /** Layout v2 dress state of a building plot (DEC-090 D2). Absent on v1 maps, which are always "built". */
 export type PlotState = "built" | "reserved" | "construction" | "boarded" | "derelict";
 
@@ -207,6 +219,13 @@ export interface TownMap {
   elevation?: Uint8Array;
   /** Layout v2 only: bridges, fords, viaducts and level crossings. */
   connectors?: TownConnector[];
+  /**
+   * Layout v2 only (street rework A + B): the direction of the street a road,
+   * crossing or pavement cell belongs to: `StreetAxis` codes. Absent or 0 means
+   * orthogonal (the art reads the shape from neighbours, as v1). Diagonal cells
+   * form 45° staircases; the art draws them as smooth 45° roads and kerbs.
+   */
+  streetAxis?: Uint8Array;
   /** 1 where walking is blocked (buildings, water, trees, the fountain). */
   solid: Uint8Array;
   /** District index per cell, -1 outside the town. */
