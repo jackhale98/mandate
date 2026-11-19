@@ -660,9 +660,18 @@ h2 { font-size: 1.1rem; }
 .pocket-head-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .pocket-head h2 { margin-bottom: 2px; }
 .pocket-head p { margin: 0 0 4px; }
-.pocket-tabs { padding: 0; margin: 0 -16px; padding-left: 8px; background: none; border-bottom: 0; }
-.pocket-tab { flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 0 8px; }
+.pocket-tabs { margin: 0 -16px; padding: 0 8px; background: none; border-bottom: 0; }
+.pocket-tab { position: relative; flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 0 8px; }
 .pocket-tab-badge { padding: 1px 6px; }
+/* Phones (360–480 px): the four tabs share the width, the icon over the label and the count on the
+   icon's shoulder, so every label and badge shows whole. */
+@media (max-width: 480px) {
+  .pocket-tabs { gap: 2px; padding: 0 4px; }
+  .pocket-tab { flex-direction: column; gap: 1px; min-height: 52px; padding: 4px 2px 2px; font-size: 0.8rem; }
+  .pocket-tab-icon { font-size: 1.15rem; line-height: 1.15; }
+  .pocket-tab-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .pocket-tab-badge { position: absolute; top: 2px; left: calc(50% + 9px); padding: 0 5px; font-size: 0.68rem; line-height: 1.45; }
+}
 .pocket-panel { display: flex; flex-direction: column; gap: 12px; }
 .pocket-panel:focus { outline: none; }
 .pocket-panel:focus-visible { outline: 3px solid var(--info); outline-offset: 4px; }
