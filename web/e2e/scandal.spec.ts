@@ -55,7 +55,10 @@ test("a shady choice comes out later, makes the paper, and draws an investigatio
   await expect(pocket.getByTestId("pocket-legal").getByTestId("scandal").first()).toContainText("a cash bribe");
   await closeSheet(page, "pocket");
 
-  // The newspaper office runs it, with the outlet and its framing.
+  // The newspaper office runs it, with the outlet and its framing (from the List view;
+  // the town screen opens on the map, DEC-086).
+  await page.getByTestId("town-tab-list").click();
+  await expect(page.getByRole("tabpanel", { name: /List/ })).toBeVisible();
   const office = (await page.getByTestId("spot-news_office").count()) > 0 ? "spot-news_office" : "spot-town_hall";
   const spot = page.getByTestId(office).first();
   await spot.evaluate((el) => el.scrollIntoView({ block: "center" }));
