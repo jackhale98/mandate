@@ -12,6 +12,7 @@
 //         o deep shadow
 import { blank, blit, grid, outline, type Indexed } from "../../src/core/image";
 import type { Palette } from "../../src/core/palette";
+import { marketStalls, PROP2_LEGEND_RAMPS, round4Props } from "./props2";
 import { legendFor } from "./tiles";
 
 export const PROP_LEGEND_RAMPS: Readonly<Record<string, readonly [string, number]>> = {
@@ -404,7 +405,10 @@ const PROPS: Record<string, readonly PropDef[]> = {
   ],
 };
 
-export const PROP_KINDS = Object.keys(PROPS);
+/** Every prop: round 1's, the market stall's variants after its first (round 4), and the layout v2 props (./props2). */
+const ALL_PROPS: Record<string, readonly PropDef[]> = { ...PROPS, stall: [...(PROPS.stall ?? []), ...marketStalls()], ...round4Props() };
+
+export const PROP_KINDS = Object.keys(ALL_PROPS);
 
 export interface BuiltProp {
   /** Outlined albedo (palette indices). */
@@ -443,10 +447,10 @@ export interface Spill {
 
 /** Build every prop variant (ahead of time). */
 export function buildProps(p: Palette, lightness: readonly number[]): Record<string, BuiltProp[]> {
-  const legend = legendFor(p, PROP_LEGEND_RAMPS);
+  const legend = legendFor(p, { ...PROP_LEGEND_RAMPS, ...PROP2_LEGEND_RAMPS });
   const litLegend: Record<string, number> = { ...legend, g: legendFor(p, { l: ["lamp", 1] }).l as number, y: legendFor(p, { l: ["lamp", 2] }).l as number, G: legendFor(p, { l: ["lamp", 0] }).l as number };
   const out: Record<string, BuiltProp[]> = {};
-  for (const [kind, defs] of Object.entries(PROPS)) {
+  for (const [kind, defs] of Object.entries(ALL_PROPS)) {
     out[kind] = defs.map((d) => {
       const g = grid(d.grid, legend);
       // One pixel of room all round for the outline.

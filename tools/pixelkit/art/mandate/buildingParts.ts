@@ -83,8 +83,14 @@ export const BSLOT = {
   bloomY: 62,
   poster: 63,
   posterS: 64,
+  // Round 4: plot states (reserved lots, building sites, derelict buildings): bare earth, debris netting, hazard paint.
+  earth: 65,
+  earthL: 66,
+  net: 67,
+  netS: 68,
+  hazard: 69,
 } as const;
-export const BSLOT_COUNT = 65;
+export const BSLOT_COUNT = 70;
 
 export const BLEGEND: Readonly<Record<string, number>> = {
   w: BSLOT.wall,

@@ -6,7 +6,8 @@
 //   lint      the P0 lints; writes lint.json and lint.txt; exits 1 on an error
 //   build     the built pack as the game would load it: pack.json and a tile atlas
 //   street    lays the spike's street screenshots (web/spikes/hub/pixelkit-capture.mjs) side by side
-//   all       palette, sheets, build and lint
+//   v2        round 4: layout v2 terrain, bridges, props and plot states, and the v2 test scene by day and night
+//   all       palette, sheets, v2, build and lint
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { hexToRgb, type Rgb8 } from "../core/color";
@@ -23,6 +24,7 @@ import { composeCharacter, faceLeft, lookFromSeed, partList, PLAYER_LOOK, slotTa
 import { buildPack, type ArtPack } from "../../art/mandate/pack";
 import { groundTile, TERRAINS } from "../../art/mandate/tiles";
 import { sampleBuildings, sampleRows, varietyBuildings } from "../../art/mandate/samples";
+import { v2Sheets } from "./v2sheets";
 
 const args = process.argv.slice(2);
 const cmd = args[0] ?? "all";
@@ -356,6 +358,7 @@ async function main() {
     png("palette.png", paletteSheet(pack.palette));
   }
   if (cmd === "sheets" || cmd === "all") sheets(pack);
+  if (cmd === "v2" || cmd === "all") v2Sheets(pack, png);
   if (cmd === "build" || cmd === "all") build(pack);
   if (cmd === "street") street();
   if (cmd === "lint" || cmd === "all") {

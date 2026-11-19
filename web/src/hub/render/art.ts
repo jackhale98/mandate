@@ -114,7 +114,10 @@ export interface BuildingSpec {
   door: { x: number; side: "south" };
   storeys: number;
   visualSeed: number;
-  /** Simulation conditions (`boarded`, `construction`, `flooded`, …); none yet. */
+  /**
+   * Conditions (`boarded`, `construction`, `flooded`, …). Layout v2 puts the plot's dress state here
+   * (`reserved`, `construction`, `boarded`, `derelict`; `TownBuilding.state`, DEC-090 D2); built plots have none.
+   */
   conditions: readonly string[];
   /** A named place (gets a sign), the player's home, a civic landmark. */
   named: boolean;
@@ -203,6 +206,14 @@ export interface ArtProvider {
   /** Light cast by lit ground-floor windows onto the pavement in front (dusk and night), if the art has it. */
   readonly windowLight?: LightShape;
   ground(kind: TerrainKind, cornerMask: number, variant: number): FrameRef;
+  /**
+   * Layout v2 (DEC-090, TOWN_GENERATION.md §7.7), optional: the ground of the cell (x, y) drawn with what the
+   * map says around it — level faces and lips (`map.elevation`), water edges by shore, creek, rail and
+   * level-crossing pieces, bridge decks, faces and shadows (`map.connectors`). A renderer that has it calls
+   * it for every cell instead of `ground` (same anchor and size; `cornerMask` and `variant` as for `ground`);
+   * on a v1 map it gives what `ground` gives. Without it, v2 codes still draw through `ground`, flat.
+   */
+  groundCell?(map: TownMap, x: number, y: number, cornerMask: number, variant: number): FrameRef;
   building(spec: BuildingSpec): BuiltBuilding;
   prop(key: string, variant: number): PropSprite;
   character(look: LookView, anim: AnimKey, facing: Facing, frame: number): FrameRef;
@@ -346,7 +357,7 @@ export function buildingSpec(map: TownMap, b: TownBuilding): BuildingSpec {
     storeys: storeysOf(b),
     // Places look the same wherever they end up; fillers by where they stand.
     visualSeed: b.place !== null ? mix(map.seed, 0x504c, b.place) : b.style,
-    conditions: [],
+    conditions: b.state && b.state !== "built" ? [b.state] : [],
     named: b.place !== null,
     home: b.home,
     landmark: b.landmark,

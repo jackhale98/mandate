@@ -722,6 +722,11 @@ function materials(s: FacadeSpec, d: Design, p: Palette): Uint8Array {
   t[BSLOT.bloomY] = stepOf(p, "lamp", 1);
   t[BSLOT.poster] = stepOf(p, party, 0);
   t[BSLOT.posterS] = stepOf(p, "chalk", 0);
+  t[BSLOT.earth] = stepOf(p, "earth", 0);
+  t[BSLOT.earthL] = stepOf(p, "earth", 1);
+  t[BSLOT.net] = stepOf(p, "cloth_teal", 0);
+  t[BSLOT.netS] = stepOf(p, "cloth_teal", -1);
+  t[BSLOT.hazard] = stepOf(p, "flag", 0);
   return t;
 }
 
@@ -962,7 +967,12 @@ export function buildFacade(s: FacadeSpec, p: Palette): Facade {
   const c = new Canvas(W, IH);
   const doorBay = Math.max(0, Math.min(s.w - 1, s.doorX));
   const doorCx = doorBay * T + 8;
-  const boarded = s.conditions.includes("boarded");
+  // Plot states (layout v2, DEC-090 D2): an empty lot and a building site are drawn on their own; boarded and derelict buildings are the building, vacant.
+  const state = plotStateOf(s.conditions);
+  if (state === "reserved" || state === "construction") return buildLot(s, d, k, table, state);
+  const derelict = state === "derelict";
+  const vacant = derelict || state === "boarded";
+  const boarded = vacant;
   const windows: Placed[] = [];
   const doors: { part: Indexed; kind: string; x: number; y: number }[] = [];
   const shadows: ShadowCaster[] = [];
@@ -1062,13 +1072,19 @@ export function buildFacade(s: FacadeSpec, p: Palette): Facade {
   if (s.named || s.home) signDone = drawSign(c, d, s, geos, k, doorCx);
 
   // ---- windows and doors (with boarding), then wear and ivy over the wall
-  const boardedPlanks = (w: Placed) => boarded && w.ground;
+  // Boarded: the ground floor and about half the windows above it; derelict: the ground floor and a third above (the rest are broken).
+  const boardedPlanks = (w: Placed) => boarded && (w.ground || (vacant && hash32(seed, "board", w.x, w.y) % (derelict ? 3 : 2) === 0));
   for (const w of windows) {
     c.part(w.part, w.x, w.y);
     if (boardedPlanks(w)) c.part(crop(k.planks, 0, 0, Math.min(k.planks.w, w.part.w - 2), Math.min(k.planks.h, w.part.h - 4)), w.x + 1, w.y + 2);
   }
-  for (const dd of doors) c.part(dd.part, dd.x, dd.y);
+  for (const dd of doors) {
+    c.part(dd.part, dd.x, dd.y);
+    // A vacant building's doors are boarded too.
+    if (vacant && dd.part.h >= 8) for (const oy of [3, 12]) if (oy + 6 <= dd.part.h) c.part(crop(k.planks, 0, 0, Math.min(k.planks.w, dd.part.w - 2), 6), dd.x + 1, dd.y + oy);
+  }
   geos.forEach((g, gi) => drawWear(c, d, g, seed + gi * 7, windows));
+  if (derelict) decay(c, geos, windows.filter((w) => !boardedPlanks(w)), seed);
   // Party-office posters in the shop windows.
   if (d.kind === "party_office") {
     for (const w of windows) {
@@ -1087,7 +1103,7 @@ export function buildFacade(s: FacadeSpec, p: Palette): Facade {
     .map((w, i) => {
       const h = hash32(seed, "lit", i);
       // Not every room is in use: about a quarter of the windows above the street stay dark.
-      const dark = !w.ground && d.family !== "civic" && h % 100 < 25;
+      const dark = vacant || (!w.ground && d.family !== "civic" && h % 100 < 25);
       return { x: w.x, y: w.y, w: w.part.w, h: w.part.h, emissive: dark ? null : remap(litPart(w.part, w.kind, (h >>> 8) % 3), litTable(table, w.use, p)), use: w.use };
     })
     .filter((o) => o.x >= 0 && o.y >= 0 && o.x + o.w <= W && o.y + o.h <= IH);
@@ -1097,7 +1113,7 @@ export function buildFacade(s: FacadeSpec, p: Palette): Facade {
       y: dd.y,
       w: dd.part.w,
       h: dd.part.h,
-      emissive: dd.kind === "shutter" || dd.kind === "planks" ? null : remap(litPart(dd.part, dd.kind, 0), litTable(table, use, p)),
+      emissive: vacant || dd.kind === "shutter" || dd.kind === "planks" ? null : remap(litPart(dd.part, dd.kind, 0), litTable(table, use, p)),
       use,
     }))
     .filter((o) => o.x >= 0 && o.y >= 0 && o.x + o.w <= W && o.y + o.h <= IH);
@@ -1113,6 +1129,234 @@ export function buildFacade(s: FacadeSpec, p: Palette): Facade {
   }
   const main = shadows[d.masses.findIndex((m) => !m.wing)] ?? (shadows[0] as ShadowCaster);
   return { albedo, ay, windows: outW, doors: outD, receivers, shadow: main, shadows, signature: signatureOf(d) };
+}
+
+// ---------------------------------------------------------------------------
+// Plot states (round 4; DEC-090 D2: the monthly dress pass shows them)
+
+export const PLOT_STATES = ["built", "reserved", "construction", "boarded", "derelict"] as const;
+export type PlotState = (typeof PLOT_STATES)[number];
+
+/** The plot state among a spec's conditions (the renderer passes `TownBuilding.state` there); built when none. */
+export function plotStateOf(conditions: readonly string[]): PlotState {
+  for (const st of ["reserved", "construction", "derelict", "boarded"] as const) if (conditions.includes(st)) return st;
+  return "built";
+}
+
+const GLASS_SLOTS = new Set<number>([BSLOT.glass, BSLOT.glassD, BSLOT.glassY, BSLOT.glassB]);
+const ROOF_SLOTS = new Set<number>([BSLOT.roof, BSLOT.roofS, BSLOT.roofD, BSLOT.roofL, BSLOT.flat, BSLOT.flatS, BSLOT.flatD, BSLOT.flatL]);
+
+/**
+ * Decay for a derelict building: holes in the roof with the rafters showing,
+ * broken panes, a crack down the wall, ivy, and weeds along the foot of the
+ * walls and through the paving of forecourts and yards.
+ */
+function decay(c: Canvas, geos: readonly Geo[], broken: readonly Placed[], seed: number) {
+  const img = c.img;
+  const at = (x: number, y: number) => (x < 0 || y < 0 || x >= img.w || y >= img.h ? 0 : (img.px[y * img.w + x] as number));
+  // Broken windows: the panes gone dark, a shard or two left in a corner.
+  for (const w of broken) {
+    for (let y = w.y; y < w.y + w.part.h; y++) {
+      for (let x = w.x; x < w.x + w.part.w; x++) {
+        if (!GLASS_SLOTS.has(at(x, y))) continue;
+        const shard = x - w.x + (y - w.y) < 4 && hash32(seed, "shard", x, y) % 2 === 0;
+        c.px(x, y, shard ? BSLOT.glassY : BSLOT.deep);
+      }
+    }
+  }
+  geos.forEach((g, gi) => {
+    const { m } = g;
+    const w = m.x1 - m.x0;
+    // Roof holes: one or two ragged gaps with rafters across them.
+    const roofH = g.wallTop - g.roofTop;
+    if (roofH >= 6 && m.roof !== "canopy") {
+      const holes = w >= 40 ? 2 : 1;
+      for (let hI = 0; hI < holes; hI++) {
+        const hw = Math.min(w - 8, 9 + (hash32(seed, "hw", gi, hI) % 7));
+        const hh = Math.max(3, Math.min(roofH - 3, 4 + (hash32(seed, "hh", gi, hI) % 3)));
+        const hx = m.x0 + 3 + (hash32(seed, "hx", gi, hI) % Math.max(1, w - hw - 6));
+        const hy = g.roofTop + 2 + (hash32(seed, "hy", gi, hI) % Math.max(1, roofH - hh - 3));
+        for (let y = hy; y < hy + hh; y++) {
+          // Ragged ends: each row a little shorter or longer.
+          const j = hash32(seed, "rag", y, hI) % 3;
+          for (let x = hx + j; x < hx + hw - ((j + y) % 2); x++) {
+            if (!ROOF_SLOTS.has(at(x, y))) continue;
+            // Rafters across the gap every 4 px (lit on top), the dark loft between them.
+            const rafter = (x - hx) % 4 === 1;
+            c.px(x, y, rafter ? (y === hy ? BSLOT.woodL : BSLOT.woodD) : y === hy ? BSLOT.roofD : BSLOT.deep);
+          }
+        }
+      }
+    }
+    if (m.roof === "canopy") return;
+    // A crack down the wall from the eaves.
+    let cx = m.x0 + 4 + (hash32(seed, "crack", gi) % Math.max(1, w - 8));
+    for (let y = g.wallTop + 3; y < Math.min(g.wallTop + 16, g.groundY - 4); y++) {
+      const v = at(cx, y);
+      if (v && !GLASS_SLOTS.has(v) && v !== BSLOT.deep) c.px(cx, y, BSLOT.wallD);
+      if (hash32(seed, "cz", y) % 3 === 0) cx += hash32(seed, "cd", y) % 2 ? 1 : -1;
+    }
+    // Ivy up one end of the wall, weeds along its foot.
+    const ivyX = hash32(seed, "ivy", gi) % 2 ? m.x0 + 1 : m.x1 - 8;
+    for (let y = g.groundY - 1; y > g.groundY - 22 && y > g.wallTop; y--) {
+      const reach = 7 - Math.floor((g.groundY - y) / 4);
+      for (let x = ivyX; x < ivyX + 7; x++) {
+        if (x - ivyX > reach || hash32(seed, "leaf", x, y) % 3 === 0) continue;
+        c.px(x, y, (x + y) % 3 === 0 ? BSLOT.hedgeS : BSLOT.hedge);
+      }
+    }
+    for (let x = m.x0; x < m.x1; x++) {
+      const h = hash32(seed, "weed", x) % 5;
+      if (h > 2) continue;
+      for (let k = 0; k <= h; k++) c.px(x, g.groundY - 1 - k, k === h ? BSLOT.lawn : BSLOT.hedgeS);
+    }
+  });
+  // Weeds through the paving of forecourts and yards.
+  for (const [x0, y0, w, h] of c.grounds) {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (hash32(seed, "grow", x >> 1, y >> 1) % 5 === 0 && at(x, y)) c.px(x, y, (x + y) % 2 ? BSLOT.lawn : BSLOT.lawnS);
+  }
+}
+
+/**
+ * A plot with no building on it yet: a reserved lot (rough grass and bare
+ * earth inside a low timber fence, a gate, a board on posts, a heap of spoil)
+ * or a building site (a slab and walls rising about a storey in the design's
+ * material, openings without glass, scaffolding with boards, a brace, a
+ * ladder and netting, a skip). Neither has lit openings. Same frame and
+ * anchor as the building that will stand there.
+ */
+function buildLot(s: FacadeSpec, d: Design, k: ReturnType<typeof kitParts>, table: Uint8Array, state: "reserved" | "construction"): Facade {
+  const seed = s.visualSeed >>> 0;
+  const W = s.w * T;
+  const FD = s.h * T;
+  const HR = Math.max(0, Math.min(32, s.headroom ?? 0));
+  const IH = FD + T + HR;
+  const ay = T + HR;
+  const c = new Canvas(W, IH);
+  const doorCx = Math.max(0, Math.min(s.w - 1, s.doorX)) * T + 8;
+  const shadows: ShadowCaster[] = [];
+  const doors: Opening[] = [];
+  // The lot's ground: rough grass, bare earth (most of a building site).
+  c.tex(k.tex.lawn, 0, ay, W, FD, seed & 15, 0);
+  c.grounds.push([0, ay, W, FD]);
+  for (let y = ay; y < IH; y += 2) {
+    for (let x = 0; x < W; x += 2) {
+      const h = hash32(seed, "lot", x >> 2, y >> 2);
+      if (state === "construction" ? h % 3 !== 0 : h % 5 === 0) c.rect(x, y, 2, 2, (x + y) % 6 === 0 ? BSLOT.earthL : BSLOT.earth);
+    }
+  }
+  if (state === "reserved") {
+    // A low timber fence round the lot (rails seen from above along the sides and back, its face along the front), a gate at the door.
+    const fy = IH - 6;
+    for (let x = 0; x < W; x++) {
+      if (Math.abs(x - doorCx) <= 4) continue;
+      c.px(x, fy + 1, BSLOT.woodL);
+      c.px(x, fy + 3, BSLOT.wood);
+      if (x % 6 === 0) {
+        c.rect(x, fy, 2, 6, BSLOT.woodD);
+        c.px(x, fy, BSLOT.woodL);
+      }
+    }
+    for (let y = ay + 1; y < fy; y++) {
+      c.px(0, y, y % 6 === 0 ? BSLOT.woodD : BSLOT.wood);
+      c.px(W - 1, y, y % 6 === 0 ? BSLOT.woodD : BSLOT.wood);
+    }
+    for (let x = 0; x < W; x++) c.px(x, ay + 1, x % 6 === 0 ? BSLOT.woodD : BSLOT.wood);
+    c.faces.push([0, fy, W, 6, IH]);
+    // A board on two posts with a house pictogram: the plot is for building on.
+    const bx = doorCx + 7 <= W - 13 ? doorCx + 7 : Math.max(1, doorCx - 19);
+    c.rect(bx + 2, fy - 8, 1, 8, BSLOT.woodD);
+    c.rect(bx + 9, fy - 8, 1, 8, BSLOT.woodD);
+    c.rect(bx, fy - 15, 12, 8, BSLOT.sign);
+    c.rect(bx, fy - 8, 12, 1, BSLOT.signS);
+    // A gabled roof (rows of 2, 4, 6) over a house with a door in it.
+    c.rect(bx + 5, fy - 14, 2, 1, BSLOT.picto);
+    c.rect(bx + 4, fy - 13, 4, 1, BSLOT.picto);
+    c.rect(bx + 3, fy - 12, 6, 1, BSLOT.picto);
+    c.rect(bx + 4, fy - 11, 4, 3, BSLOT.picto);
+    c.rect(bx + 5, fy - 10, 2, 2, BSLOT.sign);
+    c.faces.push([bx, fy - 15, 12, 15, fy]);
+    // A heap of spoil at the back.
+    const hx = (hash32(seed, "heap") % Math.max(1, W - 16)) + 2;
+    for (let r = 0; r < 5; r++) c.rect(hx + r, ay + 4 + (4 - r), 12 - 2 * r, 1, r === 4 ? BSLOT.earthL : BSLOT.earth);
+    shadows.push({
+      footprint: [
+        [0, FD - 5],
+        [W, FD - 5],
+        [W, FD],
+        [0, FD],
+      ],
+      height: 6,
+    });
+    doors.push({ x: doorCx - 4, y: IH - 6, w: 8, h: 6, emissive: null, use: "home" });
+  } else {
+    // The slab, and walls rising about a storey with ragged tops (courses still being laid).
+    const builtH = 18 + (hash32(seed, "built") % 10);
+    const wallTop = IH - builtH;
+    c.rect(1, ay + 2, W - 2, FD - 2, BSLOT.pave);
+    c.rect(1, ay + 2, W - 2, 1, BSLOT.paveL);
+    c.tex(k.tex[d.wall.tex], 2, wallTop, W - 4, builtH, (seed >>> 7) & 15, 0);
+    for (let x = 2; x < W - 2; x += 4) {
+      const drop = hash32(seed, "course", x) % 5;
+      c.rect(x, wallTop, Math.min(4, W - 2 - x), drop, BSLOT.pave);
+      c.rect(x, wallTop + drop, Math.min(4, W - 2 - x), 1, BSLOT.wallL);
+    }
+    c.rect(2, IH - 2, W - 4, 1, BSLOT.wallS);
+    c.rect(2, IH - 1, W - 4, 1, BSLOT.wallD);
+    c.faces.push([2, wallTop, W - 4, builtH, IH]);
+    // Openings without glass: the door, and a window in the other bays once the walls are high enough.
+    for (let b = 0; b < s.w; b++) {
+      const bx = b * T;
+      if (bx + 8 === doorCx) c.rect(bx + 3, IH - 21, 10, 20, BSLOT.deep);
+      else if (builtH > 20) c.rect(bx + 4, IH - 18, 8, 9, BSLOT.deep);
+    }
+    // Materials on the slab: a stack of blocks and a pallet.
+    c.rect(4, ay + 4, 8, 4, BSLOT.stack);
+    c.rect(4, ay + 4, 8, 1, BSLOT.stackL);
+    c.rect(W - 14, ay + 5, 10, 3, BSLOT.wood);
+    c.rect(W - 14, ay + 7, 10, 1, BSLOT.woodD);
+    // Scaffolding over the front: standards every 12 px, ledgers and boards every lift, a brace, a ladder, netting on the top lift.
+    const top = Math.max(ay - 6, wallTop - 12);
+    for (let x = 1; x < W - 1; x += 12) c.rect(x, top, 1, IH - top, BSLOT.iron);
+    c.rect(W - 2, top, 1, IH - top, BSLOT.iron);
+    for (let y = IH - 3; y >= top + 2; y -= 9) {
+      c.rect(0, y, W, 1, BSLOT.iron);
+      c.rect(0, y - 2, W, 2, BSLOT.wood);
+      c.rect(0, y - 2, W, 1, BSLOT.woodL);
+    }
+    for (let y = top; y < IH - 3; y++) c.px(13 + Math.floor(((y - top) * 10) / Math.max(1, IH - 3 - top)), y, BSLOT.ironL);
+    const lx = Math.min(W - 8, 26);
+    for (let y = top + 2; y < IH - 1; y++) {
+      c.px(lx, y, BSLOT.woodD);
+      c.px(lx + 3, y, BSLOT.woodD);
+      if (y % 3 === 0) c.rect(lx, y, 4, 1, BSLOT.woodL);
+    }
+    for (let y = top; y < top + 7; y++) for (let x = 0; x < W; x++) if (x % 12 !== 1 && (hash32(seed, "net", x >> 2) + y) % 9 !== 0) c.px(x, y, (x + (y >> 1)) % 5 === 0 ? BSLOT.netS : BSLOT.net);
+    // A skip by the front.
+    const sx = doorCx + 10 <= W - 12 ? doorCx + 9 : 2;
+    c.rect(sx, IH - 6, 11, 5, BSLOT.hazard);
+    c.rect(sx, IH - 6, 11, 1, BSLOT.stackL);
+    c.rect(sx + 1, IH - 7, 9, 1, BSLOT.stack);
+    shadows.push({
+      footprint: [
+        [0, 2],
+        [W, 2],
+        [W, FD],
+        [0, FD],
+      ],
+      height: builtH + 6,
+    });
+    doors.push({ x: doorCx - 5, y: IH - 21, w: 10, h: 20, emissive: null, use: "home" });
+  }
+  const albedo = remap(c.img, table);
+  const receivers = new Uint8Array(W * IH);
+  for (let i = 0; i < receivers.length; i++) receivers[i] = c.img.px[i] ? RECEIVER.ground : RECEIVER.none;
+  for (const [x, y, w, h, base] of c.faces) {
+    for (let yy = Math.max(0, y); yy < Math.min(IH, y + h); yy++) {
+      for (let xx = Math.max(0, x); xx < Math.min(W, x + w); xx++) if (c.img.px[yy * W + xx]) receivers[yy * W + xx] = Math.min(255, RECEIVER.face + Math.max(0, base - 1 - yy));
+    }
+  }
+  return { albedo, ay, windows: [], doors, receivers, shadow: shadows[0] as ShadowCaster, shadows, signature: [...signatureOf(d), state] };
 }
 
 function stripWindows(k: ReturnType<typeof kitParts>, x0: number, x1: number, y: number, use: LightUse): Placed[] {
