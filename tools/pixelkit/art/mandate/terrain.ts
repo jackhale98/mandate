@@ -424,10 +424,11 @@ export class TerrainPainter {
       for (let x = 0; x < this.W; x++) {
         const i = y * this.W + x;
         if (this.t(x, y) !== K.Bridge || this.deckAt[i]) continue;
+        // Bounded by the map: `t()` clamps to the edge, so a run reaching the edge would never end.
         let w = 1;
-        while (this.t(x + w, y) === K.Bridge && !this.deckAt[i + w]) w++;
+        while (x + w < this.W && this.t(x + w, y) === K.Bridge && !this.deckAt[i + w]) w++;
         let h = 1;
-        while (this.t(x, y + h) === K.Bridge && !this.deckAt[i + h * this.W]) h++;
+        while (y + h < this.H && this.t(x, y + h) === K.Bridge && !this.deckAt[i + h * this.W]) h++;
         const ew = w >= h;
         add({ kind: "bridge", x, y, w: ew ? w : 1, h: ew ? 1 : h, axis: ew ? "ew" : "ns" });
       }

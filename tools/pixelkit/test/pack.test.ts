@@ -205,6 +205,13 @@ describe("layout v2 (round 4)", () => {
     for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) assert.equal(p.draw(x, y, 0).px.length, 256);
     assert.equal(tileOf(pack.tiles, pack.terrain, 77, 255, 0).px.length, 256);
   });
+  it("finishes on bridge cells that reach the map's edge with no connector (seed 672 froze here)", () => {
+    // Bridge (22) runs touching the right and bottom edges, no connectors: the run scan used to loop forever.
+    const B = 22;
+    const view = { width: 4, height: 4, terrain: new Uint8Array([0, 0, B, B, 0, 0, 0, B, 5, 5, 5, B, 0, B, 0, B]) };
+    const p = new TerrainPainter(pack.tiles, pack.terrain, view);
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) assert.equal(p.draw(x, y, 0).px.length, 256);
+  });
   it("is deterministic for a map and seamless across cells (creek water, rail heads)", () => {
     for (const piece of allPieces()) assert.deepEqual(groundImage(pack, piece).px, groundImage(pack, piece).px, piece.label);
     const rail = groundImage(pack, railPiece());
