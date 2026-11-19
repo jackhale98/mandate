@@ -27,6 +27,12 @@ export interface RampSpec {
   line?: false | number | string;
   /** Hand-picked steps (darkest first) instead of generated ones; the anchor must be one of them. */
   fixed?: readonly string[];
+  /**
+   * This ramp's steps reuse an existing palette colour closer than this (Oklab ΔE) instead of adding their own
+   * (default: the palette's `merge`). A ramp that nearly duplicates an earlier one is merged into it this way
+   * (D11, round 4: palette headroom); the ramp keeps its name, so parts and kits that use it do not change.
+   */
+  merge?: number;
 }
 
 export interface Ramp {
@@ -67,13 +73,21 @@ export function buildPalette(spec: PaletteSpec): Palette {
   const isLine: boolean[] = [false];
   const merge = spec.merge ?? 0.012;
   const lineMerge = spec.lineMerge ?? 0.035;
-  const add = (hex: string, line: boolean): number => {
+  const add = (hex: string, line: boolean, stepMerge = merge): number => {
     const c = hexToRgb(hex);
+    // The nearest colour within the limit (the first one found, round 1–3, when only the default limit applies).
+    let best = -1;
+    let bestD = Infinity;
     for (let i = 1; i < colors.length; i++) {
       if (colors[i] === hex) return i;
-      const limit = line && isLine[i] ? lineMerge : merge;
-      if (deltaE(c, rgb[i] as Rgb8) < limit) return i;
+      const limit = line && isLine[i] ? lineMerge : line ? merge : stepMerge;
+      const d = deltaE(c, rgb[i] as Rgb8);
+      if (d < limit && (stepMerge === merge || line ? best < 0 : d < bestD)) {
+        best = i;
+        bestD = d;
+      }
     }
+    if (best >= 0) return best;
     colors.push(hex);
     rgb.push(c);
     isLine.push(line);
@@ -101,7 +115,7 @@ export function buildPalette(spec: PaletteSpec): Palette {
     }
     const anchorStep = hexes.indexOf(r.anchor.toLowerCase());
     if (anchorStep < 0) throw new Error(`ramp ${r.name}: the anchor is not one of its steps`);
-    const steps = hexes.map((h) => add(h, false));
+    const steps = hexes.map((h) => add(h, false, r.merge ?? merge));
     let line = steps[0] as number;
     if (typeof r.line === "string") line = add(r.line.toLowerCase(), true);
     else if (r.line !== false) {
