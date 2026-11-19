@@ -151,6 +151,8 @@ test("the player's town is marked on the map and in the town list", async ({ pag
   });
   expect(flag.inView).toBe(true);
   expect(flag.rgb).toEqual([235, 104, 52]);
+  await page.getByTestId("town-map-close").click();
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
   // The town list flags it too, with text.
   await (await openPocket(page)).getByRole("button", { name: "Overview", exact: true }).click();
   await page.locator(".region-accordion > li > .row-btn", { has: page.locator(".you-chip") }).click();

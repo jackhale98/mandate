@@ -53,6 +53,10 @@ test("map renders and a town can be inspected from the list", async ({ page }) =
   await expect(canvas).toBeVisible();
   const box = await canvas.boundingBox();
   expect(box?.width ?? 0).toBeGreaterThan(200);
+  // The pocket's Map opens the map overlay on the country; ✕ closes it.
+  await expect(page.getByTestId("map-scope-country")).toHaveAttribute("aria-selected", "true");
+  await page.getByTestId("town-map-close").click();
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
   pocket = await openPocket(page);
   await pocket.getByRole("button", { name: "Overview", exact: true }).click();
   await page.locator(".region-accordion > li > .row-btn").first().click();

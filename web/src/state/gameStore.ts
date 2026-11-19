@@ -27,13 +27,13 @@ import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
 import { EMPTY_TRANSLATOR, Translator } from "../i18n/fluent";
 import { saveStore } from "../persistence/indexedDbStore";
 import { deviceId, randomHex, type RunSummary } from "../persistence/saveStore";
-import { isWide, readPocketDocked, readPocketTab, writePocketDocked, writePocketTab, type PocketTab } from "./devicePrefs";
+import { isWide, readMapScope, readPocketDocked, readPocketTab, writeMapScope, writePocketDocked, writePocketTab, type MapScope, type PocketTab } from "./devicePrefs";
 
-export type { PocketTab } from "./devicePrefs";
+export type { MapScope, PocketTab } from "./devicePrefs";
 
 type Screen = "title" | "game";
 /** Main view of the game screen: the town (places), or the pocket's country views. */
-export type GameView = "town" | "map" | "overview";
+export type GameView = "town" | "overview";
 
 /** Longest walk shown before an auto-routed action (DEC-079: short, skippable). */
 export const WALK_MS = 600;
@@ -90,8 +90,10 @@ interface GameState {
   pocketDocked: boolean;
   /** Bumped to move the keyboard into the pocket's open tab (the "Skip to Places" link). */
   pocketFocus: number;
-  /** The town map (DEC-086) over the street, full screen. */
+  /** The map overlay over the street, full screen: the town map (DEC-086) or the country's. */
   townMapOpen: boolean;
+  /** Which map the overlay shows, remembered per device. */
+  mapScope: MapScope;
   view: GameView;
   /** Auto-routing in progress: where the player is walking to. */
   walking: LocationView | null;
@@ -145,6 +147,9 @@ interface GameState {
   setPocketTab(tab: PocketTab): void;
   setPocketDocked(docked: boolean): void;
   setTownMapOpen(open: boolean): void;
+  setMapScope(scope: MapScope): void;
+  /** Open the map overlay (over the town, from any view) on a map. */
+  openMap(scope: MapScope): void;
   setView(view: GameView): void;
   dismissToast(): void;
   /** End the turn: the engine runs it while the night passes (`passage`). During a passage, finish it first. */
@@ -227,6 +232,7 @@ export const useGame = create<GameState>((set, get) => {
     pocketDocked: readPocketDocked(),
     pocketFocus: 0,
     townMapOpen: false,
+    mapScope: readMapScope(),
     view: "town",
     walking: null,
     electionNight: false,
@@ -475,6 +481,16 @@ export const useGame = create<GameState>((set, get) => {
 
     setTownMapOpen(open) {
       set({ townMapOpen: open });
+    },
+
+    setMapScope(scope) {
+      writeMapScope(scope);
+      set({ mapScope: scope });
+    },
+
+    openMap(scope) {
+      writeMapScope(scope);
+      set({ view: "town", townMapOpen: true, mapScope: scope, ...pocketAfterMove(get()) });
     },
 
     setView(view) {

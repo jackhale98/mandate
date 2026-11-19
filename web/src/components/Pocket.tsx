@@ -14,7 +14,6 @@ import { PocketTabs, pocketPanelId, pocketTabId, type TabBadge } from "./PocketT
 import { TownTab } from "./TownCard";
 import { PlaceList } from "./PlaceList";
 import { PeopleList } from "./PeopleList";
-import { say } from "./townMapText";
 import type { PocketTab } from "../state/devicePrefs";
 import type { Translator } from "../i18n/fluent";
 
@@ -124,7 +123,7 @@ function Agenda({ p }: { p: PocketView }) {
         <ActionForm key={kind} action={kind} showRoute />
       ) : (
         <p className="muted small" data-testid="agenda-choose">
-          {tr.has("ui-agenda-choose") ? tr.t("ui-agenda-choose") : "Choose an action."}
+          {tr.t("ui-agenda-choose")}
         </p>
       )}
       <h3 className="sub">{tr.t("ui-agenda-places")}</h3>
@@ -194,7 +193,7 @@ export function pocketBadges(tr: Translator, p: PocketView): Partial<Record<Pock
   const today = [p.decisions.length > 0 ? tr.t("ui-decision-count", { n: p.decisions.length }) : null, p.alerts.length > 0 ? tr.t("ui-alert-count", { n: p.alerts.length }) : null].filter((x): x is string => x !== null);
   return {
     today: { n: p.decisions.length + p.alerts.length, text: today.join(", ") },
-    people: { n: p.notebook_new, text: say(tr, "ui-notebook-new-count", { n: p.notebook_new }) },
+    people: { n: p.notebook_new, text: tr.t("ui-notebook-new-count", { n: p.notebook_new }) },
   };
 }
 
@@ -217,6 +216,7 @@ export function Pocket() {
   const setDocked = useGame((s) => s.setPocketDocked);
   const focusTick = useGame((s) => s.pocketFocus);
   const setView = useGame((s) => s.setView);
+  const openMap = useGame((s) => s.openMap);
   const busy = useGame((s) => s.busy);
   const saveAndQuit = useGame((s) => s.saveAndQuit);
   const openStory = useGame((s) => s.openStory);
@@ -251,8 +251,8 @@ export function Pocket() {
                 className="btn btn-ghost pocket-dock"
                 aria-pressed={docked}
                 onClick={() => setDocked(!docked)}
-                aria-label={say(tr, "ui-pocket-dock")}
-                title={say(tr, docked ? "ui-pocket-undock-hint" : "ui-pocket-dock-hint")}
+                aria-label={tr.t("ui-pocket-dock")}
+                title={tr.t(docked ? "ui-pocket-undock-hint" : "ui-pocket-dock-hint")}
                 data-testid="pocket-dock"
               >
                 <span aria-hidden="true">{docked ? "◧" : "▭"}</span>
@@ -269,7 +269,7 @@ export function Pocket() {
             {tab === "today" ? <TodayTab p={p} /> : tab === "town" ? <TownTab /> : tab === "places" ? <PlaceList /> : <PeopleList />}
           </div>
           <nav className="pocket-links" aria-label={tr.t("ui-pocket-links")}>
-            <button type="button" className="btn" onClick={() => setView("map")}>
+            <button type="button" className="btn" onClick={() => openMap("country")} data-testid="pocket-country-map">
               {tr.t("ui-map")}
             </button>
             <button type="button" className="btn" onClick={() => setView("overview")}>

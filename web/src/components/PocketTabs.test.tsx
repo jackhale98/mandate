@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
-import { Translator } from "../i18n/fluent";
+import { englishTranslator } from "../i18n/englishLocale";
 import { readPocketDocked, readPocketTab, writePocketDocked, writePocketTab, type PocketTab } from "../state/devicePrefs";
 import { useGame } from "../state/gameStore";
 import { PocketTabs } from "./PocketTabs";
@@ -12,7 +12,7 @@ function Harness({ badges = {} }: { badges?: Parameters<typeof PocketTabs>[0]["b
 
 describe("the pocket's tabs", () => {
   beforeEach(() => {
-    useGame.setState({ tr: new Translator("en", "") });
+    useGame.setState({ tr: englishTranslator() });
   });
 
   it("is a tab list: one tab in the Tab order, arrows, Home and End move and select", () => {

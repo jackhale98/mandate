@@ -2,10 +2,15 @@
 // drawn by ./render/townRenderer at CSS resolution (upscaled pixelated by
 // the browser), HTML labels over it, pointer input through ./camera (pan,
 // pinch, wheel) and taps through ./townScene (a building walks to its door,
-// ground walks there). The loop runs only while something moves, caps
-// ambient-only frames at 30 fps, and stops when the page is hidden or the
-// view is paused (a panel is open). Framework-free, so the prototype page
-// and the app's React screen can both mount it.
+// ground walks there); optionally the keyboard (arrows and WASD walk through
+// ./townScene's steering, Enter at a door arrives). The loop runs only while
+// something moves (DEC-080 "Battery"): the player, the camera and gestures at
+// full rate, frames where only townsfolk move at `ambientFps` (15); after
+// `idleMs` (20 s) without input the townsfolk stop where they are and nothing
+// is drawn until the next pointer, wheel, key or touch; it stops too when
+// the page is hidden or the view is paused (a panel or sheet over it).
+// Framework-free, so the prototype page and the app's React screen can both
+// mount it.
 import { HubCamera } from "./camera";
 import { DayClock, townsfolkShare, wrapMinutes } from "./dayCycle";
 import type { ArtProvider } from "./render/art";
@@ -35,11 +40,37 @@ export interface HubViewOptions {
   reducedMotion?: boolean;
   /** The clock driving the light; default: stopped at noon. */
   clock?: DayClock;
-  /** Frame cap while only townsfolk move (default 30). */
+  /** Frame cap while only townsfolk move (default 15). */
   ambientFps?: number;
+  /** Idle sleep: with no input for this long (ms; default 20 000), townsfolk pause and drawing stops until the next input. */
+  idleMs?: number;
   /** Called after every drawn frame (a HUD). */
   onFrame?: (v: HubView) => void;
+  /**
+   * Keyboard walking (desktop): the canvas takes focus (Tab, or a click) and,
+   * while it has it, arrows and WASD walk the player, Shift runs, and Enter or
+   * Space at a door arrives there (`onArrive`, as a tap would). Default false.
+   */
+  keyboard?: boolean;
+  /** With `keyboard`: the hint shown at a door the player stands at (e.g. "Enter: the diner"), or null for none. */
+  doorHint?: (b: TownBuilding) => string | null;
+  /** With `keyboard`: the door hint shown changed (a building, or null when it hides). */
+  onDoor?: (b: TownBuilding | null) => void;
 }
+
+/** Keyboard directions: arrows by key, WASD by physical key (any layout). */
+const KEY_DIRS: Readonly<Record<string, readonly [number, number]>> = {
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  KeyW: [0, -1],
+  KeyS: [0, 1],
+  KeyA: [-1, 0],
+  KeyD: [1, 0],
+};
+
+const editable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 
 const TILE = 16;
 
@@ -82,6 +113,8 @@ export class HubView {
   readonly canvas: HTMLCanvasElement;
   /** Recent frame intervals and draw times, ms (HUD and measurements). */
   readonly timings = { intervals: [] as number[], draws: [] as number[], firstFrameMs: 0 };
+  /** Counters for measurements: frames drawn, and loop iterations (drawn or not). */
+  readonly stats = { frames: 0, ticks: 0 };
   private readonly labelLayer: HTMLDivElement;
   private readonly labels: { b: TownBuilding; el: HTMLButtonElement }[] = [];
   private readonly labelSize = new WeakMap<HTMLElement, { w: number; h: number }>();
@@ -89,8 +122,14 @@ export class HubView {
   private readonly opts: HubViewOptions;
   private readonly reducedMotion: boolean;
   private raf = 0;
+  /** A wait for the next ambient frame (setTimeout), so the loop does not wake every vsync for nothing. */
+  private timer = 0;
   private last = 0;
   private lastDraw = 0;
+  private lastInput = 0;
+  /** When the loop last drew or tried to (an unchanged frame is skipped by the renderer). */
+  private lastTry = 0;
+  private sleeping = false;
   private time = 0;
   private follow = true;
   private cssW = 1;
@@ -100,6 +139,13 @@ export class HubView {
   private destroyed = false;
   private readonly cleanup: (() => void)[] = [];
   private walkerViews: WalkerView[] = [];
+  /** Held direction keys (by code) and Shift. */
+  private readonly held = new Map<string, readonly [number, number]>();
+  private run = false;
+  /** Whether the keyboard focus is in the view (the door hint shows only then). */
+  private focused = false;
+  private hint: HTMLDivElement | null = null;
+  private hintFor: number | null = null;
 
   constructor(
     readonly container: HTMLElement,
@@ -140,6 +186,7 @@ export class HubView {
     });
     this.makeLabels();
     this.bindInput();
+    if (options.keyboard) this.bindKeys();
     this.resize(true);
     const ro = new ResizeObserver(() => this.resize(false));
     ro.observe(container);
@@ -147,6 +194,19 @@ export class HubView {
     const vis = () => (document.hidden ? this.stop() : this.wake());
     document.addEventListener("visibilitychange", vis);
     this.cleanup.push(() => document.removeEventListener("visibilitychange", vis));
+    // Any input anywhere on the page (the pocket too) counts against idle sleep, and wakes a sleeping street.
+    const poke = () => {
+      this.lastInput = performance.now();
+      if (this.sleeping) {
+        this.sleeping = false;
+        this.wake();
+      }
+    };
+    for (const type of ["pointerdown", "pointermove", "wheel", "keydown", "touchstart"] as const) {
+      window.addEventListener(type, poke, { capture: true, passive: true });
+      this.cleanup.push(() => window.removeEventListener(type, poke, { capture: true }));
+    }
+    this.lastInput = performance.now();
     // First frame now, so the time to it is honest.
     this.last = performance.now();
     this.drawNow();
@@ -181,8 +241,10 @@ export class HubView {
   }
   set paused(v: boolean) {
     this.pausedFlag = v;
-    if (v) this.stop();
-    else this.wake();
+    if (v) {
+      this.letGo();
+      this.stop();
+    } else this.wake();
   }
 
   /** Walk to a building's door. Returns false if it cannot be reached. */
@@ -312,6 +374,7 @@ export class HubView {
       const p = pos[i] as { x: number; y: number };
       if (show) el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
     });
+    this.placeHint();
   }
 
   // ------------------------------------------------------------------ input
@@ -326,6 +389,12 @@ export class HubView {
       c.addEventListener(type, f as EventListener, o);
       this.cleanup.push(() => c.removeEventListener(type, f as EventListener, o));
     };
+    // Input that reaches the street means the street is in sight: a pause (set for a sheet thought to
+    // cover it) never swallows it. The owner sets `paused` again when what covers it changes.
+    const seen = () => {
+      if (this.pausedFlag) this.pausedFlag = false;
+    };
+    for (const type of ["pointerdown", "wheel", "keydown"] as const) on(type, seen, { capture: true });
     on("pointerdown", (e) => {
       if (e.button !== 0 && e.pointerType === "mouse") return;
       c.setPointerCapture?.(e.pointerId);
@@ -376,6 +445,115 @@ export class HubView {
     this.opts.onArrive?.(b);
   }
 
+  // ------------------------------------------------------------------ keyboard
+
+  private bindKeys() {
+    const c = this.container;
+    const cv = this.canvas;
+    cv.tabIndex = 0;
+    cv.setAttribute("role", "application");
+    const hint = document.createElement("div");
+    hint.className = "hub-door-hint";
+    hint.setAttribute("aria-hidden", "true");
+    Object.assign(hint.style, { position: "absolute", left: "0", top: "0", display: "none", pointerEvents: "none", whiteSpace: "nowrap" });
+    this.labelLayer.appendChild(hint);
+    this.hint = hint;
+    const on = <K extends keyof HTMLElementEventMap>(target: HTMLElement | Window, type: K, f: (e: HTMLElementEventMap[K]) => void) => {
+      target.addEventListener(type, f as EventListener);
+      this.cleanup.push(() => target.removeEventListener(type, f as EventListener));
+    };
+    on(c, "keydown", (e) => {
+      if (this.pausedFlag || e.altKey || e.ctrlKey || e.metaKey || editable(e.target)) return;
+      const d = KEY_DIRS[e.code] ?? KEY_DIRS[e.key];
+      if (d) {
+        e.preventDefault();
+        this.held.set(KEY_DIRS[e.code] ? e.code : e.key, d);
+        this.run = e.shiftKey;
+        this.applyKeys();
+        return;
+      }
+      if (e.key === "Shift") {
+        this.run = true;
+        this.applyKeys();
+        return;
+      }
+      // Enter or Space at a door: arrive there, as a tap on the building would. Only from the canvas
+      // itself (a clicked label button has its own Enter).
+      if ((e.key === "Enter" || e.key === " ") && e.target === cv) {
+        const at = this.scene.doorHere;
+        const b = at !== null ? this.map.buildings[at] : undefined;
+        if (!b) return;
+        e.preventDefault();
+        if (!e.repeat) this.arrived(b);
+      }
+    });
+    on(c, "keyup", (e) => {
+      const id = KEY_DIRS[e.code] ? e.code : e.key;
+      if (this.held.delete(id) || e.key === "Shift") {
+        this.run = e.shiftKey && e.key !== "Shift";
+        this.applyKeys();
+      }
+    });
+    on(c, "focusin", () => {
+      this.focused = true;
+      this.updateDoor();
+    });
+    on(c, "focusout", (e) => {
+      if (e.relatedTarget instanceof Node && c.contains(e.relatedTarget)) return;
+      this.focused = false;
+      this.letGo();
+      this.updateDoor();
+    });
+    on(window, "blur", () => this.letGo());
+  }
+
+  /** Steer by the held keys (the last of two opposite keys does not win: they cancel). */
+  private applyKeys() {
+    let dx = 0;
+    let dy = 0;
+    for (const [x, y] of this.held.values()) {
+      dx += x;
+      dy += y;
+    }
+    this.scene.steer(dx, dy, this.run);
+    if (this.scene.steering) {
+      this.follow = true;
+      this.wake();
+    }
+  }
+
+  /** Release every key (focus left, the window lost focus, the view paused). */
+  private letGo() {
+    if (!this.held.size && !this.scene.steering) return;
+    this.held.clear();
+    this.run = false;
+    this.scene.steer(0, 0);
+  }
+
+  /** The door hint: shown while the keyboard is in the view and the player stands at a place's door. */
+  private updateDoor(wake = true) {
+    if (!this.hint) return;
+    const at = this.focused && !this.pausedFlag ? this.scene.doorHere : null;
+    const b = at !== null ? (this.map.buildings[at] ?? null) : null;
+    const text = b ? (this.opts.doorHint?.(b) ?? null) : null;
+    const id = text ? at : null;
+    if (id === this.hintFor) return;
+    this.hintFor = id;
+    this.hint.textContent = text ?? "";
+    this.hint.style.display = text ? "" : "none";
+    this.placeHint();
+    this.opts.onDoor?.(text ? b : null);
+    if (wake) this.wake();
+  }
+
+  private placeHint() {
+    const b = this.hintFor !== null ? this.map.buildings[this.hintFor] : undefined;
+    if (!this.hint || !b) return;
+    // Over the door, on the building's front.
+    const p = this.camera.worldToScreen({ x: (b.doorX + 0.5) * TILE, y: b.doorY * TILE });
+    this.hint.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
+  }
+
   // ------------------------------------------------------------------ loop
 
   private resize(first: boolean) {
@@ -409,13 +587,23 @@ export class HubView {
   private stop() {
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = 0;
   }
 
-  /** Start the loop if it is not running (something may move). */
+  /** Start the loop if it is not running (something may move); a wait for an ambient frame ends now. */
   wake() {
     if (this.destroyed || this.pausedFlag || this.raf || (typeof document !== "undefined" && document.hidden)) return;
-    this.last = performance.now();
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = 0;
+    } else this.last = performance.now();
     this.raf = requestAnimationFrame((t) => this.frame(t));
+  }
+
+  /** Whether idle sleep stopped the loop (no input for `idleMs`); the next input wakes it. */
+  get asleep(): boolean {
+    return this.sleeping;
   }
 
   private walking(w: Walker) {
@@ -424,27 +612,48 @@ export class HubView {
 
   private frame(now: number) {
     this.raf = 0;
+    this.stats.ticks++;
     const dt = Math.min(0.1, Math.max(0, (now - this.last) / 1000));
     this.last = now;
     this.time += dt;
     this.scene.step(dt);
     const eased = this.camera.update(dt);
     const p = this.scene.player;
+    if (this.hint) this.updateDoor(false);
     if (this.follow && !this.camera.gesturing) {
-      const k = 1 - Math.exp(-6 * dt);
+      // Walked by the keyboard with reduced motion: the camera keeps the player still on screen (no easing).
+      const k = this.reducedMotion && this.scene.steering ? 1 : 1 - Math.exp(-6 * dt);
       const t = this.camera.clampCentre(p.x * TILE, p.y * TILE - 8);
       this.camera.state.x += (t.x - this.camera.state.x) * k;
       this.camera.state.y += (t.y - this.camera.state.y) * k;
     }
     const ticked = this.clock.advance(dt);
     if (ticked) this.syncFolk();
-    const playerMoving = this.walking(p);
+    const playerMoving = this.walking(p) || this.scene.steering;
     const folkMoving = this.scene.activeFolk > 0;
-    const busy = playerMoving || eased || this.camera.gesturing || ticked || this.clock.running || this.renderer.animating;
+    // Full rate: the player, the camera (easing, following, a gesture) and the light changing.
+    const busy = playerMoving || eased || this.camera.gesturing || ticked || this.clock.running || this.renderer.animating || this.followSettling();
+    // Idle sleep (DEC-080 "Battery"): nobody has touched anything for a while; draw this frame and stop.
+    const idle = !busy && now - this.lastInput >= (this.opts.idleMs ?? 20_000);
     // Ambient-only frames are capped (DEC-080: battery).
-    const cap = 1000 / (this.opts.ambientFps ?? 30);
-    if (busy || now - this.lastDraw >= cap - 1) this.drawNow(now);
-    if (busy || folkMoving || this.renderer.animating || this.followSettling()) this.raf = requestAnimationFrame((t) => this.frame(t));
+    const cap = 1000 / (this.opts.ambientFps ?? 15);
+    if (busy || idle || now - this.lastTry >= cap - 1) {
+      this.lastTry = now;
+      this.drawNow(now);
+    }
+    this.sleeping = idle;
+    if (idle || this.pausedFlag) return;
+    if (busy) this.raf = requestAnimationFrame((t) => this.frame(t));
+    else if (folkMoving) {
+      // Wait for the next ambient frame off the vsync; a frame or less away, the next vsync.
+      const wait = this.lastTry + cap - performance.now();
+      if (wait < 12) this.raf = requestAnimationFrame((t) => this.frame(t));
+      else
+        this.timer = window.setTimeout(() => {
+          this.timer = 0;
+          this.raf = requestAnimationFrame((t) => this.frame(t));
+        }, wait - 8);
+    }
   }
 
   private followSettling(): boolean {
@@ -482,6 +691,7 @@ export class HubView {
     if (this.lastDraw) push(this.timings.intervals, now - this.lastDraw);
     push(this.timings.draws, t1 - t0);
     this.lastDraw = now;
+    this.stats.frames++;
     this.placeLabels();
     this.opts.onFrame?.(this);
   }

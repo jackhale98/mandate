@@ -17,8 +17,10 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
         HUB (primary screen, Canvas 2D scene, DEC-009, DEC-080, DEC-088 "Main screen"): the walkable
           street of the player's town, full screen (phone and desktop), opened when a run starts and
           when returning to the town. Tap a building to walk there; arriving opens its place panel
-          Bar (one slim row): Map (the town map, DEC-086, as a full-screen overlay; tapping a place
-               closes it and walks there in the street) · date, turn, slots ·
+          Bar (one slim row): Map (a full-screen overlay with Town | Country at its top, the last
+               choice remembered per device: the town map, DEC-086, where tapping a place closes it
+               and walks there in the street; or the national map, DEC-021, with its layers, "You"
+               and a town's panel on tap; the pocket's Map link opens it on Country) · date, turn, slots ·
                Pocket (badges: decisions, alerts, new notebook items) · End Turn
           Where you are: a translucent label at the top of the street (neighbourhood · place),
                following the neighbourhood underfoot and naming the place on arrival; it never
@@ -38,6 +40,16 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
           Accessibility: a "Skip to Places" link (visible on focus), landmarks (main: the town;
                complementary: the pocket; navigation: the bar), the canvas labelled with a pointer to
                Places; every action works by keyboard and screen reader without the canvas
+          Keyboard walking (desktop): the street is a Tab stop (after the skip link, before the bar)
+               with a focus ring; while focused, arrows or WASD walk (diagonals too, Shift hurries,
+               sliding along walls and round corners), the camera follows, a key cancels a tap's walk;
+               at a place's door a hint "Enter: <place>" shows and is announced, and Enter or Space
+               goes in (the same command as a tap). Keys do nothing in the pocket, dialogs or inputs
+          Battery (DEC-080 note): townsfolk-only frames at 15 fps (the player, camera and gestures at
+               full rate); after 20 s without input townsfolk stop and nothing is drawn until the next
+               pointer, wheel, key or touch; paused behind the map overlay, election night, a hidden
+               page, and a sheet (pocket, panel) covering over 60 % of the street (phones' bottom
+               sheets; beside the street on wide screens it stays live). Budget: e2e/street-battery
           Not yet: pressure-track mini-gauges (DEC-006) and staff in the bar
           In-world portals (each also in a global menu):
             ├─ Office desk → Bills & policies · Budget · Agencies & appointments (DEC-024/026)

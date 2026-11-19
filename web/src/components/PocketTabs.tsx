@@ -6,7 +6,6 @@
 import { useRef, type KeyboardEvent } from "react";
 import { POCKET_TABS, type PocketTab } from "../state/devicePrefs";
 import { useGame } from "../state/gameStore";
-import { say } from "./townMapText";
 
 export const pocketTabId = (t: PocketTab) => `pocket-tab-${t}`;
 export const pocketPanelId = (t: PocketTab) => `pocket-panel-${t}`;
@@ -33,7 +32,7 @@ export function PocketTabs({ tab, onChange, badges }: { tab: PocketTab; onChange
     refs.current[next]?.focus();
   };
   return (
-    <div className="tabs pocket-tabs" role="tablist" aria-label={say(tr, "ui-pocket-tabs")} onKeyDown={onKey}>
+    <div className="tabs pocket-tabs" role="tablist" aria-label={tr.t("ui-pocket-tabs")} onKeyDown={onKey}>
       {POCKET_TABS.map((t) => {
         const b = badges[t];
         return (
@@ -55,7 +54,7 @@ export function PocketTabs({ tab, onChange, badges }: { tab: PocketTab; onChange
             <span className="pocket-tab-icon" aria-hidden="true">
               {ICON[t]}
             </span>
-            <span className="pocket-tab-name">{say(tr, `ui-pocket-tab-${t}`)}</span>
+            <span className="pocket-tab-name">{tr.t(`ui-pocket-tab-${t}`)}</span>
             {b && b.n > 0 && (
               <>
                 <span className="badge pocket-tab-badge" aria-hidden="true" data-testid={`pocket-tab-badge-${t}`}>

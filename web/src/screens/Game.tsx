@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { useGame } from "../state/gameStore";
 import { formatCount, formatDate } from "../i18n/format";
-import { WorldMap } from "../map/WorldMap";
 import { MunicipalityPanel } from "../components/MunicipalityPanel";
 import { NationalEconomy } from "../components/NationalEconomy";
-import type { Overlay } from "../map/render";
 import { ElectionNight } from "../components/CampaignCards";
 import { Toast } from "../components/Toast";
 import { Pocket } from "../components/Pocket";
@@ -15,64 +13,7 @@ import { PlacePanel } from "./PlacePanel";
 import { CharacterSheet } from "../components/CharacterSheet";
 import { DecisionSheet } from "../components/DecisionSheet";
 import { StorySheet } from "../components/StorySheet";
-import { Loader } from "../components/Brand";
 import { RunBanner } from "../components/Newspaper";
-import { say } from "../components/townMapText";
-
-function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => void; selected: number | null }) {
-  const tr = useGame((s) => s.tr);
-  const map = useGame((s) => s.map);
-  const homeId = useGame((s) => s.office?.player.municipality_id ?? null);
-  const seed = useGame((s) => s.overview?.seed ?? "");
-  const home = map?.municipalities.find((m) => m.id === homeId);
-  const [overlay, setOverlay] = useState<Overlay>("terrain");
-  return (
-    <main className="map-body">
-      {map ? (
-        <WorldMap
-          view={map}
-          selected={selected}
-          onSelect={onSelect}
-          label={home ? `${tr.t("ui-map-help")} ${tr.t("ui-you")}: ${home.name}.` : tr.t("ui-map-help")}
-          overlay={overlay}
-          home={home?.id ?? null}
-          homeLabel={tr.t("ui-you")}
-          seed={seed}
-        />
-      ) : (
-        <div className="center">
-          <Loader compact />
-        </div>
-      )}
-      <div className="map-tools">
-        <label className="map-layer">
-          <span className="muted small map-layer-label">{tr.t("ui-overlay")}</span>
-          <select value={overlay} onChange={(e) => setOverlay(e.target.value as Overlay)} data-testid="map-layer">
-            {(["terrain", "unemployment"] as const).map((o) => (
-              <option key={o} value={o}>
-                {tr.t(`ui-overlay-${o}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {home && (
-          <button type="button" className="btn btn-sm btn-ghost map-home" onClick={() => onSelect(home.id)} data-testid="map-home">
-            <span aria-hidden="true">⚑ </span>
-            {tr.t("ui-you")}: {home.name}
-          </button>
-        )}
-        {overlay === "unemployment" && (
-          <div className="legend" aria-hidden="true">
-            <span>{tr.t("ui-legend-low")} 2%</span>
-            <span className="legend-ramp" />
-            <span>15% {tr.t("ui-legend-high")}</span>
-          </div>
-        )}
-      </div>
-      <p className="map-help muted">{tr.t("ui-map-help")}</p>
-    </main>
-  );
-}
 
 function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
   const tr = useGame((s) => s.tr);
@@ -158,9 +99,9 @@ function Badge({ icon, n, text, cls, testId }: { icon: string; n: number; text: 
 
 /**
  * The game screen (DEC-088 main screen): the town's street full screen with a
- * slim bar (the town map, the date and slots, the pocket, End turn). The
- * country views (map, overview) are reached from the pocket and come back to
- * the town. A "Skip to Places" link and landmarks reach the pocket and every
+ * slim bar (the map, the date and slots, the pocket, End turn). The map
+ * overlay (../screens/Town) shows the town or the country; the overview is
+ * reached from the pocket and comes back to the town. A "Skip to Places" link and landmarks reach the pocket and every
  * place without the canvas (DEC-051).
  */
 export function Game() {
@@ -204,7 +145,7 @@ export function Game() {
           openPocket("places", true);
         }}
       >
-        {say(tr, "ui-skip-places")}
+        {tr.t("ui-skip-places")}
       </a>
 
       {view !== "town" && (
@@ -212,11 +153,11 @@ export function Game() {
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setView("town")}>
             ← {tr.t("ui-back-to-town")}
           </button>
-          <strong>{tr.t(view === "map" ? "ui-map" : "ui-overview")}</strong>
+          <strong>{tr.t("ui-overview")}</strong>
         </div>
       )}
 
-      {view === "town" ? <Town /> : view === "map" ? <MapScreen selected={selected} onSelect={setSelected} /> : <OverviewScreen onSelect={setSelected} />}
+      {view === "town" ? <Town /> : <OverviewScreen onSelect={setSelected} />}
 
       <Toast />
       <ElectionNight />
@@ -231,7 +172,7 @@ export function Game() {
 
       {pocket?.legal && <RunBanner l={pocket.legal} />}
 
-      <nav className="gamebar" aria-label={say(tr, "ui-game-bar")} data-testid="gamebar">
+      <nav className="gamebar" aria-label={tr.t("ui-game-bar")} data-testid="gamebar">
         <button
           type="button"
           className="btn gamebar-map"
@@ -239,12 +180,12 @@ export function Game() {
             if (view !== "town") setView("town");
             setTownMapOpen(true);
           }}
-          aria-label={say(tr, "ui-town-map")}
+          aria-label={tr.t("ui-town-map")}
           data-testid="town-map-button"
         >
           <span aria-hidden="true">🗺️</span>
           <span className="gamebar-label" aria-hidden="true">
-            {say(tr, "ui-town-map-open")}
+            {tr.t("ui-town-map-open")}
           </span>
         </button>
         <div className="gamebar-date">
@@ -269,7 +210,7 @@ export function Game() {
           <span className="gamebar-label">{tr.t("ui-pocket")}</span>
           {pocket && pocket.decisions.length > 0 && <Badge icon="❗" n={pocket.decisions.length} text={tr.t("ui-decision-count", { n: pocket.decisions.length })} cls="badge-decisions" testId="decision-badge" />}
           {pocket && pocket.alerts.length > 0 && <Badge icon="🔔" n={pocket.alerts.length} text={tr.t("ui-alert-count", { n: pocket.alerts.length })} cls="badge-alerts" testId="alert-badge" />}
-          {notebookNew > 0 && <Badge icon="✎" n={notebookNew} text={say(tr, "ui-notebook-new-count", { n: notebookNew })} cls="badge-notebook" testId="notebook-badge" />}
+          {notebookNew > 0 && <Badge icon="✎" n={notebookNew} text={tr.t("ui-notebook-new-count", { n: notebookNew })} cls="badge-notebook" testId="notebook-badge" />}
         </button>
         <button type="button" className="btn btn-primary gamebar-end" disabled={busy || pocket?.legal?.run.status === "ended"} onClick={() => void endTurn()} data-testid="end-turn">
           {pocket?.legal?.run.status === "imprisoned" ? tr.t("ui-serve-sentence") : tr.t("ui-end-turn")}

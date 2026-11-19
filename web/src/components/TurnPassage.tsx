@@ -14,7 +14,6 @@ import { formatDate } from "../i18n/format";
 import type { Translator } from "../i18n/fluent";
 import { useGame, type Passage } from "../state/gameStore";
 import { Loader } from "./Brand";
-import { say } from "./townMapText";
 
 /** Phase lengths, ms: [dusk, the least time to dawn from the start, dawn]; quick: reduced motion. */
 export const PASSAGE_MS = { dusk: 800, night: 1300, dawn: 800 };
@@ -24,10 +23,10 @@ const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(pre
 
 /** How long the turn was, in words ("A week later"): the engine's `turn_days`, formatted. */
 export function passageSpan(tr: Translator, days: number): string {
-  if (days === 1) return say(tr, "ui-passage-day");
-  if (days === 7) return say(tr, "ui-passage-week");
-  if (days > 7 && days % 7 === 0) return say(tr, "ui-passage-weeks", { n: days / 7 });
-  return say(tr, "ui-passage-days", { n: days });
+  if (days === 1) return tr.t("ui-passage-day");
+  if (days === 7) return tr.t("ui-passage-week");
+  if (days > 7 && days % 7 === 0) return tr.t("ui-passage-weeks", { n: days / 7 });
+  return tr.t("ui-passage-days", { n: days });
 }
 
 export function TurnPassage() {
@@ -88,7 +87,7 @@ function PassageCard({ p, tr }: { p: Passage; tr: Translator }) {
       <>
         <span className="turn-passage-date">{formatDate(tr, p.from)}</span>
         <Loader compact decorative />
-        <span className="visually-hidden">{say(tr, "ui-passage-working")}</span>
+        <span className="visually-hidden">{tr.t("ui-passage-working")}</span>
       </>
     );
   }
@@ -98,7 +97,7 @@ function PassageCard({ p, tr }: { p: Passage; tr: Translator }) {
         {formatDate(tr, p.to)}
       </strong>
       <span className="turn-passage-span">{passageSpan(tr, p.days)}</span>
-      <span className="muted small turn-passage-skip">{say(tr, "ui-passage-skip")}</span>
+      <span className="muted small turn-passage-skip">{tr.t("ui-passage-skip")}</span>
     </>
   );
 }

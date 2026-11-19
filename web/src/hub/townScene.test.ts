@@ -1,7 +1,7 @@
 import { buildGrid, cellCentre, clearSegment, planRoute, type Grid, type Point } from "./pathfinding";
 import { FIXTURES, fixtureTown, randomTown } from "./testTowns";
-import { buildingOfPlace, surfaceOfTerrain, townGrid, ROOF_ROWS, type TownMap } from "./townLayout";
-import { ROUTE_SLACK, TownScene } from "./townScene";
+import { Terrain, buildingOfPlace, surfaceOfTerrain, townGrid, ROOF_ROWS, type TownMap } from "./townLayout";
+import { ROUTE_SLACK, STEER_RADIUS, STEER_RUN, TownScene } from "./townScene";
 
 // Layout v2 plans take tens of ms each; the route test plans all 13 real towns.
 vi.setConfig({ testTimeout: 120_000 });
@@ -146,5 +146,128 @@ describe("routes in generated towns (DEC-080: obviously direct)", () => {
       return s.folk.map((w) => [w.x, w.y]);
     };
     expect(run()).toEqual(run());
+  });
+});
+
+/** A bare town for steering: `rows` of "#" (solid) and "." (pavement); the player starts at "@". */
+function sketchTown(rows: readonly string[]): TownMap {
+  const height = rows.length;
+  const width = (rows[0] ?? "").length;
+  const terrain = new Uint8Array(width * height);
+  const solid = new Uint8Array(width * height);
+  let start = 0;
+  rows.forEach((row, y) =>
+    [...row].forEach((ch, x) => {
+      const i = y * width + x;
+      terrain[i] = ch === "#" ? Terrain.Building : Terrain.Pavement;
+      solid[i] = ch === "#" ? 1 : 0;
+      if (ch === "@") start = i;
+    }),
+  );
+  return { seed: 1, width, height, terrain, solid, start, buildings: [] } as unknown as TownMap;
+}
+
+const onGround = (s: TownScene) => s.map.solid[s.playerCell] === 0;
+
+describe("keyboard steering (desktop)", () => {
+  it("a held direction walks the player; Shift runs; letting go stops", () => {
+    const s = new TownScene(sketchTown(["....................", "....................", ".........@..........", "....................", "...................."]), { townsfolk: 0 });
+    const x0 = s.player.x;
+    s.steer(1, 0);
+    for (let k = 0; k < 15; k++) s.step(1 / 60);
+    const walked = s.player.x - x0;
+    expect(walked).toBeCloseTo(s.player.speed * 0.25, 5);
+    expect(s.playerMoving).toBe(true);
+    expect(s.player.dir).toBe(3);
+    s.steer(-1, 0, true);
+    const x1 = s.player.x;
+    for (let k = 0; k < 15; k++) s.step(1 / 60);
+    expect(x1 - s.player.x).toBeCloseTo(walked * STEER_RUN, 5);
+    s.steer(0, 0);
+    const x2 = s.player.x;
+    s.step(0.1);
+    expect(s.player.x).toBe(x2);
+    expect(s.playerMoving).toBe(false);
+  });
+
+  it("buildings block; held diagonally against a wall the player slides along it", () => {
+    const s = new TownScene(sketchTown(["##########", "..........", "....@.....", ".........."]), { townsfolk: 0 });
+    s.steer(0, -1);
+    for (let k = 0; k < 60; k++) s.step(1 / 60);
+    // Stopped by the wall, within its margin.
+    expect(s.player.y).toBeGreaterThanOrEqual(1 + STEER_RADIUS - 1e-9);
+    expect(s.player.y).toBeLessThan(1 + STEER_RADIUS + 0.11);
+    const x0 = s.player.x;
+    s.steer(1, -1);
+    for (let k = 0; k < 20; k++) s.step(1 / 60);
+    expect(s.player.x).toBeGreaterThan(x0 + 0.5);
+    expect(onGround(s)).toBe(true);
+  });
+
+  it("walks a 45° street: smoothly with a diagonal held, and up its steps with one arrow", () => {
+    // A staircase street three cells wide, rising to the right (cells with x + y from 12 to 14).
+    const rows: string[] = [];
+    for (let y = 0; y < 14; y++) rows.push([...Array(16).keys()].map((x) => (x + y >= 12 && x + y <= 14 ? "." : "#")).join(""));
+    const town = sketchTown(rows);
+    const start = 10 * 16 + 3;
+    // Diagonal keys: straight along the street, every frame, never snagging on a step.
+    const a = new TownScene({ ...town, start }, { townsfolk: 0 });
+    a.steer(1, -1);
+    for (let k = 0; k < 90; k++) {
+      const { x, y } = a.player;
+      a.step(1 / 60);
+      expect(a.player.x).toBeGreaterThan(x);
+      expect(a.player.y).toBeLessThan(y);
+      expect(a.player.x + a.player.y).toBeCloseTo(14, 9);
+    }
+    expect(a.player.y).toBeLessThan(10.5 - 4);
+    // One arrow: up the street step by step, never back.
+    const b = new TownScene({ ...town, start }, { townsfolk: 0 });
+    b.steer(0, -1);
+    let y = b.player.y;
+    for (let k = 0; k < 180; k++) {
+      b.step(1 / 60);
+      expect(onGround(b)).toBe(true);
+      expect(b.player.y).toBeLessThanOrEqual(y + 1e-9);
+      y = b.player.y;
+    }
+    expect(10.5 - b.player.y).toBeGreaterThan(4);
+  });
+
+  it("stays on walkable ground in generated towns, and steering cancels a walk", () => {
+    const { map } = fixtureTown(2);
+    const s = new TownScene(map, { townsfolk: 0 });
+    const b = map.buildings.find((x) => x.place !== null);
+    if (!b) throw new Error("no place");
+    expect(s.goToBuilding(b.index)).toBe(true);
+    s.step(0.2);
+    s.steer(1, 0);
+    expect(s.player.walk).toBeNull();
+    expect(s.target).toBeNull();
+    const dirs = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]] as const;
+    let seed = 7;
+    for (let k = 0; k < 3000; k++) {
+      if (k % 40 === 0) {
+        seed = (seed * 1103515245 + 12345) >>> 0;
+        const d = dirs[seed % 8] as readonly [number, number];
+        s.steer(d[0], d[1], seed % 3 === 0);
+      }
+      s.step(1 / 30);
+      expect(onGround(s)).toBe(true);
+    }
+  });
+
+  it("knows the place whose door the player stands at", () => {
+    const { map } = fixtureTown(1);
+    const s = new TownScene(map, { townsfolk: 0 });
+    const b = map.buildings.find((x) => x.place !== null);
+    if (!b) throw new Error("no place");
+    s.placePlayer(b.front);
+    const at = s.doorHere;
+    expect(at).not.toBeNull();
+    expect(map.buildings[at as number]?.front).toBe(b.front);
+    // Walking a route, there is no door to enter.
+    s.goToCell(map.start);
+    if (s.player.walk) expect(s.doorHere).toBeNull();
   });
 });

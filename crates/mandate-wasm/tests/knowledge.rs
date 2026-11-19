@@ -679,6 +679,44 @@ fn the_notebook_lists_what_is_known() {
     assert_eq!(pocket_view(e).unwrap().notebook_new, notebook_new(e));
 }
 
+/// The notebook badge counts what was learned in play, not what a run
+/// starts with (start profile, local knowledge, primer).
+#[test]
+fn the_notebook_badge_starts_at_zero() {
+    for local in [false, true] {
+        let mut s = session(23, local);
+        let e = s.engine().unwrap();
+        assert!(
+            !e.state()
+                .player
+                .as_ref()
+                .unwrap()
+                .knowledge
+                .entries
+                .is_empty()
+        );
+        assert_eq!(notebook_new(e), 0, "local knowledge {local}");
+        assert_eq!(pocket_view(e).unwrap().notebook_new, 0);
+        // Canvass a neighbourhood (walked there first): that is news.
+        let hood = town_places_view(e).unwrap().neighborhoods[0].id;
+        send(
+            &mut s,
+            40,
+            RequestBody::Command(CommandDto::Go {
+                location: LocationDto::Street { neighborhood: hood },
+                then: Some(Box::new(CommandDto::Act {
+                    action: ActionDto::Canvass { neighborhood: hood },
+                    late_night: false,
+                })),
+            }),
+        );
+        assert!(
+            notebook_new(s.engine().unwrap()) > 0,
+            "local knowledge {local}"
+        );
+    }
+}
+
 /// Every Fluent key a gated view or the notebook can emit exists in English.
 #[test]
 fn knowledge_keys_are_in_the_locale() {
