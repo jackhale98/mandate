@@ -16,6 +16,7 @@
 | Save export and import (DEC-082) | **Done** |
 | UI polish round | **Done** |
 | Town generation v2 design (`docs/design/research/TOWN_GENERATION.md`) | **Done**; build at the start of M6 |
+| Town layout v2, stage A (DEC-090; client generator) | **Done**, 2026-11-19: plan + dress in `web/src/hub/layoutV2` from client-derived geography (`townGeoAdapter.ts`, TODO D3) and JSONC registries (to move to mandate-content in stage B); rivers, bridges, coast, levels, typed districts with street patterns, mines, markets, reserved land, text alternative; prototype `?layout=v2`, v1 still the default; plan over the 60 ms budget (Fenoport 256 ms cold) — see TOWN_GENERATION.md "Stage A built" |
 | Town map overview (DEC-086) | **Done**, 2026-11-19: the town screen opens on an illustrated map drawn from the versioned layout (tinted neighbourhoods, main routes, landmark glyphs in the pixel-art palette, home, you, things waiting); tap a building to go there; the list is the "List" tab (the accessible text view, remembered per device) |
 
 ## M5d part 1 summary (media, scandals, and the legal path)
