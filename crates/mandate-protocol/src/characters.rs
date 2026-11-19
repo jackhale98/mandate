@@ -35,6 +35,10 @@ pub struct PersonRefView {
     pub level: KnowledgeLevelDto,
     /// The name is only a rumour (the power broker, heard of).
     pub rumoured: bool,
+    /// They are where the player is, so the player can talk to them now
+    /// (DEC-093; a passer-by: meet them first). Elsewhere, `QueryDto::Talk`
+    /// says where to find them.
+    pub can_talk: bool,
 }
 
 /// What a memory or favour is about.
@@ -265,6 +269,7 @@ pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
         tier: tier_key(characters::tier_of(&st.politics, engine.content(), id)).into(),
         level: Gate::of(engine).person(id).into(),
         rumoured: false,
+        can_talk: mandate_sim::talk::can_talk(st, id),
     })
 }
 
@@ -501,6 +506,8 @@ pub fn people_at(engine: &Engine, loc: Location) -> Vec<PersonRefView> {
     let content = engine.content();
     let gate = Gate::of(engine);
     let max = content.characters.ambient.max_listed as usize;
+    // A passer-by can be talked to (after meeting them) where the player is.
+    let here = st.player.as_ref().is_some_and(|p| p.location == loc);
     let mut out: Vec<PersonRefView> = ambient::stored_at(&st.politics, st, loc)
         .into_iter()
         .filter_map(|id| person_ref_known(engine, &gate, id))
@@ -539,6 +546,7 @@ pub fn people_at(engine: &Engine, loc: Location) -> Vec<PersonRefView> {
             tier: "ambient".into(),
             level: level.into(),
             rumoured: false,
+            can_talk: here,
         });
     }
     out

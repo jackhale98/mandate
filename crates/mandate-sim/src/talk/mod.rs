@@ -391,6 +391,11 @@ struct Prepared {
     leads: Vec<Lead>,
     effects: Vec<TalkEffectDef>,
     small_talks: usize,
+    /// The odds shown before asking (`odds`), fixed before anything
+    /// changes: the roll uses these, not odds recomputed after the reply
+    /// taught or warmed anything (DEC-073: the odds shown are the odds
+    /// rolled).
+    odds: Option<f64>,
 }
 
 fn prepare(
@@ -534,6 +539,7 @@ fn prepare(
         leads,
         effects,
         small_talks,
+        odds: odds(state, content, speaker, &topic.id, about, late_night),
     })
 }
 
@@ -834,7 +840,9 @@ fn mechanic(
             key("small-talk")
         }
         Mech::Pitch { target, policy } => {
-            let odds = crate::actions::lobby_odds(state, content, target, late_night);
+            let odds = p
+                .odds
+                .unwrap_or_else(|| crate::actions::lobby_odds(state, content, target, late_night));
             let lp = &content.council.lobby;
             let rng = state.rng.get(Stream::Player);
             let success = rng.chance(odds);
@@ -872,7 +880,9 @@ fn mechanic(
             })
         }
         Mech::Back { target, policy } => {
-            let odds = crate::actions::lobby_odds(state, content, target, late_night);
+            let odds = p
+                .odds
+                .unwrap_or_else(|| crate::actions::lobby_odds(state, content, target, late_night));
             let success = state.rng.get(Stream::Player).chance(odds);
             if !success {
                 refused(state, content, speaker, me, subject(policy));
@@ -896,7 +906,9 @@ fn mechanic(
             key("support-backed")
         }
         Mech::Endorse { policy } => {
-            let odds = support_odds(state, content, speaker);
+            let odds = p
+                .odds
+                .unwrap_or_else(|| support_odds(state, content, speaker));
             let success = state.rng.get(Stream::Player).chance(odds);
             let subj = policy.and_then(subject);
             if !success {

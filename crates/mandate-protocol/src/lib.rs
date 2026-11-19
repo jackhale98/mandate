@@ -11,6 +11,7 @@ pub mod media;
 pub mod narrative;
 pub mod office;
 pub mod places;
+pub mod talk;
 pub mod town;
 pub mod views;
 
@@ -24,6 +25,7 @@ pub use narrative::*;
 pub use office::*;
 pub use places::*;
 use serde::{Deserialize, Serialize};
+pub use talk::*;
 pub use town::*;
 use ts_rs::TS;
 pub use views::*;
@@ -198,6 +200,16 @@ pub enum CommandDto {
     /// The player has looked at their notebook (DEC-091, K5): what they
     /// learned is no longer new, and the badge clears. No slot, no time.
     NotebookSeen,
+    /// Talk to someone here on a topic (DEC-093): half a slot (late at
+    /// night, the late slot). The result's `created` is the exchange's id
+    /// (`QueryDto::Exchange`). Someone elsewhere: `Go` there first.
+    Talk {
+        to: TalkTargetDto,
+        /// Topic content id (`TopicView.id`).
+        topic: String,
+        about: Option<AboutRefDto>,
+        late_night: bool,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -328,6 +340,21 @@ pub enum QueryDto {
     },
     /// What the player knows, by subject, with leads (DEC-091 notebook).
     Notebook,
+    /// The talk panel for someone (DEC-093): topics, odds, cost. A
+    /// passer-by where the player is (`ambient`) is met as the talk starts.
+    Talk {
+        to: TalkTargetDto,
+        late_night: bool,
+    },
+    /// A conversation the player had (the `Talk` command's `created`).
+    Exchange {
+        id: u32,
+    },
+    /// The worries the player can canvass on in a neighbourhood, with the
+    /// engine's match (DEC-091 §1.6).
+    Canvass {
+        neighborhood: u32,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -386,6 +413,9 @@ pub enum ResponseBody {
     TownGeography(TownGeographyView),
     TownState(TownStateView),
     Notebook(NotebookView),
+    Talk(TalkView),
+    Exchange(ExchangeView),
+    Canvass(CanvassView),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

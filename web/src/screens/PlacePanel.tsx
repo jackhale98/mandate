@@ -18,6 +18,7 @@ import { roleText } from "../components/CharacterSheet";
 import { personName } from "../components/Knowing";
 import { capital } from "../components/DecisionSheet";
 import { Newspaper } from "../components/Newspaper";
+import { TalkButton } from "../components/talk/TalkButton";
 
 /** Decisions whose scene happens here (DEC-079: here, the conversation). */
 function WaitingHere({ v }: { v: PlacePanelView }) {
@@ -209,13 +210,17 @@ function People({ v }: { v: PlacePanelView }) {
           {v.people.map((p, i) => (
             <li key={p.id ?? `a${p.ambient_slot ?? i}`}>
               {p.id !== null ? (
-                <button type="button" className="row-btn person" disabled={busy} onClick={() => p.id !== null && void openCharacter(p.id)} data-testid="person">
-                  <span>
-                    <strong>{personName(tr, p.name)}</strong>
-                    <span className="muted small"> · {roleText(tr, p)}</span>
-                  </span>
-                  <span className="muted small">{tr.t(`tier-${p.tier}`)}</span>
-                </button>
+                <div className="person-row">
+                  <button type="button" className="row-btn person" disabled={busy} onClick={() => p.id !== null && void openCharacter(p.id)} data-testid="person">
+                    <span>
+                      <strong>{personName(tr, p.name)}</strong>
+                      <span className="muted small"> · {roleText(tr, p)}</span>
+                    </span>
+                    <span className="muted small">{tr.t(`tier-${p.tier}`)}</span>
+                  </button>
+                  {/* Talk to them (DEC-093): here now, or the panel says where they are. */}
+                  <TalkButton person={p.id} name={p.name} />
+                </div>
               ) : (
                 <div className="row-btn person person-ambient">
                   <span>
@@ -223,9 +228,13 @@ function People({ v }: { v: PlacePanelView }) {
                     <span className="muted small"> · {roleText(tr, p)}</span>
                   </span>
                   {v.here && p.ambient_slot !== null && (
-                    <button type="button" className="btn btn-sm" disabled={busy} onClick={() => p.ambient_slot !== null && void meet(p.ambient_slot)} data-testid="meet">
-                      {tr.t("ui-meet")}
-                    </button>
+                    <span className="sheet-tools">
+                      <button type="button" className="btn btn-sm" disabled={busy} onClick={() => p.ambient_slot !== null && void meet(p.ambient_slot)} data-testid="meet">
+                        {tr.t("ui-meet")}
+                      </button>
+                      {/* Say hello (free), then talk. */}
+                      <TalkButton person={null} slot={p.ambient_slot} name={p.name} />
+                    </span>
                   )}
                 </div>
               )}

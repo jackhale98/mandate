@@ -366,10 +366,10 @@ fn person_name(gate: &Gate<'_>, id: CharacterId) -> String {
     gate.name(id, name)
 }
 
-fn lead_view(gate: &Gate<'_>, l: &Lead) -> LeadView {
+pub(crate) fn lead_view(gate: &Gate<'_>, l: &Lead) -> LeadView {
     let st = gate.st();
-    // The subject as far as the player knows it (a lead to the broker must
-    // not carry the broker's name).
+    // What the lead is about, as far as the player knows it (at most a name
+    // heard): a lead toward the broker must not name them.
     let mut args = subject_args(gate, &l.subject, gate.level(&l.subject).min(Level::Heard));
     match &l.to {
         LeadTarget::Place { place } => {
@@ -487,6 +487,9 @@ pub struct LearnedView {
     /// Fluent key `learned-<source type>`.
     pub key: String,
     pub args: BTreeMap<String, String>,
+    /// Learned in a conversation: the exchange (`QueryDto::Exchange`), while
+    /// it is in the log (DEC-093: the notebook links what was said).
+    pub exchange: Option<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -629,7 +632,7 @@ pub(crate) fn broker_stake(engine: &Engine, town: MunicipalityId) -> Option<Stri
 }
 
 /// What a subject's entry says, as far as `level` reveals.
-fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeMap<String, String> {
+pub(crate) fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeMap<String, String> {
     let engine = gate.engine;
     let st = gate.st();
     let content = engine.content();
@@ -857,12 +860,18 @@ fn source_args(gate: &Gate<'_>, src: &Source) -> BTreeMap<String, String> {
     args
 }
 
-fn learned_view(gate: &Gate<'_>, l: &Learned) -> LearnedView {
+fn learned_view(gate: &Gate<'_>, s: &Subject, l: &Learned) -> LearnedView {
     LearnedView {
         level: l.level.into(),
         on: DateView::of(l.on),
         key: format!("learned-{}", l.source.key().replace('_', "-")),
         args: source_args(gate, &l.source),
+        exchange: match &l.source {
+            Source::Talk { person, topic } => {
+                crate::talk::exchange_for(gate.st(), *person, topic, l.on, s)
+            }
+            _ => None,
+        },
     }
 }
 
@@ -922,7 +931,11 @@ pub fn notebook_view(engine: &Engine) -> Option<NotebookView> {
                 level: e.level.into(),
                 title_key: format!("notebook-{}", s.key().replace('_', "-")),
                 args: subject_args(&gate, s, e.level),
-                history: e.learned.iter().map(|l| learned_view(&gate, l)).collect(),
+                history: e
+                    .learned
+                    .iter()
+                    .map(|l| learned_view(&gate, s, l))
+                    .collect(),
                 as_of: e.reading.as_ref().map(|r| DateView::of(r.on)),
                 stale,
                 new_this_turn: is_new(engine, e),

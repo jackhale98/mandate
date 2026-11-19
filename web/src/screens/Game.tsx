@@ -14,6 +14,7 @@ import { CharacterSheet } from "../components/CharacterSheet";
 import { DecisionSheet } from "../components/DecisionSheet";
 import { StorySheet } from "../components/StorySheet";
 import { RunBanner } from "../components/Newspaper";
+import { TalkSheet } from "../components/talk/TalkSheet";
 
 function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
   const tr = useGame((s) => s.tr);
@@ -166,6 +167,7 @@ export function Game() {
       <StorySheet />
       <DecisionSheet />
       <CharacterSheet />
+      <TalkSheet />
       <Walking />
       <TurnPassage />
       {selected !== null && <MunicipalityPanel id={selected} onClose={() => setSelected(null)} />}

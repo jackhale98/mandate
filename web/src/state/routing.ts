@@ -62,6 +62,7 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "meet":
     case "answer_decision": // decisions are answered from anywhere (DEC-079)
     case "notebook_seen": // looking at the notebook, anywhere (K5)
+    case "talk": // where the person is; the talk panel walks there first (DEC-093)
       return null;
   }
 }

@@ -18,7 +18,13 @@ import { PlaceholderArt } from "./render/placeholderArt";
 import { TownRenderer, type WalkerView } from "./render/townRenderer";
 import { ROOF_ROWS, buildingOfPlace, type TownBuilding, type TownMap } from "./townLayout";
 import type { TownLocation } from "./townInput";
-import { TownScene, type Walker } from "./townScene";
+import { TownScene, type StandingPerson, type Walker } from "./townScene";
+
+/** Someone standing in the street the player can walk up to and talk to (DEC-093). */
+export interface StreetPerson extends StandingPerson {
+  /** Their name tag (a name, or a role for a stranger). */
+  label: string;
+}
 
 export interface HubViewOptions {
   map: TownMap;
@@ -56,6 +62,16 @@ export interface HubViewOptions {
   doorHint?: (b: TownBuilding) => string | null;
   /** With `keyboard`: the door hint shown changed (a building, or null when it hides). */
   onDoor?: (b: TownBuilding | null) => void;
+  /**
+   * The talk hook (DEC-093): the player walked up to someone standing in the
+   * street (`setPeople`) by a tap on them or their name tag, or pressed Enter
+   * or Space standing next to them.
+   */
+  onTalk?: (key: string) => void;
+  /** With `keyboard`: the hint shown next to someone the player stands by (e.g. "Enter: talk to Dana Price"). */
+  personHint?: (key: string) => string | null;
+  /** The person the player stands next to changed (a key, or null). */
+  onPersonNear?: (key: string | null) => void;
 }
 
 /** Keyboard directions: arrows by key, WASD by physical key (any layout). */
@@ -146,6 +162,12 @@ export class HubView {
   private focused = false;
   private hint: HTMLDivElement | null = null;
   private hintFor: number | null = null;
+  /** The person the keyboard hint is shown for (it takes the hint over from a door). */
+  private hintPerson: string | null = null;
+  /** Name tags over the people standing in the street, by key. */
+  private readonly personTags = new Map<string, HTMLButtonElement>();
+  /** The person the player stands next to. */
+  private nearKey: string | null = null;
 
   constructor(
     readonly container: HTMLElement,
@@ -262,6 +284,54 @@ export class HubView {
     return b ? this.goToBuilding(b.index) : false;
   }
 
+  /**
+   * The people standing in the street to walk up to (the talk hook): new ones
+   * stand a few steps from the player, those already there stay, the rest go.
+   * Each has a name tag (a tap walks up to them).
+   */
+  setPeople(people: readonly StreetPerson[]) {
+    this.scene.setStanding(people);
+    for (const [k, el] of this.personTags) {
+      if (!this.scene.standing.some((x) => x.key === k)) {
+        el.remove();
+        this.personTags.delete(k);
+      }
+    }
+    for (const p of people) {
+      if (!this.scene.standing.some((x) => x.key === p.key)) continue;
+      let el = this.personTags.get(p.key);
+      if (!el) {
+        el = document.createElement("button");
+        el.type = "button";
+        el.className = "hub-label hub-person-tag";
+        // The People lists and the place panel are the keyboard and screen-reader route (DEC-051).
+        el.tabIndex = -1;
+        el.setAttribute("aria-hidden", "true");
+        el.dataset.person = p.key;
+        Object.assign(el.style, { position: "absolute", left: "0", top: "0", pointerEvents: "auto", whiteSpace: "nowrap", willChange: "transform" });
+        const key = p.key;
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.walkToPerson(key);
+        });
+        el.addEventListener("pointerdown", (e) => e.stopPropagation());
+        this.labelLayer.appendChild(el);
+        this.personTags.set(p.key, el);
+      }
+      el.textContent = p.label;
+    }
+    this.nearKey = null;
+    this.wake();
+  }
+
+  /** Walk up to someone standing in the street, then talk (`onTalk`). Returns false if they cannot be reached. */
+  walkToPerson(key: string): boolean {
+    const ok = this.scene.goToPerson(key, () => this.opts.onTalk?.(key));
+    if (ok) this.follow = true;
+    this.wake();
+    return ok;
+  }
+
   /** Walk to an engine location (a place, home, or a neighbourhood's streets); `notify`: call `onArrive` there. */
   goToLocation(loc: TownLocation, notify = true): boolean {
     const ok = this.scene.goToLocation(loc, () => {
@@ -308,6 +378,7 @@ export class HubView {
     this.renderer.dispose();
     this.canvas.remove();
     this.labelLayer.remove();
+    this.personTags.clear();
   }
 
   // ------------------------------------------------------------------ labels
@@ -374,6 +445,16 @@ export class HubView {
       const p = pos[i] as { x: number; y: number };
       if (show) el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
     });
+    // Name tags over the people standing in the street (always, while on screen).
+    for (const { key, w } of this.scene.standing) {
+      const el = this.personTags.get(key);
+      if (!el) continue;
+      const p = this.camera.worldToScreen({ x: w.x * TILE, y: (w.y - 1.5) * TILE });
+      const on = p.x > -120 && p.x < this.cssW + 120 && p.y > -10 && p.y < this.cssH + 40;
+      el.style.display = on ? "" : "none";
+      el.classList.toggle("hub-person-near", key === this.nearKey);
+      if (on) el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
+    }
     this.placeHint();
   }
 
@@ -434,6 +515,9 @@ export class HubView {
 
   private tap(sx: number, sy: number) {
     const w = this.camera.screenToWorld({ x: sx, y: sy });
+    // A tap on someone standing in the street: walk up to them and talk.
+    const who = this.scene.personAt({ x: w.x / TILE, y: w.y / TILE });
+    if (who !== null && this.walkToPerson(who)) return;
     const t = this.scene.tap({ x: w.x / TILE, y: w.y / TILE }, () => {
       const b = this.scene.atBuilding;
       this.arrived(b !== null ? (this.map.buildings[b] ?? null) : null);
@@ -480,6 +564,13 @@ export class HubView {
       // Enter or Space at a door: arrive there, as a tap on the building would. Only from the canvas
       // itself (a clicked label button has its own Enter).
       if ((e.key === "Enter" || e.key === " ") && e.target === cv) {
+        // Standing next to someone: talk to them (the talk hook takes Enter before a door).
+        const near = this.opts.onTalk ? this.scene.personNear() : null;
+        if (near !== null) {
+          e.preventDefault();
+          if (!e.repeat) this.opts.onTalk?.(near);
+          return;
+        }
         const at = this.scene.doorHere;
         const b = at !== null ? this.map.buildings[at] : undefined;
         if (!b) return;
@@ -532,7 +623,26 @@ export class HubView {
 
   /** The door hint: shown while the keyboard is in the view and the player stands at a place's door. */
   private updateDoor(wake = true) {
+    this.updatePerson();
     if (!this.hint) return;
+    // Next to someone (the talk hook): their hint, not the door's.
+    const who = this.focused && !this.pausedFlag && this.opts.onTalk ? this.nearKey : null;
+    const ptext = who !== null ? (this.opts.personHint?.(who) ?? null) : null;
+    if (ptext !== null || this.hintPerson !== null) {
+      if (who === this.hintPerson && ptext !== null) return;
+      this.hintPerson = ptext !== null ? who : null;
+      if (ptext !== null) {
+        this.hintFor = null;
+        this.hint.textContent = ptext;
+        this.hint.style.display = "";
+        this.placeHint();
+        this.opts.onDoor?.(null);
+        if (wake) this.wake();
+        return;
+      }
+      this.hint.style.display = "none";
+      this.hintFor = null;
+    }
     const at = this.focused && !this.pausedFlag ? this.scene.doorHere : null;
     const b = at !== null ? (this.map.buildings[at] ?? null) : null;
     const text = b ? (this.opts.doorHint?.(b) ?? null) : null;
@@ -546,7 +656,24 @@ export class HubView {
     if (wake) this.wake();
   }
 
+  /** Who the player stands next to (the talk hook): tells the owner when it changes. */
+  private updatePerson() {
+    const k = this.pausedFlag || this.scene.standing.length === 0 ? null : this.scene.personNear();
+    if (k === this.nearKey) return;
+    this.nearKey = k;
+    for (const [key, el] of this.personTags) el.classList.toggle("hub-person-near", key === k);
+    this.opts.onPersonNear?.(k);
+  }
+
   private placeHint() {
+    if (this.hint && this.hintPerson !== null) {
+      const s = this.scene.standing.find((x) => x.key === this.hintPerson);
+      if (s) {
+        const p = this.camera.worldToScreen({ x: s.w.x * TILE, y: (s.w.y - 1.5) * TILE });
+        this.hint.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
+      }
+      return;
+    }
     const b = this.hintFor !== null ? this.map.buildings[this.hintFor] : undefined;
     if (!this.hint || !b) return;
     // Over the door, on the building's front.
@@ -620,6 +747,7 @@ export class HubView {
     const eased = this.camera.update(dt);
     const p = this.scene.player;
     if (this.hint) this.updateDoor(false);
+    else this.updatePerson();
     if (this.follow && !this.camera.gesturing) {
       // Walked by the keyboard with reduced motion: the camera keeps the player still on screen (no easing).
       const k = this.reducedMotion && this.scene.steering ? 1 : 1 - Math.exp(-6 * dt);
@@ -672,6 +800,11 @@ export class HubView {
     const view = (w: Walker): WalkerView => ({ x: w.x, y: w.y, dir: w.dir, frame: w.moving ? 1 + (Math.floor(w.dist * 4) % frames) : 0, variant: w.variant });
     views.push(view(s.player));
     for (const w of s.outFolk) views.push(view(w));
+    // People standing in the street turn to face the player when the player is by them.
+    for (const { key, w } of s.standing) {
+      if (key === this.nearKey) w.dir = facing(s.player.x - w.x, s.player.y - w.y);
+      views.push(view(w));
+    }
     const cam = this.camera.state;
     const t0 = performance.now();
     const drew = this.renderer.draw({
@@ -695,6 +828,11 @@ export class HubView {
     this.placeLabels();
     this.opts.onFrame?.(this);
   }
+}
+
+/** 0 down, 1 up, 2 left, 3 right: the way to look along (dx, dy). */
+function facing(dx: number, dy: number): number {
+  return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 2 : 3) : dy < 0 ? 1 : 0;
 }
 
 function push(a: number[], v: number) {

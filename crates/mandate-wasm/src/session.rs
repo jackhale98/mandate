@@ -254,6 +254,22 @@ impl Session {
                 QueryDto::Notebook => notebook_view(self.engine_mut()?)
                     .map(ResponseBody::Notebook)
                     .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
+                QueryDto::Talk { to, late_night } => talk_view(self.engine_mut()?, to, late_night)
+                    .map(ResponseBody::Talk)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, "nobody like that to talk to")),
+                QueryDto::Exchange { id } => exchange_view(self.engine_mut()?, id)
+                    .map(ResponseBody::Exchange)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, format!("no exchange {id}"))),
+                QueryDto::Canvass { neighborhood } => {
+                    canvass_view(self.engine_mut()?, neighborhood)
+                        .map(ResponseBody::Canvass)
+                        .ok_or_else(|| {
+                            err(
+                                ErrorCode::BadRequest,
+                                format!("no neighbourhood {neighborhood} in your town"),
+                            )
+                        })
+                }
             },
         }
     }
@@ -331,6 +347,17 @@ fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, 
         },
         CommandDto::Meet { slot } => P::Meet { slot },
         CommandDto::AnswerDecision { decision, option } => P::Answer { decision, option },
+        CommandDto::Talk {
+            to,
+            topic,
+            about,
+            late_night,
+        } => P::Talk {
+            to: to.to_sim(),
+            topic,
+            about: about.map(|a| a.to_sim()),
+            late_night,
+        },
         CommandDto::Go { location, then } => P::Go {
             location: location.to_sim(),
             then: match then {

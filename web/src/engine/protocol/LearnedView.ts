@@ -9,4 +9,9 @@ export type LearnedView = { level: KnowledgeLevelDto, on: DateView,
 /**
  * Fluent key `learned-<source type>`.
  */
-key: string, args: { [key in string]: string }, };
+key: string, args: { [key in string]: string }, 
+/**
+ * Learned in a conversation: the exchange (`QueryDto::Exchange`), while
+ * it is in the log (DEC-093: the notebook links what was said).
+ */
+exchange: number | null, };

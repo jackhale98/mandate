@@ -44,6 +44,15 @@ const STEER_NUDGE = 1.05;
 
 export type SceneTarget = { kind: "building"; building: number; cell: number } | { kind: "ground"; cell: number };
 
+/** Someone standing in the street to walk up to and talk to (DEC-093): a key the owner knows them by, and a look. */
+export interface StandingPerson {
+  key: string;
+  variant: number;
+}
+
+/** How near (tiles) the player must stand to someone to talk to them. */
+export const TALK_REACH = 1.6;
+
 export interface TownSceneOptions {
   /** Ambient townsfolk (default 12). */
   townsfolk?: number;
@@ -76,6 +85,8 @@ export class TownScene {
   target: SceneTarget | null = null;
   /** How many of `folk` are out (the first ones; the rest stay in, e.g. at night). */
   activeFolk: number;
+  /** People standing in the street, to walk up to (`setStanding`): they do not wander. */
+  readonly standing: { key: string; w: Walker }[] = [];
   private reach: Uint8Array;
   private rng: Rng;
   private spots: number[] = [];
@@ -157,6 +168,113 @@ export class TownScene {
     p.walk = null;
     p.onArrive = null;
     this.target = null;
+  }
+
+  /**
+   * The people standing in the street (the talk hook): those already
+   * standing stay where they are; new ones stand a few steps from the player
+   * on pavement, a square or a path, apart from each other and off doorsteps
+   * (a stable choice: the same people around the same spot stand in the same
+   * places). Those no longer listed go.
+   */
+  setStanding(people: readonly StandingPerson[]) {
+    const gone: Walker[] = [];
+    for (let i = this.standing.length - 1; i >= 0; i--) {
+      const s = this.standing[i] as { key: string; w: Walker };
+      if (!people.some((p) => p.key === s.key)) gone.unshift(...this.standing.splice(i, 1).map((x) => x.w));
+    }
+    let fresh = people.filter((p) => !this.standing.some((s) => s.key === p.key));
+    // Someone who went as someone new came (a passer-by met becomes someone the
+    // engine stores, under a new key): the newcomer stands where they stood.
+    while (fresh.length > 0 && gone.length > 0) {
+      const p = fresh[0] as StandingPerson;
+      // The same look, too.
+      const w = gone.shift() as Walker;
+      this.standing.push({ key: p.key, w });
+      fresh = fresh.slice(1);
+    }
+    if (fresh.length === 0) return;
+    const W = this.map.width;
+    const pc = this.playerCell;
+    const px = pc % W;
+    const py = Math.floor(pc / W);
+    const fronts = new Set(this.map.buildings.map((b) => b.front));
+    const taken = this.standing.map((s) => Math.floor(s.w.y) * W + Math.floor(s.w.x));
+    const cands: number[] = [];
+    for (let y = py - 6; y <= py + 6; y++) {
+      for (let x = px - 6; x <= px + 6; x++) {
+        if (x < 0 || y < 0 || x >= W || y >= this.map.height) continue;
+        const d = Math.max(Math.abs(x - px), Math.abs(y - py));
+        if (d < 2) continue;
+        const i = y * W + x;
+        const t = this.map.terrain[i];
+        if (!this.reach[i] || fronts.has(i) || !(t === Terrain.Pavement || t === Terrain.Plaza || t === Terrain.Path || t === Terrain.Quay)) continue;
+        cands.push(i);
+      }
+    }
+    const dist = (i: number) => Math.hypot((i % W) - px, Math.floor(i / W) - py);
+    cands.sort((a, b) => dist(a) - dist(b) || a - b);
+    for (const p of fresh) {
+      const cell = cands.find((c) => taken.every((t) => Math.max(Math.abs((t % W) - (c % W)), Math.abs(Math.floor(t / W) - Math.floor(c / W))) >= 2));
+      if (cell === undefined) continue;
+      taken.push(cell);
+      const w = makeWalker(-1000 - this.standing.length, cellCentre(this.grid, cell), p.variant, 0);
+      this.standing.push({ key: p.key, w });
+    }
+  }
+
+  /** The person standing within `TALK_REACH` of the player (the nearest), when the player is not walking a route. */
+  personNear(): string | null {
+    if (this.player.walk) return null;
+    let best: string | null = null;
+    let bd = TALK_REACH;
+    for (const s of this.standing) {
+      const d = Math.hypot(s.w.x - this.player.x, s.w.y - this.player.y);
+      if (d <= bd) {
+        bd = d;
+        best = s.key;
+      }
+    }
+    return best;
+  }
+
+  /** The person standing at a point (tiles), if any (a tap on them). */
+  personAt(p: Point): string | null {
+    let best: string | null = null;
+    let bd = 0.8;
+    for (const s of this.standing) {
+      const d = Math.hypot(s.w.x - p.x, s.w.y - 0.4 - p.y);
+      if (d <= bd) {
+        bd = d;
+        best = s.key;
+      }
+    }
+    return best;
+  }
+
+  /** Walk up to someone standing in the street (to the side of them nearest the player); `onArrive` once there (at once if already). */
+  goToPerson(key: string, onArrive?: () => void): boolean {
+    const s = this.standing.find((x) => x.key === key);
+    if (!s) return false;
+    if (this.personNear() === key) {
+      this.cancelWalk();
+      onArrive?.();
+      return true;
+    }
+    const W = this.map.width;
+    const cx = Math.floor(s.w.x);
+    const cy = Math.floor(s.w.y);
+    const around = [
+      [0, 1],
+      [1, 0],
+      [-1, 0],
+      [0, -1],
+    ]
+      .map(([dx, dy]) => (cy + (dy as number)) * W + cx + (dx as number))
+      .filter((c) => c >= 0 && c < this.reach.length && this.reach[c])
+      .sort((a, b) => Math.hypot((a % W) + 0.5 - this.player.x, Math.floor(a / W) + 0.5 - this.player.y) - Math.hypot((b % W) + 0.5 - this.player.x, Math.floor(b / W) + 0.5 - this.player.y));
+    for (const c of around) if (this.goToCell(c, onArrive)) return true;
+    return false;
   }
 
   /** Resolve a tap at a point in tiles and walk there. Returns where to, or null. */
