@@ -16,10 +16,31 @@
 //     its static canvases with the moment's mood palette (`setClock`, which
 //     says when the caller must re-bake: `TownRenderer.crossFade()`), and
 //     `grade()` returns only the people's gentler multiply;
-//   - markers and icons are not in the tool plan: the placeholder draws them.
+//   - markers and icons are not in the tool plan: the placeholder draws them;
+//   - layout v2 (round 4, DEC-090): `groundCell` draws each cell of a v2 map
+//     with its neighbours in view (levels, shores, creek, rail, bridges)
+//     through the pack's terrain painter, one painter per map; cells that look
+//     as v1 draws them use `ground`'s tiles, and drawn cells that come out the
+//     same share one frame. A v1 map always gets `ground`'s tiles. Plot states
+//     arrive as building conditions; unknown terrain codes draw as grass and
+//     unknown props as the placeholder's.
 import { gradeAt, shadowBucket, shadowVector, sunAt, wrapMinutes } from "../dayCycle";
-import { Terrain } from "../townLayout";
-import { buildFacade, composeCharacter, faceLeft, groundTile, lookFromSeed, PLAYER_LOOK, type ArtPack, type Facade, type FacadeSpec } from "../../../../tools/pixelkit/art/mandate/pack";
+import type { TownMap } from "../townLayout";
+import {
+  buildFacade,
+  composeCharacter,
+  faceLeft,
+  groundTile,
+  lookFromSeed,
+  PLAYER_LOOK,
+  TerrainPainter,
+  tileOf,
+  V1_NAMES,
+  V2_NAMES,
+  type ArtPack,
+  type Facade,
+  type FacadeSpec,
+} from "../../../../tools/pixelkit/art/mandate/pack";
 import { rgbaTable, toRgba, type Indexed } from "../../../../tools/pixelkit/src/runtime";
 import {
   domCanvasFactory,
@@ -53,26 +74,10 @@ export interface PixelkitArtOptions {
   maxCharacters?: number;
 }
 
-/** Terrain codes (../townLayout) to the pack's terrain names. */
-const TERRAIN_NAME: Record<number, string> = {
-  [Terrain.Grass]: "grass",
-  [Terrain.Road]: "road",
-  [Terrain.Pavement]: "pavement",
-  [Terrain.Crossing]: "crossing",
-  [Terrain.Plaza]: "plaza",
-  [Terrain.Water]: "water",
-  [Terrain.Building]: "pavement",
-  [Terrain.Door]: "pavement",
-  [Terrain.Park]: "park",
-  [Terrain.Path]: "path",
-  [Terrain.Yard]: "yard",
-  [Terrain.Field]: "field",
-  [Terrain.Dirt]: "dirt",
-  [Terrain.Sand]: "sand",
-  [Terrain.Quay]: "quay",
-  [Terrain.Pier]: "pier",
-  [Terrain.Garden]: "garden",
-};
+/** Whether a map uses the layout v2 vocabulary (levels, connectors, a v2 layout version). */
+function isV2(map: TownMap): boolean {
+  return map.version >= 2 || map.elevation !== undefined || (map.connectors !== undefined && map.connectors.length > 0);
+}
 
 const T = 16;
 const CW = 16;
@@ -154,13 +159,16 @@ export class PixelkitArt implements ArtProvider {
   private readonly tilePages: Pages;
   private readonly glowPages: Pages;
   private readonly tiles = new Map<number, FrameRef>();
+  /** Layout v2: a terrain painter and the frames of drawn cells, per map; drawn cells deduplicated by their pixels. */
+  private readonly v2 = new WeakMap<TownMap, { painter: TerrainPainter; cells: Map<number, FrameRef> }>();
+  private readonly v2Tiles = new Map<string, FrameRef>();
   private readonly glows = new Map<string, FrameRef>();
   private readonly props = new Map<string, PropSprite>();
   private readonly characters = new Map<string, Layer>();
   private pool: FrameRef | null = null;
   /** Canvases made so far, and time spent composing (ms), for the HUD and tests. */
   made = 0;
-  composeMs = { characters: 0, buildings: 0, count: 0 };
+  composeMs = { characters: 0, buildings: 0, terrain: 0, count: 0 };
 
   constructor(pack: ArtPack, options: PixelkitArtOptions = {}) {
     this.pack = pack;
@@ -254,11 +262,47 @@ export class PixelkitArt implements ArtProvider {
     const key = (kind << 16) | ((cornerMask & 255) << 3) | (variant & 7);
     const hit = this.tiles.get(key);
     if (hit) return hit;
-    const img = groundTile(this.pack.tiles, TERRAIN_NAME[kind] ?? "grass", cornerMask, variant & 7);
+    // v1 codes from the tile set; v2 codes drawn from the mask alone (flat, no connectors known); anything else as grass.
+    const img = V2_NAMES[kind] !== undefined ? tileOf(this.pack.tiles, this.pack.terrain, kind, cornerMask & 255, variant & 7) : groundTile(this.pack.tiles, V1_NAMES[kind] ?? "grass", cornerMask, variant & 7);
     const { layer, x, y } = this.tilePages.alloc(T, T);
     this.paintStatic(layer, img, x, y);
     const f: FrameRef = { image: layer.canvas, x, y, w: T, h: T, ax: 0, ay: 0 };
     this.tiles.set(key, f);
+    return f;
+  }
+
+  /**
+   * Layout v2: the cell (x, y) drawn with the map around it (round 4). A v1 map, and any cell that looks as
+   * v1 draws it, gets `ground`'s tile; other cells are drawn once, and identical drawings share a frame.
+   */
+  groundCell(map: TownMap, x: number, y: number, cornerMask: number, variant: number): FrameRef {
+    const kind = (map.terrain[y * map.width + x] as number | undefined) ?? 0;
+    if (!isV2(map) || x < 0 || y < 0 || x >= map.width || y >= map.height) return this.ground(kind, cornerMask, variant);
+    let v2 = this.v2.get(map);
+    if (!v2) {
+      v2 = { painter: new TerrainPainter(this.pack.tiles, this.pack.terrain, map), cells: new Map() };
+      this.v2.set(map, v2);
+    }
+    const i = y * map.width + x;
+    const hit = v2.cells.get(i);
+    if (hit) return hit;
+    let f: FrameRef;
+    if (v2.painter.simple(x, y)) f = this.ground(kind, cornerMask, variant);
+    else {
+      const t0 = performance.now();
+      const img = v2.painter.draw(x, y, variant & 7);
+      const key = imageKey(img);
+      const shared = this.v2Tiles.get(key);
+      if (shared) f = shared;
+      else {
+        const at = this.tilePages.alloc(T, T);
+        this.paintStatic(at.layer, img, at.x, at.y);
+        f = { image: at.layer.canvas, x: at.x, y: at.y, w: T, h: T, ax: 0, ay: 0 };
+        this.v2Tiles.set(key, f);
+      }
+      this.composeMs.terrain += performance.now() - t0;
+    }
+    v2.cells.set(i, f);
     return f;
   }
 

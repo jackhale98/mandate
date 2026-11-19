@@ -103,6 +103,32 @@ const CLOTH: RampSpec[] = CLOTH_NAMES.map((n) => ({ name: `cloth_${n}`, anchor: 
 /** The soft outline colours as one-colour ramps (so the outline lint knows them as lines). */
 const SOFT: RampSpec[] = Object.entries(SOFT_LINES).map(([k, hex]) => ({ name: `line_${k}`, anchor: hex, fixed: [hex], darker: 0, lighter: 0, line: false }));
 
-export const PALETTE_SPEC: PaletteSpec = { ramps: [...WORLD, ...SKIN, ...HAIR, ...CLOTH, ...SOFT], merge: 0.012, lineMerge: 0.05 };
+/**
+ * Round 4 (D11, palette headroom for town layout v2): ramps whose steps nearly
+ * duplicate colours already in the palette reuse them instead of adding their
+ * own, below these Oklab ΔE limits (the palette's own limit is 0.012). Every
+ * merge here is below 0.031, a step most viewers cannot tell apart at 1×; the
+ * ramps keep their names, so no part or kit changes. Before: 124 colours;
+ * after: see PIXEL_ART_TOOL.md, "Round 4".
+ *   - foliage's shade → grass's base, glass's shade → slate's light, earth → wood's light and stone's base
+ *     (each ΔE 0.016–0.018);
+ *   - grey hair → the warm greys of paving and chalk (ΔE 0.018–0.026);
+ *   - mustard cloth → blonde hair's ramp (ΔE 0.025–0.030);
+ *   - sky cloth's base → water's light (ΔE 0.018).
+ */
+export const RAMP_MERGES: Readonly<Record<string, number>> = {
+  foliage: 0.017,
+  glass: 0.017,
+  earth: 0.019,
+  hair_grey: 0.027,
+  cloth_mustard: 0.031,
+  cloth_sky: 0.019,
+};
+
+export const PALETTE_SPEC: PaletteSpec = {
+  ramps: [...WORLD, ...SKIN, ...HAIR, ...CLOTH, ...SOFT].map((r) => (RAMP_MERGES[r.name] !== undefined ? { ...r, merge: RAMP_MERGES[r.name] as number } : r)),
+  merge: 0.012,
+  lineMerge: 0.05,
+};
 
 export const buildMandatePalette = () => buildPalette(PALETTE_SPEC);

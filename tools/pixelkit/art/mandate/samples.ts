@@ -83,3 +83,12 @@ export function sampleRows(): FacadeSpec[][] {
   }
   return rows;
 }
+
+/** One building of each family (civic, shop, house, industrial, institution): the plot-state sheet, lint and goldens (round 4). */
+export const FAMILY_SPECS: readonly (readonly [string, FacadeSpec])[] = [
+  ["civic", { ...base, kind: "town_hall", hood: "core", w: 5, doorX: 2, storeys: 3, named: true, landmark: true, visualSeed: 7002, ends: { left: "gap", right: "gap" } }],
+  ["shop", { ...base, kind: "shop", w: 4, visualSeed: 7003, ends: { left: "gap", right: "gap" } }],
+  ["house", { ...base, kind: "terrace", visualSeed: 7004, ends: { left: "gap", right: "gap" } }],
+  ["industrial", { ...base, kind: "warehouse", hood: "industrial", w: 5, doorX: 2, visualSeed: 7005, ends: { left: "gap", right: "gap" } }],
+  ["institution", { ...base, kind: "school", hood: "suburb", w: 5, doorX: 2, named: true, visualSeed: 7006, ends: { left: "gap", right: "gap" } }],
+];
