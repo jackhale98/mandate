@@ -378,7 +378,11 @@ outcome-lobby-fail = { $name } was not convinced.
 outcome-favor-traded = { $name } will support you. You owe a favour.
 outcome-town-hall = The town hall in { $place } drew a crowd.
 outcome-press = Your statement ran in the local press.
-outcome-canvass = You knocked on doors in { $place }.
+outcome-canvass = You knocked on doors in { $place }.{ $fresh ->
+        [recent] { " " }People here saw you not long ago, so it won fewer of them over.
+        [tired] { " " }People here have seen a lot of you lately: it won few of them over.
+       *[new] { "" }
+    }
 outcome-fundraise = You raised { $amount }.
 outcome-rest = You rested and recovered.
 outcome-advertise = Your ads are running ({ $amount } spent).

@@ -1034,6 +1034,8 @@ fn place_player(
         knowledge: Default::default(),
         // Nobody has talked with the player yet (DEC-093).
         talk: Default::default(),
+        // No doorsteps knocked yet (DEC-097 §1).
+        ground: Default::default(),
     })
 }
 

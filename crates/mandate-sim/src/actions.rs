@@ -998,7 +998,7 @@ pub fn apply(
                         .neighborhoods
                         .get(*neighborhood as usize)
                         .ok_or_else(|| bad("no such neighbourhood"))?;
-                    if h.municipality.0 != m {
+                    if Some(h.municipality) != crate::player::ground::town(state) {
                         return Err(bad("that neighbourhood is not in your town"));
                     }
                     if let Some(i) = issue
@@ -1006,39 +1006,53 @@ pub fn apply(
                     {
                         return Err(bad("no such worry"));
                     }
-                    // Decided before the doorsteps change anything.
-                    let fit = canvass_match(
-                        state,
-                        content,
-                        NeighborhoodId(*neighborhood),
-                        issue.as_deref(),
-                    );
+                    let hood = NeighborhoodId(*neighborhood);
+                    let fx = &content.actions.canvass;
+                    // Decided before the doorsteps change anything: how the
+                    // worry fits, and how fresh the doorsteps are (DEC-097 §1).
+                    let fit = canvass_match(state, content, hood, issue.as_deref());
+                    let curve = crate::player::ground::canvass_curve(state, fx, hood);
                     spend(state, content, "canvass", false)?;
                     crate::politics::add_record(
                         &mut state.politics,
                         pl.politician,
                         content.career.record_gain.canvass as f32,
                     );
-                    let fx = &content.actions.canvass;
-                    for c in state.population.hoods[*neighborhood as usize]
-                        .cohorts
-                        .iter_mut()
-                    {
-                        // Contact mostly builds recognition; persuasion is small,
-                        // saturating, and decays (DEC-071 §5).
+                    for c in state.population.hoods[hood.index()].cohorts.iter_mut() {
+                        // Contact builds recognition first; persuasion is
+                        // small, saturating, fades with repeated visits, and
+                        // counts for more in campaign season (DEC-071 §5,
+                        // DEC-097 §1).
                         let aw = c.player_awareness as f64;
-                        c.player_awareness = clamp(aw + fx.awareness * (1.0 - aw), 0.0, 1.0) as f32;
+                        c.player_awareness =
+                            clamp(aw + fx.awareness * (1.0 - aw) * curve.awareness, 0.0, 1.0)
+                                as f32;
                         let room = 1.0 - (c.player_approval as f64).abs();
                         c.player_approval = clamp(
-                            c.player_approval as f64 + fx.approval * fit * room,
+                            c.player_approval as f64 + fx.approval * fit * room * curve.approval,
                             -1.0,
                             1.0,
                         ) as f32;
                     }
-                    // A full day on the doorsteps: deeper than any other contact.
-                    campaign_contact(state, content, Some(*neighborhood), fx.contact);
-                    learn_canvass(state, content, NeighborhoodId(*neighborhood));
+                    // A full day on the doorsteps: deeper than any other
+                    // contact (the race model has its own diminishing).
+                    campaign_contact(
+                        state,
+                        content,
+                        Some(*neighborhood),
+                        fx.contact * curve.same_turn,
+                    );
+                    let (on, turn) = (state.calendar.date, state.calendar.turn);
+                    if let Some(p) = state.player.as_mut() {
+                        p.ground.remember(hood, curve.visits + 1.0, on, turn);
+                    }
+                    learn_canvass(state, content, hood);
                     res.outcome_key = "outcome-canvass".into();
+                    // How fresh the doorsteps were (the player's own memory).
+                    res.args.insert(
+                        "fresh".into(),
+                        crate::player::ground::fresh_band(curve.fresh).into(),
+                    );
                     if let Some(i) = issue {
                         // How the worry landed (the player has just heard
                         // the doorsteps, so this tells nothing hidden).

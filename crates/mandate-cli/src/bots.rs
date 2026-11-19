@@ -39,6 +39,12 @@ pub fn omniscient() -> bool {
 
 /// A bot's new game, with the lab switch applied.
 fn new_game(content: &Arc<ContentBundle>, seed: u64) -> Option<Engine> {
+    new_game_with(content, seed, omniscient())
+}
+
+/// A bot's new game, with the lab switch on or off for this game alone (the
+/// `knowledge_matters` pass plays `mixed` omniscient beside the others).
+fn new_game_with(content: &Arc<ContentBundle>, seed: u64, omniscient: bool) -> Option<Engine> {
     let mut e = generate(
         &WorldConfig {
             seed,
@@ -48,27 +54,75 @@ fn new_game(content: &Arc<ContentBundle>, seed: u64) -> Option<Engine> {
         content.clone(),
     )
     .ok()?;
-    e.set_lab_omniscient(omniscient());
+    e.set_lab_omniscient(omniscient);
     Some(e)
 }
 
-pub const STRATEGIES: [&str; 9] = [
+pub const STRATEGIES: [&str; 13] = [
     "idle",
     "canvass",
     "media",
+    "asks_only",
     "legislator",
     "mixed",
     "proxy",
     "corrupt",
     "explorer",
+    "explorer_coalition",
+    "explorer_legislator",
+    "explorer_campaigner",
     "explore_only",
 ];
 
-/// Probes, not routines: `idle` (the baseline) and `explore_only` (the
-/// "exploring alone never wins" gate) stay out of the dominance and variety
-/// checks, which compare ways of playing.
+/// The strategy classes the gate ladder compares (ENGAGEMENT §2.4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Class {
+    /// One verb, repeated: `canvass`, `media`, `asks_only`.
+    SingleVerb,
+    /// A mix played without reading the town: `mixed`, `legislator`, `proxy`.
+    BlindMix,
+    /// Learn the town first, then lean on one way of playing: `explorer`
+    /// and its three variants.
+    Informed,
+    /// Compared only by their own gates: `idle`, `explore_only`, `corrupt`.
+    Probe,
+}
+
+impl Class {
+    pub fn key(self) -> &'static str {
+        match self {
+            Class::SingleVerb => "single_verb",
+            Class::BlindMix => "blind_mix",
+            Class::Informed => "informed",
+            Class::Probe => "probe",
+        }
+    }
+}
+
+pub fn class(s: &str) -> Class {
+    match s {
+        "canvass" | "media" | "asks_only" => Class::SingleVerb,
+        "mixed" | "legislator" | "proxy" => Class::BlindMix,
+        "explorer" | "explorer_coalition" | "explorer_legislator" | "explorer_campaigner" => {
+            Class::Informed
+        }
+        _ => Class::Probe,
+    }
+}
+
+/// Probes, not ways of playing: outside the class comparisons.
 pub fn is_probe(s: &str) -> bool {
-    matches!(s, "idle" | "explore_only")
+    class(s) == Class::Probe
+}
+
+/// Rote routines: single-verb routines and blind mixes together.
+pub fn is_rote(s: &str) -> bool {
+    matches!(class(s), Class::SingleVerb | Class::BlindMix)
+}
+
+/// The informed styles (each learns the town first, `EXPLORE_TURNS`).
+pub fn is_informed(s: &str) -> bool {
+    class(s) == Class::Informed
 }
 
 /// Turns `explorer` spends learning the town before it plays the mix.
@@ -94,6 +148,30 @@ pub fn record(on: bool) -> Vec<String> {
     })
 }
 
+thread_local! {
+    /// The verbs bots used on this thread, counted while a game is played
+    /// (the action mix the report prints).
+    static MIX: std::cell::RefCell<BTreeMap<&'static str, u32>> =
+        const { std::cell::RefCell::new(BTreeMap::new()) };
+}
+
+/// The verb a command counts as in the action mix (moves, meetings and
+/// answers are not verbs).
+fn verb(cmd: &PlayerCommand) -> Option<&'static str> {
+    match cmd {
+        PlayerCommand::Act { action, .. } => Some(action.key()),
+        PlayerCommand::Go { then, .. } => then.as_deref().and_then(verb),
+        PlayerCommand::Talk { topic, .. } => Some(match topic.as_str() {
+            "topic.support" => "talk_support",
+            "topic.pitch" | "topic.favour" => "talk_bill",
+            _ => "talk",
+        }),
+        PlayerCommand::DraftPolicy { .. } => Some("draft"),
+        PlayerCommand::IntroducePolicy { .. } => Some("introduce"),
+        _ => None,
+    }
+}
+
 /// Every command a bot sends goes through here.
 fn apply(e: &mut Engine, cmd: Command) -> Result<CommandOutcome, EngineError> {
     RECORD.with(|r| {
@@ -101,7 +179,22 @@ fn apply(e: &mut Engine, cmd: Command) -> Result<CommandOutcome, EngineError> {
             v.push(serde_json::to_string(&cmd).unwrap_or_default());
         }
     });
-    e.apply(cmd)
+    let v = match &cmd {
+        Command::Player(p) => verb(p),
+        _ => None,
+    };
+    let r = e.apply(cmd);
+    if r.is_ok()
+        && let Some(v) = v
+    {
+        MIX.with(|m| *m.borrow_mut().entry(v).or_default() += 1);
+    }
+    r
+}
+
+/// Take the action mix counted on this thread since the last take.
+fn take_mix() -> BTreeMap<&'static str, u32> {
+    MIX.with(|m| std::mem::take(&mut *m.borrow_mut()))
 }
 
 fn campaigning(e: &Engine) -> bool {
@@ -385,7 +478,26 @@ fn taste(strategy: &str) -> Taste {
             blame: true,
             ..base
         },
-        // The NPC AI's pragmatist (the time-skip proxy).
+        // The informed styles weigh what their way of playing builds on.
+        "explorer_campaigner" => Taste {
+            approval: 90.0,
+            awareness: 40.0,
+            standing: 0.6,
+            ..base
+        },
+        "explorer_legislator" => Taste {
+            draft: 1.5,
+            record: 35.0,
+            standing: 0.7,
+            ..base
+        },
+        "explorer_coalition" => Taste {
+            opinion: 0.15,
+            owe: -0.25,
+            standing: 0.7,
+            ..base
+        },
+        // The NPC AI's pragmatist (the time-skip proxy; `explorer` too).
         _ => Taste {
             standing: 0.8,
             opinion: 0.1,
@@ -802,6 +914,156 @@ fn ask_support(e: &mut Engine, content: &ContentBundle) -> bool {
 /// Bots ask for support only when the shown odds are at least this.
 pub const SUPPORT_MIN_ODDS: f64 = 0.3;
 
+// --- The informed styles (ENGAGEMENT §2.4) ----------------------------------------
+
+fn exp(flag: &str) -> bool {
+    std::env::var("E1X").is_ok_and(|v| v.split(',').any(|f| f == flag))
+}
+
+/// The fit the player expects from canvassing a neighbourhood on its top
+/// worry, from their own last reading of its doorsteps (a `detailed`
+/// reading is the player's knowledge, DEC-091): the canvass match formula
+/// on the reading's top worry over its mean. Without a reading, 1.
+fn expected_fit(e: &Engine, content: &ContentBundle, hood: u32) -> f64 {
+    let Some(pl) = e.state().player.as_ref() else {
+        return 1.0;
+    };
+    let s = mandate_sim::player::knowledge::Subject::HoodConcerns {
+        hood: NeighborhoodId(hood),
+    };
+    let Some(r) = pl.knowledge.entry(&s).and_then(|x| x.reading.as_ref()) else {
+        return 1.0;
+    };
+    let vals: Vec<f64> = r.values.iter().map(|v| v.1 as f64).collect();
+    let mean = vals.iter().sum::<f64>() / vals.len().max(1) as f64;
+    let top = vals.iter().copied().fold(0.0, f64::max);
+    if mean <= 0.0 {
+        return 1.0;
+    }
+    let k = &content.knowledge.effects.canvass;
+    (1.0 + k.match_bonus * (top / mean - 1.0)).clamp(k.floor, k.ceiling)
+}
+
+/// Mean awareness of the player in a neighbourhood (never gated).
+fn hood_awareness(e: &Engine, h: usize) -> f64 {
+    let cs = &e.state().population.hoods[h].cohorts;
+    cs.iter()
+        .map(|c| c.player_awareness as f64 * c.count as f64)
+        .sum::<f64>()
+        / cs.iter().map(|c| c.count as f64).sum::<f64>().max(1.0)
+}
+
+/// The ward neighbourhood where a canvass is worth most now, by what the
+/// player knows: how fresh its doorsteps are (their own memory of where
+/// they have been), the fit they expect on its top worry, and how far they
+/// are from being known there. Returns the hood and its approval
+/// multiplier (fresh × season).
+fn ground_hood(e: &Engine, content: &ContentBundle) -> Option<(u32, f64)> {
+    let st = e.state();
+    let pl = st.player.as_ref()?;
+    let fx = &content.actions.canvass;
+    ward_hoods(&st.world, pl.ward)
+        .into_iter()
+        .map(|h| {
+            let c = mandate_sim::player::ground::canvass_curve(st, fx, NeighborhoodId(h as u32));
+            let gap = 1.0 - hood_awareness(e, h);
+            let value = c.approval * expected_fit(e, content, h as u32) + gap * c.awareness;
+            (value, h as u32, c.approval)
+        })
+        .max_by(|a, b| a.0.total_cmp(&b.0).then(b.1.cmp(&a.1)))
+        .map(|x| (x.1, x.2))
+}
+
+/// The campaigner (the ground game where it fits, and the press): between
+/// elections it canvasses only doorsteps that are fresh (where it pays
+/// most, by what the player knows), and otherwise works a bill and raises
+/// money for the campaign; in a campaign, the doorsteps where a canvass is
+/// worth most, then people it has met asked to speak up, then the press.
+fn campaigner_turn(e: &mut Engine, content: &ContentBundle, camp: bool, slots: u8) -> bool {
+    if tired(e) {
+        return act(e, Action::Rest);
+    }
+    if slots >= 2
+        && let Some((h, worth)) = ground_hood(e, content)
+        && (camp || worth >= CAMPAIGNER_FRESH)
+    {
+        return canvass(e, h);
+    }
+    if camp {
+        let policy = own_bill(e);
+        return ask_support(e, content) || act(e, Action::Press { policy });
+    }
+    legislate(e, content);
+    act(e, Action::Fundraise)
+}
+
+/// Between elections the campaigner canvasses only doorsteps at least this
+/// fresh.
+pub const CAMPAIGNER_FRESH: f64 = 0.7;
+
+/// The legislator (bills and delivery): always a bill in council, lobbied,
+/// taken to a town hall and to the press; in a campaign, the doorsteps,
+/// then people it has met asked to speak up, then a town hall on its bill
+/// where the player is least known.
+fn legislator_turn(e: &mut Engine, content: &ContentBundle, camp: bool, slots: u8) -> bool {
+    if tired(e) {
+        return act(e, Action::Rest);
+    }
+    if camp {
+        if slots >= 2
+            && let Some(h) = coldest_hood(e)
+        {
+            return canvass(e, h);
+        }
+        if ask_support(e, content) {
+            return true;
+        }
+        return coldest_hood(e).is_some_and(|h| {
+            act(
+                e,
+                Action::TownHall {
+                    neighborhood: h,
+                    policy: own_bill(e),
+                },
+            )
+        });
+    }
+    legislate(e, content);
+    let policy = own_bill(e);
+    act(e, Action::Press { policy }) || act(e, Action::Fundraise)
+}
+
+/// The coalition builder (talk, lobbying, favours): it meets the ward's
+/// residents on its walks, lobbies colleagues on its bill, and asks the
+/// people it has met to speak up for it, between elections and in a
+/// campaign (the asks first, then the doorsteps).
+fn coalition_turn(e: &mut Engine, content: &ContentBundle, camp: bool, slots: u8) -> bool {
+    if tired(e) {
+        return act(e, Action::Rest);
+    }
+    meet_passers_by(e, content, false);
+    if camp {
+        if ask_support(e, content) {
+            return true;
+        }
+        return slots >= 2 && coldest_hood(e).is_some_and(|h| canvass(e, h));
+    }
+    if own_bill(e).is_none() {
+        legislate(e, content);
+    } else if let Some(bill) = own_bill(e)
+        && let Some(t) = lobby_target(e, content, bill)
+    {
+        act(
+            e,
+            Action::Lobby {
+                politician: t,
+                policy: bill,
+            },
+        );
+    }
+    ask_support(e, content) || act(e, Action::Fundraise)
+}
+
 /// Whether `explorer` is still in its learning turns.
 fn exploring(e: &Engine, start_turn: u32) -> bool {
     e.state().calendar.turn < start_turn + EXPLORE_TURNS && !campaigning(e)
@@ -829,11 +1091,20 @@ pub fn play_turn_from(e: &mut Engine, content: &ContentBundle, strategy: &str, s
         shady_actions(e, camp);
     }
     // Money, not time: ads take no slot.
-    if camp && matches!(strategy, "media" | "mixed" | "corrupt" | "explorer") {
+    if camp
+        && matches!(
+            strategy,
+            "media" | "mixed" | "corrupt" | "explorer" | "explorer_campaigner"
+        )
+    {
         buy_ads(e, 3);
     }
-    // The explorer's first turns go on learning the town; then it plays the mix.
-    if strategy == "explorer" && exploring(e, start_turn) {
+    if camp && matches!(strategy, "explorer_coalition" | "explorer_legislator") {
+        buy_ads(e, 1);
+    }
+    // The informed styles' first turns go on learning the town; then each
+    // plays its own way (`explorer`: the mix).
+    if is_informed(strategy) && exploring(e, start_turn) {
         explore(e, content, false);
     }
     for _ in 0..3 {
@@ -847,7 +1118,12 @@ pub fn play_turn_from(e: &mut Engine, content: &ContentBundle, strategy: &str, s
             break;
         }
         let ok = match strategy {
-            "idle" => false,
+            // `asks_only` works every ask and nothing else: a stub until the
+            // asks land (E6–E8), so it only answers decisions.
+            "idle" | "asks_only" => false,
+            "explorer_campaigner" => campaigner_turn(e, content, camp, slots),
+            "explorer_legislator" => legislator_turn(e, content, camp, slots),
+            "explorer_coalition" => coalition_turn(e, content, camp, slots),
             "canvass" => {
                 if tired(e) {
                     act(e, Action::Rest)
@@ -931,6 +1207,8 @@ pub struct Played {
     /// `none`) and its defining industry (or `mixed`).
     pub crisis: String,
     pub industry: String,
+    /// The verbs used up to the election (the action mix).
+    pub mix: BTreeMap<&'static str, u32>,
 }
 
 /// The player's town's situation when play begins.
@@ -955,13 +1233,25 @@ fn situation(e: &Engine) -> (String, String) {
 }
 
 pub fn play_full(content: &Arc<ContentBundle>, seed: u64, strategy: &str) -> Option<Played> {
-    let mut e = new_game(content, seed)?;
+    play_full_with(content, seed, strategy, omniscient())
+}
+
+/// One bot's first election, with the lab switch on or off for this game.
+pub fn play_full_with(
+    content: &Arc<ContentBundle>,
+    seed: u64,
+    strategy: &str,
+    omniscient: bool,
+) -> Option<Played> {
+    let mut e = new_game_with(content, seed, omniscient)?;
+    take_mix();
     let (crisis, industry) = situation(&e);
     let lost = |crisis: String, industry: String| Played {
         won: false,
         share: 0.0,
         crisis,
         industry,
+        mix: take_mix(),
     };
     let me = e.state().player.as_ref()?.politician;
     let start = e.state().calendar.date;
@@ -999,38 +1289,94 @@ pub fn play_full(content: &Arc<ContentBundle>, seed: u64, strategy: &str) -> Opt
         share,
         crisis,
         industry,
+        mix: take_mix(),
     })
 }
 
-/// The variety gate (DEC-077 §5): the best strategy must differ across
-/// worlds, so no single routine wins everywhere. Per world (seed), the best
-/// active strategies are those within `VARIETY_TIE` of the highest vote
-/// share (a near-tie is shared: `corrupt` is `mixed` plus shortcuts and often
-/// lands within a hair of it). The gate needs at least
-/// `VARIETY_MIN_WINNERS` strategies that are the sole best somewhere, and no
-/// strategy among the best in more than `VARIETY_MAX_SHARE` of the worlds.
-pub const VARIETY_MIN_WINNERS: usize = 2;
-pub const VARIETY_MAX_SHARE: f64 = 0.6;
+/// Per world, the best of a set of strategies are those within
+/// `VARIETY_TIE` of the highest vote share (a near-tie is shared).
 pub const VARIETY_TIE: f64 = 0.002;
 
+/// `good_styles_vary` (ENGAGEMENT §7.2; DEC-077 §5 as amended by DEC-097):
+/// among the informed styles, (a) at least `STYLES_MIN_WINNERS` whose mean
+/// share is within `STYLES_NEAR` of the best style's are each the sole best
+/// in at least `STYLES_MIN_SOLE` of the worlds; (b) none is among the best
+/// in more than `STYLES_MAX_SHARE` of the worlds; (c) the best style differs
+/// by starting situation (crisis or industry).
+pub const STYLES_MIN_WINNERS: usize = 2;
+pub const STYLES_NEAR: f64 = 0.015;
+pub const STYLES_MIN_SOLE: f64 = 0.2;
+pub const STYLES_MAX_SHARE: f64 = 0.6;
+
+/// The best of `among` by situation: the highest mean share in each group
+/// of worlds (`key` picks the group: crisis or industry).
+fn best_by(
+    shares: &BTreeMap<u64, BTreeMap<&'static str, f64>>,
+    situations: &BTreeMap<u64, (String, String)>,
+    among: &[&'static str],
+    key: impl Fn(&(String, String)) -> String,
+) -> Vec<serde_json::Value> {
+    let mut groups: BTreeMap<String, BTreeMap<&'static str, (f64, u32)>> = BTreeMap::new();
+    for (seed, row) in shares {
+        let k = situations
+            .get(seed)
+            .map(&key)
+            .unwrap_or_else(|| "none".into());
+        let g = groups.entry(k).or_default();
+        for s in among {
+            if let Some(v) = row.get(s) {
+                let x = g.entry(s).or_default();
+                x.0 += v;
+                x.1 += 1;
+            }
+        }
+    }
+    groups
+        .iter()
+        .map(|(k, m)| {
+            let best = among
+                .iter()
+                .filter_map(|s| m.get(s).map(|(t, c)| (*s, t / (*c).max(1) as f64, *c)))
+                .fold(None::<(&str, f64, u32)>, |b, x| match b {
+                    Some(b) if b.1 >= x.1 => Some(b),
+                    _ => Some(x),
+                });
+            json!({
+                "situation": k,
+                "worlds": best.map(|b| b.2).unwrap_or(0),
+                "best": best.map(|b| b.0).unwrap_or(""),
+                "mean_share": best.map(|b| b.1).unwrap_or(0.0),
+            })
+        })
+        .collect()
+}
+
+/// The variety of the best way of playing across worlds, among `among`
+/// (the informed styles for `good_styles_vary`).
 pub fn variety(
     shares: &BTreeMap<u64, BTreeMap<&'static str, f64>>,
     situations: &BTreeMap<u64, (String, String)>,
+    among: &[&'static str],
 ) -> serde_json::Value {
     let mut among_best: BTreeMap<&'static str, usize> = BTreeMap::new();
     let mut sole_best: BTreeMap<&'static str, usize> = BTreeMap::new();
+    let mut totals: BTreeMap<&'static str, (f64, u32)> = BTreeMap::new();
     let mut worlds = Vec::new();
     let mut n = 0usize;
     for (seed, row) in shares {
-        let active: Vec<(&'static str, f64)> = STRATEGIES
+        let active: Vec<(&'static str, f64)> = among
             .iter()
-            .filter(|s| !is_probe(s))
             .filter_map(|s| row.get(s).map(|v| (*s, *v)))
             .collect();
         let Some(top) = active.iter().map(|x| x.1).reduce(f64::max) else {
             continue;
         };
         n += 1;
+        for (s, v) in &active {
+            let t = totals.entry(s).or_default();
+            t.0 += v;
+            t.1 += 1;
+        }
         let best: Vec<&'static str> = active
             .iter()
             .filter(|x| x.1 >= top - VARIETY_TIE)
@@ -1052,66 +1398,77 @@ pub fn variety(
             "seed": seed, "crisis": crisis, "industry": industry,
             "best": best, "share": top,
             "margin": if second > f64::MIN { top - second } else { 0.0 },
-            "shares": row,
         }));
     }
-    let top = among_best.values().copied().max().unwrap_or(0) as f64 / n.max(1) as f64;
-    // Best strategy by situation: the highest mean share among its worlds.
-    let mut by_situation: BTreeMap<String, BTreeMap<&'static str, (f64, u32)>> = BTreeMap::new();
-    for (seed, row) in shares {
-        let key = situations
-            .get(seed)
-            .map(|x| x.0.clone())
-            .unwrap_or_else(|| "none".into());
-        let e = by_situation.entry(key).or_default();
-        for (s, v) in row.iter().filter(|(k, _)| !is_probe(k)) {
-            let x = e.entry(s).or_default();
-            x.0 += v;
-            x.1 += 1;
-        }
-    }
-    let situation_rows: Vec<serde_json::Value> = by_situation
+    let nf = n.max(1) as f64;
+    let means: BTreeMap<&'static str, f64> = totals
         .iter()
-        .map(|(k, m)| {
-            let best = STRATEGIES
-                .iter()
-                .filter_map(|s| m.get(s).map(|(t, c)| (*s, t / (*c).max(1) as f64, *c)))
-                .fold(None::<(&str, f64, u32)>, |b, x| match b {
-                    Some(b) if b.1 >= x.1 => Some(b),
-                    _ => Some(x),
-                });
-            json!({
-                "crisis": k,
-                "worlds": best.map(|b| b.2).unwrap_or(0),
-                "best": best.map(|b| b.0).unwrap_or(""),
-                "mean_share": best.map(|b| b.1).unwrap_or(0.0),
-            })
-        })
+        .map(|(s, (t, c))| (*s, t / (*c).max(1) as f64))
         .collect();
-    let distinct = sole_best.len();
+    let best_mean = means.values().copied().fold(f64::MIN, f64::max);
+    // (a) Several near-best styles each the sole best somewhere.
+    let winners: Vec<&'static str> = among
+        .iter()
+        .copied()
+        .filter(|s| means.get(s).is_some_and(|m| *m >= best_mean - STYLES_NEAR))
+        .filter(|s| sole_best.get(s).copied().unwrap_or(0) as f64 / nf >= STYLES_MIN_SOLE)
+        .collect();
+    let a = winners.len() >= STYLES_MIN_WINNERS;
+    // (b) None among the best in most worlds.
+    let top = among_best.values().copied().max().unwrap_or(0) as f64 / nf;
+    let b = top <= STYLES_MAX_SHARE;
+    // (c) The best style differs by starting situation.
+    let by_crisis = best_by(shares, situations, among, |s| s.0.clone());
+    let by_industry = best_by(shares, situations, among, |s| s.1.clone());
+    let distinct = |rows: &[serde_json::Value]| {
+        let mut v: Vec<&str> = rows.iter().filter_map(|r| r["best"].as_str()).collect();
+        v.sort();
+        v.dedup();
+        v.len()
+    };
+    let c = distinct(&by_crisis) >= 2 || distinct(&by_industry) >= 2;
     json!({
+        "among": among,
         "worlds": worlds,
+        "mean_share": means,
         "best_counts": among_best,
         "sole_best_counts": sole_best,
-        "distinct_best": distinct,
+        "distinct_best": sole_best.len(),
         "top_best_share": top,
         "tie": VARIETY_TIE,
-        "by_situation": situation_rows,
-        "min_distinct": VARIETY_MIN_WINNERS,
-        "max_top_share": VARIETY_MAX_SHARE,
-        "pass": distinct >= VARIETY_MIN_WINNERS && top <= VARIETY_MAX_SHARE,
+        "near_best_winners": winners,
+        "by_crisis": by_crisis,
+        "by_industry": by_industry,
+        "a": a,
+        "b": b,
+        "c": c,
+        "pass": a && b && c,
     })
 }
 
-/// Every strategy on every seed. Each world is its own single-threaded,
+/// Which games a tournament plays: every strategy on every seed, and
+/// `mixed` with the lab switch on (`knowledge_matters`) unless the whole run
+/// is omniscient already.
+fn jobs(seeds: u64) -> Vec<(&'static str, u64, bool)> {
+    let mut v: Vec<(&'static str, u64, bool)> = STRATEGIES
+        .iter()
+        .flat_map(|s| (1..=seeds).map(move |seed| (*s, seed, false)))
+        .collect();
+    if !omniscient() {
+        v.extend((1..=seeds).map(|seed| ("mixed", seed, true)));
+    }
+    v
+}
+
+/// The games of a tournament. Each world is its own single-threaded,
 /// deterministic simulation; independent worlds run on up to three threads
 /// (a lab convenience: results are keyed, so the report never depends on
-/// scheduling).
-fn play_all(content: &Arc<ContentBundle>, seeds: u64) -> BTreeMap<(&'static str, u64), Played> {
-    let jobs: Vec<(&'static str, u64)> = STRATEGIES
-        .iter()
-        .flat_map(|s| (1..=seeds).map(move |seed| (*s, seed)))
-        .collect();
+/// scheduling). Keyed by (strategy, seed, omniscient).
+fn play_all(
+    content: &Arc<ContentBundle>,
+    seeds: u64,
+) -> BTreeMap<(&'static str, u64, bool), Played> {
+    let jobs = jobs(seeds);
     let workers = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1)
@@ -1125,8 +1482,10 @@ fn play_all(content: &Arc<ContentBundle>, seeds: u64) -> BTreeMap<(&'static str,
                     jobs.iter()
                         .skip(w)
                         .step_by(workers)
-                        .filter_map(|(s, seed)| {
-                            play_full(content, *seed, s).map(|p| ((*s, *seed), p))
+                        .filter_map(|(s, seed, omni)| {
+                            let omni = *omni || omniscient();
+                            play_full_with(content, *seed, s, omni)
+                                .map(|p| ((*s, *seed, omni && !omniscient()), p))
                         })
                         .collect::<Vec<_>>()
                 })
@@ -1141,19 +1500,48 @@ fn play_all(content: &Arc<ContentBundle>, seeds: u64) -> BTreeMap<(&'static str,
     out
 }
 
+/// Margins of the gate ladder (ENGAGEMENT §7.2), in vote-share points
+/// (0.01 = one point) and win-rate shares.
+pub const ROTE_SHARE_MARGIN: f64 = 0.01;
+pub const ROTE_WIN_MARGIN: f64 = 0.05;
+/// `ladder_learned`: + 1.0 point until E8, + 3.0 from E8.
+pub const LEARNED_MARGIN: f64 = 0.01;
+pub const KNOWLEDGE_MARGIN: f64 = 0.03;
+pub const SKILL_SHARE_MARGIN: f64 = 0.03;
+pub const SKILL_WIN_MARGIN: f64 = 0.10;
+pub const IDLE_CAP: f64 = 0.15;
+
+/// The share of each verb in a mix (verbs used / all verbs used).
+fn mix_shares(mix: &BTreeMap<&'static str, u32>) -> BTreeMap<&'static str, f64> {
+    let total = mix.values().sum::<u32>().max(1) as f64;
+    mix.iter().map(|(k, v)| (*k, *v as f64 / total)).collect()
+}
+
+/// How far apart two action mixes are: half the sum of the differences in
+/// each verb's share (0: the same mix; 1: no verb in common).
+fn mix_distance(a: &BTreeMap<&'static str, f64>, b: &BTreeMap<&'static str, f64>) -> f64 {
+    let keys: std::collections::BTreeSet<&&str> = a.keys().chain(b.keys()).collect();
+    keys.into_iter()
+        .map(|k| (a.get(*k).unwrap_or(&0.0) - b.get(*k).unwrap_or(&0.0)).abs())
+        .sum::<f64>()
+        / 2.0
+}
+
 pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
     let mut rows = BTreeMap::new();
     let mut idle_share: BTreeMap<u64, f64> = BTreeMap::new();
     let mut shares: BTreeMap<u64, BTreeMap<&'static str, f64>> = BTreeMap::new();
     let mut situations: BTreeMap<u64, (String, String)> = BTreeMap::new();
+    let mut mixes: BTreeMap<&'static str, BTreeMap<&'static str, f64>> = BTreeMap::new();
     let results = play_all(content, seeds);
     for s in STRATEGIES {
         let mut wins = 0;
         let mut n = 0;
         let mut gain = 0.0;
         let mut total = 0.0;
+        let mut mix: BTreeMap<&'static str, u32> = BTreeMap::new();
         for seed in 1..=seeds {
-            if let Some(p) = results.get(&(s, seed)) {
+            if let Some(p) = results.get(&(s, seed, false)) {
                 let (won, share) = (p.won, p.share);
                 shares.entry(seed).or_default().insert(s, share);
                 situations.insert(seed, (p.crisis.clone(), p.industry.clone()));
@@ -1164,107 +1552,229 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
                     idle_share.insert(seed, share);
                 }
                 gain += share - idle_share.get(&seed).copied().unwrap_or(share);
+                for (k, v) in &p.mix {
+                    *mix.entry(k).or_default() += v;
+                }
             }
         }
+        let per_career: BTreeMap<&'static str, f64> = mix
+            .iter()
+            .map(|(k, v)| (*k, *v as f64 / n.max(1) as f64))
+            .collect();
+        let shares_of = mix_shares(&mix);
+        mixes.insert(s, shares_of.clone());
         rows.insert(
             s.to_string(),
             json!({
+                "class": class(s).key(),
                 "races": n,
                 "win_rate": wins as f64 / n.max(1) as f64,
                 "mean_share": total / n.max(1) as f64,
                 "mean_share_gain_vs_idle": gain / n.max(1) as f64,
+                "mix": shares_of,
+                "verbs_per_career": per_career,
             }),
         );
     }
     let rate = |s: &str| rows.get(s).and_then(|v| v["win_rate"].as_f64());
     let mean = |s: &str| rows.get(s).and_then(|v| v["mean_share"].as_f64());
-    // Dominance check: the best way of playing should not crush the rest.
-    let rates: Vec<f64> = STRATEGIES
-        .iter()
-        .filter(|s| !is_probe(s))
-        .filter_map(|s| rate(s))
-        .collect();
-    let best = rates.iter().cloned().fold(0.0, f64::max);
-    let median = {
-        let mut r = rates.clone();
+    let of = |f: fn(&str) -> bool| -> Vec<&'static str> {
+        STRATEGIES.iter().copied().filter(|s| f(s)).collect()
+    };
+    let (single, rote, informed) = (
+        of(|s| class(s) == Class::SingleVerb),
+        of(is_rote),
+        of(is_informed),
+    );
+    let honest = of(|s| !is_probe(s));
+    let max_of = |set: &[&'static str], f: &dyn Fn(&str) -> Option<f64>| {
+        set.iter().filter_map(|s| f(s)).fold(0.0, f64::max)
+    };
+    let best = max_of(&honest, &rate);
+    let median_of = |set: &[&'static str]| {
+        let mut r: Vec<f64> = set.iter().filter_map(|s| rate(s)).collect();
         r.sort_by(|a, b| a.total_cmp(b));
         r.get(r.len() / 2).copied().unwrap_or(0.0)
     };
     let idle = rate("idle").unwrap_or(1.0);
-    // Corruption tempts but never dominates: its win rate is at most
-    // `CORRUPT_MARGIN` above the best honest routine's.
-    let honest = STRATEGIES
-        .iter()
-        .filter(|s| !is_probe(s) && **s != "corrupt")
-        .filter_map(|s| rate(s))
-        .fold(0.0, f64::max);
-    let corrupt = rate("corrupt").unwrap_or(0.0);
-    // DEC-091 (M6_ENGINE_CONTRACTS §1.10): exploring early pays...
-    let (explorer, mixed) = (
-        mean("explorer").unwrap_or(0.0),
-        mean("mixed").unwrap_or(0.0),
-    );
-    let explore_pays = explorer >= mixed + EXPLORE_MARGIN
-        && rate("explorer").unwrap_or(0.0) >= rate("mixed").unwrap_or(1.0);
-    // ...and exploring alone never wins.
+    // Rung 0: effort pays, and exploring alone never wins.
+    let idle_cap = idle <= IDLE_CAP;
+    let effort_matters = best > idle;
     let explore_only = rate("explore_only").unwrap_or(1.0);
-    let explore_alone = explore_only <= idle + EXPLORE_ONLY_OVER_IDLE && explore_only < median;
-    let variety = variety(&shares, &situations);
+    let rote_median = median_of(&rote);
+    let explore_alone = explore_only <= idle + EXPLORE_ONLY_OVER_IDLE && explore_only < rote_median;
+    // Rung 1: a blind mix beats every single verb.
+    let (mixed_mean, mixed_rate) = (mean("mixed").unwrap_or(0.0), rate("mixed").unwrap_or(0.0));
+    let ladder_rote = single.iter().all(|s| {
+        mixed_mean >= mean(s).unwrap_or(1.0) + ROTE_SHARE_MARGIN
+            && mixed_rate >= rate(s).unwrap_or(1.0) + ROTE_WIN_MARGIN
+    });
+    // Rung 2: learning the town pays, and knowing it is worth as much.
+    let explorer = mean("explorer").unwrap_or(0.0);
+    let ladder_learned = explorer >= mixed_mean + LEARNED_MARGIN
+        && rate("explorer").unwrap_or(0.0) >= mixed_rate;
+    let omni: Vec<&Played> = (1..=seeds)
+        .filter_map(|seed| results.get(&("mixed", seed, true)))
+        .collect();
+    let omni_mean = (!omni.is_empty())
+        .then(|| omni.iter().map(|p| p.share).sum::<f64>() / omni.len() as f64);
+    let knowledge_matters = omni_mean.map(|m| m >= mixed_mean + KNOWLEDGE_MARGIN);
+    // Rung 3: informed play beats rote play by a clear margin, in several styles.
+    let (best_informed_mean, best_rote_mean) = (max_of(&informed, &mean), max_of(&rote, &mean));
+    let (best_informed_rate, best_rote_rate) = (max_of(&informed, &rate), max_of(&rote, &rate));
+    let skill_gap = best_informed_mean >= best_rote_mean + SKILL_SHARE_MARGIN
+        && best_informed_rate >= best_rote_rate + SKILL_WIN_MARGIN;
+    let styles = variety(&shares, &situations, &informed);
+    // Corruption tempts but never dominates.
+    let corrupt = rate("corrupt").unwrap_or(0.0);
+    let corrupt_ok = corrupt <= best + CORRUPT_MARGIN;
+    // The informed styles each play their own way (reported).
+    let explorer_mix = mixes.get("explorer").cloned().unwrap_or_default();
+    let mix_vs_explorer: BTreeMap<&'static str, f64> = informed
+        .iter()
+        .filter(|s| **s != "explorer")
+        .map(|s| {
+            (
+                *s,
+                mix_distance(mixes.get(s).unwrap_or(&BTreeMap::new()), &explorer_mix),
+            )
+        })
+        .collect();
+    // Is `canvass` still the best way of playing (the owner's worry)?
+    let top_by = |f: &dyn Fn(&str) -> Option<f64>| {
+        honest
+            .iter()
+            .copied()
+            .max_by(|a, b| {
+                f(a).unwrap_or(0.0)
+                    .total_cmp(&f(b).unwrap_or(0.0))
+                    .then(b.cmp(a))
+            })
+            .unwrap_or("")
+    };
+    let enforced = |g: &str| ENFORCED.contains(&g);
+    let rung = |r: u8, g: &str, pass: serde_json::Value, detail: serde_json::Value| {
+        json!({ "rung": r, "gate": g, "pass": pass, "enforced": enforced(g), "detail": detail })
+    };
+    let ladder = vec![
+        rung(0, "idle_cap", idle_cap.into(), json!({ "idle_win_rate": idle })),
+        rung(0, "effort_matters", effort_matters.into(), json!({ "best_win_rate": best })),
+        rung(
+            0,
+            "exploring_alone_never_wins",
+            explore_alone.into(),
+            json!({ "explore_only_win_rate": explore_only, "rote_median_win_rate": rote_median }),
+        ),
+        rung(
+            1,
+            "ladder_rote",
+            ladder_rote.into(),
+            json!({ "mixed_mean_share": mixed_mean, "mixed_win_rate": mixed_rate }),
+        ),
+        rung(
+            2,
+            "ladder_learned",
+            ladder_learned.into(),
+            json!({ "explorer_minus_mixed_share": explorer - mixed_mean, "margin": LEARNED_MARGIN }),
+        ),
+        rung(
+            2,
+            "knowledge_matters",
+            knowledge_matters.into(),
+            json!({ "omniscient_mixed_mean_share": omni_mean, "mixed_mean_share": mixed_mean }),
+        ),
+        rung(
+            3,
+            "skill_gap",
+            skill_gap.into(),
+            json!({
+                "share_gap": best_informed_mean - best_rote_mean,
+                "win_rate_gap": best_informed_rate - best_rote_rate,
+            }),
+        ),
+        rung(
+            3,
+            "good_styles_vary",
+            styles["pass"].clone(),
+            json!({ "a": styles["a"], "b": styles["b"], "c": styles["c"] }),
+        ),
+        rung(
+            9,
+            "corrupt_not_dominant",
+            corrupt_ok.into(),
+            json!({ "corrupt_minus_best_honest": corrupt - best }),
+        ),
+    ];
     json!({
         "seeds": seeds,
         "omniscient": omniscient(),
         "strategies": rows,
-        // DEC-077 §5: the best routine differs across worlds and situations.
-        "variety_ok": variety["pass"],
-        "variety": variety,
-        "best_minus_median": best - median,
-        "no_dominant_strategy": best - median <= 0.3,
+        "ladder": ladder,
+        "idle_cap": idle_cap,
         "idle_win_rate": idle,
-        // DEC-076: doing nothing should rarely work.
-        "idle_rarely_wins": idle <= 0.15,
-        "effort_matters": best > idle,
-        "corrupt_minus_best_honest": corrupt - honest,
-        "corrupt_not_dominant": corrupt <= honest + CORRUPT_MARGIN,
-        "explorer_minus_mixed_share": explorer - mixed,
-        "exploring_pays": explore_pays,
+        "effort_matters": effort_matters,
         "explore_only_win_rate": explore_only,
         "exploring_alone_never_wins": explore_alone,
+        "ladder_rote": ladder_rote,
+        "explorer_minus_mixed_share": explorer - mixed_mean,
+        "ladder_learned": ladder_learned,
+        "omniscient_mixed_mean_share": omni_mean,
+        "knowledge_matters": knowledge_matters,
+        "skill_gap": skill_gap,
+        "good_styles_vary": styles["pass"],
+        "good_styles_vary_b": styles["b"],
+        "styles": styles,
+        "corrupt_minus_best_honest": corrupt - best,
+        "corrupt_not_dominant": corrupt_ok,
+        "best_minus_median": best - median_of(&honest),
+        "mix_vs_explorer": mix_vs_explorer,
+        "best_win_rate_strategy": top_by(&rate),
+        "best_mean_share_strategy": top_by(&mean),
     })
 }
 
-/// The bots' gates (`bots` fails if any is false).
-pub const GATES: [&str; 7] = [
-    "no_dominant_strategy",
+/// The gate ladder (ENGAGEMENT §7.2), every rung, reported in this order.
+pub const GATES: [&str; 9] = [
+    "idle_cap",
     "effort_matters",
-    "idle_rarely_wins",
-    "corrupt_not_dominant",
-    "variety_ok",
-    "exploring_pays",
     "exploring_alone_never_wins",
+    "ladder_rote",
+    "ladder_learned",
+    "knowledge_matters",
+    "skill_gap",
+    "good_styles_vary",
+    "corrupt_not_dominant",
 ];
 
-/// "Exploring early pays" (§1.10): `explorer`'s mean first-election vote
-/// share is at least this much above `mixed`'s (one point), and its win
-/// rate at least `mixed`'s.
-pub const EXPLORE_MARGIN: f64 = 0.01;
+/// The gates `bots` fails on from E1 (the ladder's "Enforced" column): the
+/// rest are reported until E8 (and `ladder_learned` rises to + 3.0 then).
+/// `good_styles_vary_b` is clause (b) of `good_styles_vary`.
+pub const ENFORCED: [&str; 6] = [
+    "idle_cap",
+    "effort_matters",
+    "exploring_alone_never_wins",
+    "ladder_learned",
+    "good_styles_vary_b",
+    "corrupt_not_dominant",
+];
 
 /// "Exploring alone never wins": `explore_only` wins at most this much more
-/// often than `idle`, and less often than the median way of playing.
+/// often than `idle`, and less often than the median rote routine.
 pub const EXPLORE_ONLY_OVER_IDLE: f64 = 0.05;
 
 /// "Corrupt not dominant": the corrupt routine's win rate is at most this
-/// much above the best honest routine's.
+/// much above the best honest strategy's.
 pub const CORRUPT_MARGIN: f64 = 0.1;
 
-/// The gates a report fails, by name. Under the lab switch (`--omniscient`,
-/// a baseline) knowledge is free, so "exploring early pays" is reported but
-/// not enforced.
+/// The enforced gates a report fails, by name. Under the lab switch
+/// (`--omniscient`, a baseline) knowledge is free, so `ladder_learned` is
+/// reported but not enforced.
 pub fn failed_gates(report: &serde_json::Value) -> Vec<&'static str> {
     let omniscient = report["omniscient"].as_bool().unwrap_or(false);
-    GATES
+    ENFORCED
         .iter()
         .copied()
-        .filter(|g| !(omniscient && *g == "exploring_pays"))
+        .filter(|g| !(omniscient && *g == "ladder_learned"))
         .filter(|g| !report[*g].as_bool().unwrap_or(false))
         .collect()
 }

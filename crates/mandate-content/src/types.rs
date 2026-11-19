@@ -1964,12 +1964,28 @@ pub struct PressEffects {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CanvassEffects {
-    /// Share of the remaining awareness gap closed.
+    /// Share of the remaining awareness gap closed (× `max(fresh,
+    /// awareness_floor)`).
     pub awareness: f64,
-    /// Approval gained per unit of room.
+    /// Approval gained per unit of room (× fit × fresh × season × same turn).
     pub approval: f64,
-    /// Campaign contact scale (a full day on the doorsteps).
+    /// Campaign contact scale (a full day on the doorsteps; × the same-turn
+    /// cut).
     pub contact: f64,
+    /// Freshness per remembered visit to a neighbourhood (DEC-097 §1,
+    /// ENGAGEMENT §2.1): `fresh = hood_decay ^ visits`.
+    pub hood_decay: f64,
+    /// The same in campaign season, when doorsteps are expected.
+    pub hood_decay_campaign: f64,
+    /// Share of a neighbourhood's remembered visits kept each month (30 days).
+    pub keep: f64,
+    /// Approval multiplier while the player is a candidate in an open race.
+    pub campaign_mult: f64,
+    /// Approval and contact multiplier for a second canvass in one turn.
+    pub same_turn_mult: f64,
+    /// Awareness is built at least at this share of the full rate, however
+    /// stale the doorsteps (canvassing stays the way to be known).
+    pub awareness_floor: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -2113,8 +2129,16 @@ pub struct RecordGains {
     pub vote: f64,
     pub lobby: f64,
     pub town_hall: f64,
+    /// Presence, not delivery (DEC-097 §1).
     pub canvass: f64,
     pub press: f64,
+    /// Delivery (ENGAGEMENT §2.2): an ask kept, a campaign promise kept and
+    /// an ask broken (negative), read by the asks domain (E6); the player's
+    /// own bill becoming law, credited with V1.
+    pub ask_kept: f64,
+    pub promise_kept: f64,
+    pub ask_broken: f64,
+    pub law_enacted: f64,
 }
 
 /// NPC AI balance numbers (DEC-030). Scores and curves are in `politics.ai`.

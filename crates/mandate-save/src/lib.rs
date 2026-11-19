@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 18;
+pub const SAVE_FORMAT_VERSION: u16 = 20;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -183,6 +183,12 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Neighbourhood concern levels (N1): the previous format to the
         // next. Renumber only this key if another bump merges first.
         (17, hood_concerns),
+        // Reserved for R1 (offices from the constitution, v18 → v19), which
+        // runs beside E1: a no-op here; R1's own step replaces it at merge.
+        (18, reserved_for_r1),
+        // The ground game's memory (E1, DEC-097 §1): the previous format to
+        // the next. Renumber only this key if another bump merges first.
+        (19, ground_game),
     ];
     let mut value = value;
     let mut v = from;
@@ -485,6 +491,27 @@ fn hood_concerns(mut value: serde_json::Value) -> Result<serde_json::Value, Save
         }
     }
     pop.insert("hood_concerns".into(), Value::Array(Vec::new()));
+    Ok(value)
+}
+
+/// R1's format step (v18 → v19), reserved while R1 and E1 run side by side:
+/// it changes nothing here, and R1's step takes its place at merge.
+fn reserved_for_r1(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    Ok(value)
+}
+
+/// Previous format → next (v19 → v20 when written; E1, DEC-097 §1): the
+/// player's per-neighbourhood canvass memory. The step drops any a newer
+/// build might have left, so the serde default applies: no doorsteps
+/// remembered, every neighbourhood fresh.
+fn ground_game(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let st = value
+        .pointer_mut("/state")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
+        p.remove("ground");
+    }
     Ok(value)
 }
 
