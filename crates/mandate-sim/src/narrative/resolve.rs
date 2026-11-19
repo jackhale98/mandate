@@ -10,7 +10,7 @@ use crate::commands::EngineError;
 use crate::events::EventKind;
 use crate::politics::Vote;
 use crate::state::State;
-use mandate_content::{ContentBundle, EffectDef, Scope, VoteChoice};
+use mandate_content::{ContentBundle, EffectDef, RiderKind, Scope, VoteChoice};
 use mandate_core::Money;
 use mandate_core::math::clamp;
 
@@ -342,6 +342,92 @@ fn apply_effect(
                 },
                 Err(_) => skip("vote"),
             }
+        }
+        EffectDef::Rider { role, rider } => {
+            let Some(Actor::Policy { id: bill }) = super::actor_of(cast, role) else {
+                return skip("rider");
+            };
+            let Some(ward) = state.player.as_ref().map(|p| p.ward) else {
+                return skip("rider");
+            };
+            let Some(p) = state
+                .policy
+                .instances
+                .get_mut(bill as usize)
+                .filter(|p| p.status == crate::policy::PolicyStatus::UnderConsideration)
+            else {
+                return skip("rider");
+            };
+            use crate::policy::Clause;
+            let clause = match rider {
+                RiderKind::WardProject => Clause::Earmark { ward },
+                RiderKind::Sunset => Clause::Sunset { years: 4 },
+            };
+            let present = p.clauses.iter().any(|c| match (c, &clause) {
+                (Clause::Earmark { ward: a }, Clause::Earmark { ward: b }) => a == b,
+                (Clause::Sunset { .. }, Clause::Sunset { .. }) => true,
+                _ => false,
+            });
+            if present {
+                return skip("rider");
+            }
+            p.clauses.push(clause);
+            Applied::Rider {
+                policy: bill,
+                rider: match rider {
+                    RiderKind::WardProject => "ward_project",
+                    RiderKind::Sunset => "sunset",
+                }
+                .into(),
+            }
+        }
+        EffectDef::CallIn { role, bill } => {
+            let (Some(p), Some(me), Some(me_pol)) = (person_of(cast, role), me, me_pol) else {
+                return skip("call_in");
+            };
+            let Some(Actor::Policy { id: policy }) = super::actor_of(cast, bill) else {
+                return skip("call_in");
+            };
+            let Some(debtor) = state
+                .politics
+                .politicians
+                .iter()
+                .find(|x| x.character == p && x.in_office())
+                .map(|x| x.id)
+            else {
+                return skip("call_in");
+            };
+            if characters::repay(&mut state.politics, p, me).is_none() {
+                return skip("call_in");
+            }
+            // The player's side of the bill: their own bill, else their
+            // declared vote, else yes.
+            let own = state
+                .policy
+                .instances
+                .get(policy as usize)
+                .is_some_and(|x| x.sponsor == Some(me_pol));
+            let side = if own {
+                1.0
+            } else {
+                match state.politics.declared_votes.get(&(me_pol.0, policy)) {
+                    Some(v) if *v < 0 => -1.0,
+                    _ => 1.0,
+                }
+            };
+            *state.politics.sway.entry((debtor.0, policy)).or_default() +=
+                (side * content.actions.lobby.trade_gain) as f32;
+            characters::remember(
+                &mut state.politics,
+                content,
+                date,
+                p,
+                me,
+                MemoryKind::PressedMe,
+                Some(Subject::Policy { id: policy }),
+                None,
+            );
+            Applied::CalledIn { person: p, policy }
         }
         EffectDef::Draft { template, params } => {
             match crate::actions::draft(state, content, template, params) {

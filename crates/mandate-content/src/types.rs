@@ -64,6 +64,8 @@ pub enum ContentFile {
     Storytellers {
         items: Vec<crate::narrative::StorytellerDef>,
     },
+    /// Overheard talk: what residents say at diners, markets, and union halls (DEC-079).
+    Overheard { items: Vec<OverheardDef> },
     /// Dilemmas and requests: decisions where every option costs someone (DEC-077 §4).
     Dilemmas {
         items: Vec<crate::narrative::DilemmaDef>,
@@ -413,6 +415,46 @@ pub struct PolicyTemplate {
     pub side_effects: Vec<SideEffectDef>,
     /// Power required to propose it.
     pub requires: Power,
+    /// A situational policy (DEC-077 §3): on the table only while one of
+    /// these circumstances holds in the town. Always available without one.
+    #[serde(default)]
+    pub unlock: Option<PolicyUnlock>,
+}
+
+/// When a situational policy is on the table (DEC-077 §3). It is offered
+/// (and can be drafted, by the player or an NPC) while any condition holds
+/// in the town; a bill already drafted or a law already passed stays.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PolicyUnlock {
+    /// Any one of these opens it.
+    pub any: Vec<UnlockCondition>,
+    /// Fluent key naming the circumstances it answers, e.g. `unlock-closure`.
+    pub reason_key: String,
+}
+
+/// A circumstance in a town that puts a situational policy on the table.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum UnlockCondition {
+    /// A live crisis of this kind (`crises.jsonc`), at least this severe.
+    Crisis {
+        kind: ContentKey,
+        #[serde(default)]
+        min_severity: f64,
+    },
+    /// An engine indicator of the town within [min, max].
+    Indicator {
+        indicator: Indicator,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// A plant closed in the town within this many months (the event log).
+    PlantClosure { within_months: u16 },
+    /// A disaster struck the town within this many months.
+    Disaster { within_months: u16 },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -863,9 +905,6 @@ pub struct ConcernDef {
     pub id: ContentKey,
     /// Fluent key of the concern's name, e.g. `concern-jobs`.
     pub name_key: String,
-    /// Fluent key of what residents say about it (the "overheard" service).
-    #[serde(default)]
-    pub overheard_key: Option<String>,
     pub indicator: Indicator,
     /// The attitudes behind the concern, by key. The magnitude is how much a
     /// worried town weighs that issue; the sign is the side worried voters
@@ -894,6 +933,121 @@ impl ConcernLevel {
     pub fn of(&self, indicator: f64) -> f64 {
         (self.baseline + self.slope * indicator).clamp(self.min, self.max)
     }
+}
+
+// --- Overheard talk (DEC-079 information services) -------------------------------
+
+/// One thing residents may be heard saying at a diner, market, or union hall
+/// (the "overheard" service). Each week every such place draws a few lines
+/// that hold for its neighbourhood: lines about the neighbourhood's top
+/// concerns, and opinions and news grounded in facts. Registry order is
+/// load order. Fluent arguments always include `$town` and `$hood`; each
+/// condition adds its own (see `HeardCondition`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OverheardDef {
+    /// Content id, e.g. `overheard.jobs.hiring`.
+    pub id: ContentKey,
+    /// Fluent key of the line.
+    pub key: String,
+    /// Heard only where this concern is among the neighbourhood's top three
+    /// (a concern id); the stronger the concern, the likelier the line.
+    #[serde(default)]
+    pub concern: Option<ContentKey>,
+    /// Every condition must hold.
+    #[serde(default)]
+    pub when: Vec<HeardCondition>,
+    /// Relative chance among the lines that hold (default 1).
+    #[serde(default = "one_f64")]
+    pub weight: f64,
+}
+
+fn one_f64() -> f64 {
+    1.0
+}
+
+/// Water a town or neighbourhood can have.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WaterFeature {
+    /// The town is on a river.
+    River,
+    /// The town is on the coast.
+    Coast,
+    /// A river, the coast, or a waterfront neighbourhood.
+    Any,
+}
+
+/// Whose scandal a line is about.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HeardSubject {
+    #[default]
+    Anyone,
+    Player,
+    Rival,
+}
+
+/// A fact a line needs. Each names the Fluent arguments it provides.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum HeardCondition {
+    /// The town (or neighbourhood) has this water.
+    Water { feature: WaterFeature },
+    /// No water at all: no river, no coast, no waterfront.
+    Dry,
+    /// A live crisis in the town (of this kind, if given): `$crisis_key`.
+    Crisis {
+        #[serde(default)]
+        kind: Option<ContentKey>,
+    },
+    /// A plant closed in the town within this many months: `$industry_key`
+    /// (the closed plant's sector), `$jobs`.
+    PlantClosure { within_months: u16 },
+    /// A disaster struck the town within this many months.
+    Disaster { within_months: u16 },
+    /// The town has a defining industry: `$industry_key`.
+    Industry,
+    /// The town has a power broker: `$broker`.
+    Broker,
+    /// The player has a named rival: `$rival`.
+    Rival,
+    /// The player's name recognition in the neighbourhood within [min, max]
+    /// (0..1): `$player`.
+    PlayerAwareness {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// Approval of the player among neighbourhood residents (−1..1), within
+    /// [min, max]; only where at least a fifth know them: `$player`.
+    PlayerApproval {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The rival's record of visible work within [min, max] (0..1): `$rival`.
+    RivalRecord {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// A scandal running in the town (DEC-034) about this subject:
+    /// `$subject` (their name), `$fact_key`.
+    Scandal {
+        #[serde(default)]
+        about: HeardSubject,
+    },
+    /// A story about the town within the last eight weeks: `$outlet_key`
+    /// (with `$place`), `$headline_key`, and the headline's own arguments.
+    Headline,
+    /// The player's next local election is within this many days.
+    ElectionWithin { days: u32 },
+    /// Any one of these holds (the first that does gives the arguments).
+    Any { of: Vec<HeardCondition> },
 }
 
 // --- Scenarios (DEC-078 decision 4) -----------------------------------------------
@@ -2135,6 +2289,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "storytellers" => ContentFile::Storytellers {
             items: serde_json::from_str::<ItemsFile<crate::narrative::StorytellerDef>>(json)?.items,
+        },
+        "overheard" => ContentFile::Overheard {
+            items: serde_json::from_str::<ItemsFile<OverheardDef>>(json)?.items,
         },
         "dilemmas" => ContentFile::Dilemmas {
             items: serde_json::from_str::<ItemsFile<crate::narrative::DilemmaDef>>(json)?.items,

@@ -62,6 +62,10 @@ pub struct NewGameParams {
     pub size: WorldSizeDto,
     /// Scenario content id (from `QueryDto::Scenarios`); `None` = a random country.
     pub scenario: Option<String>,
+    /// Storyteller profile id (from `QueryDto::Storytellers`, DEC-033);
+    /// `None` = the content's default.
+    #[serde(default)]
+    pub storyteller: Option<String>,
 }
 
 /// A starting world the title screen offers (DEC-078 decision 4).
@@ -77,6 +81,38 @@ pub struct ScenarioView {
 #[ts(export)]
 pub struct ScenarioListView {
     pub scenarios: Vec<ScenarioView>,
+}
+
+/// A storyteller profile the new-game screen offers (DEC-033).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StorytellerView {
+    pub id: String,
+    pub name_key: String,
+    pub desc_key: String,
+    pub default: bool,
+}
+
+/// The storyteller profiles, in load order (available before a game starts).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StorytellerListView {
+    pub storytellers: Vec<StorytellerView>,
+}
+
+pub fn storyteller_list(content: &mandate_content::ContentBundle) -> StorytellerListView {
+    StorytellerListView {
+        storytellers: content
+            .storytellers
+            .iter()
+            .map(|s| StorytellerView {
+                id: s.id.clone(),
+                name_key: s.name_key.clone(),
+                desc_key: s.desc_key.clone(),
+                default: s.id == content.director.default_profile,
+            })
+            .collect(),
+    }
 }
 
 pub fn scenario_list(content: &mandate_content::ContentBundle) -> ScenarioListView {
@@ -246,6 +282,14 @@ pub enum QueryDto {
     },
     /// The scenario registry (no game needed).
     Scenarios,
+    /// The storyteller profiles a new game can choose (no game needed).
+    Storytellers,
+    /// What a draft of a policy with these parameters would cost and do
+    /// (the catalogue's sliders; the engine computes it).
+    PolicyPreview {
+        template: String,
+        params: Vec<ParamValue>,
+    },
     Diagnostics,
 }
 
@@ -297,6 +341,8 @@ pub enum ResponseBody {
     Newspaper(NewspaperView),
     Locale(LocaleView),
     Scenarios(ScenarioListView),
+    Storytellers(StorytellerListView),
+    PolicyPreview(PolicyPreviewView),
     Diagnostics(DiagnosticsView),
 }
 
@@ -382,12 +428,13 @@ mod tests {
                 seed: u64::MAX,
                 size: WorldSizeDto::Small,
                 scenario: None,
+                storyteller: None,
             }),
         };
         let j = serde_json::to_string(&r).unwrap_or_default();
         assert_eq!(
             j,
-            r#"{"protocol_version":1,"request_id":7,"body":{"kind":"new_game","payload":{"seed":"18446744073709551615","size":"small","scenario":null}}}"#
+            r#"{"protocol_version":1,"request_id":7,"body":{"kind":"new_game","payload":{"seed":"18446744073709551615","size":"small","scenario":null,"storyteller":null}}}"#
         );
         let back: Request = serde_json::from_str(&j).unwrap_or(r.clone());
         assert_eq!(back, r);

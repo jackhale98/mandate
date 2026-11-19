@@ -483,6 +483,70 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
                 "policy needs at least one secondary effect (REQ-006)",
             ));
         }
+        // Situational policies (DEC-077 §3): conditions name real things.
+        if let Some(u) = &p.unlock {
+            if u.any.is_empty() {
+                issues.push(Issue::error(
+                    &p.id,
+                    "an unlock needs at least one condition",
+                ));
+            }
+            for c in &u.any {
+                use crate::types::UnlockCondition as U;
+                match c {
+                    U::Crisis { kind, min_severity } => {
+                        if b.crisis_index(kind).is_none() {
+                            issues.push(Issue::error(
+                                &p.id,
+                                &format!("unlock names unknown crisis `{kind}`"),
+                            ));
+                        }
+                        if !(0.0..=1.0).contains(min_severity) {
+                            issues
+                                .push(Issue::error(&p.id, "unlock min_severity must be in [0, 1]"));
+                        }
+                    }
+                    U::Indicator { min, max, .. } => {
+                        if min.is_none() && max.is_none() {
+                            issues.push(Issue::error(
+                                &p.id,
+                                "an indicator unlock needs a min or a max",
+                            ));
+                        }
+                        if let (Some(a), Some(z)) = (min, max)
+                            && a > z
+                        {
+                            issues.push(Issue::error(&p.id, "unlock min is above max"));
+                        }
+                    }
+                    U::PlantClosure { within_months } | U::Disaster { within_months } => {
+                        if !(1..=120).contains(within_months) {
+                            issues.push(Issue::error(&p.id, "unlock within_months must be 1–120"));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Overheard talk: lines name real concerns and crises.
+    for o in &b.overheard {
+        if !o.id.starts_with("overheard.") {
+            issues.push(Issue::error(
+                &o.id,
+                "overheard ids look like `overheard.name`",
+            ));
+        }
+        if !(o.weight.is_finite() && o.weight > 0.0 && o.weight <= 10.0) {
+            issues.push(Issue::error(&o.id, "overheard weight must be in (0, 10]"));
+        }
+        if let Some(c) = &o.concern
+            && !b.concerns.iter().any(|x| &x.id == c)
+        {
+            issues.push(Issue::error(&o.id, &format!("unknown concern `{c}`")));
+        }
+        for w in &o.when {
+            check_heard(b, &o.id, w, &mut issues);
+        }
     }
 
     // Every referenced Fluent key must exist in English (the reference locale).
@@ -502,9 +566,9 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     }
     for c in &b.concerns {
         referenced.push((&c.id, &c.name_key));
-        if let Some(k) = &c.overheard_key {
-            referenced.push((&c.id, k));
-        }
+    }
+    for o in &b.overheard {
+        referenced.push((&o.id, &o.key));
     }
     for c in b.constitutions.values() {
         referenced.push((&c.id, &c.name_key));
@@ -540,6 +604,9 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     for p in b.policies.values() {
         referenced.push((&p.id, &p.name_key));
         referenced.push((&p.id, &p.desc_key));
+        if let Some(u) = &p.unlock {
+            referenced.push((&p.id, &u.reason_key));
+        }
         for k in &p.secondary_keys {
             referenced.push((&p.id, k));
         }
@@ -1562,6 +1629,42 @@ fn validate_communities(b: &ContentBundle, issues: &mut Vec<Issue>) {
             "communities",
             "immigration shares add up to more than 1; they will be scaled down",
         ));
+    }
+}
+
+/// Overheard conditions name real crises and sane ranges (recursively).
+fn check_heard(
+    b: &ContentBundle,
+    id: &str,
+    w: &crate::types::HeardCondition,
+    issues: &mut Vec<Issue>,
+) {
+    use crate::types::HeardCondition as H;
+    match w {
+        H::Crisis { kind: Some(k) } if b.crisis_index(k).is_none() => {
+            issues.push(Issue::error(id, &format!("unknown crisis `{k}`")));
+        }
+        H::PlantClosure { within_months } | H::Disaster { within_months }
+            if !(1..=120).contains(within_months) =>
+        {
+            issues.push(Issue::error(id, "within_months must be 1–120"));
+        }
+        H::PlayerAwareness { min, max }
+        | H::PlayerApproval { min, max }
+        | H::RivalRecord { min, max }
+            if min.is_none() && max.is_none() =>
+        {
+            issues.push(Issue::error(id, "a range condition needs a min or a max"));
+        }
+        H::Any { of } => {
+            if of.is_empty() {
+                issues.push(Issue::error(id, "an `any` condition needs alternatives"));
+            }
+            for x in of {
+                check_heard(b, id, x, issues);
+            }
+        }
+        _ => {}
     }
 }
 

@@ -20,6 +20,7 @@ fn new_game_end_turn_save_load() {
             seed: 42,
             size: WorldSizeDto::Small,
             scenario: None,
+            storyteller: None,
         }),
     )))
     .unwrap();
@@ -112,6 +113,7 @@ fn map_and_municipality_queries_survive_save_load() {
             seed: 5,
             size: WorldSizeDto::Small,
             scenario: None,
+            storyteller: None,
         }),
     ));
     let map = |s: &mut Session| -> MapView {
@@ -192,6 +194,7 @@ fn information_depth_depends_on_where_the_player_is() {
             seed: 31337,
             size: WorldSizeDto::Small,
             scenario: None,
+            storyteller: None,
         }),
     );
     let ResponseBody::Town(town) = send(&mut s, 2, RequestBody::Query(QueryDto::Town)) else {
@@ -303,6 +306,7 @@ fn scenarios_are_listed_before_a_game_and_start_one() {
                 seed: 7,
                 size: WorldSizeDto::Small,
                 scenario: Some(scenario.into()),
+                storyteller: None,
             }),
         )))
         .unwrap()

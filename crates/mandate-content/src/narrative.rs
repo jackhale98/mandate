@@ -466,6 +466,20 @@ pub enum EffectDef {
         role: String,
         vote: VoteChoice,
     },
+    /// The bill in `role` gains a rider: a ward project for the player's
+    /// ward, or a sunset (its sponsor agrees, or it is the player's bill).
+    /// The council-vote rules price it (other wards' members grate at a
+    /// ward project; a sunset makes passage easier and the law temporary).
+    Rider {
+        role: String,
+        rider: RiderKind,
+    },
+    /// The role repays a favour they owe the player by backing the player's
+    /// side of the bill in `bill` (their lean moves as a traded favour does).
+    CallIn {
+        role: String,
+        bill: String,
+    },
     /// The player drafts a bill of this template (parameters not given take
     /// their defaults).
     Draft {
@@ -496,6 +510,16 @@ pub enum EffectDef {
         #[serde(default)]
         role: Option<String>,
     },
+}
+
+/// A rider a decision can attach to a bill.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RiderKind {
+    /// A project in the player's ward (costs the town money).
+    WardProject,
+    /// The law expires after four years.
+    Sunset,
 }
 
 /// How the player answers a story (DEC-034 player communication).
@@ -573,6 +597,9 @@ impl EffectDef {
             EffectDef::Favour { owed_to_player, .. } => (!owed_to_player, *owed_to_player),
             EffectDef::Repay { .. } => (true, true),
             EffectDef::Vote { .. } => (true, true),
+            // A rider buys a vote and costs the town (or the law's life);
+            // calling in a favour spends it.
+            EffectDef::Rider { .. } | EffectDef::CallIn { .. } => (true, true),
             EffectDef::Draft { .. } => (false, true),
             // A risk, never a benefit: the option's payoff is elsewhere.
             EffectDef::Hidden { .. } => (true, false),
@@ -605,7 +632,9 @@ impl EffectDef {
             EffectDef::Opinion { role, .. }
             | EffectDef::Favour { role, .. }
             | EffectDef::Repay { role }
-            | EffectDef::Vote { role, .. } => vec![role.as_str()],
+            | EffectDef::Vote { role, .. }
+            | EffectDef::Rider { role, .. } => vec![role.as_str()],
+            EffectDef::CallIn { role, bill } => vec![role.as_str(), bill.as_str()],
             EffectDef::Approval { neighborhood, .. } => {
                 neighborhood.iter().map(|s| s.as_str()).collect()
             }
@@ -1343,6 +1372,18 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
                         .any(|r| &r.id == role && matches!(r.cast, Cast::Bill { .. }));
                     if !is_bill {
                         issues.push(Issue::error(&at, "a vote needs a role cast as a bill"));
+                    }
+                }
+                EffectDef::Rider { role, .. } | EffectDef::CallIn { bill: role, .. } => {
+                    let is_bill = d
+                        .roles
+                        .iter()
+                        .any(|r| &r.id == role && matches!(r.cast, Cast::Bill { .. }));
+                    if !is_bill {
+                        issues.push(Issue::error(
+                            &at,
+                            "a rider or a favour called in needs a role cast as a bill",
+                        ));
                     }
                 }
                 EffectDef::Favour { .. } | EffectDef::Repay { .. } => {}

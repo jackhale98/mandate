@@ -173,6 +173,16 @@ pub enum Applied {
     Drafted {
         policy: u32,
     },
+    /// A rider was attached to a bill (`ward_project` or `sunset`).
+    Rider {
+        policy: u32,
+        rider: String,
+    },
+    /// Someone who owed the player a favour repaid it on a bill.
+    CalledIn {
+        person: CharacterId,
+        policy: u32,
+    },
     /// A borderline or illegal act was done: it may come out (`risk`: the
     /// chance within a year, as shown before the choice).
     Hidden {

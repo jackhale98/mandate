@@ -18,6 +18,7 @@ pub mod justice;
 pub mod media;
 pub mod narrative;
 pub mod npc;
+pub mod overheard;
 pub mod places;
 pub mod player;
 pub mod policy;

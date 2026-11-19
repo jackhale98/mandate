@@ -90,7 +90,9 @@ fn legislate(e: &mut Engine, content: &ContentBundle) {
                 .policies
                 .values()
                 .filter(|t| {
-                    t.tier == mandate_content::TierKey::Local && !taken.contains(&t.id.as_str())
+                    t.tier == mandate_content::TierKey::Local
+                        && !taken.contains(&t.id.as_str())
+                        && mandate_sim::policy::unlocked(st, content, t, pl.municipality.0)
                 })
                 .max_by(|a, b| {
                     public_support(a, &st.population, &hoods).total_cmp(&public_support(
@@ -295,6 +297,10 @@ fn option_score(
                 }
             }
             EffectDef::Repay { .. } => 0.0,
+            // A rider or a favour called in helps a bill pass; a favour
+            // called in is spent.
+            EffectDef::Rider { .. } => 0.5 * t.draft,
+            EffectDef::CallIn { .. } => 0.5 * t.draft + t.owe,
             EffectDef::Draft { .. } => t.draft,
             EffectDef::Hidden { .. } => t.shady,
             EffectDef::ScandalResponse { response } => {

@@ -114,6 +114,14 @@ impl Session {
                         format!("unknown scenario `{k}`"),
                     ));
                 }
+                if let Some(k) = &p.storyteller
+                    && self.content.storyteller(k).is_none()
+                {
+                    return Err(err(
+                        ErrorCode::BadRequest,
+                        format!("unknown storyteller `{k}`"),
+                    ));
+                }
                 let mut noop = |_: &str, _: f64| {};
                 let progress: &mut dyn FnMut(&str, f64) = match self.progress.as_mut() {
                     Some(f) => f.as_mut(),
@@ -129,6 +137,11 @@ impl Session {
                     progress,
                 )
                 .map_err(|e| err(ErrorCode::Content, e.to_string()))?;
+                let mut engine = engine;
+                if let Some(k) = &p.storyteller {
+                    // The run's storyteller (DEC-033): chosen before play, kept in the save.
+                    engine.setup(|s| s.narrative.profile = k.clone());
+                }
                 let view = overview(&engine);
                 self.engine = Some(engine);
                 Ok(ResponseBody::GameStarted(view))
@@ -190,6 +203,19 @@ impl Session {
                     .map(ResponseBody::Newspaper)
                     .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
                 QueryDto::Scenarios => Ok(ResponseBody::Scenarios(scenario_list(&self.content))),
+                QueryDto::Storytellers => {
+                    Ok(ResponseBody::Storytellers(storyteller_list(&self.content)))
+                }
+                QueryDto::PolicyPreview { template, params } => {
+                    policy_preview(self.engine_mut()?, &template, &params)
+                        .map(ResponseBody::PolicyPreview)
+                        .ok_or_else(|| {
+                            err(
+                                ErrorCode::BadRequest,
+                                format!("no policy `{template}` to preview here"),
+                            )
+                        })
+                }
                 QueryDto::Locale { lang } => Ok(ResponseBody::Locale(LocaleView {
                     ftl: self.content.locale_text(&lang),
                     lang,
