@@ -560,3 +560,66 @@ h2 { font-size: 1.1rem; }
 @media (max-width: 599px) {
   .map-layer-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+/* DEC-086: the town map overview. The map is the town screen's main view
+   (Map | List); the list stays the text view. Names and markers are HTML
+   over the canvas; the canvas has the town's colours (pixel-art palette). */
+.town { container-type: inline-size; container-name: town; }
+.town-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+.town-layout > .town-card { margin-bottom: 0; }
+.town-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+@container town (min-width: 760px) {
+  .town-layout { grid-template-columns: minmax(0, 1fr) 290px; }
+  .town-layout > .town-card { grid-column: 2; grid-row: 1; position: sticky; top: 0; }
+  .town-layout > .town-main { grid-column: 1; grid-row: 1; }
+  .town-layout > .town-card .facts > div { grid-template-columns: 1fr; gap: 0; }
+}
+@media (max-width: 699px) {
+  .town-layout > .town-card { padding: 10px 12px; }
+  .town-layout > .town-card h2 { font-size: 0.95rem; margin: 0 0 6px; }
+  .town-layout > .town-card .facts { gap: 3px; font-size: 0.85rem; }
+  .town-layout > .town-card .facts > div { grid-template-columns: minmax(6rem, 8rem) 1fr; }
+}
+.town-tabs { padding: 0; background: none; border-bottom: 1px solid var(--border); }
+.town-map { display: flex; flex-direction: column; gap: 6px; }
+.town-map-wrap {
+  position: relative; width: 100%; min-height: 260px; max-height: min(66dvh, 760px); overflow: hidden;
+  border-radius: var(--radius); border: 1px solid var(--border); background: #4f8440; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+@media (max-width: 699px) { .town-map-wrap { min-height: 320px; max-height: min(58dvh, 560px); } }
+.town-map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.town-map-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.town-map-hit {
+  position: absolute; left: 0; top: 0; padding: 0; margin: 0; border: 0; border-radius: 4px; background: transparent;
+  pointer-events: auto; cursor: pointer; will-change: transform; -webkit-tap-highlight-color: transparent;
+}
+.town-map-hit:hover { box-shadow: inset 0 0 0 2px rgba(255, 241, 196, 0.85); }
+.town-map-hit:focus-visible { outline: 3px solid var(--info); outline-offset: 1px; box-shadow: inset 0 0 0 2px #fff1c4; }
+.town-map-hit-quiet { cursor: help; }
+.town-map-chip {
+  position: absolute; left: 0; top: 0; display: inline-flex; align-items: center; gap: 4px; max-width: 180px;
+  padding: 2px 7px 2px 5px; border-radius: 6px; border: 1px solid rgba(17, 19, 26, 0.55);
+  background: rgba(245, 242, 234, 0.94); color: #1d1f27; font-size: 0.72rem; line-height: 1.2; font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); white-space: nowrap; pointer-events: none; visibility: hidden; will-change: transform;
+}
+.town-map-chip[data-shown="1"] { visibility: visible; }
+.town-map-chip-icon { font-size: 0.85rem; line-height: 1; }
+.town-map-chip-text { display: flex; flex-direction: column; min-width: 0; }
+.town-map-chip-name { overflow: hidden; text-overflow: ellipsis; }
+.town-map-chip-flag { font-size: 0.66rem; font-weight: 700; }
+.town-map-chip-landmark { font-size: 0.76rem; background: #fff8e6; }
+.town-map-chip-quiet { opacity: 0.88; font-weight: 500; background: rgba(236, 229, 214, 0.86); }
+.town-map-chip-here { border: 2px solid #11131a; background: #e8b44c; color: #1b1405; }
+.town-map-chip-waiting { border: 2px solid #eb6834; }
+.town-map-chip-flag-waiting { color: #8a2e0c; }
+.town-map-chip-here .town-map-chip-flag-waiting { color: #1b1405; }
+.town-map-chip-streets {
+  padding: 1px 6px; border: 0; background: rgba(17, 19, 26, 0.62); color: #f5f2ea; box-shadow: none;
+  font-family: var(--font-display); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+}
+.town-map-chip-streets.town-map-chip-here { background: #e8b44c; color: #1b1405; border: 2px solid #11131a; }
+.town-map-tools { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
+.town-map-tool { min-width: 40px; min-height: 40px; padding: 0; font-size: 1.1rem; line-height: 1; background: color-mix(in srgb, var(--surface) 88%, transparent); }
+.town-map-status { margin: 0; min-height: 1.2em; }
+.town-map-status:empty { display: none; }
+.town-map-help { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .town-map-hit, .town-map-chip { will-change: auto; } }

@@ -5,6 +5,8 @@ import { Loader } from "../components/Brand";
 import type { TownCharacterView } from "../engine/protocol/TownCharacterView";
 import type { PersonRefView } from "../engine/protocol/PersonRefView";
 import { roleText } from "../components/CharacterSheet";
+import { TownMap } from "../components/TownMap";
+import { TownViewTabs, townPanelId, townTabId, useTownViewMode } from "../components/TownViewTabs";
 
 function Who({ p }: { p: PersonRefView }) {
   const tr = useGame((s) => s.tr);
@@ -103,6 +105,8 @@ function Spot({ s }: { s: SpotView }) {
 export function Town() {
   const tr = useGame((s) => s.tr);
   const town = useGame((s) => s.town);
+  // DEC-086: the town map is the main view; the list is its text view (Map | List, remembered per device).
+  const [mode, setMode] = useTownViewMode();
   if (!town) {
     return (
       <main className="game-body">
@@ -117,8 +121,16 @@ export function Town() {
       <h1 className="town-title">
         {town.municipality} <span className="muted small">· {tr.t("ui-town-help")}</span>
       </h1>
+      <div className="town-layout">
       {town.character && <TownCard c={town.character} />}
-      <div className="town-grid">
+      <div className="town-main">
+      <TownViewTabs mode={mode} onChange={setMode} />
+      {mode === "map" ? (
+        <div role="tabpanel" id={townPanelId("map")} aria-labelledby={townTabId("map")}>
+          <TownMap town={town} />
+        </div>
+      ) : (
+      <div className="town-grid" role="tabpanel" id={townPanelId("list")} aria-labelledby={townTabId("list")}>
         {town.neighborhoods.map((h) => {
           const active = h.spots.filter((s) => s.actions.length + s.services.length > 0);
           const quiet = h.spots.filter((s) => s.actions.length + s.services.length === 0);
@@ -139,6 +151,9 @@ export function Town() {
             </section>
           );
         })}
+      </div>
+      )}
+      </div>
       </div>
     </main>
   );
