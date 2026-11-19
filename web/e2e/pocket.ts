@@ -6,6 +6,8 @@ export type PocketTab = "today" | "town" | "places" | "people";
 
 /** Open the pocket (if it is not open) on a tab; returns the pocket. */
 export async function openPocket(page: Page, tab: PocketTab = "today") {
+  // A pocket that is sliding away is about to be gone.
+  await expect(page.locator(".pocket.sheet-closing")).toHaveCount(0);
   if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
   const pocket = page.getByTestId("pocket");
   await expect(pocket).toBeVisible();
