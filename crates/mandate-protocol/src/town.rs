@@ -216,7 +216,7 @@ pub struct TownLakeView {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct TownReliefView {
-    /// The municipality's ruggedness index, per mille.
+    /// Local ruggedness, per mille: the patch's relief, 250 m and more = 1000.
     pub ruggedness_pm: u16,
     /// Up the slope of the patch's land (255 when flat).
     pub uphill: u8,
@@ -608,6 +608,10 @@ pub fn town_geography_view(engine: &Engine, id: u32) -> Option<TownGeographyView
     let hi = land.iter().map(|&i| a.elev(i).max(0)).max().unwrap_or(0);
     let lo = land.iter().map(|&i| a.elev(i).max(0)).min().unwrap_or(0);
     let relief_m = (hi - lo) as u32;
+    // Local relief: 250 m between the patch's highest and lowest land is
+    // fully rugged. (The municipality's ruggedness index saturates for a
+    // third of towns, which would make nearly every town hilly.)
+    let ruggedness_pm = relief_m.saturating_mul(4).min(1000) as u16;
     let flat = relief_m < 15;
     let uphill = if flat {
         COMPASS_NONE
@@ -660,25 +664,19 @@ pub fn town_geography_view(engine: &Engine, id: u32) -> Option<TownGeographyView
                 }
             }
         }
-        let n = shore.len().max(1) as i64;
-        let mean = shore.iter().map(|&i| a.elev(i).max(0)).sum::<i64>() / n;
+        let n = shore.len() as i64;
         let beaches = shore.iter().filter(|&&i| t.biome[i] == Biome::Beach).count() as i64;
-        let rocks = shore
-            .iter()
-            .filter(|&&i| matches!(t.biome[i], Biome::Rock | Biome::Alpine | Biome::Tundra))
-            .count() as i64;
-        let shore = if shore.is_empty() {
-            match pm(g.ruggedness) {
-                v if v > 700 => ShoreKind::Cliff,
-                v if v > 420 => ShoreKind::Rocky,
-                _ => ShoreKind::Beach,
-            }
-        } else if mean >= 150 || rocks * 2 > n {
-            ShoreKind::Cliff
-        } else if beaches * 3 >= n || mean < 40 {
+        let highest = shore.iter().map(|&i| a.elev(i)).max().unwrap_or(0);
+        // Sand where most of the shore is beach; otherwise rock, or cliffs
+        // where the land around is steep.
+        let shore = if n > 0 && beaches * 2 >= n {
             ShoreKind::Beach
-        } else {
+        } else if ruggedness_pm > 700 {
+            ShoreKind::Cliff
+        } else if ruggedness_pm > 350 || highest >= 20 {
             ShoreKind::Rocky
+        } else {
+            ShoreKind::Beach
         };
         TownCoastView {
             sea: if sea_bearing == COMPASS_NONE {
@@ -852,7 +850,7 @@ pub fn town_geography_view(engine: &Engine, id: u32) -> Option<TownGeographyView
         coast,
         lake,
         relief: TownReliefView {
-            ruggedness_pm: pm(g.ruggedness),
+            ruggedness_pm,
             uphill,
             high_ground,
             relief_m,
@@ -970,7 +968,7 @@ pub struct TownDisasterView {
 /// §4.2). Precise only for the player's own town at the town hall
 /// (`detailed`); otherwise counts are rounded to 100, shares to whole
 /// percent (10 per mille), and jobs per sector are left out (DEC-079 rule 4).
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct TownStateView {
     pub municipality: u32,
