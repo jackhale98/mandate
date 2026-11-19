@@ -16,7 +16,7 @@ import { geoFromEngine, stateFromEngine } from "../townGeoAdapter";
 import { townInputFromView } from "../townInput";
 
 /** Seed, size and FNV-1a of the player's town's geography view: the same pin as the native test. */
-const PINNED = { seed: "777", size: "small", hash: "b532d081" };
+const PINNED = { seed: "777", size: "small", hash: "d051251a" };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dir = process.env.MANDATE_WASM_NODE ?? path.resolve(here, "../../../../target/wasm-node");

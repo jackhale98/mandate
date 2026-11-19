@@ -931,6 +931,32 @@ pub struct TownHoodStateView {
     pub population: u32,
     /// Against the baseline, per mille (to 10 unless detailed).
     pub population_pm: u32,
+    /// Exposure to the hazards that strike unevenly (G1, D8), per mille.
+    pub exposure: TownHoodExposureView,
+    /// Homes damaged and not yet repaired, if any.
+    pub damage: Option<TownHoodDamageView>,
+    /// Its residents staying elsewhere until they can return.
+    pub displaced_away: u32,
+    /// Residents of other neighbourhoods staying here for now.
+    pub sheltering: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TownHoodExposureView {
+    pub flood_pm: u32,
+    pub wildfire_pm: u32,
+    pub storm_pm: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TownHoodDamageView {
+    /// `flood` | `wildfire` | `storm` | …
+    pub hazard: String,
+    pub months_ago: u32,
+    /// Share of its homes damaged, per mille.
+    pub damaged_pm: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -1053,15 +1079,33 @@ pub fn town_state_view(engine: &Engine, id: u32) -> Option<TownStateView> {
     };
     let frac = |v: f64| share(v, 1.0);
 
+    let today = st.calendar.date;
     let neighborhoods = baseline
         .neighborhoods
         .iter()
         .map(|hb| {
             let now = st.population.hood_total(hb.id.index()) as f64;
+            let hz = mandate_sim::environment::hood_hazard(st, hb.id);
+            let pm_of = |v: u16| share(f64::from(v), 1000.0);
             TownHoodStateView {
                 id: hb.id.0,
                 population: count(now),
                 population_pm: share(now, f64::from(hb.population)),
+                exposure: TownHoodExposureView {
+                    flood_pm: hz.as_ref().map_or(0, |h| pm_of(h.exposure.flood)),
+                    wildfire_pm: hz.as_ref().map_or(0, |h| pm_of(h.exposure.wildfire)),
+                    storm_pm: hz.as_ref().map_or(0, |h| pm_of(h.exposure.storm)),
+                },
+                damage: hz
+                    .as_ref()
+                    .and_then(|h| h.damage.as_ref())
+                    .map(|d| TownHoodDamageView {
+                        hazard: crate::office::snake(&d.hazard),
+                        months_ago: months_between(d.struck, today),
+                        damaged_pm: pm_of(d.damaged_pm),
+                    }),
+                displaced_away: hz.as_ref().map_or(0, |h| count(h.displaced_away as f64)),
+                sheltering: hz.as_ref().map_or(0, |h| count(h.sheltering as f64)),
             }
         })
         .collect();
@@ -1083,7 +1127,6 @@ pub fn town_state_view(engine: &Engine, id: u32) -> Option<TownStateView> {
     } else {
         Vec::new()
     };
-    let today = st.calendar.date;
     let places = m
         .places
         .iter()
