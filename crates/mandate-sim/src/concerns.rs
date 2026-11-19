@@ -147,9 +147,22 @@ pub fn top_concerns(pop: &PopulationState, m: usize) -> Vec<(usize, f64)> {
     v
 }
 
+/// How hard some neighbourhoods were hit by their town's latest disaster,
+/// against the town (their mean; 1 for none given or no disaster).
+pub fn disaster_impact(pop: &PopulationState, hoods: &[usize]) -> f64 {
+    if hoods.is_empty() {
+        return 1.0;
+    }
+    hoods.iter().map(|&h| pop.impact(h)).sum::<f64>() / hoods.len() as f64
+}
+
 /// Concerns as felt in some neighbourhoods of a town, strongest first:
 /// the town's level × (1 + ½ × how far residents lean the way worried voters
-/// do), in [0, 1.5 × level]. For display and NPC talk, not the vote model.
+/// do), in [0, 1.5 × level]. A concern read from a recent disaster is felt
+/// first by how hard these neighbourhoods were hit (DEC-090 D8): the town's
+/// level × their impact, at most 1, so the flooded district worries about
+/// recovery and the spared one barely does. For display and NPC talk, not
+/// the vote model.
 pub fn felt_concerns(
     pop: &PopulationState,
     content: &ContentBundle,
@@ -157,10 +170,16 @@ pub fn felt_concerns(
     hoods: &[usize],
 ) -> Vec<(usize, f64)> {
     let mean = crate::politics::mean_attitudes(pop, hoods);
+    let impact = disaster_impact(pop, hoods);
     let mut v: Vec<(usize, f64)> = top_concerns(pop, m)
         .into_iter()
         .filter_map(|(i, level)| {
             let c = content.concerns.get(i)?;
+            let level = if c.indicator == Indicator::RecentDisaster {
+                (level * impact).min(1.0)
+            } else {
+                level
+            };
             let norm: f64 = c.attitude_weights.iter().map(|w| w.abs()).sum();
             let lean = if norm > 0.0 {
                 c.attitude_weights

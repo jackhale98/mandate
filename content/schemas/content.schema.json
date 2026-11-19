@@ -2757,6 +2757,18 @@
           "minItems": 5,
           "type": "array"
         },
+        "hazards": {
+          "$ref": "#/$defs/HazardParams",
+          "default": {
+            "leave_share": 0.25,
+            "max_hood_damage": 0.35,
+            "max_relative": 4.0,
+            "repair_rate": 0.08,
+            "return_rate": 0.12,
+            "temporary_share": 0.75
+          },
+          "description": "How a hazard's damage and displacement fall across a town's\nneighbourhoods (DEC-090 D8)."
+        },
         "inflation_target": {
           "format": "double",
           "type": "number"
@@ -3653,6 +3665,51 @@
         "wildfire"
       ],
       "type": "string"
+    },
+    "HazardParams": {
+      "additionalProperties": false,
+      "description": "Where a hazard falls within a town (DEC-090 D8). The town-level rolls and\ndamage are unchanged; these set how they are shared by neighbourhood\nexposure, who is displaced, and how fast a neighbourhood recovers.",
+      "properties": {
+        "leave_share": {
+          "description": "Share of a neighbourhood's damage whose mobile adults leave the town\nfor good (floods, storms and earthquakes; wildfires displace only for\na while).",
+          "format": "double",
+          "type": "number"
+        },
+        "max_hood_damage": {
+          "description": "Most of a neighbourhood's homes one strike can destroy (a share).",
+          "format": "double",
+          "type": "number"
+        },
+        "max_relative": {
+          "description": "Most a neighbourhood's hit can exceed the town's average (× the\ntown's damage), for damage and for how hard residents feel it.",
+          "format": "double",
+          "type": "number"
+        },
+        "repair_rate": {
+          "description": "Monthly share of a neighbourhood's damaged homes repaired.",
+          "format": "double",
+          "type": "number"
+        },
+        "return_rate": {
+          "description": "Monthly share of the displaced who return home.",
+          "format": "double",
+          "type": "number"
+        },
+        "temporary_share": {
+          "description": "Adults displaced for a while per unit of a neighbourhood's damage:\nthey stay in less-hit neighbourhoods (or the next town) and return.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "max_hood_damage",
+        "max_relative",
+        "leave_share",
+        "temporary_share",
+        "return_rate",
+        "repair_rate"
+      ],
+      "type": "object"
     },
     "HeardCondition": {
       "description": "A fact a line needs. Each names the Fluent arguments it provides.",

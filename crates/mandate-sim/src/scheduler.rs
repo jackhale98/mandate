@@ -107,6 +107,18 @@ pub enum Effect {
         case: u32,
         sentence: crate::justice::Sentence,
     },
+    /// A disaster's share in one neighbourhood (DEC-090 D8; population
+    /// applies): `relative` is how hard it was hit against its town's
+    /// average (1 = average); `leave` the share of its mobile adults who
+    /// leave the town for good; `temporary` the share of its adults who stay
+    /// in less-hit neighbourhoods (or the next town) until they can return.
+    HoodDisaster {
+        neighborhood: u32,
+        relative: f64,
+        leave: f64,
+        temporary: f64,
+        cause: Option<EventId>,
+    },
 }
 
 #[derive(Clone, Debug, Default)]

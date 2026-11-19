@@ -819,6 +819,47 @@ pub struct EconomyParams {
     /// technology growth, and the drift of manufacturing competitiveness.
     pub tech_growth: f64,
     pub manufacturing_trend: f64,
+    /// How a hazard's damage and displacement fall across a town's
+    /// neighbourhoods (DEC-090 D8).
+    #[serde(default)]
+    pub hazards: HazardParams,
+}
+
+/// Where a hazard falls within a town (DEC-090 D8). The town-level rolls and
+/// damage are unchanged; these set how they are shared by neighbourhood
+/// exposure, who is displaced, and how fast a neighbourhood recovers.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HazardParams {
+    /// Most of a neighbourhood's homes one strike can destroy (a share).
+    pub max_hood_damage: f64,
+    /// Most a neighbourhood's hit can exceed the town's average (× the
+    /// town's damage), for damage and for how hard residents feel it.
+    pub max_relative: f64,
+    /// Share of a neighbourhood's damage whose mobile adults leave the town
+    /// for good (floods, storms and earthquakes; wildfires displace only for
+    /// a while).
+    pub leave_share: f64,
+    /// Adults displaced for a while per unit of a neighbourhood's damage:
+    /// they stay in less-hit neighbourhoods (or the next town) and return.
+    pub temporary_share: f64,
+    /// Monthly share of the displaced who return home.
+    pub return_rate: f64,
+    /// Monthly share of a neighbourhood's damaged homes repaired.
+    pub repair_rate: f64,
+}
+
+impl Default for HazardParams {
+    fn default() -> Self {
+        HazardParams {
+            max_hood_damage: 0.35,
+            max_relative: 4.0,
+            leave_share: 0.25,
+            temporary_share: 0.75,
+            return_rate: 0.12,
+            repair_rate: 0.08,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]

@@ -25,5 +25,16 @@
     "pension_replacement": 0.45,
     "tech_growth": 0.02,           // annual technology growth (a scenario may bias it)
     "manufacturing_trend": -0.008,  // annual drift of manufacturing competitiveness
+    // Where a hazard falls within a town (DEC-090 D8). A strike's town-wide
+    // damage is shared by each neighbourhood's exposure (the flood-prone
+    // district takes most of a flood), so the town total is unchanged.
+    "hazards": {
+      "max_hood_damage": 0.35,  // most of a neighbourhood's homes one strike destroys
+      "max_relative": 4.0,      // a neighbourhood's hit is at most 4× the town's average
+      "leave_share": 0.25,      // mobile adults leaving for good per unit of damage (as before)
+      "temporary_share": 0.75,  // adults staying elsewhere for a while per unit of damage
+      "return_rate": 0.12,      // monthly share of them who come home (half in about 5 months)
+      "repair_rate": 0.08,      // monthly share of damaged homes repaired
+    },
   },
 }

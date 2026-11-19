@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (14, "d9997cbe831e6d13");
+    const EXPECTED: (u16, &str) = (15, "52193dc6fa21ef2a");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -1113,18 +1113,116 @@ fn v13_files_decode_with_town_baselines() {
     .unwrap();
     let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
     without_baselines(&mut v);
-    let payload = serde_json::to_vec(&v).unwrap();
-    let (_, mut meta) = encode(e.state(), &req()).unwrap();
-    meta.format_version = 13;
+    // v13 also predates hazard exposure (the next format).
+    without_hazards(&mut v);
+    let bytes = old_file(e.state(), &v, 13);
+    let (mut state, read) = decode(&bytes).unwrap();
+    assert_eq!(read.format_version, 13);
+    // Exposure comes from the save's profile (no terrain in a save), and
+    // the history's damage, displacement and impact are not on record; the
+    // rest is identical.
+    let st = e.state();
+    state.environment.exposure = st.environment.exposure.clone();
+    state.environment.hood_damage = st.environment.hood_damage.clone();
+    state.population.hood_impact = st.population.hood_impact.clone();
+    state.population.displaced = st.population.displaced.clone();
+    assert_eq!(state.hash(), e.state_hash());
+    mandate_sim::Engine::from_state(state, c).unwrap();
+}
+
+/// A save file in an older format: its header and the given payload.
+fn old_file(st: &mandate_sim::State, v: &serde_json::Value, version: u16) -> Vec<u8> {
+    let payload = serde_json::to_vec(v).unwrap();
+    let (_, mut meta) = encode(st, &req()).unwrap();
+    meta.format_version = version;
     meta.payload_hash = mandate_core::hash::StableHash::of_bytes(&payload).hex();
     let meta_json = serde_json::to_vec(&meta).unwrap();
     let mut bytes = MAGIC.to_vec();
-    bytes.extend_from_slice(&13u16.to_le_bytes());
+    bytes.extend_from_slice(&version.to_le_bytes());
     bytes.extend_from_slice(&(meta_json.len() as u32).to_le_bytes());
     bytes.extend_from_slice(&meta_json);
     bytes.extend_from_slice(&miniz_oxide::deflate::compress_to_vec(&payload, 6));
-    let (state, read) = decode(&bytes).unwrap();
-    assert_eq!(read.format_version, 13);
-    assert_eq!(state.hash(), e.state_hash());
-    mandate_sim::Engine::from_state(state, c).unwrap();
+    bytes
+}
+
+/// Strip per-neighbourhood hazards (DEC-090 D8, G1) from a payload: the
+/// shape of the format before them.
+fn without_hazards(v: &mut serde_json::Value) {
+    let env = v
+        .pointer_mut("/state/environment")
+        .unwrap()
+        .as_object_mut()
+        .unwrap();
+    env.remove("exposure");
+    env.remove("hood_damage");
+    let pop = v
+        .pointer_mut("/state/population")
+        .unwrap()
+        .as_object_mut()
+        .unwrap();
+    pop.remove("hood_impact");
+    pop.remove("displaced");
+}
+
+/// The format after v14 added per-neighbourhood hazard exposure (DEC-090
+/// D8, G1). A save from before derives exposure from its towns' profiles and
+/// its neighbourhoods' kinds, the same every time, keeps it through play,
+/// and round-trips; damage, displacement and impact start empty.
+#[test]
+fn v14_saves_migrate_to_hazard_exposure() {
+    let c = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 67,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    e.apply(Command::AdvanceDays { days: 500 }).unwrap();
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    without_hazards(&mut v);
+    assert!(
+        serde_json::from_value::<mandate_sim::State>(v["state"].clone()).is_err(),
+        "the older payload lacks exposure"
+    );
+    let migrated = mandate_save::migrate(14, v.clone()).unwrap();
+    assert_eq!(migrated, mandate_save::migrate(14, v.clone()).unwrap());
+    let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    let exposure = mandate_sim::environment::exposure::from_profile(&state.world);
+    assert_eq!(state.environment.exposure, exposure);
+    assert_eq!(exposure.len(), state.world.neighborhoods.len());
+    assert!(state.environment.hood_damage.is_empty());
+    assert!(state.population.displaced.is_empty() && state.population.hood_impact.is_empty());
+    // A flood-prone town's waterfront is more exposed than its suburbs.
+    for mu in state.world.municipalities.iter().filter(|m| m.geo.flood > 0.2) {
+        let of = |k: mandate_sim::world::NeighborhoodKind| {
+            mu.neighborhoods
+                .iter()
+                .filter(|h| state.world.neighborhoods[h.index()].kind == k)
+                .map(|h| exposure[h.index()].flood)
+                .max()
+        };
+        if let (Some(w), Some(s)) = (
+            of(mandate_sim::world::NeighborhoodKind::Waterfront),
+            of(mandate_sim::world::NeighborhoodKind::Suburb),
+        ) {
+            assert!(w > s);
+        }
+    }
+    // Play on: exposure never moves; the file is the current format.
+    let mut e2 = mandate_sim::Engine::from_state(state, c).unwrap();
+    for _ in 0..12 {
+        e2.apply(Command::EndTurn).unwrap();
+    }
+    assert_eq!(e2.state().environment.exposure, exposure);
+    let (bytes, meta) = encode(e2.state(), &req()).unwrap();
+    assert_eq!(meta.format_version, SAVE_FORMAT_VERSION);
+    let (back, _) = decode(&bytes).unwrap();
+    assert_eq!(back.hash(), e2.state_hash());
+    // And an old file decodes through the chain.
+    let (old, read) = decode(&old_file(e.state(), &v, 14)).unwrap();
+    assert_eq!(read.format_version, 14);
+    assert_eq!(old.environment.exposure, exposure);
 }
