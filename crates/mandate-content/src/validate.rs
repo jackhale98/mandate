@@ -240,6 +240,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         }
     }
     validate_places(b, &mut issues);
+    crate::layout::validate_layout(b, &mut issues);
     validate_communities(b, &mut issues);
     validate_scenarios(b, &mut issues);
     validate_concerns(b, &mut issues);

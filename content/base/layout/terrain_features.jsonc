@@ -1,12 +1,13 @@
-// Terrain features for town layout v2 (DEC-090, TOWN_GENERATION.md §6.1).
-// Stage A keeps this registry on the client; stage B moves it to
-// content/base/terrain_features.jsonc unchanged in shape.
+// Terrain features for town layout v2 (DEC-090 D4, TOWN_GENERATION.md §6.1).
+// Presentation data, validated by the engine and sent to the client's town
+// generator (`LayoutContentView`). Types: `mandate-content/src/layout.rs`.
 //
 // `generator` names the code that draws the feature (an extension point,
 // §6.5: river, creek, coast, lake, hills, cliff, woods, marsh, beach);
 // `appears` says when it applies (from the geography view); `params` are the
 // generator's integer parameters (per mille where a share); `art` names art
-// keys, never files (§7.1).
+// keys, never files (§7.1). The first feature in load order with a given
+// generator is the one used.
 {
   "kind": "terrain_features",
   "items": [

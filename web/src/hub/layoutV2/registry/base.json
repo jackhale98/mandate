@@ -1,0 +1,2615 @@
+{
+  "connectors": [
+    {
+      "art": {
+        "kit": "bridge.iron_girder"
+      },
+      "crosses": [
+        "river",
+        "lake"
+      ],
+      "era": null,
+      "id": "connector.iron_girder",
+      "kind": "bridge",
+      "max_span": 16,
+      "roads": [
+        "arterial"
+      ],
+      "town_class": [
+        "metro",
+        "city"
+      ]
+    },
+    {
+      "art": {
+        "kit": "bridge.stone_arch"
+      },
+      "crosses": [
+        "river",
+        "lake",
+        "creek"
+      ],
+      "era": null,
+      "id": "connector.stone_arch",
+      "kind": "bridge",
+      "max_span": 14,
+      "roads": [
+        "arterial",
+        "street"
+      ],
+      "town_class": []
+    },
+    {
+      "art": {
+        "kit": "bridge.rail_viaduct"
+      },
+      "crosses": [
+        "river",
+        "lake",
+        "creek"
+      ],
+      "era": null,
+      "id": "connector.rail_viaduct",
+      "kind": "viaduct",
+      "max_span": 24,
+      "roads": [
+        "rail"
+      ],
+      "town_class": []
+    },
+    {
+      "art": {
+        "kit": "bridge.timber_footbridge"
+      },
+      "crosses": [
+        "river",
+        "creek"
+      ],
+      "era": null,
+      "id": "connector.timber_footbridge",
+      "kind": "footbridge",
+      "max_span": 10,
+      "roads": [
+        "path",
+        "lane"
+      ],
+      "town_class": []
+    },
+    {
+      "art": {
+        "kit": "connector.ford",
+        "prop": "prop.stepping_stones"
+      },
+      "crosses": [
+        "creek"
+      ],
+      "era": null,
+      "id": "connector.ford",
+      "kind": "ford",
+      "max_span": 2,
+      "roads": [
+        "lane",
+        "path"
+      ],
+      "town_class": []
+    },
+    {
+      "art": {
+        "kit": "connector.level_crossing"
+      },
+      "crosses": [
+        "rail"
+      ],
+      "era": null,
+      "id": "connector.level_crossing",
+      "kind": "level_crossing",
+      "max_span": 1,
+      "roads": [
+        "arterial",
+        "street",
+        "lane"
+      ],
+      "town_class": []
+    }
+  ],
+  "districts": [
+    {
+      "appears": {
+        "hood_kinds": [
+          "core"
+        ],
+        "weight": 3
+      },
+      "art": {
+        "family": "commercial",
+        "ground": "ground.cobble",
+        "kit": "kit.old_core",
+        "lamps": "lamp.sodium",
+        "props": "props.core",
+        "roof": "roof.slate",
+        "trim_ramps": [
+          "ramp.chalk",
+          "ramp.ochre"
+        ],
+        "walls": [
+          "wall.stone",
+          "wall.render"
+        ]
+      },
+      "buildings": {
+        "density": 0.95,
+        "mix": [
+          [
+            "shop",
+            6.0
+          ],
+          [
+            "terrace",
+            4.0
+          ]
+        ],
+        "storeys": [
+          2,
+          4
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "infill_first",
+        "reserve": 0.05
+      },
+      "hosts": [
+        "town_hall",
+        "council_chamber",
+        "market",
+        "news_office",
+        "party_office",
+        "hotel",
+        "business_association"
+      ],
+      "id": "district.old_core",
+      "name_key": "district-old_core",
+      "plots": {
+        "depth": [
+          3,
+          4
+        ],
+        "frontage": [
+          3,
+          5
+        ],
+        "ground": "yard",
+        "joined": 0.85,
+        "setback": 0
+      },
+      "site": {
+        "anchor": "square",
+        "avoids": [
+          "floodplain"
+        ],
+        "prefers": [
+          "centre",
+          "low_slope"
+        ]
+      },
+      "streets": {
+        "block": [
+          9,
+          13
+        ],
+        "depth": [
+          7,
+          9
+        ],
+        "lanes": "back",
+        "max_dead_ends": 1,
+        "pattern": "organic",
+        "style": "asphalt"
+      },
+      "tags": []
+    },
+    {
+      "appears": {
+        "hood_kinds": [
+          "core"
+        ],
+        "population": {
+          "max": 160000
+        },
+        "weight": 2
+      },
+      "art": {
+        "family": "commercial",
+        "ground": "ground.cobble",
+        "kit": "kit.market_town",
+        "lamps": "lamp.sodium",
+        "props": "props.market_town",
+        "roof": "roof.terracotta",
+        "trim_ramps": [
+          "ramp.ochre",
+          "ramp.sage"
+        ],
+        "walls": [
+          "wall.brick",
+          "wall.render"
+        ]
+      },
+      "buildings": {
+        "density": 0.9,
+        "mix": [
+          [
+            "shop",
+            4.0
+          ],
+          [
+            "terrace",
+            4.0
+          ],
+          [
+            "house",
+            1.0
+          ]
+        ],
+        "storeys": [
+          2,
+          3
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "infill_first",
+        "reserve": 0.08
+      },
+      "hosts": [
+        "town_hall",
+        "council_chamber",
+        "market",
+        "diner",
+        "news_office"
+      ],
+      "id": "district.market_town",
+      "name_key": "district-market_town",
+      "plots": {
+        "depth": [
+          3,
+          4
+        ],
+        "frontage": [
+          3,
+          5
+        ],
+        "ground": "grass",
+        "joined": 0.7,
+        "setback": 0
+      },
+      "site": {
+        "anchor": "square",
+        "avoids": [
+          "floodplain"
+        ],
+        "prefers": [
+          "centre",
+          "riverbank",
+          "low_slope"
+        ]
+      },
+      "streets": {
+        "block": [
+          10,
+          14
+        ],
+        "depth": [
+          7,
+          9
+        ],
+        "lanes": "back",
+        "max_dead_ends": 1,
+        "pattern": "organic",
+        "style": "asphalt"
+      },
+      "tags": []
+    },
+    {
+      "appears": {
+        "geo": {
+          "coast": true
+        },
+        "hood_kinds": [
+          "core"
+        ],
+        "weight": 4
+      },
+      "art": {
+        "family": "commercial",
+        "ground": "ground.cobble",
+        "kit": "kit.harbour_town",
+        "lamps": "lamp.white",
+        "props": "props.harbour",
+        "roof": "roof.slate",
+        "trim_ramps": [
+          "ramp.harbour_blue",
+          "ramp.chalk"
+        ],
+        "walls": [
+          "wall.render",
+          "wall.painted_timber"
+        ]
+      },
+      "buildings": {
+        "density": 0.95,
+        "mix": [
+          [
+            "shop",
+            5.0
+          ],
+          [
+            "terrace",
+            4.0
+          ],
+          [
+            "boathouse",
+            1.0
+          ]
+        ],
+        "storeys": [
+          2,
+          3
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "infill_first",
+        "reserve": 0.05
+      },
+      "hosts": [
+        "town_hall",
+        "council_chamber",
+        "market",
+        "hotel",
+        "news_office"
+      ],
+      "id": "district.harbour_town",
+      "name_key": "district-harbour_town",
+      "plots": {
+        "depth": [
+          3,
+          4
+        ],
+        "frontage": [
+          3,
+          4
+        ],
+        "ground": "yard",
+        "joined": 0.85,
+        "setback": 0
+      },
+      "site": {
+        "anchor": "square",
+        "prefers": [
+          "centre",
+          "shore",
+          "low_slope"
+        ]
+      },
+      "streets": {
+        "block": [
+          8,
+          12
+        ],
+        "depth": [
+          6,
+          8
+        ],
+        "lanes": "stepped",
+        "max_dead_ends": 2,
+        "pattern": "organic",
+        "style": "asphalt"
+      },
+      "tags": [
+        "storm_surge"
+      ]
+    },
+    {
+      "appears": {
+        "hood_kinds": [
+          "inner"
+        ],
+        "weight": 3
+      },
+      "art": {
+        "family": "residential",
+        "ground": "ground.asphalt",
+        "kit": "kit.terrace",
+        "lamps": "lamp.sodium",
+        "props": "props.terrace",
+        "roof": "roof.slate",
+        "trim_ramps": [
+          "ramp.chalk",
+          "ramp.harbour_blue"
+        ],
+        "walls": [
+          "wall.brick"
+        ]
+      },
+      "buildings": {
+        "density": 0.95,
+        "mix": [
+          [
+            "terrace",
+            9.0
+          ],
+          [
+            "shop",
+            1.0
+          ]
+        ],
+        "storeys": [
+          2,
+          2
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "infill_first",
+        "reserve": 0.08
+      },
+      "hosts": [
+        "school",
+        "clinic",
+        "community_centre",
+        "union_hall",
+        "diner",
+        "party_office"
+      ],
+      "id": "district.terraces",
+      "name_key": "district-terraces",
+      "plots": {
+        "depth": [
+          3,
+          3
+        ],
+        "frontage": [
+          3,
+          4
+        ],
+        "ground": "grass",
+        "joined": 0.95,
+        "setback": 0
+      },
+      "site": {
+        "prefers": [
+          "near_centre",
+          "arterial",
+          "low_slope"
+        ]
+      },
+      "streets": {
+        "block": [
+          12,
+          18
+        ],
+        "depth": [
+          7,
+          8
+        ],
+        "lanes": "back",
+        "max_dead_ends": 0,
+        "pattern": "grid",
+        "style": "asphalt"
+      },
+      "tags": []
+    },
+    {
+      "appears": {
+        "geo": {
+          "river": true
+        },
+        "hood_kinds": [
+          "inner",
+          "waterfront"
+        ],
+        "weight": 4
+      },
+      "art": {
+        "family": "residential",
+        "ground": "ground.asphalt",
+        "kit": "kit.terrace",
+        "lamps": "lamp.sodium",
+        "props": "props.riverside",
+        "roof": "roof.slate",
+        "trim_ramps": [
+          "ramp.harbour_blue",
+          "ramp.chalk"
+        ],
+        "walls": [
+          "wall.brick",
+          "wall.render"
+        ]
+      },
+      "buildings": {
+        "density": 0.95,
+        "mix": [
+          [
+            "terrace",
+            8.0
+          ],
+          [
+            "shop",
+            1.0
+          ],
+          [
+            "boathouse",
+            1.0
+          ]
+        ],
+        "storeys": [
+          2,
+          3
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "infill_first",
+        "reserve": 0.06
+      },
+      "hosts": [
+        "mill",
+        "community_centre",
+        "diner",
+        "union_hall"
+      ],
+      "id": "district.riverside_terraces",
+      "name_key": "district-riverside_terraces",
+      "plots": {
+        "depth": [
+          3,
+          3
+        ],
+        "frontage": [
+          3,
+          4
+        ],
+        "ground": "grass",
+        "joined": 0.9,
+        "setback": 0
+      },
+      "site": {
+        "prefers": [
+          "riverbank",
+          "near_centre",
+          "arterial"
+        ]
+      },
+      "streets": {
+        "block": [
+          12,
+          16
+        ],
+        "depth": [
+          7,
+          8
+        ],
+        "lanes": "back",
+        "max_dead_ends": 0,
+        "pattern": "grid",
+        "style": "asphalt"
+      },
+      "tags": [
+        "flood_prone"
+      ]
+    },
+    {
+      "appears": {
+        "geo": {
+          "ruggedness_pm": {
+            "min": 380
+          }
+        },
+        "hood_kinds": [
+          "inner",
+          "suburb"
+        ],
+        "weight": 5
+      },
+      "art": {
+        "family": "residential",
+        "ground": "ground.setts",
+        "kit": "kit.hillside",
+        "lamps": "lamp.sodium",
+        "props": "props.hillside",
+        "roof": "roof.slate",
+        "trim_ramps": [
+          "ramp.sage",
+          "ramp.chalk"
+        ],
+        "walls": [
+          "wall.stone",
+          "wall.render"
+        ]
+      },
+      "buildings": {
+        "density": 0.9,
+        "mix": [
+          [
+            "terrace",
+            6.0
+          ],
+          [
+            "house",
+            3.0
+          ],
+          [
+            "shop",
+            1.0
+          ]
+        ],
+        "storeys": [
+          2,
+          3
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "outward",
+        "reserve": 0.12
+      },
+      "hosts": [
+        "school",
+        "community_centre",
+        "clinic"
+      ],
+      "id": "district.hillside_streets",
+      "name_key": "district-hillside_streets",
+      "plots": {
+        "depth": [
+          3,
+          3
+        ],
+        "frontage": [
+          3,
+          4
+        ],
+        "ground": "grass",
+        "joined": 0.75,
+        "setback": 0
+      },
+      "site": {
+        "avoids": [
+          "floodplain"
+        ],
+        "prefers": [
+          "high_ground",
+          "arterial"
+        ]
+      },
+      "streets": {
+        "block": [
+          12,
+          18
+        ],
+        "depth": [
+          6,
+          8
+        ],
+        "lanes": "stepped",
+        "max_dead_ends": 2,
+        "pattern": "contour",
+        "style": "asphalt"
+      },
+      "tags": []
+    },
+    {
+      "appears": {
+        "geo": {
+          "minerals_pm": {
+            "min": 500
+          }
+        },
+        "hood_kinds": [
+          "inner",
+          "suburb"
+        ],
+        "requires_place": [
+          "mine"
+        ],
+        "weight": 4
+      },
+      "art": {
+        "family": "residential",
+        "ground": "ground.asphalt",
+        "kit": "kit.pit_row",
+        "lamps": "lamp.sodium",
+        "props": "props.pit_rows",
+        "roof": "roof.slate",
+        "trim_ramps": [
+          "ramp.chalk"
+        ],
+        "walls": [
+          "wall.brick"
+        ]
+      },
+      "buildings": {
+        "density": 0.97,
+        "mix": [
+          [
+            "terrace",
+            1.0
+          ]
+        ],
+        "storeys": [
+          2,
+          2
+        ]
+      },
+      "growth": {
+        "decline": "derelict",
+        "fill": "infill_first",
+        "reserve": 0.05
+      },
+      "hosts": [
+        "union_hall",
+        "community_centre",
+        "diner"
+      ],
+      "id": "district.pit_rows",
+      "name_key": "district-pit_rows",
+      "plots": {
+        "depth": [
+          3,
+          3
+        ],
+        "frontage": [
+          3,
+          3
+        ],
+        "ground": "yard",
+        "joined": 1.0,
+        "setback": 0
+      },
+      "site": {
+        "prefers": [
+          "toward_minerals",
+          "arterial"
+        ]
+      },
+      "streets": {
+        "block": [
+          14,
+          20
+        ],
+        "depth": [
+          6,
+          7
+        ],
+        "lanes": "back",
+        "max_dead_ends": 0,
+        "pattern": "grid",
+        "style": "asphalt"
+      },
+      "tags": [
+        "mine_risk"
+      ]
+    },
+    {
+      "appears": {
+        "geo": {
+          "coast": true
+        },
+        "hood_kinds": [
+          "waterfront"
+        ],
+        "weight": 3
+      },
+      "art": {
+        "family": "industrial",
+        "ground": "ground.concrete",
+        "kit": "kit.docks",
+        "lamps": "lamp.sodium",
+        "props": "props.docks",
+        "roof": "roof.sheet",
+        "trim_ramps": [
+          "ramp.harbour_blue",
+          "ramp.rust"
+        ],
+        "walls": [
+          "wall.brick",
+          "wall.sheet"
+        ]
+      },
+      "buildings": {
+        "density": 0.8,
+        "mix": [
+          [
+            "warehouse",
+            5.0
+          ],
+          [
+            "boathouse",
+            3.0
+          ],
+          [
+            "shed",
+            1.0
+          ]
+        ],
+        "storeys": [
+          1,
+          3
+        ]
+      },
+      "growth": {
+        "decline": "derelict",
+        "fill": "infill_first",
+        "reserve": 0.1
+      },
+      "hosts": [
+        "port",
+        "factory",
+        "diner",
+        "union_hall"
+      ],
+      "id": "district.docks",
+      "name_key": "district-docks",
+      "plots": {
+        "depth": [
+          3,
+          5
+        ],
+        "frontage": [
+          4,
+          7
+        ],
+        "ground": "yard",
+        "joined": 0.4,
+        "setback": 0
+      },
+      "site": {
+        "anchor": "harbour",
+        "prefers": [
+          "shore",
+          "near_centre"
+        ]
+      },
+      "streets": {
+        "block": [
+          12,
+          18
+        ],
+        "depth": [
+          7,
+          9
+        ],
+        "lanes": "none",
+        "max_dead_ends": 2,
+        "pattern": "quay",
+        "style": "asphalt"
+      },
+      "tags": [
+        "storm_surge"
+      ]
+    },
+    {
+      "appears": {
+        "geo": {
+          "coast": true,
+          "fishing_pm": {
+            "min": 450
+          }
+        },
+        "hood_kinds": [
+          "waterfront"
+        ],
+        "population": {
+          "max": 300000
+        },
+        "weight": 3
+      },
+      "art": {
+        "family": "residential",
+        "ground": "ground.cobble",
+        "kit": "kit.harbour_cottage",
+        "lamps": "lamp.white",
+        "props": "props.fishing_harbour",
+        "roof": "roof.pantile",
+        "trim_ramps": [
+          "ramp.harbour_blue",
+          "ramp.chalk",
+          "ramp.ochre"
+        ],
+        "walls": [
+          "wall.painted_timber",
+          "wall.render"
+        ]
+      },
+      "buildings": {
+        "density": 0.85,
+        "mix": [
+          [
+            "terrace",
+            5.0
+          ],
+          [
+            "boathouse",
+            2.0
+          ],
+          [
+            "shop",
+            1.0
+          ]
+        ],
+        "storeys": [
+          1,
+          3
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "infill_first",
+        "reserve": 0.1
+      },
+      "hosts": [
+        "port",
+        "market",
+        "diner"
+      ],
+      "id": "district.fishing_harbour",
+      "name_key": "district-fishing_harbour",
+      "plots": {
+        "depth": [
+          3,
+          3
+        ],
+        "frontage": [
+          3,
+          4
+        ],
+        "ground": "yard",
+        "joined": 0.8,
+        "setback": 0
+      },
+      "site": {
+        "anchor": "harbour",
+        "avoids": [
+          "cliff"
+        ],
+        "prefers": [
+          "shore",
+          "low_slope"
+        ]
+      },
+      "streets": {
+        "block": [
+          8,
+          12
+        ],
+        "depth": [
+          6,
+          8
+        ],
+        "lanes": "stepped",
+        "max_dead_ends": 2,
+        "pattern": "quay",
+        "style": "asphalt"
+      },
+      "tags": [
+        "storm_surge"
+      ]
+    },
+    {
+      "appears": {
+        "geo": {
+          "river": true
+        },
+        "hood_kinds": [
+          "waterfront"
+        ],
+        "weight": 3
+      },
+      "art": {
+        "family": "industrial",
+        "ground": "ground.setts",
+        "kit": "kit.wharf",
+        "lamps": "lamp.sodium",
+        "props": "props.wharves",
+        "roof": "roof.slate",
+        "trim_ramps": [
+          "ramp.rust",
+          "ramp.chalk"
+        ],
+        "walls": [
+          "wall.brick"
+        ]
+      },
+      "buildings": {
+        "density": 0.85,
+        "mix": [
+          [
+            "warehouse",
+            4.0
+          ],
+          [
+            "boathouse",
+            3.0
+          ],
+          [
+            "terrace",
+            2.0
+          ]
+        ],
+        "storeys": [
+          2,
+          3
+        ]
+      },
+      "growth": {
+        "decline": "derelict",
+        "fill": "infill_first",
+        "reserve": 0.1
+      },
+      "hosts": [
+        "mill",
+        "port",
+        "factory",
+        "diner"
+      ],
+      "id": "district.wharves",
+      "name_key": "district-wharves",
+      "plots": {
+        "depth": [
+          3,
+          4
+        ],
+        "frontage": [
+          4,
+          6
+        ],
+        "ground": "yard",
+        "joined": 0.5,
+        "setback": 0
+      },
+      "site": {
+        "prefers": [
+          "riverbank",
+          "near_centre"
+        ]
+      },
+      "streets": {
+        "block": [
+          12,
+          16
+        ],
+        "depth": [
+          7,
+          9
+        ],
+        "lanes": "none",
+        "max_dead_ends": 1,
+        "pattern": "quay",
+        "style": "asphalt"
+      },
+      "tags": [
+        "flood_prone"
+      ]
+    },
+    {
+      "appears": {
+        "hood_kinds": [
+          "waterfront"
+        ],
+        "weight": 1
+      },
+      "art": {
+        "family": "residential",
+        "ground": "ground.cobble",
+        "kit": "kit.waterside",
+        "lamps": "lamp.white",
+        "props": "props.waterside",
+        "roof": "roof.slate",
+        "trim_ramps": [
+          "ramp.harbour_blue"
+        ],
+        "walls": [
+          "wall.render"
+        ]
+      },
+      "buildings": {
+        "density": 0.9,
+        "mix": [
+          [
+            "terrace",
+            4.0
+          ],
+          [
+            "shop",
+            2.0
+          ],
+          [
+            "boathouse",
+            2.0
+          ]
+        ],
+        "storeys": [
+          2,
+          3
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "infill_first",
+        "reserve": 0.08
+      },
+      "hosts": [
+        "port",
+        "diner",
+        "hotel"
+      ],
+      "id": "district.waterside",
+      "name_key": "district-waterside",
+      "plots": {
+        "depth": [
+          3,
+          4
+        ],
+        "frontage": [
+          3,
+          5
+        ],
+        "ground": "grass",
+        "joined": 0.7,
+        "setback": 0
+      },
+      "site": {
+        "prefers": [
+          "shore",
+          "riverbank",
+          "near_centre"
+        ]
+      },
+      "streets": {
+        "block": [
+          10,
+          14
+        ],
+        "depth": [
+          7,
+          8
+        ],
+        "lanes": "back",
+        "max_dead_ends": 1,
+        "pattern": "grid",
+        "style": "asphalt"
+      },
+      "tags": []
+    },
+    {
+      "appears": {
+        "hood_kinds": [
+          "industrial"
+        ],
+        "weight": 2
+      },
+      "art": {
+        "family": "industrial",
+        "ground": "ground.concrete",
+        "kit": "kit.works",
+        "lamps": "lamp.sodium",
+        "props": "props.works",
+        "roof": "roof.sawtooth",
+        "trim_ramps": [
+          "ramp.rust"
+        ],
+        "walls": [
+          "wall.brick",
+          "wall.sheet"
+        ]
+      },
+      "buildings": {
+        "density": 0.8,
+        "mix": [
+          [
+            "warehouse",
+            6.0
+          ],
+          [
+            "shed",
+            3.0
+          ]
+        ],
+        "storeys": [
+          1,
+          2
+        ]
+      },
+      "growth": {
+        "decline": "derelict",
+        "fill": "infill_first",
+        "reserve": 0.15
+      },
+      "hosts": [
+        "factory",
+        "union_hall",
+        "mill",
+        "business_association"
+      ],
+      "id": "district.works",
+      "name_key": "district-works",
+      "plots": {
+        "depth": [
+          4,
+          6
+        ],
+        "frontage": [
+          5,
+          8
+        ],
+        "ground": "yard",
+        "joined": 0.2,
+        "setback": 0
+      },
+      "site": {
+        "avoids": [
+          "high_ground"
+        ],
+        "prefers": [
+          "near_rail",
+          "by_water",
+          "downwind",
+          "arterial"
+        ]
+      },
+      "streets": {
+        "block": [
+          16,
+          24
+        ],
+        "depth": [
+          9,
+          12
+        ],
+        "lanes": "none",
+        "max_dead_ends": 2,
+        "pattern": "yards",
+        "style": "asphalt"
+      },
+      "tags": [
+        "pollution_downwind"
+      ]
+    },
+    {
+      "appears": {
+        "geo": {
+          "minerals_pm": {
+            "min": 450
+          }
+        },
+        "hood_kinds": [
+          "industrial",
+          "rural"
+        ],
+        "requires_place": [
+          "mine"
+        ],
+        "weight": 6
+      },
+      "art": {
+        "family": "industrial",
+        "ground": "ground.cinder",
+        "kit": "kit.colliery",
+        "lamps": "lamp.sodium",
+        "props": "props.colliery",
+        "roof": "roof.sheet",
+        "trim_ramps": [
+          "ramp.rust"
+        ],
+        "walls": [
+          "wall.brick"
+        ]
+      },
+      "buildings": {
+        "density": 0.7,
+        "mix": [
+          [
+            "shed",
+            4.0
+          ],
+          [
+            "warehouse",
+            3.0
+          ],
+          [
+            "terrace",
+            2.0
+          ]
+        ],
+        "storeys": [
+          1,
+          2
+        ]
+      },
+      "growth": {
+        "decline": "derelict",
+        "fill": "infill_first",
+        "reserve": 0.1
+      },
+      "hosts": [
+        "mine",
+        "union_hall",
+        "factory"
+      ],
+      "id": "district.colliery",
+      "name_key": "district-colliery",
+      "plots": {
+        "depth": [
+          4,
+          5
+        ],
+        "frontage": [
+          5,
+          8
+        ],
+        "ground": "yard",
+        "joined": 0.2,
+        "setback": 0
+      },
+      "site": {
+        "prefers": [
+          "toward_minerals",
+          "edge",
+          "near_rail"
+        ]
+      },
+      "streets": {
+        "block": [
+          16,
+          22
+        ],
+        "depth": [
+          9,
+          12
+        ],
+        "lanes": "none",
+        "max_dead_ends": 2,
+        "pattern": "yards",
+        "style": "dirt"
+      },
+      "tags": [
+        "mine_risk",
+        "pollution_downwind"
+      ]
+    },
+    {
+      "appears": {
+        "hood_kinds": [
+          "suburb"
+        ],
+        "weight": 3
+      },
+      "art": {
+        "family": "residential",
+        "ground": "ground.asphalt",
+        "kit": "kit.semi",
+        "lamps": "lamp.white",
+        "props": "props.suburb",
+        "roof": "roof.terracotta",
+        "trim_ramps": [
+          "ramp.chalk",
+          "ramp.sage"
+        ],
+        "walls": [
+          "wall.render",
+          "wall.brick"
+        ]
+      },
+      "buildings": {
+        "density": 0.85,
+        "mix": [
+          [
+            "house",
+            1.0
+          ]
+        ],
+        "storeys": [
+          2,
+          2
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "outward",
+        "reserve": 0.25
+      },
+      "hosts": [
+        "school",
+        "clinic",
+        "park",
+        "community_centre"
+      ],
+      "id": "district.garden_suburb",
+      "name_key": "district-garden_suburb",
+      "plots": {
+        "depth": [
+          3,
+          3
+        ],
+        "frontage": [
+          3,
+          4
+        ],
+        "ground": "grass",
+        "joined": 0.1,
+        "setback": 1
+      },
+      "site": {
+        "avoids": [
+          "floodplain"
+        ],
+        "prefers": [
+          "low_slope",
+          "arterial",
+          "upwind"
+        ]
+      },
+      "streets": {
+        "block": [
+          12,
+          18
+        ],
+        "depth": [
+          7,
+          9
+        ],
+        "lanes": "none",
+        "max_dead_ends": 4,
+        "pattern": "curvy",
+        "style": "asphalt"
+      },
+      "tags": []
+    },
+    {
+      "appears": {
+        "hood_kinds": [
+          "suburb"
+        ],
+        "population": {
+          "min": 100000
+        },
+        "weight": 2
+      },
+      "art": {
+        "family": "residential",
+        "ground": "ground.asphalt",
+        "kit": "kit.estate",
+        "lamps": "lamp.white",
+        "props": "props.estate",
+        "roof": "roof.concrete_tile",
+        "trim_ramps": [
+          "ramp.chalk"
+        ],
+        "walls": [
+          "wall.render",
+          "wall.brick"
+        ]
+      },
+      "buildings": {
+        "density": 0.9,
+        "mix": [
+          [
+            "house",
+            3.0
+          ],
+          [
+            "terrace",
+            2.0
+          ]
+        ],
+        "storeys": [
+          2,
+          3
+        ]
+      },
+      "growth": {
+        "decline": "boarded",
+        "fill": "edge_estates",
+        "reserve": 0.35
+      },
+      "hosts": [
+        "school",
+        "community_centre",
+        "clinic"
+      ],
+      "id": "district.estates",
+      "name_key": "district-estates",
+      "plots": {
+        "depth": [
+          3,
+          3
+        ],
+        "frontage": [
+          3,
+          4
+        ],
+        "ground": "grass",
+        "joined": 0.5,
+        "setback": 1
+      },
+      "site": {
+        "avoids": [
+          "floodplain"
+        ],
+        "prefers": [
+          "edge",
+          "low_slope",
+          "arterial"
+        ]
+      },
+      "streets": {
+        "block": [
+          14,
+          20
+        ],
+        "depth": [
+          7,
+          8
+        ],
+        "lanes": "none",
+        "max_dead_ends": 6,
+        "pattern": "curvy",
+        "style": "asphalt"
+      },
+      "tags": []
+    },
+    {
+      "appears": {
+        "hood_kinds": [
+          "rural"
+        ],
+        "weight": 3
+      },
+      "art": {
+        "family": "rural",
+        "ground": "ground.gravel",
+        "kit": "kit.farmstead",
+        "lamps": "lamp.none",
+        "props": "props.farmland",
+        "roof": "roof.thatch",
+        "trim_ramps": [
+          "ramp.sage"
+        ],
+        "walls": [
+          "wall.stone",
+          "wall.timber"
+        ]
+      },
+      "buildings": {
+        "density": 0.5,
+        "mix": [
+          [
+            "farmhouse",
+            5.0
+          ],
+          [
+            "barn",
+            4.0
+          ]
+        ],
+        "storeys": [
+          1,
+          2
+        ]
+      },
+      "growth": {
+        "decline": "derelict",
+        "fill": "outward",
+        "reserve": 0.2
+      },
+      "hosts": [
+        "farm",
+        "mill",
+        "mine"
+      ],
+      "id": "district.farmland",
+      "name_key": "district-farmland",
+      "plots": {
+        "depth": [
+          3,
+          3
+        ],
+        "frontage": [
+          3,
+          5
+        ],
+        "ground": "field",
+        "joined": 0.0,
+        "setback": 1
+      },
+      "site": {
+        "prefers": [
+          "edge",
+          "low_slope"
+        ]
+      },
+      "streets": {
+        "block": [
+          18,
+          28
+        ],
+        "depth": [
+          10,
+          14
+        ],
+        "lanes": "none",
+        "max_dead_ends": 6,
+        "pattern": "ribbon",
+        "style": "dirt"
+      },
+      "tags": []
+    },
+    {
+      "appears": {
+        "geo": {
+          "woods_pm": {
+            "min": 350
+          }
+        },
+        "hood_kinds": [
+          "rural"
+        ],
+        "weight": 3
+      },
+      "art": {
+        "family": "rural",
+        "ground": "ground.gravel",
+        "kit": "kit.woodland_cottage",
+        "lamps": "lamp.none",
+        "props": "props.woodland",
+        "roof": "roof.shingle",
+        "trim_ramps": [
+          "ramp.sage"
+        ],
+        "walls": [
+          "wall.timber"
+        ]
+      },
+      "buildings": {
+        "density": 0.45,
+        "mix": [
+          [
+            "farmhouse",
+            3.0
+          ],
+          [
+            "shed",
+            2.0
+          ],
+          [
+            "barn",
+            1.0
+          ]
+        ],
+        "storeys": [
+          1,
+          2
+        ]
+      },
+      "growth": {
+        "decline": "derelict",
+        "fill": "outward",
+        "reserve": 0.2
+      },
+      "hosts": [
+        "mill",
+        "farm"
+      ],
+      "id": "district.woodland_edge",
+      "name_key": "district-woodland_edge",
+      "plots": {
+        "depth": [
+          3,
+          3
+        ],
+        "frontage": [
+          3,
+          4
+        ],
+        "ground": "grass",
+        "joined": 0.0,
+        "setback": 1
+      },
+      "site": {
+        "prefers": [
+          "edge",
+          "toward_woods",
+          "high_ground"
+        ]
+      },
+      "streets": {
+        "block": [
+          16,
+          24
+        ],
+        "depth": [
+          10,
+          14
+        ],
+        "lanes": "none",
+        "max_dead_ends": 6,
+        "pattern": "ribbon",
+        "style": "dirt"
+      },
+      "tags": []
+    }
+  ],
+  "features": [
+    {
+      "appears": {
+        "geo": {
+          "river": true
+        }
+      },
+      "art": {
+        "edge_rural": "edge.reeds",
+        "edge_urban": "edge.embankment",
+        "water": "water.river"
+      },
+      "generator": "river",
+      "id": "feature.river",
+      "params": {
+        "floodplain": [
+          2,
+          8
+        ],
+        "meander_pm": 160,
+        "offset_pm": 140,
+        "width_by_class": [
+          [
+            2,
+            3
+          ],
+          [
+            4,
+            6
+          ],
+          [
+            7,
+            9
+          ]
+        ]
+      }
+    },
+    {
+      "appears": {
+        "geo": {
+          "creeks": true
+        }
+      },
+      "art": {
+        "ford": "connector.ford",
+        "stones": "prop.stepping_stones",
+        "water": "water.creek"
+      },
+      "generator": "creek",
+      "id": "feature.creek",
+      "params": {
+        "max": 2,
+        "meander_pm": 220,
+        "width": 1
+      }
+    },
+    {
+      "appears": {
+        "geo": {
+          "coast": true
+        }
+      },
+      "art": {
+        "edge_rural": "edge.sand",
+        "edge_urban": "edge.quay",
+        "water": "water.sea"
+      },
+      "generator": "coast",
+      "id": "feature.coast",
+      "params": {
+        "bay_pm": 120,
+        "depth_pm": 200,
+        "wobble": 4
+      }
+    },
+    {
+      "appears": {
+        "geo": {
+          "shore": [
+            "beach"
+          ]
+        }
+      },
+      "art": {
+        "ground": "ground.sand"
+      },
+      "generator": "beach",
+      "id": "feature.beach",
+      "params": {
+        "width": [
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "appears": {
+        "geo": {
+          "shore": [
+            "cliff",
+            "rocky"
+          ]
+        }
+      },
+      "art": {
+        "face": "edge.rock_face",
+        "lip": "edge.rock_lip"
+      },
+      "generator": "cliff",
+      "id": "feature.cliff",
+      "params": {
+        "height_levels": 2,
+        "rock_pm": 600
+      }
+    },
+    {
+      "appears": {
+        "geo": {
+          "lake": true
+        }
+      },
+      "art": {
+        "edge_rural": "edge.reeds",
+        "water": "water.lake"
+      },
+      "generator": "lake",
+      "id": "feature.lake",
+      "params": {
+        "radius": [
+          8,
+          13
+        ]
+      }
+    },
+    {
+      "appears": {
+        "geo": {
+          "ruggedness_pm": {
+            "min": 150
+          }
+        }
+      },
+      "art": {
+        "bank": "edge.bank",
+        "lip": "edge.lip",
+        "steps": "connector.steps",
+        "wall": "edge.retaining_wall"
+      },
+      "generator": "hills",
+      "id": "feature.hills",
+      "params": {
+        "levels_at": [
+          150,
+          330,
+          560
+        ],
+        "noise_pm": 450
+      }
+    },
+    {
+      "appears": {
+        "geo": {
+          "woods_pm": {
+            "min": 80
+          }
+        }
+      },
+      "art": {
+        "canopy": "foliage.canopy",
+        "conifer": "prop.pine",
+        "tree": "prop.tree"
+      },
+      "generator": "woods",
+      "id": "feature.woods",
+      "params": {
+        "density_pm": 700,
+        "edge_only": true
+      }
+    },
+    {
+      "appears": {
+        "geo": {
+          "flood_pm": {
+            "min": 150
+          },
+          "river": true
+        }
+      },
+      "art": {
+        "ground": "ground.reeds",
+        "prop": "prop.reeds"
+      },
+      "generator": "marsh",
+      "id": "feature.marsh",
+      "params": {
+        "share_pm": 350
+      }
+    }
+  ],
+  "places": [
+    {
+      "id": "place.council_chamber",
+      "key": "council_chamber",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.chamber"
+        },
+        "footprint": [
+          [
+            6,
+            4
+          ],
+          [
+            7,
+            5
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "on_square",
+          "near_square"
+        ],
+        "signature": "dome",
+        "slot": "square",
+        "with": [
+          "flag"
+        ]
+      },
+      "name_key": "place-council_chamber"
+    },
+    {
+      "id": "place.town_hall",
+      "key": "town_hall",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.town_hall"
+        },
+        "footprint": [
+          [
+            7,
+            4
+          ],
+          [
+            9,
+            5
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "on_square"
+        ],
+        "signature": "clock_tower",
+        "slot": "square",
+        "with": [
+          "flag"
+        ]
+      },
+      "name_key": "place-town_hall"
+    },
+    {
+      "id": "place.community_centre",
+      "key": "community_centre",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.hall"
+        },
+        "footprint": [
+          [
+            5,
+            3
+          ],
+          [
+            6,
+            4
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "largest_residential",
+          "central"
+        ],
+        "slot": "community"
+      },
+      "name_key": "place-community_centre"
+    },
+    {
+      "id": "place.news_office",
+      "key": "news_office",
+      "layout": {
+        "art": {
+          "family": "commercial",
+          "kit": "kit.office"
+        },
+        "footprint": [
+          [
+            4,
+            3
+          ],
+          [
+            4,
+            4
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "near_square",
+          "central"
+        ],
+        "slot": "commercial"
+      },
+      "name_key": "place-news_office"
+    },
+    {
+      "id": "place.party_office",
+      "key": "party_office",
+      "layout": {
+        "art": {
+          "family": "commercial",
+          "kit": "kit.office"
+        },
+        "footprint": [
+          [
+            3,
+            3
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "near_square",
+          "central"
+        ],
+        "slot": "commercial"
+      },
+      "name_key": "place-party_office"
+    },
+    {
+      "id": "place.diner",
+      "key": "diner",
+      "layout": {
+        "art": {
+          "family": "commercial",
+          "kit": "kit.diner"
+        },
+        "footprint": [
+          [
+            3,
+            3
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "central",
+          "arterial"
+        ],
+        "slot": "commercial"
+      },
+      "name_key": "place-diner"
+    },
+    {
+      "id": "place.market",
+      "key": "market",
+      "layout": {
+        "art": {
+          "family": "commercial",
+          "kit": "kit.market"
+        },
+        "footprint": [
+          [
+            4,
+            3
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "on_square",
+          "near_square"
+        ],
+        "signature": "stalls",
+        "slot": "square",
+        "with": [
+          "stalls"
+        ]
+      },
+      "name_key": "place-market"
+    },
+    {
+      "id": "place.union_hall",
+      "key": "union_hall",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.hall"
+        },
+        "footprint": [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "near_place:factory",
+          "near_place:mine",
+          "central"
+        ],
+        "slot": "community"
+      },
+      "name_key": "place-union_hall"
+    },
+    {
+      "id": "place.school",
+      "key": "school",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.school"
+        },
+        "footprint": [
+          [
+            6,
+            4
+          ],
+          [
+            7,
+            4
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "largest_residential",
+          "quiet"
+        ],
+        "slot": "community"
+      },
+      "name_key": "place-school"
+    },
+    {
+      "id": "place.clinic",
+      "key": "clinic",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.clinic"
+        },
+        "footprint": [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "largest_residential",
+          "arterial"
+        ],
+        "slot": "community"
+      },
+      "name_key": "place-clinic"
+    },
+    {
+      "id": "place.park",
+      "key": "park",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.park_lodge"
+        },
+        "footprint": [
+          [
+            3,
+            2
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "quiet",
+          "by_water"
+        ],
+        "slot": "green",
+        "with": [
+          "park"
+        ]
+      },
+      "name_key": "place-park"
+    },
+    {
+      "id": "place.business_association",
+      "key": "business_association",
+      "layout": {
+        "art": {
+          "family": "commercial",
+          "kit": "kit.office"
+        },
+        "footprint": [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "near_square",
+          "central"
+        ],
+        "slot": "commercial"
+      },
+      "name_key": "place-business_association"
+    },
+    {
+      "id": "place.factory",
+      "key": "factory",
+      "layout": {
+        "art": {
+          "family": "industrial",
+          "kit": "kit.factory"
+        },
+        "footprint": [
+          [
+            7,
+            4
+          ],
+          [
+            9,
+            5
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "near_rail",
+          "by_water",
+          "edge"
+        ],
+        "signature": "chimney",
+        "slot": "works",
+        "with": [
+          "chimney"
+        ]
+      },
+      "name_key": "place-factory"
+    },
+    {
+      "id": "place.port",
+      "key": "port",
+      "layout": {
+        "art": {
+          "family": "industrial",
+          "kit": "kit.port"
+        },
+        "footprint": [
+          [
+            6,
+            3
+          ],
+          [
+            8,
+            4
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "shore",
+          "by_water"
+        ],
+        "signature": "cranes",
+        "slot": "harbour",
+        "with": [
+          "pier",
+          "cranes"
+        ]
+      },
+      "name_key": "place-port"
+    },
+    {
+      "id": "place.farm",
+      "key": "farm",
+      "layout": {
+        "art": {
+          "family": "rural",
+          "kit": "kit.farm"
+        },
+        "footprint": [
+          [
+            5,
+            4
+          ],
+          [
+            6,
+            4
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "edge",
+          "quiet"
+        ],
+        "slot": "works"
+      },
+      "name_key": "place-farm"
+    },
+    {
+      "id": "place.mine",
+      "key": "mine",
+      "layout": {
+        "art": {
+          "family": "industrial",
+          "kit": "kit.colliery"
+        },
+        "footprint": [
+          [
+            5,
+            4
+          ],
+          [
+            8,
+            5
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "edge",
+          "toward:minerals",
+          "near_rail"
+        ],
+        "signature": "headframe",
+        "slot": "works",
+        "with": [
+          "spoil_heap",
+          "rail_spur",
+          "winding_house"
+        ]
+      },
+      "name_key": "place-mine"
+    },
+    {
+      "id": "place.mill",
+      "key": "mill",
+      "layout": {
+        "art": {
+          "family": "industrial",
+          "kit": "kit.mill"
+        },
+        "footprint": [
+          [
+            5,
+            4
+          ],
+          [
+            6,
+            5
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "by_water",
+          "riverbank",
+          "edge"
+        ],
+        "signature": "chimney",
+        "slot": "works"
+      },
+      "name_key": "place-mill"
+    },
+    {
+      "id": "place.hotel",
+      "key": "hotel",
+      "layout": {
+        "art": {
+          "family": "commercial",
+          "kit": "kit.hotel"
+        },
+        "footprint": [
+          [
+            4,
+            4
+          ],
+          [
+            5,
+            5
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "near_square",
+          "by_water",
+          "central"
+        ],
+        "slot": "commercial"
+      },
+      "name_key": "place-hotel"
+    },
+    {
+      "id": "place.university",
+      "key": "university",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.university"
+        },
+        "footprint": [
+          [
+            7,
+            4
+          ],
+          [
+            9,
+            5
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "near_square",
+          "high_ground",
+          "quiet"
+        ],
+        "signature": "tower",
+        "slot": "civic"
+      },
+      "name_key": "place-university"
+    },
+    {
+      "id": "place.tech_campus",
+      "key": "tech_campus",
+      "layout": {
+        "art": {
+          "family": "commercial",
+          "kit": "kit.campus"
+        },
+        "footprint": [
+          [
+            6,
+            4
+          ],
+          [
+            8,
+            5
+          ]
+        ],
+        "landmark": false,
+        "place": [
+          "edge",
+          "arterial",
+          "by_water"
+        ],
+        "slot": "works"
+      },
+      "name_key": "place-tech_campus"
+    },
+    {
+      "id": "place.regional_assembly",
+      "key": "regional_assembly",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.assembly"
+        },
+        "footprint": [
+          [
+            7,
+            4
+          ],
+          [
+            9,
+            5
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "on_square",
+          "near_square"
+        ],
+        "signature": "dome",
+        "slot": "square",
+        "with": [
+          "flag"
+        ]
+      },
+      "name_key": "place-regional_assembly"
+    },
+    {
+      "id": "place.parliament",
+      "key": "parliament",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.parliament"
+        },
+        "footprint": [
+          [
+            9,
+            5
+          ],
+          [
+            11,
+            6
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "on_square",
+          "near_square"
+        ],
+        "signature": "dome",
+        "slot": "square",
+        "with": [
+          "flag"
+        ]
+      },
+      "name_key": "place-parliament"
+    },
+    {
+      "id": "place.executive_residence",
+      "key": "executive_residence",
+      "layout": {
+        "art": {
+          "family": "civic",
+          "kit": "kit.residence"
+        },
+        "footprint": [
+          [
+            7,
+            4
+          ],
+          [
+            9,
+            5
+          ]
+        ],
+        "landmark": true,
+        "place": [
+          "near_square",
+          "high_ground",
+          "quiet"
+        ],
+        "signature": "portico",
+        "slot": "civic",
+        "with": [
+          "flag"
+        ]
+      },
+      "name_key": "place-executive_residence"
+    }
+  ]
+}
