@@ -2186,7 +2186,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      Thresholds are set from the design pass, and it runs in CI beside the bot gates.
 - **Order:** the design pass first (`docs/design/research/ENGAGEMENT.md`); then 1 and 3 with the talk work; then 2 (before policy families); 4 and 5 with hidden places (G2); 6 alongside L1.
 - **Dependencies:** DEC-030, DEC-031, DEC-032, DEC-033, DEC-034, DEC-051, DEC-072, DEC-076, DEC-077, DEC-090, DEC-091, DEC-093, DEC-094, DEC-096.
-- **Design:** `docs/design/research/ENGAGEMENT.md` (2026-11-19), tasks E1–E12.
+- **Design:** `docs/design/research/ENGAGEMENT.md` (2026-11-19), tasks E1–E13 (E13: conversation memory).
 - **Owner answers (2026-11-19: "Go with recommendations"):**
   1. Canvassing between elections still raises approval a little: about 0.6× today on a first visit, fading fast on repeat visits.
   2. Casework comes only through asks, not as a free-standing action.
@@ -2202,7 +2202,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   3. **The gates police rote play:** canvassing only, media only, asks only, and corruption.
   4. **Walking is a way in, not a requirement.** Gathering knowledge pays a lot. Gathering it by walking rather than through the Places tab pays only a little (DEC-051 parity).
 
-  This amends the reading of DEC-077 §5's variety gate. Variety is measured among the informed styles, not between the intended way of playing and the rote routines. The bot gates change with E1 and E12 (ENGAGEMENT §7.2).
+  This amends the reading of DEC-077 §5's variety gate. Variety is measured among the informed styles, not between the intended way of playing and the rote routines. The gate ladder (ENGAGEMENT §7.2) is enforced in steps as E1, E8, E9 and E10 land, and E12 tunes the thresholds.
 - **Research folded in (owner, 2026-11-19: "Yes do it").** The proposals of `docs/design/research/ENGAGEMENT_REFERENCES.md` §3 are accepted into ENGAGEMENT.md and tasks E1–E12:
   - **A pacing cycle for the director,** after Left 4 Dead's AI Director and RimWorld: build-up, peak and relax within each chapter. Storyteller profiles change how often things happen, not how severe they are.
   - **Chapter themes and priority tiers for templates:** closing storyline and consequence windows come first, then the chapter's theme. No theme repeats in consecutive chapters.
