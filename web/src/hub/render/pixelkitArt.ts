@@ -27,7 +27,14 @@
 //   - diagonal streets (round 5, DEC-090 D5 amended): a map whose
 //     `streetAxis` marks any cell diagonal is drawn through the painter too,
 //     which draws its 45° staircases as smooth 45° roads, kerbs and markings;
-//     an absent or all-orthogonal `streetAxis` changes nothing.
+//     an absent or all-orthogonal `streetAxis` changes nothing;
+//   - street ends (round 6, DEC-090 D5 amended): a map that records
+//     `streetEnds` is drawn through the painter too, which draws each end
+//     (turning circle, hammerhead, bollards, plaza, field gate, railing) on
+//     orthogonal and 45° streets; the `bollards`, `field_gate` and `railing`
+//     props come from the pack (variant: the end's facing, +8 the second
+//     look), and lit bollards cast their own small pool. A map without
+//     `streetEnds` draws exactly as before.
 import { gradeAt, shadowBucket, shadowVector, sunAt, wrapMinutes } from "../dayCycle";
 import type { TownMap } from "../townLayout";
 import {
@@ -44,6 +51,7 @@ import {
   type ArtPack,
   type Facade,
   type FacadeSpec,
+  type Pool,
 } from "../../../../tools/pixelkit/art/mandate/pack";
 import { rgbaTable, toRgba, type Indexed } from "../../../../tools/pixelkit/src/runtime";
 import {
@@ -78,9 +86,15 @@ export interface PixelkitArtOptions {
   maxCharacters?: number;
 }
 
-/** Whether a map uses the layout v2 vocabulary (levels, connectors, diagonal streets, a v2 layout version). */
+/** Whether a map uses the layout v2 vocabulary (levels, connectors, diagonal streets, street ends, a v2 layout version). */
 function isV2(map: TownMap): boolean {
-  return map.version >= 2 || map.elevation !== undefined || (map.connectors !== undefined && map.connectors.length > 0) || (map.streetAxis !== undefined && map.streetAxis.some((a) => a !== 0));
+  return (
+    map.version >= 2 ||
+    map.elevation !== undefined ||
+    (map.connectors !== undefined && map.connectors.length > 0) ||
+    (map.streetEnds !== undefined && map.streetEnds.length > 0) ||
+    (map.streetAxis !== undefined && map.streetAxis.some((a) => a !== 0))
+  );
 }
 
 const T = 16;
@@ -171,7 +185,8 @@ export class PixelkitArt implements ArtProvider {
   private readonly glows = new Map<string, FrameRef>();
   private readonly props = new Map<string, PropSprite>();
   private readonly characters = new Map<string, Layer>();
-  private pool: FrameRef | null = null;
+  /** Light pool frames per pool (the street lamp's, a lit bollard's). */
+  private readonly pools = new Map<Pool, FrameRef>();
   /** Canvases made so far, and time spent composing (ms), for the HUD and tests. */
   made = 0;
   composeMs = { characters: 0, buildings: 0, terrain: 0, count: 0 };
@@ -364,23 +379,23 @@ export class PixelkitArt implements ArtProvider {
       const e = this.layer(p.emissive.w, p.emissive.h);
       this.paint(e, p.emissive, 0, 0, this.baseTable);
       sprite.emissive = { image: e.canvas, x: 0, y: 0, w: p.emissive.w, h: p.emissive.h, ax: p.ax, ay: p.ay };
-      sprite.pool = { frame: this.lightPool(), x: T / 2, y: T - 2, light: this.lampShape() };
+      const pool = p.pool ?? this.pack.pool;
+      sprite.pool = { frame: this.lightPool(pool), x: T / 2, y: T - 2, light: this.lampShape(pool) };
     }
     if (p.shadow) sprite.shadow = p.shadow;
     this.props.set(k, sprite);
     return sprite;
   }
 
-  /** The lamp's pool as a shape the renderer fits to the town (round 2: clipped to the ground, splashed up walls). */
-  private lampShape(): LightShape {
-    const pool = this.pack.pool;
+  /** A lamp's pool as a shape the renderer fits to the town (round 2: clipped to the ground, splashed up walls). */
+  private lampShape(pool: Pool): LightShape {
     const c = (i: number) => (pool.colours[i] ?? [0, 0, 0, 0]) as readonly [number, number, number, number];
     return { rx: pool.w / 2, ry: pool.h / 2, rz: pool.rz, steps: pool.steps, bands: [c(4), c(3), c(2), c(1)], dither: true };
   }
 
-  private lightPool(): FrameRef {
-    if (this.pool) return this.pool;
-    const pool = this.pack.pool;
+  private lightPool(pool: Pool): FrameRef {
+    const hit = this.pools.get(pool);
+    if (hit) return hit;
     const layer = this.layer(pool.w, pool.h);
     const id = layer.ctx.createImageData?.(pool.w, pool.h) as ImageData | undefined;
     if (id && id.data) {
@@ -394,8 +409,9 @@ export class PixelkitArt implements ArtProvider {
       }
       layer.ctx.putImageData(id, 0, 0);
     }
-    this.pool = { image: layer.canvas, x: 0, y: 0, w: pool.w, h: pool.h, ax: pool.w / 2, ay: pool.h / 2 };
-    return this.pool;
+    const f: FrameRef = { image: layer.canvas, x: 0, y: 0, w: pool.w, h: pool.h, ax: pool.w / 2, ay: pool.h / 2 };
+    this.pools.set(pool, f);
+    return f;
   }
 
   // ------------------------------------------------------------------ characters

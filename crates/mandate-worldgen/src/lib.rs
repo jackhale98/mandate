@@ -8,6 +8,7 @@
 
 pub mod climate;
 pub mod districts;
+pub mod exposure;
 pub mod grid;
 pub mod hoods;
 pub mod hydrology;
@@ -811,8 +812,11 @@ pub fn generate_with_progress(
     );
     let economy = mandate_sim::economy::init(&world, &population, &content, &meta);
     let finance = mandate_sim::finance::init(&world, &population, &economy, &content.economy);
-    let environment =
+    let mut environment =
         mandate_sim::environment::init(&world, &meta, &content, rng.get(Stream::Environment));
+    // Where hazards fall within each town, from its terrain (DEC-090 D8).
+    // Derived before history, so the burn-in's disasters fall this way too.
+    environment.exposure = exposure::derive(&world, &terrain);
     // Politics after the population exists: councils reflect their wards.
     let given_names: Vec<String> = content
         .name_pools
