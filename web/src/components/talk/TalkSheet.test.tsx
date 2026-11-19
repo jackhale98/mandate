@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { TalkView } from "../../engine/protocol/TalkView";
 import type { ExchangeView } from "../../engine/protocol/ExchangeView";
 import type { CanvassView } from "../../engine/protocol/CanvassView";
@@ -8,6 +8,9 @@ import { useGame } from "../../state/gameStore";
 import { TalkSheet } from "./TalkSheet";
 import { WorryPicker } from "./WorryPicker";
 import { streetPeople } from "./streetPeople";
+import { costText, PAGE_CHARS, replyPages, splitLong, topicRow } from "./dialogueModel";
+import { setTalkStage, useTalkStage, type TalkStage } from "./stage";
+import { keepLook, lookVariant, resetLooks } from "../portrait/look";
 
 const person = (over: Partial<PersonRefView> = {}): PersonRefView => ({
   id: 7,
@@ -45,18 +48,20 @@ function view(over: Partial<TalkView> = {}): TalkView {
         about_required: true,
         about: [
           { about: { type: "bill", policy: 3 }, kind: "bill", label: "", label_key: "talk-topic-pitch", odds: 0.62, available: true, unavailable_key: null },
-          { about: { type: "template", template: "policy.x" }, kind: "template", label: "Something else", label_key: null, odds: null, available: true, unavailable_key: null },
+          { about: { type: "template", template: "policy.x" }, kind: "template", label: "Something else", label_key: null, odds: null, available: false, unavailable_key: "talk-why-role" },
         ],
         odds: null,
         available: false,
         unavailable_key: "talk-why-needs-subject",
         asked_this_week: false,
       },
-      { id: "topic.small_talk", name_key: "talk-topic-small-talk", mechanic: "small_talk", about: [], about_required: false, odds: null, available: false, unavailable_key: "talk-why-owe", asked_this_week: true },
+      { id: "topic.small_talk", name_key: "talk-topic-small-talk", mechanic: "small_talk", about: [], about_required: false, odds: 0.4, available: false, unavailable_key: "talk-why-owe", asked_this_week: true },
     ],
     ...over,
   };
 }
+
+const to = { location: { type: "place" as const, place: 2 }, kind_key: "diner", name: "", neighborhood: 1, neighborhood_name: "Old Town" };
 
 const exchange: ExchangeView = {
   id: 4,
@@ -75,44 +80,106 @@ const exchange: ExchangeView = {
     { subject: { type: "town_concerns", town: 1 }, title_key: "notebook-town-concerns", args: { town: "Ashford", concern_key: "concern-housing" }, level: "heard" },
     { subject: { type: "person", person: 7 }, title_key: "notebook-person", args: { name: "Dana Price", role_key: "role-councillor" }, level: "known" },
   ],
-  leads: [{ key: "lead-ask-diner", args: {}, subject: { type: "broker", town: 0 }, level: "heard", to: null, route: null, since: date }],
+  leads: [
+    { key: "lead-ask-diner", args: {}, subject: { type: "broker", town: 0 }, level: "heard", to: null, route: null, since: date },
+    { key: "lead-ask-market", args: {}, subject: { type: "broker", town: 0 }, level: "heard", to: null, route: { action: "go", late_night: false, neighborhood: 1, to, here: false }, since: date },
+  ],
   relationship: "warmer",
   outcome_key: "outcome-talk",
   outcome_args: { name: "Dana Price" },
   repeat: false,
 };
 
-describe("the talk panel", () => {
+/** Reduced motion: no typewriter, so a reply is all there at once. */
+function reduceMotion(on: boolean) {
+  window.matchMedia = ((q: string) => ({ matches: on && q.includes("reduce"), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
+}
+
+const tr = englishTranslator();
+const choice = (testId: string) => within(screen.getByTestId(testId)).getByRole("button");
+
+describe("dialogue mode", () => {
   beforeEach(() => {
-    useGame.setState({ tr: englishTranslator(), talk: view(), exchange: null, talkLate: false, busy: false });
+    reduceMotion(true);
+    resetLooks();
+    setTalkStage(null);
+    useGame.setState({ tr, talk: view(), talkTo: { type: "person", person: 7 }, exchange: null, talkLate: false, busy: false });
   });
 
-  it("lists the topics as buttons with the engine's odds and cost, and says why one can't be asked", () => {
+  it("is a box of choices: the topics with the engine's odds, the cost, and why one can't be raised", () => {
     render(<TalkSheet />);
-    expect(screen.getByRole("heading", { name: "Talking with Dana Price" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Talking with Dana Price" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Dana Price" })).toBeTruthy();
     expect(screen.getByTestId("talk-opinion").textContent).toBe("Warm towards you");
-    expect(screen.getByTestId("talk-cost").textContent).toMatch(/half a slot.*2 slots left/);
-    expect(screen.getByRole("button", { name: /Who really runs things here\?/ })).toBeTruthy();
-    // The pitch shows the chosen bill's odds, as the engine gave them.
-    const pitch = screen.getByTestId("talk-topic-topic.pitch");
-    expect(within(pitch).getByTestId("talk-odds").textContent).toBe("62% chance");
-    fireEvent.change(within(pitch).getByTestId("talk-about"), { target: { value: JSON.stringify({ type: "template", template: "policy.x" }) } });
-    expect(within(pitch).queryByTestId("talk-odds")).toBeNull();
-    // Small talk: unavailable, with the engine's reason, and asked this week.
+    expect(screen.getByTestId("talk-cost").textContent).toMatch(/^½ slot · 2 left.*half a slot.*2 slots left/);
+    // Away from the street (no stage): over a portrait.
+    expect(screen.getByTestId("talk-layer").dataset.mode).toBe("portrait");
+    expect(screen.getByTestId("talk-portrait")).toBeTruthy();
+    expect(choice("talk-topic-topic.who_runs").textContent).toBe("Who really runs things here?");
+    // A topic about something opens a subject step (›) and shows no odds of its own.
+    expect(within(screen.getByTestId("talk-topic-topic.pitch")).getByText("›")).toBeTruthy();
+    expect(choice("talk-topic-topic.pitch").getAttribute("aria-disabled")).toBeNull();
+    // Small talk: unavailable, with the engine's reason, its odds, and asked this week.
     const small = screen.getByTestId("talk-topic-topic.small_talk");
-    expect((within(small).getByRole("button") as HTMLButtonElement).disabled).toBe(true);
+    expect(choice("talk-topic-topic.small_talk").getAttribute("aria-disabled")).toBe("true");
     expect(within(small).getByTestId("talk-why").textContent).toBe("You already owe them too much.");
+    expect(within(small).getByTestId("talk-odds").textContent).toBe("40%40% chance");
     expect(small.textContent).toContain("asked this week");
+    expect(choice("talk-goodbye").textContent).toBe("Goodbye");
+    // Nothing on screen is an untranslated key.
+    expect(screen.getByTestId("talk-layer").textContent).not.toMatch(/\b(talk|ui|notebook|lead)-[a-z-]+\b/);
   });
 
-  it("asks the engine (the topic, and the subject chosen)", () => {
+  it("raises a topic in one tap; a topic about something asks for the subject in the same box", () => {
     const talkAbout = vi.fn(async () => {});
     useGame.setState({ talkAbout });
     render(<TalkSheet />);
-    fireEvent.click(screen.getByRole("button", { name: /Who really runs/ }));
+    fireEvent.click(choice("talk-topic-topic.who_runs"));
     expect(talkAbout).toHaveBeenCalledWith("topic.who_runs", null);
-    fireEvent.click(within(screen.getByTestId("talk-topic-topic.pitch")).getByTestId("talk-ask"));
+    // The question goes up over the player while the engine answers.
+    expect(screen.getByTestId("talk-you").textContent).toBe("Who really runs things here?");
+    fireEvent.click(choice("talk-topic-topic.pitch"));
+    const subjects = screen.getByTestId("talk-subjects");
+    // Grouped by kind, each with its own odds and availability.
+    expect(subjects.textContent).toContain("Bills");
+    expect(subjects.textContent).toContain("Policies");
+    const rows = within(subjects).getAllByTestId("talk-subject");
+    expect(within(rows[0] as HTMLElement).getByTestId("talk-odds").textContent).toMatch(/^62%/);
+    expect(within(rows[1] as HTMLElement).getByTestId("talk-why").textContent).toBe("They're not the person to ask about that.");
+    fireEvent.click(within(rows[1] as HTMLElement).getByRole("button"));
+    expect(talkAbout).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(rows[0] as HTMLElement).getByRole("button"));
     expect(talkAbout).toHaveBeenLastCalledWith("topic.pitch", { type: "bill", policy: 3 });
+    // Back at the topics; the player's line names the subject.
+    expect(screen.getByTestId("talk-topics")).toBeTruthy();
+    expect(screen.getByTestId("talk-you").textContent).toBe("Pitch a policy: Pitch a policy");
+  });
+
+  it("the keyboard: arrows move, Escape steps back from the subjects, then leaves", () => {
+    const openTalk = vi.fn(async () => {});
+    useGame.setState({ openTalk });
+    render(<TalkSheet />);
+    const list = screen.getByTestId("talk-topics");
+    const buttons = within(list).getAllByRole("button");
+    // The first choice has the keyboard; one Tab stop for the list.
+    expect(document.activeElement).toBe(buttons[0]);
+    expect(list.querySelectorAll("button[tabindex='0']").length).toBe(1);
+    fireEvent.keyDown(document.activeElement as Element, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(buttons[1]);
+    fireEvent.keyDown(document.activeElement as Element, { key: "End" });
+    expect(document.activeElement).toBe(choice("talk-goodbye"));
+    fireEvent.keyDown(document.activeElement as Element, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(buttons[0]);
+    fireEvent.keyDown(document.activeElement as Element, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(choice("talk-goodbye"));
+    fireEvent.click(choice("talk-topic-topic.pitch"));
+    expect(screen.getByTestId("talk-subjects")).toBeTruthy();
+    fireEvent.keyDown(document.activeElement as Element, { key: "Escape" });
+    expect(screen.queryByTestId("talk-subjects")).toBeNull();
+    expect(document.activeElement).toBe(choice("talk-topic-topic.pitch"));
+    expect(openTalk).not.toHaveBeenCalled();
+    fireEvent.keyDown(document.activeElement as Element, { key: "Escape" });
+    expect(openTalk).toHaveBeenCalledWith(null);
   });
 
   it("says plainly when the player is out of time", () => {
@@ -120,35 +187,136 @@ describe("the talk panel", () => {
     render(<TalkSheet />);
     expect(screen.getByTestId("talk-out-of-time").textContent).toContain("out of time this turn");
     expect(screen.queryByTestId("talk-cost")).toBeNull();
-    for (const b of screen.getByTestId("talk-topics").querySelectorAll("button")) expect((b as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Out of time")).toBeTruthy();
+    for (const id of ["topic.who_runs", "topic.pitch", "topic.small_talk"]) expect(choice(`talk-topic-${id}`).getAttribute("aria-disabled")).toBe("true");
+    // Said once, not on every line.
+    expect(screen.queryAllByTestId("talk-why")).toHaveLength(0);
+    expect(choice("talk-goodbye").getAttribute("aria-disabled")).toBeNull();
   });
 
-  it("someone elsewhere: where they are, and a way there", () => {
+  it("someone elsewhere: where they are, and going there first", () => {
     const goToTalk = vi.fn(async () => {});
-    const to = { location: { type: "place" as const, place: 2 }, kind_key: "diner", name: "", neighborhood: 1, neighborhood_name: "Old Town" };
     useGame.setState({ goToTalk, talk: view({ here: false, route: { action: "go", late_night: false, neighborhood: 1, to, here: false } }) });
     render(<TalkSheet />);
     expect(screen.getByTestId("talk-away").textContent).toMatch(/They're at/);
-    fireEvent.click(screen.getByTestId("talk-go"));
+    const go = choice("talk-go");
+    expect(go.textContent).toMatch(/Go to/);
+    expect(document.activeElement).toBe(go);
+    fireEvent.click(go);
     expect(goToTalk).toHaveBeenCalled();
   });
 
-  it("shows the exchange as a dialogue in their voice, then what was learned and the leads", () => {
-    useGame.setState({ exchange });
+  it("a reply: page by page in their voice (stage directions in italics), read out, then the outcome, a notebook toast and a lead to follow", () => {
+    const openTalk = vi.fn(async () => {});
+    const openPocket = vi.fn();
+    const visit = vi.fn(async () => {});
+    useGame.setState({ exchange, openTalk, openPocket, visit });
     render(<TalkSheet />);
-    const x = screen.getByTestId("talk-exchange");
-    expect(within(x).getByTestId("talk-you").textContent).toBe("You: Who really runs things here?");
-    const lines = within(x).getByTestId("talk-dialogue").querySelectorAll("p");
-    expect(lines.length).toBe(2);
-    expect(lines[0]?.className).toBe("talk-stage");
-    expect(lines[0]?.textContent).toContain("Dana Price");
-    expect(within(x).getByTestId("talk-outcome").textContent).toContain("Dana Price seems warmer towards you.");
-    const learned = within(x).getByTestId("talk-learned").textContent ?? "";
-    expect(learned).toContain("What Ashford worries about: Housing");
-    expect(learned).toContain("Heard of");
-    expect(within(x).getByTestId("talk-leads").textContent).toContain("The diner hears everything");
-    // Nothing on screen is an untranslated key.
-    expect(x.textContent).not.toMatch(/\b(talk|ui|notebook|lead)-[a-z-]+\b/);
+    const pages = replyPages(tr, exchange);
+    expect(pages.length).toBeGreaterThan(1);
+    const bubble = screen.getByTestId("talk-bubble");
+    const live = screen.getByTestId("talk-reply-live");
+    // The first page: the opener as a stage direction; the live region reads the same words.
+    expect(bubble.querySelector("[data-stage]")?.textContent).toContain("Dana Price checks the time");
+    expect(live.textContent).toBe(`Dana Price: ${pages[0]?.map((s) => s.text).join(" ")}`);
+    expect(bubble.textContent).toContain(pages[0]?.[0]?.text ?? "?");
+    // Not at the end: no outcome, no toast yet.
+    expect(screen.queryByTestId("talk-outcome")).toBeNull();
+    expect(screen.queryByTestId("talk-noted")).toBeNull();
+    for (let i = 1; i < pages.length; i++) fireEvent.click(choice("talk-continue"));
+    expect(screen.queryByTestId("talk-continue")).toBeNull();
+    // The last page: the mood's change, as a stage direction.
+    expect(screen.getByTestId("talk-bubble").textContent).toContain("Dana Price seems warmer towards you.");
+    expect(screen.getByTestId("talk-outcome").textContent).toBe("You talked with Dana Price.");
+    const noted = screen.getByTestId("talk-noted");
+    expect(noted.textContent).toContain("Noted: What Ashford worries about: Housing");
+    expect(noted.textContent).toContain("and 1 more");
+    // A lead with somewhere to go is a choice.
+    const lead = choice("talk-lead-go");
+    expect(lead.textContent).toMatch(/^Go to /);
+    fireEvent.click(lead);
+    expect(openTalk).toHaveBeenCalledWith(null);
+    expect(visit).toHaveBeenCalledWith(to.location);
+    fireEvent.click(within(noted).getByTestId("talk-noted-open"));
+    expect(openPocket).toHaveBeenCalledWith("notebook");
+    expect(screen.getByTestId("talk-layer").textContent).not.toMatch(/\b(talk|ui|notebook|lead)-[a-z-]+\b/);
+  });
+
+  it("the typewriter reveals a page; a tap shows it all, the next tap turns it", () => {
+    reduceMotion(false);
+    vi.useFakeTimers();
+    try {
+      render(<TalkSheet />);
+      // The reply arrives.
+      act(() => useGame.setState({ exchange }));
+      const bubble = () => screen.getByTestId("talk-bubble");
+      // All the words are in the DOM from the start; what is not typed yet is hidden.
+      expect(bubble().querySelector(".dlg-untyped")).toBeTruthy();
+      const first = bubble().textContent;
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(bubble().textContent).toBe(first);
+      fireEvent.click(bubble());
+      expect(bubble().querySelector(".dlg-untyped")).toBeNull();
+      fireEvent.click(bubble());
+      expect(bubble().textContent).not.toBe(first);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("in the street: the stage frames the two speakers while the conversation lasts", () => {
+    const calls: string[] = [];
+    const stage: TalkStage = {
+      canFrame: (k) => k === "c7",
+      begin: (k) => void calls.push(`begin ${k}`),
+      cover: () => {},
+      speaking: (w) => void calls.push(`speaking ${w}`),
+      end: () => void calls.push("end"),
+      anchors: () => ({ player: { x: 100, y: 300 }, person: { x: 160, y: 300 }, scale: 48, bounds: { left: 0, top: 0, right: 400, bottom: 800 } }),
+      onFrame: () => () => {},
+      lookOf: () => 321,
+      focus: () => void calls.push("focus"),
+    };
+    setTalkStage(stage);
+    const { unmount } = render(<TalkSheet />);
+    expect(screen.getByTestId("talk-layer").dataset.mode).toBe("street");
+    expect(screen.getByTestId("talk-veil")).toBeTruthy();
+    expect(useTalkStage.getState().mode).toBe("street");
+    expect(calls).toContain("begin c7");
+    unmount();
+    expect(calls).toContain("end");
+    // The keyboard goes back to the street.
+    expect(calls).toContain("focus");
+  });
+});
+
+describe("the dialogue's words", () => {
+  it("pages a long reply for a phone's bubble, between sentences", () => {
+    const long = Array.from({ length: 12 }, (_, i) => `Sentence number ${i} is here.`).join(" ");
+    const parts = splitLong(long);
+    expect(parts.length).toBeGreaterThan(1);
+    for (const p of parts) expect(p.length).toBeLessThanOrEqual(PAGE_CHARS);
+    expect(parts.join(" ")).toBe(long);
+    expect(parts.every((p) => p.endsWith("."))).toBe(true);
+  });
+
+  it("states the cost in a few words", () => {
+    expect(costText(tr, view())?.short).toBe("½ slot · 2 left");
+    expect(costText(tr, view({ half_slot_left: true, slots_left: 2 }))?.short).toBe("½ slot · 2½ left");
+    expect(costText(tr, view({ half_slot_left: true, slots_left: 0 }))?.short).toBe("½ slot · ½ left");
+    expect(costText(tr, view({ late_night: true }))?.short).toBe("The late slot");
+    expect(costText(tr, view({ out_of_time: true }))).toBeNull();
+  });
+
+  it("a topic about something is open while one of its subjects is", () => {
+    const pitch = view().topics[1];
+    if (!pitch) throw new Error("fixture");
+    expect(topicRow(pitch)).toMatchObject({ opens: true, available: true, why: null });
+    const none = { ...pitch, about: pitch.about.map((c) => ({ ...c, available: false, unavailable_key: "talk-why-away" })) };
+    expect(topicRow(none)).toMatchObject({ available: false, why: "talk-why-away" });
+    expect(topicRow({ ...pitch, about: [] })).toMatchObject({ opens: false, available: false, why: "talk-why-needs-subject" });
   });
 });
 
@@ -191,7 +359,6 @@ describe("the worry picker", () => {
 
 describe("the street's people", () => {
   it("are those the engine lists as here, named as the player knows them, with a stable look", () => {
-    const tr = englishTranslator();
     const list = streetPeople(tr, [
       person(),
       person({ id: null, ambient_slot: 1, name: "", role_key: "occupation-retiree", tier: "ambient", level: "unknown" }),
@@ -201,5 +368,13 @@ describe("the street's people", () => {
     expect(list[0]?.label).toBe("Dana Price");
     expect(list[1]?.label).toBe("Retiree");
     expect(streetPeople(tr, [person()])[0]?.variant).toBe(list[0]?.variant);
+  });
+
+  it("a passer-by met keeps their look under their new key (the street and the portrait agree)", () => {
+    resetLooks();
+    const was = lookVariant("a1");
+    keepLook("c40", was);
+    expect(lookVariant("c40")).toBe(was);
+    expect(streetPeople(tr, [person({ id: 40 })])[0]?.variant).toBe(was);
   });
 });

@@ -96,12 +96,38 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
 - **Decisions before data.** Panels lead with what needs a decision, then supporting information.
 
 ## 3. Talking to people (DEC-093)
-- **The talk panel** is a sheet over the place panel and the character sheet (bottom sheet on phones, side panel from 900 px). It opens from:
+- **Dialogue mode.** A conversation is a classic RPG dialogue box at the bottom of the screen (about a third of a phone's height; a compact 680 px box on desktop, with the topics in two columns) and pixel speech bubbles over the speakers. The box and the bubbles have the game's pixel frames (CSS: whole 3 px borders, notched corners, a hard drop shadow), with light and dark sets. It opens from:
   - the place panel's **People here** (a Talk button beside each person; a passer-by is met as the talk starts);
   - the pocket's **People** tab (the council, the mayor, the power broker, the rival);
-  - the **walkable street**: the engine's people on the street the player is on stand about it with a name tag; a tap on them (or their tag) walks up to them and opens the panel; with the keyboard, standing beside them shows "Enter: talk to …" (the door-hint pattern) and Enter opens it. At a place, its people are in the place panel.
-- **Topics are buttons.** A topic about something has a subject picker (grouped by kind) and an Ask button. Contested topics (a pitch, an ask for support) show the engine's odds, the same figure the roll uses (DEC-073). An unavailable topic is disabled with the engine's reason (`talk-why-*`). Topics a person is not asked (their role, the place, conditions) are left out.
-- **The cost is stated:** half a slot; the next conversation uses the half left over; late at night, the late slot. Out of time, a warning says so and every topic waits.
-- **Someone elsewhere:** the panel says where they are, with a button to go there (free); topics show no odds until the player is there.
-- **The reply** shows as a short dialogue: the question, an opener as a stage direction, then the speaker's lines in their voice, the outcome and any change in how warm they are. Then **What you learned** (the notebook's entries, with their level) and **Leads** (with a button to go there). Everything is Fluent keys and facts from `ExchangeView`; the UI composes nothing.
+  - the **walkable street**: the engine's people on the street the player is on stand about it with a name tag. A tap on them (or their tag) walks the player up beside them (left or right where possible) and starts the conversation. With the keyboard, standing beside them shows "Enter: talk to …" (the door-hint pattern) and Enter starts it. At a place, its people are in the place panel.
+- **In the street** (the person stands there by the player, and the street is in sight):
+  - the camera eases to frame the two of them facing each other above the box, zoomed in a little (it snaps with reduced motion);
+  - the rest of the street dims (a pool of light stays on the speakers);
+  - walking, street input, labels, the "you are here" marker and the townsfolk pause until the conversation ends;
+  - only the speaker moves (a one-pixel bob while their words come out), so the street draws nothing between replies. The street is not paused as it is behind a sheet.
+- **Anywhere else** (the People tab, a place's people, the List view, anyone not on screen): the same box over a large pixel **portrait** of the person, with the bubbles beside it. The portrait is the bust of their street sprite: the same look, composed from the same character parts, at 8 CSS px per art pixel. The street behind is dimmed, blurred and paused.
+- **The box:**
+  - A name plate shows the name (the role, for a stranger). The header gives their role, how warm they are, the cost ("½ slot · 2½ left"; late at night, "The late slot") and a close button.
+  - **Choices** are one line each, one per topic the engine offers (`TalkView`). Topics a person is not asked (their role, the place, conditions) are left out.
+  - Contested topics show the engine's odds as a tag ("62%"), the same figure the roll uses (DEC-073). "Asked this week" is tagged too.
+  - An unavailable topic is muted, with the engine's reason (`talk-why-*`). A reason every topic shares (out of time, not here) is given once, above the choices.
+  - **Goodbye** ends the conversation.
+- **A topic about something** shows "›" and opens a **second step in the same box**: Back, the topic's name, a search box when the list is long, then its subjects grouped by kind (only those the player knows of), each with its own odds and availability. Where the topic may be about nothing, "Nothing in particular" comes first.
+- **Out of time:** the header says so, a warning above the choices says why, and every topic waits.
+- **Someone elsewhere:** the box says where they are and offers "Go to …" first (the free move). The topics wait, without odds, until the player is there.
+- **The reply:**
+  - The player's question shows briefly in a bubble over the player; the person thinks ("…"); then the reply comes in a bubble over them (or beside the portrait).
+  - Openers and unquoted closers are stage directions, in italics. Then come the lines in their voice, any leads in their voice, and any change in how warm they are.
+  - Long replies are paged (about five lines on a 360 px phone). A ▼ and a **Continue (1 of 3)** choice turn the page, as do a tap on the bubble or the street, Enter and Space.
+  - A typewriter reveals each page (a tap shows it all; it is off with reduced motion). The bubble keeps its size as it types.
+  - Street bubbles follow the camera and stay on screen: clamped at the sides, flipped below the speaker near the top, never under the box.
+- **After the reply:**
+  - The outcome is a line above the choices.
+  - What was learned is a **notebook toast** at the top ("✎ Noted: …, and 1 more"). It opens the notebook, which lands on the tab with the new entries.
+  - A lead with somewhere to go is a choice ("Go to the market").
+  - Everything is Fluent keys and facts from `ExchangeView`; the UI composes nothing.
+- **Accessibility (DEC-051):**
+  - The box is DOM. The choices are buttons in a list with one Tab stop: arrow keys, Home and End move; Enter chooses. Escape steps back from the subject step, else leaves. Enter or Space off any control turns the page.
+  - The reply is read by a polite live region ("Dana Price: …"); the bubbles hold the same words in the DOM.
+  - Focus goes into the box when it opens, and back to whatever opened it when it closes (if that is still there), else to the street.
 - **Canvassing on a worry (DEC-091):** the canvass form has a **Talk about** picker, "No particular issue" first, then only the worries the player knows of in that neighbourhood (its own, then the town's). The match comes from the engine's preview (`CanvassView`): a word (strong, fair, weak fit) once the neighbourhood's worries are known, the multiplier once known in detail, "isn't known yet" before. After the canvass, a line says how the worry went down (the engine's outcome).
