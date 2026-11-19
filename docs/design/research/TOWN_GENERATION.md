@@ -1,6 +1,6 @@
 # Research and design: town layout v2 (towns grown from their geography)
 
-Status: accepted (owner, 2026-11-19; DEC-090, all §16 recommendations). Nothing here is built yet; it starts M6. Sketches: `town-gen-sketches/` (illustrations made by a throwaway script, not the generator).
+Status: accepted (owner, 2026-11-19; DEC-090, all §16 recommendations). Stage A (the client generator) is built (see "Stage A built"). Phase C (§15, D4) is built: the four registries are content (`content/base/layout/*.jsonc` and the `layout` blocks of `content/base/places.jsonc`), typed and validated in `mandate-content` (`layout.rs`, schema, `content validate`), served as `LayoutContentView` (§4.3), and read by the client generator with a recipe snapshot per town in the prototype (§6.6 option C); the pinned v2 hashes did not move. Sketches: `town-gen-sketches/` (illustrations made by a throwaway script, not the generator).
 
 ## Executive summary
 

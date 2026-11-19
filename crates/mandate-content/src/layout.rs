@@ -719,7 +719,13 @@ pub(crate) fn validate_layout(b: &ContentBundle, issues: &mut Vec<Issue>) {
             check_art_key(k, id, issues);
         }
     }
-    if !b.town_districts.is_empty() || !b.terrain_features.is_empty() {
+    // What the base game's towns always need is checked once any layout
+    // content exists, so a bundle without town layout (tests, tools) loads.
+    let any_layout = !b.town_districts.is_empty()
+        || !b.terrain_features.is_empty()
+        || !b.connectors.is_empty()
+        || b.places.iter().any(|p| p.layout.is_some());
+    if any_layout {
         for kind in HOOD_KINDS {
             let covered = b.town_districts.iter().any(|d| {
                 d.appears.unconditional() && d.appears.hood_kinds.iter().any(|k| k == kind)
@@ -789,12 +795,6 @@ pub(crate) fn validate_layout(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
     }
 
-    // What the base game's towns always need. Checked once any layout content
-    // exists, so a bundle without town layout (tests, tools) still loads.
-    let any_layout = !b.town_districts.is_empty()
-        || !b.terrain_features.is_empty()
-        || !b.connectors.is_empty()
-        || b.places.iter().any(|p| p.layout.is_some());
     if any_layout {
         for g in REQUIRED_GENERATORS {
             if !b.terrain_features.iter().any(|f| f.generator == *g) {

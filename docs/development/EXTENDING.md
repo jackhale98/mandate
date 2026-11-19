@@ -10,7 +10,7 @@ How to add things to the game after release (DEC-075). There are three kinds of 
 
 - A pack is a folder under `content/` with a `pack.jsonc` manifest (`id`, `version`, `name_key`, `load_order`), JSONC files of any `kind`, and Fluent files under `locale/<lang>/`.
 - Every file is checked against `content/schemas/content.schema.json`, which is generated from the Rust types (DEC-053). After changing a content type, run `cargo run -p mandate-cli -- content schema` and commit the result.
-- Registries (sectors, attitudes, communities, concerns, name pools, scenarios, places, constitutions, policies, traits, occupations, crises, storytellers, dilemmas, goals, storylines, scenes, outlets) are in **load order**: files sorted by path, then item order. The engine stores registry data densely in that order. A pack whose path sorts before `base/` puts its entries first. That is supported: saves record registry keys, not positions.
+- Registries (sectors, attitudes, communities, concerns, name pools, scenarios, places, constitutions, policies, traits, occupations, crises, storytellers, dilemmas, goals, storylines, scenes, outlets, town districts, terrain features, connectors) are in **load order**: files sorted by path, then item order. The engine stores registry data densely in that order. A pack whose path sorts before `base/` puts its entries first. That is supported: saves record registry keys, not positions.
 - Content ids are unique across all packs. Overriding an entry from an earlier pack ("pack patches") is not supported yet: a duplicate id is an error.
 - Every `name_key` and every other Fluent key that content references must exist in English, the reference locale (DEC-054). The engine never produces prose.
 - Check content with `cargo run -p mandate-cli -- content validate`.
@@ -202,6 +202,26 @@ A scenario only says what makes its world different. Anything omitted is drawn e
 | `economy` | `endowment` (sector driver → multiplier), `wealth`, `class_mix` ([low, middle, high] multipliers) |
 | `era` | `tech_growth`, `manufacturing_trend` (defaults in `economy.jsonc`), `drying`, `storminess` |
 | `politics` | `attitude_shift` (attitude key → added to seeded opinions) |
+
+### Adding a district type / terrain feature / connector (DEC-090 D4)
+
+Town layout v2 draws each town from content registries (TOWN_GENERATION.md §6). They are presentation data: the engine validates them on load and sends them to the client as `LayoutContentView` (query `layout_content`), but never reads them, so they cannot change a simulation result. Types: `crates/mandate-content/src/layout.rs`.
+
+| Add | Where (`kind`) | Required | Validation |
+|---|---|---|---|
+| District type | `town_districts` (base: `content/base/layout/town_districts.jsonc`) | `id`, `name_key` (`district-<name>`), `appears` (`hood_kinds`, `weight`; optional `geo`, `population`, `town_class`, `era`, `requires_place`), `site` (`prefers`; optional `avoids`, `anchor`), `streets` (`pattern`, `block`, `depth`, `lanes`, `max_dead_ends`, `style`), `plots`, `buildings` (`mix` of `[filler kind, weight]`, `storeys`, `density`), `growth`, `art` (`family` required; `kit`, `ground`, `roof`, `walls`, `trim_ramps`, `lamps`, `props`); optional `hosts`, `tags` | Known neighbourhood kinds, siting predicates, street patterns (organic, grid, curvy, contour, yards, quay, ribbon), filler kinds and town classes; geography fields only from the list in `GeoCondition`, per-mille ranges within 0..1000; ranges in bounds (block 6..40, depth 5..20, frontage 2..12, plot depth 2..8, storeys 1..8, shares 0..1, reserve 0..0.5); `hosts` and `requires_place` name place kinds; art keys well formed. Every neighbourhood kind keeps at least one type with no condition but its kind (a pick must always exist) |
+| Terrain feature | `terrain_features` (`content/base/layout/terrain_features.jsonc`) | `id`, `generator` (river, creek, coast, lake, hills, cliff, woods, marsh, beach), `art`; optional `appears.geo`, `params` | `params` are integers, integer lists or tables, or flags (the generator is integer-only); art keys well formed. The towns need a river, creek, coast and hills feature. The first feature in load order with a generator is the one used |
+| Connector | `connectors` (`content/base/layout/connectors.jsonc`) | `id`, `kind` (bridge, footbridge, ford, viaduct, level_crossing), `max_span` (1..32), `roads`, `crosses`, `art.kit`; optional `town_class`, `era` | Known roads (arterial, street, lane, path, rail) and crossings (river, sea, lake, creek, rail). The towns need a bridge, a ford and a level crossing. The generator takes the first connector in load order that allows a crossing, so a pack adds a special case by sorting before `base/` |
+| How a place kind is drawn | `layout` block of its `places` entry | `slot`, `footprint` (`[[min w, min h], [max w, max h]]`, 2..16), `place` (predicates in order of preference: the list in `PLACE_PREDICATES`, `toward:minerals`, `toward:woods`, `near_place:<kind>`), `landmark`, `art.family`; optional `signature`, `with`, `art.kit` | Known slots and predicates; `near_place` names a place kind. A kind without a block is drawn with a generic footprint (a warning); `home` and `streets` are not buildings and have none |
+
+The content-only path, for example a fishing quay:
+
+1. Add an entry like the sample in TOWN_GENERATION.md §6.2 to a `town_districts` file in your pack: when it appears, a street pattern from the list, plots, the building mix, the places it hosts, tags and art keys (existing keys, or new parts in your art pack, §7.5).
+2. Add its Fluent name (`district-fishing_quay`) to your pack's English strings. (Validation checks the key's form only until the base district strings exist; they come with the town text alternative's FTL.)
+3. Run `cargo run -p mandate-cli -- content validate`, then `pixelkit lint` for the art keys.
+4. New runs pick the type wherever its `appears` rules match. A town already shown keeps the entries it was planned with (its recipe snapshot, §6.6 option C), so a content change never rearranges it.
+
+When the base entries change, refresh the client's fixture (`MANDATE_UPDATE_FIXTURES=1 cargo test -p mandate-protocol layout` rewrites `web/src/hub/layoutV2/registry/base.json`) and run the web tests: the pinned plan and dress hashes in `web/src/hub/layoutV2/__snapshots__` show which committed towns moved. A new street pattern, terrain generator, placement predicate, geography condition or connector behaviour is code (TOWN_GENERATION.md §6.5): the client function, the name in the closed list in `layout.rs`, and a test.
 
 ### Lab overrides (DEC-078 decision 2)
 
