@@ -103,6 +103,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-094 | Credit and blame for laws; endorsements that move their followers' votes | Accepted |
 | DEC-095 | Every character attribute changes behaviour; a lab check forbids decorative attributes | Accepted |
 | DEC-096 | The power broker acts: lobbies, backs people, and helps or hinders the player | Accepted |
+| DEC-097 | Engagement and variety: ground-game rebalance, asks and promises, storyteller variety, secrets and walking rewards, an engagement gate | Accepted |
 
 ---
 
@@ -2139,3 +2140,39 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Balance:** magnitudes in content parameter blocks (DEC-078). The lab gates require that broker alignment matters (measurable vote and money effects) but never dominates, and that the variety check still passes.
 - **Timing:** M6, with endorsements (V2) and attributes (A1). It is in `M6_ENGINE_CONTRACTS.md` §4 as task P1.
 - **Dependencies:** DEC-030, DEC-031, DEC-032, DEC-034, DEC-077, DEC-078, DEC-091, DEC-092, DEC-094, DEC-095.
+
+### DEC-097 — Engagement and variety
+
+- **Status:** Accepted (owner, 2026-11-19: "Yes let's do it"). The owner worried that day-to-day play would be repetitive ("canvas and pass an unemployment bill every day") and asked whether the storyteller's output had been audited. They also asked for "hidden Easter eggs or secrets in the actual town, so people who are walking are rewarded with something".
+- **Evidence (lab audit, 2026-11-19):**
+  - Two 4-year careers (`mandate-cli story`, seeds 777 and 2026, mixed bot) had 27 and 29 decisions from only 10 and 12 templates.
+  - The same few repeated: amendment-for-a-vote ×5, jobs plea ×5, pollution ×3–4, traders' meeting ×3–4.
+  - Each career had one storyline (the rival), no press stories about the player, no scandals, and quiet stretches of up to 168 days.
+  - The bot tournament (K4): canvass-only wins 84–87% of careers, the most of any strategy.
+- **Decision:**
+  1. **Ground game rebalance.** Canvassing mainly raises awareness, with fast diminishing returns per neighbourhood and per turn. Approval comes mostly from delivery: credit and blame for laws (DEC-094 V1), kept promises, and help to individuals. Canvassing stays strongest in campaign season.
+  2. **Asks and promises (a goals layer).** People the player meets, the party, the broker, organisations and the press make concrete asks with deadlines ("fix the drain on Mill Lane", "vote with us on the budget", "say something about the closure"). Rewards are relationships, record, endorsements and knowledge; a broken promise costs. Campaign promises become tracked commitments. They are generated from live state and characters' goals (DEC-032) as data-driven ask templates, and shown in the pocket's Today tab.
+  3. **Storyteller variety:**
+     - a per-template cooldown, and no repeat within a chapter;
+     - a larger pool, including consequences of the player's own past choices;
+     - 2–4 storylines per career, with NPC schemes (rival, broker) running in parallel;
+     - the press covers the player's work (bills passed, promises kept or broken, appearances), not only scandals.
+  4. **Secrets (information).** Town secrets are uncovered by asking around, investigating, or tipping off the press, building on knowledge (DEC-091) and conversations (DEC-093): broker deals, buried reports, who backs whom, a councillor's debts. They are seeded from live state, never decisive alone, and follow "the world does not wait" (secrets exist and matter whether found or not).
+  5. **Walking rewards (exploration).** Things found only by walking the town (owner request):
+     - hidden places (DEC-090 D7);
+     - curiosities and Easter eggs: a plaque, a mural, an old campaign poster, a lost cat, a bench with a story, a view from the hill;
+     - rare ambient encounters: a resident with a tip, a journalist off duty, the broker taking a walk;
+     - small collectible town lore for the notebook.
+
+     Rewards are small: knowledge, a lead, goodwill, a story beat, an occasional modest boost. They are never required, and their kinds are data-driven so they vary by town. Quick mode and the Places tab reach anything that affects play. Pure flavour may stay walk-only, but nothing that affects play does (DEC-051).
+  6. **An engagement gate in the lab.** Per simulated career:
+     - distinct decision templates and repeats per template;
+     - the longest quiet stretch;
+     - storylines;
+     - press stories about the player;
+     - asks offered, kept and broken;
+     - the action mix of winning bots: no single-verb strategy may be the best overall, which replaces today's canvass dominance.
+
+     Thresholds are set from the design pass, and it runs in CI beside the bot gates.
+- **Order:** the design pass first (`docs/design/research/ENGAGEMENT.md`); then 1 and 3 with the talk work; then 2 (before policy families); 4 and 5 with hidden places (G2); 6 alongside L1.
+- **Dependencies:** DEC-030, DEC-031, DEC-032, DEC-033, DEC-034, DEC-051, DEC-072, DEC-076, DEC-077, DEC-090, DEC-091, DEC-093, DEC-094, DEC-096.
