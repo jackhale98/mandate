@@ -11,6 +11,7 @@
 | Property | `proptest` | Invariants: no negative populations; budgets reconcile; IDs unique and never reused; probabilities in [0,1]; no NaN in state; calendar monotonic; vote shares sum to 1; seats allocated equal seats available; every constitution procedure terminates |
 | Integration / scenario | Rust scenario tests over canonical worlds (§3) | Cross-system chains: policy → economy → cohorts → opinion → election; factory closure chain (brief §7.2); authority gating; storyline grounded in state; hub "homecoming" consistency after a long absence |
 | Narrative (DEC-033, DEC-077 §4, DEC-032) | `worldgen/tests/narrative.rs`, `content/tests/narrative.rs` | Grounding audit (`narrative::audit`): 24 seeds × 10 years, every decision, request, storyline turn, and spotlit fact resolves to live actors and true conditions on the day it is emitted; budgets, spacing, and cooldowns per chapter; the crisis cap holds hazards (timing only: the same hazards as Unfiltered, each within the longest deferral); a warning precedes every terminal track end and deselection; spotlight on vs off gives identical endogenous state (elections, policies, every domain); answers apply real effects and memories; defaults at deadlines; storylines branch; an opposing goal turns a colleague's lean; determinism with answers through save/load; content: every option costs someone |
+| Media and the legal path (DEC-034, DEC-006, DEC-030, DEC-033) | `worldgen/tests/media.rs`, `save/tests/saves.rs` | Grounding audit (`media::audit_story`): 10 careers × 4 years with shady acts and answers, every story traces to a fact (a scandal's hidden fact with its fate and its window, a case's stage, a rumour's leak, a statement, a town event) on the day it runs; perception only through coverage (a planted hidden fact leaves every cohort's view of the player identical to its twin's until the first story runs); the director shifts when, never whether (shaping on and off: equal fates and windows for the same facts, dates inside windows, some dates shifted); NPC corruption through the same exposure, scandal, case stages, sentence, and seat-filling as the player's, and NPCs tempted on their own; each legal stage and outcome (investigation, charges, trial; dropped, acquitted, fined or removed, prison); a long sentence only after the Legal Jeopardy warning and its response window, and adjourned when no warning is possible; a short sentence is a time skip with no decisions, then release and a filing; shady actions pay now and leave a hidden fact; determinism through saves; a v12 save migrates and the press picks up |
 | Determinism | CI suite (DEC-041) | Same seed and command log run twice give equal state hashes; native and WASM give equal hashes; save → load → continue equals an uninterrupted run; lazy-evaluation order independence (Named characters caught up in either order, or in steps, give the same state: `worldgen/tests/characters.rs`) |
 | Replay regression | Recorded `(seed, content hash, command log)` fixtures | Every significant bug gets a replay fixture. Re-recording a fixture requires a stated reason in the PR |
 | Save compatibility | Save fixture corpus | Every released save version loads, migrates, and continues deterministically |
@@ -82,7 +83,7 @@ The owner asked whether real-world-aligned ranges would make the game boring. Re
 | Recessions or regional economic shocks | ≥ 2 |
 | Major environmental disasters | ≥ 1 |
 | Electoral upsets (the poll underdog wins) | 10–25% of contested races |
-| Major scandals exposed | ≥ 3 |
+| Major scandals exposed (misconduct or crime). Measured in play by `bots --careers` (NPC scandals per career; a sweep advances days without NPC turns, so it reports 0 and does not gate) | ≥ 3 |
 | Party realignment events (splits, insurgents, leadership coups) | ≥ 1 in at least 40% of seeds |
 | Storyline arcs reaching a climax | Within director budgets (DEC-033) |
 | Story density (DEC-033), reported per scenario | Decisions (climax + significant) and minor developments per chapter, the share of chapters with a climax, storylines; no chapter over budget (gate) |
@@ -97,7 +98,7 @@ The owner asked whether real-world-aligned ranges would make the game boring. Re
 - populist
 - policy wonk
 - coalition-builder
-- corrupt opportunist
+- corrupt opportunist (implemented, M5d: `corrupt`, mixed play plus every shady option and action; it counts in the no-dominant-strategy gate, and `bots --careers 8` reports its career distribution: elections, scandals, investigations, convictions, prison, careers ended)
 - random
 
 Measured:

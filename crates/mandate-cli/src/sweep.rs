@@ -254,14 +254,17 @@ pub fn report(rows: &[RunMetrics], years: u32) -> serde_json::Value {
         "inflation": { "median": infl, "band": [-0.02, 0.12], "pass": (-0.02..=0.12).contains(&infl) },
         "debt_pct_gdp_change": { "median": debt_growth, "band": [-0.5, 0.6], "pass": (-0.5..=0.6).contains(&debt_growth) },
     });
-    let major = med(&|r| r.major_scandals as f64) * scale30;
     let floors = serde_json::json!({
         "recessions_per_30y": { "median": recessions, "floor": 2, "pass": recessions >= 2.0 },
         "disasters_per_30y": { "median": disasters, "floor": 1, "pass": disasters >= 1.0 },
-        // TEST_STRATEGY §4: major scandals exposed (misconduct or crime).
-        "major_scandals_per_30y": { "median": major, "floor": 3, "pass": major >= 3.0,
-            "all_scandals": med(&|r| r.scandals as f64) * scale30,
-            "cases": med(&|r| r.cases as f64) * scale30 },
+    });
+    // Scandals and cases (DEC-034, DEC-006), reported: a sweep advances days
+    // without NPC turns, so NPCs are never tempted here (`bots --careers`
+    // measures them in play).
+    let media = serde_json::json!({
+        "scandals_per_30y": med(&|r| r.scandals as f64) * scale30,
+        "major_scandals_per_30y": med(&|r| r.major_scandals as f64) * scale30,
+        "cases_per_30y": med(&|r| r.cases as f64) * scale30,
     });
     let all = |v: &serde_json::Value| {
         v.as_object()
@@ -298,5 +301,5 @@ pub fn report(rows: &[RunMetrics], years: u32) -> serde_json::Value {
         && all(&floors)
         && town["pass"].as_bool().unwrap_or(false)
         && story["pass"].as_bool().unwrap_or(false);
-    serde_json::json!({ "pass": pass, "seeds": rows.len(), "years": years, "bands": bands, "drama_floors": floors, "town_character": town, "story_density": story, "runs": rows })
+    serde_json::json!({ "pass": pass, "seeds": rows.len(), "years": years, "bands": bands, "drama_floors": floors, "media": media, "town_character": town, "story_density": story, "runs": rows })
 }

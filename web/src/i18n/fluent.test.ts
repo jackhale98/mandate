@@ -14,6 +14,11 @@ describe("Translator", () => {
     expect(tr.event("turns", { n: "4" })).toBe("4 turns");
   });
 
+  it("renders key arguments first, with the plain arguments (an outlet's name)", () => {
+    const t2 = new Translator("en", "outlet = { $outlet_place } Regional News\nstory = { $outlet } has it: { $fact }\nfact = a bribe\n");
+    expect(t2.event("story", { outlet_key: "outlet", outlet_place: "Iverland", fact_key: "fact" })).toBe("Iverland Regional News has it: a bribe");
+  });
+
   it("makes missing keys visible", () => {
     expect(tr.t("nope")).toBe("⟦nope⟧");
     expect(tr.has("hello")).toBe(true);
