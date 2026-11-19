@@ -238,10 +238,11 @@ chapter-kind-campaign = the campaign
 ## Aftermath: what each effect did
 effect-opinion = { $name }: opinion of you { $delta }
 effect-approval = Approval of you ({ $who }): { $delta }
+effect-approval-hood = Approval of you in { $hood }: { $delta }
 effect-awareness = Name recognition ({ $who }): { $delta }
 effect-money = Campaign funds: { $delta }
 effect-health = Health: { $delta }
-effect-slots = Time: { $n } slot(s) this turn
+effect-slots = Takes { $n } of your slots this turn
 effect-standing = Standing with your party: { $delta }
 effect-legal = Legal jeopardy: { $delta }
 effect-record = Record of work: { $delta }
@@ -271,7 +272,8 @@ ui-decision-count = { $n ->
 }
 ui-decide-by = Decide by { $date }
 ui-decide-days = { $n ->
-    [one] 1 day left
+    [0] decide today
+    [1] 1 day left
    *[other] { $n } days left
 }
 ui-if-you-dont = If you don't answer: { $option }
@@ -296,10 +298,7 @@ ui-costs = Costs
 ui-gains = Gains
 ui-not-enough-time = Needs more time than you have left this turn
 ui-not-enough-money = Needs more money than you have
-alert-decisions = { $n ->
-    [one] A decision is waiting for you.
-   *[other] { $n } decisions are waiting for you.
-}
+alert-decisions = Decisions waiting for you: { $n }.
 alert-track-warning = Your { $track } is in danger. Act before it ends your career.
 why-crisis = { $crisis } in { $town }
 why-concern = { $concern } is among the town's worries

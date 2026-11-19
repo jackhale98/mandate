@@ -10,6 +10,7 @@
 | Unit | Rust test harness; Vitest | Formulas and rules: tax, budgets, voting tabulators, opinion updates, relationship and memory changes, mechanism effects |
 | Property | `proptest` | Invariants: no negative populations; budgets reconcile; IDs unique and never reused; probabilities in [0,1]; no NaN in state; calendar monotonic; vote shares sum to 1; seats allocated equal seats available; every constitution procedure terminates |
 | Integration / scenario | Rust scenario tests over canonical worlds (§3) | Cross-system chains: policy → economy → cohorts → opinion → election; factory closure chain (brief §7.2); authority gating; storyline grounded in state; hub "homecoming" consistency after a long absence |
+| Narrative (DEC-033, DEC-077 §4, DEC-032) | `worldgen/tests/narrative.rs`, `content/tests/narrative.rs` | Grounding audit (`narrative::audit`): 24 seeds × 10 years, every decision, request, storyline turn, and spotlit fact resolves to live actors and true conditions on the day it is emitted; budgets, spacing, and cooldowns per chapter; the crisis cap holds hazards (timing only: the same hazards as Unfiltered, each within the longest deferral); a warning precedes every terminal track end and deselection; spotlight on vs off gives identical endogenous state (elections, policies, every domain); answers apply real effects and memories; defaults at deadlines; storylines branch; an opposing goal turns a colleague's lean; determinism with answers through save/load; content: every option costs someone |
 | Determinism | CI suite (DEC-041) | Same seed and command log run twice give equal state hashes; native and WASM give equal hashes; save → load → continue equals an uninterrupted run; lazy-evaluation order independence (Named characters caught up in either order, or in steps, give the same state: `worldgen/tests/characters.rs`) |
 | Replay regression | Recorded `(seed, content hash, command log)` fixtures | Every significant bug gets a replay fixture. Re-recording a fixture requires a stated reason in the PR |
 | Save compatibility | Save fixture corpus | Every released save version loads, migrates, and continues deterministically |
@@ -84,6 +85,7 @@ The owner asked whether real-world-aligned ranges would make the game boring. Re
 | Major scandals exposed | ≥ 3 |
 | Party realignment events (splits, insurgents, leadership coups) | ≥ 1 in at least 40% of seeds |
 | Storyline arcs reaching a climax | Within director budgets (DEC-033) |
+| Story density (DEC-033), reported per scenario | Decisions (climax + significant) and minor developments per chapter, the share of chapters with a climax, storylines; no chapter over budget (gate) |
 | Turbulent worlds (top-decile volatility) | Present: some seeds must be wild |
 
 **Volatility as a world parameter.** Each world draws an "era" volatility (calm, unsettled, turbulent) that scales exogenous shocks, polarization drift, and hazard trajectories. It is exposed in world setup and difficulty (DEC-038), and it combines with storyteller profiles (DEC-033).

@@ -197,7 +197,17 @@ pub fn cast_args(engine: &Engine, cast: &[CastEntry]) -> BTreeMap<String, String
     a
 }
 
+/// Signed, with one decimal for small non-zero changes (so +0.5 is not "+0").
 fn signed(v: f64, digits: usize) -> String {
+    let digits = if v != 0.0 && v.abs() < 0.95 {
+        digits.max(1)
+    } else {
+        digits
+    };
+    signed_exact(v, digits)
+}
+
+fn signed_exact(v: f64, digits: usize) -> String {
     if v > 0.0 {
         format!("+{v:.digits$}")
     } else if v < 0.0 {
@@ -234,14 +244,20 @@ fn approval_line(
     classes: &[u8],
     delta: f64,
 ) -> EffectLineView {
-    let mut args = vec![
-        ("delta", signed(delta * 100.0, 0)),
-        ("who_key", who_key(scope, classes)),
-    ];
+    let tone = if delta < 0.0 { "cost" } else { "gain" };
+    let delta = signed(delta * 100.0, 0);
     if let Some(h) = hood {
-        args.push(("hood", h));
+        return line(
+            "effect-approval-hood",
+            vec![("delta", delta), ("hood", h)],
+            tone,
+        );
     }
-    line(key, args, if delta < 0.0 { "cost" } else { "gain" })
+    line(
+        key,
+        vec![("delta", delta), ("who_key", who_key(scope, classes))],
+        tone,
+    )
 }
 
 fn name_of(engine: &Engine, id: characters::CharacterId) -> String {
@@ -432,7 +448,7 @@ fn applied_line(engine: &Engine, a: &Applied) -> EffectLineView {
         Applied::Awareness { scope, delta } => line(
             "effect-awareness",
             vec![
-                ("delta", signed(*delta as f64 * 100.0, 1)),
+                ("delta", signed(*delta as f64 * 100.0, 0)),
                 ("who_key", who_key(scope, &[])),
             ],
             tone(*delta < 0.0),
@@ -450,7 +466,7 @@ fn applied_line(engine: &Engine, a: &Applied) -> EffectLineView {
         Applied::Slots { n } => line("effect-slots", vec![("n", n.to_string())], "cost"),
         Applied::Standing { delta } => line(
             "effect-standing",
-            vec![("delta", signed(*delta as f64, 1))],
+            vec![("delta", signed(*delta as f64, 0))],
             tone(*delta < 0.0),
         ),
         Applied::LegalJeopardy { delta } => line(
