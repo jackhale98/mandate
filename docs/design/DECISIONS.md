@@ -101,6 +101,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-092 | Policy families grounded in the town, with design choices and sponsors, all in content | Accepted |
 | DEC-093 | Conversations: talk to people by topic; replies composed from grounded content lines | Accepted |
 | DEC-094 | Credit and blame for laws; endorsements that move their followers' votes | Accepted |
+| DEC-095 | Every character attribute changes behaviour; a lab check forbids decorative attributes | Accepted |
 
 ---
 
@@ -2045,3 +2046,32 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Lab:** bots can seek endorsements. A gate requires that endorsements matter (a measurable effect in the races where they occur) but never dominate. Credit and blame must track outcomes: in the lab, sponsors of laws that did well gain votes on average.
 - **Timing:** M6, after conversations (C1) and alongside policy families. It is in `M6_ENGINE_CONTRACTS.md` §4 as tasks V1 (credit and blame) and V2 (endorsements).
 - **Dependencies:** DEC-025, DEC-027, DEC-030, DEC-031, DEC-034, DEC-051, DEC-073, DEC-092, DEC-093.
+
+### DEC-095 — No decorative attributes
+
+- **Status:** Accepted (owner, 2026-11-19: "Yes add dec-095"). The owner asked whether NPC attributes really affect how NPCs play, or are only drawn from a list.
+- **Context:** most attributes already drive behaviour:
+  - attitudes: bills, votes and voter perception;
+  - pragmatism and ambition: the strategic profile;
+  - integrity and ambition: corruption and resisting lobbying;
+  - oratory and negotiation: campaign reach, fundraising and lobbying;
+  - warmth: how fast opinions change;
+  - personality: goals and casting;
+  - traits: memory and opinion dynamics.
+
+  Four competencies (administration, organising, intrigue, expertise) are generated and shown but read by nothing. Loyalty and boldness only gate goals and casting, not day-to-day choices.
+- **Decision:** every attribute a character has must change what they do, through the same formulas for NPCs and the player (DEC-030). The magnitudes go in content parameter blocks (DEC-078):
+  - **Administration:** an officeholder's laws implement faster and cost less to run (sponsor, or the mayor for town programmes).
+  - **Organising:** canvassing reach and the turnout boost (mobilisation), for the person and for campaigns they run.
+  - **Intrigue:** better odds at leaks, digging up rivals' hidden facts and back-room deals, and their own hidden facts are harder to discover (DEC-034).
+  - **Expertise:** more persuasive in lobbying, debates and conversations on bills and topics in their field (a nurse on health, a builder on housing). It feeds DEC-093 replies ("talks like someone who knows").
+  - **Loyalty:** votes with the party line more often, resists lobbying that cuts against the party, and is slower to defect or endorse across party lines (DEC-094).
+  - **Boldness:** takes more risks: late-night meetings, attack ads, shady offers made and accepted, challenging incumbents. Cautious characters prefer safe actions.
+  - **Warmth:** stays as is (opinion change, conversation discretion, DEC-093).
+- **Lab gate, no decorative attributes:**
+  - For every attribute in the registry of character fields, `mandate-cli` runs paired worlds where only that attribute is shifted for a set of NPCs.
+  - It checks that their behaviour moves measurably in the expected direction (action mix, vote alignment, corruption rate, campaign reach, implementation time and so on).
+  - It runs in CI with the bots. A new attribute cannot ship without a declared effect and a passing check.
+- **Views:** the character sheet's "Why?" lines say what each notable attribute does ("Loyal: rarely breaks with the party").
+- **Timing:** M6, beside K4 (effectiveness terms and bots). It is in `M6_ENGINE_CONTRACTS.md` §4 as task A1.
+- **Dependencies:** DEC-030, DEC-031, DEC-032, DEC-034, DEC-073, DEC-078, DEC-093, DEC-094.
