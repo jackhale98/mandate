@@ -30,6 +30,8 @@ test("a dilemma is opened from the pocket, answered, and explained", async ({ pa
   await open.click();
   const sheet = page.getByTestId("decision-sheet");
   await expect(sheet).toBeVisible();
+  // Let the sheet finish sliding in before scrolling inside it (slow CI runners).
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
   await expect(sheet.getByTestId("decision-situation")).not.toBeEmpty();
   await expect(sheet.getByTestId("decision-deadline")).toContainText("Decide by");
   // Every option states what it costs before the player commits.
@@ -40,6 +42,7 @@ test("a dilemma is opened from the pocket, answered, and explained", async ({ pa
   const choose = options.locator("button:enabled").first();
   // Clear of the bottom bar on phones.
   await choose.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await expect(choose).toBeInViewport();
   await choose.click();
   const after = sheet.getByTestId("decision-aftermath");
   await expect(after).toBeVisible();

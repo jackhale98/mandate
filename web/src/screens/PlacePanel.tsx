@@ -267,8 +267,8 @@ export function PlacePanel() {
   const busy = useGame((s) => s.busy);
   const o = useGame((s) => s.office);
   const c = useGame((s) => s.campaign);
-  const [closing, requestClose] = useSheetClose(() => void close(null));
   const sheet = useRef<HTMLElement>(null);
+  const [closing, requestClose, sheetRef] = useSheetClose(() => void close(null), sheet);
   const where = open ? JSON.stringify(open) : "";
   // A new place starts at the top of the sheet; the sheet itself stays (no replayed slide-in).
   useLayoutEffect(() => {
@@ -284,7 +284,7 @@ export function PlacePanel() {
     <>
       <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />
     <aside
-      ref={sheet}
+      ref={sheetRef}
       className={closing ? "sheet place-panel sheet-closing" : "sheet place-panel"}
       aria-labelledby="place-title"
       data-testid="place-panel"

@@ -318,9 +318,14 @@ export class HubView {
     this.canvas.height = Math.round(this.cssH * this.dpr);
     this.ctx.imageSmoothingEnabled = false;
     this.camera.resize(this.cssW, this.cssH);
+    // Zoom in whole device pixels: at device resolution a phone gets many crisp
+    // steps, out to one device pixel per art pixel (most of a town on screen).
+    const step = 1 / this.dpr;
+    this.camera.setZoomLimits(step, 6, step);
     if (first) {
       // About fourteen tiles across the shorter side, on a whole zoom step.
-      const z = Math.max(2, Math.min(4, Math.round(Math.min(this.cssW, this.cssH) / (TILE * 14))));
+      const z0 = Math.max(2, Math.min(4, Math.min(this.cssW, this.cssH) / (TILE * 14)));
+      const z = Math.max(step, Math.round(z0 / step) * step);
       this.camera.state.zoom = z;
       const c = this.camera.clampCentre(this.scene.player.x * TILE, this.scene.player.y * TILE - 8, z);
       this.camera.state.x = c.x;
@@ -363,11 +368,11 @@ export class HubView {
     this.clock.advance(dt);
     const playerMoving = this.walking(p);
     const folkMoving = this.scene.folk.length > 0;
-    const busy = playerMoving || eased || this.camera.gesturing || this.clock.running;
+    const busy = playerMoving || eased || this.camera.gesturing || this.clock.running || this.renderer.animating;
     // Ambient-only frames are capped (DEC-080: battery).
     const cap = 1000 / (this.opts.ambientFps ?? 30);
     if (busy || now - this.lastDraw >= cap - 1) this.drawNow(now);
-    if (busy || folkMoving || this.followSettling()) this.raf = requestAnimationFrame((t) => this.frame(t));
+    if (busy || folkMoving || this.renderer.animating || this.followSettling()) this.raf = requestAnimationFrame((t) => this.frame(t));
   }
 
   private followSettling(): boolean {
@@ -381,7 +386,9 @@ export class HubView {
     const s = this.scene;
     const views = this.walkerViews;
     views.length = 0;
-    const view = (w: Walker): WalkerView => ({ x: w.x, y: w.y, dir: w.dir, frame: w.moving ? 1 + (Math.floor(w.dist * 3) % 2) : 0, variant: w.variant });
+    // One walk frame per 4 art px walked (PIXEL_ART_TOOL §6), through every frame the art has.
+    const frames = this.renderer.art.walkFrames;
+    const view = (w: Walker): WalkerView => ({ x: w.x, y: w.y, dir: w.dir, frame: w.moving ? 1 + (Math.floor(w.dist * 4) % frames) : 0, variant: w.variant });
     views.push(view(s.player));
     for (const w of s.folk) views.push(view(w));
     const cam = this.camera.state;

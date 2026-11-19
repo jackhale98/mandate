@@ -47,8 +47,8 @@ export function DecisionSheet() {
   const visit = useGame((s) => s.visit);
   const openCharacter = useGame((s) => s.openCharacter);
   const busy = useGame((s) => s.busy);
-  const [closing, requestClose] = useSheetClose(() => void open(null));
   const sheet = useRef<HTMLElement>(null);
+  const [closing, requestClose, sheetRef] = useSheetClose(() => void open(null), sheet);
   useLayoutEffect(() => {
     if (sheet.current) sheet.current.scrollTop = 0;
   }, [d?.id, d?.status]);
@@ -58,7 +58,7 @@ export function DecisionSheet() {
   return (
     <>
       <div className={closing ? "sheet-scrim decision-scrim sheet-closing" : "sheet-scrim decision-scrim"} onClick={requestClose} aria-hidden="true" />
-      <aside ref={sheet} className={closing ? "sheet decision-sheet sheet-closing" : "sheet decision-sheet"} aria-labelledby="decision-title" data-testid="decision-sheet">
+      <aside ref={sheetRef} className={closing ? "sheet decision-sheet sheet-closing" : "sheet decision-sheet"} aria-labelledby="decision-title" data-testid="decision-sheet">
         <div className="sheet-head">
           <div>
             <p className="muted small">

@@ -15,7 +15,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-006 | Endings, victory & run termination (rev. 2) | Accepted |
 | DEC-007 | Constitution variability per run | Accepted |
 | DEC-008 | Save model: ironman vs. reloadable | Accepted |
-| DEC-009 | Presence model: embodied scenes + strategic layer | Accepted |
+| DEC-009 | Presence model: embodied scenes + strategic layer | Accepted (renderer revised by DEC-080; located actions brought forward by DEC-079) |
 | DEC-010 | Player role: politician first, administration mediated | Accepted |
 | DEC-011 | Player power & resource model | Accepted |
 | DEC-012 | Time model: discrete turns, phase-based cadence, time skips | Accepted |
@@ -23,7 +23,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-014 | Government tiers & office ladder | Accepted |
 | DEC-015 | Constitution parameter space & archetypes | Accepted |
 | DEC-016 | Default / MVP constitutional archetype | Accepted |
-| DEC-017 | Constitution primitives (engine model) | Proposed |
+| DEC-017 | Constitution primitives (engine model) | Accepted (confirmed with DEC-040–046; built in M3, DEC-070) |
 | DEC-018 | Population model & level of detail | Accepted |
 | DEC-019 | Economy fidelity | Accepted |
 | DEC-020 | Career detours: non-office power roles | Accepted |
@@ -50,12 +50,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-041 | Determinism rules | Accepted |
 | DEC-042 | Engine: calendar, turn order, effect requests, event log | Accepted |
 | DEC-043 | Worker protocol | Accepted |
-| DEC-044 | Persistence (rev. 2: versioned JSON snapshot plus migrations) | Accepted |
+| DEC-044 | Persistence (rev. 2: versioned JSON snapshot plus migrations) | Accepted (save timing revised by DEC-074) |
 | DEC-045 | Frontend stack: React + TypeScript | Accepted |
 | DEC-046 | Initial performance budgets | Accepted (assumptions to validate) |
 | DEC-047 | Screen architecture: hub-centred | Accepted |
 | DEC-048 | Responsive & mobile strategy | Accepted |
-| DEC-049 | Visual style & camera: top-down pixel art | Accepted |
+| DEC-049 | Visual style & camera: top-down pixel art | Accepted (art source: DEC-065, then DEC-084) |
 | DEC-050 | Rendering prototype spikes | Accepted (each spike needs go-ahead) |
 | DEC-051 | Accessibility & explainability UI | Accepted |
 | DEC-052 | Save sync readiness (future cloud sync) | Accepted |
@@ -71,12 +71,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-062 | MVP scope (vertical slice) | Accepted |
 | DEC-063 | Milestone order: real systems first, with early playable checkpoints | Accepted |
 | DEC-064 | Hosting: GitHub Pages first, portable to a Cloudflare domain | Accepted |
-| DEC-065 | Initial art: Kenney CC0 asset packs | Accepted |
+| DEC-065 | Initial art: Kenney CC0 asset packs | Accepted (game art from M6 follows DEC-084) |
 | DEC-066 | CI: build once, cache WASM by source hash | Accepted |
 | DEC-067 | System plan approved; implementation begins | Accepted |
 | DEC-068 | World generation implementation choices (M1) | Accepted |
 | DEC-069 | Society and economy implementation choices (M2) | Accepted |
-| DEC-070 | Local government and policy implementation choices (M3) | Accepted |
+| DEC-070 | Local government and policy implementation choices (M3) | Accepted (command journal revised by DEC-074) |
 | DEC-071 | Research-informed model refinements | Accepted |
 | DEC-072 | Elections, parties, NPC AI implementation (M4) | Accepted |
 | DEC-073 | Every decision is a trade-off | Accepted |
@@ -92,6 +92,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-083 | Landing page at the site root; the game moves to `play/` | Accepted |
 | DEC-084 | Pixel-art tool: hand-drawn parts composed by code; spike before M6 art | Accepted |
 | DEC-085 | Town layout on the client, versioned so a town never rearranges | Accepted |
+| DEC-086 | Town map overview replaces the place list as the main town view | Accepted |
+| DEC-087 | Foreign nations as low-detail simulated neighbours; foreign policy in M7–M8 | Accepted |
 
 ---
 
@@ -246,7 +248,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-009 — Presence model: embodied scenes + strategic layer
 
-- **Status:** Accepted (owner, 2026-11-18): option B.
+- **Status:** Accepted (owner, 2026-11-18): option B. Later revisions: the hub renderer is Canvas 2D, not PixiJS (DEC-080); located actions came forward to M5 (DEC-079).
 - **Owner addendum: persistent hubs.** Careers can move *down* the ladder (e.g. losing national office and running for governor or mayor). Returning sends the player back to the earlier hub, which must show what happened in the wider country while they were away. Consequences:
   - Hubs are persistent world places, rendered from live simulation state. They are never static snapshots.
   - When the player leaves a scope, its places and named NPCs are kept, and the area keeps simulating at reduced detail.
@@ -449,7 +451,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-017 — Constitution primitives (engine model)
 
-- **Status:** Proposed. Technical; to be confirmed in D11.
+- **Status:** Accepted. Proposed for confirmation in D11; confirmed as part of the technical baseline (DEC-040 to DEC-046, 2026-11-18). Implemented in M3 for the primitives the MVP archetype needs (DEC-070).
 - **Context:** A fixed enum of parameters (DEC-015) cannot express curveballs such as collegial executives, sortition chambers, functional seats, or concurrent majorities. The engine needs composable building blocks so that archetypes and quirks are data.
 - **Proposed decision:** a constitution is a validated assembly of these primitives:
   - **Office:** a single holder. Fields: selection method, term, limits, powers, removal procedures.
@@ -849,7 +851,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Classic roguelikes (Rogue, NetHack, Brogue) are effectively A, with pacing coming only from depth-scaled generation.
   - Modern roguelites pace mainly through *structure* (act maps, guaranteed rest and shop nodes, bosses) plus luck-smoothing. Slay the Spire raises rare-card and potion odds after misses; XCOM 2 adds hidden aim assistance on lower difficulties.
   - Reactive directors (Left 4 Dead's AI Director, RimWorld's storytellers) are B-like and belong to long-form emergent-story games, Mandate's closest cousins. Over a 6–10 h career, an unlucky pile-up is a ruined run rather than a funny story.
-- **Addendum (proposed, post-MVP):** selectable **storyteller profiles**, following RimWorld:
+- **Addendum (proposed, post-MVP; built early, in M5c, see "Implemented" below):** selectable **storyteller profiles**, following RimWorld:
   - "Classic": B with a rising-tension curve. This is the default.
   - "Unfiltered": A-like pure chance, for purists.
   - "Steady": lower crisis rate.
@@ -1022,7 +1024,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
     - a small, fixed set of state patterns (Zustand for UI state; worker queries through one typed hook layer);
     - no ad-hoc global stores;
     - lint rules for hooks;
-    - evaluate the React Compiler at Milestone 0 to remove manual memoization.
+    - evaluate the React Compiler at Milestone 0 to remove manual memoization (deferred to the M6 performance pass).
+- **Later revisions:** DEC-044 by its revision 2 (below DEC-067) and by DEC-074; the scene renderer is Canvas 2D, not PixiJS (DEC-080). OVERVIEW is kept current with them.
 
 ### DEC-047 — Screen architecture: hub-centred
 
@@ -1051,7 +1054,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-049 — Visual style & camera
 
-- **Status:** Accepted (owner, 2026-11-18): option A. **Open:** the source of the final art (owner, commissioned, or licensed pack) has not been answered yet.
+- **Status:** Accepted (owner, 2026-11-18): option A. **Open:** the source of the final art (owner, commissioned, or licensed pack) has not been answered yet. Initial art: DEC-065. From M6 the art comes from the pixel-art tool (DEC-084); whether a pixel artist is commissioned for its part library is decided by the owner's P0 rubric scores (DEC-084 D5).
 - **Options:**
   - A. Top-down three-quarter pixel art (Stardew Valley, Eastward), 16–32 px tiles.
   - B. Isometric pixel art.
@@ -1083,10 +1086,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      Measure frame rate, memory, and bundle size on a mid-range Android phone and on desktop. Check that portrait and landscape both work.
   2. **Map spike:** a national map with ~500 neighborhood polygons, ~60 municipalities, and overlays (choropleth, districts), with pan, zoom, and hit-testing. Compare PixiJS with SVG/Canvas.
 - **Exit criteria:** budgets in OVERVIEW §8 are met, or the renderer choice is revised.
+- **Outcome:** the map is Canvas 2D (M1); the hub spike chose Canvas 2D (DEC-080).
 
 ### DEC-051 — Accessibility & explainability UI
 
 - **Status:** Accepted (owner, 2026-11-18; no objection raised). Brief §15.5.
+  - **Reaffirmed (owner, 2026-11-19):** keep the current accessibility level — full screen-reader support and a text alternative for every visual view — above what most games offer. A real screen-reader playtest (VoiceOver/TalkBack) is planned for the M6 tester checkpoint.
 - **Proposed decision:**
   - **The hub is never the only way to reach anything.** An accessible DOM layer mirrors the scene: a list of "places here" and "people here" with actions. The Agenda can perform any located action.
   - Full keyboard navigation and screen-reader labels.
@@ -1230,7 +1235,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
   In both cases, rebuild with `MANDATE_BASE=/`.
 - **Caveats:**
-  - Changing origin (domain) means IndexedDB saves do not carry over automatically. Before switching, ship file export/import and tell players to export (DEC-052).
+  - Changing origin (domain) means IndexedDB saves do not carry over automatically. Before switching, ship file export/import and tell players to export (DEC-052; shipped as DEC-082).
   - GitHub Pages cannot set custom headers, which rules out cross-origin isolation. This is acceptable, because multithreaded WASM is deferred (TECH-008).
 
 ### DEC-065 — Initial art: Kenney CC0 asset packs
@@ -1243,6 +1248,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Store them under `web/public/assets/kenney/` with license notes in `ASSETS.md`.
 - **Later:** the owner will provide a logo and a loading animation.
 - **Consequences:** sprite tile size follows the chosen pack (16 px). The layered character generator adapts to the pack's character parts, or uses tinting where parts are unavailable.
+- **Status note (2026-11-19):** no Kenney packs have been added to the repository. The hub's placeholder art is drawn in code (DEC-080), and the game's art from M6 comes from the pixel-art tool (DEC-084). The 16 px tile size stands.
 
 ### DEC-066 — CI: build once, cache WASM by source hash
 
@@ -1274,6 +1280,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **A shape-fingerprint test** (`mandate-save/tests/saves.rs`) fails whenever the serialized state shape changes without a `SAVE_FORMAT_VERSION` bump. Refactors can never silently break saves.
   - **Pre-release policy:** development builds may bump the version without a migration. Such saves are rejected with a clear message. From the first public release, every bump requires a migration and a fixture.
 - **Protocol DTOs remain separate** from internal types (DEC-043). Only the save payload uses this mechanism.
+- **Later:** DEC-074 replaced the command log with a full save after every action, and lets saves load under updated rules.
 
 ### DEC-068 — World generation implementation choices (M1)
 
@@ -1284,7 +1291,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Canonical test worlds** are generation presets (`Preset`), selectable from the lab CLI and the new-game screen ("Scenario"), and tested for their intended biases.
 - **Neighbourhoods are graph units**, not raster polygons. Electoral districts at all three tiers are generated by a contiguity-preserving, population-balancing partitioner (property-tested).
 - **Deferred:**
-  - The hub tile-layout generator (M1-09) moves to M6, beside the hub renderer. Places already exist as entities.
+  - The hub tile-layout generator (M1-09) moves to M6, beside the hub renderer. Places already exist as entities. (Built on the client as M6 groundwork: DEC-085.)
   - The lab `diff` command moves to M2, where there is evolving state to compare.
 
 ### DEC-069 — Society and economy implementation choices (M2)
@@ -1311,7 +1318,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-070 — Local government and policy implementation choices (M3)
 
-- **Status:** Accepted (agent technical decision during M3, 2026-11-18; within delegated technical authority). Refines DEC-020, DEC-021, DEC-026, DEC-030, DEC-033, DEC-044, and DEC-069.
+- **Status:** Accepted (agent technical decision during M3, 2026-11-18; within delegated technical authority). Refines DEC-020, DEC-021, DEC-026, DEC-030, DEC-033, DEC-044, and DEC-069. The mid-turn command journal below was replaced by a full save after every action (DEC-074).
 - **Constitutions are data built from primitives:** bodies, offices, powers, decision rules, constituencies, and staged procedures. Validation checks that every tier can pass an ordinance and a budget (REQ-006). The Federal Presidential archetype ships first: a ward council and mayor locally, with regional and national tiers defined but not yet simulated.
 - **Policy lifecycle has five states** (Draft, Under consideration, Enacted, In effect, Ended with a reason), as agreed in discovery. Funding is a status of an enacted law: appropriations decide the funded share each month, and the funded share drives implementation progress.
 - **Mechanisms are typed and closed:**
@@ -1441,7 +1448,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-075 — Extensibility: registries over hard-coded dimensions
 
-- **Status:** Accepted (no objection; scheduled before M5). Owner question, 2026-11-18: the game should stay easy to expand after release, for example with new policy types, industries with their own quirks, and new demographic groups such as Indigenous communities).
+- **Status:** Accepted (no objection; scheduled before M5). Stages 1–3 and the extension guide are done (below); pack patches (item 5) are not built yet. Owner question, 2026-11-18: the game should stay easy to expand after release, for example with new policy types, industries with their own quirks, and new demographic groups such as Indigenous communities).
 - **Already data-driven:**
   - policy templates and their parameters, costs, and side effects;
   - constitutions (bodies, offices, procedures, election calendars);
@@ -1570,7 +1577,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      - budget categories, revenue and tax types become registries (the national tier adds categories such as defence and foreign affairs);
      - hazards become a registry with behaviour drivers, like sectors (a heatwave, an epidemic);
      - commodities are derived from extraction-driver sectors.
-  6. **With the walkable town screens (M6):** place kinds become a registry carrying art and interaction data.
+  6. **With the walkable town screens (M6):** place kinds become a registry carrying art and interaction data. (The registry, with each kind's actions and services, came forward to M5a under DEC-079; art and interaction data remain M6.)
   7. **Kept in code:**
      - the pressure tracks and core rules (they are the game's identity);
      - income classes and age bands (communities, DEC-075 stage 3, provide the flexible dimension);
@@ -1614,7 +1621,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   4. **Places give depth, not access.** Going to the statistics office gives precise, current, by-neighbourhood data with trends. The party office gives internal polls. The council chamber gives the exact whip count. The diner gives early, qualitative signals. A visit rewards curiosity; skipping it costs precision, not playability.
   5. **Deep information can cost something** (DEC-073). Commissioning a private poll or a research report costs money and a slot, and gives better precision than public data.
 - **Interface staging:**
-  - **M5:** an interim town screen. A schematic district of tappable buildings with the player's marker replaces the current tabs. The tabs' content moves into the places and the pocket. Engine and protocol work in terms of places from here on.
+  - **M5:** an interim town screen. A schematic district of tappable buildings with the player's marker replaces the current tabs. The tabs' content moves into the places and the pocket. Engine and protocol work in terms of places from here on. (Shipped in M5a as neighbourhood sections with place buttons; DEC-086 replaces it with a town map overview before M6.)
   - **M6:** the walkable pixel-art hub replaces the schematic, on the same engine model.
   - **Early M5:** a throwaway hub rendering prototype on a phone (one street block, tap-to-move character, ambient townsfolk, one enterable place) to settle Canvas versus PixiJS and performance before M6 builds on it (DEC-050).
 - **Fairness and accessibility:** every place's information and actions are also reachable from a list (screen readers, no map). The schematic and the hub are the primary way to play, never the only one.
@@ -1662,7 +1669,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - limits are eased in when zoomed past them, never snapped.
 - **M6 movement module (status, 2026-11-18):** the pathfinding and zoom requirements above are built as a renderer-independent module, `web/src/hub/` (`pathfinding.ts`: 8-direction A*, pedestrian costs, string-pulling, tap-to-target, smooth movement; `camera.ts`: pinch, pan, wheel, eased limits), with unit and seeded property tests. The hub spike uses it for routing and the camera, so `/mandate/spike-hub/` shows the new routes. The app does not import it yet: M6 will.
 - **M6 groundwork (status, 2026-11-19):** built in `web/src/hub/`, not yet imported by the app:
-  - `townLayout.ts`: the player's town laid out from the engine's `town` view (neighbourhoods and places) as a tile map with streets, contiguous districts, a door for every place, filler buildings, landmarks on a central square and optional water; deterministic and versioned (DEC-085, proposed). It feeds `buildGrid`, `planRoute` and `resolveTap` directly. Town routes add a small straightening slack and a jog-removal pass (`pathfinding.ts`, off by default), so a route cuts a road corner instead of stepping round the zebra cells.
+  - `townLayout.ts`: the player's town laid out from the engine's `town` view (neighbourhoods and places) as a tile map with streets, contiguous districts, a door for every place, filler buildings, landmarks on a central square and optional water; deterministic and versioned (DEC-085). It feeds `buildGrid`, `planRoute` and `resolveTap` directly. Town routes add a small straightening slack and a jog-removal pass (`pathfinding.ts`, off by default), so a route cuts a road corner instead of stepping round the zebra cells.
   - `render/`: the renderer as decided above. Ground, buildings and props are baked in 512 px chunks on first sight (kept in an LRU, so memory follows the view, not the town); shadows are baked per sun-angle bucket at half resolution; walkers, roof overhangs over walkers behind them, the grade, lit windows and lamp pools are drawn per frame; identical frames are skipped. The art is behind `ArtProvider` (`render/art.ts`), shaped after the pixel-art tool plan (`PIXEL_ART_TOOL.md` §3.5, §5.1): ground tiles by kind, neighbour mask and variant; buildings as albedo plus windows and doors with emissive frames and use tags, and a shadow footprint and height; props with emissive parts, light pools and shadows; 16×24 characters in three facings (side mirrored); `grade(minuteOfDay)`; SVG icons. `PlaceholderArt` implements it in code, from a palette derived from the app's tokens, so the tool's art pack drops in without renderer changes.
   - `dayCycle.ts`: a continuous clock (minutes) graded through one keyframe table (night, pre-dawn, sunrise, morning, midday, afternoon, golden hour, dusk), with shadows that follow the sun and windows and lamps that come on one by one. In the game the clock comes from the day-part and the player's progress through it (`clockForDayPart`).
   - `hubView.ts`: the DOM controller (canvas at CSS resolution, HTML labels, camera input, a loop that sleeps when idle, 30 fps for ambient-only frames, paused when hidden or a panel is open).
@@ -1679,7 +1686,6 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - The loader announces itself as a status. Its tier names are decorative, with English fallbacks because they show before the translations load.
   - Component: `web/src/components/Brand.tsx` (`LogoMark`, `Loader`).
 - **Open:** the owner may still send their own logo and loading animation. If so, they replace these through the same component, and the icons are re-rendered.
-
 
 ### DEC-082 — Save export and import
 
@@ -1748,6 +1754,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Assets carry emissive layers and shadow footprints for the continuous day cycle; lighting stays pre-rendered (DEC-080).
   - Quality control combines a style guide, automated lints, golden images, and contact sheets reviewed by the owner.
 - **Dependencies:** DEC-009, DEC-013, DEC-018, DEC-031, DEC-049, DEC-051, DEC-065, DEC-077, DEC-080, DEC-081.
+
 ### DEC-085 — Town layout on the client, versioned so a town never rearranges
 
 - **Status:** Accepted (owner, 2026-11-19: "I'm fine with the versioned town layout"). Proposed with the M6 groundwork. M6 must reserve plots for places that can be added during a run, so a town never rearranges mid-run.
@@ -1767,3 +1774,33 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Old layout versions accumulate as code. They are small, and could be retired at a save-format break.
   - Other clients (a native app) would have to port the algorithm bit-exactly, or switch to A.
 - **Dependencies:** DEC-009, DEC-041 (its ideas, applied on the client), DEC-044, DEC-074, DEC-079, DEC-080.
+
+### DEC-086 — Town map overview
+
+- **Status:** Accepted (owner, 2026-11-19). The owner's idea: "instead of showing a list of places like we have now we should consider a method for generating a lower resolution map of the area with the connections shown and the buildings listed. This would make it feel more like a game and less like a job and make you care more about the places since you can see how they're connected." Owner: "Yes add it to the queue."
+- **Decision:**
+  - The town screen's main view becomes an illustrated, low-resolution **town map** drawn from the same versioned layout as the walkable street (DEC-085), so the two always agree.
+  - It shows neighbourhoods as tinted districts, the main roads and the routes between places, landmarks as small recognisable buildings with names, your home and current location, and markers on places where something is waiting (a decision, a person to meet).
+  - Tapping a building travels there (the existing located-action rules, DEC-079). In M6 the map zooms into the walkable street.
+  - The place list stays as an accessible text view (DEC-051) and for screen readers; nothing is reachable only through the map.
+  - It is presentation only: no engine or protocol change. It ships before M6's walkable town, as soon as the UI polish round and M5d part 1 have landed.
+- **Later:** the same treatment for the region and the country in M7 (towns joined by roads and rail, for travel).
+- **Dependencies:** DEC-047, DEC-049, DEC-051, DEC-079, DEC-080, DEC-084, DEC-085.
+
+### DEC-087 — Foreign nations and foreign policy
+
+- **Status:** Accepted (owner, 2026-11-19). The owner asked to plan for foreign policy: "simulate neighbors as well with randomized constitution types and allow for more robust interaction in the future if it isn't a major overhaul." Owner: "Record the foreign policy decision."
+- **Decision:**
+  - **Neighbours are separate, low-detail nations,** not a multi-country rebuild of the engine. The home country keeps its full simulation (cohorts per neighbourhood, towns, politicians). Each neighbour is simulated at national level only, at about the cost of one town today, in a new foreign domain beside the existing ones (writing only its own domain; cross-domain effects go through effect requests, OVERVIEW §4.3).
+  - **Generated with the world:** 2–5 neighbours with randomly drawn constitutions from the constitution registry (DEC-078 content), a ruling party and leader, population, a national economy (growth, unemployment, inflation), stability, an attitude vector, and a relationship with the home country. The greyed land drawn around the country on the map (UI polish round) becomes these real nations, with names and borders.
+  - **How they reach the player, by tier:**
+    - Local: foreign investment opening or closing a plant, migrants after a neighbour's crisis, border-town trade.
+    - Regional: cross-border trade and shared rivers and hazards.
+    - National and presidency: trade deals and tariffs, treaties, disputes, aid, alliances, summits, and defence and foreign-affairs budget lines (DEC-078 §5 budget registries).
+  - **Same rules as everything else:** foreign shocks (a neighbour's recession, a refugee wave, a trade war) are exogenous events the director may time within plausible bounds (DEC-033 B); it never fakes outcomes. NPC foreign leaders use the same utility AI and rule symmetry as NPC politicians (DEC-030).
+- **Timing:**
+  - Now: nothing; the current structure doesn't block it.
+  - M7: generate the neighbours and their low-detail simulation; show them on the map; cross-border trade and migration start to matter.
+  - M8: foreign policy as play (deals, treaties, crises, the foreign minister, summits).
+  - After v1: deeper diplomacy; possibly starting a career in another country.
+- **Dependencies:** DEC-018, DEC-030, DEC-033, DEC-041, DEC-064, DEC-078, DEC-086.

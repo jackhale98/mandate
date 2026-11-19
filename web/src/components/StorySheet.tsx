@@ -9,14 +9,14 @@ export function StorySheet() {
   const story = useGame((s) => s.story);
   const open = useGame((s) => s.openStory);
   const openDecision = useGame((s) => s.openDecision);
-  const [closing, requestClose] = useSheetClose(() => void open(false));
+  const [closing, requestClose, sheetRef] = useSheetClose(() => void open(false));
   if (!story) return null;
   const ch = story.chapter;
   const tension = Math.round(story.tension * 100);
   return (
     <>
       <div className={closing ? "sheet-scrim sheet-closing" : "sheet-scrim"} onClick={requestClose} aria-hidden="true" />
-      <aside className={closing ? "sheet story-sheet sheet-closing" : "sheet story-sheet"} aria-labelledby="story-title" data-testid="story-sheet">
+      <aside ref={sheetRef} className={closing ? "sheet story-sheet sheet-closing" : "sheet story-sheet"} aria-labelledby="story-title" data-testid="story-sheet">
         <div className="sheet-head">
           <div>
             <h2 id="story-title">{tr.t("ui-story-so-far")}</h2>

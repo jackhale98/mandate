@@ -488,6 +488,10 @@ h2 { font-size: 1.1rem; }
 .decision-scrim { z-index: 6; }
 .sheet.decision-sheet { z-index: 6; }
 .sheet.story-sheet { z-index: 6; }
+/* Scrolling something into view (keyboard focus, links) keeps it clear of the sticky
+   head and the bottom bar. Decisions get more of the screen on phones. */
+.sheet { scroll-padding-top: 30%; scroll-padding-bottom: 96px; }
+@media (max-width: 899px) { .sheet.decision-sheet { max-height: 85vh; } }
 @media (min-width: 900px) {
   .decision-scrim { display: block; background: transparent; }
   .decision-sheet, .story-sheet { top: 63px; bottom: 0; padding-top: 16px; max-height: none; }
@@ -523,3 +527,26 @@ h2 { font-size: 1.1rem; }
 .run-banner p { margin: 0; }
 .run-banner h2 { margin: 0 0 4px; }
 .run-ended { border-width: 2px; }
+/* Sheet heads stay flush with the top of the sheet's scroll area, so nothing
+   scrolls into view above them. A sticky box is pinned inside its scroller's
+   padding, so sheets have no top padding (the head carries it), and on wide
+   screens every sheet docks below the HUD instead of behind it. */
+.sheet { padding-top: 0; }
+.sheet > .sheet-head { top: 0; margin-top: 0; }
+@media (min-width: 900px) {
+  .sheet { top: 63px; bottom: 0; max-height: none; padding-top: 0; }
+}
+/* The pocket docks on the left on wide screens: it slides in from, and out to, the left. */
+@keyframes sheet-from-left { from { transform: translateX(-100%); } }
+@keyframes sheet-to-left { to { transform: translateX(-100%); } }
+@media (min-width: 900px) {
+  .sheet.pocket { box-shadow: 12px 0 32px rgba(0, 0, 0, 0.3); }
+}
+@media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .sheet.pocket { animation-name: sheet-from-left; }
+  .sheet.pocket.sheet-closing { animation-name: sheet-to-left; }
+}
+/* The player's town in lists and under the map: a flag and "You", not colour alone (DEC-051). */
+.you-chip { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--accent); color: var(--accent-ink); vertical-align: 1px; }
+.town-list .town-home { margin-left: -12px; padding-left: 10px; border-left: 3px solid var(--accent); }
+.map-home { margin-left: auto; }

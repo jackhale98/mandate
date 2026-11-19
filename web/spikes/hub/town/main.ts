@@ -6,6 +6,10 @@
 // moves the player there in the engine and shows what the place offers.
 // URL: seed=<text>, t=<minutes>, speed=<game minutes per second>, n=<townsfolk>,
 // res=css|device, hud=1. Exposes window.__hub for tests and measurements.
+// The pixel-art tool's spike (DEC-084, P0): art=pixelkit swaps the code-drawn
+// placeholder for the tool's art pack; night=multiply|moods picks the night
+// look (D12; moods by default); preset=street centres on one representative street of the town
+// centre (zoom=<1..6> overrides the zoom).
 import { engine, expectKind } from "../../../src/engine/client";
 import type { LocationDto } from "../../../src/engine/protocol/LocationDto";
 import type { PlacePanelView } from "../../../src/engine/protocol/PlacePanelView";
@@ -13,8 +17,10 @@ import type { TownPlacesView } from "../../../src/engine/protocol/TownPlacesView
 import { DayClock, clockText, phaseAt, type DayPhase } from "../../../src/hub/dayCycle";
 import { HubView } from "../../../src/hub/hubView";
 import { PlaceholderArt } from "../../../src/hub/render/placeholderArt";
+import { PixelkitArt, type NightLook } from "../../../src/hub/render/pixelkitArt";
+import pack, { buildMs as packBuildMs, bytes as packBytes } from "virtual:pixelkit-pack";
 import { townInputFromView } from "../../../src/hub/townInput";
-import { buildingOfPlace, layoutTown, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
+import { buildingOfPlace, layoutTown, Terrain, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
 import { Translator } from "../../../src/i18n/fluent";
 import { actionKey, placeIcon } from "../../../src/places/labels";
 
@@ -24,7 +30,14 @@ const seed = (q.get("seed") ?? "4242").trim() || "4242";
 const startMinutes = Number(q.get("t") ?? 17 * 60 + 20);
 const speed = q.has("speed") ? Number(q.get("speed")) : 12;
 const townsfolk = Math.max(0, Math.min(400, Number(q.get("n") ?? 16) || 0));
-const resolution = q.get("res") === "device" ? "device" : "css";
+// Device resolution by default: crisp whole-device-pixel zoom steps, and far more
+// of them on a phone (?res=css draws at CSS pixels as before).
+const resolution = q.get("res") === "css" ? "css" : "device";
+const artName = q.get("art") === "pixelkit" ? "pixelkit" : "placeholder";
+// Palette moods are the default night look from round 2 (the owner's lean, D12); multiply stays for comparison.
+const night: NightLook = q.get("night") === "multiply" ? "multiply" : "moods";
+const preset = q.get("preset");
+const presetZoom = q.has("zoom") ? Math.max(1, Math.min(6, Math.round(Number(q.get("zoom")) || 0))) : null;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const stage = $<HTMLDivElement>("stage");
@@ -58,14 +71,20 @@ if (!Array.from(speedSel.options).some((o) => Number(o.value) === speed) && spee
 else if (speed > 0) speedSel.value = String(speed);
 
 let tr = new Translator("en", "");
-// The placeholder art (the pixel-art tool's pack replaces it through the same ArtProvider calls).
-const art = new PlaceholderArt();
+// The placeholder art, or the pixel-art tool's pack through the same ArtProvider calls.
+// The hub view feeds all four walk frames (round 2).
+const pixelkit = artName === "pixelkit" ? new PixelkitArt(pack, { night }) : null;
+const art = pixelkit ?? new PlaceholderArt();
 document.body.insertAdjacentHTML("afterbegin", art.iconSprite());
 let view: HubView | null = null;
 let map: TownMap | null = null;
 let town: TownPlacesView | null = null;
 let busy = false;
 const timings: Record<string, number> = {};
+if (pixelkit) {
+  timings.packBuildMs = packBuildMs;
+  timings.packBytes = packBytes;
+}
 
 // ---------------------------------------------------------------- engine
 
@@ -118,6 +137,8 @@ function mount(m: TownMap) {
   });
   timings.firstFrameMs = view.timings.firstFrameMs;
   timings.mountMs = performance.now() - t0;
+  syncMood();
+  if (preset === "street") showStreet(m);
   $<HTMLHeadingElement>("town-name").textContent = m.municipality;
   document.title = `${m.municipality} · town prototype`;
   buildPlaceList();
@@ -261,6 +282,54 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closePanel();
 });
 
+// ---------------------------------------------------------------- the pixel-art spike
+
+/**
+ * The palette-moods night look (D12) repaints the provider's static art when
+ * the moment's mood changes; the renderer then re-bakes its static layers and
+ * cross-fades from the old ones.
+ */
+function syncMood() {
+  if (!pixelkit || !view) return;
+  if (pixelkit.setClock(clock.minutes)) {
+    // Round 2: cross-fade from the old mood's layers instead of a hard 15-minute step.
+    view.renderer.crossFade(900);
+    view.wake();
+  }
+}
+
+/**
+ * The "street" preset: the 24×16-tile window of the town centre with the most
+ * buildings (named places count double), as in the plan's sample street
+ * (PIXEL_ART_TOOL.md §8, P0-6). Zoom 2 on wide screens shows all of it; 3
+ * (the default phone zoom) on phones.
+ */
+export function streetWindow(m: TownMap): { x: number; y: number; w: number; h: number } {
+  const w = Math.min(24, m.width);
+  const h = Math.min(16, m.height);
+  const core = m.districts.findIndex((d) => d.kind === "core");
+  let best = { x: 0, y: 0, score: -1 };
+  for (let y = 0; y + h <= m.height; y++) {
+    for (let x = 0; x + w <= m.width; x++) {
+      let score = 0;
+      for (const b of m.buildings) {
+        if (b.x < x || b.y - 1 < y || b.x + b.w > x + w || b.y + b.h > y + h) continue;
+        if (core >= 0 && b.district !== core) continue;
+        score += b.place !== null ? 2 : 1;
+      }
+      if (score > best.score) best = { x, y, score };
+    }
+  }
+  return { x: best.x, y: best.y, w, h };
+}
+
+function showStreet(m: TownMap) {
+  if (!view) return;
+  const s = streetWindow(m);
+  view.camera.state.zoom = presetZoom ?? (matchMedia("(max-width: 899px)").matches ? 3 : 2);
+  view.centreOn(s.x + s.w / 2, s.y + s.h / 2);
+}
+
 // ---------------------------------------------------------------- the clock
 
 function syncClock() {
@@ -272,6 +341,7 @@ function syncClock() {
 }
 scrub.addEventListener("input", () => {
   view?.setClock(Number(scrub.value));
+  syncMood();
   syncClock();
 });
 play.addEventListener("click", () => {
@@ -286,6 +356,7 @@ speedSel.addEventListener("change", () => {
 });
 setInterval(() => {
   if (clock.running) syncClock();
+  syncMood();
 }, 250);
 
 const toggle = $<HTMLButtonElement>("places-toggle");
@@ -344,6 +415,16 @@ window.__hub = {
     return town;
   },
   timings,
+  /** Which art is showing (the pixel-art spike's toggle) and its night look. */
+  art: { name: artName, night: pixelkit ? night : null },
+  /** Look at the preset street (the capture script uses it). */
+  showStreet(zoom?: number) {
+    if (!map || !view) return null;
+    showStreet(map);
+    if (zoom) view.camera.state.zoom = zoom;
+    view.wake();
+    return streetWindow(map);
+  },
   /** Time to lay out any town here (measure-town.mjs times the largest capital under a CPU throttle). */
   layoutMs(input: Parameters<typeof layoutTown>[0], runs = 5) {
     let best = Infinity;
@@ -354,9 +435,48 @@ window.__hub = {
     }
     return best;
   },
+  /**
+   * Street lamps to look at closely (round 2, `lamp-light.png`): lamps in
+   * front of a wall, at a building's corner, and in the open (a plaza or a
+   * park), two of each, nearest the street preset first. Tiles.
+   */
+  lampSites() {
+    if (!map) return [];
+    const m = map;
+    const s = streetWindow(m);
+    const at = (x: number, y: number) => (x < 0 || y < 0 || x >= m.width || y >= m.height ? -1 : (m.terrain[y * m.width + x] as number));
+    const isB = (x: number, y: number) => at(x, y) === Terrain.Building || at(x, y) === Terrain.Door;
+    const sites: { kind: string; i: number; x: number; y: number; d: number }[] = [];
+    for (const p of m.props) {
+      if (p.kind !== "lamp") continue;
+      let near = false;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (isB(p.x + dx, p.y + dy)) near = true;
+      const kind = isB(p.x, p.y - 1) ? "wall" : isB(p.x - 1, p.y - 1) || isB(p.x + 1, p.y - 1) || isB(p.x - 1, p.y) || isB(p.x + 1, p.y) ? "corner" : near ? "" : "open";
+      if (!kind) continue;
+      const d = Math.abs(p.x - (s.x + s.w / 2)) + Math.abs(p.y - (s.y + s.h / 2));
+      sites.push({ kind, i: 0, x: p.x, y: p.y, d });
+    }
+    const out: { kind: string; i: number; x: number; y: number }[] = [];
+    for (const kind of ["wall", "corner", "open"]) {
+      sites
+        .filter((x) => x.kind === kind)
+        .sort((a, b) => a.d - b.d)
+        .slice(0, 2)
+        .forEach((x, i) => out.push({ kind, i, x: x.x, y: x.y }));
+    }
+    return out;
+  },
+  /** Centre the camera on a tile at a zoom (close-ups). */
+  look(x: number, y: number, zoom: number) {
+    if (!view) return;
+    view.camera.state.zoom = zoom;
+    view.centreOn(x + 0.5, y);
+    view.wake();
+  },
   setClock(m: number) {
     clock.running = false;
     view?.setClock(m);
+    syncMood();
     syncClock();
   },
 };
