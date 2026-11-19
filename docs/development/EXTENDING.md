@@ -10,7 +10,7 @@ How to add things to the game after release (DEC-075). There are three kinds of 
 
 - A pack is a folder under `content/` with a `pack.jsonc` manifest (`id`, `version`, `name_key`, `load_order`), JSONC files of any `kind`, and Fluent files under `locale/<lang>/`.
 - Every file is checked against `content/schemas/content.schema.json`, which is generated from the Rust types (DEC-053). After changing a content type, run `cargo run -p mandate-cli -- content schema` and commit the result.
-- Registries (sectors, attitudes, communities, concerns, scenarios, places, traits, occupations, crises, storytellers, dilemmas, goals, storylines, scenes, outlets) are in **load order**: files sorted by path, then item order. The engine stores registry data densely in that order. A pack whose path sorts before `base/` puts its entries first. That is supported: saves record registry keys, not positions.
+- Registries (sectors, attitudes, communities, concerns, name pools, scenarios, places, constitutions, policies, traits, occupations, crises, storytellers, dilemmas, goals, storylines, scenes, outlets) are in **load order**: files sorted by path, then item order. The engine stores registry data densely in that order. A pack whose path sorts before `base/` puts its entries first. That is supported: saves record registry keys, not positions.
 - Content ids are unique across all packs. Overriding an entry from an earlier pack ("pack patches") is not supported yet: a duplicate id is an error.
 - Every `name_key` and every other Fluent key that content references must exist in English, the reference locale (DEC-054). The engine never produces prose.
 - Check content with `cargo run -p mandate-cli -- content validate`.
@@ -236,7 +236,7 @@ Each of these is a closed enum by design, because new behaviour needs code. Addi
 | Sector behaviour | `SectorDriver` | The `match` on drivers in `economy` | `SectorDriver::REQUIRED` if every economy needs one |
 | Player action | `actions::Action` | `actions::apply` | `PLACE_ACTIONS` (and `LATE_NIGHT_ACTIONS`), the action cost in `tuning.jsonc`, the protocol offer, the web `ActionForm`, and a place that offers it |
 | Information service | `PLACE_SERVICES` | Its payload builder in `protocol::places` | `PlacePanelView`, the web `PlacePanel`, and a place kind that offers it |
-| Place kind worldgen generates | `world::PlaceKind` | Worldgen placement | A `places` entry (`places::registry_issues` checks that one exists) |
+| Place kind worldgen generates | `world::PlaceKind` | Worldgen placement | A `places` entry (`places::registry_issues` checks that one exists); its web icon in `web/src/places/labels.ts`; the kind in `web/src/hub/testTowns.ts` so the town tests generate it. If the town layout changes with it, bump `LAYOUT_VERSION` (`web/src/hub/townLayout.ts`) and keep the old version callable, so a town in a saved run never rearranges (DEC-085) |
 | Indicator (a measure of a town) | `Indicator` (`mandate-content/src/types.rs`) | `concerns::indicator` | `Indicator::ALL`; a test of its range. Concerns, crisis kinds, and (later) situational policies can then use it |
 | Narrative cast, condition, or effect | `Cast`, `Condition`, `EffectDef` (`mandate-content/src/narrative.rs`) | `narrative::cast::{candidates, holds}`, `narrative::resolve::apply_effect` | Validation in `narrative::validate`; `EffectDef::valence` (cost, benefit); the protocol's trade-off line (`protocol::narrative::preview`, `applied_line`); a test |
 | Goal drive | `GoalDrive` | `characters::goals::refresh` (what it stores) and its reader in the NPC AI or council lean | Validation; a test that it changes the AI |
@@ -255,6 +255,8 @@ Rules for code changes:
 - Add a unit or integration test for the handler. Run the full checklist in `AGENTS.md`, including WASM parity.
 
 ## Save-format changes
+
+Current format: v13. Migrations exist from v9.
 
 - If a serialised struct or enum changes shape, bump `SAVE_FORMAT_VERSION` (`mandate-save/src/lib.rs`) and update `EXPECTED` in `crates/mandate-save/tests/saves.rs`.
 - Until release, a bump may reject older development saves. After release, add a JSON-level step to `migrate` and a fixture save.

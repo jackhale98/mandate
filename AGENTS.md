@@ -34,6 +34,7 @@ cargo build -p mandate-wasm --target wasm32-unknown-unknown
 cargo run -p mandate-cli -- content validate
 cd web && npm run typecheck && npm run lint && npm test && npm run build
 cd web && npx playwright test --trace off
+cd tools/pixelkit && npm run check
 ```
 
 ## Reporting

@@ -14,7 +14,7 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
        └─ Candidate draft: 3 cards, rerolls (DEC-036)
               │
               ▼
-        HUB (primary screen, PixiJS scene, DEC-009)
+        HUB (primary screen, Canvas 2D scene, DEC-009, DEC-080). Until the walkable town lands in M6 the town screen opens on the town map (DEC-086): an illustrated map of neighbourhoods, routes, and landmarks; tap a building to go there. The "List" tab beside it is the accessible text view of the same places
           HUD: turn span ("Week of 3 March"), day-part slots, Mandate, money, staff,
                pressure-track mini-gauges (DEC-006), notifications, Agenda, End Turn
           In-world portals (each also in a global menu):
