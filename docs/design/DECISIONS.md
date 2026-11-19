@@ -97,6 +97,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-088 | Enterable key places with data-driven interiors; walking by default, quick mode as an option | Accepted |
 | DEC-089 | Map layers from a registry; some gated by where you have been | Accepted |
 | DEC-090 | Town layout v2: terrain-first, data-driven districts, size from population, hidden places | Accepted |
+| DEC-091 | Knowledge is earned: who and what you know comes from places and people | Accepted |
 
 ---
 
@@ -1855,3 +1856,34 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - D12: built at the start of M6. The town map (DEC-086) ships on v1 and moves to v2.
 - **Versioning:** v1 stays callable for runs that started with it (DEC-085).
 - **Dependencies:** DEC-051, DEC-053, DEC-075, DEC-078, DEC-079, DEC-084, DEC-085, DEC-086, DEC-087.
+
+### DEC-091 — Knowledge is earned
+
+- **Status:** Accepted (owner, 2026-11-19). The owner proposed that players "visit places and people to start learning the information such as who cares about what, who the power broker is, what policies are … this incentivizes exploration in the beginning of the game and as new zones are achieved like moving to the capital", balanced with accessibility. The owner then answered the open points: "Standard menu known, background-based start, local knowledge option off by default."
+- **Decision:** extends DEC-079 ("places give depth, not access") from precision to identity. Some things are now learned, not just made more exact.
+  - **Levels:** each subject is unknown, then heard of (a rumour or a name), then known (met or seen), then detailed (from the right place or person). Subjects include:
+    - the town's concerns by neighbourhood;
+    - the power broker;
+    - councillors' and other people's goals, stances and favours;
+    - the rival's plans;
+    - who supports a policy;
+    - situational and proposed policies;
+    - hidden places (DEC-090 D7);
+    - gated map layers (DEC-089).
+  - **Never gated:** the rules, your own state, what an action does and its trade-offs (DEC-073), deadlines, anything aimed at you (decisions, stories, investigations), and the standard policy menu.
+  - **Ignorance costs effectiveness, never fairness.** Canvassing on an issue a neighbourhood doesn't care about does less. Lobbying someone whose goals you don't know works less often.
+  - **The starting knowledge follows your background.** Someone who grew up in the town knows its main worries and the council by name, but not who really runs things. A newcomer knows little. Moving to a new zone (the region, the capital) starts local knowledge again, and party contacts give a short primer.
+  - **No busywork:**
+    - You learn through actions, not movement, so the List view and quick mode (DEC-088) learn the same things.
+    - Most learning is a side effect of what you'd do anyway: canvassing, council, the market.
+    - The first visit to each place in a new town includes a short introduction.
+    - Identities never fade. Numbers carry their date.
+  - **The notebook:** the pocket gets a "what you know" page, listing each thing with where and when you learned it. It also lists leads ("the union hall would know who's behind the plant deal"), so finding things is guided, not hunted.
+  - **The "Start with local knowledge" option** is offered at setup next to quick mode, and is **off by default**.
+  - **Engine:**
+    - A per-player knowledge ledger in the player domain (ordered maps, DEC-041) and part of the save.
+    - Protocol views hide what the player doesn't know. The UI never decides it.
+    - It reuses the knowledge model of hidden facts (DEC-034).
+    - Bots learn by the same rules. A lab gate requires that exploring early pays off, but that exploring alone never wins.
+- **Timing:** the first M6 engine task, alongside town layout v2 (DEC-090), after M5d part 2 merges.
+- **Dependencies:** DEC-034, DEC-051, DEC-073, DEC-077, DEC-079, DEC-088, DEC-089, DEC-090.
