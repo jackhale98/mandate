@@ -190,6 +190,9 @@ impl Session {
                 QueryDto::Map => map_view(self.engine_mut()?)
                     .map(ResponseBody::Map)
                     .ok_or_else(|| err(ErrorCode::Internal, "terrain unavailable")),
+                QueryDto::MapLayers => {
+                    Ok(ResponseBody::MapLayers(map_layers_view(self.engine_mut()?)))
+                }
                 QueryDto::Municipality { id } => municipality_view(self.engine_mut()?, id)
                     .map(ResponseBody::Municipality)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no municipality {id}"))),

@@ -4,4 +4,10 @@ export type MapMunicipality = { id: number, name: string, region: number,
 /**
  * `metro` | `city` | `town` | `rural`
  */
-class: string, x: number, y: number, population: number, unemployment: number, port: boolean, regional_capital: boolean, national_capital: boolean, };
+class: string, x: number, y: number, population: number, 
+/**
+ * When the map was loaded, rounded for the player's own town as in
+ * `MapTownFigures`. The map's layers read `MapLayersView`, which is kept
+ * current; this stays for older readers.
+ */
+unemployment: number, port: boolean, regional_capital: boolean, national_capital: boolean, };

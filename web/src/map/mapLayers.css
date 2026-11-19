@@ -1,0 +1,90 @@
+/* The country map's layers (DEC-089): the picker row, the legend with its
+   readout, and the list. Colours of the classes come from layerPalette.ts;
+   text stays in the theme's inks. Phones first (360–412 px), then wider. */
+
+.map-body[data-testid="country-map"] .map-tools { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; border-bottom: 1px solid var(--border); background: var(--surface); }
+.map-body[data-testid="country-map"] .map-layer { min-width: 0; flex: 0 1 auto; }
+.map-body[data-testid="country-map"] .map-layer select { min-width: 0; max-width: 100%; min-height: 40px; font-weight: 600; }
+.map-body[data-testid="country-map"] .map-home { margin-left: auto; flex: 0 1 auto; max-width: 42%; }
+.map-list-toggle { flex: none; white-space: nowrap; }
+.map-list-toggle.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* The legend card under the map: readout, title and units, the classes, a note. */
+.map-legend.legend {
+  display: block; flex: none; padding: 8px 12px 10px; font-size: 0.8rem; color: var(--text);
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+.map-readout { display: flex; align-items: center; gap: 8px; min-height: 40px; margin-bottom: 4px; font-size: 0.9rem; }
+.map-readout-text { flex: 1 1 auto; min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
+.map-readout-detail { display: block; font-size: 0.8rem; }
+.map-readout > .map-swatch { width: 16px; height: 16px; border-radius: 50%; }
+.map-readout-town { font-weight: 700; }
+.map-readout-town .you-chip { margin-left: 6px; }
+.map-readout-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+.map-readout-more { flex: none; }
+.map-swatch {
+  display: inline-block; flex: none; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 25%, transparent);
+}
+.map-legend-head { margin-bottom: 6px; line-height: 1.3; }
+.map-legend-head strong { font-size: 0.85rem; }
+
+/* Numeric classes: a bar of equal segments, the breaks written between them. */
+.map-scale { position: relative; padding-bottom: 18px; }
+.map-scale-bar { display: flex; gap: 2px; height: 14px; }
+.map-scale-seg { flex: 1 1 0; border-radius: 2px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 15%, transparent); }
+.map-scale-seg:first-child { border-radius: 4px 2px 2px 4px; }
+.map-scale-seg:last-child { border-radius: 2px 4px 4px 2px; }
+/* The town being read: an outline on its class, not colour alone. */
+.map-scale-seg.on { outline: 2px solid var(--text); outline-offset: 1px; position: relative; z-index: 1; }
+.map-scale-seg.on::after { content: "▲"; position: absolute; left: 50%; top: 100%; transform: translate(-50%, 1px); font-size: 9px; line-height: 1; color: var(--text); }
+.map-scale-edges { position: absolute; left: 0; right: 0; bottom: 0; height: 16px; }
+.map-scale-edges span {
+  position: absolute; top: 2px; transform: translateX(-50%); white-space: nowrap;
+  font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+/* Categorical classes: swatch, name and count, wrapping. */
+.map-cats { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.map-cats li { display: inline-flex; align-items: center; gap: 6px; padding: 2px 6px 2px 2px; border-radius: 6px; }
+.map-cats li.on { outline: 2px solid var(--text); outline-offset: 0; }
+.map-legend-note { margin: 6px 0 0; font-size: 0.75rem; line-height: 1.35; }
+
+/* The list: the layer as a sortable table of towns. */
+.map-table-wrap { flex: 1; min-height: 0; overflow: auto; background: var(--bg); -webkit-overflow-scrolling: touch; }
+.map-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.map-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); border-bottom: 1px solid var(--border); text-align: left; padding: 0; }
+.map-table th.num, .map-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.map-table-sort {
+  display: inline-flex; align-items: center; gap: 6px; width: 100%; min-height: 44px; padding: 0 12px;
+  border: 0; background: none; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; justify-content: inherit;
+}
+.map-table th.num .map-table-sort { justify-content: flex-end; }
+.map-table-arrow { color: var(--muted); font-size: 0.7rem; }
+.map-table-sort:focus-visible, .map-table-town:focus-visible { outline: 3px solid var(--info); outline-offset: -3px; }
+.map-table tbody th, .map-table td { padding: 0 12px; border-bottom: 1px solid var(--border); font-weight: 400; text-align: left; }
+.map-table td { white-space: nowrap; }
+.map-table td .map-swatch { margin-right: 8px; }
+.map-table tbody tr.on { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.map-table-town {
+  min-height: 44px; padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-weight: 600;
+  text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px;
+}
+.map-table tbody th .you-chip { margin-left: 6px; }
+
+@media (max-width: 420px) {
+  .map-body[data-testid="country-map"] .map-tools { padding: 6px 8px; gap: 6px; }
+  .map-list-toggle { padding: 0 10px; }
+  .map-body[data-testid="country-map"] .map-home { max-width: 38%; padding: 0 8px; }
+  .map-table-sort, .map-table tbody th, .map-table td { padding-left: 8px; padding-right: 8px; }
+}
+@media (min-width: 900px) {
+  /* Wide screens: the legend floats over the map's lower left, as a card. */
+  .map-body[data-testid="country-map"] { position: relative; }
+  .map-legend.legend {
+    position: absolute; left: 16px; bottom: 16px; width: 360px; z-index: 2; border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); padding-bottom: 10px;
+  }
+  .map-body[data-testid="country-map"]:has(.map-table-wrap) .map-legend.legend { position: static; width: auto; border-radius: 0; border-width: 1px 0 0; box-shadow: none; }
+}

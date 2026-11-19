@@ -62,3 +62,47 @@ ui-people-learned = You learned { $n ->
     [one] one new thing
    *[other] { $n } new things
 } this turn.
+
+# The country map's layers (DEC-089): names, units and notes from the
+# registry (`map_layers.jsonc`), then the picker, legend, readout and table.
+map-layer-population = Population
+map-layer-population-unit = Residents
+map-layer-density = Density
+map-layer-density-unit = Residents per km²
+map-layer-unemployment = Unemployment
+map-layer-unemployment-unit = Share of workers without a job
+map-layer-unemployment-note = Grey: close to the national rate of { $mid }. Blue is lower, red is higher.
+map-layer-median-income = Median income
+map-layer-median-income-unit = A year, per working-age adult
+map-layer-rent = Rent
+map-layer-rent-unit = A month, for a typical home
+map-layer-industry = Main industry
+map-layer-industry-unit = What each town's jobs are known for
+map-layer-industry-note = The industry largest for its size compared with the country, public services aside.
+map-layer-industry-detail = { $pct }% of local jobs
+map-layer-resource = Resources
+map-layer-resource-unit = Each town's strongest natural resource
+map-layer-resource-note = The resource each town is richest in compared with the rest of the country: farmland, timber, minerals, fishing, energy or scenery.
+map-layer-resource-detail = index { $pct } of 100
+ui-map-legend = Legend
+ui-map-legend-under = under { $hi }
+ui-map-legend-range = { $lo }–{ $hi }
+ui-map-legend-over = { $lo } and over
+ui-map-legend-other = Other
+ui-map-legend-unknown = Unknown
+ui-map-legend-towns = { $n ->
+    [one] 1 town
+   *[other] { $n } towns
+}
+ui-map-per-km2 = { $n }/km²
+ui-map-readout-hint = Tap a town to read its figure.
+ui-map-as-of = As of { $date }
+ui-map-list = List
+ui-map-list-show = Show the towns as a list
+ui-map-list-hide = Back to the map
+ui-map-table-caption = Towns by { $layer }
+ui-map-table-town = Town
+ui-map-table-sort = Sort by { $col }
+ui-map-table-open = Open { $town }
+ui-map-class = Class { $n } of { $total }
+ui-map-details = Details

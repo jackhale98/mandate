@@ -5655,6 +5655,229 @@
       ],
       "type": "object"
     },
+    "MapLayerBreaks": {
+      "description": "How a sequential layer's class breaks are drawn.",
+      "oneOf": [
+        {
+          "const": "quantile",
+          "description": "About as many towns in each class (for skewed figures).",
+          "type": "string"
+        },
+        {
+          "const": "equal",
+          "description": "Classes of equal width from the lowest town to the highest.",
+          "type": "string"
+        }
+      ]
+    },
+    "MapLayerDef": {
+      "additionalProperties": false,
+      "description": "One map layer (DEC-089).",
+      "properties": {
+        "detail_key": {
+          "description": "Categorical layers: Fluent key of the readout's detail, given `$pct`\n(the category's share or index, 0–100).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "format": {
+          "$ref": "#/$defs/MapLayerFormat"
+        },
+        "id": {
+          "description": "Content id, `map_layer.<name>`. The layer picker lists layers in load order.",
+          "type": "string"
+        },
+        "label_key": {
+          "description": "Fluent key of the layer's name in the picker and the legend.",
+          "type": "string"
+        },
+        "legend": {
+          "$ref": "#/$defs/MapLegendDef"
+        },
+        "midpoint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MapLayerMidpoint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Diverging layers only (required there)."
+        },
+        "note_key": {
+          "description": "Fluent key of a short note under the legend (how the figure is chosen).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scale": {
+          "$ref": "#/$defs/MapLayerScale"
+        },
+        "source": {
+          "$ref": "#/$defs/MapLayerSource",
+          "description": "The town figure the layer shows."
+        },
+        "unit_key": {
+          "description": "Fluent key of the legend's units line (what the numbers are).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label_key",
+        "unit_key",
+        "source",
+        "scale",
+        "format",
+        "legend"
+      ],
+      "type": "object"
+    },
+    "MapLayerFormat": {
+      "description": "How the client writes a layer's numbers.",
+      "oneOf": [
+        {
+          "const": "count",
+          "description": "A whole number (residents).",
+          "type": "string"
+        },
+        {
+          "const": "per_km2",
+          "description": "A number per km².",
+          "type": "string"
+        },
+        {
+          "const": "percent",
+          "description": "A share (0..1) written as a percentage.",
+          "type": "string"
+        },
+        {
+          "const": "money",
+          "description": "An amount of money.",
+          "type": "string"
+        },
+        {
+          "const": "category",
+          "description": "A category's name (categorical layers).",
+          "type": "string"
+        }
+      ]
+    },
+    "MapLayerMidpoint": {
+      "description": "A diverging layer's midpoint (its grey class).",
+      "oneOf": [
+        {
+          "const": "national",
+          "description": "The national figure: the towns' figures weighted by population.",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A fixed value in the figure's units.",
+          "properties": {
+            "value": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "MapLayerScale": {
+      "description": "How a layer's classes are coloured.",
+      "oneOf": [
+        {
+          "const": "sequential",
+          "description": "One hue, light to dark: magnitude.",
+          "type": "string"
+        },
+        {
+          "const": "diverging",
+          "description": "Two hues either side of a grey midpoint: above or below a baseline.",
+          "type": "string"
+        },
+        {
+          "const": "categorical",
+          "description": "A fixed order of a few hues, the rest folded into \"Other\": identity.",
+          "type": "string"
+        }
+      ]
+    },
+    "MapLayerSource": {
+      "description": "A figure the engine serves per town for the map. The names are the field\nnames of the map's town figures (`MapTownFigures`), so an unknown source\nfails when the content loads.",
+      "oneOf": [
+        {
+          "const": "population",
+          "description": "Residents.",
+          "type": "string"
+        },
+        {
+          "const": "density",
+          "description": "Residents per km² of the town's land.",
+          "type": "string"
+        },
+        {
+          "const": "unemployment",
+          "description": "Share of the labour force out of work (0..1).",
+          "type": "string"
+        },
+        {
+          "const": "median_income",
+          "description": "Middle-class gross income per working-age adult, a year.",
+          "type": "string"
+        },
+        {
+          "const": "rent",
+          "description": "Typical monthly rent.",
+          "type": "string"
+        },
+        {
+          "const": "main_industry",
+          "description": "The industry that defines the town: the largest relative to its\nnational share, public employment aside (DEC-077 §1). Categorical.",
+          "type": "string"
+        },
+        {
+          "const": "main_resource",
+          "description": "The town's strongest natural resource (farmland, timber, minerals,\nfishing, energy, scenery). Categorical.",
+          "type": "string"
+        }
+      ]
+    },
+    "MapLegendDef": {
+      "additionalProperties": false,
+      "description": "A layer's legend: how many classes, and how they are drawn.",
+      "properties": {
+        "breaks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MapLayerBreaks"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Sequential layers only (default quantile). A diverging layer's classes\nare equal steps either side of its midpoint."
+        },
+        "classes": {
+          "description": "Sequential: 3–7 classes. Diverging: an odd 3–7 (the middle one grey).\nCategorical: 1–3 named categories (the most common), the rest folded\ninto \"Other\". Three is the most a map can tell apart for every reader\n(the colours are validated for all pairs).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "classes"
+      ],
+      "type": "object"
+    },
     "MechanismDef": {
       "description": "Typed mechanism primitives (DEC-024). Policies never write outcomes\ndirectly; the domain models compute consequences from these.",
       "oneOf": [
@@ -11405,6 +11628,27 @@
         },
         "kind": {
           "const": "connectors",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The country map's layers (DEC-089): what the map can colour towns by.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/MapLayerDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "map_layers",
           "type": "string"
         }
       },

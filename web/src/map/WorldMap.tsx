@@ -3,7 +3,7 @@
 // move this to PixiJS.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MapView } from "../engine/protocol/MapView";
-import { bakeRaster, type Overlay } from "./render";
+import { bakeRaster, type LayerPaint } from "./render";
 import { extendWorld, paintSurroundings } from "./surroundings";
 
 interface Props {
@@ -11,7 +11,10 @@ interface Props {
   selected: number | null;
   onSelect: (municipalityId: number | null) => void;
   label: string;
-  overlay: Overlay;
+  /** A map layer's fill per town (DEC-089); `null` or absent: terrain only. */
+  paint?: LayerPaint;
+  /** The town under a mouse pointer (hover readout), or null when it leaves. */
+  onHover?: ((municipalityId: number | null) => void) | undefined;
   /** The player's home municipality: marked with a flag and labelled, and the map opens centred on it. */
   home?: number | null;
   /** The label drawn with the home marker, e.g. "You". */
@@ -77,10 +80,10 @@ function drawHomeMarker(ctx: CanvasRenderingContext2D, x: number, y: number, r: 
   return `${Math.round(x + 9)},${Math.round(top + 5)}`;
 }
 
-export function WorldMap({ view, selected, onSelect, label, overlay, home = null, homeLabel = "", seed = "" }: Props) {
+export function WorldMap({ view, selected, onSelect, label, paint = null, onHover, home = null, homeLabel = "", seed = "" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const raster = useMemo(() => bakeRaster(view, selected, overlay), [view, selected, overlay]);
+  const raster = useMemo(() => bakeRaster(view, selected, paint), [view, selected, paint]);
   // Sea and foreign land beyond the grid (presentation only), so the view
   // never ends at a hard edge. It does not depend on the selection or overlay.
   const ring = useMemo(() => {
@@ -148,10 +151,14 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
       // (more on portrait screens). Without one: fit the country; on
       // portrait screens zoom in on the capital.
       const focus = homeTown ?? (portrait ? capital : undefined);
+      const scale = fitScale * (portrait ? 1.9 : homeTown ? 1.5 : 1);
+      // Keep the view on the grid where it is smaller than the grid: a town
+      // on the coast stays in view without half the screen being open sea.
+      const inside = (c: number, half: number, extent: number) => (2 * half >= extent ? extent / 2 : Math.min(Math.max(c, half), extent - half));
       cam.current = {
-        scale: fitScale * (portrait ? 1.9 : homeTown ? 1.5 : 1),
-        x: focus ? focus.x + 0.5 : view.width / 2,
-        y: focus ? focus.y + 0.5 : view.height / 2,
+        scale,
+        x: inside(focus ? focus.x + 0.5 : view.width / 2, size.w / (2 * scale), view.width),
+        y: inside(focus ? focus.y + 0.5 : view.height / 2, size.h / (2 * scale), view.height),
       };
     }
     return cam.current;
@@ -254,6 +261,9 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
       const r = (CLASS_RADIUS[mine.class] ?? 2) * Math.min(2, Math.max(0.8, zoom * 0.6));
       const flag = drawHomeMarker(ctx, x, y, r, youText ? `${mine.name} · ${youText}` : mine.name);
       if (canvas.dataset.homeAt !== flag) canvas.dataset.homeAt = flag;
+      // The town's own square (a tap there picks the town), for tests.
+      const centre = `${Math.round(x)},${Math.round(y)}`;
+      if (canvas.dataset.homeCentre !== centre) canvas.dataset.homeCentre = centre;
     }
   };
   const requestDraw = () => {
@@ -351,9 +361,22 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
       if (a && b) gesture.current = { moved: true, startDist: Math.hypot(a.x - b.x, a.y - b.y), startScale: camera().scale };
     }
   };
+  /** The town under a point of the canvas, or null. */
+  const townAt = (p: { x: number; y: number }): number | null => {
+    const c = camera();
+    const cx = Math.floor(c.x + (p.x - size.w / 2) / c.scale);
+    const cy = Math.floor(c.y + (p.y - size.h / 2) / c.scale);
+    if (cx < 0 || cy < 0 || cx >= view.width || cy >= view.height) return null;
+    const o = raster.owner[cy * view.width + cx] ?? 65535;
+    return o === 65535 ? null : o;
+  };
   const onPointerMove = (e: React.PointerEvent) => {
     const prev = pointers.current.get(e.pointerId);
-    if (!prev) return;
+    if (!prev) {
+      // A mouse over the map, no button down: the hover readout.
+      if (e.pointerType === "mouse" && onHover) onHover(townAt(local(e)));
+      return;
+    }
     const cur = local(e);
     pointers.current.set(e.pointerId, cur);
     if (pointers.current.size === 2) {
@@ -375,13 +398,7 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
     const wasTap = !gesture.current.moved && pointers.current.size === 1;
     pointers.current.delete(e.pointerId);
     if (!wasTap) return;
-    const p = local(e);
-    const c = camera();
-    const cx = Math.floor(c.x + (p.x - size.w / 2) / c.scale);
-    const cy = Math.floor(c.y + (p.y - size.h / 2) / c.scale);
-    if (cx < 0 || cy < 0 || cx >= view.width || cy >= view.height) return onSelect(null);
-    const o = raster.owner[cy * view.width + cx] ?? 65535;
-    onSelect(o === 65535 ? null : o);
+    onSelect(townAt(local(e)));
   };
 
   // Wheel zoom (non-passive so the page does not scroll). The handler reads
@@ -415,6 +432,9 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={(e) => pointers.current.delete(e.pointerId)}
+        onPointerLeave={(e) => {
+          if (e.pointerType === "mouse") onHover?.(null);
+        }}
       />
     </div>
   );

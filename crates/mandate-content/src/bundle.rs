@@ -106,6 +106,10 @@ pub struct ContentBundle {
     /// Town layout v2 connectors, in load order (the generator takes the first that fits).
     #[serde(default)]
     pub connectors: Vec<crate::layout::ConnectorDef>,
+    /// The country map's layers (DEC-089), in load order (the picker's order).
+    /// Presentation data: validated, never read by the simulation.
+    #[serde(default)]
+    pub map_layers: Vec<crate::map_layers::MapLayerDef>,
     /// Conversation topics (DEC-093), in load order.
     #[serde(default)]
     pub talk_topics: Vec<crate::conversation::TopicDef>,
@@ -313,6 +317,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut town_districts: Vec<crate::layout::TownDistrictDef> = Vec::new();
     let mut terrain_features: Vec<crate::layout::TerrainFeatureDef> = Vec::new();
     let mut connectors: Vec<crate::layout::ConnectorDef> = Vec::new();
+    let mut map_layers: Vec<crate::map_layers::MapLayerDef> = Vec::new();
     let mut talk_topics: Vec<crate::conversation::TopicDef> = Vec::new();
     let mut talk_lines: Vec<crate::conversation::TalkLineDef> = Vec::new();
     let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
@@ -600,6 +605,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::MapLayers { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        map_layers.push(x);
+                    }
+                }
+            }
             ContentFile::TalkTopics { items } => {
                 for x in items {
                     if claim(&x.id, &mut issues) {
@@ -730,6 +742,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         town_districts,
         terrain_features,
         connectors,
+        map_layers,
         talk_topics,
         talk_lines,
         talk_voices,
