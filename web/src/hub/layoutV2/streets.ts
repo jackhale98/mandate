@@ -134,7 +134,7 @@ export function stageStreets(w: Work) {
       }
     }
   }
-  let crossingsLeft = w.rail.length ? 2 : 0;
+  let crossingsLeft = w.rail.length ? 2 + Math.floor(w.rail.reduce((n, s) => n + segSteps(s) + 1, 0) / 60) : 0;
   const crossable = (c: number, dir: number) => crossingsLeft > 0 && ((railAx[c] === 1 && (dir & 3) === 2) || (railAx[c] === 2 && (dir & 3) === 0));
   // Segment cover: how many runs cover each cell (dead ends and the joined test).
   const cover = new Uint16Array(N);
@@ -166,7 +166,8 @@ export function stageStreets(w: Work) {
       const x = c % W;
       for (let k4 = 0; k4 < 4; k4++) {
         const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
-        if (n < 0 || n >= N || (!land[n] && railAx[n] !== 1 && railAx[n] !== 2)) continue;
+        // The railway is crossed square-on only (never followed along its length).
+        if (n < 0 || n >= N || (!land[n] && !((railAx[n] === 1 && k4 >= 2) || (railAx[n] === 2 && k4 < 2)))) continue;
         const d = (w.district[n] as number) >= 0 ? (w.district[n] as number) : Math.max(0, w.district[c] as number);
         const nd = dc + (k4 < 2 ? (cx[d] as number) : (cy[d] as number));
         if (nd < (dist[n] as number)) {
@@ -288,21 +289,7 @@ export function stageStreets(w: Work) {
 
   const segOf = (l: Leg, width: number, style: Segment["style"], d: number, cls: number, end: StreetEndKind | null = null) => makeSeg(l.x, l.y, l.dir, l.steps, width, { cls, style, district: d, arterial: -1, end });
   /** Whether a run would lie alongside another (or the railway) within a few cells: a near-parallel duplicate. */
-  const crowds = (s: Segment) => {
-    for (const o of w.segments) {
-      if (o.axis !== s.axis) continue;
-      const g = parallelGap(s, o);
-      if (g.overlap >= 4 && g.gap <= 3) return true;
-      // Collinear pieces a few cells apart across: a jog.
-      if (g.overlap > -7 && g.overlap < 4 && g.gap > -Math.max(s.width, o.width) && centreOffset(s, o) >= 1 && centreOffset(s, o) <= 5) return true;
-    }
-    for (const o of w.rail) {
-      if (o.axis !== s.axis) continue;
-      const g = parallelGap(s, o);
-      if (g.overlap >= 4 && g.gap <= 2) return true;
-    }
-    return false;
-  };
+  const crowds = (s: Segment) => crowded(w, s, null);
 
   const commit = (cand: Cand, d: number, cls = RoadClass.Street): Segment[] => {
     const made: Segment[] = [];
@@ -521,6 +508,108 @@ export function stageStreets(w: Work) {
     }
   }
 
+  /**
+   * An access street to a district out of the streets' reach: from its seed
+   * the cheapest way to the nearest street, over fields if it must and across
+   * the railway square-on, in a few straight runs (turns cost); the seed's
+   * end gets a turning head where the type has them (else growth or the end
+   * pass joins it up).
+   */
+  const accessStreet = (d: WorkDistrict, g: Growth): Cand | null => {
+    const wo = g.widths[g.widths.length - 1] as Growth["widths"][number];
+    const width = Math.max(3, wo.width);
+    const style = wo.style === "dirt" ? "dirt" : "asphalt";
+    const lo = bandLo(width);
+    // Fields may be crossed (not the map's edge), and the railway square-on.
+    const passable = (x: number, y: number, dir: number): 0 | 1 | 2 => {
+      let road = false;
+      for (let k = 0; k < width; k++) {
+        const bx = (dir & 3) === 0 ? x : x - lo + k;
+        const by = (dir & 3) === 0 ? y - lo + k : y;
+        if (bx < 3 || by < 3 || bx >= W - 3 || by >= H - 3) return 2;
+        const c = by * W + bx;
+        if (isRoad(c)) road = true;
+        else if (isWaterBody(w, c) || w.terrain[c] === Terrain.Rock || (w.use[c] as number) & (Use.Square | Use.Bridge | Use.Rail)) {
+          if (!((railAx[c] === 1 && (dir & 3) === 2) || (railAx[c] === 2 && (dir & 3) === 0))) return 2;
+        } else if (!land[c] && (w.district[c] as number) >= 0) return 2;
+        else if (railAx[c] === 3) return 2;
+      }
+      return road ? 1 : 0;
+    };
+    let best: Cand | null = null;
+    let bestLen = Infinity;
+    const cs = cellsOf[d.index] as number[];
+    for (let i = 0; i < cs.length; i += 3) {
+      const c = cs[i] as number;
+      if (!land[c] || skip[c]) continue;
+      const x = c % W;
+      const y = (c - x) / W;
+      for (const dir of [0, 2, 4, 6]) {
+        const [dx, dy] = DIR8[dir] as readonly [number, number];
+        let hit = -1;
+        for (let t = 1; t <= 70; t++) {
+          const st = passable(x + dx * t, y + dy * t, dir);
+          if (st === 2) break;
+          if (st === 1) {
+            hit = t;
+            break;
+          }
+        }
+        if (hit < 3 || hit >= bestLen) continue;
+        const ex = x + dx * (hit - 1);
+        const ey = y + dy * (hit - 1);
+        if (across(ex, ey, dir, width).jog) continue;
+        // From the street reached, inward to the district (the far end is the district's).
+        const leg: Leg = { x: x + dx * hit, y: y + dy * hit, dir: (dir + 4) & 7, steps: hit };
+        if (crowds(segOf(leg, width, style, d.index, RoadClass.Street))) continue;
+        best = { legs: [leg], width, style, end: null, score: 0 };
+        bestLen = hit;
+      }
+    }
+    // No straight way: one bend (out of the district, then square-on to a street).
+    for (let i = 0; i < cs.length && !best; i += 5) {
+      const c = cs[i] as number;
+      if (!land[c] || skip[c]) continue;
+      const x = c % W;
+      const y = (c - x) / W;
+      for (const d1 of [0, 2, 4, 6]) {
+        const [dx, dy] = DIR8[d1] as readonly [number, number];
+        for (let k = 4; k <= 32; k += 4) {
+          let clear = true;
+          for (let t = 1; t <= k && clear; t++) if (passable(x + dx * t, y + dy * t, d1) !== 0) clear = false;
+          if (!clear) break;
+          const kx = x + dx * k;
+          const ky = y + dy * k;
+          for (const d2 of [(d1 + 2) & 7, (d1 + 6) & 7]) {
+            const [ex, ey] = DIR8[d2] as readonly [number, number];
+            let hit = -1;
+            for (let t = 1; t <= 60; t++) {
+              const st = passable(kx + ex * t, ky + ey * t, d2);
+              if (st === 2) break;
+              if (st === 1) {
+                hit = t;
+                break;
+              }
+            }
+            if (hit < 3 || k + hit >= bestLen) continue;
+            if (across(kx + ex * (hit - 1), ky + ey * (hit - 1), d2, width).jog) continue;
+            const hi = width - 1 - bandLo(width);
+            const legA: Leg = { x: kx + ex * hit, y: ky + ey * hit, dir: (d2 + 4) & 7, steps: hit + hi };
+            const legB: Leg = { x: kx, y: ky, dir: (d1 + 4) & 7, steps: k };
+            if (crowds(segOf(legA, width, style, d.index, RoadClass.Street)) || crowds(segOf(legB, width, style, d.index, RoadClass.Street))) continue;
+            best = { legs: [legA, legB], width, style, end: null, score: 0 };
+            bestLen = k + hit;
+          }
+        }
+      }
+    }
+    if (best && g.culDeSac > 0) {
+      const s = segOf(best.legs[best.legs.length - 1] as Leg, width, style, d.index, RoadClass.Street, g.head);
+      if (paintHead(w, s, s.ends[1] ? 1 : 0, true) && headClear(s)) best.end = g.head;
+    }
+    return best;
+  };
+
   // ---- growth, district by district from the core outward
   const order = [...w.districts].sort((a, b) => (GROW_ORDER[a.kind] ?? 9) - (GROW_ORDER[b.kind] ?? 9) || a.index - b.index);
   const cellsOf: number[][] = w.districts.map(() => []);
@@ -543,7 +632,30 @@ export function stageStreets(w: Work) {
     const guard = Math.floor(cells.length / 12) + 30;
     // The frontier: the deepest land a street can still reach (streets grow outward from those there).
     const reach = Math.floor((g.maxRun * 2) / 3) * Math.max(cx[d.index] as number, cy[d.index] as number);
+    // A district no street can reach from the town (beyond fields, across the railway) gets an access street.
+    const access = () => {
+      const cand = accessStreet(d, g);
+      if (!cand) return;
+      crossingsLeft = Math.max(crossingsLeft, cand.legs.length);
+      commit(cand, d.index);
+      for (const c of cells) skip[c] = 0;
+      for (const c of cells) {
+        const x = c % W;
+        const y = (c - x) / W;
+        for (let yy = y - 2; yy <= y + 2 && !skip[c]; yy++) for (let xx = x - 2; xx <= x + 2; xx++) if (xx < 0 || yy < 0 || xx >= W || yy >= H || (!land[yy * W + xx] && !isRoad(yy * W + xx))) skip[c] = 1;
+      }
+    };
+    let grown = 0;
+    let accessed = false;
+    if (!cells.some((c) => land[c] && (dist[c] as number) <= reach)) {
+      access();
+      accessed = true;
+    }
     for (let it = 0; it < guard; it++) {
+      if (!accessed && !grown && it === 12) {
+        access();
+        accessed = true;
+      }
       let best = 0;
       let nearFar = INF;
       for (const c of cells) {
@@ -570,6 +682,7 @@ export function stageStreets(w: Work) {
         if (cand.end) headsLeft--;
         done = true;
         STATS.ok++;
+        grown++;
         break;
       }
       if (!done) STATS.fail++;
@@ -615,6 +728,25 @@ export function stageStreets(w: Work) {
       w.roadClass[c] = RoadClass.Lane;
     }
   }
+}
+
+/** Whether a run would lie alongside another (or the railway) within a few cells, or jog off another's line (`self` excepted). */
+function crowded(w: Work, s: Segment, self: Segment | null): boolean {
+  for (const o of w.segments) {
+    if (o === self || o.axis !== s.axis) continue;
+    const g = parallelGap(s, o);
+    const off = centreOffset(s, o);
+    if (off === 0) continue;
+    if (g.overlap >= 4 && g.gap <= 3) return true;
+    // Collinear pieces a few cells apart across: a jog.
+    if (g.overlap > -7 && g.overlap < 4 && g.gap > -Math.max(s.width, o.width) && off <= 5) return true;
+  }
+  for (const o of w.rail) {
+    if (o.axis !== s.axis) continue;
+    const g = parallelGap(s, o);
+    if (g.overlap >= 4 && g.gap <= 2 && g.gap >= -1) return true;
+  }
+  return false;
 }
 
 /** Dev counters (scratch). */
@@ -777,6 +909,17 @@ function resolveEnds(w: Work, cover: Uint16Array, land: Uint8Array, pre: Uint8Ar
           s.ends[end] = "bollards";
           changed = true;
           continue;
+        }
+        if (reach >= 0) {
+          const grown: Segment = withBoxOf({ ...s, ends: [null, null] });
+          if (end === 0) {
+            grown.ax = s.ax - sx * (reach + 1);
+            grown.ay = s.ay - sy * (reach + 1);
+          } else {
+            grown.bx = s.bx + sx * (reach + 1);
+            grown.by = s.by + sy * (reach + 1);
+          }
+          if (crowded(w, withBoxOf(grown), s)) reach = -1;
         }
         if (reach >= 0) {
           const e: Segment = { ...s, ends: [null, null] };
@@ -948,14 +1091,19 @@ function promoteMainStreets(w: Work) {
   const { W, H } = w;
   const N = W * H;
   const S = w.segments.length;
-  const owner = new Int32Array(N).fill(-1);
+  // Each cell's first and last run (a junction's cells are shared), heads counted as their run's.
+  const first = new Int32Array(N).fill(-1);
+  const last = new Int32Array(N).fill(-1);
   const segAt: number[][] = Array.from({ length: S }, () => []);
-  w.segments.forEach((s, i) =>
-    segCells(s, W, H, (c) => {
-      if ((owner[c] as number) < 0) owner[c] = i;
+  w.segments.forEach((s, i) => {
+    const put = (c: number) => {
+      if ((first[c] as number) < 0) first[c] = i;
+      last[c] = i;
       (segAt[i] as number[]).push(c);
-    }),
-  );
+    };
+    segCells(s, W, H, put);
+    for (const end of [0, 1] as const) if (isHead(s.ends[end])) for (const c of headCells(s, end, W, H)) put(c);
+  });
   // Runs that touch: through shared or neighbouring cells.
   const adj: Set<number>[] = Array.from({ length: S }, () => new Set());
   for (let i = 0; i < S; i++) {
@@ -963,10 +1111,11 @@ function promoteMainStreets(w: Work) {
       const x = c % W;
       for (const n of [c, x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
         if (n < 0 || n >= N) continue;
-        const o = owner[n] as number;
-        if (o >= 0 && o !== i) {
-          (adj[i] as Set<number>).add(o);
-          (adj[o] as Set<number>).add(i);
+        for (const o of [first[n] as number, last[n] as number]) {
+          if (o >= 0 && o !== i) {
+            (adj[i] as Set<number>).add(o);
+            (adj[o] as Set<number>).add(i);
+          }
         }
       }
     }
@@ -1013,6 +1162,7 @@ function promoteMainStreets(w: Work) {
         q.push(o);
       }
     }
+    (STATS as unknown as Record<string, unknown>)[`prom${d.index}`] = `${d.name} hit ${hit} touching ${w.segments.map((_, i) => i).filter((i) => touchesD(i)).length} reach ${[...prev].filter((p) => p !== -2).length}`;
     for (let i = hit; i >= 0 && !isMain(w.segments[i] as Segment); i = prev[i] as number) {
       const s = w.segments[i] as Segment;
       s.cls = RoadClass.Arterial;

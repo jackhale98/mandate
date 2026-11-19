@@ -229,7 +229,9 @@ export function streetProblems(map: TownMap, plan: TownPlan): string[] {
     const t = map.terrain[c] as number;
     if (t === Terrain.Road && !cover[c] && !headed[c]) out.push(`road at ${c % W},${Math.floor(c / W)} belongs to no street`);
   }
-  // ---- duplicates and jogs
+  // ---- duplicates and jogs (two arterial runs joined by a 45° run of the arterials are a clean bend, not a jog)
+  const boxes = (p: Segment, q: Segment) => p.x0 <= q.x1 + 1 && q.x0 <= p.x1 + 1 && p.y0 <= q.y1 + 1 && q.y0 <= p.y1 + 1;
+  const bentAt45 = (a: Segment, b: Segment) => a.arterial >= 0 && b.arterial >= 0 && segs.some((d) => d.arterial >= 0 && (d.axis === "ne" || d.axis === "nw") && segSteps(d) >= 4 && boxes(d, a) && boxes(d, b));
   for (let i = 0; i < segs.length; i++) {
     const a = segs[i] as Segment;
     for (let j = i + 1; j < segs.length; j++) {
@@ -239,7 +241,7 @@ export function streetProblems(map: TownMap, plan: TownPlan): string[] {
       const off = centreOffset(a, b);
       if (off === 0) continue;
       if (g.overlap >= 4 && g.gap <= 3) out.push(`${name(a)} and ${name(b)} run alongside ${Math.max(0, g.gap)} cells apart`);
-      else if (g.overlap > -7 && g.overlap < 4 && off <= 5 && g.gap > -Math.max(a.width, b.width)) out.push(`${name(a)} and ${name(b)} jog ${off} cells`);
+      else if (g.overlap > -7 && g.overlap < 4 && off <= 5 && g.gap > -Math.max(a.width, b.width) && !bentAt45(a, b)) out.push(`${name(a)} and ${name(b)} jog ${off} cells`);
     }
     for (const r of plan.rail) {
       if (a.axis !== r.axis) continue;

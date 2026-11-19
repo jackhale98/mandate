@@ -180,8 +180,9 @@ interface Costs8 {
 function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], isGoal: (c: number, d: number) => boolean, target: number, k: Costs8, exempt: (c: number) => boolean = (c) => c === target): { c: number; d: number }[] | null {
   const { CW, CH } = cg;
   const n = CW * CH;
-  const g = new Float64Array(n * 8).fill(Infinity);
-  const from = new Int32Array(n * 8).fill(-1);
+  // A state is (cell, direction entered, whether that step turned): a turn needs a straight step before the next (no staircase).
+  const g = new Float64Array(n * 16).fill(Infinity);
+  const from = new Int32Array(n * 16).fill(-1);
   const heap = new MinHeap(1024);
   const gx = target % CW;
   const gy = Math.floor(target / CW);
@@ -192,7 +193,7 @@ function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], 
     return (Math.max(dx, dy) + Math.min(dx, dy) * 0.4) * unit;
   };
   for (const s of starts) {
-    const st = s.c * 8 + s.d;
+    const st = (s.c * 8 + s.d) * 2;
     if (s.g < (g[st] as number)) {
       g[st] = s.g;
       heap.push(s.g + h(s.c), st);
@@ -201,13 +202,14 @@ function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], 
   const bad = (c: number) => cg.sea[c] === 1 || cg.blocked[c] === 1;
   while (heap.size) {
     const st = heap.pop();
-    const c = st >> 3;
-    const d = st & 7;
+    const c = st >> 4;
+    const d = (st >> 1) & 7;
+    const turned = st & 1;
     const gc = g[st] as number;
     if (heap.lastKey - h(c) > gc + 1e-9) continue;
     if (isGoal(c, d)) {
       const path: { c: number; d: number }[] = [];
-      for (let s = st; s >= 0; s = from[s] as number) path.push({ c: s >> 3, d: s & 7 });
+      for (let s = st; s >= 0; s = from[s] as number) path.push({ c: s >> 4, d: (s >> 1) & 7 });
       return path.reverse();
     }
     const x = c % CW;
@@ -215,7 +217,7 @@ function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], 
     const locked = cg.wet[c] === 1 || cg.rail[c] !== 0;
     for (let nd = 0; nd < 8; nd++) {
       const turn = turnOf(d, nd);
-      if (turn > 2) continue;
+      if (turn > 2 || (turn > 0 && turned)) continue;
       if (locked && nd !== d) continue;
       const nx = x + (DX8[nd] as number);
       const ny = y + (DY8[nd] as number);
@@ -239,7 +241,7 @@ function coarsePath8(cg: Coarse, starts: { c: number; d: number; g: number }[], 
       if ((nx === 0 || ny === 0 || nx === CW - 1 || ny === CH - 1) && !exempt(nc)) cost += k.border;
       if (turn === 1) cost += k.t45;
       else if (turn === 2) cost += k.t90;
-      const ns = nc * 8 + nd;
+      const ns = (nc * 8 + nd) * 2 + (turn > 0 ? 1 : 0);
       const ng = gc + cost;
       if (ng < (g[ns] as number)) {
         g[ns] = ng;
@@ -638,7 +640,8 @@ export function stageArterials(w: Work) {
     for (let j = j0; j < j1; j++) loop.push(j * CW + i1);
     for (let i = i1; i > i0; i--) loop.push(j1 * CW + i);
     for (let j = j1; j > j0; j--) loop.push(j * CW + i0);
-    const ok = (c: number) => !(cg.wet[c] || cg.sea[c] || cg.blocked[c] || cg.rock[c] || cg.rail[c]);
+    const railNear = (c: number) => [c - 1, c + 1, c - CW, c + CW].some((n) => n >= 0 && n < CW * CH && cg.rail[n] !== 0);
+    const ok = (c: number) => !(cg.wet[c] || cg.sea[c] || cg.blocked[c] || cg.rock[c] || cg.rail[c] || railNear(c));
     const startAt = loop.findIndex((c) => !ok(c));
     if (startAt < 0) ringChains.push([...loop, loop[0] as number]);
     else {
@@ -659,6 +662,7 @@ export function stageArterials(w: Work) {
   const kinds = (span: number) => connectorFor(w, "arterial", "river", span);
   let bridges = 0;
   const names = new Set<string>();
+  const artPath = new Uint8Array(CW * CH);
   const lay = (art: Arterial, path: { c: number; d: number }[]) => {
     (globalThis as unknown as { LOG?: string[] }).LOG?.push(`${art.name}: ${path.map((p) => `${p.c % CW},${Math.floor(p.c / CW)}:${p.d}`).join(" ")}`);
     const segs = roadSegs(cg, path, { cls: RoadClass.Arterial, style: "asphalt", district: -1, arterial: art.index });
@@ -675,7 +679,10 @@ export function stageArterials(w: Work) {
       w.segments.push(s);
       segCells(s, w.W, w.H, (c) => art.cells.push(c));
     }
-    for (const p of path) cg.road[p.c] = 1;
+    for (const p of path) {
+      cg.road[p.c] = 1;
+      artPath[p.c] = 1;
+    }
     markNear(cg, path.map((p) => p.c));
   };
   const costs = (water: number): Costs8 => ({ base: 10, diag: 14, slope: 30, water, rock: 60, road: 6, t45: 35, t90: 50, near: 14, border: 120 });
@@ -752,8 +759,32 @@ export function stageArterials(w: Work) {
   if (ringChains.length) {
     const art: Arterial = { index: w.arterials.length, name: "Ring Road", mode: "local", bearing: NO_BEARING, toName: "", cells: [] };
     const arterialCell = new Uint8Array(CW * CH);
-    for (const a of w.arterials) for (const c of a.cells) arterialCell[Math.floor(Math.floor(c / w.W) / G) * CW + Math.floor((c % w.W) / G)] = 1;
+    for (let c = 0; c < CW * CH; c++) arterialCell[c] = artPath[c] as number;
+    // Never alongside an arterial: the ring breaks where one runs beside it (a cell off its line).
+    const pieces: number[][] = [];
     for (const ch of ringChains) {
+      const closed = ch.length > 2 && ch[0] === ch[ch.length - 1];
+      let run: number[] = [];
+      let broken = false;
+      ch.forEach((c, k) => {
+        const p = ch[Math.max(0, k - 1)] as number;
+        const q = ch[Math.min(ch.length - 1, k + 1)] as number;
+        const horiz = Math.floor(p / CW) === Math.floor(q / CW);
+        const side = horiz ? [c - CW, c + CW] : [c % CW > 0 ? c - 1 : -1, c % CW < CW - 1 ? c + 1 : -1];
+        const beside = !arterialCell[c] && side.some((n) => n >= 0 && n < CW * CH && arterialCell[n]);
+        if (beside) {
+          broken = true;
+          if (run.length) pieces.push(run);
+          run = [];
+        } else run.push(c);
+      });
+      if (run.length) pieces.push(run);
+      if (closed && !broken) {
+        pieces.pop();
+        pieces.push(ch);
+      }
+    }
+    for (const ch of pieces) {
       const closed = ch.length > 2 && ch[0] === ch[ch.length - 1];
       let a = 0;
       let b = ch.length - 1;

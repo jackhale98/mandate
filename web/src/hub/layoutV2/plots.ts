@@ -538,34 +538,41 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
   const sx = w.plaza.x + (w.plaza.w >> 1);
   const sy = w.plaza.y + (w.plaza.h >> 1);
   let best: { x: number; y: number; bw: number; bh: number; d: number; s: number } | null = null;
-  for (const [bw, bh] of [
-    [6, 3],
-    [5, 3],
-    [4, 3],
-  ] as const) {
-    for (let y = 2; y + bh < H - 1; y++) {
-      for (let x = 1; x + bw < W - 1; x++) {
-        const c0 = y * W + x;
-        const d = w.district[c0] as number;
-        if (d < 0) continue;
-        const lv = w.level[c0] as number;
-        let ok = true;
-        let near = 99;
-        for (let yy = y; yy < y + bh && ok; yy++) {
-          for (let xx = x; xx < x + bw && ok; xx++) {
-            const c = yy * W + xx;
-            if (w.district[c] !== d || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv || (rd[c] as number) < 2) ok = false;
-            near = Math.min(near, rd[c] as number);
+  // Strictly first (one district, one cell of platform); then a footprint across districts or on the fields at the town's edge.
+  const coreD = w.districts.find((d) => d.kind === "core")?.index ?? 0;
+  for (let pass = 0; pass < 2 && !best; pass++) {
+    for (const [bw, bh] of [
+      [6, 3],
+      [5, 3],
+      [4, 3],
+    ] as const) {
+      for (let y = 2; y + bh < H - 1; y++) {
+        for (let x = 1; x + bw < W - 1; x++) {
+          const c0 = y * W + x;
+          let d = w.district[c0] as number;
+          if (d < 0 && pass === 0) continue;
+          const lv = w.level[c0] as number;
+          let ok = true;
+          let near = 99;
+          for (let yy = y; yy < y + bh && ok; yy++) {
+            for (let xx = x; xx < x + bw && ok; xx++) {
+              const c = yy * W + xx;
+              const dc = w.district[c] as number;
+              if ((pass === 0 && dc !== d) || w.use[c] || !buildable(w.terrain[c] as number) || w.level[c] !== lv || (rd[c] as number) < 2 || isWaterBody(w, c)) ok = false;
+              if (d < 0 && dc >= 0) d = dc;
+              near = Math.min(near, rd[c] as number);
+            }
           }
+          if (!ok || near !== 2) continue;
+          if (d < 0) d = coreD;
+          const front = (y + bh) * W + x + (bw >> 1);
+          if (front >= N || isWaterBody(w, front) || (w.use[front] as number) & (Use.Plot | Use.Square) || w.blocked[front] || m.roofs[front]) continue;
+          let roofOk = true;
+          for (let xx = x; xx < x + bw; xx++) if (m.fronts[(y - 1) * W + xx] || (w.use[(y - 1) * W + xx] as number) & Use.Plot) roofOk = false;
+          if (!roofOk) continue;
+          const s = -(Math.abs(x + (bw >> 1) - sx) + Math.abs(y + bh - sy)) - (bw === 6 ? 0 : 12);
+          if (!best || s > best.s) best = { x, y, bw, bh, d, s };
         }
-        if (!ok || near !== 2) continue;
-        const front = (y + bh) * W + x + (bw >> 1);
-        if (front >= N || isWaterBody(w, front) || (w.use[front] as number) & (Use.Plot | Use.Square) || w.blocked[front]) continue;
-        let roofOk = true;
-        for (let xx = x; xx < x + bw; xx++) if (m.fronts[(y - 1) * W + xx] || (w.use[(y - 1) * W + xx] as number) & Use.Plot) roofOk = false;
-        if (!roofOk) continue;
-        const s = -(Math.abs(x + (bw >> 1) - sx) + Math.abs(y + bh - sy)) - (bw === 6 ? 0 : 12);
-        if (!best || s > best.s) best = { x, y, bw, bh, d, s };
       }
     }
   }
