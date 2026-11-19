@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 13;
+pub const SAVE_FORMAT_VERSION: u16 = 14;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -169,6 +169,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         (10, v10_characters),
         (11, v11_narrative),
         (12, v12_media),
+        // Town baselines (TOWN_GENERATION §15 E1): the previous format to
+        // the next. Renumber only this key if another bump merges first.
+        (13, town_baselines),
     ];
     let mut value = value;
     let mut v = from;
@@ -321,6 +324,61 @@ fn v12_media(mut value: serde_json::Value) -> Result<serde_json::Value, SaveErro
     st.remove("justice");
     if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
         p.remove("status");
+    }
+    Ok(value)
+}
+
+/// Previous format → next (v13 → v14 when written; TOWN_GENERATION §15 E1):
+/// town baselines. A run from before them takes its baselines from the
+/// values it holds now, deterministically: each neighbourhood's residents
+/// (adults and children), each sector's jobs and each town's housing stock,
+/// rounded to whole units (the same rounding a new game records with). The
+/// town's layout is then planned from the town as it is when first loaded,
+/// and stays put from there.
+fn town_baselines(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::Value;
+    let whole = |v: Option<&Value>| -> Value {
+        let x = v.and_then(Value::as_f64).unwrap_or(0.0);
+        Value::from(mandate_sim::economy::whole(x))
+    };
+    let hoods = value
+        .pointer_mut("/state/population/hoods")
+        .and_then(Value::as_array_mut)
+        .ok_or(SaveError::Malformed)?;
+    for h in hoods {
+        let h = h.as_object_mut().ok_or(SaveError::Malformed)?;
+        let children = h.get("children").and_then(Value::as_u64).unwrap_or(0);
+        let adults: u64 = h
+            .get("cohorts")
+            .and_then(Value::as_array)
+            .ok_or(SaveError::Malformed)?
+            .iter()
+            .map(|c| c.get("count").and_then(Value::as_u64).unwrap_or(0))
+            .sum();
+        let total = u32::try_from(children + adults).unwrap_or(u32::MAX);
+        h.insert("baseline_population".into(), Value::from(total));
+    }
+    let munis = value
+        .pointer_mut("/state/economy/munis")
+        .and_then(Value::as_array_mut)
+        .ok_or(SaveError::Malformed)?;
+    for mu in munis {
+        let mu = mu.as_object_mut().ok_or(SaveError::Malformed)?;
+        let sectors = mu
+            .get_mut("sectors")
+            .and_then(Value::as_array_mut)
+            .ok_or(SaveError::Malformed)?;
+        for s in sectors {
+            let s = s.as_object_mut().ok_or(SaveError::Malformed)?;
+            let jobs = whole(s.get("jobs"));
+            s.insert("baseline_jobs".into(), jobs);
+        }
+        let housing = mu
+            .get_mut("housing")
+            .and_then(Value::as_object_mut)
+            .ok_or(SaveError::Malformed)?;
+        let stock = whole(housing.get("stock"));
+        housing.insert("baseline_stock".into(), stock);
     }
     Ok(value)
 }

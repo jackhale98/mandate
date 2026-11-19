@@ -97,6 +97,11 @@ pub struct HoodPop {
     pub children_by_community: Vec<u32>,
     /// Indexed by `cohort_index(age, class, community)`.
     pub cohorts: Vec<Cohort>,
+    /// Residents (adults and children) as play began (TOWN_GENERATION §4.1,
+    /// §15 E1): recorded once by `record_baselines`, never changed after.
+    /// The town layout sizes this neighbourhood's district from it; no
+    /// system reads it.
+    pub baseline_population: u32,
 }
 
 impl HoodPop {
@@ -510,6 +515,8 @@ pub fn init(
             children,
             children_by_community: Vec::new(),
             cohorts,
+            // Recorded as play begins, after the history burn-in.
+            baseline_population: 0,
         };
         if ncom > 1 {
             // Children follow their community's share of the adults.
@@ -530,6 +537,14 @@ pub fn init(
         // Computed by the engine when it takes over the state.
         concern_keys: Vec::new(),
         town_concerns: Vec::new(),
+    }
+}
+
+/// Record each neighbourhood's population as play begins (TOWN_GENERATION
+/// §15 E1). Called once for a new game (worldgen) and never by a system.
+pub fn record_baselines(pop: &mut PopulationState) {
+    for h in &mut pop.hoods {
+        h.baseline_population = u32::try_from(h.total()).unwrap_or(u32::MAX);
     }
 }
 
