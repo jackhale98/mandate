@@ -19,9 +19,11 @@ ui-town-planning = Laying out the town…
 
 # The street.
 ui-town-street = Street
-ui-town-street-label = The streets of { $town }, drawn. Tap a building to walk to it; the pocket's Places tab has every place as text.
-ui-town-street-help = Tap a building to walk there. Drag to look around, pinch or scroll to zoom.
+ui-town-street-label = The streets of { $town }, drawn. Tap a building to walk to it, or walk with the arrow keys or W A S D (Shift to hurry) and press Enter at a door to go in. The pocket's Places tab has every place as text.
+ui-town-street-help = Tap a building to walk there. Drag to look around, pinch or scroll to zoom. With a keyboard: arrows or W A S D walk, Enter goes in.
 ui-town-street-loading = Drawing the streets…
+# The hint at a door the player stands at (keyboard walking).
+ui-town-street-enter = Enter: { $place }
 ui-town-where-zone = You are in { $zone }
 
 # The night between turns.

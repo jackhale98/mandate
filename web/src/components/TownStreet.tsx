@@ -71,6 +71,8 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  // The door hint shown to keyboard walkers, announced too.
+  const [door, setDoor] = useState<string | null>(null);
   // The turn's time of day, eased forward when a slot is spent; night and the new morning when a turn ends.
   const minutes = shownMinutes(pocket, passage) ?? 12 * 60;
   const easeMs = passage ? PASSAGE_EASE_MS : LIGHT_EASE_MS;
@@ -127,16 +129,25 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
         const art = new PixelkitArt(pack, { night: "moods" });
         art.setClock(m);
         if (!document.getElementById("hub-icon-sprite")) document.body.insertAdjacentHTML("afterbegin", art.iconSprite().replace("<svg ", '<svg id="hub-icon-sprite" '));
+        const name = (b: TownBuilding) => (b.home ? tr.t("place-home") : b.place !== null ? b.name || tr.t(`place-${b.kind}`) : null);
+        const enter = (b: TownBuilding) => {
+          const n = name(b);
+          return n ? tr.t("ui-town-street-enter", { place: n }) : null;
+        };
         view = new HubView(stage, {
           map: { ...map, start: locationCell(map, loc) ?? map.start },
           art,
-          label: (b) => (b.home ? tr.t("place-home") : b.place !== null ? b.name || tr.t(`place-${b.kind}`) : null),
+          label: name,
           labelIcon: (b) => (b.place !== null || b.home ? art.icon(b.home ? "home" : b.kind) : null),
           townsfolk: 18,
           clock: new DayClock(m, 0, false),
           reducedMotion: reducedMotion(),
           canvasLabel: tr.t("ui-town-street-label", { town: town.municipality }),
           onArrive: (b) => arrive.current(b),
+          // Desktop: arrows and WASD walk, Enter at a door goes in (the same as a tap on the building).
+          keyboard: true,
+          doorHint: enter,
+          onDoor: (b) => setDoor(b ? enter(b) : null),
         });
         viewRef.current = view;
         artRef.current = art;
@@ -278,6 +289,9 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       {/* Announced only when the neighbourhood changes, not at every step. */}
       <span className="visually-hidden" aria-live="polite" data-testid="where-announce">
         {tr.t("ui-town-where-zone", { zone })}
+      </span>
+      <span className="visually-hidden" aria-live="polite" data-testid="door-announce">
+        {door}
       </span>
       <p id="town-street-help" className="visually-hidden">
         {tr.t("ui-town-street-help")}

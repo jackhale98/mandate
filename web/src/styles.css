@@ -686,6 +686,14 @@ h2 { font-size: 1.1rem; }
 .hub-label-landmark { border-color: #e8b44c; color: #e8b44c; }
 .hub-label-icon { width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; fill: currentColor; shape-rendering: crispEdges; }
 .hub-label:hover { border-color: #e8b44c; }
+/* Keyboard walking: the focused street gets an inset ring (the canvas fills a clipped frame), and a
+   hint over the door the player stands at. */
+.town-street-stage canvas:focus { outline: none; }
+.town-street-stage canvas:focus-visible { outline: 3px solid var(--info); outline-offset: -3px; }
+.hub-door-hint {
+  margin-top: -4px; padding: 2px 8px; border: 1px solid #e8b44c; border-radius: 6px; background: rgba(17, 19, 26, 0.88);
+  color: #fff1c4; font: 600 12px var(--font); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
 
 /* The night between two turns: a veil and the new date over the town (the bottom bar stays above it). */
 .turn-passage {
