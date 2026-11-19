@@ -7,7 +7,7 @@
 //! The English is rendered here by a small Fluent subset (placeables,
 //! `x_key` arguments as message references, plural selects): enough to read
 //! the base lines, not a Fluent implementation.
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::print_stdout)]
 use mandate_content::conversation::{AboutKind, TalkPart};
 use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
 use mandate_sim::actions::PlayerCommand;

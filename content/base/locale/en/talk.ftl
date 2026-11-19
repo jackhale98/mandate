@@ -177,6 +177,7 @@ talk-worries-folk-disaster = "Half our street's still waiting on builders. We've
 # Deflections, by role (some point somewhere).
 talk-runs-deflect = "Runs things? Nobody runs anything round here. Ask at the diner if you want gossip."
 talk-runs-nobody = "The council, supposedly. Isn't that you lot?"
+talk-runs-easier = "Who runs anything? Ask me something easier."
 talk-runs-fb-diner = "People talk in here all day. Most of it's rubbish and the rest is libel."
 talk-runs-fb-politician = "Ask at the party office. They keep a list of the people they daren't upset."
 talk-runs-fb-politician-2 = "Officially, we do. You'll find out what that's worth."
@@ -201,7 +202,6 @@ talk-runs-stake = "{ $broker }. Follow the money in { $stake } and you'll find {
 talk-runs-stake-2 = "Ask yourself why every decision about { $stake } seems to suit { $broker } so well. Then ask { $broker }, and watch the face."
 talk-runs-stake-3 = "Everything round here comes back to { $stake }, and { $broker } has a hand in all of it. Cross { $broker } and you'll find doors shutting you didn't know were open."
 talk-runs-workers = "{ $broker }. Every time we sit down with management, { $broker } has been in the room first. You can tell by how little's left to negotiate."
-talk-runs-editor = "{ $broker }. I've a drawer full of notes on { $broker } and not one story I can stand up."
 talk-runs-farm = "Out here you learn who to ask before you open a gate. In town, you ask { $broker }."
 talk-runs-party = "{ $broker }. And yes, the branch has noticed, and no, there's nothing in the rulebook about it."
 

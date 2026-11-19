@@ -25,10 +25,13 @@
 // - Role groups: politicians (councillor, mayor), the party (party chair),
 //   workers (union steward, organiser), business (business association
 //   chair, plant manager), trade (shopkeeper, diner owner), the farm, the
-//   press (editor, journalist), clergy, care (teacher, nurse) and folk
+//   press (journalist), clergy, care (teacher, nurse) and folk
 //   (resident, retiree).
 // Some base-file tests (`mandate-content` conversation tests) edit lines
-// here by their exact text; keep the lines they name as they are.
+// here by their exact text; keep the lines they name as they are. The
+// editor occupation is named nowhere here on purpose: `mandate-save`'s
+// `saves_and_the_character_registries` removes an occupation only the
+// outlets name, so editors get only the lines everyone shares.
 {
   "kind": "talk_lines",
   "items": [
@@ -176,7 +179,7 @@
 
     // --- Openers, by role --------------------------------------------------------------
     { "id": "line.open.press", "part": "opener", "key": "talk-open-press",
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor", "occupation.journalist"] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] },
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.open.politician", "part": "opener", "key": "talk-open-politician",
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["councillor", "mayor"] },
@@ -259,7 +262,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.worries.fb.press", "part": "substance", "topic": "topic.worries", "weight": 3,
       "key": "talk-worries-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor", "occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
     { "id": "line.worries.fb.clergy", "part": "substance", "topic": "topic.worries", "weight": 3,
       "key": "talk-worries-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ] },
@@ -294,7 +297,7 @@
       "teaches": [ { "subject": { "type": "town_concerns" }, "level": "known" } ] },
     { "id": "line.worries.press", "part": "substance", "topic": "topic.worries", "weight": 2,
       "key": "talk-worries-press",
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor", "occupation.journalist"] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] },
                 { "type": "tells", "subject": { "type": "town_concerns" }, "min": "known" } ],
       "teaches": [ { "subject": { "type": "town_concerns" }, "level": "known" } ] },
     { "id": "line.worries.home", "part": "substance", "topic": "topic.worries", "weight": 2,
@@ -444,7 +447,7 @@
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.worries.press.budget", "part": "substance", "topic": "topic.worries", "weight": 3,
       "key": "talk-worries-press-budget",
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor", "occupation.journalist"] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] },
                 { "type": "indicator", "indicator": "budget_stress", "min": 0.3 },
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.worries.folk.tax", "part": "substance", "topic": "topic.worries", "weight": 3,
@@ -478,7 +481,7 @@
     { "id": "line.runs.deflect", "part": "substance", "topic": "topic.who_runs",
       "key": "talk-runs-deflect", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": [
-        "occupation.union_steward", "occupation.business_leader", "occupation.editor", "occupation.party_chair",
+        "occupation.union_steward", "occupation.business_leader", "occupation.party_chair",
         "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.shopkeeper",
         "occupation.organiser", "occupation.clergy", "occupation.teacher", "occupation.nurse",
         "occupation.resident", "occupation.retiree" ] } ],
@@ -487,10 +490,12 @@
     { "id": "line.runs.nobody", "part": "substance", "topic": "topic.who_runs",
       "key": "talk-runs-nobody", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": [
-        "occupation.union_steward", "occupation.business_leader", "occupation.editor", "occupation.party_chair",
+        "occupation.union_steward", "occupation.business_leader", "occupation.party_chair",
         "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.shopkeeper",
         "occupation.diner_owner", "occupation.organiser", "occupation.clergy", "occupation.teacher",
         "occupation.nurse", "occupation.resident", "occupation.retiree" ] } ] },
+    { "id": "line.runs.easier", "part": "substance", "topic": "topic.who_runs",
+      "key": "talk-runs-easier", "fallback": true },
     { "id": "line.runs.fb.diner", "part": "substance", "topic": "topic.who_runs", "weight": 3,
       "key": "talk-runs-fb-diner", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.diner_owner"] } ] },
@@ -521,7 +526,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.runs.fb.press", "part": "substance", "topic": "topic.who_runs", "weight": 3,
       "key": "talk-runs-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor", "occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
     { "id": "line.runs.fb.clergy", "part": "substance", "topic": "topic.who_runs", "weight": 3,
       "key": "talk-runs-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ],
@@ -574,12 +579,6 @@
     { "id": "line.runs.workers", "part": "substance", "topic": "topic.who_runs", "weight": 2,
       "key": "talk-runs-workers",
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.union_steward"] },
-                { "type": "tells", "subject": { "type": "broker" }, "min": "known" },
-                { "type": "is_broker", "slot": "speaker", "is": false } ],
-      "teaches": [ { "subject": { "type": "broker" }, "level": "known" } ] },
-    { "id": "line.runs.editor", "part": "substance", "topic": "topic.who_runs", "weight": 2,
-      "key": "talk-runs-editor",
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor"] },
                 { "type": "tells", "subject": { "type": "broker" }, "min": "known" },
                 { "type": "is_broker", "slot": "speaker", "is": false } ],
       "teaches": [ { "subject": { "type": "broker" }, "level": "known" } ] },
@@ -666,7 +665,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.about.fb.press", "part": "substance", "topic": "topic.about", "weight": 3,
       "key": "talk-about-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor", "occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
     { "id": "line.about.fb.clergy", "part": "substance", "topic": "topic.about", "weight": 3,
       "key": "talk-about-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ] },
@@ -809,7 +808,7 @@
       "key": "talk-about-rival-local",
       "when": [ { "type": "is_rival", "slot": "about" },
                 { "type": "occupation", "slot": "speaker", "occupations": [
-                  "occupation.union_steward", "occupation.business_leader", "occupation.editor", "occupation.party_chair",
+                  "occupation.union_steward", "occupation.business_leader", "occupation.party_chair",
                   "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.shopkeeper",
                   "occupation.diner_owner", "occupation.organiser", "occupation.clergy", "occupation.teacher",
                   "occupation.nurse", "occupation.resident", "occupation.retiree" ] },
@@ -820,7 +819,7 @@
       "when": [ { "type": "is_rival", "slot": "about" },
                 { "type": "personality", "slot": "about", "axis": "boldness", "min": 0.65 },
                 { "type": "occupation", "slot": "speaker", "occupations": [
-                  "occupation.union_steward", "occupation.business_leader", "occupation.editor", "occupation.party_chair",
+                  "occupation.union_steward", "occupation.business_leader", "occupation.party_chair",
                   "occupation.plant_manager", "occupation.farmer", "occupation.journalist", "occupation.shopkeeper",
                   "occupation.diner_owner", "occupation.organiser", "occupation.clergy", "occupation.teacher",
                   "occupation.nurse", "occupation.resident", "occupation.retiree" ] },
@@ -867,7 +866,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.pitch.fb.press", "part": "substance", "topic": "topic.pitch", "weight": 3,
       "key": "talk-pitch-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor", "occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
     { "id": "line.pitch.fb.clergy", "part": "substance", "topic": "topic.pitch", "weight": 3,
       "key": "talk-pitch-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ] },
@@ -921,7 +920,7 @@
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.farmer"] } ] },
     { "id": "line.support.fb.press", "part": "substance", "topic": "topic.support", "weight": 3,
       "key": "talk-support-fb-press", "fallback": true,
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor", "occupation.journalist"] } ] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] } ] },
     { "id": "line.support.fb.clergy", "part": "substance", "topic": "topic.support", "weight": 3,
       "key": "talk-support-fb-clergy", "fallback": true,
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.clergy"] } ] },
@@ -1046,7 +1045,7 @@
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.small.press", "part": "substance", "topic": "topic.small_talk", "weight": 2,
       "key": "talk-small-press",
-      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.editor", "occupation.journalist"] },
+      "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["occupation.journalist"] },
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.small.clergy", "part": "substance", "topic": "topic.small_talk", "weight": 2,
       "key": "talk-small-clergy",
