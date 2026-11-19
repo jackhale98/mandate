@@ -9,7 +9,9 @@ cargo build -p mandate-wasm --target wasm32-unknown-unknown --profile release-wa
 TARGET="${CARGO_TARGET_DIR:-target}"
 NODE_OUT="${MANDATE_WASM_NODE:-target/wasm-node}"
 WASM="$TARGET/wasm32-unknown-unknown/release-wasm/mandate_wasm.wasm"
-wasm-bindgen "$WASM" --out-dir web/src/engine/pkg --target web --omit-default-module-path
+# The web build drops the function-name section (~3.8 MB, about 45% of the file);
+# the node build used by tests keeps it for readable traces.
+wasm-bindgen "$WASM" --out-dir web/src/engine/pkg --target web --omit-default-module-path --remove-name-section
 wasm-bindgen "$WASM" --out-dir "$NODE_OUT" --target nodejs
 # Keep only what the app imports.
 rm -f web/src/engine/pkg/package.json
