@@ -47,8 +47,9 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
                goes in (the same command as a tap). Keys do nothing in the pocket, dialogs or inputs
           Battery (DEC-080 note): townsfolk-only frames at 15 fps (the player, camera and gestures at
                full rate); after 20 s without input townsfolk stop and nothing is drawn until the next
-               pointer, wheel, key or touch; paused behind sheets, the town map, a hidden page, and
-               the pocket where it covers over 60 % of the street (phones). Budget: e2e/street-battery
+               pointer, wheel, key or touch; paused behind the map overlay, election night, a hidden
+               page, and a sheet (pocket, panel) covering over 60 % of the street (phones' bottom
+               sheets; beside the street on wide screens it stays live). Budget: e2e/street-battery
           Not yet: pressure-track mini-gauges (DEC-006) and staff in the bar
           In-world portals (each also in a global menu):
             ├─ Office desk → Bills & policies · Budget · Agencies & appointments (DEC-024/026)
