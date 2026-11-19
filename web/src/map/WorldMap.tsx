@@ -188,38 +188,64 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, ix, iy, iw, ih);
 
-    // Settlements and labels.
+    // Settlements, then labels placed in priority order (home, the selected
+    // town, regions, then larger towns first): a label that would overlap one
+    // already placed waits for a closer zoom instead of piling on top.
     const zoom = scale / fit;
-    ctx.textAlign = "center";
-    ctx.font = "600 12px system-ui, sans-serif";
+    const homeM = homeId === null ? undefined : v.municipalities.find((m) => m.id === homeId);
+    const taken: [number, number, number, number][] = [];
+    const free = (x0: number, y0: number, w: number, h: number) =>
+      !taken.some(([a, b, c, d]) => x0 < a + c && x0 + w > a && y0 < b + d && y0 + h > b);
+    const radius = (cls: string) => (CLASS_RADIUS[cls] ?? 2) * Math.min(2, Math.max(0.8, zoom * 0.6));
     for (const m of v.municipalities) {
       const x = ox + (m.x + 0.5) * scale;
       const y = oy + (m.y + 0.5) * scale;
-      const r = (CLASS_RADIUS[m.class] ?? 2) * Math.min(2, Math.max(0.8, zoom * 0.6));
+      const r = radius(m.class);
       ctx.fillStyle = "#141414";
       ctx.fillRect(x - r - 1, y - r - 1, 2 * r + 2, 2 * r + 2);
       ctx.fillStyle = m.national_capital ? "#ffd23f" : m.id === sel ? "#ffb347" : "#fafafa";
       ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
-      const show = m.id !== homeId && (m.class === "metro" || zoom > 1.6 || (m.class === "city" && zoom > 1.1) || m.id === sel);
-      if (show) {
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "rgba(10,10,14,0.85)";
-        ctx.strokeText(m.name, x, y - r - 4);
-        ctx.fillStyle = "#fff";
-        ctx.fillText(m.name, x, y - r - 4);
+    }
+    if (homeM) {
+      // Reserve the home marker's flag and label (drawn last, on top).
+      const x = ox + (homeM.x + 0.5) * scale;
+      const y = oy + (homeM.y + 0.5) * scale;
+      ctx.font = "700 12px system-ui, sans-serif";
+      const text = youText ? `${homeM.name} · ${youText}` : homeM.name;
+      const w = ctx.measureText(text).width + 14;
+      const top = y - radius(homeM.class) - 4 - 26;
+      const lx = x - 4 - w < 4 ? x + 22 : x - 4 - w;
+      taken.push([Math.min(lx, x) - 2, top - 4, Math.max(lx + w, x + 18) - Math.min(lx, x) + 4, y - top + 10]);
+    }
+    ctx.textAlign = "center";
+    const label = (text: string, x: number, y: number, font: string, stroke: string, fill: string): boolean => {
+      ctx.font = font;
+      const w = ctx.measureText(text).width + 6;
+      const h = 15;
+      if (!free(x - w / 2, y - h + 3, w, h)) return false;
+      taken.push([x - w / 2, y - h + 3, w, h]);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = stroke;
+      ctx.strokeText(text, x, y);
+      ctx.fillStyle = fill;
+      ctx.fillText(text, x, y);
+      return true;
+    };
+    const townFont = "600 12px system-ui, sans-serif";
+    const selM = sel === null ? undefined : v.municipalities.find((m) => m.id === sel && m.id !== homeId);
+    if (selM) label(selM.name, ox + (selM.x + 0.5) * scale, oy + (selM.y + 0.5) * scale - radius(selM.class) - 4, townFont, "rgba(10,10,14,0.85)", "#fff");
+    if (zoom < 1.6) {
+      for (const rg of v.regions) {
+        label(rg.name.toUpperCase(), ox + rg.label_x * scale, oy + rg.label_y * scale + 14, "700 13px Georgia, serif", "rgba(255,255,255,0.7)", "rgba(40,30,30,0.9)");
       }
     }
-    if (zoom < 1.6) {
-      ctx.font = "700 13px Georgia, serif";
-      for (const rg of v.regions) {
-        const x = ox + rg.label_x * scale;
-        const y = oy + rg.label_y * scale + 14;
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "rgba(255,255,255,0.7)";
-        ctx.strokeText(rg.name.toUpperCase(), x, y);
-        ctx.fillStyle = "rgba(40,30,30,0.9)";
-        ctx.fillText(rg.name.toUpperCase(), x, y);
-      }
+    const rank: Record<string, number> = { metro: 0, city: 1, town: 2, rural: 3 };
+    const order = v.municipalities
+      .filter((m) => m.id !== homeId && m.id !== sel)
+      .filter((m) => m.class === "metro" || zoom > 1.6 || (m.class === "city" && zoom > 1.1) || m.national_capital)
+      .sort((a, b) => Number(b.national_capital) - Number(a.national_capital) || (rank[a.class] ?? 9) - (rank[b.class] ?? 9) || a.id - b.id);
+    for (const m of order) {
+      label(m.name, ox + (m.x + 0.5) * scale, oy + (m.y + 0.5) * scale - radius(m.class) - 4, townFont, "rgba(10,10,14,0.85)", "#fff");
     }
     const mine = homeId === null ? undefined : v.municipalities.find((m) => m.id === homeId);
     if (mine) {

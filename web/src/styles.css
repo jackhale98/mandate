@@ -550,3 +550,13 @@ h2 { font-size: 1.1rem; }
 .you-chip { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--accent); color: var(--accent-ink); vertical-align: 1px; }
 .town-list .town-home { margin-left: -12px; padding-left: 10px; border-left: 3px solid var(--accent); }
 .map-home { margin-left: auto; }
+
+/* Map layer picker: a dropdown, so more layers fit on phones (DEC-089 plan). */
+.map-layer { display: inline-flex; align-items: center; gap: 8px; }
+.map-layer select { min-height: 40px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; }
+/* Phones: the layer picker and "You" share one row; the legend gets its own. */
+.map-tools .legend { order: 3; flex-basis: 100%; }
+.map-home { min-width: 0; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 599px) {
+  .map-layer-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
