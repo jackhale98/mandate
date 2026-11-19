@@ -81,7 +81,8 @@ function reachableLand(w: Work): Uint8Array {
   for (let qh = 0; qh < qt; qh++) {
     const c = q[qh] as number;
     const x = c % W;
-    for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+    for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
       if (n < 0 || n >= N || reach[n]) continue;
       if (isWaterBody(w, n) && !((w.use[n] as number) & Use.Bridge)) continue;
       reach[n] = 1;
@@ -123,6 +124,7 @@ export function stageDistricts(w: Work) {
     return { index, id: h.id, name: h.name, kind, type, population: h.baseline_population, quota, seed: -1, cells: 0 } satisfies WorkDistrict;
   });
 
+  const tSeeds = performance.now();
   // ---- what seeds score on
   const arterialDist = distanceField(W, H, (c) => w.roadClass[c] === RoadClass.Arterial, (c) => !isWaterBody(w, c), 40);
   const railDist = w.railCells.length ? distanceField(W, H, (c) => ((w.use[c] as number) & Use.Rail) !== 0, (c) => !isWaterBody(w, c), 40) : null;
@@ -137,15 +139,23 @@ export function stageDistricts(w: Work) {
   const seeds: { x: number; y: number }[] = [];
   const hostsMine = (d: WorkDistrict) => geo.places.some((p) => p.neighborhood === d.id && p.kind === "mine");
   const hostsPort = (d: WorkDistrict) => geo.places.some((p) => p.neighborhood === d.id && p.kind === "port");
+  const sites = new Map<number, { prefers: Set<string>; avoids: Set<string> }>();
+  const siteOf = (d: WorkDistrict) => {
+    let s = sites.get(d.index);
+    if (!s) {
+      s = { prefers: new Set(d.type.site.prefers), avoids: new Set(d.type.site.avoids ?? []) };
+      if (hostsMine(d)) s.prefers.add("toward_minerals");
+      if (hostsPort(d)) s.prefers.add("shore");
+      sites.set(d.index, s);
+    }
+    return s;
+  };
   const score = (d: WorkDistrict, x: number, y: number, rng: () => number): number => {
     const c = y * W + x;
     const dx = x - cx;
     const dy = y - cy;
     const dist = isqrt(dx * dx + dy * dy);
-    const prefers = new Set(d.type.site.prefers);
-    const avoids = new Set(d.type.site.avoids ?? []);
-    if (hostsMine(d)) prefers.add("toward_minerals");
-    if (hostsPort(d)) prefers.add("shore");
+    const { prefers, avoids } = siteOf(d);
     let s = 0;
     const has = (p: string) => (prefers.has(p) ? 1 : avoids.has(p) ? -1 : 0);
     s += has("centre") * -dist * 6;
@@ -179,8 +189,9 @@ export function stageDistricts(w: Work) {
       s += same * 3;
     }
     // Apart from the other districts' seeds, and not on the square's doorstep.
-    let sep = R;
-    for (const p of seeds) sep = Math.min(sep, isqrt((p.x - x) * (p.x - x) + (p.y - y) * (p.y - y)));
+    let sep2 = R * R;
+    for (const p of seeds) sep2 = Math.min(sep2, (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y));
+    const sep = isqrt(sep2);
     s += Math.min(sep, Math.floor((R * 45) / 100)) * 7;
     if (dist < 14) s -= (14 - dist) * 30;
     return s + Math.floor(rng() * 24);
@@ -211,7 +222,7 @@ export function stageDistricts(w: Work) {
     const r = rngOf(w, "district-seed", d.id);
     let best = -1;
     let bestS = -Infinity;
-    const step = Math.max(2, Math.floor(W / 48));
+    const step = Math.max(2, Math.floor(W / 40));
     for (let y = 4; y < H - 4; y += step) {
       for (let x = 4; x < W - 4; x += step) {
         const c = y * W + x;
@@ -230,6 +241,7 @@ export function stageDistricts(w: Work) {
     (heaps[d.index] as MinHeap).push(0, best);
   }
 
+  w.timings["districts.seeds"] = performance.now() - tSeeds;
   // ---- grow: the district furthest below its quota takes its cheapest frontier cell
   const avoidsFlood = w.districts.map((d) => (d.type.site.avoids ?? []).includes("floodplain"));
   const gcost = new Float64Array(N).fill(Infinity);
@@ -262,7 +274,8 @@ export function stageDistricts(w: Work) {
         grew = true;
       }
       const x = c % W;
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
         if (n < 0 || n >= N || (district[n] as number) >= 0 || !free(n)) continue;
         let cost = 10;
         if (w.level[n] !== w.level[c]) cost += 30;
@@ -325,7 +338,17 @@ export function stageStreets(w: Work) {
   const { W, H } = w;
   const N = W * H;
   const local: Segment[] = [];
-  for (const d of w.districts) local.push(...districtStreets(w, d));
+  const tcut = performance.now();
+  // Shared scratch for every district: its open land, visit marks, cells per district.
+  const scratch = { mask: new Uint8Array(N), seen: new Int32Array(N), stamp: new Int32Array(N), gen: 0 };
+  const byDistrict: number[][] = w.districts.map(() => []);
+  for (let c = 0; c < N; c++) {
+    const d = w.district[c] as number;
+    if (d < 0 || isWaterBody(w, c) || (w.use[c] as number) & (Use.Road | Use.Square | Use.Rail | Use.Bridge) || w.terrain[c] === Terrain.Rock) continue;
+    (byDistrict[d] as number[]).push(c);
+  }
+  for (const d of w.districts) local.push(...districtStreets(w, d, byDistrict[d.index] as number[], scratch));
+  w.timings["streets.cut"] = performance.now() - tcut;
   for (const s of local) {
     paintSegment(w, s);
     w.segments.push(s);
@@ -369,7 +392,9 @@ export function stageStreets(w: Work) {
       }
     }
   }
+  const tc = performance.now();
   connectToMainRoads(w);
+  w.timings["streets.connect"] = performance.now() - tc;
   // ---- quays along the water in waterfront districts with a quay pattern
   for (let c = 0; c < N; c++) {
     const d = w.district[c] as number;
@@ -385,7 +410,7 @@ export function stageStreets(w: Work) {
 }
 
 /** One district's streets: its land cut into blocks by its pattern. */
-function districtStreets(w: Work, d: WorkDistrict): Segment[] {
+function districtStreets(w: Work, d: WorkDistrict, cells: number[], scratch: { mask: Uint8Array; seen: Int32Array; stamp: Int32Array; gen: number }): Segment[] {
   const { W, H } = w;
   const N = W * H;
   const t = d.type;
@@ -396,11 +421,8 @@ function districtStreets(w: Work, d: WorkDistrict): Segment[] {
   const base = { cls: RoadClass.Street, style, district: d.index, arterial: -1 };
   const [bd0, bd1] = t.streets.depth;
   const [bw0, bw1] = t.streets.block;
-  const mask = new Uint8Array(N);
-  for (let c = 0; c < N; c++) {
-    if (w.district[c] !== d.index || isWaterBody(w, c) || (w.use[c] as number) & (Use.Road | Use.Square | Use.Rail | Use.Bridge) || w.terrain[c] === Terrain.Rock) continue;
-    mask[c] = 1;
-  }
+  const mask = scratch.mask;
+  for (const c of cells) mask[c] = 1;
   const segs: Segment[] = [];
   // A lattice for grids: fixed spacing from the district's seed.
   const latticeY = Math.floor(d.seed / W);
@@ -412,24 +434,38 @@ function districtStreets(w: Work, d: WorkDistrict): Segment[] {
     const s = origin + k * p;
     return s >= lo && s <= hi ? s : v;
   };
-  const flood = (start: number, seen: Uint8Array): number[] => {
+  // Visited marks by generation (no new array per flood).
+  const seen = scratch.seen;
+  let stampNo = scratch.gen;
+  const flood = (start: number): number[] => {
     const out = [start];
-    seen[start] = 1;
+    seen[start] = stampNo;
     for (let i = 0; i < out.length; i++) {
       const c = out[i] as number;
       const x = c % W;
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
-        if (n < 0 || n >= N || seen[n] || !mask[n]) continue;
-        seen[n] = 1;
-        out.push(n);
+      if (x > 0 && mask[c - 1] && seen[c - 1] !== stampNo) {
+        seen[c - 1] = stampNo;
+        out.push(c - 1);
+      }
+      if (x < W - 1 && mask[c + 1] && seen[c + 1] !== stampNo) {
+        seen[c + 1] = stampNo;
+        out.push(c + 1);
+      }
+      if (c >= W && mask[c - W] && seen[c - W] !== stampNo) {
+        seen[c - W] = stampNo;
+        out.push(c - W);
+      }
+      if (c + W < N && mask[c + W] && seen[c + W] !== stampNo) {
+        seen[c + W] = stampNo;
+        out.push(c + W);
       }
     }
     return out;
   };
   const components = (cells: number[]): number[][] => {
-    const seen = new Uint8Array(N);
+    stampNo++;
     const out: number[][] = [];
-    for (const c of cells) if (mask[c] && !seen[c]) out.push(flood(c, seen));
+    for (const c of cells) if (mask[c] && seen[c] !== stampNo) out.push(flood(c));
     return out;
   };
   /** Cut rows y..y+sw-1 (axis h) or columns x..x+sw-1 (axis v) of a component: its full runs become street pieces. */
@@ -455,10 +491,10 @@ function districtStreets(w: Work, d: WorkDistrict): Segment[] {
     segs.push(s);
     for (let y = s.y0; y <= s.y1; y++) for (let x = s.x0; x <= s.x1; x++) mask[y * W + x] = 0;
   };
-  const stamp = new Int32Array(N);
-  let gen = 0;
+  const stamp = scratch.stamp;
+  let gen = scratch.gen;
   const inComp = (c: number) => stamp[c] === gen;
-  let queue = components(Array.from({ length: N }, (_, i) => i).filter((c) => mask[c]));
+  let queue = components(cells);
   let guard = 0;
   while (queue.length && guard++ < 4000) {
     const comp = queue.shift() as number[];
@@ -530,6 +566,9 @@ function districtStreets(w: Work, d: WorkDistrict): Segment[] {
     for (const s of made) take(s);
     queue = queue.concat(components(comp));
   }
+  // Leave the scratch clean for the next district (marks are generations, the mask is cleared).
+  for (const c of cells) mask[c] = 0;
+  scratch.gen = Math.max(stampNo, gen) + 1;
   return segs;
 }
 
@@ -564,7 +603,8 @@ function connectToMainRoads(w: Work) {
     for (let qh = 0; qh < qt && hit < 0; qh++) {
       const c = q[qh] as number;
       const x = c % W;
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
         if (n < 0 || n >= N || (prev[n] as number) !== -2) continue;
         if (isWaterBody(w, n) || (w.use[n] as number) & (Use.Square | Use.Rail) || w.terrain[n] === Terrain.Rock) continue;
         prev[n] = c;

@@ -64,7 +64,8 @@ export function stageGround(w: Work) {
       if (x > x1) x1 = x;
       if (y < y0) y0 = y;
       if (y > y1) y1 = y;
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
         if (n < 0 || n >= N || seen[n] || w.district[n] !== d || w.use[n] || !buildable(w.terrain[n] as number)) continue;
         seen[n] = 1;
         q[qt++] = n;
@@ -206,6 +207,12 @@ function addPlot(w: Work, d: number, f: Fit, spec: { place: number | null; kind:
 /** Frontage cells of a district: (x, F) where row F is walkable frontage and the cell above is buildable land of the district. */
 function frontageOf(w: Work, d: number, any = false): number[] {
   const { W, H } = w;
+  if (!any) {
+    // One pass over the map for every district (kept for the stage; fits() rechecks what plots have taken since).
+    const ix = (w as Work & { _front?: number[][] })._front ?? frontageIndex(w);
+    (w as Work & { _front?: number[][] })._front = ix;
+    return (ix[d] ?? []).filter((c) => !w.use[c - W] && buildable(w.terrain[c - W] as number) && frontageTerrain(w.terrain[c] as number));
+  }
   const out: number[] = [];
   for (let F = 2; F < H; F++) {
     for (let x = 0; x < W; x++) {
@@ -217,6 +224,23 @@ function frontageOf(w: Work, d: number, any = false): number[] {
     }
   }
   return out;
+}
+
+/** Frontage cells of every district, in one pass (row-major order, as `frontageOf` gives them). */
+function frontageIndex(w: Work): number[][] {
+  const { W, H } = w;
+  const out: number[][] = w.districts.map(() => []);
+  for (let c = 2 * W; c < W * H; c++) {
+    const d = w.district[c - W] as number;
+    if (d < 0 || !frontageTerrain(w.terrain[c] as number)) continue;
+    (out[d] as number[]).push(c);
+  }
+  return out;
+}
+
+/** Forget the frontage index (the streets changed). */
+function resetFrontage(w: Work) {
+  delete (w as Work & { _front?: number[][] })._front;
 }
 
 // ---------------------------------------------------------------------------
@@ -348,6 +372,7 @@ function sizesOf(l: PlaceLayout | undefined, kind: string): [number, number][] {
 
 export function stagePlaces(w: Work) {
   const { W } = w;
+  resetFrontage(w);
   const geo = w.geo;
   const layouts = new Map(w.recipe.places.map((p) => [p.key, p]));
   const hoodDistrict = new Map(w.districts.map((d) => [d.id, d.index]));
@@ -495,7 +520,8 @@ function parkAround(w: Work, plot: PlanPlot) {
       w.use[c] = (w.use[c] as number) | Use.Keep;
     }
     const x = c % W;
-    for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+    for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
       if (n < 0 || n >= N || seen.has(n) || w.district[n] !== plot.district || (w.use[n] as number) & (Use.Road | Use.Plot) || !buildable(w.terrain[n] as number)) continue;
       seen.add(n);
       q.push(n);
@@ -615,6 +641,7 @@ function pickKind(t: DistrictType, r: { next(): number }): string {
 }
 
 export function stageFillers(w: Work) {
+  resetFrontage(w);
   const { W } = w;
   const m = masks(w);
   for (const d of w.districts) {
@@ -816,7 +843,8 @@ export function stageConnect(w: Work) {
     for (let qh = 0; qh < qt; qh++) {
       const c = q[qh] as number;
       const x = c % W;
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
         if (n < 0 || n >= N || reach[n] || !walk(n)) continue;
         reach[n] = 1;
         q[qt++] = n;
@@ -836,7 +864,8 @@ export function stageConnect(w: Work) {
         break;
       }
       const x = c % W;
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
         if (n < 0 || n >= N || prev.has(n) || solidPlot[n]) continue;
         const t = w.terrain[n] as number;
         if ((isWaterBody(w, n) && !walkableGround(w, n)) || t === Terrain.Rock) continue;
@@ -949,7 +978,8 @@ export function stageShortcuts(w: Work) {
     for (let qh = 0; qh < qt; qh++) {
       const c = q[qh] as number;
       const x = c % W;
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
         if (n < 0 || n >= N || (d[n] as number) >= 0 || !walk(n)) continue;
         d[n] = (d[c] as number) + 1;
         q[qt++] = n;
@@ -1000,7 +1030,8 @@ export function stageShortcuts(w: Work) {
         bestCell = c;
       }
       const x = c % W;
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
         if (n < 0 || n >= N) continue;
         const k = cutCost(n);
         if (k < 0) continue;
@@ -1015,8 +1046,10 @@ export function stageShortcuts(w: Work) {
     for (let c = bestCell; c >= 0; c = prev[c] as number) cut(c);
   };
   const places = w.plots.filter((p) => p.place !== null || p.landmark);
+  let dSq = fromSquare();
+  const bridged = new Set<PlanPlot>();
   for (let round = 0; round < 3; round++) {
-    let dSq = fromSquare();
+    let fixed = 0;
     for (const p of places) {
       const f = p.front;
       const md = rectDistance(w.plaza, f % W, Math.floor(f / W));
@@ -1024,7 +1057,8 @@ export function stageShortcuts(w: Work) {
       const steps = dSq[f] as number;
       const wet = crossesWater(w, sx, sy, f % W, Math.floor(f / W));
       if (steps >= 0 && steps <= (wet ? DETOUR_WATER : DETOUR) * md) continue;
-      if (wet && round >= 1) {
+      if (wet && round >= 1 && !bridged.has(p)) {
+        bridged.add(p);
         // The far landing joins the streets on its own side too.
         const far = footbridge(w, p, dSq);
         if (far >= 0) desireLine(far, fromSquare(), 1);
@@ -1032,7 +1066,9 @@ export function stageShortcuts(w: Work) {
       // A second pass cuts straighter (cheaper cuts) where the first still left a long way round.
       desireLine(f, dSq, round === 0 ? 1 : round === 1 ? 0.25 : 0.05);
       dSq = fromSquare();
+      fixed++;
     }
+    if (!fixed) break;
   }
 }
 
@@ -1053,7 +1089,12 @@ function footbridge(w: Work, p: PlanPlot, dSq: Int32Array): number {
   const max = w.recipe.connectors.find((c) => c.kind === "footbridge")?.max_span ?? 10;
   const fx = p.front % W;
   const fy = Math.floor(p.front / W);
-  const land = (c: number) => c >= 0 && c < N && !isWaterBody(w, c) && !((w.use[c] as number) & (Use.Plot | Use.Square | Use.Rail)) && w.terrain[c] !== Terrain.Rock;
+  // A landing is walkable ground, or open ground a path can be laid on.
+  const land = (c: number) => {
+    if (c < 0 || c >= N || isWaterBody(w, c) || (w.use[c] as number) & (Use.Plot | Use.Square | Use.Rail) || w.blocked[c]) return false;
+    const t = w.terrain[c] as number;
+    return walkableGround(w, c) || buildable(t) || t === Terrain.Sand || t === Terrain.Reeds;
+  };
   let best: { a: number; b: number; dir: number; span: number; s: number } | null = null;
   const dirs = [1, -1, W, -W];
   for (let a = 0; a < N; a++) {

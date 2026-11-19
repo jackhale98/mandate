@@ -631,7 +631,8 @@ export function stageTerraces(w: Work) {
       const c = q[qh] as number;
       counts[w.level[c] as number] = (counts[w.level[c] as number] as number) + 1;
       const x = c % W;
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
         if (n < 0 || n >= N || seen[n] || w.district[n] !== d || !isLand(n)) continue;
         seen[n] = 1;
         q[qt++] = n;

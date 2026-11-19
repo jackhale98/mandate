@@ -92,25 +92,19 @@ export function checkTownV2(map: TownMap, plan: TownPlan, input: TownInput): str
     const max = spans.get(k.type) ?? 99;
     if (span > max + 2) out.push(`${k.kind} ${k.name} spans ${span} tiles (its type allows ${max})`);
   }
-  // Districts: contiguous, non-empty, touching a main road.
-  const main = new Uint8Array(plan.mainRoad);
-  for (const s of plan.segments) if (s.cls === RoadClass.Arterial || (s.district < 0 && s.arterial < 0)) for (let y = s.y0; y <= s.y1; y++) for (let x = s.x0; x <= s.x1; x++) main[y * W + x] = 1;
+  // Districts: contiguous and non-empty.
   for (const d of map.districts) {
     let first = -1;
     let count = 0;
-    let touches = false;
     for (let i = 0; i < N; i++) {
       if (map.district[i] !== d.index) continue;
       count++;
       if (first < 0) first = i;
-      const x = i % W;
-      if (main[i] || (x > 0 && main[i - 1]) || (x < W - 1 && main[i + 1]) || (i >= W && main[i - W]) || (i + W < N && main[i + W])) touches = true;
     }
     if (count === 0) {
       out.push(`district ${d.name} is empty`);
       continue;
     }
-    if (!touches) out.push(`district ${d.name} touches no main road`);
     const seen = new Uint8Array(N);
     const q = [first];
     seen[first] = 1;
@@ -178,7 +172,8 @@ export function readability(map: TownMap, plan: TownPlan): Readability {
       x1 = Math.max(x1, x);
       y0 = Math.min(y0, y);
       y1 = Math.max(y1, y);
-      for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+      for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
         if (n < 0 || n >= N || seen[n] || isStreet(map.terrain[n] as number) || map.terrain[n] === Terrain.Water) continue;
         seen[n] = 1;
         q.push(n);
@@ -212,7 +207,8 @@ export function readability(map: TownMap, plan: TownPlan): Readability {
   for (let qh = 0; qh < qt; qh++) {
     const c = q[qh] as number;
     const x = c % W;
-    for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+    for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
       if (n < 0 || n >= N || (dist[n] as number) >= 0 || !((grid.cost[n] ?? 0) > 0)) continue;
       dist[n] = (dist[c] as number) + 1;
       q[qt++] = n;
@@ -252,11 +248,27 @@ export function readability(map: TownMap, plan: TownPlan): Readability {
   };
 }
 
+/** Districts touching no main road (an arterial, the ring road, a district's main street or the square's ring; §5 stage 5). */
+export function offMainRoads(map: TownMap, plan: TownPlan): string[] {
+  const W = map.width;
+  const N = W * map.height;
+  const main = new Uint8Array(plan.mainRoad);
+  for (const s of plan.segments) if (s.cls === RoadClass.Arterial || (s.district < 0 && s.arterial < 0)) for (let y = s.y0; y <= s.y1; y++) for (let x = s.x0; x <= s.x1; x++) main[y * W + x] = 1;
+  const touches = new Uint8Array(map.districts.length);
+  for (let i = 0; i < N; i++) {
+    const d = map.district[i] as number;
+    if (d < 0 || touches[d]) continue;
+    const x = i % W;
+    if (main[i] || (x > 0 && main[i - 1]) || (x < W - 1 && main[i + 1]) || (i >= W && main[i - W]) || (i + W < N && main[i + W])) touches[d] = 1;
+  }
+  return map.districts.filter((d) => !touches[d.index]).map((d) => `district ${d.name} touches no main road`);
+}
+
 /** The §8 caps a town's readability must keep, as problems. */
 export function readabilityProblems(map: TownMap, plan: TownPlan): string[] {
   const r = readability(map, plan);
   const caps = BAND_CAPS[plan.band];
-  const out: string[] = [];
+  const out: string[] = [...offMainRoads(map, plan)];
   if (r.arterials > caps.arterials[1]) out.push(`${r.arterials} arterials (cap ${caps.arterials[1]})`);
   if (r.riverBridges > caps.bridges) out.push(`${r.riverBridges} bridges (cap ${caps.bridges})`);
   if (r.riverBridges > 1 && plan.band !== "city" && plan.band !== "metro" && r.minBridgeGap < 40) out.push(`bridges ${r.minBridgeGap} tiles apart (at least 40)`);

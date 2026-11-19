@@ -48,7 +48,8 @@ function walkTree(grid: Grid, from: number): { dist: Int32Array; prev: Int32Arra
   for (let qh = 0; qh < qt; qh++) {
     const c = q[qh] as number;
     const x = c % W;
-    for (const n of [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c - W, c + W]) {
+    for (let k4 = 0; k4 < 4; k4++) {
+        const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
       if (n < 0 || n >= N || (dist[n] as number) >= 0 || !((grid.cost[n] ?? 0) > 0)) continue;
       dist[n] = (dist[c] as number) + 1;
       prev[n] = c;

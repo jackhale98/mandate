@@ -198,30 +198,30 @@ function finish(w: Work, baseline: number[]): TownPlan {
       }
     }
   }
-  // Districts: centroid, a reachable street near it, bounds, neighbours and edges.
+  // Districts: centroid, a reachable street near it, bounds, neighbours and edges (one pass over the map).
+  const D = w.districts.length;
+  const acc = Array.from({ length: D }, () => ({ n: 0, sx: 0, sy: 0, x0: W, y0: H, x1: -1, y1: -1, flood: 0 }));
+  for (let c = 0; c < N; c++) {
+    const d = w.district[c] as number;
+    if (d < 0) continue;
+    const a = acc[d] as (typeof acc)[number];
+    const x = c % W;
+    const y = (c - x) / W;
+    a.n++;
+    a.sx += x;
+    a.sy += y;
+    if (x < a.x0) a.x0 = x;
+    if (x > a.x1) a.x1 = x;
+    if (y < a.y0) a.y0 = y;
+    if (y > a.y1) a.y1 = y;
+    if (w.geo.river && (w.riverDist[c] as number) <= w.floodplain) a.flood++;
+  }
+  const fillers = new Int32Array(D);
+  for (const p of w.plots) if (p.place === null && !p.landmark) fillers[p.district] = (fillers[p.district] as number) + 1;
   const districts: PlanDistrict[] = w.districts.map((d: WorkDistrict) => {
-    let n = 0;
-    let sx = 0;
-    let sy = 0;
-    let x0 = W;
-    let y0 = H;
-    let x1 = -1;
-    let y1 = -1;
-    let flood = 0;
-    for (let c = 0; c < N; c++) {
-      if (w.district[c] !== d.index) continue;
-      const x = c % W;
-      const y = Math.floor(c / W);
-      n++;
-      sx += x;
-      sy += y;
-      if (x < x0) x0 = x;
-      if (x > x1) x1 = x;
-      if (y < y0) y0 = y;
-      if (y > y1) y1 = y;
-      if (w.geo.river && (w.riverDist[c] as number) <= w.floodplain) flood++;
-    }
-    const centre = { x: n ? sx / n + 0.5 : W / 2, y: n ? sy / n + 0.5 : H / 2 };
+    const a = acc[d.index] as (typeof acc)[number];
+    const n = a.n;
+    const centre = { x: n ? a.sx / n + 0.5 : W / 2, y: n ? a.sy / n + 0.5 : H / 2 };
     return {
       index: d.index,
       id: d.id,
@@ -235,46 +235,66 @@ function finish(w: Work, baseline: number[]): TownPlan {
       centre,
       street: -1,
       cells: n,
-      bounds: { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 },
+      bounds: { x: a.x0, y: a.y0, w: a.x1 - a.x0 + 1, h: a.y1 - a.y0 + 1 },
       baselineBuilt: baseline[d.index] ?? 0,
-      fillers: w.plots.filter((p) => p.district === d.index && p.place === null && !p.landmark).length,
+      fillers: fillers[d.index] as number,
       neighbours: [],
-      floodplainPm: n ? Math.floor((flood * 1000) / n) : 0,
+      floodplainPm: n ? Math.floor((a.flood * 1000) / n) : 0,
     };
   });
-  // The streets of each district: its walkable street cell nearest the centroid.
+  // The streets of each district: its walkable street cell nearest the centroid (else open ground).
   const solid = new Uint8Array(N);
   for (const p of w.plots) for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) solid[y * W + x] = 1;
-  for (const d of districts) {
-    let best = -1;
-    let bestD = Infinity;
-    let any = -1;
-    let anyD = Infinity;
-    for (let c = 0; c < N; c++) {
-      if (w.district[c] !== d.index || solid[c] || w.blocked[c]) continue;
-      const t = w.terrain[c] as number;
-      const ex = (c % W) + 0.5 - d.centre.x;
-      const ey = Math.floor(c / W) + 0.5 - d.centre.y;
-      const dd = ex * ex + ey * ey;
-      if (t === Terrain.Pavement || t === Terrain.Dirt || t === Terrain.Path || t === Terrain.Quay) {
-        if (dd < bestD) {
-          bestD = dd;
-          best = c;
-        }
-      } else if ((t === Terrain.Grass || t === Terrain.Plaza || t === Terrain.Yard || t === Terrain.Field) && dd < anyD) {
-        anyD = dd;
-        any = c;
+  // Only cells joined to the square count (a lane boxed in by gardens is not "the streets of" anywhere).
+  const reach = new Uint8Array(N);
+  {
+    const q = new Int32Array(N);
+    let qt = 0;
+    const s0 = w.plaza.y * W + w.plaza.x;
+    reach[s0] = 1;
+    q[qt++] = s0;
+    const open = (c: number) => !solid[c] && !w.blocked[c] && !isWaterBody(w, c) && walkableTerrain(w.terrain[c] as number);
+    for (let qh = 0; qh < qt; qh++) {
+      const c = q[qh] as number;
+      const x = c % W;
+      for (let k = 0; k < 4; k++) {
+        const n = k === 0 ? (x > 0 ? c - 1 : -1) : k === 1 ? (x < W - 1 ? c + 1 : -1) : k === 2 ? c - W : c + W;
+        if (n < 0 || n >= N || reach[n] || !(open(n) || w.terrain[n] === Terrain.Bridge || w.terrain[n] === Terrain.Pier)) continue;
+        reach[n] = 1;
+        q[qt++] = n;
       }
     }
-    d.street = best >= 0 ? best : any;
   }
+  const best = new Int32Array(D).fill(-1);
+  const bestD = new Float64Array(D).fill(Infinity);
+  const any = new Int32Array(D).fill(-1);
+  const anyD = new Float64Array(D).fill(Infinity);
+  for (let c = 0; c < N; c++) {
+    const d = w.district[c] as number;
+    if (d < 0 || solid[c] || w.blocked[c] || !reach[c]) continue;
+    const t = w.terrain[c] as number;
+    const ctr = (districts[d] as PlanDistrict).centre;
+    const ex = (c % W) + 0.5 - ctr.x;
+    const ey = Math.floor(c / W) + 0.5 - ctr.y;
+    const dd = ex * ex + ey * ey;
+    if (t === Terrain.Pavement || t === Terrain.Dirt || t === Terrain.Path || t === Terrain.Quay) {
+      if (dd < (bestD[d] as number)) {
+        bestD[d] = dd;
+        best[d] = c;
+      }
+    } else if ((t === Terrain.Grass || t === Terrain.Plaza || t === Terrain.Yard || t === Terrain.Field) && dd < (anyD[d] as number)) {
+      anyD[d] = dd;
+      any[d] = c;
+    }
+  }
+  for (const d of districts) d.street = (best[d.index] as number) >= 0 ? (best[d.index] as number) : (any[d.index] as number);
   // Neighbours: districts sharing a border, and those joined across the river by a bridge.
-  const pairs = new Map<string, { a: number; b: number; road: number; rail: number; open: number; creek: number }>();
+  const pairs = new Map<number, { a: number; b: number; road: number; rail: number; open: number; creek: number }>();
   const note = (a: number, b: number, c: number, c2: number) => {
     if (a < 0 || b < 0 || a === b) return;
     const lo = Math.min(a, b);
     const hi = Math.max(a, b);
-    const k = `${lo}:${hi}`;
+    const k = lo * 65536 + hi;
     const e = pairs.get(k) ?? { a: lo, b: hi, road: 0, rail: 0, open: 0, creek: 0 };
     if ((w.use[c] as number) & Use.Rail || (w.use[c2] as number) & Use.Rail) e.rail++;
     else if (w.water[c] === WaterKind.Creek || w.water[c2] === WaterKind.Creek) e.creek++;
@@ -381,4 +401,9 @@ export function planHash(plan: TownPlan): string {
 /** The connectors as the map carries them (DEC-090 vocabulary). */
 export function mapConnectors(plan: TownPlan): TownConnector[] {
   return plan.connectors.map((c) => ({ kind: c.kind, x: c.x, y: c.y, w: c.w, h: c.h, axis: c.axis, name: c.name }));
+}
+
+/** Terrain a walker crosses (water, buildings, walls, rock and the track are not). */
+function walkableTerrain(t: number): boolean {
+  return !(t === Terrain.Water || t === Terrain.Building || t === Terrain.Door || t === Terrain.Creek || t === Terrain.Rock || t === Terrain.Embankment || t === Terrain.Rail || t === Terrain.Pit);
 }

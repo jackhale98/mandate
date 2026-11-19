@@ -180,8 +180,8 @@ export function distanceField(W: number, H: number, sources: (c: number) => bool
     const dc = d[c] as number;
     if (dc >= max) continue;
     const x = c % W;
-    const nb = [x > 0 ? c - 1 : -1, x < W - 1 ? c + 1 : -1, c >= W ? c - W : -1, c + W < N ? c + W : -1];
-    for (const n of nb) {
+    for (let k = 0; k < 4; k++) {
+      const n = k === 0 ? (x > 0 ? c - 1 : -1) : k === 1 ? (x < W - 1 ? c + 1 : -1) : k === 2 ? (c >= W ? c - W : -1) : c + W < N ? c + W : -1;
       if (n < 0 || (d[n] as number) !== 65535 || !pass(n)) continue;
       d[n] = dc + 1;
       q[qt++] = n;
