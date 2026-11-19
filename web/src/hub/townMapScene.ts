@@ -134,12 +134,14 @@ function stepCost(t: number): number {
     case Terrain.Road:
     case Terrain.Crossing:
     case Terrain.Dirt:
+    case Terrain.Bridge:
       return 10;
     case Terrain.Pavement:
     case Terrain.Plaza:
     case Terrain.Quay:
     case Terrain.Path:
     case Terrain.Pier:
+    case Terrain.Steps:
       return 16;
     case Terrain.Yard:
       return 24;
@@ -148,6 +150,8 @@ function stepCost(t: number): number {
     case Terrain.Park:
     case Terrain.Field:
     case Terrain.Sand:
+    case Terrain.Reeds:
+    case Terrain.Ford:
       return 50;
     default:
       return 0;

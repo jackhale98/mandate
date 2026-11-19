@@ -10,6 +10,11 @@
 // art=placeholder shows the code-drawn placeholder instead; night=multiply|moods picks the night
 // look (D12; moods by default); preset=street centres on one representative street of the town
 // centre (zoom=<1..6> overrides the zoom).
+// Town layout v2 (DEC-090, stage A): layout=v2 plans the town from its geography
+// (rivers, coast, hills, districts by type; web/src/hub/layoutV2) instead of v1's
+// grid, which stays the default. town=<name>|largest|smallest visits another town of
+// the world (walking only; the engine's place panels are the player's town's);
+// dress=start|grow|shrink|closed previews the dress pass under four states.
 import { engine, expectKind } from "../../../src/engine/client";
 import type { LocationDto } from "../../../src/engine/protocol/LocationDto";
 import type { PlacePanelView } from "../../../src/engine/protocol/PlacePanelView";
@@ -21,6 +26,13 @@ import { PixelkitArt, type NightLook } from "../../../src/hub/render/pixelkitArt
 import pack, { buildMs as packBuildMs, bytes as packBytes } from "virtual:pixelkit-pack";
 import { townInputFromView } from "../../../src/hub/townInput";
 import { buildingOfPlace, layoutTown, Terrain, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
+import { geoFromViews } from "../../../src/hub/townGeoAdapter";
+import { townInputFromMunicipality, type TownInput } from "../../../src/hub/townInput";
+import { dressTown, planTown, stateFromViews, type TownPlan, type TownState } from "../../../src/hub/layoutV2";
+import { describeTown, type TownText } from "../../../src/hub/layoutV2/text";
+import { buildTownMapScene, viewForInput } from "../../../src/hub/townMapScene";
+import { bakeTownMap } from "../../../src/hub/render/townMapRenderer";
+import type { MunicipalityView } from "../../../src/engine/protocol/MunicipalityView";
 import { Translator } from "../../../src/i18n/fluent";
 import { actionKey, placeIcon } from "../../../src/places/labels";
 
@@ -39,6 +51,9 @@ const artName = q.get("art") === "placeholder" ? "placeholder" : "pixelkit";
 const night: NightLook = q.get("night") === "multiply" ? "multiply" : "moods";
 const preset = q.get("preset");
 const presetZoom = q.has("zoom") ? Math.max(1, Math.min(6, Math.round(Number(q.get("zoom")) || 0))) : null;
+const layoutV = q.get("layout") === "v2" ? 2 : 1;
+const visit = q.get("town");
+const dressPreset = q.get("dress") ?? "start";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const stage = $<HTMLDivElement>("stage");
@@ -80,6 +95,10 @@ document.body.insertAdjacentHTML("afterbegin", art.iconSprite());
 let view: HubView | null = null;
 let map: TownMap | null = null;
 let town: TownPlacesView | null = null;
+let plan: TownPlan | null = null;
+let text: TownText | null = null;
+/** Visiting another town: walking only, the engine is not moved. */
+let visiting = false;
 let busy = false;
 const timings: Record<string, number> = {};
 if (pixelkit) {
@@ -106,13 +125,51 @@ async function start() {
   const locale = await request({ kind: "query", payload: { type: "locale", lang: "en" } }, "locale");
   tr = new Translator(locale.lang, locale.ftl);
   town = await request({ kind: "query", payload: { type: "town" } }, "town");
-  const input = townInputFromView(town);
-  const t0 = performance.now();
-  map = layoutTown(input, townSeed(seed, town.municipality));
-  timings.layoutMs = performance.now() - t0;
+  let input: TownInput = townInputFromView(town);
+  let muni: MunicipalityView | null = null;
+  if (layoutV === 2 || visit) {
+    const mapView = await request({ kind: "query", payload: { type: "map" } }, "map");
+    const bySize = [...mapView.municipalities].sort((a, b) => b.population - a.population || a.id - b.id);
+    const target = visit === "largest" ? bySize[0] : visit === "smallest" ? bySize[bySize.length - 1] : mapView.municipalities.find((m) => m.name === (visit ?? town?.municipality));
+    if (target) muni = await request({ kind: "query", payload: { type: "municipality", id: target.id } }, "municipality");
+    if (visit && muni && muni.name !== town.municipality) {
+      visiting = true;
+      input = townInputFromMunicipality(muni);
+      town = viewForInput(input);
+    }
+    const t0 = performance.now();
+    if (layoutV === 2 && muni) {
+      const geo = geoFromViews({ municipality: muni, map: mapView, input, character: visiting ? null : town.character });
+      timings.geoMs = performance.now() - t0;
+      const t1 = performance.now();
+      plan = planTown({ ...geo, places: input.places.map((p) => ({ ...p })) }, townSeed(seed, input.municipality));
+      timings.planMs = performance.now() - t1;
+      for (const [k, v] of Object.entries(plan.stages)) timings[`plan.${k}`] = Math.round(v * 100) / 100;
+      const t2 = performance.now();
+      map = dressTown(plan, dressState(stateFromViews(muni, input.home, input.location), plan));
+      timings.dressMs = performance.now() - t2;
+      text = describeTown(plan, map);
+    } else map = layoutTown(input, townSeed(seed, input.municipality));
+    timings.layoutMs = performance.now() - t0;
+  } else {
+    const t0 = performance.now();
+    map = layoutTown(input, townSeed(seed, town.municipality));
+    timings.layoutMs = performance.now() - t0;
+  }
   mount(map);
   loading.hidden = true;
   timings.ready = performance.now() - tStart;
+}
+
+/** The dress presets (TOWN_GENERATION.md §13: start, +30% housing, −25% population, plant closed). */
+function dressState(s: TownState, p: TownPlan): TownState {
+  if (dressPreset === "grow") return { ...s, housingPm: 1300, pipelinePm: 40 };
+  if (dressPreset === "shrink") return { ...s, hoods: p.districts.map((d) => ({ id: d.id, population: Math.floor((d.baselinePopulation * 3) / 4) })), vacancy: 0.14 };
+  if (dressPreset === "closed") {
+    const works = p.plots.filter((x) => x.place !== null && (x.kind === "factory" || x.kind === "mine" || x.kind === "mill")).map((x) => x.place as number);
+    return { ...s, closedPlaces: works };
+  }
+  return s;
 }
 
 function placeLabel(b: TownBuilding): string | null {
@@ -225,6 +282,13 @@ async function arrive(b: TownBuilding | null) {
     if (d) loc = { type: "street", neighborhood: d.id };
   }
   if (!loc || busy) {
+    setStatus();
+    return;
+  }
+  if (visiting) {
+    // A visit: walking only (the engine's places are the player's own town's).
+    town = { ...town, location: loc };
+    markHere();
     setStatus();
     return;
   }
@@ -419,6 +483,21 @@ window.__hub = {
     return town;
   },
   timings,
+  /** Layout v2: the plan, its text alternative (Fluent keys and facts), the layout version shown. */
+  get plan() {
+    return plan;
+  },
+  get text() {
+    return text;
+  },
+  layout: layoutV,
+  /** The town map overview (DEC-086) of this town, baked from the same map, as a PNG data URL. */
+  overview(widthPx = 1400) {
+    if (!map || !town) return null;
+    const scene = buildTownMapScene(map, town);
+    const baked = bakeTownMap(scene, { maxSide: widthPx });
+    return { url: baked.canvas.toDataURL("image/png"), ms: baked.ms };
+  },
   /** Which art is showing (the pixel-art spike's toggle) and its night look. */
   art: { name: artName, night: pixelkit ? night : null },
   /** Look at the preset street (the capture script uses it). */

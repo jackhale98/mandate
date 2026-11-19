@@ -83,15 +83,35 @@ function terrainColour(t: number): Rgb {
       return C.wood;
     case Terrain.Garden:
       return C.garden;
+    // Layout v2 (DEC-090)
+    case Terrain.Creek:
+      return C.waterLight;
+    case Terrain.Ford:
+      return C.waterLight;
+    case Terrain.Rock:
+      return C.slate;
+    case Terrain.Embankment:
+      return C.stoneDark;
+    case Terrain.Rail:
+      return C.iron;
+    case Terrain.Reeds:
+      return C.grassDark;
+    case Terrain.Bridge:
+      return C.stone;
+    case Terrain.Pit:
+      return C.earth;
+    case Terrain.Steps:
+      return C.pavingDark;
     default:
       return C.grass;
   }
 }
 
-const isWater = (t: number) => t === Terrain.Water;
+const isWater = (t: number) => t === Terrain.Water || t === Terrain.Creek;
 const isRoad = (t: number) => t === Terrain.Road || t === Terrain.Crossing;
 /** Ground that takes the district tint (not streets, water or the square). */
-const tinted = (t: number) => !isRoad(t) && !isWater(t) && t !== Terrain.Plaza && t !== Terrain.Pier;
+const tinted = (t: number) =>
+  !isRoad(t) && !isWater(t) && t !== Terrain.Plaza && t !== Terrain.Pier && t !== Terrain.Bridge && t !== Terrain.Rail && t !== Terrain.Rock && t !== Terrain.Embankment;
 
 /**
  * Every cell's ground colour (the district tint folded in) as RGBA pixels, one
@@ -246,6 +266,71 @@ function drawGround(ctx: Ctx, map: TownMap, px: number, make: CanvasFactory) {
           if (below) ctx.fillRect(X, Y + px - 1, px, 1);
         }
       }
+    }
+  }
+}
+
+/**
+ * Layout v2 at map scale (DEC-090, §7.7): a dark line where ground drops to
+ * the south (the walls already have their stone colour) and a light lip where
+ * it rises, a lighter tone two levels up; bridges with parapets and a shadow
+ * on the water; sleepers across the railway.
+ */
+function drawV2(ctx: Ctx, map: TownMap, px: number) {
+  const W = map.width;
+  const H = map.height;
+  const el = map.elevation;
+  if (el) {
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        const t = map.terrain[i] as number;
+        if (t === Terrain.Water) continue;
+        const lv = el[i] as number;
+        if (lv >= 2) {
+          ctx.fillStyle = `rgba(255,248,230,${0.05 * (lv - 1)})`;
+          ctx.fillRect(x * px, y * px, px, px);
+        }
+        if (y > 0 && (el[i - W] as number) < lv) {
+          ctx.fillStyle = MAP.chalkDark;
+          ctx.fillRect(x * px, y * px, px, 1);
+        }
+        if (y < H - 1 && (el[i + W] as number) < lv && t !== Terrain.Road) {
+          ctx.fillStyle = MAP.line;
+          ctx.fillRect(x * px, (y + 1) * px - 1, px, 1);
+        }
+      }
+    }
+  }
+  for (let i = 0; i < W * H; i++) {
+    if (map.terrain[i] !== Terrain.Rail) continue;
+    const x = i % W;
+    const y = Math.floor(i / W);
+    const horiz = (x > 0 && map.terrain[i - 1] === Terrain.Rail) || (x < W - 1 && map.terrain[i + 1] === Terrain.Rail);
+    ctx.fillStyle = MAP.ironLight;
+    if (horiz) ctx.fillRect(x * px, y * px + Math.floor(px / 2), px, 1);
+    else ctx.fillRect(x * px + Math.floor(px / 2), y * px, 1, px);
+  }
+  for (const c of map.connectors ?? []) {
+    const X = c.x * px;
+    const Y = c.y * px;
+    const w = c.w * px;
+    const h = c.h * px;
+    if (c.kind === "bridge" || c.kind === "footbridge" || c.kind === "viaduct") {
+      ctx.fillStyle = "rgba(17,19,26,0.3)";
+      ctx.fillRect(X + (c.axis === "ns" ? 1 : 0), Y + h, w, Math.max(1, Math.floor(px / 2)));
+      ctx.fillStyle = c.kind === "footbridge" ? MAP.wood : c.kind === "viaduct" ? MAP.brick : MAP.stoneDark;
+      if (c.axis === "ns") {
+        ctx.fillRect(X, Y, 1, h);
+        ctx.fillRect(X + w - 1, Y, 1, h);
+      } else {
+        ctx.fillRect(X, Y, w, 1);
+        ctx.fillRect(X, Y + h - 1, w, 1);
+      }
+    } else if (c.kind === "level_crossing") {
+      ctx.fillStyle = MAP.ironLight;
+      if (c.axis === "ns") ctx.fillRect(X, Y + Math.floor(h / 2), w, 1);
+      else ctx.fillRect(X + Math.floor(w / 2), Y, 1, h);
     }
   }
 }
@@ -706,6 +791,23 @@ function prop(p: Pen, pr: TownProp, seed: number) {
     case "flag":
       flagpole(p, Math.round(cx), Math.round(cy), MAP.flag);
       break;
+    // Layout v2 (DEC-090): the mine's headframe and spoil heap, reeds, stepping stones.
+    case "headframe":
+      rect(ctx, MAP.cross, cx - px * 0.35, cy - px * 2.4, 1, px * 2.6);
+      rect(ctx, MAP.cross, cx + px * 0.35, cy - px * 2.4, 1, px * 2.6);
+      disc(ctx, MAP.iron, cx, cy - px * 2.4, px * 0.4);
+      break;
+    case "spoil_heap":
+      poly(ctx, MAP.slateDark, [[pr.x * px, (pr.y + 1) * px], [(pr.x + 1.5) * px, (pr.y - 0.8) * px], [(pr.x + 3) * px, (pr.y + 1) * px]]);
+      break;
+    case "reeds":
+      rect(ctx, MAP.fieldDark, cx - 1, cy - px * 0.3, 1, px * 0.5);
+      rect(ctx, MAP.fieldDark, cx + 1, cy - px * 0.2, 1, px * 0.4);
+      break;
+    case "stepping_stones":
+      rect(ctx, MAP.chalk, cx - px * 0.3, cy, 1, 1);
+      rect(ctx, MAP.chalk, cx + px * 0.2, cy - 1, 1, 1);
+      break;
     default:
       break;
   }
@@ -752,6 +854,7 @@ export function bakeTownMap(scene: TownMapScene, options: BakeOptions = {}): Bak
   ctx.imageSmoothingEnabled = false;
   // Ground.
   drawGround(ctx, map, px, make);
+  if (map.version >= 2) drawV2(ctx, map, px);
   const t1 = performance.now();
   // Main routes: the streets that join the square to every place, drawn as a lighter line along them.
   ctx.lineJoin = "round";
@@ -771,8 +874,30 @@ export function bakeTownMap(scene: TownMapScene, options: BakeOptions = {}): Bak
   const order = [...map.buildings].sort((a, b) => a.y + a.h - (b.y + b.h) || a.x - b.x);
   for (const b of order) {
     const seed = b.place !== null ? mix(map.seed, 0x504c, b.place) : b.style;
+    // Layout v2 plot states: reserved land is open ground (pegged out), a building site a slab.
+    if (b.state === "reserved") {
+      ctx.fillStyle = "rgba(235,104,52,0.35)";
+      ctx.fillRect(b.x * px, b.y * px, b.w * px, 1);
+      ctx.fillRect(b.x * px, (b.y + b.h) * px - 1, b.w * px, 1);
+      continue;
+    }
+    if (b.state === "construction") {
+      rect(ctx, MAP.pavingDark, b.x * px, b.y * px, b.w * px, b.h * px);
+      rect(ctx, MAP.lamp, b.x * px, (b.y - 1) * px, 1, (b.h + 1) * px);
+      rect(ctx, MAP.lamp, (b.x + b.w) * px - 1, (b.y - 1) * px, 1, (b.h + 1) * px);
+      continue;
+    }
     if (b.place !== null) drawPlace(pen, b, seed);
-    else block(pen, b, lookOf(b), seed, { windows: b.kind !== "shed" && b.kind !== "barn" });
+    else block(pen, b, b.kind === "church" || b.kind === "chapel" || b.kind === "station" ? (PLACE_LOOKS.town_hall as Look) : lookOf(b), seed, { windows: b.kind !== "shed" && b.kind !== "barn" && b.state !== "boarded" && b.state !== "derelict" });
+    if (b.kind === "church" || b.kind === "chapel") {
+      // The spire: the town's tallest silhouette after the town hall.
+      const cx = (b.x + b.w / 2) * px;
+      poly(ctx, MAP.slateDark, [[cx - px * 0.5, b.y * px], [cx, (b.y - 2.2) * px], [cx + px * 0.5, b.y * px]]);
+    }
+    if (b.state === "boarded" || b.state === "derelict") {
+      ctx.fillStyle = b.state === "derelict" ? "rgba(17,19,26,0.4)" : "rgba(17,19,26,0.2)";
+      ctx.fillRect(b.x * px, (b.y - 1) * px, b.w * px, (b.h + 1) * px);
+    }
   }
   // Trees, lamps, boats and the fountain.
   const t4 = performance.now();
