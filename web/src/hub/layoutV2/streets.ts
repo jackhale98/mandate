@@ -645,14 +645,19 @@ export function stageStreets(w: Work) {
   for (const d of order) {
     const g = GROWTH[d.type.streets.pattern] ?? (GROWTH.grid as Growth);
     const r = rngOf(w, "grow", d.id, pass);
-    if (pass > 0) {
-      // Only a district part of which no street reached the first time.
-      const lim = Math.floor((g.maxRun * 2) / 3) * Math.max(cx[d.index] as number, cy[d.index] as number);
-      if (!(cellsOf[d.index] as number[]).some((c) => land[c] && (dist[c] as number) > lim)) continue;
-      resetSkip(cellsOf[d.index] as number[]);
-    }
     let headsLeft = d.type.streets.max_dead_ends;
     const cells = cellsOf[d.index] as number[];
+    const touched = () =>
+      cells.some((c) => {
+        const x = c % W;
+        return (x > 0 && isRoad(c - 1)) || (x < W - 1 && isRoad(c + 1)) || (c >= W && isRoad(c - W)) || (c + W < N && isRoad(c + W));
+      });
+    if (pass > 0) {
+      // Only a district part of which no street reached the first time (or that no street touches).
+      const lim = Math.floor((g.maxRun * 2) / 3) * Math.max(cx[d.index] as number, cy[d.index] as number);
+      if (!cells.some((c) => land[c] && (dist[c] as number) > lim) && touched()) continue;
+      resetSkip(cells);
+    }
     const guard = Math.floor(cells.length / 12) + 30;
     // The frontier: the deepest land a street can still reach (streets grow outward from those there).
     const reach = Math.floor((g.maxRun * 2) / 3) * Math.max(cx[d.index] as number, cy[d.index] as number);
@@ -667,7 +672,8 @@ export function stageStreets(w: Work) {
     };
     let grown = 0;
     let accessed = false;
-    if (!cells.some((c) => land[c] && (dist[c] as number) <= reach)) {
+    // (Or, the second time over, one no street touches yet.)
+    if (!cells.some((c) => land[c] && (dist[c] as number) <= reach) || (pass > 0 && !touched())) {
       access();
       accessed = true;
     }
