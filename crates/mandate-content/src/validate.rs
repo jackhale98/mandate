@@ -1632,8 +1632,43 @@ pub fn check_situation(
         ));
     }
     for c in &u.any {
-        check_situation_condition(b, owner, c, None, issues);
+        check_trigger_condition(b, owner, c, None, issues);
     }
+}
+
+/// Whether a condition reads what the player knows, anywhere in it (the
+/// ledger, or what a speaker would tell them).
+fn reads_knowledge(c: &crate::types::SituationCondition) -> bool {
+    use crate::types::SituationCondition as U;
+    match c {
+        U::PlayerKnows { .. } | U::Tells { .. } => true,
+        U::Any { of } => of.iter().any(reads_knowledge),
+        _ => false,
+    }
+}
+
+/// A condition that decides whether something happens: a policy's unlock,
+/// and (DEC-092) a family's triggers and expiry with their slots. The world
+/// does not wait for the player (DEC-091): what the player knows may frame
+/// what they are shown (conversation lines, topics, openers, leads), never
+/// whether a policy, proposal, event or storyline step happens, so
+/// `player_knows` and `tells` are refused anywhere in it.
+pub fn check_trigger_condition(
+    b: &ContentBundle,
+    owner: &str,
+    c: &crate::types::SituationCondition,
+    slots: Option<&[&str]>,
+    issues: &mut Vec<Issue>,
+) {
+    if reads_knowledge(c) {
+        issues.push(Issue::error(
+            owner,
+            "what the player knows frames what they are shown; it never decides whether \
+             something happens (DEC-091), so `player_knows` and `tells` are not allowed in a trigger",
+        ));
+        return;
+    }
+    check_situation_condition(b, owner, c, slots, issues);
 }
 
 /// One situation condition (recursively): real crises, occupations, traits,
@@ -1671,7 +1706,7 @@ pub fn check_situation_condition(
             }
         };
     if slots.is_none() && c.is_slot_relative() && !matches!(c, U::Any { .. }) {
-        let why = if matches!(c, U::PlayerKnows { .. } | U::Tells { .. }) {
+        let why = if reads_knowledge(c) {
             "what the player knows shapes conversations only; it never decides whether something happens (DEC-091)"
         } else {
             "this condition reads a slot (a conversation's speaker or subject); no slot is bound here"

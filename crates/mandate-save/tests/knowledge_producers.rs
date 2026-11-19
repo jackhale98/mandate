@@ -436,8 +436,9 @@ fn the_knows_condition_gates() {
     assert_eq!(parsed, knows(SubjectDef::Broker, Level::Heard));
 }
 
-/// Base content plus a test pack: a dilemma whose trigger is a `knows`
-/// condition and whose options `reveal_place` and `learn`.
+/// Base content plus a test pack: a dilemma whose options `reveal_place`
+/// and `learn` (its trigger is not a `knows` condition: those are refused
+/// in triggers, DEC-091, `knows_never_decides_what_happens`).
 fn content_with_tip() -> Arc<ContentBundle> {
     let mut src =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
@@ -446,7 +447,7 @@ fn content_with_tip() -> Arc<ContentBundle> {
         text: r#"{"kind":"dilemmas","items":[{"id":"dilemma.test_tip","category":"significant",
           "title_key":"test-tip","situation_key":"test-tip",
           "roles":[{"id":"hood","cast":{"type":"ward_neighborhood"}}],
-          "triggers":[{"type":"knows","subject":{"type":"broker"},"min":"known"}],
+          "triggers":[{"type":"months_in_play","min":1}],
           "cooldown_days":30,
           "options":[
             {"id":"follow","label_key":"test-tip","aftermath_key":"test-tip","effects":[
