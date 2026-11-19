@@ -404,6 +404,11 @@ export class StreetEnds {
     return x >= e.zx0 && y >= e.zy0 && x < e.zx1 && y < e.zy1;
   }
 
+  /** The material at a map pixel as the map draws it without street ends. */
+  baseMat(X: number, Y: number): number {
+    return this.h.mat(X, Y);
+  }
+
   /** The material at a map pixel, street ends included. */
   mat(X: number, Y: number): number {
     if (this.active) {
@@ -620,8 +625,10 @@ export class StreetEnds {
         for (let a = 1; a <= d; a++) {
           for (let b = 1; b <= d; b++) {
             if (Math.max(a, b) !== d || this.mat(X + sx * a, Y + sy * b) === M) continue;
-            const horiz = a > b;
-            const p = horiz ? (sx < 0 ? prof.W : prof.E) : sy < 0 ? prof.N : prof.S;
+            // Only a corner: the row and the column toward it are this material.
+            if (this.mat(X + sx * a, Y) !== M || this.mat(X, Y + sy * b) !== M) continue;
+            // As the templates wrap an edge round a missing corner: further along the row than down the column takes the row's (north or south) profile.
+            const p = a > b ? (sy < 0 ? prof.N : prof.S) : sx < 0 ? prof.W : prof.E;
             if (d <= p.length) return p[d - 1] as number;
           }
         }
@@ -640,20 +647,25 @@ export class StreetEnds {
     const X0 = x * 16;
     const Y0 = y * 16;
     const own = this.r.group(this.h.t(x, y));
-    // Whether the cell is one of an end's (no centre dash or other marking runs into an end), or any pixel within
-    // 4 px of it (an edge profile's reach) changes material.
-    let anyChange = this.list.some((e) => x >= e.zx0 && y >= e.zy0 && x < e.zx1 && y < e.zy1);
-    for (let j = -4; j < 20 && !anyChange; j++) for (let i = -4; i < 20 && !anyChange; i++) if (this.mat(X0 + i, Y0 + j) !== this.h.mat(X0 + i, Y0 + j)) anyChange = true;
-    // The whole cell is repainted where anything near it changed (so no half dash or half decal is left).
-    if (anyChange) {
-      for (let py = 0; py < 16; py++) {
-        for (let px = 0; px < 16; px++) {
-          const X = X0 + px;
-          const Y = Y0 + py;
-          const M = this.mat(X, Y);
+    // Pixels within 4 px of the cell whose material the ends change.
+    const S = 24;
+    const changed = new Uint8Array(S * S);
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) if (this.mat(X0 - 4 + i, Y0 - 4 + j) !== this.h.mat(X0 - 4 + i, Y0 - 4 + j)) changed[j * S + i] = 1;
+    // No centre dash or other marking runs into an end.
+    const inEnd = this.list.some((e) => x >= e.zx0 && y >= e.zy0 && x < e.zx1 && y < e.zy1);
+    const chalk = new Set([this.L.M, this.L.m]);
+    for (let py = 0; py < 16; py++) {
+      for (let px = 0; px < 16; px++) {
+        const X = X0 + px;
+        const Y = Y0 + py;
+        let near = false;
+        for (let j = py; j <= py + 8 && !near; j++) for (let i = px; i <= px + 8 && !near; i++) if (changed[j * S + i]) near = true;
+        const M = this.mat(X, Y);
+        if (near) {
+          // Repainted: the material's fill, or its edge where another material is within the edge's reach.
           const edge = this.edgePx(M, X, Y);
           img.px[py * 16 + px] = edge > 0 ? edge : this.fillPx(this.r.materialName(M), X, Y, M === own, variant);
-        }
+        } else if (inEnd && M === this.r.road && chalk.has(img.px[py * 16 + px] as number)) img.px[py * 16 + px] = this.fillPx(this.r.materialName(M), X, Y, M === own, variant);
       }
     }
     this.details(img, X0, Y0);
@@ -661,98 +673,109 @@ export class StreetEnds {
 
   /** Each end's drawn details over the cell: a dropped kerb, setts, a track and hedge, an island's planting. */
   private details(img: Indexed, X0: number, Y0: number) {
-    const L = this.L;
-    const R = this.r;
-    for (const e of this.list) {
-      if (X0 + 16 <= e.zx0 * 16 || Y0 + 16 <= e.zy0 * 16 || X0 >= e.zx1 * 16 || Y0 >= e.zy1 * 16) continue;
-      for (let py = 0; py < 16; py++) {
-        for (let px = 0; px < 16; px++) {
-          const X = X0 + px;
-          const Y = Y0 + py;
-          if (!this.claimable(e, X, Y)) continue;
-          const M = this.mat(X, Y);
-          const u = this.u(e, X, Y);
-          const v = this.v(e, X, Y);
-          const s = this.s(e, X, Y);
-          const t = this.tAcross(e, X, Y);
-          let ch: string | null = null;
-          switch (e.kind) {
-            case "bollards":
-              // A dropped kerb across the carriageway: a gutter line, then flush kerb stones (light top, joints every 8 px).
-              if (Math.abs(v) < e.hw) {
-                if (s === -1 && M === R.road) ch = "A";
-                else if ((s === 0 || s === 1) && M === R.pavement) ch = mod(t, 8) === 0 ? "S" : s === 0 ? "t" : "s";
-              }
-              break;
-            case "plaza":
-              // The asphalt gives way to granite setts (single setts first, then whole courses), which run into the square.
-              if (Math.abs(v) < e.hw && M === R.road && s >= -12) {
-                const row = Math.floor(s / 3);
-                const inRow = mod(s, 3);
-                const off = mod(row, 2) * 2;
-                const sett = s >= -6 || hash32(Math.floor((t + off) / 4), row, e.ox, 0x5e77) % 3 === 0;
-                if (sett) ch = inRow === 0 || mod(t + off, 4) === 0 ? "T" : inRow === 1 ? "s" : "S";
-              } else if (M === R.plaza && s >= 0 && s < 3 && Math.abs(v) < e.hw + e.pw) {
-                // No kerb or edging across: the square's paving begins at once.
-                ch = null;
-                img.px[py * 16 + px] = this.fillPx("plaza", X, Y, false, 0);
-              }
-              break;
-            case "field_gate": {
-              const fade = this.fadeAt(e, v);
-              // Broken asphalt in the first few rows of the track; grass down the middle further on.
-              if (M === R.dirt) {
-                const tt = Math.max(0, Math.min(1, (u + 14) / 10));
-                const c = e.gv * tt;
-                if (u < fade + 5 && hash32(X >> 1, Y >> 1, 0xa5f) % 4 === 0) ch = "A";
-                else if (u < 0 && Math.abs(v - c) >= 4.5) ch = "e";
-              }
-              // The hedge across the end, with a gap where the gate stands.
-              const hedge = (XX: number, YY: number) => {
-                const uu = this.u(e, XX, YY);
-                const vv = this.v(e, XX, YY);
-                // A band 8 px deep, its edges uneven in clumps of 3 px.
-                const clump = hash32(Math.floor((vv + 256) / 3), e.ox, e.oy, 0x4ed9);
-                if (uu < -2.5 + (clump & 1) || uu > 5.5 - ((clump >> 1) & 1) || Math.abs(vv - e.gv) < 8) return false;
-                const reach = e.hw + e.pw + 22 + (hash32(e.ox, e.oy, vv < 0 ? 1 : 2) % 6);
-                return Math.abs(vv) < reach && this.claimable(e, XX, YY);
-              };
-              if (hedge(X, Y)) {
-                const up = hedge(X, Y - 1);
-                const down = hedge(X, Y + 1);
-                const down2 = hedge(X, Y + 2);
-                const left = hedge(X - 1, Y);
-                const right = hedge(X + 1, Y);
-                if (!down) ch = "H";
-                else if (!up) ch = hash32(X >> 1, 0x4ed) % 3 === 0 ? "h" : "g";
-                else if (!down2) ch = "G";
-                else if (!left) ch = "g";
-                else if (!right) ch = "H";
-                else ch = hash32(X >> 1, Y >> 1, 0x4e1) % 3 === 0 ? "g" : "G";
-              } else if (hedge(X, Y - 1) && !this.claimableAndHedgeGap(e, X, Y)) {
-                // The hedge's shadow on the ground below it.
-                if (M === R.grass || M === R.dirt) ch = "H";
-              }
-              break;
-            }
-            case "turning_circle":
-              // The island: shrubs in a ring inside its kerb, flowers in the middle.
-              if (e.Ri > 0 && M === R.park) {
-                const d2 = (u - e.uc) ** 2 + v * v;
-                if (d2 >= (e.Ri - 8) ** 2) ch = v < 0 === u - e.uc > 0 ? "G" : hash32(X >> 1, Y >> 1, 0x15) % 3 === 0 ? "h" : "g";
-                else if (d2 < (e.Ri - 10) ** 2) {
-                  const hh = hash32(X >> 1, Y >> 1, 0xf10);
-                  ch = hh % 7 === 0 ? "r" : hh % 11 === 1 ? "y" : hh % 13 === 2 ? "c" : hh % 3 === 0 ? "h" : "g";
-                } else ch = "H";
-              }
-              break;
-            default:
-              break;
-          }
-          if (ch) img.px[py * 16 + px] = L[ch] as number;
-        }
+    for (let py = 0; py < 16; py++) {
+      for (let px = 0; px < 16; px++) {
+        const d = this.detailAt(X0 + px, Y0 + py);
+        if (d > 0) img.px[py * 16 + px] = d;
       }
     }
+  }
+
+  /** The detail an end draws at a map pixel (a palette index), or 0 (the pixel shows its material). */
+  detailAt(X: number, Y: number): number {
+    if (!this.active) return 0;
+    for (const e of this.list) {
+      if (!this.claimable(e, X, Y)) continue;
+      const d = this.detail(e, X, Y);
+      if (d > 0) return d;
+    }
+    return 0;
+  }
+
+  private detail(e: End, X: number, Y: number): number {
+    const L = this.L;
+    const R = this.r;
+    const M = this.mat(X, Y);
+    const u = this.u(e, X, Y);
+    const v = this.v(e, X, Y);
+    const s = this.s(e, X, Y);
+    const t = this.tAcross(e, X, Y);
+    let ch: string | null = null;
+    switch (e.kind) {
+      case "bollards":
+        // A dropped kerb across the carriageway: a gutter line, then flush kerb stones (light top, joints every 8 px).
+        if (Math.abs(v) < e.hw) {
+          if (s === -1 && M === R.road) ch = "A";
+          else if ((s === 0 || s === 1) && M === R.pavement) ch = mod(t, 8) === 0 ? "S" : s === 0 ? "t" : "s";
+          // Flush: the paving beyond shows no kerb edge.
+          else if (s === 2 && M === R.pavement) return this.fillPx("pavement", X, Y, false, 0);
+        }
+        break;
+      case "plaza":
+        // The asphalt gives way to two courses of grey granite setts (staggered, lit on top), then the square's paving.
+        if (Math.abs(v) < e.hw && M === R.road && s >= -6) {
+          const row = Math.floor(s / 3);
+          const inRow = mod(s, 3);
+          const off = mod(row, 2) * 2;
+          ch = inRow === 0 || mod(t + off, 4) === 0 ? "P" : inRow === 1 ? "q" : "p";
+        } else if (M === R.plaza && s >= 0 && s < 3 && Math.abs(v) < e.hw + e.pw) {
+          // No kerb or edging across: the square's paving begins at once.
+          return this.fillPx("plaza", X, Y, false, 0);
+        }
+        break;
+      case "field_gate": {
+        const fade = this.fadeAt(e, v);
+        // Broken asphalt in the first few rows of the track; grass down the middle further on.
+        if (M === R.dirt) {
+          const tt = Math.max(0, Math.min(1, (u + 14) / 10));
+          const c = e.gv * tt;
+          if (u < fade + 5 && hash32(X >> 1, Y >> 1, 0xa5f) % 4 === 0) ch = "A";
+          else if (u < 0 && Math.abs(v - c) >= 4.5) ch = "e";
+        }
+        // The hedge across the end, with a gap where the gate stands.
+        const hedge = (XX: number, YY: number) => {
+          const uu = this.u(e, XX, YY);
+          const vv = this.v(e, XX, YY);
+          // A band 8 px deep, its edges uneven in clumps of 3 px.
+          const clump = hash32(Math.floor((vv + 256) / 3), e.ox, e.oy, 0x4ed9);
+          if (uu < -2.5 + (clump & 1) || uu > 5.5 - ((clump >> 1) & 1) || Math.abs(vv - e.gv) < 8) return false;
+          const reach = e.hw + e.pw + 22 + (hash32(e.ox, e.oy, vv < 0 ? 1 : 2) % 6);
+          return Math.abs(vv) < reach && this.claimable(e, XX, YY);
+        };
+        if (hedge(X, Y)) {
+          const up = hedge(X, Y - 1);
+          const down = hedge(X, Y + 1);
+          const down2 = hedge(X, Y + 2);
+          const left = hedge(X - 1, Y);
+          const right = hedge(X + 1, Y);
+          if (!down) ch = "H";
+          else if (!up) ch = hash32(X >> 1, 0x4ed) % 3 === 0 ? "h" : "G";
+          else if (!down2) ch = "H";
+          else if (!left) ch = "G";
+          else if (!right) ch = "H";
+          else ch = hash32(X >> 1, Y >> 1, 0x4e1) % 3 === 0 ? "G" : "H";
+        } else if (hedge(X, Y - 1) && !this.claimableAndHedgeGap(e, X, Y)) {
+          // The hedge's shadow on the ground below it.
+          if (M === R.grass || M === R.dirt) ch = "H";
+        }
+        break;
+      }
+      case "turning_circle":
+        // The island: shrubs in a ring inside its kerb, flowers in the middle.
+        if (e.Ri > 0 && M === R.park) {
+          const d2 = (u - e.uc) ** 2 + v * v;
+          if (d2 >= (e.Ri - 8) ** 2) ch = v < 0 === u - e.uc > 0 ? "G" : hash32(X >> 1, Y >> 1, 0x15) % 3 === 0 ? "h" : "g";
+          else if (d2 < (e.Ri - 10) ** 2) {
+            const hh = hash32(X >> 1, Y >> 1, 0xf10);
+            ch = hh % 7 === 0 ? "r" : hh % 11 === 1 ? "y" : hh % 13 === 2 ? "c" : hh % 3 === 0 ? "h" : "g";
+          } else ch = "H";
+        }
+        break;
+      default:
+        break;
+    }
+
+    return ch ? (L[ch] as number) : 0;
   }
 
   /** The gap in a field gate's hedge (no shadow drawn under the gate's opening). */

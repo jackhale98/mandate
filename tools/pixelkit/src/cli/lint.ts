@@ -15,6 +15,7 @@ import type { ArtPack } from "../../art/mandate/pack";
 import type { LightEntry } from "../../art/mandate/lighting";
 import { groundTile } from "../../art/mandate/tiles";
 import { lintDiag } from "./lintDiag";
+import { lintEnds } from "./lintEnds";
 import { lintV2 } from "./lintV2";
 
 export type Level = "error" | "warn" | "info";
@@ -313,6 +314,7 @@ export function lintPack(pack: ArtPack): Finding[] {
   // ---- round 4: layout v2 terrain, connectors, plot states
   f.push(...lintV2(pack));
   f.push(...lintDiag(pack));
+  f.push(...lintEnds(pack));
   return f;
 }
 

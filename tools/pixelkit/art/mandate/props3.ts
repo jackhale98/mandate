@@ -53,9 +53,9 @@ function line(facing: EndFacing): { pts: [number, number][]; dir: "ew" | "ns" | 
     case "s":
       return { pts: [[4, 9], [12, 9]], dir: "ew" };
     case "e":
-      return { pts: [[9, 5], [9, 13]], dir: "ns" };
+      return { pts: [[9, 11]], dir: "ns" };
     case "w":
-      return { pts: [[6, 5], [6, 13]], dir: "ns" };
+      return { pts: [[6, 11]], dir: "ns" };
     case "ne":
     case "sw":
       return { pts: [[4, 4], [12, 12]], dir: "\\" };
@@ -65,7 +65,9 @@ function line(facing: EndFacing): { pts: [number, number][]; dir: "ew" | "ns" | 
 }
 
 /**
- * Bollards: two cast-iron posts a cell (8 px apart along the end line), 3 px
+ * Bollards: cast-iron posts on the end line, two a cell across a north–south
+ * street (8 px apart), one a cell across an east–west one (seen end on, two
+ * would read as a fence), 3 px
  * wide and 8 tall, lit from the left, a white reflective band; the lit look
  * has a glowing head instead.
  */
