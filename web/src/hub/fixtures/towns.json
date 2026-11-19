@@ -1,0 +1,1616 @@
+[
+ {
+  "seed": "4242",
+  "source": "town",
+  "input": {
+   "municipality": "Larkobridge",
+   "neighborhoods": [
+    {
+     "id": 194,
+     "name": "Larkobridge",
+     "kind": "core"
+    },
+    {
+     "id": 195,
+     "name": "Orchardrow",
+     "kind": "waterfront"
+    },
+    {
+     "id": 196,
+     "name": "Bridgevale",
+     "kind": "industrial"
+    },
+    {
+     "id": 197,
+     "name": "Cross Quarter",
+     "kind": "rural"
+    },
+    {
+     "id": 198,
+     "name": "Queensheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 199,
+     "name": "Eastvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 200,
+     "name": "Castle Green",
+     "kind": "rural"
+    },
+    {
+     "id": 201,
+     "name": "Old Green",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 240,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 241,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 242,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 243,
+     "kind": "diner",
+     "name": "Vera's",
+     "neighborhood": 194
+    },
+    {
+     "id": 244,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 246,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 248,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 249,
+     "kind": "news_office",
+     "name": "The Larkobridge Chronicle",
+     "neighborhood": 194
+    },
+    {
+     "id": 250,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 253,
+     "kind": "port",
+     "name": "",
+     "neighborhood": 195
+    },
+    {
+     "id": 251,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 252,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 254,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 197
+    },
+    {
+     "id": 245,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 247,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 198
+    }
+   ],
+   "home": 196,
+   "location": {
+    "type": "home"
+   }
+  }
+ },
+ {
+  "seed": "4242",
+  "source": "largest",
+  "input": {
+   "municipality": "Fenoport",
+   "neighborhoods": [
+    {
+     "id": 0,
+     "name": "Fenoport",
+     "kind": "core"
+    },
+    {
+     "id": 1,
+     "name": "Uppertown",
+     "kind": "industrial"
+    },
+    {
+     "id": 2,
+     "name": "Park Cross",
+     "kind": "inner"
+    },
+    {
+     "id": 3,
+     "name": "East Hill",
+     "kind": "inner"
+    },
+    {
+     "id": 4,
+     "name": "Westgate",
+     "kind": "inner"
+    },
+    {
+     "id": 5,
+     "name": "Lowerlands",
+     "kind": "inner"
+    },
+    {
+     "id": 6,
+     "name": "East Cross",
+     "kind": "inner"
+    },
+    {
+     "id": 7,
+     "name": "Foundrytown",
+     "kind": "inner"
+    },
+    {
+     "id": 8,
+     "name": "Kings Hill",
+     "kind": "inner"
+    },
+    {
+     "id": 9,
+     "name": "Upperrow",
+     "kind": "inner"
+    },
+    {
+     "id": 10,
+     "name": "Abbeygate",
+     "kind": "inner"
+    },
+    {
+     "id": 11,
+     "name": "Wharfvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 12,
+     "name": "South Quarter",
+     "kind": "suburb"
+    },
+    {
+     "id": 13,
+     "name": "Abbey Quarter",
+     "kind": "suburb"
+    },
+    {
+     "id": 14,
+     "name": "Queensvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 15,
+     "name": "Queenstown",
+     "kind": "suburb"
+    },
+    {
+     "id": 16,
+     "name": "Newheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 17,
+     "name": "Hill Cross",
+     "kind": "suburb"
+    },
+    {
+     "id": 18,
+     "name": "Kingslands",
+     "kind": "suburb"
+    },
+    {
+     "id": 19,
+     "name": "Greentown",
+     "kind": "suburb"
+    },
+    {
+     "id": 20,
+     "name": "Churchtown",
+     "kind": "suburb"
+    },
+    {
+     "id": 21,
+     "name": "Quarryend",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 0,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 1,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 2,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 3,
+     "kind": "diner",
+     "name": "Ilka's",
+     "neighborhood": 0
+    },
+    {
+     "id": 4,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 5,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 6,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 7,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 8,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 9,
+     "kind": "news_office",
+     "name": "The Fenoport Gazette",
+     "neighborhood": 0
+    },
+    {
+     "id": 10,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 11,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 12,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 1
+    },
+    {
+     "id": 13,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 14,
+     "kind": "hotel",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 15,
+     "kind": "university",
+     "name": "",
+     "neighborhood": 2
+    },
+    {
+     "id": 16,
+     "kind": "tech_campus",
+     "name": "",
+     "neighborhood": 11
+    },
+    {
+     "id": 17,
+     "kind": "regional_assembly",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 18,
+     "kind": "parliament",
+     "name": "",
+     "neighborhood": 0
+    },
+    {
+     "id": 19,
+     "kind": "executive_residence",
+     "name": "",
+     "neighborhood": 2
+    }
+   ],
+   "home": null,
+   "location": {
+    "type": "street",
+    "neighborhood": 0
+   }
+  }
+ },
+ {
+  "seed": "2026",
+  "source": "town",
+  "input": {
+   "municipality": "Strathowick",
+   "neighborhoods": [
+    {
+     "id": 175,
+     "name": "Strathowick",
+     "kind": "core"
+    },
+    {
+     "id": 176,
+     "name": "Crossside",
+     "kind": "suburb"
+    },
+    {
+     "id": 177,
+     "name": "Harbourheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 178,
+     "name": "Orchardlands",
+     "kind": "rural"
+    },
+    {
+     "id": 179,
+     "name": "Greenrow",
+     "kind": "suburb"
+    },
+    {
+     "id": 180,
+     "name": "Newside",
+     "kind": "suburb"
+    },
+    {
+     "id": 181,
+     "name": "Marketgate",
+     "kind": "rural"
+    },
+    {
+     "id": 182,
+     "name": "Southvale",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 215,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 216,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 217,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 218,
+     "kind": "diner",
+     "name": "Sunniva's",
+     "neighborhood": 175
+    },
+    {
+     "id": 219,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 221,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 223,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 224,
+     "kind": "news_office",
+     "name": "The Strathowick Herald",
+     "neighborhood": 175
+    },
+    {
+     "id": 225,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 226,
+     "kind": "regional_assembly",
+     "name": "",
+     "neighborhood": 175
+    },
+    {
+     "id": 220,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 222,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 176
+    }
+   ],
+   "home": 177,
+   "location": {
+    "type": "home"
+   }
+  }
+ },
+ {
+  "seed": "1",
+  "source": "town",
+  "input": {
+   "municipality": "Hollindale",
+   "neighborhoods": [
+    {
+     "id": 176,
+     "name": "Hollindale",
+     "kind": "core"
+    },
+    {
+     "id": 177,
+     "name": "Hill Quarter",
+     "kind": "industrial"
+    },
+    {
+     "id": 178,
+     "name": "Westfield",
+     "kind": "suburb"
+    },
+    {
+     "id": 179,
+     "name": "Abbeygate",
+     "kind": "rural"
+    },
+    {
+     "id": 180,
+     "name": "Station Cross",
+     "kind": "suburb"
+    },
+    {
+     "id": 181,
+     "name": "Harbourvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 182,
+     "name": "Queens Quarter",
+     "kind": "rural"
+    },
+    {
+     "id": 183,
+     "name": "Lowertown",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 217,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 218,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 219,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 220,
+     "kind": "diner",
+     "name": "Valen's",
+     "neighborhood": 176
+    },
+    {
+     "id": 221,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 223,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 225,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 226,
+     "kind": "news_office",
+     "name": "The Hollindale Ledger",
+     "neighborhood": 176
+    },
+    {
+     "id": 227,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 176
+    },
+    {
+     "id": 228,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 229,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 222,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 178
+    },
+    {
+     "id": 224,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 178
+    },
+    {
+     "id": 230,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 179
+    }
+   ],
+   "home": 181,
+   "location": {
+    "type": "home"
+   }
+  }
+ },
+ {
+  "seed": "777",
+  "source": "town",
+  "input": {
+   "municipality": "Hollinerton",
+   "neighborhoods": [
+    {
+     "id": 194,
+     "name": "Hollinerton",
+     "kind": "core"
+    },
+    {
+     "id": 195,
+     "name": "Westlands",
+     "kind": "waterfront"
+    },
+    {
+     "id": 196,
+     "name": "Abbeyfield",
+     "kind": "industrial"
+    },
+    {
+     "id": 197,
+     "name": "Station Cross",
+     "kind": "rural"
+    },
+    {
+     "id": 198,
+     "name": "Markettown",
+     "kind": "suburb"
+    },
+    {
+     "id": 199,
+     "name": "Westgate",
+     "kind": "suburb"
+    },
+    {
+     "id": 200,
+     "name": "Hillwood",
+     "kind": "rural"
+    },
+    {
+     "id": 201,
+     "name": "Orchardwood",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 239,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 240,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 241,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 242,
+     "kind": "diner",
+     "name": "Thea's",
+     "neighborhood": 194
+    },
+    {
+     "id": 243,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 245,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 247,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 248,
+     "kind": "news_office",
+     "name": "The Hollinerton Courier",
+     "neighborhood": 194
+    },
+    {
+     "id": 249,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 194
+    },
+    {
+     "id": 250,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 251,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 196
+    },
+    {
+     "id": 252,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 197
+    },
+    {
+     "id": 244,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 198
+    },
+    {
+     "id": 246,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 198
+    }
+   ],
+   "home": 195,
+   "location": {
+    "type": "home"
+   }
+  }
+ },
+ {
+  "seed": "99",
+  "source": "town",
+  "input": {
+   "municipality": "Garbridge",
+   "neighborhoods": [
+    {
+     "id": 184,
+     "name": "Garbridge",
+     "kind": "core"
+    },
+    {
+     "id": 185,
+     "name": "Abbeyheath",
+     "kind": "industrial"
+    },
+    {
+     "id": 186,
+     "name": "Marketheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 187,
+     "name": "Foundrygate",
+     "kind": "rural"
+    },
+    {
+     "id": 188,
+     "name": "Hilltown",
+     "kind": "suburb"
+    },
+    {
+     "id": 189,
+     "name": "Bridgewood",
+     "kind": "suburb"
+    },
+    {
+     "id": 190,
+     "name": "Orchardlands",
+     "kind": "rural"
+    },
+    {
+     "id": 191,
+     "name": "Wharfheath",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 230,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 231,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 232,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 233,
+     "kind": "diner",
+     "name": "Xan's",
+     "neighborhood": 184
+    },
+    {
+     "id": 234,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 236,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 238,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 239,
+     "kind": "news_office",
+     "name": "The Garbridge Gazette",
+     "neighborhood": 184
+    },
+    {
+     "id": 240,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 241,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 242,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 235,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 237,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 243,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 187
+    }
+   ],
+   "home": 185,
+   "location": {
+    "type": "home"
+   }
+  }
+ },
+ {
+  "seed": "31337",
+  "source": "town",
+  "input": {
+   "municipality": "Strathport",
+   "neighborhoods": [
+    {
+     "id": 184,
+     "name": "Strathport",
+     "kind": "core"
+    },
+    {
+     "id": 185,
+     "name": "Churchheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 186,
+     "name": "Park Cross",
+     "kind": "suburb"
+    },
+    {
+     "id": 187,
+     "name": "Market Quarter",
+     "kind": "rural"
+    },
+    {
+     "id": 188,
+     "name": "Churchgate",
+     "kind": "suburb"
+    },
+    {
+     "id": 189,
+     "name": "Upperrow",
+     "kind": "suburb"
+    },
+    {
+     "id": 190,
+     "name": "Kingstown",
+     "kind": "rural"
+    }
+   ],
+   "places": [
+    {
+     "id": 222,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 223,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 224,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 225,
+     "kind": "diner",
+     "name": "Noor's",
+     "neighborhood": 184
+    },
+    {
+     "id": 226,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 228,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 230,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 231,
+     "kind": "news_office",
+     "name": "The Strathport Post",
+     "neighborhood": 184
+    },
+    {
+     "id": 232,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 227,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 229,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 185
+    }
+   ],
+   "home": 188,
+   "location": {
+    "type": "home"
+   }
+  }
+ },
+ {
+  "seed": "5",
+  "source": "town",
+  "input": {
+   "municipality": "Halomouth",
+   "neighborhoods": [
+    {
+     "id": 187,
+     "name": "Halomouth",
+     "kind": "core"
+    },
+    {
+     "id": 188,
+     "name": "Kings Cross",
+     "kind": "industrial"
+    },
+    {
+     "id": 189,
+     "name": "Millwood",
+     "kind": "suburb"
+    },
+    {
+     "id": 190,
+     "name": "Station Hill",
+     "kind": "rural"
+    },
+    {
+     "id": 191,
+     "name": "Wharfend",
+     "kind": "suburb"
+    },
+    {
+     "id": 192,
+     "name": "Harbourvale",
+     "kind": "suburb"
+    },
+    {
+     "id": 193,
+     "name": "Northside",
+     "kind": "rural"
+    },
+    {
+     "id": 194,
+     "name": "Abbey Quarter",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 233,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 234,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 235,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 236,
+     "kind": "diner",
+     "name": "Mina's",
+     "neighborhood": 187
+    },
+    {
+     "id": 237,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 239,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 241,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 242,
+     "kind": "news_office",
+     "name": "The Halomouth Ledger",
+     "neighborhood": 187
+    },
+    {
+     "id": 243,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 187
+    },
+    {
+     "id": 244,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 188
+    },
+    {
+     "id": 245,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 188
+    },
+    {
+     "id": 238,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 189
+    },
+    {
+     "id": 240,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 189
+    },
+    {
+     "id": 246,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 190
+    }
+   ],
+   "home": 187,
+   "location": {
+    "type": "home"
+   }
+  }
+ },
+ {
+  "seed": "12345",
+  "source": "town",
+  "input": {
+   "municipality": "Garenmoor",
+   "neighborhoods": [
+    {
+     "id": 172,
+     "name": "Garenmoor",
+     "kind": "core"
+    },
+    {
+     "id": 173,
+     "name": "Quarrygate",
+     "kind": "industrial"
+    },
+    {
+     "id": 174,
+     "name": "Northlands",
+     "kind": "suburb"
+    },
+    {
+     "id": 175,
+     "name": "Abbeyvale",
+     "kind": "rural"
+    },
+    {
+     "id": 176,
+     "name": "Queenswood",
+     "kind": "suburb"
+    },
+    {
+     "id": 177,
+     "name": "Upper Green",
+     "kind": "suburb"
+    },
+    {
+     "id": 178,
+     "name": "Orchard Green",
+     "kind": "rural"
+    }
+   ],
+   "places": [
+    {
+     "id": 223,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 224,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 225,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 226,
+     "kind": "diner",
+     "name": "Mirela's",
+     "neighborhood": 172
+    },
+    {
+     "id": 227,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 229,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 231,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 232,
+     "kind": "news_office",
+     "name": "The Garenmoor Chronicle",
+     "neighborhood": 172
+    },
+    {
+     "id": 233,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 172
+    },
+    {
+     "id": 234,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 173
+    },
+    {
+     "id": 235,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 173
+    },
+    {
+     "id": 228,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 174
+    },
+    {
+     "id": 230,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 174
+    },
+    {
+     "id": 236,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 175
+    }
+   ],
+   "home": 173,
+   "location": {
+    "type": "home"
+   }
+  }
+ },
+ {
+  "seed": "8080",
+  "source": "town",
+  "input": {
+   "municipality": "Hollinigate",
+   "neighborhoods": [
+    {
+     "id": 184,
+     "name": "Hollinigate",
+     "kind": "core"
+    },
+    {
+     "id": 185,
+     "name": "Abbeytown",
+     "kind": "industrial"
+    },
+    {
+     "id": 186,
+     "name": "Eastlands",
+     "kind": "suburb"
+    },
+    {
+     "id": 187,
+     "name": "Crosslands",
+     "kind": "rural"
+    },
+    {
+     "id": 188,
+     "name": "Lowerwood",
+     "kind": "suburb"
+    },
+    {
+     "id": 189,
+     "name": "Orchardheath",
+     "kind": "suburb"
+    },
+    {
+     "id": 190,
+     "name": "Millvale",
+     "kind": "rural"
+    },
+    {
+     "id": 191,
+     "name": "Newvale",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 232,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 233,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 234,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 235,
+     "kind": "diner",
+     "name": "Ursel's",
+     "neighborhood": 184
+    },
+    {
+     "id": 236,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 238,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 240,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 241,
+     "kind": "news_office",
+     "name": "The Hollinigate Ledger",
+     "neighborhood": 184
+    },
+    {
+     "id": 242,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 184
+    },
+    {
+     "id": 243,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 244,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 185
+    },
+    {
+     "id": 237,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 239,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 186
+    },
+    {
+     "id": 245,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 187
+    }
+   ],
+   "home": 189,
+   "location": {
+    "type": "home"
+   }
+  }
+ },
+ {
+  "seed": "60606",
+  "source": "town",
+  "input": {
+   "municipality": "Belton",
+   "neighborhoods": [
+    {
+     "id": 177,
+     "name": "Belton",
+     "kind": "core"
+    },
+    {
+     "id": 178,
+     "name": "Northwood",
+     "kind": "waterfront"
+    },
+    {
+     "id": 179,
+     "name": "Quarryend",
+     "kind": "industrial"
+    },
+    {
+     "id": 180,
+     "name": "Mill Green",
+     "kind": "rural"
+    },
+    {
+     "id": 181,
+     "name": "Abbey Hill",
+     "kind": "suburb"
+    },
+    {
+     "id": 182,
+     "name": "Churchend",
+     "kind": "suburb"
+    },
+    {
+     "id": 183,
+     "name": "Castlegate",
+     "kind": "rural"
+    },
+    {
+     "id": 184,
+     "name": "Southside",
+     "kind": "suburb"
+    }
+   ],
+   "places": [
+    {
+     "id": 223,
+     "kind": "town_hall",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 224,
+     "kind": "council_chamber",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 225,
+     "kind": "party_office",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 226,
+     "kind": "diner",
+     "name": "Basil's",
+     "neighborhood": 177
+    },
+    {
+     "id": 227,
+     "kind": "market",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 229,
+     "kind": "clinic",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 231,
+     "kind": "park",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 232,
+     "kind": "news_office",
+     "name": "The Belton Herald",
+     "neighborhood": 177
+    },
+    {
+     "id": 233,
+     "kind": "business_association",
+     "name": "",
+     "neighborhood": 177
+    },
+    {
+     "id": 236,
+     "kind": "port",
+     "name": "",
+     "neighborhood": 178
+    },
+    {
+     "id": 234,
+     "kind": "union_hall",
+     "name": "",
+     "neighborhood": 179
+    },
+    {
+     "id": 235,
+     "kind": "factory",
+     "name": "",
+     "neighborhood": 179
+    },
+    {
+     "id": 237,
+     "kind": "mine",
+     "name": "",
+     "neighborhood": 180
+    },
+    {
+     "id": 238,
+     "kind": "mill",
+     "name": "",
+     "neighborhood": 180
+    },
+    {
+     "id": 228,
+     "kind": "school",
+     "name": "",
+     "neighborhood": 181
+    },
+    {
+     "id": 230,
+     "kind": "community_centre",
+     "name": "",
+     "neighborhood": 181
+    }
+   ],
+   "home": 179,
+   "location": {
+    "type": "home"
+   }
+  }
+ }
+]

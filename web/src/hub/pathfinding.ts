@@ -308,11 +308,13 @@ export function clearSegment(g: Grid, a: Point, b: Point, clearance: number): bo
  * String-pulling: replace runs of grid steps with straight segments wherever
  * a walker fits (line of sight with `clearance`) and the straight segment
  * costs no more than the steps it replaces, so a route never takes more road
- * than the A* route did. Greedy: from each anchor, the goal if it qualifies,
+ * than the A* route did (plus `slack`, in cost units per segment: a little
+ * slack lets a route cut a road corner instead of stepping round it on the
+ * zebra cells, which reads as a wiggle). Greedy: from each anchor, the goal if it qualifies,
  * else the farthest point that does (scanning ahead, giving up after
  * `lookahead` misses in a row).
  */
-export function straighten(g: Grid, points: readonly Point[], clearance = 0.25, lookahead = 12): Point[] {
+export function straighten(g: Grid, points: readonly Point[], clearance = 0.25, lookahead = 12, slack = 0): Point[] {
   if (points.length <= 2) return points.map((p) => ({ ...p }));
   const n = points.length;
   const prefix = new Float64Array(n);
@@ -326,7 +328,7 @@ export function straighten(g: Grid, points: readonly Point[], clearance = 0.25, 
   const ok = (i: number, j: number) => {
     const a = points[i] as Point;
     const b = points[j] as Point;
-    return segmentCost(g, a, b) <= (prefix[j] as number) - (prefix[i] as number) + 1e-6 && clearSegment(g, a, b, clearance);
+    return segmentCost(g, a, b) <= (prefix[j] as number) - (prefix[i] as number) + slack + 1e-6 && clearSegment(g, a, b, clearance);
   };
   const out: Point[] = [{ ...(points[0] as Point) }];
   let i = 0;
@@ -352,6 +354,33 @@ export function straighten(g: Grid, points: readonly Point[], clearance = 0.25, 
   return out;
 }
 
+/**
+ * Remove short jogs left after string-pulling: a vertex between two legs, one
+ * of them under `maxLeg` tiles, is dropped when the walker fits along the
+ * direct line and it costs at most `slack` more than the two legs. Repeats
+ * until nothing changes. Used by town routes (see `planRoute`'s `slack`).
+ */
+export function dejog(g: Grid, points: readonly Point[], clearance = 0.25, slack = 1, maxLeg = 2): Point[] {
+  const out = points.map((p) => ({ ...p }));
+  let changed = true;
+  while (changed && out.length > 2) {
+    changed = false;
+    for (let i = 1; i < out.length - 1; i++) {
+      const a = out[i - 1] as Point;
+      const b = out[i] as Point;
+      const c = out[i + 1] as Point;
+      if (Math.min(Math.hypot(b.x - a.x, b.y - a.y), Math.hypot(c.x - b.x, c.y - b.y)) >= maxLeg) continue;
+      const direct = segmentCost(g, a, c);
+      if (direct <= segmentCost(g, a, b) + segmentCost(g, b, c) + slack + 1e-6 && clearSegment(g, a, c, clearance)) {
+        out.splice(i, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 export interface Route {
   /** The A* cells, start to goal. */
   cells: number[];
@@ -373,8 +402,8 @@ export function polylineLength(points: readonly Point[]): number {
   return d;
 }
 
-/** Plan a walk from a sub-tile position to a goal cell. */
-export function planRoute(g: Grid, from: Point, goal: number, clearance = 0.25): Route | null {
+/** Plan a walk from a sub-tile position to a goal cell (`slack`: see `straighten`). */
+export function planRoute(g: Grid, from: Point, goal: number, clearance = 0.25, slack = 0): Route | null {
   const start = cellAt(g, from);
   const path = findPath(g, start, goal);
   if (!path) return null;
@@ -384,7 +413,8 @@ export function planRoute(g: Grid, from: Point, goal: number, clearance = 0.25):
   const next = centres[1];
   const direct = next !== undefined && Number.isFinite(segmentCost(g, from, next));
   const raw = direct ? [{ ...from }, ...centres.slice(1)] : [{ ...from }, ...centres];
-  const points = straighten(g, raw, clearance);
+  const pulled = straighten(g, raw, clearance, 12, slack);
+  const points = slack > 0 ? dejog(g, pulled, clearance, slack) : pulled;
   return { cells: path.cells, cost: path.cost, points, length: polylineLength(points) };
 }
 
