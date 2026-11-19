@@ -94,7 +94,8 @@ function bollards(facing: EndFacing, lit: boolean): PropDef3 {
 
 /**
  * A field gate on the end line, in the gap of the hedge: two square posts
- * and a five-bar gate with its diagonal brace (timber, or galvanised steel
+ * and a barred gate (three rails, spaced so the automatic outline leaves
+ * gaps between them) with its diagonal brace (timber, or galvanised steel
  * for the second look). Across a north–south line it is seen end on: a
  * strip of rails between its posts.
  */
@@ -111,7 +112,7 @@ function fieldGate(facing: EndFacing, steel: boolean): PropDef3 {
     post(0, gy);
     post(14, gy);
     for (let x = 2; x < 14; x++) {
-      for (const h of [2, 4, 6, 8, 10]) c.set(x, gy - h, h === 10 ? lite : mid);
+      for (const h of [2, 6, 10]) c.set(x, gy - h, h === 10 ? lite : mid);
       // The brace, from the hanging post's foot to the top of the far end.
       const by = gy - 2 - Math.round(((x - 2) * 8) / 11);
       c.set(x, by, dark);
@@ -138,7 +139,7 @@ function fieldGate(facing: EndFacing, steel: boolean): PropDef3 {
     const ground = (x: number) => (dir === "\\" ? x + shift : 15 - x + shift);
     for (let x = 2; x < 14; x++) {
       const g = ground(x);
-      for (const h of [2, 4, 6, 8, 10]) c.set(x, g - h, h === 10 ? lite : mid);
+      for (const h of [2, 6, 10]) c.set(x, g - h, h === 10 ? lite : mid);
       c.set(x, g - 2 - Math.round(((x - 2) * 8) / 11), dark);
     }
     for (const x of [0, 14]) {

@@ -8,22 +8,35 @@ import { endScene } from "../../art/mandate/endscene";
 import { END_FACINGS } from "../../art/mandate/ends";
 import type { ArtPack } from "../../art/mandate/pack";
 import { gridSheet, type Cell } from "./sheets";
-import { renderScene, type Moment } from "./scene";
+import { renderScene } from "./scene";
 
-/** Close-ups: label and cells (x, y, w, h). */
-export const END_DETAILS: readonly [string, number, number, number, number][] = [
-  ["turning circles: s (2 a row, top) and n (4 a row, island)", 4, 3, 12, 22],
-  ["hammerheads: s (an L, 3 a row) and n (a T, 2 a row)", 16, 3, 12, 22],
-  ["bollards: s and n, a footpath through a green between them", 28, 3, 12, 22],
-  ["plaza: s and n run into a square", 40, 3, 12, 22],
-  ["field gates: s and n, a track across the field between them", 52, 3, 12, 22],
-  ["railings: s and n at a basin", 64, 3, 12, 22],
-  ["turning circles e and w; hammerheads e and w", 0, 28, 40, 11],
-  ["bollards e and w (lit); plaza e and w", 38, 28, 42, 11],
-  ["field gates e and w; railings e and w", 0, 39, 80, 11],
-  ["diagonal ends (se above, ne below): turning circles, hammerheads, bollards", 0, 61, 40, 28],
-  ["diagonal ends: plaza, field gates, railings", 39, 61, 41, 28],
-];
+/** Close-ups in three sheets (facing s and n; e and w; se and ne): label and cells (x, y, w, h). Widths are road cells a row. */
+export const END_DETAILS: Readonly<Record<"sn" | "ew" | "diag", readonly [string, number, number, number, number][]>> = {
+  sn: [
+    ["turning circles: s (3, an island), n (2)", 4, 3, 12, 22],
+    ["hammerheads: s (an L, 4), n (a T, 3)", 16, 3, 12, 22],
+    ["bollards: s (2), n (4, lit); a footpath between", 28, 3, 12, 22],
+    ["plaza: s (3), n (2) run into a square", 40, 3, 12, 22],
+    ["field gates: s (4), n (3, steel); a track between", 52, 3, 12, 22],
+    ["railings: s (2), n (4) at a basin", 64, 3, 12, 22],
+  ],
+  ew: [
+    ["turning circles: e (4, an island), w (2)", 0, 28, 38, 11],
+    ["hammerheads: e (a T, 2), w (an L, 3)", 38, 28, 42, 11],
+    ["bollards: e (3, lit), w (4)", 0, 39, 38, 11],
+    ["plaza: e (4), w (2)", 38, 39, 42, 11],
+    ["field gates: e (2), w (3)", 0, 50, 38, 11],
+    ["railings: e (3), w (4)", 38, 50, 42, 11],
+  ],
+  diag: [
+    ["turning circles: se (4, an island), ne (3)", 0, 61, 15, 32],
+    ["hammerheads: se (2), ne (4)", 14, 61, 14, 32],
+    ["bollards: se (3), ne (2, lit)", 27, 61, 14, 32],
+    ["plaza: se (4), ne (3)", 40, 61, 14, 32],
+    ["field gates: se (2), ne (4, steel)", 53, 61, 14, 32],
+    ["railings: se (3), ne (2)", 66, 61, 14, 32],
+  ],
+};
 
 function crop(src: Rgba, x: number, y: number, w: number, h: number): Rgba {
   const cw = Math.max(0, Math.min(w, src.w - x));
@@ -33,12 +46,11 @@ function crop(src: Rgba, x: number, y: number, w: number, h: number): Rgba {
   return { w: cw, h: ch, data };
 }
 
-function details(pack: ArtPack, moment: Moment, title: string): Sheet {
+function details(full: Rgba, list: readonly [string, number, number, number, number][], perRow: number, title: string): Sheet {
   const scale = 4;
-  const full = renderScene(pack, endScene(), moment, scale);
-  const shots = END_DETAILS.map(([label, x, y, w, h]) => ({ label, img: crop(full, x * 16 * scale, y * 16 * scale, w * 16 * scale, h * 16 * scale) }));
-  // Rows: the six orthogonal pairs side by side, then the wide crops one a row.
-  const rows: (typeof shots)[] = [shots.slice(0, 6), ...shots.slice(6).map((s) => [s])];
+  const shots = list.map(([label, x, y, w, h]) => ({ label, img: crop(full, x * 16 * scale, y * 16 * scale, w * 16 * scale, h * 16 * scale) }));
+  const rows: (typeof shots)[] = [];
+  for (let i = 0; i < shots.length; i += perRow) rows.push(shots.slice(i, i + perRow));
   const rowW = rows.map((r) => r.reduce((a, s) => a + s.img.w + 16, 0));
   const rowH = rows.map((r) => Math.max(...r.map((s) => s.img.h)) + 24);
   const sheet = new Sheet(8 + Math.max(...rowW), 34 + rowH.reduce((a, b) => a + b, 0));
@@ -59,8 +71,14 @@ function details(pack: ArtPack, moment: Moment, title: string): Sheet {
 export function endSheets(pack: ArtPack, png: (name: string, img: Rgba) => void) {
   const scene = endScene();
   for (const m of ["day", "dusk", "night"] as const) png(`ends-scene-${m}.png`, renderScene(pack, scene, m, 2));
-  png("ends-details.png", details(pack, "day", "ROUND 6 STREET ENDS: EVERY KIND IN ALL FOUR ORTHOGONAL FACINGS AND TWO DIAGONAL ONES (4x)"));
-  png("ends-details-night.png", details(pack, "night", "ROUND 6 STREET ENDS AT NIGHT (PALETTE MOODS, 22:30) (4x)"));
+  for (const m of ["day", "night"] as const) {
+    const full = renderScene(pack, scene, m, 4);
+    const when = m === "day" ? "" : " AT NIGHT (PALETTE MOODS, 22:30)";
+    const sfx = m === "day" ? "" : "-night";
+    png(`ends-details-sn${sfx}.png`, details(full, END_DETAILS.sn, 6, `ROUND 6 STREET ENDS FACING S (TOP) AND N (BOTTOM)${when} (4x)`));
+    png(`ends-details-ew${sfx}.png`, details(full, END_DETAILS.ew, 2, `ROUND 6 STREET ENDS FACING E (LEFT) AND W (RIGHT)${when} (4x)`));
+    png(`ends-details-diag${sfx}.png`, details(full, END_DETAILS.diag, 6, `ROUND 6 STREET ENDS ON 45° STREETS, FACING SE (TOP) AND NE (BOTTOM)${when} (4x)`));
+  }
   // The new props, every variant, on the pavement.
   const rgb = pack.palette.colors.map(hexToRgb);
   const cells: Cell[] = [];
