@@ -13,6 +13,7 @@
 import { blank, blit, grid, outline, type Indexed } from "../../src/core/image";
 import type { Palette } from "../../src/core/palette";
 import { marketStalls, PROP2_LEGEND_RAMPS, round4Props } from "./props2";
+import { endProps } from "./props3";
 import { legendFor } from "./tiles";
 
 export const PROP_LEGEND_RAMPS: Readonly<Record<string, readonly [string, number]>> = {
@@ -56,6 +57,8 @@ interface PropDef {
   lit?: string;
   /** Grid column on the cell's left edge (default: centred on the cell). */
   left?: number;
+  /** A lit prop's pool when it is not the street lamp's (round 6: lit bollards cast a small one). */
+  pool?: "bollard";
 }
 
 const PROPS: Record<string, readonly PropDef[]> = {
@@ -405,8 +408,8 @@ const PROPS: Record<string, readonly PropDef[]> = {
   ],
 };
 
-/** Every prop: round 1's, the market stall's variants after its first (round 4), and the layout v2 props (./props2). */
-const ALL_PROPS: Record<string, readonly PropDef[]> = { ...PROPS, stall: [...(PROPS.stall ?? []), ...marketStalls()], ...round4Props() };
+/** Every prop: round 1's, the market stall's variants after its first (round 4), the layout v2 props (./props2) and the street-end props (./props3, round 6). */
+const ALL_PROPS: Record<string, readonly PropDef[]> = { ...PROPS, stall: [...(PROPS.stall ?? []), ...marketStalls()], ...round4Props(), ...endProps() };
 
 export const PROP_KINDS = Object.keys(ALL_PROPS);
 
@@ -419,6 +422,8 @@ export interface BuiltProp {
   ax: number;
   ay: number;
   shadow: { footprint: [number, number][]; height: number } | null;
+  /** A lit prop's own light pool (round 6: lit bollards); absent, the street lamp's (`ArtPack.pool`). */
+  pool?: Pool;
 }
 
 /** A banded light pool (stepped bands, as pixel-art pools are): band index per pixel, 0 outside. */
@@ -450,6 +455,7 @@ export function buildProps(p: Palette, lightness: readonly number[]): Record<str
   const legend = legendFor(p, { ...PROP_LEGEND_RAMPS, ...PROP2_LEGEND_RAMPS });
   const litLegend: Record<string, number> = { ...legend, g: legendFor(p, { l: ["lamp", 1] }).l as number, y: legendFor(p, { l: ["lamp", 2] }).l as number, G: legendFor(p, { l: ["lamp", 0] }).l as number };
   const out: Record<string, BuiltProp[]> = {};
+  const bollardPool = smallPool(p);
   for (const [kind, defs] of Object.entries(ALL_PROPS)) {
     out[kind] = defs.map((d) => {
       const g = grid(d.grid, legend);
@@ -479,7 +485,9 @@ export function buildProps(p: Palette, lightness: readonly number[]): Record<str
             height: d.shadow.height,
           }
         : null;
-      return { albedo, emissive, ax, ay, shadow };
+      const built: BuiltProp = { albedo, emissive, ax, ay, shadow };
+      if (d.pool === "bollard" && emissive) built.pool = bollardPool;
+      return built;
     });
   }
   return out;
@@ -487,8 +495,15 @@ export function buildProps(p: Palette, lightness: readonly number[]): Record<str
 
 /** The street lamp's light pool: an ellipse in four stepped bands of warm light. */
 export function lampPool(p: Palette): Pool {
-  const w = 48;
-  const h = 26;
+  return pool(p, 48, 26, 30, [0.1, 0.17, 0.25, 0.33]);
+}
+
+/** A lit bollard's pool (round 6): low and small, the lamp's warm light in fainter bands. */
+export function smallPool(p: Palette): Pool {
+  return pool(p, 22, 10, 6, [0.07, 0.12, 0.17, 0.22]);
+}
+
+function pool(p: Palette, w: number, h: number, rz: number, alpha: readonly [number, number, number, number]): Pool {
   const bands = new Uint8Array(w * h);
   const cx = (w - 1) / 2;
   const cy = (h - 1) / 2;
@@ -503,12 +518,12 @@ export function lampPool(p: Palette): Pool {
   const rgb = [parseInt(lamp.slice(1, 3), 16), parseInt(lamp.slice(3, 5), 16), parseInt(lamp.slice(5, 7), 16)] as const;
   const colours = [
     [0, 0, 0, 0],
-    [rgb[0], rgb[1], rgb[2], 0.1],
-    [rgb[0], rgb[1], rgb[2], 0.17],
-    [rgb[0], rgb[1], rgb[2], 0.25],
-    [rgb[0], rgb[1], rgb[2], 0.33],
+    [rgb[0], rgb[1], rgb[2], alpha[0]],
+    [rgb[0], rgb[1], rgb[2], alpha[1]],
+    [rgb[0], rgb[1], rgb[2], alpha[2]],
+    [rgb[0], rgb[1], rgb[2], alpha[3]],
   ] as const;
-  return { w, h, bands, colours, steps: [0.12, 0.35, 0.65], rz: 30 };
+  return { w, h, bands, colours, steps: [0.12, 0.35, 0.65], rz };
 }
 
 /** The light a lit window casts on the pavement: short, warm, two steps and a dithered edge. */
