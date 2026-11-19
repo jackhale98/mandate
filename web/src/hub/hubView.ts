@@ -380,7 +380,8 @@ export class HubView {
     const r = this.container.getBoundingClientRect();
     this.cssW = Math.max(1, Math.round(r.width));
     this.cssH = Math.max(1, Math.round(r.height));
-    this.dpr = this.opts.resolution === "device" ? window.devicePixelRatio || 1 : 1;
+    // Device resolution unless a caller asks for CSS pixels: many crisp zoom steps.
+    this.dpr = this.opts.resolution === "css" ? 1 : window.devicePixelRatio || 1;
     this.canvas.width = Math.round(this.cssW * this.dpr);
     this.canvas.height = Math.round(this.cssH * this.dpr);
     this.ctx.imageSmoothingEnabled = false;
