@@ -13,7 +13,7 @@ import { buildProps, lampPool, type BuiltProp, type Pool } from "./props";
 import { buildTiles, type TileSet } from "./tiles";
 
 /** Bump when any drawing or rule changes what an existing look or building looks like (§3.5 rule 8). */
-export const PACK_VERSION = "mandate-p0.1";
+export const PACK_VERSION = "mandate-p0.2";
 
 export interface ArtPack {
   version: string;

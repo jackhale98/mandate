@@ -381,7 +381,9 @@ export class HubView {
     const s = this.scene;
     const views = this.walkerViews;
     views.length = 0;
-    const view = (w: Walker): WalkerView => ({ x: w.x, y: w.y, dir: w.dir, frame: w.moving ? 1 + (Math.floor(w.dist * 3) % 2) : 0, variant: w.variant });
+    // One walk frame per 4 art px walked (PIXEL_ART_TOOL §6), through every frame the art has.
+    const frames = this.renderer.art.walkFrames;
+    const view = (w: Walker): WalkerView => ({ x: w.x, y: w.y, dir: w.dir, frame: w.moving ? 1 + (Math.floor(w.dist * 4) % frames) : 0, variant: w.variant });
     views.push(view(s.player));
     for (const w of s.folk) views.push(view(w));
     const cam = this.camera.state;

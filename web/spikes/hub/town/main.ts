@@ -8,7 +8,7 @@
 // res=css|device, hud=1. Exposes window.__hub for tests and measurements.
 // The pixel-art tool's spike (DEC-084, P0): art=pixelkit swaps the code-drawn
 // placeholder for the tool's art pack; night=multiply|moods picks the night
-// look (D12); preset=street centres on one representative street of the town
+// look (D12; moods by default); preset=street centres on one representative street of the town
 // centre (zoom=<1..6> overrides the zoom).
 import { engine, expectKind } from "../../../src/engine/client";
 import type { LocationDto } from "../../../src/engine/protocol/LocationDto";
@@ -32,7 +32,8 @@ const speed = q.has("speed") ? Number(q.get("speed")) : 12;
 const townsfolk = Math.max(0, Math.min(400, Number(q.get("n") ?? 16) || 0));
 const resolution = q.get("res") === "device" ? "device" : "css";
 const artName = q.get("art") === "pixelkit" ? "pixelkit" : "placeholder";
-const night: NightLook = q.get("night") === "moods" ? "moods" : "multiply";
+// Palette moods are the default night look from round 2 (the owner's lean, D12); multiply stays for comparison.
+const night: NightLook = q.get("night") === "multiply" ? "multiply" : "moods";
 const preset = q.get("preset");
 const presetZoom = q.has("zoom") ? Math.max(1, Math.min(6, Math.round(Number(q.get("zoom")) || 0))) : null;
 
@@ -69,8 +70,8 @@ else if (speed > 0) speedSel.value = String(speed);
 
 let tr = new Translator("en", "");
 // The placeholder art, or the pixel-art tool's pack through the same ArtProvider calls.
-// The hub view feeds walk frames 1..2 only (see pixelkitArt.ts), hence walkFrames: 2.
-const pixelkit = artName === "pixelkit" ? new PixelkitArt(pack, { night, walkFrames: 2 }) : null;
+// The hub view feeds all four walk frames (round 2).
+const pixelkit = artName === "pixelkit" ? new PixelkitArt(pack, { night }) : null;
 const art = pixelkit ?? new PlaceholderArt();
 document.body.insertAdjacentHTML("afterbegin", art.iconSprite());
 let view: HubView | null = null;

@@ -7,9 +7,9 @@
 // Where the tool plan (§5.1) and the renderer's interface differ, this adapts:
 //   - side frames: the kit draws them facing right (style guide §6); the
 //     renderer wants them facing left, so they are mirrored here;
-//   - walk frames: the kit has 4; the hub view (../hubView) feeds only frames
-//     1..2 today, so `walkFrames: 2` (the spike's setting) shows the two
-//     contact frames, and 4 shows the whole cycle once the view feeds it;
+//   - walk frames: the kit has 4, and the hub view (../hubView) feeds frames
+//     1..walkFrames (one per 4 px walked); `walkFrames: 2` shows only the two
+//     contact frames;
 //   - idle frames (2, breathing) are not shown: the renderer has no idle clock;
 //   - palette moods (D12): the renderer bakes static layers once and grades
 //     everything with one multiply; in the "moods" look this provider repaints
@@ -46,7 +46,7 @@ export interface PixelkitArtOptions {
   createCanvas?: CanvasFactory;
   /** D12: multiply grading only (default), or palette moods for the static layers. */
   night?: NightLook;
-  /** Walk frames the caller feeds (2 today, see above; the art has 4). */
+  /** Walk frames to show (default 4, the whole cycle; 2 shows only the contact frames). */
   walkFrames?: 2 | 4;
   /** Composed characters kept (least recently used go first; §3.5 budget: about 150). */
   maxCharacters?: number;

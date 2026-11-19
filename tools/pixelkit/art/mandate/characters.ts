@@ -8,7 +8,7 @@ import { stack, stretchRows, type LayerSpec } from "../../src/core/compose";
 import { hash32, rendezvous } from "../../src/core/hash";
 import { blank, crop, grid, grids, mirrorX, outline, remap, type Indexed } from "../../src/core/image";
 import { ramp, type Palette } from "../../src/core/palette";
-import { CLOTH_NAMES, HAIR_NAMES, LINES } from "./palette";
+import { CLOTH_NAMES, HAIR_NAMES, LINES, SOFT_LINES } from "./palette";
 import {
   APRON,
   ARM_FRONT,
@@ -19,6 +19,7 @@ import {
   LEGEND,
   LEGS,
   LEGS_BROAD_DOWN,
+  LEGS_SLIM_DOWN,
   SKIRT,
   SLOT,
   SLOT_COUNT,
@@ -133,7 +134,7 @@ function parseParts() {
   const torso = Object.fromEntries(Object.entries(TORSO).map(([k, v]) => [k, { down: P(v.down), side: P(v.side), left: v.left, right: v.right }])) as Record<Build, { down: Indexed; side: Indexed; left: number; right: number }>;
   const armFront = Object.fromEntries(Object.entries(ARM_FRONT).map(([k, v]) => [k, P(v)])) as Record<ArmPose, Indexed>;
   const armSide = Object.fromEntries(Object.entries(ARM_SIDE).map(([k, v]) => [k, P(v)])) as Record<ArmPose, Indexed>;
-  const legs = { down: LEGS.down.map(P), side: LEGS.side.map(P), broad: LEGS_BROAD_DOWN.map(P) };
+  const legs = { down: LEGS.down.map(P), side: LEGS.side.map(P), broad: LEGS_BROAD_DOWN.map(P), slim: LEGS_SLIM_DOWN.map(P) };
   const detail = Object.fromEntries(Object.entries(TOP_DETAIL).map(([k, v]) => [k, { down: v.down ? P(v.down) : null, up: v.up ? P(v.up) : null, side: v.side ? P(v.side) : null }])) as Record<Top, Record<FacingKey, Indexed | null>>;
   const apronFull = { down: P(APRON.down), up: P(APRON.up), side: P(APRON.side) };
   const apron = Object.fromEntries(Object.entries(apronFull).map(([k, v]) => [k, { bib: crop(v, 0, 0, v.w, 6), skirt: crop(v, 0, 6, v.w, Math.max(0, v.h - 6)) }])) as Record<FacingKey, { bib: Indexed; skirt: Indexed }>;
@@ -154,6 +155,7 @@ export function partList(): { name: string; img: Indexed }[] {
   p.legs.down.forEach((img, i) => out.push({ name: `legs down ${i}`, img }));
   p.legs.side.forEach((img, i) => out.push({ name: `legs side ${i}`, img }));
   p.legs.broad.forEach((img, i) => out.push({ name: `legs broad ${i}`, img }));
+  p.legs.slim.forEach((img, i) => out.push({ name: `legs slim ${i}`, img }));
   for (const [k, v] of Object.entries(p.detail)) for (const f of ["down", "up", "side"] as const) if (v[f]) out.push({ name: `top ${k} ${f}`, img: v[f] as Indexed });
   for (const f of ["down", "up", "side"] as const) out.push({ name: `apron ${f}`, img: grid(APRON[f], LEGEND) });
   out.push({ name: "skirt down", img: p.skirt.down }, { name: "skirt side", img: p.skirt.side });
@@ -176,20 +178,21 @@ export function slotTable(l: Look, p: Palette): Uint8Array {
   const hair = `hair_${l.hairColour}`;
   t[SLOT.skinS] = step(p, skin, -1);
   t[SLOT.skin] = step(p, skin, 0);
-  t[SLOT.skinL] = step(p, skin, 1);
+  // Flat people (round 2): the highlight slots take the base colour; only hair keeps a highlight.
+  t[SLOT.skinL] = step(p, skin, 0);
   t[SLOT.hairS] = step(p, hair, -1);
   t[SLOT.hair] = step(p, hair, 0);
   t[SLOT.hairL] = step(p, hair, 1);
   t[SLOT.topS] = step(p, l.topRamp, -1);
   t[SLOT.top] = step(p, l.topRamp, 0);
-  t[SLOT.topL] = step(p, l.topRamp, 1);
+  t[SLOT.topL] = step(p, l.topRamp, 0);
   t[SLOT.botS] = step(p, l.bottomRamp, -1);
   t[SLOT.bot] = step(p, l.bottomRamp, 0);
   t[SLOT.shoeS] = step(p, l.shoeRamp, -1);
   t[SLOT.shoe] = step(p, l.shoeRamp, 0);
   t[SLOT.accS] = step(p, l.accentRamp, -1);
   t[SLOT.acc] = step(p, l.accentRamp, 0);
-  t[SLOT.accL] = step(p, l.accentRamp, 1);
+  t[SLOT.accL] = step(p, l.accentRamp, 0);
   // Eyes: the darkest line colour on the darkest skin (a light eye there read as a mask at 1×), else the warm line.
   t[SLOT.ink] = l.skin >= 5 ? step(p, "ink", -2) : p.colors.indexOf(LINES.warm);
   t[SLOT.white] = step(p, "chalk", 0);
@@ -223,7 +226,7 @@ export function composeSlots(l: Look, facing: FacingKey, frame: number): Indexed
   const p = parts();
   const legIdx = frame <= 1 ? 0 : frame - 1;
   const side = facing === "side";
-  const legs = stretchRows((side ? p.legs.side : l.build === "broad" ? p.legs.broad : p.legs.down)[legIdx] as Indexed, 2, l.height - 1);
+  const legs = stretchRows((side ? p.legs.side : l.build === "broad" ? p.legs.broad : l.build === "slim" ? p.legs.slim : p.legs.down)[legIdx] as Indexed, 2, l.height - 1);
   const legsTop = 22 - (legs.h - 1);
   const torsoTop = legsTop - 6;
   // The chin sits on the shoulders (one row of overlap), which leaves room above the tallest hair.
@@ -247,7 +250,7 @@ export function composeSlots(l: Look, facing: FacingKey, frame: number): Indexed
     const left = p.armFront[nearPose];
     const right = p.armFront[farPose];
     layers.push({ img: left, x: torso.left - 2, y: torsoTop });
-    layers.push({ img: right, x: torso.right + 1, y: torsoTop, mirror: true, map: SHADE });
+    layers.push({ img: right, x: torso.right + 1, y: torsoTop, mirror: true });
   }
   layers.push({ img: p.head[facing], x: 0, y: headY });
   if (l.beard && facing !== "up") layers.push({ img: side ? p.beard.side : p.beard.down, x: 0, y: headY });
@@ -260,12 +263,42 @@ export interface CharacterSheet {
   frames: Indexed[][];
 }
 
+const softCache = new WeakMap<Palette, number[]>();
+/**
+ * The people's outline colour per palette colour (D2, softened in round 2):
+ * the soft line of the material's family (light skin gets a mid-brown contrast
+ * tone), unless the material is so dark that the soft line would be lighter
+ * than it; then the ramp's own hard line.
+ */
+export function softLines(pal: Palette, lightness: readonly number[]): number[] {
+  const hit = softCache.get(pal);
+  if (hit) return hit;
+  const idx = (hex: string) => pal.colors.indexOf(hex);
+  const soft = { cool: idx(SOFT_LINES.cool), warm: idx(SOFT_LINES.warm), green: idx(SOFT_LINES.green), skin: idx(SOFT_LINES.skin) };
+  const out = pal.lineOf.map((hard, i) => {
+    const ri = pal.rampOf[i] as number;
+    const r = ri >= 0 ? pal.ramps[ri] : undefined;
+    if (!r || i === 0) return hard;
+    const n = r.name;
+    let s = soft.warm;
+    if (n === "skin1" || n === "skin2" || n === "skin3") s = soft.skin;
+    else if (n === "grass" || n === "foliage" || n === "party_green" || n === "cloth_green") s = soft.green;
+    else if (hard === idx(LINES.cool) || pal.colors[hard] === pal.colors[idx(LINES.cool)]) s = soft.cool;
+    if (s <= 0) return hard;
+    // The line must stay clearly darker than the material it outlines.
+    const darkest = lightness[r.steps[0] as number] as number;
+    return (lightness[s] as number) < darkest - 60 ? s : hard;
+  });
+  softCache.set(pal, out);
+  return out;
+}
+
 /** Compose every frame of a look: recoloured from the palette, outlined (D2). */
 export function composeCharacter(l: Look, pal: Palette, lightness: readonly number[]): CharacterSheet {
   const table = slotTable(l, pal);
   const frames = FACINGS.map((f) =>
     FRAMES.map((_, k) => {
-      const img = outline(remap(composeSlots(l, f, k), table), pal.lineOf, lightness);
+      const img = outline(remap(composeSlots(l, f, k), table), softLines(pal, lightness), lightness);
       const out = blank(FRAME_W, FRAME_H);
       for (let y = 0; y < FRAME_H; y++) out.px.set(img.px.subarray(y * 15, y * 15 + 15), y * FRAME_W);
       return out;
