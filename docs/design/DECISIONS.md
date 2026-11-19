@@ -98,6 +98,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-089 | Map layers from a registry; some gated by where you have been | Accepted |
 | DEC-090 | Town layout v2: terrain-first, data-driven districts, size from population, hidden places | Accepted |
 | DEC-091 | Knowledge is earned: who and what you know comes from places and people | Accepted |
+| DEC-092 | Policy families grounded in the town, with design choices and sponsors, all in content | Accepted |
 
 ---
 
@@ -1887,3 +1888,59 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
     - Bots learn by the same rules. A lab gate requires that exploring early pays off, but that exploring alone never wins.
 - **Timing:** the first M6 engine task, alongside town layout v2 (DEC-090), after M5d part 2 merges.
 - **Dependencies:** DEC-034, DEC-051, DEC-073, DEC-077, DEC-079, DEC-088, DEC-089, DEC-090.
+
+### DEC-092 — Policy families grounded in the town
+
+- **Status:** Accepted (owner, 2026-11-19). The owner asked whether the policies are "boiler plate … too boring", because learning and finding them would only be interesting if they differ between runs: "if they're the same every time that would feel like a grind." Owner: "Yes, record DEC-092 and put it in M6. We should likely look at having these data file driven as well so we can easily add more, expand, or tweak the families later."
+- **Context:** the base pack has 11 local templates. Each is one slider applied to the whole town, and they are the same in every run.
+- **Decision:**
+  1. **The standard menu stays, small and always known** (DEC-091). It holds the general levers: transit, housing, zoning, grants, policing, parks, the hardship fund, property tax.
+  2. **Policy families bind to the town.** A family is a reusable template with **slots** that bind to live entities when its conditions hold:
+     - a place (the plant, the bridge, the market);
+     - a neighbourhood (the flood-prone district);
+     - an organisation or a person (the plant's owner, the union);
+     - a sector, a crisis or a hazard.
+
+     For example, "Rescue deal for {plant}", "Flood wall for {neighbourhood}", "Reopen {bridge}", "Licences for {market}". Each town produces different instances, and each run draws a different subset of families. A binding is chosen by a keyed RNG stream from the run seed and the family id (DEC-041). Instances are stored in the run, so they stay stable.
+  3. **Design choices instead of one slider.** A family has two or three **choice axes**, each with options that carry their own mechanisms, side effects, cost and signature (DEC-073):
+     - where it applies;
+     - how it is paid for (bond, tax, a levy on developers, cuts elsewhere);
+     - who delivers it (the council, a contractor, a charity).
+
+     Sliders remain where a quantity is the real choice. The engine computes every option's cost and support (the policy preview query of M5d part 2). The UI never does.
+  4. **Proposals come from people.** A family can name **sponsors** by role (the union rep, the business association, a residents' group). Each brings a pre-set version and a price (a favour, a vote, a public endorsement). Meeting the sponsor is how the player learns the proposal exists (DEC-091). Adopting a sponsor's version builds the relationship; amending it costs some goodwill.
+  5. **Powers follow the constitution.** A family states the tier and the power it needs. Where the town lacks that power (DEC-078 constitutions), the instance becomes something to lobby the tier above for. This feeds the career ladder.
+  6. **Situational policies become families.** The unlock conditions built in M5d part 2 become family triggers.
+- **Everything is data:** the owner's requirement.
+  - Families live in a content registry, `content/<pack>/policy_families/*.jsonc`. It is typed in `mandate-content`, with schemas generated from the types (DEC-053) and loaded in pack order, so mods can add families or patch them.
+  - In content, a family declares:
+    - its id and Fluent keys, with slot arguments;
+    - its tier, power and category;
+    - **slots**, each with a binding kind and a selector: place kind, neighbourhood tag, hazard, sector, crisis, organisation type, character role, and conditions on indicators;
+    - **triggers** (conditions for an instance to appear) and **expiry**;
+    - **choice axes and options**, each with mechanisms, side effects, cost, signature and secondary keys;
+    - **sponsors** (role, their pre-set options, their price);
+    - knowledge (where and from whom it is learned, DEC-091);
+    - weight and rarity for drawing per run.
+  - **Code only for new kinds:**
+    - a new binding kind (a selector over a new entity type);
+    - a new mechanism type;
+    - a new price type.
+
+    These are typed extension points listed in EXTENDING.md. Everything else (new families, new options, retuning, new sponsors) is a content edit.
+  - **Validation (`mandate-cli content validate`):**
+    - slots reference real kinds and tags;
+    - every option has at least one cost and one benefit (DEC-073);
+    - every family can bind in at least one generated test world;
+    - Fluent keys exist with the right arguments;
+    - sponsor prices are valid.
+  - **Lab tools:**
+    - `mandate-cli policies --seed <s> [--town <id>]` lists the instances a world would produce, with bindings and computed costs;
+    - a **coverage report** over N seeds shows how often each family appears, its median cost and support, and which families never bind;
+    - `--set` overrides (DEC-078) reach family parameters;
+    - the bot variety check (DEC-077 §5) counts which families winning strategies use.
+- **Timing:** M6, after the knowledge ledger (DEC-091). It depends on per-neighbourhood effects (DEC-090 D8).
+  - A first pack of 15–20 families, including the M5d part 2 situational policies converted.
+  - The 11 standard templates are trimmed to the general levers.
+  - Saves gain policy instances with a migration.
+- **Dependencies:** DEC-024, DEC-026, DEC-041, DEC-053, DEC-073, DEC-077, DEC-078, DEC-079, DEC-090, DEC-091.
