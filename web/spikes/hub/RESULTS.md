@@ -151,7 +151,7 @@ What does transfer from this machine:
 - **No real-device data.** DEC-050 asks for a mid-range Android phone; this machine cannot measure GPU work. Before M6
   commits, open the page on a phone and read the on-screen HUD:
   - run `npx vite --config spikes/hub/vite.config.ts --host` in `web/`;
-  - open `http://<lan-ip>:5199/?r=canvas&n=60`, then `?r=pixi&n=60`;
+  - open `http://<lan-ip>:5199/compare.html?r=canvas&n=60`, then `?r=pixi&n=60`;
   - also try `&res=css`, `&res=low` and `&light=dusk`.
 - **Fractional zoom** (pinch) at non-integer scales gives uneven pixel columns. M6 should snap the zoom.
 - **A 1/3-resolution backing store** makes the sprites move in whole art pixels. That is authentic for pixel art but less
@@ -164,8 +164,46 @@ What does transfer from this machine:
 
 ```text
 cd web
-npx vite --config spikes/hub/vite.config.ts          # dev server, http://localhost:5199/?r=canvas&n=60
+npx vite --config spikes/hub/vite.config.ts          # dev server: town at http://localhost:5199/, comparison at /compare.html?r=canvas&n=60
 node spikes/hub/measure.mjs                           # full matrix (~13 min), rewrites the tables above
 ```
 
 URL parameters: `r=canvas|pixi`, `n=<townsfolk>`, `res=device|css|low`, `light=day|dusk`, `seed=<int>`.
+
+## Town prototype (`index.html`, M6 groundwork, 2026-11-19)
+
+The spike's main page is now the walkable town on the real engine (DEC-080 status, DEC-085 proposed). It starts the
+engine worker as the app does, generates a world for `?seed=` (default 4242), lays out the player's town from the
+engine's `town` view (`web/src/hub/townLayout.ts`), draws it with the chunked Canvas 2D renderer and placeholder art
+(`web/src/hub/render/`) under a continuous day cycle (`web/src/hub/dayCycle.ts`), and lets you walk it: tap a building
+or its label, tap the ground, or use the place list; pinch, drag and wheel move the camera. Reaching a place moves the
+player there in the engine and opens what the place offers. The bar runs the clock (play/pause, speed, a scrubber) and
+takes another seed.
+
+**The renderer comparison is kept, not retired**, at `compare.html` (`?r=canvas|pixi&n=…` as before; `measure.mjs`
+now opens it there). It is the evidence for DEC-080 and costs nothing in the app; it can be deleted once M6 ships.
+Its PixiJS chunks are only loaded by that page.
+
+URL parameters: `seed=<text>`, `t=<minutes after midnight>`, `speed=<game minutes per second, 0 stops the clock>`,
+`n=<townsfolk>`, `res=css|device`, `hud=1` (frame stats).
+
+Measured by `node spikes/hub/measure-town.mjs` (headless Chromium 153 on this GPU-less machine, software
+rasterization; the phone is Pixel 7 emulation at CSS resolution with the CPU slowed 4×). Each run: the player walks to
+the farthest named place for 8 s with 30 townsfolk and the clock running at 12 game minutes per second. "Layout" is the
+player's town; "capital layout" is the largest committed fixture (205×131 tiles, 22 neighbourhoods, 323 buildings),
+best of 3. "Ready" includes generating the world in the engine worker (not throttled). Draw times are main-thread
+JavaScript only (rasterization is not counted, as in the tables above).
+
+| Device | Seed | Town (tiles) | Layout ms | Capital layout ms | First frame ms | Ready ms | FPS median | FPS p5 | Draw p50 ms | Draw p95 ms | Base/shadow bakes |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| phone (Pixel 7, CSS px) | 4242 | Larkobridge 122×64 | 63.0 | 76.6 | 146.5 | 1920 | 60 | 30 | 0.40 | 1.60 | 4/10 |
+| phone (Pixel 7, CSS px) | 2026 | Strathowick 111×61 | 56.4 | 46.9 | 117.9 | 1985 | 60 | 60 | 0.60 | 2.00 | 5/5 |
+| desktop 1280×720 | 4242 | Larkobridge 122×64 | 16.0 | 22.5 | 38.3 | 1739 | 60 | 60 | 0.10 | 0.30 | 6/10 |
+| desktop 1280×720 | 2026 | Strathowick 111×61 | 13.5 | 25.0 | 34.1 | 1761 | 60 | 60 | 0.20 | 0.40 | 5/5 |
+
+Notes:
+- The first frame bakes only the visible chunks (512×512 art px each; 4–6 here), so it does not grow with the town.
+  Memory follows the view: at most 24 chunks are kept (about 25 MB at worst), however large the town.
+- Shadows are re-baked only when the sun moves to the next of 28 buckets, and only for visible chunks; the phone's p5
+  of 30 fps in one run lines up with those re-bakes while walking. Idle frames are skipped entirely (tested).
+- Still to check on a real phone: the full-view grading (three composites per frame) at dusk and night, and battery.

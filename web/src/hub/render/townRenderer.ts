@@ -483,7 +483,7 @@ export class TownRenderer {
       const b = map.buildings[f.target.building] as TownBuilding;
       this.sprite(art.marker("pin"), b.doorX * T + T / 2, (b.y - ROOF_ROWS) * T - 2 + bob);
     }
-    if (f.player) this.sprite(art.marker("pin"), Math.round(f.player.x * T), Math.round(f.player.y * T) - 18);
+    if (f.player) this.sprite(art.marker("pin"), Math.round(f.player.x * T), Math.round(f.player.y * T) - 20);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.evict();

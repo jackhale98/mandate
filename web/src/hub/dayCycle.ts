@@ -51,7 +51,7 @@ export const DAY_KEYFRAMES: readonly Keyframe[] = [
   { at: 480, name: "morning", mul: hex("#fff2de"), glow: hex("#ffd7a0"), glowAlpha: 0.12, sat: 0.95, lights: 0 },
   { at: 720, name: "midday", mul: hex("#ffffff"), glow: hex("#ffffff"), glowAlpha: 0, sat: 1, lights: 0 },
   { at: 900, name: "afternoon", mul: hex("#fff8ec"), glow: hex("#ffe4b0"), glowAlpha: 0.06, sat: 1, lights: 0 },
-  { at: 1080, name: "golden_hour", mul: hex("#ffd9a2"), glow: hex("#e8a040"), glowAlpha: 0.38, sat: 1, lights: 0.1 },
+  { at: 1080, name: "golden_hour", mul: hex("#ffe0b4"), glow: hex("#f0a848"), glowAlpha: 0.3, sat: 1, lights: 0.1 },
   { at: 1170, name: "dusk", mul: hex("#a690d0"), glow: hex("#6a4aa8"), glowAlpha: 0.3, sat: 0.75, lights: 0.7 },
   { at: 1230, name: "night", ...NIGHT },
 ];

@@ -90,6 +90,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-081 | Logo (poll-line M) and loading animation (career ladder) | Accepted |
 | DEC-082 | Save export and import (`.mandate` files; light Ironman rule) | Accepted |
 | DEC-083 | Landing page at the site root; the game moves to `play/` | Accepted |
+| DEC-085 | Town layout on the client, versioned so a town never rearranges | Proposed |
 
 ---
 
@@ -1653,6 +1654,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - when one finger lifts or a pointer is cancelled, the gesture re-baselines from the remaining finger instead of jumping;
   - limits are eased in when zoomed past them, never snapped.
 - **M6 movement module (status, 2026-11-18):** the pathfinding and zoom requirements above are built as a renderer-independent module, `web/src/hub/` (`pathfinding.ts`: 8-direction A*, pedestrian costs, string-pulling, tap-to-target, smooth movement; `camera.ts`: pinch, pan, wheel, eased limits), with unit and seeded property tests. The hub spike uses it for routing and the camera, so `/mandate/spike-hub/` shows the new routes. The app does not import it yet: M6 will.
+- **M6 groundwork (status, 2026-11-19):** built in `web/src/hub/`, not yet imported by the app:
+  - `townLayout.ts`: the player's town laid out from the engine's `town` view (neighbourhoods and places) as a tile map with streets, contiguous districts, a door for every place, filler buildings, landmarks on a central square and optional water; deterministic and versioned (DEC-085, proposed). It feeds `buildGrid`, `planRoute` and `resolveTap` directly. Town routes add a small straightening slack and a jog-removal pass (`pathfinding.ts`, off by default), so a route cuts a road corner instead of stepping round the zebra cells.
+  - `render/`: the renderer as decided above. Ground, buildings and props are baked in 512 px chunks on first sight (kept in an LRU, so memory follows the view, not the town); shadows are baked per sun-angle bucket at half resolution; walkers, roof overhangs over walkers behind them, the grade, lit windows and lamp pools are drawn per frame; identical frames are skipped. The art is behind `TownArt`; `PlaceholderArt` draws everything in code from a palette derived from the app's tokens, until the art tool's atlases replace it.
+  - `dayCycle.ts`: a continuous clock (minutes) graded through one keyframe table (night, pre-dawn, sunrise, morning, midday, afternoon, golden hour, dusk), with shadows that follow the sun and windows and lamps that come on one by one. In the game the clock comes from the day-part and the player's progress through it (`clockForDayPart`).
+  - `hubView.ts`: the DOM controller (canvas at CSS resolution, HTML labels, camera input, a loop that sleeps when idle, 30 fps for ambient-only frames, paused when hidden or a panel is open).
+  - The hub spike's main page is now this town on the real engine (`/mandate/spike-hub/?seed=`); the original renderer comparison moved to `spike-hub/compare.html`. Measurements: `web/spikes/hub/RESULTS.md`.
 
 ### DEC-081 — Logo and loading animation
 
@@ -1708,3 +1715,23 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Tested** (`web/e2e/sw-migration.spec.ts`): a stand-in for the old root-scoped worker gives way to the landing page, its caches go, the game's caches stay, and the game registers its own worker at `play/` (runs in CI). With `MANDATE_OLD_DIST` set to a build from before this change, the real old app is installed, a run is saved, the new build is deployed over it, and the landing page appears with "Continue your run", which continues the saved run at `play/` (run locally).
 - **Consequences:** links shared to the old base now land on the landing page, one tap from the game. `<base>sw.js` must stay in the build for as long as old installs may exist. The old installed icon opens the base, which forwards to `play/` (online); for offline use from the home screen, players should add the game again from `play/`.
 - **Dependencies:** DEC-048, DEC-049, DEC-051, DEC-052, DEC-064, DEC-079, DEC-081, DEC-082.
+
+### DEC-085 — Town layout on the client, versioned so a town never rearranges
+
+- **Status:** Proposed (M6 groundwork, 2026-11-19). Needs the owner's approval before the app uses it.
+- **Context:** The walkable hub (DEC-009, DEC-079) needs a street plan with a building for every place. The engine knows which places and neighbourhoods a town has, but not where they stand. Walking is UI state (DEC-009), so the plan does not affect outcomes, but players will learn their town: it must look the same every time they open it, on every device, and after app updates.
+- **Options:**
+  - A. The engine generates the plan (Rust, in worldgen) and stores it in the save.
+  - B. The client derives the plan from the engine's town view, the world seed and a layout version, and keeps old versions callable.
+  - C. As B, but the plan is cached in the app's save store after the first visit.
+- **Proposed decision:** B, built in `web/src/hub/townLayout.ts`.
+  - `layoutTown(input, seed, version)` is a pure function: keyed seeded streams (no `Math.random`, no clock), no `Math.hypot` or other functions that differ between JavaScript engines, input sorted by id so the engine's listing order does not matter.
+  - `LAYOUT_VERSION` (now 1). A change that moves anything for the same input bumps it, and the previous algorithm stays callable for runs that started with it. Tests pin map hashes of committed engine fixtures, so an accidental change fails CI.
+  - The app records the layout version with each run when it first shows the town (in its own run metadata, not the engine save), and lays the town out with that version from then on.
+  - The town seed is derived from the world seed and the town's name (`townSeed`), independent of the version.
+- **Rationale:** No engine, protocol or save-format change; the plan is cheap to compute (about 15–25 ms for a town, 25 ms for the largest capital on a desktop, under 80 ms on a phone slowed 4×); the art and layout can iterate quickly on the client. A keeps the plan in one authoritative place but puts presentation into the simulation and the save. C adds storage and a cache to invalidate for little gain.
+- **Consequences and risks:**
+  - The plan depends on the town's place list. If the engine later adds or removes places during a run (new businesses, closures), the plan would rearrange. Before that happens, the layout needs reserved lots for later places, or the plan must be frozen (option C or A).
+  - Old layout versions accumulate as code. They are small, and could be retired at a save-format break.
+  - Other clients (a native app) would have to port the algorithm bit-exactly, or switch to A.
+- **Dependencies:** DEC-009, DEC-041 (its ideas, applied on the client), DEC-044, DEC-074, DEC-079, DEC-080.

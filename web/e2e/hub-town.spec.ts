@@ -21,7 +21,6 @@ interface HubProbe {
   setClock(m: number): void;
 }
 
-const probe = <T>(page: Page, f: (h: HubProbe) => T) => page.evaluate(f as unknown as (h: unknown) => T, undefined as never);
 
 async function open(page: Page, query: string) {
   const errors: string[] = [];

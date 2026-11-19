@@ -99,7 +99,7 @@ describe("town layout: properties over generated towns", () => {
 describe("layout stability across app updates", () => {
   // If this fails, the layout algorithm changed what a saved town looks like.
   // Either undo the change or bump LAYOUT_VERSION and keep the old version
-  // callable for towns already laid out with it (DEC-084 proposal), then
+  // callable for towns already laid out with it (DEC-085 proposal), then
   // update these hashes.
   const PINNED: Record<string, string> = {
     "4242/town": "9e660a8a",

@@ -749,18 +749,18 @@ export class PlaceholderArt implements TownArt {
 
   lightPool(): Sprite {
     if (this.pool) return this.pool;
-    const w = 56;
-    const h = 34;
+    const w = 44;
+    const h = 24;
     const { canvas, ctx } = this.layer(w, h);
     // A stepped (pixel-art) ellipse of warm light, brightest in the middle.
-    const rings = 6;
+    const rings = 5;
     for (let k = 0; k < rings; k++) {
       const rx = (w / 2) * (1 - k / rings);
       const ry = (h / 2) * (1 - k / rings);
-      ctx.globalAlpha = 0.16;
+      ctx.globalAlpha = 0.14;
       for (let y = -Math.floor(ry); y <= Math.floor(ry); y++) {
         const half = Math.floor(rx * Math.sqrt(Math.max(0, 1 - (y * y) / (ry * ry))));
-        rect(ctx, w / 2 - half, h / 2 + y, half * 2, 1, PAL.lit);
+        rect(ctx, w / 2 - half, h / 2 + y, half * 2, 1, "#ffb85c");
       }
     }
     ctx.globalAlpha = 1;

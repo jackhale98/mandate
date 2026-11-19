@@ -338,6 +338,16 @@ window.__hub = {
     return town;
   },
   timings,
+  /** Time to lay out any town here (measure-town.mjs times the largest capital under a CPU throttle). */
+  layoutMs(input: Parameters<typeof layoutTown>[0], runs = 5) {
+    let best = Infinity;
+    for (let i = 0; i < runs; i++) {
+      const t0 = performance.now();
+      layoutTown(input, i + 1);
+      best = Math.min(best, performance.now() - t0);
+    }
+    return best;
+  },
   setClock(m: number) {
     clock.running = false;
     view?.setClock(m);

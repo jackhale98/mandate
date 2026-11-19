@@ -20,7 +20,7 @@ import { HOOD_KINDS, type HoodKind, type TownInput, type TownLocation } from "./
  * Version of the layout algorithm. A saved run's town must not rearrange
  * itself after an app update, so any change that moves a building, a street
  * or a district for the same (input, seed) bumps this, and the old version is
- * kept callable for towns first laid out with it (see DEC-084 proposal).
+ * kept callable for towns first laid out with it (see DEC-085 proposal).
  * `townLayout.test.ts` pins map hashes of the committed fixtures to catch
  * accidental changes.
  */
