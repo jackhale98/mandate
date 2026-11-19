@@ -81,6 +81,7 @@ fn new_game(s: &mut Session, seed: u64, storyteller: Option<&str>) -> OverviewVi
             size: WorldSizeDto::Small,
             scenario: None,
             storyteller: storyteller.map(String::from),
+            local_knowledge: false,
         }),
     )
     .unwrap()
@@ -173,6 +174,12 @@ fn situational_policies_unlock_with_the_situation() {
             params: BTreeMap::new(),
         }))
     };
+    // Situational policies are learned (DEC-091): the player has not heard
+    // of this one, so their catalogue leaves it out. The lab's omniscient
+    // view lists it, locked, as M5d part 2 does.
+    let view = mandate_protocol::office_view(&e).unwrap();
+    assert!(view.catalog.iter().all(|x| x.id != "policy.fiscal_bridge"));
+    e.set_lab_omniscient(true);
     let view = mandate_protocol::office_view(&e).unwrap();
     let row = view
         .catalog
@@ -300,6 +307,7 @@ fn the_storyteller_is_chosen_at_new_game_and_saved() {
             size: WorldSizeDto::Small,
             scenario: None,
             storyteller: Some("storyteller.nope".into()),
+            local_knowledge: false,
         }),
     );
     assert!(bad.is_err());

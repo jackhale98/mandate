@@ -11,7 +11,12 @@ export type TownDataView = { population: number, unemployment: number,
 /**
  * Monthly, oldest first (last 12 months).
  */
-unemployment_history: Array<number>, typical_income: number, monthly_rent: number, home_price: number, vacancy: number, sectors: Array<SectorJobsView>, concerns: Array<ConcernView>, neighborhoods: Array<HoodDataView>, 
+unemployment_history: Array<number>, typical_income: number, monthly_rent: number, home_price: number, vacancy: number, sectors: Array<SectorJobsView>, 
+/**
+ * Live at the desk once the player has heard of the town's worries
+ * (DEC-091); empty before.
+ */
+concerns: Array<ConcernView>, neighborhoods: Array<HoodDataView>, 
 /**
  * Communities with adults in town and their shares (DEC-075).
  */

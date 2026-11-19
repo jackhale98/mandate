@@ -501,6 +501,8 @@ export function viewForInput(input: TownInput): TownPlacesView {
             .filter((p) => p.neighborhood === h.id)
             .map((p) => ({ location: { location: { type: "place" as const, place: p.id }, kind_key: p.kind, name: p.name, neighborhood: h.id, neighborhood_name: h.name }, actions: ["lobby"], late_night: [], services: [], here: false })),
         ],
+        top_concern_key: null,
+        concern_knowledge: { level: "unknown" as const, as_of: null, stale: false, lead: null },
       })),
   };
 }

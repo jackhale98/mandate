@@ -16,7 +16,11 @@ status: string,
 /**
  * `defeated` | `vetoed` | `withdrawn` | `repealed` | `expired`
  */
-end_reason: string | null, params: Array<ParamValue>, clauses: Array<ClauseDto>, sponsor_is_player: boolean, sponsor_name: string, next_vote: DateView | null, 
+end_reason: string | null, params: Array<ParamValue>, clauses: Array<ClauseDto>, sponsor_is_player: boolean, 
+/**
+ * Empty when the player has not heard of the sponsor.
+ */
+sponsor_name: string, next_vote: DateView | null, 
 /**
  * Fluent key of the next stage, e.g. `stage-vote-council`.
  */
@@ -44,7 +48,8 @@ can_vote: boolean,
  */
 party_line: string, 
 /**
- * Support for the bill among the player's ward voters (−1..1).
+ * Support for the bill among the player's ward voters (−1..1): to 0.25
+ * below `known` (`support.level`), 0.1 at `known`, exact in detail.
  */
 ward_support: number, 
 /**

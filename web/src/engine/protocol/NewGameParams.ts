@@ -10,4 +10,10 @@ scenario: string | null,
  * Storyteller profile id (from `QueryDto::Storytellers`, DEC-033);
  * `None` = the content's default.
  */
-storyteller: string | null, };
+storyteller: string | null, 
+/**
+ * "Start with local knowledge" (DEC-091; off by default): the town's
+ * worries, the broker, the council and who works where, as a local
+ * would know them. Engine state, chosen only at new game.
+ */
+local_knowledge: boolean, };

@@ -7,6 +7,7 @@ import type { TownCharacterView } from "../engine/protocol/TownCharacterView";
 import type { PersonRefView } from "../engine/protocol/PersonRefView";
 import { roleText } from "../components/CharacterSheet";
 import { lazy, Suspense, useEffect, useState } from "react";
+import { Unknown, personName } from "../components/Knowing";
 import { TownMap } from "../components/TownMap";
 import { say } from "../components/townMapText";
 import { useTownLayout } from "../components/useTownLayout";
@@ -18,7 +19,8 @@ function Who({ p }: { p: PersonRefView }) {
   const openCharacter = useGame((s) => s.openCharacter);
   return (
     <button type="button" className="link-btn" disabled={busy || p.id === null} onClick={() => p.id !== null && void openCharacter(p.id)}>
-      {p.name}
+      {personName(tr, p.name)}
+      {p.rumoured && <span className="muted small"> ({tr.t("knowledge-rumoured")})</span>}
       <span className="muted small"> · {roleText(tr, p)}</span>
     </button>
   );
@@ -49,7 +51,7 @@ function TownCard({ c }: { c: TownCharacterView }) {
         </div>
         <div>
           <dt>{tr.t("ui-power-broker-line")}</dt>
-          <dd>{c.broker ? <Who p={c.broker} /> : tr.t("ui-nobody")}</dd>
+          <dd data-testid="town-broker">{c.broker ? <Who p={c.broker} /> : c.broker_knowledge.level === "unknown" ? <Unknown k={c.broker_knowledge} text="knowledge-broker-unknown" /> : tr.t("ui-nobody")}</dd>
         </div>
         <div>
           <dt>{tr.t("ui-rival-line")}</dt>
@@ -57,7 +59,9 @@ function TownCard({ c }: { c: TownCharacterView }) {
         </div>
         <div>
           <dt>{tr.t("ui-priorities")}</dt>
-          <dd>{c.priorities.length > 0 ? c.priorities.map((p) => tr.t(p.name_key)).join(" · ") : tr.t("ui-nobody")}</dd>
+          <dd data-testid="town-priorities">
+            {c.priorities.length > 0 ? c.priorities.map((p) => tr.t(p.name_key)).join(" · ") : c.priorities_knowledge.level === "unknown" ? <Unknown k={c.priorities_knowledge} text="knowledge-priorities-unknown" /> : tr.t("ui-nobody")}
+          </dd>
         </div>
       </dl>
     </section>

@@ -4,12 +4,14 @@
 //! client only renders.
 
 use crate::campaign::campaign_view;
+use crate::knowledge::{Gate, gate_concerns};
 use crate::map::SectorJobsView;
 use crate::office::{ConcernView, TracksView, bill_view, coarse, concerns_for};
 use crate::views::DateView;
 use mandate_content::{LATE_NIGHT_ACTIONS, PLACE_ACTIONS};
 use mandate_core::Stream;
 use mandate_sim::places::{self, Location, NEIGHBORHOOD_ACTIONS};
+use mandate_sim::player::knowledge::{Level, Subject};
 use mandate_sim::policy::PolicyStatus;
 use mandate_sim::world::{MunicipalityId, NeighborhoodId, PlaceId};
 use mandate_sim::{Engine, State};
@@ -121,8 +123,10 @@ pub struct HeadlinesView {
     pub approval_ward: f64,
     pub awareness_ward: f64,
     pub approval_town: f64,
-    /// The town's two strongest concerns (Fluent name keys, DEC-078).
+    /// The town's two strongest concerns (Fluent name keys, DEC-078), as
+    /// known (DEC-091): none, the top one, or two.
     pub top_concern_keys: Vec<String>,
+    pub concerns_knowledge: crate::knowledge::KnowledgeView,
 }
 
 /// The pocket (phone and notebook): always available (DEC-079 rule 3).
@@ -160,6 +164,8 @@ pub struct PocketView {
     pub news: Vec<crate::media::ArticleView>,
     /// Scandals, cases, and where the career stands (DEC-006, DEC-034).
     pub legal: Option<crate::media::LegalView>,
+    /// Subjects learned of this turn (the notebook's badge, DEC-091).
+    pub notebook_new: u32,
 }
 
 /// One location on the town schematic, with what it offers.
@@ -182,8 +188,13 @@ pub struct TownHoodView {
     pub kind: String,
     pub is_home: bool,
     pub in_ward: bool,
-    /// Home (in the home neighbourhood), the streets, then each place.
+    /// Home (in the home neighbourhood), the streets, then each place
+    /// (hidden places only once found, DEC-090 D7).
     pub spots: Vec<SpotView>,
+    /// Fluent name key of its strongest worry, once heard of (the map's
+    /// concern overlay).
+    pub top_concern_key: Option<String>,
+    pub concern_knowledge: crate::knowledge::KnowledgeView,
 }
 
 /// The player's town as places, grouped by neighbourhood.
@@ -224,7 +235,8 @@ pub struct HoodDataView {
     pub player_awareness: f64,
     pub player_approval: f64,
     pub town_hall_risk: f64,
-    /// Fluent name key of the neighbourhood's strongest concern.
+    /// Fluent name key of the neighbourhood's strongest concern, once the
+    /// player has heard of its worries (DEC-091).
     pub top_concern_key: Option<String>,
 }
 
@@ -241,6 +253,8 @@ pub struct TownDataView {
     pub home_price: f64,
     pub vacancy: f64,
     pub sectors: Vec<SectorJobsView>,
+    /// Live at the desk once the player has heard of the town's worries
+    /// (DEC-091); empty before.
     pub concerns: Vec<ConcernView>,
     pub neighborhoods: Vec<HoodDataView>,
     /// Communities with adults in town and their shares (DEC-075).
@@ -519,8 +533,14 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
         alerts.push(alert("alert-campaign", &[("n", d.to_string())]));
     }
     let econ = st.economy.munis.get(m.index());
-    let mut concerns = concerns_for(st, content, m, &hoods);
-    concerns.truncate(2);
+    let gate = Gate::of(engine);
+    let concerns_subject = Subject::TownConcerns { town: m };
+    let concerns = gate_concerns(
+        gate.level(&concerns_subject),
+        concerns_for(st, content, m, &hoods),
+        false,
+        2,
+    );
     let c5 = |v: f64| coarse(v, 0.05);
     Some(PocketView {
         date: DateView::of(st.calendar.date),
@@ -555,6 +575,7 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
             awareness_ward: c5(weighted(st, &ward_hoods, |c| c.player_awareness as f64)),
             approval_town: c5(weighted(st, &hoods, |c| c.player_approval as f64)),
             top_concern_keys: concerns.into_iter().map(|c| c.name_key).collect(),
+            concerns_knowledge: gate.view(&concerns_subject),
         },
         location: location_view(st, pl.location),
         routes: routes(engine),
@@ -562,6 +583,7 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
             .map(|n| n.articles)
             .unwrap_or_default(),
         legal: crate::media::legal_view(engine),
+        notebook_new: crate::knowledge::notebook_new(engine),
     })
 }
 
@@ -591,6 +613,8 @@ fn spot(engine: &Engine, loc: Location) -> SpotView {
 
 pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
     let st = engine.state();
+    let content = engine.content();
+    let gate = Gate::of(engine);
     let pl = st.player.as_ref()?;
     let mu = st.world.municipalities.get(pl.municipality.index())?;
     let home = places::home_neighborhood(st);
@@ -611,10 +635,20 @@ pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
                     .places
                     .get(pid.index())
                     .is_some_and(|p| p.neighborhood == n.id)
+                    && crate::knowledge::place_listed(&gate, st, *pid)
                 {
                     spots.push(spot(engine, Location::Place { place: *pid }));
                 }
             }
+            let concern_subject = Subject::HoodConcerns { hood: n.id };
+            let top_concern_key = (gate.level(&concern_subject) >= Level::Heard)
+                .then(|| {
+                    concerns_for(st, content, n.municipality, &[n.id.index()])
+                        .into_iter()
+                        .next()
+                        .map(|c| c.name_key)
+                })
+                .flatten();
             TownHoodView {
                 id: n.id.0,
                 name: n.name.clone(),
@@ -622,6 +656,8 @@ pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
                 is_home: home == Some(n.id),
                 in_ward: ward.contains(&n.id.index()),
                 spots,
+                top_concern_key,
+                concern_knowledge: gate.view(&concern_subject),
             }
         })
         .collect();
@@ -680,6 +716,10 @@ fn town_data(engine: &Engine) -> Option<TownDataView> {
     let hoods = town_hoods(st, m);
     let hist = &e.history;
     let start = hist.len().saturating_sub(12);
+    // At the desk the figures are live (DEC-079), for what the player has
+    // at least heard of (DEC-091).
+    let gate = Gate::of(engine);
+    let heard = |s: Subject| gate.level(&s) >= Level::Heard;
     Some(TownDataView {
         population: st.population.municipality_total(&st.world, m) as f64,
         unemployment: e.unemployment,
@@ -702,7 +742,11 @@ fn town_data(engine: &Engine) -> Option<TownDataView> {
                 wage: s.wage.round(),
             })
             .collect(),
-        concerns: concerns_for(st, content, m, &hoods),
+        concerns: if heard(Subject::TownConcerns { town: m }) {
+            concerns_for(st, content, m, &hoods)
+        } else {
+            Vec::new()
+        },
         communities: crate::map::community_shares(engine, m),
         neighborhoods: hoods
             .iter()
@@ -717,9 +761,13 @@ fn town_data(engine: &Engine) -> Option<TownDataView> {
                     player_awareness: weighted(st, &[h], |c| c.player_awareness as f64),
                     player_approval: weighted(st, &[h], |c| c.player_approval as f64),
                     town_hall_risk: mandate_sim::actions::town_hall_risk(st, content, h as u32),
-                    top_concern_key: concerns_for(st, content, m, &[h])
-                        .first()
-                        .map(|c| c.name_key.clone()),
+                    top_concern_key: heard(Subject::HoodConcerns { hood: n.id })
+                        .then(|| {
+                            concerns_for(st, content, m, &[h])
+                                .first()
+                                .map(|c| c.name_key.clone())
+                        })
+                        .flatten(),
                 })
             })
             .collect(),

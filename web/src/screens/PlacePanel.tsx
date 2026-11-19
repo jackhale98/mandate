@@ -15,6 +15,7 @@ import { useSheetClose } from "../components/useSheetClose";
 import { Calendar, CampaignHub } from "../components/CampaignCards";
 import { PartyChip } from "../components/ElectionCharts";
 import { roleText } from "../components/CharacterSheet";
+import { personName } from "../components/Knowing";
 import { capital } from "../components/DecisionSheet";
 import { Newspaper } from "../components/Newspaper";
 
@@ -210,7 +211,7 @@ function People({ v }: { v: PlacePanelView }) {
               {p.id !== null ? (
                 <button type="button" className="row-btn person" disabled={busy} onClick={() => p.id !== null && void openCharacter(p.id)} data-testid="person">
                   <span>
-                    <strong>{p.name}</strong>
+                    <strong>{personName(tr, p.name)}</strong>
                     <span className="muted small"> · {roleText(tr, p)}</span>
                   </span>
                   <span className="muted small">{tr.t(`tier-${p.tier}`)}</span>
@@ -218,7 +219,7 @@ function People({ v }: { v: PlacePanelView }) {
               ) : (
                 <div className="row-btn person person-ambient">
                   <span>
-                    <strong>{p.name}</strong>
+                    <strong>{personName(tr, p.name)}</strong>
                     <span className="muted small"> · {roleText(tr, p)}</span>
                   </span>
                   {v.here && p.ambient_slot !== null && (

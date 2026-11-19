@@ -145,6 +145,13 @@ impl Session {
                     // The run's storyteller (DEC-033): chosen before play, kept in the save.
                     engine.setup(|s| s.narrative.profile = k.clone());
                 }
+                if p.local_knowledge {
+                    // "Start with local knowledge" (DEC-091): on top of the
+                    // default start profile, before any command.
+                    engine
+                        .set_knowledge_start(None, true)
+                        .map_err(|e| err(ErrorCode::Content, e.to_string()))?;
+                }
                 let view = overview(&engine);
                 self.engine = Some(engine);
                 Ok(ResponseBody::GameStarted(view))
@@ -240,6 +247,9 @@ impl Session {
                 QueryDto::TownState { id } => town_state_view(self.engine_mut()?, id)
                     .map(ResponseBody::TownState)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no municipality {id}"))),
+                QueryDto::Notebook => notebook_view(self.engine_mut()?)
+                    .map(ResponseBody::Notebook)
+                    .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
             },
         }
     }

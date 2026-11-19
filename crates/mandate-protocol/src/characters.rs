@@ -2,13 +2,16 @@
 //! and Fluent keys only — names, roles, coarse personality labels, opinion
 //! and trust bands, bonds, favours, and the memories a character would quote.
 
+use crate::knowledge::{Gate, KnowledgeLevelDto, KnowledgeView, gate_concerns};
 use crate::office::ConcernView;
 use crate::places::{LocationView, location_view};
 use crate::views::DateView;
-use mandate_sim::characters::{self, CharacterId, MemoryKind, Subject, Tier, ambient};
+use mandate_sim::characters::{self, CharacterId, MemoryKind, Tier, ambient};
 use mandate_sim::places::Location;
+use mandate_sim::player::knowledge::{Level, Subject};
 use mandate_sim::politics::Role;
 use mandate_sim::politics::elections::Seat;
+use mandate_sim::world::MunicipalityId;
 use mandate_sim::{Engine, State};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -20,12 +23,18 @@ use ts_rs::TS;
 pub struct PersonRefView {
     pub id: Option<u32>,
     pub ambient_slot: Option<u8>,
+    /// Empty where the player has not heard of them (DEC-091): show the
+    /// role ("a union steward"). Ids still travel: commands need them.
     pub name: String,
     /// Fluent key: `role-councillor`, `role-mayor`, `role-private`,
     /// `role-candidate`, or an occupation's name key.
     pub role_key: String,
     /// `principal` | `named` | `ambient`.
     pub tier: String,
+    /// What the player knows of them (passers-by: `unknown`).
+    pub level: KnowledgeLevelDto,
+    /// The name is only a rumour (the power broker, heard of).
+    pub rumoured: bool,
 }
 
 /// What a memory or favour is about.
@@ -62,7 +71,21 @@ pub struct FavourView {
     pub since_year: u32,
 }
 
-/// A character sheet (DEC-031).
+/// A favour between this character and someone other than the player
+/// (DEC-091: known only in detail).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct FavourWithView {
+    pub counterpart: PersonRefView,
+    /// They owe the counterpart (otherwise the counterpart owes them).
+    pub they_owe: bool,
+    pub count: u32,
+}
+
+/// A character sheet (DEC-031), as far as the player knows them (DEC-091):
+/// below `heard` no name; below `known` no personality, traits or
+/// expertise, and no place below `heard`; goals and their favours with
+/// others in detail only. How they see the player is never gated.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct CharacterView {
@@ -97,7 +120,13 @@ pub struct CharacterView {
     pub memories: Vec<MemoryView>,
     pub is_player: bool,
     pub is_rival: bool,
+    /// Once the player knows who really runs the town.
     pub is_broker: bool,
+    /// Goal name keys (DEC-032), in detail only.
+    pub goals: Option<Vec<String>>,
+    /// Favours they hold with others, in detail only.
+    pub favours_with_others: Option<Vec<FavourWithView>>,
+    pub knowledge: KnowledgeView,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -129,10 +158,34 @@ pub struct TownCharacterView {
     /// The industry's share of jobs, to 5 points.
     pub industry_share: f64,
     pub crisis: Option<CrisisView>,
+    /// Who really runs the town, once heard of (`rumoured` until known).
     pub broker: Option<PersonRefView>,
+    pub broker_knowledge: KnowledgeView,
+    /// The broker's stake (the industry behind them), in detail only.
+    pub broker_stake_key: Option<String>,
     pub rival: Option<PersonRefView>,
-    /// The town's top concerns, strongest first.
+    /// What the rival is planning, as far as the player knows.
+    pub rival_plan: Option<RivalPlanView>,
+    /// The town's top concerns, strongest first, as known: none, the top
+    /// one (unweighted), three to 0.1, or exact.
     pub priorities: Vec<ConcernView>,
+    pub priorities_knowledge: KnowledgeView,
+}
+
+/// What the rival is planning (DEC-091 `rival_plans`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RivalPlanView {
+    /// Fluent key: `rival-plan-something` (heard), `rival-plan-seat`
+    /// (known: `$seat_key`, `$ward`), `rival-plan-focus` (detailed: also
+    /// `$focus_key`).
+    pub key: String,
+    /// `mayor` | `ward`, once known.
+    pub seat: Option<String>,
+    pub ward_number: Option<u32>,
+    /// The issue they campaign on (`issue-<attitude key>`), in detail.
+    pub focus_key: Option<String>,
+    pub knowledge: KnowledgeView,
 }
 
 fn band(v: f64, cuts: &[(f64, &'static str)], top: &'static str) -> String {
@@ -194,6 +247,9 @@ fn occupation_key(engine: &Engine, occ: Option<&str>) -> String {
         .unwrap_or_default()
 }
 
+/// Someone named in full, whatever the player knows of them: for what is
+/// aimed at the player (decisions, stories), which is never gated. The
+/// level still travels.
 pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
     let st = engine.state();
     let p = characters::profile(&st.politics, &st.world, id)?;
@@ -207,10 +263,24 @@ pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
         name: p.full_name(),
         role_key: role,
         tier: tier_key(characters::tier_of(&st.politics, engine.content(), id)).into(),
+        level: Gate::of(engine).person(id).into(),
+        rumoured: false,
     })
 }
 
-pub(crate) fn subject_view(engine: &Engine, s: Option<Subject>) -> Option<SubjectView> {
+/// Someone as the player knows them (DEC-091): no name below `heard`.
+pub fn person_ref_known(
+    engine: &Engine,
+    gate: &Gate<'_>,
+    id: CharacterId,
+) -> Option<PersonRefView> {
+    let mut p = person_ref(engine, id)?;
+    p.name = gate.name(id, p.name);
+    Some(p)
+}
+
+pub(crate) fn subject_view(engine: &Engine, s: Option<characters::Subject>) -> Option<SubjectView> {
+    use characters::Subject;
     let st = engine.state();
     match s? {
         Subject::Policy { id } => {
@@ -263,6 +333,10 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
     let p = characters::profile(pol, &st.world, id)?;
     let me = characters::player_character(st);
     let is_player = me == Some(id);
+    let gate = Gate::of(engine);
+    let level = gate.person(id);
+    let known = level >= Level::Known;
+    let detailed = level >= Level::Detailed;
     let (mut role, ward, party) = role_key(st, id);
     if role.is_empty() {
         role = occupation_key(engine, p.occupation.as_deref());
@@ -276,7 +350,10 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
         ("warmth", px.warmth),
         ("boldness", px.boldness),
         ("loyalty", px.loyalty),
-    ] {
+    ]
+    .into_iter()
+    .filter(|_| known)
+    {
         if v >= 0.67 {
             personality.push(format!("personality-{k}-high"));
         } else if v <= 0.33 {
@@ -286,12 +363,52 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
     let traits = p
         .traits
         .iter()
+        .filter(|_| known)
         .filter_map(|t| content.trait_def(t))
         .map(|t| t.name_key.clone())
         .collect();
     let expertise_key = Some(&p.competencies.expertise)
-        .filter(|e| content.attitude_index(e).is_some())
+        .filter(|e| known && content.attitude_index(e).is_some())
         .map(|e| format!("issue-{e}"));
+    let goals = detailed.then(|| {
+        pol.characters
+            .goals
+            .iter()
+            .filter(|g| g.holder == id)
+            .map(|g| {
+                content
+                    .goal(&g.goal)
+                    .map(|d| d.name_key.clone())
+                    .unwrap_or_else(|| g.goal.clone())
+            })
+            .collect()
+    });
+    // Favours with anyone but the player (those are the player's own, below).
+    let favours_with_others = detailed.then(|| {
+        let mut by: std::collections::BTreeMap<(u32, bool), u32> = Default::default();
+        for f in &pol.characters.favours {
+            let (other, they_owe) = if f.debtor == id {
+                (f.creditor, true)
+            } else if f.creditor == id {
+                (f.debtor, false)
+            } else {
+                continue;
+            };
+            if Some(other) == me {
+                continue;
+            }
+            *by.entry((other.0, they_owe)).or_default() += f.count as u32;
+        }
+        by.into_iter()
+            .filter_map(|((other, they_owe), count)| {
+                Some(FavourWithView {
+                    counterpart: person_ref_known(engine, &gate, CharacterId(other))?,
+                    they_owe,
+                    count,
+                })
+            })
+            .collect()
+    });
     let (opinion, trust, bonds, owes, owe, favours, memories) = match me {
         Some(me) if !is_player => {
             let favours = pol
@@ -337,7 +454,7 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
     let town = m.and_then(|m| pol.characters.towns.get(m as usize));
     Some(CharacterView {
         id: id.0,
-        name: p.full_name(),
+        name: gate.name(id, p.full_name()),
         role_key: role,
         ward_number: ward,
         party,
@@ -351,6 +468,7 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
             .unwrap_or_default(),
         place: p
             .place
+            .filter(|_| level >= Level::Heard)
             .map(|place| location_view(st, Location::Place { place })),
         personality,
         traits,
@@ -364,18 +482,28 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
         memories,
         is_player,
         is_rival: town.is_some_and(|t| t.rival == Some(id)),
-        is_broker: town.is_some_and(|t| t.broker == Some(id)),
+        is_broker: m.is_some_and(|m| {
+            gate.level(&Subject::Broker {
+                town: MunicipalityId(m),
+            }) >= Level::Known
+        }) && town.is_some_and(|t| t.broker == Some(id)),
+        goals,
+        favours_with_others,
+        knowledge: gate.person_view(id),
     })
 }
 
 /// People at a location: stored characters there, then passers-by.
+/// Names are as the player knows them (DEC-091): a stranger shows only
+/// their role, and a passer-by's name comes with meeting them.
 pub fn people_at(engine: &Engine, loc: Location) -> Vec<PersonRefView> {
     let st = engine.state();
     let content = engine.content();
+    let gate = Gate::of(engine);
     let max = content.characters.ambient.max_listed as usize;
     let mut out: Vec<PersonRefView> = ambient::stored_at(&st.politics, st, loc)
         .into_iter()
-        .filter_map(|id| person_ref(engine, id))
+        .filter_map(|id| person_ref_known(engine, &gate, id))
         .collect();
     // Council members are all in the chamber; elsewhere the list is short.
     let chamber = matches!(loc, Location::Place { place } if st.world.places.get(place.index()).is_some_and(|p| p.kind == mandate_sim::world::PlaceKind::CouncilChamber));
@@ -389,12 +517,28 @@ pub fn people_at(engine: &Engine, loc: Location) -> Vec<PersonRefView> {
         let Some(n) = c.named.as_deref() else {
             continue;
         };
+        // A passer-by is a stranger until met (lab runs see the name).
+        let level = if st
+            .player
+            .as_ref()
+            .is_some_and(|p| !p.knowledge.lab_omniscient)
+        {
+            Level::Unknown
+        } else {
+            Level::Detailed
+        };
         out.push(PersonRefView {
             id: None,
             ambient_slot: Some(slot),
-            name: format!("{} {}", n.given, n.family),
+            name: if level >= Level::Heard {
+                format!("{} {}", n.given, n.family)
+            } else {
+                String::new()
+            },
             role_key: occupation_key(engine, Some(&n.occupation)),
             tier: "ambient".into(),
+            level: level.into(),
+            rumoured: false,
         });
     }
     out
@@ -432,13 +576,47 @@ pub fn town_character_view(engine: &Engine, m: usize) -> Option<TownCharacterVie
         .world
         .hoods_of(mandate_sim::world::MunicipalityId(m as u32))
         .collect();
-    let mut priorities = crate::office::concerns_for(
-        st,
-        content,
-        mandate_sim::world::MunicipalityId(m as u32),
-        &hoods,
+    let town = MunicipalityId(m as u32);
+    let gate = Gate::of(engine);
+    let concerns_subject = Subject::TownConcerns { town };
+    let priorities = gate_concerns(
+        gate.level(&concerns_subject),
+        crate::office::concerns_for(st, content, town, &hoods),
+        true,
+        3,
     );
-    priorities.truncate(3);
+    let broker_subject = Subject::Broker { town };
+    let broker_level = gate.level(&broker_subject);
+    let broker = t
+        .broker
+        .filter(|_| broker_level >= Level::Heard)
+        .and_then(|id| person_ref(engine, id))
+        .map(|p| PersonRefView {
+            rumoured: broker_level == Level::Heard,
+            ..p
+        });
+    let plans_subject = Subject::RivalPlans { town };
+    let plans = gate.level(&plans_subject);
+    let rival_plan = t.rival.filter(|_| plans >= Level::Heard).map(|r| {
+        let seat = (plans >= Level::Known)
+            .then(|| crate::knowledge::rival_seat(st))
+            .flatten();
+        let focus_key = (plans >= Level::Detailed)
+            .then(|| crate::knowledge::rival_focus(engine, r))
+            .flatten();
+        RivalPlanView {
+            key: match plans {
+                Level::Detailed if focus_key.is_some() => "rival-plan-focus",
+                Level::Known | Level::Detailed if seat.is_some() => "rival-plan-seat",
+                _ => "rival-plan-something",
+            }
+            .into(),
+            ward_number: seat.as_ref().and_then(|s| s.1),
+            seat: seat.map(|s| s.0),
+            focus_key,
+            knowledge: gate.view(&plans_subject),
+        }
+    });
     Some(TownCharacterView {
         industry: t
             .industry
@@ -450,8 +628,15 @@ pub fn town_character_view(engine: &Engine, m: usize) -> Option<TownCharacterVie
             }),
         industry_share: crate::office::coarse(t.industry_share as f64, 0.05),
         crisis,
-        broker: t.broker.and_then(|id| person_ref(engine, id)),
+        broker,
+        broker_knowledge: gate.view(&broker_subject),
+        broker_stake_key: (broker_level >= Level::Detailed)
+            .then(|| crate::knowledge::broker_stake(engine, town))
+            .flatten(),
+        // The rival's identity is never gated (DEC-091).
         rival: t.rival.and_then(|id| person_ref(engine, id)),
+        rival_plan,
         priorities,
+        priorities_knowledge: gate.view(&concerns_subject),
     })
 }
