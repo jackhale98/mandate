@@ -4,6 +4,8 @@
 
 pub mod campaign;
 pub mod characters;
+#[cfg(feature = "dev-tools")]
+pub mod dev;
 pub mod knowledge;
 pub mod layout;
 pub mod map;
@@ -355,6 +357,23 @@ pub enum QueryDto {
     Canvass {
         neighborhood: u32,
     },
+    /// Dev builds only (`dev-tools`): every content item and whether it
+    /// could fire now (the content workbench). Not in the generated types.
+    #[cfg(feature = "dev-tools")]
+    #[ts(skip)]
+    DevCatalog,
+    /// Dev builds only (`dev-tools`): why an item could or could not fire
+    /// now, as the engine's evaluators decide, with a preview.
+    #[cfg(feature = "dev-tools")]
+    #[ts(skip)]
+    DevExplain {
+        kind: String,
+        id: String,
+        #[serde(default)]
+        speaker: Option<u32>,
+        #[serde(default)]
+        place: Option<u32>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -416,6 +435,12 @@ pub enum ResponseBody {
     Talk(TalkView),
     Exchange(ExchangeView),
     Canvass(CanvassView),
+    #[cfg(feature = "dev-tools")]
+    #[ts(skip)]
+    DevCatalog(dev::DevCatalogView),
+    #[cfg(feature = "dev-tools")]
+    #[ts(skip)]
+    DevExplain(dev::DevExplainView),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

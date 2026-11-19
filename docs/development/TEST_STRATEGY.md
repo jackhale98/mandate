@@ -137,6 +137,16 @@ Measured:
 
 **Balance log.** `docs/development/BALANCE_LOG.md` records each tuning change: the parameter, old and new values, the evidence (sweep or bot result), and the observed effect.
 
+**Content health: the doctor and the designer page** (the content workbench, owner 2026-11-19). `mandate-cli content doctor` checks that content can fire, does not fire too often, has its English text and arguments, fits a phone, and has speakers who can say it (EXTENDING "Checking your content"). It plays `--seeds` careers of `--years` with the bots (`mixed` by default) on throwaway engines and combines what fired with static checks of the conditions. Severities: error (cannot fire, missing text, a role no speaker of that voice has), warn (never fired, too often, too long), info (unused keys, held but never picked). CI runs it as a non-blocking report (`--seeds 8 --years 2`); it becomes blocking (`--strict`) once the base pack has no errors.
+
+Tests:
+- `mandate-cli` `doctor::tests`: the doctor finds a planted dilemma whose triggers contradict, a missing Fluent key, and an over-long line in a test pack (the base pack plus planted files); a short career run reports coverage; rendering takes the longest selector variant.
+- `mandate-cli/tests/explain.rs`: for every dilemma at three seeds and six dates, the explanation's verdict on casting and triggers equals the director's (a cast search over the same roles and triggers), each trigger node is `cast::holds` for the cast shown, and explaining leaves the state hash unchanged; situational policies, overheard lines and conversation lines agree with their evaluators.
+- `web/src/dev/ExplainTree.test.tsx`: the tree view shows each verdict in words and glyphs, the values read, and opens failing branches.
+- `web/e2e/designer.spec.ts`: the designer page opens in dev mode (a Vite dev server the test starts); with a `dev-tools` engine it explains a dilemma and previews its options.
+
+The dev queries (`DevCatalog`, `DevExplain`) are compiled only with the `dev-tools` feature (`mandate-protocol`, `mandate-wasm`), and `mandate_sim::explain` only with `mandate-sim`'s `explain` feature (which `dev-tools` and the CLI turn on); the release WASM is built without them and is byte-identical. `cargo clippy` runs with and without the feature. Their TypeScript types are generated into `web/src/dev/protocol/` by `cargo test -p mandate-protocol --features dev-tools`.
+
 ## Difficulty and story targets (DEC-076)
 Once careers span several acts, the lab adds three things:
 - full-career bot players;

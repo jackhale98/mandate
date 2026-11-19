@@ -270,6 +270,20 @@ impl Session {
                             )
                         })
                 }
+                // The content workbench (dev builds only; read-only).
+                #[cfg(feature = "dev-tools")]
+                QueryDto::DevCatalog => Ok(ResponseBody::DevCatalog(dev::dev_catalog(
+                    self.engine_mut()?,
+                ))),
+                #[cfg(feature = "dev-tools")]
+                QueryDto::DevExplain {
+                    kind,
+                    id,
+                    speaker,
+                    place,
+                } => dev::dev_explain(self.engine_mut()?, &kind, &id, speaker, place)
+                    .map(ResponseBody::DevExplain)
+                    .map_err(|e| err(ErrorCode::BadRequest, e)),
             },
         }
     }

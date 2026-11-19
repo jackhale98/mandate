@@ -260,16 +260,16 @@ fn relevance(
 }
 
 /// A situation ready to be spotlighted.
-struct Candidate<'c> {
-    def: &'c DilemmaDef,
-    cast: Vec<CastEntry>,
-    reasons: Vec<Reason>,
-    relevance: f64,
-    goal: Option<(CharacterId, String)>,
+pub(crate) struct Candidate<'c> {
+    pub(crate) def: &'c DilemmaDef,
+    pub(crate) cast: Vec<CastEntry>,
+    pub(crate) reasons: Vec<Reason>,
+    pub(crate) relevance: f64,
+    pub(crate) goal: Option<(CharacterId, String)>,
 }
 
 /// Cast a dilemma and check its triggers (plus any extra conditions).
-fn evaluate<'c>(
+pub(crate) fn evaluate<'c>(
     v: &View<'_>,
     n: &NarrativeState,
     def: &'c DilemmaDef,

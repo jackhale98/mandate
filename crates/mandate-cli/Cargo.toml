@@ -9,7 +9,7 @@ mandate-content = { version = "0.1.0", path = "../mandate-content", features = [
 mandate-core = { version = "0.1.0", path = "../mandate-core" }
 mandate-protocol = { version = "0.1.0", path = "../mandate-protocol" }
 mandate-save = { version = "0.1.0", path = "../mandate-save" }
-mandate-sim = { version = "0.1.0", path = "../mandate-sim" }
+mandate-sim = { version = "0.1.0", path = "../mandate-sim", features = ["explain"] }
 mandate-worldgen = { version = "0.1.0", path = "../mandate-worldgen" }
 miniz_oxide = "0.9.1"
 serde = { version = "1.0.229", features = ["derive"] }

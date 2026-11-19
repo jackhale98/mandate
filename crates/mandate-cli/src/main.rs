@@ -1,6 +1,7 @@
 //! Mandate simulation lab CLI (DEC-058). Output is JSON for scripting.
 
 mod bots;
+mod doctor;
 mod lab;
 mod mapimg;
 mod png;
@@ -239,6 +240,9 @@ enum ContentCmd {
         #[arg(long, default_value = "content/schemas/content.schema.json")]
         out: PathBuf,
     },
+    /// Report content that never fires, fires too often, Fluent and length
+    /// problems (the content workbench); `--strict` fails on errors.
+    Doctor(doctor::DoctorArgs),
 }
 
 fn load_content(root: &Path) -> Result<Arc<ContentBundle>, String> {
@@ -326,6 +330,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 }
             }
         }
+        Cmd::Content {
+            cmd: ContentCmd::Doctor(args),
+        } => doctor::run(&cli.content, &args),
         Cmd::Content {
             cmd: ContentCmd::Schema { out: path },
         } => {
