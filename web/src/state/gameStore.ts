@@ -21,6 +21,8 @@ import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { LocationView } from "../engine/protocol/LocationView";
 import type { DateView } from "../engine/protocol/DateView";
 import type { QueryDto } from "../engine/protocol/QueryDto";
+import type { NotebookView } from "../engine/protocol/NotebookView";
+import { freshKeys } from "../components/notebook/notebookModel";
 import { findRoute, sameLocation } from "./routing";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
@@ -83,6 +85,14 @@ interface GameState {
   decision: DecisionView | null;
   /** The story so far (DEC-033), when open. */
   story: StoryView | null;
+  /** The notebook (DEC-091, K5), while its tab is open. */
+  notebook: NotebookView | null;
+  /**
+   * Seen marks (K5): the entries that were new when the player opened the
+   * notebook, kept marked "new" while they look. The engine forgets them
+   * as new (`notebook_seen`), so the badge clears and stays clear.
+   */
+  notebookFresh: string[];
   pocketOpen: boolean;
   /** The pocket's open tab (DEC-088 main screen), remembered per device. */
   pocketTab: PocketTab;
@@ -113,7 +123,8 @@ interface GameState {
   storytellers: StorytellerView[];
   boot(): Promise<void>;
   refreshRuns(): Promise<void>;
-  newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; scenario: string | null; storyteller?: string | null }): Promise<void>;
+  /** `localKnowledge`: "Start with local knowledge" (DEC-091, off by default). */
+  newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; scenario: string | null; storyteller?: string | null; localKnowledge?: boolean }): Promise<void>;
   /** The engine's estimate for a draft with these parameters (the UI never computes it). */
   previewPolicy(template: string, params: ParamValue[]): Promise<PolicyPreviewView | null>;
   loadMap(): Promise<void>;
@@ -140,6 +151,15 @@ interface GameState {
   answer(id: number, option: string): Promise<void>;
   /** Open (or close) the story so far. */
   openStory(open: boolean): Promise<void>;
+  /** Fetch the notebook (its tab is open). */
+  loadNotebook(): Promise<void>;
+  /**
+   * The player is looking at the notebook: keep what is new marked for
+   * this look, and tell the engine it has been seen (the badge clears).
+   */
+  seeNotebook(): Promise<void>;
+  /** The notebook's tab closed: what was new has been seen. */
+  leaveNotebook(): void;
   skipWalk(): void;
   setPocketOpen(open: boolean): void;
   /** Open the pocket on a tab; `focus` moves the keyboard into it. */
@@ -227,6 +247,8 @@ export const useGame = create<GameState>((set, get) => {
     character: null,
     decision: null,
     story: null,
+    notebook: null,
+    notebookFresh: [],
     pocketOpen: false,
     pocketTab: readPocketTab(),
     pocketDocked: readPocketDocked(),
@@ -270,13 +292,13 @@ export const useGame = create<GameState>((set, get) => {
       }
     },
 
-    async newGame({ seed, size, mode, scenario, storyteller }) {
+    async newGame({ seed, size, mode, scenario, storyteller, localKnowledge }) {
       set({ busy: true, error: null, map: null, progress: { stage: "progress-terrain", fraction: 0 } });
       const off = engine().onProgress((stage, fraction) => set({ progress: { stage, fraction } }));
       try {
-        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: false } });
+        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: localKnowledge ?? false } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, notebook: null, notebookFresh: [], openPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -305,7 +327,11 @@ export const useGame = create<GameState>((set, get) => {
         const character = who ? expectKind(await q({ type: "character", id: who.id }), "character") : null;
         const open_decision = get().decision;
         const decision = open_decision ? expectKind(await q({ type: "decision", id: open_decision.id }), "decision") : null;
+        // The notebook follows what is learned while its tab is open.
+        const reading = get().pocketOpen && get().pocketTab === "notebook";
+        const notebook = reading ? expectKind(await q({ type: "notebook" }), "notebook") : get().notebook;
         set({
+          notebook,
           character,
           decision,
           office: expectKind(office, "office"),
@@ -464,6 +490,37 @@ export const useGame = create<GameState>((set, get) => {
       set({ pocketOpen: open });
     },
 
+    async loadNotebook() {
+      try {
+        set({ notebook: expectKind(await engine().request({ kind: "query", payload: { type: "notebook" } }), "notebook") });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async seeNotebook() {
+      if (!get().run || get().busy || (get().pocket?.notebook_new ?? 0) === 0) return;
+      set({ busy: true });
+      try {
+        const q = (payload: QueryDto) => engine().request({ kind: "query", payload });
+        // What is new now stays marked while the player looks.
+        const before = expectKind(await q({ type: "notebook" }), "notebook");
+        set({ notebook: before, notebookFresh: [...new Set([...get().notebookFresh, ...freshKeys(before)])] });
+        expectKind(await engine().request({ kind: "command", payload: { type: "notebook_seen" } }), "command_applied");
+        await persist();
+        const [pocket, notebook] = await Promise.all([q({ type: "pocket" }), q({ type: "notebook" })]);
+        set({ pocket: expectKind(pocket, "pocket"), notebook: expectKind(notebook, "notebook") });
+      } catch (e) {
+        set({ error: errText(e) });
+      } finally {
+        set({ busy: false });
+      }
+    },
+
+    leaveNotebook() {
+      set({ notebookFresh: [] });
+    },
+
     openPocket(tab, focus = false) {
       if (tab) get().setPocketTab(tab);
       set((s) => ({ pocketOpen: true, pocketFocus: focus ? s.pocketFocus + 1 : s.pocketFocus }));
@@ -574,7 +631,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, notebook: null, notebookFresh: [], openPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });

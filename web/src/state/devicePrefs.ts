@@ -3,8 +3,8 @@
 // beside the town on wide screens, and which map the map overlay showed. Never game state; storage may be blocked
 // (private windows), so every read and write is guarded and falls back.
 
-export type PocketTab = "today" | "town" | "places" | "people";
-export const POCKET_TABS: readonly PocketTab[] = ["today", "town", "places", "people"];
+export type PocketTab = "today" | "town" | "places" | "notebook" | "people";
+export const POCKET_TABS: readonly PocketTab[] = ["today", "town", "places", "notebook", "people"];
 
 const TAB_KEY = "mandate.pocketTab";
 const DOCK_KEY = "mandate.pocketDocked";

@@ -160,6 +160,7 @@ impl Session {
                 let command = match c {
                     CommandDto::EndTurn => Command::EndTurn,
                     CommandDto::AdvanceDays { days } => Command::AdvanceDays { days },
+                    CommandDto::NotebookSeen => Command::NotebookSeen,
                     other => Command::Player(player_command(other)?),
                 };
                 let engine = self.engine_mut()?;
@@ -410,7 +411,7 @@ fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, 
         },
         // EndTurn and AdvanceDays are handled before this conversion; they
         // cannot follow a move.
-        CommandDto::EndTurn | CommandDto::AdvanceDays { .. } => {
+        CommandDto::EndTurn | CommandDto::AdvanceDays { .. } | CommandDto::NotebookSeen => {
             return Err(err(
                 ErrorCode::InvalidCommand,
                 "time cannot pass as part of a move",

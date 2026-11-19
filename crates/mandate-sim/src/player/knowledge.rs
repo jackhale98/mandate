@@ -203,6 +203,14 @@ pub struct Entry {
     pub learned: Vec<Learned>,
     /// The latest reading, for numeric subjects at `detailed`.
     pub reading: Option<Reading>,
+    /// The level the player has seen in the notebook (K5): levels reached
+    /// above it are new. Left out of the save while `unknown`.
+    #[serde(default, skip_serializing_if = "is_unknown")]
+    pub seen: Level,
+}
+
+fn is_unknown(l: &Level) -> bool {
+    *l == Level::Unknown
 }
 
 /// Where a lead points. A lead is guidance, never a requirement.
@@ -356,6 +364,19 @@ impl KnowledgeLedger {
         for g in grants {
             self.learn(g.subject.clone(), g.level, on, src.clone());
         }
+    }
+
+    /// The player has looked at the notebook: every entry is seen at its
+    /// current level (no longer new). Returns how many entries changed.
+    pub fn mark_seen(&mut self) -> usize {
+        let mut n = 0;
+        for e in self.entries.values_mut() {
+            if e.seen < e.level {
+                e.seen = e.level;
+                n += 1;
+            }
+        }
+        n
     }
 
     /// Record a place's first visit. Returns whether it was the first.
@@ -1233,6 +1254,26 @@ mod tests {
         assert_eq!(k.zone, Some(Zone::Town { town: b }));
         assert_eq!(k.level(&Subject::Broker { town: a }), Level::Known);
         assert_eq!(k.level(&Subject::Broker { town: b }), Level::Heard);
+    }
+
+    #[test]
+    fn seeing_the_notebook_marks_each_entry_at_its_level() {
+        let mut k = KnowledgeLedger::default();
+        k.learn(person(1), Level::Heard, d(1), Source::Lab);
+        k.learn(person(2), Level::Known, d(1), Source::Lab);
+        assert_eq!(k.entry(&person(1)).unwrap().seen, Level::Unknown);
+        // Unseen entries serialize as before (no `seen` field).
+        assert!(!serde_json::to_string(&k).unwrap().contains("seen"));
+        assert_eq!(k.mark_seen(), 2);
+        assert_eq!(k.mark_seen(), 0);
+        assert_eq!(k.entry(&person(2)).unwrap().seen, Level::Known);
+        // Learning more makes it new again, above what was seen.
+        k.learn(person(1), Level::Known, d(2), Source::Lab);
+        let e = k.entry(&person(1)).unwrap();
+        assert_eq!((e.seen, e.level), (Level::Heard, Level::Known));
+        let back: KnowledgeLedger =
+            serde_json::from_str(&serde_json::to_string(&k).unwrap()).unwrap();
+        assert_eq!(back, k);
     }
 
     #[test]

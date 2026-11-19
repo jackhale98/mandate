@@ -11,6 +11,9 @@ pub enum Command {
     AdvanceDays { days: u32 },
     /// A player command (Commands phase).
     Player(crate::actions::PlayerCommand),
+    /// The player has looked at their notebook (DEC-091, K5): what they
+    /// learned is no longer new. Changes nothing else; no slot, no time.
+    NotebookSeen,
     /// Lab only (never exposed to players): inject a sector demand shock.
     LabSectorShock {
         municipality: u32,

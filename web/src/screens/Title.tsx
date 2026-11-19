@@ -16,6 +16,8 @@ export function Title() {
   const [size, setSize] = useState<WorldSizeDto>("medium");
   const [mode, setMode] = useState<RunModeDto>("ironman");
   const [seed, setSeed] = useState("");
+  // "Start with local knowledge" (DEC-091): off by default (owner).
+  const [local, setLocal] = useState(false);
   const scenarios = useGame((s) => s.scenarios);
   const [scenario, setScenario] = useState("");
   const storytellers = useGame((s) => s.storytellers);
@@ -27,7 +29,7 @@ export function Title() {
 
   const start = () => {
     const trimmed = seed.trim();
-    void newGame({ size, mode, scenario: scenario === "" ? null : scenario, storyteller: chosenTeller, ...(/^\d+$/.test(trimmed) ? { seed: trimmed } : {}) });
+    void newGame({ size, mode, scenario: scenario === "" ? null : scenario, storyteller: chosenTeller, localKnowledge: local, ...(/^\d+$/.test(trimmed) ? { seed: trimmed } : {}) });
   };
 
   return (
@@ -77,6 +79,15 @@ export function Title() {
             {tellerDesc && <p className="hint">{tr.t(tellerDesc)}</p>}
           </fieldset>
         )}
+        <div className="field local-knowledge" data-testid="local-knowledge">
+          <label className="check">
+            <input type="checkbox" checked={local} onChange={(e) => setLocal(e.target.checked)} aria-describedby="local-knowledge-help" data-testid="local-knowledge-toggle" />
+            <span>{tr.t("ui-local-knowledge")}</span>
+          </label>
+          <p className="hint" id="local-knowledge-help">
+            {tr.t("ui-local-knowledge-help")}
+          </p>
+        </div>
         <label className="field">
           <span>{tr.t("ui-scenario")}</span>
           <select className="input" value={scenario} onChange={(e) => setScenario(e.target.value)}>

@@ -3,6 +3,7 @@ import type { DateView } from "./DateView";
 import type { KnowledgeLevelDto } from "./KnowledgeLevelDto";
 import type { LocationView } from "./LocationView";
 import type { RouteView } from "./RouteView";
+import type { SubjectDto } from "./SubjectDto";
 
 /**
  * A lead: where to go or whom to ask to learn more (guidance, never a
@@ -10,6 +11,11 @@ import type { RouteView } from "./RouteView";
  * target's carry a `to_` prefix.
  */
 export type LeadView = { 
+/**
+ * What following it teaches about (K5: the notebook files a lead
+ * under its subject's tab).
+ */
+subject: SubjectDto, 
 /**
  * Fluent key (`lead-…`).
  */

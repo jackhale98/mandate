@@ -195,6 +195,9 @@ pub enum CommandDto {
         decision: u32,
         option: String,
     },
+    /// The player has looked at their notebook (DEC-091, K5): what they
+    /// learned is no longer new, and the badge clears. No slot, no time.
+    NotebookSeen,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

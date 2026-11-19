@@ -804,8 +804,150 @@ fn knowledge_keys_are_in_the_locale() {
         );
     }
     keys.extend(n.leads.iter().map(|l| l.key.clone()));
+    // K5: placeholders and their standing leads, from a run without the option.
+    let off = session(23, false);
+    let n = notebook_view(off.engine().unwrap()).unwrap();
+    assert!(!n.gaps.is_empty());
+    for g in &n.gaps {
+        keys.push(g.title_key.clone());
+        keys.extend(g.lead.iter().map(|l| l.key.clone()));
+        keys.extend(
+            g.lead
+                .iter()
+                .flat_map(|l| &l.args)
+                .filter(|(k, _)| k.ends_with("_key"))
+                .map(|(_, v)| v.clone()),
+        );
+    }
+    for x in n.sections.iter().flat_map(|x| &x.entries) {
+        keys.extend(x.lead.iter().map(|l| l.key.clone()));
+    }
     let missing: Vec<&String> = keys.iter().filter(|k| !has(k)).collect();
     assert!(missing.is_empty(), "missing Fluent keys: {missing:?}");
+}
+
+/// K5: the notebook's placeholders cover public subjects only, each with a
+/// way to learn it; learning one fills its entry; `NotebookSeen` clears the
+/// badge and the entries' "new" marks, survives a save, and changes nothing
+/// but the ledger's seen marks.
+#[test]
+fn the_notebook_shows_gaps_and_seeing_it_clears_the_badge() {
+    let mut s = session(25, false);
+    let e = s.engine().unwrap();
+    let n = notebook_view(e).unwrap();
+    let ledger = &e.state().player.as_ref().unwrap().knowledge;
+    // Gaps are unknown subjects, never people or places, each with a lead.
+    for g in &n.gaps {
+        assert!(matches!(
+            g.subject,
+            SubjectDto::TownConcerns { .. }
+                | SubjectDto::HoodConcerns { .. }
+                | SubjectDto::Broker { .. }
+                | SubjectDto::RivalPlans { .. }
+                | SubjectDto::PolicySupport { .. }
+        ));
+        assert!(g.lead.is_some(), "{g:?}");
+        assert!(!g.args.contains_key("name") && !g.args.contains_key("concern_key"));
+    }
+    // A neighbourhood not known yet: canvassing it is the lead.
+    let gap = n
+        .gaps
+        .iter()
+        .find(|g| matches!(g.subject, SubjectDto::HoodConcerns { .. }))
+        .expect("the default start knows only the ward's worries");
+    let SubjectDto::HoodConcerns { hood } = gap.subject else {
+        unreachable!()
+    };
+    let lead = gap.lead.as_ref().unwrap();
+    assert_eq!(lead.key, "lead-notebook-canvass");
+    assert_eq!(lead.level, KnowledgeLevelDto::Known);
+    assert_eq!(lead.subject, gap.subject);
+    assert!(lead.route.is_some());
+    // The broker is a gap; its lead does not name them.
+    let broker = n
+        .gaps
+        .iter()
+        .find(|g| matches!(g.subject, SubjectDto::Broker { .. }))
+        .expect("the broker is not known without the option");
+    assert!(!broker.lead.as_ref().unwrap().args.contains_key("name"));
+    assert!(!ledger.entries.is_empty());
+    assert_eq!(notebook_new(e), 0);
+    // Follow the lead: canvass there.
+    let r = send(
+        &mut s,
+        40,
+        RequestBody::Command(CommandDto::Go {
+            location: LocationDto::Street { neighborhood: hood },
+            then: Some(Box::new(CommandDto::Act {
+                action: ActionDto::Canvass {
+                    neighborhood: hood,
+                    issue: None,
+                },
+                late_night: false,
+            })),
+        }),
+    );
+    assert!(matches!(r, ResponseBody::CommandApplied(_)));
+    let e = s.engine().unwrap();
+    let n = notebook_view(e).unwrap();
+    assert!(!n.gaps.iter().any(|g| g.subject == gap.subject));
+    let entry = n
+        .sections
+        .iter()
+        .flat_map(|x| &x.entries)
+        .find(|x| x.subject == gap.subject)
+        .expect("the canvass filled the entry");
+    assert!(entry.new_this_turn);
+    assert!(entry.args.contains_key("concern_key"));
+    let fresh = notebook_new(e);
+    assert!(fresh > 0);
+    assert_eq!(
+        n.sections
+            .iter()
+            .flat_map(|x| &x.entries)
+            .filter(|x| x.new_this_turn)
+            .count() as u32,
+        fresh
+    );
+    // Seeing the notebook clears the badge and the marks.
+    let before = serde_json::to_value(e.state()).unwrap();
+    let r = send(&mut s, 41, RequestBody::Command(CommandDto::NotebookSeen));
+    assert!(matches!(r, ResponseBody::CommandApplied(_)));
+    let e = s.engine().unwrap();
+    assert_eq!(notebook_new(e), 0);
+    assert_eq!(pocket_view(e).unwrap().notebook_new, 0);
+    let n = notebook_view(e).unwrap();
+    assert!(
+        n.sections
+            .iter()
+            .flat_map(|x| &x.entries)
+            .all(|x| !x.new_this_turn)
+    );
+    // Nothing but the seen marks changed.
+    fn strip(v: &mut serde_json::Value) {
+        match v {
+            serde_json::Value::Object(m) => {
+                m.remove("seen");
+                m.values_mut().for_each(strip);
+            }
+            serde_json::Value::Array(a) => a.iter_mut().for_each(strip),
+            _ => {}
+        }
+    }
+    let mut before = before;
+    let mut after = serde_json::to_value(e.state()).unwrap();
+    assert!(after != before, "the seen marks are state");
+    strip(&mut after);
+    strip(&mut before);
+    assert!(after == before, "only the seen marks change");
+    // The marks are state: they survive a save and load.
+    let json = serde_json::to_string(e.state()).unwrap();
+    let back: mandate_sim::State = serde_json::from_str(&json).unwrap();
+    let pl = back.player.as_ref().unwrap();
+    assert!(pl.knowledge.entries.values().all(|x| x.seen == x.level));
+    // Twice is harmless; a later lesson is new again.
+    send(&mut s, 42, RequestBody::Command(CommandDto::NotebookSeen));
+    assert_eq!(notebook_new(s.engine().unwrap()), 0);
 }
 
 /// Every query, twice: views never write, so the state hash is unchanged,

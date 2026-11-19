@@ -14,6 +14,7 @@ import { PocketTabs, pocketPanelId, pocketTabId, type TabBadge } from "./PocketT
 import { TownTab } from "./TownCard";
 import { PlaceList } from "./PlaceList";
 import { PeopleList } from "./PeopleList";
+import { Notebook } from "./notebook/Notebook";
 import type { PocketTab } from "../state/devicePrefs";
 import type { Translator } from "../i18n/fluent";
 
@@ -145,6 +146,7 @@ function Agenda({ p }: { p: PocketView }) {
 /** Today: the turn, what is waiting (decisions, alerts, votes), the agenda and your standing. */
 function TodayTab({ p }: { p: PocketView }) {
   const tr = useGame((s) => s.tr);
+  const setTab = useGame((s) => s.setPocketTab);
   return (
     <>
       <div className="stats stats-3">
@@ -163,6 +165,14 @@ function TodayTab({ p }: { p: PocketView }) {
             </li>
           ))}
         </ul>
+      )}
+      {p.notebook_new > 0 && (
+        <p className="note" data-testid="today-notebook">
+          {tr.t("ui-notebook-today", { n: p.notebook_new })}{" "}
+          <button type="button" className="link-btn" onClick={() => setTab("notebook")} data-testid="today-notebook-open">
+            {tr.t("ui-notebook-today-open")}
+          </button>
+        </p>
       )}
       <Decisions p={p} />
       {p.legal && <Legal l={p.legal} />}
@@ -193,15 +203,15 @@ export function pocketBadges(tr: Translator, p: PocketView): Partial<Record<Pock
   const today = [p.decisions.length > 0 ? tr.t("ui-decision-count", { n: p.decisions.length }) : null, p.alerts.length > 0 ? tr.t("ui-alert-count", { n: p.alerts.length }) : null].filter((x): x is string => x !== null);
   return {
     today: { n: p.decisions.length + p.alerts.length, text: today.join(", ") },
-    people: { n: p.notebook_new, text: tr.t("ui-notebook-new-count", { n: p.notebook_new }) },
+    notebook: { n: p.notebook_new, text: tr.t("ui-notebook-new-count", { n: p.notebook_new }) },
   };
 }
 
 /**
  * The pocket (phone and notebook): always available, coarse, never the only
  * path to anything vital (DEC-079 rule 3). Tabs keep it short (DEC-088 main
- * screen): Today, Town (the town card), Places (every place, no walking) and
- * People. A bottom sheet on phones; on wide screens a side panel that can stay
+ * screen): Today, Town (the town card), Places (every place, no walking),
+ * Notebook (what you know, with placeholders and leads, DEC-091) and People. A bottom sheet on phones; on wide screens a side panel that can stay
  * docked open beside the town.
  */
 export function Pocket() {
@@ -266,7 +276,7 @@ export function Pocket() {
         </div>
         <div className="sheet-body pocket-body">
           <div ref={panelRef} role="tabpanel" id={pocketPanelId(tab)} aria-labelledby={pocketTabId(tab)} tabIndex={-1} className="pocket-panel" data-testid={`pocket-panel-${tab}`}>
-            {tab === "today" ? <TodayTab p={p} /> : tab === "town" ? <TownTab /> : tab === "places" ? <PlaceList /> : <PeopleList />}
+            {tab === "today" ? <TodayTab p={p} /> : tab === "town" ? <TownTab /> : tab === "places" ? <PlaceList /> : tab === "notebook" ? <Notebook /> : <PeopleList />}
           </div>
           <nav className="pocket-links" aria-label={tr.t("ui-pocket-links")}>
             <button type="button" className="btn" onClick={() => openMap("country")} data-testid="pocket-country-map">

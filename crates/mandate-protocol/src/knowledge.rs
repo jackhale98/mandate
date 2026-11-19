@@ -71,6 +71,9 @@ impl KnowledgeLevelDto {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct LeadView {
+    /// What following it teaches about (K5: the notebook files a lead
+    /// under its subject's tab).
+    pub subject: SubjectDto,
     /// Fluent key (`lead-…`).
     pub key: String,
     pub args: BTreeMap<String, String>,
@@ -365,7 +368,9 @@ fn person_name(gate: &Gate<'_>, id: CharacterId) -> String {
 
 fn lead_view(gate: &Gate<'_>, l: &Lead) -> LeadView {
     let st = gate.st();
-    let mut args = subject_args(gate, &l.subject, Level::Heard);
+    // The subject as far as the player knows it (a lead to the broker must
+    // not carry the broker's name).
+    let mut args = subject_args(gate, &l.subject, gate.level(&l.subject).min(Level::Heard));
     match &l.to {
         LeadTarget::Place { place } => {
             args.insert("to_place".into(), place_name(st, *place));
@@ -392,6 +397,7 @@ fn lead_view(gate: &Gate<'_>, l: &Lead) -> LeadView {
     let loc = target_location(st, &l.to).filter(|loc| places::validate_move(st, *loc).is_ok());
     let here = st.player.as_ref().map(|p| p.location);
     LeadView {
+        subject: SubjectDto::of(&l.subject),
         key: l.key.clone(),
         args,
         level: l.level.into(),
@@ -495,8 +501,13 @@ pub struct NotebookEntryView {
     pub history: Vec<LearnedView>,
     pub as_of: Option<DateView>,
     pub stale: bool,
-    /// Learned (any level) within the current turn.
+    /// Learned in play within the current turn and not yet seen in the
+    /// notebook (`NotebookSeen`): what the badge counts. What a run starts
+    /// with is never new.
     pub new_this_turn: bool,
+    /// How to learn more, below `detailed`: an open lead, or where such
+    /// things are usually learned (K5).
+    pub lead: Option<LeadView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -521,6 +532,11 @@ pub struct NotebookView {
     pub sections: Vec<NotebookSectionView>,
     /// Open leads, newest first.
     pub leads: Vec<LeadView>,
+    /// Public things not known yet (K5: the notebook's placeholders), each
+    /// with a way to learn it. Only what anyone could know exists: the
+    /// town's and its neighbourhoods' worries, who runs things, the rival's
+    /// plans, support for the standard menu. Never people or hidden places.
+    pub gaps: Vec<NotebookGapView>,
 }
 
 /// Section keys, in display order.
@@ -672,6 +688,20 @@ fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeMap<String, 
             put!("name", person_name(gate, *person));
             if let Some(p) = crate::characters::person_ref(engine, *person) {
                 put!("role_key", p.role_key);
+            }
+            // K5: who cares about what (their strongest conviction), and
+            // whom they are bound to (the one they owe most favours).
+            if level >= Level::Known
+                && let Some(issue) = rival_focus(engine, *person)
+            {
+                put!("cares_key", issue);
+            }
+            if level >= Level::Detailed
+                && let Some(other) = owes_most(st, *person)
+                && let name = person_name(gate, other)
+                && !name.is_empty()
+            {
+                put!("owes", name);
             }
         }
         Subject::RivalPlans { town } => {
@@ -847,25 +877,29 @@ fn this_turn(engine: &Engine, on: mandate_core::SimDate) -> bool {
 /// pocket's notebook badge). What the player starts with (the start
 /// profile, the local-knowledge option, the party primer) and what a save
 /// migration seeded is not news: only what was learned in play counts.
+/// Seeing the notebook (`NotebookSeen`) clears it (K5).
 pub fn notebook_new(engine: &Engine) -> u32 {
     let Some(pl) = engine.state().player.as_ref() else {
         return 0;
     };
+    pl.knowledge
+        .entries
+        .values()
+        .filter(|e| is_new(engine, e))
+        .count() as u32
+}
+
+/// Learned in play this turn, above what the player has seen.
+fn is_new(engine: &Engine, e: &k::Entry) -> bool {
     let starting = |s: &Source| {
         matches!(
             s,
             Source::Start { .. } | Source::LocalOption | Source::Primer { .. } | Source::Migrated
         )
     };
-    pl.knowledge
-        .entries
-        .values()
-        .filter(|e| {
-            e.learned
-                .iter()
-                .any(|l| !starting(&l.source) && this_turn(engine, l.on))
-        })
-        .count() as u32
+    e.learned
+        .iter()
+        .any(|l| l.level > e.seen && !starting(&l.source) && this_turn(engine, l.on))
 }
 
 /// The notebook: what the player knows, by subject (§1.8).
@@ -891,7 +925,8 @@ pub fn notebook_view(engine: &Engine) -> Option<NotebookView> {
                 history: e.learned.iter().map(|l| learned_view(&gate, l)).collect(),
                 as_of: e.reading.as_ref().map(|r| DateView::of(r.on)),
                 stale,
-                new_this_turn: e.learned.iter().any(|l| this_turn(engine, l.on)),
+                new_this_turn: is_new(engine, e),
+                lead: next_lead(&gate, s, e.level),
             });
     }
     Some(NotebookView {
@@ -914,7 +949,186 @@ pub fn notebook_view(engine: &Engine) -> Option<NotebookView> {
             .rev()
             .map(|l| lead_view(&gate, l))
             .collect(),
+        gaps: gaps(&gate),
     })
+}
+
+// --- Gaps and standing leads (K5) -------------------------------------------------------
+
+/// Something public the player does not know yet, with a way to learn it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NotebookGapView {
+    pub subject: SubjectDto,
+    /// The section it would join (`neighbourhoods`, `power`, `rival`, `support`).
+    pub section: String,
+    /// Fluent key `notebook-<subject type>`, with the subject's public args.
+    pub title_key: String,
+    pub args: BTreeMap<String, String>,
+    pub lead: Option<LeadView>,
+}
+
+/// The one a person owes the most favours to, other than the player.
+fn owes_most(st: &State, person: CharacterId) -> Option<CharacterId> {
+    let me = characters::player_character(st);
+    let mut by: BTreeMap<CharacterId, u32> = BTreeMap::new();
+    for f in &st.politics.characters.favours {
+        if f.debtor == person && Some(f.creditor) != me {
+            *by.entry(f.creditor).or_default() += f.count as u32;
+        }
+    }
+    by.into_iter()
+        .max_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(&a.0)))
+        .map(|(c, _)| c)
+}
+
+/// The first of these place kinds the town has open.
+fn kind_in_town(st: &State, town: MunicipalityId, kinds: &[&str]) -> Option<String> {
+    kinds
+        .iter()
+        .find(|k| {
+            st.world
+                .places
+                .iter()
+                .any(|p| p.municipality == town && p.kind.key() == **k && p.is_open())
+        })
+        .map(|k| (*k).to_string())
+}
+
+/// An open place in town offering a service.
+fn service_in_town(engine: &Engine, town: MunicipalityId, service: &str) -> Option<PlaceId> {
+    engine
+        .state()
+        .world
+        .places
+        .iter()
+        .find(|p| {
+            p.municipality == town
+                && p.is_open()
+                && engine
+                    .content()
+                    .place_kind(p.kind.key())
+                    .is_some_and(|d| places::kind_offers(d, places::Offer::Service(service)))
+        })
+        .map(|p| p.id)
+}
+
+/// Where a subject is usually learned (§1.3), when no lead is open: the
+/// streets of a neighbourhood for its worries (canvassing), the locals at
+/// the diner or market for the town's worries and who runs things, the
+/// party office's polls for the rival's plans and for support. A standing
+/// lead is guidance read from the rules, never stored, and only below
+/// `known`.
+fn standing_lead(gate: &Gate<'_>, s: &Subject, have: Level) -> Option<Lead> {
+    const LOCALS: [&str; 3] = ["diner", "market", "community_centre"];
+    let st = gate.st();
+    let engine = gate.engine;
+    if have >= Level::Known {
+        return None;
+    }
+    let (key, level, to) = match s {
+        Subject::HoodConcerns { hood } => (
+            "lead-notebook-canvass".to_string(),
+            Level::Known,
+            LeadTarget::Streets { hood: *hood },
+        ),
+        Subject::TownConcerns { town } => (
+            "lead-notebook-worries".to_string(),
+            have.next(),
+            LeadTarget::PlaceKind {
+                town: *town,
+                kind: kind_in_town(st, *town, &LOCALS)?,
+            },
+        ),
+        Subject::Broker { town } => {
+            let kind = kind_in_town(st, *town, &LOCALS)?;
+            (
+                format!("lead-ask-{}", kind.replace('_', "-")),
+                have.next(),
+                LeadTarget::PlaceKind { town: *town, kind },
+            )
+        }
+        Subject::RivalPlans { town } => (
+            "lead-notebook-rival".to_string(),
+            have.next(),
+            LeadTarget::Place {
+                place: service_in_town(engine, *town, "internal_polls")?,
+            },
+        ),
+        Subject::PolicySupport { town, .. } => (
+            "lead-notebook-polls".to_string(),
+            Level::Known,
+            LeadTarget::Place {
+                place: service_in_town(engine, *town, "internal_polls")?,
+            },
+        ),
+        _ => return None,
+    };
+    Some(Lead {
+        subject: s.clone(),
+        level,
+        key,
+        to,
+        since: st.calendar.date,
+        source: Source::Lab,
+    })
+}
+
+/// The way to learn more of a subject: its newest open lead, else the
+/// standing one. None at `detailed` or with the lab switch on.
+fn next_lead(gate: &Gate<'_>, s: &Subject, have: Level) -> Option<LeadView> {
+    if have >= Level::Detailed || gate.st().player.as_ref()?.knowledge.lab_omniscient {
+        return None;
+    }
+    gate.lead(s)
+        .or_else(|| standing_lead(gate, s, have).map(|l| lead_view(gate, &l)))
+}
+
+/// The notebook's placeholders: public subjects of the player's town not
+/// known at all yet, in section order.
+fn gaps(gate: &Gate<'_>) -> Vec<NotebookGapView> {
+    let st = gate.st();
+    let content = gate.engine.content();
+    let Some(town) = gate.town() else {
+        return Vec::new();
+    };
+    let mut subjects = vec![Subject::TownConcerns { town }];
+    subjects.extend(st.world.hoods_of(town).map(|h| Subject::HoodConcerns {
+        hood: NeighborhoodId(h as u32),
+    }));
+    subjects.push(Subject::Broker { town });
+    // The rival's identity is public (DEC-091); their plans are not.
+    if st
+        .politics
+        .characters
+        .towns
+        .get(town.index())
+        .is_some_and(|t| t.rival.is_some())
+    {
+        subjects.push(Subject::RivalPlans { town });
+    }
+    // The standard menu (as `GrantSubject::PolicySupport` resolves it).
+    for t in content.policies.values() {
+        if t.tier == mandate_content::TierKey::Local && t.unlock.is_none() {
+            subjects.push(Subject::PolicySupport {
+                town,
+                policy: PolicyRef::Template {
+                    template: t.id.clone(),
+                },
+            });
+        }
+    }
+    subjects
+        .into_iter()
+        .filter(|s| gate.level(s) == Level::Unknown)
+        .map(|s| NotebookGapView {
+            subject: SubjectDto::of(&s),
+            section: section_of(&s).into(),
+            title_key: format!("notebook-{}", s.key().replace('_', "-")),
+            args: subject_args(gate, &s, Level::Unknown),
+            lead: next_lead(gate, &s, Level::Unknown),
+        })
+        .collect()
 }
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
 import { expect, type Page } from "@playwright/test";
 
 // The pocket (DEC-088 main screen): a sheet with tabs (Today, Town, Places,
-// People). Helpers shared by the specs.
-export type PocketTab = "today" | "town" | "places" | "people";
+// Notebook, People). Helpers shared by the specs.
+export type PocketTab = "today" | "town" | "places" | "notebook" | "people";
 
 /** Open the pocket (if it is not open) on a tab; returns the pocket. */
 export async function openPocket(page: Page, tab: PocketTab = "today") {
