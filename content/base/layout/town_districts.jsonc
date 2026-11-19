@@ -1,14 +1,14 @@
-// District types for town layout v2 (DEC-090, TOWN_GENERATION.md §6.1–6.2).
-// Stage A keeps this registry on the client; stage B moves it to
-// content/base/town_districts.jsonc with a schema generated from Rust types
-// (DEC-053), in this exact shape.
+// District types for town layout v2 (DEC-090 D4, TOWN_GENERATION.md §6.1–6.2).
+// Presentation data: the engine validates this registry and sends it to the
+// client's town generator (`LayoutContentView`); it never changes a
+// simulation result. Types: `mandate-content/src/layout.rs`.
 //
 // Each engine neighbourhood becomes one district. Among the types whose
 // `appears` rules match the neighbourhood (its kind, the town's geography,
 // population band and class), one is picked by weighted rendezvous hashing
 // on (town seed, neighbourhood id, type id): integer `weight` tickets each.
-// Every neighbourhood kind has at least one type with no geography rule, so
-// a pick always exists.
+// Every neighbourhood kind needs at least one type with no other rule, so a
+// pick always exists (validation checks it).
 //
 // streets.pattern: organic | grid | curvy | contour | yards | quay | ribbon.
 // streets.block: block width range, tiles; streets.depth: block depth range.
@@ -18,6 +18,7 @@
 // buildings.mix: [filler kind, weight]; density: share of plots built on.
 // growth.reserve: share of plots held back for growth (reserved land, §9.2).
 // site.prefers / avoids: siting predicates for the district's seed.
+// See docs/development/EXTENDING.md, "Adding a district type".
 {
   "kind": "town_districts",
   "items": [

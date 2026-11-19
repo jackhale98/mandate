@@ -1,13 +1,13 @@
-// Connectors for town layout v2 (DEC-090, TOWN_GENERATION.md §6.1, §7.7):
+// Connectors for town layout v2 (DEC-090 D4, TOWN_GENERATION.md §6.1, §7.7):
 // what carries a road, a path or the railway over water, a creek or the
-// track. Stage A keeps this registry on the client; stage B moves it to
-// content/base/connectors.jsonc unchanged in shape.
+// track. Presentation data, validated by the engine and sent to the client's
+// town generator (`LayoutContentView`). Types: `mandate-content/src/layout.rs`.
 //
 // `kind` is the map's `TownConnector.kind`. `max_span`: the longest crossing,
 // tiles. `roads`: which ways may use it (arterial, street, lane, path, rail).
 // `crosses`: river, sea, lake, creek, rail. `town_class`: where it is built
 // (empty: everywhere). The generator picks, per crossing, the first entry in
-// this order that allows it.
+// load order that allows it.
 {
   "kind": "connectors",
   "items": [
