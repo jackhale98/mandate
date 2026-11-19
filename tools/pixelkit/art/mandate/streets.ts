@@ -467,13 +467,26 @@ export class DiagonalStreets {
         // The centre line: carriageways three or more cells a row wide (two lanes), dashed along the street.
         const w = b - a + 1;
         if (w < 44 || w > 112 || Math.abs(2 * X - (a + b)) > 1) continue;
-        // Only where the carriageway runs on at 45° above and below (not at its ends, at junctions or bridges).
-        const s = axis === A.DiagonalNW ? 1 : -1;
-        const up = this.run(X - s, Y - 1);
-        const down = this.run(X + s, Y + 1);
-        if (up[0] !== a - s || up[1] !== b - s || down[0] !== a + s || down[1] !== b + s) continue;
         const along = mod(axis === A.DiagonalNW ? X + Y : X - Y, 64);
-        if (along < 14) out.px[py * 16 + px] = (along <= 1 || along >= 12 ? L.m : L.M) as number;
+        if (along >= 14) continue;
+        // A whole dash or none: the carriageway runs on at 45° over every row the dash covers, one row beyond
+        // each end (not at the street's ends, at junctions or bridges).
+        const s = axis === A.DiagonalNW ? 1 : -1;
+        let whole = true;
+        // Along a "\\" street the dash's coordinate grows downwards, along a "/" street upwards (7 rows a dash).
+        const before = (axis === A.DiagonalNW ? along : 13 - along) >> 1;
+        for (let dy = -before - 1; dy <= 7 - before && whole; dy++) {
+          if (dy === 0) continue;
+          const r = this.run(X + s * dy, Y + dy);
+          const cx = Math.floor((X + s * dy) / 16);
+          const cy = Math.floor((Y + dy) / 16);
+          whole = r[0] === a + s * dy && r[1] === b + s * dy && this.aa(cx, cy) === axis && this.tt(cx, cy) === this.r.road;
+          // Clear of a zebra's approach, all of it.
+          const zj = cx >= 0 && cy >= 0 && cx < this.W && cy < this.H ? (this.zebraAt[cy * this.W + cx] as number) : -1;
+          const zz = zj >= 0 ? this.zebras[zj] : undefined;
+          if (whole && zz) whole = Math.abs((zz.axis === A.DiagonalNW ? X + s * dy + Y + dy : X + s * dy - Y - dy) - zz.along) > 24;
+        }
+        if (whole) out.px[py * 16 + px] = (along <= 1 || along >= 12 ? L.m : L.M) as number;
       }
     }
   }
