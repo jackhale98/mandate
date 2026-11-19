@@ -1951,7 +1951,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Status:** Accepted (owner, 2026-11-19). The owner asked how robust sentence generation is, and whether NPCs just stand near the player while information updates, or whether the player actually talks to them. Owner: "Yes, record DEC-093 and add it to the brief."
 - **Context:** lines are hand-written Fluent templates with slots, chosen by the engine (DEC-054). They are grammatical, grounded, deterministic and translatable, but variety is limited by how many lines exist. Today talking means three things, and none of them lets the player choose what to say:
   - passive overheard chatter at places;
-  - "Say hello" (`Meet`: uses a slot, builds the relationship, no dialogue);
+  - "Say hello" (`Meet`: free, builds the relationship, no dialogue);
   - scripted two- or three-beat scenes for pending decisions (DEC-035).
 - **Decision:**
   - **Topics, not dialogue trees.** Talking to someone (walking up to them, DEC-088, or choosing them in the List view) offers topics:
