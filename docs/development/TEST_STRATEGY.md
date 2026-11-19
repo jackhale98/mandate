@@ -1,6 +1,6 @@
 # Mandate — Test & Validation Strategy (D14)
 
-**Status:** Proposed. Decisions DEC-056 to DEC-060.
+**Status:** Accepted (owner, 2026-11-18). Decisions DEC-056 to DEC-060. Tables mark what is not built yet.
 **Principle (brief §18.1):** engineering validation checks *the software is correct*. Game validation checks *the game is good*. Both are mandatory and are tracked separately.
 
 ## 1. Engineering validation (DEC-056)
@@ -14,12 +14,12 @@
 | Media and the legal path (DEC-034, DEC-006, DEC-030, DEC-033) | `worldgen/tests/media.rs`, `save/tests/saves.rs` | Grounding audit (`media::audit_story`): 10 careers × 4 years with shady acts and answers, every story traces to a fact (a scandal's hidden fact with its fate and its window, a case's stage, a rumour's leak, a statement, a town event) on the day it runs; perception only through coverage (a planted hidden fact leaves every cohort's view of the player identical to its twin's until the first story runs); the director shifts when, never whether (shaping on and off: equal fates and windows for the same facts, dates inside windows, some dates shifted); NPC corruption through the same exposure, scandal, case stages, sentence, and seat-filling as the player's, and NPCs tempted on their own; each legal stage and outcome (investigation, charges, trial; dropped, acquitted, fined or removed, prison); a long sentence only after the Legal Jeopardy warning and its response window, and adjourned when no warning is possible; a short sentence is a time skip with no decisions, then release and a filing; shady actions pay now and leave a hidden fact; determinism through saves; a v12 save migrates and the press picks up |
 | Determinism | CI suite (DEC-041) | Same seed and command log run twice give equal state hashes; native and WASM give equal hashes; save → load → continue equals an uninterrupted run; lazy-evaluation order independence (Named characters caught up in either order, or in steps, give the same state: `worldgen/tests/characters.rs`) |
 | Replay regression | Recorded `(seed, content hash, command log)` fixtures | Every significant bug gets a replay fixture. Re-recording a fixture requires a stated reason in the PR |
-| Save compatibility | Save fixture corpus | Every released save version loads, migrates, and continues deterministically |
+| Save compatibility | `crates/mandate-save/tests/saves.rs` | Built: each migration step (v9 onwards) has a test with a hand-made older payload, and a shape fingerprint of the state fails the build when the state changes without a format bump. **Not built:** a corpus of real saves; it starts with the M6 testers' saves, after which every released version must load, migrate, and continue deterministically |
 | Content | `mandate-cli content validate` | Schemas, references, duplicate IDs, ranges, constitution playability, REQ-006 fields, localization keys |
 | Protocol contract | Generated TS types plus round-trip tests | Rust ⇄ TS DTO compatibility; protocol version gates |
-| Fuzzing | `cargo-fuzz` (nightly) | JSONC content loader, save decoder, protocol decoder |
-| Performance | Criterion (native); Playwright timing (browser) | Budgets in architecture OVERVIEW §8 |
-| Frontend | Vitest, Testing Library, Playwright (mobile emulation, offline, keyboard-only, `--trace off`) | Flows, accessibility, PWA offline, worker error states |
+| Fuzzing (not built yet) | `cargo-fuzz` (nightly) | JSONC content loader, save decoder, protocol decoder |
+| Performance (not built yet; measured by hand so far) | Criterion (native); Playwright timing (browser) | Budgets in architecture OVERVIEW §8 |
+| Frontend | Vitest, Testing Library, Playwright (mobile emulation, offline, keyboard-only, `--trace off`) | Flows, accessibility, PWA offline, worker error states. Vitest covers the hub (`web/src/hub`: camera, day cycle, pathfinding, town layout, town scene, town map scene, the pixel-art provider and renderers), the engine client, routing, Fluent, persistence, run files, and sheet gestures. `tools/pixelkit` has its own tests (core, pack, boundary, and a golden file) run by `npm run check`. Playwright specs in `web/e2e`: `smoke`, `decisions`, `scandal`, `sheets`, `town-map`, `hub-town`, `hub-pixelkit`, `run-transfer`, `landing`, `sw-migration` |
 
 **Exact-output "golden" tests are limited to determinism.** Balance-sensitive outputs are asserted with **metric bands**, not exact values, so that tuning does not break hundreds of tests.
 
@@ -27,23 +27,28 @@
 
 | Tier | When | Contents |
 |---|---|---|
-| Fast (blocking) | Every PR | fmt, clippy (with determinism lints), unit tests, property tests (low case count), short determinism (native and WASM), content validation, TS typecheck, lint, unit tests, production build, smoke E2E |
-| Nightly | Scheduled | Property tests (high case count), Monte Carlo health sweep (§4), bot-player tournament (§5), fuzzing, benchmarks with trend tracking, full E2E matrix, save corpus |
-| Release | Tag | Nightly suite plus the cross-browser matrix and real-device performance check |
+| Fast (blocking) | Every PR and push to `main` or `claude/**` (`.github/workflows/ci.yml`) | Rust job: fmt, clippy (`-D warnings`), `cargo test --workspace` (unit and property tests at the default case count), content validation, generated schemas and TS protocol types up to date, determinism (twice plus save/load/continue), a quick Monte Carlo sweep (8 seeds, 20 years), the bot gates (16 seeds), native = WASM hash parity. Web job: typecheck, lint, Vitest, the pixel-art tool's `npm run check`, production build, the hub spike build, a site layout and landing-page size check, and the whole Playwright suite (Chromium). A push to `main` then deploys to GitHub Pages |
+| Nightly | Scheduled (`.github/workflows/nightly.yml`) | Monte Carlo sweep, 32 seeds by 30 years, across every canonical world and with no scenario; the bot tournament (32 seeds); `cargo test --workspace --release` with `PROPTEST_CASES=256`. **Not built:** fuzzing, benchmarks with trend tracking, a browser matrix, a save corpus |
+| Release (not built yet) | Tag | Nightly suite plus the cross-browser matrix and real-device performance check |
 
 ## 3. Simulation lab and canonical worlds (DEC-058)
 
 **`mandate-cli` lab commands:**
-- `gen` (seed, size, constitution, overrides)
-- `burnin`
-- `run --turns/--years`
-- `inspect` (entity, place, region, cohort)
-- `apply-policy`
-- `trigger`
-- `trace` (causal chain from the event log)
-- `diff` (two runs)
-- `sweep` (seeds × parameters, parallel across runs); `sweep` and `bots` take `--set <path>=<value>` and `--grid <path>=<v1>,<v2>,…` over one or two content parameters (DEC-078 decision 2; syntax in `EXTENDING.md`)
-- `report` (CSV/JSON, plus an HTML summary)
+Built:
+- `content validate` and `content schema`
+- `gen` (seed, size, scenario; `--png` writes a map, `--json` the full world)
+- `run` (seed, size, `--turns`, `--days`, `--hash-only`, `--save`)
+- `determinism` (twice, and through save/load/continue)
+- `inspect` (a municipality or region)
+- `save-info` (a save file's metadata)
+- `sweep` (seeds × years, parallel across runs, optional `--scenario`; bands and drama floors)
+- `bots` (strategy tournament and gates, per-seed results, `--careers` outcome distributions)
+- `story` (a bot career's chapters, decisions, storylines, and facts log)
+- `trace-econ` (yearly economic diagnostics)
+- `diff` (two runs' health metrics side by side)
+- `sweep` and `bots` take `--set <path>=<value>` and `--grid <path>=<v1>,<v2>,…` over one or two content parameters (DEC-078 decision 2; syntax in `EXTENDING.md`)
+
+Not built yet: `burnin`, `apply-policy`, `trigger`, `trace` (a causal chain from the event log), `report` (CSV and HTML), and `inspect` for entities, places, and cohorts.
 
 **Canonical test worlds.** These are the base pack's scenarios (`content/base/scenarios.jsonc`, DEC-078 decision 4): generator biases, so a new canonical world is content (`sweep --scenario <id>`):
 1. Declining industrial region
@@ -93,13 +98,18 @@ The owner asked whether real-world-aligned ranges would make the game boring. Re
 
 ## 5. Game-quality validation (DEC-060)
 
-**Bot players.** Scripted proxy strategies play full careers using the DEC-030 AI with fixed profiles:
-- passive
-- populist
-- policy wonk
-- coalition-builder
-- corrupt opportunist (implemented, M5d: `corrupt`, mixed play plus every shady option and action; it counts in the no-dominant-strategy gate, and `bots --careers 8` reports its career distribution: elections, scandals, investigations, convictions, prison, careers ended)
-- random
+**Bot players.** Scripted proxy strategies play the first local election across seeds (`bots`) and, with `--careers`, longer careers. The strategies built (`crates/mandate-cli/src/bots.rs`):
+- `idle`: never acts or answers; the baseline
+- `canvass`: campaigns on the ground
+- `media`: campaigns through the press
+- `legislator`: works through bills and policy
+- `mixed`: a blend of the above
+- `proxy`: the NPC AI drives the player (the time-skip proxy)
+- `corrupt`: mixed play plus every shady option and action (M5d); `bots --careers 8` reports its career distribution: elections, scandals, investigations, convictions, prison, careers ended
+
+The earlier plan (passive, populist, policy wonk, coalition-builder, random) was replaced by these.
+
+**Gates** (`bots` exits non-zero if any fails): no dominant strategy (the best active win rate is within 0.3 of the median); effort matters (the best active strategy beats `idle`); `idle` rarely wins (at most 15%).
 
 Measured:
 - win rate and ending distribution per strategy; any strategy that dominates is flagged;

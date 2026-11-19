@@ -1,8 +1,8 @@
 # Research and plan: a pixel-art generator for Mandate
 
-**Purpose:** A decision-ready plan for a tool that produces attractive, consistent, tunable pixel art for Mandate (characters, buildings, tiles, props, icons), robust enough to become its own project. Nothing here is built yet. The owner asked for this plan before any tool is built ("plan that before actually building the tool to ensure it's robust, provides what we need and can actually be designed to output attractive and nice pixel art").
+**Purpose:** A decision-ready plan for a tool that produces attractive, consistent, tunable pixel art for Mandate (characters, buildings, tiles, props, icons), robust enough to become its own project. P0 is built (see P0 results); P1 is part of M6. The owner asked for this plan before any tool is built ("plan that before actually building the tool to ensure it's robust, provides what we need and can actually be designed to output attractive and nice pixel art").
 **Date:** 2026-11-19. One research pass over web sources (listed at the end, cited as [ID]). Most are practitioner guides, modding wikis and developer interviews, not measured studies.
-**Status:** Proposal. Nothing here changes an accepted decision. Section 9 lists what the owner must decide.
+**Status:** Accepted (DEC-084); D16 open; P0 built. Nothing here changes an accepted decision. Section 9 lists what the owner must decide.
 
 ## Executive summary
 
@@ -397,7 +397,7 @@ Data flow for one townsperson at dusk: the engine sends a `LookView` (genome ids
 
 ### 5.1 What the M6 renderer can rely on now
 
-The M6 renderer is being built with code-drawn placeholder art behind a sprite and tile provider. If the placeholder provider follows these points, the real art pack drops in without renderer changes:
+The renderer is built (`web/src/hub/render/`) with code-drawn placeholder art behind a sprite and tile provider, and `pixelkitArt.ts` implements `ArtProvider` for the pixelkit pack. These are the points the provider follows, so that the real art pack drops in without renderer changes:
 
 1. The provider has the shape of `ArtProvider` (§3.5); the placeholder implements the same calls.
 2. Character frames are 16×24 with the anchor at the feet (bottom centre); facings are down, up and side, with the side mirrored.
