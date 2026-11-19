@@ -6526,6 +6526,14 @@
           "description": "Annual productivity growth (fraction).",
           "format": "double",
           "type": "number"
+        },
+        "talk_key": {
+          "default": null,
+          "description": "Fluent key of the sector as residents name it in talk (a noun phrase\nsuch as \"the factories\"); the name is used without one.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [

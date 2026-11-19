@@ -502,7 +502,10 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         if let Some(c) = &o.concern
             && !b.concerns.iter().any(|x| &x.id == c)
         {
-            issues.push(Issue::error(&o.id, &format!("unknown concern `{c}`")));
+            issues.push(Issue::warning(
+                &o.id,
+                &format!("unknown concern `{c}` (the line is never heard)"),
+            ));
         }
         for w in &o.when {
             check_heard(b, &o.id, w, &mut issues);
@@ -593,13 +596,10 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         referenced.push((owner, key));
     }
     // Residents name a town's industry in overheard talk (`talk-<name key>`).
-    let talk: Vec<(&str, String)> = b
-        .sectors
-        .iter()
-        .map(|s| (s.id.as_str(), format!("talk-{}", s.name_key)))
-        .collect();
-    for (owner, key) in &talk {
-        referenced.push((owner, key));
+    for s in &b.sectors {
+        if let Some(k) = &s.talk_key {
+            referenced.push((&s.id, k));
+        }
     }
     for (owner, key) in referenced {
         if !en.contains(key) {
@@ -1619,10 +1619,14 @@ pub fn check_situation(
         use crate::types::SituationCondition as U;
         match c {
             U::Crisis { kind, min_severity } => {
+                // A pack may remove a crisis kind: the condition then never
+                // holds (a warning, as for dilemma triggers).
                 if b.crisis_index(kind).is_none() {
-                    issues.push(Issue::error(
+                    issues.push(Issue::warning(
                         owner,
-                        &format!("situation names unknown crisis `{kind}`"),
+                        &format!(
+                            "situation names unknown crisis `{kind}` (the condition never holds)"
+                        ),
                     ));
                 }
                 if !(0.0..=1.0).contains(min_severity) {
@@ -1664,7 +1668,10 @@ fn check_heard(
     use crate::types::HeardCondition as H;
     match w {
         H::Crisis { kind: Some(k) } if b.crisis_index(k).is_none() => {
-            issues.push(Issue::error(id, &format!("unknown crisis `{k}`")));
+            issues.push(Issue::warning(
+                id,
+                &format!("unknown crisis `{k}` (the line is never heard)"),
+            ));
         }
         H::PlantClosure { within_months } | H::Disaster { within_months }
             if !(1..=120).contains(within_months) =>

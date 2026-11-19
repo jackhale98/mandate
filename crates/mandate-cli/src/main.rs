@@ -610,6 +610,9 @@ fn run(cli: Cli) -> Result<(), String> {
                         "no_dominant_strategy": r["no_dominant_strategy"],
                         "effort_matters": r["effort_matters"],
                         "idle_rarely_wins": r["idle_rarely_wins"],
+                        "variety_ok": r["variety_ok"],
+                        "distinct_best": r["variety"]["distinct_best"],
+                        "top_best_share": r["variety"]["top_best_share"],
                     });
                     eprintln!("{}", serde_json::to_string(&row).unwrap_or_default());
                     rows.push(row);
@@ -650,13 +653,14 @@ fn run(cli: Cli) -> Result<(), String> {
             let report = bots::run(&content, seeds);
             let ok = report["no_dominant_strategy"].as_bool().unwrap_or(false)
                 && report["effort_matters"].as_bool().unwrap_or(false)
-                && report["idle_rarely_wins"].as_bool().unwrap_or(false);
+                && report["idle_rarely_wins"].as_bool().unwrap_or(false)
+                && report["variety_ok"].as_bool().unwrap_or(false);
             out(report);
             if ok {
                 Ok(())
             } else {
                 Err(
-                    "a dominant strategy exists, effort does not matter, or idling wins too often"
+                    "a dominant strategy exists, effort does not matter, idling wins too often, or one routine is best everywhere"
                         .into(),
                 )
             }

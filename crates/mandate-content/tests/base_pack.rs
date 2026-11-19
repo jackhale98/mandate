@@ -238,9 +238,10 @@ fn situational_policies_answer_the_base_crises() {
     }
 }
 
-/// A situation trigger naming an unknown crisis is refused.
+/// A situation trigger naming an unknown crisis is reported (it never
+/// holds; a pack may remove a crisis kind, as for dilemma triggers).
 #[test]
-fn an_unlock_with_an_unknown_crisis_is_an_error() {
+fn an_unlock_with_an_unknown_crisis_is_reported() {
     let mut src = base_sources();
     let f = src
         .iter_mut()
@@ -251,10 +252,12 @@ fn an_unlock_with_an_unknown_crisis_is_an_error() {
         "\"kind\": \"crisis.nope\"",
         1,
     );
-    let e = load(&src).err().unwrap();
+    let (_, warnings) = load(&src).unwrap();
     assert!(
-        e.iter().any(|i| i.to_string().contains("crisis.nope")),
-        "{e:?}"
+        warnings
+            .iter()
+            .any(|i| i.to_string().contains("crisis.nope")),
+        "{warnings:?}"
     );
 }
 

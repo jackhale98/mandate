@@ -181,8 +181,8 @@ function Overheard({ o }: { o: OverheardView }) {
       <h2>{tr.t("service-overheard")}</h2>
       <p className="muted small">{tr.t("ui-overheard-intro", { hood: o.neighborhood_name })}</p>
       <ul className="plain quotes">
-        {o.keys.map((k) => (
-          <li key={k}>{tr.t(k)}</li>
+        {o.lines.map((l) => (
+          <li key={l.id}>{tr.event(l.key, l.args)}</li>
         ))}
       </ul>
     </section>

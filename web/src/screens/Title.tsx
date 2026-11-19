@@ -18,12 +18,16 @@ export function Title() {
   const [seed, setSeed] = useState("");
   const scenarios = useGame((s) => s.scenarios);
   const [scenario, setScenario] = useState("");
+  const storytellers = useGame((s) => s.storytellers);
+  const [teller, setTeller] = useState<string | null>(null);
+  const chosenTeller = teller ?? storytellers.find((s) => s.default)?.id ?? storytellers[0]?.id ?? null;
+  const tellerDesc = storytellers.find((s) => s.id === chosenTeller)?.desc_key;
   const progress = useGame((s) => s.progress);
   const [notice, setNotice] = useState<TransferNotice | null>(null);
 
   const start = () => {
     const trimmed = seed.trim();
-    void newGame({ size, mode, scenario: scenario === "" ? null : scenario, ...(/^\d+$/.test(trimmed) ? { seed: trimmed } : {}) });
+    void newGame({ size, mode, scenario: scenario === "" ? null : scenario, storyteller: chosenTeller, ...(/^\d+$/.test(trimmed) ? { seed: trimmed } : {}) });
   };
 
   return (
@@ -59,6 +63,20 @@ export function Title() {
           </div>
           <p className="hint">{tr.t(`ui-mode-${mode}-help`)}</p>
         </fieldset>
+        {storytellers.length > 0 && (
+          <fieldset className="field" data-testid="storyteller-picker">
+            <legend>{tr.t("ui-storyteller")}</legend>
+            <div className="segmented" role="radiogroup">
+              {storytellers.map((s) => (
+                <label key={s.id} className={chosenTeller === s.id ? "seg seg-on" : "seg"}>
+                  <input type="radio" name="storyteller" value={s.id} checked={chosenTeller === s.id} onChange={() => setTeller(s.id)} />
+                  {tr.t(s.name_key)}
+                </label>
+              ))}
+            </div>
+            {tellerDesc && <p className="hint">{tr.t(tellerDesc)}</p>}
+          </fieldset>
+        )}
         <label className="field">
           <span>{tr.t("ui-scenario")}</span>
           <select className="input" value={scenario} onChange={(e) => setScenario(e.target.value)}>
@@ -105,6 +123,7 @@ export function Title() {
                     {r.name ? `${r.name} · ` : ""}
                     {tr.t("ui-mode-label", { mode: r.mode })}
                   </strong>
+                  {r.storyteller && <span className="muted small">{tr.t("ui-storyteller-label", { name: tr.t(r.storyteller) })}</span>}
                   <span className="muted">
                     {tr.t("ui-run-turn", { turn: r.meta.turn, date: formatDate(tr, r.meta.date) })}
                   </span>

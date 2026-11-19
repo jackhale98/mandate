@@ -162,7 +162,7 @@ impl Ctx<'_> {
                     return false;
                 };
                 if let Some(s) = self.content.sector(&sector) {
-                    args.insert("industry_key".into(), talk_key(&s.name_key));
+                    args.insert("industry_key".into(), talk_key(s));
                 }
                 args.insert("jobs".into(), jobs.to_string());
                 true
@@ -180,7 +180,7 @@ impl Ctx<'_> {
                 else {
                     return false;
                 };
-                args.insert("industry_key".into(), talk_key(&s.name_key));
+                args.insert("industry_key".into(), talk_key(s));
                 true
             }
             HeardCondition::Broker => {
@@ -440,8 +440,39 @@ pub fn lines(st: &State, content: &ContentBundle, loc: Location) -> Vec<HeardLin
     draw(st, content, loc, week, LINES, &last)
 }
 
-/// The Fluent key of a sector as residents name it (`talk-sector-...`, a
-/// noun phrase such as "the factories").
-pub fn talk_key(sector_name_key: &str) -> String {
-    format!("talk-{sector_name_key}")
+/// The Fluent key of a sector as residents name it (a noun phrase such as
+/// "the factories"), else its name.
+pub fn talk_key(s: &mandate_content::SectorDef) -> String {
+    s.talk_key.clone().unwrap_or_else(|| s.name_key.clone())
+}
+
+/// Every line that holds at a location this week, in registry order
+/// (before the draw): for tests, the lab, and content authors.
+pub fn available(st: &State, content: &ContentBundle, loc: Location) -> Vec<HeardLine> {
+    candidates(st, content, loc)
+        .into_iter()
+        .map(|(_, l)| l)
+        .collect()
+}
+
+/// Does a single condition hold at a location?
+pub fn condition_holds(
+    st: &State,
+    content: &ContentBundle,
+    loc: Location,
+    c: &HeardCondition,
+) -> bool {
+    let Some(h) = hood_of(st, loc) else {
+        return false;
+    };
+    let Some(n) = st.world.neighborhoods.get(h.index()) else {
+        return false;
+    };
+    let ctx = Ctx {
+        st,
+        content,
+        m: n.municipality.0,
+        hood: h.index(),
+    };
+    ctx.holds(c, &mut BTreeMap::new(), &mut None)
 }

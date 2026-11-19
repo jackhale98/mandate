@@ -15,6 +15,8 @@ export interface RunRecord {
   updatedAt: string;
   /** The player's town, for the saved-runs list and export file names. */
   name?: string | undefined;
+  /** Fluent key of the run's storyteller (DEC-033), for the saved-runs list. */
+  storyteller?: string | undefined;
 }
 
 export type RunSummary = Omit<RunRecord, "bytes">;

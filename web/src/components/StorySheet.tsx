@@ -37,7 +37,7 @@ export function StorySheet() {
                 <span className="num">{tension}</span>
               </li>
             </ul>
-            {story.profile_key && <p className="muted small">{tr.t(story.profile_key)}</p>}
+            {story.profile_key && <p className="muted small">{tr.t("ui-storyteller-label", { name: tr.t(story.profile_key) })}</p>}
           </section>
           {story.storylines.length > 0 && (
             <section className="card">

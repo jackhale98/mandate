@@ -770,6 +770,10 @@ pub struct CommunityShare {
 pub struct SectorDef {
     pub id: ContentKey,
     pub name_key: String,
+    /// Fluent key of the sector as residents name it in talk (a noun phrase
+    /// such as "the factories"); the name is used without one.
+    #[serde(default)]
+    pub talk_key: Option<String>,
     pub class: SectorClass,
     /// Which coded behaviour this sector follows.
     pub driver: SectorDriver,
