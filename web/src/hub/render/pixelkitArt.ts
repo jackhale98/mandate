@@ -32,6 +32,7 @@ import {
   type FrameRef,
   type Grade,
   type Layer,
+  type LightShape,
   type LookView,
   type MarkerKind,
   type Opening,
@@ -139,6 +140,8 @@ export class PixelkitArt implements ArtProvider {
   readonly walkFrames: number;
   /** Buildings rise up to 2 rows (32 px) above their roof row where nothing stands behind them (round 2). */
   readonly maxRoofRows = 3;
+  /** Lit shop windows and doors light the pavement in front of them (round 2). */
+  readonly windowLight: LightShape;
   readonly night: NightLook;
   readonly pack: ArtPack;
   private readonly make: CanvasFactory;
@@ -170,6 +173,8 @@ export class PixelkitArt implements ArtProvider {
     this.table = this.baseTable;
     const grass = pack.palette.ramps.find((r) => r.name === "grass");
     this.outside = pack.palette.colors[grass ? (grass.steps[grass.anchorStep] as number) : 1] as string;
+    const spill = pack.spill;
+    this.windowLight = { rx: 2, ry: spill.depth, rz: 0, steps: spill.steps, bands: spill.colours, dither: true };
     this.tilePages = new Pages((w, h) => this.layer(w, h));
     this.glowPages = new Pages((w, h) => this.layer(w, h), 256);
   }
@@ -305,11 +310,18 @@ export class PixelkitArt implements ArtProvider {
       const e = this.layer(p.emissive.w, p.emissive.h);
       this.paint(e, p.emissive, 0, 0, this.baseTable);
       sprite.emissive = { image: e.canvas, x: 0, y: 0, w: p.emissive.w, h: p.emissive.h, ax: p.ax, ay: p.ay };
-      sprite.pool = { frame: this.lightPool(), x: T / 2, y: T - 2 };
+      sprite.pool = { frame: this.lightPool(), x: T / 2, y: T - 2, light: this.lampShape() };
     }
     if (p.shadow) sprite.shadow = p.shadow;
     this.props.set(k, sprite);
     return sprite;
+  }
+
+  /** The lamp's pool as a shape the renderer fits to the town (round 2: clipped to the ground, splashed up walls). */
+  private lampShape(): LightShape {
+    const pool = this.pack.pool;
+    const c = (i: number) => (pool.colours[i] ?? [0, 0, 0, 0]) as readonly [number, number, number, number];
+    return { rx: pool.w / 2, ry: pool.h / 2, rz: pool.rz, steps: pool.steps, bands: [c(4), c(3), c(2), c(1)], dither: true };
   }
 
   private lightPool(): FrameRef {

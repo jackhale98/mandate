@@ -20,7 +20,7 @@ import { PlaceholderArt } from "../../../src/hub/render/placeholderArt";
 import { PixelkitArt, type NightLook } from "../../../src/hub/render/pixelkitArt";
 import pack, { buildMs as packBuildMs, bytes as packBytes } from "virtual:pixelkit-pack";
 import { townInputFromView } from "../../../src/hub/townInput";
-import { buildingOfPlace, layoutTown, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
+import { buildingOfPlace, layoutTown, Terrain, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
 import { Translator } from "../../../src/i18n/fluent";
 import { actionKey, placeIcon } from "../../../src/places/labels";
 
@@ -284,13 +284,14 @@ document.addEventListener("keydown", (e) => {
 
 /**
  * The palette-moods night look (D12) repaints the provider's static art when
- * the moment's mood changes; the renderer then re-bakes its static layers.
+ * the moment's mood changes; the renderer then re-bakes its static layers and
+ * cross-fades from the old ones.
  */
 function syncMood() {
   if (!pixelkit || !view) return;
   if (pixelkit.setClock(clock.minutes)) {
-    view.renderer.dispose();
-    view.renderer.invalidate();
+    // Round 2: cross-fade from the old mood's layers instead of a hard 15-minute step.
+    view.renderer.crossFade(900);
     view.wake();
   }
 }
@@ -431,6 +432,44 @@ window.__hub = {
       best = Math.min(best, performance.now() - t0);
     }
     return best;
+  },
+  /**
+   * Street lamps to look at closely (round 2, `lamp-light.png`): lamps in
+   * front of a wall, at a building's corner, and in the open (a plaza or a
+   * park), two of each, nearest the street preset first. Tiles.
+   */
+  lampSites() {
+    if (!map) return [];
+    const m = map;
+    const s = streetWindow(m);
+    const at = (x: number, y: number) => (x < 0 || y < 0 || x >= m.width || y >= m.height ? -1 : (m.terrain[y * m.width + x] as number));
+    const isB = (x: number, y: number) => at(x, y) === Terrain.Building || at(x, y) === Terrain.Door;
+    const sites: { kind: string; i: number; x: number; y: number; d: number }[] = [];
+    for (const p of m.props) {
+      if (p.kind !== "lamp") continue;
+      let near = false;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (isB(p.x + dx, p.y + dy)) near = true;
+      const kind = isB(p.x, p.y - 1) ? "wall" : isB(p.x - 1, p.y - 1) || isB(p.x + 1, p.y - 1) || isB(p.x - 1, p.y) || isB(p.x + 1, p.y) ? "corner" : near ? "" : "open";
+      if (!kind) continue;
+      const d = Math.abs(p.x - (s.x + s.w / 2)) + Math.abs(p.y - (s.y + s.h / 2));
+      sites.push({ kind, i: 0, x: p.x, y: p.y, d });
+    }
+    const out: { kind: string; i: number; x: number; y: number }[] = [];
+    for (const kind of ["wall", "corner", "open"]) {
+      sites
+        .filter((x) => x.kind === kind)
+        .sort((a, b) => a.d - b.d)
+        .slice(0, 2)
+        .forEach((x, i) => out.push({ kind, i, x: x.x, y: x.y }));
+    }
+    return out;
+  },
+  /** Centre the camera on a tile at a zoom (close-ups). */
+  look(x: number, y: number, zoom: number) {
+    if (!view) return;
+    view.camera.state.zoom = zoom;
+    view.centreOn(x + 0.5, y);
+    view.wake();
   },
   setClock(m: number) {
     clock.running = false;

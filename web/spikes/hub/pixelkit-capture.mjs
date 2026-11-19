@@ -61,7 +61,7 @@ if (parts.includes("street")) {
       for (const [name, minutes] of times) {
         await page.evaluate((m) => window.__hub.setClock(m), minutes);
         await page.evaluate(() => window.__hub.showStreet());
-        await page.waitForTimeout(900);
+        await page.waitForTimeout(1400);
         const file = path.join(out, `${device}-${look}-${name}.png`);
         await page.locator("#stage").screenshot({ path: file });
         console.log(file);
@@ -77,7 +77,8 @@ if (parts.includes("lamps")) {
   // Lamps by walls, at corners and in open plazas, at zoom 4 (desktop), dusk and night, in the default look.
   const lampDir = path.join(root, "lamps");
   mkdirSync(lampDir, { recursive: true });
-  const ctx = await browser.newContext({ viewport: { width: 320, height: 240 }, deviceScaleFactor: 1 });
+  // A desktop-sized page (the phone layout folds a list over the town); the sheet crops the middle.
+  const ctx = await browser.newContext({ viewport: { width: 1100, height: 700 }, deviceScaleFactor: 1 });
   const { page, errors } = await open(ctx, "n=0&art=pixelkit&night=moods");
   const picks = await page.evaluate(() => window.__hub.lampSites());
   for (const [name, minutes] of [
@@ -87,7 +88,7 @@ if (parts.includes("lamps")) {
     await page.evaluate((m) => window.__hub.setClock(m), minutes);
     for (const site of picks) {
       await page.evaluate(([x, y]) => window.__hub.look(x, y, 4), [site.x, site.y]);
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(1400);
       const file = path.join(lampDir, `${site.kind}-${site.i}-${name}.png`);
       await page.locator("#stage").screenshot({ path: file });
       console.log(file);

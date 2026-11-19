@@ -424,6 +424,21 @@ export interface Pool {
   bands: Uint8Array;
   /** Per band: colour and alpha (the renderer adds it with 'lighter'). */
   colours: readonly (readonly [number, number, number, number])[];
+  /**
+   * Round 2: the same light as a shape a renderer can fit to the town (clip it
+   * to the ground, splash it up a wall): band edges as squared normalised
+   * distance, brightest band first (band k is `colours[4 - k]`), and how high
+   * up a wall the light reaches (px).
+   */
+  steps: readonly number[];
+  rz: number;
+}
+
+/** Light from a lit shop window or door onto the pavement in front (round 2): depth (px) and stepped bands, brightest first. */
+export interface Spill {
+  depth: number;
+  steps: readonly number[];
+  colours: readonly (readonly [number, number, number, number])[];
 }
 
 /** Build every prop variant (ahead of time). */
@@ -489,5 +504,20 @@ export function lampPool(p: Palette): Pool {
     [rgb[0], rgb[1], rgb[2], 0.25],
     [rgb[0], rgb[1], rgb[2], 0.33],
   ] as const;
-  return { w, h, bands, colours };
+  return { w, h, bands, colours, steps: [0.12, 0.35, 0.65], rz: 30 };
+}
+
+/** The light a lit window casts on the pavement: short, warm, two steps and a dithered edge. */
+export function windowSpill(p: Palette): Spill {
+  const lamp = p.colors[legendFor(p, { l: ["lamp", 1] }).l as number] as string;
+  const rgb = [parseInt(lamp.slice(1, 3), 16), parseInt(lamp.slice(3, 5), 16), parseInt(lamp.slice(5, 7), 16)] as const;
+  return {
+    depth: 10,
+    steps: [0.3, 0.65],
+    colours: [
+      [rgb[0], rgb[1], rgb[2], 0.28],
+      [rgb[0], rgb[1], rgb[2], 0.18],
+      [rgb[0], rgb[1], rgb[2], 0.09],
+    ],
+  };
 }

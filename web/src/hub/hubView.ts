@@ -363,11 +363,11 @@ export class HubView {
     this.clock.advance(dt);
     const playerMoving = this.walking(p);
     const folkMoving = this.scene.folk.length > 0;
-    const busy = playerMoving || eased || this.camera.gesturing || this.clock.running;
+    const busy = playerMoving || eased || this.camera.gesturing || this.clock.running || this.renderer.animating;
     // Ambient-only frames are capped (DEC-080: battery).
     const cap = 1000 / (this.opts.ambientFps ?? 30);
     if (busy || now - this.lastDraw >= cap - 1) this.drawNow(now);
-    if (busy || folkMoving || this.followSettling()) this.raf = requestAnimationFrame((t) => this.frame(t));
+    if (busy || folkMoving || this.renderer.animating || this.followSettling()) this.raf = requestAnimationFrame((t) => this.frame(t));
   }
 
   private followSettling(): boolean {
