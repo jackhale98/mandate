@@ -344,6 +344,16 @@ export function buildingOfPlace(map: TownMap, place: number): TownBuilding | nul
   return e ? (map.buildings[e.building] ?? null) : null;
 }
 
+/**
+ * Whether a player on `cell` is at a location: at a place or home, on its door
+ * cell; on a neighbourhood's streets, anywhere in that neighbourhood (not just
+ * the cell `locationCell` names for it).
+ */
+export function atLocation(map: TownMap, loc: TownLocation, cell: number): boolean {
+  if (loc.type === "street") return map.districts[map.district[cell] ?? -1]?.id === loc.neighborhood;
+  return locationCell(map, loc) === cell;
+}
+
 /** The cell a location stands for: a building's door, the home's door, or a neighbourhood's streets. */
 export function locationCell(map: TownMap, loc: TownLocation): number | null {
   if (loc.type === "place") return buildingOfPlace(map, loc.place)?.front ?? null;

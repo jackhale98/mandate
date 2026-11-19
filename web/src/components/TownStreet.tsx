@@ -16,14 +16,14 @@ import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 import { DayClock } from "../hub/dayCycle";
 import { HubView } from "../hub/hubView";
 import { PixelkitArt } from "../hub/render/pixelkitArt";
-import { locationCell, type TownBuilding, type TownMap } from "../hub/townLayout";
+import { atLocation, locationCell, type TownBuilding, type TownMap } from "../hub/townLayout";
 import { LIGHT_EASE_MS, PASSAGE_EASE_MS, shownMinutes } from "../hub/turnClock";
 import { artPack } from "../hub/townWorkerClient";
 import { Loader } from "./Brand";
 import { placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 import { sameLocation } from "../state/routing";
-import { usePocketCovers } from "./pocketCover";
+import { useSheetsCover } from "./sheetCover";
 
 /** Walk to a place picked on the town map; a new `id` is a new request. */
 export interface WalkRequest {
@@ -59,14 +59,16 @@ const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(pre
 export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const tr = useGame((s) => s.tr);
   const pocket = useGame((s) => s.pocket);
-  const pocketOpen = useGame((s) => s.pocketOpen);
   const busy = useGame((s) => s.busy);
   const visit = useGame((s) => s.visit);
   const command = useGame((s) => s.command);
   const walking = useGame((s) => s.walking);
   const passage = useGame((s) => s.passage?.phase ?? null);
   const inCampaign = useGame((s) => s.pocket?.in_campaign ?? false);
-  const covered = useGame((s) => s.townMapOpen || s.openPlace !== null || s.character !== null || s.decision !== null || s.story !== null);
+  // What may cover the street: the map overlay and election night always do; a sheet does where it is a
+  // phone's bottom sheet over most of it (measured below), not beside the street on a wide screen.
+  const modal = useGame((s) => s.townMapOpen || s.electionNight);
+  const sheets = useGame((s) => [s.pocketOpen && "pocket", s.openPlace !== null && "place", s.character !== null && "character", s.decision !== null && "decision", s.story !== null && "story"].filter(Boolean).join(" "));
   const stageRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HubView | null>(null);
   const artRef = useRef<PixelkitArt | null>(null);
@@ -192,21 +194,24 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
     }
   }, [minutes, easeMs, ready]);
 
-  // Nothing animates behind a sheet or the town map, nor behind the pocket where it covers most of the street (a phone).
-  const pocketCovers = usePocketCovers(stageRef, pocketOpen);
+  // Nothing animates where nobody sees it: behind the map overlay, a modal, or a sheet over most of the
+  // street (a phone). A sheet beside the street (wide screens) leaves it live: zoom and pan keep working.
+  const sheetCovers = useSheetsCover(stageRef, sheets);
+  const covered = modal || sheetCovers;
   useEffect(() => {
-    if (viewRef.current) viewRef.current.paused = covered || pocketCovers;
-  }, [covered, pocketCovers, ready]);
+    if (viewRef.current) viewRef.current.paused = covered;
+  }, [covered, ready]);
 
   // An auto-routed action (the agenda, a panel's button) walks the player here too; the engine does the
   // moving. Behind a sheet the street is paused, so the player is simply there (no walk nobody sees).
+  // Already there (on a neighbourhood's streets: anywhere in it), nobody moves.
   const coveredNow = useRef(covered);
   useEffect(() => {
     coveredNow.current = covered;
   }, [covered]);
   useEffect(() => {
     const v = viewRef.current;
-    if (!walking || !ready || !v) return;
+    if (!walking || !ready || !v || (!v.scene.playerMoving && atLocation(v.map, walking.location, v.scene.playerCell))) return;
     const cell = coveredNow.current ? locationCell(v.map, walking.location) : null;
     if (cell !== null) {
       v.scene.placePlayer(cell);
@@ -224,7 +229,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       if (!v) return;
       const cell = v.scene.playerCell;
       const hood = v.map.districts[v.map.district[cell] ?? -1]?.id ?? null;
-      const at = !v.scene.playerMoving && locationCell(v.map, latest.current.here) === cell;
+      const at = !v.scene.playerMoving && atLocation(v.map, latest.current.here, cell);
       setSpot((s) => (s.hood === hood && s.at === at ? s : { hood, at }));
     };
     read();
@@ -247,12 +252,16 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
     if (sameLocation(walkTo.location, latest.current.here) || reducedMotion() || !v.goToLocation(walkTo.location, true)) arriveAt.current(walkTo.location);
   }, [walkTo, ready]);
 
-  // The engine moved the player some other way (a skipped walk, an action elsewhere): stand there.
+  // The engine moved the player some other way (a skipped walk, an action elsewhere): stand there. On a
+  // neighbourhood's streets, anywhere in it will do: a tap on open ground walks there and then moves the
+  // engine to those streets, and the player stays where they walked to.
   const hereKey = JSON.stringify(here);
   useEffect(() => {
     const v = viewRef.current;
     if (!v || !ready || v.scene.playerMoving) return;
-    const cell = locationCell(v.map, JSON.parse(hereKey) as LocationDto);
+    const loc = JSON.parse(hereKey) as LocationDto;
+    if (atLocation(v.map, loc, v.scene.playerCell)) return;
+    const cell = locationCell(v.map, loc);
     if (cell !== null && cell !== v.scene.playerCell) {
       v.scene.placePlayer(cell);
       v.wake();

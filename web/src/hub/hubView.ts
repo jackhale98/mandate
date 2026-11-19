@@ -389,6 +389,12 @@ export class HubView {
       c.addEventListener(type, f as EventListener, o);
       this.cleanup.push(() => c.removeEventListener(type, f as EventListener, o));
     };
+    // Input that reaches the street means the street is in sight: a pause (set for a sheet thought to
+    // cover it) never swallows it. The owner sets `paused` again when what covers it changes.
+    const seen = () => {
+      if (this.pausedFlag) this.pausedFlag = false;
+    };
+    for (const type of ["pointerdown", "wheel", "keydown"] as const) on(type, seen, { capture: true });
     on("pointerdown", (e) => {
       if (e.button !== 0 && e.pointerType === "mouse") return;
       c.setPointerCapture?.(e.pointerId);
