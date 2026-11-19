@@ -17,6 +17,12 @@ expect_used = "warn"
 dbg_macro = "warn"
 print_stdout = "warn"
 
+# Tests run years of simulation; unoptimised they took about 13 minutes. opt-level 1
+# cuts the slowest suites about 7x and keeps debug assertions and overflow checks
+# (no fast-math in Rust, so results are unchanged; DEC-041). `cargo test` inherits it.
+[profile.dev]
+opt-level = 1
+
 [profile.release]
 opt-level = 3
 lto = true
