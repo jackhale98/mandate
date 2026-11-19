@@ -89,7 +89,8 @@ test("draft, introduce, lobby and resume mid-turn", async ({ page }) => {
   // Introducing is done in the council chamber: one tap walks there and acts.
   await panel.getByTestId("bills").getByRole("button", { name: "Introduce to council" }).click();
   await expect(page.getByTestId("toast")).toHaveText(/Bill introduced/);
-  await expect(page.getByTestId("where")).toContainText("Council chamber");
+  // The street walks the player across; the label at the top names the place on arrival.
+  await expect(page.getByTestId("where-place")).toHaveText("Council chamber", { timeout: 30_000 });
 
   // In the chamber the whip count is exact, member by member.
   const whip = panel.getByTestId("whip");
@@ -102,7 +103,7 @@ test("draft, introduce, lobby and resume mid-turn", async ({ page }) => {
   await page.reload();
   await page.getByRole("button", { name: "Continue" }).first().click();
   await expect(page.getByTestId("hud-slots")).toHaveAttribute("aria-label", "1 slot left this turn");
-  await expect(page.getByTestId("where")).toContainText("Council chamber");
+  await expect(page.getByTestId("where-place")).toHaveText("Council chamber");
   expect(await stateHash(page)).toBe(hash);
 });
 
@@ -140,9 +141,12 @@ test("a full local election", async ({ page }) => {
   const agenda = (await openPocket(page)).getByTestId("agenda");
   await agenda.getByText("Canvass a neighbourhood", { exact: true }).click();
   await expect(agenda.getByTestId("route")).toContainText("Streets of");
+  const route = (await agenda.getByTestId("route").textContent()) ?? "";
   await agenda.getByRole("button", { name: "Go" }).click();
   await expect(page.getByTestId("toast")).toHaveText(/knocked on doors/);
-  await expect(page.getByTestId("where")).toContainText("Streets of");
+  // On the streets the label names the neighbourhood alone (no place).
+  await expect(page.getByTestId("where-place")).toHaveCount(0, { timeout: 30_000 });
+  await expect.poll(async () => route.includes(((await page.getByTestId("where-zone").textContent()) ?? "-").trim()), { timeout: 30_000 }).toBe(true);
   for (let i = 0; i < 12 && (await page.getByTestId("election-night").count()) === 0; i++) {
     await endTurn.click();
     await expect(endTurn).toBeEnabled();

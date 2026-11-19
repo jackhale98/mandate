@@ -51,6 +51,39 @@ test("landmarks, the bar, and the skip link to Places", async ({ page }) => {
   await expect(page.getByTestId("where")).toContainText(name);
 });
 
+test("where you are: a label at the top of the street names the neighbourhood and the place", async ({ page }) => {
+  await start(page, "4242");
+  const where = page.getByTestId("where");
+  const zone = page.getByTestId("where-zone");
+  // Not in the bar any more: at the top of the street, never taking taps.
+  await expect(page.getByTestId("gamebar").getByTestId("where")).toHaveCount(0);
+  await expect(page.getByTestId("town").getByTestId("where")).toBeVisible();
+  await expect(where).toHaveCSS("pointer-events", "none");
+  const box = await where.boundingBox();
+  const town = await page.getByTestId("town").boundingBox();
+  expect((box?.y ?? 99) - (town?.y ?? 0)).toBeLessThan(40);
+  // A new run starts at home, in the home neighbourhood.
+  await expect(page.getByTestId("where-place")).toHaveText("Home");
+  const pocket = await openPocket(page, "places");
+  const home = ((await pocket.locator(".hood", { has: page.getByTestId("you-are-here") }).locator("h3").textContent()) ?? "").trim();
+  await expect(zone).toHaveText(home);
+  await expect(page.getByTestId("where-announce")).toContainText(home);
+
+  // Go to a place in another neighbourhood: the zone and the place change, and the new zone is announced.
+  const places = ".spot:not([data-testid='spot-streets'])";
+  const other = pocket.locator(".hood").filter({ hasNot: page.getByTestId("you-are-here") }).filter({ has: page.locator(places) }).first();
+  const hood = ((await other.locator("h3").textContent()) ?? "").trim();
+  expect(hood).not.toBe(home);
+  const spot = other.locator(places).first();
+  const place = ((await spot.locator(".spot-name").textContent()) ?? "").trim();
+  await spot.click();
+  await expect(page.getByTestId("place-panel").locator("#place-title")).toContainText(place);
+  await expect(zone).toHaveText(hood);
+  await expect(page.getByTestId("where-place")).toHaveText(place);
+  await expect(page.getByTestId("where-announce")).toContainText(hood);
+  await expect(page.getByTestId("where-announce")).not.toContainText(place);
+});
+
 test("the pocket's tabs: a tab list with arrow keys, panels, and badges that count", async ({ page }) => {
   await start(page, "4242");
   const pocket = await openPocket(page, "today");

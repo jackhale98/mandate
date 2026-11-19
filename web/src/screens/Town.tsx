@@ -6,6 +6,8 @@
 // and the place list in its Places tab: the text path to every place, so
 // nothing is reachable only through the canvas (DEC-051). Both pictures come
 // from one layout v2 plan made in the town worker (../components/useTownLayout).
+// Where the player is (neighbourhood and place) is a label at the top of the
+// street (../components/TownStreet), not in the bar.
 import { lazy, Suspense, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
@@ -81,7 +83,6 @@ function TownScreen({ town }: { town: TownPlacesView }) {
   const layout = useTownLayout(town);
   const mapOpen = useGame((s) => s.townMapOpen);
   const setMapOpen = useGame((s) => s.setTownMapOpen);
-  const inCampaign = useGame((s) => s.pocket?.in_campaign ?? false);
   const [walk, setWalk] = useState<WalkRequest | null>(null);
   return (
     <>
@@ -100,11 +101,7 @@ function TownScreen({ town }: { town: TownPlacesView }) {
             {layout.message}
           </p>
         )}
-        {inCampaign && (
-          <div className="town-chips">
-            <span className="chip chip-warn">{tr.t("ui-campaign-season")}</span>
-          </div>
-        )}
+
       </main>
       {mapOpen && (
         <TownMapOverlay

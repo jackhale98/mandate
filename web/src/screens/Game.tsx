@@ -15,7 +15,6 @@ import { PlacePanel } from "./PlacePanel";
 import { CharacterSheet } from "../components/CharacterSheet";
 import { DecisionSheet } from "../components/DecisionSheet";
 import { StorySheet } from "../components/StorySheet";
-import { placeIcon, placeName } from "../places/labels";
 import { Loader } from "../components/Brand";
 import { RunBanner } from "../components/Newspaper";
 import { say } from "../components/townMapText";
@@ -260,11 +259,6 @@ export function Game() {
                   {"●".repeat(pocket.slots_left)}
                   {"○".repeat(Math.max(0, pocket.slots_total - pocket.slots_left))}
                   {pocket.late_night_available ? " ☾" : ""}
-                </span>
-                {" · "}
-                <span className="where" data-testid="where">
-                  <span aria-hidden="true">{placeIcon(pocket.location.kind_key)} </span>
-                  {placeName(tr, pocket.location)}
                 </span>
               </>
             )}

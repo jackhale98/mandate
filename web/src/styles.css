@@ -601,8 +601,21 @@ h2 { font-size: 1.1rem; }
 .town-street, .town-street-frame { position: absolute; inset: 0; overflow: hidden; }
 .town-street-stage { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .town-street-loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface); }
-.town-chips { position: absolute; left: 10px; top: calc(10px + env(safe-area-inset-top)); z-index: 2; display: flex; gap: 6px; pointer-events: none; }
-.town-chips .chip { background: var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+/* The top of the street: where you are (neighbourhood · place), the campaign chip and
+   messages. A translucent dark pill, readable by day and night; it never takes taps. */
+.town-top {
+  position: absolute; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top)); z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none;
+}
+.town-where {
+  margin: 0; max-width: min(100%, 560px); padding: 5px 14px; border-radius: 16px; text-align: center; line-height: 1.3;
+  background: rgba(17, 19, 26, 0.62); color: #f5f2ea; font-size: 0.9rem; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); overflow-wrap: anywhere;
+}
+.town-where-zone { font-weight: 700; letter-spacing: 0.02em; }
+.town-where-place { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.town-top-chip { background: var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+.town-top .town-street-status { position: static; transform: none; pointer-events: none; }
 /* The town map overlay: a full-screen dialog over the street and the bar. */
 .town-map-overlay { position: fixed; inset: 0; z-index: 8; display: flex; flex-direction: column; background: var(--bg); animation: fade-in 160ms ease-out; }
 .town-map-overlay-head {

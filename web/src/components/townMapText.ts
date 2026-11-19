@@ -31,6 +31,7 @@ const FALLBACK: Record<string, string> = {
   "ui-passage-working": "The days pass…",
   "ui-passage-skip": "Tap to carry on",
   "ui-skip-places": "Skip to Places",
+  "ui-town-where-zone": "You are in { $zone }",
   "ui-game-bar": "Game",
   "ui-pocket-tabs": "Pocket sections",
   "ui-pocket-tab-today": "Today",

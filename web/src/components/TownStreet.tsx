@@ -20,6 +20,7 @@ import { locationCell, type TownBuilding, type TownMap } from "../hub/townLayout
 import { LIGHT_EASE_MS, PASSAGE_EASE_MS, shownMinutes } from "../hub/turnClock";
 import { artPack } from "../hub/townWorkerClient";
 import { Loader } from "./Brand";
+import { placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 import { sameLocation } from "../state/routing";
 import { say } from "./townMapText";
@@ -63,6 +64,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const command = useGame((s) => s.command);
   const walking = useGame((s) => s.walking);
   const passage = useGame((s) => s.passage?.phase ?? null);
+  const inCampaign = useGame((s) => s.pocket?.in_campaign ?? false);
   const covered = useGame((s) => s.townMapOpen || s.openPlace !== null || s.character !== null || s.decision !== null || s.story !== null);
   const stageRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HubView | null>(null);
@@ -188,6 +190,29 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
     if (walking && ready) viewRef.current?.goToLocation(walking.location, false);
   }, [walking, ready]);
 
+  // Where the player stands, for the location label: the neighbourhood under them (from the dressed
+  // map's districts) and whether they stand at the engine's location (not walking, at its door).
+  const [spot, setSpot] = useState<{ hood: number | null; at: boolean }>({ hood: null, at: true });
+  useEffect(() => {
+    if (!ready) return;
+    const read = () => {
+      const v = viewRef.current;
+      if (!v) return;
+      const cell = v.scene.playerCell;
+      const hood = v.map.districts[v.map.district[cell] ?? -1]?.id ?? null;
+      const at = !v.scene.playerMoving && locationCell(v.map, latest.current.here) === cell;
+      setSpot((s) => (s.hood === hood && s.at === at ? s : { hood, at }));
+    };
+    read();
+    const id = window.setInterval(read, 250);
+    return () => window.clearInterval(id);
+  }, [ready]);
+  const engineAt = pocket?.location ?? null;
+  const hoodName = (id: number | null) => town.neighborhoods.find((h) => h.id === id)?.name ?? null;
+  // Standing at the engine's location: its neighbourhood (a door on a border belongs to its place's); walking: the ground underfoot.
+  const zone = (ready && !spot.at ? hoodName(spot.hood) : null) ?? (engineAt?.neighborhood_name || null) ?? hoodName(spot.hood) ?? town.municipality;
+  const place = engineAt && engineAt.location.type !== "street" && (!ready || spot.at) ? placeName(tr, engineAt) : null;
+
   // A place picked on the town map: walk there (at once with reduced motion), then arrive as on a tap.
   // Each request is walked once (the view is remade when the town is redressed).
   const walked = useRef(0);
@@ -220,9 +245,30 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
           </div>
         )}
       </div>
-      <p className="town-street-status small" role="status" data-testid="town-street-status">
-        {status}
-      </p>
+      <div className="town-top">
+        {/* Where you are: the neighbourhood, and the place once you stand at it (never blocks taps). */}
+        <p className="town-where" data-testid="where">
+          <strong className="town-where-zone" data-testid="where-zone">
+            {zone}
+          </strong>
+          {place && (
+            <>
+              <span aria-hidden="true"> · </span>
+              <span className="town-where-place" data-testid="where-place">
+                {place}
+              </span>
+            </>
+          )}
+        </p>
+        {inCampaign && <span className="chip chip-warn town-top-chip">{tr.t("ui-campaign-season")}</span>}
+        <p className="town-street-status small" role="status" data-testid="town-street-status">
+          {status}
+        </p>
+      </div>
+      {/* Announced only when the neighbourhood changes, not at every step. */}
+      <span className="visually-hidden" aria-live="polite" data-testid="where-announce">
+        {say(tr, "ui-town-where-zone", { zone })}
+      </span>
       <p id="town-street-help" className="visually-hidden">
         {say(tr, "ui-town-street-help")}
       </p>
