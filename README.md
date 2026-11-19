@@ -1,30 +1,73 @@
 # Mandate
 
-A political career roguelike set in a procedurally generated fictional country. Start in local politics, climb toward head of government, and try to win the Mandate Test: the first national verdict on your rule.
+Mandate is a political career roguelike set in a procedurally generated fictional country. You start as a ward councillor in a generated town and try to climb toward head of government; the run's summit is the Mandate Test, the first national verdict on your rule. The country is a deterministic simulation (population, economy, environment, parties, elections, characters, and a narrative director) written in Rust, compiled to WebAssembly, and run in a Web Worker behind a React and TypeScript web app. It works offline and has no backend.
 
-**Status:** Design complete. The final system plan is awaiting approval; there is no code yet.
+**Status:** in development. Act 1 (local politics) is playable in the browser: generated worlds, a town you move around, council votes, budgets, elections, characters with memories, and dilemmas from a narrative director. Milestone status is in [`docs/development/PROGRESS.md`](docs/development/PROGRESS.md); the plan is in [`docs/development/ROADMAP.md`](docs/development/ROADMAP.md).
 
-- **Start here:** [`docs/design/SYSTEM_PLAN.md`](docs/design/SYSTEM_PLAN.md)
-- Agent rules: [`AGENTS.md`](AGENTS.md)
+## Live site
 
-- Discovery synthesis and roadmap: [`docs/design/DISCOVERY.md`](docs/design/DISCOVERY.md)
-- Decisions: [`docs/design/DECISIONS.md`](docs/design/DECISIONS.md)
-- Requirements: [`docs/design/REQUIREMENTS.md`](docs/design/REQUIREMENTS.md)
-- Progress: [`docs/development/PROGRESS.md`](docs/development/PROGRESS.md)
+Pushes to `main` deploy to GitHub Pages:
 
-## Development
+- Landing page: <https://jackhale98.github.io/mandate/>
+- The game: <https://jackhale98.github.io/mandate/play/>
+- Walkable town prototype (M6 groundwork, unlinked): <https://jackhale98.github.io/mandate/spike-hub/>
 
-Prerequisites: Rust (the toolchain is pinned by `rust-toolchain.toml`), Node 22, and `wasm-bindgen-cli` 0.2.130 (`cargo install wasm-bindgen-cli --version 0.2.130`).
+## Repository layout
+
+| Path | What it holds |
+|---|---|
+| `crates/` | The Rust workspace: `mandate-core` (IDs, calendar, money, deterministic math, RNG), `mandate-content` (JSONC loading, schemas, validation), `mandate-sim` (state, domain systems, scheduler, commands), `mandate-worldgen` (world generation and history burn-in), `mandate-save` (versioned saves and migrations), `mandate-protocol` (worker DTOs, TypeScript generation), `mandate-wasm` (the browser adapter), `mandate-cli` (the simulation lab) |
+| `content/base/` | The base content pack (JSONC registries and parameter blocks, Fluent text in `locale/en/`); `content/schemas/` holds the generated JSON Schema |
+| `web/src/` | The game: screens, sheets, the pocket, the engine worker and typed client, saves (IndexedDB), Fluent text, the map, and `hub/` (the walkable-town groundwork for M6) |
+| `web/landing/` | The landing page at the site root (plain HTML, CSS, a little TypeScript) and the scripts that capture its images from the game |
+| `web/spikes/hub/` | Throwaway rendering prototypes: the walkable town on the real engine, and the Canvas 2D vs PixiJS comparison |
+| `web/e2e/` | Playwright tests |
+| `tools/pixelkit/` | The pixel-art tool (working name, DEC-084): hand-drawn parts composed by code, and Mandate's art pack |
+| `scripts/` | `build-wasm.sh` (engine → `web/src/engine/pkg/`) and `wasm-parity.mjs` (native = WASM state hash) |
+| `docs/` | Design, architecture, and development docs (below) |
+
+## Build, run, and test
+
+Prerequisites: Rust (the toolchain is pinned by `rust-toolchain.toml`, with the `wasm32-unknown-unknown` target), Node 22, and `wasm-bindgen-cli` 0.2.130 (`cargo install wasm-bindgen-cli --version 0.2.130`).
 
 ```bash
-./scripts/build-wasm.sh                 # engine → web/src/engine/pkg
-cd web && npm ci && npm run dev         # http://localhost:5173/mandate/play/ (the game); landing page: npm run build && npm run preview
-cargo test --workspace                  # engine tests
-cargo run -p mandate-cli -- --help      # simulation lab
-cd web && npm test && npx playwright test --trace off
+# Engine
+cargo fmt --check && cargo clippy --workspace -- -D warnings && cargo test --workspace
+cargo run -p mandate-cli -- content validate   # check the content pack
+cargo run -p mandate-cli -- --help             # the simulation lab (sweeps, bots, story, gen, inspect, ...)
+./scripts/build-wasm.sh                        # build the engine for the web app
+
+# Web app (after build-wasm.sh)
+cd web && npm ci
+npm run dev                                    # the game at http://localhost:5173/mandate/play/
+npm run typecheck && npm run lint && npm test
+npm run build && npm run preview               # the whole site: landing page at /mandate/, game at /mandate/play/
+npx playwright test --trace off                # end-to-end tests (serves the built site on port 4173)
+
+# Walkable town prototype (from web/, after npm run build)
+npx vite build --config spikes/hub/vite.config.ts --outDir ../../dist/spike-hub --emptyOutDir
+npx vite --config spikes/hub/vite.config.ts    # or run it on its own, on port 5199
+
+# Pixel-art tool
+cd tools/pixelkit && npm run check             # typecheck and tests (uses web/'s TypeScript, so run npm ci in web/ first)
 ```
 
-CI builds the WASM once and caches it by a hash of its inputs (DEC-066). Pushes to `main` deploy to GitHub Pages (DEC-064). To serve from a root domain instead (e.g. Cloudflare), build with `MANDATE_BASE=/`.
+To serve from a root domain instead of `/mandate/` (for example on Cloudflare), build with `MANDATE_BASE=/`; set `MANDATE_ORIGIN` for the landing page's absolute share links.
 
-## Assets
-The placeholder icon is temporary; the owner's logo and loading animation will replace it. Kenney CC0 art arrives with the hub renderer (DEC-065); see `ASSETS.md` when added.
+## CI
+
+GitHub Actions (`.github/workflows/`):
+
+- **CI** on pushes to `main` and `claude/**` branches and on pull requests: one job builds the engine to WASM and caches it by a hash of its inputs (DEC-066). The Rust job runs fmt, clippy, tests, content validation, a check that generated schemas and TypeScript types are current, the determinism check, a quick Monte Carlo sweep, the bot tournament, and native = WASM parity. The web job runs typecheck, lint, unit tests, the pixel-art tool's checks, the site build (with a landing-page size budget), the town prototype build, and Playwright on desktop and phone. Pushes to `main` then deploy `web/dist` to GitHub Pages (DEC-064).
+- **Nightly:** sweeps across every scenario, a larger bot tournament, and property tests with more cases.
+
+## Documentation
+
+- Start here: [`docs/design/SYSTEM_PLAN.md`](docs/design/SYSTEM_PLAN.md) (the approved plan) and [`AGENTS.md`](AGENTS.md) (rules for agents).
+- Decisions: [`docs/design/DECISIONS.md`](docs/design/DECISIONS.md). Requirements: [`docs/design/REQUIREMENTS.md`](docs/design/REQUIREMENTS.md). Vision and UI: [`docs/design/GAME_VISION.md`](docs/design/GAME_VISION.md), [`docs/design/UI.md`](docs/design/UI.md). Research: `docs/design/research/`.
+- Architecture: [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) and [`docs/architecture/DATA_MODEL.md`](docs/architecture/DATA_MODEL.md).
+- Development: [`ROADMAP`](docs/development/ROADMAP.md), [`PROGRESS`](docs/development/PROGRESS.md), [`WORKFLOW`](docs/development/WORKFLOW.md), [`TEST_STRATEGY`](docs/development/TEST_STRATEGY.md), [`EXTENDING`](docs/development/EXTENDING.md) (adding content and code extension points), [`BALANCE_LOG`](docs/development/BALANCE_LOG.md).
+
+## Art
+
+The app icon and loader are Mandate's own (DEC-081). The walkable town uses placeholder art drawn in code until the pixel-art tool's pack replaces it (DEC-084).
