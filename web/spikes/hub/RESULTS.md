@@ -196,12 +196,17 @@ JavaScript only (rasterization is not counted, as in the tables above).
 
 | Device | Seed | Town (tiles) | Layout ms | Capital layout ms | First frame ms | Ready ms | FPS median | FPS p5 | Draw p50 ms | Draw p95 ms | Base/shadow bakes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| phone (Pixel 7, CSS px) | 4242 | Larkobridge 122×64 | 63.0 | 76.6 | 146.5 | 1920 | 60 | 30 | 0.40 | 1.60 | 4/10 |
-| phone (Pixel 7, CSS px) | 2026 | Strathowick 111×61 | 56.4 | 46.9 | 117.9 | 1985 | 60 | 60 | 0.60 | 2.00 | 5/5 |
-| desktop 1280×720 | 4242 | Larkobridge 122×64 | 16.0 | 22.5 | 38.3 | 1739 | 60 | 60 | 0.10 | 0.30 | 6/10 |
-| desktop 1280×720 | 2026 | Strathowick 111×61 | 13.5 | 25.0 | 34.1 | 1761 | 60 | 60 | 0.20 | 0.40 | 5/5 |
+| phone (Pixel 7, CSS px) | 4242 | Larkobridge 122×64 | 63.6 | 71.0 | 298.0 | 2366 | 60 | 30 | 1.10 | 2.50 | 4/10 |
+| phone (Pixel 7, CSS px) | 2026 | Strathowick 111×61 | 55.7 | 59.3 | 424.4 | 2454 | 60 | 30 | 1.10 | 2.10 | 5/5 |
+| desktop 1280×720 | 4242 | Larkobridge 122×64 | 31.5 | 45.7 | 98.6 | 1995 | 60 | 60 | 0.20 | 0.70 | 6/10 |
+| desktop 1280×720 | 2026 | Strathowick 111×61 | 24.7 | 17.2 | 87.8 | 1837 | 60 | 60 | 0.20 | 0.50 | 5/5 |
 
 Notes:
+- The machine is shared with other jobs: the same layout code measured 13–16 ms on the desktop in an earlier, quieter
+  run (first frame 34–38 ms desktop, 118–147 ms phone), so treat differences under about 2× as load.
+- The first frame includes painting the placeholder art it needs (ground tiles, buildings, characters). The renderer
+  asks the provider for every frame of a chunk before drawing any, so a provider that paints into shared sheets on
+  demand is not copied on write per tile (that alone cost about 1 s on the throttled phone).
 - The first frame bakes only the visible chunks (512×512 art px each; 4–6 here), so it does not grow with the town.
   Memory follows the view: at most 24 chunks are kept (about 25 MB at worst), however large the town.
 - Shadows are re-baked only when the sun moves to the next of 28 buckets, and only for visible chunks; the phone's p5

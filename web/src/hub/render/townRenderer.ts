@@ -289,16 +289,23 @@ export class TownRenderer {
     g.fillRect(x0, y0, CP, CP);
     const tx1 = Math.min(map.width, Math.ceil((x0 + CP) / T));
     const ty1 = Math.min(map.height, Math.ceil((y0 + CP) / T));
+    // Ask for every frame first, then draw: a provider that paints frames
+    // into shared sheets on demand would otherwise have each sheet copied
+    // (copy-on-write) every time it is drawn from between two paints.
+    const tiles: [FrameRef, number, number][] = [];
     for (let y = Math.floor(y0 / T); y < ty1; y++) {
       for (let x = Math.floor(x0 / T); x < tx1; x++) {
         const i = y * map.width + x;
-        this.drawFrame(g, this.art.ground(map.terrain[i] as number, this.ground.mask[i] as number, this.ground.variant[i] as number), x * T, y * T);
+        tiles.push([this.art.ground(map.terrain[i] as number, this.ground.mask[i] as number, this.ground.variant[i] as number), x * T, y * T]);
       }
     }
+    const items: [FrameRef, number, number][] = [];
     for (const s of this.statics) {
       if (s.r <= x0 || s.l >= x0 + CP || s.b <= y0 || s.t >= y0 + CP) continue;
-      this.drawFrame(g, this.frameOf(s), s.x, s.y);
+      items.push([this.frameOf(s), s.x, s.y]);
     }
+    for (const [f, x, y] of tiles) this.drawFrame(g, f, x, y);
+    for (const [f, x, y] of items) this.drawFrame(g, f, x, y);
     g.setTransform(1, 0, 0, 1, 0, 0);
     this.stats.baseBakes++;
     return layer;
