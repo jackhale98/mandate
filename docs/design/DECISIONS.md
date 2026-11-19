@@ -1863,6 +1863,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - The town card moves into the pocket.
   - The pocket gets tabs: **Today** (slots, actions, decisions, alerts, votes), **Town** (the town card, gated by knowledge, DEC-091), **Places** (the place list, every place reachable without walking: the accessible path, DEC-051, and quick mode's home), and **People** (who you have met; it later joins the notebook, K5). Tabs keep their last choice and show badges. On desktop the pocket can stay docked open beside the town.
   - A skip link and landmarks reach Places and the pocket without the canvas.
+  - **Map overlay toggle (owner, 2026-11-19):** the overlay has a "Town | Country" switch. Country shows the national map (layers, your town, municipality panels) in the same overlay, so it is never hunted for. The last choice is remembered. Travel between towns comes with M7.
 ### DEC-089 — Map layers, with some gated by where you are
 
 - **Status:** Accepted (owner, 2026-11-19: "Yes to DEC-089"). The owner's idea: "make that button a dropdown so users can filter by different metrics … resources, population, income, rent, voting statistics etc but maybe have some details gated based off where they are like a polling location or town hall."
