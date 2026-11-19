@@ -512,3 +512,13 @@ h2 { font-size: 1.1rem; }
 .aftermath { border-color: var(--accent); }
 .badge-decisions { background: var(--accent); }
 .storyline + .storyline { margin-top: 8px; }
+
+/* Sheet heads stay flush with the top of the sheet's scroll area, so nothing
+   scrolls into view above them. A sticky box is pinned inside its scroller's
+   padding, so sheets have no top padding (the head carries it), and on wide
+   screens every sheet docks below the HUD instead of behind it. */
+.sheet { padding-top: 0; }
+.sheet > .sheet-head { top: 0; margin-top: 0; }
+@media (min-width: 900px) {
+  .sheet { top: 63px; bottom: 0; max-height: none; padding-top: 0; }
+}
