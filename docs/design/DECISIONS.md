@@ -490,6 +490,11 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Archetypes and quirks become content files (D13).
 - **Dependencies:** DEC-007, DEC-015, D7, D8, D11, D13, D14.
 
+- **Roles come from the constitution (owner, 2026-11-19: "The offices should actually be integrated as part of the constitution as well").** A politician's role is a seat in a constitution body or a constitution office, for a jurisdiction of any tier, or no office. Office and body ids, powers, terms, limits and selection are read from the constitution, and no office or body is named in Rust.
+  - **The gap today:** `politics::Role` is `Councillor | Mayor | Private`, and code matches on those two.
+  - **Fix:** generalise it in M6, while there are only two local offices, so that regional and national offices (M7, M8) and other archetypes are content. Actions are gated by the constitution's `powers`, not by role matches.
+  - **Next:** the shape and the task come from `docs/design/research/EXTENSIBILITY_AUDIT.md`.
+
 ### DEC-018 — Population model & level of detail
 
 - **Status:** Accepted (owner, 2026-11-18).
