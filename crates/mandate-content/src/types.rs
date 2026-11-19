@@ -2332,6 +2332,11 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
                 serde_json::from_str::<ValueFile<crate::media::JusticeParams>>(json)?.value,
             ),
         },
+        "knowledge" => ContentFile::Knowledge {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::knowledge::KnowledgeParams>>(json)?.value,
+            ),
+        },
         other => {
             use serde::de::Error;
             return Err(serde_json::Error::custom(format!(

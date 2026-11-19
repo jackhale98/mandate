@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (13, "ec5105b97d76c075");
+    const EXPECTED: (u16, &str) = (14, "287e706e13da6304");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -1006,4 +1006,81 @@ fn v12_saves_migrate_to_media_and_justice() {
     let (bytes, _) = encode(e2.state(), &req()).unwrap();
     let (back, _) = decode(&bytes).unwrap();
     assert_eq!(back.hash(), e2.state_hash());
+}
+
+/// v14 added the player's knowledge ledger (DEC-091). A v13 save loads with
+/// an unseeded ledger and is seeded generously on load (`Migrated`): the
+/// default profile, the local option, and everyone with a relationship to
+/// the player known; then it plays on and round-trips.
+#[test]
+fn v13_saves_migrate_to_the_knowledge_ledger() {
+    use mandate_sim::player::knowledge::{LedgerOrigin, Level, Source, Subject};
+    let c = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 64,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    for _ in 0..6 {
+        e.apply(Command::EndTurn).unwrap();
+    }
+    let fresh = e.state().player.as_ref().unwrap().knowledge.clone();
+    assert!(matches!(fresh.origin, LedgerOrigin::Profile { .. }));
+    // The v13 shape: no ledger on the player.
+    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
+    v.pointer_mut("/state/player")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .remove("knowledge");
+    let migrated = mandate_save::migrate(13, v).unwrap();
+    let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    assert_eq!(
+        state.player.as_ref().unwrap().knowledge.origin,
+        LedgerOrigin::Unseeded
+    );
+    let me = mandate_sim::characters::player_character(&state).unwrap();
+    let related: Vec<_> = state
+        .politics
+        .characters
+        .edges
+        .keys()
+        .filter(|(h, o)| *o == me.0 && *h != me.0)
+        .map(|(h, _)| mandate_sim::characters::CharacterId(*h))
+        .collect();
+    assert!(!related.is_empty(), "the player has relationships to keep");
+    let mut e2 = mandate_sim::Engine::from_state(state, c).unwrap();
+    let k = &e2.state().player.as_ref().unwrap().knowledge;
+    assert_eq!(k.origin, LedgerOrigin::Migrated);
+    assert!(k.zone.is_some());
+    // Generous: at least what a fresh run of today's start knows, and more.
+    for (s, entry) in &fresh.entries {
+        assert!(k.level(s) >= entry.level, "{s:?} was known before");
+    }
+    assert!(k.entries.len() > fresh.entries.len());
+    for person in related {
+        assert!(k.level(&Subject::Person { person }) >= Level::Known);
+    }
+    let town = e2.state().player.as_ref().unwrap().municipality;
+    assert_eq!(k.level(&Subject::Broker { town }), Level::Known);
+    assert!(
+        k.entries
+            .values()
+            .flat_map(|x| &x.learned)
+            .all(|l| l.source == Source::Migrated)
+    );
+    for _ in 0..10 {
+        e2.apply(Command::EndTurn).unwrap();
+    }
+    let (bytes, _) = encode(e2.state(), &req()).unwrap();
+    let (back, _) = decode(&bytes).unwrap();
+    assert_eq!(back.hash(), e2.state_hash());
+    // A seeded ledger is kept as it is on the next load.
+    let before = back.player.as_ref().unwrap().knowledge.clone();
+    let e3 = mandate_sim::Engine::from_state(back, content()).unwrap();
+    assert_eq!(e3.state().player.as_ref().unwrap().knowledge, before);
 }

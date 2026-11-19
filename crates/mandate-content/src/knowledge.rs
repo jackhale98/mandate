@@ -387,3 +387,124 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         ));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+    use super::*;
+    use crate::bundle::{Source, load};
+
+    fn base() -> Vec<Source> {
+        fn walk(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<Source>) {
+            let mut v: Vec<_> = std::fs::read_dir(dir)
+                .unwrap()
+                .map(|e| e.unwrap().path())
+                .collect();
+            v.sort();
+            for p in v {
+                if p.is_dir() {
+                    walk(root, &p, out);
+                } else if matches!(
+                    p.extension().and_then(|x| x.to_str()),
+                    Some("jsonc" | "ftl")
+                ) {
+                    out.push(Source {
+                        path: p
+                            .strip_prefix(root)
+                            .unwrap()
+                            .to_string_lossy()
+                            .replace('\\', "/"),
+                        text: std::fs::read_to_string(&p).unwrap(),
+                    });
+                }
+            }
+        }
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+        let mut out = Vec::new();
+        walk(&root, &root, &mut out);
+        out
+    }
+
+    fn issues_with(from: &str, to: &str) -> String {
+        let mut s = base();
+        let f = s
+            .iter_mut()
+            .find(|x| x.path == "base/knowledge.jsonc")
+            .unwrap();
+        assert!(f.text.contains(from), "{from}");
+        f.text = f.text.replacen(from, to, 1);
+        let all = match load(&s) {
+            Ok((_, w)) => w,
+            Err(e) => e,
+        };
+        all.iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn the_base_pack_knowledge_loads() {
+        let (b, w) = load(&base()).unwrap();
+        assert!(w.is_empty(), "{w:?}");
+        let k = &b.knowledge;
+        assert_eq!(k.default_start, "start.sitting_councillor");
+        assert!(k.start("start.grew_up_here").is_some());
+        assert!(k.start("start.newcomer").is_some());
+        assert_eq!((k.fresh_days, k.leads_cap), (90, 24));
+        assert_eq!(k.effects.lobby_logit.get(Level::Unknown), -0.5);
+        assert_eq!(k.effects.lobby_logit.get(Level::Detailed), 0.25);
+        assert_eq!(k.effects.canvass.floor, 0.6);
+        assert!(k.visit_intro.contains_key("council_chamber"));
+        assert!(Level::Unknown < Level::Heard && Level::Known < Level::Detailed);
+        assert_eq!(Level::Known.next(), Level::Detailed);
+    }
+
+    #[test]
+    fn validation_holds_the_dec_091_limits() {
+        let first = r#"{ "subject": "town_concerns", "which": "town", "level": "known" },"#;
+        let e = issues_with(
+            first,
+            r#"{ "subject": "broker", "which": "town", "level": "heard" },"#,
+        );
+        assert!(e.contains("a start profile never gives the broker"), "{e}");
+        let e = issues_with(
+            r#"{ "subject": "broker", "which": "town", "level": "known" },"#,
+            r#"{ "subject": "broker", "which": "town", "level": "detailed" },"#,
+        );
+        assert!(e.contains("the local option never gives `detailed`"), "{e}");
+        let e = issues_with(
+            first,
+            r#"{ "subject": "hood_concerns", "which": "everywhere", "level": "known" },"#,
+        );
+        assert!(e.contains("unknown selector"), "{e}");
+        let e = issues_with(
+            first,
+            r#"{ "subject": "people_at", "which": "here", "level": "known" },"#,
+        );
+        assert!(e.contains("`here` is for place introductions only"), "{e}");
+        let e = issues_with(
+            first,
+            r#"{ "subject": "people_at", "which": "union_hall", "level": "unknown" },"#,
+        );
+        assert!(e.contains("a grant gives"), "{e}");
+        assert!(
+            !e.contains("unknown selector"),
+            "a place kind selects people: {e}"
+        );
+        let e = issues_with(r#""council_chamber": ["#, r#""moon_base": ["#);
+        assert!(e.contains("unknown place kind `moon_base`"), "{e}");
+        let e = issues_with(
+            r#""default_start": "start.sitting_councillor""#,
+            r#""default_start": "start.astronaut""#,
+        );
+        assert!(e.contains("default_start `start.astronaut`"), "{e}");
+        let e = issues_with(r#""leads_cap": 24"#, r#""leads_cap": 0"#);
+        assert!(
+            e.contains("knowledge.leads_cap = 0 outside [1, 200]"),
+            "{e}"
+        );
+        let e = issues_with(r#""heard": -0.3"#, r#""heard": 0.9"#);
+        assert!(e.contains("never make lobbying them harder"), "{e}");
+    }
+}

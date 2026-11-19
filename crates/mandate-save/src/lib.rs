@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 13;
+pub const SAVE_FORMAT_VERSION: u16 = 14;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -169,6 +169,8 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         (10, v10_characters),
         (11, v11_narrative),
         (12, v12_media),
+        // The previous format → the next (renumbered at merge, M6 rules).
+        (13, v13_knowledge),
     ];
     let mut value = value;
     let mut v = from;
@@ -321,6 +323,23 @@ fn v12_media(mut value: serde_json::Value) -> Result<serde_json::Value, SaveErro
     st.remove("justice");
     if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
         p.remove("status");
+    }
+    Ok(value)
+}
+
+/// v13 → v14 (DEC-091): the player's knowledge ledger. The step drops any
+/// ledger a newer build might have left, so the serde default (`Unseeded`)
+/// applies, and `player::knowledge::on_load` seeds it generously on load
+/// (`Migrated`: the default profile, the local option, and everyone with a
+/// relationship to the player known). A run in progress loses nothing its
+/// player plainly knew.
+fn v13_knowledge(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let st = value
+        .pointer_mut("/state")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
+        p.remove("knowledge");
     }
     Ok(value)
 }
