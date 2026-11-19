@@ -290,11 +290,15 @@ export function WorldMap({ view, selected, onSelect, label, overlay, home = null
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ moved: boolean; startDist: number; startScale: number }>({ moved: false, startDist: 0, startScale: 1 });
 
-  const clampCam = (c: Camera): Camera => ({
-    scale: Math.min(Math.max(c.scale, fitScale * 0.8), fitScale * 10),
-    x: Math.min(Math.max(c.x, 0), view.width),
-    y: Math.min(Math.max(c.y, 0), view.height),
-  });
+  const clampCam = (c: Camera): Camera => {
+    const scale = Math.min(Math.max(c.scale, fitScale * 0.8), fitScale * 10);
+    const x = Math.min(Math.max(c.x, 0), view.width);
+    const y = Math.min(Math.max(c.y, 0), view.height);
+    // Near the fitted zoom the centre glides to the country's middle, so zooming
+    // all the way out frames the whole country wherever the zoom started.
+    const t = Math.min(1, Math.max(0, (fitScale * 1.3 - scale) / (fitScale * 0.3)));
+    return { scale, x: x + (view.width / 2 - x) * t, y: y + (view.height / 2 - y) * t };
+  };
 
   /** Zoom to an absolute scale, keeping the cell under (sx, sy) fixed. */
   const zoomTo = (target: number, sx: number, sy: number) => {
