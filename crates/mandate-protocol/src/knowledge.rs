@@ -208,6 +208,19 @@ impl<'a> Gate<'a> {
         }
     }
 
+    /// [`Gate::view`] for a person: the player knows themselves in detail.
+    pub fn person_view(&self, id: CharacterId) -> KnowledgeView {
+        if Some(id) == self.me {
+            return KnowledgeView {
+                level: KnowledgeLevelDto::Detailed,
+                as_of: None,
+                stale: false,
+                lead: None,
+            };
+        }
+        self.view(&Subject::Person { person: id })
+    }
+
     fn stale(&self, r: &Reading) -> bool {
         let fresh = self.engine.content().knowledge.fresh_days;
         self.st().calendar.date.0.saturating_sub(r.on.0) > fresh
@@ -767,7 +780,7 @@ fn source_args(gate: &Gate<'_>, src: &Source) -> BTreeMap<String, String> {
             put!("line", line.clone());
         }
         Source::Action { action, place: p } => {
-            put!("action_key", format!("action-{action}"));
+            put!("action_key", format!("action-{}", action.replace('_', "-")));
             if let Some(p) = p {
                 place!(*p);
             }
@@ -816,7 +829,7 @@ fn learned_view(gate: &Gate<'_>, l: &Learned) -> LearnedView {
     LearnedView {
         level: l.level.into(),
         on: DateView::of(l.on),
-        key: format!("learned-{}", l.source.key()),
+        key: format!("learned-{}", l.source.key().replace('_', "-")),
         args: source_args(gate, &l.source),
     }
 }

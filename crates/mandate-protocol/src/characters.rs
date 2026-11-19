@@ -489,7 +489,7 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
         }) && town.is_some_and(|t| t.broker == Some(id)),
         goals,
         favours_with_others,
-        knowledge: gate.view(&Subject::Person { person: id }),
+        knowledge: gate.person_view(id),
     })
 }
 
