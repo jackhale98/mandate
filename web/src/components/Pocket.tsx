@@ -216,6 +216,7 @@ export function Pocket() {
   const setDocked = useGame((s) => s.setPocketDocked);
   const focusTick = useGame((s) => s.pocketFocus);
   const setView = useGame((s) => s.setView);
+  const openMap = useGame((s) => s.openMap);
   const busy = useGame((s) => s.busy);
   const saveAndQuit = useGame((s) => s.saveAndQuit);
   const openStory = useGame((s) => s.openStory);
@@ -268,7 +269,7 @@ export function Pocket() {
             {tab === "today" ? <TodayTab p={p} /> : tab === "town" ? <TownTab /> : tab === "places" ? <PlaceList /> : <PeopleList />}
           </div>
           <nav className="pocket-links" aria-label={tr.t("ui-pocket-links")}>
-            <button type="button" className="btn" onClick={() => setView("map")}>
+            <button type="button" className="btn" onClick={() => openMap("country")} data-testid="pocket-country-map">
               {tr.t("ui-map")}
             </button>
             <button type="button" className="btn" onClick={() => setView("overview")}>

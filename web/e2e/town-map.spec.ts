@@ -205,3 +205,67 @@ test("pinch and wheel zoom about the fingers, and zooming out frames the town", 
   await page.waitForTimeout(500);
   expect(await page.evaluate(() => window.__townMap?.view?.frames ?? 0)).toBe(frames);
 });
+
+test("the map overlay: Town | Country at its top; the country map, its layers and a town's panel; the choice survives a reload", async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors = watchErrors(page);
+  await start(page, "4242");
+  await openMap(page);
+  const scopes = page.getByRole("tablist", { name: "Which map" });
+  const town = scopes.getByRole("tab", { name: "Town" });
+  const country = scopes.getByRole("tab", { name: "Country" });
+  await expect(town).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "map-scope-town");
+
+  // The keyboard reaches the toggle; an arrow switches to the country.
+  await town.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(country).toBeFocused();
+  await expect(country).toHaveAttribute("aria-selected", "true");
+  const canvas = page.getByTestId("town-map-overlay").getByRole("img", { name: /Drag to pan.*You: / });
+  await expect(canvas).toBeVisible();
+  await expect(page.getByTestId("town-map-canvas")).toHaveCount(0);
+  expect((await canvas.boundingBox())?.width ?? 0).toBeGreaterThan(200);
+  // The layer picker works.
+  const layer = page.getByTestId("map-layer");
+  await layer.selectOption("unemployment");
+  await expect(layer).toHaveValue("unemployment");
+  await expect(page.getByTestId("country-map").locator(".legend")).toBeVisible();
+
+  // "You: <town>" selects the player's town and opens its panel, as a tap on it does; Escape closes the panel first, not the map.
+  await page.getByTestId("country-map").getByTestId("map-home").click();
+  const panel = page.getByTestId("town-map-overlay").locator("aside.sheet");
+  await expect(panel.getByRole("heading", { name: "Resources" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByTestId("town-map-overlay")).toBeVisible();
+
+  // Back to the town map.
+  await town.click();
+  await expect(page.getByTestId("town-map-canvas")).toBeVisible();
+  await country.click();
+  await expect(canvas).toBeVisible();
+  // ✕ closes it from the country view, and the keyboard goes back to the bar's Map button.
+  await page.getByTestId("town-map-close").click();
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
+  await expect(page.getByTestId("town-map-button")).toBeFocused();
+
+  // Remembered on this device: after a reload the map opens on the country.
+  await page.reload();
+  await page.getByRole("button", { name: "Continue" }).first().click();
+  await expect(page.locator(".town-street-stage[data-ready='1']")).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("town-map-button").click();
+  await expect(page.getByTestId("map-scope-country")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("country-map")).toBeVisible();
+  // Escape closes it from here too.
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
+  // The pocket's Map opens the overlay on the country as well.
+  await page.getByTestId("town-map-button").click();
+  await page.getByTestId("map-scope-town").click();
+  await page.getByTestId("town-map-close").click();
+  const pocket = await openPocket(page);
+  await pocket.getByTestId("pocket-country-map").click();
+  await expect(page.getByTestId("map-scope-country")).toHaveAttribute("aria-selected", "true");
+  expect(errors).toEqual([]);
+});

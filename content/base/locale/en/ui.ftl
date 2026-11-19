@@ -16,6 +16,12 @@ ui-town-map-waiting = { $what } waiting
 ui-town-map-vote = Vote to cast
 ui-town-map-quiet = { $place }: nothing to do here yet.
 ui-town-planning = Laying out the town…
+# The map overlay's two maps.
+ui-map-scope = Which map
+ui-map-scope-town = Town
+ui-map-scope-country = Country
+ui-map-country-title = The country
+ui-map-country-pick = tap a town to see it
 
 # The street.
 ui-town-street = Street
