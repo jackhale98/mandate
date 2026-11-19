@@ -5,7 +5,7 @@
 ## Now / Next
 
 - **Now:** M5d part 2: situational policies, bill and favour dilemmas, the variety check, choosing a storyteller profile.
-- **Next:** M6, starting with town layout v2 (`docs/design/research/TOWN_GENERATION.md`), then the walkable town with an enterable chamber, town hall, and diner (DEC-088), walking by default with an opt-in quick mode, the pixel-art MVP (DEC-084), and the landing page refresh (DEC-083). Map layers on the town map (DEC-089, proposed) are considered with the walkable town.
+- **Next:** M6, starting with town layout v2 (DEC-090, `docs/design/research/TOWN_GENERATION.md`), then the walkable town with an enterable chamber, town hall, and diner (DEC-088), walking by default with an opt-in quick mode, the pixel-art MVP (DEC-084), and the landing page refresh (DEC-083). Map layers on the town map (DEC-089) are considered with the walkable town.
 - **Waiting on the owner:** rubric scores for the pixel-art P0 spike, which decide whether a pixel artist is commissioned for the M6 part library (DEC-084 D5).
 
 ## 1. MVP = the M6 vertical slice (DEC-062)

@@ -1,6 +1,6 @@
 # Research and design: town layout v2 (towns grown from their geography)
 
-Status: proposal for the owner's review (2026-11-19). Nothing here is built. Sketches: `town-gen-sketches/` (illustrations made by a throwaway script, not the generator).
+Status: accepted (owner, 2026-11-19; DEC-090, all §16 recommendations). Nothing here is built yet; it starts M6. Sketches: `town-gen-sketches/` (illustrations made by a throwaway script, not the generator).
 
 ## Executive summary
 

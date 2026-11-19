@@ -94,6 +94,9 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-085 | Town layout on the client, versioned so a town never rearranges | Accepted |
 | DEC-086 | Town map overview replaces the place list as the main town view | Accepted |
 | DEC-087 | Foreign nations as low-detail simulated neighbours; foreign policy in M7–M8 | Accepted |
+| DEC-088 | Enterable key places with data-driven interiors; walking by default, quick mode as an option | Accepted |
+| DEC-089 | Map layers from a registry; some gated by where you have been | Accepted |
+| DEC-090 | Town layout v2: terrain-first, data-driven districts, size from population, hidden places | Accepted |
 
 ---
 
@@ -1825,7 +1828,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 
 ### DEC-089 — Map layers, with some gated by where you are
 
-- **Status:** Proposed (2026-11-19). The owner's idea: "make that button a dropdown so users can filter by different metrics … resources, population, income, rent, voting statistics etc but maybe have some details gated based off where they are like a polling location or town hall."
+- **Status:** Accepted (owner, 2026-11-19: "Yes to DEC-089"). The owner's idea: "make that button a dropdown so users can filter by different metrics … resources, population, income, rent, voting statistics etc but maybe have some details gated based off where they are like a polling location or town hall."
 - **Proposal:**
   - The map's layer picker (built: terrain and unemployment) grows into a registry of layers. Each layer has a key, a source in the map view, a colour scale (sequential or diverging) and a legend. New layers are content plus one engine field.
   - **Open layers** come from public statistics: population, density, unemployment, median income, rent, the main industries and resources.
@@ -1833,3 +1836,22 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **The UI never computes these figures.** The map view carries each layer's values, or "unknown", per town.
 - **Timing:** the open layers in the M6 UI round; the gated layers with M7's regional play.
 - **Dependencies:** DEC-034, DEC-051, DEC-079, DEC-086.
+
+### DEC-090 — Town layout v2
+
+- **Status:** Accepted (owner, 2026-11-19: "Yes to … the town gen recommendations"). The owner asked for towns that are "real but readable": bridges and creeks, mines, open-air markets, hills; size that scales with population and the simulation; links to gameplay; hidden or optional places; data-driven district types that the pixel art can keep up with.
+- **Decision:** the design in `docs/design/research/TOWN_GENERATION.md`, with all twelve of its §16 recommendations:
+  - D1: a terrain-first hybrid generator on the tile grid.
+  - D2: a static plan, plus a monthly dress pass that never moves anything.
+  - D3: small engine views (`TownGeographyView`, `TownStateView`).
+  - D4: registries for district types, terrain features, connectors and place layout blocks, with a recipe snapshot per town (option C).
+  - D5: orthogonal streets.
+  - D6: size from log(population), capped at 240 × 160 tiles.
+  - D7: hidden places, starting with four kinds in M6.
+  - D8: per-neighbourhood hazard exposure.
+  - D9: a higher mine threshold, with a balance check.
+  - D10: names that follow geography.
+  - D11: palette headroom in pixel-art P1.
+  - D12: built at the start of M6. The town map (DEC-086) ships on v1 and moves to v2.
+- **Versioning:** v1 stays callable for runs that started with it (DEC-085).
+- **Dependencies:** DEC-051, DEC-053, DEC-075, DEC-078, DEC-079, DEC-084, DEC-085, DEC-086, DEC-087.
