@@ -619,7 +619,7 @@
         { "id": "on_its_merits", "default": true, "label_key": "dilemma-amendment-for-vote-merits", "aftermath_key": "dilemma-amendment-for-vote-merits-after",
           "effects": [
             { "type": "opinion", "role": "swing", "delta": -6, "memory": "ignored_me" },
-            { "type": "standing", "delta": 1 } ] },
+            { "type": "health", "delta": 1 } ] },
       ],
     },
     // A sponsor wants the player's vote and offers a rider for their ward.
@@ -675,11 +675,15 @@
             { "type": "vote", "role": "bill", "vote": "with_party" },
             { "type": "money", "amount": 1200 },
             { "type": "favour", "role": "whip", "owed_to_player": true } ] },
-        { "id": "refuse", "default": true, "label_key": "dilemma-whip-deal-refuse", "aftermath_key": "dilemma-whip-deal-refuse-after",
+        { "id": "refuse", "label_key": "dilemma-whip-deal-refuse", "aftermath_key": "dilemma-whip-deal-refuse-after",
           "effects": [
             { "type": "vote", "role": "bill", "vote": "with_ward" },
             { "type": "standing", "delta": -3 },
             { "type": "opinion", "role": "whip", "delta": -8, "memory": "stood_against_me" } ] },
+        { "id": "counted_in", "default": true, "label_key": "dilemma-whip-deal-counted", "aftermath_key": "dilemma-whip-deal-counted-after",
+          "effects": [
+            { "type": "vote", "role": "bill", "vote": "with_party" },
+            { "type": "opinion", "role": "whip", "delta": -2, "memory": "ignored_me" } ] },
       ],
     },
     // Someone owes the player a favour, and the player's bill is short.

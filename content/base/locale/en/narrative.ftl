@@ -356,7 +356,7 @@ dilemma-amendment-for-vote-project-after = { $bill } now pays for a project in {
 dilemma-amendment-for-vote-sunset = Offer a sunset instead
 dilemma-amendment-for-vote-sunset-after = You put a four-year sunset on { $bill }. { $swing } is warmer, and the law, if it passes, will need renewing.
 dilemma-amendment-for-vote-merits = Let it pass on its merits
-dilemma-amendment-for-vote-merits-after = You kept { $bill } clean. Your party liked it; { $swing } took it as a no.
+dilemma-amendment-for-vote-merits-after = You kept { $bill } clean and spent the evening at home. { $swing } took it as a no.
 
 dilemma-sponsor-rider = a rider on someone else's bill
 dilemma-sponsor-rider-situation = { $sponsor } wants your yes on { $bill }, and offers to write in a project for your ward.
@@ -375,6 +375,8 @@ dilemma-whip-deal-haggle = Haggle for a promise
 dilemma-whip-deal-haggle-after = A long evening at the party office: less money, but { $whip } now owes you one. You voted with the party on { $bill }.
 dilemma-whip-deal-refuse = Refuse and vote with your ward
 dilemma-whip-deal-refuse-after = You voted with your ward on { $bill }. { $whip } will not forget it, and neither will the party.
+dilemma-whip-deal-counted = Say nothing; the whip counts you in
+dilemma-whip-deal-counted-after = You never answered, so { $whip } counted you with the party on { $bill }: no money, and your ward saw how you voted.
 
 dilemma-call-in-favour = the favour you are owed
 dilemma-call-in-favour-situation = { $debtor } owes you a favour, and { $bill } is short of votes.

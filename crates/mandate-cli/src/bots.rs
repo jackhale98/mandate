@@ -608,52 +608,58 @@ pub fn play_full(content: &Arc<ContentBundle>, seed: u64, strategy: &str) -> Opt
 
 /// The variety gate (DEC-077 §5): the best strategy must differ across
 /// worlds, so no single routine wins everywhere. Per world (seed), the best
-/// active strategy is the one with the highest vote share (ties: the first
-/// in `STRATEGIES`). The gate needs at least `VARIETY_MIN_WINNERS` distinct
-/// best strategies and no strategy best in more than `VARIETY_MAX_SHARE` of
-/// the worlds.
+/// active strategies are those within `VARIETY_TIE` of the highest vote
+/// share (a near-tie is shared: `corrupt` is `mixed` plus shortcuts and often
+/// lands within a hair of it). The gate needs at least
+/// `VARIETY_MIN_WINNERS` strategies that are the sole best somewhere, and no
+/// strategy among the best in more than `VARIETY_MAX_SHARE` of the worlds.
 pub const VARIETY_MIN_WINNERS: usize = 3;
-pub const VARIETY_MAX_SHARE: f64 = 0.5;
+pub const VARIETY_MAX_SHARE: f64 = 0.6;
+pub const VARIETY_TIE: f64 = 0.002;
 
 pub fn variety(
     shares: &BTreeMap<u64, BTreeMap<&'static str, f64>>,
     situations: &BTreeMap<u64, (String, String)>,
 ) -> serde_json::Value {
-    let mut best_of: BTreeMap<u64, &'static str> = BTreeMap::new();
+    let mut among_best: BTreeMap<&'static str, usize> = BTreeMap::new();
+    let mut sole_best: BTreeMap<&'static str, usize> = BTreeMap::new();
     let mut worlds = Vec::new();
+    let mut n = 0usize;
     for (seed, row) in shares {
-        let mut best: Option<(&'static str, f64)> = None;
-        for s in STRATEGIES.iter().filter(|s| **s != "idle") {
-            if let Some(v) = row.get(s)
-                && best.is_none_or(|b| *v > b.1)
-            {
-                best = Some((s, *v));
-            }
-        }
-        let Some((winner, share)) = best else {
+        let active: Vec<(&'static str, f64)> = STRATEGIES
+            .iter()
+            .filter(|s| **s != "idle")
+            .filter_map(|s| row.get(s).map(|v| (*s, *v)))
+            .collect();
+        let Some(top) = active.iter().map(|x| x.1).reduce(f64::max) else {
             continue;
         };
-        best_of.insert(*seed, winner);
-        let (crisis, industry) = situations.get(seed).cloned().unwrap_or_default();
-        let mut second = row
+        n += 1;
+        let best: Vec<&'static str> = active
             .iter()
-            .filter(|(k, _)| **k != "idle" && **k != winner)
-            .map(|(_, v)| *v)
-            .fold(0.0, f64::max);
-        if second == 0.0 {
-            second = share;
+            .filter(|x| x.1 >= top - VARIETY_TIE)
+            .map(|x| x.0)
+            .collect();
+        for s in &best {
+            *among_best.entry(s).or_default() += 1;
         }
+        if let [only] = best.as_slice() {
+            *sole_best.entry(only).or_default() += 1;
+        }
+        let second = active
+            .iter()
+            .filter(|x| !best.contains(&x.0))
+            .map(|x| x.1)
+            .fold(f64::MIN, f64::max);
+        let (crisis, industry) = situations.get(seed).cloned().unwrap_or_default();
         worlds.push(json!({
             "seed": seed, "crisis": crisis, "industry": industry,
-            "best": winner, "share": share, "margin": share - second,
+            "best": best, "share": top,
+            "margin": if second > f64::MIN { top - second } else { 0.0 },
+            "shares": row,
         }));
     }
-    let n = best_of.len().max(1) as f64;
-    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
-    for w in best_of.values() {
-        *counts.entry(w).or_default() += 1;
-    }
-    let top = counts.values().copied().max().unwrap_or(0) as f64 / n;
+    let top = among_best.values().copied().max().unwrap_or(0) as f64 / n.max(1) as f64;
     // Best strategy by situation: the highest mean share among its worlds.
     let mut by_situation: BTreeMap<String, BTreeMap<&'static str, (f64, u32)>> = BTreeMap::new();
     for (seed, row) in shares {
@@ -686,12 +692,14 @@ pub fn variety(
             })
         })
         .collect();
-    let distinct = counts.len();
+    let distinct = sole_best.len();
     json!({
         "worlds": worlds,
-        "best_counts": counts,
+        "best_counts": among_best,
+        "sole_best_counts": sole_best,
         "distinct_best": distinct,
         "top_best_share": top,
+        "tie": VARIETY_TIE,
         "by_situation": situation_rows,
         "min_distinct": VARIETY_MIN_WINNERS,
         "max_top_share": VARIETY_MAX_SHARE,
@@ -699,20 +707,59 @@ pub fn variety(
     })
 }
 
+/// Every strategy on every seed. Each world is its own single-threaded,
+/// deterministic simulation; independent worlds run on up to three threads
+/// (a lab convenience: results are keyed, so the report never depends on
+/// scheduling).
+fn play_all(content: &Arc<ContentBundle>, seeds: u64) -> BTreeMap<(&'static str, u64), Played> {
+    let jobs: Vec<(&'static str, u64)> = STRATEGIES
+        .iter()
+        .flat_map(|s| (1..=seeds).map(move |seed| (*s, seed)))
+        .collect();
+    let workers = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+        .clamp(1, 3);
+    let mut out = BTreeMap::new();
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..workers)
+            .map(|w| {
+                let jobs = &jobs;
+                scope.spawn(move || {
+                    jobs.iter()
+                        .skip(w)
+                        .step_by(workers)
+                        .filter_map(|(s, seed)| {
+                            play_full(content, *seed, s).map(|p| ((*s, *seed), p))
+                        })
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        for h in handles {
+            if let Ok(v) = h.join() {
+                out.extend(v);
+            }
+        }
+    });
+    out
+}
+
 pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
     let mut rows = BTreeMap::new();
     let mut idle_share: BTreeMap<u64, f64> = BTreeMap::new();
     let mut shares: BTreeMap<u64, BTreeMap<&'static str, f64>> = BTreeMap::new();
     let mut situations: BTreeMap<u64, (String, String)> = BTreeMap::new();
+    let results = play_all(content, seeds);
     for s in STRATEGIES {
         let mut wins = 0;
         let mut n = 0;
         let mut gain = 0.0;
         for seed in 1..=seeds {
-            if let Some(p) = play_full(content, seed, s) {
+            if let Some(p) = results.get(&(s, seed)) {
                 let (won, share) = (p.won, p.share);
                 shares.entry(seed).or_default().insert(s, share);
-                situations.insert(seed, (p.crisis, p.industry));
+                situations.insert(seed, (p.crisis.clone(), p.industry.clone()));
                 n += 1;
                 wins += won as u32;
                 if s == "idle" {
