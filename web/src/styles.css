@@ -488,6 +488,10 @@ h2 { font-size: 1.1rem; }
 .decision-scrim { z-index: 6; }
 .sheet.decision-sheet { z-index: 6; }
 .sheet.story-sheet { z-index: 6; }
+/* Scrolling something into view (keyboard focus, links) keeps it clear of the sticky
+   head and the bottom bar. Decisions get more of the screen on phones. */
+.sheet { scroll-padding-top: 30%; scroll-padding-bottom: 96px; }
+@media (max-width: 899px) { .sheet.decision-sheet { max-height: 85vh; } }
 @media (min-width: 900px) {
   .decision-scrim { display: block; background: transparent; }
   .decision-sheet, .story-sheet { top: 63px; bottom: 0; padding-top: 16px; max-height: none; }
