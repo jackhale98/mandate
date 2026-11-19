@@ -13,7 +13,7 @@
 // Text is never drawn here: names are HTML over the canvas (DEC-080, DEC-051).
 import { gradeAt } from "../dayCycle";
 import { mix } from "../rng";
-import { ROOF_ROWS, Terrain, type TownBuilding, type TownMap, type TownProp } from "../townLayout";
+import { ROOF_ROWS, StreetAxis, Terrain, type TownBuilding, type TownMap, type TownProp } from "../townLayout";
 import type { Point } from "../pathfinding";
 import type { TownMapScene } from "../townMapScene";
 import { domCanvasFactory, type CanvasFactory, type Ctx } from "./art";
@@ -332,6 +332,70 @@ function drawV2(ctx: Ctx, map: TownMap, px: number) {
       if (c.axis === "ns") ctx.fillRect(X, Y + Math.floor(h / 2), w, 1);
       else ctx.fillRect(X + Math.floor(w / 2), Y, 1, h);
     }
+  }
+}
+
+const css = (c: Rgb) => `rgb(${c[0]},${c[1]},${c[2]})`;
+
+/**
+ * Layout v2's 45° streets at map scale (street rework B): each cell of a
+ * diagonal street is two triangles split along the street, so the road, its
+ * pavements and the ground beside it meet in smooth 45° lines rather than a
+ * staircase of cells.
+ */
+function drawDiagonals(ctx: Ctx, map: TownMap, px: number) {
+  const ax = map.streetAxis;
+  if (!ax) return;
+  const W = map.width;
+  const street = (t: number) => t === Terrain.Road || t === Terrain.Pavement || t === Terrain.Crossing || t === Terrain.Plaza || t === Terrain.Bridge || t === Terrain.Dirt;
+  for (let i = 0; i < ax.length; i++) {
+    const a = ax[i] as number;
+    if (a !== StreetAxis.DiagonalNE && a !== StreetAxis.DiagonalNW) continue;
+    const t = map.terrain[i] as number;
+    if (t !== Terrain.Road && t !== Terrain.Pavement && t !== Terrain.Crossing && t !== Terrain.Dirt) continue;
+    const x = i % W;
+    const y = (i - x) / W;
+    const left = x > 0 ? (map.terrain[i - 1] as number) : Terrain.Grass;
+    const right = x < W - 1 ? (map.terrain[i + 1] as number) : Terrain.Grass;
+    const lane = t === Terrain.Dirt ? Terrain.Dirt : Terrain.Road;
+    const side = (n: number) => (n === Terrain.Pavement ? Terrain.Pavement : street(n) ? lane : n);
+    let A: number;
+    let B: number;
+    if (t === Terrain.Pavement) {
+      A = street(left) ? Terrain.Pavement : left;
+      B = street(left) && !street(right) ? right : Terrain.Pavement;
+    } else {
+      A = side(left);
+      B = side(right);
+    }
+    if (A === t && B === t) continue;
+    const X = x * px;
+    const Y = y * px;
+    for (let r = 0; r < px; r++) {
+      // "\": the lower-left triangle is A; "/": the upper-left one.
+      const split = a === StreetAxis.DiagonalNW ? r : px - 1 - r;
+      const aw = a === StreetAxis.DiagonalNW ? split : split + 1;
+      ctx.fillStyle = css(terrainColour(A));
+      if (aw > 0) ctx.fillRect(X, Y + r, aw, 1);
+      ctx.fillStyle = css(terrainColour(B));
+      if (aw < px) ctx.fillRect(X + aw, Y + r, px - aw, 1);
+    }
+  }
+}
+
+/**
+ * Street ends at map scale (DEC-090): a turning circle's block of road drawn
+ * as a round bulb in its pavement; the gates, bollards and railings are
+ * props (see `prop`).
+ */
+function drawStreetEnds(ctx: Ctx, map: TownMap, px: number) {
+  for (const e of map.streetEnds ?? []) {
+    if (e.kind !== "turning_circle") continue;
+    const X = e.x * px;
+    const Y = e.y * px;
+    ctx.fillStyle = css(terrainColour(Terrain.Pavement));
+    ctx.fillRect(X, Y, e.w * px, e.h * px);
+    disc(ctx, css(terrainColour(map.terrain[e.y * map.width + e.x] === Terrain.Dirt ? Terrain.Dirt : Terrain.Road)), X + (e.w * px) / 2, Y + (e.h * px) / 2, (Math.min(e.w, e.h) * px) / 2);
   }
 }
 
@@ -808,6 +872,22 @@ function prop(p: Pen, pr: TownProp, seed: number) {
       rect(ctx, MAP.chalk, cx - px * 0.3, cy, 1, 1);
       rect(ctx, MAP.chalk, cx + px * 0.2, cy - 1, 1, 1);
       break;
+    // Street ends (DEC-090): bollards across a lane's end, a field gate, a railing at the water.
+    case "bollards":
+      rect(ctx, MAP.line, cx - 1, cy - 1, 2, 2);
+      break;
+    case "field_gate": {
+      const across = (pr.variant & 7) === 1 || (pr.variant & 7) === 3;
+      if (across) rect(ctx, MAP.wood, cx - 1, cy - px * 0.45, 2, px * 0.9);
+      else rect(ctx, MAP.wood, cx - px * 0.45, cy - 1, px * 0.9, 2);
+      break;
+    }
+    case "railing": {
+      const f = pr.variant & 7;
+      if (f === 1 || f === 3) rect(ctx, MAP.iron, cx + (f === 1 ? px * 0.35 : -px * 0.45), cy - px * 0.5, 1, px);
+      else rect(ctx, MAP.iron, cx - px * 0.5, cy + (f === 2 ? px * 0.35 : -px * 0.45), px, 1);
+      break;
+    }
     default:
       break;
   }
@@ -854,7 +934,11 @@ export function bakeTownMap(scene: TownMapScene, options: BakeOptions = {}): Bak
   ctx.imageSmoothingEnabled = false;
   // Ground.
   drawGround(ctx, map, px, make);
-  if (map.version >= 2) drawV2(ctx, map, px);
+  if (map.version >= 2) {
+    drawDiagonals(ctx, map, px);
+    drawStreetEnds(ctx, map, px);
+    drawV2(ctx, map, px);
+  }
   const t1 = performance.now();
   // Main routes: the streets that join the square to every place, drawn as a lighter line along them.
   ctx.lineJoin = "round";

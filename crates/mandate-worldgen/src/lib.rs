@@ -560,6 +560,8 @@ pub fn generate_world(
                 municipality: m.id,
                 neighborhood: hood,
                 name: p.name,
+                status: mandate_sim::world::PlaceStatus::Open,
+                opened: None,
             });
             ids.push(id);
         }

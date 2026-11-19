@@ -6,7 +6,7 @@
 //! baselines (TOWN_GENERATION §15 E1) are stored by their domains and read
 //! through `State::town_baseline`.
 
-use mandate_core::define_id;
+use mandate_core::{SimDate, define_id};
 use serde::{Deserialize, Serialize};
 
 define_id!(
@@ -318,6 +318,25 @@ impl PlaceKind {
     }
 }
 
+/// Whether a place is in use (TOWN_GENERATION §4.2, DEC-090 D3). Places are
+/// never deleted during a run: a place that shuts is marked closed and keeps
+/// its id, so a town's layout never rearranges (DEC-085).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum PlaceStatus {
+    #[default]
+    Open,
+    Closed {
+        since: SimDate,
+    },
+}
+
+impl PlaceStatus {
+    pub fn is_open(&self) -> bool {
+        matches!(self, PlaceStatus::Open)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Place {
     pub id: PlaceId,
@@ -325,6 +344,20 @@ pub struct Place {
     pub municipality: MunicipalityId,
     pub neighborhood: NeighborhoodId,
     pub name: String,
+    /// Open unless it shut during the run. Not serialized while open, so
+    /// saves and state hashes are unchanged until a place closes.
+    #[serde(default, skip_serializing_if = "PlaceStatus::is_open")]
+    pub status: PlaceStatus,
+    /// When it opened, for a place added during the run; `None` for the
+    /// places that stood as play began (the layout plans those).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opened: Option<SimDate>,
+}
+
+impl Place {
+    pub fn is_open(&self) -> bool {
+        self.status.is_open()
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -346,6 +379,56 @@ impl World {
             .get(m.index())
             .into_iter()
             .flat_map(|mu| mu.neighborhoods.iter().map(|n| n.index()))
+    }
+
+    /// Mark a place closed (DEC-090 D3): it keeps its id and its slot in
+    /// the town; nothing is removed. Returns false for an unknown place or
+    /// one already closed.
+    pub fn close_place(&mut self, id: PlaceId, date: SimDate) -> bool {
+        match self.places.get_mut(id.index()) {
+            Some(p) if p.is_open() => {
+                p.status = PlaceStatus::Closed { since: date };
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Reopen a closed place. Returns false for an unknown or open place.
+    pub fn reopen_place(&mut self, id: PlaceId) -> bool {
+        match self.places.get_mut(id.index()) {
+            Some(p) if !p.is_open() => {
+                p.status = PlaceStatus::Open;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Add a place during the run with the next id (ids are never reused).
+    /// It is listed last in its municipality, after the places the town
+    /// began with; `None` if the neighbourhood is not in the municipality.
+    pub fn open_place(
+        &mut self,
+        kind: PlaceKind,
+        neighborhood: NeighborhoodId,
+        name: String,
+        date: SimDate,
+    ) -> Option<PlaceId> {
+        let municipality = self.neighborhoods.get(neighborhood.index())?.municipality;
+        let mu = self.municipalities.get_mut(municipality.index())?;
+        let id = PlaceId(u32::try_from(self.places.len()).ok()?);
+        mu.places.push(id);
+        self.places.push(Place {
+            id,
+            kind,
+            municipality,
+            neighborhood,
+            name,
+            status: PlaceStatus::Open,
+            opened: Some(date),
+        });
+        Some(id)
     }
 
     /// Neighbourhood indices of a region.

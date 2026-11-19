@@ -9,13 +9,15 @@
 // stage (../rng), so changing one stage never shifts another's draws. A stage
 // that cannot fit what it must throws `LayoutOverflow`; the plan retries with
 // more room (a new attempt number keys every stream), as v1 does.
-import type { TownConnector, TownProp, WaterSide } from "../townLayout";
+import type { TownConnector, TownProp, TownStreetEnd, WaterSide } from "../townLayout";
 import { Terrain } from "../townLayout";
 import { BAND_CAPS, bandOf, type Band, type TownGeo } from "./geo";
 import { NO_BEARING, isqrt } from "./imath";
 import { BASE_RECIPE, snapshotRecipe, type Recipe } from "./registry";
-import { stageDistricts, stageStreets } from "./districts";
-import { stageConnect, stageMinimumFill, stageShortcuts, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
+import { stageDistricts } from "./districts";
+import { stageStreetAxes, stageStreets } from "./streets";
+import { streetEndOf } from "./net";
+import { reserveStation, stageConnect, stageMinimumFill, stageSlivers, stageShortcuts, stageFillers, stageGround, stageLanes, stagePlaces, stageProps, stageRanks } from "./plots";
 import { nameBridges, stageArterials, stageLevelEdges, stageRail, stageTerraces } from "./roads";
 import { stageCentre, stageTerrain, stageWater, townSize } from "./terrain";
 import { LayoutOverflow, RoadClass, Use, WaterKind, isWaterBody, type PlanConnector, type PlanPlot, type Rect, type Segment, type Work, type WorkDistrict } from "./work";
@@ -74,6 +76,12 @@ export interface TownPlan {
   mainRoad: Uint8Array;
   /** Every street run (arterials, the square's ring, district streets), tiles. */
   segments: Segment[];
+  /** The railway's runs. */
+  rail: Segment[];
+  /** `StreetAxis` per cell: the direction of diagonal streets (the art draws them smooth). */
+  streetAxis: Uint8Array;
+  /** How every street that joins no other street ends (DEC-090 street ends). */
+  streetEnds: TownStreetEnd[];
   landmarks: { kind: string; x: number; y: number; name: string; plot: number }[];
   /** The square's open plaza and the civic row above it. */
   square: Rect;
@@ -151,6 +159,8 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
     plaza: { x: 0, y: 0, w: 0, h: 0 },
     ring: { x: 0, y: 0, w: 0, h: 0 },
     segments: [],
+    rail: [],
+    axis: new Uint8Array(N),
     arterials: [],
     connectors: [],
     railCells: [],
@@ -168,14 +178,20 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
   };
   stage("terrain", () => stageTerrain(w));
   stage("water", () => stageWater(w));
-  stage("centre", () => stageCentre(w));
+  stage("centre", () => {
+    stageCentre(w);
+    w.ground = { terrain: new Uint8Array(w.terrain), level: new Uint8Array(w.level) };
+  });
   stage("arterials", () => {
-    stageArterials(w);
+    const tr = now();
     stageRail(w);
+    w.timings["arterials.rail"] = now() - tr;
+    stageArterials(w);
     nameBridges(w);
   });
   stage("districts", () => stageDistricts(w));
   stage("streets", () => {
+    reserveStation(w);
     stageStreets(w);
     stageTerraces(w);
     stageLevelEdges(w);
@@ -188,13 +204,19 @@ function plan(geoIn: TownGeo, seed: number, attempt: number, recipe: Recipe): To
   stage("fillers", () => {
     stageFillers(w);
     stageMinimumFill(w);
+    stageSlivers(w);
   });
   let baseline: number[] = [];
   stage("props", () => stageProps(w));
   stage("checks", () => {
+    const tc = now();
     stageConnect(w);
+    w.timings["checks.connect"] = now() - tc;
+    const ts = now();
     stageShortcuts(w);
+    w.timings["checks.shortcuts"] = now() - ts;
     baseline = stageRanks(w);
+    stageStreetAxes(w);
   });
   return finish(w, baseline);
 }
@@ -323,6 +345,19 @@ function finish(w: Work, baseline: number[]): TownPlan {
       if (d < 0) continue;
       if (x + 1 < W) note(d, w.district[c + 1] as number, c, c + 1);
       if (y + 1 < H) note(d, w.district[c + W] as number, c, c + W);
+      // Across a strip of fields or a road a few cells wide (the town is not one block of land).
+      for (let k = 2; k <= 4; k++) {
+        if (x + k < W && w.district[c + 1] === -1 && (w.district[c + k] as number) >= 0) {
+          note(d, w.district[c + k] as number, c + 1, c + k - 1);
+          break;
+        }
+      }
+      for (let k = 2; k <= 4; k++) {
+        if (y + k < H && w.district[c + W] === -1 && (w.district[c + k * W] as number) >= 0) {
+          note(d, w.district[c + k * W] as number, c + W, c + (k - 1) * W);
+          break;
+        }
+      }
     }
   }
   for (const e of [...pairs.values()].sort((p, q) => p.a - q.a || p.b - q.b)) {
@@ -374,6 +409,9 @@ function finish(w: Work, baseline: number[]): TownPlan {
     arterials: w.arterials.map((a) => ({ index: a.index, name: a.name, mode: a.mode, bearing: a.bearing, toName: a.toName, length: roadLen(a.cells) })),
     landmarks: w.landmarks,
     segments: w.segments,
+    rail: w.rail,
+    streetAxis: w.axis,
+    streetEnds: w.segments.flatMap((s) => [streetEndOf(s, 0, W, H), streetEndOf(s, 1, W, H)].filter((e): e is TownStreetEnd => e !== null)),
     mainRoad: Uint8Array.from(w.roadClass, (k) => (k === RoadClass.Arterial ? 1 : 0)),
     square: w.plaza,
     civic: w.civic,
@@ -402,6 +440,8 @@ export function planHash(plan: TownPlan): string {
   feed(plan.width);
   feed(plan.height);
   for (let i = 0; i < plan.terrain.length; i++) feed((plan.terrain[i] as number) | ((plan.elevation[i] as number) << 5) | (((plan.district[i] as number) + 1) << 7));
+  for (let i = 0; i < plan.streetAxis.length; i++) if (plan.streetAxis[i]) feed(i * 4 + (plan.streetAxis[i] as number));
+  for (const e of plan.streetEnds) for (const n of [e.x, e.y, e.w, e.h, e.kind.length, e.facing.length]) feed(n);
   for (const p of plan.plots) for (const n of [p.x, p.y, p.w, p.h, p.doorX, p.place ?? 0xffff, p.district, p.fillRank, p.declineRank]) feed(n);
   for (const c of plan.connectors) for (const n of [c.x, c.y, c.w, c.h, c.axis === "ns" ? 1 : 0, c.name.length]) feed(n);
   for (const p of plan.props) feed(p.x * 31 + p.y);

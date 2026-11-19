@@ -20,7 +20,7 @@ import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 import type { Point } from "./pathfinding";
 import type { TownInput } from "./townInput";
-import { ROOF_ROWS, Terrain, buildingOfPlace, locationCell, type TownMap } from "./townLayout";
+import { ROOF_ROWS, StreetAxis, Terrain, buildingOfPlace, locationCell, type TownMap } from "./townLayout";
 
 export interface Rect {
   x: number;
@@ -126,7 +126,8 @@ export function locationPoint(map: TownMap, loc: LocationDto): Point | null {
 export const cellPoint = (map: TownMap, cell: number): Point => ({ x: (cell % map.width) + 0.5, y: Math.floor(cell / map.width) + 0.5 });
 
 // ---------------------------------------------------------------------------
-// Routes: street-preferring shortest paths (4 directions, few turns)
+// Routes: street-preferring shortest paths (4 directions, and 45° along
+// layout v2's diagonal streets; few turns), drawn as orthogonal and 45° legs
 
 /** Cost of entering a cell, ×10 (0: impassable). Streets are cheapest, so routes follow them. */
 function stepCost(t: number): number {
@@ -158,7 +159,9 @@ function stepCost(t: number): number {
   }
 }
 const TURN = 1;
-const MAX_STEP = 50 + TURN;
+/** A diagonal step costs about √2 of a straight one. */
+const DIAG = (w: number) => Math.round((w * 14) / 10);
+const MAX_STEP = DIAG(50) + TURN;
 
 /** A shortest-path tree from one cell: the parent of every reached cell (-1 unreached, -2 the source). */
 export interface RouteTree {
@@ -166,13 +169,23 @@ export interface RouteTree {
   parent: Int32Array;
 }
 
-const DX = [1, 0, -1, 0];
-const DY = [0, 1, 0, -1];
+// East, south, west, north, then the diagonals (south-east, south-west, north-west, north-east).
+const DX = [1, 0, -1, 0, 1, -1, -1, 1];
+const DY = [0, 1, 0, -1, 1, 1, -1, -1];
+
+/** Whether a cell's street runs along a diagonal step (dx, dy): "/" for north-east–south-west, "\\" for the other. */
+function alongDiagonal(axis: number, dx: number, dy: number): boolean {
+  if (axis === StreetAxis.Junction) return true;
+  return dx === dy ? axis === StreetAxis.DiagonalNW : axis === StreetAxis.DiagonalNE;
+}
 
 /**
  * One shortest-path tree over the walkable cells (Dial's buckets on integer
  * costs). Turning costs a little, so routes run straight along a street and
- * turn at corners instead of zig-zagging. Deterministic: fixed neighbour order.
+ * turn at corners instead of zig-zagging. Along layout v2's 45° streets
+ * (`TownMap.streetAxis`) a route steps diagonally, so it runs straight down
+ * the street rather than in a staircase (never cutting a corner past a
+ * blocked cell). Deterministic: fixed neighbour order.
  */
 export function routeTree(map: TownMap, source: number): RouteTree {
   const W = map.width;
@@ -185,6 +198,7 @@ export function routeTree(map: TownMap, source: number): RouteTree {
   const dirIn = new Int8Array(n).fill(-1);
   const parent = new Int32Array(n).fill(-1);
   const done = new Uint8Array(n);
+  const axes = map.streetAxis && map.streetAxis.length === n ? map.streetAxis : null;
   if (source < 0 || source >= n) return { source, parent };
   const B = MAX_STEP + 1;
   const buckets: number[][] = Array.from({ length: B }, () => []);
@@ -207,13 +221,22 @@ export function routeTree(map: TownMap, source: number): RouteTree {
     done[c] = 1;
     const cx = c % W;
     const cy = (c - cx) / W;
-    for (let k = 0; k < 4; k++) {
-      const x = cx + (DX[k] as number);
-      const y = cy + (DY[k] as number);
+    const ac = axes ? (axes[c] as number) : 0;
+    for (let k = 0; k < (ac ? 8 : 4); k++) {
+      const dx = DX[k] as number;
+      const dy = DY[k] as number;
+      const x = cx + dx;
+      const y = cy + dy;
       if (x < 0 || y < 0 || x >= W || y >= H) continue;
       const m = y * W + x;
-      const w = cost[m] as number;
+      let w = cost[m] as number;
       if (!w || done[m]) continue;
+      if (k >= 4) {
+        // Along a diagonal street only (both cells on it), past two open cells.
+        if (!axes || !alongDiagonal(ac, dx, dy) || !alongDiagonal(axes[m] as number, dx, dy)) continue;
+        if (!cost[cy * W + x] || !cost[y * W + cx]) continue;
+        w = DIAG(w);
+      }
       const din = dirIn[c] as number;
       const nd = d + w + (din >= 0 && din !== k ? TURN : 0);
       if (nd < (dist[m] as number)) {
@@ -237,19 +260,147 @@ export function routeTo(map: TownMap, tree: RouteTree, cell: number): Point[] | 
     if (cells.length > tree.parent.length) return null;
   }
   cells.reverse();
-  return corners(map, cells);
+  return dejogRoute(map, corners(map, cells));
 }
 
-/** Keep the ends and the cells where the direction changes. */
-function corners(map: TownMap, cells: readonly number[]): Point[] {
+/** Whether a leg runs orthogonally or at 45° (and has length). */
+const gridLeg = (a: Point, b: Point) => (a.x !== b.x || a.y !== b.y) && (a.x === b.x || a.y === b.y || Math.abs(b.x - a.x) === Math.abs(b.y - a.y));
+
+/** The cells a leg (orthogonal or 45°) passes, ends included. */
+function legCells(map: TownMap, a: Point, b: Point): number[] {
+  const n = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+  const sx = Math.sign(b.x - a.x);
+  const sy = Math.sign(b.y - a.y);
+  const out: number[] = [];
+  for (let k = 0; k <= n; k++) out.push(Math.floor(a.y + sy * k) * map.width + Math.floor(a.x + sx * k));
+  return out;
+}
+
+/**
+ * Take out the one-cell jogs between longer legs (a lane change on a wide
+ * street, a step at a junction): the leg before or after the jog moves
+ * across by the jog, where every cell it then passes is open and no rougher
+ * than the street it left, so the drawn route turns only where it really
+ * turns. The ends stay where they are.
+ */
+function dejogRoute(map: TownMap, pts: Point[]): Point[] {
+  const cost = (c: number) => (map.solid[c] ? 0 : stepCost(map.terrain[c] as number));
+  const roughest = (cells: number[]) => cells.reduce((m, c) => Math.max(m, cost(c)), 0);
+  const fits = (legs: [Point, Point][], limit: number) =>
+    legs.every(([a, b]) => gridLeg(a, b) && legCells(map, a, b).every((c) => {
+      const k = cost(c);
+      return k > 0 && k <= limit;
+    }));
+  const short = (a: Point, b: Point) => Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y)) === 1;
+  let p = pts.map((q) => ({ ...q }));
+  for (let guard = 0; guard < 64; guard++) {
+    let done = false;
+    for (let i = 1; i + 2 < p.length && !done; i++) {
+      const a = p[i] as Point;
+      const b = p[i + 1] as Point;
+      if (!short(a, b)) continue;
+      const jx = b.x - a.x;
+      const jy = b.y - a.y;
+      // The jog itself, or (a diagonal one) either of its square steps: the other then runs on along a leg.
+      const moves: [number, number][] = jx && jy ? [[jx, jy], [jx, 0], [0, jy]] : [[jx, jy]];
+      for (const [vx, vy] of moves) {
+        // Move the leg before the jog across (its start must not be the route's start).
+        if (i >= 2) {
+          const p0 = p[i - 2] as Point;
+          const p1 = p[i - 1] as Point;
+          const q1 = { x: p1.x + vx, y: p1.y + vy };
+          const qa = { x: a.x + vx, y: a.y + vy };
+          const limit = Math.max(16, roughest([...legCells(map, p0, p1), ...legCells(map, p1, a)]));
+          const legs: [Point, Point][] = [[p0, q1], [q1, qa]];
+          if (qa.x !== b.x || qa.y !== b.y) legs.push([qa, b]);
+          if (fits(legs, limit)) {
+            p = [...p.slice(0, i - 1), q1, qa, ...p.slice(i + 1)];
+            done = true;
+            break;
+          }
+        }
+        // Else move the leg after it back (its end must not be the route's end).
+        if (i + 3 < p.length) {
+          const p2 = p[i + 2] as Point;
+          const p3 = p[i + 3] as Point;
+          const qb = { x: b.x - vx, y: b.y - vy };
+          const q2 = { x: p2.x - vx, y: p2.y - vy };
+          const limit = Math.max(16, roughest([...legCells(map, b, p2), ...legCells(map, p2, p3)]));
+          const legs: [Point, Point][] = [[qb, q2], [q2, p3]];
+          if (qb.x !== a.x || qb.y !== a.y) legs.unshift([a, qb]);
+          if (fits(legs, limit)) {
+            p = [...p.slice(0, i + 1 - 1), a, qb, q2, ...p.slice(i + 3)];
+            done = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!done) break;
+    // Merge legs that now run on in the same direction.
+    const m: Point[] = [p[0] as Point];
+    for (let i = 1; i < p.length; i++) {
+      const q = p[i] as Point;
+      const last = m[m.length - 1] as Point;
+      if (q.x === last.x && q.y === last.y) continue;
+      const prev = m[m.length - 2];
+      if (prev && Math.sign(q.x - last.x) === Math.sign(last.x - prev.x) && Math.sign(q.y - last.y) === Math.sign(last.y - prev.y) && (q.x - last.x) * (last.y - prev.y) === (q.y - last.y) * (last.x - prev.x)) m[m.length - 1] = q;
+      else m.push(q);
+    }
+    p = m;
+  }
+  return p;
+}
+
+/**
+ * The route as it is drawn: orthogonal and 45° legs between cell centres.
+ * A staircase of alternating unit steps (three or more: across a square, or
+ * along a 45° street the route joined part-way) becomes one 45° leg; then
+ * only the ends and the cells where the direction changes are kept.
+ */
+export function corners(map: TownMap, cells: readonly number[]): Point[] {
   const W = map.width;
-  const pts: Point[] = [];
-  for (let i = 0; i < cells.length; i++) {
-    const c = cells[i] as number;
-    const prev = cells[i - 1];
-    const next = cells[i + 1];
-    if (prev !== undefined && next !== undefined && c - prev === next - c) continue;
-    pts.push({ x: (c % W) + 0.5, y: Math.floor(c / W) + 0.5 });
+  if (cells.length === 0) return [];
+  const xs = cells.map((c) => c % W);
+  const ys = cells.map((c) => Math.floor(c / W));
+  // The steps, then each staircase run folded into diagonal steps.
+  const steps: [number, number][] = [];
+  for (let i = 1; i < cells.length; i++) steps.push([(xs[i] as number) - (xs[i - 1] as number), (ys[i] as number) - (ys[i - 1] as number)]);
+  const unit = (s: readonly [number, number]) => Math.abs(s[0]) + Math.abs(s[1]) === 1;
+  const folded: [number, number][] = [];
+  for (let i = 0; i < steps.length; ) {
+    const a = steps[i] as [number, number];
+    const b = steps[i + 1];
+    let j = i + 1;
+    if (unit(a) && b && unit(b) && a[0] !== b[0] && a[1] !== b[1]) {
+      // How far the a, b, a, b, ... pattern runs.
+      while (j < steps.length) {
+        const s = steps[j] as [number, number];
+        const want = (j - i) % 2 === 0 ? a : b;
+        if (s[0] !== want[0] || s[1] !== want[1]) break;
+        j++;
+      }
+    }
+    const run = j - i;
+    if (run >= 3) {
+      for (let k = 0; k + 1 < run; k += 2) folded.push([a[0] + (b as [number, number])[0], a[1] + (b as [number, number])[1]]);
+      if (run % 2 === 1) folded.push(a);
+      i = j;
+    } else {
+      folded.push(a);
+      i++;
+    }
+  }
+  const pts: Point[] = [{ x: (xs[0] as number) + 0.5, y: (ys[0] as number) + 0.5 }];
+  let x = xs[0] as number;
+  let y = ys[0] as number;
+  for (let i = 0; i < folded.length; i++) {
+    const s = folded[i] as [number, number];
+    x += s[0];
+    y += s[1];
+    const next = folded[i + 1];
+    if (next && next[0] === s[0] && next[1] === s[1]) continue;
+    pts.push({ x: x + 0.5, y: y + 0.5 });
   }
   return pts;
 }
@@ -301,24 +452,23 @@ export class RouteCache {
   }
 }
 
+/** Length of a leg (orthogonal or 45°), tiles. */
+const legLength = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
+
 /** Length of a polyline, tiles. */
 export function routeLength(points: readonly Point[]): number {
   let s = 0;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1] as Point;
-    const b = points[i] as Point;
-    s += Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
-  }
+  for (let i = 1; i < points.length; i++) s += legLength(points[i - 1] as Point, points[i] as Point);
   return s;
 }
 
-/** The point a distance along a polyline (axis-aligned legs), tiles. */
+/** The point a distance along a polyline (orthogonal and 45° legs), tiles. */
 export function alongRoute(points: readonly Point[], distance: number): Point {
   let left = Math.max(0, distance);
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1] as Point;
     const b = points[i] as Point;
-    const len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+    const len = legLength(a, b);
     if (left <= len && len > 0) {
       const t = left / len;
       return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };

@@ -40,7 +40,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,wasm,png,svg,woff2}"],
-        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 16 * 1024 * 1024, // the engine (WASM) is ~8.5 MB raw, ~1.4 MB gzipped; it must be precached for offline play
         navigateFallback: `${base}index.html`,
         // Prototype pages published beside the app (DEC-050) are never served the
         // app shell. They are outside this worker's scope since DEC-083; kept as a guard.

@@ -214,7 +214,9 @@ describe("layout v2: pinned hashes", () => {
 });
 
 describe("layout v2: the dress pass (D2, §9.2)", () => {
-  const f = GEO_FIXTURES[0] as GeoFixture;
+  // The largest town: enough reserved land in every district for growth and building sites
+  // (the small towns' districts reserve only a few plots, see TOWN_GENERATION.md E2).
+  const f = (GEO_FIXTURES.find((x) => x.source === "largest") ?? GEO_FIXTURES[0]) as GeoFixture;
   const plan = layoutTownV2(f.input, f.geo, seedOf(f)).plan;
   const base: TownState = { home: f.input.home, location: f.input.location };
   const built = (s: TownState) => new Set(dressTown(plan, s).buildings.filter((b) => b.state === "built" || b.state === "boarded" || b.state === "derelict").map((b) => b.index));
@@ -245,7 +247,8 @@ describe("layout v2: the dress pass (D2, §9.2)", () => {
 
   it("reserves land at baseline, builds on it as the town grows, shows building sites", () => {
     const start = dressTown(plan, base);
-    const grown = dressTown(plan, { ...base, housingPm: 1300, pipelinePm: 40 });
+    // +20%: within this town's reserve (at +30% its outer district fills its reserve outright, leaving no sites under way).
+    const grown = dressTown(plan, { ...base, housingPm: 1200, pipelinePm: 40 });
     expect(start.buildings.some((b) => b.state === "reserved")).toBe(true);
     expect(grown.buildings.filter((b) => b.state === "reserved").length).toBeLessThan(start.buildings.filter((b) => b.state === "reserved").length);
     expect(grown.buildings.some((b) => b.state === "construction")).toBe(true);

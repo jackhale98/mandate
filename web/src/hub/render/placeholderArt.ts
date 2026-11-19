@@ -10,7 +10,7 @@
 // small palette in ./palette. Frames are made lazily and cached.
 import { gradeAt, shadowBucket, shadowVector, sunAt } from "../dayCycle";
 import { noise01 } from "../rng";
-import { ROOF_ROWS, Terrain, type TownMap } from "../townLayout";
+import { ROOF_ROWS, StreetAxis, Terrain, type TownMap } from "../townLayout";
 import {
   domCanvasFactory,
   type AnimKey,
@@ -693,7 +693,10 @@ export class PlaceholderArt implements ArtProvider {
       };
       cornerMask = (wet(x, y - 1) ? 1 : 0) | (wet(x + 1, y) ? 2 : 0) | (wet(x, y + 1) ? 4 : 0) | (wet(x - 1, y) ? 8 : 0);
     }
-    const base = this.ground(kind, cornerMask, variant);
+    const ax = map.streetAxis?.[i] ?? 0;
+    if ((ax === StreetAxis.DiagonalNE || ax === StreetAxis.DiagonalNW) && (kind === Terrain.Road || kind === Terrain.Pavement || kind === Terrain.Crossing || kind === Terrain.Dirt)) return this.diagonalCell(map, x, y, kind, ax, variant);
+    const corner = turningCorner(map, x, y);
+    const base = corner ? this.roundedCell(kind, corner, cornerMask, variant) : this.ground(kind, cornerMask, variant);
     const el = map.elevation;
     if (!el || kind === Terrain.Water) return base;
     const lv = el[i] as number;
@@ -724,6 +727,90 @@ export class PlaceholderArt implements ArtProvider {
     return f;
   }
 
+  /**
+   * A cell of a 45° street, drawn smooth: the street's edges and the line
+   * between its pavement and carriageway run corner to corner across the
+   * staircase of cells, so each cell is two triangles (split along the
+   * street's direction): the ground beside the street, pavement or road.
+   */
+  private diagonalCell(map: TownMap, x: number, y: number, kind: number, ax: number, variant: number): FrameRef {
+    const W = map.width;
+    const tAt = (xx: number) => (xx < 0 || xx >= W ? Terrain.Grass : (map.terrain[y * W + xx] as number));
+    const street = (t: number) => t === Terrain.Road || t === Terrain.Pavement || t === Terrain.Crossing || t === Terrain.Plaza || t === Terrain.Bridge || t === Terrain.Dirt;
+    const landOf = (t: number) => (t === Terrain.Grass || t === Terrain.Garden || t === Terrain.Park || t === Terrain.Field || t === Terrain.Yard || t === Terrain.Path || t === Terrain.Sand || t === Terrain.Water ? t : Terrain.Grass);
+    const left = tAt(x - 1);
+    const right = tAt(x + 1);
+    const lane = kind === Terrain.Dirt ? Terrain.Dirt : Terrain.Road;
+    let a: number;
+    let b: number;
+    if (kind === Terrain.Pavement) {
+      if (!street(left)) {
+        a = landOf(left);
+        b = Terrain.Pavement;
+      } else if (!street(right)) {
+        a = Terrain.Pavement;
+        b = landOf(right);
+      } else a = b = Terrain.Pavement;
+    } else {
+      a = left === Terrain.Pavement ? Terrain.Pavement : street(left) ? lane : landOf(left);
+      b = right === Terrain.Pavement ? Terrain.Pavement : street(right) ? lane : landOf(right);
+    }
+    const key = `d:${kind}:${ax}:${a}:${b}:${variant & 3}`;
+    const hit = this.cells.get(key);
+    if (hit) return hit;
+    const A = this.ground(a as TerrainKind, 15, variant & 7);
+    const B = this.ground(b as TerrainKind, 15, (variant + 3) & 7);
+    const { layer, x: px, y: py } = this.tileSheet.alloc(T, T);
+    const g = layer.ctx;
+    // "\" (DiagonalNW): A is the lower-left triangle; "/" (DiagonalNE): A is the upper-left one.
+    for (let r = 0; r < T; r++) {
+      const aW = ax === StreetAxis.DiagonalNW ? r : T - 1 - r;
+      if (ax === StreetAxis.DiagonalNW) {
+        if (aW > 0) g.drawImage(A.image, A.x, A.y + r, aW, 1, px, py + r, aW, 1);
+        g.drawImage(B.image, B.x + aW, B.y + r, T - aW, 1, px + aW, py + r, T - aW, 1);
+      } else {
+        g.drawImage(A.image, A.x, A.y + r, aW + 1, 1, px, py + r, aW + 1, 1);
+        if (aW + 1 < T) g.drawImage(B.image, B.x + aW + 1, B.y + r, T - aW - 1, 1, px + aW + 1, py + r, T - aW - 1, 1);
+      }
+    }
+    // The kerb along the split where pavement meets road or the ground beside the street.
+    if (a !== b) {
+      for (let r = 0; r < T; r++) rect(g, px + (ax === StreetAxis.DiagonalNW ? r : T - 1 - r), py + r, 1, 1, PAL.slate3);
+    }
+    if (kind === Terrain.Crossing) for (let k = 2; k < T; k += 4) rect(g, px + k, py + (ax === StreetAxis.DiagonalNW ? T - 1 - k : k), 2, 2, PAL.cream2);
+    const f: FrameRef = { image: layer.canvas, x: px, y: py, w: T, h: T, ax: 0, ay: 0 };
+    this.cells.set(key, f);
+    return f;
+  }
+
+  /** A corner cell of a turning circle's road block: the outer corner rounded off (pavement round the bulb). */
+  private roundedCell(kind: number, corner: number, cornerMask: number, variant: number): FrameRef {
+    const key = `r:${kind}:${corner}:${cornerMask & 15}:${variant & 7}`;
+    const hit = this.cells.get(key);
+    if (hit) return hit;
+    const base = this.ground(kind as TerrainKind, cornerMask, variant);
+    const pave = this.ground(Terrain.Pavement, 15, variant);
+    const { layer, x: px, y: py } = this.tileSheet.alloc(T, T);
+    const g = layer.ctx;
+    g.drawImage(base.image, base.x, base.y, T, T, px, py, T, T);
+    // corner: 1 top-left, 2 top-right, 4 bottom-right, 8 bottom-left of the block.
+    const cx = corner === 1 || corner === 8 ? T : 0;
+    const cy = corner === 1 || corner === 2 ? T : 0;
+    for (let r = 0; r < T; r++) {
+      const dy = r + 0.5 - cy;
+      const half = Math.sqrt(Math.max(0, T * T - dy * dy));
+      // Pixels further than the radius from the bulb's inner corner are pavement.
+      const outFrom = cx === T ? T - Math.floor(half) : Math.ceil(half);
+      if (cx === T && outFrom > 0) g.drawImage(pave.image, pave.x, pave.y + r, outFrom, 1, px, py + r, outFrom, 1);
+      if (cx === 0 && outFrom < T) g.drawImage(pave.image, pave.x + outFrom, pave.y + r, T - outFrom, 1, px + outFrom, py + r, T - outFrom, 1);
+      const kx = cx === T ? outFrom : outFrom - 1;
+      if (kx >= 0 && kx < T) rect(g, px + kx, py + r, 1, 1, PAL.slate3);
+    }
+    const f: FrameRef = { image: layer.canvas, x: px, y: py, w: T, h: T, ax: 0, ay: 0 };
+    this.cells.set(key, f);
+    return f;
+  }
+
   /** A lit window or doorway of a size, with a one-pixel halo (anchor: the opening's top-left). */
   private glow(w: number, h: number): FrameRef {
     const key = `${w}x${h}`;
@@ -744,7 +831,7 @@ export class PlaceholderArt implements ArtProvider {
   // ------------------------------------------------------------------ props
 
   prop(key: string, variant: number): PropSprite {
-    const v = key === "tree" || key === "pine" || key === "flag" ? variant % 3 : 0;
+    const v = key === "tree" || key === "pine" || key === "flag" ? variant % 3 : key === "bollards" || key === "field_gate" || key === "railing" ? variant & 15 : 0;
     const k = `${key}:${v}`;
     const hit = this.props.get(k);
     if (hit) return hit;
@@ -907,6 +994,58 @@ export class PlaceholderArt implements ArtProvider {
             }
           }),
         };
+      // Street ends (DEC-090): the variant is the end's facing (n, e, s, w, ne, nw, se, sw), +8 the second look.
+      case "bollards": {
+        const f = v & 7;
+        const lit = v >= 8;
+        return {
+          albedo: frame(16, 20, 4, (ctx) => {
+            // Three posts across the end: a row for n/s, a column for e/w, a diagonal otherwise.
+            const at = f === 0 || f === 2 ? [[2, 9], [7, 9], [12, 9]] : f === 1 || f === 3 ? [[7, 3], [7, 9], [7, 15]] : f === 4 || f === 7 ? [[2, 15], [7, 9], [12, 3]] : [[2, 3], [7, 9], [12, 15]];
+            for (const [x, y] of at as [number, number][]) {
+              rect(ctx, x, y, 2, 5, PAL.ink);
+              rect(ctx, x, y, 2, 1, lit ? PAL.lit : PAL.cream);
+            }
+          }),
+        };
+      }
+      case "field_gate": {
+        const f = v & 7;
+        const steel = v >= 8;
+        const c = steel ? PAL.grey : PAL.wood2;
+        return {
+          albedo: frame(16, 20, 4, (ctx) => {
+            if (f === 1 || f === 3) {
+              rect(ctx, 6, 2, 2, 18, PAL.ink);
+              for (let k = 0; k < 3; k++) rect(ctx, 8, 4 + k * 5, 2, 4, c);
+            } else {
+              rect(ctx, 0, 9, 2, 8, PAL.ink);
+              rect(ctx, 14, 9, 2, 8, PAL.ink);
+              for (const y of [10, 13, 16]) rect(ctx, 2, y, 12, 1, c);
+              rect(ctx, 2, 10, 1, 7, c);
+              for (let k = 0; k < 6; k++) rect(ctx, 3 + k * 2, 16 - k, 1, 1, c);
+            }
+          }),
+        };
+      }
+      case "railing": {
+        const f = v & 7;
+        return {
+          albedo: frame(16, 20, 4, (ctx) => {
+            if (f === 1 || f === 3) {
+              rect(ctx, f === 1 ? 13 : 2, 2, 1, 18, PAL.ink);
+              for (let y = 3; y < 20; y += 5) rect(ctx, f === 1 ? 12 : 1, y, 3, 2, PAL.grey);
+            } else if (f === 0 || f === 2) {
+              const y = f === 0 ? 5 : 16;
+              rect(ctx, 0, y, 16, 1, PAL.ink);
+              rect(ctx, 0, y + 3, 16, 1, PAL.grey);
+              for (let x = 1; x < 16; x += 5) rect(ctx, x, y, 1, 4, PAL.ink);
+            } else {
+              for (let k = 0; k < 16; k++) rect(ctx, f === 4 || f === 7 ? 15 - k : k, 4 + k, 1, 1, PAL.ink);
+            }
+          }),
+        };
+      }
       case "stepping_stones":
         return {
           albedo: frame(16, 16, 0, (ctx) => {
@@ -1299,4 +1438,25 @@ function paintCharacterSheet(ctx: Ctx, key: number) {
       } else if (side) rect(ctx, ox + 6, 6, 1, 1, PAL.ink);
     }
   }
+}
+
+/** The street ends' turning-circle corner cells of a map (cell → which corner of its bulb: 1 top-left, 2 top-right, 4 bottom-right, 8 bottom-left). */
+const bulbCorners = new WeakMap<TownMap, Map<number, number>>();
+
+function turningCorner(map: TownMap, x: number, y: number): number {
+  if (!map.streetEnds?.length) return 0;
+  let m = bulbCorners.get(map);
+  if (!m) {
+    m = new Map();
+    for (const e of map.streetEnds) {
+      if (e.kind !== "turning_circle" || e.w < 2 || e.h < 2) continue;
+      const W = map.width;
+      m.set(e.y * W + e.x, 1);
+      m.set(e.y * W + e.x + e.w - 1, 2);
+      m.set((e.y + e.h - 1) * W + e.x + e.w - 1, 4);
+      m.set((e.y + e.h - 1) * W + e.x, 8);
+    }
+    bulbCorners.set(map, m);
+  }
+  return m.get(y * map.width + x) ?? 0;
 }

@@ -2,7 +2,7 @@
 // stage reads and writes, keyed random streams, and small grid helpers.
 // Internal to ./plan and its stages.
 import { stream, type Rng } from "../rng";
-import { Terrain, type TownConnector, type TownProp } from "../townLayout";
+import { Terrain, type StreetEndKind, type TownConnector, type TownProp } from "../townLayout";
 import type { Band, TownGeo } from "./geo";
 import type { DistrictType, Recipe, TerrainFeature } from "./registry";
 
@@ -12,7 +12,7 @@ export class LayoutOverflow extends Error {}
 export const WaterKind = { None: 0, River: 1, Sea: 2, Lake: 3, Creek: 4 } as const;
 
 /** Cell use flags (what a later stage must not build over). */
-export const Use = { Road: 1, Square: 2, Plot: 4, Rail: 8, Bridge: 16, Keep: 32, Lane: 64 } as const;
+export const Use = { Road: 1, Square: 2, Plot: 4, Rail: 8, Bridge: 16, Keep: 32, Lane: 64, End: 128 } as const;
 
 /** Street classes per road cell (for names, lamps, routing). */
 export const RoadClass = { None: 0, Arterial: 1, Street: 2, Lane: 3 } as const;
@@ -24,19 +24,39 @@ export interface Rect {
   h: number;
 }
 
-/** An axis-aligned street run, tiles (inclusive bounds of its whole width). */
+/**
+ * The direction of a street run: "h" east–west, "v" north–south, "ne" a 45°
+ * run toward the north-east ("/"), "nw" one toward the north-west ("\\").
+ */
+export type SegAxis = "h" | "v" | "ne" | "nw";
+
+/**
+ * A straight street run (or a run of the railway), tiles. The centre line
+ * runs from (ax, ay) to (bx, by), both included, with ax ≤ bx (ay ≤ by for
+ * "v"); a diagonal steps one tile across and one along per tile. The band
+ * around it is `width` cells across: rows for "h", columns for "v", and
+ * cells per row for the diagonals (a 45° staircase the art draws smooth).
+ */
 export interface Segment {
+  axis: SegAxis;
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  width: number;
+  /** Bounding box of the band, inclusive. */
   x0: number;
   y0: number;
   x1: number;
   y1: number;
-  /** "h": runs east–west (rows y0..y1 are its width); "v": north–south. */
-  axis: "h" | "v";
   cls: number;
-  style: "asphalt" | "dirt" | "path";
+  /** "lane": a paved lane (pavement only); "dirt": a country lane; "path": a footpath. */
+  style: "asphalt" | "dirt" | "path" | "lane";
   district: number;
   /** The arterial it belongs to, or -1. */
   arterial: number;
+  /** How each end (a, b) terminates when it joins no street (a turning circle, bollards, a field gate…), or null. */
+  ends: [StreetEndKind | null, StreetEndKind | null];
 }
 
 export interface Arterial {
@@ -124,6 +144,10 @@ export interface Work {
   /** The square block with its ring of streets. */
   ring: Rect;
   segments: Segment[];
+  /** The railway's runs (width 2, orthogonal). */
+  rail: Segment[];
+  /** Street direction codes per cell (`StreetAxis`), filled when the streets are painted. */
+  axis: Uint8Array;
   arterials: Arterial[];
   connectors: PlanConnector[];
   railCells: number[];
@@ -134,6 +158,17 @@ export interface Work {
   /** Ids of registry entries used (the recipe snapshot). */
   used: { districts: Set<string>; features: Set<string>; connectors: Set<string>; places: Set<string> };
   timings: Record<string, number>;
+  /** Cells of the street ends' art zones (no other street comes within two cells of an end). */
+  endZone?: Uint8Array;
+  /** The station's site, held from the streets until it is built. */
+  station?: { x: number; y: number; bw: number; bh: number; d: number };
+  /** The ground before any road was laid (stage 6 restores it under a street it cuts back). */
+  ground?: { terrain: Uint8Array; level: Uint8Array };
+}
+
+/** Tiles of countryside between the town and the map's edge (only the roads to the neighbouring towns cross it). */
+export function countrysideMargin(W: number, H: number): number {
+  return 4 + Math.floor(Math.min(W, H) / 16);
 }
 
 export function rngOf(w: Work, label: string, ...i: number[]): Rng {
