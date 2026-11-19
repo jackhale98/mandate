@@ -134,7 +134,7 @@ talk-worries-press = "{ $concern }. I can tell by the letters page. Nobody write
 talk-worries-home = "In { $hood }? { $concern }, plain and simple. Knock on any door on my road and you'll hear it."
 talk-worries-home-2 = "{ $concern }. I live in { $hood }, and I could name you six households on my street who'd say the same."
 talk-worries-home-3 = "You want the truth about { $hood }? { $concern }. It's at the kitchen table every night, and nobody's fixed it."
-talk-worries-about-hood = "{ $hood }? I'd know; it's home. { $concern }, first and last."
+talk-worries-about-hood = "{ $hood }? I'd know; it's home. { $concern }. You could set your watch by the complaints."
 
 # What the facts are doing to people (anyone).
 talk-worries-jobs = "Another lot laid off. You stop asking where, after a while. You just ask who."

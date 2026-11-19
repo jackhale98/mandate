@@ -283,10 +283,7 @@ fn abouts(e: &Engine, c: &ContentBundle, s: CharacterId, kinds: &[AboutKind]) ->
 }
 
 /// Render one composed reply.
-fn render_parts(
-    ftl: &Ftl,
-    parts: &[(String, BTreeMap<String, String>)],
-) -> String {
+fn render_parts(ftl: &Ftl, parts: &[(String, BTreeMap<String, String>)]) -> String {
     parts
         .iter()
         .map(|(k, a)| ftl.message(k, a))
@@ -316,9 +313,9 @@ fn base_args(
     );
     let here = match st.player.as_ref().unwrap().location {
         Location::Place { place } => st.world.places[place.index()].name.clone(),
-        Location::Street { neighborhood } => st.world.neighborhoods[neighborhood.index()]
-            .name
-            .clone(),
+        Location::Street { neighborhood } => {
+            st.world.neighborhoods[neighborhood.index()].name.clone()
+        }
         Location::Home => String::new(),
     };
     a.insert("here".into(), here);
@@ -449,8 +446,13 @@ fn every_picked_line_renders() {
                         });
                     }
                 });
-                for (op, trust) in [(-60.0, 0.3), (-25.0, 0.5), (0.0, 0.5), (30.0, 0.5), (70.0, 0.8)]
-                {
+                for (op, trust) in [
+                    (-60.0, 0.3),
+                    (-25.0, 0.5),
+                    (0.0, 0.5),
+                    (30.0, 0.5),
+                    (70.0, 0.8),
+                ] {
                     relate(&mut e, s, op, trust);
                     for topic in &c.talk_topics {
                         if !topic.offered.roles.is_empty() && !topic.offered.roles.contains(&r) {
@@ -540,7 +542,10 @@ fn every_picked_line_renders() {
     for (k, (f, n)) in &fell_back {
         println!("fallback share {k}: {f}/{n}");
     }
-    assert!(picked.len() * 2 > c.talk_lines.len(), "most lines are reachable");
+    assert!(
+        picked.len() * 2 > c.talk_lines.len(),
+        "most lines are reachable"
+    );
 }
 
 // --- Samples -------------------------------------------------------------------------
@@ -636,7 +641,9 @@ fn sample_exchanges() {
         for _ in 0..3 {
             e.apply(Command::EndTurn).unwrap();
         }
-        let tname = e.state().world.municipalities[town(&e).index()].name.clone();
+        let tname = e.state().world.municipalities[town(&e).index()]
+            .name
+            .clone();
         println!("\n=== Seed {seed}: {tname} ===");
         // A cool union steward.
         if let Some((s, at)) = find_named(&e, "occupation.union_steward") {
