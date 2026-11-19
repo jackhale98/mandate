@@ -93,6 +93,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-084 | Pixel-art tool: hand-drawn parts composed by code; spike before M6 art | Accepted |
 | DEC-085 | Town layout on the client, versioned so a town never rearranges | Accepted |
 | DEC-086 | Town map overview replaces the place list as the main town view | Accepted |
+| DEC-087 | Foreign nations as low-detail simulated neighbours; foreign policy in M7–M8 | Accepted |
 
 ---
 
@@ -1783,3 +1784,21 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - It is presentation only: no engine or protocol change. It ships before M6's walkable town, as soon as the UI polish round and M5d part 1 have landed.
 - **Later:** the same treatment for the region and the country in M7 (towns joined by roads and rail, for travel).
 - **Dependencies:** DEC-047, DEC-049, DEC-051, DEC-079, DEC-080, DEC-084, DEC-085.
+
+### DEC-087 — Foreign nations and foreign policy
+
+- **Status:** Accepted (owner, 2026-11-19). The owner asked to plan for foreign policy: "simulate neighbors as well with randomized constitution types and allow for more robust interaction in the future if it isn't a major overhaul." Owner: "Record the foreign policy decision."
+- **Decision:**
+  - **Neighbours are separate, low-detail nations,** not a multi-country rebuild of the engine. The home country keeps its full simulation (cohorts per neighbourhood, towns, politicians). Each neighbour is simulated at national level only, at about the cost of one town today, in a new foreign domain beside the existing ones (writing only its own domain; cross-domain effects go through effect requests, OVERVIEW §4.3).
+  - **Generated with the world:** 2–5 neighbours with randomly drawn constitutions from the constitution registry (DEC-078 content), a ruling party and leader, population, a national economy (growth, unemployment, inflation), stability, an attitude vector, and a relationship with the home country. The greyed land drawn around the country on the map (UI polish round) becomes these real nations, with names and borders.
+  - **How they reach the player, by tier:**
+    - Local: foreign investment opening or closing a plant, migrants after a neighbour's crisis, border-town trade.
+    - Regional: cross-border trade and shared rivers and hazards.
+    - National and presidency: trade deals and tariffs, treaties, disputes, aid, alliances, summits, and defence and foreign-affairs budget lines (DEC-078 §5 budget registries).
+  - **Same rules as everything else:** foreign shocks (a neighbour's recession, a refugee wave, a trade war) are exogenous events the director may time within plausible bounds (DEC-033 B); it never fakes outcomes. NPC foreign leaders use the same utility AI and rule symmetry as NPC politicians (DEC-030).
+- **Timing:**
+  - Now: nothing; the current structure doesn't block it.
+  - M7: generate the neighbours and their low-detail simulation; show them on the map; cross-border trade and migration start to matter.
+  - M8: foreign policy as play (deals, treaties, crises, the foreign minister, summits).
+  - After v1: deeper diplomacy; possibly starting a career in another country.
+- **Dependencies:** DEC-018, DEC-030, DEC-033, DEC-041, DEC-064, DEC-078, DEC-086.
