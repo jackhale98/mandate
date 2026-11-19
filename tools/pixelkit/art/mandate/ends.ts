@@ -600,19 +600,20 @@ export class StreetEnds {
    * above or below (the nearer; south on a tie), else the west or east one;
    * at an inner corner (another material only diagonally), the corner's.
    */
-  private edgePx(M: number, X: number, Y: number): number {
+  private edgePx(M: number, X: number, Y: number, at: (X: number, Y: number) => number = (a, b) => this.mat(a, b)): number {
     const prof = this.profiles.get(this.r.materialName(M));
     if (!prof) return 0;
-    const reach = (p: readonly number[], sx: number, sy: number): [number, number] => {
-      for (let k = 1; k <= p.length; k++) if (this.mat(X + sx * k, Y + sy * k) !== M) return [k, p[k - 1] as number];
-      return [99, 0];
+    // How far another material is along a profile's direction (99: not within its reach).
+    const reach = (p: readonly number[], sx: number, sy: number): number => {
+      for (let k = 1; k <= p.length; k++) if (at(X + sx * k, Y + sy * k) !== M) return k;
+      return 99;
     };
     const n = reach(prof.N, 0, -1);
     const s = reach(prof.S, 0, 1);
-    if (n[0] < 99 || s[0] < 99) return s[0] <= n[0] ? s[1] : n[1];
+    if (n < 99 || s < 99) return s <= n ? (prof.S[s - 1] as number) : (prof.N[n - 1] as number);
     const w = reach(prof.W, -1, 0);
     const e = reach(prof.E, 1, 0);
-    if (w[0] < 99 || e[0] < 99) return e[0] <= w[0] ? e[1] : w[1];
+    if (w < 99 || e < 99) return e <= w ? (prof.E[e - 1] as number) : (prof.W[w - 1] as number);
     // Inner corners: the nearest other material diagonally (Chebyshev depth), along the row or down the column.
     const lim = Math.max(prof.N.length, prof.S.length, prof.W.length, prof.E.length);
     for (let d = 1; d <= lim; d++) {
@@ -624,9 +625,9 @@ export class StreetEnds {
       ] as const) {
         for (let a = 1; a <= d; a++) {
           for (let b = 1; b <= d; b++) {
-            if (Math.max(a, b) !== d || this.mat(X + sx * a, Y + sy * b) === M) continue;
+            if (Math.max(a, b) !== d || at(X + sx * a, Y + sy * b) === M) continue;
             // Only a corner: the row and the column toward it are this material.
-            if (this.mat(X + sx * a, Y) !== M || this.mat(X, Y + sy * b) !== M) continue;
+            if (at(X + sx * a, Y) !== M || at(X, Y + sy * b) !== M) continue;
             // As the templates wrap an edge round a missing corner: further along the row than down the column takes the row's (north or south) profile.
             const p = a > b ? (sy < 0 ? prof.N : prof.S) : sx < 0 ? prof.W : prof.E;
             if (d <= p.length) return p[d - 1] as number;
@@ -650,22 +651,45 @@ export class StreetEnds {
     // Pixels within 4 px of the cell whose material the ends change.
     const S = 24;
     const changed = new Uint8Array(S * S);
-    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) if (this.mat(X0 - 4 + i, Y0 - 4 + j) !== this.h.mat(X0 - 4 + i, Y0 - 4 + j)) changed[j * S + i] = 1;
+    const win = new Int16Array(S * S);
+    for (let j = 0; j < S; j++) {
+      for (let i = 0; i < S; i++) {
+        const m = this.mat(X0 - 4 + i, Y0 - 4 + j);
+        win[j * S + i] = m;
+        if (m !== this.h.mat(X0 - 4 + i, Y0 - 4 + j)) changed[j * S + i] = 1;
+      }
+    }
+    // Materials near the cell from the window (edges reach at most 4 px).
+    const at = (XX: number, YY: number) => {
+      const i = XX - X0 + 4;
+      const j = YY - Y0 + 4;
+      return i >= 0 && j >= 0 && i < S && j < S ? (win[j * S + i] as number) : this.mat(XX, YY);
+    };
+    // Which of the cell's pixels have a change within 4 px (the window grown by 4 px, rows then columns).
+    const rows = new Uint8Array(S * 16);
+    for (let j = 0; j < S; j++) {
+      for (let px = 0; px < 16; px++) {
+        let c = 0;
+        for (let i = px; i <= px + 8 && !c; i++) c = changed[j * S + i] as number;
+        rows[j * 16 + px] = c;
+      }
+    }
     // No centre dash or other marking runs into an end.
     const inEnd = this.list.some((e) => x >= e.zx0 && y >= e.zy0 && x < e.zx1 && y < e.zy1);
-    const chalk = new Set([this.L.M, this.L.m]);
+    const chalkM = this.L.M as number;
+    const chalkm = this.L.m as number;
     for (let py = 0; py < 16; py++) {
       for (let px = 0; px < 16; px++) {
         const X = X0 + px;
         const Y = Y0 + py;
         let near = false;
-        for (let j = py; j <= py + 8 && !near; j++) for (let i = px; i <= px + 8 && !near; i++) if (changed[j * S + i]) near = true;
-        const M = this.mat(X, Y);
+        for (let j = py; j <= py + 8 && !near; j++) near = rows[j * 16 + px] === 1;
+        const M = win[(py + 4) * S + px + 4] as number;
         if (near) {
           // Repainted: the material's fill, or its edge where another material is within the edge's reach.
-          const edge = this.edgePx(M, X, Y);
+          const edge = this.edgePx(M, X, Y, at);
           img.px[py * 16 + px] = edge > 0 ? edge : this.fillPx(this.r.materialName(M), X, Y, M === own, variant);
-        } else if (inEnd && M === this.r.road && chalk.has(img.px[py * 16 + px] as number)) img.px[py * 16 + px] = this.fillPx(this.r.materialName(M), X, Y, M === own, variant);
+        } else if (inEnd && M === this.r.road && (img.px[py * 16 + px] === chalkM || img.px[py * 16 + px] === chalkm)) img.px[py * 16 + px] = this.fillPx(this.r.materialName(M), X, Y, M === own, variant);
       }
     }
     this.details(img, X0, Y0);
@@ -673,10 +697,20 @@ export class StreetEnds {
 
   /** Each end's drawn details over the cell: a dropped kerb, setts, a track and hedge, an island's planting. */
   private details(img: Indexed, X0: number, Y0: number) {
+    // Only the ends whose zone holds this cell (a cell is in at most a few).
+    const x = X0 >> 4;
+    const y = Y0 >> 4;
+    const here = this.list.filter((e) => x >= e.zx0 && y >= e.zy0 && x < e.zx1 && y < e.zy1);
+    if (here.length === 0 || !this.r.claimable.has(this.h.t(x, y))) return;
     for (let py = 0; py < 16; py++) {
       for (let px = 0; px < 16; px++) {
-        const d = this.detailAt(X0 + px, Y0 + py);
-        if (d > 0) img.px[py * 16 + px] = d;
+        for (const e of here) {
+          const d = this.detail(e, X0 + px, Y0 + py);
+          if (d > 0) {
+            img.px[py * 16 + px] = d;
+            break;
+          }
+        }
       }
     }
   }
