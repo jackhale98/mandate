@@ -1,5 +1,18 @@
 {
   "$defs": {
+    "AboutKind": {
+      "description": "The kind of subject a topic can be about.",
+      "enum": [
+        "place",
+        "person",
+        "hood",
+        "bill",
+        "template",
+        "proposal",
+        "rival"
+      ],
+      "type": "string"
+    },
     "ActionCost": {
       "additionalProperties": false,
       "properties": {
@@ -2852,6 +2865,52 @@
       ],
       "type": "object"
     },
+    "DiscretionBand": {
+      "additionalProperties": false,
+      "description": "Up to (but not including) an opinion of the player, the most a speaker tells.",
+      "properties": {
+        "below": {
+          "description": "The band's upper opinion bound (−100..100), exclusive.",
+          "format": "double",
+          "type": "number"
+        },
+        "tells": {
+          "$ref": "#/$defs/Level"
+        }
+      },
+      "required": [
+        "below",
+        "tells"
+      ],
+      "type": "object"
+    },
+    "DiscretionDef": {
+      "additionalProperties": false,
+      "description": "Discretion: the most a speaker tells, by their opinion of the player and\ntheir trust (the bands of the protocol's `opinion_band`).",
+      "properties": {
+        "bands": {
+          "description": "Ascending bands; above the last, `top`.",
+          "items": {
+            "$ref": "#/$defs/DiscretionBand"
+          },
+          "type": "array"
+        },
+        "top": {
+          "$ref": "#/$defs/Level",
+          "description": "What the friendliest tell, with trust at least `trust_for_detailed`\n(with less trust, one level lower)."
+        },
+        "trust_for_detailed": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "bands",
+        "top",
+        "trust_for_detailed"
+      ],
+      "type": "object"
+    },
     "DistrictAppears": {
       "additionalProperties": false,
       "description": "When a district type may be chosen. Among the eligible types the\ngenerator picks by weighted rendezvous hashing.",
@@ -3899,6 +3958,21 @@
       ],
       "type": "object"
     },
+    "FavourParams": {
+      "additionalProperties": false,
+      "description": "Trading favours in conversation.",
+      "properties": {
+        "sway_share": {
+          "description": "The share of a favour trade's sway an offered favour gives.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "sway_share"
+      ],
+      "type": "object"
+    },
     "FeatureAppears": {
       "additionalProperties": false,
       "properties": {
@@ -4681,6 +4755,26 @@
       ],
       "type": "object"
     },
+    "HoodOf": {
+      "description": "Which neighbourhood a subject names.",
+      "oneOf": [
+        {
+          "const": "here",
+          "description": "Where the conversation happens.",
+          "type": "string"
+        },
+        {
+          "const": "speaker_home",
+          "description": "The speaker's home neighbourhood.",
+          "type": "string"
+        },
+        {
+          "const": "about",
+          "description": "The subject (a neighbourhood, or a place's neighbourhood).",
+          "type": "string"
+        }
+      ]
+    },
     "Indicator": {
       "description": "Engine-provided measures of a municipality, recomputed monthly. Concerns\nread them; situational policies (DEC-077) will use them as unlock\nconditions. Adding one is a code extension point (one variant, one\ncomputation in `mandate_sim::concerns::indicator`, and a test).",
       "oneOf": [
@@ -4993,6 +5087,119 @@
       ],
       "type": "object"
     },
+    "KnownSubject": {
+      "description": "What a rule knows.",
+      "oneOf": [
+        {
+          "enum": [
+            "broker",
+            "rival_plans"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "town_concerns",
+          "description": "The town's worries.",
+          "type": "string"
+        },
+        {
+          "const": "home_concerns",
+          "description": "The worries of the speaker's own neighbourhood.",
+          "type": "string"
+        },
+        {
+          "const": "council",
+          "description": "The councillors and the mayor, as people.",
+          "type": "string"
+        },
+        {
+          "const": "policy_support",
+          "description": "Support for policies (bills before the council and the menu).",
+          "type": "string"
+        },
+        {
+          "const": "sponsored_proposals",
+          "description": "Proposals the speaker sponsors (DEC-092).",
+          "type": "string"
+        },
+        {
+          "const": "workplace_proposals",
+          "description": "Proposals of the speaker's workplace (DEC-092).",
+          "type": "string"
+        },
+        {
+          "const": "workplace_people",
+          "description": "The people who work where the speaker works.",
+          "type": "string"
+        },
+        {
+          "const": "themselves",
+          "description": "The speaker, as a person.",
+          "type": "string"
+        }
+      ]
+    },
+    "KnowsDef": {
+      "additionalProperties": false,
+      "description": "One rule of speaker knowledge: who knows what, to what level. NPCs keep\nno ledgers: what a speaker knows is derived from these, never stored.",
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/Level"
+        },
+        "subject": {
+          "$ref": "#/$defs/KnownSubject"
+        },
+        "who": {
+          "$ref": "#/$defs/KnowsWho"
+        }
+      },
+      "required": [
+        "who",
+        "subject",
+        "level"
+      ],
+      "type": "object"
+    },
+    "KnowsWho": {
+      "description": "Who knows a rule's subject (kept in code; the levels are content).",
+      "oneOf": [
+        {
+          "const": "anyone_local",
+          "description": "Anyone from the subject's town.",
+          "type": "string"
+        },
+        {
+          "const": "leader",
+          "description": "An organisation leader (an occupation with `leader: true`).",
+          "type": "string"
+        },
+        {
+          "const": "stake_overlap",
+          "description": "Someone whose stake covers the town's defining industry or its live crisis.",
+          "type": "string"
+        },
+        {
+          "const": "broker",
+          "description": "The town's power broker.",
+          "type": "string"
+        },
+        {
+          "const": "politician",
+          "description": "A politician.",
+          "type": "string"
+        },
+        {
+          "const": "sponsor",
+          "description": "A sponsor of proposals (DEC-092; nobody until policy families exist).",
+          "type": "string"
+        },
+        {
+          "const": "workplace",
+          "description": "Someone with a workplace.",
+          "type": "string"
+        }
+      ]
+    },
     "LaneStyle": {
       "enum": [
         "none",
@@ -5000,6 +5207,65 @@
         "stepped"
       ],
       "type": "string"
+    },
+    "LeadToDef": {
+      "description": "Where a lead points.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The first place of this kind in the town.",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "type": {
+              "const": "place_kind",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A person in a slot (`speaker`, `about`).",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "person",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The streets of a neighbourhood.",
+          "properties": {
+            "of": {
+              "$ref": "#/$defs/HoodOf"
+            },
+            "type": {
+              "const": "streets",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "of"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "LegalResponseKind": {
       "description": "How the player answers an investigation (DEC-006 Legal Jeopardy).",
@@ -6395,6 +6661,21 @@
       },
       "required": [
         "warmth_opinion"
+      ],
+      "type": "object"
+    },
+    "PitchParams": {
+      "additionalProperties": false,
+      "description": "Pitching a bill (the shared lobbying formula and odds).",
+      "properties": {
+        "sway_share": {
+          "description": "The share of a lobbying meeting's sway a pitch gives (a pitch costs\nhalf the time).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "sway_share"
       ],
       "type": "object"
     },
@@ -7816,6 +8097,358 @@
             "within_months"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person in the slot has one of these roles: occupation ids,\n`councillor` or `mayor`.",
+          "properties": {
+            "occupations": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "occupation",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot",
+            "occupations"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person in the slot has one of these traits.",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "traits": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "trait",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot",
+            "traits"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A personality axis of the person in the slot within [min, max] (0..1).",
+          "properties": {
+            "axis": {
+              "type": "string"
+            },
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "personality",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot",
+            "axis"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person in the slot holds this goal (DEC-032).",
+          "properties": {
+            "goal": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "goal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot",
+            "goal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Their opinion of the player within [min, max] (−100..100).",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "opinion",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Their trust in the player within [min, max] (0..1).",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "trust",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "They remember the player doing one of these (memory kinds; the most\nsalient): `$memory_key`, `$subject_key`, `$year`.",
+          "properties": {
+            "kinds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "remembers",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot",
+            "kinds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.",
+          "properties": {
+            "owed_to_player": {
+              "default": false,
+              "type": "boolean"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "favour",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "They are (or are not) the town's power broker. When they are:\n`$broker`, `$broker_place`, `$stake_key`.",
+          "properties": {
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "is_broker",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "They are (or are not) the player's rival. When they are: `$rival`.",
+          "properties": {
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "is_rival",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The speaker would tell the player at least `min` about the subject\n(what they know, capped by discretion): the subject's arguments.",
+          "properties": {
+            "min": {
+              "$ref": "#/$defs/Level"
+            },
+            "subject": {
+              "$ref": "#/$defs/SubjectRef"
+            },
+            "type": {
+              "const": "tells",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "subject",
+            "min"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's ledger (DEC-091) holds the subject within [min, max]:\nthe subject's arguments.",
+          "properties": {
+            "max": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Level"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "min": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Level"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "subject": {
+              "$ref": "#/$defs/SubjectRef"
+            },
+            "type": {
+              "const": "player_knows",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "subject"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Any one of these holds (the first that does gives the arguments).",
+          "properties": {
+            "of": {
+              "items": {
+                "$ref": "#/$defs/SituationCondition"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "any",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "of"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -8119,6 +8752,503 @@
       ],
       "type": "string"
     },
+    "SubjectRef": {
+      "description": "A subject of the player's ledger, named from the conversation.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The town's worries: `$concern_key` (the strongest).",
+          "properties": {
+            "type": {
+              "const": "town_concerns",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A neighbourhood's worries: `$hood`, `$concern_key`.",
+          "properties": {
+            "of": {
+              "$ref": "#/$defs/HoodOf"
+            },
+            "type": {
+              "const": "hood_concerns",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "of"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Who really runs the town: `$broker`, `$broker_place`, `$stake_key`.",
+          "properties": {
+            "type": {
+              "const": "broker",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A person in a slot (`speaker`, `about`): `$person`.",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "person",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The rival's plans: `$rival`.",
+          "properties": {
+            "type": {
+              "const": "rival_plans",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A proposal sponsored by a person in a slot (DEC-092; holds nothing\nuntil policy families exist).",
+          "properties": {
+            "sponsored_by": {
+              "type": "string"
+            },
+            "type": {
+              "const": "proposal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "sponsored_by"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Who supports the policy in a slot (`about`): `$policy_key`, `$support_key`.",
+          "properties": {
+            "of": {
+              "type": "string"
+            },
+            "type": {
+              "const": "policy_support",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "of"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SupportParams": {
+      "additionalProperties": false,
+      "description": "Asking for support or a public endorsement.",
+      "properties": {
+        "base": {
+          "description": "Odds for a non-politician: sigmoid(base + opinion × per_opinion / 100\n+ (trust − 0.5) × per_trust), clamped to [min, max].",
+          "format": "double",
+          "type": "number"
+        },
+        "bill_awareness": {
+          "description": "Backing a bill in public raises its awareness by this much.",
+          "format": "double",
+          "type": "number"
+        },
+        "endorse_approval": {
+          "description": "A public endorsement: approval of the player among the residents of\nthe endorser's neighbourhood (× the room left).",
+          "format": "double",
+          "type": "number"
+        },
+        "favour_below": {
+          "description": "Below this opinion, someone who agrees asks a favour in return.",
+          "format": "double",
+          "type": "number"
+        },
+        "max": {
+          "format": "double",
+          "type": "number"
+        },
+        "min": {
+          "format": "double",
+          "type": "number"
+        },
+        "per_opinion": {
+          "format": "double",
+          "type": "number"
+        },
+        "per_trust": {
+          "format": "double",
+          "type": "number"
+        },
+        "refused_opinion": {
+          "description": "A refusal's opinion change.",
+          "format": "double",
+          "type": "number"
+        },
+        "sway": {
+          "description": "A politician who agrees backs the bill: this much sway.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "base",
+        "per_opinion",
+        "per_trust",
+        "min",
+        "max",
+        "sway",
+        "endorse_approval",
+        "bill_awareness",
+        "favour_below",
+        "refused_opinion"
+      ],
+      "type": "object"
+    },
+    "TalkCost": {
+      "description": "What a conversation costs (DEC-073; owner, 2026-11-19: half a slot).",
+      "oneOf": [
+        {
+          "enum": [
+            "slot"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "half_slot",
+          "description": "Two conversations fill one slot.",
+          "type": "string"
+        }
+      ]
+    },
+    "TalkEffectDef": {
+      "description": "A change to the relationship a line makes (the speaker toward the player).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Opinion change, scaled by the speaker's personality.",
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "opinion",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A memory of the player (a memory kind).",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "type": {
+              "const": "remember",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TalkLeadDef": {
+      "additionalProperties": false,
+      "description": "A lead a line opens (a deflecting line usually points somewhere).",
+      "properties": {
+        "key": {
+          "description": "Fluent key (`lead-…`).",
+          "type": "string"
+        },
+        "level": {
+          "$ref": "#/$defs/Level"
+        },
+        "subject": {
+          "$ref": "#/$defs/SubjectRef",
+          "description": "The subject following the lead teaches, and to what level."
+        },
+        "to": {
+          "$ref": "#/$defs/LeadToDef"
+        }
+      },
+      "required": [
+        "key",
+        "to",
+        "subject",
+        "level"
+      ],
+      "type": "object"
+    },
+    "TalkLineDef": {
+      "additionalProperties": false,
+      "description": "One reply line: a Fluent key, the conditions under which it may be said,\nand what it teaches, where it points and how it moves the relationship.",
+      "properties": {
+        "effects": {
+          "default": [],
+          "description": "Changes to the relationship.",
+          "items": {
+            "$ref": "#/$defs/TalkEffectDef"
+          },
+          "type": "array"
+        },
+        "fallback": {
+          "default": false,
+          "description": "The topic's safe answer for the roles in its `occupation` condition\n(or all roles); used only when no other substance line holds.",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "Content id, e.g. `line.runs.named`.",
+          "type": "string"
+        },
+        "key": {
+          "description": "Fluent key of the line.",
+          "type": "string"
+        },
+        "lead": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TalkLeadDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where the line points the player."
+        },
+        "part": {
+          "$ref": "#/$defs/TalkPart"
+        },
+        "teaches": {
+          "default": [],
+          "description": "What the player learns, each capped at the speaker's told level.",
+          "items": {
+            "$ref": "#/$defs/TeachDef"
+          },
+          "type": "array"
+        },
+        "topic": {
+          "default": null,
+          "description": "The topic a substance line answers (required for substance; an\nopener with a topic is preferred for that topic).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "voice": {
+          "default": null,
+          "description": "The voice a closer belongs to (required for closers).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "weight": {
+          "default": 1.0,
+          "description": "Relative chance among the lines that hold (default 1).",
+          "format": "double",
+          "type": "number"
+        },
+        "when": {
+          "default": [],
+          "description": "Every condition must hold.",
+          "items": {
+            "$ref": "#/$defs/SituationCondition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "part",
+        "key"
+      ],
+      "type": "object"
+    },
+    "TalkMechanic": {
+      "description": "What a topic does besides the reply. A small closed set kept in code.",
+      "oneOf": [
+        {
+          "const": "inform",
+          "description": "Only the reply (and what it teaches).",
+          "type": "string"
+        },
+        {
+          "const": "pitch",
+          "description": "Sway on a bill, by the shared lobbying formula.",
+          "type": "string"
+        },
+        {
+          "const": "ask_support",
+          "description": "Ask for support or a public endorsement (odds shown first).",
+          "type": "string"
+        },
+        {
+          "const": "favour",
+          "description": "Offer a favour, or call one in (the favour ledger).",
+          "type": "string"
+        },
+        {
+          "const": "small_talk",
+          "description": "A small opinion gain (capped weekly) and a `met` memory.",
+          "type": "string"
+        }
+      ]
+    },
+    "TalkParams": {
+      "additionalProperties": false,
+      "description": "The conversation parameter block (`kind: \"talk_params\"`, once across packs).",
+      "properties": {
+        "cost": {
+          "$ref": "#/$defs/TalkCost"
+        },
+        "discretion": {
+          "$ref": "#/$defs/DiscretionDef"
+        },
+        "favour": {
+          "$ref": "#/$defs/FavourParams"
+        },
+        "favour_discretion": {
+          "description": "Added when a favour they owe the player is called in.",
+          "format": "int8",
+          "maximum": 127,
+          "minimum": -128,
+          "type": "integer"
+        },
+        "flattered_discretion": {
+          "additionalProperties": {
+            "format": "int8",
+            "maximum": 127,
+            "minimum": -128,
+            "type": "integer"
+          },
+          "default": {},
+          "description": "Added when flattered (after small talk with them this week): `trait.vain`: +1.",
+          "type": "object"
+        },
+        "log_cap": {
+          "description": "Exchanges kept in the log (the notebook's \"where and when\").",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "memory_lines": {
+          "description": "Lines remembered per person for the repetition guard.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pitch": {
+          "$ref": "#/$defs/PitchParams"
+        },
+        "quote_share": {
+          "description": "How often a memory quote is used when one holds (0..1).",
+          "format": "double",
+          "type": "number"
+        },
+        "small_talk_opinion": {
+          "description": "Small talk's opinion gain (scaled by personality).",
+          "format": "double",
+          "type": "number"
+        },
+        "small_talk_weekly_cap": {
+          "description": "Small talks per person per week that still gain anything.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "speaker_knows": {
+          "items": {
+            "$ref": "#/$defs/KnowsDef"
+          },
+          "type": "array"
+        },
+        "support": {
+          "$ref": "#/$defs/SupportParams"
+        },
+        "trait_discretion": {
+          "additionalProperties": {
+            "format": "int8",
+            "maximum": 127,
+            "minimum": -128,
+            "type": "integer"
+          },
+          "default": {},
+          "description": "Whole levels added to the cap by traits (`trait.schemer`: −1).",
+          "type": "object"
+        }
+      },
+      "required": [
+        "cost",
+        "discretion",
+        "favour_discretion",
+        "speaker_knows",
+        "memory_lines",
+        "log_cap",
+        "quote_share",
+        "small_talk_opinion",
+        "small_talk_weekly_cap",
+        "pitch",
+        "support",
+        "favour"
+      ],
+      "type": "object"
+    },
+    "TalkPart": {
+      "description": "Which part of a reply a line is, in reply order.",
+      "enum": [
+        "opener",
+        "quote",
+        "substance",
+        "closer"
+      ],
+      "type": "string"
+    },
     "TaxParams": {
       "additionalProperties": false,
       "properties": {
@@ -8153,6 +9283,23 @@
         "sales",
         "income",
         "business"
+      ],
+      "type": "object"
+    },
+    "TeachDef": {
+      "additionalProperties": false,
+      "description": "One thing a line teaches, capped at the speaker's told level.",
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/Level"
+        },
+        "subject": {
+          "$ref": "#/$defs/SubjectRef"
+        }
+      },
+      "required": [
+        "subject",
+        "level"
       ],
       "type": "object"
     },
@@ -8374,6 +9521,81 @@
         "national"
       ],
       "type": "string"
+    },
+    "TopicDef": {
+      "additionalProperties": false,
+      "description": "Something the player can raise with someone (DEC-093).",
+      "properties": {
+        "about": {
+          "default": [],
+          "description": "Which subjects it can be about (empty: none).",
+          "items": {
+            "$ref": "#/$defs/AboutKind"
+          },
+          "type": "array"
+        },
+        "about_required": {
+          "default": false,
+          "description": "The topic needs a subject (a pitch needs a bill); otherwise one is optional.",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "Content id, e.g. `topic.who_runs`.",
+          "type": "string"
+        },
+        "mechanic": {
+          "$ref": "#/$defs/TalkMechanic"
+        },
+        "name_key": {
+          "description": "Fluent key of the button label.",
+          "type": "string"
+        },
+        "offered": {
+          "$ref": "#/$defs/TopicOffer",
+          "default": {
+            "places": [],
+            "roles": [],
+            "when": []
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "mechanic"
+      ],
+      "type": "object"
+    },
+    "TopicOffer": {
+      "additionalProperties": false,
+      "description": "Who offers a topic, where, and when.",
+      "properties": {
+        "places": {
+          "default": [],
+          "description": "Place kinds (`streets` for a neighbourhood's streets); empty: anywhere.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "roles": {
+          "default": [],
+          "description": "Occupation ids, `councillor`, `mayor`; empty: anyone.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "when": {
+          "default": [],
+          "description": "Every condition must hold (slots: `speaker`, `player`).",
+          "items": {
+            "$ref": "#/$defs/SituationCondition"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
     },
     "TownCharacterParams": {
       "additionalProperties": false,
@@ -8779,6 +10001,39 @@
         "mobilisation_max",
         "habit_base",
         "habit_propensity"
+      ],
+      "type": "object"
+    },
+    "VoiceDef": {
+      "additionalProperties": false,
+      "description": "A way of speaking. A speaker's voice is the highest-priority voice whose\nconditions all hold (ties: load order); `voice.plain` has none.",
+      "properties": {
+        "closer_share": {
+          "default": 0.5,
+          "description": "How often a reply in this voice ends with a closer (0..1).",
+          "format": "double",
+          "type": "number"
+        },
+        "id": {
+          "description": "Content id, e.g. `voice.blunt`.",
+          "type": "string"
+        },
+        "priority": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "when": {
+          "default": [],
+          "description": "Every condition must hold (slots: `speaker`, `player`).",
+          "items": {
+            "$ref": "#/$defs/SituationCondition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "priority"
       ],
       "type": "object"
     },
@@ -9772,6 +11027,87 @@
         },
         "value": {
           "$ref": "#/$defs/KnowledgeParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Conversation topics (DEC-093): what the player can raise, with whom, where.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TopicDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "talk_topics",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Conversation lines: openers, memory quotes, substance and closers (DEC-093).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TalkLineDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "talk_lines",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Conversation voices: who speaks how (DEC-093).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/VoiceDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "talk_voices",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Conversation rules as numbers: cost, discretion, speaker knowledge (DEC-093).",
+      "properties": {
+        "kind": {
+          "const": "talk_params",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/TalkParams"
         }
       },
       "required": [
