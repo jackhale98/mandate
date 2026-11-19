@@ -10,7 +10,8 @@ The **lead agent** owns architecture consistency, decision and requirement trace
 ```text
 OBJECTIVE:        one sentence
 REQUIREMENTS:     REQ/SIM/TECH/UI IDs
-DECISIONS:        DEC IDs that constrain the work
+DECISIONS:        DEC IDs that constrain the work; always DEC-098 with the
+                  TIER-GENERIC rule below, copied into the brief
 CONTRACT:         public types/functions in and out (paste signatures; interface-first)
 OWNS:             files/modules the agent may modify
 OUT OF SCOPE:     explicitly forbidden areas
@@ -19,6 +20,21 @@ TESTS:            unit / property / integration / determinism required
 DELIVERABLES:     code, tests, doc updates
 INTEGRATION NOTES: known neighbours, follow-ups
 ```
+
+Every brief carries this rule under DECISIONS (DEC-098; `docs/design/research/EXTENSIBILITY_AUDIT.md` §5.1):
+
+```text
+TIER-GENERIC: State that belongs to "a town, a region or the nation" is keyed by
+  `Jurisdiction`, never by `MunicipalityId` or a raw u32 (keep `MunicipalityId`
+  for physical things in a town: places, neighbourhoods, curiosities).
+  Offices, seats, powers, terms and calendars are read from the constitution;
+  no Rust code or content names an office or body ("mayor", "council") except
+  through constitution ids. New code does not read `player.municipality` or
+  `player.ward`: it asks `player::home(state)`, `player::posts(state)` or
+  `state.focus()`. A brief that cannot follow this says why in DECISIONS.
+```
+
+Until R1 merges, `player::home`, `player::posts`, `state.focus()` and `Jurisdiction` do not exist yet. A brief that runs before R1 uses `Jurisdiction::Municipality { id }` from R1's first commit, or a local stand-in with the same serde shape, and routes its reads of the player's town through one helper that R1 replaces.
 
 ## 3. Task report template (required on return)
 

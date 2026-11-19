@@ -2,7 +2,13 @@
 
 **Status:** Interface-first design brief for M6 (2026-11-19). It turns DEC-091 (knowledge is earned), DEC-092 (policy families grounded in the town) and DEC-093 (conversations) into exact contracts for implementation agents. Nothing here changes an accepted decision. Choices these decisions leave open are marked **Proposed** and are listed again in §5 for the owner.
 **Built on:** `main` at save format v13, plus the M5d part 2 branch (situational policies, `SituationTrigger`, the policy preview query, the overheard registry), which must merge first.
-**Read with:** DEC-031, DEC-034, DEC-035, DEC-041, DEC-053, DEC-054, DEC-073, DEC-077, DEC-078, DEC-079, DEC-088, DEC-089, DEC-090, DEC-091, DEC-092, DEC-093; OVERVIEW §3 and §4.3; `docs/design/research/TOWN_GENERATION.md` §4, §10, §11 and §15.
+**Read with:** DEC-031, DEC-034, DEC-035, DEC-041, DEC-053, DEC-054, DEC-073, DEC-077, DEC-078, DEC-079, DEC-088, DEC-089, DEC-090, DEC-091, DEC-092, DEC-093, DEC-098; OVERVIEW §3 and §4.3; `docs/design/research/TOWN_GENERATION.md` §4, §10, §11 and §15; `docs/design/research/EXTENSIBILITY_AUDIT.md` §3 and §7.
+**Tier-generic (DEC-098, accepted 2026-11-19).** The contracts below are amended so that nothing built in M6 needs re-keying for the regional and national tiers. They use R1's shared keys and accessors (§4, task R1; audit §7.1 and §7.3):
+- `Jurisdiction` (`Municipality { id } | Region { id } | Nation`) for state that belongs to a government's territory, and `Area` (`Hood { id } | Constituency { id } | In { at }`) for where an effect applies. `MunicipalityId` stays for physical things in a town (places, neighbourhoods, curiosities).
+- `player::home(state)` (the town the player lives in), `player::posts(state)` (the constitution posts they hold) and `state.focus()` (the jurisdictions simulated in detail; in M6, the home town). New code never reads `player.municipality` or `player.ward`.
+- Offices and bodies by constitution id, through `holds_power_at`, `executive_of(at)`, `members_of(body, at)` and `holder_of(office, at)`. No Rust code or content names "mayor" or "council" except through those ids.
+
+A task that runs before R1 merges uses `Jurisdiction::Municipality { id }` from R1's first commit, or a local stand-in with the same serde shape.
 
 ---
 
@@ -13,6 +19,7 @@
 - **Policy families.** A family is a content template with *slots* that bind to the real town: "Rescue deal for Halton Works", "Flood wall for Riverside", "Licences for the Corn Market". Each run draws its own deck of families. An instance opens when its trigger holds, offers two or three *choice axes* (where, how paid, who delivers), and may come with *sponsors* (the union, the traders) who bring a ready version and a price. Meeting the sponsor is how you learn of it.
 - **Conversations** (§3). The player talks to someone by topic (their worries, who really runs things, a subject, a pitch, support, a favour, small talk). The engine composes the reply from content lines: an opener set by the relationship, the substance set by the facts and by what the speaker will tell, a closer in the speaker's voice, sometimes a quote from their memories. Replies teach the ledger, give leads, reveal sponsors' proposals and move relationships. Each conversation costs time, and people don't repeat themselves.
 - **Everything new is content** except a short list of typed extension points (§2.15, §3.14).
+- **Built for every tier (DEC-098).** Family state is keyed by `Jurisdiction`, offices are read from the constitution (R1, R2), and one condition language serves dilemmas, families, asks and lines (U1). See the note under the title and §4.
 
 ---
 
@@ -441,10 +448,10 @@ A family is one entry in `content/<pack>/policy_families/*.jsonc` (`"kind": "pol
 |---|---|---|
 | `id` | The family's permanent name (never shown) | `family.plant_rescue` |
 | `name_key`, `desc_key` | Fluent keys for its title and summary. Slot names are available as `{ $slot }` | "Rescue deal for { $plant }" |
-| `tier`, `category`, `requires` | Which level of government, which budget line, and the power needed to propose it | `local`, `economic_development`, `propose_ordinance` |
-| `needs` | Optional. A power or competence the town may lack (DEC-092 §5; M7) | — |
+| `tier`, `category`, `requires` | Which level of government, which budget line, and the power needed to propose it. An instance opens only in a jurisdiction of this tier (`at.tier()`, DEC-098) | `local`, `economic_development`, `propose_ordinance` |
+| `needs` | Optional. A power or competence the jurisdiction may lack (DEC-092 §5; M7) | — |
 | `draw` | How often it turns up in a run: `rarity` (`always`, `common`, `uncommon`, `rare`) and `weight` (priority when several are ready at once) | `{ "rarity": "common", "weight": 3 }` |
-| `max_instances` | How many can be open at once in a town (default 1) | `2` for flood walls |
+| `max_instances` | How many can be open at once in one jurisdiction (default 1) | `2` for flood walls |
 | `slots` | The real things it is about. Each has an `id`, a `bind` (what kind of thing and how to choose it, §2.3), and `optional` | the plant, its owner, the union |
 | `trigger` | When it comes onto the table (§2.4). Without one, it opens as soon as its slots bind | the plant is losing jobs |
 | `expiry` | When an unused one goes away: `when` (a condition), `grace_months` after the trigger stops, `max_months`, `cooldown_months` before it can return | the plant has closed |
@@ -459,15 +466,17 @@ Words starting with `@` refer to a slot: `"sector": "@sector"` means "the sector
 
 Slots bind in order, so a later slot can refer to an earlier one. A required slot that cannot bind means no instance. Candidates are taken in id order, ranked by `pick`, and ties go to the lowest id.
 
+**Slots bind inside the instance's jurisdiction** `at` (DEC-098): its neighbourhoods are `at.hoods(world)`, its places are the places in them, and its people live or work there. In M6 every instance is in a focus town, so this reads as "in the town"; in M7 the same selectors bind across a region with no format change.
+
 | `bind.type` | Binds | Selector fields | Fluent argument |
 |---|---|---|---|
-| `place` | A place in the town | `kinds` (place kinds); `drivers` (sector drivers of the place, via the new place-kind field `drivers`); `in_slot` (inside a bound neighbourhood); `open_only` (default true, needs DEC-090 D3 place status) | `$slot`: the place's name |
-| `neighborhood` | A neighbourhood | `kinds` (neighbourhood kinds); `of_slot` (the neighbourhood of a bound place); `hazard` + `min_exposure` (needs D8); `concern` + `top` (its top concerns); `lacks` (place kinds it has none of) | `$slot`: its name |
-| `person` | A Named or Principal character | `occupations`; `at_slot` (works at a bound place); `in_slot` (lives or works in a bound neighbourhood); `fallback`: `broker`, `mayor` or `none` | `$slot`: their name |
-| `broker` | The town's power broker | — | `$slot` |
-| `sector` | A sector | `of_slot` (the sector of a bound place, by its kind's drivers and the town's largest matching sector); `drivers`; `defining` (the defining industry) | `$slot_key`: the sector's name key |
+| `place` | A place in the jurisdiction | `kinds` (place kinds); `drivers` (sector drivers of the place, via the new place-kind field `drivers`); `in_slot` (inside a bound neighbourhood); `open_only` (default true, needs DEC-090 D3 place status) | `$slot`: the place's name |
+| `neighborhood` | A neighbourhood of the jurisdiction | `kinds` (neighbourhood kinds); `of_slot` (the neighbourhood of a bound place); `hazard` + `min_exposure` (needs D8); `concern` + `top` (its top concerns); `lacks` (place kinds it has none of) | `$slot`: its name |
+| `person` | A Named or Principal character | `occupations`; `at_slot` (works at a bound place); `in_slot` (lives or works in a bound neighbourhood); `fallback`: `broker`, `executive` (the holder of the jurisdiction's executive office, R1's `executive_of(at)`) or `none` | `$slot`: their name |
+| `broker` | The town's power broker, for a `Municipality` instance; unbound elsewhere until M7 | — | `$slot` |
+| `sector` | A sector | `of_slot` (the sector of a bound place, by its kind's drivers and the jurisdiction's largest matching sector); `drivers`; `defining` (the defining industry) | `$slot_key`: the sector's name key |
 | `crisis` | The live crisis | `kinds` | `$slot_key` |
-| `hazard` | A hazard | `hazards`; `in_slot` (exposure of a bound neighbourhood, D8, else the town's `GeoProfile`); `min_exposure` | `$slot_key`: `hazard-text-<kind>` |
+| `hazard` | A hazard | `hazards`; `in_slot` (exposure of a bound neighbourhood, D8, else the town's `GeoProfile`; for a region, the most exposed of its towns, M7); `min_exposure` | `$slot_key`: `hazard-text-<kind>` |
 
 | `pick` | Chooses |
 |---|---|
@@ -480,39 +489,40 @@ Slots bind in order, so a later slot can refer to an earlier one. A required slo
 
 **Organisations.** There are no organisations as actors yet (DEC-020, DEC-034 planned). "The union" binds its leader (`person` with `occupations: ["occupation.union_steward"]`) and, if needed, the union hall (`place`). An `organisation` binding kind is an extension point for when organisations exist.
 
-### 2.4 Triggers and expiry, on the situation condition type
+### 2.4 Triggers and expiry, on the one condition type
 
-Families reuse `SituationTrigger` and `SituationCondition` from M5d part 2 (`mandate-content/src/types.rs`), extended. The extension is backward compatible: today's situational templates keep working.
+Families use the one condition language that U1 builds (§4, task U1; DEC-098 §5): narrative `Condition`, `SituationCondition` and `HeardCondition` become one `Condition` type with one evaluator and one validator. F1 runs after U1, so it adds the variants below to that type. The names follow today's `SituationCondition`, and today's situational templates keep working.
 
 ```rust
 pub struct SituationTrigger {
     /// Every one of these holds (new; default empty).
-    #[serde(default)] pub all: Vec<SituationCondition>,
+    #[serde(default)] pub all: Vec<Condition>,
     /// At least one of these holds, when any are given (now `#[serde(default)]`).
-    #[serde(default)] pub any: Vec<SituationCondition>,
+    #[serde(default)] pub any: Vec<Condition>,
     pub reason_key: String,
 }
 
-pub enum SituationCondition {
-    // Existing (M5d part 2):
+pub enum Condition {   // U1's unified type; the variants families use
+    // Existing (M5d part 2; unified by U1):
     Crisis { kind: ContentKey, min_severity: f64 },
     Indicator { indicator: Indicator, min: Option<f64>, max: Option<f64> },
     PlantClosure { within_months: u16 },
     Disaster { within_months: u16 },
-    // New, town-level (mirroring the narrative `Condition` vocabulary):
     Concern { concern: ContentKey, top: u8 },
     Industry { drivers: Vec<SectorDriver> },
-    LawInForce { templates: Vec<ContentKey>, absent: bool },   // templates or family ids
-    // New, slot-relative (families only; rejected on templates):
+    LawInForce { templates: Vec<ContentKey>, absent: bool },   // templates or family ids (F1 extends)
+    // New in F1, slot-relative (families only; rejected on templates):
     HoodConcern { slot: String, concern: ContentKey, top: u8 },
     HoodHazard { slot: String, hazard: HazardKey, min: f64 },  // needs D8
     SectorDecline { slot: String, min: f64 },                  // needs E1 baselines
     PlaceOpen { slot: String },                                // needs D3 place status
     PlaceClosed { slot: String },
+    // … the rest of U1's vocabulary
 }
 ```
 
-- The evaluator becomes `policy::situation_holds(state, content, c, town, bindings: Option<&[SlotBinding]>)`. `triggered` is true when every `all` condition holds and either `any` is empty or one of its conditions holds.
+- **Evaluation.** U1's evaluator takes a context that carries the jurisdiction and the bound slots. Families call it through `policy::situation_holds(state, content, c, at: Jurisdiction, bindings: Option<&[SlotBinding]>)`. `triggered` is true when every `all` condition holds and either `any` is empty or one of its conditions holds.
+- **Tiers (DEC-098).** Town-level conditions evaluate for `Jurisdiction::Municipality`. For `Region` or `Nation` they read the aggregate where U1 marks the variant tier-generic, and otherwise never hold (until M7). Validation refuses a non-local family that uses a condition not marked tier-generic.
 - Validation needs at least one condition in total.
 
 **Expiry** (`ExpiryDef`): an open instance with no bill lapses when the first of these happens:
@@ -520,7 +530,7 @@ pub enum SituationCondition {
 - the trigger has not held for `grace_months` (default 3);
 - `max_months` have passed since it opened.
 
-It can open again in the town after `cooldown_months` (default 12). A lapsed instance is kept (status `Lapsed { on, reason }`), so ids and history stay.
+It can open again in the same jurisdiction after `cooldown_months` (default 12). A lapsed instance is kept (status `Lapsed { on, reason }`), so ids and history stay.
 
 ### 2.5 Choice axes and options
 
@@ -600,9 +610,9 @@ On drafting, the area becomes `Clause::Area { neighborhoods }` on the `PolicyIns
 
 ### 2.8 Draw weights and the run deck
 
-- **Deck.** When play begins in a town (and on entering a zone), each family whose tier matches is in the deck if a keyed draw falls under its rarity chance. The draw is `rng::keyed(seed, Stream::Policy, [TAG_DECK, town, hash(family id)])` with BLAKE3 `StableHash`. Rarity chances are content (`params.jsonc`, proposed: common 0.85, uncommon 0.5, rare 0.2, always 1). Because the draw is keyed, a save loaded later draws the same deck.
-- **Opening.** Monthly, among deck families whose slots bind and trigger holds, instances open in order of `weight` (descending), then registry order. Two caps apply: `max_open_per_town` (proposed 4) and each family's `max_instances`.
-- **Binding draws** (`pick: keyed`) use `[TAG_BIND, town, hash(id), slot index, instance ordinal]`.
+- **Deck.** When a jurisdiction becomes a focus jurisdiction (at play start, the home town; in M7, on entering a zone), each family whose tier equals `at.tier()` is in its deck if a keyed draw falls under its rarity chance. The draw is `rng::keyed(seed, Stream::Policy, [TAG_DECK, at.tier_index(), at.raw(), hash(family id)])` with BLAKE3 `StableHash`, so a region's deck never collides with a town's. Rarity chances are content (`params.jsonc`, proposed: common 0.85, uncommon 0.5, rare 0.2, always 1). Because the draw is keyed, a save loaded later draws the same deck.
+- **Opening.** Monthly, among deck families whose slots bind and trigger holds, instances open in order of `weight` (descending), then registry order. Two caps apply, per jurisdiction: `max_open_per_jurisdiction` (proposed 4) and each family's `max_instances`.
+- **Binding draws** (`pick: keyed`) use `[TAG_BIND, at.tier_index(), at.raw(), hash(id), slot index, instance ordinal]`.
 - **Stream.** `Stream::Policy` is new and keyed-only, like `Stream::Media`.
 
 ### 2.9 Rust types (content: `crates/mandate-content/src/policy_family.rs`, new)
@@ -648,7 +658,7 @@ pub enum BindDef {
              #[serde(default)] min_exposure: f64, #[serde(default)] pick: Pick },
 }
 pub enum Pick { First, MostAtRisk, MostExposed, MostConcerned, Largest, Keyed }
-pub enum PersonFallback { None, Broker, Mayor }
+pub enum PersonFallback { None, Broker, Executive }   // never an office name (DEC-098)
 pub struct ExpiryDef { pub when: Option<SituationTrigger>, pub grace_months: u16,
                        pub max_months: Option<u16>, pub cooldown_months: u16 }
 pub struct FamilyBaseDef {
@@ -716,25 +726,25 @@ pub enum LeadToDef { Slot { slot: String }, PlaceKind { kind: String }, Streets 
 `crates/mandate-sim/src/policy/families.rs` (new), inside the policy domain:
 
 ```rust
-define_id!(/// A policy-family instance (a proposal in a town).
+define_id!(/// A policy-family instance (a proposal in a jurisdiction).
            FamilyInstanceId);
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct FamilyState {
     pub ids: IdAllocator,
-    /// Families in play this run, per town, in registry order (keyed draw).
-    #[serde(with = "map_as_pairs")] pub decks: BTreeMap<MunicipalityId, Vec<ContentKey>>,
+    /// Families in play this run, per jurisdiction, in registry order (keyed draw).
+    #[serde(with = "map_as_pairs")] pub decks: BTreeMap<Jurisdiction, Vec<ContentKey>>,
     /// Indexed by `FamilyInstanceId`.
     pub instances: Vec<FamilyInstance>,
-    /// When each (town, family) last lapsed: cooldowns.
-    #[serde(with = "map_as_pairs")] pub lapsed: BTreeMap<(MunicipalityId, ContentKey), SimDate>,
+    /// When each (jurisdiction, family) last lapsed: cooldowns.
+    #[serde(with = "map_as_pairs")] pub lapsed: BTreeMap<(Jurisdiction, ContentKey), SimDate>,
     /// Registry keys the decks were drawn with (redrawn for new families on load).
     pub family_keys: Vec<ContentKey>,
 }
 pub struct FamilyInstance {
     pub id: FamilyInstanceId,
     pub family: ContentKey,
-    pub town: MunicipalityId,
+    pub at: Jurisdiction,                    // the family's `tier` equals `at.tier()` (checked when it opens)
     pub bindings: Vec<SlotBinding>,          // slot order
     pub sponsors: Vec<SponsorCast>,          // sponsor id → the person bound to its slot
     pub opened: SimDate,
@@ -753,9 +763,9 @@ pub struct SponsorCast { pub sponsor: String, pub person: CharacterId }
 - `PolicyState` gains `#[serde(default)] families: FamilyState`.
 - `PolicyInstance` gains `#[serde(default)] family: Option<FamilyDraft>`, where `FamilyDraft { instance: FamilyInstanceId, choices: Vec<(String, String)> /* axis order */, sponsor: Option<String>, changed_axes: u8 }`. Its `template` holds the family id.
 - **One lookup seam.** Today 28 call sites read `content.policies.get(&p.template)` (sim, protocol, CLI). They all move to `policy::resolve(content, &state.policy, p) -> Option<Resolved<'_>>`, which returns the plain template for a standard bill and composes on the fly for a family bill. Composition is microseconds and runs only where templates are read (monthly modifiers, views, NPC agendas), so no cache. Add one if profiling asks.
-- **System.** `policy.families` (monthly) is registered in the Characters phase right after `characters.monthly`, so it reads the fresh town character and crises. It writes only `policy.families` and posts `Effect::Learn`/`Effect::Lead`. In M6 it runs for the player's zone only; other towns keep the standard menu. This is an addition to the phase table (OVERVIEW §4.2) and needs a determinism test update.
-- **NPCs.** An NPC councillor may draft an open instance in their town using the preset of the sponsor they are closest to (highest opinion), scored through the same agenda as templates (`npc.crisis_agenda`, `npc.concern_agenda`).
-- **Save.** A format bump with a migration step: `policy.families` defaults to empty; `on_load` draws decks for the player's town (keyed, so the same deck a fresh start would draw). No instances exist before the next monthly pass.
+- **System.** `policy.families` (monthly) is registered in the Characters phase right after `characters.monthly`, so it reads the fresh town character and crises. It writes only `policy.families` and posts `Effect::Learn`/`Effect::Lead`. It runs for `state.focus()` jurisdictions only (in M6, the home town); other towns keep the standard menu, and M7 widens the focus with no migration. This is an addition to the phase table (OVERVIEW §4.2) and needs a determinism test update.
+- **NPCs.** An NPC who holds a post with the family's `requires` power at the instance's jurisdiction (`holds_power_at`) may draft it, using the preset of the sponsor they are closest to (highest opinion), scored through the same agenda as templates (`npc.crisis_agenda`, `npc.concern_agenda`).
+- **Save.** A format bump with a migration step: `policy.families` defaults to empty; `on_load` draws decks for the focus jurisdictions (keyed, so the same deck a fresh start would draw). No instances exist before the next monthly pass.
 - **Loading under changed rules** (DEC-074). `missing_references` adds:
   - families referenced by a bill or law;
   - options referenced by a bill's choices.
@@ -776,9 +786,9 @@ PlayerCommand::AmendPolicy { policy, params, clauses,
 ```
 
 `DraftFamily` is located at the town hall (like `DraftPolicy`) and is free. It is refused when:
-- the proposal is not `Open` or not in the player's town;
+- the proposal is not `Open`;
 - `knows(proposal) < Known` (DEC-091);
-- the office lacks `requires`;
+- the player holds no post with the family's `requires` power at the proposal's jurisdiction (R1's `holds_power_at(state, content, player, requires, at)`);
 - an option is unknown, excluded or unavailable (`needs`);
 - a parameter is out of range.
 
@@ -815,6 +825,7 @@ pub struct SponsorTermsView { pub id: String, pub name_key: String, pub person: 
 - The engine computes every option's cost and support (DEC-092 §3). With three axes of three options that is at most nine compositions per query.
 - `OfficeView` gains `proposals: Vec<ProposalView>`, gated by `proposal`. A `ProposalView` has:
   - id, family, name key and arguments, description key;
+  - `at: JurisdictionDto` (R2's DTO for a jurisdiction: tier, id, name key);
   - level;
   - the reason key;
   - bindings (slot, kind, name, `LocationView`);
@@ -830,7 +841,7 @@ In `mandate-content` (`validate_bundle`):
 1. Ids look like `family.<name>` and are unique. Slot, axis, option and sponsor ids are unique within the family. Parameter ids are unique across the base and all options.
 2. Binding kinds and selectors name real things: place kinds in the `places` registry, occupations, sectors and drivers, crises, concerns, hazards. `of_slot`, `at_slot` and `in_slot` refer to earlier slots of the right kind. A required slot never depends on an optional one.
 3. Every `@slot` reference names a slot of the matching kind (a sector slot for `sector`, a hazard slot for `hazard`).
-4. Triggers: at least one condition; slot-relative conditions name a slot of the right kind; slot conditions on templates are rejected. Ranges are sane (as `check_situation`).
+4. Triggers: at least one condition; slot-relative conditions name a slot of the right kind; slot conditions on templates are rejected; a family whose `tier` is not `local` uses only conditions U1 marks tier-generic (DEC-098). Ranges are sane (U1's one condition validator).
 5. Axes: 1–3 per family, 2–3 options each; `default` names an option; at most one axis sets `area`; `excludes` name real options and leave every axis at least one compatible choice.
 6. **DEC-073 per option:** every option has at least one cost and one benefit against the other options of its axis. Static check: no option is identical to or dominated by another on the vector (cost added, `cost_factor`, `effect_factor`, `months`, side-effect harm, area size); financing options count as a cost through their mechanism (tax, borrowing) or, for `budget`, through money. The whole family, like every template, has a simulated downside besides money.
 7. Sponsors: `slot` is a person slot; the preset names one real option per axis it lists and respects `excludes`; parameter values are in range; prices are valid (`count` 1–3; approval and backlash in 0..0.1; `context_key` exists).
@@ -857,7 +868,7 @@ In `mandate-cli` (it can generate worlds; the content crate cannot):
   - median default cost and support;
   - which slot or condition failed most;
   - families that never bind (a CI gate at 16 seeds).
-- `--set` (DEC-078) reaches families and their parameters: `policy_families[family.flood_wall].draw.weight=2`, `policy_family_params.max_open_per_town=3`.
+- `--set` (DEC-078) reaches families and their parameters: `policy_families[family.flood_wall].draw.weight=2`, `policy_family_params.max_open_per_jurisdiction=3`.
 - The bot variety check (DEC-077 §5) counts which families winning strategies drafted.
 
 ### 2.15 What remains code (extension points, for EXTENDING.md)
@@ -866,7 +877,7 @@ In `mandate-cli` (it can generate worlds; the content crate cannot):
 |---|---|---|
 | A binding kind (`organisation`, `bridge`, `school district`) | `BindDef`, `policy::families::bind` | A variant, a selector over the entity, an argument rule, validation, a test |
 | A `pick` rule | `Pick`, `families::rank` | A variant and a ranking function |
-| A situation condition | `SituationCondition`, `policy::situation_holds` | A variant, its evaluation, validation |
+| A condition | U1's `Condition`, its one evaluator, and the validator's table of where each variant is allowed | A variant, its evaluation, its tier-generic flag, validation |
 | A mechanism type | `MechanismDef`, `policy::mods_for` and the reading domain | A variant, a domain that reads it, a test (DEC-024) |
 | A side-effect type | `SideEffectDef` | As today |
 | A price type | `PriceDef`, `policy::families::pay` | A variant, its effect, validation |
@@ -1077,9 +1088,9 @@ A typical game: the player overhears at the diner that Halton Works may close, w
               ],
               "signature": { "redistribution": 0.1, "reform_appetite": -0.1 } },
           ] },
-        { "id": "builder", "name_key": "axis-who-builds", "default": "council",
+        { "id": "builder", "name_key": "axis-who-builds", "default": "works_team",
           "options": [
-            { "id": "council", "name_key": "opt-build-council", "desc_key": "opt-build-council-desc" },
+            { "id": "works_team", "name_key": "opt-build-works-team", "desc_key": "opt-build-works-team-desc" },
             { "id": "contractor", "name_key": "opt-build-contractor", "desc_key": "opt-build-contractor-desc",
               "cost_factor": 1.25, "months": -6,
               "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.01, "param": "height" } ] },
@@ -1091,7 +1102,7 @@ A typical game: the player overhears at the diner that Halton Works may close, w
 
       "sponsors": [
         { "id": "residents", "slot": "residents", "name_key": "sponsor-residents-version",
-          "preset": { "where": "riverfront", "pay": "bond", "builder": "council" }, "params": { "height": 3 },
+          "preset": { "where": "riverfront", "pay": "bond", "builder": "works_team" }, "params": { "height": 3 },
           "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.04, "backlash": 0.01 } },
         { "id": "builders", "slot": "builders", "name_key": "sponsor-builders-version",
           "preset": { "where": "hood", "pay": "budget", "builder": "contractor" }, "params": { "height": 2 },
@@ -1125,8 +1136,8 @@ opt-wall-riverfront-desc = Protects { $hood } and the neighbourhoods beside it. 
 opt-pay-developer-levy = A levy on developers
 opt-pay-developer-levy-desc = Builders by the water pay towards it. Fewer new homes get built.
 axis-who-builds = Who builds it
-opt-build-council = The council's works team
-opt-build-council-desc = No contractor's margin; as quick and as good as the council's own staff.
+opt-build-works-team = The council's works team
+opt-build-works-team-desc = No contractor's margin; as quick and as good as the council's own staff.
 opt-build-contractor = A contractor
 opt-build-contractor-desc = Six months faster and a quarter dearer. Local workers who lose out complain.
 opt-build-landowners = The landowners, under a council order
@@ -1199,9 +1210,9 @@ lead-flood-wall = People in the streets of { $hood } still talk about the last f
               "mechanisms": [ { "type": "revenue", "per_unit": 400, "param": "stalls" } ],
               "side_effects": [ { "type": "grievance", "class": "middle", "per_unit": 0.0005, "param": "stalls" } ] },
           ] },
-        { "id": "order", "name_key": "axis-market-order", "default": "council",
+        { "id": "order", "name_key": "axis-market-order", "default": "inspectors",
           "options": [
-            { "id": "council", "name_key": "opt-order-council", "desc_key": "opt-order-council-desc",
+            { "id": "inspectors", "name_key": "opt-order-inspectors", "desc_key": "opt-order-inspectors-desc",
               "cost": { "per_capita": 1.5 } },
             { "id": "traders", "name_key": "opt-order-traders", "desc_key": "opt-order-traders-desc",
               "cost_factor": 0.5,
@@ -1215,7 +1226,7 @@ lead-flood-wall = People in the streets of { $hood } still talk about the last f
           "preset": { "hours": "evening", "fee": "low", "order": "traders" }, "params": { "stalls": 80 },
           "price": { "type": "favour", "count": 1, "context_key": "favour-market" } },
         { "id": "residents", "slot": "residents", "name_key": "sponsor-neighbours-version",
-          "preset": { "hours": "daytime", "fee": "high", "order": "council" }, "params": { "stalls": -20 },
+          "preset": { "hours": "daytime", "fee": "high", "order": "inspectors" }, "params": { "stalls": -20 },
           "price": { "type": "endorsement", "area": { "type": "slot", "slot": "hood" }, "approval": 0.03, "backlash": 0.01 } },
       ],
 
@@ -1249,8 +1260,8 @@ opt-fee-low-desc = More traders take a stall. The council collects little.
 opt-fee-high = A high fee
 opt-fee-high-desc = The fees pay for the market's upkeep. Fewer traders can afford a stall.
 axis-market-order = Who keeps order
-opt-order-council = Council inspectors
-opt-order-council-desc = Rules are kept evenly, at a cost to the council.
+opt-order-inspectors = Council inspectors
+opt-order-inspectors-desc = Rules are kept evenly, at a cost to the council.
 opt-order-traders = The traders themselves
 opt-order-traders-desc = Cheap, and the traders like it. Neighbours doubt they will police themselves.
 sponsor-traders-version = The traders' version
@@ -1379,7 +1390,7 @@ Topics live in a content registry. The engine offers a topic by the speaker's ro
 
 ### 3.3 The shared condition type
 
-DEC-093 asks for the same reusable condition type as DEC-092's triggers. `SituationCondition` (§2.4) becomes the one vocabulary for town situations, policy triggers and conversation lines.
+DEC-093 asks for the same reusable condition type as DEC-092's triggers. C1 made `SituationCondition` the vocabulary for town situations, policy triggers and conversation lines, and added the variants below. U1 (§4; DEC-098 §5) then folds the narrative `Condition` and `HeardCondition` into it, so dilemmas, storylines, goals, asks, overheard lines, conversation lines and family triggers share one `Condition` type, one evaluator and one validator.
 
 - **Slots.** In a conversation the slots are `speaker`, `about` (the subject), `here` (the place) and `player`.
 - **Arguments.** Every variant documents the Fluent arguments it provides when it holds, as `HeardCondition` already does (for example `broker` gives `$broker` and `$broker_place`). Triggers ignore the arguments; lines use them.
@@ -1389,7 +1400,7 @@ New variants, mostly the person-relative ones of the narrative `Condition` with 
 
 ```rust
 // Added to SituationCondition (slot-relative; conversations and families):
-Occupation { slot: String, occupations: Vec<ContentKey> },       // or "councillor" / "mayor"
+Occupation { slot: String, occupations: Vec<ContentKey> },       // or a role word: a body's `member_key` or an office id (R1)
 Trait { slot: String, traits: Vec<ContentKey> },
 Personality { slot: String, axis: String, min: Option<f64>, max: Option<f64> },
 Goal { slot: String, goal: ContentKey },
@@ -1499,7 +1510,7 @@ pub struct TopicDef {
 pub enum TalkMechanic { Inform, Pitch, AskSupport, Favour, SmallTalk }
 pub enum AboutKind { Place, Person, Hood, Bill, Template, Proposal, Rival }
 pub struct TopicOffer {
-    #[serde(default)] pub roles: Vec<String>,              // occupation ids, `councillor`, `mayor`; empty = anyone
+    #[serde(default)] pub roles: Vec<String>,              // occupation ids or role words (a body's `member_key`, an office id; R1); empty = anyone
     #[serde(default)] pub places: Vec<String>,             // place kinds; empty = anywhere
     #[serde(default)] pub when: Vec<SituationCondition>,
 }
@@ -1627,7 +1638,7 @@ pub struct ExchangeView {
 ### 3.11 Validation
 
 1. Ids are unique (`topic.*`, `line.*`, `voice.*`). Every substance line names a real topic; every closer names a real voice; every quote line has a `remembers` condition.
-2. **Every topic has a fallback substance line for every role it is offered to** (occupations, `councillor`, `mayor`). A fallback line's only conditions are on the speaker's role.
+2. **Every topic has a fallback substance line for every role it is offered to** (occupations, and role words resolved through the constitution: `councillor` is the council's `member_key`, `mayor` an office id; R1). A fallback line's only conditions are on the speaker's role.
 3. Conditions reference real things (slots valid for the part and topic, real occupations, traits, goals, memory kinds, personality axes, concerns) and sane ranges.
 4. `teaches` subjects are valid for the topic's `about`. A line that teaches `level` must carry a `Tells` condition at that level or higher, so discretion is never bypassed.
 5. Fluent keys exist, and their placeholders are among the arguments the line's conditions and context provide (the placeholder check of §2.13 item 9).
@@ -1636,7 +1647,7 @@ pub struct ExchangeView {
 
 ### 3.12 Lab
 
-`mandate-cli talk --seed <s> [--months <n>] [--occupation <id> | --person <id>] [--topic <id>] [--samples <n>]` plays `n` months, then samples conversations in the player's town (each topic with each reachable person, at the person's real relationship and at forced bands: hostile, neutral, friendly). It reports:
+`mandate-cli talk --seed <s> [--months <n>] [--occupation <id> | --person <id>] [--topic <id>] [--samples <n>]` plays `n` months, then samples conversations in the player's home town (`player::home`; each topic with each reachable person, at the person's real relationship and at forced bands: hostile, neutral, friendly). It reports:
 - distinct exchanges;
 - lines never chosen;
 - the share of replies that fell back, per topic and role;
@@ -1778,48 +1789,70 @@ Topics, lines, voices, discretion and costs are content.
 
 ## 4. M6 task breakdown
 
-**Order:** M5d part 2 merges first. Then the knowledge ledger with conversations right after it (DEC-093: conversations are the ledger's main source), and then policy families, whose sponsors are met in conversation. Town layout v2 "stage B" means its engine inputs (E1 baselines, E2 `TownGeographyView`, E3 `TownStateView` and place status: D3) and its content registries (C: D4), plus G1 (D8, per-neighbourhood hazards).
+**Done** (2026-11-19): B1–B3, G1, K1–K6, C1–C4. Town layout v2 "stage B" meant its engine inputs (E1 baselines, E2 `TownGeographyView`, E3 `TownStateView` and place status: D3) and its content registries (C: D4), plus G1 (D8, per-neighbourhood hazards).
+
+**Order (DEC-098).** The "After" column is authoritative; in outline:
+1. **N1** (per-neighbourhood concerns, running) merges.
+2. **R1** (offices from the constitution: engine and save) runs as a short freeze on its files. **E1** (`ENGAGEMENT.md` §11) runs beside it if it keeps to the `Canvass` arm.
+3. **E2** (the director), then **U1** (one condition language), then **E3** and **E6** (`ENGAGEMENT.md` §11).
+4. **R2** (offices from the constitution: protocol and web) runs after R1, beside the asks work (E6–E8).
+5. The policy families (F1 onwards) follow U1 and the asks (E6–E8, DEC-097). V2, A1 and P1 follow R1.
+6. **X1** (a lab timing check) runs at any time.
+
+Tasks that would add `Role` matches, office names or town-keyed state (E2, E4, E6, F1, V2, A1, P1) start after R1, so they are written against posts and jurisdictions from the start.
 
 **Rules:**
 - **Save bumps.** The lead numbers save versions at merge, one bump per task. Each task writes its migration against "the previous version" and renumbers on rebase.
 - **Shared files.** The shared enums `ContentFile`, `ContentBundle`, `QueryDto`, `ResponseBody` and `Effect` take append-only edits from several tasks; the lead resolves conflicts at merge.
 - **Build parallelism** is set per brief (`CARGO_BUILD_JOBS`, WORKFLOW §7).
+- **Tier-generic (DEC-098).** Every brief carries WORKFLOW §2's `TIER-GENERIC` rule. A brief that cannot follow it says why under DECISIONS.
+- **Small items folded into running tasks (DEC-098):**
+  - the hard-coded treasury budget shares per tier (`finance/mod.rs`) move to `economy.jsonc`, with **F2b**;
+  - validation refuses voting rules that have no tabulator (only plurality exists), refuses a body or office id used twice across a constitution's tiers, and documents the procedure ids `ordinance` and `budget` as a contract with the engine, with **R1**;
+  - one `fact_kinds` registry (kind, severity, evidence, newsworthiness, Fluent) that shady acts and secret kinds reference, with **E9** (`ENGAGEMENT.md` §5).
 
 | # | Task | After | OWNS | Runs beside |
 |---|---|---|---|---|
-| **B1** | Town v2 E1: baselines at generation (save bump) | M5d2 | town v2 brief | K0, B3 |
-| **B3** | Town v2 C: layout registries (D4) | M5d2 | town v2 brief | B1, K1 |
+| **B1** | Done. Town v2 E1: baselines at generation (save bump) | M5d2 | town v2 brief | K0, B3 |
+| **B3** | Done. Town v2 C: layout registries (D4) | M5d2 | town v2 brief | B1, K1 |
 | **K0** | Lead: accept this contract, DEC-091/092 status notes | — | `docs/design/**` | B1, B3 |
-| **K1** | Knowledge ledger core: types, `learn`/`read`/`lead`/`enter_zone`, `knows`, `Knowing`, `Effect::Learn/Read/Lead` and their application, `knowledge.jsonc` (starts, option, primer, intros, effect params), seeding at play start and on load, save bump and migration, fingerprint, determinism tests, lab `--omniscient` switch | B1 | `crates/mandate-sim/src/player/**`; `scheduler.rs` (Effect variants); `engine.rs` (seed and `on_load` calls); `crates/mandate-content/src/knowledge.rs` (new) and its `ContentFile`/bundle lines; `content/base/knowledge.jsonc`; `content/schemas/**`; `crates/mandate-save/**` | B2, B3 |
-| **B2** | Town v2 E2/E3: town views, place status (D3) | B1 | town v2 brief (`mandate-protocol/src/town.rs` new; sim `world.rs`, `places.rs` status) | K1 |
-| **G1** | Town v2 D8: per-neighbourhood hazard exposure, damage and displacement (save bump) | B1 | `environment/**`, `economy/housing.rs`, `population/**` (displacement), worldgen exposure | K2–K5 |
-| **K2** | Protocol redaction (§1.7), `Gate`, `NotebookView`, `NewGameParams.local_knowledge`, TS types | K1, B2 | `crates/mandate-protocol/src/**`; `web/src/engine/protocol/**` (generated); `crates/mandate-wasm/src/session.rs` (new-game option) | K3, G1, F1 |
-| **K3** | Knowledge producers (§1.3): arrival intros, overheard teaching, actions, decisions and scenes, stories; narrative `Learn`, `RevealPlace`, `Knows`; overheard `teaches` | K1 | `crates/mandate-sim/src/{actions,places,overheard,media}.rs`; `narrative/**`; `crates/mandate-content/src/narrative.rs`; `content/base/{overheard,dilemmas,scenes}.jsonc` (hooks only) | K2, G1, F1 |
+| **K1** | Done. Knowledge ledger core: types, `learn`/`read`/`lead`/`enter_zone`, `knows`, `Knowing`, `Effect::Learn/Read/Lead` and their application, `knowledge.jsonc` (starts, option, primer, intros, effect params), seeding at play start and on load, save bump and migration, fingerprint, determinism tests, lab `--omniscient` switch | B1 | `crates/mandate-sim/src/player/**`; `scheduler.rs` (Effect variants); `engine.rs` (seed and `on_load` calls); `crates/mandate-content/src/knowledge.rs` (new) and its `ContentFile`/bundle lines; `content/base/knowledge.jsonc`; `content/schemas/**`; `crates/mandate-save/**` | B2, B3 |
+| **B2** | Done. Town v2 E2/E3: town views, place status (D3) | B1 | town v2 brief (`mandate-protocol/src/town.rs` new; sim `world.rs`, `places.rs` status) | K1 |
+| **G1** | Done. Town v2 D8: per-neighbourhood hazard exposure, damage and displacement (save bump) | B1 | `environment/**`, `economy/housing.rs`, `population/**` (displacement), worldgen exposure | K2–K5 |
+| **K2** | Done. Protocol redaction (§1.7), `Gate`, `NotebookView`, `NewGameParams.local_knowledge`, TS types | K1, B2 | `crates/mandate-protocol/src/**`; `web/src/engine/protocol/**` (generated); `crates/mandate-wasm/src/session.rs` (new-game option) | K3, G1, F1 |
+| **K3** | Done. Knowledge producers (§1.3): arrival intros, overheard teaching, actions, decisions and scenes, stories; narrative `Learn`, `RevealPlace`, `Knows`; overheard `teaches` | K1 | `crates/mandate-sim/src/{actions,places,overheard,media}.rs`; `narrative/**`; `crates/mandate-content/src/narrative.rs`; `content/base/{overheard,dilemmas,scenes}.jsonc` (hooks only) | K2, G1, F1 |
 | **G2** | Town v2 D7: hidden places on the ledger (`Subject::Place`, no `known_places`) | K3 | town v2 brief | K4 |
-| **C1** | Conversations engine (§3): content types (`conversation.rs`: topics, lines, voices, params), the shared condition extension of §3.3 with argument providers, speaker knowledge and discretion, `conversations::reply` with the keyed guard, `PlayerCommand::Talk` (half-slot cost, mechanics through the existing lobby and favour paths), `TalkState`, the overheard repetition guard, save bump (shared with K1 if they merge together), validation 1–7, determinism tests | K1, K3 | `crates/mandate-content/src/{conversation.rs (new), types.rs (situation section only), validate.rs (situation and conversation sections), bundle.rs}`; `content/schemas/**`; `crates/mandate-sim/src/{conversations.rs (new), player/talk.rs (new), overheard.rs}`; `actions.rs` (`Talk` only); `crates/mandate-save/**`; `content/base/conversations/params.jsonc` and one sample topic | K2, K5 |
-| **C2** | Protocol: `TalkView`, `ExchangeView`, `PersonRefView.can_talk`, notebook links to exchanges, TS | C1, K2 | `crates/mandate-protocol/src/{talk.rs (new), knowledge.rs, characters.rs, lib.rs}`; `web/src/engine/protocol/**` | C3 |
-| **C3** | Content: the seven base topics, openers, substances (about 150–250 lines across roles), voices and closers, quotes, fallbacks per topic and role, `talk.ftl` | C1 (drafting can start with the formats) | `content/base/conversations/**`; `content/base/locale/en/talk.ftl` (new) | C2, C4, K4 |
-| **C4** | Web: the talk panel (topics as buttons, odds, the exchange, what was learned), from the place panel, the List view and the walkable town; Playwright | C2, K5 | `web/src/**` except `engine/protocol` | K4 |
+| **C1** | Done. Conversations engine (§3): content types (`conversation.rs`: topics, lines, voices, params), the shared condition extension of §3.3 with argument providers, speaker knowledge and discretion, `conversations::reply` with the keyed guard, `PlayerCommand::Talk` (half-slot cost, mechanics through the existing lobby and favour paths), `TalkState`, the overheard repetition guard, save bump (shared with K1 if they merge together), validation 1–7, determinism tests | K1, K3 | `crates/mandate-content/src/{conversation.rs (new), types.rs (situation section only), validate.rs (situation and conversation sections), bundle.rs}`; `content/schemas/**`; `crates/mandate-sim/src/{conversations.rs (new), player/talk.rs (new), overheard.rs}`; `actions.rs` (`Talk` only); `crates/mandate-save/**`; `content/base/conversations/params.jsonc` and one sample topic | K2, K5 |
+| **C2** | Done. Protocol: `TalkView`, `ExchangeView`, `PersonRefView.can_talk`, notebook links to exchanges, TS. DEC-098: its views carry no office names, so nothing changes; R1 touches its files mechanically and redefines "a colleague" (`talk/mod.rs`) as the holder of a post whose jurisdiction is a focus jurisdiction | C1, K2 | `crates/mandate-protocol/src/{talk.rs (new), knowledge.rs, characters.rs, lib.rs}`; `web/src/engine/protocol/**` | C3 |
+| **C3** | Done. Content: the seven base topics, openers, substances (about 150–250 lines across roles), voices and closers, quotes, fallbacks per topic and role, `talk.ftl` | C1 (drafting can start with the formats) | `content/base/conversations/**`; `content/base/locale/en/talk.ftl` (new) | C2, C4, K4 |
+| **C4** | Done. Web: the talk panel (topics as buttons, odds, the exchange, what was learned), from the place panel, the List view and the walkable town; Playwright. DEC-098: no change; R2 replaces any "council" or "mayor" labels it shows with constitution labels | C2, K5 | `web/src/**` except `engine/protocol` | K4 |
 | **C5** | Lab: `mandate-cli talk` and `--coverage` (§3.12), the repetition gate in CI | C1 | `crates/mandate-cli/src/{talk.rs (new), main.rs}`; `.github/workflows/ci.yml` | C2–C4 |
-| **K4** | Effectiveness terms (lobby, canvass issue), bots through `Knowing` (and talking through `TalkView`), `explorer`/`explore_only`, the gates (§1.10), blind-invariance test, BALANCE_LOG | C1 | `crates/mandate-sim/src/npc.rs` (lobby term); `actions.rs` (canvass issue); `crates/mandate-cli/src/{bots,main}.rs`; `content/base/knowledge.jsonc` (effect values); `docs/development/BALANCE_LOG.md` | K5, F1 |
-| **K5** | Web: notebook page, placeholders with leads, pocket badge, "Start with local knowledge" at setup, Playwright | K2 | `web/src/**` except `engine/protocol` | C1, F1 |
-| **F1** | Family content types, `SituationTrigger.all` and the family conditions of §2.4 (evaluated as "never holds" until F2b), `HazardRef`, new mechanism variants declared (rejected in content until F2b), `ParamDef.hidden`, `PolicyTemplate.retired`, `PlaceKindDef.drivers`, patches, validation 1–10, schema | B3, C1 | `crates/mandate-content/src/{policy_family.rs (new), types.rs (policy, situation, place-kind sections), validate.rs (policy, family, situation sections), bundle.rs}`; `content/schemas/**`; `content/base/policy_families/params.jsonc`; `content/base/places.jsonc` (`drivers`) | K4, C2–C5 |
+| **K4** | Done. Effectiveness terms (lobby, canvass issue), bots through `Knowing` (and talking through `TalkView`), `explorer`/`explore_only`, the gates (§1.10), blind-invariance test, BALANCE_LOG | C1 | `crates/mandate-sim/src/npc.rs` (lobby term); `actions.rs` (canvass issue); `crates/mandate-cli/src/{bots,main}.rs`; `content/base/knowledge.jsonc` (effect values); `docs/development/BALANCE_LOG.md` | K5, F1 |
+| **K5** | Done. Web: notebook page, placeholders with leads, pocket badge, "Start with local knowledge" at setup, Playwright | K2 | `web/src/**` except `engine/protocol` | C1, F1 |
+| **R1** | Offices from the constitution, engine and save (DEC-098 §1; brief in `EXTENSIBILITY_AUDIT.md` §7.8). `Jurisdiction`, `Area`, `From<Tier> for TierKey`, `Constituency::at()`, `PolicyInstance::at()`, `media::Scope::at()` (§7.1); `Post`, `Role::{Seat, Office, Private}`, `BodySeats` and `OfficeHolder` in place of `councils`, `members_of`, `holder_of`, `legislature`, `executive`, `executive_of(at)`, `powers_of`, `holds_power_at` (§7.3); law-making stages read the procedure's own `body` and `office`, the signer is `holder_of(office, at)` with `signer_lean`; `calendar_for` (term and term limit per post; fixes the first-body term bug), `Filing::{Stand { post }, Retire}`; nomination gates per post in `career.jsonc` (§7.4); the constitution's `career` block with a validated path to the summit (§7.5); constitution schema fields `seats`, `calendar`, `works_at`, `member_key` (§7.6); `player::home(state)`, `player::posts(state)`, `State::focus()` (the home town in M6); role words through the constitution (`Cast::Office`, `{ "type": "office", "posts": [...] }`, `GrantSubject::Council` as "the zone town's local-tier posts"; old spellings parse as aliases); `RaceDecided.post`; `seat_player` from a start that names a post (§3.9); save migration (§7.7). Validation: an unknown role word, an at-large body without `seats`, a voting rule other than plurality (no tabulator), a body or office id used twice across tiers; `ordinance` and `budget` procedure ids required and documented as a contract with the engine. Acceptance: no `Councillor`/`Mayor` variant and no "mayor"/"council" literal outside the migration and tests; v16/v17 fixtures load and continue identically; sweep and bots metrics identical at 16 seeds; determinism (2026 × 80) twice and through save/load; native = WASM; a test constitution with renamed bodies and offices plays a local election and a bill with a veto and an override. Deliverables: EXTENDING "Adding an office or body", DATA_MODEL rows | N1 (C2 done) | Audit §7.8: `crates/mandate-sim/src/{world.rs, politics/**, actions.rs (power checks, File arm, ward_of), npc.rs (holds_power, role matches), policy/mod.rs (leans, stages, earmarks, PolicyInstance::at), characters/{mod.rs, town.rs, knows.rs} (role matches), narrative/{cast.rs, resolve.rs} (role matches only), talk/{context.rs, mod.rs} (role matches only), player/{mod.rs, knowledge.rs} (accessors, council grant), state.rs (focus), engine.rs (from_state check), events.rs (RaceDecided.post)}`; `crates/mandate-content/src/{types.rs (constitution section, Occupation doc), narrative.rs (Cast::Office, Condition::Office alias), conversation.rs (role words), knowledge.rs (council grant doc), validate.rs (constitution and role-word sections)}`; `content/base/constitutions/**`; `content/base/career.jsonc` (nomination); `content/schemas/**`; `crates/mandate-save/**`; `crates/mandate-worldgen/src/lib.rs` (`seat_player`); `crates/mandate-cli/src/bots.rs` (mechanical); `crates/mandate-protocol/src/**` (mechanical compile fixes only, DTO shapes unchanged); `crates/mandate-wasm/src/session.rs` (mechanical). A short freeze on `politics/**`, `policy/mod.rs`, `npc.rs`, the power checks in `actions.rs` and `narrative/cast.rs` | E1 (if it keeps to the `Canvass` arm; both touch `player/mod.rs`, `bots.rs` and the save migrations additively, and the second to merge rebases), content-only and web tasks, X1 |
+| **R2** | Offices from the constitution, protocol and web (DEC-098 §1; audit §7.8): `PostDto { kind, id, at: JurisdictionDto, constituency_number, label_key }`, `JurisdictionDto`; `PlayerView.posts` (`role_key` kept, derived); `OfficeView.bodies: Vec<BodyView>` and `OfficeView.executive` (`council` and `mayor` kept one release as aliases, then removed); `BillView.signer { office, lean }`; `RaceView.post`; `CampaignView.filing` and `.nominations`; `CommandDto::File { post, retire }` (`FilingDto` removed); the web renders bodies and offices from these lists with labels from the constitution's Fluent keys. Acceptance: Rust ⇄ TS round-trip; Playwright: file for mayor, see the race, vote, see the signer's lean, on phone and desktop; no "mayor" or "council" literal in `web/src` outside Fluent keys | R1 (C4 done) | `crates/mandate-protocol/src/{lib.rs, office.rs, campaign.rs, characters.rs, knowledge.rs (rival seat), places.rs (seat labels)}`; `crates/mandate-wasm/src/session.rs`; `web/src/engine/protocol/**` (generated); `web/src/components/{CampaignCards, TownCard, BillCard, Chamber, ActionForm, PeopleList}.tsx` and their tests; `content/base/locale/en/{base,knowledge}.ftl` (role, race and filing keys) | F1, E6–E8 (E7 also edits `protocol/src/{lib,places}.rs` and `web/src`: different items; the second to merge rebases) |
+| **U1** | One condition language (DEC-098 §5; audit §4.3; §6 items 10 and 16 below). The narrative `Condition`, `SituationCondition` and `HeardCondition` become one `Condition` type in `mandate-content/src/condition.rs`, with **one evaluator** (`mandate_sim::condition::holds(&Ctx, &Condition) -> Option<Args>`; the context carries `at: Jurisdiction`, the slots or cast roles, the speaker, the place and the neighbourhood where they exist) and **one validator** (a table of where each variant is allowed: dilemma, storyline and goal triggers, scene variants, asks, overheard lines, conversation lines, family triggers, policy unlocks). Same-named variants merge: `role` and `slot` become one field (`slot`, with `#[serde(alias = "role")]`); `Crisis.kind` and `Industry.drivers` become optional where one language had none. Context-bound variants (`CanVote`, `PartyLineAgainstWard`, `Water`, `Dry`, `PlayerAwareness`, the slot-relative family ones) stay, and the validator says where each applies. The K6 rule (no `knows`, `player_knows` or `tells` where a condition decides whether something happens) moves into the one validator. Each variant documents its Fluent arguments and carries a tier-generic flag (§2.4). **Existing content keeps working:** old spellings parse through serde aliases; anything aliases cannot cover is rewritten by a mechanical content migration committed with a test. The old enums and their three evaluators are removed. Acceptance: every pack file in `content/base` loads, and `content validate` passes; the same decisions, storyline stages, overheard draws and talk replies at fixed seeds (sweep and `story` at 16 seeds, `talk --seed` samples) and identical state hashes; determinism (2026 × 80) twice and through save/load; native = WASM; validator unit tests for each context (a `knows` refused in a trigger and allowed in a scene variant; a slot-relative variant refused where no slots exist; a family-only variant refused on a template; a town-only variant refused in a non-local context); every variant's Fluent arguments checked against the lines that use them. No save bump (conditions are content). Deliverables: EXTENDING "Adding a condition" | R1, E2 (it carries over E2's `answered` and `sponsored_law`); before E3, E4, E6, E8, F1 | `crates/mandate-content/src/{condition.rs (new), narrative.rs (condition section), types.rs (situation section, HeardCondition), conversation.rs (line conditions), validate.rs (condition sections and K6 rule), lib.rs}`; `crates/mandate-sim/src/{condition.rs (new), narrative/cast.rs (evaluation only), narrative/director.rs (evaluation calls only), policy/mod.rs (situation_holds becomes a wrapper), overheard.rs (evaluation), talk/{context.rs, reply.rs} (condition arms)}`; `content/base/**` (condition fields only, mechanical migration); `content/schemas/**`; `crates/mandate-content/tests/conditions.rs` (new) | E1, E5, R2, X1, web tasks |
+| **X1** | Lab check (DEC-098; audit §5.2, S51): plan a regional capital's layout v2 (a `City` or `Metro`) and record the plan time and any `check.ts` problems; no fix | — | `web/src/hub/layoutV2/*.test.ts` (one new test only); one note in `docs/development/BALANCE_LOG.md` or `TOWN_GENERATION.md` | anything |
+| **F1** | Family content types, `SituationTrigger.all` and the family conditions of §2.4 added to U1's `Condition` (evaluated as "never holds" until F2b), `HazardRef`, `PersonFallback::Executive`, `max_open_per_jurisdiction`, new mechanism variants declared (rejected in content until F2b), `ParamDef.hidden`, `PolicyTemplate.retired`, `PlaceKindDef.drivers`, patches, validation 1–10 (a non-local family uses tier-generic conditions only), schema | U1, B3, C1; E6–E8 (asks before families, DEC-097) | `crates/mandate-content/src/{policy_family.rs (new), condition.rs (family variants), types.rs (policy, place-kind sections), validate.rs (policy, family sections), bundle.rs}`; `content/schemas/**`; `content/base/policy_families/params.jsonc`; `content/base/places.jsonc` (`drivers`) | K4, C2–C5 |
 | **F2a** | The lookup seam: every `content.policies.get(&p.template)` → `policy::resolve`; no behaviour change (state hashes identical) | F1, K4 | every call site (sim, protocol, CLI); runs alone, as a short freeze on those files | — |
-| **F2b** | Families in the simulation: decks, binding, triggers, expiry, `policy.families` system, `Clause::Area` and per-neighbourhood modifiers, `Borrow`/`Revenue`/`SectorCapacity`, `DraftFamily`, `AmendPolicy` choices, sponsor prices, NPC drafting, `Stream::Policy`, save bump and migration, `missing_references` | F2a, G1, B2 | `crates/mandate-sim/src/policy/**`; `systems.rs`; `actions.rs` (draft and amend); `npc.rs` (agenda); `finance/**` (borrow, revenue); `economy/mod.rs` (capacity); `crates/mandate-core/src/rng.rs` (stream); `crates/mandate-save/**`; `engine.rs` | — |
-| **F3** | Protocol: `ProposalView`, `proposals_here`, the extended `PolicyPreview` (§2.12), proposal gating, TS | F2b, K2 | `crates/mandate-protocol/src/{office,places,knowledge,lib}.rs`; `web/src/engine/protocol/**` | F4, F5 |
+| **F2b** | Families in the simulation: decks and lapses keyed by `Jurisdiction`, `FamilyInstance.at`, deck and binding draws keyed by `at.tier_index()` and `at.raw()`, the system run for `state.focus()`, binding inside the jurisdiction, triggers, expiry, `policy.families` system, `Clause::Area` and per-neighbourhood modifiers, `Borrow`/`Revenue`/`SectorCapacity`, `DraftFamily` gated by `holds_power_at`, `AmendPolicy` choices, sponsor prices, NPC drafting by post holders, `Stream::Policy`, save bump and migration, `missing_references`. Also (DEC-098): the treasury budget shares per tier move from `finance/mod.rs` to `economy.jsonc`, with identical results | F2a, G1, B2, R1 | `crates/mandate-sim/src/policy/**`; `systems.rs`; `actions.rs` (draft and amend); `npc.rs` (agenda); `finance/**` (borrow, revenue, treasury shares); `economy/mod.rs` (capacity); `crates/mandate-content/src/types.rs` (economy parameters section); `content/base/economy.jsonc` (treasury shares); `content/schemas/**`; `crates/mandate-core/src/rng.rs` (stream); `crates/mandate-save/**`; `engine.rs` | — |
+| **F3** | Protocol: `ProposalView` (with `at: JurisdictionDto`), `proposals_here`, the extended `PolicyPreview` (§2.12), proposal gating, TS | F2b, K2, R2 (`JurisdictionDto`) | `crates/mandate-protocol/src/{office,places,knowledge,lib}.rs`; `web/src/engine/protocol/**` | F4, F5 |
 | **F4** | Content: the first pack (§2.21) with Fluent, the trim (§2.19), the four conversions (§2.20), proposal overheard lines, crisis and dilemma references | F2b (drafting can start after F1 with validation only) | `content/base/policy_families/**`; `content/base/policies/**`; `content/base/locale/en/families.ftl` (new); `content/base/{overheard,crises,dilemmas}.jsonc` | F3, F5 |
-| **F5** | Lab: `policies --seed`, `--coverage` (CI gate: no family never binds), binding check 11, `--set` paths into families, variety counts families | F2b | `crates/mandate-cli/src/{policies.rs (new), main.rs, bots.rs (variety only)}`; `crates/mandate-content/src/overrides.rs`; `.github/workflows/ci.yml` | F3, F4 |
+| **F5** | Lab: `policies --seed`, `--coverage` (CI gate: no family never binds; counts per jurisdiction), binding check 11, `--set` paths into families (`policy_family_params.max_open_per_jurisdiction`), variety counts families | F2b | `crates/mandate-cli/src/{policies.rs (new), main.rs, bots.rs (variety only)}`; `crates/mandate-content/src/overrides.rs`; `.github/workflows/ci.yml` | F3, F4 |
 | **F6** | Web: the proposal sheet (axes with per-option cost and support from the preview, sponsors and their prices, the lead), Desk and place panel entries, Playwright | F3 | `web/src/**` except `engine/protocol` | — |
 | **F7** | Need-aware reactions (§2.22): `addresses` on templates and family options, need-scaled reactions and the waste term, diminishing returns in housing, subsidies, services and hazard protection, the need part in previews and "Why?", the policy responsiveness lab gate | F2b, F3 | `crates/mandate-sim/src/{policy,population,economy}/**`, `content/base/{opinion.jsonc,policies/**,policy_families/**}`, `crates/mandate-cli/src/responsiveness.rs` (new) | F4, F5 |
-| **V1** | Credit and blame (DEC-094): a per-neighbourhood track record per politician from law attribution ledgers (sponsor full share, voters a smaller share), slow decay, read by the vote record term for all candidates (× awareness × media), need-aware credit (§2.22), named laws from the media, "Why?" and election-night factors, lab gate (sponsors of laws that did well gain votes) | F2b, F7 | `crates/mandate-sim/src/{politics/**,policy/**}`, `content/base/politics.jsonc`, protocol "Why?" views, `crates/mandate-cli/src/bots.rs` | — |
-| **V2** | Endorsements (DEC-094): endorser roles with follower weights per community, class and occupation in content; `Endorse` effects from conversations (C-series "ask for support"), favours and sponsors; the persuasion and turnout shift with a cap; the cost to the endorser; NPCs seek and give endorsements; election-night factors; lab gate (they matter, never dominate) | C1, V1 | `crates/mandate-sim/src/{politics/**,characters/**,npc.rs}`, `content/base/{characters,politics}.jsonc`, protocol, web election night | — |
-| **A1** | No decorative attributes (DEC-095): administration (implementation speed and cost), organising (reach and mobilisation), intrigue (leaks, digging, deals, hiding their own facts), expertise (persuasion on their field; feeds C-series replies), loyalty (party-line votes, lobbying resistance, cross-party endorsements), boldness (risk-taking); parameters in content; "Why?" lines; the attribute-effect lab gate in CI | K4 | `crates/mandate-sim/src/{npc.rs,politics/**,characters/**,policy/**,media.rs}`, `content/base/{npc,characters}.jsonc`, `crates/mandate-cli/src/attributes.rs` (new) | C-series, F-series |
+| **V1** | Credit and blame (DEC-094): a per-neighbourhood track record per politician from law attribution ledgers (sponsor full share, voters a smaller share), slow decay, read by the vote record term for all candidates (× awareness × media), need-aware credit (§2.22), named laws from the media, "Why?" and election-night factors, lab gate (sponsors of laws that did well gain votes). DEC-098: the track record is tier-free (neighbourhoods add up to any constituency); the record term reads the race's own neighbourhoods (`Race.hoods`), so it works for a regional race unchanged | F2b, F7 | `crates/mandate-sim/src/{politics/**,policy/**}`, `content/base/politics.jsonc`, protocol "Why?" views, `crates/mandate-cli/src/bots.rs` | — |
+| **V2** | Endorsements (DEC-094): endorser roles with follower weights per community, class and occupation in content; endorser roles come from occupations and from posts, and a role that names an office uses R1's post keys (`{ "office": "mayor" }`), never a `Role` match (DEC-098); `Endorse` effects from conversations (C-series "ask for support"), favours and sponsors; the persuasion and turnout shift with a cap; the cost to the endorser; NPCs seek and give endorsements; election-night factors; lab gate (they matter, never dominate) | C1, V1, R1 | `crates/mandate-sim/src/{politics/**,characters/**,npc.rs}`, `content/base/{characters,politics}.jsonc`, protocol, web election night | — |
+| **A1** | No decorative attributes (DEC-095): administration (implementation speed and cost, read from the law's sponsor, or the holder of the executive office of the law's jurisdiction, R1's `executive_of(at)`; DEC-098), organising (reach and mobilisation), intrigue (leaks, digging, deals, hiding their own facts), expertise (persuasion on their field; feeds C-series replies), loyalty (party-line votes, lobbying resistance, cross-party endorsements), boldness (risk-taking); parameters in content; "Why?" lines; the attribute-effect lab gate in CI | K4, R1 | `crates/mandate-sim/src/{npc.rs,politics/**,characters/**,policy/**,media.rs}`, `content/base/{npc,characters}.jsonc`, `crates/mandate-cli/src/attributes.rs` (new) | C-series, F-series |
 | **L1** | Odds calibration gate (owner, 2026-11-19): the bots record every probability shown to the player before acting (town hall hostility, press gaffe, lobbying and late-night lobbying, shady-act exposure bands, charge and conviction bands, council yes chances) beside what then happened; `mandate-cli calibration --seeds N` groups by stated chance (deciles) and fails when a group's observed rate falls outside a binomial confidence interval (99%); bands are checked against their ranges. Runs in CI with the bots (small N) and nightly (large N); a report table for BALANCE_LOG | K4 (bots read through `Knowing`) | `crates/mandate-cli/src/calibration.rs` (new), `crates/mandate-cli/src/{main.rs,bots.rs}` (recording hooks), `.github/workflows/{ci,nightly}.yml` | any |
-| **K6** | "The world does not wait" guards (DEC-091 note): validation rejects `knows` in dilemma, storyline and family triggers (allowed in scene variants, lines, option framing and leads); a lab test that an omniscient and a default player with the same commands produce identical worlds except the ledger (exactly for the idle bot; except the player's own action outcomes after K4); audit the director so knowledge never suppresses an event | K3 | `crates/mandate-content/src/{narrative.rs,validate.rs}`, `crates/mandate-sim/src/narrative/**` (audit only), `crates/mandate-save/tests/knowledge*.rs` or `crates/mandate-cli` (test) | any |
-| **P1** | The power broker acts (DEC-096): broker lobbying of councillors for their stake (standard formula), endorsements with large follower weight and campaign money for aligned candidates, ally help with strings (favours, sponsor deals, shady-help scandal risk) and opposition (rumours as media stories, rival funding, council pressure), broker turnover; parameters in content; lab gates (matters, never dominates; variety holds) | V2, A1 | `crates/mandate-sim/src/{npc.rs,characters/**,politics/**,media.rs}`, `content/base/{characters,npc,politics}.jsonc`, `crates/mandate-cli/src/bots.rs` | F-series |
+| **K6** | Done. "The world does not wait" guards (DEC-091 note): validation rejects `knows` in dilemma, storyline and family triggers (allowed in scene variants, lines, option framing and leads); a lab test that an omniscient and a default player with the same commands produce identical worlds except the ledger (exactly for the idle bot; except the player's own action outcomes after K4); audit the director so knowledge never suppresses an event | K3 | `crates/mandate-content/src/{narrative.rs,validate.rs}`, `crates/mandate-sim/src/narrative/**` (audit only), `crates/mandate-save/tests/knowledge*.rs` or `crates/mandate-cli` (test) | any |
+| **P1** | The power broker acts (DEC-096): broker lobbying for their stake (standard formula) of the members of the body that votes on the bill (the procedure's `Vote` stage, `members_of(body, at)`; not `councils[m]`), with R1's seniority by post in place of "the mayor counts double" (DEC-098), endorsements with large follower weight and campaign money for aligned candidates, ally help with strings (favours, sponsor deals, shady-help scandal risk) and opposition (rumours as media stories, rival funding, pressure on the legislature's members), broker turnover; parameters in content; lab gates (matters, never dominates; variety holds) | V2, A1, R1 | `crates/mandate-sim/src/{npc.rs,characters/**,politics/**,media.rs}`, `content/base/{characters,npc,politics}.jsonc`, `crates/mandate-cli/src/bots.rs` | F-series |
 | **D1** | Docs: OVERVIEW §4.2 and §4.3, DATA_MODEL, EXTENDING (extension points §2.15, families, knowledge), TEST_STRATEGY (gates), PROGRESS, DEC implementation notes | each merge | `docs/**` | — |
 
-Then the rest of M6 (enterable places DEC-088, map layers DEC-089, the draft of three with background profiles, pixel-art integration) builds on these contracts. The draft of three only needs to name a start profile per background.
+Then the rest of M6 (enterable places DEC-088, map layers DEC-089, the draft of three with background profiles, pixel-art integration) builds on these contracts. Following DEC-098 (audit §3.9):
+- **The draft of three** names, per background, a start profile: a constitution post (a seat, an office, or none for a challenger), a constituency selector (`marginal`, `safe`, `any`), an optional target post for a challenger, and a K1 knowledge profile. R1's `seat_player` reads it, so "start as a challenger for mayor" is content.
+- **Detours** (DEC-020) are organisation posts (`Politician.affiliation: Option<OrgPost>`, added when organisations become actors), never a `Role` variant: `Role` holds constitution posts only.
+- **Act 1 endings and Legacy** are a content registry (`endings.jsonc`) from their first build, with conditions on posts, tiers, tracks, age and events, epilogue Fluent keys and Legacy weights. Run-status reasons stay code.
 
 ---
 
@@ -1861,13 +1894,13 @@ These findings come from the code on `main` and the M5d part 2 branch. Each is a
 7. **Powers are too coarse for DEC-092 §5.** The constitution's `Power` enum has no policy-area competences, and every local tier can `propose_ordinance`, so "the town lacks that power" can never hold. It needs competences per tier (M7, question 8).
 8. **No organisations, no place sectors.** "The union" or "the plant's owner" can bind only a leader character and a place. Places have no sector, so the new `PlaceKindDef.drivers` is needed. There is no per-sector job history, so "this plant is at risk" needs E1 baselines.
 9. **Pack patches are not supported.** A duplicate id is an error (EXTENDING "Packs"). DEC-092 expects mods to patch families, hence the patch format (question 10).
-10. **Two overlapping condition languages.** Dilemmas use narrative `Condition` (crisis, indicator, concern, industry, law in force); policies use the new `SituationCondition` (crisis, indicator, closure, disaster). This contract extends `SituationCondition` as the town-level vocabulary and avoids a third. Merging the town-level variants of `Condition` into it is a later clean-up.
+10. **Two overlapping condition languages.** Dilemmas use narrative `Condition` (crisis, indicator, concern, industry, law in force); policies use the new `SituationCondition` (crisis, indicator, closure, disaster). C1 extended `SituationCondition` as the town-level vocabulary. **U1 merges them (DEC-098 §5)**, before E3 and E8 add their content, so the families of F1 use the one type.
 11. **`SituationTrigger` can only "any".** Families need `all` and slot-relative conditions. The extension in §2.4 is backward compatible.
 12. **Untyped ids.** Media, justice and narrative use raw `u32` ids (scandals, stories, rumours, cases, outlets, hidden facts), and `PolicyInstance.jurisdiction` and `Clause::Pilot.neighborhood` are raw too, against DEC-041's typed ids. `Subject::Secret` and `Source::Story` inherit this. Typed wrappers are recommended when those modules are next touched.
 13. **Views can't teach.** Overheard talk and place panels are queries, so they can't write the ledger. Learning has to hang on commands (arrival and actions), which is why §1.3 treats arrival as the learning moment (question 1).
 14. **The start is not a background.** Worldgen always makes the player a sitting councillor in the most marginal ward. Background-based knowledge needs the M6 draft of three; until then a default profile stands in.
 15. **There is no way to say something.** Today talking means overheard chatter (passive), `Meet` and decision scenes. `Meet` is free in the code (`PlayerCommand::Meet`: "introduce yourself … (free)"), while DEC-093's context says it uses a slot. This contract keeps it free and prices the new `Talk` (question 13).
-16. **Three condition languages.** Narrative `Condition` (dilemmas), `SituationCondition` (policies) and `HeardCondition` (overheard) overlap. DEC-093 requires conversation lines to use the same type as DEC-092 triggers, so C1 extends `SituationCondition` with person-relative variants and argument providers (§3.3). Moving dilemmas and overheard lines onto it is a later clean-up.
+16. **Three condition languages.** Narrative `Condition` (dilemmas), `SituationCondition` (policies) and `HeardCondition` (overheard) overlap. DEC-093 requires conversation lines to use the same type as DEC-092 triggers, so C1 extended `SituationCondition` with person-relative variants and argument providers (§3.3). **U1 moves dilemmas, storylines, goals and overheard lines onto it** as one `Condition` type with one evaluator and one validator (DEC-098 §5: one condition language, no scripting language).
 17. **No pronouns or gender on characters.** `NamedCore` and `Politician` have names only, so the Fluent select expressions DEC-093 mentions for gender have no fact to select on (question 16).
 18. **Overheard repetition is stateless.** It avoids last week's draw by recomputing it. DEC-093's guard needs a per-place memory of lines heard, recorded on arrival (§3.7).
 19. **Doc drift (minor).** OVERVIEW §3 lists the named RNG streams without `Media`, and OVERVIEW §6 and DATA_MODEL still say save format v12 (the code is v13). D1 fixes both.

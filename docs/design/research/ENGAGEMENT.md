@@ -2,7 +2,9 @@
 
 **Status:** Design brief for DEC-097 (2026-11-19). It turns the six parts of DEC-097 into contracts, numbers and tasks. The owner accepted every recommendation (§9) and, the same day, the proposals of `ENGAGEMENT_REFERENCES.md` §3 ("Yes do it"). Both are folded in here, so this is the one document to implement from. Numbers in "Start" columns are starting values: E1, E8 and E12 tune them on the lab grid and record each change in BALANCE_LOG. Where the research changed a number, a note says so, for example "(research §3.1, accepted 2026-11-19)".
 **Built on:** `claude/bold-brown-shyeug` at save format v17 (K1–K4, K6, C1, C3, B1–B3, G1 merged).
-**Read with:** DEC-030–DEC-035, DEC-041, DEC-051, DEC-054, DEC-072, DEC-076, DEC-077 (and its DEC-097 amendment), DEC-078, DEC-079, DEC-088, DEC-090, DEC-091, DEC-093, DEC-094, DEC-095, DEC-096, DEC-097; `M6_ENGINE_CONTRACTS.md` §1 (ledger), §3 (conversations), §4 (tasks); `TOWN_GENERATION.md` §5, §10, §11; `ENGAGEMENT_REFERENCES.md` §2 (sources) for the reasoning behind §4.2, §4.3, §4.7, §4.8, §7.2 and §7.4.
+**Read with:** DEC-030–DEC-035, DEC-041, DEC-051, DEC-054, DEC-072, DEC-076, DEC-077 (and its DEC-097 amendment), DEC-078, DEC-079, DEC-088, DEC-090, DEC-091, DEC-093, DEC-094, DEC-095, DEC-096, DEC-097, DEC-098; `EXTENSIBILITY_AUDIT.md` §3; `M6_ENGINE_CONTRACTS.md` §1 (ledger), §3 (conversations), §4 (tasks); `TOWN_GENERATION.md` §5, §10, §11; `ENGAGEMENT_REFERENCES.md` §2 (sources) for the reasoning behind §4.2, §4.3, §4.7, §4.8, §7.2 and §7.4.
+
+**Tier-generic (DEC-098, accepted 2026-11-19).** The contracts here follow the audit `EXTENSIBILITY_AUDIT.md` §3.2, §3.3, §3.6 and §3.7, so the new state works for the regional and national tiers without re-keying. They use R1's keys and accessors (`M6_ENGINE_CONTRACTS.md` §4): `Jurisdiction` and `Area` for state that belongs to a government's territory (`MunicipalityId` stays for physical things in a town, such as curiosities); `player::home(state)`, `player::posts(state)` and `state.focus()` in place of reads of `player.municipality`; offices and bodies by constitution id (a colleague is a holder of a post in the same body; the executive is `executive_of(at)`). Conditions use U1's one condition type (DEC-098 §5).
 
 **Task ids.** Tasks here are `E1`–`E13` (engagement). They are not the town v2 "phase E" steps of `TOWN_GENERATION.md` §15 (done, as B1 and B2).
 
@@ -148,9 +150,9 @@ A thin record still punishes idling (DEC-076); canvass-only keeps a record above
 | Source | Size (approval units × room, per cohort in scope) | Scope | Owner |
 |---|---|---|---|
 | Canvass | 0.006 typical between elections, 0.012 in a campaign | The neighbourhood | actions (E1) |
-| An ask kept | 0.015 (a person's ask), 0.006 (an organisation's, ward-wide) | The asker's neighbourhood, or the ward | asks (E6) |
+| An ask kept | 0.015 (a person's ask), 0.006 (an organisation's, across the constituency) | The asker's neighbourhood, or the player's constituency (`Area`) | asks (E6) |
 | Casework kept (help to an individual) | 0.012, plus the person +10 and `helped_me` | The person's neighbourhood | asks (E6) |
-| A campaign promise kept | 0.02; broken −0.03 and a press story | The ward | asks (E6), media (E5) |
+| A campaign promise kept | 0.02; broken −0.03 and a press story | The constituency of the race (`Area::Constituency`) | asks (E6), media (E5) |
 | Press about the player's work | `perception.approval` 0.03 × `work` weight 0.3 × heat × exposure × credibility × framing (≈ 0.003–0.006 a story) | The outlet's audience | media (E5) |
 | A law's credit or blame (V1) | Set in V1; target 0.03–0.06 a year in the neighbourhoods a well-received law served | Per neighbourhood | politics (V1) |
 | Reactions to the player's bills | Unchanged (`opinion.player_approval_rate`) | Cohorts aware of the player | population |
@@ -185,14 +187,14 @@ Asks are a goals layer over DEC-032: an NPC goal (`goals.jsonc`) can name an ask
 | Asker | Typical asks | Comes from |
 |---|---|---|
 | A resident (Named, met or on the doorstep) | Casework: a drain, a benefits form, a planning objection, a school place | A canvass (chance `asks.params.doorstep_chance` 0.35 a canvass), a talk, an encounter (§6.5) |
-| A councillor or the mayor | Vote with me; back my amendment; second my bill | Goals `seek_backing`, `champion_fix` |
+| A colleague (a holder of a post in the same body as the player) or the executive (`executive_of(at)`; the mayor in a town) | Vote with me; back my amendment; second my bill | Goals `seek_backing`, `champion_fix` |
 | The party (chair or whip) | Vote the party line on the budget; appear at a colleague's event; fundraise | Party patience, the budget, a campaign |
 | The broker (DEC-096) | Vote for or against a bill touching their stake; meet their people | P1 broker alignment |
 | Organisations (union, business association, clergy, organisers) | Join the picket; come to the meeting; hold a town hall here; draft an answer to the crisis | Goals `organise_workers`, `traders_help`; the live crisis |
 | The press (a journalist) | Say something about the closure (a statement within 7–14 days); an interview | A crisis, a story about the town |
-| The ward's voters | Campaign promises (§3.5) | The player, while campaigning |
+| The voters of a constituency (the ward, in a town) | Campaign promises (§3.5) | The player, while campaigning |
 
-**Generation** (weekly, the asks system, player's town only). First a keyed draw decides whether an offer comes this week, at the sliding rate below. Then each template whose triggers hold, whose `min_career_days` has passed (§4.7) and whose asker can be cast is a candidate. Candidates are weighted by `weight` × the asker's relationship and goal × the concern's salience × the asker's history (below), and drawn with a keyed draw (`Stream::Asks`, keyed by week and template).
+**Generation** (weekly, the asks system, for `state.focus()`: in M6 the home town). The asker must live in, or hold a post in, a focus jurisdiction. First a keyed draw decides whether an offer comes this week, at the sliding rate below. Then each template whose triggers hold, whose `min_career_days` has passed (§4.7) and whose asker can be cast is a candidate. Candidates are weighted by `weight` × the asker's relationship and goal × the concern's salience × the asker's history (below), and drawn with a keyed draw (`Stream::Asks`, keyed by week and template).
 
 **A sliding rate, not only a cap** (after RimWorld's population intent; research §3.3, accepted 2026-11-19). The week's chance of an offer is
 
@@ -241,13 +243,13 @@ Casework is the "fix the drain" ask. It is met by one new located action, **Sort
 
 ### 3.5 Campaign promises
 
-While campaigning (from filing to election day), the player may make up to `promises.max_per_campaign` 3 public promises, chosen from a menu built from the ward's live state: its top concerns, the town's crisis, open proposals (DEC-092 families, once F2b lands), and the player's own bills. Each promise is an ask whose asker is the ward's voters, with `public: true` and a deadline of the next budget year's end or a term.
+While campaigning (from filing to election day), the player may make up to `promises.max_per_campaign` 3 public promises, chosen from a menu built from the live state of the constituency they are running in: its top concerns, the jurisdiction's crisis, open proposals (DEC-092 families, once F2b lands), and the player's own bills. Each promise is an ask whose asker is that constituency's voters (`Asker::Constituency`), with `public: true` and a deadline at the end of the budget year or the term **of the post the player is running for** (read from the post's jurisdiction and its own term, R1's `calendar_for`). A promise belongs to one race: `AskState` counts promises against the race's `Post` (§3.6).
 
 | Promise template (examples) | Kept by |
 |---|---|
 | "I'll get the flood wall for {hood} on the books" | The player drafts and introduces the family (or template) before the deadline; kept when it is enacted, half-kept (no cost, no reward) if it failed a vote the player sponsored |
 | "No rise in the town's taxes" | The player votes against every tax rise until the deadline (broken by a yes vote or sponsoring one) |
-| "A town hall in every neighbourhood of the ward" | Town halls in each ward neighbourhood within 180 days |
+| "A town hall in every neighbourhood of the ward" | Town halls in each neighbourhood of the constituency within 180 days |
 | "Jobs first" | The player sponsors a bill answering `concern.jobs` that is enacted |
 | "Clean politics" | No hidden fact of the player's own surfaces before the deadline (an honest promise that a shady player can break by being found out) |
 
@@ -267,7 +269,9 @@ pub struct AskState {
     #[serde(with = "map_as_pairs")]
     pub cooldowns: BTreeMap<ContentKey, SimDate>,   // template → earliest return
     pub asker_cooldowns: Vec<(Asker, SimDate)>,
+    /// Promises made in the current campaign, and the race they belong to.
     pub promises_this_campaign: u8,
+    pub promises_race: Option<Post>,            // R1's `Post`; a new race resets the count
     pub last_offer: Option<SimDate>,            // for `intent_by_quiet`
     /// The player's deed log, oldest first (bounded at `deeds_kept`). Read by
     /// conversation lines (§4.8) and `ask.keep_it_quiet`; the town-wide event
@@ -290,7 +294,13 @@ pub struct Ask {
     pub status: AskStatus,
 }
 
-pub enum Asker { Person { id: CharacterId }, Party { id: PartyId }, Outlet { id: u32 }, Ward { id: ConstituencyId } }
+pub enum Asker {
+    Person { id: CharacterId },
+    Party { id: PartyId },
+    Outlet { id: u32 },                         // a typed `OutletId` when media ids are typed (M6 §6 item 12)
+    /// A constituency's voters: a ward, or (M7) a regional district. Tiered already.
+    Constituency { id: ConstituencyId },
+}
 
 pub enum AskStatus {
     Offered,
@@ -343,11 +353,13 @@ Promise { template: String, args: Vec<(String, String)> },   // campaigning only
 // Action (located, at the town hall): Casework { ask: u32 }   — 1 slot
 ```
 
-**Systems.** `asks::weekly` (Narrative phase, player's town): read new deeds and events into the deed log, resolve kept, broken and void asks, generate offers at the sliding rate (§3.2). In a term after a re-election, offers draw `deadline_days` from the lower half of their range (the second-term bar, §4.7). Unlike a dilemma answer (applied inside the `Answer` command by `narrative::resolve`), asks resolve in a system, so their `EffectDef` lists go out as effect requests: the existing `Remember` and `Memory` (memories), `PlayerTrack` (Standing), `Learn` and `Lead` (the ledger); new `Opinion { holder, toward, delta }` and `Favour { holder, owed_to_player }` (characters), `Approval { scope, delta }` (population: a neighbourhood, the ward or the town, × room as today), `Record { politician, delta }` (politics); `Endorse` arrives with V2. The director reads open asks (they count as minor beats and as pending load in tension) but never writes them; its quiet rescue (§4.3) can force the next week's offer draw.
+**Systems.** `asks::weekly` (Narrative phase, for `state.focus()`): read new deeds and events into the deed log, resolve kept, broken and void asks, generate offers at the sliding rate (§3.2). In a term after a re-election, offers draw `deadline_days` from the lower half of their range (the second-term bar, §4.7). Unlike a dilemma answer (applied inside the `Answer` command by `narrative::resolve`), asks resolve in a system, so their `EffectDef` lists go out as effect requests: the existing `Remember` and `Memory` (memories), `PlayerTrack` (Standing), `Learn` and `Lead` (the ledger); new `Opinion { holder, toward, delta }` and `Favour { holder, owed_to_player }` (characters), `Approval { scope: Area, delta }` (population: `Area::Hood`, `Area::Constituency` or `Area::In { at }`, × room as today; R1's `Area`), `Record { politician, delta }` (politics); `Endorse` arrives with V2. The director reads open asks (they count as minor beats and as pending load in tension) but never writes them; its quiet rescue (§4.3) can force the next week's offer draw.
 
 **Validation** (`mandate-cli content validate`): every template has a keep reward and a break cost; `needs` refer to cast roles of the right type; deadlines are within [7, 900] days; no `knows` in triggers; Fluent keys exist with the arguments the cast provides; every promise template names the concern or crisis it answers; the two intent curves have increasing `x` and factors ≥ 0, and `intent_by_open` is 0 at `max_open`.
 
 ### 3.7 Content format (one example)
+
+Ask triggers are U1's one condition type, so they read like dilemma triggers. An asker or cast role that names an office uses the constitution's ids through R1's cast (`{ "type": "colleague" }`, `{ "type": "office", "office": "mayor" }`), never a fixed office word in code.
 
 ```jsonc
 // content/base/asks/asks.jsonc
@@ -372,7 +384,7 @@ Promise { template: String, args: Vec<(String, String)> },   // campaigning only
 | Ask | Asker | Trigger | Needs | Days | From day |
 |---|---|---|---|---|---|
 | `ask.casework` (drain, form, objection, school place: a Fluent variant by the person's situation) | Resident | Doorstep, talk, encounter | Casework | 21–35 | 0 |
-| `ask.vote_with_me` (was `request.ally_vote`) | Councillor with `seek_backing` | Their bill before the council | Vote yes | Until the vote | 0 |
+| `ask.vote_with_me` (was `request.ally_vote`) | A colleague (a holder of a post in the same body, R1's `Cast::Colleague`) with `seek_backing` | Their bill before the council | Vote yes | Until the vote | 0 |
 | `ask.party_budget` | Party chair | Budget before the council | Vote yes on the budget | Until the vote | 0 |
 | `ask.colleague_event` | Party chair | Campaign; a colleague in a close race | Visit that ward's streets | 14 | 0 |
 | `ask.say_something` | Journalist | Live crisis ≥ 0.3 | Statement on the crisis | 7–14 | 0 |
@@ -382,11 +394,11 @@ Promise { template: String, args: Vec<(String, String)> },   // campaigning only
 | `ask.draft_answer` (`big`) | Organisation leader | Live crisis; an answer on the menu (a situational template, later a family) | Introduce it | 60–90 | 0 |
 | `ask.broker_vote` (`big`) | The broker | A bill touching the broker's stake | Vote as asked | Until the vote | 300 |
 | `ask.visit_after_flood` | Resident of a struck neighbourhood | A disaster within 30 days (G1 exposure) | Canvass or town hall there | 14 | 0 |
-| `ask.second_my_bill` | Councillor with `champion_fix` | Their crisis bill drafted | Talk to them, then vote yes | Until the vote | 0 |
+| `ask.second_my_bill` | A colleague (as above) with `champion_fix` | Their crisis bill drafted | Talk to them, then vote yes | Until the vote | 0 |
 | `ask.fund_the_school` | Teacher, nurse | `concern.services` top; a budget coming | Statement on services, vote for the services line | Until the budget | 0 |
 | `ask.meet_the_newcomer` | Business leader | A new employer in town (sector capacity rising) | Talk to them | 30 | 0 |
 | `ask.keep_it_quiet` | Someone with a secret (§5) | The player dug into it or asked about it (a deed in the deed log that the subject hears of, never the ledger) | No statement or press tip about it | 90 (kept by not acting) | 300 |
-| `ask.introduce_me` | Resident with a goal | A councillor they want to meet | Talk to the councillor, then the asker | 30 | 0 |
+| `ask.introduce_me` | Resident with a goal | A post holder in their jurisdiction they want to meet | Talk to the post holder, then the asker | 30 | 0 |
 
 | Promise | Answers |
 |---|---|
@@ -407,7 +419,7 @@ pub struct AskView {
     pub title_key: String,
     pub detail_key: String,
     pub args: BTreeMap<String, String>,
-    pub asker: AskerView,                 // a PersonRefView, the party, an outlet, or the ward
+    pub asker: AskerView,                 // a PersonRefView, the party, an outlet, or AskerView::Constituency { name_key, number }
     pub status: String,                   // offered | accepted | kept | broken | declined | void
     pub public: bool,
     pub respond_by: Option<DateView>,     // offered only
@@ -474,7 +486,7 @@ Story-carrying content can therefore no longer be starved by a high-relevance ge
 
 | Theme | Eligible when | Typical templates |
 |---|---|---|
-| `crisis` | A live crisis in the player's town | Jobs plea, pollution, strike vote, disaster relief |
+| `crisis` | A live crisis in a focus town | Jobs plea, pollution, strike vote, disaster relief |
 | `budget` | Fiscal stress: the fiscal-hole crisis, or a budget before the council with a deficit | Fiscal hole, clinic hours, bus route cut |
 | `scheme` | An NPC scheme storyline is running (§4.5) | Broker ultimatum, truce tested, journalist source |
 | `local_life` | Always | School closure, market permit, heritage building, building protest |
@@ -499,7 +511,8 @@ Today a session rises once to its climax and then holds everything back until Ja
 
 **Rules.**
 - **The cycle runs across chapter boundaries**; a new chapter does not reset it.
-- **Relax ends early** when the player starts something: introduces a bill, files for office, or accepts a `big` ask (§3.3). A crisis beginning in the player's town also ends it. This is Booth's relax ending when the survivors move on.
+- **Whose budget year (DEC-098).** Chapters stay `session` and `campaign`. A session chapter runs over the budget year of the jurisdiction of the player's main post (`player::posts(state).first()`; out of office, the home town's), not a hard-coded local year. `crisis_cap` stays per town, because crises are town state.
+- **Relax ends early** when the player starts something: introduces a bill, files for office, or accepts a `big` ask (§3.3). A crisis beginning in a focus town also ends it. This is Booth's relax ending when the survivors move on.
 - **The world is never hidden** (DEC-033 B). Decisions raised by the world (`raised_by`: a scandal or an investigation about the player) open in any phase. A storyline stage whose decision falls in a relax waits for the next peak, where it is tier A.
 - **The climax** is the peak whose build-up ends inside `climax_window`, narrowed from [0.6, 0.92] to [0.65, 0.85] (research §3.1, accepted 2026-11-19). So about 55–130 days of the session follow it. If a session chapter is within `climax_force_days` 14 of the window's end with no climax, the current phase ends and the climax peak opens.
 - **The coda.** After the climax's relax, at most `post_climax_significant` 1 decision may open in the next peak, and only a consequence (`answered`), an opportunity, or a `budget` template.
@@ -630,23 +643,23 @@ Six new storylines (from day: `min_career_days`, §4.7):
 | `storyline.broker_scheme` | The broker has a stake and a bill touching it (P1) | The broker's lobbying, funding and endorsements (DEC-096) | 300 |
 | `storyline.newcomer` | A new employer considers the town (sector capacity rising) | Site, tax ask, local protest | 0 |
 | `storyline.investigation` | A journalist starts on a town secret (§5) | Media discovery; the player can help or hinder | 730 |
-| `storyline.flood_recovery` | A disaster in the player's town (G1) | Relief, the inquiry, the defences | 0 |
+| `storyline.flood_recovery` | A disaster in a focus town (G1) | Relief, the inquiry, the defences | 0 |
 | `storyline.big_promise` | A campaign promise of `promise.answer_crisis` | The promise's ask: the draft, the vote, the delivery or failure | 0 (needs a campaign) |
 
 **NPC schemes are presented, not invented (DEC-033 B).** A scheme's stages advance on what NPCs actually do through their own AI (DEC-030). A new storyline condition reads a bounded log of NPC deeds kept by the NPC domain:
 
 ```jsonc
-{ "type": "npc_did", "role": "rival", "deed": "lobby_against", "target": "player_bill", "within_days": 60 }
+{ "type": "npc_did", "slot": "rival", "deed": "lobby_against", "target": "player_bill", "within_days": 60, "at": "same" }
 // deeds: lobby_for, lobby_against, endorse, fund, statement, talk_to (a cast person), file
 ```
 
-`PoliticsState` (or the characters domain, whichever `npc.rs` writes) gains `npc_deeds: Vec<NpcDeed>` (bounded at 200, the player's town only). Schemes run whether or not the player knows; their stage views are gated by the ledger (`RivalPlans`, `Broker`, K2), shown as leads until learned.
+`PoliticsState` (or the characters domain, whichever `npc.rs` writes) gains `npc_deeds: Vec<NpcDeed>` (bounded at 200). Each `NpcDeed` carries `at: Jurisdiction` (where it was done), and only deeds in `state.focus()` jurisdictions are recorded, so M7 widens the filter without a migration. The `npc_did` condition gains an optional `at` selector (`same`, the default: the jurisdiction of the storyline's cast). Schemes run whether or not the player knows; their stage views are gated by the ledger (`RivalPlans`, `Broker`, K2), shown as leads until learned.
 
 **The next move, once known** (after Into the Breach's telegraphed attacks; research §3.8, accepted 2026-11-19; the design reasoning is *inference*). When the player knows `RivalPlans` (the rival scheme) or `Broker` (the broker scheme) at `known`, the scheme's view shows its next stage as a pending move. The view gives the stage's key, its likely target (the cast bill, ally or neighbourhood its `advance` condition names), and its window (the stage's `wait_days` to `timeout_days` from the last stage). Below `known` it stays a lead. It is a view over content and the run: it adds no state and never changes what the scheme does. `StorylineView` gains `next: Option<NextMoveView { key, args, from: DateView, until: DateView }>` (E4).
 
 ### 4.6 The press covers the player's work
 
-A new story source, symmetric for every politician (DEC-030):
+A new story source, symmetric for every politician (DEC-030). It is keyed by politician, so it needs no change for other tiers (DEC-098):
 
 ```rust
 StorySource::Work { politician: PoliticianId, kind: WorkKind, policy: Option<u32>, ask: Option<u32> }
@@ -697,7 +710,7 @@ after: [line ids]            // only after the player has heard all of these lin
 
 Filler fills only when nothing reactive or story-bearing applies.
 
-**New conditions** on the shared `SituationCondition` (M6 §3.3):
+**New conditions** on U1's one condition type (M6 §3.3 and §4, task U1):
 
 ```rust
 /// The player did this within the window (the deed log, §3.6).
@@ -727,22 +740,22 @@ AskOutcome { slot: String, status: AskOutcomeKind, within_days: u32 }, // gives 
 
 ### 5.1 What a secret is
 
-A secret is a hidden fact (DEC-034) about a person in the player's town, seeded from live state by a content registry. It reuses `narrative.hidden`: subject, evidence, discovery window and fate. Journalists, the rival, auditors and investigators discover secrets by the existing rules, so a secret can surface whether or not the player finds it. Not every secret is a misdeed: `severity` is optional (a private matter has no legal path but still has newsworthiness).
+A secret is a hidden fact (DEC-034) about a person in a focus jurisdiction (in M6, the home town), seeded from live state by a content registry. It reuses `narrative.hidden`: subject, evidence, discovery window and fate. Journalists, the rival, auditors and investigators discover secrets by the existing rules, so a secret can surface whether or not the player finds it. Not every secret is a misdeed: `severity` is optional (a private matter has no legal path but still has newsworthiness).
 
 ### 5.2 Kinds (the first registry)
 
 | Kind | Seeded from | Subject | Who knows (for conversations) | Severity | Leads to |
 |---|---|---|---|---|---|
-| `secret.broker_deal` | P1: the broker's lobbying of a councillor succeeds with a favour or money | The councillor and the broker | Their staff, the union steward, the diner owner | misconduct | The councillor's staff; the broker |
+| `secret.broker_deal` | P1: the broker's lobbying of a member of the legislature (a councillor, in a town) succeeds with a favour or money | The member and the broker | Their staff, the union steward, the diner owner | misconduct | The member's staff; the broker |
 | `secret.buried_report` | Pollution over a threshold with a plant or mine owner; or the `bury_report` dilemma option | The owner (or the player) | Plant workers, a nurse, the clinic | misconduct | The clinic; the plant's records |
 | `secret.rival_backer` | Campaign money from the broker or a donor to the rival (P1, the funds path) | The rival | The party chair, the backer's circle | ethics | The backer; `RivalPlans` |
-| `secret.councillor_debts` | At play start and monthly, a councillor with low integrity and high ambition (keyed per person) | The councillor | Their creditor, the diner owner | private | The creditor |
+| `secret.councillor_debts` | At play start and monthly, a member of the legislature (by post, `members_of`) with low integrity and high ambition (keyed per person) | The member | Their creditor, the diner owner | private | The creditor |
 | `secret.steered_contract` | NPC corruption's existing hidden facts (`steer_contract` kinds) | The NPC | Contractors, the town clerk | crime | The town hall records |
 | `secret.planned_closure` | A plant at risk by the same inputs the economy uses to close plants (its sector's job-loss trend and margins) | The plant owner | Managers, the union steward (rumour) | private | The union steward |
-| `secret.land_deal` | Someone bought land beside a site before a rezoning bill (a family binding a neighbourhood) | The buyer and a councillor | The estate agent, the planning clerk | ethics | The planning clerk |
-| `secret.party_challenge` | A faction plans to deselect the mayor or the player (party Standing) | The faction leader | Party members | private | The party chair |
+| `secret.land_deal` | Someone bought land beside a site before a rezoning bill (a family binding a neighbourhood) | The buyer and a member of the legislature | The estate agent, the planning clerk | ethics | The planning clerk |
+| `secret.party_challenge` | A faction plans to deselect a post holder of its party in the jurisdiction (the executive, a member, or the player; party Standing) | The faction leader | Party members | private | The party chair |
 
-Caps: at most `secrets.max_live_per_town` 6 unsurfaced secrets; seeding draws on a keyed stream (`Stream::Media`, keyed by month, kind and cast). Seed triggers may not use `knows` (K6).
+Caps: at most `secrets.max_live_per_jurisdiction` 6 unsurfaced secrets per jurisdiction; seeding draws on a keyed stream (`Stream::Media`, keyed by `[month, kind, at.tier_index(), at.raw(), cast]`). Seed triggers are U1 conditions and may not use `knows` (K6, in U1's validator). Kind ids are names: who a kind casts is read from posts, never from the word in its id.
 
 **Every find leads somewhere** (after Outer Wilds; research §3.8, accepted 2026-11-19). Each secret kind declares at least one `lead`: a person, place or subject the notebook points to next (the "Leads to" column). Validation enforces it (E9). The notebook shows per subject that there is "more to learn", never a total (M6 §1.8).
 
@@ -770,7 +783,8 @@ Detail needs evidence: `detailed` takes a second independent source or a success
 
 ### 5.5 Engine and save
 
-- `HiddenFact` gains `secret: Option<ContentKey>` (the kind) and `cast: Vec<CastEntry>`; save bump with defaults. Recommended at the same time: a typed `HiddenId` (M6 §6 item 12).
+- `HiddenFact` gains `secret: Option<ContentKey>` (the kind) and `cast: Vec<CastEntry>`. In the same save bump (DEC-098): `HiddenFact.town: Option<u32>` becomes `at: Option<Jurisdiction>` (migration: `town: m` → `{ "type": "municipality", "id": m }`), and hidden facts take a typed `HiddenId` (M6 §6 item 12).
+- **One fact-kinds registry** (DEC-098 §4; audit §4.2 row 8). `content/base/fact_kinds.jsonc` lists every kind of fact that can become a scandal or a secret: kind id, severity (optional: a private matter has none), evidence, a newsworthiness override and Fluent keys. The shady acts and NPC acts in `media.jsonc` and the secret kinds in `secrets.jsonc` reference it by id instead of carrying their own strings. Validation: every reference names a registered kind. Mods add misdeeds as data.
 - A `secrets` step in the narrative domain seeds them monthly (it writes its own `hidden` list). Seeds from other domains (P1's deals, NPC corruption) arrive as effect requests (`Effect::Hide { kind, cast, evidence }`).
 - `talk_params.speaker_knows` gains `KnownSubject::Secret { kinds }` rules from each kind's `knows` list; C3-style lines teach `secret` subjects; `AboutKind::Secret` makes a held secret a topic.
 - `Subject::Secret { hidden }` exists already (K1).
@@ -786,7 +800,7 @@ Detail needs evidence: `detailed` takes a second independent source or a success
 ```jsonc
 { "id": "curiosity.plaque", "name_key": "curiosity-plaque", "category": "lore",
   "anchors": ["wall", "bridge", "square"],          // where the client may place it, in order of preference
-  "eligible": [ { "type": "history", "fact": "past_mayor" } ],   // the town must have this to say
+  "eligible": [ { "type": "history", "fact": "past_executive" } ],   // the town must have this to say (a past holder of its executive office); a U1 condition
   "per_town": [1, 3], "weight": 1.0,
   "reveal": "walk",                                  // walk | streets
   "when": null,                                      // optional: slots (evening), a season, a storyline step
@@ -811,13 +825,13 @@ Variety by town: kinds are eligible only where the town can ground them (`eligib
 
 ### 6.2 Seeding (engine, deterministic)
 
-At play start, and when the player enters a new zone (M7), the engine creates curiosity instances for the town: `world.curiosities: Vec<Curiosity>` (append-only, typed `CuriosityId`, never reused; created after all places so place ids never shift, as TOWN_GENERATION §11 requires for optional places).
+At play start, and when the player enters a new zone (M7), the engine creates curiosity instances for the town. The seeding function takes the town as an argument (`seed_curiosities(state, content, town: MunicipalityId)`), never reading `player.municipality`: `world.curiosities: Vec<Curiosity>` (append-only, typed `CuriosityId`, never reused; created after all places so place ids never shift, as TOWN_GENERATION §11 requires for optional places).
 
 ```rust
 pub struct Curiosity {
     pub id: CuriosityId,
     pub kind: ContentKey,
-    pub town: MunicipalityId,
+    pub town: MunicipalityId,             // kept (DEC-098): curiosities are physical things in a town
     pub hood: NeighborhoodId,
     pub args: BTreeMap<String, String>,   // facts from history: a name, a year, a result
     pub subject: Option<CastEntry>,       // a person or place it teaches about
@@ -826,7 +840,7 @@ pub struct Curiosity {
 
 - Density: `curiosities.per_district` 1.5 (12–30 per town), at most 40% `streets` (play-affecting).
 - Draws: `stream(seed, "curiosity", town, kind)` keyed draws; neighbourhoods weighted by their anchors' likelihood (a vista needs high ground: the engine reads `TownGeographyView`'s relief, B2).
-- Arguments come from the simulation's own history (the burn-in's mayors, elections, disasters and plant closures): lore is true to the town.
+- Arguments come from the simulation's own history (the burn-in's office holders, elections, disasters and plant closures): lore is true to the town.
 - **Lore that bears on now** (Caves of Qud's "pick the event, then explain it"; research §3.8, accepted 2026-11-19). When a kind's arguments are drawn from history, facts that share a kind with the live crisis or the defining industry weigh ×`curiosities.live_weight` 2.0: a flood plaque in a flood-prone town, a pit memorial in a mining town. Still keyed and deterministic.
 - **Lore attaches to known ground.** A curiosity's `subject` is a real person or place of the town. Seeding never depends on what the player knows (DEC-091), but text may: lore lines carry variants chosen by `PlayerKnows` ("the plaque names Dana Price's grandmother" once Dana is known). That is framing, which is allowed.
 
@@ -986,7 +1000,8 @@ The tables say *what* happens. The playtest notes in BALANCE_LOG remain the reco
 | **Hidden places G2** | E9–E11 run with it (DEC-097 order): hidden places are a walking-reward category; their cues use the curiosity slots; the union archive is a dig site; `LookAround` and G2's walking discovery share the street-arrival hook |
 | **Odds calibration L1** | E12 runs beside it. New shown odds go into L1's recording list: casework success, dig odds, and a press tip's chance of running |
 | **K4 bots** | The informed styles (§2.4) build on K4's `explorer` and `Knowing`; the gate ladder (§7.2) replaces K4's gate list in `bots` |
-| **K6** | Its validation rule (no `knows` where a condition decides whether something happens) extends to ask triggers, secret seeds and curiosity eligibility. Themes, tiers, phases and `min_career_days` read live state and dates, never the ledger; the scheme telegraph (§4.5) is a view only |
+| **R1, R2, U1 (DEC-098)** | R1 (offices from the constitution, engine and save) comes before E2, E4, E6 and E9, so asks, deeds, secrets and the director are written against posts, `Jurisdiction`, `Area` and `state.focus()` from the start; E1 runs beside it. R2 (protocol and web) runs beside E6–E8; it and E7 both edit `protocol/src/{lib,places}.rs` and `web/src`, and the second to merge rebases. U1 (one condition language) comes after E2 and before E3, E4, E6 and E8: every new condition in this document (`answered`, `sponsored_law`, `npc_did`, ask triggers, secret seeds, curiosity `eligible` and `when`, `PlayerDid`, `AskOutcome`) is a variant of U1's one type, checked by its one validator |
+| **K6** | Its validation rule (no `knows` where a condition decides whether something happens) extends to ask triggers, secret seeds and curiosity eligibility; U1 moves it into the one condition validator. Themes, tiers, phases and `min_career_days` read live state and dates, never the ledger; the scheme telegraph (§4.5) is a view only |
 
 ---
 
@@ -1024,39 +1039,44 @@ The tables say *what* happens. The playtest notes in BALANCE_LOG remain the reco
 
 ## 11. Task breakdown
 
-**Order (DEC-097, with the research folded in):** E1–E5 with the talk work (C2–C5); E13 after C2, C4 and E6, beside C5; E6–E8 before the policy families (F1); E9–E11 with hidden places (G2); E12 beside L1.
+**Order (DEC-097 and DEC-098):**
+1. E1 runs beside R1 (R1 runs after N1, as a short freeze on its files). E1 keeps to the `Canvass` arm of `actions.rs`; until R1 merges, its reads of the player's town go through one local helper that R1's `player::home(state)` replaces.
+2. E2 after R1; then U1 (one condition language, `M6_ENGINE_CONTRACTS.md` §4); then E3 and E6. E4 also follows U1 (it adds `npc_did`); E5 needs only E2.
+3. E7 and E8 after E6, with R2 (offices from the constitution: protocol and web) beside the asks work.
+4. E6–E8 before the policy families (F1).
+5. E9–E11 with hidden places (G2); E12 beside L1; E13 after E6 (C2 and C4 are done), beside C5.
 
-**Rules:** as M6 §4: the lead numbers save bumps at merge; append-only edits to shared enums (`ContentFile`, `ContentBundle`, `QueryDto`, `ResponseBody`, `Effect`, `EventKind`, `PlayerCommand`, `Action`, `SituationCondition`, `AboutKind`, `Deed`); `CARGO_BUILD_JOBS` set per brief. E9 and E13 both append to `content/base/conversations/lines.jsonc`, `talk.ftl` and the condition arms of `crates/mandate-sim/src/talk/context.rs`; if they overlap, the lead merges them.
+**Rules:** as M6 §4: the lead numbers save bumps at merge; append-only edits to shared enums (`ContentFile`, `ContentBundle`, `QueryDto`, `ResponseBody`, `Effect`, `EventKind`, `PlayerCommand`, `Action`, U1's `Condition`, `AboutKind`, `Deed`); `CARGO_BUILD_JOBS` set per brief. E9 and E13 both append to `content/base/conversations/lines.jsonc` and `talk.ftl`, and E4, E10 and E13 each add variants to U1's `condition.rs` files (content and sim); where they overlap, the lead merges them.
 
 | # | Task | After | Runs beside | Save bump |
 |---|---|---|---|---|
-| **E1** | Ground-game curve and record; informed bot styles; the gate ladder's names and classes | K4 | C2–C5, E2 | yes |
-| **E2** | Director: cooldowns, tiers and themes, `pick`, the pacing cycle, `uses`, `answers`, `answered`, `sponsored_law`, `min_career_days`, story metrics | K6 | C2–C5, E1 | yes |
-| **E3** | Dilemma pool: 26 templates (4 campaign-only), themes on every dilemma | E2 | C4, C5, E4, E5 | no |
-| **E4** | Storylines and NPC schemes (`npc_did`, 6 storylines, start draw, the next-move view; broker scheme after P1) | E2 | E3, E5 | yes (`npc_deeds`) |
+| **E1** | Ground-game curve and record; informed bot styles; the gate ladder's names and classes | K4 | R1, C5, E2 | yes |
+| **E2** | Director: cooldowns, tiers and themes, `pick`, the pacing cycle, `uses`, `answers`, `answered`, `sponsored_law`, `min_career_days`, story metrics; the session's budget year from the player's main post | K6, R1 | C5, E1 | yes |
+| **E3** | Dilemma pool: 26 templates (4 campaign-only), themes on every dilemma, written in U1's condition type | E2, U1 | C5, E4, E5, E6 | no |
+| **E4** | Storylines and NPC schemes (`npc_did` with an `at` selector, `NpcDeed.at`, 6 storylines, start draw, the next-move view; broker scheme after P1) | E2, U1 | E3, E5 | yes (`npc_deeds`) |
 | **E5** | The press covers work (`StorySource::Work`) | E2 | E3, E4 | no |
-| **E6** | Asks engine (domain, sliding rate, deed log, commands, casework, effects) | E1, C1 | E7 drafting | yes |
-| **E7** | Asks protocol and Today tab | E6, C2 | E8, E13 | no |
-| **E8** | Asks content, promises, request conversions, bots; the ladder enforced | E6 | E7, E13 | no |
-| **E9** | Secrets: registry, seeding, leads, dig, tip, talk hooks | E6, K3, C1 | G2, E10 | yes |
-| **E10** | Walking rewards engine: curiosities, leads, live weighting, Inspect, LookAround, encounters, lore notebook and topics | G2 | E9, E11 | yes |
+| **E6** | Asks engine (domain, sliding rate, deed log, commands, casework, effects; askers and scopes by constituency and `Area`) | E1, C1, U1 | E3, E7 drafting, R2 | yes |
+| **E7** | Asks protocol and Today tab | E6, C2 | E8, E13, R2 | no |
+| **E8** | Asks content, promises, request conversions, bots; the ladder enforced | E6, U1 | E7, E13, R2 | no |
+| **E9** | Secrets: registry, seeding, leads, dig, tip, talk hooks; `HiddenFact.at`, typed `HiddenId`; the `fact_kinds` registry | E6, K3, C1, E5 | G2, E10 | yes |
+| **E10** | Walking rewards engine: curiosities, leads, live weighting, Inspect, LookAround, encounters, lore notebook and topics | G2, U1 | E9, E11 | yes |
 | **E11** | Walking rewards web: slots, dress, props, inspect, Look around, lore page, placement check | E10, B3 | E9 | no |
 | **E12** | Engagement lab command, gates and tables in CI and nightly; ladder tuning | E2, E8 (E13 for the conversation columns) | L1 | no |
-| **E13** | Conversation memory: priorities, once-only lines, callbacks | C1, C2, C4, E6 | C5, E7, E8 | yes |
+| **E13** | Conversation memory: priorities, once-only lines, callbacks | C1, C2, C4 (done), E6 | C5, E7, E8 | yes |
 
 ### E1 — Ground-game curve, record and informed styles
 
 - **Goal:** canvassing builds awareness first, with fast per-neighbourhood diminishing and a campaign-season boost (§2.1); record from delivery (§2.2); the informed styles `explorer_coalition`, `explorer_legislator`, `explorer_campaigner` (§2.4); the bot gates renamed and grouped as the ladder (§7.2), enforced as its "Enforced" column says for E1, the rest reported.
 - **OWNS:** `crates/mandate-sim/src/actions.rs` (the `Canvass` arm and its outcome args only); `crates/mandate-sim/src/player/{mod.rs,ground.rs (new)}` (`PlayerState.ground`: per-neighbourhood visits and dates); `crates/mandate-content/src/types.rs` (canvass action params and `record_gain` fields); `content/base/{actions,career}.jsonc`; `content/schemas/**`; `crates/mandate-save/**` (migration); `crates/mandate-cli/src/bots.rs` (the strategy classes, the three informed variants, an `asks_only` stub, the ladder gates: `idle_cap`, `effort_matters`, `exploring_alone_never_wins`, `corrupt_not_dominant`, `good_styles_vary` clause (b) and `ladder_learned` at + 1.0 enforced; `ladder_rote`, `knowledge_matters`, `skill_gap` and the rest of `good_styles_vary` reported); `content/base/locale/en/base.ftl` (canvass freshness lines); `docs/development/BALANCE_LOG.md`.
-- **Depends on:** K4 (done).
+- **Depends on:** K4 (done). Runs beside R1 (DEC-098): E1 stays inside the `Canvass` arm; both add to `player/mod.rs`, `bots.rs` and the save migrations, each additively, and the second to merge rebases. New reads of the player's town go through one helper that R1's `player::home(state)` replaces.
 - **Acceptance:** unit tests of the curve (same neighbourhood every turn → fresh < 0.1; rotation of three → 0.4–0.6; campaign multiplier applies only while a candidate); `bots --seeds 16` and `--seeds 32` pass every gate enforced from E1; the reported rungs show `canvass` no longer has the highest win rate and mean share; the three informed variants each differ from `explorer` in action mix (reported); grid evidence in BALANCE_LOG; determinism (2026 × 80) twice and through save/load; native = WASM (777 × 60).
 - **Save:** bump (`PlayerState.ground`, default empty).
 
 ### E2 — The director: variety, tiers, themes and the pacing cycle
 
-- **Goal:** cooldown floor and growth, no repeat in a chapter (climax included), climax memory (§4.1); tiers, chapter themes and `pick` (§4.2); the pacing cycle with profiles, the climax window, the coda, the quiet rescue and easing after a setback (§4.3); the `answered` and `sponsored_law` conditions (§4.4); `min_career_days` on dilemmas and storylines (§4.7); `story --metrics` prints the §7.1 decision and pacing metrics; each week's candidate set exposed to the lab as a pure function (§7.4).
+- **Goal:** cooldown floor and growth, no repeat in a chapter (climax included), climax memory (§4.1); tiers, chapter themes and `pick` (§4.2); the pacing cycle with profiles, the climax window, the coda, the quiet rescue and easing after a setback (§4.3); the `answered` and `sponsored_law` conditions (§4.4; U1 carries them into the one condition type); `min_career_days` on dilemmas and storylines (§4.7); a session chapter's budget year is that of the jurisdiction of the player's main post (`player::posts(state).first()`, §4.3; DEC-098), with `crisis_cap` per town; `story --metrics` prints the §7.1 decision and pacing metrics; each week's candidate set exposed to the lab as a pure function (§7.4).
 - **OWNS:** `crates/mandate-sim/src/narrative/{director.rs,mod.rs,cast.rs}`; `crates/mandate-content/src/narrative.rs` (`DirectorParams`, storyteller profile fields, `Condition::Answered`, `Condition::SponsoredLaw`, `themes` and `min_career_days` on templates, validation); `content/base/{director,storytellers}.jsonc`; `content/schemas/**`; `crates/mandate-save/**`; `crates/mandate-cli/src/main.rs` (the `Story` arm only).
-- **Depends on:** K6 (done).
+- **Depends on:** K6 (done); R1 (DEC-098: posts and `state.focus()` exist, and `narrative/cast.rs` is out of R1's freeze).
 - **Acceptance:**
   - 12 seeds × 5 years, mixed, Classic: most uses of a template ≤ 3; no repeat within a chapter; no climax template in consecutive chapters; no theme in consecutive session chapters while another was eligible; 3–6 peaks per session chapter; longest governing decisions-only gap median ≤ 120 days, every seed ≤ 145 (the no-beat gates need E5 and E6).
   - Unit tests: tier A is drawn before B and C; the climax peak is forced 14 days before the window closes; a setback lengthens the next relax by 1.5; relax ends on an introduced bill; a `raised_by` decision opens during a relax; Unfiltered has no phases.
@@ -1065,23 +1085,23 @@ The tables say *what* happens. The playtest notes in BALANCE_LOG remain the reco
 
 ### E3 — Dilemma pool
 
-- **Goal:** the 26 dilemmas of §4.4 with scenes and Fluent text, including the 4 campaign-only ones; `themes` on every dilemma, the existing 31 included (§4.2); `min_career_days` values (§4.7). The seven that need G3, E9, E10, V2 or P1 are written now and enabled by their triggers.
+- **Goal:** the 26 dilemmas of §4.4 with scenes and Fluent text, including the 4 campaign-only ones; `themes` on every dilemma, the existing 31 included (§4.2); `min_career_days` values (§4.7). The seven that need G3, E9, E10, V2 or P1 are written now and enabled by their triggers. Triggers use U1's one condition type; cast roles that name an office use constitution ids (`Cast::Office`, `{ "type": "office", "posts": [...] }`), never a fixed office word (DEC-098).
 - **OWNS:** `content/base/{dilemmas,scenes}.jsonc`; `content/base/locale/en/narrative.ftl`.
-- **Depends on:** E2.
+- **Depends on:** E2; U1 (DEC-098: one condition language before the content volume lands).
 - **Acceptance:** `content validate` (every option has a cost and a benefit; Fluent arguments; every dilemma has a theme); at least 4 dilemmas per session theme and at least 6 campaign-only templates or stages without V2; 12 seeds × 5 years: distinct templates median ≥ 18, every seed ≥ 14; each new template opens in at least one of 32 seeds or is listed as gated on a later task.
 - **Save:** none.
 
 ### E4 — Storylines and NPC schemes
 
-- **Goal:** `npc_did` condition and the NPC deeds log; `storylines_active` 3, spacing, minimum, and starts drawn among the eligible arcs (§4.2); the six storylines of §4.5 with their `min_career_days` (`broker_scheme` content lands with P1); the next-move view once the schemer's plans are known (§4.5).
-- **OWNS:** `crates/mandate-sim/src/npc.rs` (appending deeds only); `crates/mandate-sim/src/politics/mod.rs` (`npc_deeds` field); `crates/mandate-sim/src/narrative/director.rs` (`start_runs` only, after E2 merges); `crates/mandate-content/src/narrative.rs` (`Condition::NpcDid`); `content/base/{storylines,director}.jsonc`; `content/base/locale/en/narrative.ftl` (storyline keys); `crates/mandate-protocol/src/narrative.rs` (`StorylineView.next`); `web/src/engine/protocol/**` (generated); the web story sheet's storyline card only; `crates/mandate-save/**`.
-- **Depends on:** E2.
+- **Goal:** `npc_did` condition (a variant of U1's type, with an optional `at` selector, default `same`) and the NPC deeds log (`NpcDeed.at: Jurisdiction`, recorded for `state.focus()` only; DEC-098); `storylines_active` 3, spacing, minimum, and starts drawn among the eligible arcs (§4.2); the six storylines of §4.5 with their `min_career_days` (`broker_scheme` content lands with P1); the next-move view once the schemer's plans are known (§4.5).
+- **OWNS:** `crates/mandate-sim/src/npc.rs` (appending deeds only); `crates/mandate-sim/src/politics/mod.rs` (`npc_deeds` field); `crates/mandate-sim/src/narrative/director.rs` (`start_runs` only, after E2 merges); `crates/mandate-content/src/condition.rs` (`Condition::NpcDid`, after U1); `crates/mandate-sim/src/condition.rs` (its evaluation arm); `content/base/{storylines,director}.jsonc`; `content/base/locale/en/narrative.ftl` (storyline keys); `crates/mandate-protocol/src/narrative.rs` (`StorylineView.next`); `web/src/engine/protocol/**` (generated); the web story sheet's storyline card only; `crates/mandate-save/**`.
+- **Depends on:** E2; U1 (it adds a condition); R1 (through E2).
 - **Acceptance:** 12 seeds × 5 years: storyline templates median ≥ 3, every seed ≥ 2; a scheme stage outside a campaign in ≥ 75% of careers; in towns where two arcs can start, each starts first in some seeds; schemes advance identically with and without the player knowing (K6-style test); storyline views gated by the ledger (K2 fallbacks); with `RivalPlans` at `known` the rival scheme shows its next move, below it a lead (protocol test).
 - **Save:** bump (`npc_deeds`, default empty).
 
 ### E5 — The press covers the player's work
 
-- **Goal:** `StorySource::Work` (§4.6) for every politician; bill passed or failed replaces subject-less town news for bills; appearances; promise stories hook for E6.
+- **Goal:** `StorySource::Work` (§4.6) for every politician; bill passed or failed replaces subject-less town news for bills; appearances; promise stories hook for E6. Keyed by politician, so no tier change (DEC-098).
 - **OWNS:** `crates/mandate-sim/src/media.rs`; `crates/mandate-content/src/types.rs` (media section); `content/base/media.jsonc`; `content/schemas/**`; `crates/mandate-protocol/src/media.rs` (article view for the new source); `content/base/locale/en/media.ftl`.
 - **Depends on:** E2 (metrics).
 - **Acceptance:** 12 seeds × 5 years mixed: press about the player median ≥ 6, every seed ≥ 2, at least half on work; idle ≥ 1; the perception twin test (DEC-034) passes for work stories; bot gates pass.
@@ -1089,41 +1109,41 @@ The tables say *what* happens. The playtest notes in BALANCE_LOG remain the reco
 
 ### E6 — Asks engine
 
-- **Goal:** the `asks` domain (§3.6): state, weekly system with the sliding rate and asker callbacks (§3.2), `PlayerDeed` events and the deed log, `RespondAsk`, `Promise`, `Action::Casework`, `big` asks ending the director's relax, effects, validation, `Stream::Asks`; `min_career_days` on asks; the second-term rules (lower-half deadlines after re-election, no persuasion for a promise kept last term; §4.7); one sample ask and one promise.
+- **Goal:** the `asks` domain (§3.6): state, weekly system for `state.focus()` with the sliding rate and asker callbacks (§3.2), `Asker::Constituency`, `Effect::Approval { scope: Area }`, colleagues cast by post (R1's `Cast::Colleague`), promise deadlines from the post being run for and promises counted per race (`promises_race: Option<Post>`; §3.5; DEC-098), ask triggers in U1's condition type, `PlayerDeed` events and the deed log, `RespondAsk`, `Promise`, `Action::Casework`, `big` asks ending the director's relax, effects, validation, `Stream::Asks`; `min_career_days` on asks; the second-term rules (lower-half deadlines after re-election, no persuasion for a promise kept last term; §4.7); one sample ask and one promise.
 - **OWNS:** `crates/mandate-sim/src/asks/**` (new); `crates/mandate-sim/src/events.rs` (`PlayerDeed`); `crates/mandate-sim/src/actions.rs` (deed appends, `RespondAsk`, `Promise`, `Casework` arms); `crates/mandate-sim/src/{systems.rs,scheduler.rs}` (registration; the new `Effect` variants `Opinion`, `Favour`, `Approval`, `Record`); the arms that apply them in `crates/mandate-sim/src/{characters,population,politics}/**` (effect application only); `crates/mandate-core/src/rng.rs` (`Stream::Asks`); `crates/mandate-content/src/asks.rs` (new) and its `ContentFile`/bundle lines; `crates/mandate-content/src/validate.rs` (asks section); `content/base/asks/{params,asks,promises}.jsonc` (samples); `content/schemas/**`; `crates/mandate-save/**`.
-- **Depends on:** E1, C1 (done).
-- **Acceptance:** unit tests for each `Need` (kept, broken, void); property test: an ask resolves exactly once; unit tests of the curves (no offer the week after one; none at 4 open; twice the base chance with nothing open and 21 quiet days); the deed log stays bounded and ordered; asks never depend on `knows` (validation test); determinism, save/load/continue parity, native = WASM; the blind-invariance test still passes.
+- **Depends on:** E1, C1 (done); U1, and through it R1 and E2 (DEC-098 order).
+- **Acceptance:** unit tests for each `Need` (kept, broken, void); property test: an ask resolves exactly once; unit tests of the curves (no offer the week after one; none at 4 open; twice the base chance with nothing open and 21 quiet days); the deed log stays bounded and ordered; asks never depend on `knows` (validation test); no `MunicipalityId` key and no office word in the asks state or its content (a test); determinism, save/load/continue parity, native = WASM; the blind-invariance test still passes.
 - **Save:** bump (`State.asks`, including the deed log).
 
 ### E7 — Asks protocol and the Today tab
 
-- **Goal:** `AskView`, `PocketView.asks`, `asks_due_soon`, `QueryDto::Asks`, `QueryDto::PromiseMenu`, TS types; the Today tab block, the story sheet's promises, the promise picker while campaigning.
+- **Goal:** `AskView` (with `AskerView::Constituency { name_key, number }` for a constituency's voters; DEC-098), `PocketView.asks`, `asks_due_soon`, `QueryDto::Asks`, `QueryDto::PromiseMenu`, TS types; the Today tab block, the story sheet's promises, the promise picker while campaigning.
 - **OWNS:** `crates/mandate-protocol/src/{asks.rs (new),places.rs (PocketView fields),lib.rs}`; `web/src/engine/protocol/**` (generated); `web/src/**` except `engine/protocol` (Today tab, promise picker, story sheet).
-- **Depends on:** E6, C2.
+- **Depends on:** E6, C2 (done). Runs beside R2: both edit `crates/mandate-protocol/src/{lib,places}.rs` and `web/src` (different items); the second to merge rebases.
 - **Acceptance:** Rust ⇄ TS round-trip; accept, decline and keep an ask in Playwright (phone and desktop); keyboard and screen reader labels; the badge counts offers and promises due within a turn.
 - **Save:** none.
 
 ### E8 — Asks content, promises, conversions, bots and the ladder
 
-- **Goal:** the first pack (§3.8) with Fluent text, `big` flags and `min_career_days`; `request.ally_vote`, `request.traders_meeting`, `request.back_the_workers` become asks (goals point at them); `mixed` and the informed styles accept and fulfil asks (§3.9); `asks_only`; the base offer rate tuned with the curves; the gate ladder enforced as its "Enforced" column says for E8 (`ladder_rote`, `ladder_learned` at + 3.0, `knowledge_matters`, `skill_gap`, all of `good_styles_vary`); final ground-game tuning with E1's grid.
+- **Goal:** the first pack (§3.8) with Fluent text, `big` flags and `min_career_days`, written in U1's condition type, with colleagues and office holders cast by post (`ask.vote_with_me`, `ask.second_my_bill`: "a holder of a post in the same body", never the word councillor; DEC-098); `request.ally_vote`, `request.traders_meeting`, `request.back_the_workers` become asks (goals point at them); `mixed` and the informed styles accept and fulfil asks (§3.9); `asks_only`; the base offer rate tuned with the curves; the gate ladder enforced as its "Enforced" column says for E8 (`ladder_rote`, `ladder_learned` at + 3.0, `knowledge_matters`, `skill_gap`, all of `good_styles_vary`); final ground-game tuning with E1's grid.
 - **OWNS:** `content/base/asks/**`; `content/base/{goals,dilemmas}.jsonc` (the three conversions only); `content/base/locale/en/asks.ftl` (new); `crates/mandate-cli/src/bots.rs`; `content/base/{actions,career}.jsonc` (tuning values only); `docs/development/BALANCE_LOG.md`.
-- **Depends on:** E6 (drafting can start after E6's formats).
+- **Depends on:** E6 (drafting can start after E6's formats); U1 (DEC-098: one condition language before the content volume lands).
 - **Acceptance:** 12 seeds × 5 years: asks offered median ≥ 15, every seed ≥ 8; mixed keeps ≥ 60% of accepted; broken in ≥ 25% of careers; canvass share of approval ≤ 40%; `bots --seeds 16` and `32`: every gate enforced from E8 passes.
 - **Save:** none.
 
 ### E9 — Secrets
 
-- **Goal:** the secret kinds registry with leads and seeding (§5.2), `HiddenFact.secret` and `cast`, `Effect::Hide`, `speaker_knows` rules, `AboutKind::Secret` (finds become talk, §5.3), `Investigate` and `TipPress` actions (and their deeds), notebook entries and leads, the `secret_hunter` probe and `secrets_not_decisive`.
-- **OWNS:** `crates/mandate-sim/src/narrative/{mod.rs (HiddenFact fields),secrets.rs (new)}`; `crates/mandate-sim/src/actions.rs` (`Investigate`, `TipPress` arms); `crates/mandate-sim/src/characters/knows.rs` (secret rules); `crates/mandate-sim/src/talk/context.rs` (the secret `about` only); `crates/mandate-content/src/{secrets.rs (new),conversation.rs (KnownSubject::Secret, AboutKind::Secret)}`; `content/base/secrets.jsonc` (new); `content/base/conversations/lines.jsonc` (secret substance lines); `content/base/locale/en/{secrets.ftl (new),talk.ftl}`; `content/schemas/**`; `crates/mandate-save/**`; `crates/mandate-cli/src/bots.rs` (`secret_hunter`).
-- **Depends on:** E6 (`ask.keep_it_quiet`, the deed log), K3, C1 (done); P1 for the broker kinds (they seed nothing until P1).
-- **Acceptance:** secrets seed with and without the player knowing (identical worlds except the ledger, K6 test); journalists and the rival discover them by the existing rules; dig and tip odds shown = rolled (L1 hook); `secrets_not_decisive` passes; a held secret is a `topic.about` option with the people who know it; validation: no `knows` in seeds, every kind has a lead.
-- **Save:** bump (`HiddenFact` fields; typed `HiddenId` recommended).
+- **Goal:** the secret kinds registry with leads and seeding (§5.2), `HiddenFact.secret` and `cast`; in the same bump `HiddenFact.town` becomes `at: Option<Jurisdiction>` and hidden facts take a typed `HiddenId` (§5.5); `max_live_per_jurisdiction` and seeding keyed by `[month, kind, at.tier_index(), at.raw(), cast]`; secret kinds cast by post, never by an office word (DEC-098); the `fact_kinds` registry that shady acts and secret kinds reference (§5.5; DEC-098 §4); `Effect::Hide`, `speaker_knows` rules, `AboutKind::Secret` (finds become talk, §5.3), `Investigate` and `TipPress` actions (and their deeds), notebook entries and leads, the `secret_hunter` probe and `secrets_not_decisive`.
+- **OWNS:** `crates/mandate-sim/src/narrative/{mod.rs (HiddenFact fields, HiddenId),secrets.rs (new)}`; `crates/mandate-sim/src/media.rs` (fact-kind lookups only, after E5 merges); `crates/mandate-content/src/{fact_kinds.rs (new),types.rs (media section: references to fact kinds)}`; `content/base/fact_kinds.jsonc` (new); `content/base/media.jsonc` (shady and NPC acts reference fact kinds); `crates/mandate-sim/src/actions.rs` (`Investigate`, `TipPress` arms); `crates/mandate-sim/src/characters/knows.rs` (secret rules); `crates/mandate-sim/src/talk/context.rs` (the secret `about` only); `crates/mandate-content/src/{secrets.rs (new),conversation.rs (KnownSubject::Secret, AboutKind::Secret)}`; `content/base/secrets.jsonc` (new); `content/base/conversations/lines.jsonc` (secret substance lines); `content/base/locale/en/{secrets.ftl (new),talk.ftl}`; `content/schemas/**`; `crates/mandate-save/**`; `crates/mandate-cli/src/bots.rs` (`secret_hunter`).
+- **Depends on:** E6 (`ask.keep_it_quiet`, the deed log), K3, C1 (done); E5 (it owns `media.rs` first); P1 for the broker kinds (they seed nothing until P1).
+- **Acceptance:** secrets seed with and without the player knowing (identical worlds except the ledger, K6 test); journalists and the rival discover them by the existing rules; dig and tip odds shown = rolled (L1 hook); `secrets_not_decisive` passes; a held secret is a `topic.about` option with the people who know it; validation: no `knows` in seeds, every kind has a lead, every shady act and secret kind names a registered fact kind; a fixture from the previous format migrates `HiddenFact.town` to `at`; media outcomes are unchanged at fixed seeds apart from the new secrets.
+- **Save:** bump (`HiddenFact` fields, `town` → `at`, typed `HiddenId`).
 
 ### E10 — Walking rewards, engine
 
-- **Goal:** the curiosity registry and validation (§6.1: the accessibility rule and leads), seeding at play start with the live-trouble weighting (§6.2), `Inspect`, `LookAround`, encounters with the first-year familiarity weighting (§6.5), `Subject::Curiosity`, `AboutKind::Curiosity` and its `speaker_knows` rule, the `lore` notebook section, `TownStateView.curiosities`, the `walker` probe and `walking_is_a_bonus`.
-- **OWNS:** `crates/mandate-sim/src/{explore.rs (new),places.rs (street-arrival hook)}`; `crates/mandate-sim/src/world.rs` (`curiosities` field); `crates/mandate-sim/src/player/knowledge.rs` (`Subject::Curiosity`); `crates/mandate-sim/src/actions.rs` (`Inspect`, `LookAround` arms); `crates/mandate-content/src/{curiosity.rs (new),conversation.rs (AboutKind::Curiosity)}`; `content/base/curiosities.jsonc` (new, 14 kinds); `content/base/locale/en/curiosities.ftl` (new, with `PlayerKnows` variants); `crates/mandate-protocol/src/{town.rs (TownStateView field),knowledge.rs (lore section)}`; `web/src/engine/protocol/**` (generated); `content/schemas/**`; `crates/mandate-save/**`; `crates/mandate-cli/src/bots.rs` (`walker`).
-- **Depends on:** G2 (shares the street-arrival discovery hook and `Subject::Place`).
+- **Goal:** the curiosity registry and validation (§6.1: the accessibility rule and leads; `eligible` and `when` are variants of U1's condition type, not a fourth language), seeding at play start with the live-trouble weighting (§6.2; the seed function takes the town as a `MunicipalityId` argument, and `Curiosity.town` stays; DEC-098), `Inspect`, `LookAround`, encounters with the first-year familiarity weighting (§6.5), `Subject::Curiosity`, `AboutKind::Curiosity` and its `speaker_knows` rule, the `lore` notebook section, `TownStateView.curiosities`, the `walker` probe and `walking_is_a_bonus`.
+- **OWNS:** `crates/mandate-sim/src/{explore.rs (new),places.rs (street-arrival hook)}`; `crates/mandate-sim/src/world.rs` (`curiosities` field); `crates/mandate-sim/src/player/knowledge.rs` (`Subject::Curiosity`); `crates/mandate-sim/src/actions.rs` (`Inspect`, `LookAround` arms); `crates/mandate-content/src/{curiosity.rs (new),conversation.rs (AboutKind::Curiosity),condition.rs (the `history` variant)}`; `crates/mandate-sim/src/condition.rs` (its evaluation arm); `content/base/curiosities.jsonc` (new, 14 kinds); `content/base/locale/en/curiosities.ftl` (new, with `PlayerKnows` variants); `crates/mandate-protocol/src/{town.rs (TownStateView field),knowledge.rs (lore section)}`; `web/src/engine/protocol/**` (generated); `content/schemas/**`; `crates/mandate-save/**`; `crates/mandate-cli/src/bots.rs` (`walker`).
+- **Depends on:** G2 (shares the street-arrival discovery hook and `Subject::Place`); U1 (its conditions).
 - **Acceptance:** every town of 16 seeds has 12–30 curiosities, ≥ 4 kinds, none of them `streets` with no reward or `walk` with one, and every `streets` kind with a lead (validation); in a flood-prone town of a fixed seed, flood facts are over-represented in lore arguments against a run with `live_weight` 1.0; `Inspect` and `LookAround` give the same rewards; encounters fire on arrivals from any mode, and the draw count does not depend on the talk log; `walking_is_a_bonus` and `exploring_alone_never_wins` pass; determinism and native = WASM.
 - **Save:** bump (`world.curiosities`).
 
@@ -1145,9 +1165,9 @@ The tables say *what* happens. The playtest notes in BALANCE_LOG remain the reco
 
 ### E13 — Conversation memory
 
-- **Goal:** lines that remember (§4.8): `TalkLineDef.priority`, `once` and `after`; tiered selection with the repetition guard across tiers; the `PlayerDid` and `AskOutcome` conditions and `$count` on `Remembers`; bounded `TalkState.heard_once`; priorities on C3's lines and about 20–30 new reactive and story lines; validation; the `once_violations`, `reactive_share` and `line_repeat_rate` metrics. Hades' exact rules are unverified inference (research §2.3): the targets are starting points.
-- **OWNS:** `crates/mandate-content/src/conversation.rs` (`TalkLineDef` fields, `TalkParams.heard_once_cap`); `crates/mandate-content/src/types.rs` (situation section: the two new variants, `$count`); `crates/mandate-content/src/validate.rs` (conversation and situation sections); `crates/mandate-sim/src/talk/{reply.rs,context.rs,state.rs}`; `content/base/conversations/{lines,params}.jsonc`; `content/base/locale/en/talk.ftl`; `content/schemas/**`; `crates/mandate-save/**`; `crates/mandate-cli/src/talk.rs` (the metric columns only, after C5 merges).
-- **Depends on:** C1 (done); C2 and C4 (the talk panel, in progress: E13 starts after they merge, so the panel shows the new lines with no protocol change); E6 (the deed log and ask outcomes).
+- **Goal:** lines that remember (§4.8): `TalkLineDef.priority`, `once` and `after`; tiered selection with the repetition guard across tiers; the `PlayerDid` and `AskOutcome` conditions (variants of U1's one type) and `$count` on `Remembers`; bounded `TalkState.heard_once`; priorities on C3's lines and about 20–30 new reactive and story lines; validation; the `once_violations`, `reactive_share` and `line_repeat_rate` metrics. Hades' exact rules are unverified inference (research §2.3): the targets are starting points.
+- **OWNS:** `crates/mandate-content/src/conversation.rs` (`TalkLineDef` fields, `TalkParams.heard_once_cap`); `crates/mandate-content/src/condition.rs` (the two new variants, `$count`); `crates/mandate-sim/src/condition.rs` (their evaluation arms); `crates/mandate-content/src/validate.rs` (conversation section); `crates/mandate-sim/src/talk/{reply.rs,context.rs,state.rs}`; `content/base/conversations/{lines,params}.jsonc`; `content/base/locale/en/talk.ftl`; `content/schemas/**`; `crates/mandate-save/**`; `crates/mandate-cli/src/talk.rs` (the metric columns only, after C5 merges).
+- **Depends on:** C1, C2 and C4 (done: the panel shows the new lines with no protocol change); E6 (the deed log and ask outcomes; through it, U1).
 - **Runs beside:** C5 (its CLI columns land after C5), E7, E8.
 - **Acceptance:** unit tests: the highest priority with a candidate wins; `once` lines never repeat in their scope; `after` gating; the repetition guard still applies across priorities (C5's repetition violations stay 0); each `PlayerDid` scope (a vote on the speaker's bill, a canvass in the speaker's home neighbourhood, a deed here); `AskOutcome` accepted, kept and broken; `$count`; `heard_once` stays sorted and bounded. `talk --coverage --seeds 16`: `once_violations` 0, `reactive_share` and `line_repeat_rate` reported (E12 checks `reactive_share` ≥ 25% over 5-year careers). The C3 render test renders every new line in four towns. Determinism, save/load/continue parity, native = WASM.
 - **Save:** bump (`TalkState.heard_once`, default empty; the lead may fold it into a neighbouring bump).

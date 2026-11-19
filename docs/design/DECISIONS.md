@@ -217,6 +217,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Dependencies:** DEC-005, DEC-007, DEC-008, D2, D4, D8, D9, D10.
 - **Revisit criteria:** Playtests show terminal endings feel unfair or arbitrary, or so rare that tension is absent.
 - **Implemented in part (M5d part 1, 2026-11-19): Legal Jeopardy and prison.** `mandate_sim::justice`: a scandal may draw an investigation (prosecutors' interest by severity × evidence), which ends in charges or is dropped; charges go to trial (keyed odds from evidence, a lawyer, and public mood); a conviction brings a fine, removal from office, or prison. The track shows the case (55 while investigated, 80 once charged, plus evidence) and eases without one. A short sentence is a setback: out of office, a time skip (ending the turn serves it, the world goes on), then release with Standing and viability capped and the right to file again. A long sentence (5+ years) or a disqualification is a terminal ending, handed down only once `ending_allowed("legal_jeopardy")` holds (the warning, then the response window); otherwise the trial is adjourned with the same draws (tested). The run's status (`PlayerState.status`: active, imprisoned, ended) is shown plainly; the Legacy screen is M6. NPCs face the same path; a removed member's party fills the seat. Not yet: the other terminal endings and the Legacy epilogue.
+- **DEC-098 note (2026-11-19): endings are a registry.** Endings and Legacy are a content registry (`endings.jsonc`) from their first build in M6 (Act 1 endings), with conditions on posts, tiers, tracks, age and events, epilogue Fluent keys and Legacy weights. Later acts and "the next rung" add entries, not code. Run-status reasons (prison, disqualification) stay code. See DEC-039.
 
 ### DEC-007 — Constitution variability per run
 
@@ -495,6 +496,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **The gap today:** `politics::Role` is `Councillor | Mayor | Private`, and code matches on those two.
   - **Fix:** generalise it in M6, while there are only two local offices, so that regional and national offices (M7, M8) and other archetypes are content. Actions are gated by the constitution's `powers`, not by role matches.
   - **Next:** the shape and the task come from `docs/design/research/EXTENSIBILITY_AUDIT.md`.
+- **DEC-098 implementation note (2026-11-19).** Only the plurality tabulator is implemented, so validation refuses the other voting rules until their tabulators exist. Body and office ids are unique across a constitution's tiers. The procedure ids `ordinance` and `budget` are a contract with the engine (validation requires them). With task R1.
 
 ### DEC-018 — Population model & level of detail
 
@@ -591,6 +593,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - Organizations (unions, associations, outlets, NGOs) must be simulated actors with leadership, membership, resources, and internal selection.
   - Each role needs an action set and a hub location. MVP candidates: union leader, business association head, media commentator.
 - **Dependencies:** DEC-005, DEC-006, DEC-009, DEC-011, DEC-014, D8, D9, D10.
+- **DEC-098 note (2026-11-19).** Detour roles are organisation posts (`Politician.affiliation`, added when organisations become actors), separate from `Role`, which holds constitution posts only. A union leader can therefore be out of office, or later also hold a seat.
 
 ### DEC-021 — World scale & spatial representation
 
@@ -966,6 +969,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Consequences:**
   - Candidate generation runs after the burn-in (DEC-022), so candidates are embedded in real local history.
   - The three candidates should differ in background, region, and strength.
+- **DEC-098 note (2026-11-19).** A background's starting situation names a constitution post (a seat, an office, or none for a challenger) and selectors (constituency: marginal, safe or any; an optional target post; a knowledge profile), so varied openings (DEC-077 §2) are content.
 
 ### DEC-037 — Personal life scope
 
@@ -1020,6 +1024,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - A **Hall of Legacies** records past careers.
 - **Parking-lot idea (unratified):** **Legacy worlds.** A new run starts in the *same* world decades after a previous career ends, as a protégé or descendant, with the old career's laws, institutions, and grudges still in place (in the spirit of Rogue Legacy). The burn-in (DEC-022) makes this feasible. Evaluate after the MVP.
 - **Dependencies:** DEC-005, DEC-006, DEC-007, DEC-020, DEC-033, D13 (meta-save separate from run saves).
+- **DEC-098 note (2026-11-19).** Legacy, like endings, is a content registry from its first build in M6 (weights and milestones in data), so later acts add entries, not code. See DEC-006.
 
 ### DEC-040 to DEC-046 — Technical architecture baseline
 
@@ -1617,6 +1622,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Decision 2.** `mandate-cli sweep` and `bots` take `--set <path>=<value>` and up to two `--grid` parameters (one summary row per combination). Paths name a content kind and then a field, or a registry entry by id (`concerns[concern.jobs].level.slope`). Unknown paths and type mismatches are refused.
   - **Decision 3.** Concerns are a registry (`content/base/concerns.jsonc`): jobs, housing, environment, taxes, public services, and rebuilding after a disaster, each reading one engine indicator (unemployment, its rise, rent burden, pollution, tax burden, budget stress, a recent disaster). There is no crime in the simulation yet, so there is no safety concern. Each town's concern levels and per-attitude salience (mean 1) are recomputed monthly and stored in the population state. The vote model's issue term weighs each attitude by it (`politics.vote.salience_base` = 1.5 after tuning). Towns' top concerns appear in the town panel, pocket, town data, and overheard talk. Saves record `concern_keys`; content that adds or removes a concern recomputes them.
   - **Decision 4.** The five presets are scenarios (`content/base/scenarios.jsonc`) with geography, economy, era, and politics biases. Each gives the same world as before for the same seed. Saves record the scenario id (format v10, with a migration from v9). The title screen lists the registry.
+- **DEC-098 note on decision 5 (2026-11-19).** Also before national play: the worldgen place plan becomes a registry by settlement class, and NPC competence gets per-tier overrides (DEC-076 "harder as you climb"). The treasury budget shares per tier move to content now (M6, with F2b). `Category` and `BudgetCategory`, and `HazardKind` and `HazardKey`, are duplicated today; each pair becomes one registry.
 
 ### DEC-079 — Places as the interface: go somewhere to do something, with convenience
 
