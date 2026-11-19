@@ -485,47 +485,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         }
         // Situational policies (DEC-077 §3): conditions name real things.
         if let Some(u) = &p.unlock {
-            if u.any.is_empty() {
-                issues.push(Issue::error(
-                    &p.id,
-                    "an unlock needs at least one condition",
-                ));
-            }
-            for c in &u.any {
-                use crate::types::UnlockCondition as U;
-                match c {
-                    U::Crisis { kind, min_severity } => {
-                        if b.crisis_index(kind).is_none() {
-                            issues.push(Issue::error(
-                                &p.id,
-                                &format!("unlock names unknown crisis `{kind}`"),
-                            ));
-                        }
-                        if !(0.0..=1.0).contains(min_severity) {
-                            issues
-                                .push(Issue::error(&p.id, "unlock min_severity must be in [0, 1]"));
-                        }
-                    }
-                    U::Indicator { min, max, .. } => {
-                        if min.is_none() && max.is_none() {
-                            issues.push(Issue::error(
-                                &p.id,
-                                "an indicator unlock needs a min or a max",
-                            ));
-                        }
-                        if let (Some(a), Some(z)) = (min, max)
-                            && a > z
-                        {
-                            issues.push(Issue::error(&p.id, "unlock min is above max"));
-                        }
-                    }
-                    U::PlantClosure { within_months } | U::Disaster { within_months } => {
-                        if !(1..=120).contains(within_months) {
-                            issues.push(Issue::error(&p.id, "unlock within_months must be 1–120"));
-                        }
-                    }
-                }
-            }
+            check_situation(b, &p.id, u, &mut issues);
         }
     }
     // Overheard talk: lines name real concerns and crises.
@@ -630,6 +590,15 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         )
         .collect();
     for (owner, key) in &convictions {
+        referenced.push((owner, key));
+    }
+    // Residents name a town's industry in overheard talk (`talk-<name key>`).
+    let talk: Vec<(&str, String)> = b
+        .sectors
+        .iter()
+        .map(|s| (s.id.as_str(), format!("talk-{}", s.name_key)))
+        .collect();
+    for (owner, key) in &talk {
         referenced.push((owner, key));
     }
     for (owner, key) in referenced {
@@ -1629,6 +1598,56 @@ fn validate_communities(b: &ContentBundle, issues: &mut Vec<Issue>) {
             "communities",
             "immigration shares add up to more than 1; they will be scaled down",
         ));
+    }
+}
+
+/// A situation trigger (DEC-077 §3, reused by policy families): conditions
+/// name real crises and sane ranges.
+pub fn check_situation(
+    b: &ContentBundle,
+    owner: &str,
+    u: &crate::types::SituationTrigger,
+    issues: &mut Vec<Issue>,
+) {
+    if u.any.is_empty() {
+        issues.push(Issue::error(
+            owner,
+            "a situation trigger needs at least one condition",
+        ));
+    }
+    for c in &u.any {
+        use crate::types::SituationCondition as U;
+        match c {
+            U::Crisis { kind, min_severity } => {
+                if b.crisis_index(kind).is_none() {
+                    issues.push(Issue::error(
+                        owner,
+                        &format!("situation names unknown crisis `{kind}`"),
+                    ));
+                }
+                if !(0.0..=1.0).contains(min_severity) {
+                    issues.push(Issue::error(owner, "situation min_severity must be in [0, 1]"));
+                }
+            }
+            U::Indicator { min, max, .. } => {
+                if min.is_none() && max.is_none() {
+                    issues.push(Issue::error(
+                        owner,
+                        "an indicator condition needs a min or a max",
+                    ));
+                }
+                if let (Some(a), Some(z)) = (min, max)
+                    && a > z
+                {
+                    issues.push(Issue::error(owner, "situation min is above max"));
+                }
+            }
+            U::PlantClosure { within_months } | U::Disaster { within_months } => {
+                if !(1..=120).contains(within_months) {
+                    issues.push(Issue::error(owner, "situation within_months must be 1–120"));
+                }
+            }
+        }
     }
 }
 

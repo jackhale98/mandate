@@ -162,7 +162,7 @@ impl Ctx<'_> {
                     return false;
                 };
                 if let Some(s) = self.content.sector(&sector) {
-                    args.insert("industry_key".into(), s.name_key.clone());
+                    args.insert("industry_key".into(), talk_key(&s.name_key));
                 }
                 args.insert("jobs".into(), jobs.to_string());
                 true
@@ -180,7 +180,7 @@ impl Ctx<'_> {
                 else {
                     return false;
                 };
-                args.insert("industry_key".into(), s.name_key.clone());
+                args.insert("industry_key".into(), talk_key(&s.name_key));
                 true
             }
             HeardCondition::Broker => {
@@ -438,4 +438,10 @@ pub fn lines(st: &State, content: &ContentBundle, loc: Location) -> Vec<HeardLin
         Vec::new()
     };
     draw(st, content, loc, week, LINES, &last)
+}
+
+/// The Fluent key of a sector as residents name it (`talk-sector-...`, a
+/// noun phrase such as "the factories").
+pub fn talk_key(sector_name_key: &str) -> String {
+    format!("talk-{sector_name_key}")
 }

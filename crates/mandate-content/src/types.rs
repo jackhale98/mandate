@@ -415,28 +415,33 @@ pub struct PolicyTemplate {
     pub side_effects: Vec<SideEffectDef>,
     /// Power required to propose it.
     pub requires: Power,
-    /// A situational policy (DEC-077 §3): on the table only while one of
-    /// these circumstances holds in the town. Always available without one.
+    /// A situational policy (DEC-077 §3): on the table (offered, and
+    /// draftable by the player or an NPC) only while this trigger holds in
+    /// the town. A bill already drafted or a law already passed stays.
+    /// Always available without one.
     #[serde(default)]
-    pub unlock: Option<PolicyUnlock>,
+    pub unlock: Option<SituationTrigger>,
 }
 
-/// When a situational policy is on the table (DEC-077 §3). It is offered
-/// (and can be drafted, by the player or an NPC) while any condition holds
-/// in the town; a bill already drafted or a law already passed stays.
+// --- Situations (DEC-077 §3; reused by DEC-092 policy-family triggers) ------------
+
+/// A trigger on a town's situation: it holds while any of its conditions
+/// does. Reusable wherever content needs "when this town is in this kind of
+/// situation" (situational policies now; policy families later).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PolicyUnlock {
-    /// Any one of these opens it.
-    pub any: Vec<UnlockCondition>,
-    /// Fluent key naming the circumstances it answers, e.g. `unlock-closure`.
+pub struct SituationTrigger {
+    /// Any one of these holds.
+    pub any: Vec<SituationCondition>,
+    /// Fluent key naming the circumstances, e.g. `unlock-closure`.
     pub reason_key: String,
 }
 
-/// A circumstance in a town that puts a situational policy on the table.
+/// A typed condition on one town's live situation, read from engine state
+/// (the town's character, its indicators, the event log, the economy).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum UnlockCondition {
+pub enum SituationCondition {
     /// A live crisis of this kind (`crises.jsonc`), at least this severe.
     Crisis {
         kind: ContentKey,

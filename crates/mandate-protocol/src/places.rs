@@ -844,7 +844,7 @@ fn overheard(engine: &Engine, loc: Location) -> Option<OverheardView> {
                 }
                 args.insert("headline_key".into(), a.headline_key);
                 args.insert("outlet_key".into(), a.outlet.name_key);
-                args.insert("place".into(), a.outlet.place);
+                args.insert("outlet_place".into(), a.outlet.place);
             }
             OverheardLineView {
                 id: l.id,

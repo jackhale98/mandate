@@ -13,21 +13,21 @@
     { "id": "crisis.plant_closure", "name_key": "crisis-plant_closure",
       "indicator": "job_loss", "begin": 0.025, "end": 0.01, "severe": 0.08,
       "concern": "concern.jobs",
-      "policies": ["policy.small_business_grants", "policy.local_wage_floor", "policy.hardship_fund", "policy.tech_incubator"] },
+      "policies": ["policy.closure_response", "policy.small_business_grants", "policy.local_wage_floor", "policy.hardship_fund", "policy.tech_incubator"] },
     // 1 just after a disaster, fading over two years.
     { "id": "crisis.disaster_recovery", "name_key": "crisis-disaster_recovery",
       "indicator": "recent_disaster", "begin": 0.6, "end": 0.25, "severe": 1.0,
       "concern": "concern.recovery",
-      "policies": ["policy.flood_defenses", "policy.hardship_fund", "policy.affordable_housing"] },
+      "policies": ["policy.rebuild_fund", "policy.flood_defenses", "policy.hardship_fund", "policy.affordable_housing"] },
     // Annual rent of an average home / typical income.
     { "id": "crisis.housing_squeeze", "name_key": "crisis-housing_squeeze",
       "indicator": "rent_burden", "begin": 0.22, "end": 0.19, "severe": 0.35,
       "concern": "concern.housing",
-      "policies": ["policy.affordable_housing", "policy.upzoning", "policy.hardship_fund"] },
+      "policies": ["policy.emergency_rent", "policy.affordable_housing", "policy.upzoning", "policy.hardship_fund"] },
     // Town debt / annual budget.
     { "id": "crisis.fiscal_hole", "name_key": "crisis-fiscal_hole",
       "indicator": "budget_stress", "begin": 0.4, "end": 0.25, "severe": 1.0,
       "concern": "concern.services",
-      "policies": [] },
+      "policies": ["policy.fiscal_bridge"] },
   ],
 }

@@ -313,15 +313,15 @@ pub fn mods_for(
 
 // --- Situational policies (DEC-077 §3) ------------------------------------------------
 
-/// Does one unlock condition hold in town `m`? Read-only: the town's
+/// Does a situation condition hold in town `m`? Read-only: the town's
 /// character (crises), its indicators, the event log, and the economy.
-pub fn unlock_holds(
+pub fn situation_holds(
     state: &crate::state::State,
     content: &ContentBundle,
-    c: &mandate_content::UnlockCondition,
+    c: &mandate_content::SituationCondition,
     m: u32,
 ) -> bool {
-    use mandate_content::UnlockCondition as U;
+    use mandate_content::SituationCondition as U;
     let today = state.calendar.date;
     match c {
         U::Crisis { kind, min_severity } => state
@@ -370,8 +370,18 @@ pub fn unlocked(
 ) -> bool {
     match &t.unlock {
         None => true,
-        Some(u) => u.any.iter().any(|c| unlock_holds(state, content, c, m)),
+        Some(u) => triggered(state, content, u, m),
     }
+}
+
+/// Does a situation trigger hold in town `m` (any of its conditions)?
+pub fn triggered(
+    state: &crate::state::State,
+    content: &ContentBundle,
+    t: &mandate_content::SituationTrigger,
+    m: u32,
+) -> bool {
+    t.any.iter().any(|c| situation_holds(state, content, c, m))
 }
 
 /// A draft-shaped instance of a template with the given parameters

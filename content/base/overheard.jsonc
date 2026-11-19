@@ -1,0 +1,112 @@
+// Overheard talk (DEC-079): what residents say at a diner, market, or union
+// hall. Each week each such place draws three lines that hold for its
+// neighbourhood (keyed by town, neighbourhood, week, and place; last week's
+// lines are avoided where others hold). A line with a `concern` is heard only
+// where that concern is among the neighbourhood's top three; the stronger it
+// is felt, the likelier the line. Every `when` condition must hold; each adds
+// Fluent arguments (see the HeardCondition schema): `$industry` (a sector as
+// residents name it, `talk-sector-…`), `$jobs`, `$broker`, `$rival`,
+// `$player`, `$subject` and `$fact` (a running scandal), `$outlet` and
+// `$headline` (a recent story), `$crisis`. Always: `$town`, `$hood`.
+{
+  "kind": "overheard",
+  "items": [
+    // --- Jobs ---------------------------------------------------------------------------
+    { "id": "overheard.jobs.closure", "key": "heard-jobs-closure", "concern": "concern.jobs", "weight": 2.5,
+      "when": [ { "type": "plant_closure", "within_months": 12 } ] },
+    { "id": "overheard.jobs.notices", "key": "heard-jobs-notices", "concern": "concern.jobs", "weight": 2.0,
+      "when": [ { "type": "crisis", "kind": "crisis.plant_closure" } ] },
+    { "id": "overheard.jobs.industry", "key": "heard-jobs-industry", "concern": "concern.jobs",
+      "when": [ { "type": "industry" } ] },
+    { "id": "overheard.jobs.applications", "key": "heard-jobs-applications", "concern": "concern.jobs" },
+    { "id": "overheard.jobs.young", "key": "heard-jobs-young", "concern": "concern.jobs" },
+    { "id": "overheard.jobs.shifts", "key": "heard-jobs-shifts", "concern": "concern.jobs" },
+    { "id": "overheard.jobs.broker", "key": "heard-jobs-broker", "concern": "concern.jobs", "weight": 0.8,
+      "when": [ { "type": "broker" } ] },
+
+    // --- Housing ------------------------------------------------------------------------
+    { "id": "overheard.housing.rent", "key": "heard-housing-rent", "concern": "concern.housing" },
+    { "id": "overheard.housing.viewing", "key": "heard-housing-viewing", "concern": "concern.housing", "weight": 2.0,
+      "when": [ { "type": "crisis", "kind": "crisis.housing_squeeze" } ] },
+    { "id": "overheard.housing.waterfront", "key": "heard-housing-waterfront", "concern": "concern.housing",
+      "when": [ { "type": "water", "feature": "any" } ] },
+    { "id": "overheard.housing.sofa", "key": "heard-housing-sofa", "concern": "concern.housing" },
+    { "id": "overheard.housing.damp", "key": "heard-housing-damp", "concern": "concern.housing" },
+    { "id": "overheard.housing.cranes", "key": "heard-housing-cranes", "concern": "concern.housing" },
+
+    // --- Environment --------------------------------------------------------------------
+    { "id": "overheard.environment.river", "key": "heard-environment-river", "concern": "concern.environment",
+      "when": [ { "type": "water", "feature": "river" } ] },
+    { "id": "overheard.environment.weir", "key": "heard-environment-weir", "concern": "concern.environment",
+      "when": [ { "type": "water", "feature": "river" } ] },
+    { "id": "overheard.environment.shore", "key": "heard-environment-shore", "concern": "concern.environment",
+      "when": [ { "type": "water", "feature": "coast" } ] },
+    { "id": "overheard.environment.air", "key": "heard-environment-air", "concern": "concern.environment" },
+    { "id": "overheard.environment.washing", "key": "heard-environment-washing", "concern": "concern.environment" },
+    { "id": "overheard.environment.industry", "key": "heard-environment-industry", "concern": "concern.environment",
+      "when": [ { "type": "industry" } ] },
+    { "id": "overheard.environment.trees", "key": "heard-environment-trees", "concern": "concern.environment" },
+    { "id": "overheard.environment.wells", "key": "heard-environment-wells", "concern": "concern.environment",
+      "when": [ { "type": "dry" } ] },
+
+    // --- Taxes --------------------------------------------------------------------------
+    { "id": "overheard.taxes.bills", "key": "heard-taxes-bills", "concern": "concern.taxes" },
+    { "id": "overheard.taxes.pension", "key": "heard-taxes-pension", "concern": "concern.taxes" },
+    { "id": "overheard.taxes.potholes", "key": "heard-taxes-potholes", "concern": "concern.taxes" },
+    { "id": "overheard.taxes.selling", "key": "heard-taxes-selling", "concern": "concern.taxes" },
+    { "id": "overheard.taxes.shop", "key": "heard-taxes-shop", "concern": "concern.taxes" },
+    { "id": "overheard.taxes.vote", "key": "heard-taxes-vote", "concern": "concern.taxes", "weight": 1.5,
+      "when": [ { "type": "election_within", "days": 180 } ] },
+
+    // --- Public services ----------------------------------------------------------------
+    { "id": "overheard.services.library", "key": "heard-services-library", "concern": "concern.services" },
+    { "id": "overheard.services.broke", "key": "heard-services-broke", "concern": "concern.services", "weight": 2.0,
+      "when": [ { "type": "crisis", "kind": "crisis.fiscal_hole" } ] },
+    { "id": "overheard.services.bins", "key": "heard-services-bins", "concern": "concern.services" },
+    { "id": "overheard.services.clinic", "key": "heard-services-clinic", "concern": "concern.services" },
+    { "id": "overheard.services.bus", "key": "heard-services-bus", "concern": "concern.services" },
+    { "id": "overheard.services.school", "key": "heard-services-school", "concern": "concern.services" },
+
+    // --- Rebuilding after a disaster -----------------------------------------------------
+    { "id": "overheard.recovery.insurance", "key": "heard-recovery-insurance", "concern": "concern.recovery" },
+    { "id": "overheard.recovery.waterline", "key": "heard-recovery-waterline", "concern": "concern.recovery", "weight": 1.5,
+      "when": [ { "type": "water", "feature": "any" }, { "type": "disaster", "within_months": 24 } ] },
+    { "id": "overheard.recovery.tarps", "key": "heard-recovery-tarps", "concern": "concern.recovery",
+      "when": [ { "type": "disaster", "within_months": 24 } ] },
+    { "id": "overheard.recovery.hall", "key": "heard-recovery-hall", "concern": "concern.recovery" },
+    { "id": "overheard.recovery.next", "key": "heard-recovery-next", "concern": "concern.recovery" },
+    { "id": "overheard.recovery.builders", "key": "heard-recovery-builders", "concern": "concern.recovery" },
+
+    // --- About the player and the rival ----------------------------------------------------
+    { "id": "overheard.player.unknown", "key": "heard-player-unknown", "weight": 0.7,
+      "when": [ { "type": "player_awareness", "max": 0.12 } ] },
+    { "id": "overheard.player.liked", "key": "heard-player-liked",
+      "when": [ { "type": "player_approval", "min": 0.12 } ] },
+    { "id": "overheard.player.disliked", "key": "heard-player-disliked",
+      "when": [ { "type": "player_approval", "max": -0.12 } ] },
+    { "id": "overheard.player.unsure", "key": "heard-player-unsure", "weight": 0.7,
+      "when": [ { "type": "player_approval", "min": -0.12, "max": 0.12 } ] },
+    { "id": "overheard.rival.idle", "key": "heard-rival-idle", "weight": 0.8,
+      "when": [ { "type": "rival_record", "max": 0.3 } ] },
+    { "id": "overheard.rival.busy", "key": "heard-rival-busy", "weight": 0.8,
+      "when": [ { "type": "rival_record", "min": 0.55 } ] },
+    { "id": "overheard.rival.doors", "key": "heard-rival-doors", "weight": 1.2,
+      "when": [ { "type": "rival" }, { "type": "election_within", "days": 120 } ] },
+    { "id": "overheard.broker.say_so", "key": "heard-broker-say-so", "weight": 0.6,
+      "when": [ { "type": "broker" } ] },
+
+    // --- Scandals and the news (DEC-034) --------------------------------------------------
+    { "id": "overheard.scandal.player", "key": "heard-scandal-player", "weight": 3.0,
+      "when": [ { "type": "scandal", "about": "player" } ] },
+    { "id": "overheard.scandal.player_defended", "key": "heard-scandal-player-defended", "weight": 2.0,
+      "when": [ { "type": "scandal", "about": "player" }, { "type": "player_approval", "min": 0.05 } ] },
+    { "id": "overheard.scandal.rival", "key": "heard-scandal-rival", "weight": 2.5,
+      "when": [ { "type": "scandal", "about": "rival" } ] },
+    { "id": "overheard.scandal.anyone", "key": "heard-scandal-anyone", "weight": 1.2,
+      "when": [ { "type": "scandal" } ] },
+    { "id": "overheard.news.headline", "key": "heard-news-headline", "weight": 1.2,
+      "when": [ { "type": "headline" } ] },
+    { "id": "overheard.news.doubt", "key": "heard-news-doubt", "weight": 0.7,
+      "when": [ { "type": "headline" } ] },
+  ],
+}
