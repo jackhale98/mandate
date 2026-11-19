@@ -8,8 +8,8 @@ import { hash32 } from "../src/core/hash";
 import type { Indexed } from "../src/core/image";
 import { packToJson } from "../src/core/serial";
 import { lintPack } from "../src/cli/lint";
-import { sampleBuildings } from "../art/mandate/samples";
-import { buildFacade } from "../art/mandate/buildings";
+import { sampleBuildings, sampleRows, varietyBuildings } from "../art/mandate/samples";
+import { buildFacade, COPY_SIMILARITY, designOf, signatureOf, similarity, type FacadeSpec } from "../art/mandate/buildings";
 import { ANCHOR, composeCharacter, faceLeft, lookFromSeed, PLAYER_LOOK } from "../art/mandate/characters";
 import { buildPack } from "../art/mandate/pack";
 import { SKIN_ANCHORS } from "../art/mandate/palette";
@@ -69,17 +69,42 @@ describe("characters", () => {
 });
 
 describe("buildings", () => {
-  it("fill their footprint plus one roof row, with lit openings inside the frame and a shadow caster", () => {
-    for (const s of sampleBuildings()) {
+  it("fill their lot plus one roof row and the headroom they are given, with lit openings inside the frame, shadow casters and a receiver map", () => {
+    for (const s of [...sampleBuildings(), ...varietyBuildings(), ...sampleRows().flat()]) {
       const f = buildFacade(s, pal);
       assert.equal(f.albedo.w, s.w * 16);
-      assert.equal(f.albedo.h, (s.h + 1) * 16);
-      assert.ok(f.doors.length >= 1);
+      assert.equal(f.ay, 16 + Math.min(32, s.headroom ?? 0));
+      assert.equal(f.albedo.h, s.h * 16 + f.ay);
+      assert.ok(f.doors.length >= 1, `${s.kind}: no door`);
       for (const o of [...f.windows, ...f.doors]) {
         assert.ok(o.x >= 0 && o.y >= 0 && o.x + o.w <= f.albedo.w && o.y + o.h <= f.albedo.h, `${s.kind}: opening outside the frame`);
         if (o.emissive) assert.equal(o.emissive.w * o.emissive.h, o.w * o.h);
       }
       assert.ok(f.shadow.height > 0 && f.shadow.footprint.length === 4);
+      assert.ok(f.shadows.length >= 1 && f.shadows.every((c) => c.height > 0));
+      assert.equal(f.receivers.length, f.albedo.w * f.albedo.h);
+      // Every drawn pixel has a receiver class, and nothing undrawn has one; the front wall is a face.
+      for (let i = 0; i < f.receivers.length; i++) assert.equal(f.receivers[i] === 0, f.albedo.px[i] === 0);
+      assert.ok([...f.receivers].some((v) => v >= 3), `${s.kind}: no wall face`);
+    }
+  });
+  it("vary the skyline: masses of different heights, roofs that are not boxes", () => {
+    const tops = varietyBuildings().map((s) => {
+      const f = buildFacade(s, pal);
+      let top = f.albedo.h;
+      for (let i = 0; i < f.albedo.px.length && top === f.albedo.h; i++) if (f.albedo.px[i]) top = Math.floor(i / f.albedo.w);
+      return f.albedo.h - top - s.h * 16;
+    });
+    assert.ok(new Set(tops).size >= 8, `rise above the footprint: ${tops.join(" ")}`);
+    const roofs = new Set(varietyBuildings().map((s) => signatureOf(designOf(s))[1]));
+    for (const r of ["gable", "front", "hip", "flat", "saw"]) assert.ok(roofs.has(r), `no ${r} roof in the variety set`);
+  });
+  it("never copy the building on their left", () => {
+    for (const row of sampleRows()) {
+      for (let i = 1; i < row.length; i++) {
+        const sim = similarity(signatureOf(designOf(row[i - 1] as FacadeSpec)), signatureOf(designOf(row[i] as FacadeSpec)));
+        assert.ok(sim < COPY_SIMILARITY, `neighbours share ${sim} of their features`);
+      }
     }
   });
   it("look the same for the same visual seed and differ between seeds", () => {
@@ -93,7 +118,7 @@ describe("buildings", () => {
 describe("lints", () => {
   const f = lintPack(pack);
   it("palette, outline and crowd-clone lints pass", () => {
-    for (const lint of ["palette size", "no pure black or white", "palette conformance", "outline consistency", "crowd clones", "height bands"]) {
+    for (const lint of ["palette size", "no pure black or white", "palette conformance", "outline consistency", "crowd clones", "height bands", "silhouette readability", "neighbour similarity"]) {
       const bad = f.filter((x) => x.lint === lint && x.level === "error");
       assert.deepEqual(bad, [], lint);
     }
@@ -114,7 +139,7 @@ function goldens(): Record<string, string> {
     g[`character ${s}`] = hash32(...c.frames.flat().map((img) => Number.parseInt(h(img), 16))).toString(16);
   }
   g.player = hash32(...composeCharacter(PLAYER_LOOK, pal, pack.lightness).frames.flat().map((img) => Number.parseInt(h(img), 16))).toString(16);
-  sampleBuildings().forEach((s, i) => {
+  [...sampleBuildings(), ...varietyBuildings()].forEach((s, i) => {
     const f = buildFacade(s, pal);
     g[`building ${i} ${s.kind}`] = hash32(Number.parseInt(h(f.albedo), 16), ...f.windows.map((o) => (o.emissive ? Number.parseInt(h(o.emissive), 16) : 0))).toString(16);
   });

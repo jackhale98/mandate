@@ -27,17 +27,34 @@ describe("the pixel-art tool's provider (stubbed canvas)", () => {
     expect(r.stats.baseBakes).toBeGreaterThan(0);
   });
 
-  it("gives buildings their footprint plus a roof row, with lit openings and a shadow caster", () => {
+  it("gives buildings their footprint plus a roof row (and headroom where nothing stands behind), with lit openings, shadow casters and a receiver map", () => {
     const map = town();
     const art = new PixelkitArt(pack, { createCanvas: stubCanvasFactory(newLog()) });
+    let tall = 0;
     for (const b of map.buildings.slice(0, 30)) {
-      const built = art.building(buildingSpec(map, b));
+      const spec = buildingSpec(map, b);
+      const built = art.building(spec);
       expect(built.albedo.w).toBe(b.w * 16);
-      expect(built.albedo.h).toBe((b.h + 1) * 16);
-      expect(built.albedo.ay).toBe(16);
+      // The frame rises one roof row above the footprint, plus the headroom the layout leaves free behind it.
+      expect(built.albedo.ay).toBe(16 + (spec.headroom ?? 0));
+      expect(built.albedo.h).toBe(b.h * 16 + built.albedo.ay);
+      expect(built.albedo.ay).toBeLessThanOrEqual(art.maxRoofRows * 16);
+      if (built.albedo.ay > 16) tall++;
       expect(built.doors.length).toBeGreaterThan(0);
       expect(built.shadow.height).toBeGreaterThan(0);
+      expect(built.shadows?.length).toBeGreaterThan(0);
+      expect(built.receivers?.length).toBe(built.albedo.w * built.albedo.h);
     }
+    expect(tall).toBeGreaterThan(0);
+  });
+
+  it("knows each building's left neighbour and street corners from the layout", () => {
+    const map = town();
+    const specs = map.buildings.map((b) => buildingSpec(map, b));
+    expect(specs.some((s) => s.left)).toBe(true);
+    expect(specs.some((s) => s.ends?.left === "street" || s.ends?.right === "street")).toBe(true);
+    // A spec is made once per building: neighbours share the same object.
+    for (const s of specs) if (s.left) expect(specs).toContain(s.left);
   });
 
   it("serves 16×24 characters anchored at the feet, composed once per person", () => {

@@ -7,7 +7,8 @@ import { crop, remap, type Indexed } from "../core/image";
 import { colourCount, edgePixels, nearClonePairs, offPalette, openOutline, orphans, silhouetteIoU } from "../core/lint";
 import { composeCharacter, lookFromSeed, partList, PLAYER_LOOK, slotTable, visibleFeatures, type Look } from "../../art/mandate/characters";
 import { LEGEND, SLOT } from "../../art/mandate/characterParts";
-import { kitPartList } from "../../art/mandate/buildings";
+import { buildFacade, COPY_SIMILARITY, designOf, kitPartList, signatureOf, similarity } from "../../art/mandate/buildings";
+import { sampleRows } from "../../art/mandate/samples";
 import { BSLOT } from "../../art/mandate/buildingParts";
 import type { ArtPack } from "../../art/mandate/pack";
 import type { LightEntry } from "../../art/mandate/lighting";
@@ -173,6 +174,47 @@ export function lintPack(pack: ArtPack): Finding[] {
       }
       f.push({ lint: "contrast against the ground", level: worst >= limit ? "info" : worst >= limit * 0.7 ? "warn" : "error", subject: `${moment}, on ${tname} (worst: ${worstName})`, value: worst.toFixed(3), limit: `ΔL ≥ ${limit}` });
     }
+  }
+
+  // ---- buildings: neighbours never look like copies (round 2). 40 rows of 8, as a town lays them out.
+  {
+    let pairs = 0;
+    let copies = 0;
+    let worst = 0;
+    let sum = 0;
+    let pixelSame = 0;
+    for (const row of sampleRows()) {
+      for (let i = 1; i < row.length; i++) {
+        const a = row[i - 1];
+        const b = row[i];
+        if (!a || !b) continue;
+        const sim = similarity(signatureOf(designOf(a)), signatureOf(designOf(b)));
+        pairs++;
+        sum += sim;
+        worst = Math.max(worst, sim);
+        if (sim >= COPY_SIMILARITY) copies++;
+        // And by pixels: the share of equal pixels where both buildings' frames overlap, aligned at the bottom left.
+        const fa = buildFacade(a, pal).albedo;
+        const fb = buildFacade(b, pal).albedo;
+        let same = 0;
+        let n = 0;
+        const w = Math.min(fa.w, fb.w);
+        const h = Math.min(fa.h, fb.h);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const va = fa.px[(fa.h - h + y) * fa.w + x] as number;
+            const vb = fb.px[(fb.h - h + y) * fb.w + x] as number;
+            if (va === 0 && vb === 0) continue;
+            n++;
+            if (va === vb) same++;
+          }
+        }
+        if (n && same / n > 0.8) pixelSame++;
+      }
+    }
+    f.push({ lint: "neighbour similarity", level: copies ? "error" : "info", subject: `${pairs} neighbouring pairs in 40 rows: pairs sharing ≥ ${Math.round(COPY_SIMILARITY * 12)} of 12 roof and facade features`, value: copies, limit: "0" });
+    f.push({ lint: "neighbour similarity", level: worst >= 0.67 ? "warn" : "info", subject: "mean / worst share of shared features between neighbours", value: `${(sum / Math.max(1, pairs)).toFixed(2)} / ${worst.toFixed(2)}`, limit: "worst < 0.67" });
+    f.push({ lint: "neighbour similarity", level: pixelSame ? "error" : "info", subject: "neighbouring pairs with more than 80% of their pixels equal", value: pixelSame, limit: "0" });
   }
 
   // ---- crowd clones: 1,000 crowds of 20

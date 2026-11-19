@@ -14,7 +14,7 @@
 //   5. grading comes from `grade(minuteOfDay)`;
 //   6. everything is drawn at art resolution, scaled by whole numbers.
 import { mix } from "../rng";
-import { Terrain, type TownBuilding, type TownMap } from "../townLayout";
+import { ROOF_ROWS, Terrain, type TownBuilding, type TownMap } from "../townLayout";
 
 /** A 2D context the renderer and the art draw with (a canvas's, or a test stub). */
 export type Ctx = CanvasRenderingContext2D;
@@ -120,6 +120,12 @@ export interface BuildingSpec {
   named: boolean;
   home: boolean;
   landmark: boolean;
+  /** Art px the building may rise above its roof row: free rows behind it (no building, door or doorstep), 0..32. */
+  headroom?: number;
+  /** What touches the lot's left and right ends: a building, a street (a corner), or open ground. */
+  ends?: { left: "joined" | "street" | "gap"; right: "joined" | "street" | "gap" };
+  /** The building touching this one on the left in the same row (the art avoids copying it). */
+  left?: BuildingSpec | null;
 }
 
 export interface BuiltBuilding {
@@ -128,14 +134,41 @@ export interface BuiltBuilding {
   windows: Opening[];
   doors: Opening[];
   shadow: ShadowCaster;
+  /** Every shadow caster (masses, towers), when there are several; `shadow` alone otherwise. */
+  shadows?: readonly ShadowCaster[];
+  /**
+   * What light falls on, per albedo pixel (row-major, albedo.w × albedo.h): 0 nothing drawn, 1 ground drawn by
+   * the building (forecourts, yards), 2 roof (no lamp light), 3 + k a wall face k px above its base. Lamp pools
+   * are shaped by it; without it, pools are the art's plain sprite.
+   */
+  receivers?: Uint8Array;
+}
+
+/**
+ * A light's shape and colour, for a renderer that shapes pools to the town
+ * (clipped to the ground, a half-pool and a splash up a wall beside it): an
+ * ellipse on the ground (radii in art px), how high it reaches up a wall, and
+ * stepped bands (pixel-art light, not a smooth gradient), brightest first.
+ */
+export interface LightShape {
+  rx: number;
+  ry: number;
+  /** Height (art px) at which light on a wall has faded out. */
+  rz: number;
+  /** Band edges as squared normalised distance (ascending, < 1), one per colour after the first. */
+  steps: readonly number[];
+  /** RGBA per band (alpha 0..1), brightest first. */
+  bands: readonly (readonly [number, number, number, number])[];
+  /** Dither the outermost band (a 2×2 checker), as the style guide allows for pools. */
+  dither?: boolean;
 }
 
 export interface PropSprite {
   albedo: FrameRef;
   /** Lit parts (a lamp head), drawn over the grade at the anchor. */
   emissive?: FrameRef;
-  /** A light pool on the ground, centred at (x, y) px from the anchor. */
-  pool?: { frame: FrameRef; x: number; y: number };
+  /** A light pool on the ground, centred at (x, y) px from the anchor; `light` lets the renderer shape it to the town. */
+  pool?: { frame: FrameRef; x: number; y: number; light?: LightShape };
   shadow?: ShadowCaster;
 }
 
@@ -165,6 +198,10 @@ export interface ArtProvider {
   readonly outside: string;
   /** Walk frames per facing (frames 1..walkFrames; 0 stands). */
   readonly walkFrames: number;
+  /** Rows above a footprint any building may draw (default the layout's ROOF_ROWS). */
+  readonly maxRoofRows?: number;
+  /** Light cast by lit ground-floor windows onto the pavement in front (dusk and night), if the art has it. */
+  readonly windowLight?: LightShape;
   ground(kind: TerrainKind, cornerMask: number, variant: number): FrameRef;
   building(spec: BuildingSpec): BuiltBuilding;
   prop(key: string, variant: number): PropSprite;
@@ -242,9 +279,65 @@ function storeysOf(b: TownBuilding): number {
   return b.h >= 4 ? 3 : 2;
 }
 
-/** The art's view of a laid-out building. */
+/** Per-map lookups for `buildingSpec`: door fronts, buildings by their right edge and bottom row, specs made. */
+interface SpecIndex {
+  fronts: Uint8Array;
+  byRightEdge: Map<number, TownBuilding>;
+  specs: Map<number, BuildingSpec>;
+}
+const specIndexes = new WeakMap<TownMap, SpecIndex>();
+function specIndex(map: TownMap): SpecIndex {
+  let ix = specIndexes.get(map);
+  if (ix) return ix;
+  const fronts = new Uint8Array(map.width * map.height);
+  const byRightEdge = new Map<number, TownBuilding>();
+  for (const b of map.buildings) {
+    fronts[b.front] = 1;
+    byRightEdge.set((b.x + b.w) * 65536 + (b.y + b.h), b);
+  }
+  ix = { fronts, byRightEdge, specs: new Map() };
+  specIndexes.set(map, ix);
+  return ix;
+}
+
+const isStreet = (t: number) => t === Terrain.Road || t === Terrain.Crossing;
+
+/** What touches a building's end on one side: another building, a street (the building turns a corner), or open ground. */
+function endOf(map: TownMap, b: TownBuilding, dx: -1 | 1): "joined" | "street" | "gap" {
+  const y = b.y + b.h - 1;
+  const x1 = dx < 0 ? b.x - 1 : b.x + b.w;
+  const at = (x: number) => (x < 0 || x >= map.width ? Terrain.Grass : (map.terrain[y * map.width + x] as number));
+  const t1 = at(x1);
+  if (t1 === Terrain.Building || t1 === Terrain.Door) return "joined";
+  if (isStreet(t1) || ((t1 === Terrain.Pavement || t1 === Terrain.Plaza) && isStreet(at(x1 + dx)))) return "street";
+  return "gap";
+}
+
+/** Art px (0..32) a building may rise above its roof row: rows behind it free of buildings, doors and doorsteps. */
+function headroomOf(map: TownMap, b: TownBuilding, fronts: Uint8Array): number {
+  let rows = 0;
+  for (let k = ROOF_ROWS + 1; k <= ROOF_ROWS + 2; k++) {
+    const y = b.y - k;
+    if (y < 0) break;
+    let free = true;
+    for (let x = b.x; x < b.x + b.w && free; x++) {
+      const i = y * map.width + x;
+      const t = map.terrain[i] as number;
+      if (t === Terrain.Building || t === Terrain.Door || fronts[i]) free = false;
+    }
+    if (!free) break;
+    rows++;
+  }
+  return rows * 16;
+}
+
+/** The art's view of a laid-out building (made once per building and map; the left neighbour's spec is shared). */
 export function buildingSpec(map: TownMap, b: TownBuilding): BuildingSpec {
-  return {
+  const ix = specIndex(map);
+  const hit = ix.specs.get(b.index);
+  if (hit) return hit;
+  const leftB = ix.byRightEdge.get(b.x * 65536 + (b.y + b.h));
+  const spec: BuildingSpec = {
     kind: b.home ? "home" : b.kind,
     hood: map.districts[b.district]?.kind ?? "inner",
     w: b.w,
@@ -257,5 +350,10 @@ export function buildingSpec(map: TownMap, b: TownBuilding): BuildingSpec {
     named: b.place !== null,
     home: b.home,
     landmark: b.landmark,
+    headroom: headroomOf(map, b, ix.fronts),
+    ends: { left: endOf(map, b, -1), right: endOf(map, b, 1) },
+    left: leftB ? buildingSpec(map, leftB) : null,
   };
+  ix.specs.set(b.index, spec);
+  return spec;
 }

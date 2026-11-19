@@ -145,6 +145,8 @@ export class TownRenderer {
   private readonly reducedMotion: boolean;
   private readonly now: () => number;
   private readonly ground: { mask: Uint8Array; variant: Uint8Array };
+  /** Rows above a footprint that buildings may draw (the art's, at least the layout's roof row). */
+  private readonly roofRows: number;
   private chunks = new Map<number, Chunk>();
   private statics: Static[] = [];
   private built = new Map<number, BuiltBuilding>();
@@ -173,6 +175,7 @@ export class TownRenderer {
     this.reducedMotion = options.reducedMotion ?? false;
     this.now = options.now ?? (() => performance.now());
     this.ground = groundCells(map);
+    this.roofRows = Math.max(ROOF_ROWS, art.maxRoofRows ?? ROOF_ROWS);
     this.indexStatics();
   }
 
@@ -180,7 +183,7 @@ export class TownRenderer {
     const T = this.T;
     const map = this.map;
     for (const b of map.buildings) {
-      this.statics.push({ kind: "b", index: b.index, base: (b.y + b.h) * T, l: b.x * T, t: (b.y - ROOF_ROWS) * T, r: (b.x + b.w) * T, b: (b.y + b.h) * T, x: b.x * T, y: b.y * T });
+      this.statics.push({ kind: "b", index: b.index, base: (b.y + b.h) * T, l: b.x * T, t: (b.y - this.roofRows) * T, r: (b.x + b.w) * T, b: (b.y + b.h) * T, x: b.x * T, y: b.y * T });
     }
     map.props.forEach((p, index) => {
       const ps = this.art.prop(p.kind, p.variant);
@@ -226,8 +229,13 @@ export class TownRenderer {
     return s.kind === "b" ? this.buildingArt(this.map.buildings[s.index] as TownBuilding).albedo : (this.propSprites[s.index] as PropSprite).albedo;
   }
 
-  private casterOf(s: Static): ShadowCaster | undefined {
-    return s.kind === "b" ? this.buildingArt(this.map.buildings[s.index] as TownBuilding).shadow : (this.propSprites[s.index] as PropSprite).shadow;
+  private castersOf(s: Static): readonly ShadowCaster[] {
+    if (s.kind === "b") {
+      const a = this.buildingArt(this.map.buildings[s.index] as TownBuilding);
+      return a.shadows ?? [a.shadow];
+    }
+    const sh = (this.propSprites[s.index] as PropSprite).shadow;
+    return sh ? [sh] : [];
   }
 
   /** Forget the last frame, so the next `draw` draws (after a resize, or new art). */
@@ -329,16 +337,17 @@ export class TownRenderer {
     g.beginPath();
     for (const s of this.statics) {
       if (s.r + reach <= x0 || s.l - reach >= x0 + CP || s.b + reach <= y0 || s.t - reach >= y0 + CP) continue;
-      const caster = this.casterOf(s);
-      if (!caster || caster.height <= 0 || caster.footprint.length < 3) continue;
-      const vx = dx * caster.height;
-      const vy = dy * caster.height;
-      const steps = Math.max(1, Math.ceil(Math.max(Math.abs(vx), Math.abs(vy)) / 2));
-      for (let k = 0; k <= steps; k++) {
-        const ox = s.x + even((vx * k) / steps);
-        const oy = s.y + even((vy * k) / steps);
-        caster.footprint.forEach(([px, py], i) => (i === 0 ? g.moveTo(ox + px, oy + py) : g.lineTo(ox + px, oy + py)));
-        g.closePath();
+      for (const caster of this.castersOf(s)) {
+        if (caster.height <= 0 || caster.footprint.length < 3) continue;
+        const vx = dx * caster.height;
+        const vy = dy * caster.height;
+        const steps = Math.max(1, Math.ceil(Math.max(Math.abs(vx), Math.abs(vy)) / 2));
+        for (let k = 0; k <= steps; k++) {
+          const ox = s.x + even((vx * k) / steps);
+          const oy = s.y + even((vy * k) / steps);
+          caster.footprint.forEach(([px, py], i) => (i === 0 ? g.moveTo(ox + px, oy + py) : g.lineTo(ox + px, oy + py)));
+          g.closePath();
+        }
       }
     }
     g.fillStyle = grade.shadow.color;
@@ -496,7 +505,7 @@ export class TownRenderer {
     // Lights over the grade: windows and doors (not over walkers in front of them), lamp heads, then pools.
     if (grade.emissive > 0.002) {
       for (const b of map.buildings) {
-        if (b.x * T > vx1 || (b.x + b.w) * T < vx0 || (b.y - ROOF_ROWS) * T > vy1 || (b.y + b.h) * T < vy0) continue;
+        if (b.x * T > vx1 || (b.x + b.w) * T < vx0 || (b.y - this.roofRows) * T > vy1 || (b.y + b.h) * T < vy0) continue;
         for (const l of this.buildingLights(b)) {
           const lvl = lightLevel(grade.emissive, l.threshold);
           if (lvl <= 0.002) continue;

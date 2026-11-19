@@ -22,7 +22,7 @@ import { buildFacade, kitPartList, kitTable, type FacadeSpec } from "../../art/m
 import { composeCharacter, faceLeft, lookFromSeed, partList, PLAYER_LOOK, slotTable } from "../../art/mandate/characters";
 import { buildPack, type ArtPack } from "../../art/mandate/pack";
 import { groundTile, TERRAINS } from "../../art/mandate/tiles";
-import { sampleBuildings } from "../../art/mandate/samples";
+import { sampleBuildings, sampleRows, varietyBuildings } from "../../art/mandate/samples";
 
 const args = process.argv.slice(2);
 const cmd = args[0] ?? "all";
@@ -118,9 +118,32 @@ function sheets(pack: ArtPack) {
   // ---- the building kit assembled several ways, by day and lit at night
   const specs = sampleBuildings();
   const label = (s: FacadeSpec) => `${s.kind.replace("_", " ")} ${s.hood} ${s.w}x${s.h}${s.conditions.length ? " boarded" : ""}`;
-  png("buildings.png", gridSheet("BUILDING KIT: THE TOWN-CENTRE FAMILY ASSEMBLED BY THE FACADE GRAMMAR", specs.map((s) => ({ img: buildFacade(s, pal).albedo, label: label(s) })), rgb, { cols: 6, scale: 3, ground: pavement }));
+  const cell = (s: FacadeSpec) => {
+    const f = buildFacade(s, pal);
+    return { img: f.albedo, label: label(s), groundY: f.ay };
+  };
+  png("buildings.png", gridSheet("BUILDING KIT: THE TOWN-CENTRE FAMILY ASSEMBLED BY THE FACADE GRAMMAR (ROUND 2)", specs.map(cell), rgb, { cols: 6, scale: 3, ground: pavement }));
   const lit = specs.map((s) => litPreview(pack, s));
-  png("buildings-night.png", gridSheet("THE SAME BUILDINGS AT NIGHT (MULTIPLY LOOK): LIT WINDOWS AND DOORS FROM THEIR EMISSIVE LAYERS", lit.map((l, i) => ({ img: l.img, label: label(specs[i] as FacadeSpec) })), lit[0]?.rgb ?? rgb, { cols: 6, scale: 3, ground: [40, 44, 70] }));
+  png("buildings-night.png", gridSheet("THE SAME BUILDINGS AT NIGHT (MULTIPLY LOOK): LIT WINDOWS AND DOORS FROM THEIR EMISSIVE LAYERS", lit.map((l, i) => ({ img: l.img, label: label(specs[i] as FacadeSpec), groundY: buildFacade(specs[i] as FacadeSpec, pal).ay })), lit[0]?.rgb ?? rgb, { cols: 6, scale: 3, ground: [40, 44, 70] }));
+  png("buildings-variety.png", gridSheet("24 GENERATED BUILDINGS: KINDS AND NEIGHBOURHOODS (TERRACES, HOUSES, SHOPS, LANDMARKS, INDUSTRY, RURAL)", varietyBuildings().map(cell), rgb, { cols: 8, scale: 3, ground: pavement }));
+  // Rows of neighbours as a town lays them out (each avoids its left neighbour's design).
+  const rows = sampleRows().slice(0, 7);
+  const rowW = Math.max(...rows.map((r) => r.reduce((a, s) => a + s.w * 16, 0)));
+  const rowH = 5 * 16 + 32;
+  const rs2 = new Sheet(rowW * 2 + 16, 30 + rows.length * (rowH * 2 + 12));
+  rs2.text("ROWS OF NEIGHBOURS (EACH BUILDING AVOIDS THE DESIGN OF THE ONE ON ITS LEFT)", 8, 8);
+  rows.forEach((row, ri) => {
+    let x = 8;
+    const y0 = 30 + ri * (rowH * 2 + 12);
+    for (const s of row) {
+      const f = buildFacade(s, pal);
+      const top = y0 + (rowH - f.albedo.h) * 2;
+      rs2.rect(x, top + f.ay * 2, f.albedo.w * 2, (f.albedo.h - f.ay) * 2, pavement);
+      rs2.paste(f.albedo, rgb, x, top, 2);
+      x += f.albedo.w * 2;
+    }
+  });
+  png("neighbour-rows.png", rs2);
 
   // ---- tiles: per terrain, the 47 blob tiles and the fill variants
   const tcells: Cell[] = [];

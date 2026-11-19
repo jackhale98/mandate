@@ -66,8 +66,25 @@ export const BSLOT = {
   stackS: 47,
   stackD: 48,
   stackL: 49,
+  // Round 2: flat roofs (gravel or tar) apart from pitched roofs, ground drawn
+  // inside a lot (forecourts, yards, front gardens), flowers, party posters.
+  flat: 50,
+  flatS: 51,
+  flatD: 52,
+  flatL: 53,
+  pave: 54,
+  paveS: 55,
+  paveL: 56,
+  lawn: 57,
+  lawnS: 58,
+  hedge: 59,
+  hedgeS: 60,
+  bloom: 61,
+  bloomY: 62,
+  poster: 63,
+  posterS: 64,
 } as const;
-export const BSLOT_COUNT = 50;
+export const BSLOT_COUNT = 65;
 
 export const BLEGEND: Readonly<Record<string, number>> = {
   w: BSLOT.wall,
@@ -107,6 +124,25 @@ export const BLEGEND: Readonly<Record<string, number>> = {
   L: BSLOT.litD,
   h: BSLOT.litL,
   H: BSLOT.litC,
+  E: BSLOT.cap,
+  J: BSLOT.capS,
+  N: BSLOT.capL,
+  O: BSLOT.capD,
+  t: BSLOT.flat,
+  T: BSLOT.flatS,
+  u: BSLOT.flatD,
+  U: BSLOT.flatL,
+  v: BSLOT.pave,
+  V: BSLOT.paveS,
+  z: BSLOT.paveL,
+  "1": BSLOT.lawn,
+  "2": BSLOT.lawnS,
+  "3": BSLOT.hedge,
+  "4": BSLOT.hedgeS,
+  "5": BSLOT.bloom,
+  "6": BSLOT.bloomY,
+  "7": BSLOT.poster,
+  "8": BSLOT.posterS,
 };
 
 // ---------------------------------------------------------------------------
@@ -156,14 +192,32 @@ export const TEX = {
     rRrrrrrrrRrrrrrr
     RRRRRRRRRRRRRRRR`,
   flat: `
-    rrrrrrrrrrrrrrrr
-    rrrrrrrrrRrrrrrr
-    rrrrrrrrrrrrrrrr
-    rrrRrrrrrrrrrrrr
-    rrrrrrrrrrrrrrrr
-    rrrrrrrrrrrrRrrr
-    rrrrrrrrrrrrrrrr
-    rrrrrRrrrrrrrrrr`,
+    tttttttttttttttt
+    ttttttttTTtttttt
+    tttttttttttttttt
+    tttTTttttttttttt
+    tttttttttttttttt
+    ttttttttttttTTtt
+    tttttttttttttttt
+    tttttTTttttttttt`,
+  /** Paving for forecourts and back yards. */
+  paving: `
+    vvvvvvvVvvvvvvvV
+    vvvvvvvVvvvvvvvV
+    VVVVVVVVVVVVVVVV
+    vvvVvvvvvvvVvvvv
+    vvvVvvvvvvvVvvvv
+    VVVVVVVVVVVVVVVV`,
+  /** A front garden's lawn. */
+  lawn: `
+    1111111111111111
+    1122111111111111
+    1111111111122111
+    1111111111111111`,
+  /** Corrugated sheet (sheds, market canopies). */
+  corrugated: `
+    rRrRrRrRrRrRrRrR
+    rRrRrRrRrRrRrRrR`,
 };
 
 // ---------------------------------------------------------------------------
@@ -674,3 +728,289 @@ export const PICTOGRAMS: Readonly<Record<string, string>> = {
     .p.p.p.
     ...p...`,
 };
+
+// ---------------------------------------------------------------------------
+// Round 2 (the owner: "Buildings don't look that different ... should have
+// some character and shape other than just squares"): more window types and
+// rhythms, a bay window, dormers, an oculus for gables, modern strip glazing,
+// rooftop clutter that breaks the skyline, a clock face and a bell cupola.
+
+/** More windows: tall first-floor sash, small attic, narrow (in pairs), wide casement, round gable window. */
+export const WINDOWS_R2 = {
+  /** Tall first-floor ("piano nobile") sash, 8×14. */
+  tall: `
+    kkkkkkkk
+    FFFFFFFF
+    FGGGGGGF
+    FgyyggGF
+    FgygggGF
+    FgggggGF
+    FffffffF
+    FggyggGF
+    FgyyggGF
+    FgggggGF
+    FgggggGF
+    FFFFFFFF
+    jkkkkkkK
+    .WWWWWW.`,
+  /** Small attic window, 6×8. */
+  small: `
+    kkkkkk
+    FFFFFF
+    FGGGGF
+    FgyyGF
+    FgygGF
+    FFFFFF
+    jkkkkK
+    .WWWW.`,
+  /** Narrow window, 4×11, drawn in pairs in a bay. */
+  narrow: `
+    kkkk
+    FFFF
+    FGGF
+    FgyF
+    FygF
+    FffF
+    FggF
+    FgGF
+    FFFF
+    jkkK
+    .WW.`,
+  /** Wide three-light casement, 12×10. */
+  wide: `
+    kkkkkkkkkkkk
+    FFFFFFFFFFFF
+    FGGGFGGGFGGF
+    FgyyFgygFggF
+    FgygFgggFgyF
+    FgggFgggFggF
+    FgggFggyFggF
+    FFFFFFFFFFFF
+    jkkkkkkkkkkK
+    .WWWWWWWWWW.`,
+  /** Round window for a gable, 7×7. */
+  round: `
+    ..kkk..
+    .kFFFk.
+    kFGyGFk
+    kFyggFk
+    kFggGFk
+    .kFFFk.
+    ..kkk..`,
+} as const;
+export type WindowKindR2 = keyof typeof WINDOWS_R2;
+
+/** Modern strip glazing, 16×8, tiled along a storey (clinics, offices, the diner). */
+export const STRIP = `
+    FFFFFFFFFFFFFFFF
+    GGGGGGGFGGGGGGGF
+    gyygggGFgyggggGF
+    gygggggFggyggggF
+    ggggggGFgggggggF
+    FFFFFFFFFFFFFFFF
+    kkkkkkkkkkkkkkkk
+    KKKKKKKKKKKKKKKK`;
+
+/** A projecting bay window with a lead roof (ground floor of a house), 14×20. */
+export const BAY = `
+    ..NNNNNNNNNN..
+    .NEEEEEEEEEEJ.
+    NEEEEEEEEEEEEJ
+    OOOOOOOOOOOOOO
+    mkkkkkkkkkkkkx
+    mFFFFFFFFFFFFx
+    mFGFGGGGGGFGFx
+    mFgFgyyggGFgFx
+    mFyFgygggGFGFx
+    mFgFgggggGFgFx
+    mFfFffffffFfFx
+    mFgFggyggGFgFx
+    mFgFgyyggGFGFx
+    mFgFgggggGFgFx
+    mFgFgggggGFgFx
+    mFFFFFFFFFFFFx
+    mkkkkkkkkkkkkx
+    mwwwwwwwwwwwwx
+    mWWWWWWWWWWWWx
+    xxxxxxxxxxxxxx`;
+
+/** A dormer on a pitched or mansard roof, 10×11: its glass lights at night. */
+export const DORMER = `
+    ....NN....
+    ...NNEE...
+    ..NNEEEE..
+    .NEEEEEEJ.
+    NEEEEEEEJJ
+    .jkkkkkkK.
+    .jFFFFFFK.
+    .jFGyGGFK.
+    .jFyggGFK.
+    .jFFFFFFK.
+    .RRRRRRRR.`;
+
+/** Plank doors (barns, boathouses, warehouses), 14×20. */
+export const PLANK_DOOR = `
+    kkkkkkkkkkkkkk
+    kbbbbbbBbbbbbK
+    kbnbbbbBbnbbbK
+    kbnbbbbBbnbbbK
+    kbnbbbbBbnbbbK
+    kbbbbbbBbbbbbK
+    kbnBbbbBbnBbbK
+    kbnbBbbBbnbBbK
+    kbnbbBbBbnbbBK
+    kbnbbbBBbnbbbK
+    kbnbbbbBbnbbbK
+    kbnbbbbBbnbbbK
+    kbbbbbbBbbbbbK
+    kbnbbbbBbnbbbK
+    kbnbbbbBbnbbbK
+    kbnbbbbBbnbbbK
+    kbnbbbbBbnbbbK
+    kbbbbbbBbbbbbK
+    kBBBBBBBBBBBBK
+    KKKKKKKKKKKKKK`;
+
+/** A narrow corner door (a canted corner's shop entrance), 6×20. */
+export const CORNER_DOOR = `
+    kkkkkk
+    kFFFFK
+    kFGyFK
+    kFFFFK
+    kFdgFK
+    kFgyFK
+    kFggFK
+    kFgyFK
+    kFggFK
+    kFggFK
+    kFggFK
+    kFgGFK
+    kFggFK
+    kFdDFK
+    kFddFK
+    kFdDFK
+    kFddFK
+    kFDDFK
+    jkkkkK
+    KKKKKK`;
+
+// ---------------------------------------------------------------------------
+// Rooftop clutter (round 2): pieces that stand up from flat roofs and break
+// the skyline.
+
+/** A timber water tank on legs, 10×14. */
+export const TANK = `
+    ...bbbb...
+    .bbnnbbbb.
+    bnnbbbbbbB
+    bnbbbbbbBB
+    BBBBBBBBBB
+    bnbbbbbbBB
+    bnbbbbbbBB
+    BBBBBBBBBB
+    bnbbbbbbBB
+    .bBBBBBBB.
+    .i.i..i.i.
+    .i.i..i.i.
+    .i.i..i.i.
+    oooooooooo`;
+
+/** An air-conditioning unit, 7×5. */
+export const AC_UNIT = `
+    IIIIIII
+    IiiiiiI
+    IioooiI
+    IiiiiiI
+    ooooooo`;
+
+/** A stair bulkhead (roof access), 12×11. */
+export const HATCH = `
+    UUUUUUUUUUUU
+    UttttttttttT
+    UttttttttttT
+    TTTTTTTTTTTT
+    wwwwwwwwwwwW
+    wFFFFwwwwwwW
+    wFddFwwwwwwW
+    wFddFwwwwwwW
+    wFdeFwwwwwwW
+    wFddFwwwwwwW
+    oooooooooooo`;
+
+/** A wide chimney stack with two pots, 10×9. */
+export const STACK2 = `
+    .iI..iI...
+    .ii..ii...
+    kkkkkkkkkK
+    KKKKKKKKKK
+    wwwwwwwwwW
+    wWwwwwWwwW
+    wwwwwwwwwW
+    wwwWwwwwwW
+    WWWWWWWWWW`;
+
+/** A dustbin for a back yard, 4×5. */
+export const BIN = `
+    IIII
+    iiii
+    iIii
+    iiii
+    oooo`;
+
+/** A garden shed in a back yard, 12×9. */
+export const SHED = `
+    NNNNNNNNNNNN
+    EEEEEEEEEEEJ
+    OOOOOOOOOOOO
+    bnbbbbbbbbbB
+    bnbbBBBBbbbB
+    bnbbBbbBbbbB
+    bnbbBbbBbbbB
+    bnbbBbbBbbbB
+    BBBBBBBBBBBB`;
+
+// ---------------------------------------------------------------------------
+// Landmark pieces
+
+/** A clock face (sign slots: the board is the dial, the pictogram ink the hands), 9×9. */
+export const CLOCK = `
+    ..SSSSS..
+    .SsssssS.
+    SsssspssS
+    SsssspssS
+    SsssppppS
+    SsssssssS
+    SsssssssS
+    .SsssssS.
+    ..SSSSS..`;
+
+/** A bell cupola for a school roof, 12×16 (cap slots for its little roof). */
+export const CUPOLA = `
+    .....ii.....
+    .....II.....
+    ....NNEE....
+    ...NNEEEJ...
+    ..NNEEEEEJ..
+    .NEEEEEEEEJ.
+    NNNNNNNNNNNJ
+    OOOOOOOOOOOO
+    .jkkkkkkkkK.
+    .jwoowwoowK.
+    .jwoowwoowK.
+    .jwoowwoowK.
+    .jwwwwwwwwK.
+    kkkkkkkkkkkK
+    KKKKKKKKKKKK
+    .WWWWWWWWWW.`;
+
+/** A small hanging sign on an iron bracket, 9×9 (named places carry their pictogram on the big board instead). */
+export const HANGING_SIGN = `
+    iiiiiiiii
+    i..i...i.
+    ...i...i.
+    ..SSSSSSS
+    ..SsssssS
+    ..Ss5s6sS
+    ..SsssssS
+    ..SSSSSSS
+    .........`;

@@ -19,7 +19,7 @@
 //   - markers and icons are not in the tool plan: the placeholder draws them.
 import { gradeAt, shadowBucket, shadowVector, sunAt, wrapMinutes } from "../dayCycle";
 import { Terrain } from "../townLayout";
-import { buildFacade, composeCharacter, faceLeft, groundTile, lookFromSeed, PLAYER_LOOK, type ArtPack, type Facade } from "../../../../tools/pixelkit/art/mandate/pack";
+import { buildFacade, composeCharacter, faceLeft, groundTile, lookFromSeed, PLAYER_LOOK, type ArtPack, type Facade, type FacadeSpec } from "../../../../tools/pixelkit/art/mandate/pack";
 import { rgbaTable, toRgba, type Indexed } from "../../../../tools/pixelkit/src/runtime";
 import {
   domCanvasFactory,
@@ -117,6 +117,15 @@ class Pages {
   }
 }
 
+/** The kit's view of the renderer's building spec (the left neighbour's too). */
+function facadeSpec(spec: BuildingSpec): FacadeSpec {
+  const f: FacadeSpec = { kind: spec.kind, hood: spec.hood, w: spec.w, h: spec.h, doorX: spec.door.x, storeys: spec.storeys, visualSeed: spec.visualSeed, named: spec.named, home: spec.home, landmark: spec.landmark, conditions: spec.conditions };
+  if (spec.headroom !== undefined) f.headroom = spec.headroom;
+  if (spec.ends) f.ends = spec.ends;
+  if (spec.left) f.left = facadeSpec(spec.left);
+  return f;
+}
+
 /** A cheap content key for identical lit images (many windows share one). */
 function imageKey(img: Indexed): string {
   let h = 0x811c9dc5;
@@ -128,6 +137,8 @@ export class PixelkitArt implements ArtProvider {
   readonly tile = T;
   readonly outside: string;
   readonly walkFrames: number;
+  /** Buildings rise up to 2 rows (32 px) above their roof row where nothing stands behind them (round 2). */
+  readonly maxRoofRows = 3;
   readonly night: NightLook;
   readonly pack: ArtPack;
   private readonly make: CanvasFactory;
@@ -250,19 +261,18 @@ export class PixelkitArt implements ArtProvider {
 
   building(spec: BuildingSpec): BuiltBuilding {
     const t0 = performance.now();
-    const f: Facade = buildFacade(
-      { kind: spec.kind, hood: spec.hood, w: spec.w, h: spec.h, doorX: spec.door.x, storeys: spec.storeys, visualSeed: spec.visualSeed, named: spec.named, home: spec.home, landmark: spec.landmark, conditions: spec.conditions },
-      this.pack.palette,
-    );
+    const f: Facade = buildFacade(facadeSpec(spec), this.pack.palette);
     const layer = this.layer(f.albedo.w, f.albedo.h);
     this.paintStatic(layer, f.albedo, 0, 0);
     const open = (o: Facade["windows"][number]): Opening => ({ x: o.x, y: o.y, w: o.w, h: o.h, emissive: o.emissive ? this.glow(o.emissive) : null, use: o.use });
     this.composeMs.buildings += performance.now() - t0;
     return {
-      albedo: { image: layer.canvas, x: 0, y: 0, w: f.albedo.w, h: f.albedo.h, ax: 0, ay: T },
+      albedo: { image: layer.canvas, x: 0, y: 0, w: f.albedo.w, h: f.albedo.h, ax: 0, ay: f.ay },
       windows: f.windows.map(open),
       doors: f.doors.map(open),
       shadow: f.shadow,
+      shadows: f.shadows,
+      receivers: f.receivers,
     };
   }
 
