@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 15;
+pub const SAVE_FORMAT_VERSION: u16 = 16;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -174,6 +174,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         (13, town_baselines),
         // The knowledge ledger (DEC-091): the previous format to the next.
         (14, knowledge_ledger),
+        // Per-neighbourhood hazard exposure (DEC-090 D8, G1): the previous
+        // format to the next. Renumbered to 15 at merge (K1 took 14 → 15).
+        (15, hazard_exposure),
     ];
     let mut value = value;
     let mut v = from;
@@ -400,6 +403,41 @@ fn knowledge_ledger(mut value: serde_json::Value) -> Result<serde_json::Value, S
     if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
         p.remove("knowledge");
     }
+    Ok(value)
+}
+
+/// Previous format → next (v15 → v16 after the K1 merge; written as v14 → v15; DEC-090 D8, G1):
+/// per-neighbourhood hazard exposure. A save holds no terrain (it is
+/// rebuilt from the seed outside the state), so a run from before exposure
+/// takes it from what the save does hold: each town's geographic profile
+/// and each neighbourhood's kind (`environment::exposure::from_profile`),
+/// deterministically. It starts with no damage on record, nobody displaced,
+/// and every neighbourhood hit as hard as its town's average.
+fn hazard_exposure(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::Value;
+    let world: mandate_sim::world::World = serde_json::from_value(
+        value
+            .pointer("/state/world")
+            .cloned()
+            .ok_or(SaveError::Malformed)?,
+    )
+    .map_err(|e| SaveError::Data(e.to_string()))?;
+    let exposure = mandate_sim::environment::exposure::from_profile(&world);
+    let env = value
+        .pointer_mut("/state/environment")
+        .and_then(Value::as_object_mut)
+        .ok_or(SaveError::Malformed)?;
+    env.insert(
+        "exposure".into(),
+        serde_json::to_value(exposure).map_err(|e| SaveError::Data(e.to_string()))?,
+    );
+    env.insert("hood_damage".into(), Value::Array(Vec::new()));
+    let pop = value
+        .pointer_mut("/state/population")
+        .and_then(Value::as_object_mut)
+        .ok_or(SaveError::Malformed)?;
+    pop.insert("hood_impact".into(), Value::Array(Vec::new()));
+    pop.insert("displaced".into(), Value::Array(Vec::new()));
     Ok(value)
 }
 

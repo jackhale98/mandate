@@ -1,13 +1,19 @@
 //! Environment dynamics (DEC-023): a seeded regional trajectory (warming,
 //! drying, storminess), resource stocks, pollution, and hazard events.
+//! Hazards strike towns; within a town they fall by neighbourhood exposure
+//! (DEC-090 D8, `exposure`).
+
+pub mod exposure;
+
+pub use exposure::{HoodDamage, HoodExposure, HoodHazard, HoodHit, hood_hazard};
 
 use crate::events::EventKind;
 use crate::scheduler::{Effect, EffectQueue, Outs, Reads};
 use crate::state::WorldMeta;
-use crate::world::World;
+use crate::world::{NeighborhoodId, World};
 use mandate_content::{ContentBundle, SectorDriver};
 use mandate_core::math::clamp;
-use mandate_core::{SimRng, Stream};
+use mandate_core::{SimDate, SimRng, Stream};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -61,6 +67,57 @@ pub struct EnvironmentState {
     /// Hazards held by the director, waiting to strike.
     #[serde(default)]
     pub deferred: Vec<DeferredHazard>,
+    /// Each neighbourhood's exposure, indexed by neighbourhood (DEC-090 D8):
+    /// fixed for a run, derived as the world is generated (or, for an older
+    /// save, when it is migrated). Empty: every neighbourhood alike.
+    pub exposure: Vec<HoodExposure>,
+    /// Neighbourhoods with homes damaged and not yet repaired, by
+    /// neighbourhood id (ascending).
+    pub hood_damage: Vec<HoodDamage>,
+}
+
+impl EnvironmentState {
+    /// A neighbourhood's exposure (`None` before exposure is derived).
+    pub fn exposure(&self, id: NeighborhoodId) -> Option<HoodExposure> {
+        self.exposure.get(id.index()).copied()
+    }
+
+    /// A neighbourhood's unrepaired damage, if any.
+    pub fn damage(&self, id: NeighborhoodId) -> Option<&HoodDamage> {
+        self.hood_damage
+            .binary_search_by_key(&id.0, |d| d.neighborhood)
+            .ok()
+            .and_then(|i| self.hood_damage.get(i))
+    }
+
+    /// Record a strike's damage in a neighbourhood (added to what is still
+    /// unrepaired).
+    fn record_damage(&mut self, neighborhood: u32, hazard: HazardKind, date: SimDate, damage: f64) {
+        let pm = exposure::per_mille(damage);
+        if pm == 0 {
+            return;
+        }
+        match self
+            .hood_damage
+            .binary_search_by_key(&neighborhood, |d| d.neighborhood)
+        {
+            Ok(i) => {
+                let d = &mut self.hood_damage[i];
+                d.damaged_pm = d.damaged_pm.saturating_add(pm).min(1000);
+                d.hazard = hazard;
+                d.struck = date;
+            }
+            Err(i) => self.hood_damage.insert(
+                i,
+                HoodDamage {
+                    neighborhood,
+                    hazard,
+                    struck: date,
+                    damaged_pm: pm,
+                },
+            ),
+        }
+    }
 }
 
 pub fn init(
@@ -102,11 +159,21 @@ pub fn init(
         regions,
         disasters_total: 0,
         deferred: Vec::new(),
+        // Derived from the terrain by worldgen once the world exists.
+        exposure: Vec::new(),
+        hood_damage: Vec::new(),
     }
 }
 
-/// Monthly drift of climate, stocks, and pollution.
+/// Monthly drift of climate, stocks, and pollution; damaged homes are
+/// repaired.
 pub fn drift(env: &mut EnvironmentState, r: &Reads<'_>, _out: &mut Outs<'_>) {
+    let rate = r.content.economy.hazards.repair_rate.clamp(0.0, 1.0);
+    for d in env.hood_damage.iter_mut() {
+        let fixed = (f64::from(d.damaged_pm) * rate).ceil().max(1.0) as u16;
+        d.damaged_pm = d.damaged_pm.saturating_sub(fixed);
+    }
+    env.hood_damage.retain(|d| d.damaged_pm > 0);
     let econ = r.economy();
     let t = env.trajectory.clone();
     let month = r.date.calendar().month;
@@ -349,21 +416,28 @@ fn strike(
                 HazardKind::Storm => mods.storm_protection,
                 _ => 0.0,
             };
-            let damage = (1.0 - protection)
-                * severity
+            let damage = severity
                 * if kind == HazardKind::Earthquake {
                     0.04
                 } else {
                     0.02
                 };
+            // Shared by exposure: the flood-prone district takes most of a
+            // flood; the town's total is the same as an even split.
+            let town = fall(
+                env,
+                r,
+                out,
+                municipality,
+                kind,
+                damage,
+                protection,
+                true,
+                cause,
+            );
             out.effects.push(Effect::HousingDamage {
                 municipality,
-                fraction: damage,
-                cause,
-            });
-            out.effects.push(Effect::Displacement {
-                municipality,
-                fraction: damage * 0.25,
+                fraction: town,
                 cause,
             });
             sector_shock(
@@ -377,6 +451,8 @@ fn strike(
             );
         }
         HazardKind::Drought => {
+            // Felt evenly across the town.
+            fall(env, r, out, municipality, kind, 0.0, 0.0, false, cause);
             sector_shock(
                 out.effects,
                 r.content,
@@ -388,9 +464,22 @@ fn strike(
             );
         }
         HazardKind::Wildfire => {
+            // The forest edge burns; those who lose homes stay elsewhere for
+            // a while, none leave the town for good (as before).
+            let town = fall(
+                env,
+                r,
+                out,
+                municipality,
+                kind,
+                severity * 0.008,
+                mods.wildfire_protection,
+                false,
+                cause,
+            );
             out.effects.push(Effect::HousingDamage {
                 municipality,
-                fraction: severity * 0.008 * (1.0 - mods.wildfire_protection),
+                fraction: town,
                 cause,
             });
             sector_shock(
@@ -450,6 +539,17 @@ fn regional_droughts(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'
         for m in &reg.municipalities {
             let g = &r.world.municipalities[m.index()].geo;
             if g.drought >= 0.25 {
+                fall(
+                    env,
+                    r,
+                    out,
+                    m.0,
+                    HazardKind::Drought,
+                    0.0,
+                    0.0,
+                    false,
+                    Some(ev),
+                );
                 sector_shock(
                     out.effects,
                     r.content,
@@ -462,6 +562,57 @@ fn regional_droughts(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'
             }
         }
     }
+}
+
+/// Where a strike falls in a town (DEC-090 D8): its damage (before
+/// protection) shared by neighbourhood exposure, the footprint recorded, and
+/// each neighbourhood's share sent to the population (`HoodDisaster`: who
+/// leaves for good if `leaves`, who stays elsewhere for a while, how hard it
+/// was hit). Returns the town's damage, a share of its homes.
+#[allow(clippy::too_many_arguments)]
+fn fall(
+    env: &mut EnvironmentState,
+    r: &Reads<'_>,
+    out: &mut Outs<'_>,
+    municipality: u32,
+    kind: HazardKind,
+    damage: f64,
+    protection: f64,
+    leaves: bool,
+    cause: Option<crate::events::EventId>,
+) -> f64 {
+    let params = &r.content.economy.hazards;
+    let pop = r.population();
+    let residents = |h: usize| pop.hood_total(h);
+    // Protection is a town's policies today; a neighbourhood-level clause
+    // (DEC-092 families) would answer per neighbourhood here.
+    let hits = exposure::split(
+        r.world,
+        &env.exposure,
+        &residents,
+        municipality,
+        kind,
+        damage,
+        &|_| protection,
+        params,
+    );
+    let mut town = 0.0;
+    for hit in &hits {
+        town += hit.share * hit.damage;
+        env.record_damage(hit.neighborhood, kind, r.date, hit.damage);
+        out.effects.push(Effect::HoodDisaster {
+            neighborhood: hit.neighborhood,
+            relative: hit.relative,
+            leave: if leaves {
+                hit.damage * params.leave_share.clamp(0.0, 1.0)
+            } else {
+                0.0
+            },
+            temporary: hit.damage * params.temporary_share.clamp(0.0, 1.0),
+            cause,
+        });
+    }
+    town
 }
 
 /// Shock every sector with a driver in a municipality (economy applies).
