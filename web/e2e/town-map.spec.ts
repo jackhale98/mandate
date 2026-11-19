@@ -30,6 +30,8 @@ const start = async (page: Page, seed: string) => {
   await expect(page.getByTestId("town")).toBeVisible();
   // The new run has been saved and the town loaded (the map ignores taps while the game is busy).
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
+  // The town is laid out in the town worker (the loader shows meanwhile), then the map is drawn.
+  await expect(page.getByTestId("town-map-canvas")).toBeVisible();
 };
 
 /** Console errors and uncaught exceptions, checked at the end of each test. */

@@ -14,10 +14,10 @@
 // protections and disasters.
 import type { MunicipalityView } from "../../engine/protocol/MunicipalityView";
 import type { TownLocation } from "../townInput";
-import { Terrain, locationCell, type PlotState, type TownBuilding, type TownDistrict, type TownMap } from "../townLayout";
+import { Terrain, locationCell, type PlotState, type TownBuilding, type TownConnector, type TownDistrict, type TownMap } from "../townLayout";
 import { HOOD_KINDS, type HoodKind } from "../townInput";
 import { mix } from "../rng";
-import { mapConnectors, type TownPlan } from "./plan";
+import type { TownPlan } from "./plan";
 import { WaterKind, type PlanPlot } from "./work";
 
 export interface TownState {
@@ -51,6 +51,11 @@ export function stateFromViews(muni: Pick<MunicipalityView, "neighborhoods" | "e
 
 const RESIDENTIAL = new Set(["house", "terrace", "farmhouse", "cottage"]);
 const hoodKind = (k: string): HoodKind => ((HOOD_KINDS as readonly string[]).includes(k) ? (k as HoodKind) : "inner");
+
+/** The connectors as the map carries them (DEC-090 vocabulary). */
+function mapConnectors(plan: TownPlan): TownConnector[] {
+  return plan.connectors.map((c) => ({ kind: c.kind, x: c.x, y: c.y, w: c.w, h: c.h, axis: c.axis, name: c.name }));
+}
 
 /** Dress a plan for a state: the TownMap the hub, the overview and the text alternative draw. */
 export function dressTown(plan: TownPlan, state: TownState): TownMap {
@@ -95,7 +100,14 @@ export function dressTown(plan: TownPlan, state: TownState): TownMap {
       .map((p, i) => ({ p, i }))
       .filter((x) => x.p.district === homeD.index && x.p.place === null && !x.p.landmark)
       .sort((a, b) => (RESIDENTIAL.has(a.p.kind) ? 0 : 1) - (RESIDENTIAL.has(b.p.kind) ? 0 : 1) || a.p.fillRank - b.p.fillRank || a.i - b.i);
-    const c = cands[0];
+    // A neighbourhood whose land is all places (a small random town): the nearest house outside it.
+    const dist = (p: PlanPlot) => Math.abs(p.x + (p.w >> 1) - homeD.centre.x) + Math.abs(p.y + (p.h >> 1) - homeD.centre.y);
+    const nearest = () =>
+      plan.plots
+        .map((p, i) => ({ p, i }))
+        .filter((x) => x.p.place === null && !x.p.landmark)
+        .sort((a, b) => (RESIDENTIAL.has(a.p.kind) ? 0 : 1) - (RESIDENTIAL.has(b.p.kind) ? 0 : 1) || dist(a.p) - dist(b.p) || a.i - b.i)[0];
+    const c = cands[0] ?? nearest();
     if (c) {
       homePlot = c.i;
       states[c.i] = "built";

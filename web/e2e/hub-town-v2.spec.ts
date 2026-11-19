@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
-// Town layout v2 in the walkable town prototype (DEC-090, stage A): ?layout=v2
-// plans the town from its geography instead of v1's grid (v1 stays the
-// default). Build the prototype first:
+// Town layout v2 in the walkable town prototype (DEC-090): the town planned
+// from its geography (the only layout since v1 was retired, DEC-085's
+// pre-release note). Build the prototype first:
 //   npx vite build --config spikes/hub/vite.config.ts --outDir ../../dist/spike-hub --emptyOutDir
 // HUB_V2_SCREENS=<dir> also saves overview, street and town-map captures there.
 const SPIKE = "../spike-hub/";
@@ -60,7 +60,7 @@ test.describe("hub town prototype, layout v2", () => {
   // 632: the owner's town (Brinerford) where the street faults were reported (DEC-090 D5 amended).
   for (const seed of ["4242", "2026", "99", "632"]) {
     test(`seed ${seed}: the v2 town loads with no console errors`, async ({ page }) => {
-      const errors = await open(page, `seed=${seed}&layout=v2&t=720&speed=0&n=4`);
+      const errors = await open(page, `seed=${seed}&t=720&speed=0&n=4`);
       await expect(page.locator("#loading")).toBeHidden();
       await expect(page.locator("#stage canvas")).toBeVisible();
       const p = await probe(page);
@@ -76,7 +76,7 @@ test.describe("hub town prototype, layout v2", () => {
   }
 
   test("seed 632: grown streets with 45° runs and recorded street ends reach the renderer", async ({ page }) => {
-    const errors = await open(page, "seed=632&layout=v2&t=720&speed=0&n=0");
+    const errors = await open(page, "seed=632&t=720&speed=0&n=0");
     const s = await page.evaluate(() => {
       const m = (window as unknown as { __hub: { map: { streetAxis?: Record<string, number>; streetEnds?: { kind: string }[] } | null } }).__hub.map;
       const axes = Object.values(m?.streetAxis ?? {});
@@ -90,7 +90,7 @@ test.describe("hub town prototype, layout v2", () => {
 
   test("the player walks across a bridge", async ({ page }) => {
     // Strathowick (seed 2026) stands on a river (class 2): its arterial crosses on a bridge.
-    const errors = await open(page, "seed=2026&layout=v2&t=720&speed=0&n=0&art=placeholder");
+    const errors = await open(page, "seed=2026&t=720&speed=0&n=0&art=placeholder");
     const ends = await page.evaluate(() => {
       const h = (window as unknown as { __hub: Probe }).__hub;
       const m = h.map;
@@ -147,17 +147,17 @@ test.describe("hub town prototype, layout v2", () => {
     expect(errors).toEqual([]);
   });
 
-  test("v1 stays the default", async ({ page }) => {
+  test("layout v2 is the layout: no parameter selects it", async ({ page }) => {
     const errors = await open(page, "seed=4242&t=720&speed=0&n=0");
     const p = await probe(page);
-    expect(p.layout).toBe(1);
-    expect(p.version).toBe(1);
+    expect(p.layout).toBe(2);
+    expect(p.version).toBe(2);
     expect(errors).toEqual([]);
   });
 });
 
 // Captures for review (only with HUB_V2_SCREENS): overview zoomed out, a street close-up (day), the town map overview,
-// for seeds 4242, 2026 and the largest capital, in the pixel-art pack and the placeholder; v1 beside v2 for one town.
+// for seeds 4242, 2026 and the largest capital, in the pixel-art pack and the placeholder.
 test.describe("hub town v2 captures", () => {
   test.skip(({ isMobile }) => !built || !SCREENS || isMobile, "set HUB_V2_SCREENS to a directory (desktop only)");
   test.setTimeout(240_000);
@@ -175,7 +175,7 @@ test.describe("hub town v2 captures", () => {
     for (const art of ["pixelkit", "placeholder"]) {
       test(`capture ${seed} ${town || "town"} ${art}`, async ({ page }) => {
         await page.setViewportSize({ width: 1600, height: 1000 });
-        const q = `seed=${seed}&layout=v2&t=720&speed=0&n=10&res=css${town ? `&town=${town}` : ""}${art === "placeholder" ? "&art=placeholder" : ""}`;
+        const q = `seed=${seed}&t=720&speed=0&n=10&res=css${town ? `&town=${town}` : ""}${art === "placeholder" ? "&art=placeholder" : ""}`;
         await open(page, q);
         const tag = `${seed}-${town || "town"}-${art}`;
         // Overview: all the way out.
@@ -199,17 +199,4 @@ test.describe("hub town v2 captures", () => {
       });
     }
   }
-  test("capture v1 beside v2 (seed 2026)", async ({ page }) => {
-    await page.setViewportSize({ width: 1600, height: 1000 });
-    for (const layout of ["v1", "v2"]) {
-      await open(page, `seed=2026&layout=${layout}&t=720&speed=0&n=10&res=css`);
-      await page.evaluate(() => {
-        const h = (window as unknown as { __hub: Probe }).__hub;
-        const m = h.map;
-        if (m) h.look(m.width / 2, m.height / 2, 1);
-      });
-      await page.waitForTimeout(600);
-      save(`compare-2026-${layout}.png`, await page.locator("#stage").screenshot());
-    }
-  });
 });

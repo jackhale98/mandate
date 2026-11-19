@@ -7,7 +7,7 @@
 // view is paused (a panel is open). Framework-free, so the prototype page
 // and the app's React screen can both mount it.
 import { HubCamera } from "./camera";
-import { DayClock, wrapMinutes } from "./dayCycle";
+import { DayClock, townsfolkShare, wrapMinutes } from "./dayCycle";
 import type { ArtProvider } from "./render/art";
 import { PlaceholderArt } from "./render/placeholderArt";
 import { TownRenderer, type WalkerView } from "./render/townRenderer";
@@ -26,6 +26,10 @@ export interface HubViewOptions {
   onArrive?: (b: TownBuilding | null) => void;
   /** Ambient townsfolk (default 14). */
   townsfolk?: number;
+  /** Fewer townsfolk out at night (`townsfolkShare`; default true). */
+  townsfolkByTime?: boolean;
+  /** The canvas's accessible name (default: an English one naming the list of places). */
+  canvasLabel?: string;
   /** Backing store: CSS px (default, DEC-080) or device px (for comparison). */
   resolution?: "css" | "device";
   reducedMotion?: boolean;
@@ -105,6 +109,7 @@ export class HubView {
     this.reducedMotion = options.reducedMotion ?? (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches);
     this.clock = options.clock ?? new DayClock(12 * 60, 0, false);
     this.scene = new TownScene(this.map, { townsfolk: options.townsfolk ?? 14 });
+    this.syncFolk();
 
     container.style.position ||= "relative";
     container.style.overflow = "hidden";
@@ -112,7 +117,7 @@ export class HubView {
     container.style.userSelect = "none";
     this.canvas = document.createElement("canvas");
     this.canvas.setAttribute("role", "img");
-    this.canvas.setAttribute("aria-label", `Map of ${this.map.municipality}. Use the list of places to go somewhere.`);
+    this.canvas.setAttribute("aria-label", options.canvasLabel ?? `Map of ${this.map.municipality}. Use the list of places to go somewhere.`);
     Object.assign(this.canvas.style, { position: "absolute", inset: "0", width: "100%", height: "100%", display: "block", imageRendering: "pixelated" });
     container.prepend(this.canvas);
     const ctx = this.canvas.getContext("2d", { alpha: false });
@@ -152,7 +157,20 @@ export class HubView {
   /** Set the time of day (minutes after midnight). */
   setClock(minutes: number) {
     this.clock.set(wrapMinutes(minutes));
+    this.syncFolk();
     this.wake();
+  }
+
+  /** Move the time of day forward to `minutes` over `ms` (the game: a slot was spent). */
+  easeClockTo(minutes: number, ms: number) {
+    this.clock.easeTo(minutes, ms);
+    this.syncFolk();
+    this.wake();
+  }
+
+  private syncFolk() {
+    if (this.opts.townsfolkByTime === false) return;
+    this.scene.activeFolk = Math.round(this.scene.folk.length * townsfolkShare(this.clock.minutes));
   }
 
   /** Panels open over the hub pause it (nothing animates behind them). */
@@ -180,9 +198,10 @@ export class HubView {
     return b ? this.goToBuilding(b.index) : false;
   }
 
-  /** Walk to an engine location (a place, home, or a neighbourhood's streets). */
-  goToLocation(loc: TownLocation): boolean {
+  /** Walk to an engine location (a place, home, or a neighbourhood's streets); `notify`: call `onArrive` there. */
+  goToLocation(loc: TownLocation, notify = true): boolean {
     const ok = this.scene.goToLocation(loc, () => {
+      if (!notify) return;
       const b = this.scene.atBuilding;
       this.arrived(b !== null ? (this.map.buildings[b] ?? null) : null);
     });
@@ -413,10 +432,11 @@ export class HubView {
       this.camera.state.x += (t.x - this.camera.state.x) * k;
       this.camera.state.y += (t.y - this.camera.state.y) * k;
     }
-    this.clock.advance(dt);
+    const ticked = this.clock.advance(dt);
+    if (ticked) this.syncFolk();
     const playerMoving = this.walking(p);
-    const folkMoving = this.scene.folk.length > 0;
-    const busy = playerMoving || eased || this.camera.gesturing || this.clock.running || this.renderer.animating;
+    const folkMoving = this.scene.activeFolk > 0;
+    const busy = playerMoving || eased || this.camera.gesturing || ticked || this.clock.running || this.renderer.animating;
     // Ambient-only frames are capped (DEC-080: battery).
     const cap = 1000 / (this.opts.ambientFps ?? 30);
     if (busy || now - this.lastDraw >= cap - 1) this.drawNow(now);
@@ -438,7 +458,7 @@ export class HubView {
     const frames = this.renderer.art.walkFrames;
     const view = (w: Walker): WalkerView => ({ x: w.x, y: w.y, dir: w.dir, frame: w.moving ? 1 + (Math.floor(w.dist * 4) % frames) : 0, variant: w.variant });
     views.push(view(s.player));
-    for (const w of s.folk) views.push(view(w));
+    for (const w of s.outFolk) views.push(view(w));
     const cam = this.camera.state;
     const t0 = performance.now();
     const drew = this.renderer.draw({

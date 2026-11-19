@@ -5,19 +5,16 @@ import { END_FACINGS, END_KINDS } from "../../../../tools/pixelkit/art/mandate/e
 import { endScene } from "../../../../tools/pixelkit/art/mandate/endscene";
 import { TerrainPainter } from "../../../../tools/pixelkit/art/mandate/terrain";
 import { v2Scene, type Scene } from "../../../../tools/pixelkit/art/mandate/v2scene";
-import { FIXTURES } from "../testTowns";
+import { fixtureTown } from "../testTowns";
 import { TownScene } from "../townScene";
-import { layoutTown, StreetAxis, Terrain, townSeed, type StreetEndKind, type TownBuilding, type TownConnector, type TownMap, type TownProp, type TownStreetEnd } from "../townLayout";
+import { StreetAxis, Terrain, type StreetEndKind, type TownBuilding, type TownConnector, type TownMap, type TownProp, type TownStreetEnd } from "../townLayout";
 import { buildingSpec, groundCells } from "./art";
 import { PixelkitArt } from "./pixelkitArt";
 import { newLog, stubCanvasFactory, stubContext } from "./stubCanvas";
 import { TownRenderer } from "./townRenderer";
 
 const pack = buildPack();
-const town = (): TownMap => {
-  const f = FIXTURES[0] as (typeof FIXTURES)[number];
-  return layoutTown(f.input, townSeed(f.seed, f.input.municipality));
-};
+const town = (): TownMap => fixtureTown(0).map;
 
 describe("the pixel-art tool's provider (stubbed canvas)", () => {
   it("draws a town through the renderer without changes, at noon and at night", () => {
@@ -275,22 +272,11 @@ describe("layout v2 (round 4)", () => {
         expect(art.groundCell(map, x, y, mask[i] as number, variant[i] as number)).toBe(f);
       }
     }
-    // Cells near rivers, rail, levels and bridges are drawn; the rest of the town keeps v1's tiles.
+    // Cells near rivers, rail, levels and bridges are drawn; the rest of the town keeps ground()'s tiles.
     expect(painted).toBeGreaterThan(300);
     expect(painted).toBeLessThan(map.width * map.height);
     expect(frames.size).toBeLessThan(map.width * map.height);
     expect(art.composeMs.terrain).toBeGreaterThan(0);
-  });
-
-  it("gives a v1 town exactly ground()'s tiles", () => {
-    const map = town();
-    const art = new PixelkitArt(pack, { createCanvas: stubCanvasFactory(newLog()) });
-    const { mask, variant } = groundCells(map);
-    for (let i = 0; i < map.width * map.height; i += 7) {
-      const x = i % map.width;
-      const y = Math.floor(i / map.width);
-      expect(art.groundCell(map, x, y, mask[i] as number, variant[i] as number)).toBe(art.ground(map.terrain[i] as number, mask[i] as number, variant[i] as number));
-    }
   });
 
   it("falls back gracefully: unknown terrain codes, levels out of range, connectors of unknown kinds, unknown props", () => {
@@ -382,18 +368,6 @@ describe("diagonal streets (round 5)", () => {
     expect(same).toBeGreaterThan(800);
   });
 
-  it("gives a v1 town with an all-orthogonal street axis exactly ground()'s tiles", () => {
-    const map = { ...town() };
-    map.streetAxis = new Uint8Array(map.width * map.height).fill(StreetAxis.Orthogonal);
-    const art = new PixelkitArt(pack, { createCanvas: stubCanvasFactory(newLog()) });
-    const { mask, variant } = groundCells(map);
-    for (let i = 0; i < map.width * map.height; i += 5) {
-      const x = i % map.width;
-      const y = Math.floor(i / map.width);
-      expect(art.groundCell(map, x, y, mask[i] as number, variant[i] as number)).toBe(art.ground(map.terrain[i] as number, mask[i] as number, variant[i] as number));
-    }
-  });
-
   it("renders a map with diagonal streets through the renderer by day and at night without errors", () => {
     const map = v2Map(diagScene());
     const make = stubCanvasFactory(newLog());
@@ -444,17 +418,6 @@ describe("street ends (round 6)", () => {
     }
     expect(changed).toBeGreaterThan(300);
     expect(same).toBeGreaterThan(5000);
-  });
-
-  it("gives a v1 town with an empty streetEnds exactly ground()'s tiles", () => {
-    const map = { ...town(), streetEnds: [] };
-    const art = new PixelkitArt(pack, { createCanvas: stubCanvasFactory(newLog()) });
-    const { mask, variant } = groundCells(map);
-    for (let i = 0; i < map.width * map.height; i += 5) {
-      const x = i % map.width;
-      const y = Math.floor(i / map.width);
-      expect(art.groundCell(map, x, y, mask[i] as number, variant[i] as number)).toBe(art.ground(map.terrain[i] as number, mask[i] as number, variant[i] as number));
-    }
   });
 
   it("draws the street-end props from the pack: a variant per facing, lit bollards with their own small pool", () => {

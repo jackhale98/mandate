@@ -125,6 +125,14 @@ test("a full local election", async ({ page }) => {
   await page.getByTestId("spot-party_office").click();
   await expect(page.getByTestId("internal-poll")).toBeVisible();
   const endTurn = page.getByRole("button", { name: "End turn" });
+  // Whatever opens after a turn (election night) waits for the night between turns to pass, never covers it.
+  await page.evaluate(() => {
+    const w = window as unknown as { __overlap?: boolean };
+    w.__overlap = false;
+    new MutationObserver(() => {
+      if (document.querySelector("[data-testid='election-night']") && document.querySelector("[data-testid='turn-passage']")) w.__overlap = true;
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   for (let i = 0; i < 30 && (await page.getByTestId("my-race").count()) === 0; i++) {
     await endTurn.click();
     await expect(endTurn).toBeEnabled();
@@ -144,6 +152,7 @@ test("a full local election", async ({ page }) => {
   }
   const night = page.getByTestId("election-night");
   await expect(night).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __overlap?: boolean }).__overlap)).toBe(false);
   await expect(night.getByText(/You (won|lost)\./)).toBeVisible();
   await expect(night.getByText("Why it went this way").first()).toBeVisible();
   await night.getByRole("button", { name: "Continue" }).last().click();

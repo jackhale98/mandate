@@ -1,4 +1,5 @@
 import {
+  townsfolkShare,
   DAY_KEYFRAMES,
   DAY_MINUTES,
   DayClock,
@@ -157,6 +158,35 @@ describe("clocks", () => {
     c.running = false;
     expect(c.advance(1)).toBe(false);
     expect(c.minutes).toBeCloseTo(10);
+  });
+
+  it("DayClock holds still and eases forward to a new time (the game's slot-driven light)", () => {
+    const c = new DayClock(17 * 60, 0, false);
+    expect(c.advance(1)).toBe(false);
+    c.easeTo(8 * 60, 1000);
+    expect(c.easing).toBe(true);
+    expect(c.target).toBe(8 * 60);
+    // Always forward: the evening runs on through the night to the morning.
+    c.advance(0.5);
+    expect(c.minutes === 0 || c.minutes > 17 * 60 || c.minutes < 8 * 60).toBe(true);
+    expect(c.minutes).not.toBe(17 * 60);
+    c.advance(0.6);
+    expect(c.easing).toBe(false);
+    expect(c.minutes).toBe(8 * 60);
+    expect(c.advance(1)).toBe(false);
+    // No ease for a nudge back, or with no time to take.
+    c.easeTo(8 * 60 - 0.2, 1000);
+    expect(c.easing).toBe(false);
+    c.easeTo(9 * 60, 0);
+    expect(c.minutes).toBe(9 * 60);
+  });
+
+  it("fewer townsfolk are out at night", () => {
+    expect(townsfolkShare(12 * 60)).toBe(1);
+    expect(townsfolkShare(2 * 60)).toBe(0.25);
+    expect(townsfolkShare(21 * 60)).toBeGreaterThan(0.25);
+    expect(townsfolkShare(21 * 60)).toBeLessThan(1);
+    expect(townsfolkShare(7 * 60)).toBeLessThan(1);
   });
 
   it("day-parts map onto the clock", () => {

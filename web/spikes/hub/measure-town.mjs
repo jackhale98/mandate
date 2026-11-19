@@ -19,7 +19,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "../..");
 const PORT = 4197;
 const URL0 = `http://localhost:${PORT}/`;
-const fixtures = JSON.parse(readFileSync(path.join(webDir, "src/hub/fixtures/towns.json"), "utf8"));
+const fixtures = JSON.parse(readFileSync(path.join(webDir, "src/hub/fixtures/towns-v2.json"), "utf8"));
 const capital = fixtures.find((f) => f.source === "largest");
 
 execFileSync("npx", ["vite", "build", "--config", "spikes/hub/vite.config.ts", "--logLevel", "warn"], { cwd: webDir, stdio: "inherit" });
@@ -55,7 +55,7 @@ for (const [name, device, throttle] of [
     await page.goto(`${URL0}?seed=${seed}&t=1110&speed=12&n=30`);
     await page.waitForFunction(() => window.__hub?.ready === true, undefined, { timeout: 180_000 });
     const t = await page.evaluate(() => window.__hub.timings);
-    const capitalMs = await page.evaluate((input) => window.__hub.layoutMs(input, 3), capital.input);
+    const capitalMs = await page.evaluate((f) => window.__hub.layoutMs(f, 3), { input: capital.input, geo: capital.geo });
     // Walk to the farthest named place.
     await page.evaluate(() => {
       const h = window.__hub;

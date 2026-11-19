@@ -1,12 +1,16 @@
-import { FIXTURES, randomInput } from "./testTowns";
-import { layoutTown, townSeed, type TownMap } from "./townLayout";
+import { layoutTownV2, type TownGeo } from "./layoutV2";
+import { GEO_FIXTURES as FIXTURES, randomGeo } from "./layoutV2/fixtures";
+import { townSeed, type TownMap } from "./townLayout";
 import { buildTownMapScene, hotspotOf, mapHotspots, routeLength, alongRoute, RouteCache, viewForInput } from "./townMapScene";
 import { bakeTownMap, cellColours, pixelHash } from "./render/townMapRenderer";
 import { newLog, stubCanvasFactory } from "./render/stubCanvas";
 import type { TownInput } from "./townInput";
 import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 
-const layout = (input: TownInput, seed: number): TownMap => layoutTown(input, seed);
+// Layout v2 plans take tens of ms each (60 random towns in one test).
+vi.setConfig({ testTimeout: 120_000 });
+
+const layout = (input: TownInput, geo: TownGeo, seed: number): TownMap => layoutTownV2(input, geo, seed).map;
 
 /** The list's entries (Town.tsx): every spot of every neighbourhood, by key, in order. */
 function listKeys(view: TownPlacesView): string[] {
@@ -30,7 +34,7 @@ function engineLikeView(input: TownInput): TownPlacesView {
 describe("town map scene (DEC-086)", () => {
   it("has exactly one hotspot per entry of the place list, in the list's order, for real towns", () => {
     for (const f of FIXTURES) {
-      const map = layout(f.input, townSeed(f.seed, f.input.municipality));
+      const map = layout(f.input, f.geo, townSeed(f.seed, f.input.municipality));
       const view = engineLikeView(f.input);
       const hs = mapHotspots(map, view);
       expect(hs.map((h) => h.key)).toEqual(listKeys(view));
@@ -54,8 +58,8 @@ describe("town map scene (DEC-086)", () => {
 
   it("covers generated towns: one hotspot per place, home and neighbourhood; every one reachable by a route", () => {
     for (let s = 1; s <= 60; s++) {
-      const input = randomInput(s);
-      const map = layout(input, s * 31);
+      const { input, geo } = randomGeo(s);
+      const map = layout(input, geo, s * 31);
       const view = viewForInput(input);
       const scene = buildTownMapScene(map, view);
       expect({ s, keys: scene.hotspots.map((h) => h.key) }).toEqual({ s, keys: listKeys(view) });
@@ -85,8 +89,8 @@ describe("town map scene (DEC-086)", () => {
   it("is deterministic: the same layout gives the same scene, routes and ground pixels", () => {
     for (const f of FIXTURES.slice(0, 4)) {
       const seed = townSeed(f.seed, f.input.municipality);
-      const a = buildTownMapScene(layout(f.input, seed), viewForInput(f.input));
-      const b = buildTownMapScene(layout(structuredClone(f.input), seed), viewForInput(structuredClone(f.input)));
+      const a = buildTownMapScene(layout(f.input, f.geo, seed), viewForInput(f.input));
+      const b = buildTownMapScene(layout(structuredClone(f.input), structuredClone(f.geo), seed), viewForInput(structuredClone(f.input)));
       expect(b.hotspots).toEqual(a.hotspots);
       expect(b.routes).toEqual(a.routes);
       expect(b.hub).toBe(a.hub);
@@ -98,15 +102,15 @@ describe("town map scene (DEC-086)", () => {
     const f = FIXTURES[0] as (typeof FIXTURES)[number];
     const seed = townSeed(f.seed, f.input.municipality);
     const elsewhere: TownInput = { ...f.input, location: { type: "street", neighborhood: (f.input.neighborhoods[1] ?? f.input.neighborhoods[0])?.id ?? 0 } };
-    const a = buildTownMapScene(layout(f.input, seed), viewForInput(f.input));
-    const b = buildTownMapScene(layout(elsewhere, seed), viewForInput(elsewhere));
+    const a = buildTownMapScene(layout(f.input, f.geo, seed), viewForInput(f.input));
+    const b = buildTownMapScene(layout(elsewhere, f.geo, seed), viewForInput(elsewhere));
     expect(b.hotspots).toEqual(a.hotspots);
     expect(pixelHash(cellColours(b.map))).toBe(pixelHash(cellColours(a.map)));
   });
 
   it("walks along a route at a steady pace and ends at the door", () => {
     const f = FIXTURES[1] as (typeof FIXTURES)[number];
-    const map = layout(f.input, 7);
+    const map = layout(f.input, f.geo, 7);
     const scene = buildTownMapScene(map, viewForInput(f.input));
     const far = scene.hotspots[scene.hotspots.length - 1];
     const r = new RouteCache(map).route(scene.hub, far?.cell ?? 0) ?? [];
@@ -120,7 +124,7 @@ describe("town map scene (DEC-086)", () => {
 
   it("bakes every fixture with finite drawing calls, within memory bounds", () => {
     for (const f of FIXTURES) {
-      const scene = buildTownMapScene(layout(f.input, townSeed(f.seed, f.input.municipality)), viewForInput(f.input));
+      const scene = buildTownMapScene(layout(f.input, f.geo, townSeed(f.seed, f.input.municipality)), viewForInput(f.input));
       const log = newLog();
       const baked = bakeTownMap(scene, { createCanvas: stubCanvasFactory(log) });
       expect(baked.px).toBeGreaterThanOrEqual(4);

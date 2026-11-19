@@ -2,7 +2,8 @@
 // walkable pixel-art town on the real engine. It starts the engine worker as
 // the app does (web/src/engine/client), generates a world for the seed in the
 // URL (?seed=, default 4242), lays out the player's town from the engine's
-// `town` view (web/src/hub/townLayout) and lets you walk it. Reaching a place
+// `town` view with layout v2 (web/src/hub/layoutV2, DEC-090) and lets you
+// walk it. The game's own town screen uses the same modules. Reaching a place
 // moves the player there in the engine and shows what the place offers.
 // URL: seed=<text>, t=<minutes>, speed=<game minutes per second>, n=<townsfolk>,
 // res=css|device, hud=1. Exposes window.__hub for tests and measurements.
@@ -10,10 +11,9 @@
 // art=placeholder shows the code-drawn placeholder instead; night=multiply|moods picks the night
 // look (D12; moods by default); preset=street centres on one representative street of the town
 // centre (zoom=<1..6> overrides the zoom).
-// Town layout v2 (DEC-090, stage A): layout=v2 plans the town from its geography
-// (rivers, coast, hills, districts by type; web/src/hub/layoutV2) instead of v1's
-// grid, which stays the default. town=<name>|largest|smallest visits another town of
-// the world (walking only; the engine's place panels are the player's town's);
+// The town is planned from its geography (rivers, coast, hills, districts by type) through
+// the engine's town views. town=<name>|largest|smallest visits another town of the world
+// (walking only; the engine's place panels are the player's town's);
 // dress=start|grow|shrink|closed previews the dress pass under four states.
 import { engine, expectKind } from "../../../src/engine/client";
 import type { LocationDto } from "../../../src/engine/protocol/LocationDto";
@@ -25,11 +25,11 @@ import { PlaceholderArt } from "../../../src/hub/render/placeholderArt";
 import { PixelkitArt, type NightLook } from "../../../src/hub/render/pixelkitArt";
 import pack, { buildMs as packBuildMs, bytes as packBytes } from "virtual:pixelkit-pack";
 import { townInputFromView } from "../../../src/hub/townInput";
-import { buildingOfPlace, layoutTown, Terrain, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
-import { geoFromEngine, geoFromViews, stateFromEngine } from "../../../src/hub/townGeoAdapter";
+import { buildingOfPlace, LAYOUT_VERSION, Terrain, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
+import { geoFromEngine, stateFromEngine } from "../../../src/hub/townGeoAdapter";
 import { townInputFromMunicipality, type TownInput } from "../../../src/hub/townInput";
-import { dressTown, LAYOUT_V2, planTown, stateFromViews, type TownPlan, type TownState } from "../../../src/hub/layoutV2";
-import { recipeForTown, recipeFromView, rememberRecipe } from "../../../src/hub/layoutV2/registry";
+import { dressTown, planTown, type TownGeo, type TownPlan, type TownState } from "../../../src/hub/layoutV2";
+import { recipeFromView } from "../../../src/hub/layoutV2/registry";
 import { describeTown, type TownText } from "../../../src/hub/layoutV2/text";
 import { buildTownMapScene, viewForInput } from "../../../src/hub/townMapScene";
 import { bakeTownMap } from "../../../src/hub/render/townMapRenderer";
@@ -52,7 +52,6 @@ const artName = q.get("art") === "placeholder" ? "placeholder" : "pixelkit";
 const night: NightLook = q.get("night") === "multiply" ? "multiply" : "moods";
 const preset = q.get("preset");
 const presetZoom = q.has("zoom") ? Math.max(1, Math.min(6, Math.round(Number(q.get("zoom")) || 0))) : null;
-const layoutV = q.get("layout") === "v2" ? 2 : 1;
 const visit = q.get("town");
 const dressPreset = q.get("dress") ?? "start";
 
@@ -127,55 +126,34 @@ async function start() {
   tr = new Translator(locale.lang, locale.ftl);
   town = await request({ kind: "query", payload: { type: "town" } }, "town");
   let input: TownInput = townInputFromView(town);
-  let muni: MunicipalityView | null = null;
-  if (layoutV === 2 || visit) {
-    const mapView = await request({ kind: "query", payload: { type: "map" } }, "map");
-    const bySize = [...mapView.municipalities].sort((a, b) => b.population - a.population || a.id - b.id);
-    const target = visit === "largest" ? bySize[0] : visit === "smallest" ? bySize[bySize.length - 1] : mapView.municipalities.find((m) => m.name === (visit ?? town?.municipality));
-    if (target) muni = await request({ kind: "query", payload: { type: "municipality", id: target.id } }, "municipality");
-    if (visit && muni && muni.name !== town.municipality) {
-      visiting = true;
-      input = townInputFromMunicipality(muni);
-      town = viewForInput(input);
-    }
-    const t0 = performance.now();
-    if (layoutV === 2 && muni) {
-      // The engine's town views (E2, E3); the stage A derivation only if a build lacks them.
-      const id = muni.id;
-      const [geoView, stateView] = await Promise.all([
-        request({ kind: "query", payload: { type: "town_geography", id } }, "town_geography").catch(() => null),
-        request({ kind: "query", payload: { type: "town_state", id } }, "town_state").catch(() => null),
-      ]);
-      const geo = geoView ? geoFromEngine(geoView, input) : geoFromViews({ municipality: muni, map: mapView, input, character: visiting ? null : town.character });
-      timings.geoMs = performance.now() - t0;
-      // The layout registries come from the engine (LayoutContentView); a town shown before
-      // is planned from the snapshot of the entries it used then (§6.6 option C).
-      const live = recipeFromView(await request({ kind: "query", payload: { type: "layout_content" } }, "layout_content"));
-      const store = (() => {
-        try {
-          return window.localStorage;
-        } catch {
-          return null;
-        }
-      })();
-      const chosen = recipeForTown(store, seed, input.municipality, LAYOUT_V2, live);
-      timings.recipeFromSnapshot = chosen.from === "snapshot" ? 1 : 0;
-      const t1 = performance.now();
-      plan = planTown({ ...geo, places: input.places.map((p) => ({ ...p })) }, townSeed(seed, input.municipality), LAYOUT_V2, chosen.recipe);
-      rememberRecipe(store, seed, input.municipality, LAYOUT_V2, plan.recipe);
-      timings.planMs = performance.now() - t1;
-      for (const [k, v] of Object.entries(plan.stages)) timings[`plan.${k}`] = Math.round(v * 100) / 100;
-      const t2 = performance.now();
-      map = dressTown(plan, dressState(stateView ? stateFromEngine(stateView, input.home, input.location) : stateFromViews(muni, input.home, input.location), plan));
-      timings.dressMs = performance.now() - t2;
-      text = describeTown(plan, map);
-    } else map = layoutTown(input, townSeed(seed, input.municipality));
-    timings.layoutMs = performance.now() - t0;
-  } else {
-    const t0 = performance.now();
-    map = layoutTown(input, townSeed(seed, town.municipality));
-    timings.layoutMs = performance.now() - t0;
+  const mapView = await request({ kind: "query", payload: { type: "map" } }, "map");
+  const bySize = [...mapView.municipalities].sort((a, b) => b.population - a.population || a.id - b.id);
+  const target = visit === "largest" ? bySize[0] : visit === "smallest" ? bySize[bySize.length - 1] : mapView.municipalities.find((m) => m.name === (visit ?? town?.municipality));
+  if (!target) throw new Error(`no town ${visit ?? town.municipality}`);
+  const muni: MunicipalityView = await request({ kind: "query", payload: { type: "municipality", id: target.id } }, "municipality");
+  if (visit && muni.name !== town.municipality) {
+    visiting = true;
+    input = townInputFromMunicipality(muni);
+    town = viewForInput(input);
   }
+  const t0 = performance.now();
+  // The engine's town views (E2, E3) and layout registries (LayoutContentView).
+  const [geoView, stateView, content] = await Promise.all([
+    request({ kind: "query", payload: { type: "town_geography", id: muni.id } }, "town_geography"),
+    request({ kind: "query", payload: { type: "town_state", id: muni.id } }, "town_state"),
+    request({ kind: "query", payload: { type: "layout_content" } }, "layout_content"),
+  ]);
+  const geo = geoFromEngine(geoView, input);
+  timings.geoMs = performance.now() - t0;
+  const t1 = performance.now();
+  plan = planTown({ ...geo, places: input.places.map((p) => ({ ...p })) }, townSeed(seed, input.municipality), recipeFromView(content));
+  timings.planMs = performance.now() - t1;
+  for (const [k, v] of Object.entries(plan.stages)) timings[`plan.${k}`] = Math.round(v * 100) / 100;
+  const t2 = performance.now();
+  map = dressTown(plan, dressState(stateFromEngine(stateView, input.home, input.location), plan));
+  timings.dressMs = performance.now() - t2;
+  text = describeTown(plan, map);
+  timings.layoutMs = performance.now() - t0;
   mount(map);
   loading.hidden = true;
   timings.ready = performance.now() - tStart;
@@ -503,14 +481,14 @@ window.__hub = {
     return town;
   },
   timings,
-  /** Layout v2: the plan, its text alternative (Fluent keys and facts), the layout version shown. */
+  /** The plan, its text alternative (Fluent keys and facts), the layout version shown. */
   get plan() {
     return plan;
   },
   get text() {
     return text;
   },
-  layout: layoutV,
+  layout: LAYOUT_VERSION,
   /** The town map overview (DEC-086) of this town, baked from the same map, as a PNG data URL. */
   overview(widthPx = 1400) {
     if (!map || !town) return null;
@@ -528,12 +506,12 @@ window.__hub = {
     view.wake();
     return streetWindow(map);
   },
-  /** Time to lay out any town here (measure-town.mjs times the largest capital under a CPU throttle). */
-  layoutMs(input: Parameters<typeof layoutTown>[0], runs = 5) {
+  /** Time to plan any town here (measure-town.mjs times the largest capital under a CPU throttle). */
+  layoutMs(f: { input: TownInput; geo: TownGeo }, runs = 5) {
     let best = Infinity;
     for (let i = 0; i < runs; i++) {
       const t0 = performance.now();
-      layoutTown(input, i + 1);
+      planTown({ ...f.geo, places: f.input.places.map((p) => ({ ...p })) }, i + 1);
       best = Math.min(best, performance.now() - t0);
     }
     return best;

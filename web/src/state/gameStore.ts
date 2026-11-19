@@ -19,6 +19,7 @@ import type { DecisionView } from "../engine/protocol/DecisionView";
 import type { StoryView } from "../engine/protocol/StoryView";
 import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { LocationView } from "../engine/protocol/LocationView";
+import type { DateView } from "../engine/protocol/DateView";
 import type { QueryDto } from "../engine/protocol/QueryDto";
 import { findRoute, sameLocation } from "./routing";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
@@ -33,6 +34,24 @@ export type GameView = "town" | "map" | "overview";
 
 /** Longest walk shown before an auto-routed action (DEC-079: short, skippable). */
 export const WALK_MS = 600;
+
+/**
+ * The night between two turns, shown when the player ends one (owner,
+ * 2026-11-19): the light goes to night, a card shows the new date, dawn
+ * brings the new turn's morning. The engine works out the turn meanwhile;
+ * whatever opens after a turn (election night) waits for the passage.
+ */
+export interface Passage {
+  /** dusk: the light going to night; night: the date card, waiting for the engine if need be; dawn: into the morning. */
+  phase: "dusk" | "night" | "dawn";
+  from: DateView;
+  /** The new turn's date, once the engine has answered. */
+  to: DateView | null;
+  /** Days the turn spans (`OverviewView.turn_days`). */
+  days: number;
+  /** Counts passages (a new one restarts the timeline). */
+  id: number;
+}
 
 interface ActiveRun {
   runId: string;
@@ -67,6 +86,10 @@ interface GameState {
   walking: LocationView | null;
   /** Shown after an election the player took part in. */
   electionNight: boolean;
+  /** The night between turns, while it is shown. */
+  passage: Passage | null;
+  /** Opens when the passage ends (it never covers the passage). */
+  afterPassage: { electionNight: boolean };
   toast: { key: string; args: Record<string, string> } | null;
   progress: { stage: string; fraction: number } | null;
   run: ActiveRun | null;
@@ -108,7 +131,12 @@ interface GameState {
   setPocketOpen(open: boolean): void;
   setView(view: GameView): void;
   dismissToast(): void;
+  /** End the turn: the engine runs it while the night passes (`passage`). During a passage, finish it first. */
   endTurn(): Promise<void>;
+  /** The passage moves to its next phase (the passage card's timeline). */
+  setPassagePhase(phase: Passage["phase"]): void;
+  /** The passage is over (or skipped once the engine has answered): what waited for it opens. */
+  finishPassage(): void;
   saveAndQuit(): Promise<void>;
   continueRun(runId: string): Promise<void>;
   deleteRun(runId: string): Promise<void>;
@@ -126,6 +154,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
 let skipResolve: (() => void) | null = null;
+let passageCount = 0;
 
 export const useGame = create<GameState>((set, get) => {
   /** Persist the running game as the run's next revision (Ironman: every turn). */
@@ -178,6 +207,8 @@ export const useGame = create<GameState>((set, get) => {
     view: "town",
     walking: null,
     electionNight: false,
+    passage: null,
+    afterPassage: { electionNight: false },
     toast: null,
     progress: null,
     run: null,
@@ -421,8 +452,21 @@ export const useGame = create<GameState>((set, get) => {
     },
 
     async endTurn() {
+      const running = get().passage;
+      if (running) {
+        // Ending the turn again while the night passes: let it pass now; if something waited for it, show that first.
+        if (!running.to) return;
+        const waited = get().afterPassage.electionNight;
+        get().finishPassage();
+        if (waited) return;
+      }
       if (get().busy) return;
-      set({ busy: true, error: null });
+      const from = get().overview;
+      set({
+        busy: true,
+        error: null,
+        passage: from ? { phase: "dusk", from: from.date, to: null, days: from.turn_days, id: ++passageCount } : null,
+      });
       try {
         const body = await engine().request({ kind: "command", payload: { type: "end_turn" } });
         set({ overview: expectKind(body, "command_applied").overview, toast: null });
@@ -431,21 +475,33 @@ export const useGame = create<GameState>((set, get) => {
         await get().refreshDesk();
         const after = get().campaign;
         const lastDay = after?.last_election?.day_number ?? null;
-        if (lastDay !== null && lastDay !== before && after?.results.some((r) => r.player_ran)) {
-          set({ electionNight: true });
-        }
+        const night = lastDay !== null && lastDay !== before && (after?.results.some((r) => r.player_ran) ?? false);
+        const p = get().passage;
+        const date = get().overview?.date ?? null;
+        if (p && date) set({ passage: { ...p, to: date }, afterPassage: { electionNight: night } });
+        else if (night) set({ electionNight: true });
       } catch (e) {
-        set({ error: errText(e) });
+        set({ error: errText(e), passage: null });
       } finally {
         set({ busy: false });
       }
+    },
+
+    setPassagePhase(phase) {
+      const p = get().passage;
+      if (p && p.phase !== phase) set({ passage: { ...p, phase } });
+    },
+
+    finishPassage() {
+      const after = get().afterPassage;
+      set({ passage: null, afterPassage: { electionNight: false }, ...(after.electionNight ? { electionNight: true } : {}) });
     },
 
     async saveAndQuit() {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, pocketOpen: false, view: "town", electionNight: false, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, pocketOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });

@@ -177,7 +177,7 @@ describe("layout v2: properties over random geographies", () => {
   it("the recipe snapshot plans the same town as the full registry (§6.6 option C)", () => {
     const f = GEO_FIXTURES[0] as GeoFixture;
     const { plan } = layoutTownV2(f.input, f.geo, seedOf(f));
-    const again = planTown({ ...f.geo, places: f.input.places.map((p) => ({ ...p })) }, seedOf(f), 2, plan.recipe);
+    const again = planTown({ ...f.geo, places: f.input.places.map((p) => ({ ...p })) }, seedOf(f), plan.recipe);
     expect(planHash(again)).toBe(planHash(plan));
     expect(plan.recipe.districts.length).toBeLessThanOrEqual(f.input.neighborhoods.length);
     expect(snapshotRecipe(BASE_RECIPE, { districts: [], features: [], connectors: [], places: [] }).districts).toEqual([]);

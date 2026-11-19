@@ -1,16 +1,16 @@
 import { SHADOW_BUCKETS, SUNRISE, SUNSET, shadowBucket } from "../dayCycle";
-import { FIXTURES, randomInput } from "../testTowns";
-import { ROOF_ROWS, layoutTown, townSeed, type TownMap } from "../townLayout";
+import { fixtureTown, randomTown } from "../testTowns";
+import { ROOF_ROWS, type TownMap } from "../townLayout";
 import { buildingSpec, groundCells } from "./art";
 import { TownScene } from "../townScene";
 import { PlaceholderArt } from "./placeholderArt";
 import { newLog, stubCanvasFactory, stubContext, type StubLog } from "./stubCanvas";
 import { TownRenderer, type FrameState } from "./townRenderer";
 
-const town = (i: number): TownMap => {
-  const f = FIXTURES[i] as (typeof FIXTURES)[number];
-  return layoutTown(f.input, townSeed(f.seed, f.input.municipality));
-};
+const town = (i: number): TownMap => fixtureTown(i).map;
+
+// Layout v2 plans take tens of ms each (30 random towns below).
+vi.setConfig({ testTimeout: 120_000 });
 
 function setup(map: TownMap, opts: { maxChunks?: number } = {}) {
   const log = newLog();
@@ -141,7 +141,7 @@ describe("town renderer (stubbed canvas)", () => {
 });
 
 describe("placeholder art: the ArtProvider contract (PIXEL_ART_TOOL.md §5.1)", () => {
-  const maps = [town(1), ...Array.from({ length: 30 }, (_, s) => layoutTown(randomInput(s + 1), s + 1))];
+  const maps = [town(1), ...Array.from({ length: 30 }, (_, s) => randomTown(s + 1).map)];
 
   it("buildings: albedo of footprint plus roof, windows and doors with emissive frames and use tags, a shadow footprint and height", () => {
     const art = new PlaceholderArt({ createCanvas: stubCanvasFactory(newLog()) });
@@ -150,6 +150,11 @@ describe("placeholder art: the ArtProvider contract (PIXEL_ART_TOOL.md §5.1)", 
       for (const b of map.buildings) {
         const spec = buildingSpec(map, b);
         const a = art.building(spec);
+        // Reserved land and building sites are lots, not buildings: no walls to shade, no door (DEC-090 D2).
+        if (b.state === "reserved" || b.state === "construction") {
+          expect(a.doors).toHaveLength(0);
+          continue;
+        }
         expect(a.albedo.w).toBe(b.w * 16);
         expect(a.albedo.h).toBe((b.h + ROOF_ROWS) * 16);
         expect(a.albedo.ay).toBe(ROOF_ROWS * 16);
