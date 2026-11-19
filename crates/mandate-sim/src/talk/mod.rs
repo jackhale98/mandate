@@ -391,7 +391,6 @@ struct Prepared {
     leads: Vec<Lead>,
     effects: Vec<TalkEffectDef>,
     small_talks: usize,
-    week: u32,
 }
 
 fn prepare(
@@ -535,7 +534,6 @@ fn prepare(
         leads,
         effects,
         small_talks,
-        week,
     })
 }
 
@@ -786,7 +784,6 @@ fn talk_to(
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect(),
     );
-    let _ = p.week;
     Ok(res)
 }
 
