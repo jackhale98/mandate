@@ -522,3 +522,13 @@ h2 { font-size: 1.1rem; }
 @media (min-width: 900px) {
   .sheet { top: 63px; bottom: 0; max-height: none; padding-top: 0; }
 }
+/* The pocket docks on the left on wide screens: it slides in from, and out to, the left. */
+@keyframes sheet-from-left { from { transform: translateX(-100%); } }
+@keyframes sheet-to-left { to { transform: translateX(-100%); } }
+@media (min-width: 900px) {
+  .sheet.pocket { box-shadow: 12px 0 32px rgba(0, 0, 0, 0.3); }
+}
+@media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .sheet.pocket { animation-name: sheet-from-left; }
+  .sheet.pocket.sheet-closing { animation-name: sheet-to-left; }
+}
