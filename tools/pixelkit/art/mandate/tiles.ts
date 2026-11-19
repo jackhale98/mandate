@@ -455,7 +455,7 @@ const FILLS: Record<string, readonly string[]> = {
 };
 
 /** Edge profiles, outside in, as legend characters ('' for none). */
-const EDGES: Record<string, { N: string; S: string; W: string; E: string }> = {
+export const EDGES: Readonly<Record<string, { N: string; S: string; W: string; E: string }>> = {
   // Kerbs: a light kerb top, and on the south side its dark face toward the road.
   pavement: { N: "Pq", S: "QQq", W: "Pq", E: "Pq" },
   // A gutter shadow under the kerbs.
