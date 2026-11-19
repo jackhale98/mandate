@@ -16,7 +16,6 @@ import { roleText } from "./CharacterSheet";
 import { LeadLine, Unknown, personName } from "./Knowing";
 import { Headlines } from "./Newspaper";
 import { StatTile } from "./StatTile";
-import { say } from "./townMapText";
 
 /** Someone in a list: their name as known (a role for a stranger), opening their sheet. */
 export function Who({ p }: { p: PersonRefView }) {
@@ -126,7 +125,7 @@ function Neighbourhoods({ town }: { town: TownPlacesView }) {
   return (
     <section data-testid="town-hoods" aria-labelledby="town-hoods-title">
       <h3 className="sub" id="town-hoods-title">
-        {say(tr, "ui-town-hoods")}
+        {tr.t("ui-town-hoods")}
       </h3>
       <ul className="plain-list town-hoods">
         {town.neighborhoods.map((h) => (
@@ -139,7 +138,7 @@ function Neighbourhoods({ town }: { town: TownPlacesView }) {
             </div>
             <div className="small">
               {h.top_concern_key ? (
-                say(tr, "ui-town-hood-worry", { concern: tr.t(h.top_concern_key) })
+                tr.t("ui-town-hood-worry", { concern: tr.t(h.top_concern_key) })
               ) : h.concern_knowledge.level === "unknown" ? (
                 <Unknown k={h.concern_knowledge} text="knowledge-concerns-unknown" />
               ) : (

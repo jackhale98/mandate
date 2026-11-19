@@ -23,7 +23,6 @@ import { Loader } from "./Brand";
 import { placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 import { sameLocation } from "../state/routing";
-import { say } from "./townMapText";
 
 /** Walk to a place picked on the town map; a new `id` is a new request. */
 export interface WalkRequest {
@@ -108,7 +107,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       // As on the map and in the list: a place with nothing to do yet says so.
       const spot = town.neighborhoods.flatMap((h) => h.spots).find((s) => loc && sameLocation(s.location.location, loc));
       if (spot && spot.actions.length + spot.services.length === 0) {
-        setStatus(say(tr, "ui-town-map-quiet", { place: spot.location.name || tr.t(`place-${spot.location.kind_key}`) }));
+        setStatus(tr.t("ui-town-map-quiet", { place: spot.location.name || tr.t(`place-${spot.location.kind_key}`) }));
         return;
       }
       setStatus(null);
@@ -136,7 +135,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
           townsfolk: 18,
           clock: new DayClock(m, 0, false),
           reducedMotion: reducedMotion(),
-          canvasLabel: say(tr, "ui-town-street-label", { town: town.municipality }),
+          canvasLabel: tr.t("ui-town-street-label", { town: town.municipality }),
           onArrive: (b) => arrive.current(b),
         });
         viewRef.current = view;
@@ -249,10 +248,10 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   return (
     <div className="town-street" data-testid="town-street">
       <div className="town-street-frame">
-        <div ref={stageRef} className="town-street-stage" role="group" aria-roledescription={say(tr, "ui-town-street")} aria-label={town.municipality} aria-describedby="town-street-help" data-ready={ready ? "1" : "0"} />
+        <div ref={stageRef} className="town-street-stage" role="group" aria-roledescription={tr.t("ui-town-street")} aria-label={town.municipality} aria-describedby="town-street-help" data-ready={ready ? "1" : "0"} />
         {!ready && (
           <div className="town-street-loading">
-            {failed ? <p className="muted small">{failed}</p> : <Loader compact label={say(tr, "ui-town-street-loading")} />}
+            {failed ? <p className="muted small">{failed}</p> : <Loader compact label={tr.t("ui-town-street-loading")} />}
           </div>
         )}
       </div>
@@ -278,10 +277,10 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       </div>
       {/* Announced only when the neighbourhood changes, not at every step. */}
       <span className="visually-hidden" aria-live="polite" data-testid="where-announce">
-        {say(tr, "ui-town-where-zone", { zone })}
+        {tr.t("ui-town-where-zone", { zone })}
       </span>
       <p id="town-street-help" className="visually-hidden">
-        {say(tr, "ui-town-street-help")}
+        {tr.t("ui-town-street-help")}
       </p>
     </div>
   );

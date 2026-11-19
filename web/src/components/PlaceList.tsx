@@ -7,7 +7,6 @@
 import type { SpotView } from "../engine/protocol/SpotView";
 import { placeIcon, placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
-import { say } from "./townMapText";
 
 function Spot({ s }: { s: SpotView }) {
   const tr = useGame((st) => st.tr);
@@ -52,7 +51,7 @@ export function PlaceList() {
   if (!town) return null;
   return (
     <>
-      <p className="hint places-help">{say(tr, "ui-places-help")}</p>
+      <p className="hint places-help">{tr.t("ui-places-help")}</p>
       <div className="town-grid" data-testid="place-list">
         {town.neighborhoods.map((h) => {
           const active = h.spots.filter((s) => s.actions.length + s.services.length > 0);

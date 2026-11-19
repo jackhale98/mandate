@@ -14,7 +14,6 @@ import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 import { useGame } from "../state/gameStore";
 import { Loader } from "../components/Brand";
 import { TownMap } from "../components/TownMap";
-import { say } from "../components/townMapText";
 import { useTownLayout, type TownLayout } from "../components/useTownLayout";
 import type { WalkRequest } from "../components/TownStreet";
 
@@ -57,9 +56,9 @@ function TownMapOverlay({ town, layout, onPick }: { town: TownPlacesView; layout
     <div ref={ref} className="town-map-overlay" role="dialog" aria-modal="true" aria-labelledby="town-map-title" data-testid="town-map-overlay" onKeyDown={onKey}>
       <div className="town-map-overlay-head">
         <h2 id="town-map-title">
-          {town.municipality} <span className="muted small">· {say(tr, "ui-town-map-pick")}</span>
+          {town.municipality} <span className="muted small">· {tr.t("ui-town-map-pick")}</span>
         </h2>
-        <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)} aria-label={say(tr, "ui-town-map-close")} data-testid="town-map-close">
+        <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)} aria-label={tr.t("ui-town-map-close")} data-testid="town-map-close">
           ✕
         </button>
       </div>
@@ -67,7 +66,7 @@ function TownMapOverlay({ town, layout, onPick }: { town: TownPlacesView; layout
         {layout.status === "ready" ? (
           <TownMap town={town} map={layout.map} onPick={(h) => onPick(h.location)} />
         ) : layout.status === "loading" ? (
-          <Pending label={say(tr, "ui-town-planning")} />
+          <Pending label={tr.t("ui-town-planning")} />
         ) : (
           <p className="error small" role="alert">
             {layout.message}
@@ -91,11 +90,11 @@ function TownScreen({ town }: { town: TownPlacesView }) {
           {town.municipality}
         </h1>
         {layout.status === "ready" ? (
-          <Suspense fallback={<Pending label={say(tr, "ui-town-street-loading")} />}>
+          <Suspense fallback={<Pending label={tr.t("ui-town-street-loading")} />}>
             <TownStreet town={town} map={layout.map} walkTo={walk} />
           </Suspense>
         ) : layout.status === "loading" ? (
-          <Pending label={say(tr, "ui-town-planning")} />
+          <Pending label={tr.t("ui-town-planning")} />
         ) : (
           <p className="error small town-error" role="alert" data-testid="town-map-error">
             {layout.message}

@@ -17,7 +17,6 @@ import { DecisionSheet } from "../components/DecisionSheet";
 import { StorySheet } from "../components/StorySheet";
 import { Loader } from "../components/Brand";
 import { RunBanner } from "../components/Newspaper";
-import { say } from "../components/townMapText";
 
 function MapScreen({ onSelect, selected }: { onSelect: (id: number | null) => void; selected: number | null }) {
   const tr = useGame((s) => s.tr);
@@ -204,7 +203,7 @@ export function Game() {
           openPocket("places", true);
         }}
       >
-        {say(tr, "ui-skip-places")}
+        {tr.t("ui-skip-places")}
       </a>
 
       {view !== "town" && (
@@ -231,7 +230,7 @@ export function Game() {
 
       {pocket?.legal && <RunBanner l={pocket.legal} />}
 
-      <nav className="gamebar" aria-label={say(tr, "ui-game-bar")} data-testid="gamebar">
+      <nav className="gamebar" aria-label={tr.t("ui-game-bar")} data-testid="gamebar">
         <button
           type="button"
           className="btn gamebar-map"
@@ -239,12 +238,12 @@ export function Game() {
             if (view !== "town") setView("town");
             setTownMapOpen(true);
           }}
-          aria-label={say(tr, "ui-town-map")}
+          aria-label={tr.t("ui-town-map")}
           data-testid="town-map-button"
         >
           <span aria-hidden="true">🗺️</span>
           <span className="gamebar-label" aria-hidden="true">
-            {say(tr, "ui-town-map-open")}
+            {tr.t("ui-town-map-open")}
           </span>
         </button>
         <div className="gamebar-date">
@@ -269,7 +268,7 @@ export function Game() {
           <span className="gamebar-label">{tr.t("ui-pocket")}</span>
           {pocket && pocket.decisions.length > 0 && <Badge icon="❗" n={pocket.decisions.length} text={tr.t("ui-decision-count", { n: pocket.decisions.length })} cls="badge-decisions" testId="decision-badge" />}
           {pocket && pocket.alerts.length > 0 && <Badge icon="🔔" n={pocket.alerts.length} text={tr.t("ui-alert-count", { n: pocket.alerts.length })} cls="badge-alerts" testId="alert-badge" />}
-          {notebookNew > 0 && <Badge icon="✎" n={notebookNew} text={say(tr, "ui-notebook-new-count", { n: notebookNew })} cls="badge-notebook" testId="notebook-badge" />}
+          {notebookNew > 0 && <Badge icon="✎" n={notebookNew} text={tr.t("ui-notebook-new-count", { n: notebookNew })} cls="badge-notebook" testId="notebook-badge" />}
         </button>
         <button type="button" className="btn btn-primary gamebar-end" disabled={busy || pocket?.legal?.run.status === "ended"} onClick={() => void endTurn()} data-testid="end-turn">
           {pocket?.legal?.run.status === "imprisoned" ? tr.t("ui-serve-sentence") : tr.t("ui-end-turn")}

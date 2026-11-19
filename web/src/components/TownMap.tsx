@@ -24,7 +24,6 @@ import { IdbPlanStore, TownPlanCache } from "../hub/townPlanCache";
 import type { Translator } from "../i18n/fluent";
 import { placeIcon, placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
-import { say } from "./townMapText";
 
 // ---------------------------------------------------------------------------
 // Scene and bake, made once per dressed map and place list (moving around does not change them)
@@ -101,8 +100,8 @@ function waitingAt(pocket: PocketView | null): Map<string, Waiting> {
 function waitingText(tr: Translator, w: Waiting | undefined): string | null {
   if (!w) return null;
   const parts: string[] = [];
-  if (w.decisions > 0) parts.push(say(tr, "ui-town-map-waiting", { what: tr.t("ui-decision-count", { n: w.decisions }) }));
-  if (w.vote) parts.push(say(tr, "ui-town-map-vote"));
+  if (w.decisions > 0) parts.push(tr.t("ui-town-map-waiting", { what: tr.t("ui-decision-count", { n: w.decisions }) }));
+  if (w.vote) parts.push(tr.t("ui-town-map-vote"));
   return parts.join(" · ") || null;
 }
 
@@ -200,7 +199,7 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
     activate.current = (h) => {
       if (busy) return;
       if (!h.active) {
-        setQuiet(say(tr, "ui-town-map-quiet", { place: hotspotName(tr, h) }));
+        setQuiet(tr.t("ui-town-map-quiet", { place: hotspotName(tr, h) }));
         return;
       }
       setQuiet(null);
@@ -244,14 +243,14 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
     if (h) viewRef.current?.walkTo(h, WALK_MAX_MS);
   }, [walking, scene]);
 
-  const label = say(tr, "ui-town-map-label", { town: town.municipality, n: scene.hotspots.filter((h) => h.active).length });
+  const label = tr.t("ui-town-map-label", { town: town.municipality, n: scene.hotspots.filter((h) => h.active).length });
   return (
     <div className="town-map" data-testid="town-map">
       <div
         ref={wrapRef}
         className="town-map-wrap"
         role="group"
-        aria-roledescription={say(tr, "ui-town-map")}
+        aria-roledescription={tr.t("ui-town-map")}
         aria-label={town.municipality}
         aria-describedby="town-map-help"
       >
@@ -294,13 +293,13 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
           })}
         </div>
         <div className="town-map-tools" data-map-control="">
-          <button type="button" className="btn btn-sm town-map-tool" onClick={() => viewRef.current?.zoomBy(1.5)} aria-label={say(tr, "ui-town-map-zoom-in")} title={say(tr, "ui-town-map-zoom-in")}>
+          <button type="button" className="btn btn-sm town-map-tool" onClick={() => viewRef.current?.zoomBy(1.5)} aria-label={tr.t("ui-town-map-zoom-in")} title={tr.t("ui-town-map-zoom-in")}>
             +
           </button>
-          <button type="button" className="btn btn-sm town-map-tool" onClick={() => viewRef.current?.zoomBy(1 / 1.5)} aria-label={say(tr, "ui-town-map-zoom-out")} title={say(tr, "ui-town-map-zoom-out")}>
+          <button type="button" className="btn btn-sm town-map-tool" onClick={() => viewRef.current?.zoomBy(1 / 1.5)} aria-label={tr.t("ui-town-map-zoom-out")} title={tr.t("ui-town-map-zoom-out")}>
             −
           </button>
-          <button type="button" className="btn btn-sm town-map-tool" onClick={() => viewRef.current?.fit()} aria-label={say(tr, "ui-town-map-fit")} title={say(tr, "ui-town-map-fit")} data-testid="town-map-fit">
+          <button type="button" className="btn btn-sm town-map-tool" onClick={() => viewRef.current?.fit()} aria-label={tr.t("ui-town-map-fit")} title={tr.t("ui-town-map-fit")} data-testid="town-map-fit">
             ⤢
           </button>
         </div>
@@ -309,7 +308,7 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
         {quiet}
       </p>
       <p id="town-map-help" className="muted small town-map-help">
-        {say(tr, "ui-town-map-help")}
+        {tr.t("ui-town-map-help")}
       </p>
     </div>
   );

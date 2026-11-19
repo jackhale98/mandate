@@ -1,12 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { Translator } from "../i18n/fluent";
+import { englishTranslator } from "../i18n/englishLocale";
 import { useGame } from "../state/gameStore";
 import { PASSAGE_MS, TurnPassage, passageSpan } from "./TurnPassage";
-
-const FTL = `
-ui-date = { $day } { $month } { $year }
-month-1 = January
-`;
 
 const from = { day_number: 0, year: 2020, month: 1, day: 1 };
 const to = { day_number: 14, year: 2020, month: 1, day: 15 };
@@ -14,7 +9,7 @@ const to = { day_number: 14, year: 2020, month: 1, day: 15 };
 describe("the night between turns", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    useGame.setState({ tr: new Translator("en", FTL), passage: null, afterPassage: { electionNight: false }, electionNight: false });
+    useGame.setState({ tr: englishTranslator(), passage: null, afterPassage: { electionNight: false }, electionNight: false });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -68,7 +63,7 @@ describe("the night between turns", () => {
   });
 
   it("says how long the turn was from the engine's day count", () => {
-    const tr = new Translator("en", "");
+    const tr = englishTranslator();
     expect(passageSpan(tr, 1)).toBe("A day later");
     expect(passageSpan(tr, 7)).toBe("A week later");
     expect(passageSpan(tr, 14)).toBe("2 weeks later");

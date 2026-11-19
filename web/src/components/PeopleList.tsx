@@ -11,14 +11,13 @@
 import { useGame } from "../state/gameStore";
 import { Member } from "./Chamber";
 import { Who } from "./TownCard";
-import { say } from "./townMapText";
 
 function NotebookSeam({ n }: { n: number }) {
   const tr = useGame((s) => s.tr);
   if (n <= 0) return null;
   return (
     <p className="note" data-testid="people-notebook">
-      {say(tr, "ui-people-learned", { n })}
+      {tr.t("ui-people-learned", { n })}
     </p>
   );
 }
@@ -38,7 +37,7 @@ export function PeopleList() {
       {c && (c.broker || c.rival) && (
         <section data-testid="people-town" aria-labelledby="people-town-title">
           <h3 className="sub" id="people-town-title">
-            {say(tr, "ui-people-town")}
+            {tr.t("ui-people-town")}
           </h3>
           <ul className="plain-list people-figures">
             {c.broker && (
@@ -67,7 +66,7 @@ export function PeopleList() {
           ))}
         </ul>
       </section>
-      <p className="hint">{say(tr, "ui-people-help")}</p>
+      <p className="hint">{tr.t("ui-people-help")}</p>
     </>
   );
 }
