@@ -698,7 +698,7 @@ export function stageStreets(w: Work) {
       accessed = true;
     }
     // The land still uncovered (it only shrinks: streets are only added, distances only fall).
-    let open = cells.filter((c) => land[c] && (dist[c] as number) > COVERED);
+    const open = cells.filter((c) => land[c] && (dist[c] as number) > COVERED);
     for (let it = 0; it < guard; it++) {
       if (!accessed && !grown && it === 12) {
         access();

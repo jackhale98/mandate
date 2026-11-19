@@ -619,10 +619,9 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
   const { W, H } = w;
   const m = masks(w);
   const rd = railDistance(w);
-  let best: StationSite | null = null;
   const held = w.station;
   if (held) {
-    // The reserved site: give the hold back and stand there.
+    // The reserved site: give the hold back and stand there (or as near as fits).
     for (let y = held.y - 1; y <= held.y + held.bh; y++) {
       for (let x = held.x - 1; x <= held.x + held.bw; x++) {
         if (x < 0 || y < 0 || x >= W || y >= H) continue;
@@ -630,8 +629,8 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
         if (w.use[c] === Use.Keep) w.use[c] = 0;
       }
     }
-    best = stationSite(w, rd, m);
-  } else best = stationSite(w, rd, m);
+  }
+  const best = stationSite(w, rd, m);
   if (!best) return;
   const i = addPlot(w, best.d, { x: best.x, F: best.y + best.bh, w: best.bw, h: best.bh, s: 0 }, { place: null, kind: "station", name: "", landmark: true, ground: groundOf(best.d) }, best.x + (best.bw >> 1));
   w.landmarks.push({ kind: "station", x: best.x + (best.bw >> 1), y: best.y, name: "", plot: i });
