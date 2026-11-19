@@ -1,7 +1,8 @@
 /// <reference types="node" />
 // Dumps the layout v2 fixtures (towns-v2.json): real towns from the engine
-// with the geography layout v2 plans them from, derived by the stage A
-// adapter (../townGeoAdapter) from the engine's municipality and map views.
+// with the geography layout v2 plans them from (the engine's
+// `TownGeographyView`, through ../townGeoAdapter) and their state as play
+// begins (`TownStateView`).
 // It runs under vitest (so it can import the TypeScript adapter) and only
 // when asked:
 //   cd web && DUMP_GEO=1 npx vitest run src/hub/fixtures/dumpGeo.test.ts
@@ -16,8 +17,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { MapView } from "../../engine/protocol/MapView";
 import type { MunicipalityView } from "../../engine/protocol/MunicipalityView";
+import type { TownGeographyView } from "../../engine/protocol/TownGeographyView";
 import type { TownPlacesView } from "../../engine/protocol/TownPlacesView";
-import { geoFromViews } from "../townGeoAdapter";
+import type { TownStateView } from "../../engine/protocol/TownStateView";
+import { geoFromEngine } from "../townGeoAdapter";
 import { townInputFromMunicipality, townInputFromView } from "../townInput";
 import type { GeoFixture } from "../layoutV2/fixtures";
 
@@ -44,16 +47,17 @@ describe.skipIf(!run)("dump layout v2 fixtures", () => {
       const map = send({ kind: "query", payload: { type: "map" } }) as MapView;
       const muni = (mid: number) => send({ kind: "query", payload: { type: "municipality", id: mid } }) as MunicipalityView;
       const add = (source: GeoFixture["source"], mv: MunicipalityView, input: GeoFixture["input"]) => {
-        const geo = geoFromViews({ municipality: mv, map, input, character: source === "town" ? town.character : null });
+        const view = send({ kind: "query", payload: { type: "town_geography", id: mv.id } }) as TownGeographyView;
+        const st = send({ kind: "query", payload: { type: "town_state", id: mv.id } }) as TownStateView;
         out.push({
           seed,
           source,
           input,
-          geo,
+          geo: geoFromEngine(view, input),
           state: {
-            vacancy: mv.economy?.vacancy ?? 0.05,
-            unemployment: mv.economy?.unemployment ?? 0.06,
-            hoods: mv.neighborhoods.map((h) => ({ id: h.id, population: Math.round(h.population) })),
+            vacancy: st.housing.vacancy_pm / 1000,
+            unemployment: st.unemployment_pm / 1000,
+            hoods: st.neighborhoods.map((h) => ({ id: h.id, population: h.population })),
           },
         });
       };

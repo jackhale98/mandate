@@ -26,7 +26,7 @@ import { PixelkitArt, type NightLook } from "../../../src/hub/render/pixelkitArt
 import pack, { buildMs as packBuildMs, bytes as packBytes } from "virtual:pixelkit-pack";
 import { townInputFromView } from "../../../src/hub/townInput";
 import { buildingOfPlace, layoutTown, Terrain, townSeed, type TownBuilding, type TownMap } from "../../../src/hub/townLayout";
-import { geoFromViews } from "../../../src/hub/townGeoAdapter";
+import { geoFromEngine, geoFromViews, stateFromEngine } from "../../../src/hub/townGeoAdapter";
 import { townInputFromMunicipality, type TownInput } from "../../../src/hub/townInput";
 import { dressTown, LAYOUT_V2, planTown, stateFromViews, type TownPlan, type TownState } from "../../../src/hub/layoutV2";
 import { recipeForTown, recipeFromView, rememberRecipe } from "../../../src/hub/layoutV2/registry";
@@ -140,7 +140,13 @@ async function start() {
     }
     const t0 = performance.now();
     if (layoutV === 2 && muni) {
-      const geo = geoFromViews({ municipality: muni, map: mapView, input, character: visiting ? null : town.character });
+      // The engine's town views (E2, E3); the stage A derivation only if a build lacks them.
+      const id = muni.id;
+      const [geoView, stateView] = await Promise.all([
+        request({ kind: "query", payload: { type: "town_geography", id } }, "town_geography").catch(() => null),
+        request({ kind: "query", payload: { type: "town_state", id } }, "town_state").catch(() => null),
+      ]);
+      const geo = geoView ? geoFromEngine(geoView, input) : geoFromViews({ municipality: muni, map: mapView, input, character: visiting ? null : town.character });
       timings.geoMs = performance.now() - t0;
       // The layout registries come from the engine (LayoutContentView); a town shown before
       // is planned from the snapshot of the entries it used then (§6.6 option C).
@@ -160,7 +166,7 @@ async function start() {
       timings.planMs = performance.now() - t1;
       for (const [k, v] of Object.entries(plan.stages)) timings[`plan.${k}`] = Math.round(v * 100) / 100;
       const t2 = performance.now();
-      map = dressTown(plan, dressState(stateFromViews(muni, input.home, input.location), plan));
+      map = dressTown(plan, dressState(stateView ? stateFromEngine(stateView, input.home, input.location) : stateFromViews(muni, input.home, input.location), plan));
       timings.dressMs = performance.now() - t2;
       text = describeTown(plan, map);
     } else map = layoutTown(input, townSeed(seed, input.municipality));

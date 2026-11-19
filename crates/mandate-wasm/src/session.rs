@@ -234,6 +234,12 @@ impl Session {
                             .unwrap_or_else(|| layout_content(&self.content)),
                     ))
                 }
+                QueryDto::TownGeography { id } => town_geography_view(self.engine_mut()?, id)
+                    .map(ResponseBody::TownGeography)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, format!("no municipality {id}"))),
+                QueryDto::TownState { id } => town_state_view(self.engine_mut()?, id)
+                    .map(ResponseBody::TownState)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, format!("no municipality {id}"))),
             },
         }
     }

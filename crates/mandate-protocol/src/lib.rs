@@ -10,6 +10,7 @@ pub mod media;
 pub mod narrative;
 pub mod office;
 pub mod places;
+pub mod town;
 pub mod views;
 
 pub use campaign::*;
@@ -21,6 +22,7 @@ pub use narrative::*;
 pub use office::*;
 pub use places::*;
 use serde::{Deserialize, Serialize};
+pub use town::*;
 use ts_rs::TS;
 pub use views::*;
 
@@ -295,6 +297,16 @@ pub enum QueryDto {
     Diagnostics,
     /// The town layout v2 registries (no game needed; cache by `content_hash`).
     LayoutContent,
+    /// A town's geography for layout v2 (TOWN_GENERATION §4.1): static for
+    /// a run, quantised.
+    TownGeography {
+        id: u32,
+    },
+    /// A town this month for layout v2's dress pass (§4.2), rounded unless
+    /// the player is at their own town hall (DEC-079).
+    TownState {
+        id: u32,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -349,6 +361,8 @@ pub enum ResponseBody {
     PolicyPreview(PolicyPreviewView),
     Diagnostics(DiagnosticsView),
     LayoutContent(LayoutContentView),
+    TownGeography(TownGeographyView),
+    TownState(TownStateView),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

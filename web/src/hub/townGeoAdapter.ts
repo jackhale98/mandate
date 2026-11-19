@@ -1,26 +1,24 @@
-// Layout v2's geography input, derived on the client (DEC-090, stage A).
+// Layout v2's inputs (DEC-090, TOWN_GENERATION.md §4.1, §4.2).
 //
-// TODO(D3, TOWN_GENERATION.md §4.1, task E2): replace this adapter with the
-// engine's `TownGeographyView`. Until then it reads what the game already
-// receives: the municipality view (class, population, coast, port, river,
-// elevation, resources, hazards, neighbourhoods and places) and the national
-// map's rasters and links (cover, river class, hillshade, owners, link
-// paths). The summaries are coarse on purpose and the gaps are known:
-// - no elevation raster: relief and the uphill direction come from the
-//   hillshade (a north-west to south-east difference), so the uphill bearing
-//   is only ever south-east or north-west, refined by the sea side;
-// - no flow direction: a river's downstream end is the one toward the sea
-//   (else a fixed choice), which only matters for labels;
-// - baselines (E1): the current populations stand in for them;
-// - neighbourhood adjacency and sector jobs are not sent (empty; the town's
-//   defining industry, when known, is the one sector).
-// Values are quantised to integers (per mille, compass steps).
+// The engine sends both (task E2/E3): `TownGeographyView` (static for a run,
+// quantised) and `TownStateView` (monthly, rounded unless the player is at
+// their own town hall, DEC-079). `geoFromEngine` and `stateFromEngine` map
+// them onto the shapes the plan and the dress pass read; callers prefer them.
+//
+// `geoFromViews` is the stage A derivation, kept only as a fallback for
+// callers without the engine views (tests and old builds): it reads the
+// municipality view and the national map's rasters and links, with known
+// gaps (no elevation raster or flow direction, current populations for
+// baselines, no adjacency or sector jobs).
 import type { MapView } from "../engine/protocol/MapView";
 import type { MunicipalityView } from "../engine/protocol/MunicipalityView";
 import type { TownCharacterView } from "../engine/protocol/TownCharacterView";
+import type { TownGeographyView } from "../engine/protocol/TownGeographyView";
+import type { TownStateView } from "../engine/protocol/TownStateView";
+import type { TownState } from "./layoutV2/dress";
 import { NO_BEARING, bearingGap, bearingOf, opposite, type Compass16 } from "./layoutV2/imath";
 import type { GeoLink, TownClass, TownGeo } from "./layoutV2/geo";
-import type { TownInput } from "./townInput";
+import type { TownInput, TownLocation } from "./townInput";
 
 const decode = (b64: string): Uint8Array => {
   const s = atob(b64);
@@ -57,7 +55,55 @@ export interface GeoSources {
   character?: TownCharacterView | null;
 }
 
-/** The geography of one town for layout v2, from the views the game has today. */
+/**
+ * The geography of one town for layout v2, from the engine's view. The
+ * places are the town's as the layout sees them (the visit, or the player's
+ * town); the engine view carries everything else.
+ */
+export function geoFromEngine(v: TownGeographyView, input: Pick<TownInput, "places">): TownGeo {
+  const r = v.river;
+  return {
+    municipality: v.municipality,
+    name: v.name,
+    class: v.class,
+    regional_capital: v.regional_capital,
+    national_capital: v.national_capital,
+    baseline_population: Math.max(1, v.baseline_population),
+    neighborhoods: v.neighborhoods.map((h) => ({ id: h.id, name: h.name, kind: h.kind, baseline_population: Math.max(1, h.baseline_population), adjacent: [...h.adjacent] })),
+    places: input.places.map((p) => ({ id: p.id, kind: p.kind, name: p.name, neighborhood: p.neighborhood })),
+    baseline_sectors: v.baseline_sectors.map((s) => ({ sector: s.sector, driver: s.driver, jobs: s.jobs })),
+    river: r ? { class: Math.max(1, Math.min(3, r.class)) as 1 | 2 | 3, enters: r.enters, leaves: r.leaves, through_centre: r.through_centre } : null,
+    creeks: v.creeks.map((c) => ({ enters: c.enters, joins_river: c.joins_river })),
+    coast: v.coast ? { sea: v.coast.sea, shore: v.coast.shore, bay: v.coast.bay } : null,
+    lake: v.lake ? { bearing: v.lake.bearing, near: v.lake.near } : null,
+    relief: { ...v.relief },
+    woods: { ...v.woods },
+    minerals: { ...v.minerals },
+    resources_pm: { ...v.resources_pm },
+    links: v.links.map((l) => ({ mode: l.mode, bearing: l.bearing, to: l.to, to_name: l.to_name, foreign: l.foreign })),
+    hazards_pm: { ...v.hazards_pm },
+    climate: { ...v.climate },
+    wind_from: v.wind_from,
+    elevation_m: v.elevation_m,
+    era: v.era,
+  };
+}
+
+/** The dress state of one town from the engine's monthly view. */
+export function stateFromEngine(v: TownStateView, home: number | null, location: TownLocation): TownState {
+  return {
+    home,
+    location,
+    hoods: v.neighborhoods.map((h) => ({ id: h.id, population: h.population })),
+    vacancy: v.housing.vacancy_pm / 1000,
+    unemployment: v.unemployment_pm / 1000,
+    housingPm: v.housing.stock_pm,
+    pipelinePm: v.housing.pipeline_pm,
+    closedPlaces: v.places.filter((p) => p.status === "closed").map((p) => p.id),
+  };
+}
+
+/** Stage A fallback: the geography derived from the municipality and map views (see the header). */
 export function geoFromViews(src: GeoSources): TownGeo {
   const mv = src.municipality;
   const map = src.map;

@@ -7,6 +7,10 @@
 //! player's home, in their home neighbourhood) and the `Street`s of each
 //! neighbourhood. NPCs are abstracted and have no location (DEC-030 symmetry
 //! for location is deferred).
+//!
+//! Places are never deleted during a run; one that shuts is marked closed
+//! (`World::close_place`, DEC-090 D3) and then offers nothing and cannot be
+//! entered. Nothing closes places yet.
 
 use crate::actions::{Action, PlayerCommand};
 use crate::commands::EngineError;
@@ -127,7 +131,8 @@ fn spots(state: &State, pred: &dyn Fn(&str) -> bool, hood: Option<u32>) -> Vec<L
         let Some(p) = state.world.places.get(pid.index()) else {
             continue;
         };
-        if hood.is_some_and(|h| p.neighborhood.0 != h) {
+        // A closed place offers nothing (DEC-090 D3: closed, never deleted).
+        if !p.is_open() || hood.is_some_and(|h| p.neighborhood.0 != h) {
             continue;
         }
         if pred(p.kind.key()) {
@@ -316,6 +321,15 @@ pub fn validate_move(state: &State, loc: Location) -> Result<(), EngineError> {
             .get(place.index())
             .is_some_and(|p| p.municipality == m),
     };
+    if let Location::Place { place } = loc
+        && state
+            .world
+            .places
+            .get(place.index())
+            .is_some_and(|p| p.municipality == m && !p.is_open())
+    {
+        return Err(bad("that place is closed".into()));
+    }
     if ok {
         Ok(())
     } else {
