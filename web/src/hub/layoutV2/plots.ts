@@ -567,7 +567,7 @@ function stationBySide(w: Work, groundOf: (d: number) => number) {
           if (!ok || near !== 2) continue;
           if (d < 0) d = coreD;
           const front = (y + bh) * W + x + (bw >> 1);
-          if (front >= N || isWaterBody(w, front) || (w.use[front] as number) & (Use.Plot | Use.Square) || w.blocked[front] || m.roofs[front]) continue;
+          if (front >= N || isWaterBody(w, front) || (w.use[front] as number) & (Use.Plot | Use.Square) || w.blocked[front] || m.roofs[front] || !(frontageTerrain(w.terrain[front] as number) || buildable(w.terrain[front] as number))) continue;
           let roofOk = true;
           for (let xx = x; xx < x + bw; xx++) if (m.fronts[(y - 1) * W + xx] || (w.use[(y - 1) * W + xx] as number) & Use.Plot) roofOk = false;
           if (!roofOk) continue;
@@ -1026,7 +1026,7 @@ export function stageConnect(w: Work) {
       const x = c % W;
       for (let k4 = 0; k4 < 4; k4++) {
         const n = k4 === 0 ? (x > 0 ? c - 1 : -1) : k4 === 1 ? (x < W - 1 ? c + 1 : -1) : k4 === 2 ? c - W : c + W;
-        if (n < 0 || n >= N || prev.has(n) || solidPlot[n]) continue;
+        if (n < 0 || n >= N || prev.has(n) || solidPlot[n] || (nearEdge(w, n) && !walkableGround(w, n))) continue;
         const t = w.terrain[n] as number;
         if ((isWaterBody(w, n) && !walkableGround(w, n)) || t === Terrain.Rock) continue;
         prev.set(n, c);
@@ -1158,6 +1158,7 @@ export function stageShortcuts(w: Work) {
   };
   /** Extra cost of cutting a path through a cell (0: walkable already; -1: never). */
   const cutCost = (c: number): number => {
+    if (nearEdge(w, c) && !walk(c)) return -1;
     if (walk(c)) return 0;
     if (solidPlot[c] || (w.use[c] as number) & (Use.Plot | Use.Square) || w.blocked[c] || isWaterBody(w, c)) return -1;
     const t = w.terrain[c] as number;
@@ -1260,7 +1261,7 @@ function footbridge(w: Work, p: PlanPlot, dSq: Int32Array): number {
   const fy = Math.floor(p.front / W);
   // A landing is walkable ground, or open ground a path can be laid on.
   const land = (c: number) => {
-    if (c < 0 || c >= N || isWaterBody(w, c) || (w.use[c] as number) & (Use.Plot | Use.Square | Use.Rail) || w.blocked[c]) return false;
+    if (c < 0 || c >= N || isWaterBody(w, c) || (w.use[c] as number) & (Use.Plot | Use.Square | Use.Rail) || w.blocked[c] || nearEdge(w, c)) return false;
     const t = w.terrain[c] as number;
     return walkableGround(w, c) || buildable(t) || t === Terrain.Sand || t === Terrain.Reeds;
   };
@@ -1317,4 +1318,11 @@ function footbridge(w: Work, p: PlanPlot, dSq: Int32Array): number {
 /** Manhattan distance from a cell to the nearest cell of a rectangle (0 inside). */
 export function rectDistance(r: { x: number; y: number; w: number; h: number }, x: number, y: number): number {
   return Math.max(r.x - x, 0, x - (r.x + r.w - 1)) + Math.max(r.y - y, 0, y - (r.y + r.h - 1));
+}
+
+/** Within two cells of the map's edge: no path or footbridge is cut there (only the roads to other towns reach it). */
+function nearEdge(w: Work, c: number): boolean {
+  const x = c % w.W;
+  const y = (c - x) / w.W;
+  return x < 2 || y < 2 || x >= w.W - 2 || y >= w.H - 2;
 }

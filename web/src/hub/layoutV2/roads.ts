@@ -718,6 +718,67 @@ export function stageArterials(w: Work) {
     taken.add(first.c);
     return [...st.via.map((c) => ({ c, d: first.d })), ...path];
   };
+  /** The widest crossing a road may bridge (tiles of water). */
+  const maxSpan = w.recipe.connectors.filter((k) => k.roads.includes("arterial") && k.crosses.includes("river")).reduce((m, k) => Math.max(m, k.max_span), 0);
+  /** Water a run of a path crosses wider than any bridge: its coarse cells. */
+  const tooWide = (segs: Segment[]): number[] => {
+    const out: number[] = [];
+    for (const s of segs) {
+      if (s.axis !== "h" && s.axis !== "v") continue;
+      let run = 0;
+      const a0 = s.axis === "h" ? s.x0 : s.y0;
+      const a1 = s.axis === "h" ? s.x1 : s.y1;
+      for (let a = a0; a <= a1 + 1; a++) {
+        let wet = false;
+        if (a <= a1) {
+          for (let k = s.axis === "h" ? s.y0 : s.x0; k <= (s.axis === "h" ? s.y1 : s.x1); k++) {
+            const x = s.axis === "h" ? a : k;
+            const y = s.axis === "h" ? k : a;
+            if (isWaterBody(w, y * w.W + x)) wet = true;
+          }
+        }
+        if (wet) run++;
+        else {
+          if (run > maxSpan) {
+            const mid = a - 1 - (run >> 1);
+            const x = s.axis === "h" ? mid : s.ax;
+            const y = s.axis === "h" ? s.ay : mid;
+            out.push(Math.floor(y / G) * CW + Math.floor(x / G));
+          }
+          run = 0;
+        }
+      }
+    }
+    return out;
+  };
+  /**
+   * A route by `coarsePath8`, routed again where it would run alongside
+   * another road or the railway (kept well clear), or cross water wider than
+   * a bridge spans (that crossing barred).
+   */
+  const route = (starts: { c: number; d: number; g: number }[], isGoal: (c: number, d: number) => boolean, goal: number, water: number, exempt?: (c: number) => boolean) => {
+    let k = costs(water);
+    const barred: number[] = [];
+    let path: { c: number; d: number }[] | null = null;
+    for (let tries = 0; tries < 4; tries++) {
+      const p = coarsePath8(cg, starts, isGoal, goal, k, exempt);
+      if (!p) break;
+      path = p;
+      const segs = roadSegs(cg, withRingDry(p), { cls: RoadClass.Arterial, style: "asphalt", district: -1, arterial: -1 });
+      const wide = maxSpan > 0 ? tooWide(segs) : [];
+      const crowd = segs.some((s) => crowded(w, s, null));
+      if (!wide.length && !crowd) break;
+      for (const c of wide) {
+        if (!cg.blocked[c]) {
+          cg.blocked[c] = 1;
+          barred.push(c);
+        }
+      }
+      if (crowd) k = { ...k, near: 70 };
+    }
+    for (const c of barred) cg.blocked[c] = 0;
+    return path;
+  };
   for (const p of picked) {
     const goal = edgeCell(w, cg, p.bearing);
     if (goal === null) continue;
@@ -730,12 +791,7 @@ export function stageArterials(w: Work) {
     const gy = Math.floor(goal / CW);
     const railBeside = (c: number) => [c - 1, c + 1, c - CW, c + CW, c - CW - 1, c - CW + 1, c + CW - 1, c + CW + 1].some((n) => n >= 0 && n < CW * CH && cg.rail[n] !== 0);
     const near = (c: number) => !cg.wet[c] && !cg.rail[c] && !railBeside(c) && outward(cg, c) === out && Math.abs((c % CW) - gx) + Math.abs(Math.floor(c / CW) - gy) <= 4 && (c % CW === 0 || c % CW === CW - 1 || c < CW || c >= CW * (CH - 1));
-    let path = coarsePath8(cg, starts, (c, d) => d === out && near(c), goal, costs(water), near);
-    // Alongside another road (or the railway) for a stretch: route again, keeping well clear of the others.
-    if (path && roadSegs(cg, withRingDry(path), { cls: RoadClass.Arterial, style: "asphalt", district: -1, arterial: -1 }).some((s) => crowded(w, s, null))) {
-      const again = coarsePath8(cg, starts, (c, d) => d === out && near(c), goal, { ...costs(water), near: 70 }, near);
-      if (again) path = again;
-    }
+    const path = route(starts, (c, d) => d === out && near(c), goal, water, near);
     if (!path) continue;
     const toName = p.link?.to_name ?? "";
     let name = toName ? `${toName} Road` : `${COMPASS_NAMES[p.bearing] ?? "North"} Road`;
@@ -759,7 +815,7 @@ export function stageArterials(w: Work) {
       if (x < 16 || y < 16 || x >= w.W - 16 || y >= w.H - 16) break;
       const c = y * w.W + x;
       if (isWaterBody(w, c)) wetSeen = true;
-      else if (wetSeen && (w.riverDist[c] as number) >= Math.max(10, w.floodplain + 6)) {
+      else if (wetSeen && (w.riverDist[c] as number) >= Math.max(6, w.floodplain + 3)) {
         tx = x;
         ty = y;
         break;
@@ -769,7 +825,7 @@ export function stageArterials(w: Work) {
       const goal = Math.floor(ty / G) * CW + Math.floor(tx / G);
       const water = bridges >= caps.bridges ? 900 : 70 + bridges * 60;
       const starts = startsFor();
-      const path = coarsePath8(cg, starts, (c) => c === goal, goal, costs(water));
+      const path = route(starts, (c) => c === goal, goal, water);
       if (path && path.some((q) => cg.wet[q.c])) {
         const name = names.has("Bridge Street") ? "Bridge Road" : "Bridge Street";
         names.add(name);
