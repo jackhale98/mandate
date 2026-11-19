@@ -214,7 +214,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true, error: null, map: null, progress: { stage: "progress-terrain", fraction: 0 } });
       const off = engine().onProgress((stage, fraction) => set({ progress: { stage, fraction } }));
       try {
-        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null } });
+        const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: false } });
         const overview = expectKind(body, "game_started");
         set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, openPlace: null, view: "town", run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();

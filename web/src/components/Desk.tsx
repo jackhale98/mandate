@@ -9,6 +9,7 @@ import { StatTile } from "./StatTile";
 import { BillCard, SupportBars } from "./BillCard";
 import { ParamSliders } from "./ParamSliders";
 import { TradeOffs } from "./TradeOffs";
+import { LeadLine, Unknown } from "./Knowing";
 
 function signed(v: number): string {
   const n = Math.round(v * 100);
@@ -27,6 +28,11 @@ export function TownOpinion({ o }: { o: OfficeView }) {
         <StatTile label={tr.t("ui-you-in-town")} value={`${Math.round(t.player_awareness_town * 100)}%`} delta={{ text: `${tr.t("ui-awareness")} · ${signed(t.player_approval_town)} ${tr.t("ui-approval")}`, good: null }} />
       </div>
       <h3 className="sub">{tr.t("ui-concerns")}</h3>
+      {t.concerns_knowledge.level === "unknown" && (
+        <p className="small">
+          <Unknown k={t.concerns_knowledge} text="knowledge-concerns-unknown" />
+        </p>
+      )}
       <ul className="meters">
         {t.concerns.map((c) => (
           <li key={c.id}>
@@ -84,15 +90,26 @@ export function TemplateCard({ t }: { t: TemplateView }) {
   const preview = usePolicyPreview(t.id, params, open && touched);
   const cost = touched && preview.view ? preview.view.est_annual_cost : t.est_cost_default;
   const effects = touched && preview.view ? preview.view.side_effects : t.side_effects;
+  // A situational policy only heard of is a stub: it can't be drafted yet (DEC-091).
+  const stub = t.knowledge?.level === "heard";
   return (
     <li className="template">
       <button type="button" className="row-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span>
           {tr.t(t.name_key)} <span className="muted">· {tr.t(`category-${t.category}`)}</span>
         </span>
-        <span className="num muted">{signed(t.support.overall)}</span>
+        <span className="num muted">{t.support.overall === null ? tr.t(`support-band-${t.support.band}`) : signed(t.support.overall)}</span>
       </button>
-      {open && (
+      {open && stub && (
+        <div className="template-body" data-testid="policy-stub">
+          {t.unlock_reason_key && <p className="hint">{tr.t("ui-policy-situational", { reason: tr.t(t.unlock_reason_key) })}</p>}
+          <p className="small muted">
+            {tr.t("knowledge-proposal-stub")}
+            <LeadLine lead={t.knowledge?.lead ?? null} />
+          </p>
+        </div>
+      )}
+      {open && !stub && (
         <div className="template-body">
           <p className="small">{tr.t(t.desc_key)}</p>
           {t.situational && t.unlock_reason_key && <p className="hint">{tr.t("ui-policy-situational", { reason: tr.t(t.unlock_reason_key) })}</p>}

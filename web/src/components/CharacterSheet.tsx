@@ -6,6 +6,7 @@ import type { Translator } from "../i18n/fluent";
 import { placeName } from "../places/labels";
 import { useSheetClose } from "./useSheetClose";
 import { PartyChip } from "./ElectionCharts";
+import { Unknown, personName } from "./Knowing";
 
 /** A memory's or favour's subject, in words (a bill, a seat). */
 export function subjectText(tr: Translator, s: SubjectView | null): string {
@@ -42,7 +43,7 @@ export function CharacterSheet() {
       <aside ref={sheetRef} className={closing ? "sheet character-sheet sheet-closing" : "sheet character-sheet"} aria-labelledby="character-title" data-testid="character-sheet">
         <div className="sheet-head">
           <div>
-            <h2 id="character-title">{c.name}</h2>
+            <h2 id="character-title">{personName(tr, c.name)}</h2>
             <p className="muted small">
               {roleText(tr, c)}
               {c.ward_number !== null && <> · {tr.t("ui-ward-n", { n: c.ward_number })}</>} · {tr.t(`tier-${c.tier}`)}
@@ -84,6 +85,12 @@ export function CharacterSheet() {
             {c.expertise_key && (
               <p className="small muted">
                 {tr.t("ui-expertise")}: {tr.t(c.expertise_key)}
+              </p>
+            )}
+            {c.goals && c.goals.length > 0 && <p className="small">{tr.t("knowledge-goals", { list: c.goals.map((g) => tr.t(g)).join(" · ") })}</p>}
+            {(c.knowledge.level === "unknown" || c.knowledge.level === "heard") && (
+              <p className="small" data-testid="character-unknown">
+                <Unknown k={c.knowledge} text="knowledge-character-unknown" />
               </p>
             )}
           </section>

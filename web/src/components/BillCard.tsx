@@ -9,16 +9,27 @@ import { useGame } from "../state/gameStore";
 import { formatDate, formatMoney } from "../i18n/format";
 import { ParamSliders } from "./ParamSliders";
 import { TradeOffs } from "./TradeOffs";
+import { personName } from "./Knowing";
 
 /** Signed −1..1 score shown as −100..+100 with a text label (never colour alone, DEC-051). */
 export function SupportBars({ s }: { s: SupportView }) {
   const tr = useGame((st) => st.tr);
-  const rows: [string, number][] = [
-    ["ui-support-overall", s.overall],
-    ["ui-support-low", s.low],
-    ["ui-support-middle", s.middle],
-    ["ui-support-high", s.high],
-  ];
+  // Who supports it is learned (DEC-091): below "known" only its band.
+  if (s.overall === null) {
+    return (
+      <p className="small" data-testid="support-band">
+        {tr.t(`support-band-${s.band}`)} · <span className="muted">{tr.t("knowledge-support-unknown")}</span>
+      </p>
+    );
+  }
+  const rows: [string, number][] = (
+    [
+      ["ui-support-overall", s.overall],
+      ["ui-support-low", s.low],
+      ["ui-support-middle", s.middle],
+      ["ui-support-high", s.high],
+    ] as [string, number | null][]
+  ).filter((r): r is [string, number] => r[1] !== null);
   return (
     <ul className="diverge">
       {rows.map(([k, v]) => {
@@ -71,7 +82,7 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
       </div>
       <p className="muted small">
         {tr.t("ui-est-cost", { amount: formatMoney(bill.est_annual_cost) })}
-        {!mine && <> · {bill.sponsor_name}</>}
+        {!mine && <> · {personName(tr, bill.sponsor_name)}</>}
       </p>
       {pending && bill.next_vote && bill.next_stage_key && (
         <p className="small">

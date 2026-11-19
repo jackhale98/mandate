@@ -364,7 +364,7 @@ fn policy_support_by_level() {
     let mut e = game(16);
     let m = town(&e);
     let template = "policy.transit_frequency".to_string();
-    assert!(e.content().policies.get(&template).is_some());
+    assert!(e.content().policies.contains_key(&template));
     let s = Subject::PolicySupport {
         town: m,
         policy: PolicyRef::Template {

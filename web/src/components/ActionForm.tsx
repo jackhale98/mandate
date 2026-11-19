@@ -127,7 +127,7 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
               <select className="input" value={target?.id ?? ""} onChange={(e) => setMember(Number(e.target.value))}>
                 {colleagues.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.name}
+                    {m.name === "" ? `${tr.t(m.role_key)}${m.ward_number !== null ? ` · ${tr.t("ui-ward", { n: m.ward_number })}` : ""}` : m.name}
                     {m.favors < 0 ? ` · ${tr.t("ui-owe", { n: -m.favors })}` : ""}
                   </option>
                 ))}

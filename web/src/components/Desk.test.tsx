@@ -34,12 +34,13 @@ const template: TemplateView = {
   params: [{ id: "level", name_key: "param-service-level", unit_key: "unit-level", min: 1, max: 5, step: 1, default: 2 }],
   implementation_months: 9,
   secondary_keys: [],
-  support: { low: 0.1, middle: 0, high: -0.1, overall: 0 },
+  support: { low: 0.1, middle: 0, high: -0.1, overall: 0, band: "divisive", level: "known" },
   est_cost_default: 50_000,
   side_effects: [{ kind: "disruption", group: "all", older: false, amount: 0.06, size: "moderate" }],
   situational: false,
   available: true,
   unlock_reason_key: null,
+  knowledge: null,
 };
 
 // The engine's answer (an arbitrary function of the level: the UI must show

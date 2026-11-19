@@ -174,6 +174,12 @@ fn situational_policies_unlock_with_the_situation() {
             params: BTreeMap::new(),
         }))
     };
+    // Situational policies are learned (DEC-091): the player has not heard
+    // of this one, so their catalogue leaves it out. The lab's omniscient
+    // view lists it, locked, as M5d part 2 does.
+    let view = mandate_protocol::office_view(&e).unwrap();
+    assert!(view.catalog.iter().all(|x| x.id != "policy.fiscal_bridge"));
+    e.set_lab_omniscient(true);
     let view = mandate_protocol::office_view(&e).unwrap();
     let row = view
         .catalog

@@ -10,6 +10,7 @@ import { placeIcon, placeName } from "../places/labels";
 import { useSheetClose } from "./useSheetClose";
 import { capital, deadlineText } from "./DecisionSheet";
 import { Headlines, Legal } from "./Newspaper";
+import { Unknown } from "./Knowing";
 
 const TRACKS = ["record", "viability", "standing", "health", "legal_jeopardy", "threat"] as const;
 /** Tracks where a high value is bad (shown with a "risk" bar plus the text label). */
@@ -216,6 +217,11 @@ export function Pocket() {
           <StatTile label={tr.t("ui-you-in-ward")} value={`${Math.round(h.awareness_ward * 100)}%`} delta={{ text: `${tr.t("ui-awareness")} · ${signed(h.approval_ward)} ${tr.t("ui-approval")}`, good: null }} />
         </div>
         {h.top_concern_keys.length > 0 && <p className="small">{tr.t("ui-top-concerns", { list: h.top_concern_keys.map((k) => tr.t(k)).join(", ") })}</p>}
+        {h.concerns_knowledge.level === "unknown" && (
+          <p className="small">
+            <Unknown k={h.concerns_knowledge} text="knowledge-concerns-unknown" />
+          </p>
+        )}
         <Headlines news={p.news} />
         <p className="hint">{tr.t("ui-headlines-note")}</p>
         <h3 className="sub">{tr.t("ui-tracks")}</h3>

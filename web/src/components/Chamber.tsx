@@ -4,6 +4,7 @@ import type { BillView } from "../engine/protocol/BillView";
 import type { VoteDto } from "../engine/protocol/VoteDto";
 import { useGame } from "../state/gameStore";
 import { formatDate } from "../i18n/format";
+import { personName } from "./Knowing";
 
 function Member({ m }: { m: MemberView }) {
   const tr = useGame((s) => s.tr);
@@ -12,14 +13,16 @@ function Member({ m }: { m: MemberView }) {
     <li className="member">
       <div>
         <button type="button" className="link-btn" onClick={() => void openCharacter(m.character)} data-testid="member-name">
-          <strong>{m.name}</strong>
+          <strong>{personName(tr, m.name)}</strong>
         </button>
         {m.is_player && <span className="chip chip-muted"> {tr.t("ui-you")}</span>}
         <div className="muted small">
           {tr.t(m.role_key)}
-          {m.ward_number !== null && <> · {tr.t("ui-ward", { n: m.ward_number })}</>} · {tr.t(m.pragmatism >= 0.55 ? "ui-pragmatic" : "ui-ideologue")}
+          {m.ward_number !== null && <> · {tr.t("ui-ward", { n: m.ward_number })}</>}
+          {m.pragmatism !== null && <> · {tr.t(m.pragmatism >= 0.55 ? "ui-pragmatic" : "ui-ideologue")}</>}
         </div>
         <div className="tags">
+          {m.convictions.length === 0 && !m.is_player && <span className="muted small">{tr.t("knowledge-stances-unknown")}</span>}
           {m.convictions.map((c) => (
             <span key={c} className="chip chip-muted">
               {tr.t(`conviction-${c}`)}
@@ -50,7 +53,7 @@ function YourVote({ bill }: { bill: BillView }) {
       <ul className="plain small">
         <li>{tr.t(`ui-party-line-${bill.party_line}`)}</li>
         <li>{tr.t("ui-ward-view", { n: ward > 0 ? `+${ward}` : String(ward) })}</li>
-        {bill.owe_sponsor && <li>{tr.t("ui-owe-sponsor", { name: bill.sponsor_name })}</li>}
+        {bill.owe_sponsor && <li>{tr.t("ui-owe-sponsor", { name: personName(tr, bill.sponsor_name) })}</li>}
       </ul>
       {bill.my_vote ? (
         <p className="chip">{tr.t(`ui-voted-${bill.my_vote}`)}</p>
@@ -121,7 +124,7 @@ export function ChamberWhip() {
                 return (
                   <li key={w.politician} className="whip-row" data-lean={w.lean}>
                     <div className="whip-who">
-                      <strong>{w.name}</strong>
+                      <strong>{personName(tr, w.name)}</strong>
                       <span className="muted small">
                         {tr.t("ui-ward", { n: w.ward_number })} · <span className={`lean lean-${w.lean}`}>{tr.t(`lean-${w.lean}`)}</span> · {tr.t("ui-yes-chance", { pct: Math.round(w.yes_probability * 100) })}
                       </span>

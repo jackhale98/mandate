@@ -626,7 +626,9 @@ fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeMap<String, 
     match s {
         Subject::TownConcerns { town } => {
             put!("town", town_name(st, *town));
-            let keys = crate::office::town_concerns(engine, *town, 3)
+            // As the town's views rank them (felt across its neighbourhoods).
+            let hoods: Vec<usize> = st.world.hoods_of(*town).collect();
+            let keys = crate::office::concerns_for(st, content, *town, &hoods)
                 .into_iter()
                 .map(|c| c.name_key)
                 .collect();
