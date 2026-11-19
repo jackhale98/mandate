@@ -22,6 +22,9 @@ print_stdout = "warn"
 # (no fast-math in Rust, so results are unchanged; DEC-041). `cargo test` inherits it.
 [profile.dev]
 opt-level = 1
+# Line tables only: panics and backtraces keep file and line, and build folders are
+# about a third of the size (several agents build side by side on one disk).
+debug = "line-tables-only"
 
 [profile.release]
 opt-level = 3
