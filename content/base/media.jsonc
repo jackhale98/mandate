@@ -26,7 +26,7 @@
       "newsworthiness": { "ethics": 0.5, "misconduct": 0.8, "crime": 1.2 },
       "heat_keep": 0.72,            // a scandal's heat each week
       "heat_end": 0.12,             // it is over below this
-      "min_score": 0.15,
+      "min_score": 0.25,
       "hostility_interest": 0.6,    // an outlet that disagrees with you digs more
       "regional_access": 0.45,      // a regional outlet picks up a town affair (× severity weight)
       "national_access": 0.25,

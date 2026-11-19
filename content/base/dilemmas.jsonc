@@ -594,8 +594,8 @@
     },
     // --- Raised by a story or an investigation (DEC-034, DEC-006) -----------------------
     // Fairness first: never budgeted, always listed in the pocket. Fluent
-    // arguments add `$fact_key` (what came out), `$outlet` (who ran it), and
-    // `$severity_key`.
+    // arguments add `$fact` (what came out), `$outlet` (who ran it), and
+    // `$severity` (sent as `fact_key` etc. and rendered first).
     {
       "id": "dilemma.scandal_response", "category": "significant", "raised_by": "scandal",
       "title_key": "dilemma-scandal-response", "situation_key": "dilemma-scandal-response-situation",

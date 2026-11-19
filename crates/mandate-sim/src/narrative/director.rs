@@ -1292,6 +1292,30 @@ pub fn weekly(n: &mut NarrativeState, r: &Reads<'_>, out: &mut Outs<'_>) {
         n.tension = world as f32;
         return;
     }
+    // In prison, or the run is over (DEC-006): nothing is put to the player;
+    // what was waiting lapses (they cannot act on it).
+    if r.player.is_some_and(|p| !p.status.active()) {
+        n.tension = world as f32;
+        let date = r.date;
+        let mut runs = Vec::new();
+        for x in n.decisions.iter_mut() {
+            if x.status == DecisionStatus::Pending {
+                x.status = DecisionStatus::Lapsed;
+                x.resolution = Some(Resolution {
+                    option: String::new(),
+                    date,
+                    by_default: false,
+                    applied: Vec::new(),
+                });
+                runs.extend(x.storyline);
+            }
+        }
+        for run in n.storylines.iter_mut().filter(|x| runs.contains(&x.id)) {
+            run.decision = None;
+            run.entered = false;
+        }
+        return;
+    }
     let actual = world + d.tension.pending_weight * pending_load(n);
     n.tension = actual as f32;
     if let Some(ch) = n.chapter.as_mut() {

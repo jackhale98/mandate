@@ -32,12 +32,19 @@ fn engine(c: &Arc<ContentBundle>, seed: u64) -> Engine {
 }
 
 /// Answer every pending decision with its first affordable non-default
-/// option (a stand-in for a player who engages).
+/// option that is not borderline or illegal (a stand-in for an honest
+/// player who engages; `media.rs` tests the shady ones).
 fn answer_all(e: &mut Engine, c: &ContentBundle) {
     let pending: Vec<_> = e.state().narrative.pending().cloned().collect();
     for d in pending {
         let def = c.dilemma(&d.template).unwrap();
-        for o in def.options.iter().filter(|o| !o.default) {
+        for o in def.options.iter().filter(|o| {
+            !o.default
+                && !o
+                    .effects
+                    .iter()
+                    .any(|x| matches!(x, mandate_content::EffectDef::Hidden { .. }))
+        }) {
             let cmd = Command::Player(PlayerCommand::Answer {
                 decision: d.id.0,
                 option: o.id.clone(),

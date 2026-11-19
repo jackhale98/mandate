@@ -453,6 +453,7 @@ fn a_short_sentence_is_time_out_and_a_comeback() {
         }))
         .is_err()
     );
+    let jailed = e.state().calendar.date;
     let out = e.apply(Command::EndTurn).unwrap();
     assert!(
         out.days_advanced > 300,
@@ -461,6 +462,14 @@ fn a_short_sentence_is_time_out_and_a_comeback() {
     );
     let st = e.state();
     assert!(st.calendar.date >= until);
+    // Nothing was put to the player in prison.
+    assert!(
+        st.narrative
+            .decisions
+            .iter()
+            .all(|d| d.opened <= jailed.add_days(7) || d.opened >= until),
+        "a decision opened in prison"
+    );
     let pl = st.player.as_ref().unwrap();
     assert_eq!(pl.status, RunStatus::Active);
     assert!(pl.tracks.standing as f64 <= c.justice.release_standing);

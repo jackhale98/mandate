@@ -42,6 +42,11 @@ pub struct RunMetrics {
     /// Chapters whose spotlight exceeded a budget (must be 0).
     pub over_budget: u32,
     pub storylines: u32,
+    /// Scandals exposed and cases opened (DEC-034, DEC-006): the press and
+    /// the courts at work on NPCs (the player is idle and clean in a sweep).
+    pub scandals: u32,
+    pub major_scandals: u32,
+    pub cases: u32,
     pub state_hash: String,
 }
 
@@ -126,6 +131,7 @@ pub fn run_one(
     let mut disasters = 0;
     let mut major = 0;
     let mut closures = 0;
+    let (mut scandals, mut major_scandals) = (0, 0);
     for ev in s.events.iter().filter(|x| x.id > start_events) {
         match &ev.kind {
             EventKind::GlobalRecessionBegan { .. } => recessions += 1,
@@ -136,6 +142,12 @@ pub fn run_one(
                 }
             }
             EventKind::PlantClosure { .. } => closures += 1,
+            EventKind::ScandalBroke { severity, .. } => {
+                scandals += 1;
+                if severity != "ethics" {
+                    major_scandals += 1;
+                }
+            }
             _ => {}
         }
     }
@@ -184,6 +196,9 @@ pub fn run_one(
         towns_with_rival: share(&|t| t.rival.is_some()),
         crises_begun: begun,
         crises_ended: ended,
+        scandals,
+        major_scandals,
+        cases: s.justice.next_case,
         state_hash: e.state_hash(),
     }
 }
@@ -239,9 +254,14 @@ pub fn report(rows: &[RunMetrics], years: u32) -> serde_json::Value {
         "inflation": { "median": infl, "band": [-0.02, 0.12], "pass": (-0.02..=0.12).contains(&infl) },
         "debt_pct_gdp_change": { "median": debt_growth, "band": [-0.5, 0.6], "pass": (-0.5..=0.6).contains(&debt_growth) },
     });
+    let major = med(&|r| r.major_scandals as f64) * scale30;
     let floors = serde_json::json!({
         "recessions_per_30y": { "median": recessions, "floor": 2, "pass": recessions >= 2.0 },
         "disasters_per_30y": { "median": disasters, "floor": 1, "pass": disasters >= 1.0 },
+        // TEST_STRATEGY §4: major scandals exposed (misconduct or crime).
+        "major_scandals_per_30y": { "median": major, "floor": 3, "pass": major >= 3.0,
+            "all_scandals": med(&|r| r.scandals as f64) * scale30,
+            "cases": med(&|r| r.cases as f64) * scale30 },
     });
     let all = |v: &serde_json::Value| {
         v.as_object()

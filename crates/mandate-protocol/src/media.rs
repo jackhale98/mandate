@@ -176,7 +176,7 @@ pub fn article(engine: &Engine, s: &Story) -> Option<ArticleView> {
                 "severity_key".into(),
                 format!("severity-{}", x.severity.key()),
             );
-            if x.stories <= 1 && x.broke == s.date {
+            if x.broke == s.date {
                 "headline-scandal-breaks".to_string()
             } else {
                 "headline-scandal".to_string()
@@ -276,7 +276,7 @@ pub fn newspaper_view(engine: &Engine, limit: usize) -> Option<NewspaperView> {
         }
         picked.push(s);
     }
-    picked.sort_by(|a, b| b.id.cmp(&a.id));
+    picked.sort_by_key(|s| std::cmp::Reverse(s.id));
     let articles = picked
         .into_iter()
         .filter_map(|s| article(engine, s))

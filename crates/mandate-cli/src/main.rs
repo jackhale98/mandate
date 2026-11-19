@@ -390,8 +390,45 @@ fn run(cli: Cli) -> Result<(), String> {
             let end = e.state().calendar.date.add_days(years * 365);
             while e.state().calendar.date < end {
                 bots::play_turn(&mut e, &content, &strategy);
-                e.apply(Command::EndTurn).map_err(|e| e.to_string())?;
+                if e.apply(Command::EndTurn).is_err() {
+                    // The career ended (DEC-006).
+                    break;
+                }
             }
+            let me = e.state().player.as_ref().map(|p| p.politician);
+            // The press about the player, oldest first (DEC-034).
+            let press: Vec<_> = e
+                .state()
+                .media
+                .stories
+                .iter()
+                .filter(|s| s.subject.is_some() && s.subject == me)
+                .filter_map(|s| mandate_protocol::article(&e, s))
+                .collect();
+            let legal_events: Vec<_> = e
+                .state()
+                .events
+                .iter()
+                .filter(|ev| {
+                    matches!(
+                        ev.kind,
+                        mandate_sim::events::EventKind::ScandalBroke { .. }
+                            | mandate_sim::events::EventKind::CaseOpened { .. }
+                            | mandate_sim::events::EventKind::CaseDeveloped { .. }
+                            | mandate_sim::events::EventKind::PlayerImprisoned { .. }
+                            | mandate_sim::events::EventKind::PlayerReleased
+                            | mandate_sim::events::EventKind::CareerEnded { .. }
+                    )
+                })
+                .map(|ev| mandate_protocol::event_view(ev, &e))
+                .filter(|v| {
+                    me.is_some_and(|m| {
+                        v.args.get("name").map(|n| n.as_str())
+                            == e.state().politics.get(m).map(|p| p.full_name()).as_deref()
+                            || !v.args.contains_key("name")
+                    })
+                })
+                .collect();
             let decisions: Vec<_> = e
                 .state()
                 .narrative
@@ -403,6 +440,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 "seed": seed,
                 "story": mandate_protocol::story_view(&e),
                 "decisions": decisions,
+                "press": press,
+                "legal": mandate_protocol::legal_view(&e),
+                "legal_events": legal_events,
                 "chapters": e.state().narrative.chapters,
                 "facts": e.state().narrative.facts.len(),
             }));

@@ -3,7 +3,7 @@
 
 ## Outlets. A town paper is named after its office (DEC-079).
 outlet-local_paper = { $outlet_place }
-outlet-regional_paper = The { $outlet_place } Courier
+outlet-regional_paper = { $outlet_place } Regional News
 outlet-national_broadcaster = National Broadcasting
 outlet-social = Chatter
 
@@ -154,15 +154,35 @@ response-lawyer = hired a lawyer
 response-stonewall = stonewalled
 response-blame-ally = blamed an ally
 effect-respond-none = The story runs its course
-effect-respond-deny = Kills a weak story; if the evidence is strong, the denial unravels and costs Standing
-effect-respond-explain = The story cools
-effect-respond-apologise = The story ends sooner; prosecutors read it as an admission
-effect-respond-counter-attack = Rallies your side; the paper digs harder
+effect-respond-deny = A flat denial
+effect-respond-explain = A full explanation
+effect-respond-apologise = A public apology
+effect-respond-counter-attack = An attack on the paper
 effect-legal-none = The investigation goes on
-effect-legal-cooperate = Charges less likely and any sentence lighter; they find more
-effect-legal-lawyer = Better odds at every stage
-effect-legal-stonewall = Helps if they have little; obstruction makes strong evidence worse
-effect-legal-blame-ally = Charges much less likely; your ally takes the heat
+effect-legal-cooperate = Full cooperation
+effect-legal-lawyer = A good lawyer
+effect-legal-stonewall = Stonewalling
+effect-legal-blame-ally = Blaming an ally
+effect-respond-none-gain = Nothing you say can be quoted back at you
+effect-respond-none-cost = The story runs its course
+effect-respond-deny-gain = If they have little, the story dies
+effect-respond-deny-cost = If they have a lot, the denial unravels and costs Standing
+effect-respond-explain-gain = The story cools
+effect-respond-explain-cost = Some of it will be quoted back at you
+effect-respond-apologise-gain = The story ends sooner
+effect-respond-apologise-cost = Prosecutors read it as an admission
+effect-respond-counter-attack-gain = Your side rallies
+effect-respond-counter-attack-cost = The paper digs harder from now on
+effect-legal-none-gain = Nothing you say can be used against you
+effect-legal-none-cost = The investigation goes on without you
+effect-legal-cooperate-gain = Charges less likely, and any sentence lighter
+effect-legal-cooperate-cost = They find more than they had
+effect-legal-lawyer-gain = Better odds at every stage
+effect-legal-lawyer-cost = Hiring one is noticed
+effect-legal-stonewall-gain = Helps if they have little
+effect-legal-stonewall-cost = If they have a lot, obstruction makes it worse
+effect-legal-blame-ally-gain = Charges much less likely
+effect-legal-blame-ally-cost = Your ally takes the heat, and never forgets it
 
 ## Headlines (an outlet's story; `name` is its subject).
 headline-scandal-breaks = { $name } accused: { $fact }

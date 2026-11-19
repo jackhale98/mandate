@@ -732,6 +732,22 @@ pub fn decision_view(engine: &Engine, d: &Decision) -> Option<DecisionView> {
         .map(|o| {
             let (mut costs, mut gains) = (Vec::new(), Vec::new());
             for e in &o.effects {
+                // A response to a story or a case: what it buys and what it risks.
+                let response = match e {
+                    EffectDef::ScandalResponse { response } => Some(format!(
+                        "effect-respond-{}",
+                        response.key().replace('_', "-")
+                    )),
+                    EffectDef::LegalResponse { response, .. } => {
+                        Some(format!("effect-legal-{}", response.key().replace('_', "-")))
+                    }
+                    _ => None,
+                };
+                if let Some(k) = response {
+                    gains.push(line(&format!("{k}-gain"), vec![], "gain"));
+                    costs.push(line(&format!("{k}-cost"), vec![], "cost"));
+                    continue;
+                }
                 let l = preview(engine, d, e);
                 match e.valence() {
                     (true, false) => costs.push(l),
