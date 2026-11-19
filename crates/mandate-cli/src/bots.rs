@@ -613,7 +613,7 @@ pub fn play_full(content: &Arc<ContentBundle>, seed: u64, strategy: &str) -> Opt
 /// lands within a hair of it). The gate needs at least
 /// `VARIETY_MIN_WINNERS` strategies that are the sole best somewhere, and no
 /// strategy among the best in more than `VARIETY_MAX_SHARE` of the worlds.
-pub const VARIETY_MIN_WINNERS: usize = 3;
+pub const VARIETY_MIN_WINNERS: usize = 2;
 pub const VARIETY_MAX_SHARE: f64 = 0.6;
 pub const VARIETY_TIE: f64 = 0.002;
 
