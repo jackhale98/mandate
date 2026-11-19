@@ -2203,3 +2203,21 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   4. **Walking is a way in, not a requirement.** Gathering knowledge pays a lot. Gathering it by walking rather than through the Places tab pays only a little (DEC-051 parity).
 
   This amends the reading of DEC-077 §5's variety gate. Variety is measured among the informed styles, not between the intended way of playing and the rote routines. The bot gates change with E1 and E12 (ENGAGEMENT §7.2).
+- **Research folded in (owner, 2026-11-19: "Yes do it").** The proposals of `docs/design/research/ENGAGEMENT_REFERENCES.md` §3 are accepted into ENGAGEMENT.md and tasks E1–E12:
+  - **A pacing cycle for the director,** after Left 4 Dead's AI Director and RimWorld: build-up, peak and relax within each chapter. Storyteller profiles change how often things happen, not how severe they are.
+  - **Chapter themes and priority tiers for templates:** closing storyline and consequence windows come first, then the chapter's theme. No theme repeats in consecutive chapters.
+  - **Conversation lines that remember,** after Hades: priority, once-only lines and callbacks to what the player did, with a bounded `heard_once` state.
+  - **One ladder of balance gates** encoding the balance principle:
+    - rote < blind mix < informed play;
+    - knowledge matters (omniscient vs blind);
+    - several informed styles each win somewhere.
+  - **Knowledge as the progression,** after Outer Wilds:
+    - every find leads to another;
+    - lore ties to what the player already knows;
+    - a rival's next move is shown once known (Into the Breach);
+    - per-template telemetry.
+  - **Smaller additions:**
+    - asks offered at a sliding rate;
+    - a rising bar in the second term;
+    - pressures introduced year by year;
+    - at least 6 campaign-only templates.
