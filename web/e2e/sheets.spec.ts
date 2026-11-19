@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { openPocket } from "./pocket";
 
 // UI polish (owner, 2026-11-19): sheet heads, the pocket's slide, swipe to
 // close, the player's town on the map, and the pocket's agenda picker.
@@ -9,11 +10,6 @@ const start = async (page: Page, seed: string) => {
   await expect(page.getByTestId("town")).toBeVisible();
 };
 
-const openPocket = async (page: Page) => {
-  if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
-  await expect(page.getByTestId("pocket")).toBeVisible();
-  return page.getByTestId("pocket");
-};
 
 /** After scrolling, the sticky head sits flush with the sheet's top edge and
  * nothing of the sheet's content shows above it. */

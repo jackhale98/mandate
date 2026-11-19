@@ -1,13 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { openPocket } from "./pocket";
 
 // M5c: the director spotlights a dilemma (DEC-077 §4). It is listed in the
 // pocket with a badge, opened from there, answered (each option shows its
 // trade-offs), and its aftermath explains what happened (DEC-073, DEC-079).
-const openPocket = async (page: Page) => {
-  if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
-  await expect(page.getByTestId("pocket")).toBeVisible();
-  return page.getByTestId("pocket");
-};
 
 test("a dilemma is opened from the pocket, answered, and explained", async ({ page }) => {
   await page.goto("./");

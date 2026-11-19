@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openPocket, showPlaces } from "./pocket";
 
-// DEC-086: the town screen opens on an illustrated town map drawn from the
-// versioned layout; the list of places is its text view (Map | List), with
-// the same places. Runs on desktop and phone.
+// DEC-086, DEC-088 main screen: the town map is a full-screen overlay over the
+// street, drawn from the versioned layout; tapping a place there closes the
+// map and walks the player there in the street. The pocket's Places tab is its
+// text view, with the same places. Runs on desktop and phone.
 
-/** What the map exposes for tests (`window.__townMap`, web/src/components/TownMap.tsx). */
+/** What the map and the street expose for tests (web/src/components: TownMap, TownStreet). */
 interface Pt {
   x: number;
   y: number;
@@ -21,6 +23,7 @@ declare global {
         screenCentre(key: string): Pt | null;
       } | null;
     };
+    __townStreet?: { view: { scene: { playerMoving: boolean } } } | null;
   }
 }
 const start = async (page: Page, seed: string) => {
@@ -28,9 +31,16 @@ const start = async (page: Page, seed: string) => {
   await page.getByPlaceholder("e.g. 20260").fill(seed);
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
-  // The new run has been saved and the town loaded (the map ignores taps while the game is busy).
+  // The new run has been saved and the town loaded (taps are ignored while the game is busy).
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
-  // The town is laid out in the town worker (the loader shows meanwhile), then the map is drawn.
+  // The town is laid out in the town worker (the loader shows meanwhile), then the street is drawn.
+  await expect(page.locator(".town-street-stage[data-ready='1']")).toBeVisible({ timeout: 30_000 });
+};
+
+/** The bar's Map button opens the town map over the street. */
+const openMap = async (page: Page) => {
+  await page.getByTestId("town-map-button").click();
+  await expect(page.getByTestId("town-map-overlay")).toBeVisible();
   await expect(page.getByTestId("town-map-canvas")).toBeVisible();
 };
 
@@ -52,21 +62,20 @@ const tapMap = async (page: Page, x: number, y: number, touch: boolean) => {
   else await page.mouse.click(box.x + x, box.y + y);
 };
 
-test("the town opens on its map, and tapping a landmark goes there and opens it", async ({ page }, info) => {
+test("the Map button opens the town map full screen; tapping a landmark closes it and walks there", async ({ page }, info) => {
+  test.setTimeout(120_000);
   const errors = watchErrors(page);
   await start(page, "31337");
-  await expect(page.getByTestId("town-tab-map")).toHaveAttribute("aria-selected", "true");
+  await openMap(page);
   const canvas = page.getByTestId("town-map-canvas");
-  await expect(canvas).toBeVisible();
-  await expect(canvas).toHaveAttribute("aria-label", /Map of .+ places to go/);
-  // The map fills the width of the town column; the bottom bar stays in view.
+  await expect(canvas).toHaveAttribute("aria-label", /Map of .+ places to go.+Places tab/);
+  // A modal dialog over the whole screen; the keyboard starts on its close button.
+  await expect(page.getByRole("dialog", { name: /tap a place/ })).toBeVisible();
+  await expect(page.getByTestId("town-map-close")).toBeFocused();
   const map = await page.locator(".town-map-wrap").boundingBox();
-  const main = await page.locator(".town-main").boundingBox();
-  expect(map?.width).toBeGreaterThan((main?.width ?? 0) - 2);
-  expect(map?.height).toBeGreaterThan(240);
-  await expect(page.locator(".actionbar")).toBeInViewport();
-  // The town card stays on the screen with the map.
-  await expect(page.getByTestId("town-card")).toBeVisible();
+  const vp = page.viewportSize();
+  expect(map?.width).toBeGreaterThan((vp?.width ?? 0) - 2);
+  expect(map?.height).toBeGreaterThan((vp?.height ?? 0) * 0.6);
   // Home and "you are here" are marked with words, not colour alone.
   await expect(page.getByTestId("map-home")).toHaveAttribute("aria-current", "location");
   await expect(page.getByTestId("map-home")).toHaveAttribute("aria-label", /Home.*You are here/);
@@ -77,56 +86,66 @@ test("the town opens on its map, and tapping a landmark goes there and opens it"
   const at = await page.evaluate((k) => window.__townMap?.view?.screenCentre(k as string) ?? null, key);
   expect(at).not.toBeNull();
   await tapMap(page, at?.x ?? 0, at?.y ?? 0, info.project.name === "phone");
-  // The player is shown walking there along the streets…
-  await expect.poll(() => page.evaluate(() => window.__townMap?.view?.walking ?? false), { timeout: 2000 }).toBe(true);
-  // …and the town hall's panel opens, with the player there.
+  // The map closes and the player walks there along the streets…
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
+  // With a mouse, focus goes back to the Map button (a finger's tap lands on the street below; the keyboard test checks the rest).
+  if (info.project.name === "desktop") await expect(page.getByTestId("town-map-button")).toBeFocused();
+  await expect.poll(() => page.evaluate(() => window.__townStreet?.view.scene.playerMoving ?? false), { timeout: 5000 }).toBe(true);
+  // …and the town hall's panel opens on arrival, with the player there.
   const panel = page.getByTestId("place-panel");
-  await expect(panel.getByRole("heading", { name: /Town hall/ })).toBeVisible();
+  await expect(panel.getByRole("heading", { name: /Town hall/ })).toBeVisible({ timeout: 60_000 });
   await expect(panel.getByTestId("you-are-here-panel")).toBeVisible();
   await expect(page.getByTestId("where")).toContainText("Town hall");
-  await expect(hall).toHaveAttribute("aria-current", "location");
-  await expect.poll(() => page.evaluate(() => window.__townMap?.view?.walking ?? true)).toBe(false);
-  // Escape closes the panel, as elsewhere.
+  // Escape closes the panel, as elsewhere; on the map the town hall is now where you are.
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
+  await openMap(page);
+  await expect(page.getByTestId("map-town_hall")).toHaveAttribute("aria-current", "location");
+  // Escape closes the map too.
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test("the List view has the same places as the map, and the choice survives a reload", async ({ page }) => {
+test("the Places tab has the same places as the map, and the last tab survives a reload", async ({ page }) => {
   const errors = watchErrors(page);
   await start(page, "2718");
+  await openMap(page);
   const hotspots = page.locator("[data-hotspot]");
   const mapNames = await hotspots.evaluateAll((els) => els.map((e) => ({ name: (e as HTMLElement).dataset.name ?? "", quiet: e.classList.contains("town-map-hit-quiet") })));
   expect(mapNames.length).toBeGreaterThan(5);
+  await page.getByTestId("town-map-close").click();
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
 
-  await page.getByTestId("town-tab-list").click();
-  await expect(page.getByTestId("town-tab-list")).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByTestId("town-map")).toHaveCount(0);
-  const listNames = await page.locator(".spot .spot-name").allTextContents();
-  // Every place you can go to on the map is a button in the list, and the other way round.
+  const pocket = await showPlaces(page);
+  const listNames = await pocket.locator(".spot .spot-name").allTextContents();
+  // Every place you can go to on the map is a button in the Places tab, and the other way round.
   expect(mapNames.filter((m) => !m.quiet).map((m) => m.name).sort()).toEqual([...listNames].sort());
-  // Places with nothing to do yet are named in the list's "Also here".
-  const quiet = (await page.locator(".hood-quiet").allTextContents()).join(" ");
+  // Places with nothing to do yet are named under "Also here".
+  const quiet = (await pocket.locator(".hood-quiet").allTextContents()).join(" ");
   for (const m of mapNames.filter((x) => x.quiet)) expect(quiet).toContain(m.name);
 
-  // The choice is remembered on this device.
+  // The tab is remembered on this device.
   await page.reload();
   await page.getByRole("button", { name: "Continue" }).first().click();
   await expect(page.getByTestId("town")).toBeVisible();
-  await expect(page.getByTestId("town-tab-list")).toHaveAttribute("aria-selected", "true");
+  await page.getByTestId("pocket-button").click();
+  await expect(page.getByTestId("pocket-tab-places")).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("spot-town_hall")).toBeVisible();
-  await page.getByTestId("town-tab-map").click();
+  await openPocket(page, "today");
   await page.reload();
   await page.getByRole("button", { name: "Continue" }).first().click();
-  await expect(page.getByTestId("town-map-canvas")).toBeVisible();
+  await page.getByTestId("pocket-button").click();
+  await expect(page.getByTestId("pocket-tab-today")).toHaveAttribute("aria-selected", "true");
   expect(errors).toEqual([]);
 });
 
-test("the keyboard moves between places on the map and Enter goes there", async ({ page }) => {
+test("the keyboard moves between places on the map and Enter walks there", async ({ page }) => {
+  test.setTimeout(120_000);
   const errors = watchErrors(page);
   await start(page, "4040");
-  await page.getByTestId("town-tab-map").focus();
-  // Tab enters the map at its first place (the list's order); arrows move between places.
+  await openMap(page);
+  // From the close button, Tab enters the map at its first place (the list's order); arrows move between places.
   await page.keyboard.press("Tab");
   const focused = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.hotspot ?? null);
   const first = await focused();
@@ -137,28 +156,29 @@ test("the keyboard moves between places on the map and Enter goes there", async 
     seen.add(await focused());
   }
   expect(seen.size).toBeGreaterThan(2);
-  // Enter goes to the focused place (a place with something to do).
+  // Zoom keys work without moving the focus off the map.
+  const z0 = await page.evaluate(() => window.__townMap?.view?.camera.state.zoom ?? 0);
+  await page.keyboard.press("+");
+  await expect.poll(() => page.evaluate(() => window.__townMap?.view?.camera.state.zoom ?? 0)).toBeGreaterThan(z0 * 1.2);
+  expect(await focused()).not.toBeNull();
+  // Enter goes to the focused place (a place with something to do): the map closes, the player walks, the panel opens.
   const active = page.locator("[data-hotspot]:not(.town-map-hit-quiet)").filter({ hasNot: page.locator("[aria-current]") });
   const target = active.nth(1);
   const name = (await target.getAttribute("data-name")) ?? "";
   await target.focus();
   await page.keyboard.press("Enter");
+  await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
+  await expect(page.getByTestId("town-map-button")).toBeFocused();
   const panel = page.getByTestId("place-panel");
-  await expect(panel.locator("#place-title")).toContainText(name);
+  await expect(panel.locator("#place-title")).toContainText(name, { timeout: 60_000 });
   await expect(page.getByTestId("where")).toContainText(name);
-  // Zoom keys work without moving the focus off the map.
-  const z0 = await page.evaluate(() => window.__townMap?.view?.camera.state.zoom ?? 0);
-  await page.keyboard.press("Escape");
-  await expect(panel).toHaveCount(0);
-  await page.locator("[data-hotspot]").first().focus();
-  await page.keyboard.press("+");
-  await expect.poll(() => page.evaluate(() => window.__townMap?.view?.camera.state.zoom ?? 0)).toBeGreaterThan(z0 * 1.2);
   expect(errors).toEqual([]);
 });
 
 test("pinch and wheel zoom about the fingers, and zooming out frames the town", async ({ page }, info) => {
   test.skip(info.project.name === "phone", "the wheel is a desktop gesture; pinches are covered by the camera's unit tests");
   await start(page, "31337");
+  await openMap(page);
   const box = await page.locator(".town-map-wrap").boundingBox();
   if (!box) throw new Error("no map");
   const fit = await page.evaluate(() => window.__townMap?.view?.fitZoom ?? 0);

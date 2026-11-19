@@ -24,6 +24,9 @@ test("town timings", async ({ page, context }, info) => {
   await page.goto("./");
   await page.getByPlaceholder("e.g. 20260").fill("4242");
   await page.getByRole("button", { name: "Begin" }).click();
+  // The town map (an overlay over the street, DEC-088) carries the bench probe.
+  await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
+  await page.getByTestId("town-map-button").click();
   await expect(page.getByTestId("town-map-canvas")).toBeVisible();
   if (info.project.name === "phone") {
     const cdp = await context.newCDPSession(page);

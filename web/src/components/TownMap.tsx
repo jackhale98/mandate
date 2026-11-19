@@ -1,10 +1,10 @@
-// The town map overview (DEC-086): the town screen's main view, an
-// illustrated low-resolution map drawn from the same versioned layout as the
-// walkable street (DEC-085). Tapping a building does what the list's place
-// buttons do (`visit`: go there, free, and open its panel; DEC-079), and the
-// player is shown walking there along the streets. Every hotspot is a real
-// button (keyboard, screen readers), and the List view stays the text
-// alternative with exactly the same places (DEC-051). Presentation only: the
+// The town map overview (DEC-086): an illustrated low-resolution map drawn
+// from the same versioned layout as the walkable street (DEC-085), shown full
+// screen over the street (DEC-088 main screen). Picking a building hands it
+// to `onPick` (the town screen closes the map and walks the player there in
+// the street). Every hotspot is a real button (keyboard, screen readers), and
+// the pocket's Places tab stays the text alternative with exactly the same
+// places (DEC-051). Presentation only: the
 // engine says what a place offers, where the player is and what is waiting.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { LocationDto } from "../engine/protocol/LocationDto";
@@ -170,15 +170,14 @@ export interface TownMapProps {
   town: TownPlacesView;
   /** The dressed layout v2 map (../hub/gameTown). */
   map: TownMapModel;
-  /** Go down into the walkable street, looking at a point of the town (tiles), or from where the player is (null). */
-  onWalk?: (at: { x: number; y: number } | null) => void;
+  /** A place with something to do was picked (tap, click, Enter). */
+  onPick: (h: MapHotspot) => void;
 }
 
-export function TownMap({ town, map, onWalk }: TownMapProps) {
+export function TownMap({ town, map, onPick }: TownMapProps) {
   const tr = useGame((s) => s.tr);
   const pocket = useGame((s) => s.pocket);
   const busy = useGame((s) => s.busy);
-  const visit = useGame((s) => s.visit);
   const walking = useGame((s) => s.walking);
   const passage = useGame((s) => s.passage?.phase ?? null);
   const built = townMapFor(map, town);
@@ -205,8 +204,7 @@ export function TownMap({ town, map, onWalk }: TownMapProps) {
         return;
       }
       setQuiet(null);
-      viewRef.current?.walkTo(h);
-      void visit(h.location);
+      onPick(h);
     };
   });
 
@@ -252,9 +250,8 @@ export function TownMap({ town, map, onWalk }: TownMapProps) {
       <div
         ref={wrapRef}
         className="town-map-wrap"
-        style={{ aspectRatio: `${baked.width} / ${Math.round(baked.height * 1.08)}` }}
         role="group"
-        aria-roledescription={say(tr, "ui-town-view-map")}
+        aria-roledescription={say(tr, "ui-town-map")}
         aria-label={town.municipality}
         aria-describedby="town-map-help"
       >
@@ -296,23 +293,6 @@ export function TownMap({ town, map, onWalk }: TownMapProps) {
             );
           })}
         </div>
-        {onWalk && (
-          <button
-            type="button"
-            className="btn btn-sm town-map-walk"
-            data-map-control=""
-            data-testid="town-walk"
-            onClick={() => {
-              const v = viewRef.current;
-              // Zoomed in on part of the town: walk there; else from where the player is.
-              const s = v?.camera.state;
-              onWalk(v && s && s.zoom > v.fitZoom * 1.6 ? { x: s.x, y: s.y } : null);
-            }}
-          >
-            <span aria-hidden="true">🚶 </span>
-            {say(tr, "ui-town-walk")}
-          </button>
-        )}
         <div className="town-map-tools" data-map-control="">
           <button type="button" className="btn btn-sm town-map-tool" onClick={() => viewRef.current?.zoomBy(1.5)} aria-label={say(tr, "ui-town-map-zoom-in")} title={say(tr, "ui-town-map-zoom-in")}>
             +

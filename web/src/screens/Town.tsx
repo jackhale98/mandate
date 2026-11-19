@@ -1,236 +1,132 @@
-import type { SpotView } from "../engine/protocol/SpotView";
+// The game's main screen (DEC-088 "Main screen", DEC-079, DEC-086): the
+// walkable street, full screen. The town map is a full-screen overlay over it
+// (the bar's Map button): tapping a place there closes the map and walks the
+// player there in the street, and arriving sends the same command as the
+// pocket's Places tab (`visit`). The town card lives in the pocket's Town tab
+// and the place list in its Places tab: the text path to every place, so
+// nothing is reachable only through the canvas (DEC-051). Both pictures come
+// from one layout v2 plan made in the town worker (../components/useTownLayout).
+// Where the player is (neighbourhood and place) is a label at the top of the
+// street (../components/TownStreet), not in the bar.
+import { lazy, Suspense, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 import { useGame } from "../state/gameStore";
-import { placeIcon, placeName } from "../places/labels";
 import { Loader } from "../components/Brand";
-import type { TownCharacterView } from "../engine/protocol/TownCharacterView";
-import type { PersonRefView } from "../engine/protocol/PersonRefView";
-import { roleText } from "../components/CharacterSheet";
-import { lazy, Suspense, useEffect, useState } from "react";
-import { Unknown, personName } from "../components/Knowing";
 import { TownMap } from "../components/TownMap";
 import { say } from "../components/townMapText";
-import { useTownLayout } from "../components/useTownLayout";
-import { TownViewTabs, townPanelId, townTabId, useTownViewMode } from "../components/TownViewTabs";
+import { useTownLayout, type TownLayout } from "../components/useTownLayout";
+import type { WalkRequest } from "../components/TownStreet";
 
-function Who({ p }: { p: PersonRefView }) {
-  const tr = useGame((s) => s.tr);
-  const busy = useGame((s) => s.busy);
-  const openCharacter = useGame((s) => s.openCharacter);
-  return (
-    <button type="button" className="link-btn" disabled={busy || p.id === null} onClick={() => p.id !== null && void openCharacter(p.id)}>
-      {personName(tr, p.name)}
-      {p.rumoured && <span className="muted small"> ({tr.t("knowledge-rumoured")})</span>}
-      <span className="muted small"> · {roleText(tr, p)}</span>
-    </button>
-  );
-}
-
-/** The town's character (DEC-077 §1): what it lives on, what it is going through, and who matters. */
-function TownCard({ c }: { c: TownCharacterView }) {
-  const tr = useGame((s) => s.tr);
-  return (
-    <section className="card town-card" data-testid="town-card" aria-labelledby="town-card-title">
-      <h2 id="town-card-title">{tr.t("ui-town-card")}</h2>
-      <dl className="facts">
-        <div>
-          <dt>{tr.t("ui-defining-industry")}</dt>
-          <dd data-testid="town-industry">{c.industry ? `${tr.t(c.industry.name_key)} · ${tr.t("ui-industry-share", { pct: Math.round(c.industry_share * 100) })}` : tr.t("ui-nobody")}</dd>
-        </div>
-        <div>
-          <dt>{tr.t("ui-live-crisis")}</dt>
-          <dd data-testid="town-crisis">
-            {c.crisis ? (
-              <>
-                <strong>{tr.t(c.crisis.name_key)}</strong> · {tr.t(`crisis-severity-${c.crisis.severity_band}`)}, {tr.t(`crisis-trend-${c.crisis.trend}`)} <span className="muted small">({tr.t("ui-crisis-since", { month: c.crisis.since.month, year: String(c.crisis.since.year) })})</span>
-              </>
-            ) : (
-              <span className="muted">{tr.t("ui-no-crisis")}</span>
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>{tr.t("ui-power-broker-line")}</dt>
-          <dd data-testid="town-broker">{c.broker ? <Who p={c.broker} /> : c.broker_knowledge.level === "unknown" ? <Unknown k={c.broker_knowledge} text="knowledge-broker-unknown" /> : tr.t("ui-nobody")}</dd>
-        </div>
-        <div>
-          <dt>{tr.t("ui-rival-line")}</dt>
-          <dd data-testid="town-rival">{c.rival ? <Who p={c.rival} /> : tr.t("ui-nobody")}</dd>
-        </div>
-        <div>
-          <dt>{tr.t("ui-priorities")}</dt>
-          <dd data-testid="town-priorities">
-            {c.priorities.length > 0 ? c.priorities.map((p) => tr.t(p.name_key)).join(" · ") : c.priorities_knowledge.level === "unknown" ? <Unknown k={c.priorities_knowledge} text="knowledge-priorities-unknown" /> : tr.t("ui-nobody")}
-          </dd>
-        </div>
-      </dl>
-    </section>
-  );
-}
-
-function Spot({ s }: { s: SpotView }) {
-  const tr = useGame((st) => st.tr);
-  const busy = useGame((st) => st.busy);
-  const visit = useGame((st) => st.visit);
-  const name = placeName(tr, s.location);
-  const kind = tr.t(`place-${s.location.kind_key}`);
-  // A short summary of what you can do and learn here (withdrawing a bill is a footnote).
-  const what = [...s.actions.filter((a) => a !== "withdraw").map((a) => tr.t(`short-${a}`)), ...s.services.map((x) => tr.t(`short-${x}`))];
-  return (
-    <li>
-      <button
-        type="button"
-        className={s.here ? "spot spot-here" : "spot"}
-        aria-current={s.here ? "location" : undefined}
-        disabled={busy}
-        onClick={() => void visit(s.location.location)}
-        data-testid={`spot-${s.location.kind_key}`}
-      >
-        <span className="spot-icon" aria-hidden="true">
-          {placeIcon(s.location.kind_key)}
-        </span>
-        <span className="spot-text">
-          <strong className="spot-name">{name}</strong>
-          {s.location.name && s.location.kind_key !== "streets" && <span className="muted small">{kind}</span>}
-          <span className="spot-what small">{what.join(" · ")}</span>
-        </span>
-        {s.here && (
-          <span className="spot-marker" data-testid="you-are-here">
-            <span aria-hidden="true">📍 </span>
-            {tr.t("ui-you-are-here")}
-          </span>
-        )}
-      </button>
-    </li>
-  );
-}
-
-// The walkable street: a chunk of its own (the hub renderer and the pixel-art provider), loaded when first walked.
+// The walkable street: a chunk of its own (the hub renderer and the pixel-art provider).
 const TownStreet = lazy(() => import("../components/TownStreet"));
 
-/**
- * The town drawn (DEC-086, DEC-088): its map, and from the map its walkable
- * streets, both from one layout v2 plan made in the town worker
- * (../components/useTownLayout). The loader shows while the town is laid
- * out; the List view never waits for it.
- */
-function TownPicture({ town }: { town: TownPlacesView }) {
-  const tr = useGame((s) => s.tr);
-  const layout = useTownLayout(town);
-  // Walking is reached from the map (DEC-088); the screen opens on the map (a quick-mode setting comes later).
-  const [street, setStreet] = useState<{ at: { x: number; y: number } | null } | null>(null);
-  const [moved, setMoved] = useState(false);
-  // Keep the keyboard where it was: on the way down the back button, on the way up the walk button.
-  useEffect(() => {
-    if (!moved) return;
-    const id = requestAnimationFrame(() => document.querySelector<HTMLElement>(street ? "[data-testid='town-walk-back']" : "[data-testid='town-walk']")?.focus());
-    return () => cancelAnimationFrame(id);
-  }, [street, moved, layout.status]);
-  if (layout.status === "loading") {
-    return (
-      <div className="town-map-pending" data-testid="town-map-loading">
-        <Loader compact label={say(tr, "ui-town-planning")} />
-      </div>
-    );
-  }
-  if (layout.status === "error") {
-    return (
-      <p className="error small" role="alert" data-testid="town-map-error">
-        {layout.message}
-      </p>
-    );
-  }
-  if (street) {
-    return (
-      <Suspense
-        fallback={
-          <div className="town-map-pending">
-            <Loader compact label={say(tr, "ui-town-street-loading")} />
-          </div>
-        }
-      >
-        <TownStreet
-          town={town}
-          map={layout.map}
-          at={street.at}
-          onBack={() => {
-            setMoved(true);
-            setStreet(null);
-          }}
-        />
-      </Suspense>
-    );
-  }
+function Pending({ label }: { label: string }) {
   return (
-    <TownMap
-      town={town}
-      map={layout.map}
-      onWalk={(at) => {
-        setMoved(true);
-        setStreet({ at });
-      }}
-    />
+    <div className="town-map-pending" data-testid="town-map-loading">
+      <Loader compact label={label} />
+    </div>
   );
 }
 
-/**
- * The town (M5 interim, DEC-079): a schematic of neighbourhoods with their
- * places as tappable buildings. It is also a plain list of sections and
- * buttons, so every place is reachable without the picture (DEC-051).
- */
-export function Town() {
+/** The town map over the street (DEC-086): a modal dialog; Escape or ✕ closes it. */
+function TownMapOverlay({ town, layout, onPick }: { town: TownPlacesView; layout: TownLayout; onPick: (location: LocationDto) => void }) {
   const tr = useGame((s) => s.tr);
+  const setOpen = useGame((s) => s.setTownMapOpen);
+  const ref = useRef<HTMLDivElement>(null);
+  // Modal: the screen behind is inert while the map is open; the keyboard starts on the close button and returns to the Map button.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const others = [...(el.parentElement?.children ?? [])].filter((c): c is HTMLElement => c !== el && c instanceof HTMLElement && !c.inert);
+    for (const o of others) o.inert = true;
+    el.querySelector<HTMLElement>("[data-testid='town-map-close']")?.focus();
+    return () => {
+      for (const o of others) o.inert = false;
+      (document.querySelector<HTMLElement>("[data-testid='town-map-button']") ?? back)?.focus();
+    };
+  }, []);
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(false);
+  };
+  return (
+    <div ref={ref} className="town-map-overlay" role="dialog" aria-modal="true" aria-labelledby="town-map-title" data-testid="town-map-overlay" onKeyDown={onKey}>
+      <div className="town-map-overlay-head">
+        <h2 id="town-map-title">
+          {town.municipality} <span className="muted small">· {say(tr, "ui-town-map-pick")}</span>
+        </h2>
+        <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)} aria-label={say(tr, "ui-town-map-close")} data-testid="town-map-close">
+          ✕
+        </button>
+      </div>
+      <div className="town-map-overlay-body">
+        {layout.status === "ready" ? (
+          <TownMap town={town} map={layout.map} onPick={(h) => onPick(h.location)} />
+        ) : layout.status === "loading" ? (
+          <Pending label={say(tr, "ui-town-planning")} />
+        ) : (
+          <p className="error small" role="alert">
+            {layout.message}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TownScreen({ town }: { town: TownPlacesView }) {
+  const tr = useGame((s) => s.tr);
+  const layout = useTownLayout(town);
+  const mapOpen = useGame((s) => s.townMapOpen);
+  const setMapOpen = useGame((s) => s.setTownMapOpen);
+  const [walk, setWalk] = useState<WalkRequest | null>(null);
+  return (
+    <>
+      <main id="town-main" className="town-screen" data-testid="town" aria-labelledby="town-heading">
+        <h1 id="town-heading" className="visually-hidden">
+          {town.municipality}
+        </h1>
+        {layout.status === "ready" ? (
+          <Suspense fallback={<Pending label={say(tr, "ui-town-street-loading")} />}>
+            <TownStreet town={town} map={layout.map} walkTo={walk} />
+          </Suspense>
+        ) : layout.status === "loading" ? (
+          <Pending label={say(tr, "ui-town-planning")} />
+        ) : (
+          <p className="error small town-error" role="alert" data-testid="town-map-error">
+            {layout.message}
+          </p>
+        )}
+
+      </main>
+      {mapOpen && (
+        <TownMapOverlay
+          town={town}
+          layout={layout}
+          onPick={(location) => {
+            setMapOpen(false);
+            setWalk((w) => ({ location, id: (w?.id ?? 0) + 1 }));
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+export function Town() {
   const town = useGame((s) => s.town);
-  // DEC-086: the town map is the main view; the list is its text view (Map | List, remembered per device).
-  const [mode, setMode] = useTownViewMode();
   if (!town) {
     return (
-      <main className="game-body">
+      <main className="town-screen" data-testid="town-loading">
         <div className="center">
           <Loader compact />
         </div>
       </main>
     );
   }
-  return (
-    <main className="game-body town" data-testid="town">
-      <h1 className="town-title">
-        {town.municipality} <span className="muted small">· {tr.t("ui-town-help")}</span>
-      </h1>
-      <div className="town-layout">
-      {town.character && <TownCard c={town.character} />}
-      <div className="town-main">
-      <TownViewTabs mode={mode} onChange={setMode} />
-      {mode === "map" ? (
-        <div role="tabpanel" id={townPanelId("map")} aria-labelledby={townTabId("map")}>
-          <TownPicture town={town} />
-        </div>
-      ) : (
-      <div className="town-grid" role="tabpanel" id={townPanelId("list")} aria-labelledby={townTabId("list")}>
-        {town.neighborhoods.map((h) => {
-          const active = h.spots.filter((s) => s.actions.length + s.services.length > 0);
-          const quiet = h.spots.filter((s) => s.actions.length + s.services.length === 0);
-          return (
-            <section key={h.id} className={`hood hood-${h.kind}`} aria-labelledby={`hood-${h.id}`}>
-              <div className="hood-head">
-                <h2 id={`hood-${h.id}`}>{h.name}</h2>
-                <span className="muted small">{tr.t(`hood-${h.kind}`)}</span>
-                {h.is_home && <span className="chip chip-muted">{tr.t("ui-home-hood")}</span>}
-                {h.in_ward && <span className="chip chip-muted">{tr.t("ui-your-ward")}</span>}
-              </div>
-              <ul className="spots">
-                {active.map((s, i) => (
-                  <Spot key={i} s={s} />
-                ))}
-              </ul>
-              {quiet.length > 0 && <p className="muted small hood-quiet">{tr.t("ui-also-here", { list: quiet.map((s) => placeName(tr, s.location)).join(" · ") })}</p>}
-            </section>
-          );
-        })}
-      </div>
-      )}
-      </div>
-      </div>
-    </main>
-  );
+  return <TownScreen town={town} />;
 }
