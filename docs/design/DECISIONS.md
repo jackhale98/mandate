@@ -1585,6 +1585,8 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      - **§5 The variety gate.** `mandate-cli bots` reports, per world, the best active strategies by vote share (strategies within 0.2 points share the world), and by starting situation. Gate: at least 2 strategies are the sole best somewhere, and none is among the best in more than 60% of worlds. Enforced with the other bot gates in CI (16 seeds) and nightly (32). Passing it took tuning (BALANCE_LOG 2026-11-19): ads persuade less (`ad_persuasion_share` 0.25 → 0.05) and a thin record costs more (`record_penalty` 4 → 5).
 - **Dependencies:** DEC-032, DEC-033, DEC-036, DEC-073, DEC-075, DEC-076.
 
+- **Amended (DEC-097, 2026-11-19).** The variety gate compares informed playing styles with one another. The intended way of playing (learn the town, then play a mix) is meant to beat rote routines, and is not counted as a "dominant strategy". Rote routines have their own gates (ENGAGEMENT §7.2).
+
 ### DEC-078 — Data-driven tuning and further registries
 
 - **Status:** Accepted (owner, 2026-11-18). This extends DEC-075, after the owner asked what else should become data while the game is small.
@@ -2184,3 +2186,20 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      Thresholds are set from the design pass, and it runs in CI beside the bot gates.
 - **Order:** the design pass first (`docs/design/research/ENGAGEMENT.md`); then 1 and 3 with the talk work; then 2 (before policy families); 4 and 5 with hidden places (G2); 6 alongside L1.
 - **Dependencies:** DEC-030, DEC-031, DEC-032, DEC-033, DEC-034, DEC-051, DEC-072, DEC-076, DEC-077, DEC-090, DEC-091, DEC-093, DEC-094, DEC-096.
+- **Design:** `docs/design/research/ENGAGEMENT.md` (2026-11-19), tasks E1–E12.
+- **Owner answers (2026-11-19: "Go with recommendations"):**
+  1. Canvassing between elections still raises approval a little: about 0.6× today on a first visit, fading fast on repeat visits.
+  2. Casework comes only through asks, not as a free-standing action.
+  3. Three campaign promises. Broken public promises make the press and give the rival material.
+  4. No using a secret to pressure someone in M6. It may come later as a shady act with its own hidden fact.
+  5. Easter eggs are in-world only, with no completion reward for collecting lore.
+  6. The engagement gate is report-only (nightly) until E2–E8 merge, then it blocks CI.
+- **Balance principle (owner, 2026-11-19).** The owner said: "isn't the explorer bot how we intend people to actually play the game? If it was balanced perfectly so a strategy of just canvassing worked just as well as going around and doing different things wouldn't that be bad game play?"
+
+  Agreed. Players optimise toward whatever wins, so the winning way to play must be the engaging one. Balance does not aim for equal strategies. It aims for:
+  1. **A clear skill gap.** Informed, varied play (reading the town, mixing actions, following up) beats every rote routine (a single repeated verb, or a blind mix) by a margin a player can feel.
+  2. **Variety inside good play.** Several informed styles exist (for example a coalition builder, a legislator, a campaigner), and which one is best depends on the town and its situation. No one of them wins everywhere.
+  3. **The gates police rote play:** canvassing only, media only, asks only, and corruption.
+  4. **Walking is a way in, not a requirement.** Gathering knowledge pays a lot. Gathering it by walking rather than through the Places tab pays only a little (DEC-051 parity).
+
+  This amends the reading of DEC-077 §5's variety gate. Variety is measured among the informed styles, not between the intended way of playing and the rote routines. The bot gates change with E1 and E12 (ENGAGEMENT §7.2).

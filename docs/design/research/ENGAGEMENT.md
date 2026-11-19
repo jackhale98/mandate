@@ -82,7 +82,7 @@ A second grid, `--grid politics.campaign.contact_memory=0.8,0.9 --grid actions.c
 
 A longer race-contact memory hurts the strategies that canvass hard in the campaign (mixed, explorer) more than canvass-only, which built its awareness all year: the wrong direction. It stays at 0.8.
 
-**Lesson:** a flat cut hurts every strategy that canvasses in the campaign and hands the dominance to the next all-rounder. The rebalance must cut *repeated, out-of-season* canvassing (what canvass-only does and mixed does not), and it must land with new, world-dependent sources of approval (asks, delivery), or the variety gate fails. §2 is designed that way; E1 is tuned with E6–E8 in view.
+**Lesson:** a flat cut hurts every strategy that canvasses in the campaign and hands the lead to the next all-rounder. Since the owner's balance principle (DEC-097, §7.2), the explorer taking the lead is the *intended* result, not a failure. The "variety" failures in these grids are an artefact of the old gate, which counted the intended way of playing as one routine among many. The rebalance must cut *repeated, out-of-season* canvassing (what canvass-only does and mixed does not), and it must land with new, world-dependent sources of approval (asks, delivery), or the variety gate fails. §2 is designed that way; E1 is tuned with E6–E8 in view.
 
 ---
 
@@ -687,7 +687,15 @@ From the bot tournament (first election, `bots`), replacing today's informal can
 | `single_verb_not_best` | Single-verb strategies are `canvass`, `media`, `asks_only`. Each one's win rate ≤ the best multi-verb strategy's − 5 points **and** its mean share ≤ the best multi-verb mean share − 1 point; together they are the sole best in ≤ 30% of worlds. Today canvass ties explorer at 87.5% and 0.630: it fails |
 | `walking_is_a_bonus` | `walker` mean share ≤ `mixed` + 1.0 point |
 | `secrets_not_decisive` | `secret_hunter` mean share ≤ `mixed` + 1.0 point |
-| The existing gates | Unchanged (no dominant strategy, effort matters, idle ≤ 15%, corrupt not dominant, variety, exploring pays, exploring alone never wins) |
+| `skill_gap` | The best informed style beats the best rote routine (single-verb strategies, blind `mixed`, `legislator`, `proxy`) by ≥ 3 points of mean share and ≥ 10 points of win rate. Proposed; E12 tunes it from the first runs after E1 and E8 |
+| `variety` (amended, DEC-097 balance principle) | Measured among the informed styles only: `explorer` plus new informed variants, `explorer_coalition` (talk, lobby, favours, asks), `explorer_legislator` (bills, delivery) and `explorer_campaigner` (ground game, media, promises). At least 2 are the sole best somewhere, none is among the best in more than 60% of worlds, and the best style differs by situation (crisis, industry) |
+| `no_dominant_strategy` (amended) | Applies among informed styles. A rote routine being far below the best is the intended result, not a failure |
+| `exploring pays` (raised) | `explorer` mean share ≥ blind `mixed` + 3 points (was + 1) |
+| Unchanged | Effort matters, idle ≤ 15%, corrupt not dominant, exploring alone never wins, `walking_is_a_bonus` and `secrets_not_decisive` (both concern the input mode and single shortcuts, not knowledge in general) |
+
+**Why (owner, 2026-11-19).** Players optimise toward whatever wins, so the winning play must be the engaging one. The old variety gate failed whenever the explorer, the intended way to play, rose to the top: §1.3's grid shows exactly that. The principle in DEC-097 replaces "every routine roughly equal" with "good play clearly beats rote play, and good play has several styles that suit different towns". The old wording follows for reference:
+
+| The existing gates (before the amendment) | No dominant strategy, effort matters, idle ≤ 15%, corrupt not dominant, variety, exploring pays, exploring alone never wins |
 
 The re-election (the second election in a 5-year career) adds one check: `canvass` re-election rate ≤ `mixed`'s (delivery should matter most for an incumbent).
 
@@ -717,7 +725,7 @@ The re-election (the second election in a 5-year career) adds one check: `canvas
 
 ---
 
-## 9. Open questions for the owner
+## 9. Questions for the owner (answered 2026-11-19: all recommendations accepted)
 
 | # | Question | Recommendation |
 |---|---|---|
