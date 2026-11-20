@@ -187,5 +187,14 @@ fn v18_saves_migrate_without_a_log_and_keep_their_hash() {
     // today's shape, comes through the rest of the chain unchanged.
     let state = serde_json::to_value(e.state()).unwrap();
     let v = migrate(18, serde_json::json!({ "state": state.clone() })).unwrap();
-    assert_eq!(v, serde_json::json!({ "state": state, "log": null }));
+    // Later steps own their own fields: E1's (20 → 21) clears the player's
+    // ground-game memory, which older saves never had.
+    let mut expected = state;
+    if let Some(p) = expected
+        .pointer_mut("/player")
+        .and_then(|p| p.as_object_mut())
+    {
+        p.remove("ground");
+    }
+    assert_eq!(v, serde_json::json!({ "state": expected, "log": null }));
 }

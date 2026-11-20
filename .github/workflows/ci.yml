@@ -79,7 +79,7 @@ jobs:
         run: cargo run -q --release -p mandate-cli -- determinism --seed 2026 --turns 80
       - name: Monte Carlo health (quick)
         run: cargo run -q --release -p mandate-cli -- sweep --seeds 8 --years 20 > /dev/null
-      - name: Bot players (no dominant strategy; variety, DEC-077 §5; exploring pays, alone never wins, DEC-091)
+      - name: Bot players (the gate ladder, DEC-097 balance principle; ENGAGEMENT §7.2)
         run: cargo run -q --release -p mandate-cli -- bots --seeds 16 > bots.json || (cat bots.json; exit 1)
       - uses: actions/download-artifact@v4
         with:
