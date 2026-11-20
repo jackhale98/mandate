@@ -1,22 +1,27 @@
 // Storyteller profiles (DEC-033 addendum, DEC-038 lever 1): a transparent
 // difficulty and flavour lever. They shape chance and pacing, never
 // consequences. Classic is the default (`director.default_profile`); a new
-// game may choose another.
+// game may choose another. `cycle`, `build_up_scale` and `relax_scale` set
+// the pacing cycle (ENGAGEMENT §4.3): how often things happen, never how
+// severe they are.
 {
   "kind": "storytellers",
   "items": [
     // A rising tension curve with one climax per chapter; hazards in your
     // town wait while it already carries its cap of crises.
     { "id": "storyteller.classic", "name_key": "storyteller-classic", "desc_key": "storyteller-classic-desc",
-      "tension_curve": true, "defer_hazards": true, "hazard_rate": 1.0, "hold_recessions": true, "budget_scale": 1.0 },
+      "tension_curve": true, "defer_hazards": true, "hazard_rate": 1.0, "hold_recessions": true, "budget_scale": 1.0,
+      "cycle": true, "build_up_scale": 1.0, "relax_scale": 1.0 },
     // Pure chance: hazards and shocks as drawn; situations are spotlighted as
-    // they arise, within the budgets.
+    // they arise, within the budgets (no pacing cycle; a long quiet stretch
+    // still gets a minor beat).
     { "id": "storyteller.unfiltered", "name_key": "storyteller-unfiltered", "desc_key": "storyteller-unfiltered-desc",
-      "tension_curve": false, "defer_hazards": false, "hazard_rate": 1.0, "hold_recessions": false, "budget_scale": 1.0 },
+      "tension_curve": false, "defer_hazards": false, "hazard_rate": 1.0, "hold_recessions": false, "budget_scale": 1.0,
+      "cycle": false },
     // Fewer crises: three in ten hazard strikes on your town miss, one crisis
-    // at a time, and fewer decisions.
+    // at a time, fewer decisions, and longer build-ups and relaxes.
     { "id": "storyteller.steady", "name_key": "storyteller-steady", "desc_key": "storyteller-steady-desc",
       "tension_curve": true, "defer_hazards": true, "hazard_rate": 0.7, "hold_recessions": true, "budget_scale": 0.75,
-      "crisis_cap": 1 },
+      "crisis_cap": 1, "cycle": true, "build_up_scale": 1.2, "relax_scale": 1.3 },
   ],
 }

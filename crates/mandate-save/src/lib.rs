@@ -20,9 +20,9 @@ pub use runlog::{NewGameSetup, RunLog};
 pub const MAGIC: &[u8; 4] = b"MNDT";
 /// v18: neighbourhood concerns (N1). v19: the run log beside the state (bug
 /// reports). v20: offices from the constitution (R1, DEC-098). v21: the
-/// ground game's memory (E1, DEC-097 §1). v22: E2's director (merged
-/// separately). v23: the act flow (time skips, directives, the Legacy
-/// record and act endings; DEC-012, DEC-006).
+/// ground game's memory (E1, DEC-097 §1). v22: the director's variety and
+/// pacing cycle (E2, DEC-097 §3). v23: the act flow (time skips,
+/// directives, the Legacy record and act endings; DEC-012, DEC-006).
 pub const SAVE_FORMAT_VERSION: u16 = 23;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
@@ -216,9 +216,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // The ground game's memory (E1, DEC-097 §1): v20 → v21. Renumber
         // only this key if another bump merges first.
         (20, ground_game),
-        // Placeholder for E2's v21 → v22 step (the director, merged
-        // separately): at merge, delete this line; E2's takes its place.
-        (21, |v| Ok(v)),
+        // The director's variety and pacing cycle (E2, DEC-097 §3): v21 →
+        // v22.
+        (21, director_pacing),
         // The act flow (DEC-012, DEC-006): v22 → v23. Renumber only this
         // key if another bump merges first.
         (22, act_flow),
@@ -691,6 +691,19 @@ fn ground_game(mut value: serde_json::Value) -> Result<serde_json::Value, SaveEr
         .ok_or(SaveError::Malformed)?;
     if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
         p.remove("ground");
+    }
+    Ok(value)
+}
+
+/// Previous format → next (v21 → v22; E2, DEC-097 §3): the director's
+/// template uses, recent climaxes, the player's answers, the pacing cycle's
+/// phase and log, a setback, and per chapter its theme and peaks. Every new
+/// field has a serde default (none remembered, no phase: the cycle begins
+/// with a build-up at the next weekly step), so a v21 file needs no change;
+/// the step checks its shape.
+fn director_pacing(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    if !value.pointer("/state").is_some_and(|s| s.is_object()) {
+        return Err(SaveError::Malformed);
     }
     Ok(value)
 }

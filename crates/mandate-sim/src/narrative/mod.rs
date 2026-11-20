@@ -48,6 +48,14 @@ pub(crate) const KEY_JITTER: u64 = 0xD1E0;
 pub(crate) const KEY_DISCOVERY: u64 = 0xD1E1;
 /// (Used by the environment for a Steady profile's missed strikes.)
 pub const KEY_HAZARD_KEEP: u64 = 0xD1E2;
+/// The pick among candidates (ENGAGEMENT §4.2).
+pub(crate) const KEY_PICK: u64 = 0xD1E3;
+/// Phase lengths of the pacing cycle (§4.3).
+pub(crate) const KEY_PHASE: u64 = 0xD1E4;
+/// A chapter's theme (§4.2).
+pub(crate) const KEY_THEME: u64 = 0xD1E5;
+/// A `sponsored_law` condition's chance, per law (§4.4).
+pub(crate) const KEY_SPONSORED_LAW: u64 = 0xD1E6;
 
 /// A live actor cast in a role.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -289,9 +297,21 @@ pub struct Chapter {
     pub peak_tension: f32,
     pub last_decision: Option<SimDate>,
     pub last_minor: Option<SimDate>,
-    /// Templates and people spotlighted this chapter (repetition penalty).
+    /// Templates and people spotlighted this chapter (no repeats; the
+    /// repetition penalty on people).
     pub templates: Vec<ContentKey>,
     pub people: Vec<CharacterId>,
+    /// The chapter's theme (ENGAGEMENT §4.2): `crisis`, `budget`, `scheme`,
+    /// `local_life`, or `campaign`; drawn when it opens.
+    #[serde(default)]
+    pub theme: Option<ContentKey>,
+    /// How many themes the live state supported when it opened (a theme
+    /// repeats from the last session chapter only when this is 1).
+    #[serde(default)]
+    pub theme_options: u8,
+    /// Peaks of the pacing cycle that began in this chapter (§4.3).
+    #[serde(default)]
+    pub peaks: u8,
 }
 
 impl Chapter {
@@ -311,6 +331,9 @@ impl Chapter {
             last_minor: None,
             templates: Vec::new(),
             people: Vec::new(),
+            theme: None,
+            theme_options: 0,
+            peaks: 0,
         }
     }
 
@@ -494,6 +517,74 @@ pub struct Warning {
     pub value: f32,
 }
 
+/// A phase of the director's pacing cycle (ENGAGEMENT §4.3, after Left 4
+/// Dead's AI Director and RimWorld's Cassandra): a build-up of minor beats,
+/// a peak with one significant decision, its fade, then a relax.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PhaseKind {
+    BuildUp,
+    Peak,
+    PeakFade,
+    Relax,
+}
+
+impl PhaseKind {
+    pub fn key(self) -> &'static str {
+        match self {
+            PhaseKind::BuildUp => "build_up",
+            PhaseKind::Peak => "peak",
+            PhaseKind::PeakFade => "peak_fade",
+            PhaseKind::Relax => "relax",
+        }
+    }
+}
+
+/// The phase in force (and, in `NarrativeState::phase_log`, one that ended).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DirectorPhase {
+    pub kind: PhaseKind,
+    pub since: SimDate,
+    /// A build-up's or relax's drawn end, a peak's latest end; in the log,
+    /// when it actually ended.
+    pub until: Option<SimDate>,
+    /// The cycle (one build-up, peak, fade and relax), counted over the run.
+    pub cycle: u32,
+    /// The chapter it began in.
+    pub chapter: u32,
+    /// A peak that is the chapter's climax (its relax is the longer one).
+    #[serde(default)]
+    pub climax: bool,
+    /// Easing off after a setback (§4.3): a lengthened relax, or a peak that
+    /// draws opportunities first.
+    #[serde(default)]
+    pub eased: bool,
+    /// The decision a peak spotlighted.
+    #[serde(default)]
+    pub decision: Option<DecisionId>,
+    /// Minor beats spotlighted while it lasted.
+    #[serde(default)]
+    pub beats: u16,
+    /// A climax peak whose climax came by the fallback: nothing was
+    /// eligible, so template cooldowns were waived (DEC-097 note).
+    #[serde(default)]
+    pub climax_fallback: bool,
+}
+
+/// One of the player's past answers (ENGAGEMENT §4.4): what `answered`
+/// conditions read, kept longer than the bounded decisions history.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AnswerRecord {
+    pub decision: DecisionId,
+    pub template: ContentKey,
+    pub option: String,
+    pub date: SimDate,
+    /// The deadline passed and the default happened.
+    #[serde(default)]
+    pub by_default: bool,
+    pub cast: Vec<CastEntry>,
+}
+
 /// What the director saw last week (to notice developments).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Seen {
@@ -504,6 +595,9 @@ pub struct Seen {
     /// The last event-log entry looked at.
     #[serde(default)]
     pub last_event: u32,
+    /// The player had filed for office (relax ends when they file, §4.3).
+    #[serde(default)]
+    pub filed: bool,
 }
 
 /// The narrative domain.
@@ -550,6 +644,27 @@ pub struct NarrativeState {
     /// B). Off, a hidden fact's date is uniform in its window.
     #[serde(default = "yes")]
     pub shape_discovery: bool,
+    /// Times each template (dilemma or storyline) was spotlighted or started
+    /// this run (cooldown growth, novelty; ENGAGEMENT §4.1).
+    #[serde(default, with = "mandate_core::serde_util::map_as_pairs")]
+    pub uses: BTreeMap<ContentKey, u16>,
+    /// Recent climaxes: (chapter index, template), oldest first (bounded).
+    #[serde(default)]
+    pub climaxes: Vec<(u32, ContentKey)>,
+    /// The player's answers, oldest first (bounded at `ANSWERS_CAP`).
+    #[serde(default)]
+    pub answers: Vec<AnswerRecord>,
+    /// The pacing cycle's phase; `None` under a profile without a cycle
+    /// (Unfiltered) or before play.
+    #[serde(default)]
+    pub phase: Option<DirectorPhase>,
+    /// A setback not yet eased (§4.3): an election lost, Standing or
+    /// viability at its warning level, a scandal about the player.
+    #[serde(default)]
+    pub setback: Option<SimDate>,
+    /// Phases that ended, oldest first (bounded): the lab's pacing metrics.
+    #[serde(default)]
+    pub phase_log: Vec<DirectorPhase>,
 }
 
 fn yes() -> bool {
@@ -582,6 +697,12 @@ impl Default for NarrativeState {
             resolve_defaults: true,
             raised: Vec::new(),
             shape_discovery: true,
+            uses: BTreeMap::new(),
+            climaxes: Vec::new(),
+            answers: Vec::new(),
+            phase: None,
+            setback: None,
+            phase_log: Vec::new(),
         }
     }
 }
@@ -592,6 +713,12 @@ pub const FACTS_CAP: usize = 400;
 pub const CHAPTERS_CAP: usize = 60;
 /// Hidden facts kept after they surfaced.
 pub const HIDDEN_CAP: usize = 200;
+/// Answers kept for `answered` conditions (a five-year look-back).
+pub const ANSWERS_CAP: usize = 200;
+/// Ended phases kept.
+pub const PHASE_LOG_CAP: usize = 200;
+/// Climaxes remembered.
+pub const CLIMAXES_CAP: usize = 8;
 
 impl NarrativeState {
     pub fn decision(&self, id: DecisionId) -> Option<&Decision> {

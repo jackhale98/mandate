@@ -2270,6 +2270,13 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
     - pressures introduced year by year;
     - at least 6 campaign-only templates.
 
+- **Note (E2, lead, 2026-11-20): the climax fallback, until E3 widens the pool.** E2 made the climax respect cooldowns and climax memory (ENGAGEMENT §4.1). With today's 31 templates a session in the middle of a career can find no grounded situation left to climax on (every miss in the lab had its climax peak and its forced retry run with no candidate): mixed careers had a climax in 83% of chapters, the pacing test's honest player 74%, against DEC-005's "about one climax per chapter". So:
+  - when a climax peak (or its forced retry) has no eligible candidate, it is drawn again with template cooldowns waived. Climax memory, the last chapter's climax (always, whatever `climax_memory_chapters` says), no repeat within the chapter, pending decisions and `min_career_days` still hold, so no climax repeats in consecutive chapters;
+  - a borrowed climax takes a template's second or third use, never a fourth, draws among the templates whose return it delays least, and cools the template for its base cooldown (`max(floor, cooldown)`), not a grown one;
+  - the phase log records it (`DirectorPhase.climax_fallback`); `story --metrics` counts it (`climax_fallbacks`, median 1 per 5-year career).
+
+  The cost: a template may reach four uses in five years in a thin town (2 of 12 lab careers; the §7.2 gate says ≤ 3). E3 retires the fallback's need; the lab will show it falling to 0.
+
 ### DEC-098 — Built for every tier: offices from the constitution, jurisdiction keys, what becomes data
 
 - **Status:** Accepted (owner, 2026-11-19: "Yes go ahead").

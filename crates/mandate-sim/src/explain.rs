@@ -388,6 +388,28 @@ impl Explainer for NarrativeExplainer<'_, '_> {
                 put("months in play", months.to_string());
             }
             Condition::Knows { .. } => {}
+            // E2 (ENGAGEMENT §4.4): the newest matching answer, and the
+            // player's laws.
+            Condition::Answered { .. } => {
+                let found = cast::answered_records(v, c);
+                put(
+                    "last answered",
+                    found
+                        .first()
+                        .map(|a| format!("{} ({} days ago)", a.option, a.date.days_until(v.date())))
+                        .unwrap_or_else(|| "never in the window".into()),
+                );
+            }
+            Condition::SponsoredLaw { .. } => {
+                let me = v.player().map(|p| p.politician);
+                let laws =
+                    v.r.policy()
+                        .instances
+                        .iter()
+                        .filter(|p| me.is_some() && p.sponsor == me)
+                        .count();
+                put("player's bills and laws", laws.to_string());
+            }
         }
         out
     }

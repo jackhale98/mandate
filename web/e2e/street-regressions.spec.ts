@@ -12,7 +12,13 @@ import { showPlaces } from "./pocket";
 interface Probes {
   __townStreet?: {
     view: {
-      map: { width: number; district: ArrayLike<number>; districts: { id: number; street: number }[]; buildings: { front: number }[] };
+      map: {
+        width: number;
+        district: ArrayLike<number>;
+        districts: { id: number; street: number }[];
+        buildings: { front: number; district: number }[];
+        homeBuilding: number | null;
+      };
       scene: { playerCell: number; playerMoving: boolean; target: unknown; grid: { cost: ArrayLike<number> }; footprints: { x: number; y: number; w: number; h: number; roofRows?: number }[] };
       zoom: number;
       paused: boolean;
@@ -47,7 +53,11 @@ test("a tap on open ground in your neighbourhood: you stay where you walked to (
     const W = v.map.width;
     const cost = v.scene.grid.cost;
     const d = v.map.district;
-    const mine = d[v.scene.playerCell];
+    // The player's neighbourhood is their home's (what the label names at the door). The
+    // cell in front of a door on a district border lies in the neighbour's district
+    // (seed 4242 since N2), so the door cell's district is not a sound stand-in.
+    const home = v.map.homeBuilding !== null ? v.map.buildings[v.map.homeBuilding] : undefined;
+    const mine = home ? home.district : d[v.scene.playerCell];
     const street = v.map.districts[mine ?? -1]?.street ?? -1;
     const fronts = new Set(v.map.buildings.map((b) => b.front));
     const underRoof = (x: number, y: number) => v.scene.footprints.some((f) => f.w > 0 && x >= f.x - 1 && x < f.x + f.w + 1 && y >= f.y - (f.roofRows ?? 0) - 1 && y < f.y + f.h + 1);

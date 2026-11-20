@@ -107,6 +107,36 @@ pub struct ChanceParams {
     pub discovery_days: [u32; 2],
 }
 
+/// Phase lengths of the pacing cycle for one kind of chapter (ENGAGEMENT
+/// §4.3), in days: `[from, to]` ranges are keyed draws.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CycleLengths {
+    /// Minor beats only, then a peak.
+    pub build_up: [u32; 2],
+    /// A peak lasts until its decision is answered, at most this long.
+    pub peak_max: u32,
+    /// Minor beats only, then the next build-up.
+    pub relax: [u32; 2],
+    /// The relax after a session's climax (default: `relax`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relax_after_climax: Option<[u32; 2]>,
+}
+
+/// The pacing cycle (ENGAGEMENT §4.3, after Left 4 Dead's AI Director and
+/// RimWorld): build-up, peak, peak fade and relax, across chapters.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CycleParams {
+    pub session: CycleLengths,
+    pub campaign: CycleLengths,
+    /// The relax after a setback is this much longer.
+    pub setback_relax_mult: f64,
+    /// A session with no climax this many days before its climax window
+    /// closes ends its phase and opens the climax peak.
+    pub climax_force_days: u32,
+}
+
 /// The narrative director (DEC-033): one file across all packs.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -140,7 +170,42 @@ pub struct DirectorParams {
     pub storylines_active: u8,
     /// Resolved decisions kept for the story so far.
     pub history: u16,
+    /// The pacing cycle (ENGAGEMENT §4.3).
+    pub cycle: CycleParams,
+    /// After a session's climax and its relax, at most this many significant
+    /// decisions (the coda): a consequence, an opportunity, or a `budget`
+    /// template.
+    pub post_climax_significant: u8,
+    /// Nothing for the player this long (governing, campaigning): a minor
+    /// beat is spotlighted at once, in any phase (the quiet rescue).
+    pub quiet_days: u32,
+    pub quiet_days_campaign: u32,
+    /// A consequence (`answered`) whose window closes within this many days
+    /// is drawn first (tier A, with storyline stages that are due).
+    pub tier_a_window_days: u32,
+    /// The pick draws among candidates whose relevance is within this of the
+    /// tier's best, weighted by relevance × novelty.
+    pub pick_band: f64,
+    /// Chapter themes and their draw weights (ENGAGEMENT §4.2): `crisis`,
+    /// `budget`, `scheme`, `local_life` (campaign chapters take `campaign`).
+    pub themes: BTreeMap<String, f64>,
+    /// Every dilemma's cooldown is at least this many days …
+    pub cooldown_floor_days: u32,
+    /// … and the n-th use sets `max(floor, cooldown) × growth^(n−1)`.
+    pub cooldown_growth: f64,
+    /// A template spotlighted in a chapter is not a candidate again in it,
+    /// the climax included.
+    pub no_repeat_in_chapter: bool,
+    /// A template that was the climax in one of the last this many chapters
+    /// cannot be the climax.
+    pub climax_memory_chapters: u8,
 }
+
+/// The chapter themes the director knows how to read from live state
+/// (ENGAGEMENT §4.2).
+pub const THEMES: [&str; 5] = ["crisis", "budget", "scheme", "local_life", "campaign"];
+/// The theme of every campaign chapter (and of no session).
+pub const THEME_CAMPAIGN: &str = "campaign";
 
 /// A storyteller profile (DEC-033 addendum): a transparent difficulty and
 /// flavour lever over chance and pacing, never over consequences.
@@ -166,6 +231,19 @@ pub struct StorytellerDef {
     /// Overrides the director's `crisis_cap`.
     #[serde(default)]
     pub crisis_cap: Option<u8>,
+    /// Pace each chapter in build-up, peak and relax phases (ENGAGEMENT
+    /// §4.3); off, situations come by chance within the budgets.
+    #[serde(default = "yes")]
+    pub cycle: bool,
+    /// Scales build-up and relax lengths: frequency, not amplitude.
+    #[serde(default = "one")]
+    pub build_up_scale: f64,
+    #[serde(default = "one")]
+    pub relax_scale: f64,
+}
+
+fn one() -> f64 {
+    1.0
 }
 
 // --- Casts, conditions, effects ---------------------------------------------------------
@@ -231,12 +309,16 @@ pub enum Cast {
     /// A neighbourhood of the player's ward: the one least pleased with
     /// the town government (where a crisis bites).
     WardNeighborhood,
-    /// A law of one of these templates in force or being built in town
-    /// (`building`: only one still being built).
+    /// A law of one of these templates (any, if empty) in force or being
+    /// built in town (`building`: only one still being built), sponsored by
+    /// `sponsor`.
     Law {
+        #[serde(default)]
         templates: Vec<ContentKey>,
         #[serde(default)]
         building: bool,
+        #[serde(default)]
+        sponsor: BillSponsor,
     },
     /// The person whose goal raised this request (requests only).
     GoalHolder,
@@ -482,6 +564,51 @@ pub enum Condition {
         #[serde(default = "heard")]
         min: Level,
     },
+    /// The player answered `template` (with `option`, if given; a default
+    /// that happened counts) between `min_days` and `max_days` ago
+    /// (ENGAGEMENT §4.4: consequences of the player's own choices). Roles in
+    /// `same_cast` are cast as they were in that decision.
+    Answered {
+        template: ContentKey,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        option: Option<String>,
+        #[serde(default)]
+        min_days: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max_days: Option<u32>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        same_cast: Vec<String>,
+    },
+    /// The player sponsored a law of this status, between `min_age_days`
+    /// and `max_age_days` old (since enacted; a pending bill since it was
+    /// introduced): the law cast in `role`, or any. `chance` is the share of
+    /// such laws that count, a keyed draw per law and condition, so the same
+    /// law always gives the same answer (ENGAGEMENT §4.4, §4.7).
+    SponsoredLaw {
+        #[serde(default)]
+        status: LawStatus,
+        #[serde(default)]
+        min_age_days: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max_age_days: Option<u32>,
+        #[serde(default = "one")]
+        chance: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        role: Option<String>,
+    },
+}
+
+/// Which of the player's laws a `sponsored_law` condition reads.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LawStatus {
+    /// Enacted and in force (or being built).
+    #[default]
+    InForce,
+    /// Before the council.
+    Pending,
+    /// Repealed, expired, defeated or withdrawn.
+    Ended,
 }
 
 /// Which voters an approval or awareness effect reaches.
@@ -793,6 +920,8 @@ impl Condition {
             | Condition::CanVote { role }
             | Condition::Goal { role, .. } => vec![role.as_str()],
             Condition::Knows { subject, .. } => subject.role().into_iter().collect(),
+            Condition::Answered { same_cast, .. } => same_cast.iter().map(|s| s.as_str()).collect(),
+            Condition::SponsoredLaw { role, .. } => role.iter().map(|s| s.as_str()).collect(),
             _ => Vec::new(),
         }
     }
@@ -870,6 +999,14 @@ pub struct DilemmaDef {
     /// spotlight (DEC-006 fairness: never budgeted).
     #[serde(default)]
     pub raised_by: Option<RaisedBy>,
+    /// Chapter themes it belongs to (ENGAGEMENT §4.2): a themed template is
+    /// drawn before the rest in a chapter of its theme.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub themes: Vec<String>,
+    /// Days since play began before the director may spotlight it
+    /// (ENGAGEMENT §4.7: new pressures year by year).
+    #[serde(default)]
+    pub min_career_days: u32,
 }
 
 // --- NPC goals (DEC-032) ----------------------------------------------------------------
@@ -976,6 +1113,13 @@ pub struct StorylineDef {
     /// where its roles match (a follow-up hook).
     #[serde(default)]
     pub follow_up: Option<ContentKey>,
+    /// Chapter themes it carries (`scheme`: a running scheme makes the
+    /// `scheme` theme eligible; ENGAGEMENT §4.2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub themes: Vec<String>,
+    /// Days since play began before it may start (ENGAGEMENT §4.7).
+    #[serde(default)]
+    pub min_career_days: u32,
 }
 
 // --- Scenes (DEC-035, DEC-079) -----------------------------------------------------------
@@ -1144,6 +1288,74 @@ pub(crate) fn director_ranges(d: &DirectorParams, out: &mut Vec<(String, f64, f6
     );
     r("storylines_active", d.storylines_active.into(), 0.0, 10.0);
     r("history", d.history.into(), 1.0, 2000.0);
+    for (k, c) in [
+        ("session", &d.cycle.session),
+        ("campaign", &d.cycle.campaign),
+    ] {
+        let mut span = |name: &str, x: [u32; 2]| {
+            r(&format!("cycle.{k}.{name}[0]"), x[0].into(), 1.0, 365.0);
+            r(
+                &format!("cycle.{k}.{name}[1]"),
+                x[1].into(),
+                x[0].into(),
+                365.0,
+            );
+        };
+        span("build_up", c.build_up);
+        span("relax", c.relax);
+        if let Some(x) = c.relax_after_climax {
+            span("relax_after_climax", x);
+        }
+        r(&format!("cycle.{k}.peak_max"), c.peak_max.into(), 1.0, 90.0);
+    }
+    r(
+        "cycle.setback_relax_mult",
+        d.cycle.setback_relax_mult,
+        1.0,
+        4.0,
+    );
+    r(
+        "cycle.climax_force_days",
+        d.cycle.climax_force_days.into(),
+        0.0,
+        120.0,
+    );
+    r(
+        "post_climax_significant",
+        d.post_climax_significant.into(),
+        0.0,
+        5.0,
+    );
+    r("quiet_days", d.quiet_days.into(), 7.0, 365.0);
+    r(
+        "quiet_days_campaign",
+        d.quiet_days_campaign.into(),
+        7.0,
+        365.0,
+    );
+    r(
+        "tier_a_window_days",
+        d.tier_a_window_days.into(),
+        0.0,
+        730.0,
+    );
+    r("pick_band", d.pick_band, 0.0, 10.0);
+    for (k, w) in &d.themes {
+        r(&format!("themes.{k}"), *w, 0.0, 10.0);
+    }
+    r(
+        "cooldown_floor_days",
+        d.cooldown_floor_days.into(),
+        0.0,
+        3650.0,
+    );
+    r("cooldown_growth", d.cooldown_growth, 1.0, 4.0);
+    r(
+        "climax_memory_chapters",
+        d.climax_memory_chapters.into(),
+        0.0,
+        10.0,
+    );
 }
 
 fn in_range(v: f64, lo: f64, hi: f64) -> bool {
@@ -1339,6 +1551,58 @@ impl Refs<'_> {
                     }
                 }
             }
+            Condition::Answered {
+                template,
+                option,
+                min_days,
+                max_days,
+                same_cast,
+            } => match b.dilemma(template) {
+                // A pack may remove the template: the condition never holds.
+                None => issues.push(Issue::warning(
+                    self.owner,
+                    &format!("unknown dilemma `{template}` (the condition never holds)"),
+                )),
+                Some(t) => {
+                    if let Some(o) = option
+                        && !t.options.iter().any(|x| &x.id == o)
+                    {
+                        bad(issues, format!("`{template}` has no option `{o}`"));
+                    }
+                    for r in same_cast {
+                        if !t.roles.iter().any(|x| &x.id == r) {
+                            bad(
+                                issues,
+                                format!("same_cast role `{r}` is not a role of `{template}`"),
+                            );
+                        }
+                    }
+                    if *min_days > 3650 || max_days.is_some_and(|m| m < *min_days || m > 3650) {
+                        bad(
+                            issues,
+                            "answered days must be in 0..3650 with min ≤ max".into(),
+                        );
+                    }
+                }
+            },
+            Condition::SponsoredLaw {
+                min_age_days,
+                max_age_days,
+                chance,
+                ..
+            } => {
+                if *min_age_days > 3650
+                    || max_age_days.is_some_and(|m| m < *min_age_days || m > 3650)
+                {
+                    bad(
+                        issues,
+                        "sponsored_law ages must be in 0..3650 with min ≤ max".into(),
+                    );
+                }
+                if !in_range(*chance, 0.0, 1.0) {
+                    bad(issues, "sponsored_law chance must be in [0, 1]".into());
+                }
+            }
             Condition::Campaigning { .. }
             | Condition::Favour { .. }
             | Condition::PartyLineAgainstWard { .. }
@@ -1477,6 +1741,39 @@ fn check_roles<'a>(
     seen
 }
 
+/// A template's themes are ones the director reads (and weighs), listed
+/// once; `min_career_days` stays within a long career.
+fn check_themes(
+    owner: &str,
+    b: &ContentBundle,
+    themes: &[String],
+    min_career_days: u32,
+    issues: &mut Vec<Issue>,
+) {
+    for (i, t) in themes.iter().enumerate() {
+        if themes[..i].contains(t) {
+            issues.push(Issue::error(owner, &format!("theme `{t}` listed twice")));
+        }
+        if t != THEME_CAMPAIGN && !b.director.themes.contains_key(t) {
+            issues.push(Issue::error(
+                owner,
+                &format!(
+                    "unknown theme `{t}` (themes: {}, {THEME_CAMPAIGN})",
+                    b.director
+                        .themes
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            ));
+        }
+    }
+    if min_career_days > 3650 {
+        issues.push(Issue::error(owner, "min_career_days must be at most 3650"));
+    }
+}
+
 fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
     let owner = d.id.as_str();
     let request = d.category == DilemmaCategory::Request;
@@ -1506,6 +1803,7 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
     if d.cooldown_days > 3650 {
         issues.push(Issue::error(owner, "cooldown_days must be at most 3650"));
     }
+    check_themes(owner, b, &d.themes, d.min_career_days, issues);
     let mut ids: Vec<&str> = Vec::new();
     for o in &d.options {
         let at = format!("{owner} option `{}`", o.id);
@@ -1747,7 +2045,30 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             ),
         ));
     }
+    for k in d.themes.keys() {
+        if !THEMES.contains(&k.as_str()) || k == THEME_CAMPAIGN {
+            issues.push(Issue::error(
+                "director",
+                &format!(
+                    "unknown theme `{k}`: the director reads crisis, budget, scheme and local_life \
+                     (campaign chapters always take campaign)"
+                ),
+            ));
+        }
+    }
+    if !d.themes.contains_key("local_life") {
+        issues.push(Issue::error(
+            "director",
+            "themes need `local_life` (always eligible: every session chapter has a theme)",
+        ));
+    }
     for s in &b.storytellers {
+        if !in_range(s.build_up_scale, 0.1, 4.0) || !in_range(s.relax_scale, 0.1, 4.0) {
+            issues.push(Issue::error(
+                &s.id,
+                "build_up_scale and relax_scale must be in [0.1, 4]",
+            ));
+        }
         if !crate::validate::valid_key(&s.id) {
             issues.push(Issue::error(
                 &s.id,
@@ -1962,6 +2283,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 ));
             }
         }
+        check_themes(owner, b, &s.themes, s.min_career_days, issues);
         if let Some(f) = &s.follow_up
             && b.storyline(f).is_none()
         {

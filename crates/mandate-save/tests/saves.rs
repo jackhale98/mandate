@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (23, "fc6bbf6130c466de");
+    const EXPECTED: (u16, &str) = (23, "81c3894b06ea007f");
     let c = content();
     let mut e = generate(
         &WorldConfig {
