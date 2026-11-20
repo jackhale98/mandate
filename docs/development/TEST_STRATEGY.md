@@ -183,3 +183,5 @@ Output is JSON; the exit status is non-zero when anything differs.
 - `refused_commands`: log entries the replay could not apply. Only a failed `Go` that still moved the player is expected here (the engine logs it, DEC-079).
 
 When the bug is found, keep the report (or a smaller one that shows it) as a replay fixture (§1, "Replay regression"). `web/e2e/report.spec.ts` plays a few turns, saves a report, replays it through the WASM build (and natively with `MANDATE_CLI=<path to mandate-cli>`), and checks that a tampered command is found at its turn; `mandate-cli`'s `replay` tests and `mandate-save/tests/runlog.rs` do the same natively.
+
+**The designer page's browser test is opt-in.** Run it with `MANDATE_DEV_E2E=1 npx playwright test e2e/designer.spec.ts`. CI skips it, because spawning Vite's dev server is unreliable on runners. The engine's explanations (`crates/mandate-cli/tests/explain.rs`) and the tree view (web unit tests) are covered in CI.
