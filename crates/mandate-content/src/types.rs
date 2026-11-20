@@ -3062,7 +3062,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
             ),
         },
         "act_flow" => ContentFile::ActFlow {
-            value: Box::new(serde_json::from_str::<ValueFile<crate::act::ActFlowParams>>(json)?.value),
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::act::ActFlowParams>>(json)?.value,
+            ),
         },
         "endings" => ContentFile::Endings {
             items: serde_json::from_str::<ItemsFile<crate::act::EndingDef>>(json)?.items,

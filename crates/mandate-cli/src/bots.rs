@@ -1223,10 +1223,7 @@ fn exploring(e: &Engine, start_turn: u32) -> bool {
 /// this way, as a career skipped from start to finish would.
 pub fn directed_turn(e: &mut Engine) {
     let mut t = mandate_sim::proxy::ProxyTurn::new(e.state(), e.content());
-    loop {
-        let Some(cmd) = t.next(e.state(), e.content()) else {
-            break;
-        };
+    while let Some(cmd) = t.next(e.state(), e.content()) {
         let r = apply(e, Command::Player(cmd));
         let created = r
             .as_ref()
@@ -1805,7 +1802,7 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
         m.sort_by(|a, b| a.total_cmp(b));
         match m.len() {
             0 => 0.0,
-            n if n % 2 == 0 => (m[n / 2 - 1] + m[n / 2]) / 2.0,
+            n if n.is_multiple_of(2) => (m[n / 2 - 1] + m[n / 2]) / 2.0,
             n => m[n / 2],
         }
     };

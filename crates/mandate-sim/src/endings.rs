@@ -42,11 +42,15 @@ fn holds(state: &crate::State, c: &ConstitutionDef, rec: &LegacyRecord, w: &Endi
                 && pl.status.active()
                 && rec.count(|k| matches!(k, LegacyKind::Election { won: false, .. })) > 0
         }
-        EndingWhen::Event { event } => rec.count(|k| match event {
-            PlayerEventKey::Deselected => matches!(k, LegacyKind::Deselected),
-            PlayerEventKey::RemovedFromOffice => matches!(k, LegacyKind::RemovedFromOffice { .. }),
-            PlayerEventKey::Imprisoned => matches!(k, LegacyKind::Imprisoned { .. }),
-        }) > 0,
+        EndingWhen::Event { event } => {
+            rec.count(|k| match event {
+                PlayerEventKey::Deselected => matches!(k, LegacyKind::Deselected),
+                PlayerEventKey::RemovedFromOffice => {
+                    matches!(k, LegacyKind::RemovedFromOffice { .. })
+                }
+                PlayerEventKey::Imprisoned => matches!(k, LegacyKind::Imprisoned { .. }),
+            }) > 0
+        }
         EndingWhen::Status { status } => status.iter().any(|s| match s {
             StatusKey::Imprisoned => matches!(pl.status, RunStatus::Imprisoned { .. }),
             StatusKey::Ended => matches!(pl.status, RunStatus::Ended { .. }),
@@ -75,7 +79,9 @@ fn served(
         .entries
         .iter()
         .filter_map(|e| match e.kind {
-            LegacyKind::Election { post: p, won: true, .. } if p == post => Some(e.date),
+            LegacyKind::Election {
+                post: p, won: true, ..
+            } if p == post => Some(e.date),
             _ => None,
         })
         .collect();

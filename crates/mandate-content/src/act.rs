@@ -547,7 +547,10 @@ pub fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 err(&format!("option `{}`: max_risk must be in [0, 1]", o.id));
             }
             if o.rest_below.is_some_and(|r| !(0.0..=100.0).contains(&r)) {
-                err(&format!("option `{}`: rest_below must be in [0, 100]", o.id));
+                err(&format!(
+                    "option `{}`: rest_below must be in [0, 100]",
+                    o.id
+                ));
             }
             if let Some(c) = &o.concern
                 && !b.concern_keys().any(|k| k == c)
@@ -578,9 +581,11 @@ pub fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             InterruptWhen::Track { threshold, .. } if !(0.0..=100.0).contains(threshold) => {
                 issues.push(Issue::error(id, "a track threshold must be in [0, 100]"))
             }
-            InterruptWhen::Decision { weights, about } if weights.is_empty() && !about => {
-                issues.push(Issue::error(id, "a decision interrupt needs weights or `about`"))
-            }
+            InterruptWhen::Decision { weights, about } if weights.is_empty() && !about => issues
+                .push(Issue::error(
+                    id,
+                    "a decision interrupt needs weights or `about`",
+                )),
             _ => {}
         }
     }
@@ -598,7 +603,10 @@ pub fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         issues.push(Issue::error("act_flow", "max_turns must be at least 1"));
     }
     if !(0.0..=0.9).contains(&a.proxy.idle_share) {
-        issues.push(Issue::error("act_flow.proxy", "idle_share must be in [0, 0.9]"));
+        issues.push(Issue::error(
+            "act_flow.proxy",
+            "idle_share must be in [0, 0.9]",
+        ));
     }
     let mut ids: Vec<&str> = Vec::new();
     for e in &b.endings {

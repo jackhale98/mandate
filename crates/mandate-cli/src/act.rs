@@ -79,7 +79,13 @@ fn chapter_of(e: &Engine) -> (u32, String) {
 
 /// Play one career's Act 1 with a style; `skip`: skip every stretch out of
 /// a campaign.
-fn run(content: &Arc<ContentBundle>, seed: u64, style: &str, skip: bool, years: u32) -> Option<Run> {
+fn run(
+    content: &Arc<ContentBundle>,
+    seed: u64,
+    style: &str,
+    skip: bool,
+    years: u32,
+) -> Option<Run> {
     let mut e = new_game(content, seed)?;
     let start = e.state().calendar.date;
     let end = start.add_days(years * 365);
@@ -167,7 +173,7 @@ fn median(mut v: Vec<f64>) -> f64 {
     }
     v.sort_by(|a, b| a.total_cmp(b));
     let n = v.len();
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         (v[n / 2 - 1] + v[n / 2]) / 2.0
     } else {
         v[n / 2]
@@ -290,16 +296,17 @@ pub fn skip_determinism(
         }
         let skip = (i / 10) % 2 == 1;
         if skip
-            && e
-                .apply(Command::Skip {
-                    target: SkipTargetKind::EndOfTerm,
-                    limit: Some(1),
-                })
-                .is_ok()
+            && e.apply(Command::Skip {
+                target: SkipTargetKind::EndOfTerm,
+                limit: Some(1),
+            })
+            .is_ok()
         {
             return Ok(());
         }
-        e.apply(Command::EndTurn).map(|_| ()).map_err(|x| x.to_string())
+        e.apply(Command::EndTurn)
+            .map(|_| ())
+            .map_err(|x| x.to_string())
     }
     let play = |n: u32| -> Result<Engine, String> {
         let mut e = generate(

@@ -99,7 +99,11 @@ fn a_skip_equals_the_proxy_played_command_by_command() {
         let mut t = mandate_sim::proxy::ProxyTurn::new(b.state(), b.content());
         while let Some(cmd) = t.next(b.state(), b.content()) {
             let r = b.apply(Command::Player(cmd));
-            let created = r.as_ref().ok().and_then(|o| o.result.as_ref()).and_then(|x| x.created);
+            let created = r
+                .as_ref()
+                .ok()
+                .and_then(|o| o.result.as_ref())
+                .and_then(|x| x.created);
             t.result(r.is_ok(), created);
         }
         b.apply(Command::EndTurn).unwrap();
@@ -151,6 +155,9 @@ fn a_skip_in_chunks_equals_one_in_a_go() {
     assert_eq!(s.turns, 2);
 }
 
+type TrackChange = fn(&mut mandate_sim::player::Tracks);
+type StateChange = Box<dyn Fn(&mut mandate_sim::State)>;
+
 /// The stop a synthetic change makes, for a skip started now.
 fn stop_after(e: &mut Engine, change: impl FnOnce(&mut mandate_sim::State)) -> Option<String> {
     let st = e.state().clone();
@@ -175,7 +182,7 @@ fn each_interrupt_kind_stops_a_skip() {
     // Nothing changed: no stop.
     assert_eq!(stop_after(&mut e, |_| {}), None);
     // Tracks crossing their thresholds.
-    let tracks: [(&str, fn(&mut mandate_sim::player::Tracks)); 5] = [
+    let tracks: [(&str, TrackChange); 5] = [
         ("interrupt.standing", |t| t.standing = 10.0),
         ("interrupt.viability", |t| t.viability = 5.0),
         ("interrupt.legal", |t| t.legal_jeopardy = 70.0),
@@ -290,12 +297,11 @@ fn a_skip_is_called_back_for_the_campaign() {
     let mut f = game(&c, 24);
     let mut stops = Vec::new();
     for _ in 0..40 {
-        if f
-            .apply(Command::Skip {
-                target: SkipTargetKind::Campaign,
-                limit: None,
-            })
-            .is_err()
+        if f.apply(Command::Skip {
+            target: SkipTargetKind::Campaign,
+            limit: None,
+        })
+        .is_err()
         {
             break;
         }
@@ -337,14 +343,18 @@ fn each_ending_condition_fires() {
     let c = content();
     let base = game(&c, 25);
     assert_eq!(ending_now(&base), None);
-    let rec = base.state().act.current().expect("the record opened at play start");
+    let rec = base
+        .state()
+        .act
+        .current()
+        .expect("the record opened at play start");
     assert_eq!(rec.act, "act.local");
     let pl = base.state().player.clone().unwrap();
     let me = pl.politician;
     let town = Jurisdiction::town(pl.home());
     let my_seat = mandate_sim::player::posts(base.state())[0];
     let fork = || Engine::from_state(base.state().clone(), c.clone()).unwrap();
-    let mut cases: Vec<(&str, Box<dyn Fn(&mut mandate_sim::State)>)> = Vec::new();
+    let mut cases: Vec<(&str, StateChange)> = Vec::new();
     cases.push((
         "ending.jailed",
         Box::new(|s| {
@@ -401,7 +411,9 @@ fn each_ending_condition_fires() {
         "ending.lost_seat",
         Box::new(move |s| {
             let date = s.calendar.date;
-            s.politics.get_mut(me).unwrap().role = Role::Private { home: town.municipality().unwrap() };
+            s.politics.get_mut(me).unwrap().role = Role::Private {
+                home: town.municipality().unwrap(),
+            };
             s.act.records.last_mut().unwrap().entries.push(LegacyEntry {
                 date,
                 kind: LegacyKind::Election {
@@ -554,7 +566,9 @@ fn a_regional_act_and_reordered_acts_by_data() {
     let c = content();
     let mut e = game(&c, 27);
     let pl = e.state().player.clone().unwrap();
-    let region = Jurisdiction::town(pl.home()).parent(&e.state().world).unwrap();
+    let region = Jurisdiction::town(pl.home())
+        .parent(&e.state().world)
+        .unwrap();
     let seat = |b: &str, at| Role::Seat {
         body: mandate_content::PostKey::new(b).unwrap(),
         at,
@@ -639,14 +653,19 @@ fn the_legacy_record_survives_save_load_and_migration() {
     e.apply(next).unwrap();
     assert_eq!(loaded.state_hash(), e.state_hash());
     // v22: no act flow in the payload.
-    let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap(), "log": null });
+    let mut v =
+        serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap(), "log": null });
     v["state"].as_object_mut().unwrap().remove("act");
     let migrated = migrate(22, v).unwrap();
     let st: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
     assert!(st.act.records.is_empty());
     let mut m = Engine::from_state(st, c.clone()).unwrap();
     m.apply(Command::EndTurn).unwrap();
-    let rec = m.state().act.current().expect("the record opens at the next turn");
+    let rec = m
+        .state()
+        .act
+        .current()
+        .expect("the record opens at the next turn");
     assert_eq!(rec.act, "act.local");
     assert!(!rec.start_posts.is_empty());
 }

@@ -202,7 +202,10 @@ impl Session {
                     CommandDto::AdvanceDays { days } => Command::AdvanceDays { days },
                     CommandDto::NotebookSeen => Command::NotebookSeen,
                     CommandDto::SetDirectives { choices } => Command::SetDirectives {
-                        choices: choices.into_iter().map(|c| (c.directive, c.option)).collect(),
+                        choices: choices
+                            .into_iter()
+                            .map(|c| (c.directive, c.option))
+                            .collect(),
                     },
                     CommandDto::Skip { target, limit } => Command::Skip {
                         target: target.to_content(),

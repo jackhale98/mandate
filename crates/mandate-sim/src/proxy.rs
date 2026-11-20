@@ -421,7 +421,10 @@ fn stance_sign(st: &crate::State, content: &ContentBundle, s: &Settings, bill: u
             else {
                 return 0;
             };
-            sign(crate::politics::alignment(&t.signature_weights, &me.attitudes))
+            sign(crate::politics::alignment(
+                &t.signature_weights,
+                &me.attitudes,
+            ))
         }
         VoteStance::Ward => sign(
             Knowing::new(st, content)
@@ -478,17 +481,15 @@ fn score(
                     VoteChoice::No => -1.0,
                     VoteChoice::Abstain => 0.0,
                     VoteChoice::WithParty => line,
-                    VoteChoice::WithWard => {
-                        stance_sign(
-                            st,
-                            content,
-                            &Settings {
-                                vote: VoteStance::Ward,
-                                ..s.clone()
-                            },
-                            id,
-                        ) as f64
-                    }
+                    VoteChoice::WithWard => stance_sign(
+                        st,
+                        content,
+                        &Settings {
+                            vote: VoteStance::Ward,
+                            ..s.clone()
+                        },
+                        id,
+                    ) as f64,
                 };
                 1.5 * want * got
             }

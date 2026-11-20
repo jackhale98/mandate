@@ -164,9 +164,11 @@ pub fn term_review_view(engine: &Engine) -> TermReviewView {
             date: DateView::of(t.until),
         })
         .collect();
-    let skipping = st.act.skip.as_ref().map(|r| {
-        SkipProgressView::of(&SkipProgress::of(r, st.calendar.date, false))
-    });
+    let skipping = st
+        .act
+        .skip
+        .as_ref()
+        .map(|r| SkipProgressView::of(&SkipProgress::of(r, st.calendar.date, false)));
     TermReviewView {
         directives,
         targets,
@@ -395,7 +397,12 @@ fn stop_view(stop: &SkipStop, target_key: &str) -> SkipStopView {
                 }
                 args.insert(k.clone(), v.clone());
             }
-            ("interrupted", key.clone(), Some(interrupt.clone()), decision)
+            (
+                "interrupted",
+                key.clone(),
+                Some(interrupt.clone()),
+                decision,
+            )
         }
         SkipStop::Cancelled => ("cancelled", "ui-skip-stop-cancelled".into(), None, None),
         SkipStop::ActEnded { ending } => {
@@ -424,7 +431,10 @@ fn summary_view(engine: &Engine, s: &SkipSummary) -> SkipSummaryView {
         .unwrap_or_default();
     let mut items: Vec<ActLineView> = s.items.iter().map(|i| item_line(engine, i)).collect();
     if s.start.executive != s.end.executive
-        && let Some(p) = s.end.executive.and_then(|id| engine.state().politics.get(id))
+        && let Some(p) = s
+            .end
+            .executive
+            .and_then(|id| engine.state().politics.get(id))
     {
         let mut args = BTreeMap::new();
         args.insert("name".into(), p.full_name());
@@ -614,7 +624,11 @@ fn record_view(engine: &Engine, rec: &LegacyRecord) -> LegacyView {
                 value: *v,
             })
             .collect(),
-        args: e.facts.iter().map(|(k, v)| (k.clone(), v.to_string())).collect(),
+        args: e
+            .facts
+            .iter()
+            .map(|(k, v)| (k.clone(), v.to_string()))
+            .collect(),
     });
     let final_standing = rec.final_standing.as_ref().map(|f| FinalStandingView {
         mandate: f.mandate.round() as i64,
@@ -642,11 +656,7 @@ fn record_view(engine: &Engine, rec: &LegacyRecord) -> LegacyView {
 
 /// The current act's Legacy record (and epilogue once it is over).
 pub fn legacy_view(engine: &Engine) -> Option<LegacyView> {
-    engine
-        .state()
-        .act
-        .current()
-        .map(|r| record_view(engine, r))
+    engine.state().act.current().map(|r| record_view(engine, r))
 }
 
 /// The act's state on the overview: over, how, and a skip in progress.

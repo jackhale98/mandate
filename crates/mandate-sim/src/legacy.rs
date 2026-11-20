@@ -19,11 +19,19 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum LegacyKind {
     /// The player took up a post (a seat or an office of the constitution).
-    PostTaken { post: Post },
+    PostTaken {
+        post: Post,
+    },
     /// The player left a post.
-    PostLeft { post: Post },
+    PostLeft {
+        post: Post,
+    },
     /// An election the player stood in.
-    Election { post: Post, won: bool, share: f32 },
+    Election {
+        post: Post,
+        won: bool,
+        share: f32,
+    },
     /// A law the player sponsored was enacted (`works`: in a works category).
     LawPassed {
         policy: u32,
@@ -31,7 +39,10 @@ pub enum LegacyKind {
         works: bool,
     },
     /// A bill the player sponsored failed.
-    BillFailed { policy: u32, template: String },
+    BillFailed {
+        policy: u32,
+        template: String,
+    },
     /// A notable decision the player answered (weights `legacy.notable`).
     Decision {
         decision: u32,
@@ -39,9 +50,13 @@ pub enum LegacyKind {
         option: String,
     },
     /// Someone remembers the player keeping a promise to them.
-    PromiseKept { person: u32 },
+    PromiseKept {
+        person: u32,
+    },
     /// Someone remembers the player breaking one.
-    PromiseBroken { person: u32 },
+    PromiseBroken {
+        person: u32,
+    },
     /// A story about the player broke.
     Scandal {
         scandal: u32,
@@ -49,12 +64,19 @@ pub enum LegacyKind {
         severity: String,
     },
     /// A case against the player moved on (`stage`: charged, convicted, …).
-    Case { case: u32, stage: String },
+    Case {
+        case: u32,
+        stage: String,
+    },
     /// A sentence removed the player from office.
-    RemovedFromOffice { case: u32 },
+    RemovedFromOffice {
+        case: u32,
+    },
     /// The party would not renominate the player.
     Deselected,
-    Imprisoned { years: u32 },
+    Imprisoned {
+        years: u32,
+    },
     Released,
 }
 
@@ -324,9 +346,11 @@ pub fn observe(state: &mut crate::State, content: &ContentBundle) {
     let from = state.act.scanned_to.unwrap_or(date);
     if let Some(mc) = my_char {
         for ch in &state.politics.characters.people {
-            for m in ch.memories.iter().filter(|m| {
-                m.actor == mc && m.date > from && m.date <= date && ch.id != mc
-            }) {
+            for m in ch
+                .memories
+                .iter()
+                .filter(|m| m.actor == mc && m.date > from && m.date <= date && ch.id != mc)
+            {
                 match m.kind {
                     crate::characters::MemoryKind::KeptPromise => {
                         push(m.date, LegacyKind::PromiseKept { person: ch.id.0 })

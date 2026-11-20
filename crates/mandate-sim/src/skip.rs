@@ -12,9 +12,7 @@
 
 use crate::politics::{PoliticianId, Post};
 use mandate_content::ContentBundle;
-use mandate_content::act::{
-    DirectiveLever, InterruptWhen, SkipTargetKind, VoteStance, WeightKey,
-};
+use mandate_content::act::{DirectiveLever, InterruptWhen, SkipTargetKind, VoteStance, WeightKey};
 use mandate_core::SimDate;
 use serde::{Deserialize, Serialize};
 
@@ -39,7 +37,11 @@ impl Directives {
 }
 
 /// Whether `option` is offered by a directive.
-pub fn offered(d: &mandate_content::act::DirectiveDef, option: &str, content: &ContentBundle) -> bool {
+pub fn offered(
+    d: &mandate_content::act::DirectiveDef,
+    option: &str,
+    content: &ContentBundle,
+) -> bool {
     d.option(option).is_some() || (d.concern_options && content.concern_keys().any(|k| k == option))
 }
 
@@ -342,11 +344,7 @@ pub fn snapshot(state: &crate::State, content: &ContentBundle) -> Snapshot {
         .map_or(0.0, |e| e.unemployment as f32);
     let executive = home.and_then(|m| {
         let c = content.constitutions.get(&state.meta.constitution)?;
-        crate::politics::executive_of(
-            &state.politics,
-            c,
-            crate::world::Jurisdiction::town(m),
-        )
+        crate::politics::executive_of(&state.politics, c, crate::world::Jurisdiction::town(m))
     });
     let laws = home.map_or(0, |m| {
         state
@@ -383,15 +381,21 @@ fn weight_key(w: crate::narrative::Weight) -> WeightKey {
 /// A decision the proxy leaves to the player: a weight it does not answer,
 /// or one about a story or a case.
 pub fn reserved(d: &crate::narrative::Decision, content: &ContentBundle) -> bool {
-    d.about.is_some() || !content.act_flow.proxy.answers.contains(&weight_key(d.weight))
+    d.about.is_some()
+        || !content
+            .act_flow
+            .proxy
+            .answers
+            .contains(&weight_key(d.weight))
 }
+
+/// An interrupt key that holds: (the interrupt's index, the key, the
+/// arguments its message reads).
+pub type InterruptKey = (usize, String, Vec<(String, String)>);
 
 /// Every interrupt key that holds now, with the interrupt's index and the
 /// arguments its message reads. A key fires when it was not so before.
-pub fn interrupt_keys(
-    state: &crate::State,
-    content: &ContentBundle,
-) -> Vec<(usize, String, Vec<(String, String)>)> {
+pub fn interrupt_keys(state: &crate::State, content: &ContentBundle) -> Vec<InterruptKey> {
     let Some(pl) = state.player.as_ref() else {
         return Vec::new();
     };
@@ -400,7 +404,8 @@ pub fn interrupt_keys(
     let mut out = Vec::new();
     for (i, def) in content.act_flow.interrupts.iter().enumerate() {
         let id = &def.id;
-        let mut add = |k: String, args: Vec<(String, String)>| out.push((i, format!("{id}:{k}"), args));
+        let mut add =
+            |k: String, args: Vec<(String, String)>| out.push((i, format!("{id}:{k}"), args));
         match &def.when {
             InterruptWhen::Track {
                 track,
@@ -408,7 +413,11 @@ pub fn interrupt_keys(
                 below,
             } => {
                 let v = crate::endings::track(pl, *track);
-                let crossed = if *below { v <= *threshold } else { v >= *threshold };
+                let crossed = if *below {
+                    v <= *threshold
+                } else {
+                    v >= *threshold
+                };
                 if crossed {
                     add(
                         track.key().into(),
@@ -433,11 +442,10 @@ pub fn interrupt_keys(
                 }
             }
             InterruptWhen::Scandal { min_severity } => {
-                for s in state
-                    .media
-                    .scandals
-                    .iter()
-                    .filter(|s| s.subject == me && s.ended.is_none() && s.severity >= *min_severity)
+                for s in
+                    state.media.scandals.iter().filter(|s| {
+                        s.subject == me && s.ended.is_none() && s.severity >= *min_severity
+                    })
                 {
                     add(
                         s.id.to_string(),

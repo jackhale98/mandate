@@ -625,7 +625,11 @@ impl Engine {
             if limit.is_some_and(|l| ran >= l) {
                 break None;
             }
-            if !progress(&skip::SkipProgress::of(&run, self.state.calendar.date, false)) {
+            if !progress(&skip::SkipProgress::of(
+                &run,
+                self.state.calendar.date,
+                false,
+            )) {
                 stopped_early = true;
                 break None;
             }

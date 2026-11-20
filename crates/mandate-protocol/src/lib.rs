@@ -215,7 +215,9 @@ pub enum CommandDto {
         late_night: bool,
     },
     /// Set standing directives for time skips (DEC-012; `TermReviewView`).
-    SetDirectives { choices: Vec<DirectiveChoiceDto> },
+    SetDirectives {
+        choices: Vec<DirectiveChoiceDto>,
+    },
     /// Skip ahead to a point `TermReviewView.targets` offers, at most
     /// `limit` turns now (the next `Skip` to the same target goes on): the
     /// result's `skip` is the progress; once `done`, `QueryDto::SkipSummary`.
