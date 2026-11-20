@@ -79,6 +79,9 @@ export class EngineClient {
         case "meta_result":
           this.settle(m.id, () => ({ ok: JSON.parse(m.json) as SaveMetaDto }));
           break;
+        case "report_core_result":
+          this.settle(m.id, () => ({ ok: m.json }));
+          break;
         case "op_error":
           this.settle(m.id, () => ({ err: new Error(m.message) }));
           break;
@@ -131,9 +134,28 @@ export class EngineClient {
     return p;
   }
 
+  /** The engine's part of a bug report: `ReportCore` as JSON text (the report embeds it as it is). */
+  reportCore(): Promise<string> {
+    const id = this.nextId++;
+    const p = this.track<string>(id);
+    this.worker.postMessage({ type: "report_core", id });
+    return p;
+  }
+
+  /** The engine has failed (a panic, or it never started): nothing more can be asked of it. */
+  get failed(): boolean {
+    return this.fatal !== null;
+  }
+
   terminate() {
     this.worker.terminate();
   }
+}
+
+/** A second engine in a worker of its own (a bug report after the app's engine failed); terminate it when done. */
+export function freshEngine(): EngineClient {
+  const w = new Worker(new URL("./engine.worker.ts", import.meta.url), { type: "module" });
+  return new EngineClient(w as unknown as WorkerLike);
 }
 
 let shared: EngineClient | null = null;

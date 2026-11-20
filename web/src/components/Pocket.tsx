@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PocketView } from "../engine/protocol/PocketView";
 import type { PocketBillView } from "../engine/protocol/PocketBillView";
 import { useGame } from "../state/gameStore";
+import { useReport } from "../state/reportStore";
 import { routeFor } from "../state/routing";
 import { formatDate, formatMoney } from "../i18n/format";
 import { StatTile } from "./StatTile";
@@ -230,6 +231,7 @@ export function Pocket() {
   const busy = useGame((s) => s.busy);
   const saveAndQuit = useGame((s) => s.saveAndQuit);
   const openStory = useGame((s) => s.openStory);
+  const openReport = useReport((s) => s.openReport);
   const [closing, requestClose, sheetRef] = useSheetClose(() => setOpen(false));
   const panelRef = useRef<HTMLDivElement>(null);
   const shown = open && p !== null;
@@ -290,6 +292,9 @@ export function Pocket() {
             </button>
             <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void saveAndQuit()}>
               {tr.t("ui-save-quit")}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => openReport("menu")} data-testid="report-problem">
+              {tr.t("ui-report")}
             </button>
           </nav>
         </div>

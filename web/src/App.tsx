@@ -5,6 +5,7 @@ import { Game } from "./screens/Game";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { UpdatePrompt } from "./components/UpdatePrompt";
 import { Loader } from "./components/Brand";
+import { ReportDialog } from "./components/report/ReportDialog";
 
 export function App() {
   const screen = useGame((s) => s.screen);
@@ -29,6 +30,7 @@ export function App() {
         <Game />
       )}
       <UpdatePrompt />
+      <ReportDialog />
     </div>
   );
 }

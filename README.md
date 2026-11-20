@@ -14,6 +14,17 @@ Pushes to `main` deploy to GitHub Pages:
   - Pick a world with `seed`, e.g. [`?seed=2026`](https://jackhale98.github.io/mandate/spike-hub/?seed=2026), or press "New town".
   - `town=largest` (or `smallest`, or a town's name) visits another town; `dress=grow`, `shrink` or `closed` shows the monthly dress pass; `art=placeholder` shows the stand-in art.
 
+## Reporting a problem
+
+If something goes wrong in the game, please send a report file:
+
+1. Open the pocket and choose **Report a problem**. If an error message is showing, it has a **Report a problem** button too, and so does the foot of the title screen (use that one if the game crashed and you reloaded).
+2. Say what happened, if you like: what you did, what you expected, and what you saw.
+3. Choose **Save report file**. On a computer the file downloads; on a phone, the share sheet opens so you can save it or send it straight on.
+4. Send the file (`mandate-report-<seed>-<date>.json`, about 1–2 MB) to the developers however you like.
+
+The file holds this game's seed and settings, every move you made in it, the game as it is now, the last few error messages, your screen size and your browser's name, and what you wrote. Nothing personal beyond that. The game never sends it anywhere: you decide where it goes. With it, the developers can replay your game exactly as it happened (see "Reproducing a tester's bug" in [`TEST_STRATEGY`](docs/development/TEST_STRATEGY.md)).
+
 ## Repository layout
 
 | Path | What it holds |

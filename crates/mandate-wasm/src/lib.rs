@@ -53,6 +53,22 @@ impl WasmSession {
         serde_json::to_string(&view).map_err(|e| JsError::new(&e.to_string()))
     }
 
+    /// The engine's part of a bug report (`ReportCore` JSON): versions, the
+    /// state hash, and the run log since the start.
+    #[wasm_bindgen(js_name = reportCore)]
+    pub fn report_core(&self) -> Result<String, JsError> {
+        self.inner.report_core().map_err(|e| JsError::new(&e))
+    }
+
+    /// Replay a bug report's run log on an engine of its own (developer
+    /// tool: `mandate-cli replay --wasm`); returns the `ReplayOutcome` JSON.
+    #[wasm_bindgen(js_name = replayReport)]
+    pub fn replay_report(&self, report_json: &str, until: Option<u32>) -> Result<String, JsError> {
+        self.inner
+            .replay_report(report_json, until)
+            .map_err(|e| JsError::new(&e))
+    }
+
     /// Current state hash (determinism checks).
     #[wasm_bindgen(js_name = stateHash)]
     pub fn state_hash(&self) -> String {
