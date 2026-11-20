@@ -207,7 +207,7 @@ headline-statement-bill = { $name } makes the case for { $bill }
 # arguments; `name` is a race's winner). Third person, no full stop.
 headline-plant-closure = { $sector } layoffs in { $town }: { $jobs } jobs lost
 headline-disaster = { $hazard } strikes { $town }
-headline-policy-enacted = { $policy } bill passes in { $town }, { $yes }–{ $no }
+headline-policy-enacted = { $policy } bill passes in { $town }
 headline-policy-override = { $town } overrides the veto on the { $policy } bill, { $yes }–{ $no }
 headline-policy-vetoed = { $policy } bill vetoed in { $town }
 headline-policy-defeated = { $policy } bill voted down in { $town }, { $yes }–{ $no }

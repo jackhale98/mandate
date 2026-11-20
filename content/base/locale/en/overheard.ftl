@@ -16,7 +16,7 @@ talk-sector-public = the council and the hospital
 
 heard-jobs-closure = "Another closure in { $industry }. { $jobs } jobs gone, just like that."
 heard-jobs-notices = "More lay-off notices went out at the plant. Everyone's waiting to see who's next."
-heard-jobs-industry = "Everything in { $town } comes back to { $industry }. One bad year there and the whole of { $hood } feels it."
+heard-jobs-industry = "Everything round here comes back to { $industry }. One bad year there and the whole of { $hood } feels it."
 heard-jobs-applications = "Three applications this week and not one call back."
 heard-jobs-young = "The young ones are all leaving for the city. Can't say I blame them."
 heard-jobs-shifts = "They've cut my shifts again. Twenty hours, if I'm lucky."

@@ -65,12 +65,12 @@ talk-open-hostile = { $speaker } offers neither a hand nor a seat.
 talk-open-hostile-2 = { $speaker } looks at the time, pointedly. "You've got two minutes, and you're using them."
 # Neutral.
 talk-open-neutral = { $speaker } gives you a polite nod and waits for the question.
-talk-open-neutral-2 = "{ $player }," says { $speaker }, with a nod. "What can I do for you?"
+talk-open-neutral-2 = { $speaker } looks up from what they were doing. "Yes? What can I do for you?"
 talk-open-neutral-3 = { $speaker } checks the time, then decides you can have a minute.
 talk-open-neutral-4 = { $speaker } squints at you. "Right, then. What's this about?"
 # Warm.
 talk-open-warm = { $speaker } breaks into a grin. "There you are."
-talk-open-warm-2 = "{ $player }! I was hoping you'd come by," says { $speaker }.
+talk-open-warm-2 = "Just the person! I was hoping you'd come by," says { $speaker }.
 talk-open-warm-3 = { $speaker } makes room for you without being asked.
 # Friendly and trusting.
 talk-open-trusted = { $speaker } draws you a little way off, out of earshot.
@@ -90,8 +90,8 @@ talk-open-folksy-neutral = "Hello, hello," says { $speaker }. "You look like you
 talk-open-folksy-warm = { $speaker } beams. "Come here, you. How are you keeping? Honestly, now."
 talk-open-folksy-trusted = { $speaker } squeezes your arm. "I've been fretting about you, you know."
 # Smooth.
-talk-open-smooth-cool = { $speaker } smiles as though nothing had ever passed between you. "{ $player }. What a lovely surprise."
-talk-open-smooth-neutral = "{ $player }. I've been hearing good things," says { $speaker }, and doesn't say what.
+talk-open-smooth-cool = { $speaker } smiles as though nothing had ever passed between you. "What a lovely surprise."
+talk-open-smooth-neutral = "I've been hearing good things about you," says { $speaker }, and doesn't say what.
 talk-open-smooth-warm = { $speaker } takes your hand and holds it a beat longer than necessary.
 talk-open-smooth-trusted = "My favourite person in { $town }," says { $speaker }. "Don't tell the others."
 # Guarded.
@@ -113,8 +113,8 @@ talk-open-anxious-neutral = { $speaker } starts. "Oh! Sorry, I was miles away. I
 talk-open-anxious-warm = "Oh, it's you. Good," says { $speaker }. "I mean, hello. Sorry. Hello."
 # Pompous.
 talk-open-pompous-cool = { $speaker } makes a show of finishing something important first.
-talk-open-pompous-neutral = "Ah, { $player }," says { $speaker }. "You'll have heard I'm rather in demand these days."
-talk-open-pompous-warm = "{ $player }! Come, come," says { $speaker }, a little louder than needed. "People ought to see us talking."
+talk-open-pompous-neutral = "Ah, it's you," says { $speaker }. "You'll have heard I'm rather in demand these days."
+talk-open-pompous-warm = "Come, come," says { $speaker }, a little louder than needed. "People ought to see us talking."
 
 ## Openers, by role.
 talk-open-press = { $speaker } flips a notebook to a clean page, then thinks better of it and closes it.
@@ -419,7 +419,7 @@ talk-favour-trusted = "That's what friends are for. I'll still write it down."
 talk-small-concern = "Don't get me started on { $concern_talk }. No, really, don't; I'll be here all day."
 talk-small-weather = "Grim weather we're having."
 talk-small-family = "The kids are well, thanks for asking."
-talk-small-warm = "Always good to see you, { $player }."
+talk-small-warm = "Always good to see you. Don't be a stranger."
 talk-small-trusted = "You look tired. Are you sleeping? You're not, are you."
 talk-small-cool = "I'm not here to chat, if it's all the same to you."
 talk-small-cool-2 = "Weather's fine. Anything else?"
