@@ -938,3 +938,60 @@ ui-preview-updating = Updating estimate…
 ui-budget-share = { $pct }% of the town budget
 ui-storyteller = Storyteller
 ui-storyteller-label = { $name } storyteller
+
+# Places with purpose (PL1): the verbs of the visit action.
+verb-tour_works = Tour the works
+verb-listen_at_gate = Listen at the gate
+verb-photo_op_gate = Photo op at the gate
+verb-visit_service = Look round
+verb-talk_to_head = Talk to whoever runs it
+verb-walk_fields = Walk the fields
+verb-be_seen = Be seen
+verb-meet_young_staff = Lunch with the young staff
+verb-public_gallery = Sit in the public gallery
+action-visit = A visit
+action-verb-tour-works = Toured the works
+action-verb-listen-at-gate = Listened at the gate
+action-verb-photo-op-gate = Photo op at the gate
+action-verb-visit-service = Looked round
+action-verb-talk-to-head = Talked to whoever runs it
+action-verb-walk-fields = Walked the fields
+action-verb-be-seen = Was seen about
+action-verb-meet-young-staff = Lunch with the young staff
+action-verb-public-gallery = Sat in the public gallery
+outcome-verb-tour_works = You toured { $place }. { $outlook ->
+        [growing] The order book is full and they are taking people on.
+        [shedding] The manager talks about "difficult months". Shifts are being cut.
+       *[other] Work is steady, for now.
+    }
+outcome-verb-listen_at_gate = You stood at the gate of { $place } as the shift changed, and listened.
+outcome-verb-photo_op_gate = Hard hat on, hand shaken: the photographer got the picture at { $place }.
+outcome-verb-photo_op_gate-heckled = The photo at { $place } went wrong: workers who fear for their jobs heckled you on camera.
+outcome-verb-visit_service = You looked round { $place } and saw how stretched it is.
+outcome-verb-talk_to_head = You sat down with { $name } at { $place }.
+outcome-verb-walk_fields = You walked the fields at { $place } with the people who work them.
+outcome-verb-be_seen = You took a turn round { $place } and said a few hellos.
+outcome-verb-meet_young_staff = You had lunch with the young staff at { $place }.
+outcome-verb-public_gallery = You watched from the public gallery at { $place }.
+visit-blocked-hours = Not at this time of day.
+visit-blocked-late = Not late at night.
+visit-blocked-situation = Not while things stand as they do.
+visit-blocked-nobody = Nobody you need is here just now.
+visit-blocked-time = Not enough time left this turn.
+visit-blocked-away = Go there first.
+ui-verbs = Things to do here
+ui-verb-cost-half = ½ slot
+ui-verb-cost-slot = 1 slot
+ui-verb-risk = Risk { $pct }%.
+ui-verb-done = Do it
+occupation-shop_steward = Shop steward
+occupation-harbourmaster = Harbourmaster
+occupation-farmhand = Farmhand
+occupation-head_teacher = Head teacher
+occupation-gp = Doctor
+occupation-dean = Dean
+occupation-student = Student
+occupation-hotel_manager = Hotel manager
+occupation-park_keeper = Park keeper
+occupation-tech_founder = Founder
+occupation-software_engineer = Software engineer

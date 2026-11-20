@@ -56,6 +56,11 @@ pub enum Action {
     DipFunds,
     /// Shady: slip a rival's confidential file to a reporter (the newspaper).
     LeakFile,
+    /// Do one of the verbs the place offers (places with purpose, DEC-079
+    /// note): a verb id from `actions.jsonc` `visit.verbs`, e.g.
+    /// `verb.tour_works`. Its cost, conditions, effects and risk are data
+    /// (`crate::visits`).
+    Visit { verb: String },
 }
 
 impl Action {
@@ -73,6 +78,7 @@ impl Action {
             Action::TakeBribe => "take_bribe",
             Action::DipFunds => "dip_funds",
             Action::LeakFile => "leak_file",
+            Action::Visit { .. } => "visit",
         }
     }
 }
@@ -683,6 +689,8 @@ pub fn apply(
                         | Action::TradeFavor { .. }
                         | Action::Fundraise
                         | Action::TakeBribe
+                        // A verb says itself whether it is done late.
+                        | Action::Visit { .. }
                 )
             {
                 return Err(bad(
@@ -1168,8 +1176,15 @@ pub fn apply(
                 Action::TakeBribe | Action::DipFunds | Action::LeakFile => {
                     res = shady(state, content, action, *late_night)?;
                 }
+                Action::Visit { verb } => {
+                    res = crate::visits::visit(state, content, verb, *late_night)?;
+                }
             }
-            let action_key = format!("action-{}", action.key().replace('_', "-"));
+            let word = match action {
+                Action::Visit { verb } => crate::visits::action_word(verb),
+                _ => action.key().to_string(),
+            };
+            let action_key = format!("action-{}", word.replace('_', "-"));
             if let Some(p) = state.player.as_mut() {
                 p.log(
                     date,

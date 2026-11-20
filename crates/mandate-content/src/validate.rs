@@ -459,6 +459,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     crate::narrative::validate(b, &mut issues);
     crate::media::validate(b, &mut issues);
     crate::knowledge::validate(b, &mut issues);
+    crate::visits::validate(b, &mut issues);
     crate::conversation::validate(b, &mut issues);
     for (name, v, lo, hi) in param_ranges(b) {
         if !(v.is_finite() && (lo..=hi).contains(&v)) {

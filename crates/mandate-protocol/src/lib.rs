@@ -269,6 +269,8 @@ pub enum ActionDto {
     DipFunds,
     /// Shady: at the newspaper office (about the rival).
     LeakFile,
+    /// A verb the place offers (places with purpose): `PlacePanelView.verbs`.
+    Visit { verb: String },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

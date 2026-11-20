@@ -14,6 +14,7 @@ pub mod overrides;
 pub mod routines;
 pub mod types;
 pub mod validate;
+pub mod visits;
 
 #[cfg(feature = "embedded")]
 pub mod embedded;

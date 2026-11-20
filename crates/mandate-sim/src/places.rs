@@ -40,6 +40,8 @@ pub enum Location {
 pub enum Offer<'a> {
     Action { key: &'a str, late_night: bool },
     Service(&'a str),
+    /// A verb of the visit action (places with purpose): a verb id.
+    Verb(&'a str),
 }
 
 /// Actions done in a particular neighbourhood (the target neighbourhood).
@@ -60,6 +62,7 @@ pub fn kind_offers(def: &PlaceKindDef, offer: Offer<'_>) -> bool {
             late_night: true,
         } => def.late_night.iter().any(|a| a == key),
         Offer::Service(s) => def.services.iter().any(|x| x == s),
+        Offer::Verb(v) => def.verbs.iter().any(|x| x == v),
     }
 }
 
@@ -226,8 +229,24 @@ pub fn action_of(state: &State, cmd: &PlayerCommand) -> Option<(&'static str, bo
             Action::TakeBribe => ("take_bribe", *late_night, None),
             Action::DipFunds => ("dip_funds", false, None),
             Action::LeakFile => ("leak_file", false, None),
+            // Verbs are offered by id (`offer_of`), not by action key.
+            Action::Visit { .. } => ("visit", *late_night, None),
         },
     })
+}
+
+/// What a command needs a place to offer, and in which neighbourhood:
+/// the action (or its late-night variant), or a visit's verb by id.
+pub fn offer_of<'a>(state: &State, cmd: &'a PlayerCommand) -> Option<(Offer<'a>, Option<u32>)> {
+    if let PlayerCommand::Act {
+        action: Action::Visit { verb },
+        ..
+    } = cmd
+    {
+        return Some((Offer::Verb(verb), None));
+    }
+    let (key, late_night, hood) = action_of(state, cmd)?;
+    Some((Offer::Action { key, late_night }, hood))
 }
 
 /// The best location to do a command: where the player already is if that
@@ -238,8 +257,14 @@ pub fn best_location(
     content: &ContentBundle,
     cmd: &PlayerCommand,
 ) -> Option<Location> {
-    let (key, late_night, hood) = action_of(state, cmd)?;
-    best_for(state, content, key, late_night, hood)
+    let (offer, hood) = offer_of(state, cmd)?;
+    let here = state.player.as_ref()?.location;
+    let locs = locations_for(state, content, offer, hood);
+    if locs.contains(&here) {
+        Some(here)
+    } else {
+        locs.first().copied()
+    }
 }
 
 /// The best location for an action key (see [`best_location`]).
@@ -278,7 +303,7 @@ pub fn check_at(
     content: &ContentBundle,
     cmd: &PlayerCommand,
 ) -> Result<(), EngineError> {
-    let Some((key, late_night, hood)) = action_of(state, cmd) else {
+    let Some((offer, hood)) = offer_of(state, cmd) else {
         return Ok(());
     };
     let Some(pl) = state.player.as_ref() else {
@@ -288,10 +313,14 @@ pub fn check_at(
     if hood.is_some_and(|h| !hood_in_town(state, h)) {
         return Ok(());
     }
-    let locs = locations_for(state, content, Offer::Action { key, late_night }, hood);
+    let locs = locations_for(state, content, offer, hood);
     if locs.contains(&pl.location) {
         return Ok(());
     }
+    let (key, late_night) = match offer {
+        Offer::Action { key, late_night } => (key, late_night),
+        Offer::Service(k) | Offer::Verb(k) => (k, false),
+    };
     let when = if late_night { " late at night" } else { "" };
     match locs.first() {
         Some(l) => Err(bad(format!(

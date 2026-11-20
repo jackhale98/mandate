@@ -557,6 +557,9 @@ pub enum SubjectDto {
     Place { place: u32 },
     Layer { layer: String, town: u32 },
     Secret { hidden: u32 },
+    Sector { town: u32, sector: String },
+    Site { place: u32 },
+    Service { place: u32 },
 }
 
 impl SubjectDto {
@@ -591,6 +594,12 @@ impl SubjectDto {
                 town: town.0,
             },
             Subject::Secret { hidden } => SubjectDto::Secret { hidden: *hidden },
+            Subject::Sector { town, sector } => SubjectDto::Sector {
+                town: town.0,
+                sector: sector.clone(),
+            },
+            Subject::Site { place } => SubjectDto::Site { place: place.0 },
+            Subject::Service { place } => SubjectDto::Service { place: place.0 },
         }
     }
 }
@@ -682,7 +691,11 @@ fn section_of(s: &Subject) -> &'static str {
         Subject::TownConcerns { .. } | Subject::HoodConcerns { .. } => "neighbourhoods",
         Subject::Broker { .. } => "power",
         Subject::Proposal { .. } | Subject::Situational { .. } => "proposals",
-        Subject::Place { .. } | Subject::Layer { .. } => "places",
+        Subject::Place { .. }
+        | Subject::Layer { .. }
+        | Subject::Sector { .. }
+        | Subject::Site { .. }
+        | Subject::Service { .. } => "places",
         Subject::RivalPlans { .. } => "rival",
         Subject::PolicySupport { .. } => "support",
         Subject::Secret { .. } => "secrets",
@@ -903,6 +916,53 @@ pub(crate) fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeM
             put!("town", town_name(st, *town));
         }
         Subject::Secret { hidden } => put!("hidden", hidden.to_string()),
+        // Places with purpose (PL1): what a visit taught, in bands.
+        Subject::Sector { town, sector } => {
+            put!("town", town_name(st, *town));
+            if let Some(d) = content.sector(sector) {
+                put!("sector_key", d.name_key.clone());
+            }
+            let outlook = if level >= Level::Known {
+                mandate_sim::visits::outlook_band(st, content, *town, sector)
+            } else {
+                "unknown"
+            };
+            put!("outlook", outlook.to_string());
+        }
+        Subject::Site { place } => {
+            put!("place", place_name(st, *place));
+            let r = mandate_sim::visits::site_reading(st, *place);
+            let get = |k: &str| r.iter().find(|x| x.0 == k).map(|x| x.1).unwrap_or(0);
+            let band = |v: i32, lo: i32, hi: i32| {
+                if v >= hi {
+                    "high"
+                } else if v >= lo {
+                    "some"
+                } else {
+                    "low"
+                }
+            };
+            if level >= Level::Known {
+                put!("pollution", band(get("pollution"), 400, 900).to_string());
+                let hazard = get("flood").max(get("wildfire")).max(get("storm"));
+                put!("hazard", band(hazard, 300, 650).to_string());
+            }
+        }
+        Subject::Service { place } => {
+            put!("place", place_name(st, *place));
+            if level >= Level::Known {
+                let r = mandate_sim::visits::service_reading(st, content, *place);
+                let need = r.iter().map(|x| x.1).max().unwrap_or(0);
+                let band = if need >= 450 {
+                    "high"
+                } else if need >= 200 {
+                    "some"
+                } else {
+                    "low"
+                };
+                put!("need", band.to_string());
+            }
+        }
     }
     args
 }

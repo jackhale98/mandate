@@ -93,6 +93,14 @@ pub enum GrantSubject {
     PolicySupport,
     /// The proposals on the table (`which`: `town`).
     Proposals,
+    /// How the place's industry is doing in its town (`which`: `here`;
+    /// visits only).
+    Sector,
+    /// Pollution and hazards at the place (`which`: `here`; visits only).
+    Site,
+    /// The real need the place's service meets (`which`: `here`; visits
+    /// only).
+    Service,
 }
 
 impl GrantSubject {
@@ -106,6 +114,9 @@ impl GrantSubject {
             GrantSubject::RivalPlans => "rival_plans",
             GrantSubject::PolicySupport => "policy_support",
             GrantSubject::Proposals => "proposals",
+            GrantSubject::Sector => "sector",
+            GrantSubject::Site => "site",
+            GrantSubject::Service => "service",
         }
     }
 
@@ -115,6 +126,7 @@ impl GrantSubject {
             GrantSubject::HoodConcerns => &["home", "ward", "town", "here"],
             GrantSubject::Broker => &["town", "here"],
             GrantSubject::PeopleAt => &["town", "here"],
+            GrantSubject::Sector | GrantSubject::Site | GrantSubject::Service => &["here"],
             _ => &["town"],
         }
     }
@@ -345,6 +357,16 @@ fn check_grants(b: &ContentBundle, owner: &str, grants: &[GrantDef], u: Use, out
             ));
         }
     }
+}
+
+/// A visit verb's grants (`visits.rs`): `here` is the place visited.
+pub(crate) fn check_visit_grants(
+    b: &ContentBundle,
+    owner: &str,
+    grants: &[GrantDef],
+    out: &mut Vec<Issue>,
+) {
+    check_grants(b, owner, grants, Use::Visit, out);
 }
 
 /// Profiles, the option, the primer and the introductions: known

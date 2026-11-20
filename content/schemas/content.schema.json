@@ -100,6 +100,18 @@
         "town_hall": {
           "$ref": "#/$defs/TownHallEffects"
         },
+        "visit": {
+          "$ref": "#/$defs/VisitParams",
+          "default": {
+            "outlook": {
+              "growing": 1.02,
+              "shed_full": 0.85,
+              "shedding": 0.95
+            },
+            "verbs": []
+          },
+          "description": "The `visit` action: its verbs and numbers (places with purpose)."
+        },
         "vote": {
           "$ref": "#/$defs/CouncilVoteEffects"
         }
@@ -4688,6 +4700,21 @@
           "const": "proposals",
           "description": "The proposals on the table (`which`: `town`).",
           "type": "string"
+        },
+        {
+          "const": "sector",
+          "description": "How the place's industry is doing in its town (`which`: `here`;\nvisits only).",
+          "type": "string"
+        },
+        {
+          "const": "site",
+          "description": "Pollution and hazards at the place (`which`: `here`; visits only).",
+          "type": "string"
+        },
+        {
+          "const": "service",
+          "description": "The real need the place's service meets (`which`: `here`; visits\nonly).",
+          "type": "string"
         }
       ]
     },
@@ -6990,6 +7017,13 @@
           },
           "type": "array"
         },
+        "round": {
+          "description": "Seeding round: a town's people of later rounds are generated after\neveryone of earlier rounds, so occupations added later append to the\ncast instead of renumbering it (draws are keyed by place and\noccupation either way).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
         "stake": {
           "$ref": "#/$defs/OccupationStake",
           "default": {
@@ -7798,6 +7832,13 @@
           },
           "type": "array"
         },
+        "addresses": {
+          "description": "The concerns its service addresses (concern ids): its real need is\nits neighbourhood's felt level of them (DEC-092 §2.22), what a\nverb's `service` grant reads.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "fallback": {
           "default": null,
           "description": "Where this kind's actions and services move in a town (or, for\nneighbourhood actions, a neighbourhood) that has no such place.",
@@ -7843,9 +7884,23 @@
         "name_key": {
           "type": "string"
         },
+        "sector": {
+          "description": "The industry this kind of place is part of (a sector id): what a\nverb's `sector` grant and its risk's `shedding` read.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "services": {
           "default": [],
           "description": "Information services offered here.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "verbs": {
+          "description": "Verbs of the `visit` action offered here (`actions.jsonc`\n`visit.verbs` ids; places with purpose, DEC-079 note).",
           "items": {
             "type": "string"
           },
@@ -11687,6 +11742,358 @@
         "mobilisation_max",
         "habit_base",
         "habit_propensity"
+      ],
+      "type": "object"
+    },
+    "VisitAmong": {
+      "additionalProperties": false,
+      "description": "Which residents an effect reaches: cohorts of `reach`, filtered by income\nclass, age band (0: 18–29, 1: 30–44, 2: 45–64, 3: 65+) and community\n(ids from `communities.jsonc`). An empty filter takes everyone.\nCohorts have no occupation: \"the works' people\" are its neighbourhood's\nworking classes.",
+      "properties": {
+        "ages": {
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "classes": {
+          "items": {
+            "$ref": "#/$defs/ClassKey"
+          },
+          "type": "array"
+        },
+        "communities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reach": {
+          "$ref": "#/$defs/VisitReach",
+          "default": "hood"
+        }
+      },
+      "type": "object"
+    },
+    "VisitEffect": {
+      "description": "One effect of a verb. Every amount is small: a visit is depth, not a\ncampaign (DEC-079 rule 4).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Knowledge grants (DEC-091), with `here` the place visited:\n`people_at`, `hood_concerns`, `broker`, `sector` (the place's\nindustry in its town), `site` (pollution and hazards there) and\n`service` (the real need its service meets). A numeric subject\ngranted `detailed` is a dated reading.",
+          "properties": {
+            "grants": {
+              "items": {
+                "$ref": "#/$defs/GrantDef"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "learn",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "grants"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The people here now (their daily routines, DEC-031), of these\noccupations (none: everyone), met to `level`; their opinion of the\nplayer moves by `opinion` (scaled by personality, as every opinion\nchange is), remembered as a meeting.",
+          "properties": {
+            "level": {
+              "$ref": "#/$defs/Level"
+            },
+            "occupations": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "opinion": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "people",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "level"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Name recognition: closes `amount` of the gap to fully known.",
+          "properties": {
+            "among": {
+              "$ref": "#/$defs/VisitAmong",
+              "default": {
+                "reach": "hood"
+              }
+            },
+            "amount": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "awareness",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "amount"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Approval: `amount` × the room left (negative for a setback).",
+          "properties": {
+            "among": {
+              "$ref": "#/$defs/VisitAmong",
+              "default": {
+                "reach": "hood"
+              }
+            },
+            "amount": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "approval",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "amount"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "VisitOutlook": {
+      "additionalProperties": false,
+      "description": "How a town's industry is doing, from its jobs over its capacity at\nneutral demand: at or above `growing` it is taking people on, below\n`shedding` it is letting them go, and at `shed_full` or lower shedding\ncounts in full for a verb's risk (0 at `shedding`, 1 at `shed_full`).",
+      "properties": {
+        "growing": {
+          "format": "double",
+          "type": "number"
+        },
+        "shed_full": {
+          "format": "double",
+          "type": "number"
+        },
+        "shedding": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "growing",
+        "shedding",
+        "shed_full"
+      ],
+      "type": "object"
+    },
+    "VisitParams": {
+      "additionalProperties": false,
+      "description": "The `visit` action's verbs and numbers (`actions.jsonc` `visit`).",
+      "properties": {
+        "outlook": {
+          "$ref": "#/$defs/VisitOutlook",
+          "default": {
+            "growing": 1.02,
+            "shed_full": 0.85,
+            "shedding": 0.95
+          }
+        },
+        "verbs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VisitVerbDef"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "VisitReach": {
+      "description": "Where an awareness or approval effect lands, relative to the place.",
+      "oneOf": [
+        {
+          "const": "hood",
+          "description": "The place's neighbourhood.",
+          "type": "string"
+        },
+        {
+          "const": "town",
+          "description": "Every neighbourhood of the place's town.",
+          "type": "string"
+        }
+      ]
+    },
+    "VisitRiskDef": {
+      "additionalProperties": false,
+      "description": "What can go wrong (DEC-073), from live state: `base`, plus each term\nwhose condition holds, plus `shedding` × how fast the place's industry is\nshedding jobs in its town (0..1, `visit.outlook`), within [min, max].\nThe odds shown are the odds rolled (a keyed draw per turn, place and\nverb). When it goes wrong, `effects` apply on top of the verb's and the\noutcome is `outcome_key`.",
+      "properties": {
+        "base": {
+          "format": "double",
+          "type": "number"
+        },
+        "effects": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VisitEffect"
+          },
+          "type": "array"
+        },
+        "max": {
+          "format": "double",
+          "type": "number"
+        },
+        "min": {
+          "format": "double",
+          "type": "number"
+        },
+        "outcome_key": {
+          "type": "string"
+        },
+        "shedding": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        },
+        "terms": {
+          "items": {
+            "$ref": "#/$defs/VisitRiskTerm"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "base",
+        "min",
+        "max",
+        "outcome_key"
+      ],
+      "type": "object"
+    },
+    "VisitRiskTerm": {
+      "additionalProperties": false,
+      "description": "A risk term: `add` while the town-wide condition holds.",
+      "properties": {
+        "add": {
+          "format": "double",
+          "type": "number"
+        },
+        "when": {
+          "$ref": "#/$defs/SituationCondition"
+        }
+      },
+      "required": [
+        "when",
+        "add"
+      ],
+      "type": "object"
+    },
+    "VisitTime": {
+      "description": "How long a verb takes.",
+      "oneOf": [
+        {
+          "const": "slot",
+          "description": "One slot.",
+          "type": "string"
+        },
+        {
+          "const": "half",
+          "description": "Half a slot: two half-slot things (verbs or conversations) fill one.",
+          "type": "string"
+        }
+      ]
+    },
+    "VisitVerbDef": {
+      "additionalProperties": false,
+      "description": "One verb a place can offer (`verb.<name>`).",
+      "properties": {
+        "effects": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VisitEffect"
+          },
+          "type": "array"
+        },
+        "health": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "late_night": {
+          "default": false,
+          "description": "May also be done in the late-night slot.",
+          "type": "boolean"
+        },
+        "name_key": {
+          "description": "Fluent key of the verb's label (`verb-<name>`).",
+          "type": "string"
+        },
+        "outcome_key": {
+          "description": "Fluent key of the outcome (`outcome-verb-<name>`; args `place`).",
+          "type": "string"
+        },
+        "parts": {
+          "description": "The standard day parts it can be done in (none: any). Late at night\nis `late_night`.",
+          "items": {
+            "$ref": "#/$defs/DayPart"
+          },
+          "type": "array"
+        },
+        "risk": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisitRiskDef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "time": {
+          "$ref": "#/$defs/VisitTime",
+          "default": "slot"
+        },
+        "when": {
+          "description": "Town-wide conditions that must all hold (slot-free situation\nconditions, as a policy unlock uses).",
+          "items": {
+            "$ref": "#/$defs/SituationCondition"
+          },
+          "type": "array"
+        },
+        "with": {
+          "description": "Someone of one of these occupations must be here now.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "outcome_key"
       ],
       "type": "object"
     },

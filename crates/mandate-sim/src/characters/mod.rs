@@ -1176,7 +1176,8 @@ pub(crate) fn named_character(
 /// each occupation found there by its chance; for each neighbourhood, each
 /// occupation found on the streets. Keyed by place (or neighbourhood) and
 /// occupation id, so the result does not depend on registry order or on any
-/// sequential stream. Run once, when play begins.
+/// sequential stream. Occupations of a later `round` are seeded after
+/// everyone of earlier rounds, so they append ids. Run once, when play begins.
 pub fn seed_named(
     pol: &mut PoliticsState,
     world: &World,
@@ -1199,12 +1200,17 @@ pub fn seed_named(
     for h in &world.neighborhoods {
         slots.push(((1u64 << 32) | h.id.0 as u64, h.id.0, None, "streets"));
     }
-    for (key, hood, place, kind) in slots {
-        for o in content
-            .occupations
-            .iter()
-            .filter(|o| o.chance > 0.0 && o.places.iter().any(|k| k == kind))
-        {
+    let mut rounds: Vec<u8> = content.occupations.iter().map(|o| o.round).collect();
+    rounds.sort_unstable();
+    rounds.dedup();
+    let slots: Vec<(u8, (u64, u32, Option<PlaceId>, &str))> = rounds
+        .iter()
+        .flat_map(|r| slots.iter().map(move |s| (*r, *s)))
+        .collect();
+    for (round, (key, hood, place, kind)) in slots {
+        for o in content.occupations.iter().filter(|o| {
+            o.round == round && o.chance > 0.0 && o.places.iter().any(|k| k == kind)
+        }) {
             let mut r = rng(seed, &[KEY_NAMED, key, key_of(&o.id)]);
             if !r.chance(o.chance) {
                 continue;
