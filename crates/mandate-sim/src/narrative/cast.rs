@@ -3,14 +3,14 @@
 //! serve the director (inside the scheduler), NPC goals (in the politics
 //! domain), the Commands phase, views, and the grounding audit.
 
-use super::{Actor, CastEntry, Reason};
+use super::{Actor, AnswerRecord, CastEntry, Reason};
 use crate::characters::{self, CharacterId};
 use crate::player::PlayerState;
 use crate::policy::{PolicyInstance, PolicyStatus};
 use crate::politics::{PoliticianId, PoliticsState, Role};
 use crate::scheduler::Reads;
 use mandate_content::{
-    BillSponsor, Cast, Condition, ContentBundle, PartyRel, Power, RoleDef, TrackKey,
+    BillSponsor, Cast, Condition, ContentBundle, LawStatus, PartyRel, Power, RoleDef, TrackKey,
 };
 use mandate_core::SimDate;
 
@@ -22,6 +22,10 @@ pub struct View<'a> {
     /// People spotlighted lately: cast others first, for variety (order
     /// only; never who may be cast).
     pub recent: Vec<CharacterId>,
+    /// The player's past answers, for `answered` conditions. The director
+    /// sets them (the narrative domain is not readable while it writes it);
+    /// elsewhere they are read from the state.
+    pub answers: Option<Vec<AnswerRecord>>,
 }
 
 impl<'a> View<'a> {
@@ -30,6 +34,15 @@ impl<'a> View<'a> {
             r,
             pol,
             recent: Vec::new(),
+            answers: None,
+        }
+    }
+
+    /// The player's past answers, oldest first.
+    pub fn answers(&self) -> &[AnswerRecord] {
+        match &self.answers {
+            Some(a) => a,
+            None => &self.r.narrative().answers,
         }
     }
 
@@ -45,9 +58,9 @@ impl<'a> View<'a> {
         self.r.player
     }
 
-    /// The player's town (municipality index).
+    /// The player's town (municipality index; DEC-098: their home).
     pub fn town(&self) -> Option<u32> {
-        self.player().map(|p| p.municipality.0)
+        self.player().map(|p| p.home().0)
     }
 
     /// The player's character.
@@ -421,13 +434,20 @@ pub fn candidates(
         Cast::Law {
             templates,
             building,
+            sponsor,
         } => {
+            let player_pol = v.player().map(|p| p.politician);
             let mut laws: Vec<&PolicyInstance> =
                 v.r.policy()
                     .in_municipality(m)
                     .filter(|p| matches!(p.status, PolicyStatus::Enacted | PolicyStatus::InEffect))
-                    .filter(|p| templates.contains(&p.template))
+                    .filter(|p| templates.is_empty() || templates.contains(&p.template))
                     .filter(|p| !building || p.progress < 1.0)
+                    .filter(|p| match sponsor {
+                        BillSponsor::Any => true,
+                        BillSponsor::Player => p.sponsor.is_some() && p.sponsor == player_pol,
+                        BillSponsor::Other => p.sponsor != player_pol,
+                    })
                     .collect();
             // Being built first, then the newest.
             laws.sort_by_key(|p| {
@@ -741,7 +761,127 @@ pub fn holds(v: &View<'_>, c: &Condition, cast: &[CastEntry]) -> bool {
             v.play_began().days_until(v.date()) >= min * 30 && v.date() >= v.play_began()
         }
         Condition::Knows { subject, min } => super::learn::knows(v, subject, *min, cast, None),
+        Condition::Answered { .. } => !answered_matches(v, c, cast).is_empty(),
+        Condition::SponsoredLaw {
+            status,
+            min_age_days,
+            max_age_days,
+            chance,
+            role,
+        } => {
+            let Some(pl) = v.player() else { return false };
+            let only = match role {
+                Some(r) => match super::actor_of(cast, r) {
+                    Some(Actor::Policy { id }) => Some(id),
+                    _ => return false,
+                },
+                None => None,
+            };
+            let salt = sponsored_law_salt(c);
+            // The player's laws in any jurisdiction (DEC-098).
+            v.r.policy().instances.iter().any(|p| {
+                if p.sponsor != Some(pl.politician) || only.is_some_and(|id| id != p.id.0) {
+                    return false;
+                }
+                let (ok, from) = match status {
+                    LawStatus::InForce => (p.active(), p.enacted_on),
+                    LawStatus::Pending => (
+                        p.status == PolicyStatus::UnderConsideration,
+                        p.introduced_on,
+                    ),
+                    LawStatus::Ended => (
+                        p.status == PolicyStatus::Ended,
+                        p.enacted_on.or(p.introduced_on),
+                    ),
+                };
+                let Some(from) = from.filter(|f| *f <= v.date()) else {
+                    return false;
+                };
+                let age = from.days_until(v.date());
+                ok && age >= *min_age_days
+                    && max_age_days.is_none_or(|m| age <= m)
+                    && (*chance >= 1.0
+                        || mandate_core::rng::keyed(
+                            v.r.meta.seed,
+                            mandate_core::Stream::Director,
+                            &[super::KEY_SPONSORED_LAW, p.id.0 as u64, salt],
+                        )
+                        .next_f64()
+                            < *chance)
+            })
+        }
     }
+}
+
+/// The answers an `answered` condition matches for this cast, newest first
+/// (empty for any other condition): the template (and option), within the
+/// window, and the `same_cast` roles cast as they were.
+pub fn answered_matches<'v>(
+    v: &'v View<'_>,
+    c: &Condition,
+    cast: &[CastEntry],
+) -> Vec<&'v AnswerRecord> {
+    let Condition::Answered { same_cast, .. } = c else {
+        return Vec::new();
+    };
+    answered_records(v, c)
+        .into_iter()
+        .filter(|a| {
+            same_cast.iter().all(|r| {
+                let then = super::actor_of(&a.cast, r);
+                then.is_some() && then == super::actor_of(cast, r)
+            })
+        })
+        .collect()
+}
+
+/// The answers an `answered` condition matches whatever the cast, newest
+/// first: the template (and option), within the window.
+pub fn answered_records<'v>(v: &'v View<'_>, c: &Condition) -> Vec<&'v AnswerRecord> {
+    let Condition::Answered {
+        template,
+        option,
+        min_days,
+        max_days,
+        ..
+    } = c
+    else {
+        return Vec::new();
+    };
+    let date = v.date();
+    v.answers()
+        .iter()
+        .rev()
+        .filter(|a| &a.template == template && option.as_ref().is_none_or(|o| *o == a.option))
+        .filter(|a| {
+            a.date <= date && {
+                let age = a.date.days_until(date);
+                age >= *min_days && max_days.is_none_or(|m| age <= m)
+            }
+        })
+        .collect()
+}
+
+/// The keyed draw's salt for a `sponsored_law` condition: its own
+/// parameters, so one law gives one answer per condition.
+fn sponsored_law_salt(c: &Condition) -> u64 {
+    let Condition::SponsoredLaw {
+        status,
+        min_age_days,
+        max_age_days,
+        chance,
+        role,
+    } = c
+    else {
+        return 0;
+    };
+    mandate_core::hash::derive_u64(
+        &format!(
+            "sponsored_law/{status:?}/{min_age_days}/{max_age_days:?}/{chance}/{}",
+            role.as_deref().unwrap_or("")
+        ),
+        &[],
+    )
 }
 
 /// Why the situation came up (for relevance and the "why" panel).

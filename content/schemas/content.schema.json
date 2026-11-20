@@ -1214,13 +1214,18 @@
         },
         {
           "additionalProperties": false,
-          "description": "A law of one of these templates in force or being built in town\n(`building`: only one still being built).",
+          "description": "A law of one of these templates (any, if empty) in force or being\nbuilt in town (`building`: only one still being built), sponsored by\n`sponsor`.",
           "properties": {
             "building": {
               "default": false,
               "type": "boolean"
             },
+            "sponsor": {
+              "$ref": "#/$defs/BillSponsor",
+              "default": "any"
+            },
             "templates": {
+              "default": [],
               "items": {
                 "type": "string"
               },
@@ -1232,8 +1237,7 @@
             }
           },
           "required": [
-            "type",
-            "templates"
+            "type"
           ],
           "type": "object"
         },
@@ -2133,6 +2137,93 @@
             "subject"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player answered `template` (with `option`, if given; a default\nthat happened counts) between `min_days` and `max_days` ago\n(ENGAGEMENT §4.4: consequences of the player's own choices). Roles in\n`same_cast` are cast as they were in that decision.",
+          "properties": {
+            "max_days": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "min_days": {
+              "default": 0,
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "option": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "same_cast": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "template": {
+              "type": "string"
+            },
+            "type": {
+              "const": "answered",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "template"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player sponsored a law of this status, between `min_age_days`\nand `max_age_days` old (since enacted; a pending bill since it was\nintroduced): the law cast in `role`, or any. `chance` is the share of\nsuch laws that count, a keyed draw per law and condition, so the same\nlaw always gives the same answer (ENGAGEMENT §4.4, §4.7).",
+          "properties": {
+            "chance": {
+              "default": 1.0,
+              "format": "double",
+              "type": "number"
+            },
+            "max_age_days": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "min_age_days": {
+              "default": 0,
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "role": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "status": {
+              "$ref": "#/$defs/LawStatus",
+              "default": "in_force"
+            },
+            "type": {
+              "const": "sponsored_law",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -2666,6 +2757,90 @@
         }
       ]
     },
+    "CycleLengths": {
+      "additionalProperties": false,
+      "description": "Phase lengths of the pacing cycle for one kind of chapter (ENGAGEMENT\n§4.3), in days: `[from, to]` ranges are keyed draws.",
+      "properties": {
+        "build_up": {
+          "description": "Minor beats only, then a peak.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "peak_max": {
+          "description": "A peak lasts until its decision is answered, at most this long.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "relax": {
+          "description": "Minor beats only, then the next build-up.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "relax_after_climax": {
+          "description": "The relax after a session's climax (default: `relax`).",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "build_up",
+        "peak_max",
+        "relax"
+      ],
+      "type": "object"
+    },
+    "CycleParams": {
+      "additionalProperties": false,
+      "description": "The pacing cycle (ENGAGEMENT §4.3, after Left 4 Dead's AI Director and\nRimWorld): build-up, peak, peak fade and relax, across chapters.",
+      "properties": {
+        "campaign": {
+          "$ref": "#/$defs/CycleLengths"
+        },
+        "climax_force_days": {
+          "description": "A session with no climax this many days before its climax window\ncloses ends its phase and opens the climax peak.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "session": {
+          "$ref": "#/$defs/CycleLengths"
+        },
+        "setback_relax_mult": {
+          "description": "The relax after a setback is this much longer.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "session",
+        "campaign",
+        "setback_relax_mult",
+        "climax_force_days"
+      ],
+      "type": "object"
+    },
     "DecisionRule": {
       "oneOf": [
         {
@@ -2773,6 +2948,13 @@
         "id": {
           "type": "string"
         },
+        "min_career_days": {
+          "default": 0,
+          "description": "Days since play began before the director may spotlight it\n(ENGAGEMENT §4.7: new pressures year by year).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
         "opportunity": {
           "default": false,
           "description": "An opportunity: its arrival is timed by the director rather than\nforced by a crisis (DEC-033 B).",
@@ -2818,6 +3000,13 @@
           "default": false,
           "description": "Only presented as a storyline stage, never on its own.",
           "type": "boolean"
+        },
+        "themes": {
+          "description": "Chapter themes it belongs to (ENGAGEMENT §4.2): a themed template is\ndrawn before the rest in a chapter of its theme.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "title_key": {
           "type": "string"
@@ -2894,12 +3083,34 @@
         "chance": {
           "$ref": "#/$defs/ChanceParams"
         },
+        "climax_memory_chapters": {
+          "description": "A template that was the climax in one of the last this many chapters\ncannot be the climax.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cooldown_floor_days": {
+          "description": "Every dilemma's cooldown is at least this many days …",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cooldown_growth": {
+          "description": "… and the n-th use sets `max(floor, cooldown) × growth^(n−1)`.",
+          "format": "double",
+          "type": "number"
+        },
         "crisis_cap": {
           "description": "Crises the player's town may carry before the director holds\nexogenous hazards back (the cap on simultaneous unresolved crises).",
           "format": "uint8",
           "maximum": 255,
           "minimum": 0,
           "type": "integer"
+        },
+        "cycle": {
+          "$ref": "#/$defs/CycleParams",
+          "description": "The pacing cycle (ENGAGEMENT §4.3)."
         },
         "deadline_days": {
           "description": "Days to decide when a dilemma gives none.",
@@ -2939,6 +3150,33 @@
           "format": "double",
           "type": "number"
         },
+        "no_repeat_in_chapter": {
+          "description": "A template spotlighted in a chapter is not a candidate again in it,\nthe climax included.",
+          "type": "boolean"
+        },
+        "pick_band": {
+          "description": "The pick draws among candidates whose relevance is within this of the\ntier's best, weighted by relevance × novelty.",
+          "format": "double",
+          "type": "number"
+        },
+        "post_climax_significant": {
+          "description": "After a session's climax and its relax, at most this many significant\ndecisions (the coda): a consequence, an opportunity, or a `budget`\ntemplate.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "quiet_days": {
+          "description": "Nothing for the player this long (governing, campaigning): a minor\nbeat is spotlighted at once, in any phase (the quiet rescue).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "quiet_days_campaign": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
         "relevance": {
           "$ref": "#/$defs/RelevanceWeights"
         },
@@ -2968,6 +3206,20 @@
         },
         "tension": {
           "$ref": "#/$defs/TensionParams"
+        },
+        "themes": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "description": "Chapter themes and their draw weights (ENGAGEMENT §4.2): `crisis`,\n`budget`, `scheme`, `local_life` (campaign chapters take `campaign`).",
+          "type": "object"
+        },
+        "tier_a_window_days": {
+          "description": "A consequence (`answered`) whose window closes within this many days\nis drawn first (tier A, with storyline stages that are due).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
@@ -2986,7 +3238,18 @@
         "fairness",
         "chance",
         "storylines_active",
-        "history"
+        "history",
+        "cycle",
+        "post_climax_significant",
+        "quiet_days",
+        "quiet_days_campaign",
+        "tier_a_window_days",
+        "pick_band",
+        "themes",
+        "cooldown_floor_days",
+        "cooldown_growth",
+        "no_repeat_in_chapter",
+        "climax_memory_chapters"
       ],
       "type": "object"
     },
@@ -5765,6 +6028,26 @@
         "stepped"
       ],
       "type": "string"
+    },
+    "LawStatus": {
+      "description": "Which of the player's laws a `sponsored_law` condition reads.",
+      "oneOf": [
+        {
+          "const": "in_force",
+          "description": "Enacted and in force (or being built).",
+          "type": "string"
+        },
+        {
+          "const": "pending",
+          "description": "Before the council.",
+          "type": "string"
+        },
+        {
+          "const": "ended",
+          "description": "Repealed, expired, defeated or withdrawn.",
+          "type": "string"
+        }
+      ]
     },
     "LeadToDef": {
       "description": "Where a lead points.",
@@ -9904,6 +10187,13 @@
         "id": {
           "type": "string"
         },
+        "min_career_days": {
+          "default": 0,
+          "description": "Days since play began before it may start (ENGAGEMENT §4.7).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
         "roles": {
           "items": {
             "$ref": "#/$defs/RoleDef"
@@ -9920,6 +10210,13 @@
           "default": [],
           "items": {
             "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
+        "themes": {
+          "description": "Chapter themes it carries (`scheme`: a running scheme makes the\n`scheme` theme eligible; ENGAGEMENT §4.2).",
+          "items": {
+            "type": "string"
           },
           "type": "array"
         },
@@ -9946,6 +10243,12 @@
           "format": "double",
           "type": "number"
         },
+        "build_up_scale": {
+          "default": 1.0,
+          "description": "Scales build-up and relax lengths: frequency, not amplitude.",
+          "format": "double",
+          "type": "number"
+        },
         "crisis_cap": {
           "default": null,
           "description": "Overrides the director's `crisis_cap`.",
@@ -9956,6 +10259,11 @@
             "integer",
             "null"
           ]
+        },
+        "cycle": {
+          "default": true,
+          "description": "Pace each chapter in build-up, peak and relax phases (ENGAGEMENT\n§4.3); off, situations come by chance within the budgets.",
+          "type": "boolean"
         },
         "defer_hazards": {
           "description": "Hold hazards in the player's town while it carries `crisis_cap`\ncrises. Timing only: a held hazard still strikes, at its drawn severity.",
@@ -9978,6 +10286,11 @@
         },
         "name_key": {
           "type": "string"
+        },
+        "relax_scale": {
+          "default": 1.0,
+          "format": "double",
+          "type": "number"
         },
         "tension_curve": {
           "description": "Pace decisions along the chapter's tension curve (otherwise spotlight\nwhatever is ready, within the budgets).",

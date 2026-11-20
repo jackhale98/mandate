@@ -5,6 +5,7 @@ mod lab;
 mod mapimg;
 mod png;
 mod replay;
+mod story;
 mod sweep;
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -150,6 +151,13 @@ enum Cmd {
         /// Storyteller profile id (default: the content's).
         #[arg(long)]
         profile: Option<String>,
+        /// Print the director's decision and pacing metrics (ENGAGEMENT
+        /// §7.1) instead of the story: one row per career and their spread.
+        #[arg(long)]
+        metrics: bool,
+        /// With `--metrics`: careers on this many seeds from `--seed` on.
+        #[arg(long, default_value_t = 1)]
+        seeds: u64,
     },
     /// Yearly economic trace (balancing diagnostics): jobs by sector, labour
     /// force, prices, and demand drivers.
@@ -400,8 +408,46 @@ fn run(cli: Cli) -> Result<(), String> {
             years,
             strategy,
             profile,
+            metrics,
+            seeds,
         } => {
             let content = load_content(&cli.content)?;
+            if metrics {
+                let mut rows = Vec::new();
+                for s in seed..seed + seeds.max(1) {
+                    let mut e = generate(
+                        &WorldConfig {
+                            seed: s,
+                            size: size.into(),
+                            scenario: None,
+                        },
+                        content.clone(),
+                    )
+                    .map_err(|e| e.to_string())?;
+                    if let Some(p) = &profile {
+                        e.setup(|st| st.narrative.profile = p.clone());
+                    }
+                    let end = e.state().calendar.date.add_days(years * 365);
+                    let start_turn = e.state().calendar.turn;
+                    let mut c = story::Collector::default();
+                    while e.state().calendar.date < end {
+                        bots::play_turn_from(&mut e, &content, &strategy, start_turn);
+                        c.observe(&e);
+                        if e.apply(Command::EndTurn).is_err() {
+                            break;
+                        }
+                        c.observe(&e);
+                    }
+                    rows.push(c.finish(&e, &content, s));
+                }
+                out(serde_json::json!({
+                    "strategy": strategy,
+                    "years": years,
+                    "summary": story::summary(&rows),
+                    "careers": rows,
+                }));
+                return Ok(());
+            }
             let mut e = generate(
                 &WorldConfig {
                     seed,

@@ -2,8 +2,17 @@
 // consequence). One file across all packs; every field is required.
 //
 // Chapters (DEC-005): a campaign (the player is standing; its climax is the
-// election) or a session (a budget year in office). Each chapter's tension
-// curve rises to one climax; budgets cap what the director spotlights.
+// election) or a session (the budget year of the jurisdiction of the
+// player's main post). Each chapter's tension curve rises to one climax;
+// budgets cap what the director spotlights.
+//
+// Variety and pacing (DEC-097, ENGAGEMENT §4.1–4.3): every template cools
+// down for at least a year (longer each time it returns) and never repeats
+// within a chapter; a climax never repeats one of the last two chapters'.
+// Candidates are drawn by tier (storyline stages and closing consequences,
+// then the chapter's theme, then the rest), relevance × novelty. Each
+// chapter is paced in cycles: a build-up of minor beats, a peak with one
+// significant decision, then a relax.
 {
   "kind": "director",
   "value": {
@@ -11,12 +20,12 @@
     "session_min_days": 180,          // a session shorter than this runs on to the next year
     "budgets": {
       "climax": 1,                    // one climax per chapter
-      "significant": [2, 4],          // significant decisions, [target minimum, maximum]
+      "significant": [3, 5],          // significant decisions, [target minimum, maximum] (was [2, 4])
       "minor": [5, 10],               // requests, storyline beats, news of the town
     },
     "tension": {
       "start": 0.25, "peak": 0.85, "peak_at": 0.75, "end": 0.35,
-      "climax_window": [0.6, 0.92],   // where in a session the climax may come
+      "climax_window": [0.65, 0.85],  // where in a session the climax's build-up ends (was [0.6, 0.92])
       "slack": 0.15,                  // spotlight while live tension < curve + slack
       "catch_up_at": 0.7,             // a chapter short of its minimum then takes what is ready
       // Live tension: worst crisis, pending decisions, the player's race, danger on a track.
@@ -50,5 +59,22 @@
     },
     "storylines_active": 2,
     "history": 120,
+    // The pacing cycle (ENGAGEMENT §4.3): build-up → peak (one significant
+    // decision, until answered) → peak fade (until nothing significant is
+    // pending) → relax. Lengths are keyed draws in days; storyteller profiles
+    // scale them (frequency, not amplitude). The cycle runs across chapters.
+    "cycle": {
+      "session":  { "build_up": [35, 60], "peak_max": 14, "relax": [21, 35], "relax_after_climax": [30, 45] },
+      "campaign": { "build_up": [7, 14],  "peak_max": 7,  "relax": [5, 10] },
+      "setback_relax_mult": 1.5,      // easing off after a lost election, a track at its warning, a scandal
+      "climax_force_days": 14,        // no climax this close to the window's end: the climax peak opens
+    },
+    "post_climax_significant": 1,     // the coda: a consequence, an opportunity, or a budget template
+    "quiet_days": 45, "quiet_days_campaign": 14,   // nothing for the player this long: a minor beat (was 60)
+    "tier_a_window_days": 60,         // consequences closing within this are drawn with storyline stages
+    "pick_band": 0.8,                 // draw among candidates within this relevance of the tier's best
+    "themes": { "crisis": 1.0, "budget": 1.0, "scheme": 1.0, "local_life": 1.0 },
+    "cooldown_floor_days": 365, "cooldown_growth": 2.0,   // the n-th use: max(floor, cooldown) × growth^(n−1)
+    "no_repeat_in_chapter": true, "climax_memory_chapters": 2,
   },
 }
