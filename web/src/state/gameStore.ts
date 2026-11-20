@@ -35,6 +35,7 @@ import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
 import { EMPTY_TRANSLATOR, Translator } from "../i18n/fluent";
 import { saveStore } from "../persistence/indexedDbStore";
 import { deviceId, randomHex, type RunSummary } from "../persistence/saveStore";
+import { noteCommand, recordError } from "./reportStore";
 import { isWide, readMapScope, readPocketDocked, readPocketTab, writeMapScope, writePocketDocked, writePocketTab, type MapScope, type PocketTab } from "./devicePrefs";
 
 export type { MapScope, PocketTab } from "./devicePrefs";
@@ -405,6 +406,7 @@ export const useGame = create<GameState>((set, get) => {
       const run = get().run;
       if (!run || get().busy) return null;
       set({ busy: true, error: null });
+      noteCommand(cmd);
       try {
         const body = await engine().request({ kind: "command", payload: cmd });
         const applied = expectKind(body, "command_applied");
@@ -609,6 +611,7 @@ export const useGame = create<GameState>((set, get) => {
         // What is new now stays marked while the player looks.
         const before = expectKind(await q({ type: "notebook" }), "notebook");
         set({ notebook: before, notebookFresh: [...new Set([...get().notebookFresh, ...freshKeys(before)])] });
+        noteCommand({ type: "notebook_seen" });
         expectKind(await engine().request({ kind: "command", payload: { type: "notebook_seen" } }), "command_applied");
         await persist();
         const [pocket, notebook] = await Promise.all([q({ type: "pocket" }), q({ type: "notebook" })]);
@@ -685,6 +688,7 @@ export const useGame = create<GameState>((set, get) => {
         error: null,
         passage: from ? { phase: "dusk", from: from.date, to: null, days: from.turn_days, id: ++passageCount } : null,
       });
+      noteCommand({ type: "end_turn" });
       try {
         const body = await engine().request({ kind: "command", payload: { type: "end_turn" } });
         set({ overview: expectKind(body, "command_applied").overview, toast: null });
@@ -752,4 +756,9 @@ export const useGame = create<GameState>((set, get) => {
       set({ error: null });
     },
   };
+});
+
+// Every error the app shows is kept for "Report a problem" (the last few).
+useGame.subscribe((s, prev) => {
+  if (s.error && s.error !== prev.error) recordError(s.error);
 });

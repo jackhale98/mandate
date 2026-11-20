@@ -277,6 +277,14 @@ impl Engine {
         self.command_log.clear();
     }
 
+    /// Carry a loaded run's command log on (bug reports, `mandate-save`'s
+    /// run log): the next command is logged after it. Touches nothing else;
+    /// the log is never replayed by the game (DEC-074).
+    pub fn restore_log(&mut self, log: Vec<LoggedCommand>) {
+        self.next_command = log.last().map_or(0, |c| c.index + 1);
+        self.command_log = log;
+    }
+
     pub fn state_hash(&self) -> String {
         self.state.hash()
     }

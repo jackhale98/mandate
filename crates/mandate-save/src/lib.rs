@@ -9,12 +9,18 @@
 //! fixture corpus; any change to the serialized state shape must bump
 //! `SAVE_FORMAT_VERSION` (enforced by the shape-fingerprint test).
 
+pub mod runlog;
+
 use mandate_core::hash::StableHash;
 use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
+pub use runlog::{NewGameSetup, RunLog};
+
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 17;
+/// v18: the run log beside the state (bug reports). Renumber at merge if
+/// another bump lands first (see `migrate`).
+pub const SAVE_FORMAT_VERSION: u16 = 18;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -63,6 +69,9 @@ pub struct SaveRequest {
 #[derive(Serialize, Deserialize)]
 struct Payload {
     state: State,
+    /// The run log (v18), outside the state: the state hash never covers it.
+    #[serde(default)]
+    log: Option<RunLog>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -81,8 +90,17 @@ pub enum SaveError {
 
 /// Encode a save file from the current state.
 pub fn encode(state: &State, req: &SaveRequest) -> Result<(Vec<u8>, SaveMeta), SaveError> {
-    let payload =
-        serde_json::to_vec(&PayloadRef { state }).map_err(|e| SaveError::Data(e.to_string()))?;
+    encode_with_log(state, None, req)
+}
+
+/// Encode a save file from the current state and the run's log.
+pub fn encode_with_log(
+    state: &State,
+    log: Option<&RunLog>,
+    req: &SaveRequest,
+) -> Result<(Vec<u8>, SaveMeta), SaveError> {
+    let payload = serde_json::to_vec(&PayloadRef { state, log })
+        .map_err(|e| SaveError::Data(e.to_string()))?;
     let meta = SaveMeta {
         format_version: SAVE_FORMAT_VERSION,
         run_id: req.run_id.clone(),
@@ -113,6 +131,7 @@ pub fn encode(state: &State, req: &SaveRequest) -> Result<(Vec<u8>, SaveMeta), S
 #[derive(Serialize)]
 struct PayloadRef<'a> {
     state: &'a State,
+    log: Option<&'a RunLog>,
 }
 
 fn split(bytes: &[u8]) -> Result<(u16, &[u8], &[u8]), SaveError> {
@@ -142,6 +161,11 @@ pub fn read_meta(bytes: &[u8]) -> Result<SaveMeta, SaveError> {
 
 /// Decode, verify, and migrate a save file to the current format.
 pub fn decode(bytes: &[u8]) -> Result<(State, SaveMeta), SaveError> {
+    decode_with_log(bytes).map(|(state, _, meta)| (state, meta))
+}
+
+/// `decode`, with the run's log (`None` before v18, or when not kept).
+pub fn decode_with_log(bytes: &[u8]) -> Result<(State, Option<RunLog>, SaveMeta), SaveError> {
     let meta = read_meta(bytes)?;
     let (version, _, compressed) = split(bytes)?;
     let payload = miniz_oxide::inflate::decompress_to_vec_with_limit(compressed, MAX_PAYLOAD_BYTES)
@@ -153,7 +177,7 @@ pub fn decode(bytes: &[u8]) -> Result<(State, SaveMeta), SaveError> {
         serde_json::from_slice(&payload).map_err(|e| SaveError::Data(e.to_string()))?;
     let value = migrate(version, value)?;
     let p: Payload = serde_json::from_value(value).map_err(|e| SaveError::Data(e.to_string()))?;
-    Ok((p.state, meta))
+    Ok((p.state, p.log, meta))
 }
 
 /// One migration step from format `vN` to `vN+1`.
@@ -180,6 +204,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Conversations (DEC-093): the previous format to the next.
         // Renumber only this key if another bump merges first.
         (16, talk_state),
+        // The run log (bug reports): the previous format to the next.
+        // Renumber only this key if another bump merges first.
+        (17, run_log),
     ];
     let mut value = value;
     let mut v = from;
@@ -457,6 +484,16 @@ fn talk_state(mut value: serde_json::Value) -> Result<serde_json::Value, SaveErr
     if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
         p.remove("talk");
     }
+    Ok(value)
+}
+
+/// Previous format → next (v17 → v18 when written): the run log beside the
+/// state (bug reports, `runlog`). A run from before it has none: its log
+/// starts empty when loaded, marked as not replayable from the start. The
+/// state is untouched (its hash is unchanged).
+fn run_log(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let payload = value.as_object_mut().ok_or(SaveError::Malformed)?;
+    payload.insert("log".into(), serde_json::Value::Null);
     Ok(value)
 }
 

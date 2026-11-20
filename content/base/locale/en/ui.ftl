@@ -254,3 +254,23 @@ ui-canvass-no-worries = You don't know what worries people here yet.
 ui-canvass-landed-strong = You raised { $issue }: it struck a chord.
 ui-canvass-landed-fair = You raised { $issue }: it went down fairly well.
 ui-canvass-landed-weak = You raised { $issue }: it fell flat here.
+
+## Report a problem
+ui-report = Report a problem
+ui-report-intro = Something wrong? Save a report file and send it to the developers. With it they can replay your game exactly as it happened.
+ui-report-contains = The file holds:
+ui-report-item-run = this game's seed and settings, and every move you made in it
+ui-report-item-save = the game as it is now (its save)
+ui-report-item-errors = the last few error messages, if there were any
+ui-report-item-device = your screen size and your browser's name
+ui-report-item-note = what you write below
+ui-report-privacy = Nothing personal beyond that. Nothing is sent anywhere: the file is saved on this device (or offered to your phone's share sheet), and you choose whom to send it to.
+ui-report-describe = What happened? (optional)
+ui-report-describe-hint = What you did, what you expected, and what you saw instead.
+ui-report-save = Save report file
+ui-report-working = Preparing the report…
+ui-report-done = Saved { $file } ({ $size }).
+ui-report-shared = Shared { $file } ({ $size }).
+ui-report-failed = The report could not be made.
+ui-report-no-game = No game is open: the report holds your latest saved game, if there is one.
+ui-report-engine-failed = The game engine stopped. The report holds your latest saved game instead.

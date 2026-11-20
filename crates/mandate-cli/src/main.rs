@@ -4,6 +4,7 @@ mod bots;
 mod lab;
 mod mapimg;
 mod png;
+mod replay;
 mod sweep;
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -76,6 +77,28 @@ enum Cmd {
     },
     /// Inspect a save file's metadata.
     SaveInfo { path: PathBuf },
+    /// Rebuild a tester's run from a bug report (`mandate-report-….json`):
+    /// check the state hash at every checkpoint and at the end, and that the
+    /// bundled save loads to it; report the first turn where they differ.
+    Replay {
+        report: PathBuf,
+        /// Stop at the start of this turn and write a save there (`--out`).
+        #[arg(long)]
+        until: Option<u32>,
+        /// Where `--until` writes: a `.mandate` run file (importable on the
+        /// title screen) or, with any other extension, a raw engine save.
+        /// Default `mandate-replay-<seed>-turn<n>.mandate`.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// Print the player's views where the replay stops (pocket, office,
+        /// place) as JSON.
+        #[arg(long)]
+        dump: bool,
+        /// Also replay through the WASM build with node and compare
+        /// (`scripts/wasm-replay.mjs`; `MANDATE_WASM_NODE` picks the build).
+        #[arg(long)]
+        wasm: bool,
+    },
     /// Monte Carlo health sweep (DEC-059): N seeds, burn-in plus Y years, NPC-only.
     Sweep {
         #[arg(long, default_value_t = 12)]
@@ -723,6 +746,31 @@ fn run(cli: Cli) -> Result<(), String> {
             let b = sweep::run_one(&content, seed_b, years, size.into(), None);
             out(serde_json::json!({ "a": a, "b": b }));
             Ok(())
+        }
+        Cmd::Replay {
+            report,
+            until,
+            out: out_path,
+            dump,
+            wasm,
+        } => {
+            let content = load_content(&cli.content)?;
+            let checked = replay::run(
+                content,
+                &report,
+                &replay::Options {
+                    until,
+                    out: out_path,
+                    dump,
+                    wasm,
+                },
+            )?;
+            out(checked.summary);
+            if checked.ok {
+                Ok(())
+            } else {
+                Err("the replay does not match the report (see `first_divergence`)".into())
+            }
         }
         Cmd::SaveInfo { path } => {
             let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;

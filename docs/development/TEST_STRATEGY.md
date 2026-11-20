@@ -46,6 +46,7 @@ Built:
 - `story` (a bot career's chapters, decisions, storylines, and facts log)
 - `trace-econ` (yearly economic diagnostics)
 - `diff` (two runs' health metrics side by side)
+- `replay` (a tester's bug report, rebuilt and checked; see "Reproducing a tester's bug" below)
 - `sweep` and `bots` take `--set <path>=<value>` and `--grid <path>=<v1>,<v2>,…` over one or two content parameters (DEC-078 decision 2; syntax in `EXTENDING.md`)
 
 Not built yet: `burnin`, `apply-policy`, `trigger`, `trace` (a causal chain from the event log), `report` (CSV and HTML), and `inspect` for entities, places, and cohorts.
@@ -144,3 +145,30 @@ Once careers span several acts, the lab adds three things:
 - the distribution of endings.
 
 Nightly runs report the win rate (target 5–10% for a competent bot at default difficulty), the share of brutal early ends (under 15%), the share of story-rich runs (at least 80%), and the spread of endings (no single ending above 50%). They become gates from M6.
+
+
+## Reproducing a tester's bug
+
+Testers send a report file from **Report a problem** (the pocket, the error banner, or the title screen): `mandate-report-<seed>-<date>.json`. It holds the engine and content versions, the app build, the seed and new-game setup, the **run log** (every command since the new game, and the state hash after the new game and after every turn), the save as it was when the report was made (`live`), or the latest stored save if the engine had failed (`autosave`), the state hash, the last few errors the app caught (each with the command being run), the viewport, DPR and user agent, and the tester's note. A 50-turn report on a medium world is about 2 MB; the save inside is already compressed, so it is not zipped.
+
+The run log lives in the save beside the state (save format v18; `mandate_save::runlog`), never in it, so state hashes do not cover it. The game never replays it (DEC-074); only the tools below do. A run from an older save, or one loaded under other rules, has a log that says it cannot be replayed from its start (`note`); its save still loads.
+
+```bash
+cargo build --release -p mandate-cli
+# Rebuild the run natively and check every checkpoint, the end, and the bundled save.
+target/release/mandate-cli replay mandate-report-7311-2026-11-19.json
+# Also replay through the WASM build with node and compare (after ./scripts/build-wasm.sh).
+target/release/mandate-cli replay report.json --wasm
+# Stop at the start of turn 12, write a run file there (import it on the title screen), and print the views.
+target/release/mandate-cli replay report.json --until 12 --dump --out turn12.mandate
+```
+
+Output is JSON; the exit status is non-zero when anything differs.
+
+- `rules.match: false`: the report was made under another engine or content version. Check out that version first; a replay is exact only within one (engine, content) pair (DEC-041, DEC-074).
+- `save.matches_report` and `save.loaded_hash_matches`: the bundled save decodes to the reported hash, and loads (as the browser loads it) to the same.
+- `native.first_divergence`: the first checkpoint whose hash differs. `last_good_turn` is the last turn that matched and `suspects` lists the log entries between the two checkpoints: one of them, or the end of that turn, went another way. At turn 0 with no `last_good_turn`, world generation or the new-game setup differs.
+- `native_vs_wasm.first_difference`: the first checkpoint where the native and WASM replays part: a platform difference (float transcendentals not through `libm`, iteration order, and so on).
+- `refused_commands`: log entries the replay could not apply. Only a failed `Go` that still moved the player is expected here (the engine logs it, DEC-079).
+
+When the bug is found, keep the report (or a smaller one that shows it) as a replay fixture (§1, "Replay regression"). `web/e2e/report.spec.ts` plays a few turns, saves a report, replays it through the WASM build (and natively with `MANDATE_CLI=<path to mandate-cli>`), and checks that a tampered command is found at its turn; `mandate-cli`'s `replay` tests and `mandate-save/tests/runlog.rs` do the same natively.

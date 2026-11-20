@@ -1,0 +1,12 @@
+/* "Report a problem" dialog: above every sheet and the street. */
+.modal-backdrop.report-backdrop { z-index: 30; }
+.report-dialog p { margin: 0; }
+.report-dialog .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.report-dialog .sheet-head h2 { margin: 0; }
+.report-contains { font-weight: 600; }
+.report-items { margin: 6px 0 8px; padding-left: 1.25em; }
+.report-items li { margin: 2px 0; }
+.report-privacy { border-left: 3px solid var(--accent); padding-left: 8px; }
+.report-dialog textarea { width: 100%; box-sizing: border-box; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px; resize: vertical; }
+.report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.banner-actions { display: flex; flex-wrap: wrap; gap: 8px; }
