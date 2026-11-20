@@ -2,8 +2,8 @@
 // Rust ⇄ TS round trip for the constitution posts (DEC-098, R2): the posts
 // the engine (its Node WASM build) sends in `CampaignView.nominations` go
 // back in a `File` command as the client typed them, and come back as the
-// filing; the office view's bodies, executive and the deprecated aliases
-// agree. Needs target/wasm-node (scripts/build-wasm.sh); skipped without
+// filing; the player's posts and the office view's bodies agree (the
+// deprecated aliases are checked natively, crates/mandate-wasm/tests/posts.rs). Needs target/wasm-node (scripts/build-wasm.sh); skipped without
 // it. MANDATE_WASM_NODE overrides its directory.
 import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
@@ -43,8 +43,6 @@ describe.skipIf(!built)("posts round-trip through the engine (WASM build)", () =
     const office = send({ kind: "query", payload: { type: "office" } }) as OfficeView;
     const body = office.bodies.find((b) => b.legislature);
     expect(body?.members.length).toBeGreaterThan(0);
-    expect(office.council).toEqual(body?.members);
-    expect(office.mayor).toEqual(office.executive);
     expect(office.player.posts).toHaveLength(1);
     expect(office.player.role_key).toBe(office.player.posts[0]?.role_key);
 
