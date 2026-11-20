@@ -671,7 +671,7 @@ h2 { font-size: 1.1rem; }
 .pocket-tabs { margin: 0 -16px; padding: 0 8px; background: none; border-bottom: 0; }
 .pocket-tab { position: relative; flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 0 8px; }
 .pocket-tab-badge { padding: 1px 6px; }
-/* Phones (360–480 px): the five tabs share the width, the icon over the label and the count on the
+/* Phones (360–480 px): the four tabs share the width, the icon over the label and the count on the
    icon's shoulder, so every label and badge shows whole. Tabs size to their labels (a longer label,
    "Notebook", takes a little more room) and the type steps down a touch on the narrowest phones, so
    no label is cut short whatever the system font's widths. */
