@@ -14,7 +14,7 @@ use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 18;
+pub const SAVE_FORMAT_VERSION: u16 = 20;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -183,6 +183,13 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Neighbourhood concern levels (N1): the previous format to the
         // next. Renumber only this key if another bump merges first.
         (17, hood_concerns),
+        // v18 → v19 belongs to the bug report/replay task (its `run_log`
+        // step, merging first). Until it merges, this branch keeps the slot
+        // with a step that changes nothing; the merge replaces it.
+        (18, reserved_for_run_log),
+        // Offices from the constitution (DEC-098, R1): v19 → v20 (the lead's
+        // numbering). Renumber only this key if another bump merges first.
+        (19, constitution_posts),
     ];
     let mut value = value;
     let mut v = from;
@@ -485,6 +492,155 @@ fn hood_concerns(mut value: serde_json::Value) -> Result<serde_json::Value, Save
         }
     }
     pop.insert("hood_concerns".into(), Value::Array(Vec::new()));
+    Ok(value)
+}
+
+/// The v18 → v19 slot, which the replay task's `run_log` step fills at
+/// merge. Here it leaves the payload as it is.
+fn reserved_for_run_log(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    Ok(value)
+}
+
+/// Previous format → next (v19 → v20; DEC-098, R1): offices
+/// from the constitution. The old format knew two posts, which existed only
+/// for the base constitution's local tier: a ward councillor and a mayor.
+/// They become constitution posts by id (the `council` body's seat for a
+/// ward, the `mayor` office), keyed by the town's jurisdiction; this step
+/// is the one place those ids are named. `Engine::from_state` then checks
+/// every post against the run's constitution and refuses a save that needs
+/// one it lacks (`missing_references`).
+///
+/// | Path | Old | New |
+/// |---|---|---|
+/// | `politicians/*/role` | `{"Councillor":{municipality,ward}}`, `{"Mayor":{municipality}}`, `{"Private":{municipality}}` | `{"type":"seat",…}`, `{"type":"office",…}`, `{"type":"private","home":m}` |
+/// | `politics/councils[m]` | `{municipality, members, mayor}` | `bodies[]` and `offices[]` |
+/// | races' and results' `seat`, memories' and favours' `{"type":"seat","seat":…}` | `{"Council":{…}}`, `{"Mayor":{…}}` | the post |
+/// | `player/filing` | `"Council"`, `"Mayor"`, `"Retire"` | `{"type":"stand","post":…}`, `{"type":"retire"}` |
+///
+/// Events keep their shape (`RaceDecided.post` is new and optional).
+fn constitution_posts(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::{Value, json};
+    // The base constitution's local posts, as the old format knew them.
+    const BODY: &str = "council";
+    const OFFICE: &str = "mayor";
+    let town = |m: &Value| json!({ "type": "municipality", "id": m.clone() });
+    let seat = |m: &Value, ward: &Value| json!({ "type": "seat", "body": BODY, "at": town(m), "constituency": ward.clone() });
+    let office = |m: &Value| json!({ "type": "office", "office": OFFICE, "at": town(m) });
+    // An old role or seat (the same shapes, `Councillor` and `Council` alike).
+    // A post already in the new shape (tagged by `type`) is left as it is.
+    let post = |old: &Value| -> Result<Value, SaveError> {
+        if old.get("type").is_some() {
+            return Ok(old.clone());
+        }
+        let obj = old.as_object().ok_or(SaveError::Malformed)?;
+        let (k, inner) = obj.iter().next().ok_or(SaveError::Malformed)?;
+        let m = inner.get("municipality").ok_or(SaveError::Malformed)?;
+        Ok(match k.as_str() {
+            "Councillor" | "Council" => seat(m, inner.get("ward").ok_or(SaveError::Malformed)?),
+            "Mayor" => office(m),
+            "Private" => json!({ "type": "private", "home": m.clone() }),
+            other => return Err(SaveError::Data(format!("unknown role `{other}`"))),
+        })
+    };
+    // Memories and favours about a seat, wherever a subject is kept.
+    fn subjects(
+        v: &mut Value,
+        post: &dyn Fn(&Value) -> Result<Value, SaveError>,
+    ) -> Result<(), SaveError> {
+        match v {
+            Value::Object(o) => {
+                if o.get("type").and_then(Value::as_str) == Some("seat")
+                    && let Some(old) = o.get("seat")
+                    && old.get("type").is_none()
+                {
+                    let new = post(old)?;
+                    o.insert("seat".into(), new);
+                }
+                for x in o.values_mut() {
+                    subjects(x, post)?;
+                }
+            }
+            Value::Array(a) => {
+                for x in a {
+                    subjects(x, post)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+    let pol = value
+        .pointer_mut("/state/politics")
+        .and_then(Value::as_object_mut)
+        .ok_or(SaveError::Malformed)?;
+    for p in pol
+        .get_mut("politicians")
+        .and_then(Value::as_array_mut)
+        .ok_or(SaveError::Malformed)?
+    {
+        let p = p.as_object_mut().ok_or(SaveError::Malformed)?;
+        let role = post(p.get("role").ok_or(SaveError::Malformed)?)?;
+        p.insert("role".into(), role);
+    }
+    let councils = pol.remove("councils");
+    let mut bodies = Vec::new();
+    let mut offices = Vec::new();
+    for c in councils
+        .iter()
+        .map(|c| c.as_array().ok_or(SaveError::Malformed))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+    {
+        let m = c.get("municipality").ok_or(SaveError::Malformed)?;
+        bodies.push(json!({
+            "body": BODY, "at": town(m),
+            "members": c.get("members").cloned().unwrap_or(json!([])),
+            "works_at": "CouncilChamber",
+        }));
+        offices.push(json!({
+            "office": OFFICE, "at": town(m),
+            "holder": c.get("mayor").cloned().unwrap_or(Value::Null),
+            "works_at": "TownHall",
+        }));
+    }
+    if councils.is_some() {
+        pol.insert("bodies".into(), Value::Array(bodies));
+        pol.insert("offices".into(), Value::Array(offices));
+    }
+    if let Some(el) = pol.get_mut("elections").and_then(Value::as_object_mut) {
+        for list in ["races", "results"] {
+            for r in el
+                .get_mut(list)
+                .and_then(Value::as_array_mut)
+                .into_iter()
+                .flatten()
+            {
+                let r = r.as_object_mut().ok_or(SaveError::Malformed)?;
+                let s = post(r.get("seat").ok_or(SaveError::Malformed)?)?;
+                r.insert("seat".into(), s);
+            }
+        }
+    }
+    if let Some(ch) = pol.get_mut("characters") {
+        subjects(ch, &post)?;
+    }
+    // The player's filing: their own ward's seat, or their town's office.
+    if let Some(pl) = value
+        .pointer_mut("/state/player")
+        .and_then(Value::as_object_mut)
+    {
+        let m = pl.get("municipality").cloned().unwrap_or(Value::Null);
+        let ward = pl.get("ward").cloned().unwrap_or(Value::Null);
+        let filing = match pl.get("filing").and_then(Value::as_str) {
+            None => pl.get("filing").cloned().unwrap_or(Value::Null),
+            Some("Council") => json!({ "type": "stand", "post": seat(&m, &ward) }),
+            Some("Mayor") => json!({ "type": "stand", "post": office(&m) }),
+            Some("Retire") => json!({ "type": "retire" }),
+            Some(other) => return Err(SaveError::Data(format!("unknown filing `{other}`"))),
+        };
+        pl.insert("filing".into(), filing);
+    }
     Ok(value)
 }
 

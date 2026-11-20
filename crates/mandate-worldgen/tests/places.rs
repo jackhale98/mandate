@@ -122,7 +122,7 @@ fn actions_are_done_where_they_are_offered() {
     );
     // Late-night lobbying happens at the diner, not in the chamber.
     let m = e.state().player.as_ref().unwrap().municipality;
-    let target = e.state().politics.councils[m.index()].mayor.unwrap().0;
+    let target = mayor_of(e.state(), m.index()).unwrap().0;
     let late = PlayerCommand::Act {
         action: Action::Lobby {
             politician: target,
@@ -145,8 +145,7 @@ fn cannot_vote_from_home_but_can_in_the_chamber() {
     // A colleague's bill before the council.
     let me = e.state().player.as_ref().unwrap().politician;
     let m = e.state().player.as_ref().unwrap().municipality;
-    let colleague = *e.state().politics.councils[m.index()]
-        .members
+    let colleague = *council_members(e.state(), m.index())
         .iter()
         .find(|p| **p != me)
         .unwrap();
@@ -306,4 +305,18 @@ fn routed_play_is_deterministic() {
         (e.state_hash(), location(&e))
     };
     assert_eq!(run(), run());
+}
+
+/// The members of a town's bodies (the base constitution's council; DEC-098).
+fn council_members(st: &mandate_sim::State, m: usize) -> Vec<mandate_sim::politics::PoliticianId> {
+    let at = mandate_sim::world::Jurisdiction::town(mandate_sim::world::MunicipalityId(m as u32));
+    mandate_sim::politics::body_members_at(&st.politics, at)
+}
+
+/// The holder of a town's office (the base constitution's mayor; DEC-098).
+fn mayor_of(st: &mandate_sim::State, m: usize) -> Option<mandate_sim::politics::PoliticianId> {
+    let at = mandate_sim::world::Jurisdiction::town(mandate_sim::world::MunicipalityId(m as u32));
+    mandate_sim::politics::office_holders_at(&st.politics, at)
+        .first()
+        .copied()
 }

@@ -1399,10 +1399,13 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
     }
     for (m, mu) in r.world.municipalities.iter().enumerate() {
         let Some(e) = econ.munis.get(m) else { continue };
-        let mayor_party = pol
-            .councils
-            .get(m)
-            .and_then(|c| c.mayor)
+        // The governing party: the town's executive's (DEC-098).
+        let at = crate::world::Jurisdiction::town(crate::world::MunicipalityId(m as u32));
+        let mayor_party = r
+            .content
+            .constitutions
+            .get(&r.meta.constitution)
+            .and_then(|c| crate::politics::executive_of(pol, c, at))
             .and_then(|id| pol.get(id))
             .and_then(|p| p.party);
         let du = match (

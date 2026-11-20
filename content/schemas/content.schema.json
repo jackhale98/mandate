@@ -13,6 +13,43 @@
       ],
       "type": "string"
     },
+    "ActDef": {
+      "additionalProperties": false,
+      "description": "One act of a career: every post of a tier (less `except`), or the named\nposts.",
+      "properties": {
+        "except": {
+          "description": "Posts of `tier` that belong to a later act (body or office ids).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "posts": {
+          "description": "The act's posts (body or office ids), when it is not a whole tier.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TierKey"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
     "ActionCost": {
       "additionalProperties": false,
       "properties": {
@@ -505,11 +542,28 @@
     },
     "BodyDef": {
       "additionalProperties": false,
+      "description": "A collective that holds seats (DEC-017): a council, an assembly, a\nchamber. Its id is how procedures, content and saves refer to it (DEC-098:\nno code names a body).",
       "properties": {
+        "calendar": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ElectionCalendarDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Its own election calendar (a chamber elected off the tier's cycle);\ndefault: the tier's."
+        },
         "decision": {
           "$ref": "#/$defs/DecisionRule"
         },
         "id": {
+          "description": "Unique across the constitution's tiers; at most [`PostKey::MAX`] bytes.",
+          "type": "string"
+        },
+        "member_key": {
+          "description": "The word for one member (`councillor`): Fluent `role-<member_key>`,\nand the role word content uses (topics, lines, conditions, nomination\ngates). Unique across the constitution, and never an office's id.",
           "type": "string"
         },
         "name_key": {
@@ -521,6 +575,16 @@
           },
           "type": "array"
         },
+        "seats": {
+          "description": "Seats of an at-large body (required when its constituency is\n`at_large`; a `ward` body has one seat per constituency).",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "selection": {
           "$ref": "#/$defs/Selection"
         },
@@ -529,15 +593,21 @@
           "maximum": 255,
           "minimum": 0,
           "type": "integer"
+        },
+        "works_at": {
+          "description": "Where members work: a place kind (`places.jsonc` `key`).",
+          "type": "string"
         }
       },
       "required": [
         "id",
         "name_key",
+        "member_key",
         "selection",
         "term_years",
         "decision",
-        "powers"
+        "powers",
+        "works_at"
       ],
       "type": "object"
     },
@@ -754,6 +824,28 @@
       ],
       "type": "object"
     },
+    "CareerLadderDef": {
+      "additionalProperties": false,
+      "description": "The career ladder (DEC-098; audit §7.5). Acts are not tiers: the summit\nis one office, an act of its own. Validation checks that the player has\na path to the summit (DEC-017).",
+      "properties": {
+        "acts": {
+          "description": "The acts of a career, in order.",
+          "items": {
+            "$ref": "#/$defs/ActDef"
+          },
+          "type": "array"
+        },
+        "summit": {
+          "description": "The office (or body) at the top of a career.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summit",
+        "acts"
+      ],
+      "type": "object"
+    },
     "CareerParams": {
       "additionalProperties": false,
       "description": "Careers (DEC-011, DEC-076): the record of visible work, the party's\npatience, Mandate and viability, name recognition, and election results.",
@@ -805,6 +897,14 @@
           "description": "Mandate: monthly pull toward 50 + `mandate_per_net_approval` × net\napproval among the ward's voters.",
           "format": "double",
           "type": "number"
+        },
+        "nomination": {
+          "additionalProperties": {
+            "$ref": "#/$defs/NominationGate"
+          },
+          "default": {},
+          "description": "What a party asks before it nominates the player for a post, keyed\nby role word (an office's id or a body's `member_key`; DEC-098).\nA post with no entry has no gate.",
+          "type": "object"
         },
         "npc_diligence_rate": {
           "description": "NPC officeholders' monthly record gain per unit of diligence, and the\nweights of integrity and ambition in diligence.",
@@ -947,10 +1047,16 @@
         },
         {
           "additionalProperties": false,
-          "description": "The mayor (when the player is not the mayor).",
+          "description": "The holder of an office in the player's town (when it is not the\nplayer): `office` names it by constitution id; by default the town's\nexecutive (the office that signs its ordinances; DEC-098). The old\nspelling `{ \"type\": \"mayor\" }` reads as the executive.",
           "properties": {
+            "office": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "type": {
-              "const": "mayor",
+              "const": "office",
               "type": "string"
             }
           },
@@ -1615,10 +1721,19 @@
         },
         {
           "additionalProperties": false,
-          "description": "The player holds this office.",
+          "description": "The player holds one of these posts (DEC-098): role words (a body's\n`member_key` or an office's id, from the run's constitution), `any`\n(any post) or `none` (out of office). `role` is the one-word\nspelling (`{ \"type\": \"office\", \"role\": \"councillor\" }`).",
           "properties": {
+            "posts": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
             "role": {
-              "$ref": "#/$defs/OfficeRole"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "type": {
               "const": "office",
@@ -1626,8 +1741,7 @@
             }
           },
           "required": [
-            "type",
-            "role"
+            "type"
           ],
           "type": "object"
         },
@@ -2074,6 +2188,10 @@
     "ConstitutionDef": {
       "additionalProperties": false,
       "properties": {
+        "career": {
+          "$ref": "#/$defs/CareerLadderDef",
+          "description": "The career ladder: the summit and the acts (DEC-098; DEC-004)."
+        },
         "id": {
           "type": "string"
         },
@@ -2090,7 +2208,8 @@
       "required": [
         "id",
         "name_key",
-        "tiers"
+        "tiers",
+        "career"
       ],
       "type": "object"
     },
@@ -4472,7 +4591,7 @@
         },
         {
           "const": "council",
-          "description": "Every councillor and the mayor, as people (`which`: `town`).",
+          "description": "Everyone holding a post in the town, as people (`which`: `town`):\nthe members of its bodies and the holders of its offices, as the\nconstitution defines them (DEC-098). The word is a grant subject,\nnot a body id.",
           "type": "string"
         },
         {
@@ -6360,6 +6479,22 @@
       },
       "type": "object"
     },
+    "NominationGate": {
+      "additionalProperties": false,
+      "description": "A party's conditions for nominating the player for a post (DEC-098).",
+      "properties": {
+        "min_standing": {
+          "default": null,
+          "description": "The player's Standing with the party must be at least this.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "NpcParams": {
       "additionalProperties": false,
       "description": "NPC AI balance numbers (DEC-030). Scores and curves are in `politics.ai`.",
@@ -6607,8 +6742,21 @@
     },
     "OfficeDef": {
       "additionalProperties": false,
+      "description": "A single-holder office (DEC-017). Its id is also its role word (`mayor`):\nFluent `role-<id>`, and the word content uses.",
       "properties": {
+        "calendar": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ElectionCalendarDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Its own election calendar (an office elected off the tier's cycle);\ndefault: the tier's."
+        },
         "id": {
+          "description": "Unique across the constitution's tiers; at most [`PostKey::MAX`] bytes.",
           "type": "string"
         },
         "name_key": {
@@ -6638,6 +6786,10 @@
           "maximum": 255,
           "minimum": 0,
           "type": "integer"
+        },
+        "works_at": {
+          "description": "Where the holder works: a place kind (`places.jsonc` `key`).",
+          "type": "string"
         }
       },
       "required": [
@@ -6645,31 +6797,10 @@
         "name_key",
         "selection",
         "term_years",
-        "powers"
+        "powers",
+        "works_at"
       ],
       "type": "object"
-    },
-    "OfficeRole": {
-      "description": "The office a condition asks the player to hold.",
-      "oneOf": [
-        {
-          "enum": [
-            "councillor",
-            "mayor"
-          ],
-          "type": "string"
-        },
-        {
-          "const": "any",
-          "description": "Either.",
-          "type": "string"
-        },
-        {
-          "const": "none",
-          "description": "Out of office.",
-          "type": "string"
-        }
-      ]
     },
     "OpenRange": {
       "additionalProperties": false,
@@ -7570,7 +7701,7 @@
           "type": "integer"
         },
         "id": {
-          "description": "`ordinance` or `budget`.",
+          "description": "`ordinance` or `budget` ([`ENGINE_PROCEDURES`]).",
           "type": "string"
         },
         "stages": {
@@ -8596,7 +8727,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "The person in the slot has one of these roles: occupation ids,\n`councillor` or `mayor`.",
+          "description": "The person in the slot has one of these roles: occupation ids, or\nrole words of the constitution's posts (a body's `member_key`, an\noffice's id; DEC-098).",
           "properties": {
             "occupations": {
               "items": {
@@ -10207,7 +10338,7 @@
             }
           ],
           "default": null,
-          "description": "When this tier's elections happen (all elected bodies and offices share it)."
+          "description": "When this tier's elections happen (its elected bodies and offices,\nunless one has its own `calendar`)."
         },
         "offices": {
           "items": {

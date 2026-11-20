@@ -831,18 +831,16 @@ fn internal_poll(engine: &Engine) -> Option<InternalPollView> {
             *v /= sum;
         }
         InternalRaceView {
-            seat: if r.seat.is_executive() {
-                "mayor"
+            // An office's id, or `ward` for a seat (DTO unchanged until R2).
+            seat: if r.seat.is_office() {
+                r.seat.id().to_string()
             } else {
-                "ward"
-            }
-            .into(),
-            ward_number: match r.seat {
-                mandate_sim::politics::elections::Seat::Council { ward, .. } => {
-                    st.world.constituencies.get(ward.index()).map(|c| c.number)
-                }
-                _ => None,
+                "ward".into()
             },
+            ward_number: r
+                .seat
+                .constituency()
+                .and_then(|ward| st.world.constituencies.get(ward.index()).map(|c| c.number)),
             candidates: r
                 .candidates
                 .iter()

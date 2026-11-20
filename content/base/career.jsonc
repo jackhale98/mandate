@@ -44,5 +44,10 @@
     "scandal_keep_yearly": 0.6,
     "officeholder_funds": 2000,    // yearly war chest: base + oratory × this
     "officeholder_funds_oratory": 3000,
+    // What the player's party asks before it nominates them for a post, by
+    // role word (an office id or a body's member_key; DEC-098).
+    "nomination": {
+      "mayor": { "min_standing": 40 },
+    },
   },
 }

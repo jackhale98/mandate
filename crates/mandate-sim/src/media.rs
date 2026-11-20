@@ -52,6 +52,20 @@ pub enum Scope {
     Nation,
 }
 
+impl Scope {
+    /// The jurisdiction the outlet covers (DEC-098; the saved shape stays).
+    pub fn at(self) -> crate::world::Jurisdiction {
+        use crate::world::{Jurisdiction, RegionId};
+        match self {
+            Scope::Town { municipality } => Jurisdiction::town(MunicipalityId(municipality)),
+            Scope::Region { region } => Jurisdiction::Region {
+                id: RegionId(region),
+            },
+            Scope::Nation => Jurisdiction::Nation,
+        }
+    }
+}
+
 /// An outlet (DEC-034), generated from an `outlets` template.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Outlet {
@@ -479,12 +493,10 @@ fn rival_of(state: &State, p: PoliticianId) -> Option<CharacterId> {
         let m = me.municipality() as usize;
         return state.politics.characters.towns.get(m).and_then(|t| t.rival);
     }
-    let m = me.municipality();
-    let c = state.politics.councils.get(m as usize)?;
-    c.members
-        .iter()
-        .chain(c.mayor.iter())
-        .filter_map(|id| state.politics.get(*id))
+    let at = crate::world::Jurisdiction::town(MunicipalityId(me.municipality()));
+    crate::politics::officials_at(&state.politics, at)
+        .into_iter()
+        .filter_map(|id| state.politics.get(id))
         .filter(|x| x.id != p && !x.is_player && x.party != me.party)
         .max_by(|a, b| a.ambition.total_cmp(&b.ambition).then(b.id.cmp(&a.id)))
         .map(|x| x.character)
@@ -807,15 +819,14 @@ fn broke_effects(r: &Reads<'_>, out: &mut Outs<'_>, s: &Scandal) {
     };
     let actor = subj.character;
     let mut holders: Vec<CharacterId> = Vec::new();
-    if let Some(c) = pol.councils.get(s.town as usize) {
-        for id in c.members.iter().chain(c.mayor.iter()) {
-            if let Some(p) = pol.get(*id)
-                && p.id != s.subject
-                && p.party.is_some()
-                && p.party == subj.party
-            {
-                holders.push(p.character);
-            }
+    let at = crate::world::Jurisdiction::town(MunicipalityId(s.town));
+    for id in crate::politics::officials_at(pol, at) {
+        if let Some(p) = pol.get(id)
+            && p.id != s.subject
+            && p.party.is_some()
+            && p.party == subj.party
+        {
+            holders.push(p.character);
         }
     }
     holders.extend(s.who);

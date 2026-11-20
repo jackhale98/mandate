@@ -233,9 +233,11 @@ fn people_by_level() {
     let mut e = game(13);
     // A councillor (not the player) and a worker at a place.
     let st = e.state();
-    let council = &st.politics.councils[town(&e).index()];
+    let council = mandate_sim::politics::body_members_at(
+        &st.politics,
+        mandate_sim::world::Jurisdiction::town(town(&e)),
+    );
     let member = council
-        .members
         .iter()
         .map(|id| st.politics.get(*id).unwrap())
         .find(|p| !p.is_player)

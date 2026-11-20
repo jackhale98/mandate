@@ -15,22 +15,19 @@
 
 use super::CharacterId;
 use crate::player::knowledge::{Level, Subject};
-use crate::politics::Role;
 use crate::state::State;
 use crate::world::MunicipalityId;
 use mandate_content::ContentBundle;
 use mandate_content::conversation::{KnownSubject, KnowsWho};
 
 /// A speaker's role for topics and fallback lines: their occupation id, or
-/// `councillor` / `mayor` (`None`: a politician out of office).
-pub fn role_key(state: &State, id: CharacterId) -> Option<String> {
+/// their post's role word from the constitution (a body's `member_key`, an
+/// office's id; DEC-098). `None`: a politician out of office.
+pub fn role_key(state: &State, content: &ContentBundle, id: CharacterId) -> Option<String> {
     let c = state.politics.characters.get(id)?;
     if let Some(p) = c.politician.and_then(|p| state.politics.get(p)) {
-        return match p.role {
-            Role::Councillor { .. } => Some("councillor".into()),
-            Role::Mayor { .. } => Some("mayor".into()),
-            Role::Private { .. } => None,
-        };
+        let constitution = content.constitutions.get(&state.meta.constitution)?;
+        return crate::politics::role_word(constitution, p).map(str::to_string);
     }
     c.named.as_deref().map(|n| n.occupation.clone())
 }
