@@ -180,8 +180,12 @@ fn v18_saves_migrate_without_a_log_and_keep_their_hash() {
     play(&mut e, &mut log, 2);
     let bytes = v18_file(e.state());
     assert_eq!(read_meta(&bytes).unwrap().format_version, 18);
-    let (state, log, _) = decode_with_log(&bytes).unwrap();
+    let (mut state, log, _) = decode_with_log(&bytes).unwrap();
     assert_eq!(log, None);
+    // The act flow's step (v22 → v23) starts it empty: older saves never
+    // had it (the record opens at the run's next turn).
+    assert_eq!(state.act, Default::default());
+    state.act = e.state().act.clone();
     assert_eq!(state.hash(), e.state_hash());
     // The run-log step only adds the empty log: a real state, already in
     // today's shape, comes through the rest of the chain unchanged.
@@ -195,6 +199,10 @@ fn v18_saves_migrate_without_a_log_and_keep_their_hash() {
         .and_then(|p| p.as_object_mut())
     {
         p.remove("ground");
+    }
+    // And the act flow's (22 → 23) its state, new in v23.
+    if let Some(o) = expected.as_object_mut() {
+        o.remove("act");
     }
     assert_eq!(v, serde_json::json!({ "state": expected, "log": null }));
 }

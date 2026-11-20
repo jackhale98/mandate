@@ -263,6 +263,11 @@ fn v18_save_continues_identically() {
     let mut b = serde_json::to_value(ward_figures_only(reached.state(), saved_on)).unwrap();
     strip(&mut a);
     strip(&mut b);
+    // The act flow (v23: directives, skips, the Legacy record) is new state
+    // the old build never had: the run's record opens at its first turn here.
+    for v in [&mut a, &mut b] {
+        v.as_object_mut().unwrap().remove("act");
+    }
     if a != b {
         // Name the first part that differs.
         for k in a.as_object().unwrap().keys() {
