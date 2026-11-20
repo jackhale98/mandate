@@ -235,8 +235,16 @@ pub fn ask_args(engine: &Engine, a: &mandate_sim::asks::Ask) -> BTreeMap<String,
             .iter()
             .find(|c| c.name_key == k)
             .map(|c| c.id.trim_start_matches("crisis.").to_string());
-        if let Some(kind) = kind {
-            put(&mut args, "crisis_key", format!("ask-crisis-{kind}"));
+        let key = kind.map(|k| format!("ask-crisis-{k}"));
+        // A crisis a pack added without its phrase keeps its label.
+        if let Some(key) = key.filter(|key| {
+            let line = format!("{key} =");
+            content
+                .locales
+                .get("en")
+                .is_some_and(|files| files.values().any(|t| t.contains(&line)))
+        }) {
+            put(&mut args, "crisis_key", key);
         }
     }
     for n in &a.needs {

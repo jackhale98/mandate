@@ -2078,8 +2078,8 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
     let explorer = mean("explorer").unwrap_or(0.0);
     let ladder_learned =
         explorer >= mixed_mean + LEARNED_MARGIN && rate("explorer").unwrap_or(0.0) >= mixed_rate;
-    let ladder_learned_e8 = explorer >= mixed_mean + LEARNED_MARGIN_E8
-        && rate("explorer").unwrap_or(0.0) >= mixed_rate;
+    let ladder_learned_e8 =
+        explorer >= mixed_mean + LEARNED_MARGIN_E8 && rate("explorer").unwrap_or(0.0) >= mixed_rate;
     let omni: Vec<&Played> = (1..=seeds)
         .filter_map(|seed| results.get(&("mixed", seed, true)))
         .collect();

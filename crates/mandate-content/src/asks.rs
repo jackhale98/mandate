@@ -515,7 +515,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         if curve.windows(2).any(|w| w[1][0] <= w[0][0]) {
             err(issues, owner, &format!("{name}: x must increase"));
         }
-        if curve.iter().any(|q| q[1].is_nan() || q[1] < 0.0 || !q[0].is_finite()) {
+        if curve
+            .iter()
+            .any(|q| q[1].is_nan() || q[1] < 0.0 || !q[0].is_finite())
+        {
             err(issues, owner, &format!("{name}: factors must be ≥ 0"));
         }
     }
@@ -654,13 +657,14 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         for c in &b.crises {
             let key = format!("ask-crisis-{}", c.id.trim_start_matches("crisis."));
             if !en.contains(&key) {
-                err(
-                    issues,
+                // Crises are moddable: without it, the views name the crisis
+                // by its label (`name_key`).
+                issues.push(Issue::warning(
                     &c.id,
                     &format!(
-                        "missing Fluent key `{key}` in locale en (asks name the crisis with it)"
+                        "no Fluent key `{key}` in locale en: asks name this crisis by its label"
                     ),
-                );
+                ));
             }
         }
         for a in &b.asks {
