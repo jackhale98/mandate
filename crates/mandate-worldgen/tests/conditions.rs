@@ -858,6 +858,112 @@ fn every_variant_evaluates_in_a_synthetic_state() {
     let (ok, _) = eval(&w, &c, &At::Here(street), None, None, &shed);
     assert!(!ok, "a street has no industry");
     seen.insert("shedding".into());
+    // A policy family's bound slots (DEC-092): the neighbourhood, the place
+    // with an industry and its sector, bound as a family would bind them.
+    {
+        use mandate_sim::policy::families::{Bound, SlotBinding};
+        let sector_key = c.sectors[sector].id.clone();
+        w2.e.setup(|st| {
+            let s = &mut st.economy.munis[town.index()].sectors[sector];
+            s.baseline_jobs = (s.jobs * 2.0) as u32;
+        });
+        let bindings = vec![
+            SlotBinding {
+                slot: "hood".into(),
+                bound: Bound::Neighborhood { hood: w2.hood },
+            },
+            SlotBinding {
+                slot: "plant".into(),
+                bound: Bound::Place { place: works },
+            },
+            SlotBinding {
+                slot: "sector".into(),
+                bound: Bound::Sector { sector: sector_key },
+            },
+        ];
+        let fam = |w: &World, j: Option<Jurisdiction>, cond: &Condition| -> bool {
+            let st: &State = w.e.state();
+            let r = Reads::of_state(st, &c);
+            let v = View::new(&r, &st.politics);
+            let mut cx = Ctx::town(&v, st, w.town);
+            if j.is_some() {
+                cx.at = j;
+            }
+            cx.family = Some(&bindings);
+            condition::holds(&cx, cond, &mut Args::new())
+        };
+        let st = w2.e.state();
+        let levels = &st.population.hood_concerns[w2.hood.index()].levels;
+        let top = (0..levels.len())
+            .max_by(|a, b| levels[*a].total_cmp(&levels[*b]).then(b.cmp(a)))
+            .unwrap();
+        let low = (0..levels.len())
+            .min_by(|a, b| levels[*a].total_cmp(&levels[*b]))
+            .unwrap();
+        let concern = |i: usize, n: u8| {
+            parse(&format!(
+                r#"{{ "type": "hood_concern", "slot": "hood", "concern": "{}", "top": {n} }}"#,
+                c.concerns[i].id
+            ))
+        };
+        assert!(fam(&w2, None, &concern(top, 1)));
+        if levels[low] < levels[top] {
+            assert!(!fam(&w2, None, &concern(low, 1)));
+        }
+        let hazard =
+            parse(r#"{ "type": "hood_hazard", "slot": "hood", "hazard": "flood", "min": 0.0 }"#);
+        assert!(fam(&w2, None, &hazard));
+        assert!(
+            !fam(
+                &w2,
+                None,
+                &parse(
+                    r#"{ "type": "hood_hazard", "slot": "hood", "hazard": "flood", "min": 1.0 }"#
+                )
+            ) || st
+                .environment
+                .exposure(w2.hood)
+                .is_some_and(|e| e.flood >= 1000)
+        );
+        let decline = parse(r#"{ "type": "sector_decline", "slot": "sector", "min": 0.3 }"#);
+        assert!(fam(&w2, None, &decline));
+        assert!(!fam(
+            &w2,
+            None,
+            &parse(r#"{ "type": "sector_decline", "slot": "sector", "min": 0.9 }"#)
+        ));
+        let open = parse(r#"{ "type": "place_open", "slot": "plant" }"#);
+        let closed = parse(r#"{ "type": "place_closed", "slot": "plant" }"#);
+        assert!(fam(&w2, None, &open) && !fam(&w2, None, &closed));
+        // A slot the family did not bind never holds.
+        assert!(!fam(
+            &w2,
+            None,
+            &parse(r#"{ "type": "place_open", "slot": "market" }"#)
+        ));
+        // Local-only: never for a region or the nation.
+        let region = st.world.municipalities[town.index()].region;
+        for j in [Jurisdiction::Region { id: region }, Jurisdiction::Nation] {
+            for cond in [&concern(top, 3), &hazard, &decline, &open] {
+                assert!(!fam(&w2, Some(j), cond), "{cond:?} held for {j:?}");
+            }
+        }
+        // Closed, the place reads the other way.
+        let date = st.calendar.date;
+        w2.e.setup(|st| {
+            st.world.close_place(works, date);
+        });
+        assert!(!fam(&w2, None, &open) && fam(&w2, None, &closed));
+        for k in [
+            "hood_concern",
+            "hood_hazard",
+            "sector_decline",
+            "place_open",
+            "place_closed",
+        ] {
+            seen.insert(k.into());
+        }
+    }
     // Every variant was evaluated.
     let missing: Vec<String> = every_variant().difference(&seen).cloned().collect();
     assert!(missing.is_empty(), "not evaluated: {missing:?}");

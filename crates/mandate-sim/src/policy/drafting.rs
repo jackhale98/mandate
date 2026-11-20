@@ -254,20 +254,13 @@ pub fn adopt(state: &mut State, content: &ContentBundle, bill: PolicyInstanceId)
         person,
         me,
         MemoryKind::StoodWithMe,
-        subject.clone(),
+        subject,
         Some(content.policy_family_params.adopt_opinion),
     );
     match &def.price {
         PriceDef::Favour { count, context_key } => {
             for _ in 0..*count {
-                crate::characters::owe(
-                    &mut state.politics,
-                    me,
-                    person,
-                    context_key,
-                    subject.clone(),
-                    date,
-                );
+                crate::characters::owe(&mut state.politics, me, person, context_key, subject, date);
             }
         }
         PriceDef::Endorsement {
@@ -450,11 +443,10 @@ pub fn learn_from(state: &mut State, content: &ContentBundle, cmd: &crate::actio
     let here = state.player.as_ref().map(|p| p.location);
     match cmd {
         C::MoveTo { .. } | C::Go { .. } => moments.extend(here.map(Moment::At)),
-        C::Talk { to, .. } => {
-            if let crate::talk::TalkTarget::Person { person } = to {
-                moments.push(Moment::Met(*person));
-            }
-        }
+        C::Talk {
+            to: crate::talk::TalkTarget::Person { person },
+            ..
+        } => moments.push(Moment::Met(*person)),
         C::Act { action, .. } => match action {
             Action::Lobby { politician, .. } | Action::TradeFavor { politician, .. } => {
                 if let Some(p) = state.politics.get(PoliticianId(*politician)) {

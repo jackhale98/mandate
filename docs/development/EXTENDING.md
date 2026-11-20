@@ -315,6 +315,30 @@ Example: `cargo run --release -p mandate-cli -- bots --seeds 32 --grid politics.
 
 Base-content results must not change: compare the `sweep`, `bots`, and `trace-econ` output, and decoded saves, before and after the change.
 
+### Adding a policy family (DEC-092)
+
+A policy family is a proposal grounded in the town: "Rescue deal for {plant}", "Flood wall for {hood}". It lives in `content/<pack>/policy_families/*.jsonc` (`"kind": "policy_families"`), typed by `mandate_content::policy_family` (the schema is generated from it). The contract, with three worked examples, is `docs/design/research/M6_ENGINE_CONTRACTS.md` §2; a small working sample is `crates/mandate-content/tests/fixtures/families/`.
+
+**What you write, field by field:**
+
+1. `id` (`family.<name>`), `name_key`, `desc_key`; `tier` (the jurisdictions it opens in, DEC-098), `category` (the budget line) and `requires` (a constitution power, never an office name).
+2. `draw`: `rarity` (`always`, `common`, `uncommon`, `rare`; the chances are in `policy_families/params.jsonc`) and `weight` (priority when several are ready, in (0, 10]); `max_instances` (default 1).
+3. `slots`, bound in order inside the jurisdiction: `place` (`kinds`, `drivers` from the place kind's new `drivers`, `in_slot`, `open_only`), `neighborhood` (`kinds`, `of_slot`, `hazard` + `min_exposure`, `concern` + `top`, `lacks`), `person` (`occupations`, `at_slot`, `in_slot`, `fallback`: `broker` or `executive`), `broker`, `sector` (`of_slot`, `drivers`, `defining`), `crisis`, `hazard`. `pick` ranks candidates (`first`, `most_at_risk`, `most_exposed`, `most_concerned`, `largest`, `keyed`). A required slot that cannot bind means no proposal; mark the others `optional`.
+4. `trigger` (`all` and `any`, on the one condition language; the family conditions `hood_concern`, `hood_hazard`, `sector_decline`, `place_open`, `place_closed` name a slot) and `expiry` (`when`, `grace_months`, `max_months`, `cooldown_months`). A family whose tier is not `local` uses tier-generic conditions only.
+5. `base`: sliders, cost, mechanisms (`"@slot"` names the sector or hazard bound to a slot), implementation months, signature, secondary keys, side effects, and optionally `works` (a physical work at a bound place or neighbourhood: `kind`, `at`, `months`, `contractor_risk`; DEC-099).
+6. `axes`: 1–3, each with 2–3 options. An option may set `area` (at most one axis per family), add sliders, `fixed` hidden values, cost, `cost_factor`, `effect_factor`, `months`, mechanisms (`borrow`, `revenue` and `sector_capacity` are for financing and structural jobs), side effects, signature, secondary keys, `excludes` and `works`. Every option needs a cost and a benefit against the others of its axis (DEC-073: validation refuses one that is identical to or better in every way than another).
+7. `sponsors`: a person slot, a `preset` (an option per axis), slider values, and a `price` (`favour` or `endorsement`). Adopting a sponsor's version pleases them (`adopt_opinion`); amending away from it costs `amend_opinion` per change.
+8. `knowledge`: `public`, `heard`, `known` and `detailed` hooks (`overheard`, `visit`, `meet`, `action`, `service`, `talk`, `approach`) and a `lead`. Drafting needs `known` (DEC-091).
+9. Fluent keys in English (a family file of its own under `locale/en/`). Each `{ $x }` in a family's keys must be one of its slots, or `<slot>_key` for sectors, crises and hazards (`hazard-text-<kind>`).
+
+**Changing another pack's family** without replacing it: `"kind": "policy_family_patches"` with `set_draw`, `add_option`, `remove_option`, `add_sponsor`, `remove_sponsor` or `disable`, applied in pack order. Disabling keeps bills and laws already made; open proposals of a disabled or removed family lapse on load.
+
+**Retiring a template** into a family: set `"retired": true` on the template. It is offered to no one and drafted by no one, but laws in force continue and saves keep loading.
+
+**Checking it:** `content validate` runs the family rules (§2.13 items 1–10). That every family binds in a canonical test world (item 11), and the `policies` lab tool, come with F5. A test that loads your family beside the base pack is the pattern of `crates/mandate-content/tests/policy_families.rs` and `crates/mandate-save/tests/policy_families.rs`.
+
+**In the engine** (for orientation): `policy::families` draws each focus jurisdiction's deck (keyed by `Stream::Policy`, `at.tier_index()`, `at.raw()` and the family id), binds slots, opens and lapses proposals monthly (`policy.families`, Characters phase); `policy::resolve` composes a family bill from its base and chosen options; `policy::drafting` checks drafts, pays prices and fires knowledge hooks; `policy::works` builds, stalls and decays works (`works::by_hood` is the read API for the art and street layers).
+
 ### Conditions (the one condition language, DEC-098 §5)
 
 Every condition content writes is one type, `Condition` (`mandate-content/src/condition.rs`): dilemma triggers, goal conditions, storyline starts and advances, policy unlocks, conversation topics, lines and voices, overheard lines, and visit verbs and their risk terms (asks and policy families will use it too). One evaluator decides it (`mandate_sim::condition::holds`) and one validator checks it (`condition::check`).
@@ -553,7 +577,11 @@ Each of these is a closed enum by design, because new behaviour needs code. Addi
 
 | Extension point | Enum | Handler | Also update |
 |---|---|---|---|
-| Policy mechanism | `MechanismDef` (`mandate-content/src/types.rs`) | `policy::mods_for` and the domain model that reads the new modifier | Validation of its params; the protocol's trade-off view if it is shown |
+| Policy mechanism | `MechanismDef` (`mandate-content/src/types.rs`) | `policy::mods_for` and the domain model that reads the new modifier (finance reads `borrow` and `revenue`: `policy::borrow_share`, `policy::annual_revenue`) | Validation of its params (templates and `policy_family::validate`); `MechanismDef::param`, `sign`, `key`; the DEC-073 vector (`policy_family::tradeoff`) if it finances; the protocol's trade-off view if it is shown |
+| Family binding kind | `BindDef` (`mandate-content/src/policy_family.rs`) | `policy::families` (`Binder::bind_slot`, `binding_args`) | `BindDef::kind`, `refers`; `SlotKind`; `Bound`; validation (`bind_targets`); a test |
+| Family `pick` rule | `Pick` | `Binder::bind_slot` (its score) | Validation of which slot kinds may use it |
+| Sponsor price | `PriceDef` | `policy::drafting::adopt` | Validation (item 7); the preview's price view (F3) |
+| Family knowledge hook | `HookDef` | `policy::drafting::matches` (and `learn_from` for a new kind of moment) | Validation (item 8) |
 | Side-effect primitive | `SideEffectDef` | `policy::mods_for` or `population::opinion` (grievances) | `protocol::office` trade-off rows |
 | Sector behaviour | `SectorDriver` | The `match` on drivers in `economy` | `SectorDriver::REQUIRED` if every economy needs one |
 | Player action | `actions::Action` | `actions::apply` | `PLACE_ACTIONS` (and `LATE_NIGHT_ACTIONS`), the action cost in `tuning.jsonc`, the protocol offer, the web `ActionForm`, and a place that offers it |
