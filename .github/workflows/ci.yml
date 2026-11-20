@@ -15,6 +15,29 @@ env:
   WASM_BINDGEN_VERSION: 0.2.130
 
 jobs:
+  # A push to main that fast-forwards to a commit which already passed this
+  # workflow on a branch is the same code, byte for byte: main then only builds
+  # and deploys. Anything else on main (a direct push) runs every check.
+  verified:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      ok: ${{ steps.check.outputs.ok }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ok=false
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
+            n=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&status=success&per_page=30" \
+              --jq '[.workflow_runs[] | select(.head_branch != "main")] | length' || echo 0)
+            if [ "${n:-0}" -gt 0 ]; then ok=true; fi
+          fi
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          echo "Already verified on a branch: $ok"
+
   # Build the engine to WASM once; cached by a hash of every input (DEC-066).
   wasm:
     runs-on: ubuntu-latest
@@ -62,7 +85,8 @@ jobs:
 
   rust:
     runs-on: ubuntu-latest
-    needs: wasm
+    needs: [wasm, verified]
+    if: needs.verified.outputs.ok != 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -94,7 +118,7 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
-    needs: wasm
+    needs: [wasm, verified]
     defaults:
       run:
         working-directory: web
@@ -110,11 +134,15 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
+      - if: needs.verified.outputs.ok != 'true'
+        run: npm run typecheck
+      - if: needs.verified.outputs.ok != 'true'
+        run: npm run lint
+      - if: needs.verified.outputs.ok != 'true'
+        run: npm test
       # The pixel-art tool (DEC-084): typecheck (with web's TypeScript) and its own tests, goldens included.
       - name: Pixel-art tool
+        if: needs.verified.outputs.ok != 'true'
         working-directory: tools/pixelkit
         run: npm run check
       # The site (DEC-083): the landing page at the base, the game at play/.
@@ -132,16 +160,18 @@ jobs:
           echo "landing page: $size bytes gzipped"
           test "$size" -le 61440
       - name: Playwright browsers (cached)
+        if: needs.verified.outputs.ok != 'true'
         id: pw
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('web/package-lock.json') }}
-      - if: steps.pw.outputs.cache-hit != 'true'
+      - if: needs.verified.outputs.ok != 'true' && steps.pw.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
-      - if: steps.pw.outputs.cache-hit == 'true'
+      - if: needs.verified.outputs.ok != 'true' && steps.pw.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
-      - run: npx playwright test --trace off
+      - if: needs.verified.outputs.ok != 'true'
+        run: npx playwright test --trace off
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist
@@ -151,8 +181,12 @@ jobs:
   # Deploy main to GitHub Pages (DEC-064): the landing page at the base, the game
   # at play/, the hub spike at spike-hub/ (DEC-083), all from the web-dist artifact.
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [rust, web]
+    # Runs when the checks passed here, or were skipped because this commit already passed on a branch.
+    if: >-
+      always() && github.ref == 'refs/heads/main' && github.event_name == 'push' &&
+      needs.web.result == 'success' &&
+      (needs.rust.result == 'success' || (needs.rust.result == 'skipped' && needs.verified.outputs.ok == 'true'))
+    needs: [verified, rust, web]
     runs-on: ubuntu-latest
     permissions:
       pages: write
