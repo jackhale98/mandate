@@ -317,54 +317,19 @@ pub fn mods_for(
 
 // --- Situational policies (DEC-077 §3) ------------------------------------------------
 
-/// Does a situation condition hold in town `m`? Read-only: the town's
-/// character (crises), its indicators, the event log, and the economy.
+/// Does a condition hold in town `m`'s situation (a policy's unlock, a
+/// family trigger)? The one evaluator (`crate::condition`) on the whole
+/// state, with no slots bound. Read-only.
 pub fn situation_holds(
     state: &crate::state::State,
     content: &ContentBundle,
-    c: &mandate_content::SituationCondition,
+    c: &mandate_content::Condition,
     m: u32,
 ) -> bool {
-    use mandate_content::SituationCondition as U;
-    let today = state.calendar.date;
-    match c {
-        U::Crisis { kind, min_severity } => state
-            .politics
-            .characters
-            .towns
-            .get(m as usize)
-            .is_some_and(|t| {
-                t.crises
-                    .iter()
-                    .any(|x| &x.kind == kind && x.severity as f64 >= *min_severity)
-            }),
-        U::Indicator {
-            indicator,
-            min,
-            max,
-        } => {
-            let r = Reads::of_state(state, content);
-            let v = crate::concerns::indicator(&r, m as usize, *indicator);
-            min.is_none_or(|a| v >= a) && max.is_none_or(|z| v <= z)
-        }
-        U::PlantClosure { within_months } => {
-            let days = *within_months as u32 * 30;
-            state
-                .events
-                .iter()
-                .rev()
-                .take_while(|e| e.date.days_until(today) <= days)
-                .any(|e| matches!(e.kind, EventKind::PlantClosure { municipality, .. } if municipality == m))
-        }
-        U::Disaster { within_months } => state
-            .economy
-            .munis
-            .get(m as usize)
-            .is_some_and(|e| e.months_since_disaster < *within_months),
-        // Slot-relative conditions (conversations, DEC-093) need a context;
-        // in a town's situation only the slot-free ones can hold.
-        other => crate::talk::context::holds_in_town(state, content, other, m),
-    }
+    crate::condition::on_state(state, content, |v| {
+        let cx = crate::condition::Ctx::town(v, state, crate::world::MunicipalityId(m));
+        crate::condition::holds(&cx, c, &mut crate::condition::Args::new())
+    })
 }
 
 /// Is a template on the table in town `m`? Templates without an unlock

@@ -25,7 +25,7 @@ use crate::state::State;
 use crate::world::{MunicipalityId, Place, PlaceId};
 use mandate_content::routines::DayPart;
 use mandate_content::visits::{VisitAmong, VisitEffect, VisitReach, VisitTime, VisitVerbDef};
-use mandate_content::{ContentBundle, PlaceKindDef};
+use mandate_content::{Condition, ContentBundle, PlaceKindDef};
 use mandate_core::Stream;
 use mandate_core::math::clamp;
 
@@ -124,7 +124,7 @@ fn part_now(state: &State, late_night: bool) -> DayPart {
 }
 
 /// Who is at a location now (their routines), not the player.
-fn present(state: &State, content: &ContentBundle, loc: Location) -> Vec<CharacterId> {
+pub(crate) fn present(state: &State, content: &ContentBundle, loc: Location) -> Vec<CharacterId> {
     let now = characters::routines::Now::of(state, content);
     let me = characters::player_character(state);
     characters::routines::present(state, content, &now, loc)
@@ -133,7 +133,7 @@ fn present(state: &State, content: &ContentBundle, loc: Location) -> Vec<Charact
         .collect()
 }
 
-fn occupation_of(state: &State, id: CharacterId) -> Option<&str> {
+pub(crate) fn occupation_of(state: &State, id: CharacterId) -> Option<&str> {
     state
         .politics
         .characters
@@ -177,23 +177,34 @@ pub fn availability(
         // The standard slots are spent: only the late slot is left.
         return Err(Blocked::Time);
     }
-    if !late_night && !def.parts.is_empty() && !def.parts.contains(&part) {
-        return Err(Blocked::Hours);
-    }
-    let m = p.municipality.0;
-    if !def
-        .when
-        .iter()
-        .all(|c| crate::policy::situation_holds(state, content, c, m))
-    {
-        return Err(Blocked::Situation);
-    }
-    if !def.with.is_empty()
-        && !present(state, content, loc)
-            .into_iter()
-            .any(|c| occupation_of(state, c).is_some_and(|o| def.with.iter().any(|w| w == o)))
-    {
-        return Err(Blocked::Nobody);
+    // The one condition language (U1): `parts` is a `day_part` condition
+    // (not in the late slot, which is `late_night`), `when` the verb's own
+    // conditions, `with` a `present` condition; each refusal keeps its reason.
+    let blocked = crate::condition::on_state(state, content, |v| {
+        let mut cx = crate::condition::Ctx::town(v, state, p.municipality);
+        cx.here = Some(loc);
+        cx.part = Some(part);
+        let mut args = crate::condition::Args::new();
+        let parts = Condition::DayPart {
+            parts: def.parts.clone(),
+        };
+        if !late_night && !def.parts.is_empty() && !crate::condition::holds(&cx, &parts, &mut args)
+        {
+            return Some(Blocked::Hours);
+        }
+        if !crate::condition::all_hold(&cx, &def.when, &mut args) {
+            return Some(Blocked::Situation);
+        }
+        let with = Condition::Present {
+            occupations: def.with.clone(),
+        };
+        if !def.with.is_empty() && !crate::condition::holds(&cx, &with, &mut args) {
+            return Some(Blocked::Nobody);
+        }
+        None
+    });
+    if let Some(b) = blocked {
+        return Err(b);
     }
     if !has_time(state, def, late_night) {
         return Err(Blocked::Time);
@@ -261,13 +272,16 @@ pub fn risk(
 ) -> Option<f64> {
     let r = def.risk.as_ref()?;
     let p = state.world.places.get(place.index())?;
-    let m = p.municipality.0;
     let mut x = r.base;
-    for t in &r.terms {
-        if crate::policy::situation_holds(state, content, &t.when, m) {
-            x += t.add;
+    crate::condition::on_state(state, content, |v| {
+        let mut cx = crate::condition::Ctx::town(v, state, p.municipality);
+        cx.here = Some(Location::Place { place });
+        for t in &r.terms {
+            if crate::condition::holds(&cx, &t.when, &mut crate::condition::Args::new()) {
+                x += t.add;
+            }
         }
-    }
+    });
     if r.shedding > 0.0
         && let Some(s) = kind_of(content, p).and_then(|k| k.sector.as_deref())
     {

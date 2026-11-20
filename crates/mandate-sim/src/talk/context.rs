@@ -1,21 +1,19 @@
-//! A conversation's context and the shared condition type (§3.3): the
-//! slots (`speaker`, `about`, `player`; the place is `here`), what the
-//! speaker will tell, and `SituationCondition` evaluated with the Fluent
-//! arguments each condition provides. Town-level variants are the policy
-//! domain's (`policy::situation_holds`); this adds the slot-relative ones.
-//! Read-only.
+//! A conversation's context (§3.3): the slots (`speaker`, `about`,
+//! `player`; the place is `here`) and what the speaker will tell. Its
+//! conditions are the one condition language, decided by the one evaluator
+//! (`crate::condition`) with this conversation bound, with the Fluent
+//! arguments each condition provides. Read-only.
 
 use super::AboutRef;
 use crate::characters::{self, CharacterId};
 use crate::places::Location;
-use crate::player::knowledge::{self, Level, PolicyRef, Subject};
+use crate::player::knowledge::{Level, PolicyRef, Subject};
 use crate::state::State;
 use crate::world::{MunicipalityId, NeighborhoodId};
-use mandate_content::conversation::{ConcernOf, HoodOf, SubjectRef};
-use mandate_content::{ContentBundle, SituationCondition};
-use std::collections::BTreeMap;
+use mandate_content::conversation::{HoodOf, SubjectRef};
+use mandate_content::{Condition, ContentBundle};
 
-pub type Args = BTreeMap<String, String>;
+pub type Args = crate::condition::Args;
 
 /// Everything a conversation's conditions read.
 pub struct Ctx<'a> {
@@ -32,12 +30,6 @@ pub struct Ctx<'a> {
     pub cap: Level,
 }
 
-fn in_range(v: f64, min: Option<f64>, max: Option<f64>) -> bool {
-    min.is_none_or(|a| v >= a) && max.is_none_or(|z| v <= z)
-}
-
-/// The fallback for an argument naming a Fluent key the facts lack.
-const SUBJECT_FALLBACK: &str = "talk-subject-that";
 const STAKE_FALLBACK: &str = "talk-stake-town";
 
 impl Ctx<'_> {
@@ -145,11 +137,7 @@ impl Ctx<'_> {
     /// `$concern_key` and `$concern_talk_key` (the noun phrase of talk, or
     /// the name without one) for the concern at registry index `i`.
     fn concern_args(&self, i: usize, args: &mut Args) {
-        if let Some(c) = self.content.concerns.get(i) {
-            args.insert("concern_key".into(), c.name_key.clone());
-            let talk = c.talk_key.as_ref().unwrap_or(&c.name_key);
-            args.insert("concern_talk_key".into(), talk.clone());
-        }
+        crate::condition::concern_args(self.content, i, args);
     }
 
     /// A town's worries as the notebook records them (felt across all its
@@ -162,25 +150,6 @@ impl Ctx<'_> {
             crate::concerns::felt_concerns(&st.population, self.content, town.index(), &hoods);
         v.retain(|(_, w)| *w > 0.0);
         v
-    }
-
-    /// The registry index of a top concern (one that worries at all).
-    fn top_concern(&self, of: ConcernOf) -> Option<usize> {
-        let st = self.st;
-        let top = match of {
-            ConcernOf::Town => self.town_felt(self.town),
-            ConcernOf::Speaker => {
-                let home = self.hood(HoodOf::SpeakerHome)?;
-                let m = st.world.neighborhoods.get(home.index())?.municipality;
-                crate::concerns::felt_concerns(
-                    &st.population,
-                    self.content,
-                    m.index(),
-                    &[home.index()],
-                )
-            }
-        };
-        top.first().filter(|(_, l)| *l > 0.0).map(|(i, _)| *i)
     }
 
     /// A place's name as an argument: its proper name in `name`, or, for a
@@ -278,7 +247,7 @@ impl Ctx<'_> {
     }
 
     /// The broker's arguments: `$broker`, `$broker_place`, `$stake_key`.
-    fn broker_args(&self, b: CharacterId, args: &mut Args) {
+    pub(crate) fn broker_args(&self, b: CharacterId, args: &mut Args) {
         args.insert("broker".into(), self.name_of(b));
         self.place_of(b, "broker_place", args);
         let stake = self
@@ -291,7 +260,7 @@ impl Ctx<'_> {
     }
 
     /// The arguments a subject provides (`SubjectRef::args`).
-    fn subject_args(&self, s: &Subject, args: &mut Args) {
+    pub(crate) fn subject_args(&self, s: &Subject, args: &mut Args) {
         let st = self.st;
         match s {
             Subject::TownConcerns { town } => {
@@ -349,252 +318,21 @@ impl Ctx<'_> {
         }
     }
 
-    /// Do all conditions hold? Collects their arguments.
-    pub fn all_hold(&self, cs: &[SituationCondition], args: &mut Args) -> bool {
-        cs.iter().all(|c| self.holds(c, args))
+    /// Do all conditions hold? Collects their arguments (the one
+    /// evaluator, with this conversation bound).
+    pub fn all_hold(&self, cs: &[Condition], args: &mut Args) -> bool {
+        crate::condition::on_state(self.st, self.content, |v| {
+            let cx = crate::condition::Ctx::talk(v, self);
+            crate::condition::all_hold(&cx, cs, args)
+        })
     }
 
     /// Does a condition hold here? Adds the arguments it provides when it does.
-    pub fn holds(&self, c: &SituationCondition, args: &mut Args) -> bool {
-        use SituationCondition as U;
-        let st = self.st;
-        let pol = &st.politics;
-        match c {
-            U::Crisis { kind, .. } => {
-                if !crate::policy::situation_holds(st, self.content, c, self.town.0) {
-                    return false;
-                }
-                if let Some(k) = self.content.crises.iter().find(|x| &x.id == kind) {
-                    args.insert("crisis_key".into(), k.name_key.clone());
-                }
-                true
-            }
-            U::Indicator { .. } | U::PlantClosure { .. } | U::Disaster { .. } => {
-                crate::policy::situation_holds(st, self.content, c, self.town.0)
-            }
-            U::Occupation { slot, occupations } => self
-                .person(slot)
-                .and_then(|p| characters::knows::role_key(st, self.content, p))
-                .is_some_and(|r| occupations.contains(&r)),
-            U::Trait { slot, traits } => self
-                .person(slot)
-                .and_then(|p| pol.characters.get(p))
-                .is_some_and(|ch| ch.traits.iter().any(|t| traits.contains(t))),
-            U::Personality {
-                slot,
-                axis,
-                min,
-                max,
-            } => self
-                .person(slot)
-                .and_then(|p| characters::profile(pol, &st.world, p))
-                .is_some_and(|p| {
-                    let x = &p.personality;
-                    let v = match axis.as_str() {
-                        "ambition" => x.ambition,
-                        "integrity" => x.integrity,
-                        "warmth" => x.warmth,
-                        "boldness" => x.boldness,
-                        "loyalty" => x.loyalty,
-                        _ => return false,
-                    };
-                    in_range(v as f64, *min, *max)
-                }),
-            U::Goal { slot, goal } => self.person(slot).is_some_and(|p| {
-                pol.characters
-                    .goals
-                    .iter()
-                    .any(|g| g.holder == p && &g.goal == goal)
-            }),
-            U::Opinion { slot, min, max } => self.person(slot).is_some_and(|p| {
-                p != self.me && in_range(characters::opinion(pol, p, self.me) as f64, *min, *max)
-            }),
-            U::Trust { slot, min, max } => self.person(slot).is_some_and(|p| {
-                p != self.me
-                    && in_range(
-                        characters::trust(pol, self.content, p, self.me) as f64,
-                        *min,
-                        *max,
-                    )
-            }),
-            U::Remembers { slot, kinds } => {
-                let Some(p) = self.person(slot) else {
-                    return false;
-                };
-                let date = st.calendar.date;
-                let Some(m) = characters::salient_memories(pol, p, Some(self.me), date, usize::MAX)
-                    .into_iter()
-                    .find(|m| kinds.iter().any(|k| k == m.kind.key()))
-                else {
-                    return false;
-                };
-                // What it was about, and what kind of thing that is
-                // (`$subject_kind`: `bill`, a policy's name; `decision`, a
-                // decision's title, a noun phrase; `none`), so a line can
-                // say it naturally or leave it out.
-                let subject = match m.subject {
-                    Some(characters::Subject::Policy { id }) => st
-                        .policy
-                        .instances
-                        .get(id as usize)
-                        .and_then(|i| self.content.policies.get(&i.template))
-                        .map(|t| (t.name_key.clone(), "bill")),
-                    Some(characters::Subject::Decision { id }) => st
-                        .narrative
-                        .decision(crate::narrative::DecisionId(id))
-                        .and_then(|d| self.content.dilemma(&d.template))
-                        .map(|t| (t.title_key.clone(), "decision")),
-                    _ => None,
-                };
-                let (subject, kind) = subject.unwrap_or_else(|| (SUBJECT_FALLBACK.into(), "none"));
-                args.insert("memory_key".into(), m.kind.fluent_key());
-                args.insert("subject_key".into(), subject);
-                args.insert("subject_kind".into(), kind.into());
-                args.insert("year".into(), m.date.calendar().year.to_string());
-                true
-            }
-            U::Favour {
-                slot,
-                owed_to_player,
-            } => {
-                let Some(p) = self.person(slot).filter(|p| *p != self.me) else {
-                    return false;
-                };
-                let n = if *owed_to_player {
-                    characters::favours_owed(pol, p, self.me)
-                } else {
-                    characters::favours_owed(pol, self.me, p)
-                };
-                if n == 0 {
-                    return false;
-                }
-                args.insert("n".into(), n.to_string());
-                true
-            }
-            U::IsBroker { slot, is } => {
-                let Some(p) = self.person(slot) else {
-                    return false;
-                };
-                let yes = self.broker() == Some(p);
-                if yes && *is {
-                    self.broker_args(p, args);
-                }
-                yes == *is
-            }
-            U::IsRival { slot, is } => {
-                let Some(p) = self.person(slot) else {
-                    return false;
-                };
-                let yes = self.rival() == Some(p);
-                if yes && *is {
-                    args.insert("rival".into(), self.name_of(p));
-                }
-                yes == *is
-            }
-            U::Tells { subject, min } => {
-                let Some(s) = self.subject(subject) else {
-                    return false;
-                };
-                if self.told(&s) < *min {
-                    return false;
-                }
-                let mut a = Args::new();
-                self.subject_args(&s, &mut a);
-                // Worries that worry nobody are no answer.
-                if matches!(
-                    s,
-                    Subject::TownConcerns { .. } | Subject::HoodConcerns { .. }
-                ) && !a.contains_key("concern_key")
-                {
-                    return false;
-                }
-                args.extend(a);
-                true
-            }
-            U::PlayerKnows { subject, min, max } => {
-                // Something that does not exist here (a town without a
-                // broker) is unknown to the player, and gives no arguments.
-                let s = self.subject(subject);
-                let l = s
-                    .as_ref()
-                    .map(|s| knowledge::knows(st, s))
-                    .unwrap_or_default();
-                if min.is_some_and(|a| l < a) || max.is_some_and(|z| l > z) {
-                    return false;
-                }
-                if let Some(s) = &s {
-                    self.subject_args(s, args);
-                }
-                true
-            }
-            U::Any { of } => {
-                for x in of {
-                    let mut a = Args::new();
-                    if self.holds(x, &mut a) {
-                        args.extend(a);
-                        return true;
-                    }
-                }
-                false
-            }
-            U::Voice { voices } => {
-                super::reply::voice(self).is_some_and(|v| voices.contains(&v.id))
-            }
-            U::About {
-                kinds,
-                places,
-                workplace,
-                home,
-                is,
-            } => {
-                let holds = self.about.is_some_and(|a| {
-                    if !kinds.is_empty() && !kinds.contains(&a.kind()) {
-                        return false;
-                    }
-                    let place = match a {
-                        AboutRef::Place { place } => st.world.places.get(place.index()),
-                        _ => None,
-                    };
-                    if !places.is_empty()
-                        && !place.is_some_and(|p| places.iter().any(|k| k == p.kind.key()))
-                    {
-                        return false;
-                    }
-                    if let Some(h) = home {
-                        let mine = matches!(a, AboutRef::Hood { .. })
-                            && self.hood(HoodOf::About) == self.hood(HoodOf::SpeakerHome);
-                        if mine != *h {
-                            return false;
-                        }
-                    }
-                    match workplace {
-                        None => true,
-                        Some(w) => {
-                            let mine = place.is_some_and(|p| {
-                                self.workplace(self.speaker).is_some_and(|q| q.id == p.id)
-                            });
-                            mine == *w
-                        }
-                    }
-                });
-                holds == *is
-            }
-            U::Concern { of, concerns } => {
-                let Some(i) = self.top_concern(*of) else {
-                    return false;
-                };
-                if !self
-                    .content
-                    .concerns
-                    .get(i)
-                    .is_some_and(|c| concerns.contains(&c.id))
-                {
-                    return false;
-                }
-                self.concern_args(i, args);
-                true
-            }
-        }
+    pub fn holds(&self, c: &Condition, args: &mut Args) -> bool {
+        crate::condition::on_state(self.st, self.content, |v| {
+            let cx = crate::condition::Ctx::talk(v, self);
+            crate::condition::holds(&cx, c, args)
+        })
     }
 }
 
@@ -602,34 +340,4 @@ impl Ctx<'_> {
 /// for places without a proper name.
 pub fn place_talk_key(kind: crate::world::PlaceKind) -> String {
     format!("talk-place-{}", kind.key())
-}
-
-/// The slot-free reading of a situation condition in town `m` (a policy's
-/// unlock, a family trigger; `policy::situation_holds` delegates its new
-/// variants here). Conversation conditions never hold in a town's
-/// situation: slot-relative ones need a speaker, and the player's ledger
-/// (`player_knows`, `tells`) never decides whether something happens
-/// (DEC-091: the world does not wait for the player; validation refuses
-/// them there too).
-pub fn holds_in_town(
-    state: &State,
-    content: &ContentBundle,
-    c: &SituationCondition,
-    m: u32,
-) -> bool {
-    match c {
-        SituationCondition::Any { of } => of
-            .iter()
-            .any(|x| crate::policy::situation_holds(state, content, x, m)),
-        // The town's top concern (one that worries at all).
-        SituationCondition::Concern {
-            of: ConcernOf::Town,
-            concerns,
-        } => crate::concerns::top_concerns(&state.population, m as usize)
-            .first()
-            .filter(|(_, l)| *l > 0.0)
-            .and_then(|(i, _)| content.concerns.get(*i))
-            .is_some_and(|x| concerns.contains(&x.id)),
-        _ => false,
-    }
 }

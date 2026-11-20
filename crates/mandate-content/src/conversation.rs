@@ -1,7 +1,7 @@
 //! Conversations (DEC-093; M6_ENGINE_CONTRACTS §3): the content side.
 //! Topics (what the player can raise, offered by role, place and
 //! conditions), reply lines (openers, memory quotes, substance and closers,
-//! each with conditions on the shared `SituationCondition` type), voices
+//! each with conditions in the one condition language, `condition.rs`), voices
 //! (who speaks how) and the rules as numbers (cost, discretion, what
 //! speakers know, the repetition memory, small talk, the mechanics).
 //!
@@ -11,8 +11,9 @@
 //! code; everything else here is data.
 
 use crate::ContentBundle;
+use crate::condition::{Condition, ConditionUse, Site, walk};
 use crate::knowledge::Level;
-use crate::types::{ContentKey, SituationCondition};
+use crate::types::ContentKey;
 use crate::validate::{Issue, fluent_keys};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -123,7 +124,7 @@ pub struct TopicOffer {
     pub places: Vec<String>,
     /// Every condition must hold (slots: `speaker`, `player`).
     #[serde(default)]
-    pub when: Vec<SituationCondition>,
+    pub when: Vec<Condition>,
 }
 
 // --- Lines -------------------------------------------------------------------------
@@ -187,7 +188,7 @@ pub struct TalkLineDef {
     pub key: String,
     /// Every condition must hold.
     #[serde(default)]
-    pub when: Vec<SituationCondition>,
+    pub when: Vec<Condition>,
     /// Relative chance among the lines that hold (default 1).
     #[serde(default = "one_f64")]
     pub weight: f64,
@@ -263,14 +264,18 @@ impl SubjectRef {
     }
 }
 
-/// Whose top concern a `concern` condition reads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+/// Whose worries a `concern` condition reads.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ConcernOf {
-    /// The speaker's home neighbourhood (what worries them).
+    /// The speaker's home neighbourhood (what worries them; conversations).
     Speaker,
-    /// The player's town.
+    /// The town.
+    #[default]
     Town,
+    /// The neighbourhood where it is said or done (a line heard, a
+    /// conversation's place, a place visited).
+    Here,
 }
 
 /// Which neighbourhood a subject names.
@@ -339,7 +344,7 @@ pub struct VoiceDef {
     pub priority: i32,
     /// Every condition must hold (slots: `speaker`, `player`).
     #[serde(default)]
-    pub when: Vec<SituationCondition>,
+    pub when: Vec<Condition>,
     /// How often a reply in this voice ends with a closer (0..1).
     #[serde(default = "half")]
     pub closer_share: f64,
@@ -722,34 +727,18 @@ pub fn fluent_placeholders(text: &str) -> BTreeMap<String, BTreeSet<String>> {
 // --- Validation (M6_ENGINE_CONTRACTS §3.11) -------------------------------------------
 
 /// The Fluent arguments a condition provides when it holds (for `any`, those
-/// every alternative provides).
-pub fn condition_args(c: &SituationCondition) -> BTreeSet<String> {
-    use SituationCondition as U;
-    let set = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect();
-    match c {
-        U::Crisis { .. } => set(&["crisis_key"]),
-        U::Remembers { .. } => set(&["memory_key", "subject_key", "subject_kind", "year"]),
-        U::Favour { .. } => set(&["n"]),
-        U::IsBroker { is: true, .. } => set(&["broker", "broker_place", "stake_key"]),
-        U::IsRival { is: true, .. } => set(&["rival"]),
-        U::Tells { subject, .. } | U::PlayerKnows { subject, .. } => set(subject.args()),
-        U::Concern { .. } => set(&["concern_key", "concern_talk_key"]),
-        U::Any { of } => {
-            let mut it = of.iter().map(condition_args);
-            let first = it.next().unwrap_or_default();
-            it.fold(first, |acc, x| acc.intersection(&x).cloned().collect())
-        }
-        _ => BTreeSet::new(),
-    }
+/// every alternative provides; `Condition::provides`).
+pub fn condition_args(c: &Condition) -> BTreeSet<String> {
+    c.provides().unwrap_or_default()
 }
 
 /// Whether a line's conditions read the conversation's subject (the
 /// `about` slot, a subject `of: about`, an `about` condition that holds for
 /// a subject): a line that answers what was asked about, not the topic in
 /// general. Inside `any`, every alternative must read it.
-pub fn reads_about(cs: &[SituationCondition]) -> bool {
-    fn one(c: &SituationCondition) -> bool {
-        use SituationCondition as U;
+pub fn reads_about(cs: &[Condition]) -> bool {
+    fn one(c: &Condition) -> bool {
+        use Condition as U;
         let subject = |s: &SubjectRef| match s {
             SubjectRef::HoodConcerns { of } => *of == HoodOf::About,
             SubjectRef::Person { slot } => slot == "about",
@@ -771,23 +760,13 @@ pub fn reads_about(cs: &[SituationCondition]) -> bool {
     cs.iter().any(one)
 }
 
-/// Every condition, depth first (inside `any` too).
-fn walk<'a>(cs: &'a [SituationCondition], out: &mut Vec<&'a SituationCondition>) {
-    for c in cs {
-        out.push(c);
-        if let SituationCondition::Any { of } = c {
-            walk(of, out);
-        }
-    }
-}
-
 /// The roles a fallback line covers (`None`: its conditions are not only on
 /// the speaker's role; every role when it has no conditions).
 fn fallback_roles(l: &TalkLineDef, all: &[String]) -> Option<Vec<String>> {
     let mut roles: Option<Vec<String>> = None;
     for c in &l.when {
         match c {
-            SituationCondition::Occupation { slot, occupations } if slot == "speaker" => {
+            Condition::Occupation { slot, occupations } if slot == "speaker" => {
                 let next: Vec<String> = match roles {
                     None => occupations.clone(),
                     Some(r) => r.into_iter().filter(|x| occupations.contains(x)).collect(),
@@ -952,20 +931,16 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 ));
             }
         }
-        for c in &p.offered.when {
-            crate::validate::check_situation_condition(
-                b,
-                &p.id,
-                c,
-                Some(&["speaker", "player"]),
-                issues,
-            );
-        }
+        crate::condition::check_all(
+            b,
+            &Site::new(&p.id, ConditionUse::TalkTopic, &["speaker", "player"]),
+            &p.offered.when,
+            issues,
+        );
         let mut all = Vec::new();
         walk(&p.offered.when, &mut all);
         for c in all {
-            if let SituationCondition::Tells { subject, .. }
-            | SituationCondition::PlayerKnows { subject, .. } = c
+            if let Condition::Tells { subject, .. } | Condition::PlayerKnows { subject, .. } = c
                 && let Err(e) = subject_ok(subject, &[])
             {
                 issues.push(Issue::error(&p.id, &e));
@@ -997,21 +972,15 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 "a voice that closes needs at least two closers (so the guard has an alternative)",
             ));
         }
-        for c in &v.when {
-            crate::validate::check_situation_condition(
-                b,
-                &v.id,
-                c,
-                Some(&["speaker", "player"]),
-                issues,
-            );
-        }
+        crate::condition::check_all(
+            b,
+            &Site::new(&v.id, ConditionUse::TalkVoice, &["speaker", "player"]),
+            &v.when,
+            issues,
+        );
         let mut all = Vec::new();
         walk(&v.when, &mut all);
-        if all
-            .iter()
-            .any(|c| matches!(c, SituationCondition::Voice { .. }))
-        {
+        if all.iter().any(|c| matches!(c, Condition::Voice { .. })) {
             issues.push(Issue::error(
                 &v.id,
                 "a voice's conditions cannot name a voice (it is what they decide)",
@@ -1055,7 +1024,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 if !l
                     .when
                     .iter()
-                    .any(|c| matches!(c, SituationCondition::Remembers { .. })) =>
+                    .any(|c| matches!(c, Condition::Remembers { .. })) =>
             {
                 issues.push(Issue::error(
                     id,
@@ -1088,14 +1057,16 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         } else {
             vec!["speaker", "player"]
         };
-        for c in &l.when {
-            crate::validate::check_situation_condition(b, id, c, Some(&slots), issues);
-        }
+        crate::condition::check_all(
+            b,
+            &Site::new(id, ConditionUse::TalkLine, &slots),
+            &l.when,
+            issues,
+        );
         let mut conds = Vec::new();
         walk(&l.when, &mut conds);
         for c in &conds {
-            if let SituationCondition::Tells { subject, .. }
-            | SituationCondition::PlayerKnows { subject, .. } = c
+            if let Condition::Tells { subject, .. } | Condition::PlayerKnows { subject, .. } = c
                 && let Err(e) = subject_ok(subject, about)
             {
                 issues.push(Issue::error(id, &e));
@@ -1113,7 +1084,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 ));
             }
             let guarded = l.when.iter().any(|c| {
-                matches!(c, SituationCondition::Tells { subject, min }
+                matches!(c, Condition::Tells { subject, min }
                     if subject == &x.subject && *min >= x.level)
             });
             if !guarded {

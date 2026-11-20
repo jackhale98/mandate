@@ -294,7 +294,7 @@ fn render_parts(ftl: &Ftl, parts: &[(String, BTreeMap<String, String>)]) -> Stri
 /// How many of the world's towns pass each indicator threshold the lines
 /// use (a calibration report for line conditions, not a gate).
 fn report_indicators(e: &Engine, c: &ContentBundle, seed: u64) {
-    use mandate_content::{Indicator, SituationCondition};
+    use mandate_content::{Condition, Indicator};
     let st = e.state();
     let n = st.world.municipalities.len() as u32;
     let mut out = Vec::new();
@@ -310,7 +310,7 @@ fn report_indicators(e: &Engine, c: &ContentBundle, seed: u64) {
         let counts: Vec<String> = thresholds
             .iter()
             .map(|t| {
-                let cond = SituationCondition::Indicator {
+                let cond = Condition::Indicator {
                     indicator: ind,
                     min: Some(*t),
                     max: None,
@@ -704,7 +704,7 @@ fn someone(e: &mut Engine) -> CharacterId {
 /// closer, whichever lines are drawn.
 #[test]
 fn openers_follow_the_chosen_voice() {
-    use mandate_content::SituationCondition as U;
+    use mandate_content::Condition as U;
     let c = content();
     let ftl = Ftl::load();
     let mut e = game(42, &c);
@@ -803,7 +803,7 @@ fn unnamed_places_are_named_by_their_kind() {
         let ctx = ctx_for(&e, &c, b, None);
         let mut args = BTreeMap::new();
         let holds = ctx.holds(
-            &mandate_content::SituationCondition::IsBroker {
+            &mandate_content::Condition::IsBroker {
                 slot: "speaker".into(),
                 is: true,
             },
@@ -824,7 +824,7 @@ fn unnamed_places_are_named_by_their_kind() {
 /// concern, with its name and its noun phrase of talk.
 #[test]
 fn the_concern_condition_reads_the_top_concern() {
-    use mandate_content::SituationCondition as U;
+    use mandate_content::Condition as U;
     use mandate_content::conversation::ConcernOf;
     let c = content();
     let ftl = Ftl::load();
@@ -849,13 +849,16 @@ fn the_concern_condition_reads_the_top_concern() {
             .collect();
         let town_is = |concerns: Vec<String>| U::Concern {
             of: ConcernOf::Town,
+            concern: None,
             concerns,
+            top: None,
+            by: None,
         };
         let mut args = BTreeMap::new();
         let holds = ctx.holds(&town_is(all.clone()), &mut args);
         assert_eq!(holds, level > 0.0, "seed {seed}");
         assert_eq!(
-            talk::context::holds_in_town(e.state(), &c, &town_is(all.clone()), t.0),
+            mandate_sim::policy::situation_holds(e.state(), &c, &town_is(all.clone()), t.0),
             holds,
             "the town form reads the same in a town's situation"
         );
@@ -879,7 +882,10 @@ fn the_concern_condition_reads_the_top_concern() {
                 ctx.holds(
                     &U::Concern {
                         of: ConcernOf::Speaker,
+                        concern: None,
                         concerns: vec![(*k).clone()],
+                        top: None,
+                        by: None,
                     },
                     &mut BTreeMap::new(),
                 )

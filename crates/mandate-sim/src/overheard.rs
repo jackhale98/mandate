@@ -16,22 +16,14 @@
 //! `teaches` subjects are raised to `heard` in the player's knowledge
 //! ledger (DEC-091; the player's command writing the player's state).
 
-use crate::events::EventKind;
 use crate::places::{Location, hood_of};
 use crate::state::State;
-use crate::world::NeighborhoodKind;
-use mandate_content::{
-    ContentBundle, ContentKey, HeardCondition, HeardSubject, OverheardDef, WaterFeature,
-};
+use mandate_content::{Condition, ContentBundle, ContentKey, OverheardDef};
 use mandate_core::Stream;
 use std::collections::BTreeMap;
 
 /// Lines drawn per visit.
 pub const LINES: usize = 3;
-/// How far back a story counts as news (days).
-const NEWS_DAYS: u32 = 56;
-/// Share of residents who must know the player before they have an opinion.
-const KNOWN: f64 = 0.2;
 
 /// One line as residents say it: a Fluent key and its arguments (names and
 /// facts; arguments named `*_key` are Fluent keys). `story` is a media story
@@ -53,255 +45,6 @@ fn location_key(loc: Location) -> u64 {
     }
 }
 
-pub(crate) struct Ctx<'a> {
-    pub(crate) st: &'a State,
-    pub(crate) content: &'a ContentBundle,
-    pub(crate) m: u32,
-    pub(crate) hood: usize,
-}
-
-fn in_range(v: f64, min: Option<f64>, max: Option<f64>) -> bool {
-    min.is_none_or(|a| v >= a) && max.is_none_or(|z| v <= z)
-}
-
-impl Ctx<'_> {
-    fn politician_of(
-        &self,
-        c: crate::characters::CharacterId,
-    ) -> Option<&crate::politics::Politician> {
-        self.st
-            .politics
-            .politicians
-            .iter()
-            .find(|p| p.character == c)
-    }
-
-    fn character_name(&self, c: crate::characters::CharacterId) -> Option<String> {
-        crate::characters::profile(&self.st.politics, &self.st.world, c).map(|x| x.full_name())
-    }
-
-    fn town_character(&self) -> Option<&crate::characters::TownCharacter> {
-        self.st.politics.characters.towns.get(self.m as usize)
-    }
-
-    /// The player's mean awareness and approval in the neighbourhood.
-    fn player_standing(&self) -> Option<(f64, f64)> {
-        self.st.player.as_ref()?;
-        let cs = &self.st.population.hoods.get(self.hood)?.cohorts;
-        let n: f64 = cs.iter().map(|c| c.count as f64).sum();
-        if n <= 0.0 {
-            return None;
-        }
-        let aw = cs
-            .iter()
-            .map(|c| c.player_awareness as f64 * c.count as f64)
-            .sum::<f64>()
-            / n;
-        let ap = cs
-            .iter()
-            .map(|c| c.player_approval as f64 * c.count as f64)
-            .sum::<f64>()
-            / n;
-        Some((aw, ap))
-    }
-
-    fn player_name(&self) -> Option<String> {
-        let pl = self.st.player.as_ref()?;
-        self.st.politics.get(pl.politician).map(|p| p.full_name())
-    }
-
-    /// Does a condition hold? Adds its arguments when it does.
-    pub(crate) fn holds(
-        &self,
-        c: &HeardCondition,
-        args: &mut BTreeMap<String, String>,
-        story: &mut Option<u32>,
-    ) -> bool {
-        let st = self.st;
-        let today = st.calendar.date;
-        let mu = st.world.municipalities.get(self.m as usize);
-        let waterfront = st
-            .world
-            .neighborhoods
-            .get(self.hood)
-            .is_some_and(|n| n.kind == NeighborhoodKind::Waterfront);
-        let river = mu.is_some_and(|x| x.on_river);
-        let coast = mu.is_some_and(|x| x.coastal);
-        match c {
-            HeardCondition::Water { feature } => match feature {
-                WaterFeature::River => river,
-                WaterFeature::Coast => coast,
-                WaterFeature::Any => river || coast || waterfront,
-            },
-            HeardCondition::Dry => !(river || coast || waterfront),
-            HeardCondition::Crisis { kind } => {
-                let Some(x) = self.town_character().and_then(|t| {
-                    t.crises
-                        .iter()
-                        .filter(|x| kind.as_ref().is_none_or(|k| &x.kind == k))
-                        .max_by(|a, b| a.severity.total_cmp(&b.severity))
-                }) else {
-                    return false;
-                };
-                if let Some(d) = self.content.crises.iter().find(|d| d.id == x.kind) {
-                    args.insert("crisis_key".into(), d.name_key.clone());
-                }
-                true
-            }
-            HeardCondition::PlantClosure { within_months } => {
-                let days = *within_months as u32 * 30;
-                let found = st
-                    .events
-                    .iter()
-                    .rev()
-                    .take_while(|e| e.date.days_until(today) <= days)
-                    .find_map(|e| match &e.kind {
-                        EventKind::PlantClosure {
-                            municipality,
-                            sector,
-                            jobs,
-                        } if *municipality == self.m => Some((sector.clone(), *jobs)),
-                        _ => None,
-                    });
-                let Some((sector, jobs)) = found else {
-                    return false;
-                };
-                if let Some(s) = self.content.sector(&sector) {
-                    args.insert("industry_key".into(), talk_key(s));
-                }
-                args.insert("jobs".into(), jobs.to_string());
-                true
-            }
-            HeardCondition::Disaster { within_months } => st
-                .economy
-                .munis
-                .get(self.m as usize)
-                .is_some_and(|e| e.months_since_disaster < *within_months),
-            HeardCondition::Industry => {
-                let Some(s) = self
-                    .town_character()
-                    .and_then(|t| t.industry.as_deref())
-                    .and_then(|s| self.content.sector(s))
-                else {
-                    return false;
-                };
-                args.insert("industry_key".into(), talk_key(s));
-                true
-            }
-            HeardCondition::Broker => {
-                let Some(n) = self
-                    .town_character()
-                    .and_then(|t| t.broker)
-                    .and_then(|b| self.character_name(b))
-                else {
-                    return false;
-                };
-                args.insert("broker".into(), n);
-                true
-            }
-            HeardCondition::Rival => {
-                let Some(n) = self
-                    .town_character()
-                    .and_then(|t| t.rival)
-                    .and_then(|r| self.character_name(r))
-                else {
-                    return false;
-                };
-                args.insert("rival".into(), n);
-                true
-            }
-            HeardCondition::RivalRecord { min, max } => {
-                let Some((name, record)) =
-                    self.town_character().and_then(|t| t.rival).and_then(|r| {
-                        let p = self.politician_of(r)?;
-                        Some((p.full_name(), p.record as f64))
-                    })
-                else {
-                    return false;
-                };
-                if !in_range(record, *min, *max) {
-                    return false;
-                }
-                args.insert("rival".into(), name);
-                true
-            }
-            HeardCondition::PlayerAwareness { min, max } => {
-                let (Some((aw, _)), Some(name)) = (self.player_standing(), self.player_name())
-                else {
-                    return false;
-                };
-                if !in_range(aw, *min, *max) {
-                    return false;
-                }
-                args.insert("player".into(), name);
-                true
-            }
-            HeardCondition::PlayerApproval { min, max } => {
-                let (Some((aw, ap)), Some(name)) = (self.player_standing(), self.player_name())
-                else {
-                    return false;
-                };
-                if aw < KNOWN || !in_range(ap, *min, *max) {
-                    return false;
-                }
-                args.insert("player".into(), name);
-                true
-            }
-            HeardCondition::Scandal { about } => {
-                let me = st.player.as_ref().map(|p| p.politician);
-                let rival = self
-                    .town_character()
-                    .and_then(|t| t.rival)
-                    .and_then(|r| self.politician_of(r))
-                    .map(|p| p.id);
-                let Some(x) = st
-                    .media
-                    .scandals
-                    .iter()
-                    .rev()
-                    .filter(|x| x.running() && x.town == self.m)
-                    .find(|x| match about {
-                        HeardSubject::Anyone => true,
-                        HeardSubject::Player => Some(x.subject) == me,
-                        HeardSubject::Rival => Some(x.subject) == rival,
-                    })
-                else {
-                    return false;
-                };
-                let Some(name) = st.politics.get(x.subject).map(|p| p.full_name()) else {
-                    return false;
-                };
-                args.insert("subject".into(), name);
-                args.insert(
-                    "fact_key".into(),
-                    format!("fact-{}", x.kind.replace('_', "-")),
-                );
-                true
-            }
-            HeardCondition::Headline => {
-                let Some(s) = st.media.stories.iter().rev().find(|s| {
-                    s.town == self.m
-                        && s.date.days_until(today) <= NEWS_DAYS
-                        && st
-                            .media
-                            .outlet(s.outlet)
-                            .is_some_and(|o| o.covers(&st.world, self.m))
-                }) else {
-                    return false;
-                };
-                *story = Some(s.id);
-                true
-            }
-            HeardCondition::ElectionWithin { days } => st
-                .politics
-                .elections
-                .next_day
-                .is_some_and(|d| d >= today && today.days_until(d) <= *days),
-            HeardCondition::Any { of } => of.iter().any(|x| self.holds(x, args, story)),
-        }
-    }
-}
-
 /// Every line that holds at a location, with its weight and arguments.
 fn candidates(st: &State, content: &ContentBundle, loc: Location) -> Vec<(f64, HeardLine)> {
     let Some(h) = hood_of(st, loc) else {
@@ -311,12 +54,9 @@ fn candidates(st: &State, content: &ContentBundle, loc: Location) -> Vec<(f64, H
         return Vec::new();
     };
     let m = n.municipality.0;
-    let ctx = Ctx {
-        st,
-        content,
-        m,
-        hood: h.index(),
-    };
+    let r = crate::scheduler::Reads::of_state(st, content);
+    let v = crate::narrative::cast::View::new(&r, &st.politics);
+    let cx = crate::condition::Ctx::at_location(&v, st, loc);
     // The neighbourhood's strongest three concerns, by how strongly felt.
     let felt: Vec<(usize, f64)> =
         crate::concerns::felt_concerns(&st.population, content, m as usize, &[h.index()])
@@ -348,10 +88,11 @@ fn candidates(st: &State, content: &ContentBundle, loc: Location) -> Vec<(f64, H
             None => 0.6,
         };
         let mut args = BTreeMap::new();
-        let mut story = None;
-        if !def.when.iter().all(|c| ctx.holds(c, &mut args, &mut story)) {
+        cx.story.set(None);
+        if !crate::condition::all_hold(&cx, &def.when, &mut args) {
             continue;
         }
+        let story = cx.story.get();
         args.insert("town".into(), town.clone());
         args.insert("hood".into(), n.name.clone());
         out.push((
@@ -529,24 +270,14 @@ pub fn available(st: &State, content: &ContentBundle, loc: Location) -> Vec<Hear
         .collect()
 }
 
-/// Does a single condition hold at a location?
-pub fn condition_holds(
-    st: &State,
-    content: &ContentBundle,
-    loc: Location,
-    c: &HeardCondition,
-) -> bool {
-    let Some(h) = hood_of(st, loc) else {
+/// Does a single condition hold at a location (the one evaluator, with
+/// the location's neighbourhood as `here`)?
+pub fn condition_holds(st: &State, content: &ContentBundle, loc: Location, c: &Condition) -> bool {
+    if hood_of(st, loc).is_none() {
         return false;
-    };
-    let Some(n) = st.world.neighborhoods.get(h.index()) else {
-        return false;
-    };
-    let ctx = Ctx {
-        st,
-        content,
-        m: n.municipality.0,
-        hood: h.index(),
-    };
-    ctx.holds(c, &mut BTreeMap::new(), &mut None)
+    }
+    crate::condition::on_state(st, content, |v| {
+        let cx = crate::condition::Ctx::at_location(v, st, loc);
+        crate::condition::holds(&cx, c, &mut crate::condition::Args::new())
+    })
 }

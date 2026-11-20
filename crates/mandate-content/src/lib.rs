@@ -3,6 +3,7 @@
 
 pub mod act;
 pub mod bundle;
+pub mod condition;
 pub mod conversation;
 pub mod interiors;
 pub mod jsonc;
@@ -21,6 +22,7 @@ pub mod visits;
 pub mod embedded;
 
 pub use bundle::{ContentBundle, Source, load};
+pub use condition::{Condition, HeardSubject, WaterFeature};
 pub use media::*;
 pub use narrative::*;
 pub use types::*;

@@ -8,8 +8,9 @@
 //! is scoped to the player's town: roles are cast from live actors there, and
 //! conditions read live state there.
 
+use crate::condition::Condition;
 use crate::knowledge::Level;
-use crate::types::{ContentKey, Indicator, SectorDriver};
+use crate::types::ContentKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -432,171 +433,11 @@ pub struct TeachDef {
     pub level: Level,
 }
 
-fn heard() -> Level {
-    Level::Heard
-}
-
-fn top_three() -> u8 {
-    3
-}
-
 fn yes() -> bool {
     true
 }
 
-/// A condition on live state in the player's town. Roles name cast actors.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum Condition {
-    /// The town lives through a crisis of this kind (`crises.jsonc`).
-    Crisis {
-        kind: ContentKey,
-        #[serde(default)]
-        min_severity: f64,
-    },
-    /// The town lives through any crisis at least this severe.
-    LiveCrisis {
-        #[serde(default)]
-        min_severity: f64,
-    },
-    /// An engine indicator of the town, within [min, max].
-    Indicator {
-        indicator: Indicator,
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// The concern is among the town's top `top` priorities.
-    Concern {
-        concern: ContentKey,
-        #[serde(default = "top_three")]
-        top: u8,
-    },
-    /// The town's defining industry has one of these drivers.
-    Industry { drivers: Vec<SectorDriver> },
-    /// The player's next local election is within this many days.
-    ElectionWithin { days: u32 },
-    /// The player is (or is not) standing in a running campaign.
-    Campaigning {
-        #[serde(default = "yes")]
-        is: bool,
-    },
-    /// The player holds one of these posts (DEC-098): role words (a body's
-    /// `member_key` or an office's id, from the run's constitution), `any`
-    /// (any post) or `none` (out of office). `role` is the one-word
-    /// spelling (`{ "type": "office", "role": "councillor" }`).
-    Office {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        posts: Vec<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        role: Option<String>,
-    },
-    /// A track within [min, max].
-    Track {
-        track: TrackKey,
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// The player's campaign funds within [min, max] (currency units).
-    Money {
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// The role's opinion of the player within [min, max] (−100..100).
-    Opinion {
-        role: String,
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// The player owes the role a favour (or, `owed_to_player`, the reverse).
-    Favour {
-        role: String,
-        #[serde(default)]
-        owed_to_player: bool,
-    },
-    /// The role remembers the player doing one of these (memory kinds).
-    Remembers { role: String, kinds: Vec<String> },
-    /// A personality axis of the role within [min, max] (0..1).
-    Personality {
-        role: String,
-        axis: String,
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// The role has one of these traits.
-    Trait {
-        role: String,
-        traits: Vec<ContentKey>,
-    },
-    /// A law of one of these templates is in force or being built in town
-    /// (`absent`: none is).
-    LawInForce {
-        templates: Vec<ContentKey>,
-        #[serde(default)]
-        absent: bool,
-    },
-    /// The player's party line on the bill in `role` runs against the mood of
-    /// the player's ward.
-    PartyLineAgainstWard { role: String },
-    /// The player can still declare a vote on the bill in `role`.
-    CanVote { role: String },
-    /// The role holds this goal (DEC-032).
-    Goal { role: String, goal: ContentKey },
-    /// At least this many months since play began.
-    MonthsInPlay { min: u32 },
-    /// The player knows the subject at least this well (DEC-091; default
-    /// `heard`). A subject naming several places holds if any is known.
-    /// Framing only (scene variants, lines, option framing, leads):
-    /// validation refuses it where a condition decides whether something
-    /// happens (dilemma triggers, goal conditions, storyline starts and
-    /// advances), because the world does not wait for the player.
-    Knows {
-        subject: SubjectDef,
-        #[serde(default = "heard")]
-        min: Level,
-    },
-    /// The player answered `template` (with `option`, if given; a default
-    /// that happened counts) between `min_days` and `max_days` ago
-    /// (ENGAGEMENT §4.4: consequences of the player's own choices). Roles in
-    /// `same_cast` are cast as they were in that decision.
-    Answered {
-        template: ContentKey,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        option: Option<String>,
-        #[serde(default)]
-        min_days: u32,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        max_days: Option<u32>,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        same_cast: Vec<String>,
-    },
-    /// The player sponsored a law of this status, between `min_age_days`
-    /// and `max_age_days` old (since enacted; a pending bill since it was
-    /// introduced): the law cast in `role`, or any. `chance` is the share of
-    /// such laws that count, a keyed draw per law and condition, so the same
-    /// law always gives the same answer (ENGAGEMENT §4.4, §4.7).
-    SponsoredLaw {
-        #[serde(default)]
-        status: LawStatus,
-        #[serde(default)]
-        min_age_days: u32,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        max_age_days: Option<u32>,
-        #[serde(default = "one")]
-        chance: f64,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        role: Option<String>,
-    },
-}
+// The narrative conditions are the one condition language (`condition.rs`, DEC-098 §5).
 
 /// Which of the player's laws a `sponsored_law` condition reads.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -902,26 +743,6 @@ impl EffectDef {
             EffectDef::LegalResponse { role, .. } => role.iter().map(|s| s.as_str()).collect(),
             EffectDef::Learn { subject, .. } => subject.role().into_iter().collect(),
             EffectDef::RevealPlace { role, .. } => role.iter().map(|s| s.as_str()).collect(),
-            _ => Vec::new(),
-        }
-    }
-}
-
-impl Condition {
-    /// The roles a condition names.
-    pub fn roles(&self) -> Vec<&str> {
-        match self {
-            Condition::Opinion { role, .. }
-            | Condition::Favour { role, .. }
-            | Condition::Remembers { role, .. }
-            | Condition::Personality { role, .. }
-            | Condition::Trait { role, .. }
-            | Condition::PartyLineAgainstWard { role }
-            | Condition::CanVote { role }
-            | Condition::Goal { role, .. } => vec![role.as_str()],
-            Condition::Knows { subject, .. } => subject.role().into_iter().collect(),
-            Condition::Answered { same_cast, .. } => same_cast.iter().map(|s| s.as_str()).collect(),
-            Condition::SponsoredLaw { role, .. } => role.iter().map(|s| s.as_str()).collect(),
             _ => Vec::new(),
         }
     }
@@ -1362,15 +1183,6 @@ fn in_range(v: f64, lo: f64, hi: f64) -> bool {
     v.is_finite() && (lo..=hi).contains(&v)
 }
 
-fn opt_range(min: Option<f64>, max: Option<f64>, lo: f64, hi: f64) -> bool {
-    min.is_none_or(|v| in_range(v, lo, hi))
-        && max.is_none_or(|v| in_range(v, lo, hi))
-        && match (min, max) {
-            (Some(a), Some(b)) => a <= b,
-            _ => true,
-        }
-}
-
 /// What a condition, cast, or effect may refer to, for one template.
 struct Refs<'a> {
     owner: &'a str,
@@ -1397,218 +1209,20 @@ impl Refs<'_> {
         check_subject(self.owner, self.b, s, issues);
     }
 
-    /// A condition that decides whether something happens: a dilemma's
-    /// triggers, a goal's conditions, a storyline's start and stage
-    /// advances. The world does not wait for the player (DEC-091): what
-    /// the player knows may frame what they are shown (scene variants,
-    /// lines, option framing, leads), never whether an event, decision,
-    /// goal or storyline step happens, so `knows` is refused here.
-    fn trigger(&self, what: &str, c: &Condition, issues: &mut Vec<Issue>) {
-        if matches!(c, Condition::Knows { .. }) {
-            issues.push(Issue::error(
-                self.owner,
-                &format!(
-                    "a `knows` condition in {what}: what the player knows frames what they \
-                     are shown, never whether something happens (DEC-091)"
-                ),
-            ));
-        }
-        self.condition(c, issues);
-    }
-
-    fn condition(&self, c: &Condition, issues: &mut Vec<Issue>) {
-        for r in c.roles() {
-            self.role(r, issues);
-        }
-        let b = self.b;
-        let bad =
-            |issues: &mut Vec<Issue>, msg: String| issues.push(Issue::error(self.owner, &msg));
-        match c {
-            Condition::LiveCrisis { min_severity } => {
-                if !in_range(*min_severity, 0.0, 1.0) {
-                    bad(issues, "min_severity must be in [0, 1]".into());
-                }
-            }
-            Condition::Crisis { kind, min_severity } => {
-                // A pack may remove a crisis kind: the condition then never
-                // holds (a warning, as for a crisis's concern link).
-                if b.crisis_index(kind).is_none() {
-                    issues.push(Issue::warning(
-                        self.owner,
-                        &format!("unknown crisis `{kind}` (the condition never holds)"),
-                    ));
-                }
-                if !in_range(*min_severity, 0.0, 1.0) {
-                    bad(issues, "min_severity must be in [0, 1]".into());
-                }
-            }
-            Condition::Indicator { min, max, .. } => {
-                if !opt_range(*min, *max, -1000.0, 1000.0) {
-                    bad(
-                        issues,
-                        "indicator bounds must be finite with min ≤ max".into(),
-                    );
-                }
-            }
-            Condition::Concern { concern, top } => {
-                if b.concern_index(concern).is_none() {
-                    issues.push(Issue::warning(
-                        self.owner,
-                        &format!("unknown concern `{concern}` (the condition never holds)"),
-                    ));
-                }
-                if *top == 0 {
-                    bad(issues, "concern `top` must be at least 1".into());
-                }
-            }
-            Condition::Industry { drivers } => {
-                if drivers.is_empty() {
-                    bad(issues, "industry needs at least one driver".into());
-                }
-            }
-            Condition::ElectionWithin { days } => {
-                if *days == 0 || *days > 3650 {
-                    bad(issues, "election_within days must be in 1..3650".into());
-                }
-            }
-            Condition::Track { min, max, .. } => {
-                if !opt_range(*min, *max, 0.0, 100.0) {
-                    bad(
-                        issues,
-                        "track bounds must be in [0, 100] with min ≤ max".into(),
-                    );
-                }
-            }
-            Condition::Money { min, max } => {
-                if !opt_range(*min, *max, -1e9, 1e9) {
-                    bad(issues, "money bounds must be finite with min ≤ max".into());
-                }
-            }
-            Condition::Opinion { min, max, .. } => {
-                if !opt_range(*min, *max, -100.0, 100.0) {
-                    bad(
-                        issues,
-                        "opinion bounds must be in [-100, 100] with min ≤ max".into(),
-                    );
-                }
-            }
-            Condition::Remembers { kinds, .. } => {
-                for k in kinds {
-                    if !crate::types::MEMORY_KINDS.contains(&k.as_str()) {
-                        bad(issues, format!("unknown memory kind `{k}`"));
-                    }
-                }
-            }
-            Condition::Personality { axis, min, max, .. } => {
-                if !crate::types::PERSONALITY_AXES.contains(&axis.as_str()) {
-                    bad(issues, format!("unknown personality axis `{axis}`"));
-                }
-                if !opt_range(*min, *max, 0.0, 1.0) {
-                    bad(
-                        issues,
-                        "personality bounds must be in [0, 1] with min ≤ max".into(),
-                    );
-                }
-            }
-            Condition::Trait { traits, .. } => {
-                for t in traits {
-                    if b.trait_def(t).is_none() {
-                        bad(issues, format!("unknown trait `{t}`"));
-                    }
-                }
-            }
-            Condition::LawInForce { templates, .. } => {
-                for t in templates {
-                    if !b.policies.contains_key(t) {
-                        bad(issues, format!("unknown policy `{t}`"));
-                    }
-                }
-            }
-            Condition::Goal { goal, .. } => {
-                if b.goal(goal).is_none() {
-                    bad(issues, format!("unknown goal `{goal}`"));
-                }
-            }
-            Condition::Knows { subject, min } => {
-                self.subject(subject, issues);
-                if *min == Level::Unknown {
-                    bad(
-                        issues,
-                        "knows `min` must be heard, known or detailed".into(),
-                    );
-                }
-            }
-            Condition::Office { posts, role } => {
-                if posts.is_empty() && role.is_none() {
-                    bad(issues, "an office condition needs `posts` or `role`".into());
-                }
-                for w in posts.iter().chain(role.iter()) {
-                    if w != OFFICE_ANY && w != OFFICE_NONE && !b.is_role_word(w) {
-                        bad(
-                            issues,
-                            format!("unknown office word `{w}` (not a constitution role word)"),
-                        );
-                    }
-                }
-            }
-            Condition::Answered {
-                template,
-                option,
-                min_days,
-                max_days,
-                same_cast,
-            } => match b.dilemma(template) {
-                // A pack may remove the template: the condition never holds.
-                None => issues.push(Issue::warning(
-                    self.owner,
-                    &format!("unknown dilemma `{template}` (the condition never holds)"),
-                )),
-                Some(t) => {
-                    if let Some(o) = option
-                        && !t.options.iter().any(|x| &x.id == o)
-                    {
-                        bad(issues, format!("`{template}` has no option `{o}`"));
-                    }
-                    for r in same_cast {
-                        if !t.roles.iter().any(|x| &x.id == r) {
-                            bad(
-                                issues,
-                                format!("same_cast role `{r}` is not a role of `{template}`"),
-                            );
-                        }
-                    }
-                    if *min_days > 3650 || max_days.is_some_and(|m| m < *min_days || m > 3650) {
-                        bad(
-                            issues,
-                            "answered days must be in 0..3650 with min ≤ max".into(),
-                        );
-                    }
-                }
-            },
-            Condition::SponsoredLaw {
-                min_age_days,
-                max_age_days,
-                chance,
-                ..
-            } => {
-                if *min_age_days > 3650
-                    || max_age_days.is_some_and(|m| m < *min_age_days || m > 3650)
-                {
-                    bad(
-                        issues,
-                        "sponsored_law ages must be in 0..3650 with min ≤ max".into(),
-                    );
-                }
-                if !in_range(*chance, 0.0, 1.0) {
-                    bad(issues, "sponsored_law chance must be in [0, 1]".into());
-                }
-            }
-            Condition::Campaigning { .. }
-            | Condition::Favour { .. }
-            | Condition::PartyLineAgainstWard { .. }
-            | Condition::CanVote { .. }
-            | Condition::MonthsInPlay { .. } => {}
-        }
+    /// Conditions where they are used, checked by the one condition
+    /// validator (`condition.rs`) with this item's roles as its slots: the
+    /// table refuses what the use cannot read (`knows` where a condition
+    /// decides whether something happens, DEC-091; the event log, people's
+    /// routines and conversations inside the simulation), and each
+    /// condition names real things with sane ranges.
+    fn conditions(
+        &self,
+        at: crate::condition::ConditionUse,
+        cs: &[Condition],
+        issues: &mut Vec<Issue>,
+    ) {
+        let site = crate::condition::Site::new(self.owner, at, &self.roles);
+        crate::condition::check_all(self.b, &site, cs, issues);
     }
 }
 
@@ -1779,9 +1393,11 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
     let request = d.category == DilemmaCategory::Request;
     let roles = check_roles(owner, b, &d.roles, request, issues);
     let scope = Refs { owner, b, roles };
-    for c in &d.triggers {
-        scope.trigger("a dilemma's triggers", c, issues);
-    }
+    scope.conditions(
+        crate::condition::ConditionUse::DilemmaTrigger,
+        &d.triggers,
+        issues,
+    );
     // A raised decision answers a story or a case: four answers and silence.
     let most = if d.raised_by.is_some() { 5 } else { 4 };
     if !(2..=most).contains(&d.options.len()) {
@@ -2131,9 +1747,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             b,
             roles: vec!["holder"],
         };
-        for c in &g.conditions {
-            scope.trigger("a goal's conditions", c, issues);
-        }
+        scope.conditions(
+            crate::condition::ConditionUse::GoalCondition,
+            &g.conditions,
+            issues,
+        );
         let ok = match &g.drive {
             GoalDrive::None => true,
             GoalDrive::OpposePlayer { lean } | GoalDrive::BackPlayer { lean } => {
@@ -2202,9 +1820,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
         let roles = check_roles(owner, b, &s.roles, false, issues);
         let scope = Refs { owner, b, roles };
-        for c in &s.start {
-            scope.trigger("a storyline's start", c, issues);
-        }
+        scope.conditions(
+            crate::condition::ConditionUse::StorylineStart,
+            &s.start,
+            issues,
+        );
         if s.stages.is_empty() {
             issues.push(Issue::error(owner, "a storyline needs stages"));
         }
@@ -2222,9 +1842,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     &format!("stage `{}` defined twice", st.id),
                 ));
             }
-            for c in &st.advance {
-                scope.trigger("a storyline stage's advance", c, issues);
-            }
+            scope.conditions(
+                crate::condition::ConditionUse::StorylineAdvance,
+                &st.advance,
+                issues,
+            );
             if let Some(dk) = &st.decision {
                 match b.dilemma(dk) {
                     None => issues.push(Issue::error(owner, &format!("unknown decision `{dk}`"))),

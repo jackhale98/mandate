@@ -1660,29 +1660,37 @@
       "type": "object"
     },
     "ConcernOf": {
-      "description": "Whose top concern a `concern` condition reads.",
+      "description": "Whose worries a `concern` condition reads.",
       "oneOf": [
         {
           "const": "speaker",
-          "description": "The speaker's home neighbourhood (what worries them).",
+          "description": "The speaker's home neighbourhood (what worries them; conversations).",
           "type": "string"
         },
         {
           "const": "town",
-          "description": "The player's town.",
+          "description": "The town.",
+          "type": "string"
+        },
+        {
+          "const": "here",
+          "description": "The neighbourhood where it is said or done (a line heard, a\nconversation's place, a place visited).",
           "type": "string"
         }
       ]
     },
     "Condition": {
-      "description": "A condition on live state in the player's town. Roles name cast actors.",
+      "description": "A condition on live state: the jurisdiction's situation, the player, a\nperson in a slot (a cast role, or a conversation's `speaker`, `about`,\n`player`), a conversation, or where something is said or done.",
       "oneOf": [
         {
           "additionalProperties": false,
-          "description": "The town lives through a crisis of this kind (`crises.jsonc`).",
+          "description": "A live crisis in the town (`crises.jsonc`; of this kind, if given) at\nleast `min_severity` severe: `$crisis_key` (the most severe such\ncrisis). `live_crisis` is the old spelling without a kind.",
           "properties": {
             "kind": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "min_severity": {
               "default": 0.0,
@@ -1695,33 +1703,13 @@
             }
           },
           "required": [
-            "type",
-            "kind"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The town lives through any crisis at least this severe.",
-          "properties": {
-            "min_severity": {
-              "default": 0.0,
-              "format": "double",
-              "type": "number"
-            },
-            "type": {
-              "const": "live_crisis",
-              "type": "string"
-            }
-          },
-          "required": [
             "type"
           ],
           "type": "object"
         },
         {
           "additionalProperties": false,
-          "description": "An engine indicator of the town, within [min, max].",
+          "description": "An engine indicator of the town within [min, max].",
           "properties": {
             "indicator": {
               "$ref": "#/$defs/Indicator"
@@ -1755,17 +1743,41 @@
         },
         {
           "additionalProperties": false,
-          "description": "The concern is among the town's top `top` priorities.",
+          "description": "One worry condition, felt or measured, of the town or a\nneighbourhood: one of the listed concerns (`concern`, or any of\n`concerns`) is among the `top` strongest worries `of` the town\n(default), the speaker's home neighbourhood, or the neighbourhood\nhere, `by` how residents feel them (`felt`, as the notebook ranks\nthem) or by their measured levels (`measured`; the town's are its\npriorities, its three strongest, kept with its character). Defaults\nfollow the spelling: with one `concern`, measured, top 3 (the dilemma\nspelling); with `concerns`, felt, top 1 (the conversation spelling).\nGives `$concern_key` (the name) and `$concern_talk_key` (the noun\nphrase of talk) of the strongest listed worry that holds.",
           "properties": {
+            "by": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Worry"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "concern": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "concerns": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "of": {
+              "$ref": "#/$defs/ConcernOf"
             },
             "top": {
-              "default": 3,
               "format": "uint8",
               "maximum": 255,
               "minimum": 0,
-              "type": "integer"
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "type": {
               "const": "concern",
@@ -1773,20 +1785,22 @@
             }
           },
           "required": [
-            "type",
-            "concern"
+            "type"
           ],
           "type": "object"
         },
         {
           "additionalProperties": false,
-          "description": "The town's defining industry has one of these drivers.",
+          "description": "The town has a defining industry (with one of these drivers, if\ngiven): `$industry_key` (the sector as residents name it).",
           "properties": {
             "drivers": {
               "items": {
                 "$ref": "#/$defs/SectorDriver"
               },
-              "type": "array"
+              "type": [
+                "array",
+                "null"
+              ]
             },
             "type": {
               "const": "industry",
@@ -1794,14 +1808,341 @@
             }
           },
           "required": [
-            "type",
-            "drivers"
+            "type"
           ],
           "type": "object"
         },
         {
           "additionalProperties": false,
-          "description": "The player's next local election is within this many days.",
+          "description": "A plant closed in the town within this many months (the event log):\n`$industry_key` (the closed plant's sector), `$jobs`.",
+          "properties": {
+            "type": {
+              "const": "plant_closure",
+              "type": "string"
+            },
+            "within_months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "within_months"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A disaster struck the town within this many months.",
+          "properties": {
+            "type": {
+              "const": "disaster",
+              "type": "string"
+            },
+            "within_months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "within_months"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A law of one of these templates is in force or being built in the\ntown (`absent`: none is).",
+          "properties": {
+            "absent": {
+              "default": false,
+              "type": "boolean"
+            },
+            "templates": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "law_in_force",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "templates"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The town has this water (`any`: also a waterfront neighbourhood here).",
+          "properties": {
+            "feature": {
+              "$ref": "#/$defs/WaterFeature"
+            },
+            "type": {
+              "const": "water",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "feature"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "No water at all: no river, no coast, no waterfront here.",
+          "properties": {
+            "type": {
+              "const": "dry",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The town has a power broker: `$broker`.",
+          "properties": {
+            "type": {
+              "const": "broker",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player has a named rival in the town: `$rival`.",
+          "properties": {
+            "type": {
+              "const": "rival",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The rival's record of visible work within [min, max] (0..1): `$rival`.",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "rival_record",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A scandal running in the town (DEC-034) about this subject:\n`$subject` (their name), `$fact_key`.",
+          "properties": {
+            "about": {
+              "$ref": "#/$defs/HeardSubject",
+              "default": "anyone"
+            },
+            "type": {
+              "const": "scandal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A story about the town within the last eight weeks (an overheard line\nretells it: `$outlet_key`, `$headline_key` and the headline's own\narguments, added by the protocol).",
+          "properties": {
+            "type": {
+              "const": "headline",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's name recognition among the residents here within\n[min, max] (0..1): `$player`.",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "player_awareness",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Approval of the player among the residents here (−1..1) within\n[min, max]; only where at least a fifth know them: `$player`.",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "player_approval",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The industry of the place here (its kind's `sector`) is shedding jobs\nin its town, at least `min` of the way to full shedding\n(`visit.outlook`: 0 just below `shedding`, 1 at `shed_full`):\n`$industry_key`.",
+          "properties": {
+            "min": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "shedding",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Someone of one of these occupations is here now (people's routines;\nnot the player).",
+          "properties": {
+            "occupations": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "present",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "occupations"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "It is one of these parts of the player's day.",
+          "properties": {
+            "parts": {
+              "items": {
+                "$ref": "#/$defs/DayPart"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "day_part",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "parts"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The jurisdiction is in this phase: a campaign for one of its posts is\nrunning (`campaign`), or none is (`governing`).",
+          "properties": {
+            "phase": {
+              "$ref": "#/$defs/Phase"
+            },
+            "type": {
+              "const": "phase",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "phase"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's next election is within this many days.",
           "properties": {
             "days": {
               "format": "uint32",
@@ -1816,6 +2157,26 @@
           "required": [
             "type",
             "days"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "At least this many months since play began.",
+          "properties": {
+            "min": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "months_in_play",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "min"
           ],
           "type": "object"
         },
@@ -1860,6 +2221,24 @@
           },
           "required": [
             "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player holds a post for this jurisdiction whose constitution\nlists this power (read through the constitution, never an office's\nname: `requires_power`).",
+          "properties": {
+            "power": {
+              "$ref": "#/$defs/Power"
+            },
+            "type": {
+              "const": "holds_power",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "power"
           ],
           "type": "object"
         },
@@ -1929,275 +2308,6 @@
         },
         {
           "additionalProperties": false,
-          "description": "The role's opinion of the player within [min, max] (−100..100).",
-          "properties": {
-            "max": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "min": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "role": {
-              "type": "string"
-            },
-            "type": {
-              "const": "opinion",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "role"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The player owes the role a favour (or, `owed_to_player`, the reverse).",
-          "properties": {
-            "owed_to_player": {
-              "default": false,
-              "type": "boolean"
-            },
-            "role": {
-              "type": "string"
-            },
-            "type": {
-              "const": "favour",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "role"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The role remembers the player doing one of these (memory kinds).",
-          "properties": {
-            "kinds": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "role": {
-              "type": "string"
-            },
-            "type": {
-              "const": "remembers",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "role",
-            "kinds"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A personality axis of the role within [min, max] (0..1).",
-          "properties": {
-            "axis": {
-              "type": "string"
-            },
-            "max": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "min": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "role": {
-              "type": "string"
-            },
-            "type": {
-              "const": "personality",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "role",
-            "axis"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The role has one of these traits.",
-          "properties": {
-            "role": {
-              "type": "string"
-            },
-            "traits": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "type": {
-              "const": "trait",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "role",
-            "traits"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A law of one of these templates is in force or being built in town\n(`absent`: none is).",
-          "properties": {
-            "absent": {
-              "default": false,
-              "type": "boolean"
-            },
-            "templates": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "type": {
-              "const": "law_in_force",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "templates"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The player's party line on the bill in `role` runs against the mood of\nthe player's ward.",
-          "properties": {
-            "role": {
-              "type": "string"
-            },
-            "type": {
-              "const": "party_line_against_ward",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "role"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The player can still declare a vote on the bill in `role`.",
-          "properties": {
-            "role": {
-              "type": "string"
-            },
-            "type": {
-              "const": "can_vote",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "role"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The role holds this goal (DEC-032).",
-          "properties": {
-            "goal": {
-              "type": "string"
-            },
-            "role": {
-              "type": "string"
-            },
-            "type": {
-              "const": "goal",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "role",
-            "goal"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "At least this many months since play began.",
-          "properties": {
-            "min": {
-              "format": "uint32",
-              "minimum": 0,
-              "type": "integer"
-            },
-            "type": {
-              "const": "months_in_play",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "min"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The player knows the subject at least this well (DEC-091; default\n`heard`). A subject naming several places holds if any is known.\nFraming only (scene variants, lines, option framing, leads):\nvalidation refuses it where a condition decides whether something\nhappens (dilemma triggers, goal conditions, storyline starts and\nadvances), because the world does not wait for the player.",
-          "properties": {
-            "min": {
-              "$ref": "#/$defs/Level",
-              "default": "heard"
-            },
-            "subject": {
-              "$ref": "#/$defs/SubjectDef"
-            },
-            "type": {
-              "const": "knows",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "subject"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
           "description": "The player answered `template` (with `option`, if given; a default\nthat happened counts) between `min_days` and `max_days` ago\n(ENGAGEMENT §4.4: consequences of the player's own choices). Roles in\n`same_cast` are cast as they were in that decision.",
           "properties": {
             "max_days": {
@@ -2242,7 +2352,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "The player sponsored a law of this status, between `min_age_days`\nand `max_age_days` old (since enacted; a pending bill since it was\nintroduced): the law cast in `role`, or any. `chance` is the share of\nsuch laws that count, a keyed draw per law and condition, so the same\nlaw always gives the same answer (ENGAGEMENT §4.4, §4.7).",
+          "description": "The player sponsored a law of this status, between `min_age_days`\nand `max_age_days` old (since enacted; a pending bill since it was\nintroduced): the law cast in `slot`, or any. `chance` is the share of\nsuch laws that count, a keyed draw per law and condition, so the same\nlaw always gives the same answer (ENGAGEMENT §4.4, §4.7).",
           "properties": {
             "chance": {
               "default": 1.0,
@@ -2269,12 +2379,718 @@
                 "null"
               ]
             },
+            "slot": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "status": {
               "$ref": "#/$defs/LawStatus",
               "default": "in_force"
             },
             "type": {
               "const": "sponsored_law",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player knows the subject at least this well (DEC-091; default\n`heard`), its roles from the cast. A subject naming several places\nholds if any is known. Framing only (refused where a condition\ndecides whether something happens: the world does not wait for the\nplayer).",
+          "properties": {
+            "min": {
+              "$ref": "#/$defs/Level",
+              "default": "heard"
+            },
+            "subject": {
+              "$ref": "#/$defs/SubjectDef"
+            },
+            "type": {
+              "const": "knows",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "subject"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's ledger (DEC-091) holds the subject, named from the\nconversation, within [min, max]: the subject's arguments. Framing\nonly.",
+          "properties": {
+            "max": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Level"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "min": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Level"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "subject": {
+              "$ref": "#/$defs/SubjectRef"
+            },
+            "type": {
+              "const": "player_knows",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "subject"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person in the slot has one of these roles: occupation ids, or\nrole words of the constitution's posts (a body's `member_key`, an\noffice's id; DEC-098).",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "occupations": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "occupation",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "occupations"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person in the slot has one of these traits.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "traits": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "trait",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "traits"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A personality axis of the person in the slot within [min, max] (0..1).",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "axis": {
+              "type": "string"
+            },
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "personality",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "axis"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person in the slot holds this goal (DEC-032).",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "goal": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "goal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "goal"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Their opinion of the player within [min, max] (−100..100).",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "opinion",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Their trust in the player within [min, max] (0..1).",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "trust",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "They remember the player doing one of these (memory kinds; the most\nsalient): `$memory_key`, `$subject_key`, `$subject_kind`, `$year`.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "kinds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "remembers",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kinds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "owed_to_player": {
+              "default": false,
+              "type": "boolean"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "favour",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "They have (or have not) met the player before now: talked with them\n(a line of theirs in the conversation guard), or met them on an\nearlier day (a `met` memory). Meeting a passer-by today is not\nhaving met them before.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "met",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "They are (or are not) the town's power broker (local-only). When\nthey are: `$broker`, `$broker_place`, `$stake_key`.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "is_broker",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "They are (or are not) the player's rival in the town (local-only).\nWhen they are: `$rival`.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "is_rival",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's party line on the bill cast in `slot` runs against the\nmood of the player's ward.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "party_line_against_ward",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player can still declare a vote on the bill cast in `slot`.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "can_vote",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The speaker would tell the player at least `min` about the subject\n(what they know, capped by discretion): the subject's arguments.",
+          "properties": {
+            "min": {
+              "$ref": "#/$defs/Level"
+            },
+            "subject": {
+              "$ref": "#/$defs/SubjectRef"
+            },
+            "type": {
+              "const": "tells",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "subject",
+            "min"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The speaker's voice (`talk_voices`) is one of these, so a line (an\nopener) follows the voice the closers use. Not allowed in a voice's\nown conditions.",
+          "properties": {
+            "type": {
+              "const": "voice",
+              "type": "string"
+            },
+            "voices": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "type",
+            "voices"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "What the conversation is about (the `about` subject): one of these\nkinds (empty: any subject); for a place, one of `places` (place kinds;\nempty: any) and, if `workplace` is given, the speaker's own\nworkplace (`true`) or not (`false`): where they work, or where their\npost sits; for a neighbourhood, if `home` is given, the speaker's home\n(`true`) or not. With `is: false` it holds when the subject is not that\n(or there is none).",
+          "properties": {
+            "home": {
+              "default": null,
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "kinds": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/AboutKind"
+              },
+              "type": "array"
+            },
+            "places": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "about",
+              "type": "string"
+            },
+            "workplace": {
+              "default": null,
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Any one of these holds (the first that does gives the arguments).",
+          "properties": {
+            "of": {
+              "items": {
+                "$ref": "#/$defs/Condition"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "any",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "of"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The old spelling of a `crisis` without a `kind`.",
+          "properties": {
+            "min_severity": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "live_crisis",
               "type": "string"
             }
           },
@@ -5493,313 +6309,8 @@
       ],
       "type": "object"
     },
-    "HeardCondition": {
-      "description": "A fact a line needs. Each names the Fluent arguments it provides.",
-      "oneOf": [
-        {
-          "additionalProperties": false,
-          "description": "The town (or neighbourhood) has this water.",
-          "properties": {
-            "feature": {
-              "$ref": "#/$defs/WaterFeature"
-            },
-            "type": {
-              "const": "water",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "feature"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "No water at all: no river, no coast, no waterfront.",
-          "properties": {
-            "type": {
-              "const": "dry",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A live crisis in the town (of this kind, if given): `$crisis_key`.",
-          "properties": {
-            "kind": {
-              "default": null,
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "type": {
-              "const": "crisis",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A plant closed in the town within this many months: `$industry_key`\n(the closed plant's sector), `$jobs`.",
-          "properties": {
-            "type": {
-              "const": "plant_closure",
-              "type": "string"
-            },
-            "within_months": {
-              "format": "uint16",
-              "maximum": 65535,
-              "minimum": 0,
-              "type": "integer"
-            }
-          },
-          "required": [
-            "type",
-            "within_months"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A disaster struck the town within this many months.",
-          "properties": {
-            "type": {
-              "const": "disaster",
-              "type": "string"
-            },
-            "within_months": {
-              "format": "uint16",
-              "maximum": 65535,
-              "minimum": 0,
-              "type": "integer"
-            }
-          },
-          "required": [
-            "type",
-            "within_months"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The town has a defining industry: `$industry_key`.",
-          "properties": {
-            "type": {
-              "const": "industry",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The town has a power broker: `$broker`.",
-          "properties": {
-            "type": {
-              "const": "broker",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The player has a named rival: `$rival`.",
-          "properties": {
-            "type": {
-              "const": "rival",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The player's name recognition in the neighbourhood within [min, max]\n(0..1): `$player`.",
-          "properties": {
-            "max": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "min": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "type": {
-              "const": "player_awareness",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Approval of the player among neighbourhood residents (−1..1), within\n[min, max]; only where at least a fifth know them: `$player`.",
-          "properties": {
-            "max": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "min": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "type": {
-              "const": "player_approval",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The rival's record of visible work within [min, max] (0..1): `$rival`.",
-          "properties": {
-            "max": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "min": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "type": {
-              "const": "rival_record",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A scandal running in the town (DEC-034) about this subject:\n`$subject` (their name), `$fact_key`.",
-          "properties": {
-            "about": {
-              "$ref": "#/$defs/HeardSubject",
-              "default": "anyone"
-            },
-            "type": {
-              "const": "scandal",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A story about the town within the last eight weeks: `$outlet_key`\n(with `$place`), `$headline_key`, and the headline's own arguments.",
-          "properties": {
-            "type": {
-              "const": "headline",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The player's next local election is within this many days.",
-          "properties": {
-            "days": {
-              "format": "uint32",
-              "minimum": 0,
-              "type": "integer"
-            },
-            "type": {
-              "const": "election_within",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "days"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Any one of these holds (the first that does gives the arguments).",
-          "properties": {
-            "of": {
-              "items": {
-                "$ref": "#/$defs/HeardCondition"
-              },
-              "type": "array"
-            },
-            "type": {
-              "const": "any",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "of"
-          ],
-          "type": "object"
-        }
-      ]
-    },
     "HeardSubject": {
-      "description": "Whose scandal a line is about.",
+      "description": "Whose scandal a condition is about.",
       "enum": [
         "anyone",
         "player",
@@ -8321,7 +8832,7 @@
     },
     "OverheardDef": {
       "additionalProperties": false,
-      "description": "One thing residents may be heard saying at a diner, market, or union hall\n(the \"overheard\" service). Each week every such place draws a few lines\nthat hold for its neighbourhood: lines about the neighbourhood's top\nconcerns, and opinions and news grounded in facts. Registry order is\nload order. Fluent arguments always include `$town` and `$hood`; each\ncondition adds its own (see `HeardCondition`).",
+      "description": "One thing residents may be heard saying at a diner, market, or union hall\n(the \"overheard\" service). Each week every such place draws a few lines\nthat hold for its neighbourhood: lines about the neighbourhood's top\nconcerns, and opinions and news grounded in facts. Registry order is\nload order. Fluent arguments always include `$town` and `$hood`; each\ncondition adds its own (see `condition::Condition::provides`).",
       "properties": {
         "concern": {
           "default": null,
@@ -8357,7 +8868,7 @@
           "default": [],
           "description": "Every condition must hold.",
           "items": {
-            "$ref": "#/$defs/HeardCondition"
+            "$ref": "#/$defs/Condition"
           },
           "type": "array"
         }
@@ -8630,6 +9141,21 @@
         "warmth_opinion"
       ],
       "type": "object"
+    },
+    "Phase": {
+      "description": "A jurisdiction's phase.",
+      "oneOf": [
+        {
+          "const": "campaign",
+          "description": "A campaign for one of its posts is running.",
+          "type": "string"
+        },
+        {
+          "const": "governing",
+          "description": "No campaign is running.",
+          "type": "string"
+        }
+      ]
     },
     "PieceDef": {
       "additionalProperties": false,
@@ -10410,562 +10936,14 @@
         }
       ]
     },
-    "SituationCondition": {
-      "description": "A typed condition on one town's live situation, read from engine state\n(the town's character, its indicators, the event log, the economy).",
-      "oneOf": [
-        {
-          "additionalProperties": false,
-          "description": "A live crisis of this kind (`crises.jsonc`), at least this severe.",
-          "properties": {
-            "kind": {
-              "type": "string"
-            },
-            "min_severity": {
-              "default": 0.0,
-              "format": "double",
-              "type": "number"
-            },
-            "type": {
-              "const": "crisis",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "kind"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "An engine indicator of the town within [min, max].",
-          "properties": {
-            "indicator": {
-              "$ref": "#/$defs/Indicator"
-            },
-            "max": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "min": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "type": {
-              "const": "indicator",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "indicator"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A plant closed in the town within this many months (the event log).",
-          "properties": {
-            "type": {
-              "const": "plant_closure",
-              "type": "string"
-            },
-            "within_months": {
-              "format": "uint16",
-              "maximum": 65535,
-              "minimum": 0,
-              "type": "integer"
-            }
-          },
-          "required": [
-            "type",
-            "within_months"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A disaster struck the town within this many months.",
-          "properties": {
-            "type": {
-              "const": "disaster",
-              "type": "string"
-            },
-            "within_months": {
-              "format": "uint16",
-              "maximum": 65535,
-              "minimum": 0,
-              "type": "integer"
-            }
-          },
-          "required": [
-            "type",
-            "within_months"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The person in the slot has one of these roles: occupation ids, or\nrole words of the constitution's posts (a body's `member_key`, an\noffice's id; DEC-098).",
-          "properties": {
-            "occupations": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "slot": {
-              "type": "string"
-            },
-            "type": {
-              "const": "occupation",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot",
-            "occupations"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The person in the slot has one of these traits.",
-          "properties": {
-            "slot": {
-              "type": "string"
-            },
-            "traits": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "type": {
-              "const": "trait",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot",
-            "traits"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "A personality axis of the person in the slot within [min, max] (0..1).",
-          "properties": {
-            "axis": {
-              "type": "string"
-            },
-            "max": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "min": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "slot": {
-              "type": "string"
-            },
-            "type": {
-              "const": "personality",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot",
-            "axis"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The person in the slot holds this goal (DEC-032).",
-          "properties": {
-            "goal": {
-              "type": "string"
-            },
-            "slot": {
-              "type": "string"
-            },
-            "type": {
-              "const": "goal",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot",
-            "goal"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Their opinion of the player within [min, max] (−100..100).",
-          "properties": {
-            "max": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "min": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "slot": {
-              "type": "string"
-            },
-            "type": {
-              "const": "opinion",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Their trust in the player within [min, max] (0..1).",
-          "properties": {
-            "max": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "min": {
-              "default": null,
-              "format": "double",
-              "type": [
-                "number",
-                "null"
-              ]
-            },
-            "slot": {
-              "type": "string"
-            },
-            "type": {
-              "const": "trust",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "They remember the player doing one of these (memory kinds; the most\nsalient): `$memory_key`, `$subject_key`, `$year`.",
-          "properties": {
-            "kinds": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "slot": {
-              "type": "string"
-            },
-            "type": {
-              "const": "remembers",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot",
-            "kinds"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.",
-          "properties": {
-            "owed_to_player": {
-              "default": false,
-              "type": "boolean"
-            },
-            "slot": {
-              "type": "string"
-            },
-            "type": {
-              "const": "favour",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "They are (or are not) the town's power broker. When they are:\n`$broker`, `$broker_place`, `$stake_key`.",
-          "properties": {
-            "is": {
-              "default": true,
-              "type": "boolean"
-            },
-            "slot": {
-              "type": "string"
-            },
-            "type": {
-              "const": "is_broker",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "They are (or are not) the player's rival. When they are: `$rival`.",
-          "properties": {
-            "is": {
-              "default": true,
-              "type": "boolean"
-            },
-            "slot": {
-              "type": "string"
-            },
-            "type": {
-              "const": "is_rival",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slot"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The speaker would tell the player at least `min` about the subject\n(what they know, capped by discretion): the subject's arguments.",
-          "properties": {
-            "min": {
-              "$ref": "#/$defs/Level"
-            },
-            "subject": {
-              "$ref": "#/$defs/SubjectRef"
-            },
-            "type": {
-              "const": "tells",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "subject",
-            "min"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The player's ledger (DEC-091) holds the subject within [min, max]\n(conversations only: it frames what the player is told, never\nwhether something happens):\nthe subject's arguments.",
-          "properties": {
-            "max": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Level"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null
-            },
-            "min": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Level"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null
-            },
-            "subject": {
-              "$ref": "#/$defs/SubjectRef"
-            },
-            "type": {
-              "const": "player_knows",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "subject"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Any one of these holds (the first that does gives the arguments).",
-          "properties": {
-            "of": {
-              "items": {
-                "$ref": "#/$defs/SituationCondition"
-              },
-              "type": "array"
-            },
-            "type": {
-              "const": "any",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "of"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The speaker's voice (`talk_voices`) is one of these, so a line\n(an opener) follows the voice the closers use. Conversations only;\nnot allowed in a voice's own conditions.",
-          "properties": {
-            "type": {
-              "const": "voice",
-              "type": "string"
-            },
-            "voices": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          },
-          "required": [
-            "type",
-            "voices"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "What the conversation is about (the `about` subject): one of these\nkinds (empty: any subject); for a place, one of `places` (place kinds;\nempty: any) and, if `workplace` is given, the speaker's own\nworkplace (`true`) or not (`false`): where they work, or where their\npost sits; for a neighbourhood, if `home` is given, the speaker's home\n(`true`) or not. With `is: false` it holds when the subject is not that\n(or there is none). Conversations only.",
-          "properties": {
-            "home": {
-              "default": null,
-              "type": [
-                "boolean",
-                "null"
-              ]
-            },
-            "is": {
-              "default": true,
-              "type": "boolean"
-            },
-            "kinds": {
-              "default": [],
-              "items": {
-                "$ref": "#/$defs/AboutKind"
-              },
-              "type": "array"
-            },
-            "places": {
-              "default": [],
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "type": {
-              "const": "about",
-              "type": "string"
-            },
-            "workplace": {
-              "default": null,
-              "type": [
-                "boolean",
-                "null"
-              ]
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The top concern of the speaker's home neighbourhood (`speaker`) or of\nthe town (`town`) is one of these: `$concern_key` (the name),\n`$concern_talk_key` (the noun phrase of talk). The town form reads no\nslot, so it may also stand in a town's situation.",
-          "properties": {
-            "concerns": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "of": {
-              "$ref": "#/$defs/ConcernOf"
-            },
-            "type": {
-              "const": "concern",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "of",
-            "concerns"
-          ],
-          "type": "object"
-        }
-      ]
-    },
     "SituationTrigger": {
       "additionalProperties": false,
       "description": "A trigger on a town's situation: it holds while any of its conditions\ndoes. Reusable wherever content needs \"when this town is in this kind of\nsituation\" (situational policies now; policy families later).",
       "properties": {
         "any": {
-          "description": "Any one of these holds.",
+          "description": "Any one of these holds (the one condition language, `condition.rs`).",
           "items": {
-            "$ref": "#/$defs/SituationCondition"
+            "$ref": "#/$defs/Condition"
           },
           "type": "array"
         },
@@ -11902,7 +11880,7 @@
           "default": [],
           "description": "Every condition must hold.",
           "items": {
-            "$ref": "#/$defs/SituationCondition"
+            "$ref": "#/$defs/Condition"
           },
           "type": "array"
         }
@@ -12433,7 +12411,7 @@
           "default": [],
           "description": "Every condition must hold (slots: `speaker`, `player`).",
           "items": {
-            "$ref": "#/$defs/SituationCondition"
+            "$ref": "#/$defs/Condition"
           },
           "type": "array"
         }
@@ -13105,14 +13083,14 @@
     },
     "VisitRiskTerm": {
       "additionalProperties": false,
-      "description": "A risk term: `add` while the town-wide condition holds.",
+      "description": "A risk term: `add` while the condition holds (slot-free; `here` is the place).",
       "properties": {
         "add": {
           "format": "double",
           "type": "number"
         },
         "when": {
-          "$ref": "#/$defs/SituationCondition"
+          "$ref": "#/$defs/Condition"
         }
       },
       "required": [
@@ -13169,7 +13147,7 @@
           "type": "string"
         },
         "parts": {
-          "description": "The standard day parts it can be done in (none: any). Late at night\nis `late_night`.",
+          "description": "The standard day parts it can be done in (none: any; a `day_part`\ncondition). Late at night is `late_night`.",
           "items": {
             "$ref": "#/$defs/DayPart"
           },
@@ -13190,14 +13168,14 @@
           "default": "slot"
         },
         "when": {
-          "description": "Town-wide conditions that must all hold (slot-free situation\nconditions, as a policy unlock uses).",
+          "description": "Conditions that must all hold (slot-free; `here` is the place).",
           "items": {
-            "$ref": "#/$defs/SituationCondition"
+            "$ref": "#/$defs/Condition"
           },
           "type": "array"
         },
         "with": {
-          "description": "Someone of one of these occupations must be here now.",
+          "description": "Someone of one of these occupations must be here now (a `present`\ncondition).",
           "items": {
             "type": "string"
           },
@@ -13233,7 +13211,7 @@
           "default": [],
           "description": "Every condition must hold (slots: `speaker`, `player`).",
           "items": {
-            "$ref": "#/$defs/SituationCondition"
+            "$ref": "#/$defs/Condition"
           },
           "type": "array"
         }
@@ -13680,6 +13658,21 @@
         "weight"
       ],
       "type": "object"
+    },
+    "Worry": {
+      "description": "How a worry is read.",
+      "oneOf": [
+        {
+          "const": "felt",
+          "description": "As residents feel it (their levels weighed by their attitudes), as\nthe notebook ranks worries.",
+          "type": "string"
+        },
+        {
+          "const": "measured",
+          "description": "By measured levels.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",

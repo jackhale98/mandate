@@ -117,7 +117,7 @@ Who is where is asked through `characters::routines` (`whereabouts`, `locate`, `
 What the player can do at a place beyond the coded actions is one generic action, `visit` (`Action::Visit { verb }`), whose verbs are data. A verb is defined once in `content/base/actions.jsonc` under `visit.verbs` (`VisitVerbDef` in `mandate-content/src/visits.rs`) and offered by every place kind that lists its id in `places.jsonc` `verbs`. Adding one is content: no code, no save change.
 
 - **Cost:** `time` (`slot`, or `half`: half a slot, sharing the conversation's half-slot bank, so two halves fill one slot) and `health`; `late_night: true` also allows the late slot.
-- **When:** `parts` (`morning`, `afternoon`, `evening`; none: any standard part), `when` (situation conditions that must all hold for the place's town: the shared `SituationCondition`, slot-free only, as a policy unlock uses), and `with` (someone of one of these occupations is here now, by their routines). A closed place offers nothing.
+- **When:** `parts` (`morning`, `afternoon`, `evening`; none: any standard part), `when` (conditions of the one condition language that must all hold, slot-free, with the place as `here`: see "Conditions" below), and `with` (someone of one of these occupations is here now, by their routines). `parts` and `with` are short spellings of the `day_part` and `present` conditions, and the engine evaluates them as those. A closed place offers nothing.
 - **Effects** (small; a visit is depth, not a campaign): `learn` (knowledge grants with `which: here`, the place: `people_at`, `hood_concerns`, `broker`, and the visit subjects `sector`, the place kind's industry in its town, `site`, its pollution and hazard exposure, and `service`, its neighbourhood's felt level of the concerns the kind `addresses`; a numeric subject granted `detailed` is a dated reading), `people` (who is here now, met to a level, with an opinion change), `awareness` and `approval` (`among`: `reach` `hood` or `town`, `classes`, `ages` 0–3, `communities`).
 - **Risk:** `base`, `terms` (a condition and what it adds), and `shedding` × how fast the place's industry is letting people go (`visit.outlook`), within `[min, max]`. The place panel shows `mandate_sim::visits::risk`, and the command rolls exactly that (a keyed draw per turn, place and verb, `visits::goes_wrong`). A bad roll adds the risk's `effects` and its `outcome_key` replaces the verb's.
 - **The place kind** names its `sector` (a sector id) for `sector` grants and the risk's `shedding`, and the concerns it `addresses` for `service` grants; validation refuses a verb the kind cannot support.
@@ -226,7 +226,7 @@ Lab switches: `narrative.spotlight = false` (chance shaping unchanged, nothing s
         { "type": "opinion", "role": "owner", "delta": 3 } ] } ] }
 ```
 
-Casts: `broker`, `rival` (in a campaign, whoever stands against the player), `mayor`, `occupation`, `colleague`, `creditor`, `bill` (optionally `sponsored_by` a cast role), `sponsor_of`, `ward_neighborhood`, `law` (optionally `building`), `goal_holder`. Conditions: `crisis`, `live_crisis`, `indicator`, `concern`, `industry`, `election_within`, `campaigning`, `office`, `track`, `money`, `opinion`, `favour`, `remembers`, `personality`, `trait`, `law_in_force`, `party_line_against_ward`, `can_vote`, `goal`, `months_in_play`. Effects: `opinion` (with a memory kind), `approval`, `awareness`, `money`, `health`, `slots`, `standing`, `legal_jeopardy`, `record`, `favour`, `repay`, `vote` (`yes`, `no`, `abstain`, `with_party`, `with_ward`; the council-vote rules apply), `draft` (with `params`). Fluent arguments: each role as `$<role>` (a bill or law by its policy name), a person's role as `$<role>_role`, and `$town`, `$crisis`, `$player`. Each new cast, condition, or effect is a code extension point (below).
+Casts: `broker`, `rival` (in a campaign, whoever stands against the player), `mayor`, `occupation`, `colleague`, `creditor`, `bill` (optionally `sponsored_by` a cast role), `sponsor_of`, `ward_neighborhood`, `law` (optionally `building`), `goal_holder`. Conditions: the one condition language ("Conditions" below), with the cast's roles as its slots (`slot`, or the older spelling `role`). Effects: `opinion` (with a memory kind), `approval`, `awareness`, `money`, `health`, `slots`, `standing`, `legal_jeopardy`, `record`, `favour`, `repay`, `vote` (`yes`, `no`, `abstain`, `with_party`, `with_ward`; the council-vote rules apply), `draft` (with `params`). Fluent arguments: each role as `$<role>` (a bill or law by its policy name), a person's role as `$<role>_role`, and `$town`, `$crisis`, `$player`. Each new cast, condition, or effect is a code extension point (below).
 
 **Goals** (`characters::goals`, politics domain): each month the people of the player's town take up goals whose conditions hold and give them up when they fail or after `max_days`. Drives: `oppose_player` and `back_player` add to their council lean on the player's bills (like lobbying sway) and an opposer lobbies against them; `champion` ranks bills that answer the live crisis higher. A goal with a `request` surfaces it (once per adoption). Goals are kept for the player's town only (NPC goals elsewhere are deferred).
 
@@ -315,6 +315,47 @@ Example: `cargo run --release -p mandate-cli -- bots --seeds 32 --grid politics.
 
 Base-content results must not change: compare the `sweep`, `bots`, and `trace-econ` output, and decoded saves, before and after the change.
 
+### Conditions (the one condition language, DEC-098 §5)
+
+Every condition content writes is one type, `Condition` (`mandate-content/src/condition.rs`): dilemma triggers, goal conditions, storyline starts and advances, policy unlocks, conversation topics, lines and voices, overheard lines, and visit verbs and their risk terms (asks and policy families will use it too). One evaluator decides it (`mandate_sim::condition::holds`) and one validator checks it (`condition::check`).
+
+- **Where each variant is allowed** is a table: each use (`ConditionUse`) says what it binds (`provides`: a cast, a conversation's slots, the whole state, a place `here`, and whether it decides that something happens), and each variant says what it reads (`Condition::needs`). Validation refuses a variant where a need is not met, with the reason: `knows`, `player_knows` and `tells` where a condition decides whether something happens (DEC-091), a slot where none is bound, a conversation's reading (`voice`, `about`, `tells`, a speaker's worries) outside a conversation, a cast's bill outside a cast, the event log, routines or the clock (`plant_closure`, `present`, `day_part`) inside the simulation (dilemmas, goals, storylines), a place's reading (`dry`, `water: any`, `player_awareness`, `player_approval`, `shedding`, `present`, a worry `of: here`) where there is no place.
+- **Tiers (DEC-098):** each variant is tier-generic (the player, a person, the calendar, a conversation) or local-only (it reads a town's state). A local-only variant never holds for a region or the nation, and a non-local item (a regional policy template) may use tier-generic conditions only.
+- **Arguments:** each variant documents the Fluent arguments it gives when it holds (`Condition::provides`); validation checks a line's placeholders against them.
+- **Spellings:** `slot` and the older `role` are one field; `live_crisis` is a `crisis` without a `kind`. A worry is one condition: `{ "type": "concern", "concern": "concern.jobs", "top": 2 }` (measured, the town's priorities, default top 3) or `{ "type": "concern", "of": "speaker", "concerns": [...] }` (felt, default top 1), with `of` (`town`, `speaker`, `here`), `top` and `by` (`felt`, `measured`) to say it either way.
+
+| Variant | Tier | Allowed in |
+|---|---|---|
+| `crisis` (`live_crisis`), `indicator`, `concern` (of the town), `industry`, `disaster`, `law_in_force`, `water` (river, coast), `broker`, `rival`, `rival_record`, `scandal`, `headline` | local | everywhere |
+| `plant_closure` | local | outside the simulation's systems: policy unlocks and family triggers, conversations, overheard lines, visits, scene variants |
+| `dry`, `water: any`, `player_awareness`, `player_approval`, `concern of: here` | local | where there is a place: conversations, overheard lines, visits, scene variants |
+| `present`, `shedding` | local | where there is a place, outside the simulation's systems (the same uses) |
+| `is_broker`, `is_rival` | local | where slots are bound: dilemmas, goals, storylines, scenes, asks, conversations |
+| `day_part` | generic | outside the simulation's systems |
+| `phase`, `election_within`, `months_in_play`, `campaigning`, `office`, `holds_power`, `track`, `money`, `answered` (without `same_cast`), `sponsored_law` (without a slot) | generic | everywhere |
+| `occupation`, `trait`, `personality`, `goal`, `opinion`, `trust`, `remembers`, `favour`, `met` | generic | where slots are bound |
+| `party_line_against_ward`, `can_vote`, `answered` with `same_cast`, `sponsored_law` with a slot | generic | where a cast is bound: dilemmas, goals, storylines, scenes, asks |
+| `knows` | generic | framing only: scene variants, conversations, overheard lines |
+| `player_knows`, `tells` | generic | conversations only |
+| `voice`, `about`, `concern of: speaker` | generic | conversations only (`voice` not in a voice's own conditions) |
+| `any` | its alternatives' | each alternative where it is allowed |
+
+#### Adding a condition
+
+One place for each part, all in two files:
+
+1. **The variant**, with its fields and its doc comment naming the Fluent arguments it gives: `Condition` in `mandate-content/src/condition.rs`. Add its type tag to `Condition::key`.
+2. **Its tier flag:** `Condition::tier` (local-only if it reads a town's state).
+3. **Where it is allowed:** what it reads in `Condition::needs` (and, for a new kind of context, a field in `Provides` and the uses that provide it in `ConditionUse::provides`).
+4. **Its arguments:** `Condition::provides`.
+5. **Its validation:** an arm in `condition::fields` (real ids, sane ranges), and its slots in `Condition::slots` if it names one.
+6. **Its evaluation:** an arm in `mandate_sim::condition::holds` (`mandate-sim/src/condition.rs`), reading only through the context (`Ctx`: `at`, the cast or conversation, `here`, the whole state where there is one). Pure and deterministic: no stream draws; a chance is a keyed draw, as `sponsored_law`'s.
+7. **Its explanation:** an arm in `mandate_sim::explain::observe` (what the evaluator read, for display).
+8. **The doctor**, if it bounds a number or a discrete value (`doctor::cond_bound`, `cond_discrete`), names ids (`cond_refs`) or backs a worry (`cond_worries`).
+9. **Tests:** a probe in `crates/mandate-worldgen/tests/conditions.rs` (the test fails until every variant the schema lists is evaluated), and a refusal in `crates/mandate-content/tests/conditions.rs` if the table refuses it somewhere. Regenerate the schema (`content schema`).
+
+Conditions are content, not state: adding one needs no save change.
+
 ### Checking your content (the content workbench)
 
 `content validate` says whether a pack is well formed. Two lab tools say whether it *works*: whether each item can come up, how often it does, and how it reads on a phone.
@@ -362,7 +403,7 @@ wasm-bindgen target/wasm32-unknown-unknown/release-wasm/mandate_wasm.wasm --out-
 
 It starts a new game from the seed, or loads a copy of the current run's save (never written back), and can pass turns in its own sandbox. It lists every dilemma, situational policy, storyline, scene, overheard line, topic, conversation line and voice, with search and filters by kind and by whether it could fire now. For the item you pick, the engine answers `QueryDto::DevExplain`: the gates and conditions as a tree, each with the engine's own verdict (✓ or ✗) and the values the evaluator read; the cast it found (or, to preview something that cannot fire, a forced cast); and the text rendered with its real arguments, including a dilemma's options and their trade-off lines. Conversation items are explained for a speaker you pick, overheard lines at a place where people talk. A `vite build --mode devtools` bundle carries the page too; a normal build drops it.
 
-The explanations come from `mandate_sim::explain`: one small adapter per condition language (`Explainer` for `Condition`, `SituationCondition`, `HeardCondition`), each answering with the language's own evaluator. When the languages are unified (DEC-098 §5) one adapter replaces the three.
+The explanations come from `mandate_sim::explain`: one adapter (`CondExplainer`) for the one condition language, whose verdict is the one evaluator's (`mandate_sim::condition::holds`) in the context the item's use binds, with what it read for each variant (one table, `explain::observe`).
 
 ## Writing for Mandate
 
@@ -519,7 +560,8 @@ Each of these is a closed enum by design, because new behaviour needs code. Addi
 | Information service | `PLACE_SERVICES` | Its payload builder in `protocol::places` | `PlacePanelView`, the web `PlacePanel`, and a place kind that offers it |
 | Place kind worldgen generates | `world::PlaceKind` | Worldgen placement | A `places` entry (`places::registry_issues` checks that one exists); its web icon in `web/src/places/labels.ts`; the kind in `web/src/hub/testTowns.ts` so the town tests generate it. If the town layout changes with it, bump `LAYOUT_VERSION` (`web/src/hub/townLayout.ts`) and keep the old version callable, so a town in a saved run never rearranges (DEC-085) |
 | Indicator (a measure of a town) | `Indicator` (`mandate-content/src/types.rs`) | `concerns::indicator` | `Indicator::ALL`; a test of its range. Concerns, crisis kinds, and (later) situational policies can then use it |
-| Narrative cast, condition, or effect | `Cast`, `Condition`, `EffectDef` (`mandate-content/src/narrative.rs`) | `narrative::cast::{candidates, holds}`, `narrative::resolve::apply_effect` | Validation in `narrative::validate`; `EffectDef::valence` (cost, benefit); the protocol's trade-off line (`protocol::narrative::preview`, `applied_line`); a test |
+| Narrative cast or effect | `Cast`, `EffectDef` (`mandate-content/src/narrative.rs`) | `narrative::cast::candidates`, `narrative::resolve::apply_effect` | Validation in `narrative::validate`; `EffectDef::valence` (cost, benefit); the protocol's trade-off line (`protocol::narrative::preview`, `applied_line`); a test |
+| Condition (any use) | `Condition` (`mandate-content/src/condition.rs`) | `mandate_sim::condition::holds` | Its tier, needs, arguments and validation in `condition.rs`; `explain::observe`; a probe in the conditions test ("Adding a condition" above) |
 | Goal drive | `GoalDrive` | `characters::goals::refresh` (what it stores) and its reader in the NPC AI or council lean | Validation; a test that it changes the AI |
 | Director lever (exogenous) | `narrative::Chance` | The owning system that clamps it, logging `DirectorIntervention` | The spotlight-independence test; never an endogenous outcome |
 | Shady action | `actions::Action` (a variant), `SHADY_ACTIONS` (`mandate-content`) | `actions::shady` | `media.shady_actions` (payoff and hidden spec), `tuning.action_costs`, `PLACE_ACTIONS` (and `LATE_NIGHT_ACTIONS`, `LATE_ONLY_ACTIONS`), a place that offers it, `places::action_of`, the protocol `ActionDto` and the web `ActionForm` and routing |

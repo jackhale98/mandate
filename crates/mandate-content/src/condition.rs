@@ -1,0 +1,1462 @@
+//! One condition language (DEC-098 §5, task U1; M6_ENGINE_CONTRACTS §2.4,
+//! §3.3 and §4). Dilemma triggers, goal conditions, storyline starts and
+//! advances, policy unlocks, conversation topics, lines and voices,
+//! overheard lines and visit verbs all write the same [`Condition`]: one
+//! type here, one evaluator (`mandate_sim::condition`), and one validator
+//! ([`check`]), whose table ([`ConditionUse::provides`] against
+//! [`Condition::needs`]) says where each variant is allowed.
+//!
+//! **Spellings.** The narrative language named cast actors `role`; the
+//! situation language named slots `slot`. They are one field, `slot`, and
+//! `role` still parses (a serde alias, and the generated schema accepts
+//! it). `live_crisis` is the old spelling of a `crisis` without a `kind`.
+//! A `concern` with one `concern` (the dilemma spelling) and a `concern`
+//! with `concerns` (the conversation spelling) are one worry condition
+//! whose defaults follow the spelling ([`Condition::worry`]).
+//!
+//! **Tiers (DEC-098).** Each variant is tier-generic or local-only
+//! ([`Condition::tier`]): a local-only one reads a town's state and never
+//! holds for a region or the nation; a non-local item may use only
+//! tier-generic conditions.
+//!
+//! **Arguments.** Each variant documents the Fluent arguments it provides
+//! when it holds ([`Condition::provides`]); triggers ignore them, lines use
+//! them.
+//!
+//! Adding a condition: `docs/development/EXTENDING.md`, "Adding a condition".
+
+use crate::bundle::ContentBundle;
+use crate::conversation::{AboutKind, ConcernOf, SubjectRef};
+use crate::knowledge::Level;
+use crate::narrative::{LawStatus, SubjectDef, TrackKey};
+use crate::routines::DayPart;
+use crate::types::{ContentKey, Indicator, Power, SectorDriver, TierKey};
+use crate::validate::Issue;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+
+/// A condition on live state: the jurisdiction's situation, the player, a
+/// person in a slot (a cast role, or a conversation's `speaker`, `about`,
+/// `player`), a conversation, or where something is said or done.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(transform = old_spellings)]
+pub enum Condition {
+    // --- The town's situation (local-only) ------------------------------------------
+    /// A live crisis in the town (`crises.jsonc`; of this kind, if given) at
+    /// least `min_severity` severe: `$crisis_key` (the most severe such
+    /// crisis). `live_crisis` is the old spelling without a kind.
+    #[serde(alias = "live_crisis")]
+    Crisis {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        kind: Option<ContentKey>,
+        #[serde(default)]
+        min_severity: f64,
+    },
+    /// An engine indicator of the town within [min, max].
+    Indicator {
+        indicator: Indicator,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// One worry condition, felt or measured, of the town or a
+    /// neighbourhood: one of the listed concerns (`concern`, or any of
+    /// `concerns`) is among the `top` strongest worries `of` the town
+    /// (default), the speaker's home neighbourhood, or the neighbourhood
+    /// here, `by` how residents feel them (`felt`, as the notebook ranks
+    /// them) or by their measured levels (`measured`; the town's are its
+    /// priorities, its three strongest, kept with its character). Defaults
+    /// follow the spelling: with one `concern`, measured, top 3 (the dilemma
+    /// spelling); with `concerns`, felt, top 1 (the conversation spelling).
+    /// Gives `$concern_key` (the name) and `$concern_talk_key` (the noun
+    /// phrase of talk) of the strongest listed worry that holds.
+    Concern {
+        #[serde(default, skip_serializing_if = "is_town")]
+        of: ConcernOf,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        concern: Option<ContentKey>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        concerns: Vec<ContentKey>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        top: Option<u8>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        by: Option<Worry>,
+    },
+    /// The town has a defining industry (with one of these drivers, if
+    /// given): `$industry_key` (the sector as residents name it).
+    Industry {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        drivers: Option<Vec<SectorDriver>>,
+    },
+    /// A plant closed in the town within this many months (the event log):
+    /// `$industry_key` (the closed plant's sector), `$jobs`.
+    PlantClosure { within_months: u16 },
+    /// A disaster struck the town within this many months.
+    Disaster { within_months: u16 },
+    /// A law of one of these templates is in force or being built in the
+    /// town (`absent`: none is).
+    LawInForce {
+        templates: Vec<ContentKey>,
+        #[serde(default)]
+        absent: bool,
+    },
+    /// The town has this water (`any`: also a waterfront neighbourhood here).
+    Water { feature: WaterFeature },
+    /// No water at all: no river, no coast, no waterfront here.
+    Dry,
+    /// The town has a power broker: `$broker`.
+    Broker,
+    /// The player has a named rival in the town: `$rival`.
+    Rival,
+    /// The rival's record of visible work within [min, max] (0..1): `$rival`.
+    RivalRecord {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// A scandal running in the town (DEC-034) about this subject:
+    /// `$subject` (their name), `$fact_key`.
+    Scandal {
+        #[serde(default)]
+        about: HeardSubject,
+    },
+    /// A story about the town within the last eight weeks (an overheard line
+    /// retells it: `$outlet_key`, `$headline_key` and the headline's own
+    /// arguments, added by the protocol).
+    Headline,
+    /// The player's name recognition among the residents here within
+    /// [min, max] (0..1): `$player`.
+    PlayerAwareness {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// Approval of the player among the residents here (−1..1) within
+    /// [min, max]; only where at least a fifth know them: `$player`.
+    PlayerApproval {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The industry of the place here (its kind's `sector`) is shedding jobs
+    /// in its town, at least `min` of the way to full shedding
+    /// (`visit.outlook`: 0 just below `shedding`, 1 at `shed_full`):
+    /// `$industry_key`.
+    Shedding {
+        #[serde(default)]
+        min: f64,
+    },
+    /// Someone of one of these occupations is here now (people's routines;
+    /// not the player).
+    Present { occupations: Vec<ContentKey> },
+    // --- Time and the calendar (tier-generic) ---------------------------------------
+    /// It is one of these parts of the player's day.
+    DayPart { parts: Vec<DayPart> },
+    /// The jurisdiction is in this phase: a campaign for one of its posts is
+    /// running (`campaign`), or none is (`governing`).
+    Phase { phase: Phase },
+    /// The player's next election is within this many days.
+    ElectionWithin { days: u32 },
+    /// At least this many months since play began.
+    MonthsInPlay { min: u32 },
+    // --- The player (tier-generic) --------------------------------------------------
+    /// The player is (or is not) standing in a running campaign.
+    Campaigning {
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    /// The player holds one of these posts (DEC-098): role words (a body's
+    /// `member_key` or an office's id, from the run's constitution), `any`
+    /// (any post) or `none` (out of office). `role` is the one-word
+    /// spelling (`{ "type": "office", "role": "councillor" }`).
+    Office {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        posts: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        role: Option<String>,
+    },
+    /// The player holds a post for this jurisdiction whose constitution
+    /// lists this power (read through the constitution, never an office's
+    /// name: `requires_power`).
+    HoldsPower { power: Power },
+    /// A track within [min, max].
+    Track {
+        track: TrackKey,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The player's campaign funds within [min, max] (currency units).
+    Money {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The player answered `template` (with `option`, if given; a default
+    /// that happened counts) between `min_days` and `max_days` ago
+    /// (ENGAGEMENT §4.4: consequences of the player's own choices). Roles in
+    /// `same_cast` are cast as they were in that decision.
+    Answered {
+        template: ContentKey,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        option: Option<String>,
+        #[serde(default)]
+        min_days: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max_days: Option<u32>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        same_cast: Vec<String>,
+    },
+    /// The player sponsored a law of this status, between `min_age_days`
+    /// and `max_age_days` old (since enacted; a pending bill since it was
+    /// introduced): the law cast in `slot`, or any. `chance` is the share of
+    /// such laws that count, a keyed draw per law and condition, so the same
+    /// law always gives the same answer (ENGAGEMENT §4.4, §4.7).
+    SponsoredLaw {
+        #[serde(default)]
+        status: LawStatus,
+        #[serde(default)]
+        min_age_days: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max_age_days: Option<u32>,
+        #[serde(default = "one")]
+        chance: f64,
+        #[serde(default, alias = "role", skip_serializing_if = "Option::is_none")]
+        slot: Option<String>,
+    },
+    /// The player knows the subject at least this well (DEC-091; default
+    /// `heard`), its roles from the cast. A subject naming several places
+    /// holds if any is known. Framing only (refused where a condition
+    /// decides whether something happens: the world does not wait for the
+    /// player).
+    Knows {
+        subject: SubjectDef,
+        #[serde(default = "heard")]
+        min: Level,
+    },
+    /// The player's ledger (DEC-091) holds the subject, named from the
+    /// conversation, within [min, max]: the subject's arguments. Framing
+    /// only.
+    PlayerKnows {
+        subject: SubjectRef,
+        #[serde(default)]
+        min: Option<Level>,
+        #[serde(default)]
+        max: Option<Level>,
+    },
+    // --- A person in a slot (tier-generic unless noted) -----------------------------
+    /// The person in the slot has one of these roles: occupation ids, or
+    /// role words of the constitution's posts (a body's `member_key`, an
+    /// office's id; DEC-098).
+    Occupation {
+        #[serde(alias = "role")]
+        slot: String,
+        occupations: Vec<ContentKey>,
+    },
+    /// The person in the slot has one of these traits.
+    Trait {
+        #[serde(alias = "role")]
+        slot: String,
+        traits: Vec<ContentKey>,
+    },
+    /// A personality axis of the person in the slot within [min, max] (0..1).
+    Personality {
+        #[serde(alias = "role")]
+        slot: String,
+        axis: String,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The person in the slot holds this goal (DEC-032).
+    Goal {
+        #[serde(alias = "role")]
+        slot: String,
+        goal: ContentKey,
+    },
+    /// Their opinion of the player within [min, max] (−100..100).
+    Opinion {
+        #[serde(alias = "role")]
+        slot: String,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// Their trust in the player within [min, max] (0..1).
+    Trust {
+        #[serde(alias = "role")]
+        slot: String,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// They remember the player doing one of these (memory kinds; the most
+    /// salient): `$memory_key`, `$subject_key`, `$subject_kind`, `$year`.
+    Remembers {
+        #[serde(alias = "role")]
+        slot: String,
+        kinds: Vec<String>,
+    },
+    /// The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.
+    Favour {
+        #[serde(alias = "role")]
+        slot: String,
+        #[serde(default)]
+        owed_to_player: bool,
+    },
+    /// They have (or have not) met the player before now: talked with them
+    /// (a line of theirs in the conversation guard), or met them on an
+    /// earlier day (a `met` memory). Meeting a passer-by today is not
+    /// having met them before.
+    Met {
+        #[serde(alias = "role")]
+        slot: String,
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    /// They are (or are not) the town's power broker (local-only). When
+    /// they are: `$broker`, `$broker_place`, `$stake_key`.
+    IsBroker {
+        #[serde(alias = "role")]
+        slot: String,
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    /// They are (or are not) the player's rival in the town (local-only).
+    /// When they are: `$rival`.
+    IsRival {
+        #[serde(alias = "role")]
+        slot: String,
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    /// The player's party line on the bill cast in `slot` runs against the
+    /// mood of the player's ward.
+    PartyLineAgainstWard {
+        #[serde(alias = "role")]
+        slot: String,
+    },
+    /// The player can still declare a vote on the bill cast in `slot`.
+    CanVote {
+        #[serde(alias = "role")]
+        slot: String,
+    },
+    // --- A conversation (tier-generic) ----------------------------------------------
+    /// The speaker would tell the player at least `min` about the subject
+    /// (what they know, capped by discretion): the subject's arguments.
+    Tells { subject: SubjectRef, min: Level },
+    /// The speaker's voice (`talk_voices`) is one of these, so a line (an
+    /// opener) follows the voice the closers use. Not allowed in a voice's
+    /// own conditions.
+    Voice { voices: Vec<ContentKey> },
+    /// What the conversation is about (the `about` subject): one of these
+    /// kinds (empty: any subject); for a place, one of `places` (place kinds;
+    /// empty: any) and, if `workplace` is given, the speaker's own
+    /// workplace (`true`) or not (`false`): where they work, or where their
+    /// post sits; for a neighbourhood, if `home` is given, the speaker's home
+    /// (`true`) or not. With `is: false` it holds when the subject is not that
+    /// (or there is none).
+    About {
+        #[serde(default)]
+        kinds: Vec<AboutKind>,
+        #[serde(default)]
+        places: Vec<String>,
+        #[serde(default)]
+        workplace: Option<bool>,
+        #[serde(default)]
+        home: Option<bool>,
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    // --- Composition ----------------------------------------------------------------
+    /// Any one of these holds (the first that does gives the arguments).
+    Any { of: Vec<Condition> },
+}
+
+fn yes() -> bool {
+    true
+}
+
+fn one() -> f64 {
+    1.0
+}
+
+fn heard() -> Level {
+    Level::Heard
+}
+
+fn is_town(of: &ConcernOf) -> bool {
+    *of == ConcernOf::Town
+}
+
+/// Water a town or neighbourhood can have.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WaterFeature {
+    /// The town is on a river.
+    River,
+    /// The town is on the coast.
+    Coast,
+    /// A river, the coast, or a waterfront neighbourhood.
+    Any,
+}
+
+/// Whose scandal a condition is about.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HeardSubject {
+    #[default]
+    Anyone,
+    Player,
+    Rival,
+}
+
+/// How a worry is read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Worry {
+    /// As residents feel it (their levels weighed by their attitudes), as
+    /// the notebook ranks worries.
+    Felt,
+    /// By measured levels.
+    Measured,
+}
+
+/// A jurisdiction's phase.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Phase {
+    /// A campaign for one of its posts is running.
+    Campaign,
+    /// No campaign is running.
+    Governing,
+}
+
+/// A worry condition with its defaults resolved ([`Condition::worry`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct WorryReading<'a> {
+    pub of: ConcernOf,
+    pub concerns: Vec<&'a ContentKey>,
+    pub top: u8,
+    pub by: Worry,
+}
+
+/// Whether a variant reads only what every tier has, or a town's state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CondTier {
+    /// Holds for any jurisdiction (the player, a person, the calendar, a
+    /// conversation).
+    Generic,
+    /// Reads a town's state; never holds for a region or the nation.
+    Local,
+}
+
+/// What a variant needs from where it is used (the validator's table).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Needs {
+    /// It reads what the player knows (or what a speaker would tell them):
+    /// framing only, refused where a condition decides whether something
+    /// happens (DEC-091, K6).
+    pub ledger: bool,
+    /// It reads a person in a slot (a cast role or a conversation's slot).
+    pub slot: bool,
+    /// It reads an actor cast in a role (a bill): a cast is needed.
+    pub cast: bool,
+    /// It reads the conversation (its speaker's view, its subject, its voice).
+    pub talk: bool,
+    /// It reads what only the whole game state holds (the event log,
+    /// people's routines, the clock): never inside the simulation's
+    /// systems (dilemmas, goals, storylines).
+    pub state: bool,
+    /// It reads where it is said or done (a place, a neighbourhood).
+    pub here: bool,
+}
+
+impl Condition {
+    /// The type tag, as content writes it.
+    pub fn key(&self) -> &'static str {
+        use Condition as C;
+        match self {
+            C::Crisis { .. } => "crisis",
+            C::Indicator { .. } => "indicator",
+            C::Concern { .. } => "concern",
+            C::Industry { .. } => "industry",
+            C::PlantClosure { .. } => "plant_closure",
+            C::Disaster { .. } => "disaster",
+            C::LawInForce { .. } => "law_in_force",
+            C::Water { .. } => "water",
+            C::Dry => "dry",
+            C::Broker => "broker",
+            C::Rival => "rival",
+            C::RivalRecord { .. } => "rival_record",
+            C::Scandal { .. } => "scandal",
+            C::Headline => "headline",
+            C::PlayerAwareness { .. } => "player_awareness",
+            C::PlayerApproval { .. } => "player_approval",
+            C::Shedding { .. } => "shedding",
+            C::Present { .. } => "present",
+            C::DayPart { .. } => "day_part",
+            C::Phase { .. } => "phase",
+            C::ElectionWithin { .. } => "election_within",
+            C::MonthsInPlay { .. } => "months_in_play",
+            C::Campaigning { .. } => "campaigning",
+            C::Office { .. } => "office",
+            C::HoldsPower { .. } => "holds_power",
+            C::Track { .. } => "track",
+            C::Money { .. } => "money",
+            C::Answered { .. } => "answered",
+            C::SponsoredLaw { .. } => "sponsored_law",
+            C::Knows { .. } => "knows",
+            C::PlayerKnows { .. } => "player_knows",
+            C::Occupation { .. } => "occupation",
+            C::Trait { .. } => "trait",
+            C::Personality { .. } => "personality",
+            C::Goal { .. } => "goal",
+            C::Opinion { .. } => "opinion",
+            C::Trust { .. } => "trust",
+            C::Remembers { .. } => "remembers",
+            C::Favour { .. } => "favour",
+            C::Met { .. } => "met",
+            C::IsBroker { .. } => "is_broker",
+            C::IsRival { .. } => "is_rival",
+            C::PartyLineAgainstWard { .. } => "party_line_against_ward",
+            C::CanVote { .. } => "can_vote",
+            C::Tells { .. } => "tells",
+            C::Voice { .. } => "voice",
+            C::About { .. } => "about",
+            C::Any { .. } => "any",
+        }
+    }
+
+    /// Tier-generic or local-only (DEC-098). An `any` is local-only if one
+    /// of its alternatives is.
+    pub fn tier(&self) -> CondTier {
+        use Condition as C;
+        match self {
+            C::Crisis { .. }
+            | C::Indicator { .. }
+            | C::Concern { .. }
+            | C::Industry { .. }
+            | C::PlantClosure { .. }
+            | C::Disaster { .. }
+            | C::LawInForce { .. }
+            | C::Water { .. }
+            | C::Dry
+            | C::Broker
+            | C::Rival
+            | C::RivalRecord { .. }
+            | C::Scandal { .. }
+            | C::Headline
+            | C::PlayerAwareness { .. }
+            | C::PlayerApproval { .. }
+            | C::Shedding { .. }
+            | C::Present { .. }
+            | C::IsBroker { .. }
+            | C::IsRival { .. } => CondTier::Local,
+            C::Any { of } => {
+                if of.iter().any(|c| c.tier() == CondTier::Local) {
+                    CondTier::Local
+                } else {
+                    CondTier::Generic
+                }
+            }
+            _ => CondTier::Generic,
+        }
+    }
+
+    /// What this variant needs from where it is used (not its `any`
+    /// alternatives: the validator checks each).
+    pub fn needs(&self) -> Needs {
+        use Condition as C;
+        let mut n = Needs::default();
+        match self {
+            C::Knows { .. } => n.ledger = true,
+            C::PlayerKnows { .. } | C::Tells { .. } => {
+                n.ledger = true;
+                n.talk = true;
+            }
+            C::Voice { .. } | C::About { .. } => n.talk = true,
+            C::Concern { of, .. } => match of {
+                ConcernOf::Speaker => n.talk = true,
+                ConcernOf::Here => n.here = true,
+                ConcernOf::Town => {}
+            },
+            C::Occupation { .. }
+            | C::Trait { .. }
+            | C::Personality { .. }
+            | C::Goal { .. }
+            | C::Opinion { .. }
+            | C::Trust { .. }
+            | C::Remembers { .. }
+            | C::Favour { .. }
+            | C::Met { .. }
+            | C::IsBroker { .. }
+            | C::IsRival { .. } => n.slot = true,
+            C::PartyLineAgainstWard { .. } | C::CanVote { .. } => {
+                n.slot = true;
+                n.cast = true;
+            }
+            C::SponsoredLaw { slot, .. } => {
+                n.cast = slot.is_some();
+                n.slot = slot.is_some();
+            }
+            C::Answered { same_cast, .. } => {
+                n.cast = !same_cast.is_empty();
+                n.slot = !same_cast.is_empty();
+            }
+            C::PlantClosure { .. } | C::DayPart { .. } => n.state = true,
+            C::Present { .. } | C::Shedding { .. } => {
+                n.state = true;
+                n.here = true;
+            }
+            C::Water {
+                feature: WaterFeature::Any,
+            }
+            | C::Dry
+            | C::PlayerAwareness { .. }
+            | C::PlayerApproval { .. } => n.here = true,
+            _ => {}
+        }
+        n
+    }
+
+    /// The slots (cast roles, or a conversation's slots) a condition names,
+    /// not inside `any`.
+    pub fn slots(&self) -> Vec<&str> {
+        use Condition as C;
+        match self {
+            C::Occupation { slot, .. }
+            | C::Trait { slot, .. }
+            | C::Personality { slot, .. }
+            | C::Goal { slot, .. }
+            | C::Opinion { slot, .. }
+            | C::Trust { slot, .. }
+            | C::Remembers { slot, .. }
+            | C::Favour { slot, .. }
+            | C::Met { slot, .. }
+            | C::IsBroker { slot, .. }
+            | C::IsRival { slot, .. }
+            | C::PartyLineAgainstWard { slot }
+            | C::CanVote { slot } => vec![slot.as_str()],
+            C::Knows { subject, .. } => subject.role().into_iter().collect(),
+            C::Answered { same_cast, .. } => same_cast.iter().map(|s| s.as_str()).collect(),
+            C::SponsoredLaw { slot, .. } => slot.iter().map(|s| s.as_str()).collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Every slot a condition names, `any` alternatives included.
+    pub fn all_slots(&self) -> Vec<&str> {
+        let mut out = self.slots();
+        if let Condition::Any { of } = self {
+            for c in of {
+                out.extend(c.all_slots());
+            }
+        }
+        out
+    }
+
+    /// The Fluent arguments a condition provides when it holds (for `any`,
+    /// those every alternative provides); `None` where they are not static
+    /// (a retold story brings its headline's own).
+    pub fn provides(&self) -> Option<BTreeSet<String>> {
+        use Condition as C;
+        let set = |xs: &[&str]| Some(xs.iter().map(|x| x.to_string()).collect());
+        match self {
+            C::Crisis { .. } => set(&["crisis_key"]),
+            C::Concern { .. } => set(&["concern_key", "concern_talk_key"]),
+            C::Industry { .. } | C::Shedding { .. } => set(&["industry_key"]),
+            C::PlantClosure { .. } => set(&["industry_key", "jobs"]),
+            C::Broker => set(&["broker"]),
+            C::Rival | C::RivalRecord { .. } => set(&["rival"]),
+            C::PlayerAwareness { .. } | C::PlayerApproval { .. } => set(&["player"]),
+            C::Scandal { .. } => set(&["subject", "fact_key"]),
+            C::Headline => None,
+            C::Remembers { .. } => set(&["memory_key", "subject_key", "subject_kind", "year"]),
+            C::Favour { .. } => set(&["n"]),
+            C::IsBroker { is: true, .. } => set(&["broker", "broker_place", "stake_key"]),
+            C::IsRival { is: true, .. } => set(&["rival"]),
+            C::Tells { subject, .. } | C::PlayerKnows { subject, .. } => set(subject.args()),
+            C::Any { of } => {
+                let mut it = of.iter().map(|c| c.provides());
+                let mut acc = it.next().flatten()?;
+                for x in it {
+                    acc = acc.intersection(&x?).cloned().collect();
+                }
+                Some(acc)
+            }
+            _ => set(&[]),
+        }
+    }
+
+    /// A worry condition with its defaults resolved (`None` for any other
+    /// condition): with one `concern`, measured and top 3; with `concerns`,
+    /// felt and top 1; explicit `top` and `by` win.
+    pub fn worry(&self) -> Option<WorryReading<'_>> {
+        let Condition::Concern {
+            of,
+            concern,
+            concerns,
+            top,
+            by,
+        } = self
+        else {
+            return None;
+        };
+        let single = concern.is_some();
+        Some(WorryReading {
+            of: *of,
+            concerns: concern.iter().chain(concerns.iter()).collect(),
+            top: top.unwrap_or(if single { 3 } else { 1 }),
+            by: by.unwrap_or(if single { Worry::Measured } else { Worry::Felt }),
+        })
+    }
+
+    /// Whether a condition reads the player's ledger (or what a speaker
+    /// would tell them) anywhere in it, `any` alternatives included.
+    pub fn reads_knowledge(&self) -> bool {
+        match self {
+            Condition::Any { of } => of.iter().any(|c| c.reads_knowledge()),
+            c => c.needs().ledger,
+        }
+    }
+}
+
+/// Every condition, depth first (`any` alternatives too).
+pub fn walk<'a>(cs: &'a [Condition], out: &mut Vec<&'a Condition>) {
+    for c in cs {
+        out.push(c);
+        if let Condition::Any { of } = c {
+            walk(of, out);
+        }
+    }
+}
+
+// --- Where conditions are used: the validator's table -----------------------------------
+
+/// Every place content writes conditions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ConditionUse {
+    /// A dilemma's triggers (the director, inside the simulation).
+    DilemmaTrigger,
+    /// An NPC goal's conditions (the politics domain).
+    GoalCondition,
+    /// A storyline's start.
+    StorylineStart,
+    /// A storyline stage's advance.
+    StorylineAdvance,
+    /// A scene variant (framing; no content field yet).
+    SceneVariant,
+    /// An ask's trigger (E6–E8; no content field yet).
+    Ask,
+    /// A policy family's trigger or expiry (F1; no content field yet; its
+    /// slot conditions come with F1).
+    FamilyTrigger,
+    /// A situational policy's unlock.
+    PolicyUnlock,
+    /// When a conversation topic is offered.
+    TalkTopic,
+    /// When a conversation line can be said.
+    TalkLine,
+    /// When a voice is a speaker's.
+    TalkVoice,
+    /// When an overheard line can be heard.
+    Overheard,
+    /// When a visit verb can be done.
+    VisitVerb,
+    /// A visit risk term.
+    VisitRisk,
+}
+
+/// Which slots a use binds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Slots {
+    /// None (a town's situation, a place).
+    None,
+    /// The item's cast roles.
+    Cast,
+    /// A conversation's `speaker`, `about`, `player`.
+    Talk,
+}
+
+/// What a use provides (the other half of the validator's table).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Provides {
+    pub slots: Slots,
+    /// Evaluated on the whole state (views, commands), not inside the
+    /// simulation's systems.
+    pub state: bool,
+    /// A place or neighbourhood where it is said or done.
+    pub here: bool,
+    /// It decides whether something happens (DEC-091: the ledger is refused).
+    pub decides: bool,
+}
+
+impl ConditionUse {
+    pub const ALL: [ConditionUse; 14] = [
+        ConditionUse::DilemmaTrigger,
+        ConditionUse::GoalCondition,
+        ConditionUse::StorylineStart,
+        ConditionUse::StorylineAdvance,
+        ConditionUse::SceneVariant,
+        ConditionUse::Ask,
+        ConditionUse::FamilyTrigger,
+        ConditionUse::PolicyUnlock,
+        ConditionUse::TalkTopic,
+        ConditionUse::TalkLine,
+        ConditionUse::TalkVoice,
+        ConditionUse::Overheard,
+        ConditionUse::VisitVerb,
+        ConditionUse::VisitRisk,
+    ];
+
+    /// How content and messages name it.
+    pub fn label(self) -> &'static str {
+        match self {
+            ConditionUse::DilemmaTrigger => "a dilemma's triggers",
+            ConditionUse::GoalCondition => "a goal's conditions",
+            ConditionUse::StorylineStart => "a storyline's start",
+            ConditionUse::StorylineAdvance => "a storyline stage's advance",
+            ConditionUse::SceneVariant => "a scene variant",
+            ConditionUse::Ask => "an ask's trigger",
+            ConditionUse::FamilyTrigger => "a policy family's trigger",
+            ConditionUse::PolicyUnlock => "a policy's unlock",
+            ConditionUse::TalkTopic => "a topic's offer",
+            ConditionUse::TalkLine => "a conversation line",
+            ConditionUse::TalkVoice => "a voice's conditions",
+            ConditionUse::Overheard => "an overheard line",
+            ConditionUse::VisitVerb => "a visit verb",
+            ConditionUse::VisitRisk => "a visit risk term",
+        }
+    }
+
+    pub fn provides(self) -> Provides {
+        use ConditionUse as U;
+        let p = |slots, state, here, decides| Provides {
+            slots,
+            state,
+            here,
+            decides,
+        };
+        match self {
+            // Inside the simulation's systems: the scheduler's reads only.
+            U::DilemmaTrigger
+            | U::GoalCondition
+            | U::StorylineStart
+            | U::StorylineAdvance
+            | U::Ask => p(Slots::Cast, false, false, true),
+            U::SceneVariant => p(Slots::Cast, true, true, false),
+            U::FamilyTrigger | U::PolicyUnlock => p(Slots::None, true, false, true),
+            U::TalkTopic | U::TalkLine | U::TalkVoice => p(Slots::Talk, true, true, false),
+            U::Overheard => p(Slots::None, true, true, false),
+            U::VisitVerb | U::VisitRisk => p(Slots::None, true, true, true),
+        }
+    }
+
+    /// Why `c` (not its `any` alternatives) is not allowed here, if it is
+    /// not: the first need this use does not meet.
+    pub fn refuses(self, c: &Condition) -> Option<String> {
+        let n = c.needs();
+        let p = self.provides();
+        let what = self.label();
+        let t = c.key();
+        if n.ledger && p.decides {
+            return Some(format!(
+                "a `{t}` condition in {what}: what the player knows frames what they are \
+                 shown; it never decides whether something happens (DEC-091)"
+            ));
+        }
+        if n.talk && p.slots != Slots::Talk {
+            return Some(format!(
+                "`{t}` reads a conversation (its speaker, subject or voice); {what} has none"
+            ));
+        }
+        if n.cast && p.slots != Slots::Cast {
+            return Some(format!(
+                "`{t}` reads an actor cast in a role; {what} has no cast"
+            ));
+        }
+        if n.slot && p.slots == Slots::None {
+            return Some(format!(
+                "this condition reads a slot (a conversation's speaker or subject, or a cast \
+                 role); no slot is bound in {what}"
+            ));
+        }
+        if n.state && !p.state {
+            return Some(format!(
+                "`{t}` reads what only the whole game state holds (the event log, people's \
+                 routines, the clock); {what} is evaluated inside the simulation, where it never holds"
+            ));
+        }
+        if n.here && !p.here {
+            return Some(format!(
+                "`{t}` reads where it is said or done (a place, a neighbourhood); {what} has none"
+            ));
+        }
+        None
+    }
+}
+
+/// Where a condition list is checked: the item, its use, its tier and the
+/// slots bound there (a cast's role ids, or a conversation's slots).
+#[derive(Clone, Copy, Debug)]
+pub struct Site<'a> {
+    pub owner: &'a str,
+    pub at: ConditionUse,
+    /// The item's tier (a non-local item uses tier-generic conditions only).
+    pub tier: TierKey,
+    pub slots: &'a [&'a str],
+}
+
+impl<'a> Site<'a> {
+    pub fn new(owner: &'a str, at: ConditionUse, slots: &'a [&'a str]) -> Self {
+        Site {
+            owner,
+            at,
+            tier: TierKey::Local,
+            slots,
+        }
+    }
+
+    pub fn tier(mut self, tier: TierKey) -> Self {
+        self.tier = tier;
+        self
+    }
+}
+
+// --- The one validator ----------------------------------------------------------------
+
+/// Check a list of conditions (each, and `any` alternatives) where it is used.
+pub fn check_all(b: &ContentBundle, site: &Site<'_>, cs: &[Condition], issues: &mut Vec<Issue>) {
+    for c in cs {
+        check(b, site, c, issues);
+    }
+}
+
+/// Check one condition where it is used: allowed here (the table), tier,
+/// slots that exist, and its own fields (real ids, sane ranges).
+pub fn check(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Issue>) {
+    let owner = site.owner;
+    if let Some(why) = site.at.refuses(c) {
+        issues.push(Issue::error(owner, &why));
+        return;
+    }
+    if site.tier != TierKey::Local
+        && c.tier() == CondTier::Local
+        && !matches!(c, Condition::Any { .. })
+    {
+        issues.push(Issue::error(
+            owner,
+            &format!(
+                "`{}` reads a town's state; a {} item uses only tier-generic conditions (DEC-098)",
+                c.key(),
+                match site.tier {
+                    TierKey::Local => "local",
+                    TierKey::Regional => "regional",
+                    TierKey::National => "national",
+                }
+            ),
+        ));
+        return;
+    }
+    let cast = site.at.provides().slots == Slots::Cast;
+    for s in c.slots() {
+        if site.slots.contains(&s) {
+            continue;
+        }
+        let msg = if cast {
+            format!(
+                "names unknown role `{s}` (roles: {})",
+                site.slots.join(", ")
+            )
+        } else {
+            format!(
+                "unknown slot `{s}` here (expected {})",
+                site.slots.join(", ")
+            )
+        };
+        issues.push(Issue::error(owner, &msg));
+    }
+    fields(b, site, c, issues);
+}
+
+/// [min, max] within [lo, hi], with at least one bound.
+fn range(
+    owner: &str,
+    what: &str,
+    min: &Option<f64>,
+    max: &Option<f64>,
+    lo: f64,
+    hi: f64,
+    issues: &mut Vec<Issue>,
+) {
+    if min.is_none() && max.is_none() {
+        issues.push(Issue::error(
+            owner,
+            &format!("a {what} condition needs a min or a max"),
+        ));
+    }
+    for v in min.iter().chain(max.iter()) {
+        if !(v.is_finite() && (lo..=hi).contains(v)) {
+            issues.push(Issue::error(
+                owner,
+                &format!("a {what} bound {v} is outside [{lo}, {hi}]"),
+            ));
+        }
+    }
+    if let (Some(a), Some(z)) = (min, max)
+        && a > z
+    {
+        issues.push(Issue::error(owner, &format!("{what} min is above max")));
+    }
+}
+
+fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Issue>) {
+    use Condition as C;
+    let owner = site.owner;
+    let err = |issues: &mut Vec<Issue>, m: String| issues.push(Issue::error(owner, &m));
+    let warn = |issues: &mut Vec<Issue>, m: String| issues.push(Issue::warning(owner, &m));
+    // A view of the player (or a favour, the broker, the rival) is someone
+    // else's, never the player's own.
+    let not_player = |slot: &str, issues: &mut Vec<Issue>| {
+        if slot == "player" {
+            issues.push(Issue::error(
+                owner,
+                "this condition is about someone's view of the player, not the player",
+            ));
+        }
+    };
+    let within = |m: &u16, issues: &mut Vec<Issue>| {
+        if !(1..=120).contains(m) {
+            issues.push(Issue::error(owner, "within_months must be 1–120"));
+        }
+    };
+    match c {
+        C::Crisis { kind, min_severity } => {
+            // A pack may remove a crisis kind: the condition then never
+            // holds (a warning).
+            if let Some(k) = kind
+                && b.crisis_index(k).is_none()
+            {
+                warn(
+                    issues,
+                    format!("unknown crisis `{k}` (the condition never holds)"),
+                );
+            }
+            if !(min_severity.is_finite() && (0.0..=1.0).contains(min_severity)) {
+                err(issues, "min_severity must be in [0, 1]".into());
+            }
+        }
+        C::Indicator { min, max, .. } => {
+            range(owner, "indicator", min, max, -1000.0, 1000.0, issues)
+        }
+        C::Concern {
+            concern,
+            concerns,
+            top,
+            ..
+        } => {
+            if concern.is_some() && !concerns.is_empty() {
+                err(
+                    issues,
+                    "a concern condition names `concern` or `concerns`, not both".into(),
+                );
+            }
+            if concern.is_none() && concerns.is_empty() {
+                err(issues, "a concern condition needs concerns".into());
+            }
+            for k in concern.iter().chain(concerns.iter()) {
+                // A pack may remove a concern: that alternative never holds.
+                if b.concern_index(k).is_none() {
+                    warn(
+                        issues,
+                        format!("unknown concern `{k}` (the condition never holds)"),
+                    );
+                }
+            }
+            if *top == Some(0) {
+                err(issues, "concern `top` must be at least 1".into());
+            }
+        }
+        C::Industry { drivers } => {
+            if drivers.as_ref().is_some_and(|d| d.is_empty()) {
+                err(
+                    issues,
+                    "industry `drivers`, when given, needs at least one driver".into(),
+                );
+            }
+        }
+        C::PlantClosure { within_months } | C::Disaster { within_months } => {
+            within(within_months, issues)
+        }
+        C::LawInForce { templates, .. } => {
+            if templates.is_empty() {
+                err(issues, "law_in_force needs templates".into());
+            }
+            for t in templates {
+                if !b.policies.contains_key(t) {
+                    err(issues, format!("unknown policy `{t}`"));
+                }
+            }
+        }
+        C::RivalRecord { min, max } => range(owner, "rival_record", min, max, 0.0, 1.0, issues),
+        C::PlayerAwareness { min, max } => {
+            range(owner, "player_awareness", min, max, 0.0, 1.0, issues)
+        }
+        C::PlayerApproval { min, max } => {
+            range(owner, "player_approval", min, max, -1.0, 1.0, issues)
+        }
+        C::Shedding { min } => {
+            if !(min.is_finite() && (0.0..=1.0).contains(min)) {
+                err(issues, "shedding `min` must be in [0, 1]".into());
+            }
+        }
+        C::Present { occupations } => {
+            if occupations.is_empty() {
+                err(issues, "a present condition needs occupations".into());
+            }
+            for o in occupations {
+                if b.occupation(o).is_none() {
+                    err(issues, format!("unknown occupation `{o}`"));
+                }
+            }
+        }
+        C::DayPart { parts } => {
+            if parts.is_empty() {
+                err(issues, "a day_part condition needs parts".into());
+            }
+        }
+        C::ElectionWithin { days } => {
+            if *days == 0 || *days > 3650 {
+                err(issues, "election_within days must be in 1..3650".into());
+            }
+        }
+        C::Office { posts, role } => {
+            if posts.is_empty() && role.is_none() {
+                err(issues, "an office condition needs `posts` or `role`".into());
+            }
+            for w in posts.iter().chain(role.iter()) {
+                if w != crate::OFFICE_ANY && w != crate::OFFICE_NONE && !b.is_role_word(w) {
+                    err(
+                        issues,
+                        format!("unknown office word `{w}` (not a constitution role word)"),
+                    );
+                }
+            }
+        }
+        C::Track { min, max, .. } => range(owner, "track", min, max, 0.0, 100.0, issues),
+        C::Money { min, max } => range(owner, "money", min, max, -1e9, 1e9, issues),
+        C::Answered {
+            template,
+            option,
+            min_days,
+            max_days,
+            same_cast,
+        } => match b.dilemma(template) {
+            // A pack may remove the template: the condition never holds.
+            None => warn(
+                issues,
+                format!("unknown dilemma `{template}` (the condition never holds)"),
+            ),
+            Some(t) => {
+                if let Some(o) = option
+                    && !t.options.iter().any(|x| &x.id == o)
+                {
+                    err(issues, format!("`{template}` has no option `{o}`"));
+                }
+                for r in same_cast {
+                    if !t.roles.iter().any(|x| &x.id == r) {
+                        err(
+                            issues,
+                            format!("same_cast role `{r}` is not a role of `{template}`"),
+                        );
+                    }
+                }
+                if *min_days > 3650 || max_days.is_some_and(|m| m < *min_days || m > 3650) {
+                    err(
+                        issues,
+                        "answered days must be in 0..3650 with min ≤ max".into(),
+                    );
+                }
+            }
+        },
+        C::SponsoredLaw {
+            min_age_days,
+            max_age_days,
+            chance,
+            ..
+        } => {
+            if *min_age_days > 3650 || max_age_days.is_some_and(|m| m < *min_age_days || m > 3650) {
+                err(
+                    issues,
+                    "sponsored_law ages must be in 0..3650 with min ≤ max".into(),
+                );
+            }
+            if !(chance.is_finite() && (0.0..=1.0).contains(chance)) {
+                err(issues, "sponsored_law chance must be in [0, 1]".into());
+            }
+        }
+        C::Knows { subject, min } => {
+            crate::narrative::check_subject(owner, b, subject, issues);
+            if *min == Level::Unknown {
+                err(
+                    issues,
+                    "knows `min` must be heard, known or detailed".into(),
+                );
+            }
+        }
+        C::PlayerKnows { min, max, .. } => {
+            if min.is_none() && max.is_none() {
+                err(
+                    issues,
+                    "a player_knows condition needs a min or a max".into(),
+                );
+            }
+            if let (Some(a), Some(z)) = (min, max)
+                && a > z
+            {
+                err(issues, "player_knows min is above max".into());
+            }
+        }
+        C::Occupation { occupations, .. } => {
+            if occupations.is_empty() {
+                err(issues, "an occupation condition needs roles".into());
+            }
+            for o in occupations {
+                if b.occupation(o).is_none() && !b.is_role_word(o) {
+                    err(issues, format!("unknown role `{o}`"));
+                }
+            }
+        }
+        C::Trait { traits, .. } => {
+            if traits.is_empty() {
+                err(issues, "a trait condition needs traits".into());
+            }
+            for t in traits {
+                if b.trait_def(t).is_none() {
+                    err(issues, format!("unknown trait `{t}`"));
+                }
+            }
+        }
+        C::Personality { axis, min, max, .. } => {
+            if !crate::types::PERSONALITY_AXES.contains(&axis.as_str()) {
+                err(issues, format!("unknown personality axis `{axis}`"));
+            }
+            range(owner, "personality", min, max, 0.0, 1.0, issues);
+        }
+        C::Goal { slot, goal } => {
+            not_player(slot, issues);
+            if b.goal(goal).is_none() {
+                err(issues, format!("unknown goal `{goal}`"));
+            }
+        }
+        C::Opinion { slot, min, max } => {
+            not_player(slot, issues);
+            range(owner, "opinion", min, max, -100.0, 100.0, issues);
+        }
+        C::Trust { slot, min, max } => {
+            not_player(slot, issues);
+            range(owner, "trust", min, max, 0.0, 1.0, issues);
+        }
+        C::Remembers { slot, kinds } => {
+            not_player(slot, issues);
+            if kinds.is_empty() {
+                err(issues, "a remembers condition needs memory kinds".into());
+            }
+            for k in kinds {
+                if !crate::types::MEMORY_KINDS.contains(&k.as_str()) {
+                    err(issues, format!("unknown memory kind `{k}`"));
+                }
+            }
+        }
+        C::Favour { slot, .. }
+        | C::Met { slot, .. }
+        | C::IsBroker { slot, .. }
+        | C::IsRival { slot, .. } => not_player(slot, issues),
+        C::Tells { min, .. } => {
+            if *min == Level::Unknown {
+                err(
+                    issues,
+                    "a tells condition needs `heard`, `known` or `detailed` (unknown always holds)"
+                        .into(),
+                );
+            }
+        }
+        C::Voice { voices } => {
+            if voices.is_empty() {
+                err(issues, "a voice condition needs voices".into());
+            }
+            for v in voices {
+                if b.talk_voice(v).is_none() {
+                    err(issues, format!("unknown voice `{v}`"));
+                }
+            }
+        }
+        C::About {
+            kinds,
+            places,
+            workplace,
+            home,
+            ..
+        } => {
+            let place_ok = kinds.is_empty() || kinds.contains(&AboutKind::Place);
+            if (!places.is_empty() || workplace.is_some()) && !place_ok {
+                err(
+                    issues,
+                    "an about condition with `places` or `workplace` needs the place kind".into(),
+                );
+            }
+            for k in places {
+                if b.place_kind(k).is_none() || crate::types::PSEUDO_PLACES.contains(&k.as_str()) {
+                    err(issues, format!("unknown place kind `{k}`"));
+                }
+            }
+            if home.is_some() && !(kinds.is_empty() || kinds.contains(&AboutKind::Hood)) {
+                err(
+                    issues,
+                    "an about condition with `home` needs the hood kind".into(),
+                );
+            }
+        }
+        C::Any { of } => {
+            if of.is_empty() {
+                err(issues, "an `any` condition needs alternatives".into());
+            }
+            for x in of {
+                check(b, site, x, issues);
+            }
+        }
+        C::Water { .. }
+        | C::Dry
+        | C::Broker
+        | C::Rival
+        | C::Scandal { .. }
+        | C::Headline
+        | C::Phase { .. }
+        | C::MonthsInPlay { .. }
+        | C::Campaigning { .. }
+        | C::HoldsPower { .. }
+        | C::PartyLineAgainstWard { .. }
+        | C::CanVote { .. } => {}
+    }
+}
+
+// --- The schema accepts the old spellings ------------------------------------------------
+
+/// The generated schema knows nothing of serde aliases: accept `role`
+/// wherever `slot` is a field, and `live_crisis` as a `crisis` without a
+/// kind, as the parser does.
+fn old_spellings(schema: &mut schemars::Schema) {
+    use serde_json::{Value, json};
+    let Some(Value::Array(variants)) = schema.get_mut("oneOf") else {
+        return;
+    };
+    let mut live = None;
+    for v in variants.iter_mut() {
+        let Some(o) = v.as_object_mut() else {
+            continue;
+        };
+        let tag = o
+            .get("properties")
+            .and_then(|p| p.get("type"))
+            .and_then(|t| t.get("const"))
+            .and_then(|c| c.as_str())
+            .map(str::to_string);
+        if tag.as_deref() == Some("crisis") {
+            let mut l = Value::Object(o.clone());
+            if let Some(p) = l.get_mut("properties").and_then(|p| p.as_object_mut()) {
+                p.remove("kind");
+                p.insert(
+                    "type".into(),
+                    json!({ "const": "live_crisis", "type": "string" }),
+                );
+            }
+            if let Some(m) = l.as_object_mut() {
+                m.insert(
+                    "description".into(),
+                    json!("The old spelling of a `crisis` without a `kind`."),
+                );
+            }
+            live = Some(l);
+        }
+        let slot = o.get("properties").and_then(|p| p.get("slot")).cloned();
+        let Some(slot) = slot else {
+            continue;
+        };
+        if let Some(p) = o.get_mut("properties").and_then(|p| p.as_object_mut()) {
+            p.insert("role".into(), slot);
+        }
+        let required = o
+            .get_mut("required")
+            .and_then(|r| r.as_array_mut())
+            .is_some_and(|r| {
+                let had = r.iter().any(|x| x == "slot");
+                r.retain(|x| x != "slot");
+                had
+            });
+        if required {
+            o.insert(
+                "oneOf".into(),
+                json!([{ "required": ["slot"] }, { "required": ["role"] }]),
+            );
+        }
+    }
+    if let Some(l) = live {
+        variants.push(l);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(s: &str) -> Condition {
+        serde_json::from_str(s).unwrap_or_else(|e| panic!("{s}: {e}"))
+    }
+
+    #[test]
+    fn old_spellings_parse() {
+        assert_eq!(
+            parse(r#"{ "type": "live_crisis", "min_severity": 0.3 }"#),
+            Condition::Crisis {
+                kind: None,
+                min_severity: 0.3
+            }
+        );
+        assert_eq!(
+            parse(r#"{ "type": "opinion", "role": "holder", "min": 10 }"#),
+            Condition::Opinion {
+                slot: "holder".into(),
+                min: Some(10.0),
+                max: None
+            }
+        );
+        assert!(
+            serde_json::from_str::<Condition>(
+                r#"{ "type": "opinion", "role": "a", "slot": "b", "min": 1 }"#
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn worry_defaults_follow_the_spelling() {
+        let d = parse(r#"{ "type": "concern", "concern": "concern.jobs" }"#);
+        let w = d.worry().unwrap();
+        assert_eq!((w.top, w.by, w.of), (3, Worry::Measured, ConcernOf::Town));
+        let t = parse(r#"{ "type": "concern", "of": "speaker", "concerns": ["concern.jobs"] }"#);
+        let w = t.worry().unwrap();
+        assert_eq!((w.top, w.by, w.of), (1, Worry::Felt, ConcernOf::Speaker));
+    }
+}
