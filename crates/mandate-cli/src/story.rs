@@ -171,6 +171,13 @@ impl Collector {
             .iter()
             .filter(|p| p.kind == PhaseKind::Peak && p.decision.is_none())
             .count();
+        // Climaxes that came by the fallback (template cooldowns waived).
+        let climax_fallbacks = n
+            .phase_log
+            .iter()
+            .chain(n.phase.as_ref())
+            .filter(|p| p.kind == PhaseKind::Peak && p.climax_fallback)
+            .count();
         let relax_share = if relaxes == 0 {
             serde_json::Value::Null
         } else {
@@ -255,6 +262,7 @@ impl Collector {
             "chapters_over_budget": over_budget,
             "peaks": peaks_all,
             "peaks_empty": peaks_empty,
+            "climax_fallbacks": climax_fallbacks,
             "longest_relax": relax_days,
             "relax_phases": relaxes,
             "relax_with_minor_beat": relax_share,
@@ -301,6 +309,7 @@ pub fn summary(rows: &[serde_json::Value]) -> serde_json::Value {
         "chapters_over_budget",
         "peaks",
         "peaks_empty",
+        "climax_fallbacks",
         "longest_relax",
         "relax_with_minor_beat",
         "gap_decisions_governing",

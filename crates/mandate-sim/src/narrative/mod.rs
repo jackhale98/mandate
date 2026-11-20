@@ -565,6 +565,10 @@ pub struct DirectorPhase {
     /// Minor beats spotlighted while it lasted.
     #[serde(default)]
     pub beats: u16,
+    /// A climax peak whose climax came by the fallback: nothing was
+    /// eligible, so template cooldowns were waived (DEC-097 note).
+    #[serde(default)]
+    pub climax_fallback: bool,
 }
 
 /// One of the player's past answers (ENGAGEMENT §4.4): what `answered`

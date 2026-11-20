@@ -153,46 +153,53 @@ fn v18_paths_migrate_to_posts() {
     assert_eq!(migrated, migrate(18, v).unwrap());
 }
 
-/// A real v18 save (mid-campaign) loads and plays on to the same state as
-/// the old build reached by playing on before saving (the second fixture
-/// is the same run 20 turns later): the change of shape changes no
-/// outcome. Since N2 a ward race's vote figures follow the ward's own
-/// worries, so only those figures may differ from the old build's.
+/// A real v18 save (mid-campaign) loads and plays on deterministically to
+/// the recorded continuation: eight turns, through an election.
+///
+/// **The golden.** `v18_campaign_continued.mndt` is the state today's build
+/// reaches by loading `v18_campaign.mndt` and ending eight turns (written
+/// with the current format). It was re-recorded for E2 (DEC-097 §3, the
+/// director's variety and pacing cycle): the first golden was
+/// `v18_after.mndt`, the old build's own continuation, which held while no
+/// later task changed what those turns do (with carve-outs for E1's record
+/// value and N2's ward vote figures). E2 changes which situations the
+/// director spotlights, so no build after it can reach the old build's
+/// state. The comparison is the whole state, with no carve-outs. When a
+/// later task changes an outcome on purpose, re-record with
+/// `MANDATE_RECORD_FIXTURES=1 cargo test -p mandate-save --test
+/// constitution_posts v18_save_continues`, check the diff, and say why here.
 #[test]
 fn v18_save_continues_identically() {
-    // The old build played on with its own balance: where a later task has
-    // retuned a value the next 20 turns read, play on with the fixtures'
-    // value, so this compares shapes, not tunings. E1 (DEC-097 §1): the
-    // record an NPC's canvass earns, 0.06 when the fixtures were made.
-    let mut src = sources();
-    mandate_content::overrides::apply(
-        &mut src,
-        &[mandate_content::overrides::Override::parse("career.record_gain.canvass=0.06").unwrap()],
-    )
-    .unwrap();
-    let c = Arc::new(load(&src).unwrap().0);
-    let (mut campaign, meta) = decode(&fixture("v18_campaign.mndt")).unwrap();
-    assert_eq!(meta.format_version, 18);
-    let (mut after, _) = decode(&fixture("v18_after.mndt")).unwrap();
-    let saved_on = campaign.calendar.date;
+    let c = content();
+    let load_campaign = || {
+        let (mut campaign, meta) = decode(&fixture("v18_campaign.mndt")).unwrap();
+        assert_eq!(meta.format_version, 18);
+        // The save comes from the content before R1's fields; loading it
+        // records a rules change in the event log. Mark it as made with this
+        // content, as the golden was.
+        campaign.meta.content_hash = c.content_hash.clone();
+        campaign
+    };
+    let campaign = load_campaign();
     assert!(
         !campaign.politics.elections.races.is_empty(),
         "mid-campaign"
     );
-    // Both saves come from the content before R1's fields; loading them
-    // records a rules change in the event log at different turns. Mark them
-    // as made with this content, so the logs line up.
-    campaign.meta.content_hash = c.content_hash.clone();
-    after.meta.content_hash = c.content_hash.clone();
-    let mut e = mandate_sim::Engine::from_state(campaign, c.clone()).unwrap();
-    for _ in 0..8 {
-        e.apply(Command::EndTurn).unwrap();
-    }
-    let reached = mandate_sim::Engine::from_state(after, c.clone()).unwrap();
-    // The election was held between the two saves.
+    let play = || {
+        let mut e = mandate_sim::Engine::from_state(load_campaign(), c.clone()).unwrap();
+        for _ in 0..8 {
+            e.apply(Command::EndTurn).unwrap();
+        }
+        e
+    };
+    let e = play();
+    // Deterministic: the same save played on again reaches the same state.
+    assert_eq!(play().state_hash(), e.state_hash());
+    // The old build's continuation held the same election.
+    let (after, _) = decode(&fixture("v18_after.mndt")).unwrap();
     assert_eq!(
         e.state().politics.elections.last_election,
-        reached.state().politics.elections.last_election
+        after.politics.elections.last_election
     );
     assert!(
         e.state()
@@ -206,63 +213,16 @@ fn v18_save_continues_identically() {
             ),
         "an election between the fixtures"
     );
-    // The only difference allowed: races decided after loading name their
-    // post (`RaceDecided.post`, new in R1).
-    fn strip(v: &mut Value) {
-        match v {
-            Value::Object(o) => {
-                if o.get("type").and_then(Value::as_str) == Some("race_decided") {
-                    o.remove("post");
-                }
-                o.values_mut().for_each(strip);
-            }
-            Value::Array(a) => a.iter_mut().for_each(strip),
-            _ => {}
-        }
+    let golden =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/v18_campaign_continued.mndt");
+    if std::env::var_os("MANDATE_RECORD_FIXTURES").is_some() {
+        let (bytes, _) = encode(e.state(), &req()).unwrap();
+        std::fs::write(&golden, bytes).unwrap();
     }
-    // Ward races decided after loading weigh their ward's own worries (N2,
-    // DEC-092 note) where the old build weighed the town's: their vote
-    // figures move, their candidates, winners and turnout do not. Town-wide
-    // races (the mayor's) read the town's salience as before and must match
-    // to the last vote.
-    fn ward_figures_only(
-        st: &mandate_sim::State,
-        saved_on: mandate_core::SimDate,
-    ) -> mandate_sim::State {
-        let mut st = st.clone();
-        for r in st.politics.elections.results.iter_mut().filter(|r| {
-            r.date > saved_on
-                && matches!(
-                    r.seat,
-                    Post::Seat {
-                        constituency: Some(_),
-                        ..
-                    }
-                )
-        }) {
-            for c in &mut r.candidates {
-                c.votes = 0;
-                c.share = 0.0;
-                c.final_poll = None;
-            }
-            r.decomposition.iter_mut().for_each(|f| f.margin = 0.0);
-            r.hood_winner_share.iter_mut().for_each(|h| h.1 = 0.0);
-        }
-        st
-    }
-    let wards_after = e
-        .state()
-        .politics
-        .elections
-        .results
-        .iter()
-        .filter(|r| r.date > saved_on && !r.seat.is_office())
-        .count();
-    assert!(wards_after > 0, "ward races between the fixtures");
-    let mut a = serde_json::to_value(ward_figures_only(e.state(), saved_on)).unwrap();
-    let mut b = serde_json::to_value(ward_figures_only(reached.state(), saved_on)).unwrap();
-    strip(&mut a);
-    strip(&mut b);
+    let (reached, _) = decode(&std::fs::read(&golden).unwrap()).unwrap();
+    assert_eq!(reached.hash(), e.state_hash(), "the golden round-trips");
+    let a = serde_json::to_value(e.state()).unwrap();
+    let b = serde_json::to_value(&reached).unwrap();
     if a != b {
         // Name the first part that differs.
         for k in a.as_object().unwrap().keys() {

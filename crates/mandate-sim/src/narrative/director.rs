@@ -1548,7 +1548,7 @@ fn requests(
         let Some(rdef) = content.dilemma(rk) else {
             continue;
         };
-        if !available(n, d, rdef, date) {
+        if !available(n, d, rdef, date, false) {
             continue;
         }
         let Some(mut c) = evaluate(v, n, rdef, &[], Some(g.holder), &[]) else {
@@ -1592,10 +1592,17 @@ fn requests(
 }
 
 /// May the spotlight present this template now (ENGAGEMENT §4.1, §4.7)?
-/// Its cooldown has passed, it is not pending, it was not spotlighted this
-/// chapter, and the career is old enough.
-fn available(n: &NarrativeState, d: &DirectorParams, def: &DilemmaDef, date: SimDate) -> bool {
-    if n.cooldowns.get(&def.id).is_some_and(|x| *x > date)
+/// Its cooldown has passed (unless `relax_cooldowns`: the climax fallback),
+/// it is not pending, it was not spotlighted this chapter, and the career is
+/// old enough.
+fn available(
+    n: &NarrativeState,
+    d: &DirectorParams,
+    def: &DilemmaDef,
+    date: SimDate,
+    relax_cooldowns: bool,
+) -> bool {
+    if (!relax_cooldowns && n.cooldowns.get(&def.id).is_some_and(|x| *x > date))
         || n.pending().any(|p| p.template == def.id)
     {
         return false;
@@ -1619,10 +1626,11 @@ fn career_days(n: &NarrativeState, date: SimDate) -> u32 {
 }
 
 /// A template that was the climax in one of the last
-/// `climax_memory_chapters` chapters cannot be the climax again.
+/// `climax_memory_chapters` chapters cannot be the climax again (nor, ever,
+/// the previous chapter's: the fallback relies on it).
 fn climax_allowed(n: &NarrativeState, d: &DirectorParams, key: &str) -> bool {
     let now = n.chapter.as_ref().map(|c| c.index).unwrap_or(0);
-    let memory = d.climax_memory_chapters as u32;
+    let memory = (d.climax_memory_chapters as u32).max(1);
     !n.climaxes
         .iter()
         .any(|(ch, k)| k == key && now.saturating_sub(*ch) <= memory)
@@ -1631,8 +1639,14 @@ fn climax_allowed(n: &NarrativeState, d: &DirectorParams, key: &str) -> bool {
 /// The dilemmas the spotlight could present now, with their tiers: not
 /// requests, storyline stages or raised decisions; available (cooldowns, no
 /// repeat, `min_career_days`). The climax's candidates skip the relevance
-/// floor and recent climaxes; the others must reach it.
-fn gather<'c>(v: &View<'c>, n: &NarrativeState, climax: bool) -> Vec<Candidate<'c>> {
+/// floor and recent climaxes; the others must reach it. `relax_cooldowns`:
+/// the climax fallback (DEC-097 note), which waives template cooldowns only.
+fn gather<'c>(
+    v: &View<'c>,
+    n: &NarrativeState,
+    climax: bool,
+    relax_cooldowns: bool,
+) -> Vec<Candidate<'c>> {
     let content = v.content();
     let d = &content.director;
     let date = v.date();
@@ -1647,7 +1661,9 @@ fn gather<'c>(v: &View<'c>, n: &NarrativeState, climax: bool) -> Vec<Candidate<'
             || def.storyline_only
             || def.raised_by.is_some()
             || staged.contains(&def.id.as_str())
-            || !available(n, d, def, date)
+            || !available(n, d, def, date, relax_cooldowns && climax)
+            // The fallback never takes a fourth use (`FALLBACK_MAX_USES`).
+            || (relax_cooldowns && n.uses.get(&def.id).copied().unwrap_or(0) > FALLBACK_MAX_USES)
             || (climax && !climax_allowed(n, d, &def.id))
             || (!climax && def.category == DilemmaCategory::Climax)
         {
@@ -1685,9 +1701,19 @@ fn dilemmas(
     // The climax: the pick among grounded situations in its window (it
     // respects cooldowns; no relevance floor).
     if climax_due(n, v, b) {
-        let cands = gather(v, n, true);
+        let mut cands = gather(v, n, true, false);
+        // The climax fallback, as at a climax peak (DEC-097 note).
+        let fallback = cands.is_empty();
+        if fallback {
+            cands = gather(v, n, true, true);
+        }
         if let Some(c) = pick(v, n, cands, false, 2) {
+            let key = c.def.id.clone();
+            let base = fallback_cooldown(n, d, &c.def.id, c.def.cooldown_days);
             open(n, v, out, c, Weight::Climax, None, None);
+            if fallback {
+                n.cooldowns.insert(key, date.add_days(base));
+            }
         }
         return;
     }
@@ -1701,7 +1727,7 @@ fn dilemmas(
     }
     // Opportunities arrive when the chapter is quiet (the director times them).
     let quiet = !shaped || actual < target;
-    let mut cands = gather(v, n, false);
+    let mut cands = gather(v, n, false, false);
     cands.retain(|c| {
         c.def.category == DilemmaCategory::Significant && (!c.def.opportunity || quiet || behind)
     });
@@ -1746,13 +1772,31 @@ fn peak(
         let mut cands = staged_all(v, n, due);
         cands.retain(|c| climax_allowed(n, d, &c.def.id));
         if spaced {
-            cands.extend(gather(v, n, true));
+            cands.extend(gather(v, n, true, false));
+        }
+        // The climax fallback (DEC-097 note, until E3 widens the pool):
+        // nothing is eligible, so template cooldowns are waived; climax
+        // memory, the last chapter's climax and no repeat in a chapter hold.
+        let fallback = cands.is_empty() && spaced;
+        if fallback {
+            cands = gather(v, n, true, true);
         }
         if let Some(c) = pick(v, n, cands, ph.eased, 2) {
+            let key = c.def.id.clone();
+            let base = fallback_cooldown(n, d, &c.def.id, c.def.cooldown_days);
             if c.run.is_some() {
                 open_staged(n, v, out, c, Weight::Climax);
             } else {
                 open(n, v, out, c, Weight::Climax, None, None);
+            }
+            // A borrowed climax as a template's second use cools it for its
+            // base cooldown, not a grown one, so it does not leave the rest
+            // of the career; a third use cools as usual (no fourth).
+            if fallback {
+                n.cooldowns.insert(key, date.add_days(base));
+            }
+            if let Some(p) = n.phase.as_mut() {
+                p.climax_fallback = fallback;
             }
         }
         return;
@@ -1772,7 +1816,7 @@ fn peak(
     let allowed = !shaped || behind || actual < target + d.tension.slack;
     if spaced && allowed && paced(ch.significant, b.sig_max, x) {
         let quiet = !shaped || actual < target;
-        let mut more = gather(v, n, false);
+        let mut more = gather(v, n, false, false);
         more.retain(|c| {
             c.def.category == DilemmaCategory::Significant
                 && (!c.def.opportunity || quiet || behind || ph.eased)
@@ -1807,6 +1851,18 @@ fn is_coda(n: &NarrativeState, ch: &Chapter) -> bool {
 }
 
 // --- The pacing cycle (ENGAGEMENT §4.3) ----------------------------------------------------
+
+/// The climax fallback takes a template's second or third use, never a
+/// fourth (ENGAGEMENT §4.1: at most three uses in five years).
+const FALLBACK_MAX_USES: u16 = 2;
+
+/// The cooldown a fallback climax sets: the base one when it is the
+/// template's second use, the usual grown one for a third (whose ×4 outlasts
+/// a five-year career, so there is never a fourth).
+fn fallback_cooldown(n: &NarrativeState, d: &DirectorParams, key: &str, cooldown: u32) -> u32 {
+    let after = n.uses.get(key).copied().unwrap_or(0) + 1;
+    cooldown_days(d, cooldown, if after <= 2 { 1 } else { after })
+}
 
 /// Draw tags for phase lengths.
 const TAG_BUILD_UP: u64 = 1;
@@ -1906,6 +1962,7 @@ fn begin(
         eased,
         decision: None,
         beats: 0,
+        climax_fallback: false,
     });
 }
 
@@ -2576,7 +2633,7 @@ pub fn week_candidates(state: &crate::State, content: &ContentBundle) -> Vec<Can
         .filter(|&i| run_step(&v, n, i) == RunStep::Due)
         .collect();
     let mut cands = staged_all(&v, n, &due);
-    cands.extend(gather(&v, n, climax));
+    cands.extend(gather(&v, n, climax, false));
     let best = |t: Tier| {
         cands
             .iter()
@@ -2733,6 +2790,7 @@ mod tests {
             eased: false,
             decision: None,
             beats: 0,
+            climax_fallback: false,
         }
     }
 
