@@ -90,7 +90,8 @@ const tapBuilding = async (page: Page, info: TestInfo, which: "home" | "nearest-
     const v = s.view;
     const W = v.map.width;
     const p = v.scene.playerCell;
-    const active = ["town_hall", "council_chamber", "diner", "party_office", "news_office", "market", "union_hall", "community_centre"];
+    // Places that open their panel at the door (the town hall, the chamber and the diner are walked into: e2e/interiors.spec.ts).
+    const active = ["party_office", "news_office", "market", "union_hall", "community_centre"];
     const score = (x: Building) => {
       if (mode === "home") return x.home ? 0 : 1e9;
       if (x.place === null || !active.includes(x.kind) || x.front === p) return 1e9;

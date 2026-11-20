@@ -284,3 +284,34 @@ ui-report-shared = Shared { $file } ({ $size }).
 ui-report-failed = The report could not be made.
 ui-report-no-game = No game is open: the report holds your latest saved game, if there is one.
 ui-report-engine-failed = The game engine stopped. The report holds your latest saved game instead.
+
+## Interiors
+# Walking into a place from the street (DEC-088): the room, its hotspots, the door.
+ui-interior-label = Inside { $place }. Arrow keys walk; Enter talks to the person beside you, uses the counter or desk you stand at, or goes out at the door; Escape goes out.
+ui-interior-leave = Leave
+ui-interior-door = Out
+ui-interior-entered = You go into { $place }.
+ui-interior-left = You step back out into the street.
+ui-interior-hint-person = Enter: talk to { $name }
+ui-interior-hint-hotspot = Enter: { $what }
+ui-interior-hint-door = Enter: out to the street
+ui-interior-near-person = { $name } is beside you. Press Enter to talk.
+ui-interior-near-hotspot = { $what }. Press Enter to use it.
+ui-interior-near-door = The door. Press Enter to go out.
+ui-interior-read = Read it
+ui-interior-read-note = Open what this place has on file.
+ui-interior-nothing = Nothing to do here just now.
+ui-interior-staff = Staff
+interior-hotspot-speak = The lectern
+interior-hotspot-vote = Your seat
+interior-hotspot-clerk = The clerk's table
+interior-hotspot-window1 = Window 1: filings
+interior-hotspot-window2 = Window 2: drafting
+interior-hotspot-notices = Notice board
+interior-hotspot-leaflets = Budget leaflets
+interior-hotspot-offices = The offices
+interior-hotspot-forms = Forms counter
+interior-hotspot-booth_mid = A quiet booth
+interior-hotspot-booth_front = The front booth
+interior-hotspot-booth_back = The back booth
+interior-hotspot-counter = The counter

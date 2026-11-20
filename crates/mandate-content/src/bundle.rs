@@ -110,6 +110,10 @@ pub struct ContentBundle {
     /// Presentation data: validated, never read by the simulation.
     #[serde(default)]
     pub map_layers: Vec<crate::map_layers::MapLayerDef>,
+    /// Interior recipes (DEC-088), in load order: presentation data for the
+    /// client's room composer, validated, never read by the simulation.
+    #[serde(default)]
+    pub interiors: Vec<crate::interiors::InteriorRecipe>,
     /// Conversation topics (DEC-093), in load order.
     #[serde(default)]
     pub talk_topics: Vec<crate::conversation::TopicDef>,
@@ -318,6 +322,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut terrain_features: Vec<crate::layout::TerrainFeatureDef> = Vec::new();
     let mut connectors: Vec<crate::layout::ConnectorDef> = Vec::new();
     let mut map_layers: Vec<crate::map_layers::MapLayerDef> = Vec::new();
+    let mut interiors: Vec<crate::interiors::InteriorRecipe> = Vec::new();
     let mut talk_topics: Vec<crate::conversation::TopicDef> = Vec::new();
     let mut talk_lines: Vec<crate::conversation::TalkLineDef> = Vec::new();
     let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
@@ -605,6 +610,14 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Interiors { items } => {
+                for x in items {
+                    // One entry per recipe and version.
+                    if claim(&format!("{}@{}", x.id, x.version), &mut issues) {
+                        interiors.push(x);
+                    }
+                }
+            }
             ContentFile::MapLayers { items } => {
                 for x in items {
                     if claim(&x.id, &mut issues) {
@@ -743,6 +756,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         terrain_features,
         connectors,
         map_layers,
+        interiors,
         talk_topics,
         talk_lines,
         talk_voices,

@@ -3,6 +3,7 @@
 
 pub mod bundle;
 pub mod conversation;
+pub mod interiors;
 pub mod jsonc;
 pub mod knowledge;
 pub mod layout;

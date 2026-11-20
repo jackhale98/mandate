@@ -1270,6 +1270,26 @@
       ],
       "type": "object"
     },
+    "ChoiceDef": {
+      "additionalProperties": false,
+      "description": "Arrangements the seed picks between.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/OptionDef2"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "options"
+      ],
+      "type": "object"
+    },
     "ClassKey": {
       "enum": [
         "low",
@@ -4021,6 +4041,15 @@
       ],
       "type": "object"
     },
+    "Facing": {
+      "enum": [
+        "down",
+        "up",
+        "left",
+        "right"
+      ],
+      "type": "string"
+    },
     "FairnessParams": {
       "additionalProperties": false,
       "description": "Fairness (DEC-006): a warning before any terminal ending. A track at or\npast its threshold is warned about (pinned event, the pocket's alerts).",
@@ -4933,6 +4962,65 @@
         }
       ]
     },
+    "HotspotDef": {
+      "additionalProperties": false,
+      "description": "A hotspot: a rectangle of tiles, the actions and services offered there,\nand the tile the player stands on to use them.",
+      "properties": {
+        "actions": {
+          "description": "Action keys from this place kind's `actions` (or `late_night`, for a late hotspot).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "facing": {
+          "$ref": "#/$defs/Facing"
+        },
+        "h": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "late": {
+          "description": "Only offered late at night.",
+          "type": "boolean"
+        },
+        "services": {
+          "description": "Services from this place kind's `services`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "stand": {
+          "$ref": "#/$defs/TilePos"
+        },
+        "w": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "x": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "y": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "x",
+        "y",
+        "w",
+        "h",
+        "stand",
+        "facing"
+      ],
+      "type": "object"
+    },
     "Indicator": {
       "description": "Engine-provided measures of a municipality, recomputed monthly. Concerns\nread them; situational policies (DEC-077) will use them as unlock\nconditions. Adding one is a code extension point (one variant, one\ncomputation in `mandate_sim::concerns::indicator`, and a test).",
       "oneOf": [
@@ -4977,6 +5065,156 @@
           "type": "string"
         }
       ]
+    },
+    "InteriorLight": {
+      "additionalProperties": false,
+      "description": "The room's light: the lamps' colour, how much of the night's grade reaches\ninside (0..1), and unseen ceiling lights.",
+      "properties": {
+        "ceiling": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TilePos"
+          },
+          "type": "array"
+        },
+        "lamp": {
+          "$ref": "#/$defs/Lamp"
+        },
+        "night": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lamp",
+        "night"
+      ],
+      "type": "object"
+    },
+    "InteriorRecipe": {
+      "additionalProperties": false,
+      "description": "One interior recipe and version (DEC-088).",
+      "properties": {
+        "cast": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": "How someone is here (the place view's `here_as`: presiding, member,\nworks, visitor) → the spot roles they take, in order of preference.",
+          "type": "object"
+        },
+        "choices": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ChoiceDef"
+          },
+          "type": "array"
+        },
+        "cols": {
+          "description": "Floor tiles across and deep.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "door": {
+          "description": "The entrance's column in the front wall.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "extras": {
+          "default": [],
+          "description": "Staff roles drawn as scenery where nobody present takes them.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "floors": {
+          "items": {
+            "$ref": "#/$defs/Weighted"
+          },
+          "type": "array"
+        },
+        "hotspots": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/HotspotDef"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Content id, e.g. `interior.diner`; with `version`, unique.",
+          "type": "string"
+        },
+        "light": {
+          "$ref": "#/$defs/InteriorLight"
+        },
+        "patches": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PatchDef"
+          },
+          "type": "array"
+        },
+        "pieces": {
+          "items": {
+            "$ref": "#/$defs/PieceDef"
+          },
+          "type": "array"
+        },
+        "place": {
+          "description": "The place kind (`places.jsonc` key) it furnishes.",
+          "type": "string"
+        },
+        "roles": {
+          "$ref": "#/$defs/RoleRamps"
+        },
+        "rows": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "spots": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SpotDef"
+          },
+          "type": "array"
+        },
+        "version": {
+          "description": "A change that moves anything for the same seed bumps it (DEC-085).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "wall_h": {
+          "description": "The back wall face's height, px.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "walls": {
+          "items": {
+            "$ref": "#/$defs/Weighted2"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "place",
+        "cols",
+        "rows",
+        "wall_h",
+        "door",
+        "light",
+        "floors",
+        "walls",
+        "roles",
+        "pieces",
+        "cast"
+      ],
+      "type": "object"
     },
     "IntroduceEffects": {
       "additionalProperties": false,
@@ -5357,6 +5595,13 @@
           "type": "string"
         }
       ]
+    },
+    "Lamp": {
+      "enum": [
+        "warm",
+        "white"
+      ],
+      "type": "string"
     },
     "LaneStyle": {
       "enum": [
@@ -6776,6 +7021,51 @@
       ],
       "type": "object"
     },
+    "OptionDef2": {
+      "additionalProperties": false,
+      "description": "One arrangement of a part of the room.",
+      "properties": {
+        "hotspots": {
+          "items": {
+            "$ref": "#/$defs/HotspotDef"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "patches": {
+          "items": {
+            "$ref": "#/$defs/PatchDef"
+          },
+          "type": "array"
+        },
+        "pieces": {
+          "items": {
+            "$ref": "#/$defs/PieceDef"
+          },
+          "type": "array"
+        },
+        "spots": {
+          "items": {
+            "$ref": "#/$defs/SpotDef"
+          },
+          "type": "array"
+        },
+        "weight": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "pieces"
+      ],
+      "type": "object"
+    },
     "OutletDef": {
       "additionalProperties": false,
       "description": "An outlet template (DEC-034): generated per town, region, or nation when\nplay begins.",
@@ -6983,6 +7273,20 @@
       ],
       "type": "object"
     },
+    "PartRef": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/Weighted3"
+          },
+          "type": "array"
+        }
+      ],
+      "description": "A part id, or alternatives the seed picks between."
+    },
     "PartyIdParams": {
       "additionalProperties": false,
       "description": "Mover–stayer party attachment (DEC-071 §3).",
@@ -7056,6 +7360,62 @@
         "any",
         "same",
         "other"
+      ],
+      "type": "string"
+    },
+    "PatchDef": {
+      "additionalProperties": false,
+      "description": "A patch of floor: another surface, a rug or a dais.",
+      "properties": {
+        "h": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/PatchKind"
+        },
+        "ramps": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "surface": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "w": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "x": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "y": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "type": "object"
+    },
+    "PatchKind": {
+      "enum": [
+        "surface",
+        "rug",
+        "dais"
       ],
       "type": "string"
     },
@@ -7135,6 +7495,86 @@
       ],
       "type": "object"
     },
+    "PieceDef": {
+      "additionalProperties": false,
+      "description": "One placed part: on floor tiles, or on the back wall (a column and a\nheight `wy`, or standing on the floor line), or over the entrance (`front`).",
+      "properties": {
+        "chance": {
+          "description": "Present with this chance (0..1), keyed by the seed.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dx": {
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "dy": {
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "floor": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "front": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "len": {
+          "description": "Strips: length in tiles.",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "mirror": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "part": {
+          "$ref": "#/$defs/PartRef"
+        },
+        "wy": {
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "x": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "y": {
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "part",
+        "x"
+      ],
+      "type": "object"
+    },
     "PitchParams": {
       "additionalProperties": false,
       "description": "Pitching a bill (the shared lobbying formula and odds).",
@@ -7192,6 +7632,13 @@
         "id": {
           "description": "Content id, e.g. `place.council_chamber`.",
           "type": "string"
+        },
+        "interior": {
+          "description": "The interior recipe the player walks into (DEC-088; `interiors.jsonc`\nid), presentation data like `layout`. A kind without one keeps the\nplace panel.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "key": {
           "description": "Snake-case place kind, as worldgen names it (e.g. `council_chamber`),\nor a pseudo-location (`home`, `streets`).",
@@ -7492,6 +7939,13 @@
         "every_days"
       ],
       "type": "object"
+    },
+    "Pose": {
+      "enum": [
+        "stand",
+        "sit"
+      ],
+      "type": "string"
     },
     "Power": {
       "enum": [
@@ -7805,6 +8259,43 @@
       "required": [
         "id",
         "cast"
+      ],
+      "type": "object"
+    },
+    "RoleRamps": {
+      "additionalProperties": false,
+      "description": "The variable material roles' ramps, one picked per room by the seed.",
+      "properties": {
+        "acc": {
+          "items": {
+            "$ref": "#/$defs/Weighted3"
+          },
+          "type": "array"
+        },
+        "acc2": {
+          "items": {
+            "$ref": "#/$defs/Weighted3"
+          },
+          "type": "array"
+        },
+        "uph": {
+          "items": {
+            "$ref": "#/$defs/Weighted3"
+          },
+          "type": "array"
+        },
+        "wood": {
+          "items": {
+            "$ref": "#/$defs/Weighted3"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "wood",
+        "uph",
+        "acc",
+        "acc2"
       ],
       "type": "object"
     },
@@ -9016,6 +9507,47 @@
       ],
       "type": "object"
     },
+    "SpotDef": {
+      "additionalProperties": false,
+      "description": "Where a person present stands or sits, by role.",
+      "properties": {
+        "facing": {
+          "$ref": "#/$defs/Facing"
+        },
+        "id": {
+          "type": "string"
+        },
+        "pose": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Pose"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "role": {
+          "type": "string"
+        },
+        "x": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "y": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "x",
+        "y",
+        "facing"
+      ],
+      "type": "object"
+    },
     "StageDef": {
       "oneOf": [
         {
@@ -9638,6 +10170,27 @@
       ],
       "type": "object"
     },
+    "SurfaceRef": {
+      "additionalProperties": false,
+      "description": "A surface of the art pack and its ramps (a second ramp for two-colour surfaces).",
+      "properties": {
+        "ramps": {
+          "description": "Ramp references: a palette ramp (`stone`, `grass+1`) or a material role (`@wood`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "surface": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface",
+        "ramps"
+      ],
+      "type": "object"
+    },
     "TalkCost": {
       "description": "What a conversation costs (DEC-073; owner, 2026-11-19: half a slot).",
       "oneOf": [
@@ -10240,6 +10793,25 @@
         "national"
       ],
       "type": "string"
+    },
+    "TilePos": {
+      "additionalProperties": false,
+      "description": "A floor tile.",
+      "properties": {
+        "x": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "y": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
     },
     "TopicDef": {
       "additionalProperties": false,
@@ -11004,6 +11576,62 @@
       ],
       "type": "string"
     },
+    "WallBand": {
+      "additionalProperties": false,
+      "description": "A lower band of the back wall (dado panelling, tiles), `h` px high.",
+      "properties": {
+        "h": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "ramps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "surface": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface",
+        "ramps",
+        "h"
+      ],
+      "type": "object"
+    },
+    "WallStyle": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "lower": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WallBand"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trim": {
+          "description": "The cornice, dado rail, skirting and window frames' ramp.",
+          "type": "string"
+        },
+        "upper": {
+          "$ref": "#/$defs/SurfaceRef"
+        }
+      },
+      "required": [
+        "id",
+        "upper",
+        "trim"
+      ],
+      "type": "object"
+    },
     "WaterFeature": {
       "description": "Water a town or neighbourhood can have.",
       "oneOf": [
@@ -11023,6 +11651,90 @@
           "type": "string"
         }
       ]
+    },
+    "Weighted": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WeightedValue"
+        },
+        {
+          "$ref": "#/$defs/SurfaceRef"
+        }
+      ],
+      "description": "A value, or a value with a weight for the seed's pick (default weight 1)."
+    },
+    "Weighted2": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WeightedValue2"
+        },
+        {
+          "$ref": "#/$defs/WallStyle"
+        }
+      ],
+      "description": "A value, or a value with a weight for the seed's pick (default weight 1)."
+    },
+    "Weighted3": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WeightedValue3"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "description": "A value, or a value with a weight for the seed's pick (default weight 1)."
+    },
+    "WeightedValue": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/SurfaceRef"
+        },
+        "weight": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "WeightedValue2": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/WallStyle"
+        },
+        "weight": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "WeightedValue3": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "weight": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "weight"
+      ],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -11727,6 +12439,27 @@
         },
         "kind": {
           "const": "connectors",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Interior recipes: the rooms of enterable places (DEC-088, DEC-098 §4).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/InteriorRecipe"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "interiors",
           "type": "string"
         }
       },

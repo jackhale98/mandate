@@ -28,6 +28,21 @@ newspaper: NewspaperView | null,
  */
 people: Array<PersonRefView>, 
 /**
+ * How each of `people` is here, in the same order (DEC-088 interiors:
+ * the room puts people on its spots by this, never by office or name):
+ * `presiding` (heads the body or office that sits here), `member` (sits
+ * in that body), `works` (works here), or `visitor`.
+ */
+here_as: Array<string>, 
+/**
+ * The interior the player walks into from the street (DEC-088), when
+ * the place kind names one: its recipe (`interiors.jsonc`, the highest
+ * version of the kind's `interior` id) as the content's JSON, which the
+ * client composes the room from (presentation data the engine
+ * validates and never reads; the art pack's `InteriorRecipe` shape).
+ */
+interior: unknown, 
+/**
  * Pending decisions whose scene happens here (DEC-079: going there adds
  * the conversation; they can always be answered from the pocket).
  */
