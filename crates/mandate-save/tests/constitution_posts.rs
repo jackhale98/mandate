@@ -175,6 +175,10 @@ fn v18_paths_migrate_to_posts() {
 /// `lost_seat` ending). Checked against the previous golden: only `act` (new)
 /// and `meta.content_hash` (the new content files) changed. The comparison
 /// stays the whole state, strict, with no carve-outs.
+///
+/// Re-recorded for R2 (offices from the constitution in the protocol): the
+/// locale's role, race and filing keys changed; checked against the previous
+/// golden, only `meta.content_hash` differs.
 #[test]
 fn v18_save_continues_identically() {
     let c = content();
