@@ -87,12 +87,17 @@ pub enum EventKind {
         count: u32,
     },
     RaceDecided {
+        /// The jurisdiction's raw id (the town, for a local race).
         municipality: u32,
+        /// The race was for an office (not a seat in a body).
         mayor: bool,
         winner: u32,
         incumbent_defeated: bool,
         player_won: bool,
         player_ran: bool,
+        /// The post decided (DEC-098); absent in events from older saves.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        post: Option<crate::politics::Post>,
     },
     ElectionHeld {
         races: u32,

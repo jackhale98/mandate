@@ -10,7 +10,8 @@ id: string,
  */
 name_key: string, 
 /**
- * How strongly it is felt (0..1.5; the town's level, adjusted for how
- * the residents in question lean).
+ * How strongly it is felt (0..1.5; its level in the neighbourhoods in
+ * question, from their own conditions, adjusted for how their residents
+ * lean).
  */
 weight: number, };

@@ -35,6 +35,7 @@ import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
 import { EMPTY_TRANSLATOR, Translator } from "../i18n/fluent";
 import { saveStore } from "../persistence/indexedDbStore";
 import { deviceId, randomHex, type RunSummary } from "../persistence/saveStore";
+import { noteCommand, recordError } from "./reportStore";
 import { isWide, readMapScope, readPocketDocked, readPocketTab, writeMapScope, writePocketDocked, writePocketTab, type MapScope, type PocketTab } from "./devicePrefs";
 
 export type { MapScope, PocketTab } from "./devicePrefs";
@@ -61,6 +62,22 @@ export interface Passage {
   /** Days the turn spans (`OverviewView.turn_days`). */
   days: number;
   /** Counts passages (a new one restarts the timeline). */
+  id: number;
+}
+
+/**
+ * Inside a place (DEC-088): the interior the player walked into from the
+ * street. The engine has the player at the place (as after `visit`); the room
+ * is presentation, composed on the client from the recipe and a keyed seed.
+ */
+export interface InteriorState {
+  location: LocationDto;
+  place: number;
+  /** The recipe's id (the room itself comes with the place view, `interiorPlace.interior`). */
+  recipe: string;
+  /** The town layout's seed (the room's seed is keyed by it and the place). */
+  townSeed: number;
+  /** Counts entries (a new one remounts the room). */
   id: number;
 }
 
@@ -125,6 +142,10 @@ interface GameState {
   electionNight: boolean;
   /** The night between turns, while it is shown. */
   passage: Passage | null;
+  /** The interior the player is in (DEC-088), or null in the street. */
+  interior: InteriorState | null;
+  /** The place view for the interior (who is here, what it offers now), refreshed after every command. */
+  interiorPlace: PlacePanelView | null;
   /** Opens when the passage ends (it never covers the passage). */
   afterPassage: { electionNight: boolean };
   toast: { key: string; args: Record<string, string> } | null;
@@ -155,6 +176,15 @@ interface GameState {
   visit(location: LocationDto): Promise<void>;
   /** Open a location's panel without moving. */
   openPanel(location: LocationDto | null): Promise<void>;
+  /**
+   * Walk in from the street (DEC-088): move there (free) and enter the place's
+   * interior when its view carries one the client can draw (`canEnter` gives
+   * its recipe id), else open its panel, as `visit` does. The Places tab and
+   * the town map use `visit`.
+   */
+  walkIn(location: LocationDto, townSeed: number, canEnter: (interior: unknown) => string | null): Promise<void>;
+  /** Out of the interior, back to the street at its door. */
+  leaveInterior(): void;
   /** Open (or close, with null) a character's sheet. */
   openCharacter(id: number | null): Promise<void>;
   /** Meet a passer-by where the player is, then open their sheet. */
@@ -225,6 +255,7 @@ let skipResolve: (() => void) | null = null;
 /** Going somewhere or opening a sheet closes the pocket, unless it is docked open beside the town. */
 const pocketAfterMove = (s: { pocketOpen: boolean; pocketDocked: boolean }) => ({ pocketOpen: s.pocketOpen && s.pocketDocked && isWide() });
 let passageCount = 0;
+let interiorCount = 0;
 
 export const useGame = create<GameState>((set, get) => {
   /** Persist the running game as the run's next revision (Ironman: every turn). */
@@ -289,6 +320,8 @@ export const useGame = create<GameState>((set, get) => {
     walking: null,
     electionNight: false,
     passage: null,
+    interior: null,
+    interiorPlace: null,
     afterPassage: { electionNight: false },
     toast: null,
     progress: null,
@@ -328,7 +361,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: localKnowledge ?? false } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -363,7 +396,14 @@ export const useGame = create<GameState>((set, get) => {
         const talking = get().talkTo;
         // A passer-by met elsewhere (or gone with the period) is no longer there to talk to: the panel closes.
         const talk = talking ? await q({ type: "talk", to: talking, late_night: get().talkLate }).then((b) => expectKind(b, "talk"), () => null) : null;
+        // Inside a place: its view follows (who is here, what it offers now); moved elsewhere, back to the street.
+        const inside = get().interior;
+        const pocketNow = expectKind(pocket, "pocket");
+        const stays = inside !== null && sameLocation(pocketNow.location.location, inside.location);
+        const interiorPlace = stays && inside ? expectKind(await q({ type: "place", location: inside.location }), "place") : null;
         set({
+          interior: stays ? inside : null,
+          interiorPlace,
           notebook,
           talkTo: talk ? talking : null,
           character,
@@ -405,6 +445,7 @@ export const useGame = create<GameState>((set, get) => {
       const run = get().run;
       if (!run || get().busy) return null;
       set({ busy: true, error: null });
+      noteCommand(cmd);
       try {
         const body = await engine().request({ kind: "command", payload: cmd });
         const applied = expectKind(body, "command_applied");
@@ -452,6 +493,28 @@ export const useGame = create<GameState>((set, get) => {
       set({ ...pocketAfterMove(get()), view: "town" });
       if (!here || !sameLocation(here, location)) await get().command({ type: "move_to", location });
       await get().openPanel(location);
+    },
+
+    async walkIn(location, townSeed, canEnter) {
+      if (location.type !== "place") return get().visit(location);
+      const here = get().pocket?.location.location;
+      set({ ...pocketAfterMove(get()), view: "town" });
+      if (!here || !sameLocation(here, location)) await get().command({ type: "move_to", location });
+      try {
+        const v = expectKind(await engine().request({ kind: "query", payload: { type: "place", location } }), "place");
+        const recipe = v.here ? canEnter(v.interior) : null;
+        if (recipe) {
+          set({ interior: { location, place: location.place, recipe, townSeed, id: ++interiorCount }, interiorPlace: v, openPlace: null, place: null });
+          return;
+        }
+        set({ openPlace: location, place: v });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    leaveInterior() {
+      set({ interior: null, interiorPlace: null });
     },
 
     async openPanel(location) {
@@ -609,6 +672,7 @@ export const useGame = create<GameState>((set, get) => {
         // What is new now stays marked while the player looks.
         const before = expectKind(await q({ type: "notebook" }), "notebook");
         set({ notebook: before, notebookFresh: [...new Set([...get().notebookFresh, ...freshKeys(before)])] });
+        noteCommand({ type: "notebook_seen" });
         expectKind(await engine().request({ kind: "command", payload: { type: "notebook_seen" } }), "command_applied");
         await persist();
         const [pocket, notebook] = await Promise.all([q({ type: "pocket" }), q({ type: "notebook" })]);
@@ -685,6 +749,7 @@ export const useGame = create<GameState>((set, get) => {
         error: null,
         passage: from ? { phase: "dusk", from: from.date, to: null, days: from.turn_days, id: ++passageCount } : null,
       });
+      noteCommand({ type: "end_turn" });
       try {
         const body = await engine().request({ kind: "command", payload: { type: "end_turn" } });
         set({ overview: expectKind(body, "command_applied").overview, toast: null });
@@ -719,7 +784,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, talk: null, exchange: null, openPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -734,7 +799,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });
@@ -752,4 +817,9 @@ export const useGame = create<GameState>((set, get) => {
       set({ error: null });
     },
   };
+});
+
+// Every error the app shows is kept for "Report a problem" (the last few).
+useGame.subscribe((s, prev) => {
+  if (s.error && s.error !== prev.error) recordError(s.error);
 });

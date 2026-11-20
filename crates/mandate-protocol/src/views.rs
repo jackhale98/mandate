@@ -307,6 +307,7 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             incumbent_defeated,
             player_won,
             player_ran,
+            ..
         } => {
             put("town", muni_name(engine, *municipality));
             let name = engine

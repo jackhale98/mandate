@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (17, "b5bd61a2cd00250f");
+    const EXPECTED: (u16, &str) = (20, "1f0393f45dcdfbb5");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -1159,8 +1159,14 @@ fn v13_files_decode_with_town_baselines() {
     assert_eq!(read.format_version, 13);
     // Exposure comes from the save's profile (no terrain in a save), and the
     // history's damage, displacement and impact are not on record; the
-    // knowledge ledger is seeded on load, not migrated. The rest is identical.
+    // knowledge ledger is seeded on load, not migrated; neighbourhood
+    // concerns are derived on load (v18), and the town levels this
+    // payload holds (felt, as written today) stand in for the measured ones
+    // an older build wrote. The rest is identical.
     let st = e.state();
+    assert!(state.population.hood_concerns.is_empty());
+    state.population.hood_concerns = st.population.hood_concerns.clone();
+    state.population.town_concerns = st.population.town_concerns.clone();
     state.environment.exposure = st.environment.exposure.clone();
     state.environment.hood_damage = st.environment.hood_damage.clone();
     state.population.hood_impact = st.population.hood_impact.clone();
@@ -1369,4 +1375,99 @@ fn v15_saves_migrate_to_hazard_exposure() {
     let (old, read) = decode(&old_file(e.state(), &v, 15)).unwrap();
     assert_eq!(read.format_version, 15);
     assert_eq!(old.environment.exposure, exposure);
+}
+
+/// The format after v17 added neighbourhood concerns (N1). A v17 save's town
+/// levels were measured from the town-wide indicators: they become the
+/// measured levels, beside the salience they produced, so the town's
+/// politics are unchanged. Each neighbourhood's levels and the felt town
+/// levels that aggregate them are derived on load, the same every time; the
+/// run plays on and round-trips.
+#[test]
+fn v17_saves_migrate_to_neighbourhood_concerns() {
+    let c = content();
+    let mut e = generate(
+        &WorldConfig {
+            seed: 68,
+            size: WorldSize::Small,
+            scenario: None,
+        },
+        c.clone(),
+    )
+    .unwrap();
+    e.apply(Command::AdvanceDays { days: 400 }).unwrap();
+    let st = e.state();
+    // The shape of a v17 payload: a town's levels are its measured ones; no
+    // neighbourhood levels.
+    let mut v = serde_json::json!({ "state": serde_json::to_value(st).unwrap() });
+    {
+        let pop = v
+            .pointer_mut("/state/population")
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        pop.remove("hood_concerns");
+        for t in pop["town_concerns"].as_array_mut().unwrap() {
+            let t = t.as_object_mut().unwrap();
+            let measured = t.remove("measured").unwrap();
+            t.insert("levels".into(), measured);
+        }
+    }
+    assert!(
+        serde_json::from_value::<mandate_sim::State>(v["state"].clone()).is_err(),
+        "the older payload lacks neighbourhood concerns"
+    );
+    let migrated = mandate_save::migrate(17, v.clone()).unwrap();
+    assert_eq!(migrated, mandate_save::migrate(17, v.clone()).unwrap());
+    let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    assert!(state.population.hood_concerns.is_empty());
+    for (t, o) in state
+        .population
+        .town_concerns
+        .iter()
+        .zip(&st.population.town_concerns)
+    {
+        assert_eq!(t.measured, o.measured);
+        assert_eq!(t.salience, o.salience);
+    }
+    // On load: neighbourhood levels and the felt town levels are derived as
+    // the monthly refresh derives them; measured levels and salience stay.
+    let loaded = mandate_sim::Engine::from_state(state.clone(), c.clone()).unwrap();
+    let again = mandate_sim::Engine::from_state(state, c.clone()).unwrap();
+    assert_eq!(loaded.state_hash(), again.state_hash());
+    let pop = &loaded.state().population;
+    let (towns, hoods) = mandate_sim::concerns::compute_all(
+        &mandate_sim::scheduler::Reads::of_state(loaded.state(), &c),
+        pop,
+    );
+    assert_eq!(pop.hood_concerns, hoods);
+    assert_eq!(
+        pop.hood_concerns.len(),
+        loaded.state().world.neighborhoods.len()
+    );
+    for ((t, n), o) in pop
+        .town_concerns
+        .iter()
+        .zip(&towns)
+        .zip(&st.population.town_concerns)
+    {
+        assert_eq!(t.levels, n.levels);
+        assert_eq!(t.measured, o.measured);
+        assert_eq!(t.salience, o.salience);
+    }
+    // Play on; the file is the current format and round-trips.
+    let mut e2 = loaded;
+    for _ in 0..6 {
+        e2.apply(Command::EndTurn).unwrap();
+    }
+    let (bytes, meta) = encode(e2.state(), &req()).unwrap();
+    assert_eq!(meta.format_version, SAVE_FORMAT_VERSION);
+    let (back, _) = decode(&bytes).unwrap();
+    assert_eq!(back.hash(), e2.state_hash());
+    // And an old file decodes through the chain.
+    let (old, read) = decode(&old_file(e.state(), &v, 17)).unwrap();
+    assert_eq!(read.format_version, 17);
+    assert!(old.population.hood_concerns.is_empty());
+    let old = mandate_sim::Engine::from_state(old, c).unwrap();
+    assert_eq!(old.state().population.hood_concerns, hoods);
 }

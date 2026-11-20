@@ -469,7 +469,7 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
     } else {
         pl.slots_left() == 0 && !half_slot_left
     };
-    let role = characters::knows::role_key(st, id);
+    let role = characters::knows::role_key(st, content, id);
     let mut topics = Vec::new();
     for t in &content.talk_topics {
         // Who it is offered to does not depend on where they stand.

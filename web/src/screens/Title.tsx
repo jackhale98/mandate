@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGame } from "../state/gameStore";
+import { useReport } from "../state/reportStore";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
 import { formatDate } from "../i18n/format";
@@ -26,6 +27,7 @@ export function Title() {
   const tellerDesc = storytellers.find((s) => s.id === chosenTeller)?.desc_key;
   const progress = useGame((s) => s.progress);
   const [notice, setNotice] = useState<TransferNotice | null>(null);
+  const openReport = useReport((s) => s.openReport);
 
   const start = () => {
     const trimmed = seed.trim();
@@ -162,7 +164,13 @@ export function Title() {
         <ImportRun onNotice={setNotice} />
         <TransferStatus notice={notice} />
       </section>
-      <footer className="foot muted">v{__APP_VERSION__}</footer>
+      <footer className="foot muted">
+        v{__APP_VERSION__}{" "}
+        {/* After a crash and a reload, testers land here: the report takes the latest saved game. */}
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => openReport("title")} data-testid="report-problem-title">
+          {tr.t("ui-report")}
+        </button>
+      </footer>
     </main>
   );
 }

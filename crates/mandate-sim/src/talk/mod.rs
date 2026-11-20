@@ -263,16 +263,17 @@ enum Mech {
     FavourNone,
 }
 
-/// A colleague: a politician in office in the player's town (not the player).
+/// A colleague: the holder of a post whose jurisdiction is in the player's
+/// focus (not the player; DEC-098).
 fn colleague(state: &State, c: CharacterId) -> Option<PoliticianId> {
-    let pl = state.player.as_ref()?;
+    let focus = state.focus();
     let p = state
         .politics
         .characters
         .get(c)?
         .politician
         .and_then(|p| state.politics.get(p))?;
-    (p.in_office() && !p.is_player && p.municipality() == pl.municipality.0).then_some(p.id)
+    (!p.is_player && p.role.post().is_some_and(|post| focus.contains(&post.at()))).then_some(p.id)
 }
 
 fn plan(
@@ -423,7 +424,8 @@ fn prepare(
     }
     check_about(state, content, topic, about)?;
     let o = &topic.offered;
-    if !o.roles.is_empty() && !knows::role_key(state, speaker).is_some_and(|r| o.roles.contains(&r))
+    if !o.roles.is_empty()
+        && !knows::role_key(state, content, speaker).is_some_and(|r| o.roles.contains(&r))
     {
         return Err(bad("they are not the person to ask about that"));
     }

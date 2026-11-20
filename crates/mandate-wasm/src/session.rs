@@ -3,9 +3,11 @@
 
 use mandate_content::ContentBundle;
 use mandate_protocol::*;
-use mandate_save::{RunMode, SaveRequest};
+use mandate_save::runlog::{ReplayOutcome, replay};
+use mandate_save::{NewGameSetup, RunLog, RunMode, SaveRequest};
 use mandate_sim::{Command, Engine};
 use mandate_worldgen::{WorldConfig, WorldSize, generate_with_progress, rebuild_terrain};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// Progress callback: (Fluent stage key, fraction 0..1).
@@ -18,6 +20,73 @@ pub struct Session {
     progress: Option<ProgressFn>,
     /// `LayoutContentView`, built once per content hash.
     layout: Option<LayoutContentView>,
+    /// The running game's run log (bug reports), without its commands:
+    /// those are the engine's own log.
+    log: Option<RunLog>,
+}
+
+/// What the engine contributes to a bug report (`reportCore`): the versions,
+/// the state hash now, and the run log with every command since the start.
+/// The client adds the save, recent errors, device facts and the tester's
+/// description (`web/src/components/report`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ReportCore {
+    pub engine_version: String,
+    pub content_hash: String,
+    pub protocol_version: u32,
+    pub save_format_version: u16,
+    pub state_hash: String,
+    pub turn: u32,
+    pub date: DateView,
+    pub log: RunLog,
+}
+
+/// The part of a report file a replay reads.
+#[derive(Deserialize)]
+struct ReportLog {
+    log: RunLog,
+}
+
+/// Generate a new game's world and apply its setup: the one path to a new
+/// game, for players and for replays (`replay_report`, `mandate-cli replay`
+/// does the same natively).
+pub fn start_game(
+    content: &Arc<ContentBundle>,
+    setup: &NewGameSetup,
+    progress: &mut dyn FnMut(&str, f64),
+) -> Result<Engine, ProtocolError> {
+    if let Some(k) = &setup.scenario
+        && content.scenario(k).is_none()
+    {
+        return Err(err(
+            ErrorCode::BadRequest,
+            format!("unknown scenario `{k}`"),
+        ));
+    }
+    if let Some(k) = &setup.storyteller
+        && content.storyteller(k).is_none()
+    {
+        return Err(err(
+            ErrorCode::BadRequest,
+            format!("unknown storyteller `{k}`"),
+        ));
+    }
+    let mut engine = generate_with_progress(
+        &WorldConfig {
+            seed: setup.seed,
+            size: setup.size,
+            scenario: setup.scenario.clone(),
+        },
+        content.clone(),
+        progress,
+    )
+    .map_err(|e| err(ErrorCode::Content, e.to_string()))?;
+    // The storyteller (DEC-033) and "Start with local knowledge" (DEC-091),
+    // chosen before play and kept in the save.
+    setup
+        .prepare(&mut engine)
+        .map_err(|e| err(ErrorCode::Content, e.to_string()))?;
+    Ok(engine)
 }
 
 fn err(code: ErrorCode, message: impl Into<String>) -> ProtocolError {
@@ -43,6 +112,7 @@ impl Session {
             engine: None,
             progress: None,
             layout: None,
+            log: None,
         })
     }
 
@@ -104,55 +174,25 @@ impl Session {
     fn dispatch(&mut self, body: RequestBody) -> Result<ResponseBody, ProtocolError> {
         match body {
             RequestBody::NewGame(p) => {
-                let size = match p.size {
-                    WorldSizeDto::Small => WorldSize::Small,
-                    WorldSizeDto::Medium => WorldSize::Medium,
-                    WorldSizeDto::Large => WorldSize::Large,
+                let setup = NewGameSetup {
+                    seed: p.seed,
+                    size: match p.size {
+                        WorldSizeDto::Small => WorldSize::Small,
+                        WorldSizeDto::Medium => WorldSize::Medium,
+                        WorldSizeDto::Large => WorldSize::Large,
+                    },
+                    scenario: p.scenario,
+                    storyteller: p.storyteller,
+                    local_knowledge: p.local_knowledge,
                 };
-                if let Some(k) = &p.scenario
-                    && self.content.scenario(k).is_none()
-                {
-                    return Err(err(
-                        ErrorCode::BadRequest,
-                        format!("unknown scenario `{k}`"),
-                    ));
-                }
-                if let Some(k) = &p.storyteller
-                    && self.content.storyteller(k).is_none()
-                {
-                    return Err(err(
-                        ErrorCode::BadRequest,
-                        format!("unknown storyteller `{k}`"),
-                    ));
-                }
                 let mut noop = |_: &str, _: f64| {};
                 let progress: &mut dyn FnMut(&str, f64) = match self.progress.as_mut() {
                     Some(f) => f.as_mut(),
                     None => &mut noop,
                 };
-                let engine = generate_with_progress(
-                    &WorldConfig {
-                        seed: p.seed,
-                        size,
-                        scenario: p.scenario.clone(),
-                    },
-                    self.content.clone(),
-                    progress,
-                )
-                .map_err(|e| err(ErrorCode::Content, e.to_string()))?;
-                let mut engine = engine;
-                if let Some(k) = &p.storyteller {
-                    // The run's storyteller (DEC-033): chosen before play, kept in the save.
-                    engine.setup(|s| s.narrative.profile = k.clone());
-                }
-                if p.local_knowledge {
-                    // "Start with local knowledge" (DEC-091): on top of the
-                    // default start profile, before any command.
-                    engine
-                        .set_knowledge_start(None, true)
-                        .map_err(|e| err(ErrorCode::Content, e.to_string()))?;
-                }
+                let engine = start_game(&self.content, &setup, progress)?;
                 let view = overview(&engine);
+                self.log = Some(RunLog::start(setup, &engine));
                 self.engine = Some(engine);
                 Ok(ResponseBody::GameStarted(view))
             }
@@ -161,12 +201,21 @@ impl Session {
                     CommandDto::EndTurn => Command::EndTurn,
                     CommandDto::AdvanceDays { days } => Command::AdvanceDays { days },
                     CommandDto::NotebookSeen => Command::NotebookSeen,
-                    other => Command::Player(player_command(other)?),
+                    other => Command::Player(player_command(self.engine.as_ref(), other)?),
                 };
-                let engine = self.engine_mut()?;
+                let engine = self
+                    .engine
+                    .as_mut()
+                    .ok_or_else(|| err(ErrorCode::NoGame, "no game is running"))?;
                 let outcome = engine
                     .apply(command)
                     .map_err(|e| err(ErrorCode::InvalidCommand, e.to_string()))?;
+                // A checkpoint for the bug-report replay after time passes.
+                if outcome.days_advanced > 0
+                    && let Some(log) = self.log.as_mut()
+                {
+                    log.checkpoint(engine);
+                }
                 Ok(ResponseBody::CommandApplied(CommandAppliedView {
                     days_advanced: outcome.days_advanced,
                     overview: overview(engine),
@@ -303,20 +352,77 @@ impl Session {
                 RunModeDto::Story => RunMode::Story,
             },
         };
-        mandate_save::encode(engine.state(), &r)
+        let log = self.log.as_ref().map(|l| l.with_commands(engine));
+        mandate_save::encode_with_log(engine.state(), log.as_ref(), &r)
             .map(|(b, _)| b)
             .map_err(|e| e.to_string())
     }
 
+    /// The engine's part of a bug report, as JSON (`ReportCore`).
+    pub fn report_core(&self) -> Result<String, String> {
+        let engine = self.engine.as_ref().ok_or("no game is running")?;
+        let st = engine.state();
+        let log = match &self.log {
+            Some(l) => l.with_commands(engine),
+            None => RunLog::unreplayable(engine, "no run log was kept"),
+        };
+        let core = ReportCore {
+            engine_version: mandate_core::ENGINE_VERSION.to_string(),
+            content_hash: self.content.content_hash.clone(),
+            protocol_version: PROTOCOL_VERSION,
+            save_format_version: mandate_save::SAVE_FORMAT_VERSION,
+            state_hash: engine.state_hash(),
+            turn: st.calendar.turn,
+            date: DateView::of(st.calendar.date),
+            log,
+        };
+        serde_json::to_string(&core).map_err(|e| e.to_string())
+    }
+
+    /// Replay a bug report's run log here (in WASM, for `mandate-cli replay
+    /// --wasm`), on an engine of its own: the running game is untouched.
+    /// Returns the `ReplayOutcome` as JSON.
+    pub fn replay_report(&self, report_json: &str, until: Option<u32>) -> Result<String, String> {
+        let r: ReportLog = serde_json::from_str(report_json).map_err(|e| e.to_string())?;
+        let setup = r
+            .log
+            .new_game
+            .as_ref()
+            .ok_or("this run cannot be replayed from its start")?;
+        let mut engine = start_game(&self.content, setup, &mut |_, _| {}).map_err(|e| e.message)?;
+        let outcome: ReplayOutcome = replay(&mut engine, &r.log, until);
+        serde_json::to_string(&outcome).map_err(|e| e.to_string())
+    }
+
     /// Replace the running game with a decoded save; returns its overview.
     pub fn import_save(&mut self, bytes: &[u8]) -> Result<OverviewView, String> {
-        let (state, _) = mandate_save::decode(bytes).map_err(|e| e.to_string())?;
+        let (state, log, _) = mandate_save::decode_with_log(bytes).map_err(|e| e.to_string())?;
+        // Loaded under other rules (DEC-074), the run can no longer be
+        // rebuilt from its start: its log starts again here.
+        let same_rules = state.meta.content_hash == self.content.content_hash
+            && state.meta.engine_version == mandate_core::ENGINE_VERSION;
+        let rules = format!(
+            "the rules changed at turn {} (engine {} to {}, content {} to {})",
+            state.calendar.turn,
+            state.meta.engine_version,
+            mandate_core::ENGINE_VERSION,
+            state.meta.content_hash.get(..12).unwrap_or_default(),
+            self.content.content_hash.get(..12).unwrap_or_default(),
+        );
         // The terrain raster is derived from the seed (DEC-044 rev. 2 keeps saves small).
         let (terrain, _matches) =
             rebuild_terrain(&state, &self.content).map_err(|e| e.to_string())?;
         let mut engine =
             Engine::from_state(state, self.content.clone()).map_err(|e| e.to_string())?;
         engine.set_terrain(Arc::new(terrain));
+        self.log = Some(match log {
+            Some(mut log) if same_rules => {
+                engine.restore_log(std::mem::take(&mut log.commands));
+                log
+            }
+            Some(_) => RunLog::unreplayable(&engine, rules),
+            None => RunLog::unreplayable(&engine, "the run began before run logs were kept"),
+        });
         let view = overview(&engine);
         self.engine = Some(engine);
         Ok(view)
@@ -351,7 +457,10 @@ fn params(v: Vec<ParamValue>) -> std::collections::BTreeMap<String, f64> {
 }
 
 /// Protocol DTO → simulation command (the protocol never exposes lab commands).
-fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, ProtocolError> {
+fn player_command(
+    engine: Option<&mandate_sim::Engine>,
+    c: CommandDto,
+) -> Result<mandate_sim::actions::PlayerCommand, ProtocolError> {
     use mandate_sim::actions::{Action, PlayerCommand as P};
     use mandate_sim::policy::Clause;
     use mandate_sim::world::ConstituencyId;
@@ -375,7 +484,7 @@ fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, 
         CommandDto::Go { location, then } => P::Go {
             location: location.to_sim(),
             then: match then {
-                Some(c) => Some(Box::new(player_command(*c)?)),
+                Some(c) => Some(Box::new(player_command(engine, *c)?)),
                 None => None,
             },
         },
@@ -415,13 +524,21 @@ fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, 
                 VoteDto::Abstain => mandate_sim::politics::Vote::Abstain,
             },
         },
-        CommandDto::File { filing } => P::File {
-            filing: match filing {
-                FilingDto::Council => mandate_sim::politics::elections::Filing::Council,
-                FilingDto::Mayor => mandate_sim::politics::elections::Filing::Mayor,
-                FilingDto::Retire => mandate_sim::politics::elections::Filing::Retire,
-            },
-        },
+        CommandDto::File { filing } => {
+            // The DTO names the player's own seat or their town's executive
+            // office; the engine files for that constitution post (R2 sends
+            // the post itself).
+            use mandate_sim::politics::elections as el;
+            let engine = engine.ok_or_else(|| err(ErrorCode::InvalidCommand, "no game"))?;
+            let (state, content) = (engine.state(), engine.content());
+            let filing = match filing {
+                FilingDto::Council => el::seat_filing(state, content),
+                FilingDto::Mayor => el::executive_filing(state, content),
+                FilingDto::Retire => Some(el::Filing::Retire),
+            }
+            .ok_or_else(|| err(ErrorCode::InvalidCommand, "no such post to file for"))?;
+            P::File { filing }
+        }
         CommandDto::WithdrawPolicy { policy } => P::WithdrawPolicy { policy },
         CommandDto::Act { action, late_night } => P::Act {
             late_night,

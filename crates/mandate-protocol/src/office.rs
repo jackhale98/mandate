@@ -8,10 +8,10 @@ use mandate_content::{ParamDef, TierKey};
 use mandate_sim::actions::{lobby_odds, player_powers};
 use mandate_sim::player::knowledge::{Level, Subject};
 use mandate_sim::policy::{
-    Clause, PolicyInstance, PolicyStatus, council_leans, mayor_lean, public_support,
+    Clause, PolicyInstance, PolicyStatus, executive_lean, legislature_leans, public_support,
     sign_probability, support_by_class, yes_probability,
 };
-use mandate_sim::politics::{Politician, Role};
+use mandate_sim::politics::Politician;
 use mandate_sim::world::{ConstituencyId, MunicipalityId};
 use mandate_sim::{Engine, State};
 use serde::{Deserialize, Serialize};
@@ -360,8 +360,9 @@ pub struct ConcernView {
     pub id: String,
     /// Fluent key of its name, e.g. `concern-jobs`.
     pub name_key: String,
-    /// How strongly it is felt (0..1.5; the town's level, adjusted for how
-    /// the residents in question lean).
+    /// How strongly it is felt (0..1.5; its level in the neighbourhoods in
+    /// question, from their own conditions, adjusted for how their residents
+    /// lean).
     pub weight: f64,
 }
 
@@ -442,6 +443,18 @@ fn lean_label(p: f64) -> &'static str {
     }
 }
 
+/// `role-<word>` for a politician's post (its constitution role word), or
+/// `role-private` out of office.
+fn role_label(engine: &Engine, p: &Politician) -> String {
+    engine
+        .content()
+        .constitutions
+        .get(&engine.state().meta.constitution)
+        .and_then(|c| mandate_sim::politics::role_word(c, p))
+        .map(|w| format!("role-{w}"))
+        .unwrap_or_else(|| "role-private".into())
+}
+
 fn member_view(gate: &Gate<'_>, engine: &Engine, p: &Politician) -> MemberView {
     let st = engine.state();
     let content = engine.content();
@@ -471,16 +484,13 @@ fn member_view(gate: &Gate<'_>, engine: &Engine, p: &Politician) -> MemberView {
             )
         })
         .collect();
-    let (role_key, ward) = match p.role {
-        Role::Councillor { ward, .. } => ("role-councillor", Some(ward_number(st, ward))),
-        Role::Mayor { .. } => ("role-mayor", None),
-        Role::Private { .. } => ("role-private", None),
-    };
+    let role_key = role_label(engine, p);
+    let ward = p.role.constituency().map(|w| ward_number(st, w));
     MemberView {
         id: p.id.0,
         name: gate.name(p.character, full_name(p)),
         party: p.party.map(|x| x.0),
-        role_key: role_key.into(),
+        role_key,
         ward_number: ward,
         is_player: p.is_player,
         character: p.character.0,
@@ -519,18 +529,19 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let t = content.policies.get(&p.template)?;
     let hoods: Vec<usize> = st.world.hoods_of(MunicipalityId(p.jurisdiction)).collect();
     let pending = p.status == PolicyStatus::UnderConsideration || p.status == PolicyStatus::Draft;
-    let leans = if pending {
-        council_leans(
+    let constitution = content.constitutions.get(&st.meta.constitution);
+    let leans = match (pending, constitution) {
+        (true, Some(c)) => legislature_leans(
             &content.council,
+            c,
             &st.world,
             &st.population,
             &st.politics,
             st.meta.seed,
             t,
             p,
-        )
-    } else {
-        Vec::new()
+        ),
+        _ => Vec::new(),
     };
     let whip: Vec<WhipView> = leans
         .iter()
@@ -542,10 +553,11 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
                 name: gate.name(m.character, full_name(m)),
                 level: gate.person(m.character).into(),
                 party: m.party.map(|x| x.0),
-                ward_number: match m.role {
-                    Role::Councillor { ward, .. } => ward_number(st, ward),
-                    Role::Mayor { .. } | Role::Private { .. } => 0,
-                },
+                ward_number: m
+                    .role
+                    .constituency()
+                    .map(|w| ward_number(st, w))
+                    .unwrap_or(0),
                 lean: lean_label(prob).into(),
                 yes_probability: prob,
                 lobby_odds: if m.is_player {
@@ -565,7 +577,6 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let seats = whip.len() as u32;
     let expected_yes: f64 = whip.iter().map(|w| w.yes_probability).sum();
     let whip_exact = mandate_sim::places::player_has_service(st, content, "whip_exact");
-    let constitution = content.constitutions.get(&st.meta.constitution);
     let stages = constitution
         .and_then(|c| c.tier(p.tier))
         .and_then(|t| t.procedure("ordinance"))
@@ -579,11 +590,12 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     } else {
         None
     };
-    let mayor = if pending {
-        sign_probability(
+    let mayor = match (pending, constitution) {
+        (true, Some(c)) => sign_probability(
             &content.council,
-            mayor_lean(
+            executive_lean(
                 &content.council,
+                c,
                 &st.world,
                 &st.population,
                 &st.politics,
@@ -591,9 +603,9 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
                 t,
                 p,
             ),
-        )
-    } else {
-        1.0
+        ),
+        (true, None) => sign_probability(&content.council, 0.0),
+        (false, _) => 1.0,
     };
     let mayor_label = match mayor {
         x if x >= 0.85 => "sign",
@@ -848,7 +860,8 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
         .filter_map(|p| bill_view(engine, p))
         .collect();
     bills.sort_by_key(|b| (b.status == "ended", std::cmp::Reverse(b.id)));
-    let council = st.politics.councils.get(m.index());
+    let constitution = content.constitutions.get(&st.meta.constitution);
+    let at = mandate_sim::world::Jurisdiction::town(m);
     let detailed = mandate_sim::places::player_has_service(st, content, "town_data_detailed");
     let concerns_subject = Subject::TownConcerns { town: m };
     let concerns = gate_concerns(
@@ -865,12 +878,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
             politician: me.id.0,
             name: full_name(me),
             party: me.party.map(|x| x.0),
-            role_key: match me.role {
-                Role::Councillor { .. } => "role-councillor",
-                Role::Mayor { .. } => "role-mayor",
-                Role::Private { .. } => "role-private",
-            }
-            .into(),
+            role_key: role_label(engine, me),
             municipality: mu.name.clone(),
             municipality_id: m.0,
             ward_number: ward_number(st, pl.ward),
@@ -922,17 +930,18 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
         },
         catalog,
         bills,
-        council: council
+        // The town's legislature and executive (DTO unchanged until R2).
+        council: constitution
             .map(|c| {
-                c.members
+                mandate_sim::politics::legislature_of(&st.politics, c, at)
                     .iter()
                     .filter_map(|id| st.politics.get(*id))
                     .map(|p| member_view(&gate, engine, p))
                     .collect()
             })
             .unwrap_or_default(),
-        mayor: council
-            .and_then(|c| c.mayor)
+        mayor: constitution
+            .and_then(|c| mandate_sim::politics::executive_of(&st.politics, c, at))
             .and_then(|id| st.politics.get(id))
             .map(|p| member_view(&gate, engine, p)),
         town: TownView {
@@ -978,7 +987,8 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
 }
 
 /// What worries residents of some neighbourhoods of a town, strongest first:
-/// the engine's concern levels (DEC-078 decision 3), as felt by those
+/// the engine's concern levels in those neighbourhoods (DEC-078 decision 3;
+/// each from its own conditions, weighted by residents), as felt by those
 /// residents (`mandate_sim::concerns::felt_concerns`). Concerns at level 0
 /// are left out.
 pub fn concerns_for(
@@ -1001,7 +1011,8 @@ pub fn concerns_for(
         .collect()
 }
 
-/// A town's strongest concerns by level (at most `n`), for any town.
+/// A town's strongest concerns by level (at most `n`; its neighbourhoods'
+/// levels weighted by residents), for any town.
 pub fn town_concerns(engine: &Engine, m: MunicipalityId, n: usize) -> Vec<ConcernView> {
     let content = engine.content();
     mandate_sim::concerns::top_concerns(&engine.state().population, m.index())

@@ -288,7 +288,7 @@ export function composeInterior(r: InteriorRecipe, seed: number, pal: Palette, l
   const cols = r.cols;
   const rows = r.rows;
   const fx = BAND.side;
-  const fy = BAND.top + r.wallH;
+  const fy = BAND.top + r.wall_h;
   const W = cols * 16 + 2 * BAND.side;
   const H = fy + rows * 16 + BAND.front;
   const base = blank(W, H);
@@ -317,7 +317,7 @@ export function composeInterior(r: InteriorRecipe, seed: number, pal: Palette, l
     for (let x = x0; x < x1; x++) base.px[y * W + x] = v;
   };
   const wallTop = BAND.top;
-  fillSurface(wallStyle.upper, fx, wallTop, cols * 16, r.wallH);
+  fillSurface(wallStyle.upper, fx, wallTop, cols * 16, r.wall_h);
   if (wallStyle.lower) {
     const lh = wallStyle.lower.h;
     fillSurface(wallStyle.lower, fx, fy - lh, cols * 16, lh);
@@ -442,7 +442,7 @@ export function composeInterior(r: InteriorRecipe, seed: number, pal: Palette, l
     let y: number;
     if (def.kind === "wall") {
       x = fx + piece.x * 16 + 8 - Math.floor(slots.w / 2) + (piece.dx ?? 0);
-      y = piece.floor ? fy - slots.h : wallTop + (piece.wy ?? Math.floor(r.wallH / 2)) - Math.floor(slots.h / 2) + (piece.dy ?? 0);
+      y = piece.floor ? fy - slots.h : wallTop + (piece.wy ?? Math.floor(r.wall_h / 2)) - Math.floor(slots.h / 2) + (piece.dy ?? 0);
     } else {
       x = fx + piece.x * 16 + 8 - Math.floor(slots.w / 2) + (piece.dx ?? 0);
       y = fy + (piece.y ?? 0) * 16 + 8 - Math.floor(slots.h / 2) + (piece.dy ?? 0);
@@ -602,7 +602,7 @@ export function composeInterior(r: InteriorRecipe, seed: number, pal: Palette, l
     w: W,
     h: H,
     floor: { x: fx, y: fy },
-    wallH: r.wallH,
+    wallH: r.wall_h,
     base,
     outdoor,
     baseGlow,
@@ -655,8 +655,8 @@ export function validateRecipe(r: InteriorRecipe): string[] {
         if (def.kind === "wall" && !p.front) {
           if (p.x < 0 || p.x >= r.cols) errs.push(`${tag} ${a}: wall column ${p.x} outside the room`);
           const slots = partSlots(a, p.len ?? 1);
-          const top = p.floor ? r.wallH - slots.h : (p.wy ?? 0) - Math.floor(slots.h / 2);
-          if (top < 0 || top + slots.h > r.wallH) errs.push(`${tag} ${a}: off the wall face (top ${top}, height ${slots.h}, wall ${r.wallH})`);
+          const top = p.floor ? r.wall_h - slots.h : (p.wy ?? 0) - Math.floor(slots.h / 2);
+          if (top < 0 || top + slots.h > r.wall_h) errs.push(`${tag} ${a}: off the wall face (top ${top}, height ${slots.h}, wall ${r.wall_h})`);
         }
         if (def.kind === "top" && !inside(p.x, p.y ?? 0)) errs.push(`${tag} ${a}: at (${p.x}, ${p.y}) outside the room`);
         if (t) {
@@ -712,7 +712,9 @@ export function validateRecipe(r: InteriorRecipe): string[] {
       if (!touches) errs.push(`${tag} hotspot ${h.id}: its stand (${h.stand.x}, ${h.stand.y}) is not next to it`);
       const sk = h.stand.y * r.cols + h.stand.x;
       const spot = tiles.get(sk);
-      if (spot && !(spot === "player" && h.id === "vote")) errs.push(`${tag} hotspot ${h.id}'s stand is spot ${spot}'s tile`);
+      // The player's own seat may be where the player stands to use a hotspot (the chamber's vote).
+      const own = arr.spots.find((s) => s.id === spot)?.role === "player";
+      if (spot && !own) errs.push(`${tag} hotspot ${h.id}'s stand is spot ${spot}'s tile`);
     }
   }
   return errs;
@@ -740,7 +742,7 @@ export function placeholderLook(role: string, seed: number): Look {
   switch (role) {
     case "chair":
       return { ...suit("cloth_mustard"), bottomRamp: "cloth_charcoal" };
-    case "councillor":
+    case "member":
     case "player": {
       const s = suit(["cloth_red", "cloth_sky", "cloth_green", "cloth_mustard"][seed % 4] as string);
       return { ...s, bottomRamp: s.topRamp };
@@ -805,12 +807,30 @@ export const lampLevel = (lights: number) => {
 const LAMP_TINT: Record<"warm" | "white", Rgb8> = { warm: [255, 186, 104], white: [255, 222, 164] };
 
 /**
- * Render a room at a time of day (minutes after midnight), with actors, to RGBA.
- * Indoors: a softened share of the street's grade by day; by night the
- * recipe's share of it under the lamp tint, and the lamps' banded pools.
- * Through the windows: the street's own palette-moods colour for that time.
+ * The light in a room at a time of day: everything the grade needs that does
+ * not depend on what is drawn. `light` multiplies the albedo of every indoor
+ * pixel (ambient, daylight under the windows, lamp and ceiling pools);
+ * outdoor pixels (the view through the glass) take the street's own
+ * palette-moods colour for the hour. Shared by `renderInterior` (the sheets)
+ * and the game's canvas renderer (`gradeRoom`, `gradeImage`), so both grade
+ * alike.
  */
-export function renderInterior(room: InteriorRoom, pal: Palette, lighting: Lighting, minutes: number, actors: readonly Actor[] = []): RgbaImage {
+export interface InteriorGrade {
+  w: number;
+  h: number;
+  minutes: number;
+  rgb: Rgb8[];
+  /** Per pixel and channel. */
+  light: Float32Array;
+  /** How lit the lamps are (0..1). */
+  lamp: number;
+  mood: Rgb8[];
+  spriteMul: number[];
+  lampRgb: Rgb8;
+  seed: number;
+}
+
+export function interiorGrade(room: InteriorRoom, pal: Palette, lighting: Lighting, minutes: number): InteriorGrade {
   const { w: W, h: H } = room;
   const rgb = pal.colors.map(hexToRgb);
   const n = lighting.entries.length;
@@ -828,83 +848,8 @@ export function renderInterior(room: InteriorRoom, pal: Palette, lighting: Light
   // so the blue stays outside the windows.
   const nightL = [0, 1, 2].reduce((s, c) => s + mix(1, mul[c] as number, room.night) * ([0.3, 0.59, 0.11][c] as number), 0);
   const ambient = [0, 1, 2].map((c) => mix(mix(1, mul[c] as number, 0.3), nightL * mix(1, tint[c] as number, 0.45), lamp));
-  const mood = (t < 0.5 ? e0 : e1).moodPalette.map(hexToRgb);
-  const spriteMul = (t < 0.5 ? e0 : e1).spriteMul.map((v) => v / 255);
-
-  // Albedo (indoor), final colour (outdoor), and a light buffer that multiplies the albedo.
-  const alb = new Float32Array(W * H * 3);
   const light = new Float32Array(W * H * 3);
-  const fixed = new Uint8Array(W * H);
-  const set = (i: number, c: Rgb8) => {
-    alb[i * 3] = c[0];
-    alb[i * 3 + 1] = c[1];
-    alb[i * 3 + 2] = c[2];
-  };
-  const lampRgb = rgb[(rampByName(pal, "lamp").steps[2] ?? 1) as number] as Rgb8;
-  for (let i = 0; i < W * H; i++) {
-    const v = room.base.px[i] as number;
-    if (room.outdoor[i]) {
-      // Through the glass: the street's own colour for the hour (palette moods); far windows light in clusters at night.
-      fixed[i] = 1;
-      const lit = room.farLit[i] && lamp > 0.5 && hash32(room.seed, "far", Math.floor((i % W) / 3), Math.floor(i / W / 3)) % 3 !== 0;
-      const c = lit ? lampRgb : (mood[v] as Rgb8);
-      const k = lit ? [0.95, 0.88, 0.7] : spriteMul;
-      alb[i * 3] = c[0] * (k[0] as number);
-      alb[i * 3 + 1] = c[1] * (k[1] as number);
-      alb[i * 3 + 2] = c[2] * (k[2] as number);
-    } else set(i, rgb[v] as Rgb8);
-    for (let c = 0; c < 3; c++) light[i * 3 + c] = ambient[c] as number;
-  }
-  // Glow from the base (wall lights, signs) where nothing covers it.
-  const glowAt = new Float32Array(W * H);
-  const glowCol = new Uint8Array(W * H);
-  for (let i = 0; i < W * H; i++) {
-    const g = room.baseGlow.px[i] as number;
-    if (g) {
-      glowCol[i] = g;
-      glowAt[i] = lamp;
-    }
-  }
-  // Sprites and actors by depth.
-  type Layer = { img: Indexed; x: number; y: number; key: number; glow: Indexed | null; always: boolean };
-  const layers: Layer[] = [];
-  for (const s of room.sprites) {
-    layers.push({ img: s.img, x: s.x, y: s.y, key: s.key, glow: s.emissive, always: s.glow === "always" });
-    if (s.front) layers.push({ img: s.front.img, x: s.x, y: s.front.y, key: s.front.key, glow: s.emissive ? crop(s.emissive, 0, s.front.y - s.y, s.emissive.w, s.front.img.h) : null, always: s.glow === "always" });
-  }
-  for (const a of actors) layers.push({ img: a.img, x: a.x, y: a.y, key: a.key, glow: null, always: false });
-  layers.sort((a, b) => a.key - b.key);
-  // Blob shadows under standing people (on the floor, before anything is drawn over it).
-  for (const a of actors) {
-    if (!a.feet) continue;
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -4; dx <= 4; dx++) {
-        if (dy !== 0 && Math.abs(dx) > 2) continue;
-        const x = a.feet.x + dx;
-        const y = a.feet.y + dy;
-        if (x < 0 || y < 0 || x >= W || y >= H) continue;
-        const i = y * W + x;
-        for (let c = 0; c < 3; c++) alb[i * 3 + c] = (alb[i * 3 + c] as number) * 0.7;
-      }
-    }
-  }
-  for (const l of layers) {
-    for (let y = 0; y < l.img.h; y++) {
-      for (let x = 0; x < l.img.w; x++) {
-        const v = l.img.px[y * l.img.w + x] as number;
-        if (!v) continue;
-        const X = l.x + x;
-        const Y = l.y + y;
-        if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
-        const i = Y * W + X;
-        set(i, rgb[v] as Rgb8);
-        fixed[i] = 0;
-        const g = l.glow?.px[y * l.glow.w + x] ?? 0;
-        glowAt[i] = g ? (l.always ? 1 : lamp) : 0;
-        glowCol[i] = g;
-      }
-    }
-  }
+  for (let i = 0; i < W * H; i++) for (let c = 0; c < 3; c++) light[i * 3 + c] = ambient[c] as number;
   const add = (x: number, y: number, c: readonly number[], a: number) => {
     if (x < 0 || y < 0 || x >= W || y >= H || a <= 0) return;
     const i = y * W + x;
@@ -942,19 +887,183 @@ export function renderInterior(room: InteriorRoom, pal: Palette, lighting: Light
       }
     }
   }
+  return {
+    w: W,
+    h: H,
+    minutes,
+    rgb,
+    light,
+    lamp,
+    mood: (t < 0.5 ? e0 : e1).moodPalette.map(hexToRgb),
+    spriteMul: (t < 0.5 ? e0 : e1).spriteMul.map((v) => v / 255),
+    lampRgb: rgb[(rampByName(pal, "lamp").steps[2] ?? 1) as number] as Rgb8,
+    seed: room.seed,
+  };
+}
+
+const mixN = (a: number, b: number, k: number) => a + (b - a) * k;
+const clamp8 = (v: number) => Math.round(Math.min(255, Math.max(0, v)));
+
+/** An outdoor base pixel's colour (the view through the glass; far windows lit in clusters at night). */
+function outdoorColour(room: InteriorRoom, g: InteriorGrade, i: number): [number, number, number] {
+  const W = room.w;
+  const v = room.base.px[i] as number;
+  const lit = room.farLit[i] && g.lamp > 0.5 && hash32(room.seed, "far", Math.floor((i % W) / 3), Math.floor(i / W / 3)) % 3 !== 0;
+  const c = lit ? g.lampRgb : (g.mood[v] as Rgb8);
+  const k = lit ? [0.95, 0.88, 0.7] : g.spriteMul;
+  return [c[0] * (k[0] as number), c[1] * (k[1] as number), c[2] * (k[2] as number)];
+}
+
+/** One indoor pixel, graded: the albedo under the light, then any glow over it. */
+function indoorPixel(g: InteriorGrade, i: number, v: number, glow: number, k: number, out: Uint8Array | Uint8ClampedArray, o: number) {
+  const c = g.rgb[v] as Rgb8;
+  for (let ch = 0; ch < 3; ch++) {
+    let px = (c[ch] as number) * Math.min(1.12, g.light[i * 3 + ch] as number);
+    if (glow && k > 0) px = mixN(px, (g.rgb[glow] as Rgb8)[ch] as number, k);
+    out[o + ch] = clamp8(px);
+  }
+  out[o + 3] = 255;
+}
+
+/**
+ * An indexed image (a sprite, a person) placed at (x, y) in the room, graded
+ * by the room's light where each pixel falls: RGBA, transparent where the
+ * image is. Glowing pixels (`glow`, same frame) light by the lamps, or always.
+ */
+export function gradeImage(g: InteriorGrade, img: Indexed, x: number, y: number, glow: Indexed | null = null, always = false, out?: Uint8ClampedArray): Uint8ClampedArray {
+  const o = out ?? new Uint8ClampedArray(img.w * img.h * 4);
+  for (let yy = 0; yy < img.h; yy++) {
+    for (let xx = 0; xx < img.w; xx++) {
+      const j = yy * img.w + xx;
+      const v = img.px[j] as number;
+      if (!v) {
+        o[j * 4 + 3] = 0;
+        continue;
+      }
+      const X = Math.min(g.w - 1, Math.max(0, x + xx));
+      const Y = Math.min(g.h - 1, Math.max(0, y + yy));
+      const gl = glow?.px[j] ?? 0;
+      indoorPixel(g, Y * g.w + X, v, gl, gl ? (always ? 1 : g.lamp) : 0, o, j * 4);
+    }
+  }
+  return o;
+}
+
+/** The room's static layers graded for a time of day: the base, and each sprite (and the part of a seat over a sitter). */
+export function gradeRoom(room: InteriorRoom, g: InteriorGrade): { base: RgbaImage; sprites: { img: Uint8ClampedArray; front: Uint8ClampedArray | null }[] } {
+  const { w: W, h: H } = room;
+  const data = new Uint8Array(W * H * 4);
+  for (let i = 0; i < W * H; i++) {
+    if (room.outdoor[i]) {
+      const c = outdoorColour(room, g, i);
+      for (let ch = 0; ch < 3; ch++) data[i * 4 + ch] = clamp8(c[ch] as number);
+      data[i * 4 + 3] = 255;
+    } else {
+      const gl = room.baseGlow.px[i] as number;
+      indoorPixel(g, i, room.base.px[i] as number, gl, gl ? g.lamp : 0, data, i * 4);
+    }
+  }
+  const sprites = room.sprites.map((s) => {
+    const always = s.glow === "always";
+    const img = gradeImage(g, s.img, s.x, s.y, s.emissive, always);
+    const front = s.front ? gradeImage(g, s.front.img, s.x, s.front.y, s.emissive ? crop(s.emissive, 0, s.front.y - s.y, s.emissive.w, s.front.img.h) : null, always) : null;
+    return { img, front };
+  });
+  return { base: { w: W, h: H, data }, sprites };
+}
+
+/**
+ * Render a room at a time of day (minutes after midnight), with actors, to RGBA.
+ * Indoors: a softened share of the street's grade by day; by night the
+ * recipe's share of it under the lamp tint, and the lamps' banded pools.
+ * Through the windows: the street's own palette-moods colour for that time.
+ */
+export function renderInterior(room: InteriorRoom, pal: Palette, lighting: Lighting, minutes: number, actors: readonly Actor[] = []): RgbaImage {
+  const { w: W, h: H } = room;
+  const g = interiorGrade(room, pal, lighting, minutes);
+  const { rgb, lamp, light } = g;
+
+  // Albedo (indoor), final colour (outdoor); the light buffer multiplies the albedo.
+  const alb = new Float32Array(W * H * 3);
+  const fixed = new Uint8Array(W * H);
+  const set = (i: number, c: readonly number[]) => {
+    alb[i * 3] = c[0] as number;
+    alb[i * 3 + 1] = c[1] as number;
+    alb[i * 3 + 2] = c[2] as number;
+  };
+  for (let i = 0; i < W * H; i++) {
+    if (room.outdoor[i]) {
+      fixed[i] = 1;
+      set(i, outdoorColour(room, g, i));
+    } else set(i, rgb[room.base.px[i] as number] as Rgb8);
+  }
+  // Glow from the base (wall lights, signs) where nothing covers it.
+  const glowAt = new Float32Array(W * H);
+  const glowCol = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    const gl = room.baseGlow.px[i] as number;
+    if (gl) {
+      glowCol[i] = gl;
+      glowAt[i] = lamp;
+    }
+  }
+  // Sprites and actors by depth.
+  type Layer = { img: Indexed; x: number; y: number; key: number; glow: Indexed | null; always: boolean };
+  const layers: Layer[] = [];
+  for (const s of room.sprites) {
+    layers.push({ img: s.img, x: s.x, y: s.y, key: s.key, glow: s.emissive, always: s.glow === "always" });
+    if (s.front) layers.push({ img: s.front.img, x: s.x, y: s.front.y, key: s.front.key, glow: s.emissive ? crop(s.emissive, 0, s.front.y - s.y, s.emissive.w, s.front.img.h) : null, always: s.glow === "always" });
+  }
+  for (const a of actors) layers.push({ img: a.img, x: a.x, y: a.y, key: a.key, glow: null, always: false });
+  layers.sort((a, b) => a.key - b.key);
+  // Blob shadows under standing people (on the floor, before anything is drawn over it).
+  for (const a of actors) {
+    if (!a.feet) continue;
+    for (const [dx, dy] of BLOB) {
+      const x = a.feet.x + dx;
+      const y = a.feet.y + dy;
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const i = y * W + x;
+      for (let c = 0; c < 3; c++) alb[i * 3 + c] = (alb[i * 3 + c] as number) * 0.7;
+    }
+  }
+  for (const l of layers) {
+    for (let y = 0; y < l.img.h; y++) {
+      for (let x = 0; x < l.img.w; x++) {
+        const v = l.img.px[y * l.img.w + x] as number;
+        if (!v) continue;
+        const X = l.x + x;
+        const Y = l.y + y;
+        if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+        const i = Y * W + X;
+        set(i, rgb[v] as Rgb8);
+        fixed[i] = 0;
+        const gl = l.glow?.px[y * l.glow.w + x] ?? 0;
+        glowAt[i] = gl ? (l.always ? 1 : lamp) : 0;
+        glowCol[i] = gl;
+      }
+    }
+  }
   const data = new Uint8Array(W * H * 4);
   for (let i = 0; i < W * H; i++) {
     const px = [0, 1, 2].map((c) => (fixed[i] ? (alb[i * 3 + c] as number) : (alb[i * 3 + c] as number) * Math.min(1.12, light[i * 3 + c] as number)));
     const k = glowAt[i] as number;
     if (k > 0) {
       const c = rgb[glowCol[i] as number] as Rgb8;
-      for (let ch = 0; ch < 3; ch++) px[ch] = mix(px[ch] as number, c[ch] as number, k);
+      for (let ch = 0; ch < 3; ch++) px[ch] = mixN(px[ch] as number, c[ch] as number, k);
     }
-    for (let ch = 0; ch < 3; ch++) data[i * 4 + ch] = Math.round(Math.min(255, Math.max(0, px[ch] as number)));
+    for (let ch = 0; ch < 3; ch++) data[i * 4 + ch] = clamp8(px[ch] as number);
     data[i * 4 + 3] = 255;
   }
   return { w: W, h: H, data };
 }
+
+/** The blob shadow under a standing person's feet: offsets from the feet pixel (darkened to 70 %). */
+export const BLOB: readonly (readonly [number, number])[] = (() => {
+  const out: [number, number][] = [];
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -4; dx <= 4; dx++) if (dy === 0 || Math.abs(dx) <= 2) out.push([dx, dy]);
+  return out;
+})();
 
 /** The room flat (no grading), palette indices: base, then sprites and actors by depth (goldens and determinism). */
 export function flattenInterior(room: InteriorRoom, actors: readonly Actor[] = []): Indexed {
@@ -972,4 +1081,4 @@ export function flattenInterior(room: InteriorRoom, actors: readonly Actor[] = [
 }
 
 export { PARTS, SURFACES } from "./interiorsParts";
-export { RECIPES, recipeFor } from "./interiorsRecipes";
+export { parseInteriorRecipes, recipeFor } from "./interiorsRecipes";

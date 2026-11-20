@@ -27,6 +27,9 @@ function handle(msg: ToWorker) {
       case "read_save_meta":
         post({ type: "meta_result", id: msg.id, json: readSaveMeta(msg.bytes) });
         break;
+      case "report_core":
+        post({ type: "report_core_result", id: msg.id, json: session.reportCore() });
+        break;
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

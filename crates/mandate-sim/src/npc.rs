@@ -13,7 +13,7 @@
 use crate::events::EventKind;
 use crate::policy::{PolicyInstance, PolicyStatus};
 use crate::politics::elections::{self, Seat};
-use crate::politics::{PoliticianId, Role, alignment};
+use crate::politics::{PoliticianId, alignment};
 use crate::state::State;
 use crate::world::{MunicipalityId, Tier};
 use mandate_content::{AiAction, AiInput, ContentBundle, Curve, Power, TierKey};
@@ -87,20 +87,40 @@ pub fn profile_of(content: &ContentBundle, p: &crate::politics::Politician) -> &
     }
 }
 
+/// The leans of a bill's legislature (whip counts), as the constitution
+/// names it (DEC-098).
+fn legislature_leans(
+    state: &State,
+    content: &ContentBundle,
+    t: &mandate_content::PolicyTemplate,
+    inst: &crate::policy::PolicyInstance,
+) -> Vec<(PoliticianId, f64)> {
+    let Some(c) = content.constitutions.get(&state.meta.constitution) else {
+        return Vec::new();
+    };
+    crate::policy::legislature_leans(
+        &content.council,
+        c,
+        &state.world,
+        &state.population,
+        &state.politics,
+        state.meta.seed,
+        t,
+        inst,
+    )
+}
+
 /// Which actors act this turn in a municipality: officeholders and candidates
 /// (never the player, whose actions are their own commands).
 fn actors(state: &State, m: u32) -> Vec<PoliticianId> {
-    let mut out: Vec<PoliticianId> = Vec::new();
-    if let Some(c) = state.politics.councils.get(m as usize) {
-        out.extend(c.members.iter().copied());
-        out.extend(c.mayor);
-    }
+    let at = crate::world::Jurisdiction::town(MunicipalityId(m));
+    let mut out: Vec<PoliticianId> = crate::politics::officials_at(&state.politics, at);
     for race in state
         .politics
         .elections
         .races
         .iter()
-        .filter(|r| r.seat.municipality() == m)
+        .filter(|r| r.seat.at() == at)
     {
         for c in &race.candidates {
             if !out.contains(&c.politician) {
@@ -116,18 +136,11 @@ fn holds_power(state: &State, content: &ContentBundle, id: PoliticianId, power: 
     let Some(p) = state.politics.get(id) else {
         return false;
     };
-    let Some(local) = content
-        .constitutions
-        .get(&state.meta.constitution)
-        .and_then(|c| c.tier(TierKey::Local))
-    else {
+    let Some(c) = content.constitutions.get(&state.meta.constitution) else {
         return false;
     };
-    match p.role {
-        Role::Councillor { .. } => local.bodies.iter().any(|b| b.powers.contains(&power)),
-        Role::Mayor { .. } => local.offices.iter().any(|o| o.powers.contains(&power)),
-        Role::Private { .. } => false,
-    }
+    // Their post's powers, as the constitution lists them (DEC-098).
+    crate::politics::holds_power(&state.politics, c, p.id, power)
 }
 
 /// Per-town, per-turn memo of expensive public facts (vote counts and policy
@@ -260,15 +273,7 @@ fn inputs_memo(
             let counted = memo.leans.get(&bill).copied().or_else(|| {
                 let inst = state.policy.instances.get(bill as usize)?;
                 let t = content.policies.get(&inst.template)?;
-                let leans = crate::policy::council_leans(
-                    &content.council,
-                    &state.world,
-                    &state.population,
-                    &state.politics,
-                    state.meta.seed,
-                    t,
-                    inst,
-                );
+                let leans = legislature_leans(state, content, t, inst);
                 let v = (
                     leans
                         .iter()
@@ -292,11 +297,10 @@ fn inputs_memo(
             }
         }
         if holds_power(state, content, id, Power::ProposeOrdinance) {
-            let (key, hoods): (u32, Vec<usize>) = match me.role {
-                Role::Councillor { ward, .. } => {
-                    (ward.0, crate::policy::ward_hoods(&state.world, ward))
-                }
-                _ => (u32::MAX, state.world.hoods_of(MunicipalityId(m)).collect()),
+            // A seat's district, else the whole town.
+            let (key, hoods): (u32, Vec<usize>) = match me.role.constituency() {
+                Some(ward) => (ward.0, crate::policy::ward_hoods(&state.world, ward)),
+                None => (u32::MAX, state.world.hoods_of(MunicipalityId(m)).collect()),
             };
             let mut best_t: Option<(&str, f64, f64)> = None;
             let champion = crate::characters::goals::champion_bonus(&state.politics, me.character);
@@ -398,7 +402,8 @@ pub fn agenda_bonus(
         && let Some(tc) = state.population.town_concerns.get(m as usize)
     {
         let (mut fit, mut w) = (0.0, 0.0);
-        for (c, level) in content.concerns.iter().zip(&tc.levels) {
+        // The town's measured concerns: its politics, not its talk.
+        for (c, level) in content.concerns.iter().zip(&tc.measured) {
             let level = *level as f64;
             if level <= 0.0 {
                 continue;
@@ -732,15 +737,7 @@ fn act(
             let Some(t) = content.policies.get(&inst.template) else {
                 return;
             };
-            let leans = crate::policy::council_leans(
-                &content.council,
-                &state.world,
-                &state.population,
-                &state.politics,
-                state.meta.seed,
-                t,
-                inst,
-            );
+            let leans = legislature_leans(state, content, t, inst);
             // The most persuadable colleague not already on our side.
             let target = leans
                 .iter()

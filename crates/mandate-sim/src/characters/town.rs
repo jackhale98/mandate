@@ -7,10 +7,10 @@
 use super::CharacterId;
 use crate::player::PlayerState;
 use crate::politics::elections::{Filing, Seat};
-use crate::politics::{PoliticianId, PoliticsState, Role};
+use crate::politics::{PoliticianId, PoliticsState};
 use crate::scheduler::Reads;
-use crate::world::World;
-use mandate_content::{ContentKey, SectorDriver};
+use crate::world::{Jurisdiction, MunicipalityId, World};
+use mandate_content::{ConstitutionDef, ContentKey, SectorDriver};
 use mandate_core::SimDate;
 use serde::{Deserialize, Serialize};
 
@@ -169,7 +169,13 @@ pub fn compute_all_from(
                 industry_share: industry.map(|(_, _, s)| s as f32).unwrap_or(0.0),
                 crises,
                 broker: None,
-                rival: rival(pol, world, r.player, m),
+                rival: rival(
+                    pol,
+                    world,
+                    r.content.constitutions.get(&r.meta.constitution),
+                    r.player,
+                    m,
+                ),
                 priorities: crate::concerns::top_concerns(r.population(), m)
                     .into_iter()
                     .filter(|(_, l)| *l > 0.0)
@@ -189,7 +195,7 @@ pub fn compute_all(pol: &PoliticsState, r: &Reads<'_>) -> Vec<TownCharacter> {
 
 /// The power broker: the organisation leader with the most weight and stake
 /// in the defining industry or the live crisis, or else the most senior
-/// officeholder (the mayor counts double).
+/// officeholder (an office counts double a seat).
 fn broker(
     pol: &PoliticsState,
     r: &Reads<'_>,
@@ -228,40 +234,39 @@ fn broker(
     }
     for &pid in officeholders {
         let Some(p) = pol.get(pid) else { continue };
-        let mayor = matches!(p.role, Role::Mayor { .. });
-        let score = k.broker_seniority * p.years_in_office as f64 * if mayor { 2.0 } else { 1.0 }
-            + if mayor { 0.3 } else { 0.0 };
+        // Seniority by post (DEC-098): a single-holder office counts double.
+        let office = p.role.post().is_some_and(|q| q.is_office());
+        let score = k.broker_seniority * p.years_in_office as f64 * if office { 2.0 } else { 1.0 }
+            + if office { 0.3 } else { 0.0 };
         consider(p.character, score);
     }
     best.map(|b| b.0)
 }
 
-/// The seat a town's leading figure will want next: the player's (by their
-/// filing) in their own town; elsewhere, the mayoralty.
+/// The post a town's leading figure will want next: the player's (by their
+/// filing, else what they hold, else their district's seat in the
+/// legislature) in their own town; elsewhere, the town's executive office.
 fn wanted_seat(
     pol: &PoliticsState,
+    c: &ConstitutionDef,
     player: Option<&PlayerState>,
     m: usize,
 ) -> Option<(Option<PoliticianId>, Seat)> {
-    let m32 = m as u32;
+    let at = Jurisdiction::town(MunicipalityId(m as u32));
     if let Some(pl) = player
-        && pl.municipality.index() == m
+        && pl.home().index() == m
     {
         let me = pol.get(pl.politician)?;
-        let seat = match (pl.filing, me.role) {
+        let seat = match (pl.filing, me.role.post()) {
             (Some(Filing::Retire), _) => return None,
-            (Some(Filing::Mayor), _) | (None, Role::Mayor { .. }) => {
-                Seat::Mayor { municipality: m32 }
-            }
-            _ => Seat::Council {
-                municipality: m32,
-                ward: pl.ward,
-            },
+            (Some(Filing::Stand { post }), _) => post,
+            (None, Some(post)) => post,
+            (None, None) => crate::politics::legislature_seat(c, at, pl.ward)?,
         };
         return Some((Some(me.id), seat));
     }
-    let mayor = pol.councils.get(m).and_then(|c| c.mayor);
-    Some((mayor, Seat::Mayor { municipality: m32 }))
+    let seat = crate::politics::executive_post(c, at)?;
+    Some((crate::politics::executive_of(pol, c, at), seat))
 }
 
 /// The named rival (DEC-077 §1): whoever competes with the town's leading
@@ -272,11 +277,12 @@ fn wanted_seat(
 pub fn rival(
     pol: &PoliticsState,
     world: &World,
+    c: Option<&ConstitutionDef>,
     player: Option<&PlayerState>,
     m: usize,
 ) -> Option<CharacterId> {
     let _ = world;
-    let (me, seat) = wanted_seat(pol, player, m)?;
+    let (me, seat) = wanted_seat(pol, c?, player, m)?;
     let char_of = |p: PoliticianId| pol.get(p).map(|x| x.character);
     let not_me = |p: &PoliticianId| Some(*p) != me;
     if let Some((ri, race)) = pol
@@ -308,11 +314,11 @@ pub fn rival(
         }
     }
     let holder = match seat {
-        Seat::Mayor { .. } => pol.councils.get(m).and_then(|c| c.mayor),
-        Seat::Council { ward, .. } => pol
+        Seat::Office { office, at } => crate::politics::holder_of(pol, office.as_str(), at),
+        Seat::Seat { .. } => pol
             .politicians
             .iter()
-            .find(|p| matches!(p.role, Role::Councillor { ward: w, .. } if w == ward))
+            .find(|p| p.role.post() == Some(seat))
             .map(|p| p.id),
     };
     if let Some(h) = holder.filter(not_me) {

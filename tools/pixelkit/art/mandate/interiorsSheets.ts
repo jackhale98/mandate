@@ -20,7 +20,8 @@ import { encodePng } from "../../src/node/png";
 import { Sheet } from "../../src/node/sheet";
 import { composeInterior, placeholderPeople, renderInterior, type InteriorRoom, type RgbaImage } from "./interiors";
 import { FIXED_RAMPS, ICHARS, ILEGEND, PARTS, partSlots, SCODES, SLEGEND, SURFACES, surfaceSlots } from "./interiorsParts";
-import { RECIPES, type InteriorRecipe } from "./interiorsRecipes";
+import { RECIPES } from "./interiorsContent";
+import type { InteriorRecipe } from "./interiorsRecipes";
 import { buildPack } from "./pack";
 import { INTERIOR_SEEDS, INTERIOR_TIMES } from "./samples";
 
@@ -141,7 +142,7 @@ for (const r of RECIPES) {
 
 // ---- debug: walk grid, spots, hotspots
 {
-  const ROLE: Record<string, Rgb8> = { chair: [255, 210, 80], clerk: [120, 200, 255], councillor: [120, 230, 140], player: [255, 120, 60], staff: [160, 170, 255], owner: [255, 110, 160], cook: [255, 160, 110], waiter: [200, 140, 255], patron: [90, 230, 220], public: [230, 230, 230] };
+  const ROLE: Record<string, Rgb8> = { chair: [255, 210, 80], clerk: [120, 200, 255], member: [120, 230, 140], player: [255, 120, 60], staff: [160, 170, 255], owner: [255, 110, 160], cook: [255, 160, 110], waiter: [200, 140, 255], patron: [90, 230, 220], public: [230, 230, 230] };
   const scale = 3;
   const combos = RECIPES.flatMap((r) => SEEDS.slice(0, 2).map((seed) => room(r, seed)));
   const cw = Math.max(...combos.map((rm) => rm.w)) * scale;

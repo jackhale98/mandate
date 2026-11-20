@@ -25,6 +25,10 @@
 // cranes, chimney, flag, park). The pseudo-locations have no layout block;
 // every other kind needs one (a kind without is drawn with a generic
 // footprint, and validation warns).
+//
+// `interior` (DEC-088) names the room the player walks into from the street
+// (`interiors.jsonc`): presentation data, like `layout`. A kind without one
+// keeps the place panel; the Places tab and the town map always open it.
 {
   "kind": "places",
   "items": [
@@ -38,6 +42,7 @@
       "actions": ["vote", "introduce", "amend", "withdraw", "lobby", "trade_favor"],
       "services": ["whip_exact"],
       "layout": { "slot": "square", "footprint": [[6, 4], [7, 5]], "place": ["on_square", "near_square"], "signature": "dome", "with": ["flag"], "landmark": true, "art": { "kit": "kit.chamber", "family": "civic" } },
+      "interior": "interior.council_chamber",
     },
     {
       // The clerk's office, the mayor's office, and the statistics desk.
@@ -45,6 +50,7 @@
       "actions": ["draft", "file", "withdraw"],
       "services": ["town_data_detailed", "budget_papers"],
       "layout": { "slot": "square", "footprint": [[7, 4], [9, 5]], "place": ["on_square"], "signature": "clock_tower", "with": ["flag"], "landmark": true, "art": { "kit": "kit.town_hall", "family": "civic" } },
+      "interior": "interior.town_hall",
     },
     {
       // Public meetings; a neighbourhood without one meets on its streets.
@@ -78,6 +84,7 @@
       "late_night": ["lobby", "trade_favor", "take_bribe"],
       "services": ["overheard"],
       "layout": { "slot": "commercial", "footprint": [[3, 3], [4, 3]], "place": ["central", "arterial"], "landmark": false, "art": { "kit": "kit.diner", "family": "commercial" } },
+      "interior": "interior.diner",
     },
     {
       "id": "place.market", "key": "market", "name_key": "place-market",
