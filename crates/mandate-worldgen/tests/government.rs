@@ -388,6 +388,7 @@ fn the_players_vote_has_consequences() {
         mandate_sim::characters::owe(&mut st.politics, mc, sc, "favour-bill", None, date);
         st.policy.ids.alloc_raw();
         st.policy.instances.push(PolicyInstance {
+            family: None,
             id: PolicyInstanceId(bill),
             template: "policy.parks".into(),
             tier: mandate_content::TierKey::Local,

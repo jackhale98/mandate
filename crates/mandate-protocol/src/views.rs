@@ -466,6 +466,15 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             put("version", to_engine.clone());
             "event-rules-updated"
         }
+        // Policy families (DEC-092); their own views come with F3.
+        EventKind::ProposalOpened { family, .. } => {
+            put("family", family.clone());
+            "event-proposal-opened"
+        }
+        EventKind::ProposalLapsed { family, .. } => {
+            put("family", family.clone());
+            "event-proposal-lapsed"
+        }
         EventKind::NationalBudget {
             year,
             balance,

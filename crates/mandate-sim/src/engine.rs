@@ -67,6 +67,27 @@ pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String>
         out.push(state.meta.constitution.clone());
     }
     for p in &state.policy.instances {
+        // A family bill (DEC-092) needs its family and the options it chose.
+        if let Some(d) = &p.family {
+            match content.family(&p.template) {
+                None => {
+                    if !out.contains(&p.template) {
+                        out.push(p.template.clone());
+                    }
+                }
+                Some(f) => {
+                    for (axis, option) in &d.choices {
+                        if f.axis(axis).and_then(|a| a.option(option)).is_none() {
+                            let k = format!("{}: {axis}.{option}", f.id);
+                            if !out.contains(&k) {
+                                out.push(k);
+                            }
+                        }
+                    }
+                }
+            }
+            continue;
+        }
         if !content.policies.contains_key(&p.template) && !out.contains(&p.template) {
             out.push(p.template.clone());
         }
@@ -206,6 +227,10 @@ impl Engine {
         // Knowledge (DEC-091): a run from before the ledger is seeded
         // generously (`Migrated`); a seeded ledger is kept as it is.
         crate::player::knowledge::on_load(&mut state, &content);
+        // Policy families (DEC-092): decks for the focus jurisdictions
+        // (keyed: the deck a fresh start would draw), and new families
+        // drawn in; open proposals of a removed family lapse.
+        crate::policy::families::on_load(&mut state, &content);
         Ok(Engine {
             state,
             terrain: None,
@@ -230,6 +255,8 @@ impl Engine {
         // Validated content always has its default profile.
         let _ = crate::player::knowledge::seed(&mut self.state, &self.content, None, false);
         let seed = self.state.meta.seed;
+        // The run's policy-family decks (DEC-092).
+        crate::policy::families::on_load(&mut self.state, &self.content);
         let id = self.state.events.record(
             self.state.calendar.date,
             EventKind::GameStarted { seed },

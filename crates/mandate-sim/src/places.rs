@@ -207,7 +207,9 @@ pub fn action_of(state: &State, cmd: &PlayerCommand) -> Option<(&'static str, bo
         }
         PlayerCommand::CastVote { .. } => ("vote", false, None),
         PlayerCommand::File { .. } => ("file", false, None),
-        PlayerCommand::DraftPolicy { .. } => ("draft", false, None),
+        PlayerCommand::DraftPolicy { .. } | PlayerCommand::DraftFamily { .. } => {
+            ("draft", false, None)
+        }
         PlayerCommand::AmendPolicy { policy, .. } => {
             // Drafts are revised at the clerk's desk; bills on the floor.
             let draft = state

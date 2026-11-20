@@ -17,6 +17,7 @@ use mandate_core::{IdAllocator, SimDate, Stream, define_id};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+pub mod drafting;
 pub mod families;
 pub mod resolve;
 pub mod works;

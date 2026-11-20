@@ -1045,6 +1045,7 @@ fn source_args(gate: &Gate<'_>, src: &Source) -> BTreeMap<String, String> {
             put!("person", person_name(gate, *person));
             put!("topic", topic.clone());
         }
+        Source::Proposal { proposal } => put!("proposal", proposal.0.to_string()),
     }
     args
 }

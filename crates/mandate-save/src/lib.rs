@@ -22,8 +22,10 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// reports). v20: offices from the constitution (R1, DEC-098). v21: the
 /// ground game's memory (E1, DEC-097 §1). v22: the director's variety and
 /// pacing cycle (E2, DEC-097 §3). v23: the act flow (time skips,
-/// directives, the Legacy record and act endings; DEC-012, DEC-006).
-pub const SAVE_FORMAT_VERSION: u16 = 23;
+/// directives, the Legacy record and act endings; DEC-012, DEC-006). v24:
+/// reserved for the asks (E6–E8, `State.asks`). v25: policy families and
+/// works (F2b, DEC-092, DEC-099).
+pub const SAVE_FORMAT_VERSION: u16 = 25;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -222,6 +224,13 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // The act flow (DEC-012, DEC-006): v22 → v23. Renumber only this
         // key if another bump merges first.
         (22, act_flow),
+        // v23 → v24 is the asks' (E6–E8, `State.asks`), merging separately:
+        // until it does, a v23 file passes through (its state has serde
+        // defaults). The asks' merge replaces this one line with its step.
+        (23, asks_placeholder),
+        // Policy families and works (F2b, DEC-092, DEC-099): v24 → v25.
+        // Renumber only this key if another bump merges first.
+        (24, policy_families),
     ];
     let mut value = value;
     let mut v = from;
@@ -717,6 +726,31 @@ fn act_flow(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError
         .and_then(|p| p.as_object_mut())
         .ok_or(SaveError::Malformed)?;
     st.remove("act");
+    Ok(value)
+}
+
+/// v23 → v24: the asks' step (E6–E8) when it merges; a pass-through until then.
+fn asks_placeholder(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    if !value.pointer("/state").is_some_and(|s| s.is_object()) {
+        return Err(SaveError::Malformed);
+    }
+    Ok(value)
+}
+
+/// v24 → v25 (DEC-092, DEC-099): policy families (decks, proposals,
+/// cooldowns) and works projects are new state in the policy domain; a bill
+/// may carry its family draft and an `area` clause, an appropriation a
+/// borrowed share. All have serde defaults (no families, no works), so the
+/// step checks the shape and leaves any partial family state out: the decks
+/// are drawn on load (keyed, as a fresh start would draw them), and no
+/// proposal exists before the next monthly pass.
+fn policy_families(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let policy = value
+        .pointer_mut("/state/policy")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    policy.remove("families");
+    policy.remove("works");
     Ok(value)
 }
 

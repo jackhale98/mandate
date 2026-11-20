@@ -228,6 +228,9 @@ pub fn ensure_decks(
     content: &ContentBundle,
     focus: &[Jurisdiction],
 ) {
+    if content.policy_families.is_empty() && fam.decks.is_empty() {
+        return;
+    }
     let keys: Vec<ContentKey> = content
         .policy_families
         .iter()
@@ -253,6 +256,26 @@ pub fn ensure_decks(
         fam.decks
             .entry(*at)
             .or_insert_with(|| draw_deck(seed, content, *at));
+    }
+}
+
+/// On load and at play start: decks for the focus jurisdictions, families
+/// the content added drawn in, and open proposals of a family the content
+/// no longer has (or a patch disabled) lapsed.
+pub fn on_load(state: &mut crate::state::State, content: &ContentBundle) {
+    let focus = state.focus();
+    let seed = state.meta.seed;
+    let today = state.calendar.date;
+    let fam = &mut state.policy.families;
+    ensure_decks(fam, seed, content, &focus);
+    for inst in fam.instances.iter_mut() {
+        if inst.is_open() && content.family(&inst.family).is_none_or(|f| f.disabled) {
+            inst.status = FamilyStatus::Lapsed {
+                on: today,
+                reason: LapseReason::Removed,
+            };
+            fam.lapsed.insert((inst.at, inst.family.clone()), today);
+        }
     }
 }
 
