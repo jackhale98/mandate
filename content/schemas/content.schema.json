@@ -5419,6 +5419,45 @@
           "format": "double",
           "type": "number"
         },
+        "treasury_shares": {
+          "$ref": "#/$defs/TreasuryShares",
+          "default": {
+            "local": [
+              0.15,
+              0.25,
+              0.0,
+              0.2,
+              0.2,
+              0.05,
+              0.05,
+              0.05,
+              0.05
+            ],
+            "national": [
+              0.15,
+              0.1,
+              0.2,
+              0.2,
+              0.15,
+              0.0,
+              0.05,
+              0.05,
+              0.1
+            ],
+            "regional": [
+              0.05,
+              0.3,
+              0.35,
+              0.0,
+              0.2,
+              0.0,
+              0.0,
+              0.05,
+              0.05
+            ]
+          },
+          "description": "How each tier's treasury splits its discretionary budget across the\nbudget categories at the start (DEC-098: content, not code)."
+        },
         "unemployment_replacement": {
           "description": "Unemployment benefit and pension as a share of the mean wage.",
           "format": "double",
@@ -14426,6 +14465,45 @@
           "type": "number"
         }
       },
+      "type": "object"
+    },
+    "TreasuryShares": {
+      "additionalProperties": false,
+      "description": "Starting budget shares by category (in `BudgetCategory` order:\nadministration, education, health, safety, infrastructure, social,\nhousing, environment, economic development), per tier.",
+      "properties": {
+        "local": {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        "national": {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        "regional": {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        }
+      },
+      "required": [
+        "local",
+        "regional",
+        "national"
+      ],
       "type": "object"
     },
     "Tuning": {

@@ -338,8 +338,13 @@ fn amended(
     for (a, o) in choices {
         merged.insert(a.clone(), o.clone());
     }
+    // Sliders not given keep the bill's values.
+    let mut sliders = p.params.clone();
+    for (k, v) in params {
+        sliders.insert(k.clone(), *v);
+    }
     // A proposal that lapsed since keeps its bill: its rules still apply.
-    let prepared = prepare_with(state, content, d.instance, &merged, params, None, false)?;
+    let prepared = prepare_with(state, content, d.instance, &merged, &sliders, None, false)?;
     Ok((d, prepared))
 }
 
