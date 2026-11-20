@@ -5,17 +5,18 @@
 //! Adding a verb to a place is content, not code (DEC-098 §4, the action
 //! availability table, for these verbs).
 //!
-//! Availability uses the shared situation conditions (`SituationCondition`,
-//! town-wide and slot-free, as policy unlocks do) plus two plain fields the
-//! condition language has no word for yet: the day part (`parts`, as
-//! routines write it) and someone of an occupation being here now (`with`).
-//! A closed place offers nothing, as for every action. U1 folds these into
-//! the one condition language.
+//! Availability uses the one condition language (`condition.rs`; slot-free,
+//! with the place visited as `here`). Two plain fields remain as short
+//! spellings of its conditions: the day part (`parts`, as routines write
+//! it; a `day_part` condition) and someone of an occupation being here now
+//! (`with`; a `present` condition). The engine evaluates them as those
+//! conditions. A closed place offers nothing, as for every action.
 
 use crate::bundle::ContentBundle;
 use crate::knowledge::{GrantDef, Level};
 use crate::routines::DayPart;
-use crate::types::{ClassKey, ContentKey, SituationCondition};
+use crate::condition::{Condition, ConditionUse, Site};
+use crate::types::{ClassKey, ContentKey};
 use crate::validate::{Issue, valid_key};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -96,11 +97,11 @@ pub enum VisitEffect {
     },
 }
 
-/// A risk term: `add` while the town-wide condition holds.
+/// A risk term: `add` while the condition holds (slot-free; `here` is the place).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VisitRiskTerm {
-    pub when: SituationCondition,
+    pub when: Condition,
     pub add: f64,
 }
 
@@ -141,15 +142,15 @@ pub struct VisitVerbDef {
     /// May also be done in the late-night slot.
     #[serde(default)]
     pub late_night: bool,
-    /// The standard day parts it can be done in (none: any). Late at night
-    /// is `late_night`.
+    /// The standard day parts it can be done in (none: any; a `day_part`
+    /// condition). Late at night is `late_night`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parts: Vec<DayPart>,
-    /// Town-wide conditions that must all hold (slot-free situation
-    /// conditions, as a policy unlock uses).
+    /// Conditions that must all hold (slot-free; `here` is the place).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub when: Vec<SituationCondition>,
-    /// Someone of one of these occupations must be here now.
+    pub when: Vec<Condition>,
+    /// Someone of one of these occupations must be here now (a `present`
+    /// condition).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub with: Vec<ContentKey>,
     #[serde(default)]
@@ -290,15 +291,12 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 "late at night is `late_night: true`, not a part",
             ));
         }
-        for c in &d.when {
-            if c.is_slot_relative() {
-                issues.push(Issue::error(
-                    owner,
-                    "a verb's conditions are about the town (slot-free, DEC-091)",
-                ));
-            }
-            crate::validate::check_situation_condition(b, owner, c, None, issues);
-        }
+        crate::condition::check_all(
+            b,
+            &Site::new(owner, ConditionUse::VisitVerb, &[]),
+            &d.when,
+            issues,
+        );
         for o in &d.with {
             if b.occupation(o).is_none() {
                 issues.push(Issue::error(owner, &format!("unknown occupation `{o}`")));
@@ -323,13 +321,12 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 if !t.add.is_finite() || t.add.abs() > 1.0 {
                     issues.push(Issue::error(owner, "a risk term adds within ±1"));
                 }
-                if t.when.is_slot_relative() {
-                    issues.push(Issue::error(
-                        owner,
-                        "a risk term's condition is about the town (slot-free)",
-                    ));
-                }
-                crate::validate::check_situation_condition(b, owner, &t.when, None, issues);
+                crate::condition::check(
+                    b,
+                    &Site::new(owner, ConditionUse::VisitRisk, &[]),
+                    &t.when,
+                    issues,
+                );
             }
             if r.outcome_key.is_empty() {
                 issues.push(Issue::error(owner, "a risk needs an outcome key"));

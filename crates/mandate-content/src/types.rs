@@ -793,177 +793,10 @@ pub struct PolicyTemplate {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SituationTrigger {
-    /// Any one of these holds.
-    pub any: Vec<SituationCondition>,
+    /// Any one of these holds (the one condition language, `condition.rs`).
+    pub any: Vec<crate::condition::Condition>,
     /// Fluent key naming the circumstances, e.g. `unlock-closure`.
     pub reason_key: String,
-}
-
-/// A typed condition on one town's live situation, read from engine state
-/// (the town's character, its indicators, the event log, the economy).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum SituationCondition {
-    /// A live crisis of this kind (`crises.jsonc`), at least this severe.
-    Crisis {
-        kind: ContentKey,
-        #[serde(default)]
-        min_severity: f64,
-    },
-    /// An engine indicator of the town within [min, max].
-    Indicator {
-        indicator: Indicator,
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// A plant closed in the town within this many months (the event log).
-    PlantClosure { within_months: u16 },
-    /// A disaster struck the town within this many months.
-    Disaster { within_months: u16 },
-    // --- Slot-relative (DEC-093 conversations; DEC-092 family slots). In a
-    // conversation the slots are `speaker`, `about` and `player`; where no
-    // slots are bound (a policy's unlock) these never hold. Each names the
-    // Fluent arguments it provides when it holds; triggers ignore them.
-    /// The person in the slot has one of these roles: occupation ids, or
-    /// role words of the constitution's posts (a body's `member_key`, an
-    /// office's id; DEC-098).
-    Occupation {
-        slot: String,
-        occupations: Vec<ContentKey>,
-    },
-    /// The person in the slot has one of these traits.
-    Trait {
-        slot: String,
-        traits: Vec<ContentKey>,
-    },
-    /// A personality axis of the person in the slot within [min, max] (0..1).
-    Personality {
-        slot: String,
-        axis: String,
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// The person in the slot holds this goal (DEC-032).
-    Goal { slot: String, goal: ContentKey },
-    /// Their opinion of the player within [min, max] (−100..100).
-    Opinion {
-        slot: String,
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// Their trust in the player within [min, max] (0..1).
-    Trust {
-        slot: String,
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// They remember the player doing one of these (memory kinds; the most
-    /// salient): `$memory_key`, `$subject_key`, `$year`.
-    Remembers { slot: String, kinds: Vec<String> },
-    /// The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.
-    Favour {
-        slot: String,
-        #[serde(default)]
-        owed_to_player: bool,
-    },
-    /// They are (or are not) the town's power broker. When they are:
-    /// `$broker`, `$broker_place`, `$stake_key`.
-    IsBroker {
-        slot: String,
-        #[serde(default = "yes")]
-        is: bool,
-    },
-    /// They are (or are not) the player's rival. When they are: `$rival`.
-    IsRival {
-        slot: String,
-        #[serde(default = "yes")]
-        is: bool,
-    },
-    /// The speaker would tell the player at least `min` about the subject
-    /// (what they know, capped by discretion): the subject's arguments.
-    Tells {
-        subject: crate::conversation::SubjectRef,
-        min: crate::knowledge::Level,
-    },
-    /// The player's ledger (DEC-091) holds the subject within [min, max]
-    /// (conversations only: it frames what the player is told, never
-    /// whether something happens):
-    /// the subject's arguments.
-    PlayerKnows {
-        subject: crate::conversation::SubjectRef,
-        #[serde(default)]
-        min: Option<crate::knowledge::Level>,
-        #[serde(default)]
-        max: Option<crate::knowledge::Level>,
-    },
-    /// Any one of these holds (the first that does gives the arguments).
-    Any { of: Vec<SituationCondition> },
-    /// The speaker's voice (`talk_voices`) is one of these, so a line
-    /// (an opener) follows the voice the closers use. Conversations only;
-    /// not allowed in a voice's own conditions.
-    Voice { voices: Vec<ContentKey> },
-    /// What the conversation is about (the `about` subject): one of these
-    /// kinds (empty: any subject); for a place, one of `places` (place kinds;
-    /// empty: any) and, if `workplace` is given, the speaker's own
-    /// workplace (`true`) or not (`false`): where they work, or where their
-    /// post sits; for a neighbourhood, if `home` is given, the speaker's home
-    /// (`true`) or not. With `is: false` it holds when the subject is not that
-    /// (or there is none). Conversations only.
-    About {
-        #[serde(default)]
-        kinds: Vec<crate::conversation::AboutKind>,
-        #[serde(default)]
-        places: Vec<String>,
-        #[serde(default)]
-        workplace: Option<bool>,
-        #[serde(default)]
-        home: Option<bool>,
-        #[serde(default = "yes")]
-        is: bool,
-    },
-    /// The top concern of the speaker's home neighbourhood (`speaker`) or of
-    /// the town (`town`) is one of these: `$concern_key` (the name),
-    /// `$concern_talk_key` (the noun phrase of talk). The town form reads no
-    /// slot, so it may also stand in a town's situation.
-    Concern {
-        of: crate::conversation::ConcernOf,
-        concerns: Vec<ContentKey>,
-    },
-}
-
-fn yes() -> bool {
-    true
-}
-
-impl SituationCondition {
-    /// Whether the condition belongs to conversations only: it reads a bound
-    /// slot (a speaker, a subject), or the player's ledger. Neither ever
-    /// holds in a town's situation, where conditions decide whether things
-    /// happen (DEC-091: knowledge gates what the player sees, never what
-    /// happens).
-    pub fn is_slot_relative(&self) -> bool {
-        use SituationCondition as U;
-        match self {
-            U::Crisis { .. }
-            | U::Indicator { .. }
-            | U::PlantClosure { .. }
-            | U::Disaster { .. }
-            | U::Concern {
-                of: crate::conversation::ConcernOf::Town,
-                ..
-            } => false,
-            U::Any { of } => of.iter().any(|c| c.is_slot_relative()),
-            _ => true,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -1501,7 +1334,7 @@ impl ConcernLevel {
 /// that hold for its neighbourhood: lines about the neighbourhood's top
 /// concerns, and opinions and news grounded in facts. Registry order is
 /// load order. Fluent arguments always include `$town` and `$hood`; each
-/// condition adds its own (see `HeardCondition`).
+/// condition adds its own (see `condition::Condition::provides`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct OverheardDef {
@@ -1515,7 +1348,7 @@ pub struct OverheardDef {
     pub concern: Option<ContentKey>,
     /// Every condition must hold.
     #[serde(default)]
-    pub when: Vec<HeardCondition>,
+    pub when: Vec<crate::condition::Condition>,
     /// Relative chance among the lines that hold (default 1).
     #[serde(default = "one_f64")]
     pub weight: f64,
@@ -1528,90 +1361,6 @@ pub struct OverheardDef {
 
 fn one_f64() -> f64 {
     1.0
-}
-
-/// Water a town or neighbourhood can have.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum WaterFeature {
-    /// The town is on a river.
-    River,
-    /// The town is on the coast.
-    Coast,
-    /// A river, the coast, or a waterfront neighbourhood.
-    Any,
-}
-
-/// Whose scandal a line is about.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum HeardSubject {
-    #[default]
-    Anyone,
-    Player,
-    Rival,
-}
-
-/// A fact a line needs. Each names the Fluent arguments it provides.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum HeardCondition {
-    /// The town (or neighbourhood) has this water.
-    Water { feature: WaterFeature },
-    /// No water at all: no river, no coast, no waterfront.
-    Dry,
-    /// A live crisis in the town (of this kind, if given): `$crisis_key`.
-    Crisis {
-        #[serde(default)]
-        kind: Option<ContentKey>,
-    },
-    /// A plant closed in the town within this many months: `$industry_key`
-    /// (the closed plant's sector), `$jobs`.
-    PlantClosure { within_months: u16 },
-    /// A disaster struck the town within this many months.
-    Disaster { within_months: u16 },
-    /// The town has a defining industry: `$industry_key`.
-    Industry,
-    /// The town has a power broker: `$broker`.
-    Broker,
-    /// The player has a named rival: `$rival`.
-    Rival,
-    /// The player's name recognition in the neighbourhood within [min, max]
-    /// (0..1): `$player`.
-    PlayerAwareness {
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// Approval of the player among neighbourhood residents (−1..1), within
-    /// [min, max]; only where at least a fifth know them: `$player`.
-    PlayerApproval {
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// The rival's record of visible work within [min, max] (0..1): `$rival`.
-    RivalRecord {
-        #[serde(default)]
-        min: Option<f64>,
-        #[serde(default)]
-        max: Option<f64>,
-    },
-    /// A scandal running in the town (DEC-034) about this subject:
-    /// `$subject` (their name), `$fact_key`.
-    Scandal {
-        #[serde(default)]
-        about: HeardSubject,
-    },
-    /// A story about the town within the last eight weeks: `$outlet_key`
-    /// (with `$place`), `$headline_key`, and the headline's own arguments.
-    Headline,
-    /// The player's next local election is within this many days.
-    ElectionWithin { days: u32 },
-    /// Any one of these holds (the first that does gives the arguments).
-    Any { of: Vec<HeardCondition> },
 }
 
 // --- Scenarios (DEC-078 decision 4) -----------------------------------------------

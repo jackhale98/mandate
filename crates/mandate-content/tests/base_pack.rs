@@ -228,7 +228,7 @@ fn situational_policies_answer_the_base_crises() {
     for c in &b.crises {
         let answered = situational.iter().any(|p| {
             p.unlock.as_ref().unwrap().any.iter().any(|x| {
-                matches!(x, mandate_content::SituationCondition::Crisis { kind, .. } if kind == &c.id)
+                matches!(x, mandate_content::Condition::Crisis { kind: Some(kind), .. } if kind == &c.id)
             })
         });
         assert!(answered, "no situational policy for {}", c.id);
@@ -265,7 +265,7 @@ fn an_unlock_with_an_unknown_crisis_is_reported() {
 /// lines need a river.
 #[test]
 fn overheard_lines_cover_every_concern() {
-    use mandate_content::{HeardCondition, WaterFeature};
+    use mandate_content::{Condition, WaterFeature};
     let (b, _) = load(&base_sources()).unwrap();
     for c in &b.concerns {
         let n = b
@@ -283,7 +283,7 @@ fn overheard_lines_cover_every_concern() {
         assert!(
             o.when.iter().any(|w| matches!(
                 w,
-                HeardCondition::Water {
+                Condition::Water {
                     feature: WaterFeature::River
                 }
             )),
