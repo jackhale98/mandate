@@ -250,7 +250,7 @@ pub fn dev_catalog(engine: &Engine) -> DevCatalogView {
     let speakers = explain::speakers(st, content)
         .into_iter()
         .map(|s| {
-            let (name, role) = explain::speaker_info(st, s);
+            let (name, role) = explain::speaker_info(st, content, s);
             DevPersonView {
                 id: s.0,
                 name,

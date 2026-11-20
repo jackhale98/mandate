@@ -26,8 +26,7 @@ use mandate_content::conversation::{
 };
 use mandate_content::validate::fluent_keys;
 use mandate_content::{
-    Cast, Condition, ContentBundle, HeardCondition, OfficeRole, ScenePlace, SituationCondition,
-    Source,
+    Cast, Condition, ContentBundle, HeardCondition, ScenePlace, SituationCondition, Source,
 };
 use mandate_sim::explain;
 use mandate_sim::{Command, Engine};
@@ -173,6 +172,8 @@ impl Report {
 struct Out {
     findings: Vec<Finding>,
     files: BTreeMap<String, String>,
+    /// The constitution's role words (`office` conditions; DEC-098).
+    role_words: Vec<String>,
 }
 
 impl Out {
@@ -411,18 +412,23 @@ fn heard_bound(c: &HeardCondition) -> Option<Bound> {
 }
 
 /// A discrete quantity and the values a condition allows.
-fn narrative_discrete(c: &Condition) -> Option<(String, BTreeSet<String>)> {
+fn narrative_discrete(c: &Condition, words: &[String]) -> Option<(String, BTreeSet<String>)> {
     let set = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect::<BTreeSet<_>>();
     Some(match c {
         Condition::Campaigning { is } => ("campaigning".into(), set(&[&is.to_string()])),
-        Condition::Office { role } => (
-            "office".into(),
-            match role {
-                OfficeRole::Councillor => set(&["councillor"]),
-                OfficeRole::Mayor => set(&["mayor"]),
-                OfficeRole::Any => set(&["councillor", "mayor"]),
-                OfficeRole::None => set(&["none"]),
-            },
+        // The player's post as a role word (DEC-098): `any` is every post's
+        // word, `none` out of office.
+        Condition::Office { posts, role } => (
+            "the player's post".into(),
+            posts
+                .iter()
+                .chain(role.iter())
+                .flat_map(|w| match w.as_str() {
+                    mandate_content::OFFICE_ANY => words.to_vec(),
+                    mandate_content::OFFICE_NONE => vec!["none".to_string()],
+                    w => vec![w.to_string()],
+                })
+                .collect(),
         ),
         _ => return None,
     })
@@ -528,7 +534,11 @@ fn check_conjunction(
 
 fn check_narrative(out: &mut Out, item: &str, what: &str, cs: &[Condition]) {
     let bounds = cs.iter().filter_map(narrative_bound).collect();
-    let discrete = cs.iter().filter_map(narrative_discrete).collect();
+    let words = out.role_words.clone();
+    let discrete = cs
+        .iter()
+        .filter_map(|c| narrative_discrete(c, &words))
+        .collect();
     check_conjunction(out, item, what, bounds, discrete);
     // Two `law_in_force` on the same templates, one absent and one present.
     for a in cs {
@@ -1061,9 +1071,9 @@ const TALK_SAMPLE_DAYS: u32 = 91;
 fn with_passers_by(e: &Engine, content: &ContentBundle) -> mandate_sim::State {
     use mandate_sim::places::Location;
     let mut st = e.state().clone();
-    let r = mandate_sim::scheduler::Reads::of_state(&st, content);
-    let v = mandate_sim::narrative::cast::View::new(&r, &st.politics);
-    let Some(m) = v.town() else { return st };
+    let Some(m) = mandate_sim::player::home(&st).map(|h| h.0) else {
+        return st;
+    };
     let mut locs: Vec<Location> = st
         .world
         .neighborhoods
@@ -1098,7 +1108,7 @@ fn sample_talk(e: &Engine, content: &ContentBundle, seen: &mut Seen) {
     let st = &met;
     let week = mandate_sim::talk::week_of(st.calendar.date);
     for s in explain::speakers(st, content) {
-        let role = mandate_sim::characters::knows::role_key(st, s);
+        let role = mandate_sim::characters::knows::role_key(st, content, s);
         if let Some(r) = &role {
             seen.roles.insert(r.clone());
         }
@@ -1152,9 +1162,7 @@ fn career(content: &Arc<ContentBundle>, seed: u64, years: u32, strategy: &str) -
     {
         let st = e.state();
         // The town's place kinds (static for a run).
-        let r = mandate_sim::scheduler::Reads::of_state(st, content);
-        let v = mandate_sim::narrative::cast::View::new(&r, &st.politics);
-        if let Some(m) = v.town() {
+        if let Some(m) = mandate_sim::player::home(st).map(|h| h.0) {
             for p in st.world.places.iter().filter(|p| p.municipality.0 == m) {
                 seen.place_kinds.insert(p.kind.key().to_string());
             }
@@ -1208,9 +1216,7 @@ fn career(content: &Arc<ContentBundle>, seed: u64, years: u32, strategy: &str) -
             }
         }
         // Situational policies on the table in the player's town.
-        let r = mandate_sim::scheduler::Reads::of_state(st, content);
-        let v = mandate_sim::narrative::cast::View::new(&r, &st.politics);
-        if let Some(m) = v.town() {
+        if let Some(m) = mandate_sim::player::home(st).map(|h| h.0) {
             for t in content.policies.values().filter(|p| p.unlock.is_some()) {
                 if mandate_sim::policy::unlocked(st, content, t, m) {
                     seen.pick("situational", &t.id);
@@ -2222,6 +2228,7 @@ pub fn diagnose(sources: &[Source], args: &DoctorArgs) -> Report {
     let mut out = Out {
         findings: Vec::new(),
         files: origins(sources),
+        role_words: Vec::new(),
     };
     let mut report = Report {
         seeds: args.seeds,
@@ -2231,6 +2238,7 @@ pub fn diagnose(sources: &[Source], args: &DoctorArgs) -> Report {
     };
     if let Some(b) = load(sources, &mut out) {
         report.content_hash = b.content_hash.clone();
+        out.role_words = b.role_words();
         static_checks(&b, &mut out);
         let scan = scan_sources(&args.source);
         fluent_checks(&b, sources, scan.as_ref(), &mut out);
@@ -2503,6 +2511,7 @@ mod tests {
         let mut out = Out {
             findings: Vec::new(),
             files: BTreeMap::new(),
+            role_words: vec!["councillor".into(), "mayor".into()],
         };
         check_narrative(
             &mut out,
@@ -2515,10 +2524,12 @@ mod tests {
                     max: None,
                 },
                 Condition::Office {
-                    role: OfficeRole::Mayor,
+                    posts: Vec::new(),
+                    role: Some("mayor".into()),
                 },
                 Condition::Office {
-                    role: OfficeRole::None,
+                    posts: vec!["none".into()],
+                    role: None,
                 },
             ],
         );

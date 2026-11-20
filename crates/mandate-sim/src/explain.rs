@@ -181,7 +181,7 @@ fn name(st: &State, c: CharacterId) -> String {
 /// to the player's home or focus; nothing here reads the player's town
 /// directly).
 fn home(v: &View<'_>) -> Option<u32> {
-    v.town()
+    v.player().map(|p| p.home().0)
 }
 
 // --- Adapter 1: narrative conditions --------------------------------------------------
@@ -255,17 +255,20 @@ impl Explainer for NarrativeExplainer<'_, '_> {
                     .unwrap_or_else(|| "none".into()),
             ),
             Condition::Campaigning { .. } => put("campaigning", v.campaigning().to_string()),
+            // The player's post as its role word in the run's constitution.
             Condition::Office { .. } => put(
-                "role",
+                "post",
                 v.player()
                     .and_then(|pl| st_pol.get(pl.politician))
-                    .map(|p| match p.role {
-                        crate::politics::Role::Councillor { .. } => "councillor",
-                        crate::politics::Role::Mayor { .. } => "mayor",
-                        crate::politics::Role::Private { .. } => "out of office",
+                    .map(|p| {
+                        v.content()
+                            .constitutions
+                            .get(&v.r.meta.constitution)
+                            .and_then(|c| crate::politics::role_word(c, p))
+                            .unwrap_or("out of office")
+                            .to_string()
                     })
-                    .unwrap_or("no player")
-                    .into(),
+                    .unwrap_or_else(|| "no player".into()),
             ),
             Condition::Track { track, .. } => put(
                 "value",
@@ -540,7 +543,7 @@ impl Explainer for SituationExplainer<'_> {
                         format!(
                             "{} ({})",
                             name(st, p),
-                            characters::knows::role_key(st, p).unwrap_or_else(|| "-".into())
+                            characters::knows::role_key(st, content, p).unwrap_or_else(|| "-".into())
                         )
                     })
                     .unwrap_or_else(|| "nobody".into()),
@@ -1774,18 +1777,18 @@ pub fn talk_ctx<'a>(
     })
 }
 
-fn speaker_label(st: &State, s: CharacterId) -> String {
+fn speaker_label(st: &State, content: &ContentBundle, s: CharacterId) -> String {
     format!(
         "{} ({})",
         name(st, s),
-        characters::knows::role_key(st, s).unwrap_or_else(|| "out of office".into())
+        characters::knows::role_key(st, content, s).unwrap_or_else(|| "out of office".into())
     )
 }
 
 /// A topic for one speaker: offered to their role, and its `when`.
 fn topic_node(ctx: &TalkCtx<'_>, t: &mandate_content::conversation::TopicDef) -> Node {
     let st = ctx.st;
-    let role = characters::knows::role_key(st, ctx.speaker);
+    let role = characters::knows::role_key(st, ctx.content, ctx.speaker);
     let o = &t.offered;
     let mut kids = Vec::new();
     kids.push(
@@ -1811,7 +1814,11 @@ fn topic_node(ctx: &TalkCtx<'_>, t: &mandate_content::conversation::TopicDef) ->
     }
     let e = SituationExplainer::Talk(ctx);
     kids.push(explain_all(&e, "when", &o.when));
-    Node::group("speaker", &speaker_label(st, ctx.speaker), kids)
+    Node::group(
+        "speaker",
+        &speaker_label(st, ctx.content, ctx.speaker),
+        kids,
+    )
 }
 
 /// Try each speaker in town, each with every subject the topic takes; the
@@ -1983,7 +1990,11 @@ fn line(
         // The reply's own reading: every condition holds (with its arguments).
         let mut args = crate::talk::context_args(ctx);
         let holds = ctx.all_hold(&l.when, &mut args);
-        let mut node = Node::group("speaker", &speaker_label(ctx.st, ctx.speaker), kids);
+        let mut node = Node::group(
+            "speaker",
+            &speaker_label(ctx.st, ctx.content, ctx.speaker),
+            kids,
+        );
         node.ok = node.ok && holds;
         let texts = vec![Text {
             slot: "line".into(),
@@ -2018,7 +2029,7 @@ fn voice(
         let is = actual.is_some_and(|v| v.id == vd.id);
         let mut node = Node::group(
             "speaker",
-            &speaker_label(ctx.st, ctx.speaker),
+            &speaker_label(ctx.st, ctx.content, ctx.speaker),
             vec![
                 when,
                 Node::new(
@@ -2102,8 +2113,12 @@ fn scene(st: &State, v: &View<'_>, content: &ContentBundle, id: &str) -> Option<
 // --- Speakers and places as the workbench lists them -----------------------------------
 
 /// A speaker's name and role key (`councillor`, an occupation id).
-pub fn speaker_info(st: &State, s: CharacterId) -> (String, Option<String>) {
-    (name(st, s), characters::knows::role_key(st, s))
+pub fn speaker_info(
+    st: &State,
+    content: &ContentBundle,
+    s: CharacterId,
+) -> (String, Option<String>) {
+    (name(st, s), characters::knows::role_key(st, content, s))
 }
 
 /// A neighbourhood's index for a place (where an overheard line is heard).
