@@ -127,9 +127,7 @@ pub fn canvass_curve(state: &State, fx: &CanvassEffects, hood: NeighborhoodId) -
     let Some(pl) = state.player.as_ref() else {
         return curve(fx, 0.0, false, false);
     };
-    let visits = pl
-        .ground
-        .visits_now(hood, state.calendar.date, fx.keep);
+    let visits = pl.ground.visits_now(hood, state.calendar.date, fx.keep);
     let again = pl.ground.last_turn == Some(state.calendar.turn);
     curve(fx, visits, candidate(state), again)
 }

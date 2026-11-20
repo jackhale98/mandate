@@ -159,7 +159,17 @@ fn v18_paths_migrate_to_posts() {
 /// outcome.
 #[test]
 fn v18_save_continues_identically() {
-    let c = content();
+    // The old build played on with its own balance: where a later task has
+    // retuned a value the next 20 turns read, play on with the fixtures'
+    // value, so this compares shapes, not tunings. E1 (DEC-097 §1): the
+    // record an NPC's canvass earns, 0.06 when the fixtures were made.
+    let mut src = sources();
+    mandate_content::overrides::apply(
+        &mut src,
+        &[mandate_content::overrides::Override::parse("career.record_gain.canvass=0.06").unwrap()],
+    )
+    .unwrap();
+    let c = Arc::new(load(&src).unwrap().0);
     let (mut campaign, meta) = decode(&fixture("v18_campaign.mndt")).unwrap();
     assert_eq!(meta.format_version, 18);
     let (mut after, _) = decode(&fixture("v18_after.mndt")).unwrap();

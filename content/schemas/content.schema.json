@@ -777,17 +777,47 @@
       "additionalProperties": false,
       "properties": {
         "approval": {
-          "description": "Approval gained per unit of room.",
+          "description": "Approval gained per unit of room (× fit × fresh × season × same turn).",
           "format": "double",
           "type": "number"
         },
         "awareness": {
-          "description": "Share of the remaining awareness gap closed.",
+          "description": "Share of the remaining awareness gap closed (× `max(fresh,\nawareness_floor)`).",
+          "format": "double",
+          "type": "number"
+        },
+        "awareness_floor": {
+          "description": "Awareness is built at least at this share of the full rate, however\nstale the doorsteps (canvassing stays the way to be known).",
+          "format": "double",
+          "type": "number"
+        },
+        "campaign_mult": {
+          "description": "Approval multiplier while the player is a candidate in an open race.",
           "format": "double",
           "type": "number"
         },
         "contact": {
-          "description": "Campaign contact scale (a full day on the doorsteps).",
+          "description": "Campaign contact scale (a full day on the doorsteps; × the same-turn\ncut).",
+          "format": "double",
+          "type": "number"
+        },
+        "hood_decay": {
+          "description": "Freshness per remembered visit to a neighbourhood (DEC-097 §1,\nENGAGEMENT §2.1): `fresh = hood_decay ^ visits`.",
+          "format": "double",
+          "type": "number"
+        },
+        "hood_decay_campaign": {
+          "description": "The same in campaign season, when doorsteps are expected.",
+          "format": "double",
+          "type": "number"
+        },
+        "keep": {
+          "description": "Share of a neighbourhood's remembered visits kept each month (30 days).",
+          "format": "double",
+          "type": "number"
+        },
+        "same_turn_mult": {
+          "description": "Approval and contact multiplier for a second canvass in one turn.",
           "format": "double",
           "type": "number"
         }
@@ -795,7 +825,13 @@
       "required": [
         "awareness",
         "approval",
-        "contact"
+        "contact",
+        "hood_decay",
+        "hood_decay_campaign",
+        "keep",
+        "campaign_mult",
+        "same_turn_mult",
+        "awareness_floor"
       ],
       "type": "object"
     },
@@ -8187,11 +8223,25 @@
           "format": "double",
           "type": "number"
         },
+        "ask_broken": {
+          "format": "double",
+          "type": "number"
+        },
+        "ask_kept": {
+          "description": "Delivery (ENGAGEMENT §2.2): an ask kept, a campaign promise kept and\nan ask broken (negative), read by the asks domain (E6); the player's\nown bill becoming law, credited with V1.",
+          "format": "double",
+          "type": "number"
+        },
         "canvass": {
+          "description": "Presence, not delivery (DEC-097 §1).",
           "format": "double",
           "type": "number"
         },
         "introduce": {
+          "format": "double",
+          "type": "number"
+        },
+        "law_enacted": {
           "format": "double",
           "type": "number"
         },
@@ -8200,6 +8250,10 @@
           "type": "number"
         },
         "press": {
+          "format": "double",
+          "type": "number"
+        },
+        "promise_kept": {
           "format": "double",
           "type": "number"
         },
@@ -8219,7 +8273,11 @@
         "lobby",
         "town_hall",
         "canvass",
-        "press"
+        "press",
+        "ask_kept",
+        "promise_kept",
+        "ask_broken",
+        "law_enacted"
       ],
       "type": "object"
     },

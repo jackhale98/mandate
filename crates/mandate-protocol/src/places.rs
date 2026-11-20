@@ -933,10 +933,8 @@ fn here_as(st: &State, loc: Location, people: &[crate::characters::PersonRefView
     people
         .iter()
         .map(|p| {
-            let c = p.id.and_then(|id| {
-                pol.characters
-                    .get(mandate_sim::characters::CharacterId(id))
-            });
+            let c =
+                p.id.and_then(|id| pol.characters.get(mandate_sim::characters::CharacterId(id)));
             let (Some(c), Some((pid, pl))) = (c, place) else {
                 return "visitor";
             };

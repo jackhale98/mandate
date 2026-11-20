@@ -1,7 +1,8 @@
 //! Bot players (M4, TEST_STRATEGY): scripted strategies play the player's
 //! first local election through the same commands as the UI, across many
-//! seeds. A strategy that wins far more often than the others is a balance
-//! bug ("no dominant strategy", owner checkpoint M4). Bots go where each
+//! seeds. The gate ladder (ENGAGEMENT §7.2, DEC-097's balance principle)
+//! compares them by class: single-verb routines < a blind mix < informed
+//! play, with several informed styles that each win somewhere. Bots go where each
 //! action is done before doing it, through the same auto-routing `Go`
 //! command as the UI's agenda (DEC-079).
 //!
@@ -1607,13 +1608,13 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
     });
     // Rung 2: learning the town pays, and knowing it is worth as much.
     let explorer = mean("explorer").unwrap_or(0.0);
-    let ladder_learned = explorer >= mixed_mean + LEARNED_MARGIN
-        && rate("explorer").unwrap_or(0.0) >= mixed_rate;
+    let ladder_learned =
+        explorer >= mixed_mean + LEARNED_MARGIN && rate("explorer").unwrap_or(0.0) >= mixed_rate;
     let omni: Vec<&Played> = (1..=seeds)
         .filter_map(|seed| results.get(&("mixed", seed, true)))
         .collect();
-    let omni_mean = (!omni.is_empty())
-        .then(|| omni.iter().map(|p| p.share).sum::<f64>() / omni.len() as f64);
+    let omni_mean =
+        (!omni.is_empty()).then(|| omni.iter().map(|p| p.share).sum::<f64>() / omni.len() as f64);
     let knowledge_matters = omni_mean.map(|m| m >= mixed_mean + KNOWLEDGE_MARGIN);
     // Rung 3: informed play beats rote play by a clear margin, in several styles.
     let (best_informed_mean, best_rote_mean) = (max_of(&informed, &mean), max_of(&rote, &mean));
@@ -1649,12 +1650,20 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
             .unwrap_or("")
     };
     let enforced = |g: &str| ENFORCED.contains(&g);
-    let rung = |r: u8, g: &str, pass: serde_json::Value, detail: serde_json::Value| {
-        json!({ "rung": r, "gate": g, "pass": pass, "enforced": enforced(g), "detail": detail })
-    };
+    let rung = |r: u8, g: &str, pass: serde_json::Value, detail: serde_json::Value| json!({ "rung": r, "gate": g, "pass": pass, "enforced": enforced(g), "detail": detail });
     let ladder = vec![
-        rung(0, "idle_cap", idle_cap.into(), json!({ "idle_win_rate": idle })),
-        rung(0, "effort_matters", effort_matters.into(), json!({ "best_win_rate": best })),
+        rung(
+            0,
+            "idle_cap",
+            idle_cap.into(),
+            json!({ "idle_win_rate": idle }),
+        ),
+        rung(
+            0,
+            "effort_matters",
+            effort_matters.into(),
+            json!({ "best_win_rate": best }),
+        ),
         rung(
             0,
             "exploring_alone_never_wins",
@@ -2010,6 +2019,9 @@ mod tests {
             ("corrupt", 4),
             ("canvass", 6),
             ("proxy", 7),
+            ("explorer_campaigner", 8),
+            ("explorer_coalition", 9),
+            ("explorer_legislator", 10),
         ] {
             let mut e = new_game(&content, seed).expect("game");
             let start = e.state().calendar.turn;
@@ -2135,6 +2147,77 @@ mod tests {
             late_night: false,
         });
         assert!(g.apply(cmd).is_err());
+    }
+
+    /// The canvass curve in a real game (DEC-097 §1; ENGAGEMENT §2.1): the
+    /// campaign multiplier applies only while the player is a candidate in
+    /// an open race, and the command applies the curve the preview shows (a
+    /// repeat visit wins fewer over than a first one).
+    #[test]
+    fn the_campaign_multiplier_applies_only_while_a_candidate() {
+        let content = content();
+        let fx = &content.actions.canvass;
+        let mut e = new_game(&content, 4).expect("game");
+        let start = e.state().calendar.turn;
+        let hood = |e: &Engine| {
+            let st = e.state();
+            ward_hoods(&st.world, st.player.as_ref().unwrap().ward)[0] as u32
+        };
+        let curve = |e: &Engine| {
+            mandate_sim::player::ground::canvass_curve(e.state(), fx, NeighborhoodId(hood(e)))
+        };
+        assert!(!campaigning(&e));
+        assert_eq!(curve(&e).season, 1.0);
+        // Governing: a first visit, then a repeat, through the command.
+        let gain = |e: &mut Engine| {
+            let h = hood(e) as usize;
+            let approval = |e: &Engine| -> f64 {
+                e.state().population.hoods[h]
+                    .cohorts
+                    .iter()
+                    .map(|c| c.player_approval as f64)
+                    .sum()
+            };
+            let before = approval(e);
+            let preview = curve(e);
+            let cmd = e.route(PlayerCommand::Act {
+                action: Action::Canvass {
+                    neighborhood: h as u32,
+                    issue: None,
+                },
+                late_night: false,
+            });
+            let r = e.apply(cmd).expect("canvass");
+            let band = r.result.unwrap().args.get("fresh").cloned();
+            (approval(e) - before, preview, band)
+        };
+        let (first, c1, b1) = gain(&mut e);
+        assert_eq!(c1.fresh, 1.0);
+        assert_eq!(b1.as_deref(), Some("new"));
+        e.apply(Command::EndTurn).expect("turn");
+        let (second, c2, _) = gain(&mut e);
+        assert!(c2.fresh < 0.75 && c2.season == 1.0, "{c2:?}");
+        assert!(second < first, "{second} vs {first}");
+        // Play on to the campaign: the multiplier holds while a candidate.
+        let mut seen = false;
+        for _ in 0..80 {
+            if campaigning(&e) {
+                seen = true;
+                let c = curve(&e);
+                assert_eq!(c.season, fx.campaign_mult);
+                assert_eq!(c.approval, c.fresh * c.season * c.same_turn);
+                break;
+            }
+            assert_eq!(curve(&e).season, 1.0);
+            play_turn_from(&mut e, &content, "mixed", start);
+            e.apply(Command::EndTurn).expect("turn");
+        }
+        assert!(seen, "the campaign was never reached");
+        // After the election, back to governing.
+        while campaigning(&e) {
+            e.apply(Command::EndTurn).expect("turn");
+        }
+        assert_eq!(curve(&e).season, 1.0);
     }
 
     /// The lobbying odds the player is shown carry the knowledge term (the
