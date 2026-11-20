@@ -271,7 +271,7 @@ fn families_are_deterministic_and_survive_save_load() {
 }
 
 #[test]
-fn a_v23_save_migrates() {
+fn v23_and_v24_saves_migrate() {
     // The base pack (no families): the migrated state is the same state.
     let base = Arc::new(load(&base_sources()).unwrap().0);
     let mut e = game(&base, 5);
@@ -281,8 +281,14 @@ fn a_v23_save_migrates() {
     let p = v["state"]["policy"].as_object_mut().unwrap();
     p.remove("families");
     p.remove("works");
-    let migrated = migrate(23, v).unwrap();
+    let migrated = migrate(24, v.clone()).unwrap();
     let st: State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    assert_eq!(st.hash(), e.state_hash());
+    // From v23, the asks' step (E6) runs first: only `asks` and the family
+    // state come back at their defaults.
+    let migrated = migrate(23, v).unwrap();
+    let mut st: State = serde_json::from_value(migrated["state"].clone()).unwrap();
+    st.asks = e.state().asks.clone();
     assert_eq!(st.hash(), e.state_hash());
     // With families: a v23 run has none; the decks are drawn on load
     // (keyed: as a fresh start would) and proposals open at the next pass.
