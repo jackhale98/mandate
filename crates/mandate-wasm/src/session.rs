@@ -329,6 +329,10 @@ impl Session {
                     self.engine_mut()?,
                 ))),
                 QueryDto::Legacy => Ok(ResponseBody::Legacy(legacy_view(self.engine_mut()?))),
+                QueryDto::Asks => Ok(ResponseBody::Asks(asks_view(self.engine_mut()?))),
+                QueryDto::PromiseMenu => Ok(ResponseBody::PromiseMenu(promise_menu_view(
+                    self.engine_mut()?,
+                ))),
                 QueryDto::Canvass { neighborhood } => {
                     canvass_view(self.engine_mut()?, neighborhood)
                         .map(ResponseBody::Canvass)
@@ -560,6 +564,14 @@ fn player_command(
             P::File { filing }
         }
         CommandDto::WithdrawPolicy { policy } => P::WithdrawPolicy { policy },
+        CommandDto::RespondAsk { ask, accept } => P::RespondAsk { ask, accept },
+        CommandDto::Promise { template, answer } => P::Promise {
+            template,
+            args: answer
+                .map(|a| (mandate_content::asks::ROLE_ANSWER.to_string(), a))
+                .into_iter()
+                .collect(),
+        },
         CommandDto::Act { action, late_night } => P::Act {
             late_night,
             action: match action {
@@ -589,6 +601,7 @@ fn player_command(
                 ActionDto::DipFunds => Action::DipFunds,
                 ActionDto::LeakFile => Action::LeakFile,
                 ActionDto::Visit { verb } => Action::Visit { verb },
+                ActionDto::Casework { ask } => Action::Casework { ask },
             },
         },
         // EndTurn and AdvanceDays are handled before this conversion; they

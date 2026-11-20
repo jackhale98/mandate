@@ -3,6 +3,7 @@
 //! `web/src/engine/protocol/*.ts`.
 
 pub mod act;
+pub mod asks;
 pub mod campaign;
 pub mod characters;
 #[cfg(feature = "dev-tools")]
@@ -19,6 +20,7 @@ pub mod town;
 pub mod views;
 
 pub use act::*;
+pub use asks::*;
 pub use campaign::*;
 pub use characters::*;
 pub use knowledge::*;
@@ -227,6 +229,18 @@ pub enum CommandDto {
     },
     /// Stop the skip in progress (between turns).
     CancelSkip,
+    /// Answer an ask (DEC-097 §2): accept it (a promise to the asker) or
+    /// decline it. Free, from anywhere.
+    RespondAsk {
+        ask: u32,
+        accept: bool,
+    },
+    /// Make a campaign promise from `QueryDto::PromiseMenu` (campaigning
+    /// only; free). `answer`: the option's chosen bill, if it has one.
+    Promise {
+        template: String,
+        answer: Option<String>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -287,6 +301,11 @@ pub enum ActionDto {
     /// A verb the place offers (places with purpose): `PlacePanelView.verbs`.
     Visit {
         verb: String,
+    },
+    /// "Sort it out" (DEC-097 §2): casework on an accepted ask, at the town
+    /// hall, one slot; the odds are `AskView.odds`.
+    Casework {
+        ask: u32,
     },
 }
 
@@ -382,6 +401,10 @@ pub enum QueryDto {
     SkipSummary,
     /// The act's Legacy record, with its epilogue once the act is over.
     Legacy,
+    /// Asks and promises (DEC-097 §2): open, recent, promises, counts.
+    Asks,
+    /// The promises the player could make now (campaigning only).
+    PromiseMenu,
     /// Dev builds only (`dev-tools`): every content item and whether it
     /// could fire now (the content workbench). Not in the generated types.
     #[cfg(feature = "dev-tools")]
@@ -465,6 +488,9 @@ pub enum ResponseBody {
     SkipSummary(Option<SkipSummaryView>),
     /// `None` before play began.
     Legacy(Option<LegacyView>),
+    /// `None` before play began.
+    Asks(Option<AsksView>),
+    PromiseMenu(PromiseMenuView),
     #[cfg(feature = "dev-tools")]
     #[ts(skip)]
     DevCatalog(dev::DevCatalogView),
