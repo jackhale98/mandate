@@ -183,7 +183,9 @@ fn v18_saves_migrate_without_a_log_and_keep_their_hash() {
     let (state, log, _) = decode_with_log(&bytes).unwrap();
     assert_eq!(log, None);
     assert_eq!(state.hash(), e.state_hash());
-    // The step itself only adds the empty log.
-    let v = migrate(18, serde_json::json!({ "state": {} })).unwrap();
-    assert_eq!(v, serde_json::json!({ "state": {}, "log": null }));
+    // The run-log step only adds the empty log: a real state, already in
+    // today's shape, comes through the rest of the chain unchanged.
+    let state = serde_json::to_value(e.state()).unwrap();
+    let v = migrate(18, serde_json::json!({ "state": state.clone() })).unwrap();
+    assert_eq!(v, serde_json::json!({ "state": state, "log": null }));
 }
