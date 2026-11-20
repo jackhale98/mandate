@@ -1439,36 +1439,37 @@ fn work_asks(e: &mut Engine, content: &ContentBundle, strategy: &str) {
     }
 }
 
-/// While campaigning, make promises from the menu (up to the cap): the
-/// ones the style can keep, a promise of presence first, then the worries
-/// the player knows, then the crisis's answer (styles that draft).
+/// While campaigning, make promises from the menu (up to the cap), aimed
+/// at the worries the player knows the race's neighbourhoods feel most (a
+/// promise persuades where its worry is felt: ENGAGEMENT §3.5), then the
+/// crisis's answer (styles that draft), then a promise of presence.
 fn make_promises(e: &mut Engine, content: &ContentBundle, strategy: &str) {
     if ask_style(strategy).is_none() || !campaigning(e) {
         return;
     }
     for _ in 0..3 {
         let menu = mandate_sim::asks::promise_menu(e.state(), content);
-        let known: Vec<String> = {
+        // Known worries: how many of the ward's neighbourhoods the player
+        // knows feel each most.
+        let mut known: BTreeMap<String, i32> = BTreeMap::new();
+        {
             let k = Knowing::of(e);
             let st = e.state();
-            st.player
-                .as_ref()
-                .map(|pl| {
-                    ward_hoods(&st.world, pl.ward)
-                        .into_iter()
-                        .filter_map(|h| k.top_worry(NeighborhoodId(h as u32)))
-                        .collect()
-                })
-                .unwrap_or_default()
-        };
-        let rank = |o: &mandate_sim::asks::PromiseOption| -> Option<u8> {
-            match (o.template.as_str(), &o.concern) {
-                ("promise.town_halls", _) => Some(0),
-                ("promise.no_tax_rise", _) => Some(1),
-                (_, Some(c)) if o.answer.is_none() && drafts(strategy) && known.contains(c) => {
-                    Some(2)
+            if let Some(pl) = st.player.as_ref() {
+                for h in ward_hoods(&st.world, pl.ward) {
+                    if let Some(w) = k.top_worry(NeighborhoodId(h as u32)) {
+                        *known.entry(w).or_default() += 1;
+                    }
                 }
-                ("promise.answer_crisis", _) if drafts(strategy) => Some(3),
+            }
+        }
+        let rank = |o: &mandate_sim::asks::PromiseOption| -> Option<i32> {
+            match (o.template.as_str(), &o.concern, &o.answer) {
+                (_, Some(c), None) if drafts(strategy) || c == "concern.taxes" => {
+                    known.get(c).map(|n| -n)
+                }
+                ("promise.answer_crisis", _, _) if drafts(strategy) => Some(5),
+                ("promise.town_halls", _, _) => Some(6),
                 _ => None,
             }
         };

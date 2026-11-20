@@ -418,6 +418,34 @@ fn the_sliding_rate_follows_its_curves() {
     assert_eq!(chance(&e), 0.0);
 }
 
+/// The time skip's `request_due` interrupt reads accepted asks and promises
+/// through the asks' read API; offers do not stop a skip.
+#[test]
+fn asks_falling_due_interrupt_a_skip() {
+    let c = base();
+    let mut e = engine(&c, 8);
+    let key = |e: &Engine| {
+        mandate_sim::skip::interrupt_keys(e.state(), &c)
+            .into_iter()
+            .any(|(_, k, _)| k.starts_with("interrupt.request_due:ask:"))
+    };
+    assert!(!key(&e));
+    let id = put(&mut e, vec![Need::Casework], 60);
+    assert!(!key(&e), "not due within the interrupt's days");
+    assert!(e.state().asks.due_within(e.state().calendar.date, 60).len() == 1);
+    e.setup(|st| {
+        let date = st.calendar.date;
+        let a = st.asks.asks.iter_mut().find(|a| a.id == id).unwrap();
+        a.due = date.add_days(3);
+    });
+    assert!(key(&e));
+    e.setup(|st| {
+        let a = st.asks.asks.iter_mut().find(|a| a.id == id).unwrap();
+        a.status = AskStatus::Offered;
+    });
+    assert!(!key(&e), "an offer lapses rather than stopping a skip");
+}
+
 #[test]
 fn second_term_deadlines_draw_from_the_lower_half() {
     assert_eq!(offers::deadline_range([21, 35], false), [21, 35]);

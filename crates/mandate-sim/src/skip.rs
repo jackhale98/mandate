@@ -504,9 +504,15 @@ pub fn interrupt_keys(state: &crate::State, content: &ContentBundle) -> Vec<Inte
                         ],
                     );
                 }
-                // Asks to answer and asks and promises to keep (DEC-097 §2),
-                // through the asks' read API.
-                for a in state.asks.due_within(today, *days as u32) {
+                // Asks and promises the player accepted, falling due (DEC-097
+                // §2), through the asks' read API. Offers do not stop a skip:
+                // left unanswered, they lapse as declined.
+                for a in state
+                    .asks
+                    .due_within(today, *days as u32)
+                    .into_iter()
+                    .filter(|a| a.accepted())
+                {
                     add(
                         format!("ask:{}", a.id.0),
                         vec![

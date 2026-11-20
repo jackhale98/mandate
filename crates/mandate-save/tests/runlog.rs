@@ -186,6 +186,9 @@ fn v18_saves_migrate_without_a_log_and_keep_their_hash() {
     // had it (the record opens at the run's next turn).
     assert_eq!(state.act, Default::default());
     state.act = e.state().act.clone();
+    // The asks' step (v23 → v24) likewise starts them empty.
+    assert_eq!(state.asks, Default::default());
+    state.asks = e.state().asks.clone();
     assert_eq!(state.hash(), e.state_hash());
     // The run-log step only adds the empty log: a real state, already in
     // today's shape, comes through the rest of the chain unchanged.
@@ -200,9 +203,11 @@ fn v18_saves_migrate_without_a_log_and_keep_their_hash() {
     {
         p.remove("ground");
     }
-    // And the act flow's (22 → 23) its state, new in v23.
+    // And the act flow's (22 → 23) its state, new in v23, and the asks'
+    // (23 → 24) theirs, new in v24.
     if let Some(o) = expected.as_object_mut() {
         o.remove("act");
+        o.remove("asks");
     }
     assert_eq!(v, serde_json::json!({ "state": expected, "log": null }));
 }

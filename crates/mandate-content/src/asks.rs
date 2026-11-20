@@ -579,11 +579,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
         let raised_by_goal = b.goals.iter().any(|g| g.ask.as_deref() == Some(owner));
         if matches!(a.asker, Cast::GoalHolder) && !raised_by_goal {
-            err(
-                issues,
+            // Goals are moddable: an ask no goal names is never offered.
+            issues.push(Issue::warning(
                 owner,
-                "an asker cast `goal_holder` needs a goal that names this ask",
-            );
+                "an asker cast `goal_holder` and no goal names this ask (it is never offered)",
+            ));
         }
         if a.from.is_empty() {
             err(issues, owner, "`from` needs at least one source");
@@ -649,7 +649,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
         match &x.answers {
             PromiseAnswers::Concern { concern } if !b.concerns.iter().any(|c| &c.id == concern) => {
-                err(issues, owner, &format!("unknown concern `{concern}`"));
+                // The concern registry is moddable (as in conditions).
+                issues.push(Issue::warning(
+                    owner,
+                    &format!("unknown concern `{concern}` (the promise is never offered)"),
+                ));
             }
             _ => {}
         }
@@ -767,7 +771,10 @@ fn check_needs(
             }
             BillsDef::ConcernAnswer { concern } => {
                 if !b.concerns.iter().any(|c| &c.id == concern) {
-                    err(issues, &format!("unknown concern `{concern}`"));
+                    issues.push(Issue::warning(
+                        owner,
+                        &format!("unknown concern `{concern}` (no bill answers it)"),
+                    ));
                 }
             }
             BillsDef::Chosen if !promise => {
@@ -787,7 +794,10 @@ fn check_needs(
             NeedDef::Statement {
                 about: StatementDef::Concern { concern },
             } if !b.concerns.iter().any(|c| &c.id == concern) => {
-                err(issues, &format!("unknown concern `{concern}`"));
+                issues.push(Issue::warning(
+                    owner,
+                    &format!("unknown concern `{concern}` (a general statement still counts)"),
+                ));
             }
             NeedDef::TownHall { role, constituency } => match (role, constituency) {
                 (Some(r), false) if !is_hood(r) => {

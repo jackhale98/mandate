@@ -135,8 +135,18 @@ fn promises_name_what_they_answer() {
         "break":[{"type":"approval","scope":"ward","delta":-0.03}],
         "detail_key":"promise-jobs-detail","need_key":"promise-jobs-need",
         "kept_key":"promise-jobs-kept","broken_key":"promise-jobs-broken"}]}"#;
-    let e = with("aa_test/promises.jsonc", p);
-    assert!(e.iter().any(|x| x.contains("unknown concern")), "{e:?}");
+    // The concern registry is moddable: a warning, as in conditions.
+    let mut src =
+        read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
+    src.push(Source {
+        path: "aa_test/promises.jsonc".into(),
+        text: p.into(),
+    });
+    let (_, warnings) = load(&src).unwrap();
+    assert!(
+        warnings.iter().any(|x| x.to_string().contains("unknown concern")),
+        "{warnings:?}"
+    );
 }
 
 #[test]
