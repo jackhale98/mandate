@@ -13,9 +13,9 @@
 //! conditions. A closed place offers nothing, as for every action.
 
 use crate::bundle::ContentBundle;
+use crate::condition::{Condition, ConditionUse, Site};
 use crate::knowledge::{GrantDef, Level};
 use crate::routines::DayPart;
-use crate::condition::{Condition, ConditionUse, Site};
 use crate::types::{ClassKey, ContentKey};
 use crate::validate::{Issue, valid_key};
 use schemars::JsonSchema;

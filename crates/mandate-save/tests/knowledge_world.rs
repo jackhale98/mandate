@@ -121,10 +121,9 @@ fn knows_never_decides_what_happens() {
         "topics are offered by what the player knows"
     );
     assert!(
-        b.talk_lines.iter().any(|l| l
-            .when
+        b.talk_lines
             .iter()
-            .any(|c| matches!(c, Condition::Tells { .. }))),
+            .any(|l| l.when.iter().any(|c| matches!(c, Condition::Tells { .. }))),
         "lines are chosen by what the speaker will tell"
     );
 }

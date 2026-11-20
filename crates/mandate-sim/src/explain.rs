@@ -24,6 +24,7 @@
 //! - scene: a dilemma that presents it could fire, and its place resolves.
 
 use crate::characters::{self, CharacterId};
+use crate::condition;
 use crate::narrative::cast::{self, View};
 use crate::narrative::{Actor, CastEntry};
 use crate::places::Location;
@@ -32,7 +33,6 @@ use crate::state::State;
 use crate::talk::AboutRef;
 use crate::talk::context::{Args, Ctx as TalkCtx};
 use crate::world::{MunicipalityId, NeighborhoodId};
-use crate::condition;
 use mandate_content::condition::{CondTier, Worry};
 use mandate_content::conversation::{AboutKind, ConcernOf, TalkPart};
 use mandate_content::{
@@ -372,7 +372,8 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
             let rival = town.and_then(|t| t.rival);
             put("rival", rival.map(pname).unwrap_or_else(|| "none".into()));
             if matches!(c, C::RivalRecord { .. })
-                && let Some(p) = rival.and_then(|r| pol.politicians.iter().find(|p| p.character == r))
+                && let Some(p) =
+                    rival.and_then(|r| pol.politicians.iter().find(|p| p.character == r))
             {
                 put("record", num(p.record as f64));
             }
@@ -719,17 +720,26 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
 /// The arguments the conditions that hold provide (the line's own
 /// arguments, as the overheard draw gives them), with `town` and `hood`,
 /// and the story a `headline` found.
-pub fn heard_args(cx: &condition::Ctx<'_>, cs: &[Condition]) -> (BTreeMap<String, String>, Option<u32>) {
+pub fn heard_args(
+    cx: &condition::Ctx<'_>,
+    cs: &[Condition],
+) -> (BTreeMap<String, String>, Option<u32>) {
     let mut args = BTreeMap::new();
     cx.story.set(None);
     for c in cs {
         condition::holds(cx, c, &mut args);
     }
     let world = cx.v.r.world;
-    if let Some(m) = cx.town_id().and_then(|m| world.municipalities.get(m.index())) {
+    if let Some(m) = cx
+        .town_id()
+        .and_then(|m| world.municipalities.get(m.index()))
+    {
         args.insert("town".into(), m.name.clone());
     }
-    if let Some(n) = cx.here_hood().and_then(|h| world.neighborhoods.get(h.index())) {
+    if let Some(n) = cx
+        .here_hood()
+        .and_then(|h| world.neighborhoods.get(h.index()))
+    {
         args.insert("hood".into(), n.name.clone());
     }
     (args, cx.story.get())
@@ -1477,17 +1487,13 @@ fn overheard(
         let mut pk = Vec::new();
         if let Some(c) = &def.concern {
             let m = cx.town_id().map(|t| t.index()).unwrap_or(0);
-            let felt: Vec<String> = crate::concerns::felt_concerns(
-                &st.population,
-                content,
-                m,
-                &[hood.index()],
-            )
-            .into_iter()
-            .filter(|(_, w)| *w > 0.0)
-            .take(3)
-            .filter_map(|(i, _)| content.concerns.get(i).map(|x| x.id.clone()))
-            .collect();
+            let felt: Vec<String> =
+                crate::concerns::felt_concerns(&st.population, content, m, &[hood.index()])
+                    .into_iter()
+                    .filter(|(_, w)| *w > 0.0)
+                    .take(3)
+                    .filter_map(|(i, _)| content.concerns.get(i).map(|x| x.id.clone()))
+                    .collect();
             pk.push(
                 Node::new(
                     "gate",

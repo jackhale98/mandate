@@ -701,7 +701,9 @@ pub fn reasons(v: &View<'_>, conds: &[Condition], cast: &[CastEntry]) -> Vec<Rea
     let town = v.town_character();
     for c in conds {
         match c {
-            Condition::Crisis { kind: Some(kind), .. } => {
+            Condition::Crisis {
+                kind: Some(kind), ..
+            } => {
                 if let Some(x) = town.and_then(|t| t.crises.iter().find(|x| &x.kind == kind)) {
                     out.push(Reason::Crisis {
                         kind: kind.clone(),

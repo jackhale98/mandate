@@ -188,7 +188,8 @@ pub fn availability(
         let parts = Condition::DayPart {
             parts: def.parts.clone(),
         };
-        if !late_night && !def.parts.is_empty() && !crate::condition::holds(&cx, &parts, &mut args) {
+        if !late_night && !def.parts.is_empty() && !crate::condition::holds(&cx, &parts, &mut args)
+        {
             return Some(Blocked::Hours);
         }
         if !crate::condition::all_hold(&cx, &def.when, &mut args) {

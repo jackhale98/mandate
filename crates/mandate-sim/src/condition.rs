@@ -89,7 +89,11 @@ impl<'a> Ctx<'a> {
     /// The narrative's context: the player's home town, a cast, inside the
     /// simulation (no whole state).
     pub fn narrative(v: &'a View<'a>, cast: &'a [CastEntry]) -> Self {
-        let mut cx = Ctx::new(v, None, v.town().map(|m| Jurisdiction::town(MunicipalityId(m))));
+        let mut cx = Ctx::new(
+            v,
+            None,
+            v.town().map(|m| Jurisdiction::town(MunicipalityId(m))),
+        );
         cx.cast = cast;
         cx
     }
@@ -273,12 +277,12 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             args.insert("jobs".into(), jobs.to_string());
             true
         }
-        C::Disaster { within_months } => v
-            .r
-            .economy()
-            .munis
-            .get(m as usize)
-            .is_some_and(|e| e.months_since_disaster < *within_months),
+        C::Disaster { within_months } => {
+            v.r.economy()
+                .munis
+                .get(m as usize)
+                .is_some_and(|e| e.months_since_disaster < *within_months)
+        }
         C::LawInForce { templates, absent } => {
             let any = v.r.policy().in_municipality(m).any(|p| {
                 matches!(p.status, PolicyStatus::Enacted | PolicyStatus::InEffect)
@@ -342,18 +346,17 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
                 .and_then(|t| t.rival)
                 .and_then(|r| pol.politicians.iter().find(|p| p.character == r))
                 .map(|p| p.id);
-            let Some(x) = v
-                .r
-                .media()
-                .scandals
-                .iter()
-                .rev()
-                .filter(|x| x.running() && x.town == m)
-                .find(|x| match about {
-                    HeardSubject::Anyone => true,
-                    HeardSubject::Player => Some(x.subject) == me,
-                    HeardSubject::Rival => Some(x.subject) == rival,
-                })
+            let Some(x) =
+                v.r.media()
+                    .scandals
+                    .iter()
+                    .rev()
+                    .filter(|x| x.running() && x.town == m)
+                    .find(|x| match about {
+                        HeardSubject::Anyone => true,
+                        HeardSubject::Player => Some(x.subject) == me,
+                        HeardSubject::Rival => Some(x.subject) == rival,
+                    })
             else {
                 return false;
             };
@@ -426,9 +429,12 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             let (Some(st), Some(loc)) = (cx.st, cx.here) else {
                 return false;
             };
-            crate::visits::present(st, content, loc).into_iter().any(|c| {
-                crate::visits::occupation_of(st, c).is_some_and(|o| occupations.iter().any(|w| w == o))
-            })
+            crate::visits::present(st, content, loc)
+                .into_iter()
+                .any(|c| {
+                    crate::visits::occupation_of(st, c)
+                        .is_some_and(|o| occupations.iter().any(|w| w == o))
+                })
         }
         // --- Time and the calendar ---------------------------------------------------
         C::DayPart { parts } => cx.day_part().is_some_and(|p| parts.contains(&p)),
@@ -796,7 +802,10 @@ pub fn role_key(cx: &Ctx<'_>, id: CharacterId) -> Option<String> {
     let pol = cx.v.pol;
     let c = pol.characters.get(id)?;
     if let Some(p) = c.politician.and_then(|p| pol.get(p)) {
-        let constitution = cx.v.content().constitutions.get(&cx.v.r.meta.constitution)?;
+        let constitution =
+            cx.v.content()
+                .constitutions
+                .get(&cx.v.r.meta.constitution)?;
         return crate::politics::role_word(constitution, p).map(str::to_string);
     }
     c.named.as_deref().map(|n| n.occupation.clone())

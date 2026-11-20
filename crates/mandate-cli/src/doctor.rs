@@ -24,11 +24,11 @@
 //! on errors. Read-only: careers are played on throwaway engines.
 
 use crate::bots;
+use mandate_content::condition::Worry;
 use mandate_content::conversation::{
     ConcernOf, LeadToDef, TalkLineDef, TalkPart, fluent_placeholders,
 };
 use mandate_content::validate::fluent_keys;
-use mandate_content::condition::Worry;
 use mandate_content::{Cast, Condition, ContentBundle, ScenePlace, Source};
 use mandate_sim::explain;
 use mandate_sim::{Command, Engine};
@@ -383,12 +383,8 @@ fn cond_bound(c: &Condition) -> Option<Bound> {
             max,
         } => bound(format!("{slot} {axis}"), *min, *max, (0.0, 1.0)),
         C::Trust { slot, min, max } => bound(format!("trust of {slot}"), *min, *max, (0.0, 1.0)),
-        C::PlayerAwareness { min, max } => {
-            bound("player awareness".into(), *min, *max, (0.0, 1.0))
-        }
-        C::PlayerApproval { min, max } => {
-            bound("player approval".into(), *min, *max, (-1.0, 1.0))
-        }
+        C::PlayerAwareness { min, max } => bound("player awareness".into(), *min, *max, (0.0, 1.0)),
+        C::PlayerApproval { min, max } => bound("player approval".into(), *min, *max, (-1.0, 1.0)),
         C::RivalRecord { min, max } => bound("rival record".into(), *min, *max, (0.0, 1.0)),
         _ => return None,
     })
@@ -834,9 +830,9 @@ fn cond_refs(
             }
         }
         match c {
-            C::Crisis { kind: Some(kind), .. } if !b.crises.iter().any(|x| &x.id == kind) => {
-                unknown(out, "crisis", kind)
-            }
+            C::Crisis {
+                kind: Some(kind), ..
+            } if !b.crises.iter().any(|x| &x.id == kind) => unknown(out, "crisis", kind),
             C::Concern { top, .. } => {
                 for k in c.worry().map(|w| w.concerns).unwrap_or_default() {
                     if !b.concerns.iter().any(|x| &x.id == k) {

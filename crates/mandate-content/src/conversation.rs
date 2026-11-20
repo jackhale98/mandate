@@ -11,8 +11,8 @@
 //! code; everything else here is data.
 
 use crate::ContentBundle;
-use crate::knowledge::Level;
 use crate::condition::{Condition, ConditionUse, Site, walk};
+use crate::knowledge::Level;
 use crate::types::ContentKey;
 use crate::validate::{Issue, fluent_keys};
 use schemars::JsonSchema;
@@ -940,8 +940,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         let mut all = Vec::new();
         walk(&p.offered.when, &mut all);
         for c in all {
-            if let Condition::Tells { subject, .. }
-            | Condition::PlayerKnows { subject, .. } = c
+            if let Condition::Tells { subject, .. } | Condition::PlayerKnows { subject, .. } = c
                 && let Err(e) = subject_ok(subject, &[])
             {
                 issues.push(Issue::error(&p.id, &e));
@@ -981,10 +980,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         );
         let mut all = Vec::new();
         walk(&v.when, &mut all);
-        if all
-            .iter()
-            .any(|c| matches!(c, Condition::Voice { .. }))
-        {
+        if all.iter().any(|c| matches!(c, Condition::Voice { .. })) {
             issues.push(Issue::error(
                 &v.id,
                 "a voice's conditions cannot name a voice (it is what they decide)",
@@ -1070,8 +1066,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         let mut conds = Vec::new();
         walk(&l.when, &mut conds);
         for c in &conds {
-            if let Condition::Tells { subject, .. }
-            | Condition::PlayerKnows { subject, .. } = c
+            if let Condition::Tells { subject, .. } | Condition::PlayerKnows { subject, .. } = c
                 && let Err(e) = subject_ok(subject, about)
             {
                 issues.push(Issue::error(id, &e));

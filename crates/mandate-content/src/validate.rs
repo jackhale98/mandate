@@ -1928,8 +1928,9 @@ pub fn check_situation(
             "a situation trigger needs at least one condition",
         ));
     }
-    let site = crate::condition::Site::new(owner, crate::condition::ConditionUse::PolicyUnlock, &[])
-        .tier(tier);
+    let site =
+        crate::condition::Site::new(owner, crate::condition::ConditionUse::PolicyUnlock, &[])
+            .tier(tier);
     crate::condition::check_all(b, &site, &u.any, issues);
 }
 

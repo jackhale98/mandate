@@ -616,7 +616,7 @@ impl Condition {
                 n.slot = !same_cast.is_empty();
             }
             C::PlantClosure { .. } | C::DayPart { .. } => n.state = true,
-            C::Present { .. } => {
+            C::Present { .. } | C::Shedding { .. } => {
                 n.state = true;
                 n.here = true;
             }
@@ -625,8 +625,7 @@ impl Condition {
             }
             | C::Dry
             | C::PlayerAwareness { .. }
-            | C::PlayerApproval { .. }
-            | C::Shedding { .. } => n.here = true,
+            | C::PlayerApproval { .. } => n.here = true,
             _ => {}
         }
         n
@@ -720,11 +719,7 @@ impl Condition {
             of: *of,
             concerns: concern.iter().chain(concerns.iter()).collect(),
             top: top.unwrap_or(if single { 3 } else { 1 }),
-            by: by.unwrap_or(if single {
-                Worry::Measured
-            } else {
-                Worry::Felt
-            }),
+            by: by.unwrap_or(if single { Worry::Measured } else { Worry::Felt }),
         })
     }
 
@@ -957,7 +952,9 @@ pub fn check(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec
         issues.push(Issue::error(owner, &why));
         return;
     }
-    if site.tier != TierKey::Local && c.tier() == CondTier::Local && !matches!(c, Condition::Any { .. })
+    if site.tier != TierKey::Local
+        && c.tier() == CondTier::Local
+        && !matches!(c, Condition::Any { .. })
     {
         issues.push(Issue::error(
             owner,
@@ -1061,7 +1058,9 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
                 err(issues, "min_severity must be in [0, 1]".into());
             }
         }
-        C::Indicator { min, max, .. } => range(owner, "indicator", min, max, -1000.0, 1000.0, issues),
+        C::Indicator { min, max, .. } => {
+            range(owner, "indicator", min, max, -1000.0, 1000.0, issues)
+        }
         C::Concern {
             concern,
             concerns,
@@ -1198,8 +1197,7 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
             chance,
             ..
         } => {
-            if *min_age_days > 3650 || max_age_days.is_some_and(|m| m < *min_age_days || m > 3650)
-            {
+            if *min_age_days > 3650 || max_age_days.is_some_and(|m| m < *min_age_days || m > 3650) {
                 err(
                     issues,
                     "sponsored_law ages must be in 0..3650 with min ≤ max".into(),
@@ -1379,7 +1377,10 @@ fn old_spellings(schema: &mut schemars::Schema) {
             let mut l = Value::Object(o.clone());
             if let Some(p) = l.get_mut("properties").and_then(|p| p.as_object_mut()) {
                 p.remove("kind");
-                p.insert("type".into(), json!({ "const": "live_crisis", "type": "string" }));
+                p.insert(
+                    "type".into(),
+                    json!({ "const": "live_crisis", "type": "string" }),
+                );
             }
             if let Some(m) = l.as_object_mut() {
                 m.insert(
@@ -1389,10 +1390,7 @@ fn old_spellings(schema: &mut schemars::Schema) {
             }
             live = Some(l);
         }
-        let slot = o
-            .get("properties")
-            .and_then(|p| p.get("slot"))
-            .cloned();
+        let slot = o.get("properties").and_then(|p| p.get("slot")).cloned();
         let Some(slot) = slot else {
             continue;
         };

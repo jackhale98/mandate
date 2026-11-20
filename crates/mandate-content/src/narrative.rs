@@ -1215,7 +1215,12 @@ impl Refs<'_> {
     /// decides whether something happens, DEC-091; the event log, people's
     /// routines and conversations inside the simulation), and each
     /// condition names real things with sane ranges.
-    fn conditions(&self, at: crate::condition::ConditionUse, cs: &[Condition], issues: &mut Vec<Issue>) {
+    fn conditions(
+        &self,
+        at: crate::condition::ConditionUse,
+        cs: &[Condition],
+        issues: &mut Vec<Issue>,
+    ) {
         let site = crate::condition::Site::new(self.owner, at, &self.roles);
         crate::condition::check_all(self.b, &site, cs, issues);
     }
@@ -1388,7 +1393,11 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
     let request = d.category == DilemmaCategory::Request;
     let roles = check_roles(owner, b, &d.roles, request, issues);
     let scope = Refs { owner, b, roles };
-    scope.conditions(crate::condition::ConditionUse::DilemmaTrigger, &d.triggers, issues);
+    scope.conditions(
+        crate::condition::ConditionUse::DilemmaTrigger,
+        &d.triggers,
+        issues,
+    );
     // A raised decision answers a story or a case: four answers and silence.
     let most = if d.raised_by.is_some() { 5 } else { 4 };
     if !(2..=most).contains(&d.options.len()) {
@@ -1738,7 +1747,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             b,
             roles: vec!["holder"],
         };
-        scope.conditions(crate::condition::ConditionUse::GoalCondition, &g.conditions, issues);
+        scope.conditions(
+            crate::condition::ConditionUse::GoalCondition,
+            &g.conditions,
+            issues,
+        );
         let ok = match &g.drive {
             GoalDrive::None => true,
             GoalDrive::OpposePlayer { lean } | GoalDrive::BackPlayer { lean } => {
@@ -1807,7 +1820,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
         let roles = check_roles(owner, b, &s.roles, false, issues);
         let scope = Refs { owner, b, roles };
-        scope.conditions(crate::condition::ConditionUse::StorylineStart, &s.start, issues);
+        scope.conditions(
+            crate::condition::ConditionUse::StorylineStart,
+            &s.start,
+            issues,
+        );
         if s.stages.is_empty() {
             issues.push(Issue::error(owner, "a storyline needs stages"));
         }
@@ -1825,7 +1842,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     &format!("stage `{}` defined twice", st.id),
                 ));
             }
-            scope.conditions(crate::condition::ConditionUse::StorylineAdvance, &st.advance, issues);
+            scope.conditions(
+                crate::condition::ConditionUse::StorylineAdvance,
+                &st.advance,
+                issues,
+            );
             if let Some(dk) = &st.decision {
                 match b.dilemma(dk) {
                     None => issues.push(Issue::error(owner, &format!("unknown decision `{dk}`"))),
