@@ -250,3 +250,20 @@ A conversation reply is composed the way the engine composes one: an opener, som
 55. **headline-response-deny** (Corriton).  
    > Wim Hart denies a cash bribe
 
+## Asked about a place or a neighbourhood (the relevance pass)
+
+56. **journalist, neutral**: "Ask about…" the paper they work for, The Corriton Ledger. (Before this pass the reply was about the rent.)  
+   > "The editor at The Corriton Ledger reads every line twice and cuts half. You'd be amazed who rings up asking us not to run something. Some of them sit on the council."
+
+57. **union steward, warm**: "Ask about…" the union hall, where they work.  
+   > "You mean the union hall? I've the keys, the kettle and the grievances. Thursday nights it's standing room only, and everyone wants to know what management's planning."
+
+58. **resident, neutral**: "Ask about…" the town hall, which is not theirs.  
+   > "You mean the town hall? Forms in, money out, and a queue either way. Everyone ends up there sooner or later."
+
+59. **councillor, neutral**: "What are people worried about?", asked of Castlelands, which is not their end of town.  
+   > "Castlelands? Not my end of town, so I'd only be guessing. Ask someone who lives there."
+
+60. **resident, warm**: the same question of Castlelands, their home (top worry: jobs; the notebook then says the same).  
+   > "Castlelands? I'd know; it's home. It's jobs, and you could set your watch by the complaints."
+

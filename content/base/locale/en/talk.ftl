@@ -235,7 +235,7 @@ talk-worries-home = "In { $hood }? It's { $concern_talk }, plain and simple. Kno
 talk-worries-home-2 = "I live in { $hood }, and I could name you six households on my street losing sleep over { $concern_talk }."
 talk-worries-home-3 = "You want the truth about { $hood }? It's { $concern_talk }, at the kitchen table every night, and nobody's fixed it."
 talk-worries-about-hood-heard = "{ $hood }? Not my end of town, but I hear it's mostly { $concern_talk } over there."
-talk-worries-about-hood-home = "Round my way? Mostly { $concern_talk }, from what the neighbours say."
+talk-worries-about-hood-home = "{ $hood }? That's my way. Mostly { $concern_talk }, from what the neighbours say."
 talk-worries-about-hood-unknown = "{ $about }? Not my end of town, so I'd only be guessing. Ask someone who lives there."
 talk-worries-about-hood = "{ $hood }? I'd know; it's home. It's { $concern_talk }, and you could set your watch by the complaints."
 
@@ -384,7 +384,7 @@ talk-about-place-own-farm = "Out at { $about } it's up before light and the weat
 talk-about-place-own-councillor = "In { $about }? Long evenings, longer papers, and a vote that's settled in the corridor before anyone stands up."
 talk-about-place-own-mayor = "I've an office at { $about } with a view of the car park and a diary full until spring. The building leaks. So does everything said in it."
 talk-about-place-own-regular = "I'm at { $about } most days. Same seat, same faces. You hear more there than you'd think."
-talk-about-place-own-cool = "I'm there every day, and what goes on there is my business, not yours."
+talk-about-place-own-cool = "You mean { $about }? I'm there every day, and what goes on there is my business, not yours."
 talk-about-place-town-hall = "You mean { $about }? Forms in, money out, and a queue either way. Everyone ends up there sooner or later."
 talk-about-place-chamber = "Go and sit in the gallery at { $about } one evening. You'll learn more from who talks to whom in the break than from the votes."
 talk-about-place-centre = "Most of what matters round here happens at { $about }: toddler groups, the food bank, residents' meetings. It runs on volunteers and biscuits."

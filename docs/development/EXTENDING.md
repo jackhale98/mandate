@@ -262,7 +262,7 @@ cargo run --release -p mandate-cli -- content doctor --seeds 0 --json   # static
 - **Fluent**: keys content references but English lacks (error; the doctor stubs them so the rest can still be checked), keys the engine names but English lacks (warn, a scan of `crates/*/src`), keys nothing references (info; content, other messages, engine and UI literals and the prefixes keys are built from count as references), and arguments a message uses that its caller never supplies (dilemma, storyline and scene casts; overheard conditions).
 - **Too long** (warn): titles over 60 characters, lines over 280, situations and aftermaths over 600 (`--max-title`, `--max-line`, `--max-body`), rendered with long representative names and the longest variant of every selector.
 - **Voice**: a closer whose voice's speakers never have the line's roles, a substance line for roles its topic is never offered to, a voice that an unconditional voice of higher priority always beats, and (from the careers) voice and role pairs never met.
-- **Text** (warn): doubled punctuation and stray braces written into a message (`text-doubled-punct`, `text-raw`), and a line that names a worry with nothing in its conditions behind it (`worry-unconditioned`). See "Writing for Mandate" below.
+- **Text** (warn): doubled punctuation and stray braces written into a message (`text-doubled-punct`, `text-raw`), and a line that names a worry with nothing in its conditions behind it (`worry-unconditioned`); replies that do not answer what was asked (`subject-unread`, `subject-drift`). See "Writing for Mandate" below.
 
 `--strict` exits non-zero on errors. CI runs the doctor as a report step only, until the base pack's counts are clean.
 
@@ -310,6 +310,23 @@ A line can be drawn whenever its conditions hold, so everything it claims must b
 - **Only what happened.** An outcome or aftermath says what this option did and who noticed. A headline reports an event that is in the log.
 
 When a condition cannot express what a line needs (a disaster's hazard, whether the player has met someone, an option shown only in some cases), say so in the content's comment, and write the line so that it stays true without it.
+
+### Answer the question, and teach only what was said
+
+A reply answers what the player asked. Asked about the newspaper office, a reporter talks about the paper, not the cost of living.
+
+- **Lines for a subject read the subject.** In a topic that informs ("What are people worried about?", "Who runs things?", "Ask about…"), the engine shows only lines whose conditions read the subject, whenever the player gave one (`reply::candidates`). Those are lines with `slot: "about"`, a subject `of: "about"`, or an `about` condition. If none holds, it shows the topic's fallbacks. So a line about the topic in general never answers a question about one neighbourhood or one place. Write the on-subject line; do not rely on a general one.
+- **Say which subject.** `{ "type": "about", "kinds": ["place"], "places": ["school"], "workplace": false }`. The fields:
+  - `kinds`: place, person, hood, bill, template, rival;
+  - `places`: place kinds;
+  - `workplace`: the speaker's own place (their named place, or where their post sits);
+  - `home`: the speaker's home neighbourhood;
+  - `is: false`: the subject is not that.
+
+  A place resolves to its neighbourhood for `hood_concerns of about`, so a neighbourhood line needs `"kinds": ["hood"]`, or it answers every place with that district's worries.
+- **From inside, and from outside.** Someone asked about where they work answers as an insider: what they are chasing, who leans on them, the rota, the deadline. Everyone else says what the place is, who goes there and what people say of it. A cool speaker still answers the question ("what goes on there is my business, not yours").
+- **Name it.** The reply names what was asked about (`$about`, or the subject's own argument). Only a fallback deflection may leave it out, and a deflection points somewhere ("Ask someone who lives there", "The stallholders at the market hear more than I do").
+- **Teach only what was said.** A line's `teaches` must match its words. A line that names the town's or a neighbourhood's worries teaches that subject. Its `$concern` comes from the same ranking the notebook shows, so what was heard is what was noted. A speaker's own opinion is not a fact about the town. Talking to someone teaches who they are (name, role, where they work), never what they believe: a conviction is learned (the person at `detailed`) only from a line that voices it.
 
 ### Voices and warmth
 
@@ -406,6 +423,9 @@ The text rules (`doctor.rs`, `text_problems`, `worry_checks`):
 - **`text-empty-arg`**: an argument that came out empty: two spaces, a space before punctuation, empty brackets or quotes ("pressed them on  and got nowhere"). Only real fills show this, so it runs on the corpus.
 - **`text-doubled-punct`**: two stops where one belongs (`..'`, `.,'`). An ellipsis and "?!" are fine. It runs on every message and on the corpus.
 - **`worry-unconditioned`**: a line that names a worry with nothing in its conditions behind it.
+- **`subject-unread`**: a line of a topic that is always about something ("Ask about…") whose conditions never read the subject.
+- **`subject-drift`**: a line that can take a place but reads it only as its neighbourhood's worries.
+- **`talk-off-subject`** (corpus): a reply to "Ask about…", or to a worries question about a neighbourhood, that does not name what was asked, unless it is a fallback.
 
 Then read the corpus, not the `.ftl`. Read by kind, then by template, with all the fills side by side, and with the situation beside each line:
 

@@ -15,7 +15,10 @@ This first pass covers the existing text: 298 conversation lines in nine voices 
 | 5. Tone (incl. real names) | 1 | 1 | 0 (no real people, parties or countries found) |
 | 6. Clarity (options, outcomes) | 8 | 7 | 1 (E3) |
 
-Text changed: 156 English messages rewritten and 36 added (`content/base/locale/en/*.ftl`); five conversation lines added and three lines' conditions changed (`content/base/conversations/lines.jsonc`). Two known bugs needed code (below). Corpus flags (unfilled `{$x}`, missing keys, doubled spaces): 3 before, 0 after. The new doctor text rules: 5 findings on the old corpus, 0 on the new one, and none in the pack's messages.
+Text changed: 157 English messages rewritten and 83 added (`content/base/locale/en/*.ftl`).
+
+- Conversation lines (`content/base/conversations/lines.jsonc`): 52 added (five in the first pass, 47 in the relevance pass), and nine lines' conditions changed.
+- Code: the two known bugs, then the relevance and teaching fixes (below). Corpus flags (unfilled `{$x}`, missing keys, doubled spaces): 3 before, 0 after. The new doctor text rules: 5 findings on the old corpus, 0 on the new one, and none in the pack's messages.
 
 ## The ten worst, before and after
 
@@ -131,6 +134,117 @@ Text changed: 156 English messages rewritten and 36 added (`content/base/locale/
 - `worry_checks` (`worry-unconditioned`) covers talk lines, overheard lines and dilemma situations. A line that names a particular worry (rent, lay-offs, the air, the rates, the bins, the rebuilding…) is flagged when nothing in its conditions, `concern` or triggers makes that worry real.
 - Each rule has a test: planted lines, the old headline and memory renderings, and a small corpus. The base pack is clean on all four rules. The old corpus gives five findings: both broken headlines, twice each, and the empty memory.
 
+## Relevance: does the reply answer the question?
+
+The owner reported: "when I ask npcs questions it seems like sometimes they respond with answers that aren't really relevant". The concrete case: a reporter asked about the newspaper office replied about the cost of living.
+
+**How it was measured.** The corpus samples, for every speaker, topic and kind of subject, the substance lines the engine would choose from (`reply::candidates`). A pool is one speaker asked one thing on one day. A candidate is one of three kinds:
+
+- *on-subject*: its conditions read the subject;
+- a *deflection*: one of the topic's fallbacks, which are safe answers that point elsewhere;
+- *off-subject*: a line about the topic in general, or a neighbourhood's worries given for a place.
+
+A pool with any off-subject candidate can show an irrelevant reply. The before figures are the 12 × 4 corpus from before this pass; the after figures are the corpus with this pass. After, the corpus also asks each speaker about their own workplace.
+
+| Asked | Pools before | With an off-subject candidate, before | Pools after | With an off-subject candidate, after |
+|---|---:|---:|---:|---:|
+| "What are people worried about?" of a neighbourhood | 681 | **514** (75%) | 265 | **0** |
+| "Ask about…" a place | 136 | **76** (56%: every one was answered with the neighbourhood's worries) | 571 (505 of them a speaker's own workplace) | **0** |
+| "Ask about…" a person, the rival, a neighbourhood, a bill | 723 | 0 | 836 | 0 |
+
+"Who runs things?", pitch, support, favour and small talk were read too. They have no subject, or the reply is a reaction to the mechanic, and they are all relevant.
+
+Asked about a neighbourhood, people now deflect only when they are cool towards the player (117 of 124 deflecting pools). The others answer about that neighbourhood:
+
+- 62 neutral and 62 warm speakers answer;
+- someone who lives there says "I'd know; it's home";
+- someone who has heard says "Not my end of town, but I hear it's mostly jobs over there";
+- someone who has not says "so I'd only be guessing. Ask someone who lives there".
+
+The corpus relevance rule (`talk-off-subject`, below) finds 32 off-subject renderings in the old corpus and 0 in the new.
+
+**Causes found** (from the brief's list):
+
+1. **Loose conditions.** A place subject resolves to its neighbourhood for `hood_concerns of about`. So the three "ask about a neighbourhood" lines answered every place question with that district's top worry. The reporter's "cost of living" was `talk-about-hood` saying "it's the rent" about the paper's neighbourhood. They now need `{ "type": "about", "kinds": ["hood"], … }`.
+2. **Missing lines.** There were no lines about a place at all, so a place question got either the drifting hood lines or the role deflections. Added:
+   - an **own-workplace family**: an insider's view (what they are chasing, who leans on them, what won't run, deadlines, rotas) for the journalist, editor, union steward, organiser, vicar, diner owner, shopkeeper, plant manager, business association chair, party chair, teacher, nurse, farmer, councillor and mayor;
+   - a line for "regulars" (residents and retirees at their usual place), and a tight-lipped one for a cool speaker;
+   - **a line for each place kind** for everyone else, saying what it is, who goes there and what people say: the town hall, the chamber, the community centre, the paper, the party office, the diner, the market, the union hall, the school, the clinic, the park, the chamber of commerce, the works, the port and the farm;
+   - a line for any other place.
+   - Clerks, head teachers and GPs, which PL1 adds, need their own lines when they land: one entry each, with `occupation` and `about … workplace: true`.
+3. **Selection order.** For "What are people worried about?" asked of one neighbourhood, the town-wide lines held as well as the neighbourhood's own, and outnumbered them about 20 to 1.
+   - Fix (`crates/mandate-sim/src/talk/reply.rs`, `candidates`): in an `inform` topic with a subject, the lines that read the subject are the pool. If none holds, the topic's safe answers are, rather than lines about the topic in general. Elsewhere the order is unchanged.
+   - It changes only which line is shown: the odds are fixed before the reply, the RNG makes the same number of draws per part, and no line in these topics has effects.
+   - It does change what such an exchange teaches. A neighbourhood question could teach the *town's* worries (from the town line shown); now it teaches that neighbourhood's, or nothing.
+4. **Combinations.** Openers and closers were read against substance in the 30 composed exchanges of the samples. No contradictions remain after the audit's earlier fixes (warm folksy closers for cool speakers). An opener still does not know the topic: "draws you a little way off" can come before small talk (E13).
+
+**A new condition:**
+
+```text
+{ "type": "about", "kinds": [...], "places": [...], "workplace": true|false, "home": true|false, "is": true|false }
+```
+
+- It holds when the conversation's subject is one of `kinds`.
+- For a place, it can be one of `places`, and the speaker's own workplace or not: their named place, or where their post sits.
+- For a neighbourhood, it can be the speaker's home or not.
+- Where it lives:
+  - `mandate-content`: `SituationCondition::About`, with the schema regenerated, and validation of place kinds and of kinds that match the fields;
+  - `talk/context.rs`: evaluation and `Ctx::workplace`;
+  - `explain.rs`: the explanation.
+- It is a conversation-only condition, for U1 to fold in.
+
+**Five before and after**
+
+1. A reporter asked about the paper (The Corriton Ledger).
+   - Before: "Corriton's my end of town. If you're asking what keeps people up at night, it's the rent."
+   - After: "You mean The Corriton Ledger? Two desks, one kettle and a deadline every night. I'm chasing something now that nobody wants me to finish." Or: "The editor at The Corriton Ledger reads every line twice and cuts half. You'd be amazed who rings up asking us not to run something. Some of them sit on the council."
+2. A teacher asked about the town hall.
+   - Before: "Environment, mostly, round Mireenwick. But don't quote me."
+   - After: "You mean the town hall? Forms in, money out, and a queue either way. Everyone ends up there sooner or later."
+3. A union steward asked about the union hall.
+   - Before: "That's my end of town, Mireenwick. Environment, if you're asking what keeps people up at night."
+   - After: "Half my week at the union hall is people's rotas and the other half is their overtime. The members trust it there. It's the one room management never comes into."
+4. A councillor asked what worries Castlelands.
+   - Before: "Ask ten people in Mireenwick what's wrong and nine will say the pollution." That was the town's worry; Castlelands' top worry was jobs.
+   - After: "Castlelands? Not my end of town, so I'd only be guessing. Ask someone who lives there."
+5. A Castlelands resident asked what worries Castlelands.
+   - Before (in the same pool): "From what I hear, it's the pollution. People don't talk about much else." That was the town's top worry, not Castlelands'.
+   - After: "Castlelands? I'd know; it's home. It's jobs, and you could set your watch by the complaints."
+
+**Guards**
+
+- Doctor, static:
+  - `subject-unread`: a line of a topic that is always about something, whose conditions never read the subject;
+  - `subject-drift`: a line that can take a place but reads it only as its neighbourhood's worries.
+- Doctor, corpus: `talk-off-subject`, a reply to "Ask about…" (or to a worries question about a neighbourhood) that does not name what was asked (`$about`), unless it is a fallback.
+  - It runs after `--corpus` and with `--check-corpus`.
+  - It caught two of this pass's own new lines, which were then rewritten.
+- Tests in `doctor.rs`: planted lines, and the reporter case as a corpus.
+- `crates/mandate-wasm/tests/talk_relevance.rs`, through the real `Talk` command and `ExchangeView`:
+  - asked about their own workplace, every journalist, editor, steward, diner owner, shopkeeper, teacher and nurse found answers with an own-workplace line naming it (the reporter case);
+  - asked about the town hall, nobody answers with a neighbourhood's worries;
+  - asked about a neighbourhood, every reply reads the subject or is a fallback.
+
+## What an exchange teaches is what was said
+
+The owner reported: "the notebook says I've learned something but the content doesn't align with our conversation… They said public service, but in the notebook it says I learned he cares about the …"
+
+1. **A conviction was "learned" that nobody voiced.** Every exchange teaches the speaker at `known` ("talking to someone is meeting them"), and at `known` the notebook's person entry showed their strongest conviction (`cares_key`).
+   - Fix, the smaller change (`crates/mandate-protocol/src/knowledge.rs`, `subject_args`, `Subject::Person`): `cares_key` is given only at `detailed`, like `owes`.
+   - Meeting someone (`known`) now shows who they are: name and role. The learned list and the toast read "Pia Reed: Councillor".
+   - No line voices the speaker's own conviction today. When one does (E8 or E13, with a condition that names it; U1), it should teach the person at `detailed`.
+   - **For the People-cards merge**: the only protocol change is that `NotebookEntryView.args.cares_key` (and `LearnedItemView.args.cares_key`) appears at `detailed` instead of `known`. No field was added or removed.
+   - Before: "Learned: Pia Reed: Councillor · Cares about Social questions" after small talk.
+   - After: "Learned: Pia Reed: Councillor".
+2. **The worry spoken could differ from the worry noted.** A line about the town's worries took `$concern` from the worries' raw levels (`concerns::top_concerns`). The notebook's "What Mireenwick worries about" ranks them as the town feels them (`felt_concerns` across its neighbourhoods).
+   - Usually the two agree. In 1 of 95 town-worry renderings in the corpus they did not: the speaker said recovery, the notebook said housing.
+   - Fix (`crates/mandate-sim/src/talk/context.rs`): the talk context's town worries (`tells town_concerns`, `concern of: town`) use the notebook's ranking. A worry that worries nobody (weight 0) is no answer, and the line does not hold.
+   - Neighbourhood worries already matched (47 of 47 in the corpus).
+   - Before: "Every other letter we get is about the rebuilding…", with the notebook on Housing costs.
+   - After: "Every other letter we get is about the rent…", with the notebook on Housing costs.
+   - The corpus situation now carries both rankings: `town_worries`, as before, and `town_worries_noted`.
+   - Test (`talk_relevance.rs`): ask about the town and about neighbourhoods; for every exchange that taught worries, the spoken `concern_key` equals the notebook entry's top worry. Meeting someone through small talk leaves no `cares_key` in the learned list or the notebook.
+
 ## Left for later, with reasons
 
 **U1 (condition-language unification)**: what the conditions cannot express today.
@@ -163,7 +277,12 @@ Text changed: 156 English messages rewritten and 36 added (`content/base/locale/
 
 ## The 33 lines that never held (12 × 4 corpus, before and after)
 
-The same 33 lines never held after the fixes (`coverage.json`). The five new lines all held. "Reachable" means the content and the engine allow it. "What would reach it" is what has to happen in play.
+The same 33 lines never held after the first pass's fixes (`coverage.json`), and its five new lines all held. After the relevance pass, 16 of its new lines and one old line have not held in the corpus. All are reachable, but the corpus asks about only one place that is not the speaker's (the town hall):
+
+- 14 lines for places of a particular kind (`line.about.place.chamber` and so on): ask anyone about that kind of place;
+- `line.about.place.own.farm`: a farmer, and no town has one;
+- `line.about.hood_detailed`: a speaker who knows their own neighbourhood in detail;
+- `line.worries.about_hood_heard`: someone who has heard of a neighbourhood other than their own. "Reachable" means the content and the engine allow it. "What would reach it" is what has to happen in play.
 
 | Line | Reachable? | What would reach it |
 |---|---|---|
