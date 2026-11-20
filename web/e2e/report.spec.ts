@@ -77,13 +77,16 @@ test("report a problem: the file holds the run, and it replays to the same hashe
   // Talk to a council member (walked to first).
   const people = await openPocket(page, "people");
   await people.getByTestId("people-council").getByTestId("talk-button").first().click();
+  // The dialogue box (dialogue mode, DEC-093): walk there if they are elsewhere, ask, and wait for the reply's bubble.
   const talk = page.getByTestId("talk-panel");
   await expect(talk).toBeVisible();
-  const go = talk.getByTestId("talk-go");
+  const go = talk.getByTestId("talk-go").locator("button.dlg-choice");
   if ((await go.count()) > 0) await go.click();
-  await talk.getByTestId("talk-topic-topic.who_runs").getByRole("button").first().click();
-  await expect(talk.getByTestId("talk-exchange")).toBeVisible();
-  await page.keyboard.press("Escape");
+  await talk.getByTestId("talk-topic-topic.who_runs").locator("button.dlg-choice").click();
+  await expect(page.getByTestId("talk-bubble").locator("p").first()).not.toBeEmpty({ timeout: 15_000 });
+  await expect(page.getByTestId("talk-reply-live")).not.toBeEmpty();
+  // Leave: Escape steps back out of the conversation (more than once if a reply page or step is open).
+  for (let i = 0; i < 4 && (await talk.count()) > 0; i++) await page.keyboard.press("Escape");
   await expect(talk).toHaveCount(0);
   await endTurn(page, 2);
   await endTurn(page, 3);
