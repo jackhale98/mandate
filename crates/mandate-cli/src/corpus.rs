@@ -39,6 +39,8 @@ const STRATEGIES: [&str; 6] = [
     "media",
     "legislator",
 ];
+/// (line id, voice) pairs a speaker could say.
+type LineVoices = BTreeSet<(String, String)>;
 /// Distinct argument fills kept per (id, part, voice).
 const FILLS: usize = 6;
 /// How often the notebook and the conversation sample are read (days).
@@ -571,7 +573,7 @@ fn notebook_items(e: &Engine, run: &Run, bag: &mut Bag) {
                 );
                 o.insert(
                     "level".into(),
-                    serde_json::to_value(&en.level).unwrap_or_default(),
+                    serde_json::to_value(en.level).unwrap_or_default(),
                 );
             }
             bag.push(Item {
@@ -941,7 +943,7 @@ pub fn run(
         .map(|n| n.get())
         .unwrap_or(1)
         .clamp(1, 2);
-    let mut results: Vec<(u64, Bag, BTreeSet<(String, String)>)> = Vec::new();
+    let mut results: Vec<(u64, Bag, LineVoices)> = Vec::new();
     let mut runs = runs.into_iter().peekable();
     while runs.peek().is_some() {
         let chunk: Vec<Run> = runs.by_ref().take(workers).collect();
