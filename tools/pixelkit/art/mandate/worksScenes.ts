@@ -302,9 +302,9 @@ export function worksSamples(): WorksSample[] {
         { x: 5, y: 15, a: "w", b: "e" },
         { x: 6, y: 15, a: "w", b: "c" },
       ],
-      yard: { x: 0, y: 12, w: 4, h: 2 },
-      front: [5, 13],
-      entrance: [6, 13],
+      yard: { x: 9, y: 12, w: 3, h: 2 },
+      front: [10, 15],
+      entrance: [7, 15],
     },
     window: { x: 0, y: 10, w: 12, h: 9 },
     seed: 0x1e7ee,
@@ -362,7 +362,8 @@ export function worksSamples(): WorksSample[] {
   const dpieces: LinePiece[] = [];
   for (let r = 23; r <= 28; r++) {
     const xs = 41 + (r - 22);
-    dcells.push([xs, r], [xs + 1, r]);
+    // The street's cells across (pavements too: their cut corners carry carriageway; only asphalt is retinted).
+    dcells.push([xs - 1, r], [xs, r], [xs + 1, r], [xs + 2, r]);
     dpieces.push({ x: xs, y: r, a: "n", b: "e" }, { x: xs + 1, y: r, a: "w", b: "s" });
   }
   diagRoad.people = diagRoad.people.filter((p) => !(p.x >= 40 && p.y >= 22));

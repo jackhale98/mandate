@@ -757,7 +757,7 @@ function pothole(cx: Composer, n: number, X: number, Y: number) {
   }
   // A crumb of loose stone beside it.
   c.set(w - 1, 3, "d");
-  cx.decal(X - (w >> 1), Y - 2, c);
+  cx.decal(X - (w >> 1), Y - 2, c, ["z", "Z", "d", "c", "C", "O"]);
 }
 
 /** A point in one of the site's ground areas, from the mark's number. */
@@ -1040,8 +1040,9 @@ export function composeWorks(look: WorksLook, site: WorksSite, kit: WorksKit, se
         const c = site.connector;
         if (id === "ribbon" && c) {
           const ew = c.axis !== "ns";
-          if (ew) cx.partAt("ribbon_ns", c.x * 16 + 4, (c.y + c.h) * 16 - 2, []);
-          else cx.partAt("ribbon", c.x * 16 + (c.w * 16) / 2, c.y * 16 + 6, []);
+          // Across the deck at its far end (east or south), where the first walk over begins.
+          if (ew) cx.partAt("ribbon_ns", (c.x + c.w) * 16 - 6, (c.y + c.h) * 16 - 2, []);
+          else cx.partAt("ribbon", c.x * 16 + (c.w * 16) / 2, (c.y + c.h) * 16 - 4, []);
         } else if (id === "ribbon" && slot) cx.partAt("ribbon", (slot.x + slot.doorX) * 16 + 8, (slot.y + slot.h) * 16 + 7, []);
         else if (id === "plaque" && slot && cx.look.parts.some((p) => p.id === "facade")) cx.partAt(id, (slot.x + slot.doorX) * 16 + 24, (slot.y + slot.h) * 16 + 5, []);
         else cx.partAt(id, ex * 16 + 8, ey * 16 + 12, []);

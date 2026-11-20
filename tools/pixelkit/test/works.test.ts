@@ -21,7 +21,6 @@ const pack = buildPack();
 const pal = pack.palette;
 const kit = worksKit(pack);
 const samples = worksSamples();
-const sampleOf = (k: WorksKind) => samples.find((s) => s.kind === k) as (typeof samples)[number];
 const h = (img: Indexed) => hash32(img.w, img.h, ...Array.from({ length: img.h }, (_, y) => hash32(...img.px.subarray(y * img.w, (y + 1) * img.w))));
 const hashWorks = (c: ComposedWorks) =>
   hash32(
@@ -172,6 +171,7 @@ describe("works palette (the round 7 precedent)", () => {
     assert.equal(pal.colors.length - 1, 114);
   });
   it("keeps every part within 14 colours (furniture's budget) and its frames on the palette", () => {
+    assert.equal(Object.keys(kit.parts).length, 42, "the kit's parts (README)");
     for (const p of Object.values(kit.parts)) for (const f of p.frames) {
       assert.equal(offPalette(f, pal.colors.length - 1), 0, p.id);
       assert.ok(colourCount(f) <= 14, `${p.id}: ${colourCount(f)} colours`);
@@ -289,6 +289,5 @@ describe("works goldens", () => {
   });
 });
 
-const PINNED = { parts: "0", sites: "0" };
+const PINNED = { parts: "c2af6ecb", sites: "2483a5c1" };
 
-void sampleOf;

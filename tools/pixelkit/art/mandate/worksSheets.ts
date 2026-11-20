@@ -107,7 +107,7 @@ for (const sample of samples) {
 
 // ---- before and after: both bridge axes and the flood wall
 {
-  const bridgeNs: WorksSample = { ...(samples[0] as WorksSample), label: "the New Bridge", site: { connector: { kind: "bridge", x: 14, y: 18, w: 2, h: 3, axis: "ns" }, yard: { x: 16, y: 16, w: 3, h: 1 }, front: [13, 17], entrance: [13, 17] }, window: { x: 9, y: 14, w: 11, h: 9 }, seed: 0x0b1e };
+  const bridgeNs: WorksSample = { ...(samples[0] as WorksSample), label: "the New Bridge", site: { connector: { kind: "bridge", x: 14, y: 18, w: 2, h: 3, axis: "ns" }, yard: { x: 16, y: 16, w: 3, h: 1 }, front: [12, 16], entrance: [12, 17] }, window: { x: 9, y: 14, w: 11, h: 9 }, seed: 0x0b1e };
   const pairs: WorksSample[] = [samples[0] as WorksSample, bridgeNs, samples.find((x) => x.kind === "flood_wall") as WorksSample];
   const scale = 2;
   const ws = pairs.map((p) => p.window.w * 16 * scale);
@@ -222,7 +222,7 @@ for (const sample of samples) {
   const scales = [1, 2, 3];
   const colW = scales.reduce((a, s) => a + 6 * 16 * s + 12, 0);
   const sheet = new Sheet(12 + 2 * colW, 34 + shots.length * (5 * 16 * 3 + 30), BG);
-  sheet.text("THE SPONSOR'S PLAQUE AND THE OPENING RIBBON AT STREET ZOOM: 1x, 2x, 3x; DAY, THEN EVENING", 12, 8);
+  sheet.text("THE SPONSOR PLAQUE AND THE OPENING RIBBON AT STREET ZOOM: 1x, 2x, 3x; DAY, THEN EVENING", 12, 8);
   shots.forEach(([label, sm, col], r) => {
     let x = 12;
     const y = 34 + r * (5 * 16 * 3 + 30);
