@@ -2,6 +2,7 @@
 //! for the TypeScript client; `cargo test -p mandate-protocol` regenerates
 //! `web/src/engine/protocol/*.ts`.
 
+pub mod act;
 pub mod campaign;
 pub mod characters;
 #[cfg(feature = "dev-tools")]
@@ -17,6 +18,7 @@ pub mod talk;
 pub mod town;
 pub mod views;
 
+pub use act::*;
 pub use campaign::*;
 pub use characters::*;
 pub use knowledge::*;
@@ -212,6 +214,19 @@ pub enum CommandDto {
         about: Option<AboutRefDto>,
         late_night: bool,
     },
+    /// Set standing directives for time skips (DEC-012; `TermReviewView`).
+    SetDirectives {
+        choices: Vec<DirectiveChoiceDto>,
+    },
+    /// Skip ahead to a point `TermReviewView.targets` offers, at most
+    /// `limit` turns now (the next `Skip` to the same target goes on): the
+    /// result's `skip` is the progress; once `done`, `QueryDto::SkipSummary`.
+    Skip {
+        target: SkipTargetDto,
+        limit: Option<u32>,
+    },
+    /// Stop the skip in progress (between turns).
+    CancelSkip,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -361,6 +376,12 @@ pub enum QueryDto {
     Canvass {
         neighborhood: u32,
     },
+    /// Term in review (DEC-012): directives and the points to skip to.
+    TermReview,
+    /// The last skip's summary (the interrupt or homecoming summary).
+    SkipSummary,
+    /// The act's Legacy record, with its epilogue once the act is over.
+    Legacy,
     /// Dev builds only (`dev-tools`): every content item and whether it
     /// could fire now (the content workbench). Not in the generated types.
     #[cfg(feature = "dev-tools")]
@@ -439,6 +460,11 @@ pub enum ResponseBody {
     Talk(TalkView),
     Exchange(ExchangeView),
     Canvass(CanvassView),
+    TermReview(TermReviewView),
+    /// `None` before any skip.
+    SkipSummary(Option<SkipSummaryView>),
+    /// `None` before play began.
+    Legacy(Option<LegacyView>),
     #[cfg(feature = "dev-tools")]
     #[ts(skip)]
     DevCatalog(dev::DevCatalogView),

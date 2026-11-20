@@ -62,6 +62,10 @@ pub struct OverviewView {
     /// The run's storyteller profile (DEC-033): id and Fluent name key.
     pub storyteller: String,
     pub storyteller_name_key: String,
+    /// The act flow (DEC-012, DEC-006): over, and a skip in progress.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub act: Option<crate::ActStatusView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -85,6 +89,10 @@ pub struct CommandAppliedView {
     pub days_advanced: u32,
     pub overview: OverviewView,
     pub result: Option<crate::ActionResultView>,
+    /// A skip's progress (`CommandDto::Skip`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub skip: Option<crate::SkipProgressView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -538,6 +546,7 @@ pub fn overview(engine: &Engine) -> OverviewView {
         .unwrap_or(0.0);
     let profile = s.narrative.profile(engine.content());
     OverviewView {
+        act: s.player.as_ref().map(|_| crate::act_status(engine)),
         storyteller: profile.map(|p| p.id.clone()).unwrap_or_default(),
         storyteller_name_key: profile.map(|p| p.name_key.clone()).unwrap_or_default(),
         date: DateView::of(s.calendar.date),

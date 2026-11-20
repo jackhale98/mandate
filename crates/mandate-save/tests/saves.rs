@@ -101,7 +101,7 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (22, "bd7f50b485a5efa2");
+    const EXPECTED: (u16, &str) = (23, "81c3894b06ea007f");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -1183,6 +1183,9 @@ fn v13_files_decode_with_town_baselines() {
     state.environment.hood_damage = st.environment.hood_damage.clone();
     state.population.hood_impact = st.population.hood_impact.clone();
     state.population.displaced = st.population.displaced.clone();
+    // The act flow (v23) is new state: a migrated run starts it empty.
+    assert!(state.act.records.is_empty());
+    state.act = st.act.clone();
     let strip = |s: &mandate_sim::State| {
         let mut v = serde_json::to_value(s).unwrap();
         v["player"].as_object_mut().unwrap().remove("knowledge");

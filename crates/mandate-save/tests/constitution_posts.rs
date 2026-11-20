@@ -168,6 +168,13 @@ fn v18_paths_migrate_to_posts() {
 /// later task changes an outcome on purpose, re-record with
 /// `MANDATE_RECORD_FIXTURES=1 cargo test -p mandate-save --test
 /// constitution_posts v18_save_continues`, check the diff, and say why here.
+///
+/// Re-recorded for the act flow (save v23, DEC-012, DEC-006): the run now
+/// carries `State::act`, its Legacy record opened on load and kept through
+/// the eight turns (the lost election, the seat left, and the act's
+/// `lost_seat` ending). Checked against the previous golden: only `act` (new)
+/// and `meta.content_hash` (the new content files) changed. The comparison
+/// stays the whole state, strict, with no carve-outs.
 #[test]
 fn v18_save_continues_identically() {
     let c = content();

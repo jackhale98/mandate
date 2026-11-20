@@ -462,6 +462,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     crate::visits::validate(b, &mut issues);
     crate::conversation::validate(b, &mut issues);
     crate::asks::validate(b, &mut issues);
+    crate::act::validate(b, &mut issues);
     for (name, v, lo, hi) in param_ranges(b) {
         if !(v.is_finite() && (lo..=hi).contains(&v)) {
             let kind = name.split('.').next().unwrap_or("parameters").to_string();
@@ -848,6 +849,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         }
     }
     referenced.extend(crate::map_layers::fluent_refs(b));
+    referenced.extend(crate::act::fluent_refs(b));
     for (owner, key) in referenced {
         if !en.contains(key) {
             issues.push(Issue::error(

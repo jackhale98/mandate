@@ -147,6 +147,13 @@ pub enum ContentFile {
     Promises {
         items: Vec<crate::asks::PromiseDef>,
     },
+    /// The act flow (DEC-012): time-skip directives, interrupts, skip
+    /// targets, the player-proxy and the Legacy record.
+    ActFlow {
+        value: Box<crate::act::ActFlowParams>,
+    },
+    /// How acts end (DEC-006; DEC-098 note): the endings registry.
+    Endings { items: Vec<crate::act::EndingDef> },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -2824,6 +2831,14 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
             value: Box::new(
                 serde_json::from_str::<ValueFile<crate::conversation::TalkParams>>(json)?.value,
             ),
+        },
+        "act_flow" => ContentFile::ActFlow {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::act::ActFlowParams>>(json)?.value,
+            ),
+        },
+        "endings" => ContentFile::Endings {
+            items: serde_json::from_str::<ItemsFile<crate::act::EndingDef>>(json)?.items,
         },
         other => {
             use serde::de::Error;

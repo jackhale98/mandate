@@ -84,6 +84,10 @@ pub struct State {
     /// Asks and promises, and the player's deed log (DEC-097 §2).
     #[serde(default)]
     pub asks: crate::asks::AskState,
+    /// The act flow (DEC-005, DEC-012): directives, time skips, the Legacy
+    /// record and the act's ending.
+    #[serde(default)]
+    pub act: crate::act::ActState,
 }
 
 /// A town as play began (TOWN_GENERATION §4.1, §15 E1): what the layout's

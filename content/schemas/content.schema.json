@@ -50,6 +50,52 @@
       ],
       "type": "object"
     },
+    "ActFlowParams": {
+      "additionalProperties": false,
+      "description": "The act flow (DEC-005, DEC-012): directives, interrupts, skip targets,\nthe proxy and the Legacy record.",
+      "properties": {
+        "directives": {
+          "items": {
+            "$ref": "#/$defs/DirectiveDef"
+          },
+          "type": "array"
+        },
+        "interrupts": {
+          "items": {
+            "$ref": "#/$defs/InterruptDef"
+          },
+          "type": "array"
+        },
+        "legacy": {
+          "$ref": "#/$defs/LegacyParams"
+        },
+        "max_turns": {
+          "description": "The longest skip, in turns.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "proxy": {
+          "$ref": "#/$defs/ProxyParams"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/SkipTargetDef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "directives",
+        "interrupts",
+        "targets",
+        "max_turns",
+        "proxy",
+        "legacy"
+      ],
+      "type": "object"
+    },
     "ActionCost": {
       "additionalProperties": false,
       "properties": {
@@ -3868,6 +3914,149 @@
       ],
       "type": "object"
     },
+    "DirectiveDef": {
+      "additionalProperties": false,
+      "description": "A standing directive for a time skip (DEC-012).",
+      "properties": {
+        "concern_options": {
+          "default": false,
+          "description": "`focus` only: also offer one option per concern in the registry (its\nid is the concern's id, its name the concern's `name_key`).",
+          "type": "boolean"
+        },
+        "default": {
+          "description": "The option a new run starts with.",
+          "type": "string"
+        },
+        "help_key": {
+          "type": "string"
+        },
+        "id": {
+          "description": "`directive.<name>`.",
+          "type": "string"
+        },
+        "lever": {
+          "$ref": "#/$defs/DirectiveLever"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/DirectiveOptionDef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "help_key",
+        "lever",
+        "options",
+        "default"
+      ],
+      "type": "object"
+    },
+    "DirectiveLever": {
+      "description": "What a directive steers in the proxy (an engine contract).",
+      "oneOf": [
+        {
+          "const": "focus",
+          "description": "Which worry the ground game and new bills aim at (`concern`; none:\nthe strongest the player knows of).",
+          "type": "string"
+        },
+        {
+          "const": "vote",
+          "description": "How the player votes on bills (`vote`).",
+          "type": "string"
+        },
+        {
+          "const": "ground",
+          "description": "Effort on doorsteps and public meetings (`weight`).",
+          "type": "string"
+        },
+        {
+          "const": "fundraising",
+          "description": "Effort on raising money (`weight`).",
+          "type": "string"
+        },
+        {
+          "const": "press",
+          "description": "Effort on statements to the press (`weight`).",
+          "type": "string"
+        },
+        {
+          "const": "legislation",
+          "description": "Effort on drafting and steering bills (`weight`).",
+          "type": "string"
+        },
+        {
+          "const": "caution",
+          "description": "How cautious to be: the largest shown risk of a hidden act accepted\n(`max_risk`) and the health below which the proxy rests (`rest_below`).",
+          "type": "string"
+        }
+      ]
+    },
+    "DirectiveOptionDef": {
+      "additionalProperties": false,
+      "properties": {
+        "concern": {
+          "description": "`focus`: a concern id; none is the strongest worry the player knows.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "max_risk": {
+          "description": "`caution`: the largest shown chance (0..1) that a hidden act comes\nout which the proxy still accepts; 0 avoids every shady option.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "rest_below": {
+          "description": "`caution`: the proxy rests when health is below this (0..100).",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "vote": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VoteStance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`vote`: the stance."
+        },
+        "weight": {
+          "description": "Effort levers: the relative share of the turn's slots (0 = none).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name_key"
+      ],
+      "type": "object"
+    },
     "DirectorBudgets": {
       "additionalProperties": false,
       "description": "Decisions and developments allowed per chapter (DEC-033 pacing model).",
@@ -5251,6 +5440,259 @@
       ],
       "type": "string"
     },
+    "EndingDef": {
+      "additionalProperties": false,
+      "description": "One way an act ends (DEC-006; the endings registry, DEC-098 note). The\nfirst entry whose condition holds ends the act.",
+      "properties": {
+        "acts": {
+          "description": "Act ids (the constitution's `career.acts`) it can end; empty: any.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "facts": {
+          "description": "What the epilogue reports, in order.",
+          "items": {
+            "$ref": "#/$defs/EndingFact"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "`ending.<name>`.",
+          "type": "string"
+        },
+        "text_key": {
+          "description": "Fluent key of the epilogue's text (arguments: the facts by key).",
+          "type": "string"
+        },
+        "title_key": {
+          "description": "Fluent key of the ending's title.",
+          "type": "string"
+        },
+        "tone": {
+          "$ref": "#/$defs/EndingTone"
+        },
+        "when": {
+          "$ref": "#/$defs/EndingWhen"
+        }
+      },
+      "required": [
+        "id",
+        "title_key",
+        "text_key",
+        "when",
+        "facts",
+        "tone"
+      ],
+      "type": "object"
+    },
+    "EndingFact": {
+      "description": "A fact an epilogue reports, computed by the engine.",
+      "oneOf": [
+        {
+          "enum": [
+            "laws_passed",
+            "elections_won",
+            "elections_lost",
+            "promises_kept",
+            "promises_broken",
+            "scandals",
+            "mandate",
+            "standing",
+            "viability"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "posts_held",
+          "description": "Posts held this act.",
+          "type": "string"
+        },
+        {
+          "const": "years",
+          "description": "Years the act lasted.",
+          "type": "string"
+        },
+        {
+          "const": "works",
+          "description": "Laws in a works category (`legacy.works_categories`).",
+          "type": "string"
+        },
+        {
+          "const": "decisions",
+          "description": "Notable decisions taken.",
+          "type": "string"
+        }
+      ]
+    },
+    "EndingTone": {
+      "description": "How an ending reads on the epilogue screen (presentation only).",
+      "enum": [
+        "triumph",
+        "neutral",
+        "defeat"
+      ],
+      "type": "string"
+    },
+    "EndingWhen": {
+      "description": "When an act ends (DEC-006; DEC-098 note). Posts are read through the\nconstitution: its acts, its powers, its terms.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The player holds a post of a later act of the career ladder.",
+          "properties": {
+            "type": {
+              "const": "holds_later_act",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player holds a post of this act with all these powers, which\nthey did not hold when the act began (e.g. the tier's executive).",
+          "properties": {
+            "powers": {
+              "items": {
+                "$ref": "#/$defs/Power"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "won_post_with",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "powers"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player stood in an election this act, lost, and holds no post.",
+          "properties": {
+            "type": {
+              "const": "lost_seat",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Something happened to the player this act.",
+          "properties": {
+            "event": {
+              "$ref": "#/$defs/PlayerEventKey"
+            },
+            "type": {
+              "const": "event",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "event"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The run's status is one of these.",
+          "properties": {
+            "status": {
+              "items": {
+                "$ref": "#/$defs/StatusKey"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A track at or under `value` (disgrace, the political wilderness).",
+          "properties": {
+            "track": {
+              "$ref": "#/$defs/TrackKey2"
+            },
+            "type": {
+              "const": "track_at_most",
+              "type": "string"
+            },
+            "value": {
+              "format": "float",
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "track",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The act has lasted `terms` full terms of the post the player holds\n(its `term_years` in the constitution), and they hold it.",
+          "properties": {
+            "terms": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "served",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "terms"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Any of these.",
+          "properties": {
+            "any": {
+              "items": {
+                "$ref": "#/$defs/EndingWhen"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "any",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "any"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "ExperienceWeights": {
       "additionalProperties": false,
       "properties": {
@@ -6182,6 +6624,173 @@
       ],
       "type": "object"
     },
+    "InterruptDef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "`interrupt.<name>`.",
+          "type": "string"
+        },
+        "key": {
+          "description": "Fluent key of the reason shown (\"The skip stopped: …\").",
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/InterruptWhen"
+        }
+      },
+      "required": [
+        "id",
+        "key",
+        "when"
+      ],
+      "type": "object"
+    },
+    "InterruptWhen": {
+      "description": "What stops a time skip (DEC-012 interrupts). Interrupts fire on a\nchange during the skip: what was already so when it began does not.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A track crosses `threshold`: rises to it or above, or with `below`\nfalls to it or under.",
+          "properties": {
+            "below": {
+              "default": false,
+              "type": "boolean"
+            },
+            "threshold": {
+              "format": "float",
+              "type": "number"
+            },
+            "track": {
+              "$ref": "#/$defs/TrackKey2"
+            },
+            "type": {
+              "const": "track",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "track",
+            "threshold"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A decision opens with one of these weights, or (`about`) one that\nanswers a story or an investigation of the player.",
+          "properties": {
+            "about": {
+              "default": false,
+              "type": "boolean"
+            },
+            "type": {
+              "const": "decision",
+              "type": "string"
+            },
+            "weights": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/WeightKey"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A story about the player breaks, at least this grave.",
+          "properties": {
+            "min_severity": {
+              "$ref": "#/$defs/Gravity",
+              "default": "ethics"
+            },
+            "type": {
+              "const": "scandal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An election the player stands in is called (they are a candidate).",
+          "properties": {
+            "type": {
+              "const": "election",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A bill the player sponsors reaches a vote within `days`.",
+          "properties": {
+            "days": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "sponsored_vote",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "days"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Someone's request of the player (or a promise to them) falls due\nwithin `days`.",
+          "properties": {
+            "days": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "request_due",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "days"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The run's status changes (prison, release, the end of the career).",
+          "properties": {
+            "type": {
+              "const": "status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "IntroduceEffects": {
       "additionalProperties": false,
       "properties": {
@@ -6655,6 +7264,39 @@
           "type": "object"
         }
       ]
+    },
+    "LegacyParams": {
+      "additionalProperties": false,
+      "description": "The Legacy record's settings (DEC-006, DEC-100: a record only).",
+      "properties": {
+        "max_entries": {
+          "description": "Entries kept (the oldest notable decisions go first).",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "notable": {
+          "description": "Decisions of these weights the player answered are notable.",
+          "items": {
+            "$ref": "#/$defs/WeightKey"
+          },
+          "type": "array"
+        },
+        "works_categories": {
+          "description": "Laws whose budget category counts them among the player's works.",
+          "items": {
+            "$ref": "#/$defs/BudgetCategory"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "works_categories",
+        "notable",
+        "max_entries"
+      ],
+      "type": "object"
     },
     "LegalResponseKind": {
       "description": "How the player answers an investigation (DEC-006 Legal Jeopardy).",
@@ -8787,6 +9429,27 @@
       ],
       "type": "object"
     },
+    "PlayerEventKey": {
+      "description": "Events about the player an ending can read.",
+      "oneOf": [
+        {
+          "enum": [
+            "imprisoned"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "deselected",
+          "description": "The party would not renominate them.",
+          "type": "string"
+        },
+        {
+          "const": "removed_from_office",
+          "description": "A sentence removed them from office.",
+          "type": "string"
+        }
+      ]
+    },
     "PlotGround": {
       "enum": [
         "yard",
@@ -9079,6 +9742,37 @@
         "id",
         "deliberation_days",
         "stages"
+      ],
+      "type": "object"
+    },
+    "ProxyParams": {
+      "additionalProperties": false,
+      "description": "The player-proxy's numbers (DEC-012). It is kept modest on purpose: a\nskip is a convenience, never the best way to play (DEC-097).",
+      "properties": {
+        "answers": {
+          "description": "Decision weights the proxy answers; others it leaves to the player\n(or to their default at the deadline).",
+          "items": {
+            "$ref": "#/$defs/WeightKey"
+          },
+          "type": "array"
+        },
+        "idle_share": {
+          "description": "The share of slots it leaves unused (a proxy is not the player).",
+          "format": "double",
+          "type": "number"
+        },
+        "max_commands": {
+          "description": "At most this many commands a turn.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "answers",
+        "max_commands",
+        "idle_share"
       ],
       "type": "object"
     },
@@ -10264,6 +10958,47 @@
       ],
       "type": "object"
     },
+    "SkipTargetDef": {
+      "additionalProperties": false,
+      "properties": {
+        "name_key": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/SkipTargetKind"
+        }
+      },
+      "required": [
+        "target",
+        "name_key"
+      ],
+      "type": "object"
+    },
+    "SkipTargetKind": {
+      "description": "A point a skip can run to (an engine contract).",
+      "oneOf": [
+        {
+          "const": "next_session",
+          "description": "The start of the next chapter (a new session, or the campaign).",
+          "type": "string"
+        },
+        {
+          "const": "campaign",
+          "description": "The opening of the campaign for the player's post.",
+          "type": "string"
+        },
+        {
+          "const": "election",
+          "description": "Election day for the player's post.",
+          "type": "string"
+        },
+        {
+          "const": "end_of_term",
+          "description": "The end of the player's term.",
+          "type": "string"
+        }
+      ]
+    },
     "SpotDef": {
       "additionalProperties": false,
       "description": "Where a person present stands or sits, by role.",
@@ -10383,6 +11118,14 @@
         "grants"
       ],
       "type": "object"
+    },
+    "StatusKey": {
+      "description": "A run status an ending can read.",
+      "enum": [
+        "imprisoned",
+        "ended"
+      ],
+      "type": "string"
     },
     "StoryStageDef": {
       "additionalProperties": false,
@@ -11872,6 +12615,18 @@
         }
       ]
     },
+    "TrackKey2": {
+      "description": "A pressure track (DEC-006), or Mandate.",
+      "enum": [
+        "viability",
+        "legal_jeopardy",
+        "threat",
+        "standing",
+        "health",
+        "mandate"
+      ],
+      "type": "string"
+    },
     "TraitDef": {
       "additionalProperties": false,
       "description": "A character trait tag (DEC-031): a name plus data-driven modifiers.\nCharacters get 0–3 traits at generation. Registry order is load order.",
@@ -12706,6 +13461,26 @@
       ],
       "type": "object"
     },
+    "VoteStance": {
+      "description": "How the proxy votes on a bill.",
+      "oneOf": [
+        {
+          "const": "with_party",
+          "description": "With the party's line (abstain when it has none).",
+          "type": "string"
+        },
+        {
+          "const": "conviction",
+          "description": "By the player's own convictions (their attitudes against the bill's\nsignature).",
+          "type": "string"
+        },
+        {
+          "const": "ward",
+          "description": "By the ward's view, as the player knows it.",
+          "type": "string"
+        }
+      ]
+    },
     "VotingRule": {
       "enum": [
         "plurality",
@@ -12790,6 +13565,15 @@
           "type": "string"
         }
       ]
+    },
+    "WeightKey": {
+      "description": "A decision's weight in the director's budgets.",
+      "enum": [
+        "climax",
+        "significant",
+        "minor"
+      ],
+      "type": "string"
     },
     "Weighted": {
       "anyOf": [
@@ -13761,6 +14545,45 @@
       "required": [
         "kind",
         "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The act flow (DEC-012): time-skip directives, interrupts, skip\ntargets, the player-proxy and the Legacy record.",
+      "properties": {
+        "kind": {
+          "const": "act_flow",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/ActFlowParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "How acts end (DEC-006; DEC-098 note): the endings registry.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/EndingDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "endings",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
       ],
       "type": "object"
     }

@@ -1,0 +1,111 @@
+// The act flow (DEC-005, DEC-012): "Term in review". The player sets standing
+// directives, picks a point the engine offers, and the player-proxy plays
+// their turns until it gets there or an interrupt hands play back.
+//
+// Directives steer one proxy lever each (focus, vote, ground, fundraising,
+// press, legislation, caution); their options carry the numbers the proxy
+// reads. Interrupts fire on a change during the skip (a track crossing its
+// threshold, a decision opening), never on what was already so when it began.
+// Nothing here names an office or a body (DEC-098). See EXTENDING.md "Adding
+// a directive, an interrupt or an ending".
+{
+  "kind": "act_flow",
+  "value": {
+    "directives": [
+      {
+        "id": "directive.focus", "name_key": "directive-focus", "help_key": "directive-focus-help",
+        "lever": "focus", "default": "known_top", "concern_options": true,
+        "options": [ { "id": "known_top", "name_key": "directive-focus-known_top" } ],
+      },
+      {
+        "id": "directive.vote", "name_key": "directive-vote", "help_key": "directive-vote-help",
+        "lever": "vote", "default": "with_party",
+        "options": [
+          { "id": "with_party", "name_key": "directive-vote-with_party", "vote": "with_party" },
+          { "id": "conviction", "name_key": "directive-vote-conviction", "vote": "conviction" },
+          { "id": "ward", "name_key": "directive-vote-ward", "vote": "ward" },
+        ],
+      },
+      {
+        "id": "directive.ground", "name_key": "directive-ground", "help_key": "directive-ground-help",
+        "lever": "ground", "default": "some",
+        "options": [
+          { "id": "none", "name_key": "directive-effort-none", "weight": 0 },
+          { "id": "some", "name_key": "directive-effort-some", "weight": 1 },
+          { "id": "lots", "name_key": "directive-effort-lots", "weight": 2 },
+        ],
+      },
+      {
+        "id": "directive.fundraising", "name_key": "directive-fundraising", "help_key": "directive-fundraising-help",
+        "lever": "fundraising", "default": "some",
+        "options": [
+          { "id": "none", "name_key": "directive-effort-none", "weight": 0 },
+          { "id": "some", "name_key": "directive-effort-some", "weight": 1 },
+          { "id": "lots", "name_key": "directive-effort-lots", "weight": 2 },
+        ],
+      },
+      {
+        "id": "directive.press", "name_key": "directive-press", "help_key": "directive-press-help",
+        "lever": "press", "default": "none",
+        "options": [
+          { "id": "none", "name_key": "directive-effort-none", "weight": 0 },
+          { "id": "some", "name_key": "directive-effort-some", "weight": 1 },
+          { "id": "lots", "name_key": "directive-effort-lots", "weight": 2 },
+        ],
+      },
+      {
+        "id": "directive.legislation", "name_key": "directive-legislation", "help_key": "directive-legislation-help",
+        "lever": "legislation", "default": "some",
+        "options": [
+          { "id": "none", "name_key": "directive-effort-none", "weight": 0 },
+          { "id": "some", "name_key": "directive-effort-some", "weight": 1 },
+          { "id": "lots", "name_key": "directive-effort-lots", "weight": 2 },
+        ],
+      },
+      {
+        "id": "directive.caution", "name_key": "directive-caution", "help_key": "directive-caution-help",
+        "lever": "caution", "default": "careful",
+        "options": [
+          // Avoids every shady option; rests early.
+          { "id": "careful", "name_key": "directive-caution-careful", "max_risk": 0.0, "rest_below": 50 },
+          // Takes small risks; works on while tired.
+          { "id": "bold", "name_key": "directive-caution-bold", "max_risk": 0.2, "rest_below": 30 },
+        ],
+      },
+    ],
+    // In order: the first that fires names the stop.
+    "interrupts": [
+      { "id": "interrupt.status", "key": "interrupt-status", "when": { "type": "status" } },
+      { "id": "interrupt.scandal", "key": "interrupt-scandal", "when": { "type": "scandal", "min_severity": "ethics" } },
+      { "id": "interrupt.decision", "key": "interrupt-decision", "when": { "type": "decision", "weights": ["climax"], "about": true } },
+      { "id": "interrupt.election", "key": "interrupt-election", "when": { "type": "election" } },
+      { "id": "interrupt.sponsored_vote", "key": "interrupt-sponsored_vote", "when": { "type": "sponsored_vote", "days": 14 } },
+      { "id": "interrupt.request_due", "key": "interrupt-request_due", "when": { "type": "request_due", "days": 10 } },
+      { "id": "interrupt.standing", "key": "interrupt-standing", "when": { "type": "track", "track": "standing", "threshold": 30, "below": true } },
+      { "id": "interrupt.viability", "key": "interrupt-viability", "when": { "type": "track", "track": "viability", "threshold": 25, "below": true } },
+      { "id": "interrupt.legal", "key": "interrupt-legal", "when": { "type": "track", "track": "legal_jeopardy", "threshold": 50 } },
+      { "id": "interrupt.threat", "key": "interrupt-threat", "when": { "type": "track", "track": "threat", "threshold": 60 } },
+      { "id": "interrupt.health", "key": "interrupt-health", "when": { "type": "track", "track": "health", "threshold": 20, "below": true } },
+    ],
+    "targets": [
+      { "target": "next_session", "name_key": "skip-target-next_session" },
+      { "target": "campaign", "name_key": "skip-target-campaign" },
+      { "target": "election", "name_key": "skip-target-election" },
+      { "target": "end_of_term", "name_key": "skip-target-end_of_term" },
+    ],
+    // About five years of governing turns.
+    "max_turns": 130,
+    "proxy": {
+      // Climaxes and decisions about a story or a case are the player's.
+      "answers": ["minor", "significant"],
+      "max_commands": 8,
+      // A proxy is not the player: it leaves about a third of its time unused.
+      "idle_share": 0.34,
+    },
+    "legacy": {
+      "works_categories": ["infrastructure", "housing", "environment"],
+      "notable": ["climax", "significant"],
+      "max_entries": 200,
+    },
+  },
+}

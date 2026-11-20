@@ -138,6 +138,14 @@ pub struct ContentBundle {
     /// Campaign promise templates, in load order.
     #[serde(default)]
     pub promises: Vec<crate::asks::PromiseDef>,
+    /// The act flow (DEC-012): directives, interrupts, skip targets, the
+    /// proxy and the Legacy record. Absent: no skips are offered.
+    #[serde(default)]
+    pub act_flow: crate::act::ActFlowParams,
+    /// The endings registry (DEC-006), in load order (the first that holds
+    /// ends the act).
+    #[serde(default)]
+    pub endings: Vec<crate::act::EndingDef>,
 }
 
 impl ContentBundle {
@@ -353,6 +361,8 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut ask_params: Option<(crate::asks::AskParams, String)> = None;
     let mut asks: Vec<crate::asks::AskDef> = Vec::new();
     let mut promises: Vec<crate::asks::PromiseDef> = Vec::new();
+    let mut act_flow: Option<(crate::act::ActFlowParams, String)> = None;
+    let mut endings: Vec<crate::act::EndingDef> = Vec::new();
 
     for src in sorted {
         if src.path.ends_with(".ftl") {
@@ -699,6 +709,16 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::ActFlow { value } => {
+                once(&mut act_flow, *value, "act_flow", &src.path, &mut issues)
+            }
+            ContentFile::Endings { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        endings.push(x);
+                    }
+                }
+            }
         }
     }
 
@@ -815,6 +835,8 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         ask_params: ask_params.map(|(v, _)| v).unwrap_or_default(),
         asks,
         promises,
+        act_flow: act_flow.map(|(a, _)| a).unwrap_or_default(),
+        endings,
     };
     issues.extend(validate_bundle(&bundle));
     if issues.iter().any(|i| i.severity == Severity::Error) {

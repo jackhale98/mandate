@@ -1,0 +1,57 @@
+// How an act ends (DEC-006; the DEC-098 note: endings are a registry from
+// their first build). The first entry whose condition holds ends the act and
+// closes its Legacy record (DEC-100: a record only, no unlocks). Conditions
+// read the constitution: its career acts, its powers and its terms, never an
+// office's name, so a regional or national act ends by data alone. `acts`
+// limits an entry to some of the career's acts (empty: any act).
+{
+  "kind": "endings",
+  "items": [
+    {
+      // Prison for years, or a ban from office (the justice path).
+      "id": "ending.jailed", "title_key": "ending-jailed", "text_key": "ending-jailed-text", "tone": "defeat",
+      "when": { "type": "status", "status": ["imprisoned", "ended"] },
+      "facts": ["years", "posts_held", "laws_passed", "scandals", "standing"],
+    },
+    {
+      // A conviction cost the seat.
+      "id": "ending.removed", "title_key": "ending-removed", "text_key": "ending-removed-text", "tone": "defeat",
+      "when": { "type": "event", "event": "removed_from_office" },
+      "facts": ["years", "posts_held", "laws_passed", "scandals", "standing"],
+    },
+    {
+      // Disgrace: Standing gone.
+      "id": "ending.disgraced", "title_key": "ending-disgraced", "text_key": "ending-disgraced-text", "tone": "defeat",
+      "when": { "type": "track_at_most", "track": "standing", "value": 0 },
+      "facts": ["years", "posts_held", "laws_passed", "scandals", "standing"],
+    },
+    {
+      "id": "ending.higher_office", "title_key": "ending-higher_office", "text_key": "ending-higher_office-text", "tone": "triumph",
+      "when": { "type": "holds_later_act" },
+      "facts": ["years", "posts_held", "elections_won", "laws_passed", "works", "promises_kept", "mandate"],
+    },
+    {
+      // The tier's executive (the office that signs or vetoes): a mayoralty
+      // in a town, a governorship in a region.
+      "id": "ending.executive", "title_key": "ending-executive", "text_key": "ending-executive-text", "tone": "triumph",
+      "when": { "type": "won_post_with", "powers": ["veto", "propose_budget"] },
+      "facts": ["years", "posts_held", "elections_won", "laws_passed", "works", "promises_kept", "mandate"],
+    },
+    {
+      "id": "ending.deselected", "title_key": "ending-deselected", "text_key": "ending-deselected-text", "tone": "defeat",
+      "when": { "type": "event", "event": "deselected" },
+      "facts": ["years", "posts_held", "laws_passed", "elections_won", "standing", "viability"],
+    },
+    {
+      "id": "ending.lost_seat", "title_key": "ending-lost_seat", "text_key": "ending-lost_seat-text", "tone": "defeat",
+      "when": { "type": "lost_seat" },
+      "facts": ["years", "posts_held", "laws_passed", "elections_won", "elections_lost", "mandate"],
+    },
+    {
+      // Two full terms of the post held (its term in the constitution).
+      "id": "ending.served", "title_key": "ending-served", "text_key": "ending-served-text", "tone": "neutral",
+      "when": { "type": "served", "terms": 2 },
+      "facts": ["years", "posts_held", "elections_won", "laws_passed", "works", "promises_kept", "promises_broken", "decisions", "mandate", "standing"],
+    },
+  ],
+}

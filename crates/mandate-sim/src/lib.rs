@@ -5,6 +5,7 @@
 //! commands, and event log (DEC-042). Domains are modules; each system writes
 //! only its own domain and emits effect requests for others (OVERVIEW §4.3).
 
+pub mod act;
 pub mod actions;
 pub mod asks;
 pub mod characters;
@@ -12,6 +13,7 @@ pub mod commands;
 pub mod concerns;
 pub mod condition;
 pub mod economy;
+pub mod endings;
 pub mod engine;
 pub mod environment;
 pub mod events;
@@ -19,6 +21,7 @@ pub mod events;
 pub mod explain;
 pub mod finance;
 pub mod justice;
+pub mod legacy;
 pub mod media;
 pub mod narrative;
 pub mod npc;
@@ -28,7 +31,9 @@ pub mod player;
 pub mod policy;
 pub mod politics;
 pub mod population;
+pub mod proxy;
 pub mod scheduler;
+pub mod skip;
 pub mod state;
 pub mod systems;
 pub mod talk;
