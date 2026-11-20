@@ -104,6 +104,10 @@ pub enum ContentFile {
     Connectors {
         items: Vec<crate::layout::ConnectorDef>,
     },
+    /// Interior recipes: the rooms of enterable places (DEC-088, DEC-098 §4).
+    Interiors {
+        items: Vec<crate::interiors::InteriorRecipe>,
+    },
     /// The country map's layers (DEC-089): what the map can colour towns by.
     MapLayers {
         items: Vec<crate::map_layers::MapLayerDef>,
@@ -1477,6 +1481,11 @@ pub struct PlaceKindDef {
     /// presentation data, validated but never read by the simulation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub layout: Option<crate::layout::PlaceLayoutBlock>,
+    /// The interior recipe the player walks into (DEC-088; `interiors.jsonc`
+    /// id), presentation data like `layout`. A kind without one keeps the
+    /// place panel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interior: Option<String>,
 }
 
 // --- Politics parameters (DEC-027 to DEC-030, DEC-071) -----------------------
@@ -2549,6 +2558,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "connectors" => ContentFile::Connectors {
             items: serde_json::from_str::<ItemsFile<crate::layout::ConnectorDef>>(json)?.items,
+        },
+        "interiors" => ContentFile::Interiors {
+            items: serde_json::from_str::<ItemsFile<crate::interiors::InteriorRecipe>>(json)?.items,
         },
         "map_layers" => ContentFile::MapLayers {
             items: serde_json::from_str::<ItemsFile<crate::map_layers::MapLayerDef>>(json)?.items,

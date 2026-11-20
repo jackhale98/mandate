@@ -20,7 +20,8 @@ import { encodePng } from "../../src/node/png";
 import { Sheet } from "../../src/node/sheet";
 import { composeInterior, placeholderPeople, renderInterior, type InteriorRoom, type RgbaImage } from "./interiors";
 import { FIXED_RAMPS, ICHARS, ILEGEND, PARTS, partSlots, SCODES, SLEGEND, SURFACES, surfaceSlots } from "./interiorsParts";
-import { RECIPES, type InteriorRecipe } from "./interiorsRecipes";
+import { RECIPES } from "./interiorsContent";
+import type { InteriorRecipe } from "./interiorsRecipes";
 import { buildPack } from "./pack";
 import { INTERIOR_SEEDS, INTERIOR_TIMES } from "./samples";
 

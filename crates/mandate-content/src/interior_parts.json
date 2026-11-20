@@ -1,0 +1,653 @@
+{
+ "generated": "tools/pixelkit art/mandate/interiorsCatalog.ts --write; do not edit",
+ "parts": {
+  "back_counter": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 15
+  },
+  "banker_lamp": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 6
+  },
+  "bin": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 6
+  },
+  "booth_bench": {
+   "kind": "seat",
+   "foot": [
+    1,
+    2
+   ],
+   "strip": null,
+   "h": 42
+  },
+  "booth_table": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    2
+   ],
+   "strip": null,
+   "h": 32
+  },
+  "cafe_table": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 12
+  },
+  "chair_back": {
+   "kind": "seat",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 11
+  },
+  "chair_front": {
+   "kind": "seat",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 15
+  },
+  "chair_high": {
+   "kind": "seat",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 23
+  },
+  "clerk_table": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 14
+  },
+  "clock": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 12
+  },
+  "coat_stand": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 19
+  },
+  "coffee_machine": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 10
+  },
+  "condiments": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 4
+  },
+  "counter": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 18
+  },
+  "counter_bell": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 3
+  },
+  "counter_screen": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 9
+  },
+  "counter_side": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "v",
+   "h": 16
+  },
+  "crest": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 20
+  },
+  "desk": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 16
+  },
+  "desk_side": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "v",
+   "h": 16
+  },
+  "diner_counter": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 18
+  },
+  "door_bell": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 7
+  },
+  "door_double": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 28
+  },
+  "door_office": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 27
+  },
+  "door_swing": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 25
+  },
+  "doormat": {
+   "kind": "decal",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 7
+  },
+  "filing_cabinet": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 20
+  },
+  "flag_stand": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 29
+  },
+  "form_desk": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 16
+  },
+  "jukebox": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 22
+  },
+  "kitchen_pass": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 14
+  },
+  "leaflet_rack": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 9
+  },
+  "leaflet_stand": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 16
+  },
+  "lectern": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 17
+  },
+  "menu_board": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 13
+  },
+  "mic": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 4
+  },
+  "monitor": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 10
+  },
+  "mug": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 3
+  },
+  "nameplate": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 2
+  },
+  "neon": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 12
+  },
+  "news_rack": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 16
+  },
+  "notice_board": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 17
+  },
+  "office_desk": {
+   "kind": "furniture",
+   "foot": [
+    2,
+    1
+   ],
+   "strip": null,
+   "h": 16
+  },
+  "papers": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 3
+  },
+  "pew": {
+   "kind": "seat",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 14
+  },
+  "pie_case": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 8
+  },
+  "plant_small": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 11
+  },
+  "plant_tall": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 23
+  },
+  "plates": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 3
+  },
+  "portrait": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 14
+  },
+  "poster": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 13
+  },
+  "rail": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 10
+  },
+  "register": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 7
+  },
+  "sconce": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 8
+  },
+  "stanchion": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 10
+  },
+  "stool": {
+   "kind": "seat",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 12
+  },
+  "table_lamp": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 6
+  },
+  "tv": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 13
+  },
+  "waiting_bench": {
+   "kind": "seat",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": "h",
+   "h": 15
+  },
+  "water_cooler": {
+   "kind": "furniture",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 18
+  },
+  "water_jug": {
+   "kind": "top",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 4
+  },
+  "window_arch": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 29
+  },
+  "window_sash": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 16
+  },
+  "window_wide": {
+   "kind": "wall",
+   "foot": [
+    1,
+    1
+   ],
+   "strip": null,
+   "h": 18
+  }
+ },
+ "surfaces": {
+  "brick": "wall",
+  "carpet": "floor",
+  "checker": "floor",
+  "lino": "floor",
+  "panelling": "wall",
+  "parquet": "floor",
+  "planks": "floor",
+  "plaster": "wall",
+  "stone_tiles": "floor",
+  "stripes": "wall",
+  "subway": "wall",
+  "terrazzo": "floor"
+ },
+ "ramps": [
+  "asphalt",
+  "brick",
+  "chalk",
+  "cloth_charcoal",
+  "cloth_denim",
+  "cloth_green",
+  "cloth_mustard",
+  "cloth_navy",
+  "cloth_plum",
+  "cloth_red",
+  "cloth_shirt",
+  "cloth_sky",
+  "cloth_teal",
+  "earth",
+  "field",
+  "flag",
+  "foliage",
+  "glass",
+  "grass",
+  "hair_auburn",
+  "hair_black",
+  "hair_blonde",
+  "hair_brown",
+  "hair_dark_brown",
+  "hair_grey",
+  "ink",
+  "iron",
+  "lamp",
+  "line_cool",
+  "line_green",
+  "line_skin",
+  "line_warm",
+  "party_blue",
+  "party_green",
+  "paving",
+  "render",
+  "skin1",
+  "skin2",
+  "skin3",
+  "skin4",
+  "skin5",
+  "skin6",
+  "slate",
+  "stone",
+  "terracotta",
+  "water",
+  "wood"
+ ]
+}

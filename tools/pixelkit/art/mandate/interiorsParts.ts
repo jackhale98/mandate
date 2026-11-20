@@ -225,46 +225,52 @@ export const SURFACES: readonly SurfaceDef[] = [
   {
     id: "stone_tiles",
     on: "floor",
-    desc: "stone flags in a half-bond, grout in the dark step, a worn sheen",
+    // Owner review of round 7: the old half-bond read as a brick wall. Now square flags on a straight grid
+    // (one per floor tile), so the floor's own grid shows; the joints across the view are a dark line with
+    // the next flag's lit edge (seen at a glancing angle, they read stronger: a perspective cue), the
+    // joints running away from the viewer a fine broken line; a soft worn sheen across each flag.
+    desc: "square stone flags on a straight grid: lit near edges, a fine broken joint running back, a soft sheen",
     grid: `
-      ccccccccccccccbc
-      cddddcccccccccbc
-      cdccccccccccccbc
-      ccccccccccccccbc
-      ccccccccccccccbc
-      ccccccccccccccbc
-      ccccccccccccccbc
-      bbbbbbbbbbbbbbbb
-      ccccccbccccccccc
-      ccccccbcddddcccc
-      ccccccbcdccccccc
-      ccccccbccccccccc
-      ccccccbccccccccc
-      ccccccbccccccccc
-      ccccccbccccccccc
+      dddddddddddddddc
+      cccccccccccccccb
+      cccccccccccccccc
+      ccccccccccdccccb
+      cccccccccdcccccc
+      cccccccccccccccb
+      ccbccccccccccccc
+      cccccccccccccccb
+      cccccccccccccccc
+      cccccccccccccccb
+      cccdcccccccccccc
+      ccdccccccccccccb
+      ccccccccccccbccc
+      cccccccccccccccb
+      cccccccccccccccc
       bbbbbbbbbbbbbbbb`,
   },
   {
     id: "terrazzo",
     on: "floor",
-    desc: "terrazzo: chips of the second ramp in clusters, brass strips every 16 px",
+    // Owner review of round 7: softer strips (one step, not two, below the chips' ramp), so the grid reads as
+    // inlay in a floor, not mortar.
+    desc: "terrazzo: chips of the second ramp in clusters, soft divider strips every 16 px",
     grid: `
-      ccccccccccccccce
-      ccgcccccccccccce
+      cccccccccccccccf
+      ccgccccccccccccf
       cggcccccchhccccc
-      ccccccccchccccce
-      cccccccccccccgce
-      cccchcccccccggce
-      ccchhcccccccccce
+      ccccccccchcccccf
+      cccccccccccccgcf
+      cccchcccccccggcf
+      ccchhccccccccccf
       ccccccccgccccccc
-      ccccccccggccccce
-      cgcccccccccchcce
-      cggcccccccchhcce
-      ccccccchccccccce
-      cccccchhccccccce
-      ccccccccccccgcce
-      ccccccccccccggce
-      eeeeeeeeeeeeeeee`,
+      ccccccccggcccccf
+      cgcccccccccchccf
+      cggcccccccchhccf
+      ccccccchcccccccf
+      cccccchhcccccccf
+      ccccccccccccgccf
+      ccccccccccccggcf
+      ffffffffffffffff`,
   },
   {
     id: "lino",
@@ -1554,6 +1560,89 @@ export const PARTS: readonly PartDef[] = [
         .............bB.
         ............BBBB`,
     },
+  },
+  {
+    id: "form_desk",
+    kind: "furniture",
+    foot: [1, 1],
+    desc: "the public counter for filling in forms: a high wooden shelf on two legs, blank forms and a pen on a chain",
+    strip: {
+      dir: "h",
+      start: `
+        .kkkkkkkkkkkkkkk
+        kwwwwwwwwwwwwwww
+        kwwccccCwwwwwwww
+        kwwcCCCcwwwwOOww
+        kwwccccCwwwwwwOw
+        kwwwwwwwwwwwwwww
+        WWWWWWWWWWWWWWWW
+        .Wkkkkkkkkkkkkkk
+        .WWWWWWWWWWWWWWW
+        .Wk.............
+        .Wk.............
+        .Wk.............
+        .Wk.............
+        .Wk.............
+        .Wk.............
+        WWkk............`,
+      mid: `
+        kkkkkkkkkkkkkkkk
+        wwwwwwwwwwwwwwww
+        wwwwwwwccccCwwww
+        wwwwwwwcCCCcwwww
+        wwwwwwwccccCwwww
+        wwwwwwwwwwwwwwww
+        WWWWWWWWWWWWWWWW
+        kkkkkkkkkkkkkkkk
+        WWWWWWWWWWWWWWWW
+        ................
+        ................
+        ................
+        ................
+        ................
+        ................
+        ................`,
+      end: `
+        kkkkkkkkkkkkkkk.
+        wwwwwwwwwwwwwwwW
+        wwwwccccCwwwwwwW
+        wwwwcCCcCwwOOwwW
+        wwwwccccCwwwwOwW
+        wwwwwwwwwwwwwwwW
+        WWWWWWWWWWWWWWWW
+        kkkkkkkkkkkkkkW.
+        WWWWWWWWWWWWWWW.
+        .............kW.
+        .............kW.
+        .............kW.
+        .............kW.
+        .............kW.
+        .............kW.
+        ............kkWW`,
+    },
+  },
+  {
+    id: "leaflet_stand",
+    kind: "furniture",
+    foot: [1, 1],
+    desc: "a freestanding wire stand of leaflets in three tiers (what the council is doing, how to apply, the bin collection)",
+    grid: `
+      ....iIIIIIIi....
+      ....iccceexi....
+      ....iCcCefxi....
+      ....iIIIIIIi....
+      ....iaaacYYi....
+      ....iarcCYRi....
+      ....iIIIIIIi....
+      ....ieexccci....
+      ....ieFxcCci....
+      ....iIIIIIIi....
+      .....i....i.....
+      .....i....i.....
+      .....i....i.....
+      .....i....i.....
+      .....i....i.....
+      ....Ii....Ii....`,
   },
   {
     id: "bin",

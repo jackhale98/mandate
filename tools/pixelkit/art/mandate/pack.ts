@@ -9,7 +9,6 @@ import { paletteLightness } from "../../src/core/compose";
 import type { Palette } from "../../src/core/palette";
 import { INTERIOR_COMPOSER_VERSION } from "./interiors";
 import { PARTS as INTERIOR_PARTS, SURFACES as INTERIOR_SURFACES } from "./interiorsParts";
-import { RECIPES as INTERIOR_RECIPES, type InteriorRecipe } from "./interiorsRecipes";
 import { buildLighting, type Lighting } from "./lighting";
 import { buildMandatePalette } from "./palette";
 import { buildProps, lampPool, windowSpill, type BuiltProp, type Pool, type Spill } from "./props";
@@ -17,7 +16,7 @@ import { buildTerrain, type TerrainSet } from "./terrain";
 import { buildTiles, type TileSet } from "./tiles";
 
 /** Bump when any drawing or rule changes what an existing look or building looks like (§3.5 rule 8). */
-export const PACK_VERSION = "mandate-p0.8";
+export const PACK_VERSION = "mandate-p0.9";
 
 export interface ArtPack {
   version: string;
@@ -33,11 +32,12 @@ export interface ArtPack {
   spill: Spill;
   lighting: Lighting;
   /**
-   * Interiors (art round 7, DEC-088): the recipes, and what the part kit holds.
-   * Rooms are composed on the device (D10) by `composeInterior` from a recipe
-   * and a keyed seed; the parts are code, as the character and building kits are.
+   * Interiors (art round 7, DEC-088): what the part kit holds. Rooms are
+   * composed on the device (D10) by `composeInterior` from a recipe (content:
+   * `content/base/interiors.jsonc`, DEC-098 §4) and a keyed seed; the parts
+   * are code, as the character and building kits are.
    */
-  interiors: { composer: number; recipes: readonly InteriorRecipe[]; parts: Record<string, string>; surfaces: Record<string, string> };
+  interiors: { composer: number; parts: Record<string, string>; surfaces: Record<string, string> };
 }
 
 export interface PaletteData {
@@ -67,7 +67,6 @@ export function buildPack(): ArtPack {
     lighting: buildLighting(palette),
     interiors: {
       composer: INTERIOR_COMPOSER_VERSION,
-      recipes: INTERIOR_RECIPES,
       parts: Object.fromEntries(INTERIOR_PARTS.map((p) => [p.id, p.kind])),
       surfaces: Object.fromEntries(INTERIOR_SURFACES.map((s) => [s.id, s.on])),
     },
@@ -80,5 +79,5 @@ export { groundTile, TERRAINS } from "./tiles";
 export { TerrainPainter, tileOf, TERRAIN, V1_NAMES, V2_CODES, V2_NAMES, CONNECTOR_KINDS, type TerrainView, type ConnectorView } from "./terrain";
 export { END_KINDS, END_FACINGS, endPropVariant, type StreetEndView } from "./ends";
 export type { Pool } from "./props";
-export { composeInterior, renderInterior, flattenInterior, interiorSeed, placeholderPeople, validateRecipe, reachable, TILE, type InteriorRoom, type InteriorSprite, type Actor } from "./interiors";
-export { RECIPES as INTERIOR_RECIPES, recipeFor, type InteriorRecipe, type SpotDef, type HotspotDef } from "./interiorsRecipes";
+export { composeInterior, renderInterior, flattenInterior, interiorSeed, placeholderPeople, placeholderLook, sitCut, interiorGrade, gradeImage, gradeRoom, BLOB, BAND, validateRecipe, reachable, TILE, type InteriorRoom, type InteriorSprite, type InteriorGrade, type Actor } from "./interiors";
+export { parseInteriorRecipes, recipeFor, HERE_AS, type InteriorRecipe, type SpotDef, type HotspotDef, type HereAs, type Facing } from "./interiorsRecipes";

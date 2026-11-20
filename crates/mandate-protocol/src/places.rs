@@ -350,6 +350,18 @@ pub struct PlacePanelView {
     /// passers-by. Listed wherever the panel is opened; meeting someone
     /// needs the player there.
     pub people: Vec<crate::characters::PersonRefView>,
+    /// How each of `people` is here, in the same order (DEC-088 interiors:
+    /// the room puts people on its spots by this, never by office or name):
+    /// `presiding` (heads the body or office that sits here), `member` (sits
+    /// in that body), `works` (works here), or `visitor`.
+    pub here_as: Vec<String>,
+    /// The interior the player walks into from the street (DEC-088), when
+    /// the place kind names one: its recipe (`interiors.jsonc`, the highest
+    /// version of the kind's `interior` id) as the content's JSON, which the
+    /// client composes the room from (presentation data the engine
+    /// validates and never reads; the art pack's `InteriorRecipe` shape).
+    #[ts(type = "unknown")]
+    pub interior: Option<serde_json::Value>,
     /// Pending decisions whose scene happens here (DEC-079: going there adds
     /// the conversation; they can always be answered from the pocket).
     pub decisions_here: Vec<crate::narrative::DecisionView>,
@@ -908,6 +920,47 @@ fn overheard(engine: &Engine, loc: Location) -> Option<OverheardView> {
     })
 }
 
+/// How each person present is here (`PlacePanelView.here_as`): presentation
+/// for the interior's spots. It follows `ambient::stored_at`, which decides
+/// who is present at the civic places; R1 (DEC-098) moves both to the posts
+/// whose body or office sits at a place.
+fn here_as(st: &State, loc: Location, people: &[crate::characters::PersonRefView]) -> Vec<String> {
+    use mandate_sim::world::PlaceKind;
+    let place = match loc {
+        Location::Place { place } => st.world.places.get(place.index()).map(|p| (place, p)),
+        _ => None,
+    };
+    let council = place.and_then(|(_, p)| st.politics.councils.get(p.municipality.index()));
+    people
+        .iter()
+        .map(|p| {
+            let c = p.id.and_then(|id| {
+                st.politics
+                    .characters
+                    .get(mandate_sim::characters::CharacterId(id))
+            });
+            let (Some(c), Some((pid, pl))) = (c, place) else {
+                return "visitor";
+            };
+            let civic = matches!(pl.kind, PlaceKind::CouncilChamber | PlaceKind::TownHall);
+            if let (Some(pol), Some(co)) = (c.politician, council) {
+                if civic && co.mayor == Some(pol) {
+                    return "presiding";
+                }
+                if pl.kind == PlaceKind::CouncilChamber && co.members.contains(&pol) {
+                    return "member";
+                }
+            }
+            if c.named.as_deref().is_some_and(|n| n.place == Some(pid)) {
+                "works"
+            } else {
+                "visitor"
+            }
+        })
+        .map(String::from)
+        .collect()
+}
+
 pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelView> {
     let st = engine.state();
     let content = engine.content();
@@ -920,6 +973,7 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
         .map(String::from)
         .collect();
     let has = |s: &str| here && services.iter().any(|x| x == s);
+    let people = crate::characters::people_at(engine, loc);
     Some(PlacePanelView {
         location: location_view(st, loc),
         here,
@@ -952,7 +1006,19 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
         } else {
             None
         },
-        people: crate::characters::people_at(engine, loc),
+        here_as: here_as(st, loc, &people),
+        interior: content
+            .place_kind(places::kind_key(st, loc))
+            .and_then(|k| k.interior.as_deref())
+            .and_then(|id| {
+                content
+                    .interiors
+                    .iter()
+                    .filter(|r| r.id == id)
+                    .max_by_key(|r| r.version)
+            })
+            .and_then(|r| serde_json::to_value(r).ok()),
+        people,
         decisions_here: crate::narrative::pending_decisions(engine)
             .into_iter()
             .filter(|d| {
