@@ -389,6 +389,61 @@
       ],
       "type": "object"
     },
+    "AreaDef": {
+      "description": "Where an option applies.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The whole jurisdiction.",
+          "properties": {
+            "type": {
+              "const": "town",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A bound neighbourhood.",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "slot",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A bound neighbourhood and those next to it.",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "slot_and_adjacent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "AskDef": {
       "additionalProperties": false,
       "description": "An ask template (`content/base/asks/asks.jsonc`).",
@@ -850,6 +905,37 @@
       ],
       "type": "object"
     },
+    "AxisDef": {
+      "additionalProperties": false,
+      "description": "One design choice.",
+      "properties": {
+        "default": {
+          "description": "The option a draft gets when it names none (default: the first).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/FamilyOptionDef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "options"
+      ],
+      "type": "object"
+    },
     "BeatDef": {
       "additionalProperties": false,
       "properties": {
@@ -960,6 +1046,265 @@
           },
           "required": [
             "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "BindDef": {
+      "description": "What a slot binds, and how it is chosen (§2.3). Candidates are inside\nthe instance's jurisdiction, taken in id order, ranked by `pick`; ties go\nto the lowest id.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A place of one of these kinds.",
+          "properties": {
+            "drivers": {
+              "description": "Only places whose kind has one of these sector drivers.",
+              "items": {
+                "$ref": "#/$defs/SectorDriver"
+              },
+              "type": "array"
+            },
+            "in_slot": {
+              "description": "Inside a bound neighbourhood.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kinds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "open_only": {
+              "default": true,
+              "description": "Only open places (DEC-090 D3).",
+              "type": "boolean"
+            },
+            "pick": {
+              "$ref": "#/$defs/Pick",
+              "default": "first"
+            },
+            "type": {
+              "const": "place",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kinds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A neighbourhood.",
+          "properties": {
+            "concern": {
+              "description": "This concern among its `top` worries.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "hazard": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/HazardKey"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exposed to this hazard at least `min_exposure` (DEC-090 D8)."
+            },
+            "kinds": {
+              "description": "Neighbourhood kinds (`core`, `waterfront`, …).",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "lacks": {
+              "description": "Place kinds it has none of.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "min_exposure": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "of_slot": {
+              "description": "The neighbourhood of a bound place.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "pick": {
+              "$ref": "#/$defs/Pick",
+              "default": "first"
+            },
+            "top": {
+              "default": 3,
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "neighborhood",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A Named or Principal character.",
+          "properties": {
+            "at_slot": {
+              "description": "Works at a bound place.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "fallback": {
+              "$ref": "#/$defs/PersonFallback",
+              "default": "none"
+            },
+            "in_slot": {
+              "description": "Lives or works in a bound neighbourhood.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "occupations": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "person",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The town's power broker (a town's instance; unbound elsewhere until M7).",
+          "properties": {
+            "type": {
+              "const": "broker",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A sector.",
+          "properties": {
+            "defining": {
+              "default": false,
+              "description": "The defining industry.",
+              "type": "boolean"
+            },
+            "drivers": {
+              "items": {
+                "$ref": "#/$defs/SectorDriver"
+              },
+              "type": "array"
+            },
+            "of_slot": {
+              "description": "The sector of a bound place (its kind's drivers, the\njurisdiction's largest matching sector).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "sector",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The live crisis (of one of these kinds).",
+          "properties": {
+            "kinds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "crisis",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A hazard.",
+          "properties": {
+            "hazards": {
+              "items": {
+                "$ref": "#/$defs/HazardKey"
+              },
+              "type": "array"
+            },
+            "in_slot": {
+              "description": "Its exposure in a bound neighbourhood (else the town's).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "min_exposure": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "pick": {
+              "$ref": "#/$defs/Pick",
+              "default": "first"
+            },
+            "type": {
+              "const": "hazard",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "hazards"
           ],
           "type": "object"
         }
@@ -3448,6 +3793,191 @@
         },
         {
           "additionalProperties": false,
+          "description": "This concern is among the `top` worries (measured) of the\nneighbourhood bound to `slot`.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "concern": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "top": {
+              "default": 3,
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "hood_concern",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "concern"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The neighbourhood bound to `slot` is exposed to this hazard at least\n`min` (0..1; DEC-090 D8).",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "hazard": {
+              "$ref": "#/$defs/HazardKey"
+            },
+            "min": {
+              "format": "double",
+              "type": "number"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "hood_hazard",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "hazard",
+            "min"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The sector bound to `slot` has lost at least `min` of its jobs in the\njurisdiction since the baseline (E1; a share, 0..1).",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "min": {
+              "format": "double",
+              "type": "number"
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "sector_decline",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "min"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The place bound to `slot` is open (DEC-090 D3).",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "place_open",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The place bound to `slot` has closed.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "place_closed",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Any one of these holds (the first that does gives the arguments).",
           "properties": {
             "of": {
@@ -5149,6 +5679,23 @@
       ],
       "type": "object"
     },
+    "DrawDef": {
+      "additionalProperties": false,
+      "description": "How often a family turns up in a run.",
+      "properties": {
+        "rarity": {
+          "$ref": "#/$defs/Rarity",
+          "default": "common"
+        },
+        "weight": {
+          "default": 1.0,
+          "description": "Priority when several are ready at once, in (0, 10].",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "EconomyParams": {
       "additionalProperties": false,
       "description": "Economy and demography parameters (REQ-005).",
@@ -5258,6 +5805,45 @@
           "description": "Annual structural trends of a world without a scenario bias:\ntechnology growth, and the drift of manufacturing competitiveness.",
           "format": "double",
           "type": "number"
+        },
+        "treasury_shares": {
+          "$ref": "#/$defs/TreasuryShares",
+          "default": {
+            "local": [
+              0.15,
+              0.25,
+              0.0,
+              0.2,
+              0.2,
+              0.05,
+              0.05,
+              0.05,
+              0.05
+            ],
+            "national": [
+              0.15,
+              0.1,
+              0.2,
+              0.2,
+              0.15,
+              0.0,
+              0.05,
+              0.05,
+              0.1
+            ],
+            "regional": [
+              0.05,
+              0.3,
+              0.35,
+              0.0,
+              0.2,
+              0.0,
+              0.0,
+              0.05,
+              0.05
+            ]
+          },
+          "description": "How each tier's treasury splits its discretionary budget across the\nbudget categories at the start (DEC-098: content, not code)."
         },
         "unemployment_replacement": {
           "description": "Unemployment benefit and pension as a share of the mean wage.",
@@ -6126,6 +6712,50 @@
       ],
       "type": "object"
     },
+    "ExpiryDef": {
+      "additionalProperties": false,
+      "description": "When an open instance with no bill goes away (§2.4).",
+      "properties": {
+        "cooldown_months": {
+          "default": 12,
+          "description": "Months before it can open again in the same jurisdiction.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "grace_months": {
+          "default": 3,
+          "description": "… or when its trigger has not held for this many months.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_months": {
+          "description": "… or this many months after it opened.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "when": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SituationTrigger"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "It lapses when this holds."
+        }
+      },
+      "type": "object"
+    },
     "Facing": {
       "enum": [
         "down",
@@ -6184,6 +6814,438 @@
         "response_days"
       ],
       "type": "object"
+    },
+    "FamilyBaseDef": {
+      "additionalProperties": false,
+      "description": "What every version of a family has, as in a policy template.",
+      "properties": {
+        "cost": {
+          "$ref": "#/$defs/CostDef"
+        },
+        "implementation_months": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mechanisms": {
+          "items": {
+            "$ref": "#/$defs/MechanismDef"
+          },
+          "type": "array"
+        },
+        "params": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ParamDef"
+          },
+          "type": "array"
+        },
+        "secondary_keys": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "side_effects": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SideEffectDef"
+          },
+          "type": "array"
+        },
+        "signature": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "works": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorksDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A works project every version builds (DEC-099)."
+        }
+      },
+      "required": [
+        "cost",
+        "mechanisms",
+        "implementation_months",
+        "signature",
+        "secondary_keys"
+      ],
+      "type": "object"
+    },
+    "FamilyKnowledgeDef": {
+      "additionalProperties": false,
+      "description": "How the player finds out about a proposal (§2.7, DEC-091).",
+      "properties": {
+        "detailed": {
+          "items": {
+            "$ref": "#/$defs/HookDef"
+          },
+          "type": "array"
+        },
+        "heard": {
+          "items": {
+            "$ref": "#/$defs/HookDef"
+          },
+          "type": "array"
+        },
+        "known": {
+          "items": {
+            "$ref": "#/$defs/HookDef"
+          },
+          "type": "array"
+        },
+        "lead": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LeadDef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "public": {
+          "default": false,
+          "description": "In the paper when it opens (heard by all).",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "FamilyOptionDef": {
+      "additionalProperties": false,
+      "description": "One option of an axis (§2.5).",
+      "properties": {
+        "area": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AreaDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Where it applies (at most one axis per family sets it)."
+        },
+        "cost": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CostDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Added to the base cost."
+        },
+        "cost_factor": {
+          "default": 1.0,
+          "description": "Multiplies the whole cost.",
+          "format": "double",
+          "type": "number"
+        },
+        "desc_key": {
+          "type": "string"
+        },
+        "effect_factor": {
+          "default": 1.0,
+          "description": "Multiplies every mechanism's effect.",
+          "format": "double",
+          "type": "number"
+        },
+        "excludes": {
+          "description": "Options it cannot be combined with (`\"axis.option\"`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fixed": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "description": "Hidden parameter values its mechanisms use.",
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mechanisms": {
+          "items": {
+            "$ref": "#/$defs/MechanismDef"
+          },
+          "type": "array"
+        },
+        "months": {
+          "default": 0,
+          "description": "Added to the implementation time (at least 1 month overall).",
+          "format": "int16",
+          "maximum": 32767,
+          "minimum": -32768,
+          "type": "integer"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "needs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NeedsDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A tier or competence it needs (M7): shown unavailable in M6."
+        },
+        "params": {
+          "description": "Extra sliders.",
+          "items": {
+            "$ref": "#/$defs/ParamDef"
+          },
+          "type": "array"
+        },
+        "secondary_keys": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "side_effects": {
+          "items": {
+            "$ref": "#/$defs/SideEffectDef"
+          },
+          "type": "array"
+        },
+        "signature": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "description": "Added to the base signature per attitude (clamped to −1..1).",
+          "type": "object"
+        },
+        "works": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorksDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A works project this option builds (DEC-099)."
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "desc_key"
+      ],
+      "type": "object"
+    },
+    "FamilyParams": {
+      "additionalProperties": false,
+      "description": "The family numbers (§2.6, §2.8; DEC-099).",
+      "properties": {
+        "adopt_opinion": {
+          "description": "The sponsor's opinion of the player when the player adopts their\nversion (−100..100 scale).",
+          "format": "double",
+          "type": "number"
+        },
+        "amend_opinion": {
+          "description": "Opinion per axis changed away from the sponsor's preset.",
+          "format": "double",
+          "type": "number"
+        },
+        "free_steps": {
+          "default": 1.0,
+          "description": "Slider changes within this many steps of the preset are free.",
+          "format": "double",
+          "type": "number"
+        },
+        "max_open_per_jurisdiction": {
+          "description": "Proposals open at once in one jurisdiction.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rarity": {
+          "$ref": "#/$defs/RarityChances",
+          "description": "The chance a family of each rarity is in a run's deck."
+        },
+        "works": {
+          "$ref": "#/$defs/WorksParams",
+          "default": {
+            "abandon_after_months": 12,
+            "ageing_after_months": 60,
+            "decay_per_month": 0.04,
+            "stall_unfunded_months": 3,
+            "wear_per_month": 0.002
+          },
+          "description": "Works projects (DEC-099)."
+        }
+      },
+      "required": [
+        "max_open_per_jurisdiction",
+        "rarity",
+        "adopt_opinion",
+        "amend_opinion"
+      ],
+      "type": "object"
+    },
+    "FamilyPatch": {
+      "description": "A targeted change to another pack's family, applied in pack order\n(DEC-092: \"mods can … patch them\"; §5 question 10).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Change how often it turns up.",
+          "properties": {
+            "draw": {
+              "$ref": "#/$defs/DrawDef"
+            },
+            "family": {
+              "type": "string"
+            },
+            "op": {
+              "const": "set_draw",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "family",
+            "draw"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Add an option to an axis.",
+          "properties": {
+            "axis": {
+              "type": "string"
+            },
+            "family": {
+              "type": "string"
+            },
+            "op": {
+              "const": "add_option",
+              "type": "string"
+            },
+            "option": {
+              "$ref": "#/$defs/FamilyOptionDef"
+            }
+          },
+          "required": [
+            "op",
+            "family",
+            "axis",
+            "option"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Remove an option from an axis.",
+          "properties": {
+            "axis": {
+              "type": "string"
+            },
+            "family": {
+              "type": "string"
+            },
+            "op": {
+              "const": "remove_option",
+              "type": "string"
+            },
+            "option": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "family",
+            "axis",
+            "option"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Add a sponsor.",
+          "properties": {
+            "family": {
+              "type": "string"
+            },
+            "op": {
+              "const": "add_sponsor",
+              "type": "string"
+            },
+            "sponsor": {
+              "$ref": "#/$defs/SponsorDef"
+            }
+          },
+          "required": [
+            "op",
+            "family",
+            "sponsor"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Remove a sponsor.",
+          "properties": {
+            "family": {
+              "type": "string"
+            },
+            "op": {
+              "const": "remove_sponsor",
+              "type": "string"
+            },
+            "sponsor": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "family",
+            "sponsor"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Never draw or open it again (bills and laws continue).",
+          "properties": {
+            "family": {
+              "type": "string"
+            },
+            "op": {
+              "const": "disable",
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "family"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "FavourParams": {
       "additionalProperties": false,
@@ -6703,6 +7765,18 @@
       ],
       "type": "object"
     },
+    "HazardRef": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HazardKey"
+        },
+        {
+          "description": "`@slot`: a family's hazard slot (composition replaces it).",
+          "type": "string"
+        }
+      ],
+      "description": "A hazard a mechanism names: a hazard, or (in a policy family) `@slot`,\nthe hazard bound to that slot. `\"flood\"` parses as before."
+    },
     "HeardSubject": {
       "description": "Whose scandal a condition is about.",
       "enum": [
@@ -6761,6 +7835,157 @@
           "const": "about",
           "description": "The subject (a neighbourhood, or a place's neighbourhood).",
           "type": "string"
+        }
+      ]
+    },
+    "HookDef": {
+      "description": "A moment that teaches the player about a proposal.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Arriving at a place of one of these kinds in the town.",
+          "properties": {
+            "at": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "overheard",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "at"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Arriving at the bound place, or the streets of the bound neighbourhood.",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "visit",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Meeting, lobbying or trading a favour with the bound person.",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "meet",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Doing this action in or with the bound thing.",
+          "properties": {
+            "action": {
+              "type": "string"
+            },
+            "slot": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "action",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "action"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Arriving where this service is offered.",
+          "properties": {
+            "service": {
+              "type": "string"
+            },
+            "type": {
+              "const": "service",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "service"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Talking to the bound person on this topic.",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "topic": {
+              "type": "string"
+            },
+            "type": {
+              "const": "talk",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot",
+            "topic"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The sponsor asks for a meeting this many months after it opens.",
+          "properties": {
+            "after_months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "approach",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot",
+            "after_months"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -7600,6 +8825,34 @@
         }
       ]
     },
+    "LeadDef": {
+      "additionalProperties": false,
+      "description": "A lead posted when the proposal opens: who or where would know more.",
+      "properties": {
+        "else": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LeadDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Used when `to` names an unbound slot."
+        },
+        "key": {
+          "type": "string"
+        },
+        "to": {
+          "$ref": "#/$defs/LeadToDef2"
+        }
+      },
+      "required": [
+        "key",
+        "to"
+      ],
+      "type": "object"
+    },
     "LeadToDef": {
       "description": "Where a lead points.",
       "oneOf": [
@@ -7654,6 +8907,64 @@
           "required": [
             "type",
             "of"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "LeadToDef2": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The bound person or place.",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "slot",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A place of this kind in the town.",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "type": {
+              "const": "place_kind",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The streets of a bound neighbourhood.",
+          "properties": {
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "streets",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
           ],
           "type": "object"
         }
@@ -8359,7 +9670,7 @@
           "description": "Reduces damage from a hazard by `per_unit` × param (capped at 0.9).",
           "properties": {
             "hazard": {
-              "$ref": "#/$defs/HazardKey"
+              "$ref": "#/$defs/HazardRef"
             },
             "param": {
               "type": "string"
@@ -8395,6 +9706,80 @@
           "required": [
             "type",
             "param"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Finance (DEC-092 families): this share of the annual cost is added to\nthe jurisdiction's debt instead of being spent from its budget.",
+          "properties": {
+            "share": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "borrow",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "share"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Finance: income that offsets the cost, `per_capita` per resident (of\nthe area) plus `per_unit` × param a year, at price level 1.",
+          "properties": {
+            "param": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "per_capita": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "per_unit": {
+              "default": 0.0,
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "revenue",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Economy: structural jobs in a sector, `per_unit` × param.",
+          "properties": {
+            "param": {
+              "type": "string"
+            },
+            "per_unit": {
+              "format": "double",
+              "type": "number"
+            },
+            "sector": {
+              "type": "string"
+            },
+            "type": {
+              "const": "sector_capacity",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "sector",
+            "param",
+            "per_unit"
           ],
           "type": "object"
         }
@@ -8848,6 +10233,25 @@
           "type": "string"
         }
       ]
+    },
+    "NeedsDef": {
+      "additionalProperties": false,
+      "description": "A tier or competence a family or option needs (DEC-092 §5; M7).",
+      "properties": {
+        "competence": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tier": {
+          "$ref": "#/$defs/TierKey"
+        }
+      },
+      "required": [
+        "tier"
+      ],
+      "type": "object"
     },
     "NeighborhoodLean": {
       "additionalProperties": false,
@@ -9547,6 +10951,10 @@
           "format": "double",
           "type": "number"
         },
+        "hidden": {
+          "description": "Not a slider: a value an option fixes for its mechanisms (DEC-092\nfamilies). Hidden parameters are never shown or set by a draft.",
+          "type": "boolean"
+        },
         "id": {
           "type": "string"
         },
@@ -9788,6 +11196,27 @@
       ],
       "type": "object"
     },
+    "PersonFallback": {
+      "description": "Who a person slot binds when nobody matches (never an office name, DEC-098).",
+      "oneOf": [
+        {
+          "enum": [
+            "none"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "broker",
+          "description": "The town's power broker.",
+          "type": "string"
+        },
+        {
+          "const": "executive",
+          "description": "Whoever holds the jurisdiction's executive office.",
+          "type": "string"
+        }
+      ]
+    },
     "PersonalityAiParams": {
       "additionalProperties": false,
       "description": "Personality in opinion changes (DEC-031): the same rules for the player\nand NPCs. (Loyalty in votes is `council.loyalty_discipline`; integrity\nagainst lobbying is `council.lobby.integrity`.)",
@@ -9814,6 +11243,41 @@
         {
           "const": "governing",
           "description": "No campaign is running.",
+          "type": "string"
+        }
+      ]
+    },
+    "Pick": {
+      "description": "How a slot chooses among candidates.",
+      "oneOf": [
+        {
+          "const": "first",
+          "description": "The lowest id: stable and plain.",
+          "type": "string"
+        },
+        {
+          "const": "most_at_risk",
+          "description": "Places: the largest job decline in their sector (E1 baselines).",
+          "type": "string"
+        },
+        {
+          "const": "most_exposed",
+          "description": "Neighbourhoods and hazards: the highest exposure.",
+          "type": "string"
+        },
+        {
+          "const": "most_concerned",
+          "description": "Neighbourhoods: the highest level of `concern`.",
+          "type": "string"
+        },
+        {
+          "const": "largest",
+          "description": "The most residents (neighbourhoods) or jobs (places).",
+          "type": "string"
+        },
+        {
+          "const": "keyed",
+          "description": "A keyed draw among candidates.",
           "type": "string"
         }
       ]
@@ -9948,6 +11412,13 @@
           "description": "The concerns its service addresses (concern ids): its real need is\nits neighbourhood's felt level of them (DEC-092 §2.22), what a\nverb's `service` grant reads.",
           "items": {
             "type": "string"
+          },
+          "type": "array"
+        },
+        "drivers": {
+          "description": "The sector drivers of this kind of place (DEC-092 families: a plant's\nsector, `drivers` selectors): the factory and the mill are\n`industrial`, the mine `extraction`.",
+          "items": {
+            "$ref": "#/$defs/SectorDriver"
           },
           "type": "array"
         },
@@ -10120,6 +11591,121 @@
       ],
       "type": "string"
     },
+    "PolicyFamilyDef": {
+      "additionalProperties": false,
+      "description": "One policy family (§2.2).",
+      "properties": {
+        "axes": {
+          "description": "The design choices (1–3 axes of 2–3 options).",
+          "items": {
+            "$ref": "#/$defs/AxisDef"
+          },
+          "type": "array"
+        },
+        "base": {
+          "$ref": "#/$defs/FamilyBaseDef",
+          "description": "What every version has."
+        },
+        "category": {
+          "$ref": "#/$defs/BudgetCategory",
+          "description": "The budget line it is paid from."
+        },
+        "desc_key": {
+          "type": "string"
+        },
+        "draw": {
+          "$ref": "#/$defs/DrawDef",
+          "default": {
+            "rarity": "common",
+            "weight": 1.0
+          }
+        },
+        "expiry": {
+          "$ref": "#/$defs/ExpiryDef",
+          "default": {
+            "cooldown_months": 12,
+            "grace_months": 3
+          }
+        },
+        "id": {
+          "description": "`family.<name>`, never shown.",
+          "type": "string"
+        },
+        "knowledge": {
+          "$ref": "#/$defs/FamilyKnowledgeDef",
+          "default": {
+            "public": false
+          }
+        },
+        "max_instances": {
+          "default": 1,
+          "description": "How many can be open at once in one jurisdiction.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name_key": {
+          "description": "Fluent keys for its title and summary; slot names are arguments.",
+          "type": "string"
+        },
+        "needs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NeedsDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A power or competence the jurisdiction may lack (M7; shown, not used)."
+        },
+        "requires": {
+          "$ref": "#/$defs/Power",
+          "description": "The constitution power needed to propose it (never an office name)."
+        },
+        "slots": {
+          "description": "What it is about, bound in order (a later slot may refer to an\nearlier one).",
+          "items": {
+            "$ref": "#/$defs/SlotDef"
+          },
+          "type": "array"
+        },
+        "sponsors": {
+          "items": {
+            "$ref": "#/$defs/SponsorDef"
+          },
+          "type": "array"
+        },
+        "tier": {
+          "$ref": "#/$defs/TierKey",
+          "description": "The tier of government whose jurisdictions it opens in (DEC-098)."
+        },
+        "trigger": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SituationTrigger"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When it comes onto the table; without one, as soon as its slots bind."
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "desc_key",
+        "tier",
+        "category",
+        "requires",
+        "slots",
+        "base",
+        "axes"
+      ],
+      "type": "object"
+    },
     "PolicyTemplate": {
       "additionalProperties": false,
       "properties": {
@@ -10159,6 +11745,10 @@
         "requires": {
           "$ref": "#/$defs/Power",
           "description": "Power required to propose it."
+        },
+        "retired": {
+          "description": "Retired (DEC-092 §2.19): not offered and not draftable by anyone;\nbills and laws already made continue and saves that have them load.",
+          "type": "boolean"
         },
         "secondary_keys": {
           "description": "Fluent keys for at least one secondary effect (REQ-006).",
@@ -10377,6 +11967,76 @@
         "gaffe_max"
       ],
       "type": "object"
+    },
+    "PriceDef": {
+      "description": "What adopting a sponsor's version costs the player.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Favours owed to the sponsor (DEC-031); they call them in later.",
+          "properties": {
+            "context_key": {
+              "type": "string"
+            },
+            "count": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "favour",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "count",
+            "context_key"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A public endorsement: approval rises among the sponsor's people\n(`classes`, or the residents of `area`) and falls a little elsewhere.",
+          "properties": {
+            "approval": {
+              "format": "double",
+              "type": "number"
+            },
+            "area": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AreaDef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "backlash": {
+              "format": "double",
+              "type": "number"
+            },
+            "classes": {
+              "items": {
+                "$ref": "#/$defs/ClassKey"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "endorsement",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "approval",
+            "backlash"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "ProcedureDef": {
       "additionalProperties": false,
@@ -10643,6 +12303,43 @@
         "investigation"
       ],
       "type": "string"
+    },
+    "Rarity": {
+      "enum": [
+        "always",
+        "common",
+        "uncommon",
+        "rare"
+      ],
+      "type": "string"
+    },
+    "RarityChances": {
+      "additionalProperties": false,
+      "properties": {
+        "always": {
+          "format": "double",
+          "type": "number"
+        },
+        "common": {
+          "format": "double",
+          "type": "number"
+        },
+        "rare": {
+          "format": "double",
+          "type": "number"
+        },
+        "uncommon": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "always",
+        "common",
+        "uncommon",
+        "rare"
+      ],
+      "type": "object"
     },
     "RecordGains": {
       "additionalProperties": false,
@@ -11798,10 +13495,18 @@
     },
     "SituationTrigger": {
       "additionalProperties": false,
-      "description": "A trigger on a town's situation: it holds while any of its conditions\ndoes. Reusable wherever content needs \"when this town is in this kind of\nsituation\" (situational policies now; policy families later).",
+      "description": "A trigger on a jurisdiction's situation: it holds while every `all`\ncondition holds and, when any are given, one of the `any` conditions\ndoes. Situational policies' unlocks and policy families' triggers and\nexpiry (DEC-092).",
       "properties": {
+        "all": {
+          "description": "Every one of these holds.",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
         "any": {
-          "description": "Any one of these holds (the one condition language, `condition.rs`).",
+          "default": [],
+          "description": "At least one of these holds, when any are given (the one condition\nlanguage, `condition.rs`).",
           "items": {
             "$ref": "#/$defs/Condition"
           },
@@ -11813,7 +13518,6 @@
         }
       },
       "required": [
-        "any",
         "reason_key"
       ],
       "type": "object"
@@ -11858,6 +13562,68 @@
           "type": "string"
         }
       ]
+    },
+    "SlotDef": {
+      "additionalProperties": false,
+      "description": "One slot: what it binds and whether a family can open without it.",
+      "properties": {
+        "bind": {
+          "$ref": "#/$defs/BindDef"
+        },
+        "id": {
+          "type": "string"
+        },
+        "optional": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "bind"
+      ],
+      "type": "object"
+    },
+    "SponsorDef": {
+      "additionalProperties": false,
+      "description": "A sponsor's ready version (§2.6).",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "preset": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "One option per axis (a missing axis: its default).",
+          "type": "object"
+        },
+        "price": {
+          "$ref": "#/$defs/PriceDef"
+        },
+        "slot": {
+          "description": "The person slot of whoever sponsors it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "name_key",
+        "preset",
+        "price"
+      ],
+      "type": "object"
     },
     "SpotDef": {
       "additionalProperties": false,
@@ -13630,6 +15396,45 @@
       },
       "type": "object"
     },
+    "TreasuryShares": {
+      "additionalProperties": false,
+      "description": "Starting budget shares by category (in `BudgetCategory` order:\nadministration, education, health, safety, infrastructure, social,\nhousing, environment, economic development), per tier.",
+      "properties": {
+        "local": {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        "national": {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        "regional": {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        }
+      },
+      "required": [
+        "local",
+        "regional",
+        "national"
+      ],
+      "type": "object"
+    },
     "Tuning": {
       "additionalProperties": false,
       "description": "Data-driven tuning parameters (REQ-005).",
@@ -14585,6 +16390,86 @@
       "required": [
         "value",
         "weight"
+      ],
+      "type": "object"
+    },
+    "WorksDef": {
+      "additionalProperties": false,
+      "description": "A works project (DEC-099): a physical work a drafted bill builds at a\nbound place or neighbourhood, which the map and street can show.",
+      "properties": {
+        "at": {
+          "description": "The place or neighbourhood slot it stands at.",
+          "type": "string"
+        },
+        "contractor_risk": {
+          "default": 0.0,
+          "description": "Monthly chance, while building, that the contractor fails and the\nwork stalls (a keyed draw), in [0, 0.2].",
+          "format": "double",
+          "type": "number"
+        },
+        "kind": {
+          "description": "The kind of work, as the art and street layers name it (`flood_wall`,\n`market_stalls`, `clinic_wing`): `[a-z0-9_]+`.",
+          "type": "string"
+        },
+        "months": {
+          "description": "Months of building (default: the bill's implementation time).",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "at"
+      ],
+      "type": "object"
+    },
+    "WorksParams": {
+      "additionalProperties": false,
+      "description": "How works progress, stall and decay (DEC-099).",
+      "properties": {
+        "abandon_after_months": {
+          "description": "Months a stalled site waits before it counts as abandoned.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ageing_after_months": {
+          "description": "Months after opening before a work starts to age.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "decay_per_month": {
+          "description": "Condition lost per month by a stalled or abandoned site (0..1 scale).",
+          "format": "double",
+          "type": "number"
+        },
+        "stall_unfunded_months": {
+          "description": "Months without funding before building stalls.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "wear_per_month": {
+          "description": "Condition lost per month by an open work once it is ageing.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "stall_unfunded_months",
+        "decay_per_month",
+        "wear_per_month",
+        "ageing_after_months",
+        "abandon_after_months"
       ],
       "type": "object"
     },
@@ -15567,6 +17452,66 @@
         },
         "kind": {
           "const": "endings",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Policy families: proposals grounded in the town (DEC-092).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PolicyFamilyDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "policy_families",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The family numbers: rarity chances, the cap on open proposals,\nsponsor goodwill, works (DEC-092, DEC-099).",
+      "properties": {
+        "kind": {
+          "const": "policy_family_params",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/FamilyParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Targeted changes to families of earlier packs (DEC-092), in pack order.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/FamilyPatch"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "policy_family_patches",
           "type": "string"
         }
       },
