@@ -11,8 +11,13 @@
       "vote": 0.04,
       "lobby": 0.03,
       "town_hall": 0.06,
-      "canvass": 0.06,
+      "canvass": 0.03,             // presence, not delivery (DEC-097 §1)
       "press": 0.03,
+      // Delivery (ENGAGEMENT §2.2): asks (E6) and the player's own laws (V1).
+      "ask_kept": 0.05,
+      "promise_kept": 0.08,        // a campaign promise
+      "ask_broken": -0.04,
+      "law_enacted": 0.08,
     },
     "record_fade": 0.08,           // monthly
     "npc_diligence_rate": 0.08,    // NPC officeholders drift toward their diligence

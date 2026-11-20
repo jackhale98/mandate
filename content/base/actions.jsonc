@@ -53,9 +53,17 @@
       "gaffe_max": 0.35,
     },
     "canvass": {
-      "awareness": 0.45,           // share of the awareness gap closed
-      "approval": 0.02,            // per unit of room
-      "contact": 1.6,              // a full day on the doorsteps
+      "awareness": 0.45,           // share of the awareness gap closed (× max(fresh, awareness_floor))
+      "approval": 0.012,           // per unit of room (× fit × fresh × season × same turn); DEC-097 §1
+      "contact": 1.6,              // a full day on the doorsteps (× the same-turn cut)
+      // The per-neighbourhood curve (ENGAGEMENT §2.1): fresh = hood_decay ^ visits,
+      // the visits remembered there fading by `keep` a month. A first visit is fresh (1).
+      "hood_decay": 0.5,
+      "hood_decay_campaign": 0.75, // in campaign season doorsteps are expected
+      "keep": 0.6,                 // monthly
+      "campaign_mult": 2.0,        // approval while a candidate in an open race
+      "same_turn_mult": 0.5,       // a second canvass in one turn
+      "awareness_floor": 0.5,      // canvassing stays the way to be known
     },
     "fundraise": {
       "raised": [1500, 6000],      // × (0.5 + oratory); NPCs too

@@ -19,8 +19,9 @@ pub use runlog::{NewGameSetup, RunLog};
 
 pub const MAGIC: &[u8; 4] = b"MNDT";
 /// v18: neighbourhood concerns (N1). v19: the run log beside the state (bug
-/// reports). v20: offices from the constitution (R1, DEC-098).
-pub const SAVE_FORMAT_VERSION: u16 = 20;
+/// reports). v20: offices from the constitution (R1, DEC-098). v21: the
+/// ground game's memory (E1, DEC-097 §1).
+pub const SAVE_FORMAT_VERSION: u16 = 21;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -210,6 +211,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         (18, run_log),
         // Offices from the constitution (DEC-098, R1): v19 → v20.
         (19, constitution_posts),
+        // The ground game's memory (E1, DEC-097 §1): v20 → v21. Renumber
+        // only this key if another bump merges first.
+        (20, ground_game),
     ];
     let mut value = value;
     let mut v = from;
@@ -664,6 +668,21 @@ fn constitution_posts(mut value: serde_json::Value) -> Result<serde_json::Value,
             Some(other) => return Err(SaveError::Data(format!("unknown filing `{other}`"))),
         };
         pl.insert("filing".into(), filing);
+    }
+    Ok(value)
+}
+
+/// Previous format → next (v20 → v21; E1, DEC-097 §1): the player's
+/// per-neighbourhood canvass memory. The step drops any a newer build might
+/// have left, so the serde default applies: no doorsteps remembered, every
+/// neighbourhood fresh.
+fn ground_game(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let st = value
+        .pointer_mut("/state")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
+        p.remove("ground");
     }
     Ok(value)
 }

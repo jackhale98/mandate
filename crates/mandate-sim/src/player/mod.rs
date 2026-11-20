@@ -4,6 +4,7 @@
 //! awareness), which is the only cross-domain write outside effects.
 //! The knowledge ledger (DEC-091) is player state too (`knowledge`).
 
+pub mod ground;
 pub mod knowledge;
 
 use crate::politics::PoliticianId;
@@ -75,6 +76,10 @@ pub struct PlayerState {
     /// and the half slot left over (`talk`).
     #[serde(default)]
     pub talk: crate::talk::TalkState,
+    /// The ground game's memory (DEC-097 §1): when each neighbourhood was
+    /// last canvassed, and how often lately. Older saves start empty.
+    #[serde(default)]
+    pub ground: ground::GroundState,
 }
 
 /// Where a career stands (DEC-006): in play, out of politics for a while
