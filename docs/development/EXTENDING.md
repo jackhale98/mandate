@@ -112,6 +112,33 @@ Example:
 
 Who is where is asked through `characters::routines` (`whereabouts`, `locate`, `present`) or `characters::ambient::stored_at`; a place's *regulars* (first-visit introductions, grants) stay `ambient::regulars_at`. The player's ledger notes sightings (`KnowledgeLedger::seen`, on arriving and when talking); two at the same place and part on different turns make a habit, shown as the lead `lead-usually-at`.
 
+### Adding a verb to a place (places with purpose, DEC-079 note)
+
+What the player can do at a place beyond the coded actions is one generic action, `visit` (`Action::Visit { verb }`), whose verbs are data. A verb is defined once in `content/base/actions.jsonc` under `visit.verbs` (`VisitVerbDef` in `mandate-content/src/visits.rs`) and offered by every place kind that lists its id in `places.jsonc` `verbs`. Adding one is content: no code, no save change.
+
+- **Cost:** `time` (`slot`, or `half`: half a slot, sharing the conversation's half-slot bank, so two halves fill one slot) and `health`; `late_night: true` also allows the late slot.
+- **When:** `parts` (`morning`, `afternoon`, `evening`; none: any standard part), `when` (situation conditions that must all hold for the place's town: the shared `SituationCondition`, slot-free only, as a policy unlock uses), and `with` (someone of one of these occupations is here now, by their routines). A closed place offers nothing.
+- **Effects** (small; a visit is depth, not a campaign): `learn` (knowledge grants with `which: here`, the place: `people_at`, `hood_concerns`, `broker`, and the visit subjects `sector`, the place kind's industry in its town, `site`, its pollution and hazard exposure, and `service`, its neighbourhood's felt level of the concerns the kind `addresses`; a numeric subject granted `detailed` is a dated reading), `people` (who is here now, met to a level, with an opinion change), `awareness` and `approval` (`among`: `reach` `hood` or `town`, `classes`, `ages` 0–3, `communities`).
+- **Risk:** `base`, `terms` (a condition and what it adds), and `shedding` × how fast the place's industry is letting people go (`visit.outlook`), within `[min, max]`. The place panel shows `mandate_sim::visits::risk`, and the command rolls exactly that (a keyed draw per turn, place and verb, `visits::goes_wrong`). A bad roll adds the risk's `effects` and its `outcome_key` replaces the verb's.
+- **The place kind** names its `sector` (a sector id) for `sector` grants and the risk's `shedding`, and the concerns it `addresses` for `service` grants; validation refuses a verb the kind cannot support.
+- **Text:** the verb's `name_key` and `outcome_key` (args `place`, `kind`, `outlook`, `sector_key`, `name` for the first person met, `learned`, `met`), and `action-verb-<name>` for the log (underscores as dashes).
+- **People to meet:** an occupation in `occupations.jsonc` with the place kind in `places`, and a routine for it. Occupations added after a release take `"round": 1` (or higher): their people are seeded after everyone of earlier rounds, so the existing cast keeps its ids.
+
+Example (the farm's verb):
+
+```jsonc
+{ "id": "verb.walk_fields", "name_key": "verb-walk_fields", "outcome_key": "outcome-verb-walk_fields",
+  "time": "slot", "health": 1, "parts": ["morning", "afternoon"],
+  "effects": [
+    { "type": "people", "level": "known", "opinion": 2 },
+    { "type": "learn", "grants": [
+      { "subject": "hood_concerns", "which": "here", "level": "known" },
+      { "subject": "sector", "which": "here", "level": "detailed" } ] },
+    { "type": "awareness", "amount": 0.03 } ] }
+```
+
+The panel lists a place's verbs (`PlacePanelView.verbs`: cost in half slots, whether it can be done now and why not, the risk), the town's spots name them (`SpotView.verbs`), and the bots use them through the same command: the coalition builder visits to learn and meet people while it explores (`bots.rs` `learning_visit`), and the campaigner takes a photo op at a ward works between elections when the shown risk is at most 15% (`photo_op`).
+
 ### Town character (DEC-077 §1)
 
 Each month (and on load when the crisis registry changed) every town gets a `TownCharacter` in `PoliticsState::characters.towns`:
@@ -284,6 +311,7 @@ cargo run --release -p mandate-cli -- content doctor --seeds 0 --json   # static
 - **Fluent**: keys content references but English lacks (error; the doctor stubs them so the rest can still be checked), keys the engine names but English lacks (warn, a scan of `crates/*/src`), keys nothing references (info; content, other messages, engine and UI literals and the prefixes keys are built from count as references), and arguments a message uses that its caller never supplies (dilemma, storyline and scene casts; overheard conditions).
 - **Too long** (warn): titles over 60 characters, lines over 280, situations and aftermaths over 600 (`--max-title`, `--max-line`, `--max-body`), rendered with long representative names and the longest variant of every selector.
 - **Voice**: a closer whose voice's speakers never have the line's roles, a substance line for roles its topic is never offered to, a voice that an unconditional voice of higher priority always beats, and (from the careers) voice and role pairs never met.
+- **Text** (warn): doubled punctuation and stray braces written into a message (`text-doubled-punct`, `text-raw`), and a line that names a worry with nothing in its conditions behind it (`worry-unconditioned`); replies that do not answer what was asked (`subject-unread`, `subject-drift`). See "Writing for Mandate" below.
 
 `--strict` exits non-zero on errors. CI runs the doctor as a report step only, until the base pack's counts are clean.
 
@@ -302,6 +330,8 @@ Each item carries its **situation**: seed, date, strategy and storyteller, the t
 - `counts.json`: items and ids per kind, flags (a missing key `⟦…⟧`, an unfilled `{$x}`, doubled spaces), and the line × voice coverage: pairs a speaker could say, pairs sampled, lines that never held.
 - `raw.jsonl`: the keys and arguments before rendering. Rendering needs `web/node_modules`; without it the command stops after this file.
 
+After rendering, the doctor reads the corpus back and reports what reads wrong in it: raw placeables or missing keys, empty arguments and doubled punctuation, one line per template with a count and an example. `--check-corpus <dir>` does only that, on a corpus already written.
+
 **The designer page** shows one game at a time: open the app with `?dev=1` under `npm run dev` (optionally `&seed=…`). It needs an engine built with the `dev-tools` feature (the release engine never has it, and the page says so):
 
 ```text
@@ -312,6 +342,148 @@ wasm-bindgen target/wasm32-unknown-unknown/release-wasm/mandate_wasm.wasm --out-
 It starts a new game from the seed, or loads a copy of the current run's save (never written back), and can pass turns in its own sandbox. It lists every dilemma, situational policy, storyline, scene, overheard line, topic, conversation line and voice, with search and filters by kind and by whether it could fire now. For the item you pick, the engine answers `QueryDto::DevExplain`: the gates and conditions as a tree, each with the engine's own verdict (✓ or ✗) and the values the evaluator read; the cast it found (or, to preview something that cannot fire, a forced cast); and the text rendered with its real arguments, including a dilemma's options and their trade-off lines. Conversation items are explained for a speaker you pick, overheard lines at a place where people talk. A `vite build --mode devtools` bundle carries the page too; a normal build drops it.
 
 The explanations come from `mandate_sim::explain`: one small adapter per condition language (`Explainer` for `Condition`, `SituationCondition`, `HeardCondition`), each answering with the language's own evaluator. When the languages are unified (DEC-098 §5) one adapter replaces the three.
+
+## Writing for Mandate
+
+Players meet the text on a phone, a bubble at a time. They read it as one person speaking to them in a real town. This section is the house style for conversation lines, overheard talk, dilemmas, scenes, the press and outcomes. The first read-through found the problems it guards against (`docs/design/research/TEXT_AUDIT_1.md`), and `docs/design/research/TEXT_SAMPLES.md` shows what the style reads like.
+
+### The one rule: true whenever it can be said
+
+A line can be drawn whenever its conditions hold, so everything it claims must be true in **every** such case, not only the one you pictured.
+
+- **A worry is real.** A line that names a worry ("It's the rent", "another lot laid off", "the air") needs a condition behind that worry: a `concern` condition naming it, an indicator (`rent_burden`, `job_loss`, `pollution`, `tax_burden`, `budget_stress`, `recent_disaster`), a crisis, or a plant closure or disaster. For an overheard line, its `concern`; for a dilemma, a trigger. A line that only says "the top worry" uses `$concern`/`$concern_talk` from a `tells` or `concern` condition, which is true by construction. The doctor's `worry-unconditioned` check catches a named worry with nothing behind it.
+- **Strength matches the condition.** `"concern", "top": 2` means "among the top two", so the line says "comes up in every conversation", not "the first thing anyone talks about".
+- **The player may hold no post.** A line that assumes the player sits in the chamber ("the planning item last week", "you get the same postbag", "your seat") needs `{ "type": "occupation", "slot": "player", "occupations": ["councillor", "mayor"] }`. Better, write it so it is true either way: "is after the same thing you are".
+- **Familiarity is earned.** Do not say "you again" or "isn't it? I've seen you about" unless the conditions say they know the player. Warmth (`opinion`) is not acquaintance.
+- **The speaker's own facts.** A role line speaks from the role ("people tell me all sorts across the counter"). A line that states the speaker's view on an issue needs a conviction or trait condition.
+- **Only what happened.** An outcome or aftermath says what this option did and who noticed. A headline reports an event that is in the log.
+
+When a condition cannot express what a line needs (a disaster's hazard, whether the player has met someone, an option shown only in some cases), say so in the content's comment, and write the line so that it stays true without it.
+
+### Answer the question, and teach only what was said
+
+A reply answers what the player asked. Asked about the newspaper office, a reporter talks about the paper, not the cost of living.
+
+- **Lines for a subject read the subject.** In a topic that informs ("What are people worried about?", "Who runs things?", "Ask about…"), the engine shows only lines whose conditions read the subject, whenever the player gave one (`reply::candidates`). Those are lines with `slot: "about"`, a subject `of: "about"`, or an `about` condition. If none holds, it shows the topic's fallbacks. So a line about the topic in general never answers a question about one neighbourhood or one place. Write the on-subject line; do not rely on a general one.
+- **Say which subject.** `{ "type": "about", "kinds": ["place"], "places": ["school"], "workplace": false }`. The fields:
+  - `kinds`: place, person, hood, bill, template, rival;
+  - `places`: place kinds;
+  - `workplace`: the speaker's own place (their named place, or where their post sits);
+  - `home`: the speaker's home neighbourhood;
+  - `is: false`: the subject is not that.
+
+  A place resolves to its neighbourhood for `hood_concerns of about`, so a neighbourhood line needs `"kinds": ["hood"]`, or it answers every place with that district's worries.
+- **From inside, and from outside.** Someone asked about where they work answers as an insider: what they are chasing, who leans on them, the rota, the deadline. Everyone else says what the place is, who goes there and what people say of it. A cool speaker still answers the question ("what goes on there is my business, not yours").
+- **Name it.** The reply names what was asked about (`$about`, or the subject's own argument). Only a fallback deflection may leave it out, and a deflection points somewhere ("Ask someone who lives there", "The stallholders at the market hear more than I do").
+- **Teach only what was said.** A line's `teaches` must match its words. A line that names the town's or a neighbourhood's worries teaches that subject. Its `$concern` comes from the same ranking the notebook shows, so what was heard is what was noted. A speaker's own opinion is not a fact about the town. Talking to someone teaches who they are (name, role, where they work), never what they believe: a conviction is learned (the person at `detailed`) only from a line that voices it.
+
+### Voices and warmth
+
+A reply is an **opener** (by relationship, or in the speaker's voice), sometimes a **quote** of a memory, the **substance** (by the facts and what the speaker will tell), and sometimes a **closer** in the voice. Each part must read on its own and next to any of the others, so a closer cannot assume what the substance said, and an opener cannot promise a secret when the substance might be small talk.
+
+Warmth bands (opinion of the player): **hostile** below −50, **cool** −50 to −15, **neutral** −15 to 15, **warm** 15 and up, **trusted** 50 and up with trust 0.5. Cool speakers tell nothing, so they get a topic's fallbacks: deflections in their role's words (weight 3), which are polite or prickly but never informative. Warm and trusted speakers can be generous, but they are still the same person in the same voice.
+
+| Voice | Who (conditions, `voices.jsonc`) | Sounds like | Openers and closers | Avoid |
+|---|---|---|---|---|
+| `voice.plain` | everyone else | ordinary, direct, a little dry | "Anyway, that's how I see it." | colour borrowed from the other voices |
+| `voice.blunt` | bold (≥ 0.6) and cool (warmth ≤ 0.45) | short sentences, no pleasantries, no closer most of the time | "Well?" · "Don't make me say it twice." | apologies, hedges, jokes |
+| `voice.folksy` | warm (warmth ≥ 0.68) | homely, roundabout, kettle-and-coat; British idiom | "How are you keeping? Honestly, now." · "Now go on, before you catch your death." | endearments ("love") and mothering for cool speakers (condition them `min: -15`) |
+| `voice.wry` | cool but not bold | dry, amused, unimpressed | "To what do I owe the displeasure?" · "It might never happen. It usually does, mind." | cruelty, puns |
+| `voice.anxious` | timid (boldness ≤ 0.28) | apologetic, trailing off, dashes | "Oh! Sorry, I was miles away." · "You won't say it was me, will you?" | confidence, long speeches |
+| `voice.guarded` | cautious trait | hedged, watching who is about | "That depends what you're asking." · "Best not to repeat that." | volunteering anything |
+| `voice.earnest` | zealous or reformer trait | means every word, a little intense | "I'll be honest with you, because somebody ought to be." | irony |
+| `voice.smooth` | charmer or schemer trait | flattering, deniable, always a little transactional | "I've been hearing good things," and doesn't say what. | warmth that costs them anything |
+| `voice.pompous` | vain trait | their standing in every sentence | "You'll have heard I'm rather in demand these days." · pauses for applause | claiming posts they may not hold (say "the last public meeting", not "the last committee") |
+
+Voice openers name their voice (`{ "type": "voice", … }`), so opener and closer always agree. Each voice that closes keeps at least two closers that fit anyone; closers that look back on something told ("Best not to repeat that") need `opinion min -15`, because cool speakers deflected.
+
+### Writing for fills
+
+Every argument comes with a shape. Write the sentence around the shape.
+
+- **`$speaker`, `$player`, `$person`, `$rival`, `$broker`**: full names. Name someone once, at most twice, in a line; after that say "they" (singular, never "he" or "she": characters have no pronouns yet). Not "{ $person } wants more than { $person } has got … except possibly { $person }".
+- **Strangers and passers-by** are named too (`$speaker` is always a name), and their role comes from the role word; never write "the steward" when the speaker may be a resident.
+- **Places** (`$here`, `$about`, `$broker_place`): a place without a proper name arrives as its kind's noun phrase, already with "the" ("the union hall"), so it reads mid-sentence: "Spend an afternoon at { $broker_place }". Never put "the" before it.
+- **Neighbourhoods and towns** (`$hood`, `$town`) are proper names. A neighbourhood can share the town's name (the centre).
+- **Worries**: `$concern` is a capitalised label ("Housing costs", "Environment"); use it only in labels and lists. Mid-sentence, use `$concern_talk`, a lower-case noun phrase ("the rent", "jobs", "the pollution", "the state of the services"): "From what I hear, it's { $concern_talk }."
+- **Policies** (`$policy`, `$bill`, `$law`): titles in sentence case, often plural ("Small business grants"). Put one first ("{ $policy }? From what I hear…"), after a colon, or framed as a name: "the { $bill } bill", "your bill, { $bill },", "the { $law } works". Never bare as a sentence's subject ("Small business grants was defeated") and never bare after a preposition ("counted heads on Local wage floor").
+- **Decision titles** (`$title`, and `$subject` of a memory about a decision) are lower-case noun phrases that the cast will quote back ("You stood with me over the layoffs at the plant"). Name the business, not the player's view of it: "the truce offer", not "the rival's offer", which reads oddly from the rival.
+- **Memories** (`$subject`, `$subject_kind`, `$year`): every line that quotes one selects on `$subject_kind` (`bill`, `decision`, else none) and has a variant that leaves the subject out. A memory about nothing in particular must never read "over that business" or "pressed them on  and". On the character sheet `memory-…` is third person ("You stood with them…, 2020"); a speaker quoting one to the player's face uses `scene-quote-…`, first person, the year spoken, not bracketed.
+- **Labels** (tracks, goals, crises, storyline titles, support bands) are capitalised: after a colon only. "At stake: Health", "What Sofi Brook is after: Rallying the traders", not "Your Health is at stake".
+- **Headlines** (`headline-…`, and `$headline` in overheard lines) are third person, present tense, no full stop. A line that quotes one adds its own stop: "'{ $headline }.'".
+- **Numbers**: use a selector, `{ $n -> [one] a favour *[other] { $n } favours }`, never "1 days". Only `$n` arrives as a number; other counts are strings, so write around them ("{ $jobs } jobs gone" is fine; plural agreement on them is not).
+- **Facts** (`$fact`) are noun phrases with their article ("a cash bribe").
+
+### Stage directions and quotation
+
+- Stage directions are present tense, third person, and name the speaker: `{ $speaker } barely looks up.` They describe what anyone could see. They do not narrate thoughts.
+- Speech is in double quotes; a quotation inside speech in single quotes. Substance and quotes are always spoken; openers and closers may be either.
+- A direction must not contradict the speech next to it: someone who "carries on as if you weren't there" does not then answer.
+- British English: "neighbour", "organise", "the rates", "the council", "queue". Contractions in speech ("It's your campaign. Who's going to look?"), so nobody sounds like a form.
+
+### Length on a phone
+
+The doctor's limits are hard limits (titles 60 characters, option labels 90, lines 280, bodies 600, rendered with long names). Aim well under them:
+
+- openers and closers: one short sentence (under 90 characters);
+- substance: one or two sentences, one idea (under 160);
+- dilemma situations: three sentences: what is happening, who wants what, what it costs you;
+- option labels: what you do, in the imperative, and the catch if it is not obvious ("Haggle: less money, but the whip owes you one");
+- aftermaths: what happened, then who noticed, in that order.
+
+### Tone
+
+- Local and specific: a bus shelter, a rates bill, a darts team, the food bank in the church hall. The world is small and the stakes are people's lives, so hardship lines are never jokes. Humour belongs in small talk and in voices (wry, folksy), never at the expense of someone struggling.
+- Politically even. No line implies that one side is right; each option costs someone, and the text says who.
+- No real people, parties, countries, cities or brands. Towns, outlets and names come from the generator.
+- Offices and bodies come from the constitution (DEC-098): a role word through `$x_role` or an `occupation` condition. Existing lines that say "the council" or "Mayor" are debt, not precedent.
+- Do not name a role that can mislead in a political game: the clergy role is "Vicar", because "Minister" reads as a government minister.
+
+### Things to avoid
+
+- A claim the conditions do not guarantee (above).
+- The same phrase in many lines ("I've counted heads", "Ask anyone"). Read a topic's lines side by side before adding one. When the doctor says a line takes too large a share of its kind, add a sibling with the same conditions.
+- Lines that only make sense in one order or one conversation ("as I said").
+- Empty or generic fallbacks ("that business", "something"). Write a variant without the subject.
+- A capitalised label mid-sentence, a bare policy name as a subject, the same name three times.
+- Second person in the press ("You were re-elected"): the paper is about the player, not addressed to them.
+- Meta words: "the director", "the storyteller" (the storyteller settings screen is the exception).
+
+### Dilemmas: options a player can weigh
+
+- The situation says who wants what and why now. The options differ in kind, not in degree, and each label says what you would do.
+- Trade-off lines come from the effects. The label must not contradict them: an option that drafts flood defences is labelled as drafting flood defences.
+- The default (no answer) option says so ("Don't answer, and let the offer lapse").
+- An aftermath names the people who reacted and how. It never contradicts the situation: if the dilemma could follow any disaster, the aftermath must not assume a flood.
+
+### Checking your writing
+
+```text
+cargo run -p mandate-cli -- content validate                          # well formed; every key in English
+cargo run --release -p mandate-cli -- content doctor --seeds 0         # static: Fluent, length, text, worries
+cargo run --release -p mandate-cli -- content doctor --seeds 16 --years 4   # also: never fired, fires too often
+cargo run --release -p mandate-cli -- content doctor --corpus /tmp/corpus --seeds 12 --years 4
+cargo run --release -p mandate-cli -- content doctor --check-corpus /tmp/corpus   # re-check an existing corpus
+```
+
+The text rules (`doctor.rs`, `text_problems`, `worry_checks`):
+
+- **`text-raw`**: a placeable or a missing key in the text (`{$policy}`, `⟦key⟧`).
+- **`text-empty-arg`**: an argument that came out empty: two spaces, a space before punctuation, empty brackets or quotes ("pressed them on  and got nowhere"). Only real fills show this, so it runs on the corpus.
+- **`text-doubled-punct`**: two stops where one belongs (`..'`, `.,'`). An ellipsis and "?!" are fine. It runs on every message and on the corpus.
+- **`worry-unconditioned`**: a line that names a worry with nothing in its conditions behind it.
+- **`subject-unread`**: a line of a topic that is always about something ("Ask about…") whose conditions never read the subject.
+- **`subject-drift`**: a line that can take a place but reads it only as its neighbourhood's worries.
+- **`talk-off-subject`** (corpus): a reply to "Ask about…", or to a worries question about a neighbourhood, that does not name what was asked, unless it is a fallback.
+
+Then read the corpus, not the `.ftl`. Read by kind, then by template, with all the fills side by side, and with the situation beside each line:
+
+```text
+jq -r 'select(.kind=="talk" and .id=="line.about.rival") | "\(.text)  [\(.situation.player_post)]"' /tmp/corpus/corpus.jsonl
+jq -r 'select(.kind=="dilemma" and .part=="situation") | .text' /tmp/corpus/corpus.jsonl | sort | uniq -c
+```
+
+For each line, ask: is it true here? Does it read naturally with this name, this place, this policy? Would this speaker, in this voice, at this warmth, say it? Have I read it five times already? Then fix the text, or the condition, or both, and run the corpus again.
 
 ## Code extension points
 

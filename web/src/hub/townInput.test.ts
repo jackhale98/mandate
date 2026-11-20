@@ -11,6 +11,7 @@ describe("adapters from the protocol views", () => {
       actions: [],
       late_night: [],
       services: [],
+      verbs: [],
       here: false,
     });
     const view: TownPlacesView = {

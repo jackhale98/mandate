@@ -772,7 +772,18 @@ fn unmet(e: &Engine) -> Option<CharacterId> {
         .characters
         .people
         .iter()
-        .filter(|c| c.named.is_some())
+        // The people of places with purpose (seeded in a later round, PL1)
+        // are met where they work, by the visit verbs (the coalition
+        // builder's learning visits), not chased one by one in the exploring
+        // turns: chasing them all spent the campaigner's early groundwork
+        // and tilted the styles' variety (BALANCE_LOG, PL1).
+        .filter(|c| {
+            c.named.as_deref().is_some_and(|n| {
+                e.content()
+                    .occupation(&n.occupation)
+                    .is_none_or(|o| o.round == 0)
+            })
+        })
         .map(|c| c.id);
     council
         .into_iter()
@@ -816,13 +827,96 @@ fn meet_passers_by(e: &mut Engine, content: &ContentBundle, all: bool) {
     }
 }
 
+/// What a verb would teach about a place that the player does not know
+/// yet: its industry, its site or its service's need (places with
+/// purpose). Read through `Knowing`, as everything a bot learns from.
+fn unlearned(e: &Engine, place: mandate_sim::world::PlaceId, verb: &str) -> bool {
+    use mandate_content::knowledge::GrantSubject as G;
+    use mandate_content::visits::VisitEffect;
+    use mandate_sim::player::knowledge::Subject;
+    let st = e.state();
+    let content = e.content();
+    let (Some(def), Some(p)) = (
+        content.actions.visit.verb(verb),
+        st.world.places.get(place.index()),
+    ) else {
+        return false;
+    };
+    let k = Knowing::of(e);
+    let kind = content.place_kind(p.kind.key());
+    def.effects.iter().any(|fx| {
+        let VisitEffect::Learn { grants } = fx else {
+            return false;
+        };
+        grants.iter().any(|g| {
+            let s = match g.subject {
+                G::Sector => kind
+                    .and_then(|d| d.sector.clone())
+                    .map(|sector| Subject::Sector {
+                        town: p.municipality,
+                        sector,
+                    }),
+                G::Site => Some(Subject::Site { place }),
+                G::Service => Some(Subject::Service { place }),
+                _ => None,
+            };
+            s.is_some_and(|s| k.level(&s) < Level::Known)
+        })
+    })
+}
+
+/// Visit a place to learn what it teaches (places with purpose): the first
+/// place in town, in id order, with a verb that teaches something not yet
+/// known and can be done now. Returns whether it was done.
+fn learning_visit(e: &mut Engine) -> bool {
+    let pick = {
+        let st = e.state();
+        let content = e.content();
+        let Some(town) = mandate_sim::player::home(st) else {
+            return false;
+        };
+        st.world
+            .places
+            .iter()
+            .filter(|p| p.municipality == town && p.is_open())
+            .find_map(|p| {
+                let loc = Location::Place { place: p.id };
+                mandate_sim::visits::verbs_at(st, content, loc)
+                    .into_iter()
+                    .find(|v| {
+                        unlearned(e, p.id, &v.id)
+                            && mandate_sim::visits::availability(st, content, loc, v, false).is_ok()
+                    })
+                    .map(|v| (loc, v.id.clone()))
+            })
+    };
+    let Some((location, verb)) = pick else {
+        return false;
+    };
+    let then = PlayerCommand::Act {
+        action: Action::Visit { verb },
+        late_night: false,
+    };
+    let cmd = if e.state().player.as_ref().map(|p| p.location) == Some(location) {
+        then
+    } else {
+        PlayerCommand::Go {
+            location,
+            then: Some(Box::new(then)),
+        }
+    };
+    apply(e, Command::Player(cmd)).is_ok()
+}
+
 /// One turn of learning: walk the town and the streets, read the ward's worries on the
 /// doorsteps, and meet the people named so far, asking who really runs
 /// things while that is a rumour. Returns whether any time went on it.
 /// With `all` (the `explore_only` probe) it only finds out: walks, meets and
 /// asks, and never campaigns (canvassing teaches too, but it is the ground
-/// game), and nothing else is ever done.
-fn explore(e: &mut Engine, content: &ContentBundle, all: bool) -> bool {
+/// game), and nothing else is ever done. With `visits` (the coalition
+/// builder, who goes where people work) it also visits the works, fields
+/// and services to learn what they teach and meet the people there.
+fn explore(e: &mut Engine, content: &ContentBundle, all: bool, visits: bool) -> bool {
     tour(e);
     meet_passers_by(e, content, all);
     let mut busy = false;
@@ -841,6 +935,9 @@ fn explore(e: &mut Engine, content: &ContentBundle, all: bool) -> bool {
                 "topic.worries"
             };
             talk(e, p, topic) || talk(e, p, "topic.worries")
+        } else if visits && !all {
+            // The town's works, fields and services (places with purpose).
+            learning_visit(e)
         } else {
             false
         };
@@ -982,7 +1079,69 @@ fn campaigner_turn(e: &mut Engine, content: &ContentBundle, camp: bool, slots: u
         return ask_support(e, content) || act(e, Action::Press { policy });
     }
     legislate(e, content);
-    act(e, Action::Fundraise)
+    // Between elections, the odd slot goes on being seen at a works
+    // gate where that is safe (places with purpose), else on the donors.
+    photo_op(e, content) || act(e, Action::Fundraise)
+}
+
+/// Odds of a photo op going wrong the campaigner accepts.
+pub const CAMPAIGNER_PHOTO_RISK: f64 = 0.15;
+
+/// A photo op at a works gate in the player's ward, with the odds shown
+/// at most `CAMPAIGNER_PHOTO_RISK` (the shown odds, DEC-073), once a turn
+/// (the player's own log says whether there was one today).
+fn photo_op(e: &mut Engine, content: &ContentBundle) -> bool {
+    let verb = "verb.photo_op_gate";
+    let pick = {
+        let st = e.state();
+        let Some(pl) = st.player.as_ref() else {
+            return false;
+        };
+        let today = st.calendar.date;
+        if pl
+            .actions
+            .iter()
+            .any(|a| a.date == today && a.action == "action-verb-photo-op-gate")
+        {
+            return false;
+        }
+        let Some(def) = content.actions.visit.verb(verb) else {
+            return false;
+        };
+        let ward = ward_hoods(&st.world, pl.ward);
+        st.world
+            .places
+            .iter()
+            .filter(|p| p.municipality == pl.home() && ward.contains(&p.neighborhood.index()))
+            .map(|p| Location::Place { place: p.id })
+            .find(|loc| {
+                let Location::Place { place } = *loc else {
+                    return false;
+                };
+                mandate_sim::visits::verbs_at(st, content, *loc)
+                    .iter()
+                    .any(|v| v.id == verb)
+                    && mandate_sim::visits::availability(st, content, *loc, def, false).is_ok()
+                    && mandate_sim::visits::risk(st, content, place, def)
+                        .is_some_and(|r| r <= CAMPAIGNER_PHOTO_RISK)
+            })
+    };
+    let Some(location) = pick else {
+        return false;
+    };
+    let then = PlayerCommand::Act {
+        action: Action::Visit { verb: verb.into() },
+        late_night: false,
+    };
+    let cmd = if e.state().player.as_ref().map(|p| p.location) == Some(location) {
+        then
+    } else {
+        PlayerCommand::Go {
+            location,
+            then: Some(Box::new(then)),
+        }
+    };
+    apply(e, Command::Player(cmd)).is_ok()
 }
 
 /// Between elections the campaigner canvasses only doorsteps at least this
@@ -1062,7 +1221,7 @@ pub fn play_turn_from(e: &mut Engine, content: &ContentBundle, strategy: &str, s
     if strategy == "explore_only" {
         // Only learning: no decisions answered, no campaigning, no rest.
         if e.state().player.as_ref().is_some_and(|p| p.status.active()) {
-            explore(e, content, true);
+            explore(e, content, true, false);
         }
         return;
     }
@@ -1093,7 +1252,7 @@ pub fn play_turn_from(e: &mut Engine, content: &ContentBundle, strategy: &str, s
     // The informed styles' first turns go on learning the town; then each
     // plays its own way (`explorer`: the mix).
     if is_informed(strategy) && exploring(e, start_turn) {
-        explore(e, content, false);
+        explore(e, content, false, strategy == "explorer_coalition");
     }
     for _ in 0..3 {
         let slots = e

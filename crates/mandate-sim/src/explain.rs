@@ -701,6 +701,30 @@ impl Explainer for SituationExplainer<'_> {
                     );
                 }
             }
+            U::About { .. } => {
+                if let Some(cx) = ctx {
+                    put(
+                        "about",
+                        cx.about
+                            .map(|a| match a {
+                                crate::talk::AboutRef::Place { place } => st
+                                    .world
+                                    .places
+                                    .get(place.index())
+                                    .map(|p| format!("place: {}", p.kind.key()))
+                                    .unwrap_or_else(|| "place".into()),
+                                other => other.kind().key().to_string(),
+                            })
+                            .unwrap_or_else(|| "nothing".into()),
+                    );
+                    put(
+                        "speaker's workplace",
+                        cx.workplace(cx.speaker)
+                            .map(|p| p.kind.key().to_string())
+                            .unwrap_or_else(|| "none".into()),
+                    );
+                }
+            }
             U::Concern { of, .. } => {
                 // What the speaker's home neighbourhood feels most (the
                 // reading `Ctx::top_concern` makes; display only).
@@ -1768,6 +1792,28 @@ pub fn sample_abouts(
             {
                 out.push(Some(a));
             }
+        }
+    }
+    out
+}
+
+/// `sample_abouts`, plus, when the topic takes a place, the speaker's own
+/// workplace (asked about from inside, a reply of its own).
+pub fn sample_abouts_for(
+    st: &State,
+    content: &ContentBundle,
+    speaker: CharacterId,
+    kinds: &[AboutKind],
+    required: bool,
+) -> Vec<Option<AboutRef>> {
+    let mut out = sample_abouts(st, content, kinds, required);
+    if kinds.contains(&AboutKind::Place)
+        && let Some(cx) = talk_ctx(st, content, speaker, None)
+        && let Some(p) = cx.workplace(speaker)
+    {
+        let a = Some(AboutRef::Place { place: p.id });
+        if !out.contains(&a) {
+            out.push(a);
         }
     }
     out

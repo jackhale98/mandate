@@ -77,6 +77,21 @@ pub enum Subject {
     Secret {
         hidden: u32,
     },
+    /// How an industry (a sector id) is doing in a town's economy: taking
+    /// people on, steady, or letting them go (places with purpose, PL1).
+    Sector {
+        town: MunicipalityId,
+        sector: ContentKey,
+    },
+    /// Pollution and hazards at a place (a works, a farm).
+    Site {
+        place: PlaceId,
+    },
+    /// The real need a place's service meets (DEC-092 §2.22): its
+    /// neighbourhood's felt level of the concerns it addresses.
+    Service {
+        place: PlaceId,
+    },
 }
 
 impl Subject {
@@ -94,6 +109,9 @@ impl Subject {
             Subject::Place { .. } => "place",
             Subject::Layer { .. } => "layer",
             Subject::Secret { .. } => "secret",
+            Subject::Sector { .. } => "sector",
+            Subject::Site { .. } => "site",
+            Subject::Service { .. } => "service",
         }
     }
 }
@@ -596,6 +614,28 @@ pub fn resolve(
                             },
                         });
                     }
+                }
+            }
+            GrantSubject::Sector => {
+                let sector = here_place
+                    .and_then(|p| content.place_kind(p.kind.key()))
+                    .and_then(|k| k.sector.clone());
+                if let (Some(p), Some(sector)) = (here_place, sector) {
+                    subjects.push(Subject::Sector {
+                        town: p.municipality,
+                        sector,
+                    });
+                }
+            }
+            GrantSubject::Site => {
+                subjects.extend(here_place.map(|p| Subject::Site { place: p.id }));
+            }
+            GrantSubject::Service => {
+                let serves = here_place
+                    .and_then(|p| content.place_kind(p.kind.key()))
+                    .is_some_and(|k| !k.addresses.is_empty());
+                if serves {
+                    subjects.extend(here_place.map(|p| Subject::Service { place: p.id }));
                 }
             }
             GrantSubject::Proposals => {

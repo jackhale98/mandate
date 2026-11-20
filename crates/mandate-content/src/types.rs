@@ -910,6 +910,25 @@ pub enum SituationCondition {
     /// (an opener) follows the voice the closers use. Conversations only;
     /// not allowed in a voice's own conditions.
     Voice { voices: Vec<ContentKey> },
+    /// What the conversation is about (the `about` subject): one of these
+    /// kinds (empty: any subject); for a place, one of `places` (place kinds;
+    /// empty: any) and, if `workplace` is given, the speaker's own
+    /// workplace (`true`) or not (`false`): where they work, or where their
+    /// post sits; for a neighbourhood, if `home` is given, the speaker's home
+    /// (`true`) or not. With `is: false` it holds when the subject is not that
+    /// (or there is none). Conversations only.
+    About {
+        #[serde(default)]
+        kinds: Vec<crate::conversation::AboutKind>,
+        #[serde(default)]
+        places: Vec<String>,
+        #[serde(default)]
+        workplace: Option<bool>,
+        #[serde(default)]
+        home: Option<bool>,
+        #[serde(default = "yes")]
+        is: bool,
+    },
     /// The top concern of the speaker's home neighbourhood (`speaker`) or of
     /// the town (`town`) is one of these: `$concern_key` (the name),
     /// `$concern_talk_key` (the noun phrase of talk). The town form reads no
@@ -1795,6 +1814,19 @@ pub struct PlaceKindDef {
     /// Information services offered here.
     #[serde(default)]
     pub services: Vec<String>,
+    /// Verbs of the `visit` action offered here (`actions.jsonc`
+    /// `visit.verbs` ids; places with purpose, DEC-079 note).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub verbs: Vec<ContentKey>,
+    /// The industry this kind of place is part of (a sector id): what a
+    /// verb's `sector` grant and its risk's `shedding` read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sector: Option<ContentKey>,
+    /// The concerns its service addresses (concern ids): its real need is
+    /// its neighbourhood's felt level of them (DEC-092 §2.22), what a
+    /// verb's `service` grant reads.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub addresses: Vec<ContentKey>,
     /// Where this kind's actions and services move in a town (or, for
     /// neighbourhood actions, a neighbourhood) that has no such place.
     #[serde(default)]
@@ -2196,6 +2228,9 @@ pub struct ActionParams {
     pub press: PressEffects,
     pub canvass: CanvassEffects,
     pub fundraise: FundraiseEffects,
+    /// The `visit` action: its verbs and numbers (places with purpose).
+    #[serde(default)]
+    pub visit: crate::visits::VisitParams,
 }
 
 /// The player's declared council vote.
@@ -2671,6 +2706,16 @@ pub struct OccupationDef {
     /// Passers-by (Ambient people) may have this occupation.
     #[serde(default)]
     pub ambient: bool,
+    /// Seeding round: a town's people of later rounds are generated after
+    /// everyone of earlier rounds, so occupations added later append to the
+    /// cast instead of renumbering it (draws are keyed by place and
+    /// occupation either way).
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub round: u8,
+}
+
+fn is_zero_u8(v: &u8) -> bool {
+    *v == 0
 }
 
 /// A kind of live local crisis (DEC-077 §1), read from an indicator with

@@ -1172,11 +1172,16 @@ pub(crate) fn named_character(
     }
 }
 
+/// Where Named people are seeded: the draw key, the neighbourhood, the
+/// place (none for a neighbourhood's streets) and its kind key.
+type Slot<'a> = (u64, u32, Option<PlaceId>, &'a str);
+
 /// Generate the Named characters of every town (DEC-018): for each place,
 /// each occupation found there by its chance; for each neighbourhood, each
 /// occupation found on the streets. Keyed by place (or neighbourhood) and
 /// occupation id, so the result does not depend on registry order or on any
-/// sequential stream. Run once, when play begins.
+/// sequential stream. Occupations of a later `round` are seeded after
+/// everyone of earlier rounds, so they append ids. Run once, when play begins.
 pub fn seed_named(
     pol: &mut PoliticsState,
     world: &World,
@@ -1192,18 +1197,25 @@ pub fn seed_named(
     let year = date.calendar().year;
     let g = content.characters.generation.clone();
     // Places first (in world order), then each neighbourhood's streets.
-    let mut slots: Vec<(u64, u32, Option<PlaceId>, &str)> = Vec::new();
+    let mut slots: Vec<Slot<'_>> = Vec::new();
     for p in &world.places {
         slots.push((p.id.0 as u64, p.neighborhood.0, Some(p.id), p.kind.key()));
     }
     for h in &world.neighborhoods {
         slots.push(((1u64 << 32) | h.id.0 as u64, h.id.0, None, "streets"));
     }
-    for (key, hood, place, kind) in slots {
+    let mut rounds: Vec<u8> = content.occupations.iter().map(|o| o.round).collect();
+    rounds.sort_unstable();
+    rounds.dedup();
+    let slots: Vec<(u8, Slot<'_>)> = rounds
+        .iter()
+        .flat_map(|r| slots.iter().map(move |s| (*r, *s)))
+        .collect();
+    for (round, (key, hood, place, kind)) in slots {
         for o in content
             .occupations
             .iter()
-            .filter(|o| o.chance > 0.0 && o.places.iter().any(|k| k == kind))
+            .filter(|o| o.round == round && o.chance > 0.0 && o.places.iter().any(|k| k == kind))
         {
             let mut r = rng(seed, &[KEY_NAMED, key, key_of(&o.id)]);
             if !r.chance(o.chance) {

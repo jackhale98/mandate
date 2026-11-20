@@ -376,7 +376,7 @@ outcome-withdrawn = Bill withdrawn.
 outcome-lobby-success = { $name } was persuaded.
 outcome-lobby-fail = { $name } was not convinced.
 outcome-favor-traded = { $name } will support you. You owe a favour.
-outcome-town-hall = The town hall in { $place } drew a crowd.
+outcome-town-hall = The town hall meeting in { $place } drew a crowd.
 outcome-press = Your statement ran in the local press.
 outcome-canvass = You knocked on doors in { $place }.{ $fresh ->
         [recent] { " " }People here saw you not long ago, so it won fewer of them over.
@@ -511,16 +511,16 @@ category-environment = Environment
 category-social = Social
 category-education = Education
 category-health = Health
-event-policy-introduced = { $policy } was introduced in { $town }.
-event-policy-enacted = { $town } passed { $policy } ({ $yes }–{ $no }).
-event-policy-override = { $town } overrode the mayor's veto of { $policy } ({ $yes }–{ $no }).
-event-policy-vetoed = The mayor of { $town } vetoed { $policy }.
-event-policy-defeated = { $policy } was defeated in { $town } ({ $yes }–{ $no }).
-event-policy-expired = { $policy } expired in { $town }.
-event-policy-withdrawn = { $policy } was withdrawn in { $town }.
+event-policy-introduced = A new bill in { $town }: { $policy }.
+event-policy-enacted = { $town } passed the { $policy } bill.
+event-policy-override = { $town } overrode the mayor's veto of the { $policy } bill ({ $yes }–{ $no }).
+event-policy-vetoed = The mayor of { $town } vetoed the { $policy } bill.
+event-policy-defeated = { $town } voted down the { $policy } bill ({ $yes }–{ $no }).
+event-policy-expired = The { $policy } law expired in { $town }.
+event-policy-withdrawn = The { $policy } bill was withdrawn in { $town }.
 event-campaign-opened = Campaign season has begun. Local elections are on { $day } { $month_key } { $year }.
 event-polls-published = New polls are out.
-event-player-elected = You were re-elected in { $town }.
+event-player-elected = You won your race in { $town }.
 event-player-elected-mayor = You were elected mayor of { $town }!
 event-player-defeated = You lost your race in { $town }. { $name } won.
 event-mayor-ousted = { $town } threw out its mayor: { $name } won.
@@ -599,7 +599,7 @@ ui-tired = { $n ->
     [one] You are worn out: one fewer slot until you recover.
    *[other] You are exhausted: { $n } fewer slots until you recover.
 }
-outcome-town-hall-hostile = The town hall in { $place } turned hostile.
+outcome-town-hall-hostile = The town hall meeting in { $place } turned hostile.
 outcome-press-gaffe = Your remarks were taken badly. The clip is everywhere.
 ui-your-vote = Your vote
 ui-party-line-yes = Your party expects you to vote yes.
@@ -767,25 +767,64 @@ occupation-journalist = Journalist
 occupation-shopkeeper = Shopkeeper
 occupation-diner_owner = Diner owner
 occupation-organiser = Community organiser
-occupation-clergy = Minister
+occupation-clergy = Vicar
 occupation-teacher = Teacher
 occupation-nurse = Nurse
 occupation-resident = Local resident
 occupation-retiree = Retiree
-# A character's memories of the player, quoted on their sheet. $subject is a
-# bill or seat (may be empty), $year the year it happened.
-memory-backed-my-bill = You backed { $subject } ({ $year }).
-memory-opposed-my-bill = You voted against { $subject } ({ $year }).
-memory-promised-favour = You promised a favour for { $subject } ({ $year }).
-memory-kept-promise = You kept your promise on { $subject } ({ $year }).
-memory-broke-promise = You broke your promise on { $subject } ({ $year }).
-memory-broke-ranks = You broke ranks with the party on { $subject } ({ $year }).
-memory-lobbied-me = You talked them round on { $subject } ({ $year }).
-memory-pressed-me = You pressed them on { $subject } and got nowhere ({ $year }).
+# A character's memories of the player, on their sheet ("them" is the
+# character). $subject is what it was about and $subject_kind what kind of
+# thing that is: `bill` (a policy's name, a title), `decision` (a decision's
+# title, a noun phrase), `seat`, or `none` (nothing in particular: the line
+# leaves the subject out). $year is the year it happened. A speaker quoting
+# one to the player's face uses `scene-quote-…` (narrative.ftl).
+memory-backed-my-bill = { $subject_kind ->
+    [bill] You backed their bill, { $subject } ({ $year }).
+   *[other] You backed their bill ({ $year }).
+}
+memory-opposed-my-bill = { $subject_kind ->
+    [bill] You voted against their bill, { $subject } ({ $year }).
+   *[other] You voted against their bill ({ $year }).
+}
+memory-promised-favour = { $subject_kind ->
+    [bill] You promised them a favour over the { $subject } bill ({ $year }).
+    [decision] You promised them a favour over { $subject } ({ $year }).
+   *[other] You promised them a favour ({ $year }).
+}
+memory-kept-promise = { $subject_kind ->
+    [bill] You kept your promise on the { $subject } bill ({ $year }).
+    [decision] You kept your promise over { $subject } ({ $year }).
+   *[other] You kept a promise to them ({ $year }).
+}
+memory-broke-promise = { $subject_kind ->
+    [bill] You broke your promise on the { $subject } bill ({ $year }).
+    [decision] You broke your promise over { $subject } ({ $year }).
+   *[other] You broke a promise to them ({ $year }).
+}
+memory-broke-ranks = { $subject_kind ->
+    [bill] You broke ranks with the party on the { $subject } bill ({ $year }).
+   *[other] You broke ranks with the party ({ $year }).
+}
+memory-lobbied-me = { $subject_kind ->
+    [bill] You talked them round on the { $subject } bill ({ $year }).
+    [decision] You talked them round over { $subject } ({ $year }).
+   *[other] You talked them round ({ $year }).
+}
+memory-pressed-me = { $subject_kind ->
+    [bill] You pressed them on the { $subject } bill and got nowhere ({ $year }).
+    [decision] You pressed them over { $subject } and got nowhere ({ $year }).
+   *[other] You pressed them and got nowhere ({ $year }).
+}
 memory-defeated-me = You beat them at the polls ({ $year }).
 memory-lost-to-me = They beat you at the polls ({ $year }).
-memory-vetoed-my-bill = You vetoed { $subject } ({ $year }).
-memory-signed-my-bill = You signed { $subject } into law ({ $year }).
+memory-vetoed-my-bill = { $subject_kind ->
+    [bill] You vetoed their bill, { $subject } ({ $year }).
+   *[other] You vetoed their bill ({ $year }).
+}
+memory-signed-my-bill = { $subject_kind ->
+    [bill] You signed their bill, { $subject }, into law ({ $year }).
+   *[other] You signed their bill into law ({ $year }).
+}
 memory-met = You first met ({ $year }).
 memory-scandal = The scandal ({ $year }).
 
@@ -938,3 +977,60 @@ ui-preview-updating = Updating estimate…
 ui-budget-share = { $pct }% of the town budget
 ui-storyteller = Storyteller
 ui-storyteller-label = { $name } storyteller
+
+# Places with purpose (PL1): the verbs of the visit action.
+verb-tour_works = Tour the works
+verb-listen_at_gate = Listen at the gate
+verb-photo_op_gate = Photo op at the gate
+verb-visit_service = Look round
+verb-talk_to_head = Talk to whoever runs it
+verb-walk_fields = Walk the fields
+verb-be_seen = Be seen
+verb-meet_young_staff = Lunch with the young staff
+verb-public_gallery = Sit in the public gallery
+action-visit = A visit
+action-verb-tour-works = Toured the works
+action-verb-listen-at-gate = Listened at the gate
+action-verb-photo-op-gate = Photo op at the gate
+action-verb-visit-service = Looked round
+action-verb-talk-to-head = Talked to whoever runs it
+action-verb-walk-fields = Walked the fields
+action-verb-be-seen = Was seen about
+action-verb-meet-young-staff = Lunch with the young staff
+action-verb-public-gallery = Sat in the public gallery
+outcome-verb-tour_works = You toured { $place }. { $outlook ->
+        [growing] The order book is full and they are taking people on.
+        [shedding] The manager talks about "difficult months". Shifts are being cut.
+       *[other] Work is steady, for now.
+    }
+outcome-verb-listen_at_gate = You stood at the gate of { $place } as the shift changed, and listened.
+outcome-verb-photo_op_gate = Hard hat on, hand shaken: the photographer got the picture at { $place }.
+outcome-verb-photo_op_gate-heckled = The photo at { $place } went wrong: workers who fear for their jobs heckled you on camera.
+outcome-verb-visit_service = You looked round { $place } and saw how stretched it is.
+outcome-verb-talk_to_head = You sat down with { $name } at { $place }.
+outcome-verb-walk_fields = You walked the fields at { $place } with the people who work them.
+outcome-verb-be_seen = You took a turn round { $place } and said a few hellos.
+outcome-verb-meet_young_staff = You had lunch with the young staff at { $place }.
+outcome-verb-public_gallery = You watched from the public gallery at { $place }.
+visit-blocked-hours = Not at this time of day.
+visit-blocked-late = Not late at night.
+visit-blocked-situation = Not while things stand as they do.
+visit-blocked-nobody = Nobody you need is here just now.
+visit-blocked-time = Not enough time left this turn.
+visit-blocked-away = Go there first.
+ui-verbs = Things to do here
+ui-verb-cost-half = ½ slot
+ui-verb-cost-slot = 1 slot
+ui-verb-risk = Risk { $pct }%.
+ui-verb-done = Do it
+occupation-shop_steward = Shop steward
+occupation-harbourmaster = Harbourmaster
+occupation-farmhand = Farmhand
+occupation-head_teacher = Head teacher
+occupation-gp = Doctor
+occupation-dean = Dean
+occupation-student = Student
+occupation-hotel_manager = Hotel manager
+occupation-park_keeper = Park keeper
+occupation-tech_founder = Founder
+occupation-software_engineer = Software engineer

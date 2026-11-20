@@ -84,7 +84,7 @@ export function mapHotspots(map: TownMap, view: TownPlacesView): MapHotspot[] {
       const l = s.location.location;
       const key = l.type === "home" ? "home" : l.type === "street" ? `streets:${l.neighborhood}` : `place:${l.place}`;
       if (seen.has(key)) continue;
-      const active = s.actions.length + s.services.length > 0;
+      const active = s.actions.length + s.services.length + s.verbs.length > 0;
       const base = { key, location: l, kindKey: s.location.kind_key, name: s.location.name, neighborhood: h.id, neighborhoodName: h.name, active, order: out.length };
       if (l.type === "street") {
         const d = map.districts[district];
@@ -495,11 +495,11 @@ export function viewForInput(input: TownInput): TownPlacesView {
         is_home: h.id === input.home,
         in_ward: false,
         spots: [
-          ...(h.id === input.home ? [{ location: { location: { type: "home" as const }, kind_key: "home", name: "", neighborhood: h.id, neighborhood_name: h.name }, actions: ["rest"], late_night: [], services: [], here: false }] : []),
-          { location: { location: { type: "street" as const, neighborhood: h.id }, kind_key: "streets", name: "", neighborhood: h.id, neighborhood_name: h.name }, actions: ["canvass"], late_night: [], services: [], here: false },
+          ...(h.id === input.home ? [{ location: { location: { type: "home" as const }, kind_key: "home", name: "", neighborhood: h.id, neighborhood_name: h.name }, actions: ["rest"], late_night: [], services: [], verbs: [], here: false }] : []),
+          { location: { location: { type: "street" as const, neighborhood: h.id }, kind_key: "streets", name: "", neighborhood: h.id, neighborhood_name: h.name }, actions: ["canvass"], late_night: [], services: [], verbs: [], here: false },
           ...input.places
             .filter((p) => p.neighborhood === h.id)
-            .map((p) => ({ location: { location: { type: "place" as const, place: p.id }, kind_key: p.kind, name: p.name, neighborhood: h.id, neighborhood_name: h.name }, actions: ["lobby"], late_night: [], services: [], here: false })),
+            .map((p) => ({ location: { location: { type: "place" as const, place: p.id }, kind_key: p.kind, name: p.name, neighborhood: h.id, neighborhood_name: h.name }, actions: ["lobby"], late_night: [], services: [], verbs: [], here: false })),
         ],
         top_concern_key: null,
         concern_knowledge: { level: "unknown" as const, as_of: null, stale: false, lead: null },

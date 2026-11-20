@@ -245,6 +245,109 @@
         { "at": [{ "to": "home_streets" }] },
       ],
     },
+    // --- The people of places with purpose (PL1) -----------------------------
+    {
+      "id": "routine.shop_steward", "occupation": "occupation.shop_steward",
+      "rules": [
+        // On the floor by day; the union hall on meeting nights.
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works", "weight": 5 }, { "to": "union_hall", "weight": 1 }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.5, "at": [{ "to": "union_hall", "weight": 1 }, { "to": "community_centre", "weight": 1 }] },
+        { "parts": ["evening"], "chance": 0.3, "at": [{ "to": "diner" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.harbourmaster", "occupation": "occupation.harbourmaster",
+      "rules": [
+        // The tide does not keep office hours.
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.3, "at": [{ "to": "works", "weight": 1 }, { "to": "diner", "weight": 1 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.farmhand", "occupation": "occupation.farmhand",
+      "rules": [
+        { "parts": ["morning"], "days": ["sat"], "chance": 0.5, "at": [{ "to": "market" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.3, "at": [{ "to": "diner" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.head_teacher", "occupation": "occupation.head_teacher",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "days": ["sat", "sun"], "at": [{ "to": "home_streets", "weight": 2 }, { "to": "park", "weight": 1 }] },
+        { "parts": ["morning", "afternoon"], "seasons": ["summer"], "chance": 0.5, "at": [{ "to": "home_streets" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.5, "at": [{ "to": "community_centre" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.gp", "occupation": "occupation.gp",
+      "rules": [
+        // Surgery hours; Saturday mornings on call.
+        { "parts": ["morning", "afternoon"], "days": ["sun"], "at": [{ "to": "home_streets" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.2, "at": [{ "to": "works" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.dean", "occupation": "occupation.dean",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "days": ["sat", "sun"], "at": [{ "to": "home_streets" }] },
+        { "parts": ["afternoon"], "events": ["session"], "chance": 0.2, "at": [{ "to": "town_hall" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.3, "at": [{ "to": "hotel", "weight": 1 }, { "to": "works", "weight": 1 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.student", "occupation": "occupation.student",
+      "rules": [
+        { "parts": ["morning"], "at": [{ "to": "works", "weight": 3 }, { "to": "home_streets", "weight": 1 }] },
+        { "parts": ["afternoon"], "at": [{ "to": "works", "weight": 2 }, { "to": "park", "weight": 1 }, { "to": "diner", "weight": 1 }] },
+        { "parts": ["evening", "late_night"], "chance": 0.4, "at": [{ "to": "diner" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.hotel_manager", "occupation": "occupation.hotel_manager",
+      "rules": [
+        // The hotel keeps late hours too.
+        { "parts": ["morning", "afternoon", "evening"], "chance": 0.85, "at": [{ "to": "works" }] },
+        { "parts": ["late_night"], "chance": 0.4, "at": [{ "to": "works" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.park_keeper", "occupation": "occupation.park_keeper",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "days": ["mon"], "at": [{ "to": "home_streets" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.2, "at": [{ "to": "diner" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.tech_founder", "occupation": "occupation.tech_founder",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works", "weight": 4 }, { "to": "business_association", "weight": 1 }] },
+        { "parts": ["evening"], "chance": 0.5, "at": [{ "to": "works", "weight": 1 }, { "to": "hotel", "weight": 1 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.software_engineer", "occupation": "occupation.software_engineer",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "days": ["sat", "sun"], "at": [{ "to": "home_streets", "weight": 2 }, { "to": "park", "weight": 1 }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.3, "at": [{ "to": "diner" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
     // --- Everyone else ------------------------------------------------------
     {
       "id": "routine.anyone", "role": "anyone",

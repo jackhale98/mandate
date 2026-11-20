@@ -267,6 +267,38 @@ function Actions({ v, skip }: { v: PlacePanelView; skip: Set<string> }) {
   );
 }
 
+/** The place's verbs (places with purpose): each with its cost, whether it can be done now, and its risk (the engine's odds). */
+function Verbs({ v }: { v: PlacePanelView }) {
+  const tr = useGame((s) => s.tr);
+  const busy = useGame((s) => s.busy);
+  const perform = useGame((s) => s.perform);
+  if (v.verbs.length === 0) return null;
+  return (
+    <section className="card" data-testid="place-verbs">
+      <h2>{tr.t("ui-verbs")}</h2>
+      <ul className="plain-list">
+        {v.verbs.map((x) => (
+          <li key={x.verb} data-testid={`verb-${x.verb}`}>
+            <p className="tradeoff">
+              <strong>{tr.t(x.name_key)}</strong> · {tr.t(x.halves === 1 ? "ui-verb-cost-half" : "ui-verb-cost-slot")}
+              {x.risk !== null && <strong> {tr.t("ui-verb-risk", { pct: Math.round(x.risk * 100) })}</strong>}
+              {x.blocked_key && <span className="muted"> {tr.t(x.blocked_key)}</span>}
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary btn-block"
+              disabled={busy || !x.available}
+              onClick={() => void perform({ type: "act", action: { type: "visit", verb: x.verb }, late_night: false })}
+            >
+              {tr.t("ui-verb-done")}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** What can be done and learned at a place (bottom sheet on phones, side panel from 900px). */
 export function PlacePanel() {
   const tr = useGame((s) => s.tr);
@@ -340,7 +372,7 @@ export function PlacePanel() {
               {tr.t("ui-you-are-here")}
             </p>
           )}
-          {v.actions.length === 0 && v.services.length === 0 && <p className="muted">{tr.t("ui-nothing-here")}</p>}
+          {v.actions.length === 0 && v.services.length === 0 && v.verbs.length === 0 && <p className="muted">{tr.t("ui-nothing-here")}</p>}
           {chamber && v.here && <ChamberWhip />}
           {chamber && !v.here && <p className="note">{tr.t("ui-whip-in-chamber")}</p>}
           {offers("amend") && v.here && <MyBills statuses={["under_consideration"]} testId="chamber-bills" />}
@@ -360,6 +392,7 @@ export function PlacePanel() {
           {v.newspaper && <Newspaper n={v.newspaper} />}
           {v.decisions_here.length > 0 && <WaitingHere v={v} />}
           <People v={v} />
+          <Verbs v={v} />
           <Actions v={v} skip={skip} />
           {offers("rest") && <RecentActions />}
         </div>

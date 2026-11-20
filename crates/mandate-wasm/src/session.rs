@@ -568,6 +568,7 @@ fn player_command(
                 ActionDto::TakeBribe => Action::TakeBribe,
                 ActionDto::DipFunds => Action::DipFunds,
                 ActionDto::LeakFile => Action::LeakFile,
+                ActionDto::Visit { verb } => Action::Visit { verb },
             },
         },
         // EndTurn and AdvanceDays are handled before this conversion; they

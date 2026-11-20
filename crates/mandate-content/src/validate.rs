@@ -459,6 +459,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     crate::narrative::validate(b, &mut issues);
     crate::media::validate(b, &mut issues);
     crate::knowledge::validate(b, &mut issues);
+    crate::visits::validate(b, &mut issues);
     crate::conversation::validate(b, &mut issues);
     for (name, v, lo, hi) in param_ranges(b) {
         if !(v.is_finite() && (lo..=hi).contains(&v)) {
@@ -2057,6 +2058,38 @@ pub fn check_situation_condition(
         U::PlantClosure { within_months } | U::Disaster { within_months } => {
             if !(1..=120).contains(within_months) {
                 issues.push(Issue::error(owner, "situation within_months must be 1–120"));
+            }
+        }
+        U::About {
+            kinds,
+            places,
+            workplace,
+            home,
+            ..
+        } => {
+            if workplace.is_some() {
+                slot_ok("speaker", issues);
+            }
+            let place_ok =
+                kinds.is_empty() || kinds.contains(&crate::conversation::AboutKind::Place);
+            if (!places.is_empty() || workplace.is_some()) && !place_ok {
+                issues.push(Issue::error(
+                    owner,
+                    "an about condition with `places` or `workplace` needs the place kind",
+                ));
+            }
+            for k in places {
+                if b.place_kind(k).is_none() || crate::types::PSEUDO_PLACES.contains(&k.as_str()) {
+                    issues.push(Issue::error(owner, &format!("unknown place kind `{k}`")));
+                }
+            }
+            if home.is_some()
+                && !(kinds.is_empty() || kinds.contains(&crate::conversation::AboutKind::Hood))
+            {
+                issues.push(Issue::error(
+                    owner,
+                    "an about condition with `home` needs the hood kind",
+                ));
             }
         }
         U::Occupation { slot, occupations } => {

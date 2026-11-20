@@ -71,5 +71,149 @@
       "late_night_legal": 1.0,
       "donor_ties": 0.01,          // low-income approval lost per unit of awareness
     },
+    // The `visit` action (places with purpose, DEC-079 note): the verbs a
+    // place kind lists in places.jsonc (`verbs`). Types:
+    // `mandate-content/src/visits.rs`. A verb is data:
+    //   time: slot | half (half a slot; with conversations, two fill one)
+    //   health, late_night (may also be done in the late slot)
+    //   parts: morning | afternoon | evening (none: any standard part)
+    //   when: situation conditions that must all hold (town-wide)
+    //   with: someone of one of these occupations is here now
+    //   effects: learn (knowledge grants, `which: here` the place),
+    //            people (who is here now, met; opinion), awareness and
+    //            approval (`among`: reach hood | town, classes, ages 0..3,
+    //            communities)
+    //   risk: base + terms (a condition and what it adds) + shedding × how
+    //         fast the place's industry sheds jobs, within [min, max]; the
+    //         odds shown are the odds rolled. On a bad roll its effects add
+    //         to the verb's and its outcome key replaces the verb's.
+    // Visits are depth, not a campaign: every amount is small.
+    "visit": {
+      // An industry's jobs over its capacity: taking on at `growing`,
+      // letting go below `shedding`, shedding in full at `shed_full`.
+      "outlook": { "growing": 1.02, "shedding": 0.95, "shed_full": 0.85 },
+      "verbs": [
+        // --- Works: factory, mill, mine, port -----------------------------------
+        {
+          // Meet the manager and the shop floor; see the order book, the
+          // safety record and what comes out of the chimney.
+          "id": "verb.tour_works", "name_key": "verb-tour_works", "outcome_key": "outcome-verb-tour_works",
+          "time": "slot", "health": 1, "parts": ["morning", "afternoon"],
+          "effects": [
+            { "type": "people", "level": "known", "opinion": 2 },
+            { "type": "learn", "grants": [
+              { "subject": "people_at", "which": "here", "level": "known" },
+              { "subject": "sector", "which": "here", "level": "detailed" },
+              { "subject": "site", "which": "here", "level": "detailed" },
+            ] },
+            { "type": "awareness", "amount": 0.03, "among": { "classes": ["low", "middle"] } },
+          ],
+        },
+        {
+          // Shift change at the gate: what the workers worry about.
+          "id": "verb.listen_at_gate", "name_key": "verb-listen_at_gate", "outcome_key": "outcome-verb-listen_at_gate",
+          "time": "half", "parts": ["morning", "afternoon", "evening"],
+          "effects": [
+            { "type": "learn", "grants": [
+              { "subject": "hood_concerns", "which": "here", "level": "known" },
+              { "subject": "sector", "which": "here", "level": "known" },
+            ] },
+            { "type": "people", "occupations": ["occupation.shop_steward"], "level": "known", "opinion": 1 },
+          ],
+        },
+        {
+          // Hard hat, handshake, the local paper's photographer. Workers
+          // who fear for their jobs may not smile for the camera.
+          "id": "verb.photo_op_gate", "name_key": "verb-photo_op_gate", "outcome_key": "outcome-verb-photo_op_gate",
+          "time": "slot", "health": 1, "parts": ["morning", "afternoon"],
+          "effects": [
+            { "type": "awareness", "amount": 0.08, "among": { "classes": ["low", "middle"] } },
+            { "type": "awareness", "amount": 0.01, "among": { "reach": "town" } },
+          ],
+          "risk": {
+            "base": 0.04,
+            "terms": [
+              { "when": { "type": "plant_closure", "within_months": 6 }, "add": 0.25 },
+              { "when": { "type": "crisis", "kind": "crisis.plant_closure" }, "add": 0.15 },
+              { "when": { "type": "indicator", "indicator": "job_loss", "min": 0.03 }, "add": 0.1 },
+            ],
+            "shedding": 0.3,
+            "min": 0.02, "max": 0.6,
+            "outcome_key": "outcome-verb-photo_op_gate-heckled",
+            "effects": [
+              { "type": "approval", "amount": -0.04, "among": { "classes": ["low", "middle"] } },
+              { "type": "approval", "amount": -0.005, "among": { "reach": "town" } },
+            ],
+          },
+        },
+        // --- Services: school, clinic, university --------------------------------
+        {
+          // Walk the corridors: how stretched the service is, the real need
+          // a policy would meet (DEC-092 §2.22).
+          "id": "verb.visit_service", "name_key": "verb-visit_service", "outcome_key": "outcome-verb-visit_service",
+          "time": "slot", "parts": ["morning", "afternoon"],
+          "effects": [
+            { "type": "learn", "grants": [
+              { "subject": "service", "which": "here", "level": "detailed" },
+              { "subject": "people_at", "which": "here", "level": "known" },
+            ] },
+            { "type": "awareness", "amount": 0.02, "among": { "ages": [1, 2] } },
+          ],
+        },
+        {
+          // Half an hour with the head teacher, the doctor or the dean.
+          "id": "verb.talk_to_head", "name_key": "verb-talk_to_head", "outcome_key": "outcome-verb-talk_to_head",
+          "time": "half", "parts": ["morning", "afternoon"],
+          "with": ["occupation.head_teacher", "occupation.gp", "occupation.dean"],
+          "effects": [
+            { "type": "people", "occupations": ["occupation.head_teacher", "occupation.gp", "occupation.dean"], "level": "detailed", "opinion": 3 },
+            { "type": "learn", "grants": [ { "subject": "service", "which": "here", "level": "known" } ] },
+          ],
+        },
+        // --- The land, the park, the campus --------------------------------------
+        {
+          // Boots in the mud with the farmers: the harvest, the prices, the
+          // neighbourhood's worries.
+          "id": "verb.walk_fields", "name_key": "verb-walk_fields", "outcome_key": "outcome-verb-walk_fields",
+          "time": "slot", "health": 1, "parts": ["morning", "afternoon"],
+          "effects": [
+            { "type": "people", "level": "known", "opinion": 2 },
+            { "type": "learn", "grants": [
+              { "subject": "hood_concerns", "which": "here", "level": "known" },
+              { "subject": "sector", "which": "here", "level": "detailed" },
+              { "subject": "site", "which": "here", "level": "known" },
+            ] },
+            { "type": "awareness", "amount": 0.03 },
+          ],
+        },
+        {
+          // A turn round the park: dog walkers, a bench, a few hellos.
+          "id": "verb.be_seen", "name_key": "verb-be_seen", "outcome_key": "outcome-verb-be_seen",
+          "time": "half", "parts": ["morning", "afternoon", "evening"],
+          "effects": [
+            { "type": "awareness", "amount": 0.02 },
+            { "type": "people", "level": "heard" },
+          ],
+        },
+        {
+          // Lunch with the young staff: what keeps them here, or doesn't.
+          "id": "verb.meet_young_staff", "name_key": "verb-meet_young_staff", "outcome_key": "outcome-verb-meet_young_staff",
+          "time": "slot", "parts": ["afternoon"],
+          "effects": [
+            { "type": "people", "level": "known", "opinion": 1 },
+            { "type": "learn", "grants": [ { "subject": "sector", "which": "here", "level": "detailed" } ] },
+            { "type": "awareness", "amount": 0.05, "among": { "reach": "town", "ages": [0] } },
+            { "type": "approval", "amount": 0.005, "among": { "reach": "town", "ages": [0] } },
+          ],
+        },
+        // --- Seats of government (any tier) --------------------------------------
+        {
+          // The public gallery: who sits there, and how they carry on.
+          "id": "verb.public_gallery", "name_key": "verb-public_gallery", "outcome_key": "outcome-verb-public_gallery",
+          "time": "half", "parts": ["morning", "afternoon"],
+          "effects": [ { "type": "people", "level": "heard" } ],
+        },
+      ],
+    },
   },
 }

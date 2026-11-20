@@ -15,7 +15,7 @@ function Spot({ s }: { s: SpotView }) {
   const name = placeName(tr, s.location);
   const kind = tr.t(`place-${s.location.kind_key}`);
   // A short summary of what you can do and learn here (withdrawing a bill is a footnote).
-  const what = [...s.actions.filter((a) => a !== "withdraw").map((a) => tr.t(`short-${a}`)), ...s.services.map((x) => tr.t(`short-${x}`))];
+  const what = [...s.actions.filter((a) => a !== "withdraw").map((a) => tr.t(`short-${a}`)), ...s.verbs.map((k) => tr.t(k)), ...s.services.map((x) => tr.t(`short-${x}`))];
   return (
     <li>
       <button
@@ -54,8 +54,8 @@ export function PlaceList() {
       <p className="hint places-help">{tr.t("ui-places-help")}</p>
       <div className="town-grid" data-testid="place-list">
         {town.neighborhoods.map((h) => {
-          const active = h.spots.filter((s) => s.actions.length + s.services.length > 0);
-          const quiet = h.spots.filter((s) => s.actions.length + s.services.length === 0);
+          const active = h.spots.filter((s) => s.actions.length + s.services.length + s.verbs.length > 0);
+          const quiet = h.spots.filter((s) => s.actions.length + s.services.length + s.verbs.length === 0);
           return (
             <section key={h.id} className={`hood hood-${h.kind}`} aria-labelledby={`hood-${h.id}`}>
               <div className="hood-head">

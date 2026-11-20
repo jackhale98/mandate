@@ -176,6 +176,9 @@ pub struct SpotView {
     pub actions: Vec<String>,
     pub late_night: Vec<String>,
     pub services: Vec<String>,
+    /// The visit verbs offered here, as Fluent name keys (places with
+    /// purpose; `PlacePanelView.verbs` has the details).
+    pub verbs: Vec<String>,
     pub here: bool,
 }
 
@@ -208,6 +211,30 @@ pub struct TownPlacesView {
     /// The town's character (DEC-077 §1): industry, crisis, broker, rival,
     /// priorities.
     pub character: Option<crate::characters::TownCharacterView>,
+}
+
+/// A verb of the visit action offered at a place (places with purpose):
+/// its cost, whether it can be done now, and its risk (DEC-073: the odds
+/// shown are the odds rolled).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct VerbOfferView {
+    /// Verb id (`verb.tour_works`): `ActionDto::Visit { verb }`.
+    pub verb: String,
+    /// Fluent key of its label.
+    pub name_key: String,
+    /// Time in half slots (1: half a slot, 2: a slot).
+    pub halves: u32,
+    pub health: f64,
+    /// It may also be done in the late-night slot.
+    pub late_night: bool,
+    /// Whether it can be done now (the player here, the time of day, the
+    /// town's situation, who is here, the time left).
+    pub available: bool,
+    /// Why not, as a Fluent key (`visit-blocked-…`), when it cannot.
+    pub blocked_key: Option<String>,
+    /// Chance it goes wrong, where it can (computed as the command rolls it).
+    pub risk: Option<f64>,
 }
 
 /// An action offered at a place, with its cost and risk (DEC-073).
@@ -339,6 +366,8 @@ pub struct PlacePanelView {
     pub here: bool,
     pub actions: Vec<OfferView>,
     pub services: Vec<String>,
+    /// The visit verbs offered here (places with purpose), in the kind's order.
+    pub verbs: Vec<VerbOfferView>,
     /// Service payloads: only filled while the player is here.
     pub town_data: Option<TownDataView>,
     pub budget: Option<BudgetPapersView>,
@@ -619,8 +648,46 @@ fn spot(engine: &Engine, loc: Location) -> SpotView {
             .into_iter()
             .map(String::from)
             .collect(),
+        verbs: mandate_sim::visits::verbs_at(st, content, loc)
+            .into_iter()
+            .map(|v| v.name_key.clone())
+            .collect(),
         here: st.player.as_ref().is_some_and(|p| p.location == loc),
     }
+}
+
+/// The verbs offered at a location, with what each costs and risks now.
+fn verb_offers(engine: &Engine, loc: Location) -> Vec<VerbOfferView> {
+    use mandate_content::visits::VisitTime;
+    let st = engine.state();
+    let content = engine.content();
+    let here = st.player.as_ref().is_some_and(|p| p.location == loc);
+    let place = mandate_sim::visits::place_at(st, loc).map(|p| p.id);
+    mandate_sim::visits::verbs_at(st, content, loc)
+        .into_iter()
+        .map(|v| {
+            let why = if here {
+                mandate_sim::visits::availability(st, content, loc, v, false)
+                    .err()
+                    .map(|b| b.key().to_string())
+            } else {
+                Some("visit-blocked-away".to_string())
+            };
+            VerbOfferView {
+                verb: v.id.clone(),
+                name_key: v.name_key.clone(),
+                halves: match v.time {
+                    VisitTime::Half => 1,
+                    VisitTime::Slot => 2,
+                },
+                health: v.health,
+                late_night: v.late_night,
+                available: why.is_none(),
+                blocked_key: why,
+                risk: place.and_then(|p| mandate_sim::visits::risk(st, content, p, v)),
+            }
+        })
+        .collect()
 }
 
 pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
@@ -985,6 +1052,7 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
             .into_iter()
             .map(|(k, late)| offer_view(engine, loc, k, late))
             .collect(),
+        verbs: verb_offers(engine, loc),
         town_data: if has("town_data_detailed") {
             town_data(engine)
         } else {

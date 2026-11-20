@@ -14,6 +14,29 @@ export function subjectText(tr: Translator, s: SubjectView | null): string {
   return tr.t(s.key, s.n === null ? undefined : { n: s.n });
 }
 
+/**
+ * What kind of thing a subject is, for a memory line's selector
+ * (`$subject_kind`): a bill (a policy's name, a title), a decision (its
+ * title, a noun phrase), a seat, or none (the memory is about nothing in
+ * particular, and the line leaves the subject out).
+ */
+export function subjectKind(s: SubjectView | null): "bill" | "decision" | "seat" | "none" {
+  if (!s) return "none";
+  if (s.key.startsWith("policy-")) return "bill";
+  if (s.key.startsWith("subject-")) return "seat";
+  return "decision";
+}
+
+/** A memory as a line: `key` is the sheet's (`memory-…`) or a speaker's quote of it (`scene-quote-…`). */
+export function memoryText(tr: Translator, key: string, m: { subject: SubjectView | null; year: number }): string {
+  return tr.t(key, { subject: subjectText(tr, m.subject), subject_kind: subjectKind(m.subject), year: String(m.year) });
+}
+
+/** The key of a speaker quoting a memory to the player's face (first person, no parenthesised year). */
+export function quoteKey(memoryKey: string): string {
+  return memoryKey.replace(/^memory-/, "scene-quote-");
+}
+
 /** Someone's role line: their office or occupation (and ward). */
 export function roleText(tr: Translator, p: Pick<PersonRefView, "role_key">): string {
   return p.role_key ? tr.t(p.role_key) : "";
@@ -124,7 +147,7 @@ export function CharacterSheet() {
                 <ul className="plain small quotes" data-testid="character-memories">
                   {c.memories.map((m, i) => (
                     <li key={i} className={`memory memory-${m.tone}`}>
-                      {tr.t(m.key, { subject: subjectText(tr, m.subject), year: String(m.year) })}
+                      {memoryText(tr, m.key, m)}
                     </li>
                   ))}
                 </ul>

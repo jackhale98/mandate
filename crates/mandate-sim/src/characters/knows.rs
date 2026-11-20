@@ -40,7 +40,13 @@ fn subject_town(state: &State, s: &Subject) -> Option<MunicipalityId> {
         | Subject::RivalPlans { town }
         | Subject::PolicySupport { town, .. }
         | Subject::Situational { town, .. }
-        | Subject::Layer { town, .. } => Some(*town),
+        | Subject::Layer { town, .. }
+        | Subject::Sector { town, .. } => Some(*town),
+        Subject::Site { place } | Subject::Service { place } => state
+            .world
+            .places
+            .get(place.index())
+            .map(|p| p.municipality),
         Subject::HoodConcerns { hood } => state
             .world
             .neighborhoods

@@ -73,3 +73,27 @@ learned-council = Council business
 learned-sponsor = A sponsor's briefing
 learned-talk = Talking with { $person }
 learned-lab = The lab
+
+# Places with purpose (PL1): what a visit teaches.
+notebook-sector = { $sector } in { $town }: { $outlook ->
+        [growing] taking people on
+        [shedding] letting people go
+        [steady] steady
+       *[other] how it is doing
+    }
+notebook-site = Conditions at { $place }{ $pollution ->
+        [high] : heavy pollution
+        [some] : some pollution
+        [low] : clean air
+       *[other] {""}
+    }{ $hazard ->
+        [high] , badly exposed to floods or fire
+        [some] , some risk of floods or fire
+       *[other] {""}
+    }
+notebook-service = What { $place } needs{ $need ->
+        [high] : badly stretched
+        [some] : stretched in places
+        [low] : coping
+       *[other] {""}
+    }

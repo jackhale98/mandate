@@ -30,6 +30,7 @@ pub mod scheduler;
 pub mod state;
 pub mod systems;
 pub mod talk;
+pub mod visits;
 pub mod world;
 
 pub use commands::{Command, CommandOutcome, EngineError};

@@ -35,6 +35,9 @@ export function tabOf(s: SubjectDto): EntryTab {
       return "issues";
     case "place":
     case "layer":
+    case "sector":
+    case "site":
+    case "service":
       return "places";
     case "policy_support":
     case "proposal":
