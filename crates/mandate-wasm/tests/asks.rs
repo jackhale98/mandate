@@ -47,7 +47,13 @@ fn put(e: &mut Engine, needs: Vec<Need>, due_in: u32, offered: bool) -> AskId {
         .find(|c| mandate_sim::characters::municipality_of(&st.politics, &st.world, c.id) == home)
         .map(|c| c.id)
         .unwrap();
-    let hood = st.world.neighborhoods.iter().find(|h| Some(h.municipality.0) == home).unwrap().id;
+    let hood = st
+        .world
+        .neighborhoods
+        .iter()
+        .find(|h| Some(h.municipality.0) == home)
+        .unwrap()
+        .id;
     let mut id = AskId(0);
     e.setup(|st| {
         id = st.asks.ids.alloc();
@@ -112,7 +118,11 @@ fn the_pocket_lists_offers_then_accepted_asks_with_their_next_step() {
     let offer = put(&mut e, vec![Need::Casework], 30, true);
     let p = pocket(&e);
     let ids: Vec<u32> = p.asks.iter().map(|a| a.id).collect();
-    assert_eq!(ids, vec![offer.0, soon.0, later.0], "offers first, then by due date");
+    assert_eq!(
+        ids,
+        vec![offer.0, soon.0, later.0],
+        "offers first, then by due date"
+    );
     // The badge: the offer, and the ask due within the turn.
     assert_eq!(p.asks_due_soon, 2);
     let o = find(&p, offer);
@@ -127,7 +137,10 @@ fn the_pocket_lists_offers_then_accepted_asks_with_their_next_step() {
     assert_eq!(a.status, "accepted");
     assert!(a.respond_by.is_none() && a.due_this_turn);
     // Casework: the engine's odds and where it is done.
-    assert_eq!(a.odds, Some(mandate_sim::asks::casework_odds(e.state(), &c)));
+    assert_eq!(
+        a.odds,
+        Some(mandate_sim::asks::casework_odds(e.state(), &c))
+    );
     let how = a.how.clone().unwrap();
     assert_eq!(how.action, "casework");
     assert_eq!(how.to.unwrap().kind_key, "town_hall");
@@ -143,15 +156,24 @@ fn accept_decline_and_keep_show_in_the_views() {
     e.setup(|st| st.asks.asks.clear());
     let yes = put(&mut e, vec![Need::Casework], 30, true);
     let no = put(&mut e, vec![Need::Casework], 30, true);
-    e.apply(Command::Player(PlayerCommand::RespondAsk { ask: yes.0, accept: true }))
-        .unwrap();
-    e.apply(Command::Player(PlayerCommand::RespondAsk { ask: no.0, accept: false }))
-        .unwrap();
+    e.apply(Command::Player(PlayerCommand::RespondAsk {
+        ask: yes.0,
+        accept: true,
+    }))
+    .unwrap();
+    e.apply(Command::Player(PlayerCommand::RespondAsk {
+        ask: no.0,
+        accept: false,
+    }))
+    .unwrap();
     let p = pocket(&e);
     assert_eq!(find(&p, yes).status, "accepted");
     let d = find(&p, no);
     assert_eq!((d.status.as_str(), d.unanswered), ("declined", false));
-    assert!(p.asks_recent.iter().any(|a| a.id == no.0), "a declined ask is a recent outcome");
+    assert!(
+        p.asks_recent.iter().any(|a| a.id == no.0),
+        "a declined ask is a recent outcome"
+    );
     // Keep it: casework at the town hall until it is sorted.
     let mut tries = 0;
     while e.state().asks.get(yes).unwrap().open() && tries < 12 {
@@ -249,7 +271,11 @@ fn ask_commands_through_the_protocol() {
     let Ok(ResponseBody::Asks(Some(v))) = send(&mut s, RequestBody::Query(QueryDto::Asks)) else {
         panic!("no asks view");
     };
-    assert!(v.open.iter().any(|a| a.id == offer.id && a.status == "accepted"));
+    assert!(
+        v.open
+            .iter()
+            .any(|a| a.id == offer.id && a.status == "accepted")
+    );
     // No promises outside a campaign.
     let Ok(ResponseBody::PromiseMenu(m)) = send(&mut s, RequestBody::Query(QueryDto::PromiseMenu))
     else {
@@ -290,7 +316,11 @@ fn promises_are_picked_while_campaigning_and_kept_on_record() {
         AskerView::Electorate { name_key, .. } => assert_eq!(name_key, "ask-electorate"),
         other => panic!("promises are made to voters, not {other:?}"),
     }
-    let o = m.options.iter().find(|o| o.template == "promise.town_halls").unwrap();
+    let o = m
+        .options
+        .iter()
+        .find(|o| o.template == "promise.town_halls")
+        .unwrap();
     assert_eq!(o.title_key, "promise-town-halls");
     assert!(o.args.contains_key("constituency_key"));
     assert!(!o.keep_lines.is_empty() && !o.break_lines.is_empty());
@@ -301,7 +331,10 @@ fn promises_are_picked_while_campaigning_and_kept_on_record() {
     .unwrap();
     let m = promise_menu_view(&e);
     assert_eq!(m.made, 1);
-    assert!(m.options.iter().all(|x| x.template != "promise.town_halls"), "made once a race");
+    assert!(
+        m.options.iter().all(|x| x.template != "promise.town_halls"),
+        "made once a race"
+    );
     let v = asks_view(&e).unwrap();
     assert_eq!(v.promises.len(), 1);
     let p = &v.promises[0];
@@ -338,12 +371,20 @@ fn laws_in_force_never_fall_unexplained() {
         let ended = s
             .items
             .iter()
-            .filter(|i| i.text_key == "skip-item-law-expired" || i.text_key == "skip-item-law-repealed")
+            .filter(|i| {
+                i.text_key == "skip-item-law-expired" || i.text_key == "skip-item-law-repealed"
+            })
             .count() as i64;
-        assert!(laws.before - laws.after <= ended, "seed {seed}: {laws:?} with {ended} ended");
+        assert!(
+            laws.before - laws.after <= ended,
+            "seed {seed}: {laws:?} with {ended} ended"
+        );
         // Seed 2 (the web test's): a law lapses, named in its line.
         if seed == 2 {
-            let line = s.items.iter().find(|i| i.text_key == "skip-item-law-expired");
+            let line = s
+                .items
+                .iter()
+                .find(|i| i.text_key == "skip-item-law-expired");
             assert!(
                 line.is_some_and(|l| l.args.get("policy_key").is_some_and(|k| !k.is_empty())),
                 "seed 2: a lapsed law is listed: {:?}",
@@ -381,7 +422,10 @@ fn every_summary_item_key_has_english_text() {
         "skip-item-proposal-opened",
         "skip-item-proposal-lapsed",
     ] {
-        assert!(en.contains(&format!("\n{key} =")), "no English text for {key}");
+        assert!(
+            en.contains(&format!("\n{key} =")),
+            "no English text for {key}"
+        );
     }
 }
 
@@ -401,7 +445,8 @@ fn the_web_fixture_round_trips() {
         asks: AsksView,
         commands: Vec<CommandDto>,
     }
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web/src/components/asks/asks.fixture.json");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../web/src/components/asks/asks.fixture.json");
     if std::env::var("MANDATE_UPDATE_FIXTURES").as_deref() == Ok("1") {
         let c = content();
         let mut e = engine(&c, 2);
@@ -432,8 +477,14 @@ fn the_web_fixture_round_trips() {
             asks: asks_view(&e).unwrap(),
             menu,
             commands: vec![
-                CommandDto::RespondAsk { ask: 3, accept: true },
-                CommandDto::RespondAsk { ask: 3, accept: false },
+                CommandDto::RespondAsk {
+                    ask: 3,
+                    accept: true,
+                },
+                CommandDto::RespondAsk {
+                    ask: 3,
+                    accept: false,
+                },
                 CommandDto::Promise {
                     template: "promise.town_halls".into(),
                     answer: None,
@@ -450,7 +501,11 @@ fn the_web_fixture_round_trips() {
     let text = std::fs::read_to_string(&path).expect("the web fixture");
     let raw: serde_json::Value = serde_json::from_str(&text).unwrap();
     let f: Fixture = serde_json::from_value(raw.clone()).expect("the fixture has the Rust shape");
-    assert_eq!(serde_json::to_value(&f).unwrap(), raw, "a round trip changes nothing");
+    assert_eq!(
+        serde_json::to_value(&f).unwrap(),
+        raw,
+        "a round trip changes nothing"
+    );
     assert!(f.pocket_asks.iter().any(|a| a.status == "offered"));
     assert!(f.pocket_asks.iter().any(|a| a.odds.is_some()));
     assert!(!f.menu.options.is_empty());

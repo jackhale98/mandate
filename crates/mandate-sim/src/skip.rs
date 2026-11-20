@@ -134,11 +134,19 @@ pub struct Snapshot {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SummaryItem {
     /// An election the player stood in.
-    Election { post: Post, won: bool },
+    Election {
+        post: Post,
+        won: bool,
+    },
     /// A law enacted at home (`mine`: the player sponsored it).
-    LawEnacted { policy: u32, mine: bool },
+    LawEnacted {
+        policy: u32,
+        mine: bool,
+    },
     /// A bill of the player's failed.
-    BillFailed { policy: u32 },
+    BillFailed {
+        policy: u32,
+    },
     /// The proxy answered a decision for the player.
     Answered {
         decision: u32,
@@ -146,22 +154,44 @@ pub enum SummaryItem {
         option: String,
     },
     /// A decision passed its deadline and took its default.
-    Defaulted { decision: u32, template: String },
+    Defaulted {
+        decision: u32,
+        template: String,
+    },
     /// A story about the player broke.
-    Scandal { scandal: u32, kind: String },
+    Scandal {
+        scandal: u32,
+        kind: String,
+    },
     /// A new chapter began.
-    Chapter { index: u32, kind: String },
+    Chapter {
+        index: u32,
+        kind: String,
+    },
     /// A disaster struck the home town.
-    Disaster { hazard: String },
+    Disaster {
+        hazard: String,
+    },
     /// A plant closed at home.
-    PlantClosure { sector: String, jobs: u32 },
+    PlantClosure {
+        sector: String,
+        jobs: u32,
+    },
     /// The player declared a vote on a bill.
-    Voted { policy: u32, vote: String },
+    Voted {
+        policy: u32,
+        vote: String,
+    },
     /// A law at home stopped being in force: `expired` (a sunset clause),
     /// `repealed`.
-    LawEnded { policy: u32, reason: String },
+    LawEnded {
+        policy: u32,
+        reason: String,
+    },
     /// A bill of the player's was withdrawn.
-    BillWithdrawn { policy: u32 },
+    BillWithdrawn {
+        policy: u32,
+    },
     /// An ask or promise ended (DEC-097 §2): `kept`, `broken`, `void`, or
     /// `declined` (an offer left to lapse).
     AskResolved {
@@ -170,21 +200,36 @@ pub enum SummaryItem {
         outcome: String,
     },
     /// Someone asked the player for something (still open, or lapsed).
-    AskOffered { ask: u32, template: String },
+    AskOffered {
+        ask: u32,
+        template: String,
+    },
     /// A crisis began (`began`) or ended at home.
-    Crisis { kind: String, began: bool },
+    Crisis {
+        kind: String,
+        began: bool,
+    },
     /// The party refused to renominate the player.
     Deselected,
     /// A case against the player: `opened`, `charged`, `dropped`,
     /// `acquitted`, `convicted`.
-    Case { case: u32, stage: String },
+    Case {
+        case: u32,
+        stage: String,
+    },
     /// The player went to prison, or came out.
-    Imprisoned { years: u32 },
+    Imprisoned {
+        years: u32,
+    },
     Released,
     /// A rumour about the player began to spread.
-    Rumour { rumour: u32 },
+    Rumour {
+        rumour: u32,
+    },
     /// A national recession began (`began`) or recovery set in.
-    Recession { began: bool },
+    Recession {
+        began: bool,
+    },
     /// A proposal (a policy family, DEC-092) came onto the table at home,
     /// or left it without a bill.
     Proposal {
@@ -753,12 +798,10 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
                 outcome: outcome.clone(),
             }),
             K::PlayerDeselected => Some(SummaryItem::Deselected),
-            K::CaseOpened { case, politician } if *politician == me.0 => {
-                Some(SummaryItem::Case {
-                    case: *case,
-                    stage: "investigation".into(),
-                })
-            }
+            K::CaseOpened { case, politician } if *politician == me.0 => Some(SummaryItem::Case {
+                case: *case,
+                stage: "investigation".into(),
+            }),
             K::CaseDeveloped {
                 case,
                 politician,
@@ -767,9 +810,7 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
                 case: *case,
                 stage: stage.clone(),
             }),
-            K::PlayerImprisoned { years, .. } => {
-                Some(SummaryItem::Imprisoned { years: *years })
-            }
+            K::PlayerImprisoned { years, .. } => Some(SummaryItem::Imprisoned { years: *years }),
             K::PlayerReleased => Some(SummaryItem::Released),
             K::RumourSpread { rumour, politician } if *politician == me.0 => {
                 Some(SummaryItem::Rumour { rumour: *rumour })
@@ -818,7 +859,13 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
         );
     }
     for k in before.into_iter().filter(|k| !now.contains(k)) {
-        push(run, SummaryItem::Crisis { kind: k, began: false });
+        push(
+            run,
+            SummaryItem::Crisis {
+                kind: k,
+                began: false,
+            },
+        );
     }
     run.crises = Some(now);
 }

@@ -328,15 +328,16 @@ fn effect_line(engine: &Engine, cast: &[CastEntry], e: &EffectDef) -> Option<Eff
         } => {
             let d = signed(delta * 100.0);
             let t = tone(*delta < 0.0);
-            let hood = neighborhood
-                .as_deref()
-                .and_then(|r| match mandate_sim::narrative::actor_of(cast, r) {
-                    Some(Actor::Neighborhood { id }) => st
-                        .world
-                        .neighborhoods
-                        .get(id as usize)
-                        .map(|h| h.name.clone()),
-                    _ => None,
+            let hood =
+                neighborhood.as_deref().and_then(|r| {
+                    match mandate_sim::narrative::actor_of(cast, r) {
+                        Some(Actor::Neighborhood { id }) => st
+                            .world
+                            .neighborhoods
+                            .get(id as usize)
+                            .map(|h| h.name.clone()),
+                        _ => None,
+                    }
                 });
             if let Some(h) = hood {
                 line("effect-approval-hood", vec![("delta", d), ("hood", h)], t)
@@ -805,4 +806,3 @@ pub fn promise_menu_view(engine: &Engine) -> PromiseMenuView {
         voters: voters.map(|v| v.0),
     }
 }
-
