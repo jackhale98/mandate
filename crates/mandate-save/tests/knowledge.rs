@@ -313,7 +313,7 @@ fn first_visits_introduce_the_place() {
         .iter()
         .filter(|p| p.municipality == town && p.kind != PlaceKind::CouncilChamber)
         .find_map(|p| {
-            let who = mandate_sim::characters::ambient::stored_at(
+            let who = mandate_sim::characters::ambient::regulars_at(
                 &st.politics,
                 st,
                 mandate_sim::places::Location::Place { place: p.id },

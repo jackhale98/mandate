@@ -200,14 +200,17 @@ test("walk up to someone in the street and talk (a tap on them; Enter beside the
   // The engine's passers-by on these streets stand about the player.
   await expect.poll(() => street(page).then((v) => v?.standing ?? 0), { timeout: 10_000 }).toBeGreaterThan(0);
   await expect(page.locator(".hub-person-tag").first()).toBeVisible();
+  // A passer-by (`a<slot>`): the townsfolk whose routines have them on these
+  // streets now stand about too, and are people the player may know.
+  await expect(page.locator(".hub-person-tag[data-person^='a']").first()).toBeVisible();
   if (isMobile) {
     // A tap on their name tag walks up to them and opens the conversation.
-    await page.locator(".hub-person-tag").first().click();
+    await page.locator(".hub-person-tag[data-person^='a']").first().click();
   } else {
     // Stand beside them, focus the street, and press Enter (the door/Enter pattern).
     await page.evaluate(() => {
       const v = (window as unknown as Probes).__townStreet?.view;
-      const s = v?.scene.standing[0];
+      const s = v?.scene.standing.find((x) => x.key.startsWith("a"));
       if (v && s) v.scene.goToPerson(s.key);
     });
     await expect.poll(() => street(page).then((v) => v?.near ?? null), { timeout: 10_000 }).not.toBeNull();
@@ -332,8 +335,16 @@ test("out of time: the box says so and every topic waits", async ({ page }) => {
   const dlg = box(page);
   await choiceIn(dlg.getByTestId("talk-go")).click();
   await expect(dlg.getByTestId("talk-away")).toHaveCount(0);
-  // Talk until the turn's time is spent.
-  for (let i = 0; i < 16 && (await dlg.getByTestId("talk-out-of-time").count()) === 0; i++) await raise(page, "topic.small_talk");
+  // Talk until the turn's time is spent. As the day goes on they may move
+  // on (their daily routine): go where the engine says they are, and go on.
+  for (let i = 0; i < 16; i++) {
+    if ((await dlg.getByTestId("talk-go").count()) > 0) {
+      await choiceIn(dlg.getByTestId("talk-go")).click();
+      await expect(dlg.getByTestId("talk-away")).toHaveCount(0);
+    }
+    if ((await dlg.getByTestId("talk-out-of-time").count()) > 0) break;
+    await raise(page, "topic.small_talk");
+  }
   await expect(dlg.getByTestId("talk-out-of-time")).toHaveText(/out of time this turn/);
   await expect(dlg.locator(".dlg-cost-out")).toHaveText("Out of time");
   await expect(dlg.getByTestId("talk-cost")).toHaveCount(0);

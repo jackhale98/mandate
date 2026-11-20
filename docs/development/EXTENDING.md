@@ -90,6 +90,28 @@ Example trait and occupation:
   "competencies": { "organising": 0.25 }, "expertise": "redistribution" }
 ```
 
+### Adding a routine (DEC-031 daily routines)
+
+Where stored characters are through the day comes from `content/base/routines.jsonc` (`RoutineDef` in `mandate-content/src/routines.rs`). The engine derives it from the state and the turn's day (`mandate_sim::characters::routines`): nothing is stored, so a new routine needs no save change.
+
+- **Whom it is for**: exactly one of `post` (a role word from the constitution: a body's `member_key` or an office's id; validation refuses anything else, and code never names an office), `occupation` (an occupation id), or `role` (`broker`, `rival`, `politician` for people out of office, `anyone`). A person's routines are tried in this order: broker or rival, their post's, their occupation's, `politician`, `anyone`; then their workplace, then their home street.
+- **Rules** are tried in order. Each has optional `parts` (`morning`, `afternoon`, `evening`, `late_night`: the player's three standard slots, then the late slot once they are spent), `days` (the weekday of the turn's representative day, which moves on one day each turn), `seasons`, `events` (all of them) and `unless` (none of them): `session` (the jurisdiction's legislature sits: a law-making stage this turn, or its regular sitting day), `vote`, `campaign`, `meeting_night` (the town's meeting weekday). A `chance` is a keyed draw per person, day and part. The first rule that applies and names somewhere that exists picks a spot by weight.
+- **Spots** (`at[].to`): `works` (a post's workplace, from its `works_at`, or the person's own place), `home_streets`, `ward_streets` (their seat's district), `legislature` (where their jurisdiction's legislature sits), or any place kind (`diner`, `market`, …: the one in their neighbourhood, else one kept for them). Spots the town lacks are skipped; a rule with none left does not apply, so nobody is placed where their town has nothing.
+- **Check a pack** with `mandate-cli routines --seed N --days D [--text] [--all]`: every turn's representative day, the events going on, and where the town's key people are in each part.
+
+Example:
+
+```jsonc
+{ "id": "routine.journalist", "occupation": "occupation.journalist",
+  "rules": [
+    { "parts": ["morning", "afternoon"], "events": ["vote"], "chance": 0.8, "at": [{ "to": "legislature" }] },
+    { "parts": ["morning"], "at": [{ "to": "works" }] },
+    { "parts": ["afternoon"], "at": [{ "to": "works", "weight": 3 }, { "to": "diner", "weight": 1 }] },
+    { "at": [{ "to": "home_streets" }] } ] }
+```
+
+Who is where is asked through `characters::routines` (`whereabouts`, `locate`, `present`) or `characters::ambient::stored_at`; a place's *regulars* (first-visit introductions, grants) stay `ambient::regulars_at`. The player's ledger notes sightings (`KnowledgeLedger::seen`, on arriving and when talking); two at the same place and part on different turns make a habit, shown as the lead `lead-usually-at`.
+
 ### Town character (DEC-077 §1)
 
 Each month (and on load when the crisis registry changed) every town gets a `TownCharacter` in `PoliticsState::characters.towns`:

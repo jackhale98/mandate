@@ -27,7 +27,7 @@ use mandate_sim::places::{self, Location};
 use mandate_sim::player::knowledge::{Level, Subject};
 use mandate_sim::policy::PolicyStatus;
 use mandate_sim::talk::{self, AboutRef, Exchange, ExchangeId, TalkTarget};
-use mandate_sim::world::{NeighborhoodId, PlaceId, PlaceKind};
+use mandate_sim::world::{NeighborhoodId, PlaceId};
 use mandate_sim::{Engine, State};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -231,30 +231,14 @@ fn not_offered(key: &str) -> bool {
     matches!(key, "talk-why-role" | "talk-why-place" | "talk-why-not-now")
 }
 
-/// Where someone can be talked to: their workplace, the chamber or the town
-/// hall (politicians in office), or their home neighbourhood's streets — the
-/// first of these where the engine has them (`ambient::stored_at`).
+/// Where someone can be talked to now: where their daily routine has them
+/// (`characters::routines`, DEC-031), when that is somewhere the player can
+/// go. "Go to them" routes there from every view (DEC-051).
 pub fn talk_location(engine: &Engine, id: CharacterId) -> Option<Location> {
     let st = engine.state();
-    let pl = st.player.as_ref()?;
-    let p = characters::profile(&st.politics, &st.world, id)?;
-    let mut cands: Vec<Location> = Vec::new();
-    if let Some(place) = p.place {
-        cands.push(Location::Place { place });
-    }
-    for x in st.world.places.iter().filter(|x| {
-        x.municipality == pl.municipality
-            && matches!(x.kind, PlaceKind::CouncilChamber | PlaceKind::TownHall)
-    }) {
-        cands.push(Location::Place { place: x.id });
-    }
-    cands.push(Location::Street {
-        neighborhood: NeighborhoodId(p.home),
-    });
-    cands.into_iter().find(|loc| {
-        places::validate_move(st, *loc).is_ok()
-            && ambient::stored_at(&st.politics, st, *loc).contains(&id)
-    })
+    st.player.as_ref()?;
+    characters::routines::whereabouts(st, engine.content(), id)
+        .filter(|loc| places::validate_move(st, *loc).is_ok())
 }
 
 /// The subjects the player knows of for each kind a topic can be about.
@@ -447,7 +431,7 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
     characters::profile(&st.politics, &st.world, id)?;
     let gate = Gate::of(engine);
     let mut person_view = person_ref_known(engine, &gate, id)?;
-    let here = talk::can_talk(st, id);
+    let here = talk::can_talk(st, content, id);
     person_view.can_talk = here;
     let route = if here {
         None

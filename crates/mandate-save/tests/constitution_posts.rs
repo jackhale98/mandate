@@ -309,7 +309,9 @@ fn renamed() -> Arc<mandate_content::ContentBundle> {
     let mut src = sources();
     for s in src.iter_mut() {
         let p = s.path.replace('\\', "/");
-        if p.contains("locale/") || p.ends_with("council.jsonc") {
+        // Interior spot roles ("councillor" desks) are presentation words of
+        // the art pack, not role words.
+        if p.contains("locale/") || p.ends_with("council.jsonc") || p.ends_with("interiors.jsonc") {
             continue;
         }
         // The executive cast in its new spelling, then the role words.

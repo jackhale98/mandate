@@ -682,22 +682,13 @@ fn slots_left(e: &Engine) -> u8 {
         .unwrap_or(0)
 }
 
-/// Where someone can be found now (as the place panel lists them).
+/// Where someone is now: the engine's answer (their daily routine,
+/// DEC-031), when it is somewhere the player can go.
 fn whereabouts(e: &Engine, person: CharacterId) -> Option<Location> {
     let st = e.state();
-    let town = st.player.as_ref()?.municipality;
-    let places = st
-        .world
-        .places
-        .iter()
-        .filter(|p| p.municipality == town)
-        .map(|p| Location::Place { place: p.id });
-    let streets = st.world.hoods_of(town).map(|h| Location::Street {
-        neighborhood: NeighborhoodId(h as u32),
-    });
-    places.chain(streets).find(|l| {
-        mandate_sim::characters::ambient::stored_at(&st.politics, st, *l).contains(&person)
-    })
+    st.player.as_ref()?;
+    mandate_sim::characters::routines::whereabouts(st, e.content(), person)
+        .filter(|l| mandate_sim::places::validate_move(st, *l).is_ok())
 }
 
 fn move_to(e: &mut Engine, location: Location) -> bool {

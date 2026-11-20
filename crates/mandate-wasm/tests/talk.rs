@@ -54,6 +54,27 @@ fn place(e: &Engine, kind: PlaceKind) -> Option<Location> {
         .map(|p| Location::Place { place: p.id })
 }
 
+/// Where the council is now, on a day it sits (DEC-031 routines: members
+/// are in their chamber on session days): turns pass until one, then the
+/// engine says where a member is.
+fn council_spot(e: &mut Engine) -> Location {
+    let at = mandate_sim::world::Jurisdiction::town(town(e));
+    for _ in 0..8 {
+        let now = mandate_sim::characters::routines::Now::of(e.state(), e.content());
+        if now.session(e.state().meta.seed, at) {
+            break;
+        }
+        e.apply(Command::EndTurn).unwrap();
+    }
+    let m = mandate_sim::politics::body_members_at(&e.state().politics, at)
+        .into_iter()
+        .filter_map(|p| e.state().politics.get(p))
+        .find(|p| !p.is_player)
+        .map(|p| p.character)
+        .unwrap();
+    mandate_sim::characters::routines::whereabouts(e.state(), e.content(), m).unwrap()
+}
+
 fn go(e: &mut Engine, loc: Location) {
     e.apply(Command::Player(PlayerCommand::MoveTo { location: loc }))
         .unwrap();
@@ -155,7 +176,7 @@ fn talk_view_matches_what_talk_accepts() {
     let mut refused = 0;
     for loc in spots(&e) {
         go(&mut e, loc);
-        for person in talk::present(e.state()).into_iter().take(4) {
+        for person in talk::present(e.state(), e.content()).into_iter().take(4) {
             let v = talk_view(&e, TalkTargetDto::Person { person: person.0 }, false).unwrap();
             assert!(v.here && v.route.is_none());
             assert!(v.person.can_talk);
@@ -216,14 +237,17 @@ fn talk_view_matches_what_talk_accepts() {
 #[test]
 fn out_of_time_is_said() {
     let mut e = game(42);
-    let at = place(&e, PlaceKind::CouncilChamber).unwrap();
+    let at = council_spot(&mut e);
     go(&mut e, at);
-    let person = talk::present(e.state())[0];
+    let person = talk::present(e.state(), e.content())[0];
     e.setup(|st| {
         let pl = st.player.as_mut().unwrap();
         pl.slots_used = pl.slot_cap();
         pl.talk.half_slot = None;
     });
+    // Late now: they have moved on; go to them (free).
+    let there = talk_location(&e, person).unwrap();
+    go(&mut e, there);
     let v = talk_view(&e, TalkTargetDto::Person { person: person.0 }, false).unwrap();
     assert!(v.out_of_time);
     assert_eq!(v.slots_left, 0);
@@ -242,6 +266,9 @@ fn out_of_time_is_said() {
         let turn = st.calendar.turn;
         st.player.as_mut().unwrap().talk.half_slot = Some(turn);
     });
+    // (That slot is still under way, so it is the evening again: go to them.)
+    let there = talk_location(&e, person).unwrap();
+    go(&mut e, there);
     let v = talk_view(&e, TalkTargetDto::Person { person: person.0 }, false).unwrap();
     assert!(v.half_slot_left && !v.out_of_time);
     assert!(v.topics.iter().any(|t| t.available));
@@ -253,10 +280,10 @@ fn out_of_time_is_said() {
 fn odds_shown_are_odds_rolled() {
     let mut base = game(43);
     let policy = bill(&mut base);
-    let at = place(&base, PlaceKind::CouncilChamber).unwrap();
+    let at = council_spot(&mut base);
     go(&mut base, at);
     let rival = base.state().politics.characters.towns[town(&base).index()].rival;
-    let people: Vec<CharacterId> = talk::present(base.state())
+    let people: Vec<CharacterId> = talk::present(base.state(), base.content())
         .into_iter()
         .filter(|c| Some(*c) != rival)
         .collect();
@@ -336,7 +363,7 @@ fn exchange_view_reads_back_and_the_notebook_links_it() {
     let mut found = None;
     'outer: for loc in spots(&e) {
         go(&mut e, loc);
-        for person in talk::present(e.state()) {
+        for person in talk::present(e.state(), e.content()) {
             let mut x = copy(&e);
             let Ok(o) = x.apply(talk_cmd(person, "topic.worries", None, false)) else {
                 continue;
@@ -393,9 +420,9 @@ fn exchange_view_reads_back_and_the_notebook_links_it() {
 #[test]
 fn someone_elsewhere_has_a_route() {
     let mut e = game(45);
-    let chamber = place(&e, PlaceKind::CouncilChamber).unwrap();
+    let chamber = council_spot(&mut e);
     go(&mut e, chamber);
-    let person = talk::present(e.state())[0];
+    let person = talk::present(e.state(), e.content())[0];
     let home = Location::Home;
     go(&mut e, home);
     let v = talk_view(&e, TalkTargetDto::Person { person: person.0 }, false).unwrap();
@@ -446,7 +473,7 @@ fn exchanges_leak_nothing_hidden() {
         let mut exchanges = 0;
         for loc in spots(&e) {
             go(&mut e, loc);
-            for person in talk::present(e.state()).into_iter().take(3) {
+            for person in talk::present(e.state(), e.content()).into_iter().take(3) {
                 let v = talk_view(&e, TalkTargetDto::Person { person: person.0 }, false).unwrap();
                 for topic in v.topics.iter() {
                     let about = if topic.about_required {
@@ -618,9 +645,9 @@ fn talk_keys_are_in_the_locale() {
 #[test]
 fn talk_views_never_write() {
     let mut e = game(49);
-    let at = place(&e, PlaceKind::CouncilChamber).unwrap();
+    let at = council_spot(&mut e);
     go(&mut e, at);
-    let person = talk::present(e.state())[0];
+    let person = talk::present(e.state(), e.content())[0];
     let r = e
         .apply(talk_cmd(person, "topic.small_talk", None, false))
         .unwrap()
@@ -672,7 +699,16 @@ fn the_session_talks() {
         }),
     );
     let e = s.engine().unwrap();
-    let chamber = place(e, PlaceKind::CouncilChamber).unwrap();
+    // Where the engine says a council member is now.
+    let at = mandate_sim::world::Jurisdiction::town(town(e));
+    let m = mandate_sim::politics::body_members_at(&e.state().politics, at)
+        .into_iter()
+        .filter_map(|p| e.state().politics.get(p))
+        .find(|p| !p.is_player)
+        .map(|p| p.character)
+        .unwrap();
+    let chamber =
+        mandate_sim::characters::routines::whereabouts(e.state(), e.content(), m).unwrap();
     send(
         &mut s,
         2,
@@ -680,7 +716,7 @@ fn the_session_talks() {
             location: LocationDto::of(chamber),
         }),
     );
-    let person = talk::present(s.engine().unwrap().state())[0];
+    let person = talk::present(s.engine().unwrap().state(), s.engine().unwrap().content())[0];
     let ResponseBody::Talk(v) = send(
         &mut s,
         3,

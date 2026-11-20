@@ -7,6 +7,7 @@ mod lab;
 mod mapimg;
 mod png;
 mod replay;
+mod routines;
 mod sweep;
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -152,6 +153,23 @@ enum Cmd {
         /// Storyteller profile id (default: the content's).
         #[arg(long)]
         profile: Option<String>,
+    },
+    /// Daily routines (DEC-031): where the town's key people are in each part
+    /// of the day, one turn's representative day after another.
+    Routines {
+        #[arg(long, default_value_t = 1)]
+        seed: u64,
+        /// Turns (representative days) to follow.
+        #[arg(long, default_value_t = 7)]
+        days: u32,
+        #[arg(long, value_enum, default_value_t = Size::Small)]
+        size: Size,
+        /// Everyone in town, not one of each kind.
+        #[arg(long)]
+        all: bool,
+        /// One line per person and day instead of JSON.
+        #[arg(long)]
+        text: bool,
     },
     /// Yearly economic trace (balancing diagnostics): jobs by sector, labour
     /// force, prices, and demand drivers.
@@ -696,6 +714,20 @@ fn run(cli: Cli) -> Result<(), String> {
             } else {
                 Err(format!("bot gates failed: {}", failed.join(", ")))
             }
+        }
+        Cmd::Routines {
+            seed,
+            days,
+            size,
+            all,
+            text,
+        } => {
+            let content = load_content(&cli.content)?;
+            let v = routines::run(&content, seed, days, size.into(), all, text)?;
+            if !text {
+                out(v);
+            }
+            Ok(())
         }
         Cmd::TraceEcon { seed, years, size } => {
             let content = load_content(&cli.content)?;

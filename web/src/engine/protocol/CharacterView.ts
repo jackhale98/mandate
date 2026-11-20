@@ -4,6 +4,7 @@ import type { FavourWithView } from "./FavourWithView";
 import type { KnowledgeView } from "./KnowledgeView";
 import type { LocationView } from "./LocationView";
 import type { MemoryView } from "./MemoryView";
+import type { SeenView } from "./SeenView";
 
 /**
  * A character sheet (DEC-031), as far as the player knows them (DEC-091):
@@ -60,4 +61,9 @@ goals: Array<string> | null,
 /**
  * Favours they hold with others, in detail only.
  */
-favours_with_others: Array<FavourWithView> | null, knowledge: KnowledgeView, };
+favours_with_others: Array<FavourWithView> | null, knowledge: KnowledgeView, 
+/**
+ * Where the player last saw them, and where they usually are once seen
+ * at the same place and time twice (S1, DEC-031 routines).
+ */
+last_seen?: SeenView, usually?: SeenView, };

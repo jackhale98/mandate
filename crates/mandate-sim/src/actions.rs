@@ -1107,7 +1107,7 @@ pub fn apply(
                     let met: Vec<characters::CharacterId> = state
                         .player
                         .as_ref()
-                        .map(|p| characters::ambient::stored_at(&state.politics, state, p.location))
+                        .map(|p| characters::ambient::stored_at(state, content, p.location))
                         .unwrap_or_default();
                     let mut grants: Vec<knowledge::Grant> = met
                         .into_iter()

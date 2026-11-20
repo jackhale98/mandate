@@ -34,6 +34,7 @@
 pub mod ambient;
 pub mod goals;
 pub mod knows;
+pub mod routines;
 pub mod town;
 
 pub use town::{ActiveCrisis, TownCharacter};

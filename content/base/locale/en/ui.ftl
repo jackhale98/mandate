@@ -315,3 +315,13 @@ interior-hotspot-booth_mid = A quiet booth
 interior-hotspot-booth_front = The front booth
 interior-hotspot-booth_back = The back booth
 interior-hotspot-counter = The counter
+
+## Daily routines (S1, DEC-031): parts of the day, and where people were seen
+day-part-morning = in the morning
+day-part-afternoon = in the afternoon
+day-part-evening = in the evening
+day-part-late-night = late at night
+seen-last = Last seen at { $place }, { $part }.
+seen-usually = Usually at { $place } { $part }.
+lead-usually-at = Usually at { $to_place } ({ $to_kind }) { $part }.
+lead-usually-on-streets = Usually on the streets of { $to_hood } { $part }.

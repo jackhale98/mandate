@@ -416,7 +416,7 @@ fn meeting_a_passer_by_makes_them_named() {
             .iter()
             .all(|(s, _)| *s != slot)
     );
-    assert!(characters::ambient::stored_at(&st.politics, st, loc).contains(&id));
+    assert!(characters::ambient::regulars_at(&st.politics, st, loc).contains(&id));
     // Nobody in a slot that is not there.
     assert!(
         e.apply(Command::Player(PlayerCommand::Meet { slot: 99 }))
