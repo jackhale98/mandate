@@ -209,5 +209,13 @@ fn v18_saves_migrate_without_a_log_and_keep_their_hash() {
         o.remove("act");
         o.remove("asks");
     }
+    // And the policy families' (24 → 25) theirs, new in v25.
+    if let Some(p) = expected
+        .pointer_mut("/policy")
+        .and_then(|p| p.as_object_mut())
+    {
+        p.remove("families");
+        p.remove("works");
+    }
     assert_eq!(v, serde_json::json!({ "state": expected, "log": null }));
 }

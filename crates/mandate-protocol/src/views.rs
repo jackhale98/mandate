@@ -153,7 +153,7 @@ fn put_policy(put: &mut dyn FnMut(&str, String), engine: &Engine, policy: u32, m
         .policy
         .instances
         .get(policy as usize)
-        .and_then(|p| engine.content().policies.get(&p.template))
+        .and_then(|p| mandate_sim::policy::resolve(engine.content(), &engine.state().policy, p))
         .map(|t| t.name_key.clone())
         .unwrap_or_default();
     put("policy_key", key);
@@ -491,6 +491,15 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
         EventKind::RulesUpdated { to_engine, .. } => {
             put("version", to_engine.clone());
             "event-rules-updated"
+        }
+        // Policy families (DEC-092); their own views come with F3.
+        EventKind::ProposalOpened { family, .. } => {
+            put("family", family.clone());
+            "event-proposal-opened"
+        }
+        EventKind::ProposalLapsed { family, .. } => {
+            put("family", family.clone());
+            "event-proposal-lapsed"
         }
         EventKind::NationalBudget {
             year,

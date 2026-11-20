@@ -172,6 +172,11 @@ pub enum Source {
         person: CharacterId,
         topic: ContentKey,
     },
+    /// A policy family's proposal came onto the table (DEC-092): in the
+    /// paper when public, and its lead.
+    Proposal {
+        proposal: FamilyInstanceId,
+    },
     Lab,
 }
 
@@ -193,6 +198,7 @@ impl Source {
             Source::Council { .. } => "council",
             Source::Sponsor { .. } => "sponsor",
             Source::Talk { .. } => "talk",
+            Source::Proposal { .. } => "proposal",
             Source::Lab => "lab",
         }
     }
@@ -639,8 +645,16 @@ pub fn resolve(
                 }
             }
             GrantSubject::Proposals => {
+                // Open family proposals in the town (DEC-092).
+                for i in state
+                    .policy
+                    .families
+                    .open_at(crate::world::Jurisdiction::town(town))
+                {
+                    subjects.push(Subject::Proposal { proposal: i.id });
+                }
                 // Situational templates on the table in the town (until F4
-                // turns them into families; open family proposals join here).
+                // turns them into families).
                 for t in content.policies.values() {
                     if t.tier == TierKey::Local
                         && t.unlock.is_some()

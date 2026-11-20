@@ -17,6 +17,12 @@ use mandate_core::{IdAllocator, SimDate, Stream, define_id};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+pub mod drafting;
+pub mod families;
+pub mod resolve;
+pub mod works;
+pub use resolve::{Resolved, resolve};
+
 define_id!(
     /// A policy instance (a bill or law).
     PolicyInstanceId
@@ -48,6 +54,13 @@ pub enum Clause {
     Sunset { years: u8 },
     /// Limit to one neighbourhood first (20% of cost and effect).
     Pilot { neighborhood: u32 },
+    /// Where a policy family's bill applies (an option's `area`, DEC-092):
+    /// per-capita costs count these residents, and area-aware mechanisms and
+    /// side effects (hazard protection, disruption, grievance) fall on these
+    /// neighbourhoods only.
+    Area {
+        neighborhoods: Vec<crate::world::NeighborhoodId>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -85,9 +98,21 @@ pub struct PolicyInstance {
     pub cause: Option<EventId>,
     /// Direct contributions recorded for "Why?" (REQ-011 attribution).
     pub ledger: BTreeMap<String, f64>,
+    /// A policy family's bill (DEC-092): the proposal and the choices it was
+    /// drafted with; `template` holds the family id. `None` for a standard
+    /// bill (and not serialized, so standard bills read as before).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub family: Option<families::FamilyDraft>,
 }
 
 impl PolicyInstance {
+    /// The neighbourhoods of its `area` clause, if it has one.
+    pub fn area(&self) -> Option<&[crate::world::NeighborhoodId]> {
+        self.clauses.iter().find_map(|c| match c {
+            Clause::Area { neighborhoods } => Some(neighborhoods.as_slice()),
+            _ => None,
+        })
+    }
     /// The jurisdiction the bill or law belongs to (DEC-098).
     pub fn at(&self) -> crate::world::Jurisdiction {
         crate::world::Jurisdiction::of(self.tier, self.jurisdiction)
@@ -123,6 +148,12 @@ pub struct PolicyState {
     pub instances: Vec<PolicyInstance>,
     /// One municipal administration per municipality.
     pub agencies: Vec<Agency>,
+    /// Policy families: decks, proposals, cooldowns (DEC-092).
+    #[serde(default)]
+    pub families: families::FamilyState,
+    /// Works you can see (DEC-099).
+    #[serde(default)]
+    pub works: works::WorksState,
 }
 
 impl PolicyState {
@@ -143,6 +174,8 @@ pub fn init(world: &World, rng: &mut mandate_core::SimRng) -> PolicyState {
     PolicyState {
         ids: IdAllocator::new(),
         instances: Vec::new(),
+        families: Default::default(),
+        works: Default::default(),
         agencies: world
             .municipalities
             .iter()
@@ -157,6 +190,59 @@ pub fn init(world: &World, rng: &mut mandate_core::SimRng) -> PolicyState {
 
 pub fn category_index(c: BudgetCategory) -> usize {
     c as usize
+}
+
+/// The residents a bill's per-capita costs count: those of its `area`
+/// (DEC-092), else of its jurisdiction.
+pub fn cost_residents(
+    world: &World,
+    pop: &PopulationState,
+    p: &PolicyInstance,
+    jurisdiction: f64,
+) -> f64 {
+    match p.area() {
+        Some(hoods) => hoods
+            .iter()
+            .filter(|h| h.index() < world.neighborhoods.len())
+            .map(|h| pop.hood_total(h.index()) as f64)
+            .sum(),
+        None => jurisdiction,
+    }
+}
+
+/// Annual income (nominal) from a bill's `revenue` mechanisms (DEC-092
+/// families), for `residents` (its area's or jurisdiction's).
+pub fn annual_revenue(
+    t: &PolicyTemplate,
+    p: &PolicyInstance,
+    residents: f64,
+    price_level: f64,
+) -> f64 {
+    let mut v = 0.0;
+    for m in &t.mechanisms {
+        if let MechanismDef::Revenue {
+            per_capita,
+            per_unit,
+            param,
+        } = m
+        {
+            v += per_capita * residents
+                + per_unit * param.as_deref().map(|k| p.param(k)).unwrap_or(0.0);
+        }
+    }
+    v * p.pilot_scale() * price_level
+}
+
+/// The share of a bill's annual cost it borrows (`borrow` mechanisms; at most 1).
+pub fn borrow_share(t: &PolicyTemplate) -> f64 {
+    t.mechanisms
+        .iter()
+        .map(|m| match m {
+            MechanismDef::Borrow { share } => *share,
+            _ => 0.0,
+        })
+        .sum::<f64>()
+        .clamp(0.0, 1.0)
 }
 
 /// Annual cost (nominal) of an instance for a jurisdiction of `residents`.
@@ -204,6 +290,40 @@ pub struct PolicyMods {
     pub disruption: f64,
     /// Change in labour-force participation by class (share).
     pub labour_supply: [f64; 3],
+    /// Structural jobs added by sector, in registry order (`sector_capacity`;
+    /// empty when no policy adds any).
+    pub capacity: Vec<f64>,
+    /// Hazard protection of single neighbourhoods (an `area` clause,
+    /// DEC-092): (flood, storm, wildfire), added to the town's.
+    pub hood_protection: BTreeMap<u32, [f64; 3]>,
+    /// Disruption felt in single neighbourhoods (an `area` clause).
+    pub hood_disruption: BTreeMap<u32, f64>,
+}
+
+impl PolicyMods {
+    /// Protection against a hazard in a neighbourhood: the town's plus the
+    /// neighbourhood's own (capped at 0.9).
+    pub fn protection_at(&self, hazard: HazardKey, hood: u32) -> f64 {
+        let i = match hazard {
+            HazardKey::Flood => 0,
+            HazardKey::Storm => 1,
+            HazardKey::Wildfire => 2,
+        };
+        let town = match hazard {
+            HazardKey::Flood => self.flood_protection,
+            HazardKey::Storm => self.storm_protection,
+            HazardKey::Wildfire => self.wildfire_protection,
+        };
+        match self.hood_protection.get(&hood) {
+            Some(v) => (town + v[i]).min(0.9),
+            None => town,
+        }
+    }
+
+    /// Disruption felt in a neighbourhood beyond the town's.
+    pub fn disruption_at(&self, hood: u32) -> f64 {
+        self.hood_disruption.get(&hood).copied().unwrap_or(0.0)
+    }
 }
 
 /// A side effect's size for an instance: `per_unit` × its parameter (or 1).
@@ -242,16 +362,25 @@ pub fn mods_for(
         .in_municipality(m)
         .filter(|p| p.status == PolicyStatus::InEffect)
     {
-        let Some(t) = content.policies.get(&p.template) else {
+        let Some(t) = resolve(content, st, p) else {
             continue;
         };
-        let k = p.progress as f64 * p.pilot_scale() * funded(p.id.0);
+        let area = p.area();
+        // A family option's effect factor scales every mechanism (DEC-092).
+        let k = p.progress as f64 * p.pilot_scale() * funded(p.id.0) * t.effect_factor;
         // Side effects (DEC-073): disruption while building, labour supply once running.
         let building = (1.0 - p.progress as f64).max(0.0) * p.pilot_scale() * funded(p.id.0);
         for fx in &t.side_effects {
             let a = side_effect_amount(fx, p);
             match fx {
-                mandate_content::SideEffectDef::Disruption { .. } => out.disruption += a * building,
+                mandate_content::SideEffectDef::Disruption { .. } => match area {
+                    Some(hoods) => {
+                        for h in hoods {
+                            *out.hood_disruption.entry(h.0).or_default() += a * building;
+                        }
+                    }
+                    None => out.disruption += a * building,
+                },
                 mandate_content::SideEffectDef::LabourSupply { class, .. } => {
                     out.labour_supply[class_index(*class)] += a * k
                 }
@@ -300,18 +429,49 @@ pub fn mods_for(
                     per_unit,
                 } => {
                     let v = per_unit * p.param(param) * k;
-                    match hazard {
-                        HazardKey::Flood => out.flood_protection += v,
-                        HazardKey::Storm => out.storm_protection += v,
-                        HazardKey::Wildfire => out.wildfire_protection += v,
+                    match (hazard.key(), area) {
+                        (Some(h), Some(hoods)) => {
+                            let i = match h {
+                                HazardKey::Flood => 0,
+                                HazardKey::Storm => 1,
+                                HazardKey::Wildfire => 2,
+                            };
+                            for x in hoods {
+                                out.hood_protection.entry(x.0).or_default()[i] += v;
+                            }
+                        }
+                        (Some(HazardKey::Flood), None) => out.flood_protection += v,
+                        (Some(HazardKey::Storm), None) => out.storm_protection += v,
+                        (Some(HazardKey::Wildfire), None) => out.wildfire_protection += v,
+                        (None, _) => {}
                     }
                 }
+                // Structural jobs (DEC-092 families; the economy reads them).
+                MechanismDef::SectorCapacity {
+                    sector,
+                    param,
+                    per_unit,
+                } => {
+                    if let Some(i) = content.sector_index(sector) {
+                        if out.capacity.is_empty() {
+                            out.capacity = vec![0.0; content.sectors.len()];
+                        }
+                        out.capacity[i] += per_unit * p.param(param) * k;
+                    }
+                }
+                // Finance reads these (`borrow_share`, `annual_revenue`).
+                MechanismDef::Borrow { .. } | MechanismDef::Revenue { .. } => {}
             }
         }
     }
     out.flood_protection = out.flood_protection.min(0.9);
     out.storm_protection = out.storm_protection.min(0.9);
     out.wildfire_protection = out.wildfire_protection.min(0.9);
+    for v in out.hood_protection.values_mut() {
+        for x in v.iter_mut() {
+            *x = x.min(0.9);
+        }
+    }
     out
 }
 
@@ -392,6 +552,7 @@ pub fn probe(t: &PolicyTemplate, m: u32, params: &BTreeMap<String, f64>) -> Poli
         end_reason: None,
         cause: None,
         ledger: Default::default(),
+        family: None,
     }
 }
 
@@ -473,7 +634,7 @@ pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInp
         riders += match c {
             Clause::Sunset { .. } => k.sunset,
             Clause::Pilot { .. } => k.pilot,
-            Clause::Earmark { .. } => 0.0,
+            Clause::Earmark { .. } | Clause::Area { .. } => 0.0,
         };
     }
     let foreign_earmarks = v
@@ -726,7 +887,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             continue;
         }
         let inst = st.instances[i].clone();
-        let Some(t) = r.content.policies.get(&inst.template) else {
+        let Some(t) = resolve(r.content, st, &inst) else {
             continue;
         };
         let Some(tier) = constitution.tier(inst.tier) else {
@@ -757,7 +918,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             let members = body
                 .map(|b| crate::politics::members_of(pol, b, at))
                 .unwrap_or(&[]);
-            member_leans(k, r.world, pop, pol, seed, t, &inst, members, signer)
+            member_leans(k, r.world, pop, pol, seed, &t, &inst, members, signer)
         };
         let tally = |rng: &mut mandate_core::SimRng, leans: &[(PoliticianId, f64)]| -> u32 {
             leans
@@ -789,7 +950,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 override_rule,
             } => {
                 let holder = crate::politics::holder_of(pol, office, at);
-                let lean = signer_lean(k, r.world, pop, pol, seed, t, &inst, holder);
+                let lean = signer_lean(k, r.world, pop, pol, seed, &t, &inst, holder);
                 if rng.chance(sign_probability(k, lean)) {
                     (
                         true,
@@ -908,10 +1069,10 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
     for i in 0..st.instances.len() {
         let m = st.instances[i].jurisdiction as usize;
         let competence = st.agencies.get(m).map(|a| a.competence).unwrap_or(0.6) as f64;
-        let p = &mut st.instances[i];
-        let Some(t) = r.content.policies.get(&p.template) else {
+        let Some(t) = resolve(r.content, st, &st.instances[i]) else {
             continue;
         };
+        let p = &mut st.instances[i];
         p.awareness = (p.awareness * (1.0 - r.content.council.awareness_fade) as f32).max(0.0);
         match p.status {
             PolicyStatus::Enacted | PolicyStatus::InEffect => {
@@ -1006,6 +1167,20 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         MechanismDef::LocalTaxRate { param } => {
                             p.ledger.insert("tax_change_pts".into(), p.param(param));
                         }
+                        MechanismDef::SectorCapacity {
+                            sector,
+                            param,
+                            per_unit,
+                        } => {
+                            p.ledger.insert(
+                                format!("jobs_added_{}", sector_key(sector)),
+                                per_unit * p.param(param) * k,
+                            );
+                        }
+                        MechanismDef::Borrow { share } => {
+                            p.ledger.insert("borrowed_pct".into(), share * 100.0);
+                        }
+                        MechanismDef::Revenue { .. } => {}
                     }
                 }
                 p.ledger.insert("funded_pct".into(), funded * 100.0);

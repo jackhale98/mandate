@@ -713,6 +713,13 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
                 );
             }
         }
+        // A policy family's bound slots (the families' own "Why?" comes
+        // with their views, F3).
+        C::HoodConcern { .. }
+        | C::HoodHazard { .. }
+        | C::SectorDecline { .. }
+        | C::PlaceOpen { .. }
+        | C::PlaceClosed { .. } => {}
     }
     out
 }

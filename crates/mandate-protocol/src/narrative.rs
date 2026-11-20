@@ -169,7 +169,7 @@ pub fn cast_args(engine: &Engine, cast: &[CastEntry]) -> BTreeMap<String, String
                     .policy
                     .instances
                     .get(id as usize)
-                    .and_then(|p| content.policies.get(&p.template))
+                    .and_then(|p| mandate_sim::policy::resolve(content, &st.policy, p))
                 {
                     put(&mut a, &format!("{}_key", e.role), t.name_key.clone());
                 }
@@ -361,7 +361,7 @@ fn bill_key(engine: &Engine, id: u32) -> String {
         .policy
         .instances
         .get(id as usize)
-        .and_then(|p| engine.content().policies.get(&p.template))
+        .and_then(|p| mandate_sim::policy::resolve(engine.content(), &engine.state().policy, p))
         .map(|t| t.name_key.clone())
         .unwrap_or_default()
 }
@@ -487,7 +487,7 @@ fn preview(engine: &Engine, d: &Decision, e: &EffectDef) -> EffectLineView {
                     .policy
                     .instances
                     .get(id as usize)
-                    .and_then(|p| content.policies.get(&p.template))
+                    .and_then(|p| mandate_sim::policy::resolve(content, &st.policy, p))
                     .map(|t| t.name_key.clone())
                     .unwrap_or_default(),
                 _ => String::new(),
@@ -699,7 +699,7 @@ fn applied_line(engine: &Engine, a: &Applied) -> EffectLineView {
                     st.policy
                         .instances
                         .get(*policy as usize)
-                        .and_then(|p| content.policies.get(&p.template))
+                        .and_then(|p| mandate_sim::policy::resolve(content, &st.policy, p))
                         .map(|t| t.name_key.clone())
                         .unwrap_or_default(),
                 ),
@@ -727,7 +727,7 @@ fn applied_line(engine: &Engine, a: &Applied) -> EffectLineView {
                 st.policy
                     .instances
                     .get(*policy as usize)
-                    .and_then(|p| content.policies.get(&p.template))
+                    .and_then(|p| mandate_sim::policy::resolve(content, &st.policy, p))
                     .map(|t| t.name_key.clone())
                     .unwrap_or_default(),
             )],

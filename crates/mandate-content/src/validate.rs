@@ -71,6 +71,45 @@ pub fn fluent_keys(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
+/// The variables (`{ $x }`, also inside selectors) each Fluent message of
+/// a language's `.ftl` sources uses, by message id. A message runs from its
+/// `id = …` line through the indented lines after it.
+pub fn fluent_placeholders(text: &str) -> BTreeMap<String, BTreeSet<String>> {
+    let mut out: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut current: Option<String> = None;
+    let scan = |line: &str, vars: &mut BTreeSet<String>| {
+        let mut rest = line;
+        while let Some(i) = rest.find('$') {
+            let name: String = rest[i + 1..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+                .collect();
+            if !name.is_empty() {
+                vars.insert(name.clone());
+            }
+            rest = &rest[i + 1 + name.len()..];
+        }
+    };
+    for line in text.lines() {
+        let first = line.chars().next();
+        match first {
+            Some(c) if c.is_ascii_alphabetic() => {
+                current = line.split_once('=').map(|(id, _)| id.trim().to_string());
+                if let (Some(id), Some((_, value))) = (&current, line.split_once('=')) {
+                    scan(value, out.entry(id.clone()).or_default());
+                }
+            }
+            Some(c) if c.is_whitespace() => {
+                if let Some(id) = &current {
+                    scan(line, out.entry(id.clone()).or_default());
+                }
+            }
+            _ => current = None,
+        }
+    }
+    out
+}
+
 /// A constitution's posts and career (DEC-017, DEC-098): ids and role words
 /// are unique, every tier has the engine's procedures, only implemented
 /// voting rules, at-large bodies have seats, workplaces are place kinds,
@@ -278,6 +317,10 @@ fn validate_posts(b: &ContentBundle, c: &crate::types::ConstitutionDef, issues: 
         }
     }
 }
+
+/// Whether the family mechanisms (`borrow`, `revenue`, `sector_capacity`)
+/// are simulated: content may use them (F2b).
+pub const FAMILY_MECHANISMS_SIMULATED: bool = true;
 
 pub(crate) fn valid_key(id: &str) -> bool {
     !id.is_empty()
@@ -646,20 +689,32 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         }
         use crate::types::MechanismDef as M;
         for m in &p.mechanisms {
-            let param = match m {
-                M::Service { param, .. }
-                | M::Transfer { param, .. }
-                | M::HousingSupply { param }
-                | M::Zoning { param, .. }
-                | M::SectorSubsidy { param, .. }
-                | M::WageFloor { param }
-                | M::HazardProtection { param, .. }
-                | M::LocalTaxRate { param } => param,
-            };
-            if !has(param) {
+            if let Some(param) = m.param()
+                && !has(param)
+            {
                 issues.push(Issue::error(
                     &p.id,
                     &format!("mechanism references unknown parameter `{param}`"),
+                ));
+            }
+            // Slot references (`@slot`) belong to policy families.
+            if let M::HazardProtection {
+                hazard: crate::types::HazardRef::Slot(h),
+                ..
+            } = m
+            {
+                issues.push(Issue::error(
+                    &p.id,
+                    &format!("hazard `{h}` is a slot reference; templates name a hazard"),
+                ));
+            }
+            if crate::policy_family::is_family_mechanism(m) && !FAMILY_MECHANISMS_SIMULATED {
+                issues.push(Issue::error(
+                    &p.id,
+                    &format!(
+                        "mechanism `{}` is declared but not yet simulated (F2b)",
+                        m.key()
+                    ),
                 ));
             }
             if let M::SectorSubsidy { sector, .. } = m
@@ -716,6 +771,26 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
             check_situation(b, &p.id, p.tier, u, &mut issues);
         }
     }
+    // Treasury shares (DEC-098): each tier's starting budget split.
+    for (tier, shares) in [
+        ("local", &b.economy.treasury_shares.local),
+        ("regional", &b.economy.treasury_shares.regional),
+        ("national", &b.economy.treasury_shares.national),
+    ] {
+        let sum: f64 = shares.iter().sum();
+        if shares
+            .iter()
+            .any(|s| !(s.is_finite() && (0.0..=1.0).contains(s)))
+            || sum > 1.0 + 1e-9
+        {
+            issues.push(Issue::error(
+                "economy",
+                &format!("treasury_shares.{tier}: each share in [0, 1], at most 1 in all"),
+            ));
+        }
+    }
+    // Policy families (DEC-092): items 1–10 of the contract's §2.13.
+    crate::policy_family::validate(b, &mut issues);
     // Overheard talk: lines name real concerns and crises.
     for o in &b.overheard {
         if !o.id.starts_with("overheard.") {
@@ -1583,7 +1658,7 @@ fn validate_characters(b: &ContentBundle, issues: &mut Vec<Issue>) {
             ));
         }
         for p in &c.policies {
-            if !b.policies.contains_key(p) {
+            if !b.policies.contains_key(p) && b.family(p).is_none() {
                 issues.push(Issue::error(
                     &c.id,
                     &format!("policies names unknown policy `{p}`"),

@@ -618,6 +618,8 @@ outcome-vote-yes = You declared your vote: yes.
 outcome-vote-no = You declared your vote: no.
 outcome-vote-abstain = You declared you will abstain.
 event-rules-updated = The game was updated (version { $version }). New rules apply from today.
+event-proposal-opened = A new proposal came onto the table.
+event-proposal-lapsed = A proposal left the table.
 ui-cost-line = { $slots ->
     [one] 1 slot
    *[other] { $slots } slots

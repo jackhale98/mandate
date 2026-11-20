@@ -92,11 +92,14 @@ pub struct Treasury {
 }
 
 impl Treasury {
-    fn new(tier: TierKind, annual: Money) -> Self {
+    /// A treasury whose discretionary budget splits `annual` by its tier's
+    /// shares (`economy.treasury_shares`, DEC-098: content, not code).
+    fn new(tier: TierKind, annual: Money, e: &EconomyParams) -> Self {
+        let t = &e.treasury_shares;
         let shares = match tier {
-            TierKind::Local => [0.15, 0.25, 0.0, 0.2, 0.2, 0.05, 0.05, 0.05, 0.05],
-            TierKind::Regional => [0.05, 0.3, 0.35, 0.0, 0.2, 0.0, 0.0, 0.05, 0.05],
-            TierKind::National => [0.15, 0.1, 0.2, 0.2, 0.15, 0.0, 0.05, 0.05, 0.1],
+            TierKind::Local => &t.local,
+            TierKind::Regional => &t.regional,
+            TierKind::National => &t.national,
         };
         let budget: Vec<Money> = shares.iter().map(|s| annual.scale(*s)).collect();
         Treasury {
@@ -164,6 +167,21 @@ pub struct Appropriation {
     pub annual_cost: f64,
     /// Share of the cost actually funded (0..1).
     pub funded_share: f64,
+    /// Share of the cost borrowed rather than paid from the budget (a
+    /// family bill's `borrow`, DEC-092): added to debt as it is spent.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub borrow_share: f64,
+}
+
+fn is_zero(v: &f64) -> bool {
+    *v == 0.0
+}
+
+impl Appropriation {
+    /// The part of its funded cost paid from this year's budget.
+    pub fn from_budget(&self) -> f64 {
+        self.annual_cost * self.funded_share * (1.0 - self.borrow_share)
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -299,13 +317,17 @@ pub fn init(
     let local = (0..f.property.len())
         .map(|m| {
             let rev = f.property[m] * 1.05 + f.population_by_muni[m] * (g_nl + g_rl);
-            Treasury::new(TierKind::Local, Money::from_units(rev as i64))
+            Treasury::new(TierKind::Local, Money::from_units(rev as i64), e)
         })
         .collect();
     let regional = (0..world.regions.len())
         .map(|r| {
             let rev = f.sales_by_region[r] + f.population_by_region[r] * (g_nr - g_rl);
-            Treasury::new(TierKind::Regional, Money::from_units(rev.max(0.0) as i64))
+            Treasury::new(
+                TierKind::Regional,
+                Money::from_units(rev.max(0.0) as i64),
+                e,
+            )
         })
         .collect();
     let total_pop: f64 = f.population_by_muni.iter().sum();
@@ -321,6 +343,7 @@ pub fn init(
         national: Some(Treasury::new(
             TierKind::National,
             Money::from_units(nat_discretionary as i64),
+            e,
         )),
         grant_national_to_regional: g_nr,
         grant_national_to_local: g_nl,
@@ -410,16 +433,26 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         .map(|p| p.id.0)
         .collect();
     fin.appropriations.retain(|id, _| active.contains(id));
+    // Income from family bills' `revenue` mechanisms, by town (DEC-092).
+    let mut income: Vec<(usize, f64)> = Vec::new();
     for p in policy.instances.iter().filter(|p| p.active()) {
-        let Some(t) = r.content.policies.get(&p.template) else {
+        let Some(t) = crate::policy::resolve(r.content, policy, p) else {
             continue;
         };
         let m = p.jurisdiction as usize;
-        let residents = f.population_by_muni.get(m).copied().unwrap_or(0.0);
-        let cost = crate::policy::annual_cost(t, p, residents, price);
+        let town = f.population_by_muni.get(m).copied().unwrap_or(0.0);
+        // Per-capita costs count the area's residents (an `area` clause).
+        let residents = crate::policy::cost_residents(world, r.population(), p, town);
+        let cost = crate::policy::annual_cost(&t, p, residents, price);
+        let borrow = crate::policy::borrow_share(&t);
+        let revenue = crate::policy::annual_revenue(&t, p, residents, price);
+        if revenue > 0.0 {
+            income.push((m, revenue * p.progress as f64 * fin.funded_share(p.id.0)));
+        }
         let category = t.category as usize;
         if let Some(a) = fin.appropriations.get_mut(&p.id.0) {
             a.annual_cost = cost;
+            a.borrow_share = borrow;
         } else if let Some(treasury) = fin.local.get(m) {
             // New law: fund what fits in last year's room plus a 3% contingency.
             let budget = treasury.budget_total().units() as f64;
@@ -432,12 +465,14 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                 .appropriations
                 .values()
                 .filter(|a| a.municipality == p.jurisdiction)
-                .map(|a| a.annual_cost * a.funded_share)
+                .map(|a| a.from_budget())
                 .sum();
-            let share = if cost <= 0.0 {
+            // A borrowed share needs no room in the budget.
+            let needs = cost * (1.0 - borrow);
+            let share = if needs <= 0.0 {
                 1.0
             } else {
-                clamp((room - existing) / cost, 0.0, 1.0)
+                clamp((room - existing) / needs, 0.0, 1.0)
             };
             fin.appropriations.insert(
                 p.id.0,
@@ -446,17 +481,32 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                     category,
                     annual_cost: cost,
                     funded_share: share,
+                    borrow_share: borrow,
                 },
             );
         }
     }
     for a in fin.appropriations.values() {
         if let Some(t) = fin.local.get_mut(a.municipality as usize) {
-            let spend = Money::from_units((a.annual_cost * a.funded_share / 12.0) as i64);
-            t.spend(
-                Category::ALL[a.category.min(Category::ALL.len() - 1)],
-                spend,
-            );
+            if a.borrow_share > 0.0 {
+                // The borrowed part is spent too, and added to the debt.
+                let monthly = a.annual_cost * a.funded_share / 12.0;
+                let borrowed = Money::from_units((monthly * a.borrow_share) as i64);
+                let paid = Money::from_units((monthly * (1.0 - a.borrow_share)) as i64);
+                t.spend(Category::ALL[a.category.min(Category::ALL.len() - 1)], paid);
+                t.debt += borrowed;
+            } else {
+                let spend = Money::from_units((a.annual_cost * a.funded_share / 12.0) as i64);
+                t.spend(
+                    Category::ALL[a.category.min(Category::ALL.len() - 1)],
+                    spend,
+                );
+            }
+        }
+    }
+    for (m, v) in income {
+        if let Some(t) = fin.local.get_mut(m) {
+            t.earn(Revenue::Fees, Money::from_units((v / 12.0) as i64));
         }
     }
 
@@ -516,7 +566,7 @@ pub fn new_budget_year(fin: &mut FinanceState, r: &Reads<'_>, out: &mut Outs<'_>
             .appropriations
             .values()
             .filter(|a| a.municipality as usize == m)
-            .map(|a| a.annual_cost)
+            .map(|a| a.annual_cost * (1.0 - a.borrow_share))
             .sum();
         let share = if full <= 0.0 {
             1.0

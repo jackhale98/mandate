@@ -14,6 +14,7 @@ pub mod map_layers;
 pub mod media;
 pub mod narrative;
 pub mod overrides;
+pub mod policy_family;
 pub mod routines;
 pub mod types;
 pub mod validate;

@@ -396,7 +396,7 @@ fn stance_sign(st: &crate::State, content: &ContentBundle, s: &Settings, bill: u
     let Some(p) = st.policy.instances.get(bill as usize) else {
         return 0;
     };
-    let Some(t) = content.policies.get(&p.template) else {
+    let Some(t) = crate::policy::resolve(content, &st.policy, p) else {
         return 0;
     };
     let sign = |x: f64| {

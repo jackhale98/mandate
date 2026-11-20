@@ -526,7 +526,8 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let content = engine.content();
     let gate = Gate::of(engine);
     let town = MunicipalityId(p.jurisdiction);
-    let t = content.policies.get(&p.template)?;
+    let resolved = mandate_sim::policy::resolve(content, &st.policy, p)?;
+    let t = resolved.template();
     let hoods: Vec<usize> = st.world.hoods_of(MunicipalityId(p.jurisdiction)).collect();
     let pending = p.status == PolicyStatus::UnderConsideration || p.status == PolicyStatus::Draft;
     let constitution = content.constitutions.get(&st.meta.constitution);
@@ -679,14 +680,18 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
         clauses: p
             .clauses
             .iter()
-            .map(|c| match c {
-                Clause::Earmark { ward } => ClauseDto::Earmark { ward: ward.0 },
-                Clause::Sunset { years } => ClauseDto::Sunset {
-                    years: *years as u32,
-                },
-                Clause::Pilot { neighborhood } => ClauseDto::Pilot {
-                    neighborhood: *neighborhood,
-                },
+            .filter_map(|c| {
+                Some(match c {
+                    Clause::Earmark { ward } => ClauseDto::Earmark { ward: ward.0 },
+                    Clause::Sunset { years } => ClauseDto::Sunset {
+                        years: *years as u32,
+                    },
+                    Clause::Pilot { neighborhood } => ClauseDto::Pilot {
+                        neighborhood: *neighborhood,
+                    },
+                    // A family bill's area follows its choices (its view is F3's).
+                    Clause::Area { .. } => return None,
+                })
             })
             .collect(),
         sponsor_is_player: sponsor.is_some_and(|s| s.is_player),

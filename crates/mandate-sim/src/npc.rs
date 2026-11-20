@@ -38,6 +38,9 @@ pub struct Inputs {
     pub focus_bill: Option<(u32, f64)>,
     /// The NPC's best policy idea.
     pub best_template: Option<String>,
+    /// When that idea is an open policy-family proposal (DEC-092): the
+    /// proposal, and the sponsor whose version they would table.
+    pub best_family: Option<(crate::policy::families::FamilyInstanceId, Option<String>)>,
     /// (race index, candidate index) if campaigning.
     pub race: Option<(usize, usize)>,
 }
@@ -240,7 +243,7 @@ fn inputs_memo(
     if me.in_office() {
         let mut best: Option<(u32, f64, f64)> = None;
         for p in &pending {
-            let Some(t) = content.policies.get(&p.template) else {
+            let Some(t) = crate::policy::resolve(content, &state.policy, p) else {
                 continue;
             };
             let a = alignment(&t.signature_weights, &me.attitudes);
@@ -273,8 +276,8 @@ fn inputs_memo(
             x.focus_bill = Some((bill, dir));
             let counted = memo.leans.get(&bill).copied().or_else(|| {
                 let inst = state.policy.instances.get(bill as usize)?;
-                let t = content.policies.get(&inst.template)?;
-                let leans = legislature_leans(state, content, t, inst);
+                let t = crate::policy::resolve(content, &state.policy, inst)?;
+                let leans = legislature_leans(state, content, &t, inst);
                 let v = (
                     leans
                         .iter()
@@ -319,7 +322,7 @@ fn inputs_memo(
             for t in content
                 .policies
                 .values()
-                .filter(|t| t.tier == TierKey::Local)
+                .filter(|t| t.tier == TierKey::Local && !t.retired)
             {
                 // Situational policies only while the town's situation calls for them.
                 if t.unlock.is_some()
@@ -362,13 +365,129 @@ fn inputs_memo(
                     best_t = Some((t.id.as_str(), ranked, score));
                 }
             }
-            if let Some((t, _, s)) = best_t {
-                x.agenda = clamp(0.5 + s, 0.0, 1.0);
-                x.best_template = Some(t.to_string());
+            let best_f = family_idea(
+                state,
+                content,
+                me,
+                m,
+                &hoods,
+                &pending,
+                &crisis_policies,
+                champion,
+                crisis_severity,
+            );
+            match (best_t, best_f) {
+                (_, Some((proposal, sponsor, family, ranked, s)))
+                    if best_t.is_none_or(|b| ranked > b.1) =>
+                {
+                    x.agenda = clamp(0.5 + s, 0.0, 1.0);
+                    x.best_template = Some(family);
+                    x.best_family = Some((proposal, sponsor));
+                }
+                (Some((t, _, s)), _) => {
+                    x.agenda = clamp(0.5 + s, 0.0, 1.0);
+                    x.best_template = Some(t.to_string());
+                }
+                _ => {}
             }
         }
     }
     x
+}
+
+/// The NPC's best open policy-family proposal (DEC-092 §2.10): one at
+/// their town that their post has the family's power to propose, in the
+/// version of the sponsor they like best (else the defaults), scored by the
+/// same agenda as templates. (proposal, sponsor, family id, ranked, score).
+#[allow(clippy::too_many_arguments)]
+fn family_idea(
+    state: &State,
+    content: &ContentBundle,
+    me: &crate::politics::Politician,
+    m: u32,
+    hoods: &[usize],
+    pending: &[&PolicyInstance],
+    crisis_policies: &[String],
+    champion: f64,
+    crisis_severity: f64,
+) -> Option<(
+    crate::policy::families::FamilyInstanceId,
+    Option<String>,
+    String,
+    f64,
+    f64,
+)> {
+    let fam = &state.policy.families;
+    if fam.instances.is_empty() {
+        return None;
+    }
+    let c = content.constitutions.get(&state.meta.constitution)?;
+    let at = crate::world::Jurisdiction::town(MunicipalityId(m));
+    let mut best = None;
+    for inst in fam.open_at(at) {
+        let Some(f) = content.family(&inst.family).filter(|f| !f.disabled) else {
+            continue;
+        };
+        if !crate::politics::holds_power_at(&state.politics, c, me.id, f.requires, at) {
+            continue;
+        }
+        // One bill per proposal at a time.
+        if pending
+            .iter()
+            .any(|p| p.family.as_ref().is_some_and(|d| d.instance == inst.id))
+        {
+            continue;
+        }
+        // The sponsor they are closest to.
+        let sponsor = inst
+            .sponsors
+            .iter()
+            .map(|s| {
+                (
+                    crate::characters::opinion(&state.politics, me.character, s.person),
+                    s,
+                )
+            })
+            .max_by(|a, b| a.0.total_cmp(&b.0))
+            .map(|(_, s)| s.sponsor.clone());
+        let Ok(p) = crate::policy::drafting::prepare(
+            state,
+            content,
+            inst.id,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            sponsor.as_deref(),
+        ) else {
+            continue;
+        };
+        let choices: BTreeMap<String, String> = p.draft.choices.iter().cloned().collect();
+        let Some(t) = crate::policy::resolve::compose(content, f, Some(inst), &choices) else {
+            continue;
+        };
+        let own = alignment(&t.signature_weights, &me.attitudes);
+        let public = crate::policy::public_support(&t, &state.population, hoods);
+        let agenda = agenda_bonus_in(state, content, m, hoods, &t);
+        let prag = me.pragmatism as f64;
+        let score = (1.0 - prag) * own + prag * public;
+        let champion = if champion > 0.0 && crisis_policies.contains(&f.id) {
+            champion * crisis_severity
+        } else {
+            0.0
+        };
+        let ranked = score + agenda + champion;
+        if best.as_ref().is_none_or(
+            |b: &(
+                crate::policy::families::FamilyInstanceId,
+                Option<String>,
+                String,
+                f64,
+                f64,
+            )| ranked > b.3,
+        ) {
+            best = Some((inst.id, sponsor, f.id.clone(), ranked, score));
+        }
+    }
+    best
 }
 
 /// Agendas follow the town's character (DEC-077 §1). When an NPC ranks its
@@ -593,6 +712,7 @@ pub fn take_turn(state: &mut State, content: &ContentBundle, m: u32, full: bool)
                 AiAction::ProposeBill => {
                     x.no_own_bill = 0.0;
                     x.best_template = None;
+                    x.best_family = None;
                 }
                 AiAction::Fundraise | AiAction::Advertise => {
                     let funds = state.politics.get(id).map(|p| p.funds).unwrap_or(0.0);
@@ -753,10 +873,10 @@ fn act(
             let Some(inst) = state.policy.instances.get(bill as usize) else {
                 return;
             };
-            let Some(t) = content.policies.get(&inst.template) else {
+            let Some(t) = crate::policy::resolve(content, &state.policy, inst) else {
                 return;
             };
-            let leans = legislature_leans(state, content, t, inst);
+            let leans = legislature_leans(state, content, &t, inst);
             // The most persuadable colleague not already on our side.
             let target = leans
                 .iter()
@@ -805,6 +925,10 @@ fn act(
             }
         }
         AiAction::ProposeBill => {
+            if let Some((proposal, sponsor)) = x.best_family.clone() {
+                propose_family(state, content, id, rng, proposal, sponsor.as_deref());
+                return;
+            }
             let Some(template) = x.best_template.clone() else {
                 return;
             };
@@ -860,9 +984,70 @@ fn act(
                 end_reason: None,
                 cause: Some(ev),
                 ledger: BTreeMap::new(),
+                family: None,
             });
         }
         AiAction::Rest => {}
+    }
+}
+
+/// An NPC tables a policy family's proposal (DEC-092): the version of the
+/// sponsor they like best, time-limited like their other bills.
+fn propose_family(
+    state: &mut State,
+    content: &ContentBundle,
+    id: PoliticianId,
+    rng: &mut mandate_core::SimRng,
+    proposal: crate::policy::families::FamilyInstanceId,
+    sponsor: Option<&str>,
+) {
+    let Ok(p) = crate::policy::drafting::prepare(
+        state,
+        content,
+        proposal,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        sponsor,
+    ) else {
+        return;
+    };
+    let date = state.calendar.date;
+    let m = p.at.raw();
+    let days = content
+        .constitutions
+        .get(&state.meta.constitution)
+        .and_then(|c| c.tier(p.at.tier()))
+        .and_then(|tier| tier.procedure("ordinance"))
+        .map(|p| p.deliberation_days)
+        .unwrap_or(21);
+    let sunset = crate::policy::Clause::Sunset {
+        years: {
+            let [lo, hi] = content.npc.bill_sunset_years;
+            lo + rng.below((hi - lo) as u64 + 1) as u8
+        },
+    };
+    let pid = crate::policy::drafting::make_bill(
+        state,
+        content,
+        p,
+        id,
+        PolicyStatus::UnderConsideration,
+        vec![sunset],
+    );
+    let ev = state.events.record(
+        date,
+        EventKind::PolicyIntroduced {
+            policy: pid.0,
+            municipality: m,
+            sponsor: id.0,
+        },
+        vec![],
+    );
+    if let Some(b) = state.policy.get_mut(pid) {
+        b.next_stage_on = Some(date.add_days(days as u32));
+        b.introduced_on = Some(date);
+        b.awareness = content.actions.introduce.awareness as f32;
+        b.cause = Some(ev);
     }
 }
 

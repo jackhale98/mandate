@@ -599,7 +599,7 @@ pub fn context_args(ctx: &Ctx<'_>) -> Args {
                 .policy
                 .instances
                 .get(policy.index())
-                .and_then(|p| ctx.content.policies.get(&p.template))
+                .and_then(|p| crate::policy::resolve(ctx.content, &st.policy, p))
             {
                 a.insert("about_key".into(), t.name_key.clone());
             }

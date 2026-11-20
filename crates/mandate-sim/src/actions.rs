@@ -6,7 +6,8 @@ use crate::characters::{self, MemoryKind, Subject};
 use crate::commands::EngineError;
 use crate::events::EventKind;
 use crate::player::knowledge::{self, Level};
-use crate::policy::{Clause, PolicyInstance, PolicyStatus, annual_cost};
+use crate::policy::families::FamilyInstanceId;
+use crate::policy::{Clause, PolicyInstance, PolicyInstanceId, PolicyStatus, annual_cost};
 use crate::politics::{PoliticianId, Role};
 use crate::state::State;
 use crate::world::{ConstituencyId, MunicipalityId, NeighborhoodId, Tier};
@@ -113,6 +114,24 @@ pub enum PlayerCommand {
         policy: u32,
         params: BTreeMap<String, f64>,
         clauses: Vec<Clause>,
+        /// A family bill's choices, axis → option (DEC-092; missing axes
+        /// keep theirs). Refused on a standard bill.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        choices: Option<BTreeMap<String, String>>,
+    },
+    /// Draft a policy family's open proposal (DEC-092, §2.11): one option
+    /// per axis (missing: the axis default), the sliders, and optionally a
+    /// sponsor whose version is adopted as it is (its price is paid now).
+    /// At the town hall, free. Needs the proposal `known` (DEC-091) and a
+    /// post with the family's power at the proposal's jurisdiction.
+    DraftFamily {
+        proposal: u32,
+        #[serde(default)]
+        choices: BTreeMap<String, String>,
+        #[serde(default)]
+        params: BTreeMap<String, f64>,
+        #[serde(default)]
+        sponsor: Option<String>,
     },
     IntroducePolicy {
         policy: u32,
@@ -484,12 +503,27 @@ fn validate_clauses(state: &State, m: u32, clauses: &[Clause]) -> Result<(), Eng
                     return Err(bad("pilot neighbourhood is not in this town"));
                 }
             }
+            // Where a family bill applies follows its choices (DEC-092).
+            Clause::Area { .. } => {
+                return Err(bad("where a proposal applies is one of its choices"));
+            }
         }
     }
     Ok(())
 }
 
 pub fn apply(
+    state: &mut State,
+    content: &ContentBundle,
+    cmd: &PlayerCommand,
+) -> Result<ActionResult, EngineError> {
+    let res = apply_command(state, content, cmd)?;
+    // What the command taught about open proposals (DEC-091 hooks).
+    crate::policy::drafting::learn_from(state, content, cmd);
+    Ok(res)
+}
+
+fn apply_command(
     state: &mut State,
     content: &ContentBundle,
     cmd: &PlayerCommand,
@@ -624,22 +658,60 @@ pub fn apply(
             res.created = Some(draft(state, content, template, params)?);
             res.outcome_key = "outcome-drafted".into();
         }
+        PlayerCommand::DraftFamily {
+            proposal,
+            choices,
+            params,
+            sponsor,
+        } => {
+            res.created = Some(draft_family(
+                state,
+                content,
+                FamilyInstanceId(*proposal),
+                choices,
+                params,
+                sponsor.as_deref(),
+            )?);
+            res.outcome_key = "outcome-drafted".into();
+        }
         PlayerCommand::AmendPolicy {
             policy,
             params,
             clauses,
+            choices,
         } => {
             let p = own_policy(state, *policy)?;
             let status = p.status;
             let template = p.template.clone();
+            let family = p.family.is_some();
             if !matches!(
                 status,
                 PolicyStatus::Draft | PolicyStatus::UnderConsideration
             ) {
                 return Err(bad("only drafts and bills can be amended"));
             }
-            let params = validate_params(content, &template, params)?;
+            if choices.is_some() && !family {
+                return Err(bad("only a proposal's bill has choices"));
+            }
+            // A family bill's sliders are checked against its composed rules.
+            let params = if family {
+                BTreeMap::new()
+            } else {
+                validate_params(content, &template, params)?
+            };
             validate_clauses(state, m, clauses)?;
+            let no_choices = BTreeMap::new();
+            let new_choices = choices.as_ref().unwrap_or(&no_choices);
+            if family {
+                crate::policy::drafting::check_amend(
+                    state,
+                    content,
+                    PolicyInstanceId(*policy),
+                    new_choices,
+                    params_in(cmd),
+                )
+                .map_err(|e| bad(&e))?;
+            }
             if status == PolicyStatus::UnderConsideration {
                 spend(state, content, "amend", false)?;
                 crate::politics::add_record(
@@ -655,9 +727,25 @@ pub fn apply(
                     }
                 }
             }
+            if family {
+                crate::policy::drafting::amend_choices(
+                    state,
+                    content,
+                    PolicyInstanceId(*policy),
+                    new_choices,
+                    params_in(cmd),
+                )
+                .map_err(|e| bad(&e))?;
+            }
             if let Some(p) = state.policy.instances.get_mut(*policy as usize) {
-                p.params = params;
-                p.clauses = clauses.clone();
+                if family {
+                    // The area clause follows the choices; the rest are the player's.
+                    p.clauses.retain(|c| matches!(c, Clause::Area { .. }));
+                    p.clauses.extend(clauses.iter().cloned());
+                } else {
+                    p.params = params;
+                    p.clauses = clauses.clone();
+                }
             }
             res.outcome_key = "outcome-amended".into();
         }
@@ -915,7 +1003,7 @@ pub fn apply(
                         .unwrap_or(0.5) as f64;
                     let sig = policy
                         .and_then(|id| state.policy.instances.get(id as usize))
-                        .and_then(|p| content.policies.get(&p.template))
+                        .and_then(|p| crate::policy::resolve(content, &state.policy, p))
                         .map(|t| t.signature_weights.clone());
                     for c in state.population.hoods[*neighborhood as usize]
                         .cohorts
@@ -1454,12 +1542,9 @@ pub(crate) fn declare_vote(
     if state.politics.declared_votes.contains_key(&key) {
         return Err(bad("you have already declared your vote"));
     }
-    let template = p.template.clone();
     let sponsor = p.sponsor;
     let awareness = p.awareness as f64;
-    let sig = content
-        .policies
-        .get(&template)
+    let sig = crate::policy::resolve(content, &state.policy, p)
         .map(|t| t.signature_weights.clone())
         .unwrap_or_default();
     let line = party_line(state, *policy);
@@ -1612,6 +1697,10 @@ pub(crate) fn draft(
         .policies
         .get(template)
         .ok_or_else(|| bad("unknown policy template"))?;
+    // Retired templates (DEC-092 §2.19) are drafted by no one.
+    if t.retired {
+        return Err(bad("that policy is no longer on offer"));
+    }
     if t.tier != TierKey::Local {
         return Err(bad(
             "that policy is not available at your level of government",
@@ -1648,6 +1737,7 @@ pub(crate) fn draft(
         end_reason: None,
         cause: None,
         ledger: BTreeMap::new(),
+        family: None,
     });
     Ok(id.0)
 }
@@ -1731,16 +1821,79 @@ fn move_to(
     Ok(res)
 }
 
+/// The sliders of an amendment (a family bill's are checked when composed).
+fn params_in(cmd: &PlayerCommand) -> &BTreeMap<String, f64> {
+    static EMPTY: BTreeMap<String, f64> = BTreeMap::new();
+    match cmd {
+        PlayerCommand::AmendPolicy { params, .. } => params,
+        _ => &EMPTY,
+    }
+}
+
+/// Draft an open proposal (DEC-092 §2.11): refused unless it is open, the
+/// player knows it (`known`, DEC-091), and holds a post with the family's
+/// power at its jurisdiction; then the shared checks of
+/// `policy::drafting::prepare`. Adopting a sponsor's version pays its price.
+pub(crate) fn draft_family(
+    state: &mut State,
+    content: &ContentBundle,
+    proposal: FamilyInstanceId,
+    choices: &BTreeMap<String, String>,
+    params: &BTreeMap<String, f64>,
+    sponsor: Option<&str>,
+) -> Result<u32, EngineError> {
+    let pl = state
+        .player
+        .as_ref()
+        .ok_or_else(|| bad("no player"))?
+        .clone();
+    let inst = state
+        .policy
+        .families
+        .get(proposal)
+        .ok_or_else(|| bad("no such proposal"))?;
+    if !inst.is_open() {
+        return Err(bad("that proposal is no longer on the table"));
+    }
+    let (at, family) = (inst.at, inst.family.clone());
+    let f = content
+        .family(&family)
+        .ok_or_else(|| bad("that proposal's rules no longer exist"))?;
+    if knowledge::knows(state, &knowledge::Subject::Proposal { proposal }) < Level::Known {
+        return Err(bad(
+            "you have only heard of this proposal: find out more first",
+        ));
+    }
+    if !player_holds_power_at(state, content, f.requires, at) {
+        return Err(bad("your office cannot propose this"));
+    }
+    let prepared =
+        crate::policy::drafting::prepare(state, content, proposal, choices, params, sponsor)
+            .map_err(|e| bad(&e))?;
+    let id = crate::policy::drafting::make_bill(
+        state,
+        content,
+        prepared,
+        pl.politician,
+        PolicyStatus::Draft,
+        Vec::new(),
+    );
+    if sponsor.is_some() {
+        crate::policy::drafting::adopt(state, content, id);
+    }
+    Ok(id.0)
+}
+
 /// Estimated annual cost of a draft or bill, for display.
 pub fn estimate_cost(state: &State, content: &ContentBundle, p: &PolicyInstance) -> f64 {
-    let Some(t) = content.policies.get(&p.template) else {
+    let Some(t) = crate::policy::resolve(content, &state.policy, p) else {
         return 0.0;
     };
-    let residents = state
+    let town = state
         .population
-        .municipality_total(&state.world, MunicipalityId(p.jurisdiction))
-        as f64;
-    annual_cost(t, p, residents, state.economy.national.price_level)
+        .municipality_total(&state.world, MunicipalityId(p.jurisdiction)) as f64;
+    let residents = crate::policy::cost_residents(&state.world, &state.population, p, town);
+    annual_cost(&t, p, residents, state.economy.national.price_level)
 }
 
 /// The district of the seat a politician holds, if any.

@@ -547,6 +547,8 @@ fn player_command(
                     ClauseDto::Pilot { neighborhood } => Clause::Pilot { neighborhood },
                 })
                 .collect(),
+            // A family bill's choices come with the proposal sheet (F3, F6).
+            choices: None,
         },
         CommandDto::IntroducePolicy { policy } => P::IntroducePolicy { policy },
         CommandDto::CastVote { policy, vote } => P::CastVote {

@@ -146,6 +146,13 @@ pub struct ContentBundle {
     /// ends the act).
     #[serde(default)]
     pub endings: Vec<crate::act::EndingDef>,
+    /// Policy families (DEC-092), in load order, with every pack's patches
+    /// applied (in pack order).
+    #[serde(default)]
+    pub policy_families: Vec<crate::policy_family::PolicyFamilyDef>,
+    /// The family numbers (defaults when no pack defines them).
+    #[serde(default)]
+    pub policy_family_params: crate::policy_family::FamilyParams,
 }
 
 impl ContentBundle {
@@ -157,6 +164,12 @@ impl ContentBundle {
     /// A promise template by id.
     pub fn promise(&self, id: &str) -> Option<&crate::asks::PromiseDef> {
         self.promises.iter().find(|a| a.id == id)
+    }
+
+    /// A policy family by id (disabled ones included: bills and laws of a
+    /// disabled family still compose).
+    pub fn family(&self, id: &str) -> Option<&crate::policy_family::PolicyFamilyDef> {
+        self.policy_families.iter().find(|f| f.id == id)
     }
 
     /// Registry index of a sector by content key.
@@ -363,6 +376,12 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut promises: Vec<crate::asks::PromiseDef> = Vec::new();
     let mut act_flow: Option<(crate::act::ActFlowParams, String)> = None;
     let mut endings: Vec<crate::act::EndingDef> = Vec::new();
+    let mut policy_families: Vec<crate::policy_family::PolicyFamilyDef> = Vec::new();
+    let mut family_params: Option<(crate::policy_family::FamilyParams, String)> = None;
+    // (pack directory, path, patch): applied after every family is loaded.
+    let mut family_patches: Vec<(String, String, crate::policy_family::FamilyPatch)> = Vec::new();
+    // (pack directory, load order) of each manifest.
+    let mut manifests: Vec<(String, i32)> = Vec::new();
 
     for src in sorted {
         if src.path.ends_with(".ftl") {
@@ -531,6 +550,8 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             }
             ContentFile::Pack(p) => {
                 if claim(&p.id, &mut issues) {
+                    let dir = src.path.split('/').next().unwrap_or_default().to_string();
+                    manifests.push((dir, p.load_order));
                     packs.push(p);
                 }
             }
@@ -723,6 +744,26 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::PolicyFamilies { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        policy_families.push(x);
+                    }
+                }
+            }
+            ContentFile::PolicyFamilyParams { value } => once(
+                &mut family_params,
+                *value,
+                "policy_family_params",
+                &src.path,
+                &mut issues,
+            ),
+            ContentFile::PolicyFamilyPatches { items } => {
+                let pack = src.path.split('/').next().unwrap_or_default().to_string();
+                for x in items {
+                    family_patches.push((pack.clone(), src.path.clone(), x));
+                }
+            }
         }
     }
 
@@ -767,6 +808,21 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         return Err(issues);
     };
     packs.sort_by(|a, b| (a.load_order, &a.id).cmp(&(b.load_order, &b.id)));
+    // Family patches (DEC-092), in pack order: a pack's load order (its
+    // manifest's, by the directory it lives in), then path, then item order.
+    let order_of = |dir: &str| -> i32 {
+        manifests
+            .iter()
+            .find(|(d, _)| d == dir)
+            .map(|(_, o)| *o)
+            .unwrap_or(0)
+    };
+    family_patches.sort_by_key(|(dir, path, _)| (order_of(dir), path.clone()));
+    for (_, path, patch) in &family_patches {
+        if let Err(e) = patch.apply(&mut policy_families) {
+            issues.push(Issue::error(path, &e));
+        }
+    }
     // Resolve keyed policy signatures to dense registry order (unknown keys
     // are reported by validation).
     for p in policies.values_mut() {
@@ -841,6 +897,8 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         promises,
         act_flow: act_flow.map(|(a, _)| a).unwrap_or_default(),
         endings,
+        policy_families,
+        policy_family_params: family_params.map(|(p, _)| p).unwrap_or_default(),
     };
     issues.extend(validate_bundle(&bundle));
     if issues.iter().any(|i| i.severity == Severity::Error) {

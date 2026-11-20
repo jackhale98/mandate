@@ -259,9 +259,7 @@ pub fn observe(state: &mut crate::State, content: &ContentBundle) {
                 }
                 let template = p.template.clone();
                 if matches!(ev.kind, EventKind::PolicyEnacted { .. }) {
-                    let works = content
-                        .policies
-                        .get(&template)
+                    let works = crate::policy::resolve(content, &state.policy, p)
                         .is_some_and(|t| legacy.works_categories.contains(&t.category));
                     push(
                         ev.date,

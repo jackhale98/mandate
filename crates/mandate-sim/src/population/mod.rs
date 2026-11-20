@@ -1484,13 +1484,18 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         let mut n_gov = 0usize;
         let mut grievance = [[0.0f64; CLASSES]; AGE_BANDS];
         let mut player_grievance = [[0.0f64; CLASSES]; AGE_BANDS];
+        // Grievances of laws with an `area` clause (DEC-092) fall on their
+        // neighbourhoods only: (government, player's) per neighbourhood.
+        type Grief = [[f64; CLASSES]; AGE_BANDS];
+        let mut hood_grievance: std::collections::BTreeMap<u32, (Grief, Grief)> =
+            std::collections::BTreeMap::new();
         for p in policy.in_municipality(m as u32).filter(|p| {
             matches!(
                 p.status,
                 PolicyStatus::UnderConsideration | PolicyStatus::Enacted | PolicyStatus::InEffect
             )
         }) {
-            let Some(t) = r.content.policies.get(&p.template) else {
+            let Some(t) = crate::policy::resolve(r.content, policy, p) else {
                 continue;
             };
             let sig = &t.signature_weights;
@@ -1525,15 +1530,26 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                     } = fx
                     {
                         let a = crate::policy::side_effect_amount(fx, p) * k;
-                        for age in (*min_age_band as usize).min(AGE_BANDS - 1)..AGE_BANDS {
-                            for c in 0..CLASSES {
-                                if class.is_none_or(|x| crate::policy::class_index(x) == c) {
-                                    grievance[age][c] += a;
-                                    if mine {
-                                        player_grievance[age][c] += a;
+                        let add = |g: &mut Grief, pg: &mut Grief| {
+                            for age in (*min_age_band as usize).min(AGE_BANDS - 1)..AGE_BANDS {
+                                for c in 0..CLASSES {
+                                    if class.is_none_or(|x| crate::policy::class_index(x) == c) {
+                                        g[age][c] += a;
+                                        if mine {
+                                            pg[age][c] += a;
+                                        }
                                     }
                                 }
                             }
+                        };
+                        match p.area() {
+                            Some(hoods) => {
+                                for h in hoods {
+                                    let e = hood_grievance.entry(h.0).or_default();
+                                    add(&mut e.0, &mut e.1);
+                                }
+                            }
+                            None => add(&mut grievance, &mut player_grievance),
                         }
                     }
                 }
@@ -1542,7 +1558,13 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         // Many laws should not saturate opinion: scale by √n.
         let gov_scale = 1.0 / mandate_core::math::sqrt(n_gov.max(1) as f64);
         for h in &mu.neighborhoods {
-            let experienced = experienced - disaster * pop.impact(h.index());
+            let mut experienced = experienced - disaster * pop.impact(h.index());
+            // A family bill's works in this neighbourhood only (DEC-092).
+            let local = mods.disruption_at(h.0);
+            if local != 0.0 {
+                experienced -= x.disruption * local;
+            }
+            let here = hood_grievance.get(&h.0);
             for (ci, c) in pop.hoods[h.index()].cohorts.iter_mut().enumerate() {
                 let a = age_of(ci);
                 let mut gov_react = 0.0;
@@ -1552,8 +1574,15 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                     player_react += player_vec[k] * *a as f64;
                 }
                 let class = class_of(ci);
-                let gov_react = clamp(gov_react * gov_scale - grievance[a][class], -2.0, 2.0);
-                let player_react = clamp(player_react - player_grievance[a][class], -2.0, 2.0);
+                let (g, pg) = match here {
+                    Some((g, pg)) => (
+                        grievance[a][class] + g[a][class],
+                        player_grievance[a][class] + pg[a][class],
+                    ),
+                    None => (grievance[a][class], player_grievance[a][class]),
+                };
+                let gov_react = clamp(gov_react * gov_scale - g, -2.0, 2.0);
+                let player_react = clamp(player_react - pg, -2.0, 2.0);
                 let target = 0.5 + 0.5 * tanh(experienced + op.law_reaction_weight * gov_react);
                 c.gov_approval = (c.gov_approval as f64 * (1.0 - op.gov_approval_rate)
                     + target * op.gov_approval_rate) as f32;

@@ -1,0 +1,30 @@
+// Policy-family numbers (DEC-092, DEC-099; M6_ENGINE_CONTRACTS §2.6, §2.8).
+// Families themselves live beside this file (`"kind": "policy_families"`);
+// the first pack is F4.
+{
+  "kind": "policy_family_params",
+  "value": {
+    // Proposals open at once in one jurisdiction (§5 question 6).
+    "max_open_per_jurisdiction": 4,
+    // The chance a family of each rarity is in a run's deck (a keyed draw
+    // per jurisdiction and family, so a save loaded later draws the same).
+    "rarity": { "always": 1.0, "common": 0.85, "uncommon": 0.5, "rare": 0.2 },
+    // A sponsor's opinion of the player (−100..100) when the player adopts
+    // their version, and per axis changed away from their preset.
+    "adopt_opinion": 8,
+    "amend_opinion": -4,
+    // Slider changes within this many steps of the preset are free.
+    "free_steps": 1,
+    // Works you can see (DEC-099): building stalls after this many months
+    // without funding; a stalled site loses condition each month and counts
+    // as abandoned after `abandon_after_months`; an open work ages after
+    // `ageing_after_months` and wears slowly.
+    "works": {
+      "stall_unfunded_months": 3,
+      "decay_per_month": 0.04,
+      "wear_per_month": 0.002,
+      "ageing_after_months": 60,
+      "abandon_after_months": 12,
+    },
+  },
+}
