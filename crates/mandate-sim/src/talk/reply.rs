@@ -96,6 +96,28 @@ pub fn candidates<'c>(
         TalkPart::Substance => {
             let mine = of(part).filter(|l| l.topic.as_deref() == Some(topic.id.as_str()));
             let real = holding(ctx, mine.clone().filter(|l| !l.fallback));
+            // Asked about something (an `inform` topic with a subject), the
+            // reply answers it: lines that read the subject first; if none
+            // holds, the topic's safe answers, never a line about the topic
+            // in general ("what worries people?" asked of one neighbourhood
+            // is not answered with the town's worries). Only which line is
+            // shown changes: the odds are fixed before the reply.
+            if ctx.about.is_some()
+                && topic.mechanic == mandate_content::conversation::TalkMechanic::Inform
+            {
+                let on: Vec<_> = real
+                    .iter()
+                    .filter(|(l, _)| mandate_content::conversation::reads_about(&l.when))
+                    .cloned()
+                    .collect();
+                if !on.is_empty() {
+                    return (on, false);
+                }
+                let safe = holding(ctx, mine.clone().filter(|l| l.fallback));
+                if !safe.is_empty() {
+                    return (safe, true);
+                }
+            }
             if !real.is_empty() {
                 return (real, false);
             }

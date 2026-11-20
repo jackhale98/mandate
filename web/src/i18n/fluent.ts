@@ -26,10 +26,16 @@ export class Translator {
       if (k === "n" && /^\d+$/.test(v)) resolved[k] = Number(v);
       else resolved[k] = v;
     }
-    // Keys see the plain arguments too (an outlet's name takes its place).
+    // Keys see the plain arguments too (an outlet's name takes its place),
+    // and the other keys' text: a retold headline (`headline_key`) names a
+    // policy of its own (`policy_key`). Two passes cover one level of nesting.
     const plain = { ...resolved };
+    const first: Record<string, FluentVariable> = { ...plain };
     for (const [k, v] of Object.entries(args)) {
-      if (k.endsWith("_key")) resolved[k.slice(0, -4)] = this.t(v, plain);
+      if (k.endsWith("_key")) first[k.slice(0, -4)] = this.t(v, plain);
+    }
+    for (const [k, v] of Object.entries(args)) {
+      if (k.endsWith("_key")) resolved[k.slice(0, -4)] = this.t(v, first);
     }
     return this.t(key, resolved);
   }

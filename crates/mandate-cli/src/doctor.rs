@@ -15,7 +15,10 @@
 //! - text too long for a phone, rendered with representative arguments
 //!   (the longest variant of every selector);
 //! - voice problems: lines tagged with a voice or a role that the speakers
-//!   who can say them cannot have.
+//!   who can say them cannot have;
+//! - text that reads wrong (text audit 1): doubled punctuation and stray
+//!   braces in a message, a line asserting a worry its conditions do not
+//!   make real, and, in a rendered corpus, arguments that came out empty.
 //!
 //! Findings have a severity (error, warn, info); `--strict` exits non-zero
 //! on errors. Read-only: careers are played on throwaway engines.
@@ -81,6 +84,11 @@ pub struct DoctorArgs {
     /// it, with its situation (JSONL, Markdown, counts).
     #[arg(long, value_name = "DIR")]
     pub corpus: Option<PathBuf>,
+    /// Read a corpus `--corpus` wrote and report what reads wrong in it
+    /// (empty arguments, doubled punctuation, raw placeables), without
+    /// playing or rendering again.
+    #[arg(long, value_name = "DIR")]
+    pub check_corpus: Option<PathBuf>,
 }
 
 impl Default for DoctorArgs {
@@ -99,6 +107,7 @@ impl Default for DoctorArgs {
             often_share: 0.25,
             source: PathBuf::from("."),
             corpus: None,
+            check_corpus: None,
         }
     }
 }
@@ -128,7 +137,10 @@ pub struct Finding {
     pub severity: Sev,
     /// `validate` | `unsatisfiable` | `contradiction` | `unknown-ref` |
     /// `no-town-has` | `never-fired` | `too-often` | `fluent-missing` |
-    /// `fluent-unused` | `fluent-args` | `too-long` | `voice`.
+    /// `fluent-unused` | `fluent-args` | `too-long` | `voice` |
+    /// `text-raw` | `text-empty-arg` | `text-doubled-punct` |
+    /// `worry-unconditioned` | `subject-unread` | `subject-drift` |
+    /// `talk-off-subject` (corpus).
     pub check: String,
     /// The content file (or `.ftl`) that defines the item.
     pub file: String,
@@ -1136,7 +1148,7 @@ fn sample_talk(e: &Engine, content: &ContentBundle, seen: &mut Seen) {
             // Without a subject (when it needs none), then with one of each
             // kind it takes.
             let mut asked = false;
-            for about in explain::sample_abouts(st, content, &t.about, t.about_required) {
+            for about in explain::sample_abouts_for(st, content, s, &t.about, t.about_required) {
                 let Some(ctx) = explain::talk_ctx(st, content, s, about.as_ref()) else {
                     continue;
                 };
@@ -2030,6 +2042,484 @@ fn fluent_checks(b: &ContentBundle, sources: &[Source], scan: Option<&SourceScan
     }
 }
 
+// --- Text: how a line reads (text audit 1) ----------------------------------------------
+
+/// What a reader would trip over in rendered text, as (check, what):
+///
+/// - `text-raw`: a placeable or a missing key left in the text (`{ $x }`,
+///   `⟦key⟧`), or a stray brace;
+/// - `text-empty-arg`: an argument that came out empty (two spaces, a space
+///   before punctuation, empty brackets or quotes: "pressed them on  and");
+/// - `text-doubled-punct`: two stops where one belongs ("..'", ".,'"),
+///   quotation marks between them notwithstanding; an ellipsis ("...") and
+///   "?!" are fine.
+pub fn text_problems(text: &str) -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    let excerpt = |at: usize| -> String {
+        let start = text[..at]
+            .char_indices()
+            .rev()
+            .nth(24)
+            .map(|(i, _)| i)
+            .unwrap_or(0);
+        let end = text[at..]
+            .char_indices()
+            .nth(24)
+            .map(|(i, _)| at + i)
+            .unwrap_or(text.len());
+        format!("…{}…", &text[start..end])
+    };
+    if let Some(at) = text.find(['{', '}', '⟦']) {
+        out.push(("text-raw", excerpt(at)));
+    }
+    const EMPTY: [&str; 13] = [
+        "  ", " ,", " .", " ;", " :", " !", " ?", " )", "( ", "()", "''", "\"\"", "\" \"",
+    ];
+    if let Some(at) = EMPTY.iter().filter_map(|p| text.find(p)).min() {
+        out.push(("text-empty-arg", excerpt(at)));
+    } else if text.starts_with("\" ") || text.ends_with(" \"") || text.trim() != text {
+        out.push(("text-empty-arg", excerpt(0)));
+    }
+    let stop = |c: char| ".,;:!?".contains(c);
+    let quote = |c: char| "'\"‘’“”".contains(c);
+    let chars: Vec<(usize, char)> = text.char_indices().collect();
+    let mut prev: Option<(usize, char)> = None;
+    for (k, &(at, c)) in chars.iter().enumerate() {
+        if quote(c) {
+            continue;
+        }
+        if stop(c)
+            && let Some((_, p)) = prev
+            && stop(p)
+        {
+            let ellipsis = c == '.' && p == '.' && {
+                // Three or more dots in a row (quotes aside) is an ellipsis.
+                let dots = chars
+                    .iter()
+                    .skip(k.saturating_sub(2))
+                    .take(5)
+                    .filter(|(_, x)| *x == '.')
+                    .count();
+                dots >= 3
+            };
+            let mixed = matches!((p, c), ('?', '!') | ('!', '?'));
+            if !ellipsis && !mixed {
+                out.push(("text-doubled-punct", excerpt(at)));
+                break;
+            }
+        }
+        prev = Some((at, c));
+    }
+    out
+}
+
+/// Every English message rendered with representative arguments (the
+/// longest variant of each selector): doubled punctuation and stray braces
+/// written into the text itself. (Empty arguments only show with real
+/// arguments: the corpus check below.)
+fn text_checks(b: &ContentBundle, out: &mut Out) {
+    let msgs = messages(&b.locale_text("en"));
+    for (key, m) in &msgs {
+        let text = render(&msgs, m, 0);
+        for (check, what) in text_problems(&text) {
+            if check == "text-empty-arg" {
+                continue;
+            }
+            out.add(
+                Sev::Warn,
+                check,
+                key,
+                format!("`{key}` renders with {}: \"{what}\"", label(check)),
+            );
+        }
+    }
+}
+
+fn label(check: &str) -> &'static str {
+    match check {
+        "text-raw" => "a raw placeable or missing key",
+        "text-empty-arg" => "an empty argument",
+        "text-doubled-punct" => "doubled punctuation",
+        _ => "a problem",
+    }
+}
+
+/// Phrases that assert one particular worry, by concern. A trailing `*`
+/// matches a word's start ("redundan*": redundancy, redundancies); the rest
+/// match whole words.
+const WORRY_WORDS: &[(&str, &[&str])] = &[
+    (
+        "concern.housing",
+        &[
+            "rent",
+            "rents",
+            "landlord*",
+            "one-bed",
+            "housing",
+            "mortgage*",
+        ],
+    ),
+    (
+        "concern.jobs",
+        &[
+            "laid off",
+            "lay-off*",
+            "layoff*",
+            "redundanc*",
+            "out of work",
+            "jobs gone",
+            "unemploy*",
+        ],
+    ),
+    (
+        "concern.environment",
+        &["pollution", "the air", "smoke", "fumes", "wheez*", "foam"],
+    ),
+    (
+        "concern.taxes",
+        &["the rates", "rates bill", "property tax", "tax bills"],
+    ),
+    (
+        "concern.services",
+        &[
+            "bins",
+            "library",
+            "waiting room",
+            "late bus",
+            "glue sticks",
+            "for an appointment",
+        ],
+    ),
+    (
+        "concern.recovery",
+        &[
+            "tarpaulin",
+            "tarps",
+            "builder*",
+            "insurance",
+            "rebuild*",
+            "clearing up",
+            "the disaster",
+            "when it hit",
+        ],
+    ),
+];
+
+/// The worries a text asserts (by `WORRY_WORDS`), with the phrase that says so.
+fn asserted_worries(text: &str) -> BTreeMap<&'static str, &'static str> {
+    let t = text.to_lowercase();
+    let mut out = BTreeMap::new();
+    for (concern, words) in WORRY_WORDS {
+        for w in *words {
+            let (w_str, prefix) = match w.strip_suffix('*') {
+                Some(s) => (s, true),
+                None => (*w, false),
+            };
+            let found = t.match_indices(w_str).any(|(i, _)| {
+                let before = t[..i].chars().next_back();
+                let after = t[i + w_str.len()..].chars().next();
+                !before.is_some_and(char::is_alphabetic)
+                    && (prefix || !after.is_some_and(char::is_alphabetic))
+            });
+            if found {
+                out.entry(*concern).or_insert(*w);
+                break;
+            }
+        }
+    }
+    out
+}
+
+/// The worries an indicator, a crisis or a town event speaks for.
+fn indicator_worry(i: mandate_content::Indicator) -> &'static str {
+    use mandate_content::Indicator as I;
+    match i {
+        I::RentBurden => "concern.housing",
+        I::Unemployment | I::UnemploymentRise | I::JobLoss => "concern.jobs",
+        I::Pollution => "concern.environment",
+        I::TaxBurden => "concern.taxes",
+        I::BudgetStress => "concern.services",
+        I::RecentDisaster => "concern.recovery",
+    }
+}
+
+fn crisis_worry(kind: &str) -> Option<&'static str> {
+    Some(match kind {
+        "crisis.plant_closure" => "concern.jobs",
+        "crisis.housing_squeeze" => "concern.housing",
+        "crisis.fiscal_hole" => "concern.services",
+        "crisis.disaster_recovery" => "concern.recovery",
+        _ => return None,
+    })
+}
+
+/// The worries a conversation line's conditions make true (a `tells` of the
+/// town's or a neighbourhood's worries is the speaker's top worry, whatever
+/// it is: it backs `$concern`, never a particular worry).
+fn situation_worries(cs: &[SituationCondition], out: &mut BTreeSet<String>) {
+    use SituationCondition as U;
+    for c in cs {
+        match c {
+            U::Concern { concerns, .. } => out.extend(concerns.iter().cloned()),
+            U::Indicator { indicator, .. } => {
+                out.insert(indicator_worry(*indicator).into());
+            }
+            U::Crisis { kind, .. } => out.extend(crisis_worry(kind).map(String::from)),
+            U::PlantClosure { .. } => {
+                out.insert("concern.jobs".into());
+            }
+            U::Disaster { .. } => {
+                out.insert("concern.recovery".into());
+            }
+            U::Any { of } => situation_worries(of, out),
+            _ => {}
+        }
+    }
+}
+
+fn heard_worries(cs: &[HeardCondition], out: &mut BTreeSet<String>) {
+    for c in cs {
+        match c {
+            HeardCondition::Crisis { kind: Some(k) } => {
+                out.extend(crisis_worry(k).map(String::from))
+            }
+            HeardCondition::PlantClosure { .. } => {
+                out.insert("concern.jobs".into());
+            }
+            HeardCondition::Disaster { .. } => {
+                out.insert("concern.recovery".into());
+            }
+            HeardCondition::Any { of } => heard_worries(of, out),
+            _ => {}
+        }
+    }
+}
+
+fn narrative_worries(cs: &[Condition], out: &mut BTreeSet<String>) {
+    for c in cs {
+        match c {
+            Condition::Concern { concern, .. } => {
+                out.insert(concern.clone());
+            }
+            Condition::Indicator { indicator, .. } => {
+                out.insert(indicator_worry(*indicator).into());
+            }
+            Condition::Crisis { kind, .. } => out.extend(crisis_worry(kind).map(String::from)),
+            _ => {}
+        }
+    }
+}
+
+/// A line that asserts a particular worry ("It's the rent", "another lot
+/// laid off") must be said only where that worry is real: a `concern`
+/// condition naming it, an indicator, a crisis or a town event behind it
+/// (for overheard lines, the line's `concern`; for a dilemma's situation,
+/// its triggers). A line that asserts worries none of which its conditions
+/// back is a `worry-unconditioned` warning. Lines that name the worry
+/// through `$concern` are true by construction and never asserted here.
+fn worry_checks(b: &ContentBundle, out: &mut Out) {
+    let msgs = messages(&b.locale_text("en"));
+    let check = |out: &mut Out, item: &str, key: &str, backed: &BTreeSet<String>| {
+        let Some(text) = msgs.get(key) else { return };
+        let said = asserted_worries(text);
+        if said.is_empty() || said.keys().any(|c| backed.contains(*c)) {
+            return;
+        }
+        let list: Vec<String> = said
+            .iter()
+            .map(|(c, w)| format!("{} (\"{}\")", c, w.trim_end_matches('*')))
+            .collect();
+        out.add(
+            Sev::Warn,
+            "worry-unconditioned",
+            item,
+            format!(
+                "`{key}` asserts {} but nothing in its conditions makes that worry real",
+                list.join(", ")
+            ),
+        );
+    };
+    for l in &b.talk_lines {
+        let mut backed = BTreeSet::new();
+        situation_worries(&l.when, &mut backed);
+        check(out, &l.id, &l.key, &backed);
+    }
+    for o in &b.overheard {
+        let mut backed: BTreeSet<String> = o.concern.iter().cloned().collect();
+        heard_worries(&o.when, &mut backed);
+        check(out, &o.id, &o.key, &backed);
+    }
+    for d in &b.dilemmas {
+        let mut backed = BTreeSet::new();
+        narrative_worries(&d.triggers, &mut backed);
+        check(out, &d.id, &d.situation_key, &backed);
+    }
+}
+
+/// The text checks on a rendered corpus (`--corpus` writes one, and
+/// `--check-corpus` reads one back): every item's text through
+/// `text_problems`, one finding per check and template, with how many
+/// renderings had it and the first one.
+pub fn corpus_text_findings(dir: &Path) -> Result<Vec<Finding>, String> {
+    let path = dir.join("corpus.jsonl");
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut seen: BTreeMap<(String, String), (usize, String, String)> = BTreeMap::new();
+    for line in text.lines().filter(|l| !l.trim().is_empty()) {
+        let v: serde_json::Value =
+            serde_json::from_str(line).map_err(|e| format!("{}: {e}", path.display()))?;
+        let s = |k: &str| v.get(k).and_then(|x| x.as_str()).unwrap_or("").to_string();
+        let item = format!("{} {}", s("kind"), s("id"));
+        for (check, what) in text_problems(&s("text")) {
+            let e = seen
+                .entry((check.to_string(), item.clone()))
+                .or_insert_with(|| (0, s("key"), what));
+            e.0 += 1;
+        }
+    }
+    Ok(seen
+        .into_iter()
+        .map(|((check, item), (n, key, what))| Finding {
+            severity: Sev::Warn,
+            message: format!(
+                "{n} rendering(s) of `{key}` with {}, e.g. \"{what}\"",
+                label(&check)
+            ),
+            check,
+            file: "corpus".into(),
+            item,
+        })
+        .collect())
+}
+
+/// Replies that answer the question (owner report 2026-11-20: "npcs respond
+/// with answers that aren't really relevant"), statically:
+///
+/// - `subject-unread`: a line of a topic that is always about something
+///   (`about_required`, an `inform` topic: "Ask about…") whose conditions
+///   never read the subject. It can win over the subject's own lines and
+///   answer something else. Fallbacks are deflections and exempt.
+/// - `subject-drift`: a line of a topic that can be about a place, reading
+///   the subject only as a neighbourhood's worries (`hood_concerns` of
+///   `about`, which a place resolves to its neighbourhood) without an
+///   `about` condition that keeps places out: asked about the paper, it
+///   answers with the cost of living.
+fn relevance_checks(b: &ContentBundle, out: &mut Out) {
+    use mandate_content::conversation::{AboutKind, HoodOf, SubjectRef, TalkMechanic, reads_about};
+    for l in &b.talk_lines {
+        if l.part != TalkPart::Substance || l.fallback {
+            continue;
+        }
+        let Some(t) = l
+            .topic
+            .as_deref()
+            .and_then(|t| b.talk_topics.iter().find(|x| x.id == t))
+        else {
+            continue;
+        };
+        if t.mechanic != TalkMechanic::Inform || t.about.is_empty() {
+            continue;
+        }
+        if t.about_required && !reads_about(&l.when) {
+            out.add(
+                Sev::Warn,
+                "subject-unread",
+                &l.id,
+                format!(
+                    "`{}` answers `{}` (always about something) without reading the subject",
+                    l.id, t.id
+                ),
+            );
+        }
+        let hood_only = l.when.iter().any(|c| {
+            matches!(
+                c,
+                SituationCondition::Tells {
+                    subject: SubjectRef::HoodConcerns { of: HoodOf::About },
+                    ..
+                }
+            )
+        });
+        let keeps_out = l.when.iter().any(|c| match c {
+            SituationCondition::About {
+                kinds, is: true, ..
+            } => !kinds.is_empty() && !kinds.contains(&AboutKind::Place),
+            _ => false,
+        });
+        if t.about.contains(&AboutKind::Place) && hood_only && !keeps_out {
+            out.add(
+                Sev::Warn,
+                "subject-drift",
+                &l.id,
+                format!(
+                    "`{}` reads a place subject as its neighbourhood's worries; add `{{ \"type\": \"about\", \"kinds\": [\"hood\"] }}`",
+                    l.id
+                ),
+            );
+        }
+    }
+}
+
+/// The same in a rendered corpus (`talk-off-subject`): a reply to "Ask
+/// about…", or to "What are people worried about?" asked of a
+/// neighbourhood, must name what was asked about (`$about`: a person, the
+/// rival, a neighbourhood, a place), unless it comes from a fallback (a
+/// deflection). Bills and templates are named by their own arguments and
+/// are not checked here.
+pub fn corpus_relevance_findings(dir: &Path, b: &ContentBundle) -> Result<Vec<Finding>, String> {
+    let path = dir.join("corpus.jsonl");
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let msgs = messages(&b.locale_text("en"));
+    let fallback: BTreeSet<&str> = b
+        .talk_lines
+        .iter()
+        .filter(|l| l.fallback)
+        .map(|l| l.id.as_str())
+        .collect();
+    let mut seen: BTreeMap<String, (usize, String, String)> = BTreeMap::new();
+    for line in text.lines().filter(|l| !l.trim().is_empty()) {
+        let v: serde_json::Value =
+            serde_json::from_str(line).map_err(|e| format!("{}: {e}", path.display()))?;
+        let s = |k: &str| v.get(k).and_then(|x| x.as_str()).unwrap_or("").to_string();
+        if s("kind") != "talk" || s("part") != "substance" || fallback.contains(s("id").as_str()) {
+            continue;
+        }
+        let topic = v
+            .pointer("/situation/topic")
+            .and_then(|x| x.as_str())
+            .unwrap_or("");
+        let about = v.pointer("/situation/about");
+        let hood_asked = about.and_then(|a| a.get("hood")).is_some()
+            && about.and_then(|a| a.get("place")).is_none();
+        if !(topic == "topic.about" || (topic == "topic.worries" && hood_asked)) {
+            continue;
+        }
+        let args = v.get("args");
+        let arg = |k: &str| args.and_then(|a| a.get(k)).and_then(|x| x.as_str());
+        let named = match (arg("about"), arg("about_key")) {
+            (Some(n), _) => n.to_string(),
+            (None, Some(k)) => msgs.get(k).cloned().unwrap_or_default(),
+            (None, None) => continue,
+        };
+        if named.is_empty() || s("text").to_lowercase().contains(&named.to_lowercase()) {
+            continue;
+        }
+        let e = seen
+            .entry(s("id"))
+            .or_insert_with(|| (0, s("key"), format!("asked about {named}: {}", s("text"))));
+        e.0 += 1;
+    }
+    Ok(seen
+        .into_iter()
+        .map(|(id, (n, key, what))| Finding {
+            severity: Sev::Warn,
+            check: "talk-off-subject".into(),
+            file: "corpus".into(),
+            item: format!("talk {id}"),
+            message: format!("{n} reply(ies) from `{key}` do not name what was asked, e.g. {what}"),
+        })
+        .collect())
+}
+
 // --- Length -------------------------------------------------------------------------
 
 /// A representative value for an argument: long names, a long town.
@@ -2249,6 +2739,9 @@ pub fn diagnose(sources: &[Source], args: &DoctorArgs) -> Report {
         let scan = scan_sources(&args.source);
         fluent_checks(&b, sources, scan.as_ref(), &mut out);
         length_checks(&b, args, &mut out);
+        text_checks(&b, &mut out);
+        worry_checks(&b, &mut out);
+        relevance_checks(&b, &mut out);
         if args.seeds > 0 {
             let seen = careers(&b, args);
             report.careers = seen.len();
@@ -2287,6 +2780,16 @@ pub fn diagnose(sources: &[Source], args: &DoctorArgs) -> Report {
         .collect();
     report.findings = out.findings;
     report
+}
+
+/// The corpus text findings for a terminal.
+fn print_text_findings(found: &[Finding]) {
+    use std::io::Write;
+    let mut o = std::io::stdout().lock();
+    let _ = writeln!(o, "Text in the corpus: {} problem(s)", found.len());
+    for f in found {
+        let _ = writeln!(o, "  {} {}: {}", f.check, f.item, f.message);
+    }
 }
 
 /// The report as text for a terminal.
@@ -2364,19 +2867,37 @@ pub fn human(r: &Report) -> String {
 pub fn run(root: &Path, args: &DoctorArgs) -> Result<(), String> {
     let sources = mandate_content::bundle::read_dir_sources(root)
         .map_err(|e| format!("reading {}: {e}", root.display()))?;
+    if let Some(dir) = &args.check_corpus {
+        let mut found = corpus_text_findings(dir)?;
+        if let Ok((b, _)) = mandate_content::load(&sources) {
+            found.extend(corpus_relevance_findings(dir, &b)?);
+        }
+        print_text_findings(&found);
+        if args.strict && !found.is_empty() {
+            return Err(format!("content doctor: {} text problem(s)", found.len()));
+        }
+        return Ok(());
+    }
     if let Some(dir) = &args.corpus {
         let content = mandate_content::load(&sources)
             .map(|(b, _)| Arc::new(b))
             .map_err(|issues| {
                 format!("{} content error(s); run `content validate`", issues.len())
             })?;
-        let counts = crate::corpus::run(content, dir, args.seeds, args.years, &args.source)?;
+        let counts =
+            crate::corpus::run(content.clone(), dir, args.seeds, args.years, &args.source)?;
         use std::io::Write;
         let _ = writeln!(
             std::io::stdout().lock(),
             "{}",
             serde_json::to_string_pretty(&counts).unwrap_or_default()
         );
+        // What reads wrong in it (only when it was rendered).
+        if dir.join("corpus.jsonl").exists() {
+            let mut found = corpus_text_findings(dir)?;
+            found.extend(corpus_relevance_findings(dir, &content)?);
+            print_text_findings(&found);
+        }
         return Ok(());
     }
     let report = diagnose(&sources, args);
@@ -2556,5 +3077,254 @@ mod tests {
         );
         assert!(out.findings.iter().any(|f| f.check == "unsatisfiable"));
         assert!(out.findings.iter().any(|f| f.check == "contradiction"));
+    }
+
+    #[test]
+    fn text_problems_find_empty_arguments() {
+        // A memory with no subject, quoted as it was before the fix.
+        let p = text_problems("You pressed them on  and got nowhere (2020).");
+        assert!(p.iter().any(|(c, _)| *c == "text-empty-arg"), "{p:?}");
+        assert!(
+            text_problems("\" Put my ward in your bill.\"")
+                .iter()
+                .any(|(c, _)| *c == "text-empty-arg")
+        );
+        assert!(
+            text_problems("Who supports : nobody")
+                .iter()
+                .any(|(c, _)| *c == "text-empty-arg")
+        );
+        assert!(text_problems("You pressed them on the bill and got nowhere (2020).").is_empty());
+    }
+
+    #[test]
+    fn text_problems_find_doubled_punctuation_but_not_an_ellipsis() {
+        // The retold headline before the fix: its own stop, then the line's.
+        for bad in [
+            "\"Did you see it? 'Mireenwick passed the bill (1–0)..' It's all anyone's on about.\"",
+            "\"'Mireenwick passed the bill (1–0).,' says the Chronicle.\"",
+            "Well,. there it is.",
+        ] {
+            assert!(
+                text_problems(bad)
+                    .iter()
+                    .any(|(c, _)| *c == "text-doubled-punct"),
+                "{bad}"
+            );
+        }
+        for good in [
+            "\"Sorry. Was that... sorry. I'll let you get on.\"",
+            "\"Oh! Sorry,\" says Ada. \"Is this – are you after me?\"",
+            "\"'Wage floor bill passes, 4–3,' says the Chronicle. Really?!\"",
+            "\"Did you see it? 'Wage floor bill passes.' It's all anyone's on about.\"",
+        ] {
+            assert!(
+                text_problems(good).is_empty(),
+                "{good}: {:?}",
+                text_problems(good)
+            );
+        }
+    }
+
+    #[test]
+    fn text_problems_find_raw_placeables_and_missing_keys() {
+        for bad in [
+            "'Mireenwick passed {$policy} (1–0).'",
+            "Hello { $name }",
+            "A ⟦talk-missing⟧ line",
+        ] {
+            assert!(
+                text_problems(bad).iter().any(|(c, _)| *c == "text-raw"),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_worry_asserted_without_a_worry_condition_is_found() {
+        let mut s = base_sources();
+        s.push(Source {
+            path: "base/planted_lines.jsonc".into(),
+            text: r#"{ "kind": "talk_lines", "items": [
+  { "id": "line.planted.rent", "part": "substance", "topic": "topic.worries",
+    "key": "talk-planted-rent" },
+  { "id": "line.planted.rent_ok", "part": "substance", "topic": "topic.worries",
+    "key": "talk-planted-rent-ok",
+    "when": [ { "type": "concern", "of": "town", "concerns": ["concern.housing"] } ] },
+  { "id": "line.planted.any", "part": "substance", "topic": "topic.worries",
+    "key": "talk-planted-any",
+    "when": [ { "type": "tells", "subject": { "type": "town_concerns" }, "min": "heard" } ] }
+] }"#
+                .into(),
+        });
+        s.push(Source {
+            path: "base/locale/en/planted.ftl".into(),
+            text: "talk-planted-rent = \"It's the rent. Everyone's landlord put it up.\"\n\
+                   talk-planted-rent-ok = \"It's the rent. Everyone's landlord put it up.\"\n\
+                   talk-planted-any = \"From what I hear, it's { $concern_talk }.\"\n"
+                .into(),
+        });
+        let r = diagnose(&s, &quick());
+        assert!(
+            r.has("worry-unconditioned", "line.planted.rent"),
+            "{}",
+            human(&r)
+        );
+        assert!(!r.has("worry-unconditioned", "line.planted.rent_ok"));
+        assert!(!r.has("worry-unconditioned", "line.planted.any"));
+        // The base pack's own lines all have their worries behind them.
+        let base = diagnose(&base_sources(), &quick());
+        let unbacked: Vec<_> = base
+            .findings
+            .iter()
+            .filter(|f| f.check == "worry-unconditioned")
+            .collect();
+        assert!(unbacked.is_empty(), "{unbacked:#?}");
+    }
+
+    #[test]
+    fn doubled_punctuation_written_into_a_message_is_found() {
+        let mut s = base_sources();
+        s.push(Source {
+            path: "base/planted_overheard.jsonc".into(),
+            text: r#"{ "kind": "overheard", "items": [ { "id": "overheard.planted_stops", "key": "heard-planted-stops" } ] }"#.into(),
+        });
+        s.push(Source {
+            path: "base/locale/en/planted.ftl".into(),
+            text: "heard-planted-stops = \"They closed the library..\"\n".into(),
+        });
+        let r = diagnose(&s, &quick());
+        assert!(
+            r.findings
+                .iter()
+                .any(|f| f.check == "text-doubled-punct" && f.item == "heard-planted-stops"),
+            "{}",
+            human(&r)
+        );
+    }
+
+    #[test]
+    fn a_corpus_is_checked_for_how_it_reads() {
+        let dir = std::env::temp_dir().join(format!("doctor-corpus-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let line = |id: &str, text: &str| {
+            serde_json::json!({ "kind": "scene", "part": "beat", "id": id, "text": text, "key": "k" })
+                .to_string()
+        };
+        std::fs::write(
+            dir.join("corpus.jsonl"),
+            [
+                line(
+                    "scene.donor_offer",
+                    "\"You pressed them on  and got nowhere (2020).\"",
+                ),
+                line(
+                    "scene.donor_offer",
+                    "\"You pressed them on  and got nowhere (2021).\"",
+                ),
+                line(
+                    "scene.fine",
+                    "\"You leaned on me once, and it didn't work.\"",
+                ),
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        let found = corpus_text_findings(&dir).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(found.len(), 1, "{found:#?}");
+        assert_eq!(found[0].check, "text-empty-arg");
+        assert_eq!(found[0].item, "scene scene.donor_offer");
+        assert!(
+            found[0].message.starts_with("2 rendering(s)"),
+            "{}",
+            found[0].message
+        );
+    }
+
+    #[test]
+    fn replies_that_ignore_the_subject_are_found() {
+        let mut s = base_sources();
+        s.push(Source {
+            path: "base/planted_lines.jsonc".into(),
+            text: r#"{ "kind": "talk_lines", "items": [
+  { "id": "line.planted.about_anything", "part": "substance", "topic": "topic.about",
+    "key": "talk-planted-anything",
+    "when": [ { "type": "opinion", "slot": "speaker", "min": -15 } ] },
+  { "id": "line.planted.about_hood_drift", "part": "substance", "topic": "topic.about",
+    "key": "talk-planted-drift",
+    "when": [ { "type": "tells", "subject": { "type": "hood_concerns", "of": "about" }, "min": "known" } ] },
+  { "id": "line.planted.about_hood_ok", "part": "substance", "topic": "topic.about",
+    "key": "talk-planted-drift",
+    "when": [ { "type": "about", "kinds": ["hood"] },
+              { "type": "tells", "subject": { "type": "hood_concerns", "of": "about" }, "min": "known" } ] }
+] }"#
+                .into(),
+        });
+        s.push(Source {
+            path: "base/locale/en/planted.ftl".into(),
+            text: "talk-planted-anything = \"Lovely weather.\"\n\
+                   talk-planted-drift = \"Round { $hood } it's { $concern_talk }.\"\n"
+                .into(),
+        });
+        let r = diagnose(&s, &quick());
+        assert!(
+            r.has("subject-unread", "line.planted.about_anything"),
+            "{}",
+            human(&r)
+        );
+        assert!(
+            r.has("subject-drift", "line.planted.about_hood_drift"),
+            "{}",
+            human(&r)
+        );
+        assert!(!r.has("subject-drift", "line.planted.about_hood_ok"));
+        // The base pack answers what it is asked.
+        let base = diagnose(&base_sources(), &quick());
+        let off: Vec<_> = base
+            .findings
+            .iter()
+            .filter(|f| f.check == "subject-unread" || f.check == "subject-drift")
+            .collect();
+        assert!(off.is_empty(), "{off:#?}");
+    }
+
+    /// The owner's report (2026-11-20): asked about the newspaper office, a
+    /// reporter talked about the cost of living. In a corpus, a reply to
+    /// "Ask about…" that does not name the place is found; a fallback (a
+    /// deflection) is not.
+    #[test]
+    fn a_corpus_reply_that_does_not_name_the_place_asked_about_is_found() {
+        let dir = std::env::temp_dir().join(format!("doctor-relevance-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let item = |id: &str, text: &str| {
+            serde_json::json!({
+                "kind": "talk", "part": "substance", "id": id, "text": text, "key": "k",
+                "args": { "about_key": "talk-place-news_office", "speaker": "Ada Moss" },
+                "situation": { "topic": "topic.about", "about": { "hood": "Old Quay", "place": "news_office" } }
+            })
+            .to_string()
+        };
+        std::fs::write(
+            dir.join("corpus.jsonl"),
+            [
+                item(
+                    "line.about.hood",
+                    "\"Old Quay's my end of town. It's the rent.\"",
+                ),
+                item(
+                    "line.about.place.own.press",
+                    "\"You mean the newspaper office? Two desks, one kettle.\"",
+                ),
+                item("line.about.shrug", "\"Can't say I know much about that.\""),
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        let b = mandate_content::load(&base_sources()).unwrap().0;
+        let found = corpus_relevance_findings(&dir, &b).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(found.len(), 1, "{found:#?}");
+        assert_eq!(found[0].item, "talk line.about.hood");
     }
 }

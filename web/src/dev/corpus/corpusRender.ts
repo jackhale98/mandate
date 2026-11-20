@@ -6,7 +6,7 @@
 // taught). Pure: the Vitest runner in `corpus.test.ts` reads and writes the
 // files. Dev tooling, never shipped.
 import { capital } from "../../components/DecisionSheet";
-import { subjectText } from "../../components/CharacterSheet";
+import { memoryText, quoteKey } from "../../components/CharacterSheet";
 import { itemFacts, itemTitle, type NotebookItem } from "../../components/notebook/notebookModel";
 import { learnedText } from "../../components/talk/talkText";
 import type { LearnedItemView } from "../../engine/protocol/LearnedItemView";
@@ -58,7 +58,7 @@ export function renderItem(tr: Translator, it: RawItem): { text: string; key: st
       // As the decision sheet's beat: a quoted memory first, as `$memory`.
       const v = it.view as KeyArgs & { quote: { key: string; subject: SubjectView | null; year: number } | null };
       const args: Record<string, string> = { ...v.args };
-      if (v.quote) args.memory = tr.t(v.quote.key, { subject: subjectText(tr, v.quote.subject), year: String(v.quote.year) });
+      if (v.quote) args.memory = memoryText(tr, quoteKey(v.quote.key), v.quote);
       return { text: tr.event(v.key, args), key: v.key, args };
     }
     case "learned": {

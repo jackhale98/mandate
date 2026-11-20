@@ -19,6 +19,16 @@ describe("Translator", () => {
     expect(t2.event("story", { outlet_key: "outlet", outlet_place: "Iverland", fact_key: "fact" })).toBe("Iverland Regional News has it: a bribe");
   });
 
+  it("renders a key argument that names keys of its own (a retold headline)", () => {
+    const t3 = new Translator(
+      "en",
+      "heard = Did you see it? '{ $headline }.'\nhl = { $town } passes the { $policy } bill\npol = Local wage floor\n",
+    );
+    expect(t3.event("heard", { headline_key: "hl", policy_key: "pol", town: "Iverland" })).toBe(
+      "Did you see it? 'Iverland passes the Local wage floor bill.'",
+    );
+  });
+
   it("makes missing keys visible", () => {
     expect(tr.t("nope")).toBe("⟦nope⟧");
     expect(tr.has("hello")).toBe(true);

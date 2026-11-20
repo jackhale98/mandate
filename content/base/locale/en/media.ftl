@@ -39,7 +39,7 @@ dilemma-consultancy-fee-report-after = You reported the offer. The town heard yo
 dilemma-consultancy-fee-lapse = Say nothing and let it pass
 dilemma-consultancy-fee-lapse-after = You never answered. { $developer } took the silence as a no.
 scene-consultancy-developer = { $developer }: "You know how it works. Advice is worth paying for."
-scene-consultancy-developer-fresh = { $developer }: "We have not worked together yet. We could start well."
+scene-consultancy-developer-fresh = { $developer }: "We haven't worked together yet. We could start as we mean to go on."
 
 dilemma-steer-contract = the contract
 dilemma-steer-contract-situation = The { $law } contract is out to tender. { $donor } ({ $donor_role }) has a firm in the running, and a generous campaign donation ready if it wins.
@@ -47,13 +47,13 @@ dilemma-steer-contract-steer = Make sure their firm wins
 dilemma-steer-contract-steer-after = You steered the { $law } contract to { $donor }'s firm. The donation arrived the next week. So did the losing bidders' questions.
 dilemma-steer-contract-tender = Insist on an open tender, and sit on the panel
 dilemma-steer-contract-tender-after = You sat through the tender panel. It took a day; the contract went to the best bid, and { $donor } was not pleased.
-dilemma-steer-contract-leave = Leave it to the clerk
+dilemma-steer-contract-leave = Leave the tender to the clerk
 dilemma-steer-contract-leave-after = You left it to the clerk. { $donor } felt you could have done more.
 scene-contract-donor = { $donor }: "Nobody needs to know who suggested it."
 scene-contract-donor-fresh = { $donor }: "I support people who support this town."
 
 dilemma-paid-crowd = the empty hall
-dilemma-paid-crowd-situation = Tomorrow's town hall looks thin. { $fixer } ({ $fixer_role }) can fill the seats with paid supporters who cheer on cue.
+dilemma-paid-crowd-situation = Tomorrow's town hall meeting looks thin. { $fixer } ({ $fixer_role }) can fill the seats with paid supporters who cheer on cue.
 dilemma-paid-crowd-pay = Pay them to fill the hall
 dilemma-paid-crowd-pay-after = The hall was packed and loud, and the photos looked great. Twenty people have a story about how they were paid.
 dilemma-paid-crowd-honest = Spend the day drumming up real supporters
@@ -62,7 +62,7 @@ dilemma-paid-crowd-skip = Hold it as it is
 dilemma-paid-crowd-skip-after = The hall was thin. The photos were worse.
 scene-paid-crowd-fixer = { $fixer }: "Twenty people, fifty each, and they bring signs."
 
-dilemma-personal-bills = the bills at home
+dilemma-personal-bills = the household bills
 dilemma-personal-bills-situation = You are worn out and the bills at home are piling up. { $treasurer } ({ $treasurer_role }) keeps the campaign's card, and nobody checks it very closely.
 dilemma-personal-bills-use = Put the household bills on the campaign card
 dilemma-personal-bills-use-after = The bills are paid and you slept for the first time in weeks. The card statements are filed with the campaign's accounts.
@@ -70,12 +70,12 @@ dilemma-personal-bills-ask = Ask the party for an advance
 dilemma-personal-bills-ask-after = The party advanced you a little, and made a note of who asked.
 dilemma-personal-bills-carry-on = Grit your teeth and carry on
 dilemma-personal-bills-carry-on-after = You carried on. It showed.
-scene-bills-treasurer = { $treasurer }: "It is your campaign. Who is going to look?"
+scene-bills-treasurer = { $treasurer }: "It's your campaign. Who's going to look?"
 
-dilemma-job-for-relative = the job for your nephew
-dilemma-job-for-relative-situation = { $sponsor } needs one more vote for { $bill }, and mentions a job opening at the town for your nephew.
+dilemma-job-for-relative = the nephew's job
+dilemma-job-for-relative-situation = { $sponsor } needs one more vote for the { $bill } bill, and mentions a job opening at the town hall for your nephew.
 dilemma-job-for-relative-deal = Vote yes; your nephew gets the job
-dilemma-job-for-relative-deal-after = You voted for { $bill }, and your nephew started on Monday. Your family is relieved. The hiring file has both your names in it.
+dilemma-job-for-relative-deal-after = You voted for the { $bill } bill, and your nephew started on Monday. Your family is relieved. The hiring file has both your names in it.
 dilemma-job-for-relative-refuse = Refuse the deal
 dilemma-job-for-relative-refuse-after = You refused. { $sponsor } will remember; your party liked the backbone.
 dilemma-job-for-relative-noncommittal = Change the subject
@@ -84,7 +84,7 @@ scene-relative-sponsor = { $sponsor }: "Family is family. One vote."
 scene-relative-sponsor-fresh = { $sponsor }: "We should help each other."
 
 ## Raised decisions: a story about you, an investigation of you.
-dilemma-scandal-response = the story about you
+dilemma-scandal-response = the newspaper story
 dilemma-scandal-response-situation = { $outlet } has the story: { $fact }. How you answer decides how long it runs.
 dilemma-scandal-response-deny = Deny it flatly
 dilemma-scandal-response-deny-after = You denied it. If they had little, the story died; if they had a lot, the denial became the story.
@@ -112,6 +112,7 @@ dilemma-legal-response-wait-after = You waited. The investigation went on withou
 
 ## Memory.
 memory-blamed-me = You blamed them for your own wrongdoing ({ $year }).
+scene-quote-blamed-me = You put your own mess on my doorstep, back in { $year }.
 
 ## Shady actions (DEC-034, DEC-073): the risk is shown before acting.
 action-take-bribe = Take an envelope
@@ -166,7 +167,7 @@ effect-legal-blame-ally = Blaming an ally
 effect-respond-none-gain = Nothing you say can be quoted back at you
 effect-respond-none-cost = The story runs its course
 effect-respond-deny-gain = If they have little, the story dies
-effect-respond-deny-cost = If they have a lot, the denial unravels and costs Standing
+effect-respond-deny-cost = If they have a lot, the denial unravels, and so does your standing with the party
 effect-respond-explain-gain = The story cools
 effect-respond-explain-cost = Some of it will be quoted back at you
 effect-respond-apologise-gain = The story ends sooner
@@ -202,6 +203,21 @@ headline-rumour = Unverified claims about { $name } spread online
 headline-correction = Claims about { $name } were false, paper says
 headline-statement = { $name } speaks to the press
 headline-statement-bill = { $name } makes the case for { $bill }
+# Town news (a story about something that happened in town: the event's
+# arguments; `name` is a race's winner). Third person, no full stop.
+headline-plant-closure = { $sector } layoffs in { $town }: { $jobs } jobs lost
+headline-disaster = { $hazard } strikes { $town }
+headline-policy-enacted = { $policy } bill passes in { $town }
+headline-policy-override = { $town } overrides the veto on the { $policy } bill, { $yes }–{ $no }
+headline-policy-vetoed = { $policy } bill vetoed in { $town }
+headline-policy-defeated = { $policy } bill voted down in { $town }, { $yes }–{ $no }
+headline-player-elected = { $name } wins in { $town }
+headline-player-elected-mayor = { $name } elected mayor of { $town }
+headline-player-defeated = { $name } wins in { $town }
+headline-mayor-ousted = { $town } throws out its mayor: { $name } wins
+headline-mayor-elected = { $name } elected mayor of { $town }
+headline-councillor-ousted = { $name } unseats a sitting councillor in { $town }
+headline-councillor-elected = { $name } wins a council seat in { $town }
 sentence-fine = a fine
 sentence-removed = removal from office
 sentence-prison = prison
