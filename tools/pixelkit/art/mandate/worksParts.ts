@@ -341,6 +341,8 @@ function cabin(broken: boolean): PartDef {
   c.rect(1, 16, 3, 3, "Q");
   c.rect(26, 16, 3, 3, "Q");
   c.rect(26, 16, 1, 1, "P");
+  // Within the colour budget (round 7: 14 a part): ribs, handle, steps and the shade under it from colours already on the cabin.
+  c.swap({ q: "p", Y: "c", k: "P", W: "Q", o: "Q" });
   if (broken) {
     // A pane gone: dark, a shard left in its corner; the door kicked in at the foot; a tag of rust under the roof.
     c.rect(4, 7, 4, 5, "O");
@@ -437,6 +439,8 @@ function towerCrane(load: boolean, rust: boolean): PartDef {
   }
   // The warning light at the tip.
   c.set(tip, top - 1, "r");
+  // Within the colour budget: one glass tone, the hook one orange, the load and footing in colours already used.
+  c.swap({ h: "g", A: "a", q: "p", I: "i" });
   if (rust) {
     // Rust: the paint gone in patches along the members, darker where water runs.
     c.swap({ Y: "v", j: "v", y: "u" }, (x, y) => hash32(x >> 2, y >> 2, 0xc7a) % 3 === 0);
@@ -816,8 +820,8 @@ function headframes(): PartDef[] {
   });
   const rust = (turning[0] as Chars).clone();
   // Rust: the red paint gone brown and orange in patches, streaked darker down the legs.
-  rust.swap({ K: "w", X: "W" }, (x, y) => hash32(x >> 1, y >> 2, 0x4ea) % 2 === 0);
-  rust.swap({ K: "v", X: "U" });
+  rust.swap({ K: "v", X: "U" }, (x, y) => hash32(x >> 1, y >> 2, 0x4ea) % 4 === 0);
+  rust.swap({ K: "w", X: "W" });
   // Half-built: everything above the third girder (row 37) not yet up; a gin pole on the stub.
   const half = (turning[0] as Chars).clone();
   for (let y = 0; y < 37; y++) for (let x = 0; x < half.w; x++) half.set(x, y, ".");
@@ -983,7 +987,8 @@ function lorry(tipper: boolean): PartDef {
   for (const cx of [6, 14, 34]) {
     for (let y = -2; y <= 2; y++) for (let x = -2; x <= 2; x++) if (x * x + y * y <= 5) c.set(cx + x, 20 + y, Math.abs(x) + Math.abs(y) <= 1 ? "I" : "O");
   }
-  c.rect(1, 23, 40, 1, "o");
+  c.rect(1, 23, 40, 1, "O");
+  c.swap({ l: "b", h: "g", p: "C" });
   return { id: tipper ? "lorry_tipper" : "lorry", frames: [c], foot: [21, 22], shadow: { box: [-20, -6, 20, 0], height: 16 } };
 }
 
@@ -1128,21 +1133,20 @@ function ribbons(): PartDef[] {
   a.line(bx - 1, 8, bx - 3, 12, "R");
   a.line(bx + 1, 8, bx + 3, 12, "R");
 
-  const b = new Chars(8, 34);
-  stand(b, 3, 0);
-  stand(b, 3, 19);
-  for (let y = 2; y < 21; y++) {
-    b.set(4, y, "R");
-    b.set(5, y, "H");
-  }
-  b.rect(1, 9, 3, 3, "R");
-  b.rect(6, 9, 2, 3, "R");
-  b.rect(3, 10, 3, 3, "H");
-  b.line(3, 13, 1, 16, "R");
-  b.line(5, 13, 7, 16, "R");
+  // Across an east–west way the stands stand one behind the other (feet 11 px apart), the near one a little to the right, so the ribbon reads as it slants down between them.
+  const b = new Chars(14, 24);
+  stand(b, 1, 1);
+  stand(b, 9, 11);
+  b.line(2, 2, 10, 12, "R");
+  b.line(3, 2, 11, 12, "H");
+  b.rect(4, 5, 3, 3, "R");
+  b.rect(7, 7, 3, 3, "R");
+  b.rect(6, 7, 2, 2, "H");
+  b.line(6, 9, 4, 13, "R");
+  b.line(8, 10, 9, 14, "R");
   return [
     { id: "ribbon", frames: [a], foot: [bx, 15] },
-    { id: "ribbon_ns", frames: [b], foot: [4, 33] },
+    { id: "ribbon_ns", frames: [b], foot: [10, 23] },
   ];
 }
 

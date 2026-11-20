@@ -166,7 +166,7 @@ const STYLES: Readonly<Record<LineStyle, StyleDef>> = {
       const leg = mod(along, period);
       const isLeg = leg === 2 || leg === period - 3;
       if (k <= 1) return isLeg ? (k === 0 ? "x" : "i") : ".";
-      if (k <= 4) return isLeg ? "I" : ".";
+      if (k <= 4) return isLeg ? "i" : ".";
       const red = (Math.floor(mod(along, 8) / 4) & 1) === 1;
       if (k === h) return red ? "R" : "c";
       if (k === 5) return red ? "H" : "C";
@@ -176,14 +176,14 @@ const STYLES: Readonly<Record<LineStyle, StyleDef>> = {
   // New railings (a bridge's): galvanised posts every 4 px, a mid rail and a bright top rail.
   railing: {
     r: 0,
-    height: () => 7,
+    height: () => 6,
     outline: true,
     px(k, h, along) {
       const post = mod(along, 4) === 0;
-      if (k === h) return "c";
-      if (k === 4) return "C";
+      if (k === h) return "C";
+      if (k === 3) return "p";
       if (k === 0) return post ? "P" : ".";
-      return post ? "q" : ".";
+      return post ? "p" : ".";
     },
   },
   // A concrete flood wall: a lit coping, the face toward the viewer in the light (\), square on (west–east) or in shade (/), panel joints every 16 px, a dark foot.

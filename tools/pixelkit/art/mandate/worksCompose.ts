@@ -265,8 +265,10 @@ function bridge(cx: Composer, part: WorksPart) {
             ch = j === 0 ? "x" : j === 1 ? "I" : (a - parapet) % 10 === 0 ? "x" : "i";
           } else {
             // The deck taken out: steel beams along the way every 4 px, the river far below between them.
-            const r = (a - parapet) % 4;
-            ch = r === 0 ? "I" : r === 1 ? "i" : r === 2 ? "O" : "_";
+            // A dark shadow under the cut ends and each beam; the water bright below.
+            const r = (a - parapet) % 5;
+            const cut = along - gapA < 2 || gapB - along <= 2;
+            ch = cut ? (along - gapA < 1 || gapB - along <= 1 ? "q" : "O") : r === 0 ? "I" : r === 1 ? "i" : r === 2 ? "O" : r === 3 ? "_" : "~";
             if (r <= 1) cx.beams.push(ew ? { X: X0 + along, Y: Y0 + a } : { X: X0 + a, Y: Y0 + along });
           }
         } else if (lvl === 5 && along < gapB + 6) ch = stripped();
@@ -290,7 +292,8 @@ function bridge(cx: Composer, part: WorksPart) {
   // Ground marks go along the deck's edges and on its stripped or plated parts.
   cx.grounds.push(ew ? [X0 + 2, Y0 + parapet, run - 4, span - 2 * parapet] : [X0 + parapet, Y0 + 2, span - 2 * parapet, run - 4]);
   if (ew) cx.faceArea = [X0 + 2, (c.y + c.h) * 16 + 4, run - 4, 6];
-  for (let k = 0; k < 4; k++) cx.work.push(ew ? [X0 + 8 + ((k * run) >> 2), Y0 + span - 5] : [X0 + span - 4, Y0 + 8 + ((k * run) >> 2)]);
+  // Workers on the deck, clear of the gap (on the new deck before it, and the old one after it).
+  for (const t of [0.12, 0.3, 0.9]) cx.work.push(ew ? [X0 + Math.round(run * t), Y0 + span - 5] : [X0 + span - 4, Y0 + Math.round(run * t)]);
 }
 
 /** New railings along both parapets (a share of the length while they are being fitted). */
@@ -316,7 +319,7 @@ function scaffold(cx: Composer, part: WorksPart) {
     if (ew) {
       const W = Math.max(8, Math.round(c.w * 16 * lvl));
       const Yd = (c.y + c.h) * 16;
-      const s = scaffoldChars(W, 18, false);
+      const s = scaffoldChars(W, 18, false, part.id === "scaffold_bare");
       cx.image("scaffold", charsToIndexed(s, cx.L, 0), c.x * 16, Yd - 2, Yd + 16, ["metal", "scaffold"]);
     } else {
       const H = Math.max(8, Math.round(c.h * 16 * lvl));
@@ -340,21 +343,25 @@ function scaffold(cx: Composer, part: WorksPart) {
   const wallH = wallHeight(b.storeys);
   const W = Math.max(12, Math.round(slot.w * 16 * lvl));
   const H = wallH + 8;
-  const s = scaffoldChars(W, H, true);
+  const s = scaffoldChars(W, H, true, part.id === "scaffold_bare");
   const base = (slot.y + slot.h) * 16;
   const t = cx.image("scaffold", charsToIndexed(s, cx.L, 0), slot.x * 16, base - H, base + 1, ["metal", "scaffold"]);
   cx.tops.push({ x0: t.out.x + 2, x1: t.out.x + W - 3, y: t.out.y + 1, base: base + 1 });
 }
 
 /** Tube-and-fitting scaffolding W × H: standards every 12 px, a ledger and boards every lift, a brace, a ladder, netting on the top lift (buildings). */
-function scaffoldChars(W: number, H: number, net: boolean): Chars {
+function scaffoldChars(W: number, H: number, net: boolean, bare = false): Chars {
   const s = new Chars(W, H);
-  for (let x = 1; x < W - 1; x += 12) s.rect(x, 0, 1, H, "I");
+  for (let x = 1; x < W - 1; x += 12) s.rect(x, 0, 1, H, bare ? "u" : "I");
   s.rect(W - 2, 0, 1, H, "I");
   for (let y = H - 3; y >= 2; y -= 9) {
     s.rect(0, y, W, 1, "i");
-    s.rect(0, y - 2, W, 2, "w");
-    s.rect(0, y - 2, W, 1, "k");
+    // Left for years: most boards gone (taken or fallen), the rest warped dark.
+    for (let x = 0; x < W; x += 6) {
+      if (bare && hash32(x, y, 0xb0a) % 3 !== 0) continue;
+      s.rect(x, y - 2, Math.min(6, W - x), 2, bare ? "W" : "w");
+      if (!bare) s.rect(x, y - 2, Math.min(6, W - x), 1, "k");
+    }
   }
   for (let y = 0; y < H - 3; y++) s.set(2 + Math.floor((y * Math.min(10, W - 4)) / Math.max(1, H - 3)), y, "I");
   if (W > 30) {
@@ -365,12 +372,17 @@ function scaffoldChars(W: number, H: number, net: boolean): Chars {
       if (y % 3 === 0) s.rect(lx, y, 4, 1, "k");
     }
   }
-  if (net) for (let y = 0; y < Math.min(7, H); y++) for (let x = 0; x < W; x++) if (x % 12 !== 1 && (hash32(x >> 2, 0x4e7) + y) % 9 !== 0) s.set(x, y, (x + (y >> 1)) % 5 === 0 ? "e" : "E");
+  // Netting on the top lift; torn to rags when the site is left.
+  if (net) for (let y = 0; y < Math.min(7, H); y++) for (let x = 0; x < W; x++) {
+    if (x % 12 === 1 || (hash32(x >> 2, 0x4e7) + y) % 9 === 0) continue;
+    if (bare && (hash32(x >> 2, 0x4e8) % 3 !== 0 || y > 2 + (hash32(x, 0x4e9) % 6))) continue;
+    s.set(x, y, (x + (y >> 1)) % 5 === 0 ? "e" : "E");
+  }
   return s;
 }
 
 /** A building's frame: concrete columns and slab edges, dark bays with the back columns showing, the top slab with its starter bars. */
-function frame(cx: Composer) {
+function frame(cx: Composer, worn: number) {
   const slot = cx.site.slot;
   const b = cx.site.building;
   if (!slot || !b) return;
@@ -385,6 +397,15 @@ function frame(cx: Composer) {
   c.rect(1, roofTop, W - 2, wallTop - roofTop, "p");
   for (let x = 1; x < W - 1; x += 16) c.rect(x, roofTop, 1, wallTop - roofTop, "P");
   c.rect(1, roofTop, W - 2, 1, "q");
+  // The stair core standing a storey proud at the back, its shuttering marks; columns' starter bars along the back edge.
+  const coreW = Math.min(14, W - 8);
+  const coreX = W - coreW - 4;
+  const coreTop = Math.max(0, roofTop - 10);
+  c.rect(coreX, coreTop, coreW, roofTop + 6 - coreTop, "P");
+  c.rect(coreX, coreTop, coreW, 3, "q");
+  c.rect(coreX, roofTop + 3, coreW, 3, "Q");
+  for (let x = coreX + 3; x < coreX + coreW; x += 4) c.rect(x, coreTop + 4, 1, roofTop - coreTop - 2, "Q");
+  for (let x = 2; x < W - 2; x += 16) c.rect(x, roofTop - 2, 1, 2, "u");
   // Starter bars on the top slab at the column lines, rusting.
   for (let x = 2; x < W - 2; x += 16) for (const dx of [0, 2]) c.rect(x + dx, wallTop - 4, 1, 3, "u");
   // Bays: dark inside, the back columns, the shadow under each slab.
@@ -409,6 +430,26 @@ function frame(cx: Composer) {
   c.rect(W - 4, wallTop, 1, wallH, "q");
   c.rect(W - 2, wallTop, 1, wallH, "P");
   c.rect(1, IH - 1, W - 2, 1, "Q");
+  if (worn >= 1) {
+    // Weathered: rust run down from the starter bars, dark streaks of rain under every slab edge and down the columns.
+    for (let x = 2; x < W - 2; x += 16) for (let y = wallTop - 1; y < wallTop + 3; y++) c.set(x + 1, y, "U");
+    for (const fy of floors) for (let x = 1; x < W - 1; x++) {
+      if (hash32(cx.seed, x, fy, 0xd1) % 4 !== 0 || c.get(x, fy + 3) === "O") continue;
+      const len = 2 + (hash32(cx.seed, x, fy, 0xd2) % 4);
+      for (let k = 3; k < 3 + len; k++) if (c.get(x, fy + k) === "p" || c.get(x, fy + k) === "q") c.set(x, fy + k, "P");
+    }
+  }
+  if (worn >= 2) {
+    // Overgrown: ivy up the end columns from the ground, moss along the slab edges, a corner of a slab broken away.
+    for (const x0 of [1, W - 4]) for (let y = IH - 1; y > IH - 1 - Math.min(wallH, 30); y--) {
+      const reach = 4 - Math.floor((IH - 1 - y) / 9);
+      for (let x = x0 - 1; x < x0 - 1 + reach + 2; x++) if (hash32(cx.seed, x, y, 0x1f) % 3 !== 0 && c.get(x, y) !== ".") c.set(x, y, (x + y) % 3 ? "N" : "n");
+    }
+    for (const fy of floors.slice(1)) for (let x = 1; x < W - 1; x += 3) if (hash32(cx.seed, x, fy, 0x3d) % 2 === 0) c.set(x, fy, "N");
+    const bx = 8 + (hash32(cx.seed, 0xb7) % Math.max(1, W - 20));
+    c.rect(bx, wallTop, 6, 2, "x");
+    c.rect(bx + 1, wallTop + 2, 4, 1, "x");
+  }
   const img = charsToIndexed(c, cx.L, 0);
   const x = slot.x * 16;
   const y = slot.y * 16 - 16 - HR;
@@ -498,7 +539,7 @@ function surface(cx: Composer, part: WorksPart) {
   const table = (to: "fresh" | "fresh_unmarked" | "planed") => {
     const t = new Uint8Array(256);
     for (let i = 0; i < 256; i++) t[i] = i < n ? i : 0;
-    for (const s of asphalt) t[s] = to === "planed" ? cx.idx("d") : s === asphalt[0] ? cx.idx("O") : cx.idx("Z");
+    for (const s of asphalt) t[s] = to === "planed" ? cx.idx("d") : s === asphalt[asphalt.length - 1] ? cx.idx("z") : cx.idx("Z");
     for (const s of chalk) if (to !== "fresh") t[s] = to === "planed" ? cx.idx("d") : cx.idx("Z");
     return t;
   };
@@ -629,7 +670,7 @@ const GRAFFITI_COLOURS = ["3", "4", "5", "R", "6", "c", "a"] as const;
 
 /** A tag: a looping squiggle in one colour with a dark drop shadow (no letters, R14). */
 function tag(seed: number, n: number): Chars {
-  const w = 7 + (hash32(seed, "tw", n) % 5);
+  const w = 9 + (hash32(seed, "tw", n) % 6);
   const c = new Chars(w + 1, 6);
   const col = GRAFFITI_COLOURS[hash32(seed, "tc", n) % GRAFFITI_COLOURS.length] as string;
   const phase = hash32(seed, "tp", n) % 4;
@@ -637,8 +678,7 @@ function tag(seed: number, n: number): Chars {
   for (let x = 0; x < w; x++) {
     const k = (x + phase) % 4;
     const y = k === 0 ? 1 : k === 1 ? 0 : k === 2 ? 2 : 3;
-    pts.push([x, y]);
-    if (hash32(seed, "tl", n, x) % 3 === 0) pts.push([x, y + 1]);
+    pts.push([x, y], [x, y + 1]);
   }
   for (const [x, y] of pts) if (c.get(x + 1, y + 1) === ".") c.set(x + 1, y + 1, "x");
   for (const [x, y] of pts) c.set(x, y, col);
@@ -663,8 +703,27 @@ const WEEDS = [
   NnN`,
 ] as const;
 
+const BIG_WEEDS = [
+  `
+  ..m..n.
+  .mNm.Nn
+  nNNMNNn
+  NNMNMNN`,
+  `
+  .4..4..
+  .4m.4m.
+  mNNmNNm
+  NNMNNMN`,
+  `
+  n..j..n
+  Nm.N.mN
+  NNmNmNN`,
+] as const;
+
+/** Weeds: the first few tufts small, later ones (only there at later stages) grown into clumps. */
 function weeds(cx: Composer, n: number, X: number, Y: number) {
-  const c = Chars.from(WEEDS[hash32(cx.seed, "wv", n) % WEEDS.length] as string);
+  const list = n >= 8 ? BIG_WEEDS : WEEDS;
+  const c = Chars.from(list[hash32(cx.seed, "wv", n) % list.length] as string);
   cx.decal(X - (c.w >> 1), Y - c.h + 1, c);
 }
 
@@ -750,7 +809,8 @@ function marks(cx: Composer) {
       }
       case "puddle": {
         const p = groundPoint(cx, part.id, n);
-        if (p) puddle(cx, n, p[0], p[1]);
+        // Puddles stand on hard or bare ground, not on grass.
+        if (p) puddle(cx, n, p[0], p[1], ["p", "P", "Q", "q", "z", "Z", "d", "w", "W", "k", "s", "S", "t", "T", "x", "i", "I", "c", "C"]);
         break;
       }
       case "pothole": {
@@ -779,7 +839,12 @@ function marks(cx: Composer) {
           scrub: ["heap", "bare"],
           gully: ["bare"],
         };
-        const list = (kinds[part.id] as readonly string[]).flatMap(targets);
+        let list = (kinds[part.id] as readonly string[]).flatMap(targets);
+        // Tags go on what stands in front first (hoarding, a cabin, a wall), most of the time.
+        if (part.id === "graffiti" && h("front") % 4 !== 0) {
+          const front = ["paint", "wall", "gates"].flatMap(targets);
+          if (front.length) list = front;
+        }
         // The face of an east–west bridge takes tags too (it is ground: a decal).
         if (part.id === "graffiti" && cx.faceArea && h("face") % 2 === 0) {
           const [fx, fy, fw, fh] = cx.faceArea;
@@ -887,12 +952,12 @@ export function composeWorks(look: WorksLook, site: WorksSite, kit: WorksKit, se
         if (kind === "bridge") {
           if (id === "deck") bridge(cx, part);
           else if (id === "railing") bridgeRailings(cx, part);
-          else if (id === "scaffold") scaffold(cx, part);
+          else if (id.startsWith("scaffold")) scaffold(cx, part);
         } else if (kind === "flood_wall" || kind === "levee") lineStructure(cx, part);
         else if (kind === "mine") mineStructure(cx, part);
-        else if (id === "frame") frame(cx);
+        else if (id.startsWith("frame")) frame(cx, part.worn ?? 0);
         else if (id.startsWith("facade")) facade(cx, part);
-        else if (id === "scaffold") scaffold(cx, part);
+        else if (id.startsWith("scaffold")) scaffold(cx, part);
         else if (id === "chimney" || id === "smoke") {
           const at = site.chimney ?? (slot ? ([slot.x + slot.w - 1, slot.y] as const) : null);
           if (!at) break;
@@ -905,7 +970,15 @@ export function composeWorks(look: WorksLook, site: WorksSite, kit: WorksKit, se
       case "perimeter": {
         const style = id as LineStyle;
         let pieces: readonly LinePiece[] | undefined = site.fence;
-        if (!pieces && slot) pieces = rectPieces(slot.x, slot.y, slot.x + slot.w - 1, slot.y + slot.h, [[slot.x + slot.doorX, slot.y + slot.h]]);
+        if (!pieces && slot) {
+          // Along the pavement in front of the slot and its yard (the sides stand behind the buildings either side), two cells left open as the gate into the yard.
+          const x0 = Math.min(slot.x, site.yard.x);
+          const x1 = Math.max(slot.x + slot.w, site.yard.x + site.yard.w) - 1;
+          const gx = site.gate ? site.gate[0] : site.yard.x + 1;
+          const ps: LinePiece[] = [];
+          for (let x = x0; x <= x1; x++) if (x !== gx && x !== gx + 1) ps.push({ x, y: slot.y + slot.h, a: "w", b: "e" });
+          pieces = ps;
+        }
         if (!pieces && site.headframe) {
           const [hx, hy] = site.headframe;
           pieces = rectPieces(hx - 1, hy - 1, hx + 1, hy + 1, [[hx, hy + 1]]);
@@ -967,9 +1040,10 @@ export function composeWorks(look: WorksLook, site: WorksSite, kit: WorksKit, se
         const c = site.connector;
         if (id === "ribbon" && c) {
           const ew = c.axis !== "ns";
-          if (ew) cx.partAt("ribbon_ns", c.x * 16 + 5, (c.y + c.h) * 16 - 3, []);
+          if (ew) cx.partAt("ribbon_ns", c.x * 16 + 4, (c.y + c.h) * 16 - 2, []);
           else cx.partAt("ribbon", c.x * 16 + (c.w * 16) / 2, c.y * 16 + 6, []);
         } else if (id === "ribbon" && slot) cx.partAt("ribbon", (slot.x + slot.doorX) * 16 + 8, (slot.y + slot.h) * 16 + 7, []);
+        else if (id === "plaque" && slot && cx.look.parts.some((p) => p.id === "facade")) cx.partAt(id, (slot.x + slot.doorX) * 16 + 24, (slot.y + slot.h) * 16 + 5, []);
         else cx.partAt(id, ex * 16 + 8, ey * 16 + 12, []);
         break;
       }

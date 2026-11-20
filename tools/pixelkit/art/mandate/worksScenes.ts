@@ -27,7 +27,7 @@ export const MOMENT_ENTRY: Readonly<Record<Moment, number>> = { day: 52, evening
 export interface WorksSample {
   kind: WorksKind;
   label: string;
-  scene: Scene & { streetAxis?: Uint8Array };
+  scene: Scene;
   site: WorksSite;
   window: Rect;
   seed: number;
@@ -253,7 +253,7 @@ export function worksSamples(): WorksSample[] {
     kind: "bridge",
     label: "the Old Bridge",
     scene: bridgeScene,
-    site: { connector: { kind: "bridge", x: 26, y: 15, w: 3, h: 1, axis: "ew" }, yard: { x: 21, y: 16, w: 5, h: 1 }, front: [23, 14], entrance: [25, 14] },
+    site: { connector: { kind: "bridge", x: 26, y: 15, w: 3, h: 1, axis: "ew" }, yard: { x: 21, y: 16, w: 4, h: 1 }, front: [20, 14], entrance: [25, 16] },
     window: { x: 20, y: 11, w: 13, h: 8 },
     seed: 0x0b1d,
   });
@@ -277,7 +277,7 @@ export function worksSamples(): WorksSample[] {
     kind: "flood_wall",
     label: "the quay wall",
     scene: wallScene,
-    site: { pieces: quay, yard: { x: 52, y: 26, w: 4, h: 2 }, front: [54, 28], entrance: [55, 29], fence: [{ x: 52, y: 26, a: "e", b: "s", sharp: true }, { x: 53, y: 26, a: "w", b: "e" }, { x: 54, y: 26, a: "w", b: "e" }, { x: 55, y: 26, a: "w", b: "e" }] },
+    site: { pieces: quay, yard: { x: 52, y: 26, w: 4, h: 2 }, front: [54, 28], entrance: [55, 29] },
     window: { x: 44, y: 23, w: 12, h: 11 },
     seed: 0xf100d,
   });
@@ -321,7 +321,7 @@ export function worksSamples(): WorksSample[] {
     label: "the new clinic",
     scene: civicScene,
     site: { slot: { x: 29, y: 22, w: 3, h: 3, doorX: 1 }, building: civicSpec, yard: { x: 25, y: 22, w: 4, h: 3 }, front: [27, 25], entrance: [31, 25] },
-    window: { x: 23, y: 17, w: 12, h: 10 },
+    window: { x: 23, y: 14, w: 12, h: 13 },
     seed: 0xc11c,
   });
 
@@ -384,7 +384,7 @@ export function worksSamples(): WorksSample[] {
     kind: "mine",
     label: "the pit",
     scene: mineScene,
-    site: { headframe: [37, 3], heap: [32, 6], yard: { x: 29, y: 6, w: 4, h: 2 }, front: [35, 6], entrance: [36, 6] },
+    site: { headframe: [37, 3], heap: [30, 7], yard: { x: 31, y: 3, w: 4, h: 2 }, front: [35, 6], entrance: [36, 6] },
     window: { x: 27, y: 0, w: 13, h: 10 },
     seed: 0x313e,
   });
@@ -399,7 +399,7 @@ export function worksSamples(): WorksSample[] {
     label: "the works",
     scene: factoryScene,
     site: { slot: { x: 9, y: 22, w: 4, h: 3, doorX: 2 }, building: { kind: "factory", hood: "industrial", w: 4, h: 3, doorX: 2, storeys: 2, visualSeed: 4114, named: false, home: false, landmark: false, conditions: [], headroom: 16, ends: { left: "gap", right: "gap" } }, yard: { x: 5, y: 22, w: 4, h: 3 }, gate: [6, 24], chimney: [12, 22], front: [5, 25], entrance: [8, 25] },
-    window: { x: 3, y: 17, w: 12, h: 10 },
+    window: { x: 3, y: 14, w: 12, h: 13 },
     seed: 0xfac7,
   });
   return out;

@@ -96,3 +96,8 @@ export const FAMILY_SPECS: readonly (readonly [string, FacadeSpec])[] = [
 /** Interior samples (art round 7, DEC-088): every recipe at these seeds, by day and in the evening with the lamps on (minutes after midnight). */
 export const INTERIOR_SEEDS: readonly number[] = [11, 23, 47, 90];
 export const INTERIOR_TIMES = { day: 11 * 60, evening: 20 * 60 } as const;
+
+/** Works samples (art round 8, DEC-099): the progress, months since a stall and activity the sheets and tests show each kind at. */
+export const WORKS_PROGRESS: readonly number[] = [0, 50, 100];
+export const WORKS_MONTHS: readonly number[] = [1, 3, 9, 18];
+export const WORKS_ACTIVITY: readonly number[] = [10, 50, 90];

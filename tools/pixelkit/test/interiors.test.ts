@@ -151,7 +151,7 @@ describe("interior goldens", () => {
     "interior.diner@1 90": "49519df",
   };
   it("match the pinned rooms", () => {
-    assert.equal(PACK_VERSION, "mandate-p0.8");
+    assert.equal(PACK_VERSION, "mandate-p0.9");
     const now: Record<string, string> = {};
     for (const r of RECIPES) for (const s of INTERIOR_SEEDS) now[`${r.id}@${r.version} ${s}`] = h(flattenInterior(compose(r, s)));
     if (process.env.UPDATE_GOLDENS) {

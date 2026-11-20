@@ -163,6 +163,8 @@ export const WEAR: Readonly<Record<string, WearRule>> = {
   gates_shut: { chain: ["gates_shut", "gates_shut_rust"], at: [2], spread: 0 },
   headframe: { chain: ["headframe", "headframe_rust"], at: [2], spread: 0 },
   "facade.boarded": { chain: ["facade.boarded", "facade.derelict"], at: [3], spread: 0 },
+  frame: { chain: ["frame", "frame_weathered", "frame_overgrown"], at: [1, 3], spread: 0 },
+  scaffold: { chain: ["scaffold", "scaffold_bare"], at: [2], spread: 0 },
 };
 
 /**
@@ -358,7 +360,7 @@ function stalledParts(kind: WorksKind, base: readonly Spec[], decay: number, see
     out.push(P("heras", "perimeter", 0, { wear: rule, decay }));
   }
   // Marks that need something to hang on: a sheet on an exposed frame or scaffold, buddleia on a frame or an empty building.
-  const has = (ids: readonly string[]) => out.some((p) => ids.includes(p.id));
+  const has = (ids: readonly string[]) => out.some((p) => ids.some((id) => p.id === id || p.id.startsWith(`${id}_`)));
   const needs: Readonly<Record<string, readonly string[]>> = { sheet: ["frame", "scaffold"], buddleia: ["frame", "facade.boarded", "facade.derelict", "facade.construction"] };
   for (const [id, counts] of Object.entries(MARKS[kind])) {
     if (needs[id] && !has(needs[id] as readonly string[])) continue;
@@ -418,8 +420,9 @@ export function worksLook(kind: WorksKind, phase: WorksPhase, progress: number, 
       parts = [...rules.cleared];
       if (kind === "flood_wall" || kind === "levee") parts.push(...stalled.filter((p) => p.role === "structure" && p.id !== "piles"));
       if (kind === "mine") parts.push(P("heap", "structure", 1, { level: 0 }));
+      // The marks on the ground stay (weeds keep growing where nobody comes); a bridge's deck is swept when it is plated over.
       const keep = new Set(["weeds", "scrub", "moss", "litter", "puddle"]);
-      parts.push(...stalled.filter((p) => p.mark && keep.has(p.id)));
+      if (kind !== "bridge") parts.push(...stalled.filter((p) => p.mark && keep.has(p.id)));
     }
   }
   if (kind === "mine" && !parts.some((p) => p.id === "heap")) {
