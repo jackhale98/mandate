@@ -742,7 +742,7 @@ export function placeholderLook(role: string, seed: number): Look {
   switch (role) {
     case "chair":
       return { ...suit("cloth_mustard"), bottomRamp: "cloth_charcoal" };
-    case "councillor":
+    case "member":
     case "player": {
       const s = suit(["cloth_red", "cloth_sky", "cloth_green", "cloth_mustard"][seed % 4] as string);
       return { ...s, bottomRamp: s.topRamp };

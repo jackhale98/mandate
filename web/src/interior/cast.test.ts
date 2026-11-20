@@ -61,7 +61,7 @@ describe("castRoom (who stands where)", () => {
     const people = [{ key: "c1", hereAs: "presiding" }, ...Array.from({ length: 6 }, (_, i) => ({ key: `c${10 + i}`, hereAs: "member" }))];
     const placed = castRoom(rm, recipe, people);
     expect(placed.find((p) => p.key === "c1")).toMatchObject({ spot: "chair", pose: "sit" });
-    for (const p of placed.filter((x) => x.key !== "c1" && !x.extra)) expect(p.role).toBe("councillor");
+    for (const p of placed.filter((x) => x.key !== "c1" && !x.extra)) expect(p.role).toBe("member");
     for (const p of placed.filter((x) => x.pose === "sit")) expect(rm.walk[p.y * rm.cols + p.x]).toBe(2);
   });
 

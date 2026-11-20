@@ -24,16 +24,7 @@ pub const HERE_AS: &[&str] = &["presiding", "member", "works", "visitor"];
 
 /// Spot roles the client knows how to dress and place.
 pub const SPOT_ROLES: &[&str] = &[
-    "chair",
-    "clerk",
-    "councillor",
-    "official",
-    "player",
-    "staff",
-    "public",
-    "owner",
-    "cook",
-    "waiter",
+    "chair", "clerk", "member", "official", "player", "staff", "public", "owner", "cook", "waiter",
     "patron",
 ];
 

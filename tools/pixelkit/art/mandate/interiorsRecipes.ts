@@ -35,7 +35,7 @@ export const HERE_AS: readonly HereAs[] = ["presiding", "member", "works", "visi
 /** Where a person present stands or sits. The engine's place view says who is there; the UI puts them on spots by role. */
 export interface SpotDef {
   id: string;
-  /** Who goes here: "chair", "clerk", "councillor", "official", "player", "staff", "owner", "cook", "waiter", "patron", "public". */
+  /** Who goes here: "chair", "clerk", "member", "official", "player", "staff", "owner", "cook", "waiter", "patron", "public". */
   role: string;
   x: number;
   y: number;
