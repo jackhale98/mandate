@@ -29,6 +29,11 @@ import type { AboutRefDto } from "../engine/protocol/AboutRefDto";
 import type { CanvassView } from "../engine/protocol/CanvassView";
 import type { PersonRefView } from "../engine/protocol/PersonRefView";
 import type { TalkTargetDto } from "../engine/protocol/TalkTargetDto";
+import type { TermReviewView } from "../engine/protocol/TermReviewView";
+import type { SkipProgressView } from "../engine/protocol/SkipProgressView";
+import type { SkipSummaryView } from "../engine/protocol/SkipSummaryView";
+import type { SkipTargetDto } from "../engine/protocol/SkipTargetDto";
+import type { LegacyView } from "../engine/protocol/LegacyView";
 import { findRoute, sameLocation } from "./routing";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
@@ -108,6 +113,16 @@ interface GameState {
   decision: DecisionView | null;
   /** The story so far (DEC-033), when open. */
   story: StoryView | null;
+  /** Term in review (DEC-012), when open: directives and the points to skip to. */
+  termReview: TermReviewView | null;
+  /** A skip under way: the engine's progress after its last chunk. */
+  skipProgress: SkipProgressView | null;
+  /** The player asked to stop the skip (taken at the next safe point). */
+  skipCancel: boolean;
+  /** What happened while the player was away (the interrupt or homecoming summary), when shown. */
+  skipSummary: SkipSummaryView | null;
+  /** The act's Legacy record and epilogue (DEC-006), when open. */
+  legacy: LegacyView | null;
   /** The notebook (DEC-091, K5), while its tab is open. */
   notebook: NotebookView | null;
   /**
@@ -196,6 +211,17 @@ interface GameState {
   answer(id: number, option: string): Promise<void>;
   /** Open (or close) the story so far. */
   openStory(open: boolean): Promise<void>;
+  /** Open (or close) Term in review (DEC-012). */
+  openTermReview(open: boolean): Promise<void>;
+  /** Set one standing directive (the engine validates it). */
+  setDirective(directive: string, option: string): Promise<void>;
+  /** Skip to a point the engine offers: a turn at a time, showing progress, until done or cancelled; then the summary. */
+  skip(target: SkipTargetDto): Promise<void>;
+  /** Stop the skip at the next safe point (between turns). */
+  cancelSkip(): void;
+  closeSkipSummary(): void;
+  /** Open (or close) the Legacy record and epilogue. */
+  openLegacy(open: boolean): Promise<void>;
   /** Fetch the notebook (its tab is open). */
   loadNotebook(): Promise<void>;
   /**
@@ -314,6 +340,11 @@ export const useGame = create<GameState>((set, get) => {
     character: null,
     decision: null,
     story: null,
+    termReview: null,
+    skipProgress: null,
+    skipCancel: false,
+    skipSummary: null,
+    legacy: null,
     notebook: null,
     notebookFresh: [],
     talk: null,
@@ -371,7 +402,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: localKnowledge ?? false } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -596,6 +627,83 @@ export const useGame = create<GameState>((set, get) => {
       }
     },
 
+    async openTermReview(open) {
+      if (!open) {
+        set({ termReview: null });
+        return;
+      }
+      try {
+        set({ termReview: expectKind(await engine().request({ kind: "query", payload: { type: "term_review" } }), "term_review"), ...pocketAfterMove(get()) });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async setDirective(directive, option) {
+      if (get().busy) return;
+      const cmd: CommandDto = { type: "set_directives", choices: [{ directive, option }] };
+      noteCommand(cmd);
+      try {
+        await engine().request({ kind: "command", payload: cmd });
+        await persist();
+        set({ termReview: expectKind(await engine().request({ kind: "query", payload: { type: "term_review" } }), "term_review") });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async skip(target) {
+      if (get().busy || !get().run) return;
+      set({ busy: true, error: null, skipCancel: false, skipSummary: null, skipProgress: null });
+      try {
+        // A turn at a time: the engine keeps the skip between chunks, so the
+        // player sees it move and can stop it between turns (a safe point).
+        for (;;) {
+          if (get().skipCancel) {
+            const cancel: CommandDto = { type: "cancel_skip" };
+            noteCommand(cancel);
+            await engine().request({ kind: "command", payload: cancel });
+            break;
+          }
+          const cmd: CommandDto = { type: "skip", target, limit: 1 };
+          noteCommand(cmd);
+          const applied = expectKind(await engine().request({ kind: "command", payload: cmd }), "command_applied");
+          set({ overview: applied.overview, skipProgress: applied.skip ?? null });
+          if (!applied.skip || applied.skip.done) break;
+          // Let the screen paint and a Cancel tap land.
+          await new Promise((r) => setTimeout(r, 0));
+        }
+        await persist();
+        const summary = expectKind(await engine().request({ kind: "query", payload: { type: "skip_summary" } }), "skip_summary");
+        set({ skipSummary: summary, termReview: null, skipProgress: null });
+        await get().refreshDesk();
+      } catch (e) {
+        set({ error: errText(e), skipProgress: null });
+      } finally {
+        set({ busy: false, skipCancel: false });
+      }
+    },
+
+    cancelSkip() {
+      if (get().skipProgress || get().busy) set({ skipCancel: true });
+    },
+
+    closeSkipSummary() {
+      set({ skipSummary: null });
+    },
+
+    async openLegacy(open) {
+      if (!open) {
+        set({ legacy: null });
+        return;
+      }
+      try {
+        set({ legacy: expectKind(await engine().request({ kind: "query", payload: { type: "legacy" } }), "legacy"), ...pocketAfterMove(get()) });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
     async openTalk(to) {
       if (to === null) {
         set({ talk: null, talkTo: null, exchange: null, talkLate: false });
@@ -807,7 +915,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -822,7 +930,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });

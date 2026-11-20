@@ -187,7 +187,9 @@ pub struct ChangeView {
     /// `money`, `population`, `unemployment` (per mille), `laws`.
     pub figure: String,
     pub label_key: String,
+    #[ts(type = "number")]
     pub before: i64,
+    #[ts(type = "number")]
     pub after: i64,
 }
 
@@ -461,6 +463,7 @@ pub fn skip_summary_view(engine: &Engine) -> Option<SkipSummaryView> {
 pub struct EpilogueFactView {
     pub fact: String,
     pub label_key: String,
+    #[ts(type = "number")]
     pub value: i64,
 }
 
@@ -483,11 +486,17 @@ pub struct EndingView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct FinalStandingView {
+    #[ts(type = "number")]
     pub mandate: i64,
+    #[ts(type = "number")]
     pub standing: i64,
+    #[ts(type = "number")]
     pub viability: i64,
+    #[ts(type = "number")]
     pub legal_jeopardy: i64,
+    #[ts(type = "number")]
     pub health: i64,
+    #[ts(type = "number")]
     pub money: i64,
     /// Fluent name keys of the posts held at the close.
     pub post_keys: Vec<String>,

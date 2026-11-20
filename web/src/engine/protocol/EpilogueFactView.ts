@@ -3,4 +3,4 @@
 /**
  * One fact of an epilogue.
  */
-export type EpilogueFactView = { fact: string, label_key: string, value: bigint, };
+export type EpilogueFactView = { fact: string, label_key: string, value: number, };

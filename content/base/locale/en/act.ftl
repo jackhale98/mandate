@@ -170,3 +170,4 @@ legacy-imprisoned = Sent to prison for { $years ->
    *[other] { $years } years
 }.
 legacy-released = Released from prison.
+ui-skip-open-decision = See the decision

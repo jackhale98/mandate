@@ -232,6 +232,9 @@ export function Pocket() {
   const busy = useGame((s) => s.busy);
   const saveAndQuit = useGame((s) => s.saveAndQuit);
   const openStory = useGame((s) => s.openStory);
+  const openTermReview = useGame((s) => s.openTermReview);
+  const openLegacy = useGame((s) => s.openLegacy);
+  const actOver = useGame((s) => s.overview?.act?.ended_key != null);
   const openReport = useReport((s) => s.openReport);
   const [closing, requestClose, sheetRef] = useSheetClose(() => setOpen(false));
   const panelRef = useRef<HTMLDivElement>(null);
@@ -290,6 +293,14 @@ export function Pocket() {
             </button>
             <button type="button" className="btn" onClick={() => void openStory(true)} data-testid="open-story">
               {tr.t("ui-story-so-far")}
+            </button>
+            {!actOver && (
+              <button type="button" className="btn" disabled={busy} onClick={() => void openTermReview(true)} data-testid="open-term-review">
+                {tr.t("ui-term-review-open")}
+              </button>
+            )}
+            <button type="button" className="btn" onClick={() => void openLegacy(true)} data-testid="open-legacy">
+              {actOver ? tr.t("ui-epilogue") : tr.t("ui-epilogue-legacy")}
             </button>
             <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void saveAndQuit()}>
               {tr.t("ui-save-quit")}

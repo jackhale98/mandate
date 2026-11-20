@@ -15,6 +15,9 @@ import { DecisionSheet } from "../components/DecisionSheet";
 import { StorySheet } from "../components/StorySheet";
 import { RunBanner } from "../components/Newspaper";
 import { TalkSheet } from "../components/talk/TalkSheet";
+import { TermReview } from "../components/act/TermReview";
+import { SkipSummary } from "../components/act/SkipSummary";
+import { Epilogue } from "../components/act/Epilogue";
 
 function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
   const tr = useGame((s) => s.tr);
@@ -123,6 +126,7 @@ export function Game() {
   const setTownMapOpen = useGame((s) => s.setTownMapOpen);
   const [selected, setSelected] = useState<number | null>(null);
   const panelOpen = useGame((s) => s.openPlace !== null);
+  const openLegacy = useGame((s) => s.openLegacy);
 
   useEffect(() => {
     if (!map) void loadMap();
@@ -168,6 +172,9 @@ export function Game() {
       <DecisionSheet />
       <CharacterSheet />
       <TalkSheet />
+      <TermReview />
+      <SkipSummary />
+      <Epilogue />
       <Walking />
       <TurnPassage />
       {selected !== null && <MunicipalityPanel id={selected} onClose={() => setSelected(null)} />}
@@ -214,9 +221,16 @@ export function Game() {
           {pocket && pocket.alerts.length > 0 && <Badge icon="🔔" n={pocket.alerts.length} text={tr.t("ui-alert-count", { n: pocket.alerts.length })} cls="badge-alerts" testId="alert-badge" />}
           {notebookNew > 0 && <Badge icon="✎" n={notebookNew} text={tr.t("ui-notebook-new-count", { n: notebookNew })} cls="badge-notebook" testId="notebook-badge" />}
         </button>
-        <button type="button" className="btn btn-primary gamebar-end" disabled={busy || pocket?.legal?.run.status === "ended"} onClick={() => void endTurn()} data-testid="end-turn">
-          {pocket?.legal?.run.status === "imprisoned" ? tr.t("ui-serve-sentence") : tr.t("ui-end-turn")}
-        </button>
+        {overview.act?.ended_key ? (
+          // The act is over (DEC-006): its epilogue, not another turn.
+          <button type="button" className="btn btn-primary gamebar-end" onClick={() => void openLegacy(true)} data-testid="open-epilogue">
+            {tr.t("ui-epilogue")}
+          </button>
+        ) : (
+          <button type="button" className="btn btn-primary gamebar-end" disabled={busy || pocket?.legal?.run.status === "ended"} onClick={() => void endTurn()} data-testid="end-turn">
+            {pocket?.legal?.run.status === "imprisoned" ? tr.t("ui-serve-sentence") : tr.t("ui-end-turn")}
+          </button>
+        )}
       </nav>
     </div>
   );

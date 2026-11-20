@@ -224,6 +224,20 @@ pub fn act_length(
                 )
             })
             .collect();
+        // By ending: a full act (served out) against one cut short.
+        let mut by_ending = serde_json::Map::new();
+        for e in endings.keys() {
+            let rs: Vec<&serde_json::Value> = rows.iter().filter(|r| r["ending"] == *e).collect();
+            let col = |k: &str| median(rs.iter().filter_map(|r| r[k].as_f64()).collect());
+            by_ending.insert(
+                e.clone(),
+                json!({
+                    "careers": rs.len(), "median_turns": col("turns"), "median_played": col("played"),
+                    "median_skips": col("skips"), "median_minutes": col("minutes"),
+                    "median_hours": col("minutes") / 60.0, "median_years": col("years"),
+                }),
+            );
+        }
         let m = median(act_minutes.clone());
         modes.insert(
             if skip { "with_skips" } else { "without_skips" }.into(),
@@ -237,6 +251,7 @@ pub fn act_length(
                 "within_req_008": (90.0..=150.0).contains(&m),
                 "chapters_by_kind": chapters,
                 "endings": endings,
+                "by_ending": by_ending,
                 "rows": rows,
             }),
         );

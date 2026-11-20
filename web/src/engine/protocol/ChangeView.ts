@@ -8,4 +8,4 @@ export type ChangeView = {
  * `mandate`, `standing`, `viability`, `legal_jeopardy`, `health`,
  * `money`, `population`, `unemployment` (per mille), `laws`.
  */
-figure: string, label_key: string, before: bigint, after: bigint, };
+figure: string, label_key: string, before: number, after: number, };

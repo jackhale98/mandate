@@ -3,7 +3,7 @@
 /**
  * The tracks at the close.
  */
-export type FinalStandingView = { mandate: bigint, standing: bigint, viability: bigint, legal_jeopardy: bigint, health: bigint, money: bigint, 
+export type FinalStandingView = { mandate: number, standing: number, viability: number, legal_jeopardy: number, health: number, money: number, 
 /**
  * Fluent name keys of the posts held at the close.
  */
