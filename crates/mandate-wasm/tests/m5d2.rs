@@ -3,7 +3,7 @@
 //! (DEC-079). Native tests of the engine and the protocol the UI calls.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use mandate_content::{ContentBundle, HeardCondition, WaterFeature};
+use mandate_content::{Condition, ContentBundle, WaterFeature};
 use mandate_protocol::*;
 use mandate_sim::actions::PlayerCommand;
 use mandate_sim::places::{Location, Offer, locations_for};
@@ -258,7 +258,7 @@ fn a_plant_closure_opens_the_closure_package() {
     assert!(mandate_sim::policy::unlocked(e.state(), &content, t, m.0));
     // The overheard closure line names the industry and the jobs.
     let loc = overheard_spots(&e)[0];
-    let cond = HeardCondition::PlantClosure { within_months: 12 };
+    let cond = Condition::PlantClosure { within_months: 12 };
     assert!(mandate_sim::overheard::condition_holds(
         e.state(),
         &content,
@@ -389,7 +389,7 @@ fn overheard_talk_varies_by_town_and_week() {
 /// A town without a river never hears a river line; a river town can.
 #[test]
 fn no_river_no_river_talk() {
-    let river = HeardCondition::Water {
+    let river = Condition::Water {
         feature: WaterFeature::River,
     };
     let mut checked_dry = 0;

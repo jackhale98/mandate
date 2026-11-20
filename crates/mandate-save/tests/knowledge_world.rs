@@ -6,7 +6,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use mandate_content::conversation::SubjectRef;
 use mandate_content::knowledge::Level;
-use mandate_content::types::SituationCondition;
 use mandate_content::validate::validate_bundle;
 use mandate_content::{
     Condition, ContentBundle, Severity, SubjectDef, bundle::read_dir_sources, load,
@@ -65,18 +64,18 @@ fn knows_never_decides_what_happens() {
     assert_eq!(refusals(&x, &owner), 2, "storyline start and advance");
     // A situational policy's unlock: the ledger, what a speaker would
     // tell, and either nested in an `any`.
-    let player_knows = SituationCondition::PlayerKnows {
+    let player_knows = Condition::PlayerKnows {
         subject: SubjectRef::Broker,
         min: Some(Level::Known),
         max: None,
     };
-    let tells = SituationCondition::Tells {
+    let tells = Condition::Tells {
         subject: SubjectRef::Broker,
         min: Level::Heard,
     };
-    let nested = SituationCondition::Any {
+    let nested = Condition::Any {
         of: vec![
-            SituationCondition::Disaster { within_months: 6 },
+            Condition::Disaster { within_months: 6 },
             player_knows.clone(),
         ],
     };
@@ -94,17 +93,20 @@ fn knows_never_decides_what_happens() {
     // A family trigger binds slots (DEC-092); the ledger is refused there
     // too, while a conversation line with the same slots may use it.
     let mut issues = Vec::new();
-    mandate_content::validate::check_trigger_condition(
+    mandate_content::condition::check(
         &b,
-        "family.test",
-        &SituationCondition::PlayerKnows {
+        &mandate_content::condition::Site::new(
+            "family.test",
+            mandate_content::condition::ConditionUse::FamilyTrigger,
+            &["speaker", "about", "player"],
+        ),
+        &Condition::PlayerKnows {
             subject: SubjectRef::Person {
                 slot: "speaker".into(),
             },
             min: Some(Level::Heard),
             max: None,
         },
-        Some(&["speaker", "about", "player"]),
         &mut issues,
     );
     assert_eq!(issues.len(), 1, "{issues:?}");
@@ -115,14 +117,14 @@ fn knows_never_decides_what_happens() {
             .offered
             .when
             .iter()
-            .any(|c| matches!(c, SituationCondition::PlayerKnows { .. }))),
+            .any(|c| matches!(c, Condition::PlayerKnows { .. }))),
         "topics are offered by what the player knows"
     );
     assert!(
         b.talk_lines.iter().any(|l| l
             .when
             .iter()
-            .any(|c| matches!(c, SituationCondition::Tells { .. }))),
+            .any(|c| matches!(c, Condition::Tells { .. }))),
         "lines are chosen by what the speaker will tell"
     );
 }

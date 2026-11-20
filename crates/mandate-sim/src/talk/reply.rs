@@ -51,8 +51,8 @@ pub fn voice<'c>(ctx: &Ctx<'c>) -> Option<&'c VoiceDef> {
     best
 }
 
-fn names_voice(c: &mandate_content::SituationCondition) -> bool {
-    use mandate_content::SituationCondition as U;
+fn names_voice(c: &mandate_content::Condition) -> bool {
+    use mandate_content::Condition as U;
     match c {
         U::Voice { .. } => true,
         U::Any { of } => of.iter().any(names_voice),

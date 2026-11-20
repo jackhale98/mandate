@@ -4,14 +4,11 @@
 //! values that evaluator reads. Read-only: nothing here writes state or
 //! draws from a stream, so it is safe in views, the lab and tests.
 //!
-//! **Three condition languages, three adapters.** The narrative
-//! `Condition`, `SituationCondition` (policies and conversations) and
-//! `HeardCondition` (overheard talk) each implement [`Explainer`]: the
-//! verdict comes from the language's own evaluator (`cast::holds`,
-//! `policy::situation_holds` / `talk::context::Ctx::holds`,
-//! `overheard::Ctx::holds`); the adapter only adds what was read, for
-//! display. When the languages are unified (DEC-098 §5, task U1), one
-//! adapter replaces the three and the item explanations below stay.
+//! **One condition language, one adapter** (DEC-098 §5, task U1): every
+//! condition is explained by [`CondExplainer`], whose verdict is the one
+//! evaluator's (`crate::condition::holds`) in the context the item's use
+//! binds (a cast, a town's situation, a place, a conversation); the adapter
+//! only adds what was read, for display, one arm per variant.
 //!
 //! **What "could fire now" means** per kind (the gates each kind's system
 //! applies before its conditions, then the conditions):
@@ -35,10 +32,11 @@ use crate::state::State;
 use crate::talk::AboutRef;
 use crate::talk::context::{Args, Ctx as TalkCtx};
 use crate::world::{MunicipalityId, NeighborhoodId};
+use crate::condition;
+use mandate_content::condition::{CondTier, Worry};
 use mandate_content::conversation::{AboutKind, ConcernOf, TalkPart};
 use mandate_content::{
-    Condition, ContentBundle, DilemmaCategory, DilemmaDef, HeardCondition, RaisedBy,
-    SituationCondition, WaterFeature,
+    Condition, ContentBundle, DilemmaCategory, DilemmaDef, RaisedBy, WaterFeature,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -104,8 +102,8 @@ impl Node {
     }
 }
 
-/// The adapter each condition language implements (DEC-098 §5: U1 makes
-/// this one adapter). `holds` must be the language's own evaluator.
+/// The adapter a condition language implements (one since U1:
+/// [`CondExplainer`]). `holds` must be the language's own evaluator.
 pub trait Explainer {
     type Cond: Serialize;
     /// The real evaluator's verdict on one condition.
@@ -184,238 +182,560 @@ fn home(v: &View<'_>) -> Option<u32> {
     v.player().map(|p| p.home().0)
 }
 
-// --- Adapter 1: narrative conditions --------------------------------------------------
+// --- The one adapter ------------------------------------------------------------------
 
-/// Narrative `Condition` with a cast (dilemmas, goals, storylines, scenes).
-pub struct NarrativeExplainer<'a, 'v> {
-    pub v: &'a View<'v>,
-    pub cast: &'a [CastEntry],
+/// The one condition language through its one evaluator
+/// (`crate::condition::holds`), in the context its use binds: a cast
+/// (dilemmas, goals, storylines, scenes), a town's situation (a policy's
+/// unlock), a place (an overheard line), or a conversation.
+pub struct CondExplainer<'a> {
+    pub cx: &'a condition::Ctx<'a>,
 }
 
-impl Explainer for NarrativeExplainer<'_, '_> {
+impl Explainer for CondExplainer<'_> {
     type Cond = Condition;
 
     fn holds(&self, c: &Condition) -> bool {
-        cast::holds(self.v, c, self.cast)
+        condition::holds(self.cx, c, &mut Args::new())
     }
 
-    fn any_of<'c>(&self, _: &'c Condition) -> Option<&'c [Condition]> {
-        None
-    }
-
-    fn observe(&self, c: &Condition) -> Vec<(String, String)> {
-        let v = self.v;
-        let st_pol = v.pol;
-        let me = v.me();
-        let who = |role: &str| crate::narrative::person_of(self.cast, role);
-        let town = v.town_character();
-        let mut out: Vec<(String, String)> = Vec::new();
-        let mut put = |k: &str, x: String| out.push((k.into(), x));
-        if let Some(r) = c.roles().first()
-            && let Some(a) = crate::narrative::actor_of(self.cast, r)
-        {
-            put(r, actor_label(v, a));
-        }
+    fn any_of<'c>(&self, c: &'c Condition) -> Option<&'c [Condition]> {
         match c {
-            Condition::Crisis { kind, .. } => put(
-                "severity",
-                town.and_then(|t| t.crises.iter().find(|x| &x.kind == kind))
-                    .map(|x| num(x.severity as f64))
-                    .unwrap_or_else(|| "no such crisis".into()),
-            ),
-            Condition::LiveCrisis { .. } => put(
-                "live crisis",
-                town.and_then(|t| t.crisis())
-                    .map(|x| format!("{} {}", x.kind, num(x.severity as f64)))
-                    .unwrap_or_else(|| "none".into()),
-            ),
-            Condition::Indicator { indicator, .. } => {
-                if let Some(m) = home(v) {
-                    put(
-                        "value",
-                        num(crate::concerns::indicator(v.r, m as usize, *indicator)),
-                    );
-                }
-            }
-            Condition::Concern { .. } => put(
-                "priorities",
-                town.map(|t| t.priorities.join(", ")).unwrap_or_default(),
-            ),
-            Condition::Industry { .. } => put(
-                "industry",
-                town.and_then(|t| t.industry.as_deref())
-                    .and_then(|s| v.content().sector(s))
-                    .map(|s| format!("{} ({:?})", s.id, s.driver))
-                    .unwrap_or_else(|| "none".into()),
-            ),
-            Condition::ElectionWithin { .. } => put(
-                "days to election",
-                v.next_election()
-                    .map(|d| v.date().days_until(d).to_string())
-                    .unwrap_or_else(|| "none".into()),
-            ),
-            Condition::Campaigning { .. } => put("campaigning", v.campaigning().to_string()),
-            // The player's post as its role word in the run's constitution.
-            Condition::Office { .. } => put(
-                "post",
-                v.player()
-                    .and_then(|pl| st_pol.get(pl.politician))
-                    .map(|p| {
-                        v.content()
-                            .constitutions
-                            .get(&v.r.meta.constitution)
-                            .and_then(|c| crate::politics::role_word(c, p))
-                            .unwrap_or("out of office")
-                            .to_string()
-                    })
-                    .unwrap_or_else(|| "no player".into()),
-            ),
-            Condition::Track { track, .. } => put(
-                "value",
-                track_value(v, *track)
-                    .map(num)
-                    .unwrap_or_else(|| "-".into()),
-            ),
-            Condition::Money { .. } => put(
-                "funds",
-                v.player()
-                    .map(|p| p.money.units().to_string())
-                    .unwrap_or_default(),
-            ),
-            Condition::Opinion { role, .. } => {
-                if let (Some(p), Some(me)) = (who(role), me) {
-                    put("opinion", num(characters::opinion(st_pol, p, me) as f64));
-                }
-            }
-            Condition::Favour { role, .. } => {
-                if let (Some(p), Some(me)) = (who(role), me) {
-                    put(
-                        "player owes",
-                        characters::favours_owed(st_pol, me, p).to_string(),
-                    );
-                    put(
-                        "owed to player",
-                        characters::favours_owed(st_pol, p, me).to_string(),
-                    );
-                }
-            }
-            Condition::Remembers { role, .. } => {
-                if let (Some(p), Some(me)) = (who(role), me) {
-                    let kinds: Vec<&str> = st_pol
-                        .characters
-                        .get(p)
-                        .map(|c| {
-                            c.memories
-                                .iter()
-                                .filter(|m| m.actor == me)
-                                .map(|m| m.kind.key())
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    put("memories of player", kinds.join(", "));
-                }
-            }
-            Condition::Personality { role, axis, .. } => {
-                if let Some(p) = who(role).and_then(|p| characters::profile(st_pol, v.r.world, p)) {
-                    let x = &p.personality;
-                    let val = match axis.as_str() {
-                        "ambition" => x.ambition,
-                        "integrity" => x.integrity,
-                        "warmth" => x.warmth,
-                        "boldness" => x.boldness,
-                        _ => x.loyalty,
-                    };
-                    put(axis, num(val as f64));
-                }
-            }
-            Condition::Trait { role, .. } => put(
-                "traits",
-                who(role)
-                    .and_then(|p| st_pol.characters.get(p))
-                    .map(|c| c.traits.join(", "))
-                    .unwrap_or_default(),
-            ),
-            Condition::LawInForce { templates, .. } => {
-                let n = home(v)
-                    .map(|m| {
-                        v.r.policy()
-                            .in_municipality(m)
-                            .filter(|p| {
-                                matches!(
-                                    p.status,
-                                    crate::policy::PolicyStatus::Enacted
-                                        | crate::policy::PolicyStatus::InEffect
-                                ) && templates.contains(&p.template)
-                            })
-                            .count()
-                    })
-                    .unwrap_or(0);
-                put("laws in force", n.to_string());
-            }
-            Condition::PartyLineAgainstWard { role } => {
-                if let Some(Actor::Policy { id }) = crate::narrative::actor_of(self.cast, role) {
-                    put("party line", v.party_line(id).to_string());
-                    put("ward lean", num(v.ward_lean(id)));
-                }
-            }
-            Condition::CanVote { role } => {
-                if let Some(Actor::Policy { id }) = crate::narrative::actor_of(self.cast, role) {
-                    put("can vote", v.can_vote(id).to_string());
-                }
-            }
-            Condition::Goal { role, .. } => put(
-                "goals",
-                who(role)
-                    .map(|p| {
-                        st_pol
-                            .characters
-                            .goals
-                            .iter()
-                            .filter(|g| g.holder == p)
-                            .map(|g| g.goal.as_str())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    })
-                    .unwrap_or_default(),
-            ),
-            Condition::MonthsInPlay { .. } => {
-                let began = v.play_began();
-                let months = if v.date() >= began {
-                    began.days_until(v.date()) / 30
-                } else {
-                    0
-                };
-                put("months in play", months.to_string());
-            }
-            Condition::Knows { .. } => {}
-            // E2 (ENGAGEMENT §4.4): the newest matching answer, and the
-            // player's laws.
-            Condition::Answered { .. } => {
-                let found = cast::answered_records(v, c);
-                put(
-                    "last answered",
-                    found
-                        .first()
-                        .map(|a| format!("{} ({} days ago)", a.option, a.date.days_until(v.date())))
-                        .unwrap_or_else(|| "never in the window".into()),
-                );
-            }
-            Condition::SponsoredLaw { .. } => {
-                let me = v.player().map(|p| p.politician);
-                let laws =
-                    v.r.policy()
-                        .instances
-                        .iter()
-                        .filter(|p| me.is_some() && p.sponsor == me)
-                        .count();
-                put("player's bills and laws", laws.to_string());
-            }
+            Condition::Any { of } => Some(of),
+            _ => None,
         }
-        out
+    }
+
+    /// What the evaluator reads for each variant (one table; display only,
+    /// the verdict is the evaluator's).
+    fn observe(&self, c: &Condition) -> Vec<(String, String)> {
+        observe(self.cx, c)
     }
 }
 
-/// A track's value as `cast::holds` reads it (display only; the verdict is
+/// What the evaluator reads for a condition, as (name, value): one arm per
+/// variant.
+fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
+    use Condition as C;
+    let v = cx.v;
+    let pol = v.pol;
+    let content = v.content();
+    let world = v.r.world;
+    let today = v.date();
+    let me = cx.me();
+    let m = cx.town_id().map(|t| t.0);
+    let town = cx.town_character();
+    let mu = m.and_then(|m| world.municipalities.get(m as usize));
+    let pname = |p: CharacterId| {
+        characters::profile(pol, world, p)
+            .map(|x| x.full_name())
+            .unwrap_or_else(|| format!("#{}", p.0))
+    };
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut put = |k: &str, x: String| out.push((k.into(), x));
+    if c.tier() == CondTier::Local && m.is_none() && !matches!(c, C::Any { .. }) {
+        put(
+            "jurisdiction",
+            "not a town (local-only: never holds)".into(),
+        );
+        return out;
+    }
+    // The actor in the slot the condition names.
+    if let Some(r) = c.slots().first() {
+        if let Some(a) = crate::narrative::actor_of(cx.cast, r) {
+            put(r, actor_label(v, a));
+        } else if let Some(p) = cx.talk.and_then(|t| t.person(r)) {
+            let role = condition::role_key(cx, p).unwrap_or_else(|| "-".into());
+            put(r, format!("{} ({role})", pname(p)));
+        } else {
+            put(r, "nobody".into());
+        }
+    }
+    let who = |slot: &str| cx.person(slot);
+    match c {
+        C::Crisis { .. } => put(
+            "crises",
+            town.map(|t| {
+                t.crises
+                    .iter()
+                    .map(|x| format!("{} {}", x.kind, num(x.severity as f64)))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "none".into()),
+        ),
+        C::Indicator { indicator, .. } => {
+            if let Some(m) = m {
+                put(
+                    "value",
+                    num(crate::concerns::indicator(v.r, m as usize, *indicator)),
+                );
+            }
+        }
+        C::Concern { .. } => {
+            if let Some(w) = c.worry() {
+                let ranked: Vec<String> = condition::ranked_worries(cx, w.of, w.by)
+                    .into_iter()
+                    .take(w.top as usize)
+                    .filter_map(|i| content.concerns.get(i).map(|x| x.id.clone()))
+                    .collect();
+                let by = match w.by {
+                    Worry::Felt => "felt",
+                    Worry::Measured => "measured",
+                };
+                let of = match w.of {
+                    ConcernOf::Town => "town",
+                    ConcernOf::Speaker => "speaker's home",
+                    ConcernOf::Here => "here",
+                };
+                put(
+                    &format!("top {} ({by}, {of})", w.top),
+                    if ranked.is_empty() {
+                        "none".into()
+                    } else {
+                        ranked.join(", ")
+                    },
+                );
+            }
+        }
+        C::Industry { .. } => put(
+            "industry",
+            town.and_then(|t| t.industry.as_deref())
+                .and_then(|s| content.sector(s))
+                .map(|s| format!("{} ({:?})", s.id, s.driver))
+                .unwrap_or_else(|| "none".into()),
+        ),
+        C::PlantClosure { .. } => {
+            let last = cx.st.map(|st| {
+                st.events
+                    .iter()
+                    .rev()
+                    .find(|e| {
+                        matches!(e.kind, crate::events::EventKind::PlantClosure { municipality, .. } if Some(municipality) == m)
+                    })
+                    .map(|e| format!("{} days ago", e.date.days_until(today)))
+                    .unwrap_or_else(|| "none on record".into())
+            });
+            put(
+                "last closure",
+                last.unwrap_or_else(|| "the event log is not read here".into()),
+            );
+        }
+        C::Disaster { .. } => put(
+            "months since disaster",
+            m.and_then(|m| v.r.economy().munis.get(m as usize))
+                .map(|e| e.months_since_disaster.to_string())
+                .unwrap_or_default(),
+        ),
+        C::LawInForce { templates, .. } => {
+            let n = m
+                .map(|m| {
+                    v.r.policy()
+                        .in_municipality(m)
+                        .filter(|p| {
+                            matches!(
+                                p.status,
+                                crate::policy::PolicyStatus::Enacted
+                                    | crate::policy::PolicyStatus::InEffect
+                            ) && templates.contains(&p.template)
+                        })
+                        .count()
+                })
+                .unwrap_or(0);
+            put("laws in force", n.to_string());
+        }
+        C::Water { .. } | C::Dry => {
+            put("river", mu.is_some_and(|x| x.on_river).to_string());
+            put("coast", mu.is_some_and(|x| x.coastal).to_string());
+            if matches!(
+                c,
+                C::Dry
+                    | C::Water {
+                        feature: WaterFeature::Any
+                    }
+            ) {
+                let waterfront = cx
+                    .here_hood()
+                    .and_then(|h| world.neighborhoods.get(h.index()))
+                    .is_some_and(|n| n.kind == crate::world::NeighborhoodKind::Waterfront);
+                put("waterfront", waterfront.to_string());
+            }
+        }
+        C::Broker | C::IsBroker { .. } => put(
+            "broker",
+            town.and_then(|t| t.broker)
+                .map(pname)
+                .unwrap_or_else(|| "none".into()),
+        ),
+        C::Rival | C::RivalRecord { .. } | C::IsRival { .. } => {
+            let rival = town.and_then(|t| t.rival);
+            put("rival", rival.map(pname).unwrap_or_else(|| "none".into()));
+            if matches!(c, C::RivalRecord { .. })
+                && let Some(p) = rival.and_then(|r| pol.politicians.iter().find(|p| p.character == r))
+            {
+                put("record", num(p.record as f64));
+            }
+        }
+        C::Scandal { .. } => put(
+            "running scandals in town",
+            v.r.media()
+                .scandals
+                .iter()
+                .filter(|x| x.running() && Some(x.town) == m)
+                .count()
+                .to_string(),
+        ),
+        C::Headline => put(
+            "latest story",
+            v.r.media()
+                .stories
+                .iter()
+                .rev()
+                .find(|s| Some(s.town) == m)
+                .map(|s| format!("{} days ago", s.date.days_until(today)))
+                .unwrap_or_else(|| "none".into()),
+        ),
+        C::PlayerAwareness { .. } | C::PlayerApproval { .. } => {
+            // Residents' mean awareness and approval of the player here.
+            match condition::standing(cx) {
+                Some((aw, ap)) => {
+                    put("awareness", num(aw));
+                    put("approval", num(ap));
+                }
+                None => put("residents here", "none".into()),
+            }
+        }
+        C::Shedding { .. } => {
+            let found = cx.st.zip(cx.here).and_then(|(st, here)| {
+                let Location::Place { place } = here else {
+                    return None;
+                };
+                let p = st.world.places.get(place.index())?;
+                let s = content.place_kind(p.kind.key())?.sector.clone()?;
+                let x = crate::visits::shedding(st, content, p.municipality, &s);
+                Some(format!("{s} (shedding {})", num(x)))
+            });
+            put("industry here", found.unwrap_or_else(|| "none".into()));
+        }
+        C::Present { .. } => {
+            let here: Vec<String> = cx
+                .st
+                .zip(cx.here)
+                .map(|(st, loc)| {
+                    crate::visits::present(st, content, loc)
+                        .into_iter()
+                        .map(|p| {
+                            format!(
+                                "{} ({})",
+                                pname(p),
+                                crate::visits::occupation_of(st, p).unwrap_or("-")
+                            )
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            put(
+                "here now",
+                if here.is_empty() {
+                    "nobody".into()
+                } else {
+                    here.join(", ")
+                },
+            );
+        }
+        C::DayPart { .. } => put(
+            "day part",
+            cx.part
+                .or_else(|| cx.st.map(crate::characters::routines::day_part))
+                .map(|p| format!("{p:?}"))
+                .unwrap_or_else(|| "the clock is not read here".into()),
+        ),
+        C::Phase { .. } => put(
+            "campaigns running",
+            cx.at
+                .map(|at| {
+                    pol.elections
+                        .races
+                        .iter()
+                        .filter(|r| r.seat.at() == at && r.election_day >= today)
+                        .count()
+                        .to_string()
+                })
+                .unwrap_or_else(|| "no jurisdiction".into()),
+        ),
+        C::ElectionWithin { .. } => put(
+            "days to election",
+            cx.election_day()
+                .filter(|d| *d >= today)
+                .map(|d| today.days_until(d).to_string())
+                .unwrap_or_else(|| "none".into()),
+        ),
+        C::MonthsInPlay { .. } => {
+            let began = v.play_began();
+            let months = if today >= began {
+                began.days_until(today) / 30
+            } else {
+                0
+            };
+            put("months in play", months.to_string());
+        }
+        C::Campaigning { .. } => put("campaigning", v.campaigning().to_string()),
+        // The player's post as its role word in the run's constitution.
+        C::Office { .. } => put(
+            "post",
+            v.player()
+                .and_then(|pl| pol.get(pl.politician))
+                .map(|p| {
+                    content
+                        .constitutions
+                        .get(&v.r.meta.constitution)
+                        .and_then(|c| crate::politics::role_word(c, p))
+                        .unwrap_or("out of office")
+                        .to_string()
+                })
+                .unwrap_or_else(|| "no player".into()),
+        ),
+        C::HoldsPower { .. } => {
+            let con = content.constitutions.get(&v.r.meta.constitution);
+            let powers: Vec<String> = match (v.player(), cx.at, con) {
+                (Some(pl), Some(at), Some(con)) => crate::politics::posts_of(pol, pl.politician)
+                    .into_iter()
+                    .filter(|p| p.at() == at)
+                    .flat_map(|p| crate::politics::powers_of(con, p).to_vec())
+                    .map(|p| format!("{p:?}"))
+                    .collect(),
+                _ => Vec::new(),
+            };
+            put(
+                "powers here",
+                if powers.is_empty() {
+                    "none".into()
+                } else {
+                    powers.join(", ")
+                },
+            );
+        }
+        C::Track { track, .. } => put(
+            "value",
+            track_value(v, *track)
+                .map(num)
+                .unwrap_or_else(|| "-".into()),
+        ),
+        C::Money { .. } => put(
+            "funds",
+            v.player()
+                .map(|p| p.money.units().to_string())
+                .unwrap_or_default(),
+        ),
+        // E2 (ENGAGEMENT §4.4): the newest matching answer, and the
+        // player's laws.
+        C::Answered { .. } => {
+            let found = cast::answered_records(v, c);
+            put(
+                "last answered",
+                found
+                    .first()
+                    .map(|a| format!("{} ({} days ago)", a.option, a.date.days_until(today)))
+                    .unwrap_or_else(|| "never in the window".into()),
+            );
+        }
+        C::SponsoredLaw { .. } => {
+            let mine = v.player().map(|p| p.politician);
+            let laws =
+                v.r.policy()
+                    .instances
+                    .iter()
+                    .filter(|p| mine.is_some() && p.sponsor == mine)
+                    .count();
+            put("player's bills and laws", laws.to_string());
+        }
+        C::Knows { .. } | C::Occupation { .. } | C::Any { .. } => {}
+        C::PlayerKnows { subject, .. } => {
+            if let Some(t) = cx.talk {
+                put(
+                    "player knows",
+                    t.subject(subject)
+                        .map(|s| crate::player::knowledge::knows(t.st, &s).key().to_string())
+                        .unwrap_or_else(|| "no such subject here".into()),
+                );
+            }
+        }
+        C::Trait { slot, .. } => put(
+            "traits",
+            who(slot)
+                .and_then(|p| pol.characters.get(p))
+                .map(|c| c.traits.join(", "))
+                .unwrap_or_default(),
+        ),
+        C::Personality { slot, axis, .. } => {
+            if let Some(p) = who(slot).and_then(|p| characters::profile(pol, world, p)) {
+                let x = &p.personality;
+                let val = match axis.as_str() {
+                    "ambition" => Some(x.ambition),
+                    "integrity" => Some(x.integrity),
+                    "warmth" => Some(x.warmth),
+                    "boldness" => Some(x.boldness),
+                    "loyalty" => Some(x.loyalty),
+                    _ => None,
+                };
+                put(
+                    axis,
+                    val.map(|v| num(v as f64))
+                        .unwrap_or_else(|| "unknown axis".into()),
+                );
+            }
+        }
+        C::Goal { slot, .. } => put(
+            "goals",
+            who(slot)
+                .map(|p| {
+                    pol.characters
+                        .goals
+                        .iter()
+                        .filter(|g| g.holder == p)
+                        .map(|g| g.goal.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .unwrap_or_default(),
+        ),
+        C::Opinion { slot, .. } => {
+            if let (Some(p), Some(me)) = (who(slot), me) {
+                put("opinion", num(characters::opinion(pol, p, me) as f64));
+            }
+        }
+        C::Trust { slot, .. } => {
+            if let (Some(p), Some(me)) = (who(slot), me) {
+                put("trust", num(characters::trust(pol, content, p, me) as f64));
+            }
+        }
+        C::Remembers { slot, .. } => {
+            if let (Some(p), Some(me)) = (who(slot), me) {
+                let kinds: Vec<&str> = pol
+                    .characters
+                    .get(p)
+                    .map(|c| {
+                        c.memories
+                            .iter()
+                            .filter(|x| x.actor == me)
+                            .map(|x| x.kind.key())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                put("memories of player", kinds.join(", "));
+            }
+        }
+        C::Favour { slot, .. } => {
+            if let (Some(p), Some(me)) = (who(slot), me) {
+                put(
+                    "player owes",
+                    characters::favours_owed(pol, me, p).to_string(),
+                );
+                put(
+                    "owed to player",
+                    characters::favours_owed(pol, p, me).to_string(),
+                );
+            }
+        }
+        C::Met { slot, .. } => {
+            if let (Some(p), Some(me)) = (who(slot), me) {
+                let talked = v.player().is_some_and(|pl| pl.talk.used.contains_key(&p));
+                let first = pol.characters.get(p).and_then(|ch| {
+                    ch.memories
+                        .iter()
+                        .filter(|x| x.actor == me && x.kind == characters::MemoryKind::Met)
+                        .map(|x| x.date)
+                        .min()
+                });
+                put("talked with the player", talked.to_string());
+                put(
+                    "first met",
+                    first
+                        .map(|d| format!("{} days ago", d.days_until(today)))
+                        .unwrap_or_else(|| "never".into()),
+                );
+            }
+        }
+        C::PartyLineAgainstWard { slot } => {
+            if let Some(Actor::Policy { id }) = crate::narrative::actor_of(cx.cast, slot) {
+                put("party line", v.party_line(id).to_string());
+                put("ward lean", num(v.ward_lean(id)));
+            }
+        }
+        C::CanVote { slot } => {
+            if let Some(Actor::Policy { id }) = crate::narrative::actor_of(cx.cast, slot) {
+                put("can vote", v.can_vote(id).to_string());
+            }
+        }
+        C::Tells { subject, .. } => {
+            if let Some(t) = cx.talk {
+                put(
+                    "would tell",
+                    t.subject(subject)
+                        .map(|s| t.told(&s).key().to_string())
+                        .unwrap_or_else(|| "no such subject here".into()),
+                );
+                put("discretion cap", t.cap.key().into());
+            }
+        }
+        C::Voice { .. } => {
+            if let Some(t) = cx.talk {
+                put(
+                    "speaker's voice",
+                    crate::talk::reply::voice(t)
+                        .map(|v| v.id.clone())
+                        .unwrap_or_else(|| "none".into()),
+                );
+            }
+        }
+        C::About { .. } => {
+            if let Some(t) = cx.talk {
+                put(
+                    "about",
+                    t.about
+                        .map(|a| match a {
+                            crate::talk::AboutRef::Place { place } => world
+                                .places
+                                .get(place.index())
+                                .map(|p| format!("place: {}", p.kind.key()))
+                                .unwrap_or_else(|| "place".into()),
+                            other => other.kind().key().to_string(),
+                        })
+                        .unwrap_or_else(|| "nothing".into()),
+                );
+                put(
+                    "speaker's workplace",
+                    t.workplace(t.speaker)
+                        .map(|p| p.kind.key().to_string())
+                        .unwrap_or_else(|| "none".into()),
+                );
+            }
+        }
+    }
+    out
+}
+
+/// The arguments the conditions that hold provide (the line's own
+/// arguments, as the overheard draw gives them), with `town` and `hood`,
+/// and the story a `headline` found.
+pub fn heard_args(cx: &condition::Ctx<'_>, cs: &[Condition]) -> (BTreeMap<String, String>, Option<u32>) {
+    let mut args = BTreeMap::new();
+    cx.story.set(None);
+    for c in cs {
+        condition::holds(cx, c, &mut args);
+    }
+    let world = cx.v.r.world;
+    if let Some(m) = cx.town_id().and_then(|m| world.municipalities.get(m.index())) {
+        args.insert("town".into(), m.name.clone());
+    }
+    if let Some(n) = cx.here_hood().and_then(|h| world.neighborhoods.get(h.index())) {
+        args.insert("hood".into(), n.name.clone());
+    }
+    (args, cx.story.get())
+}
+
+/// A track's value as the evaluator reads it (display only; the verdict is
 /// the evaluator's).
 fn track_value(v: &View<'_>, t: mandate_content::TrackKey) -> Option<f64> {
     use mandate_content::TrackKey as K;
@@ -452,493 +772,6 @@ pub fn actor_label(v: &View<'_>, a: Actor) -> String {
                 .map(|p| format!("{} #{id}", p.template))
                 .unwrap_or_else(|| format!("policy #{id}"))
         }
-    }
-}
-
-// --- Adapter 2: situation conditions --------------------------------------------------
-
-/// Where a `SituationCondition` is read: a town's situation (a policy's
-/// unlock) or a conversation (its slots).
-pub enum SituationExplainer<'a> {
-    Town {
-        st: &'a State,
-        content: &'a ContentBundle,
-        m: u32,
-    },
-    Talk(&'a TalkCtx<'a>),
-}
-
-impl SituationExplainer<'_> {
-    fn st(&self) -> &State {
-        match self {
-            SituationExplainer::Town { st, .. } => st,
-            SituationExplainer::Talk(c) => c.st,
-        }
-    }
-
-    fn content(&self) -> &ContentBundle {
-        match self {
-            SituationExplainer::Town { content, .. } => content,
-            SituationExplainer::Talk(c) => c.content,
-        }
-    }
-
-    fn town(&self) -> u32 {
-        match self {
-            SituationExplainer::Town { m, .. } => *m,
-            SituationExplainer::Talk(c) => c.town.0,
-        }
-    }
-}
-
-impl Explainer for SituationExplainer<'_> {
-    type Cond = SituationCondition;
-
-    fn holds(&self, c: &SituationCondition) -> bool {
-        match self {
-            SituationExplainer::Town { st, content, m } => {
-                crate::policy::situation_holds(st, content, c, *m)
-            }
-            SituationExplainer::Talk(ctx) => ctx.holds(c, &mut Args::new()),
-        }
-    }
-
-    fn any_of<'c>(&self, c: &'c SituationCondition) -> Option<&'c [SituationCondition]> {
-        match c {
-            SituationCondition::Any { of } => Some(of),
-            _ => None,
-        }
-    }
-
-    fn observe(&self, c: &SituationCondition) -> Vec<(String, String)> {
-        use SituationCondition as U;
-        let st = self.st();
-        let content = self.content();
-        let m = self.town();
-        let pol = &st.politics;
-        let town = pol.characters.towns.get(m as usize);
-        let mut out: Vec<(String, String)> = Vec::new();
-        let mut put = |k: &str, x: String| out.push((k.into(), x));
-        let ctx = match self {
-            SituationExplainer::Talk(c) => Some(*c),
-            SituationExplainer::Town { .. } => None,
-        };
-        // The person in a slot (conversations only).
-        let slot_person = |slot: &str| ctx.and_then(|c| c.person(slot));
-        match c {
-            U::Crisis { kind, .. } => put(
-                "severity",
-                town.and_then(|t| t.crises.iter().find(|x| &x.kind == kind))
-                    .map(|x| num(x.severity as f64))
-                    .unwrap_or_else(|| "no such crisis".into()),
-            ),
-            U::Indicator { indicator, .. } => {
-                let r = Reads::of_state(st, content);
-                put(
-                    "value",
-                    num(crate::concerns::indicator(&r, m as usize, *indicator)),
-                );
-            }
-            U::PlantClosure { .. } => put(
-                "last closure",
-                st.events
-                    .iter()
-                    .rev()
-                    .find(|e| {
-                        matches!(e.kind, crate::events::EventKind::PlantClosure { municipality, .. } if municipality == m)
-                    })
-                    .map(|e| format!("{} days ago", e.date.days_until(st.calendar.date)))
-                    .unwrap_or_else(|| "none on record".into()),
-            ),
-            U::Disaster { .. } => put(
-                "months since disaster",
-                st.economy
-                    .munis
-                    .get(m as usize)
-                    .map(|e| e.months_since_disaster.to_string())
-                    .unwrap_or_default(),
-            ),
-            U::Occupation { slot, .. } => put(
-                slot,
-                slot_person(slot)
-                    .map(|p| {
-                        format!(
-                            "{} ({})",
-                            name(st, p),
-                            characters::knows::role_key(st, content, p).unwrap_or_else(|| "-".into())
-                        )
-                    })
-                    .unwrap_or_else(|| "nobody".into()),
-            ),
-            U::Trait { slot, .. } => put(
-                "traits",
-                slot_person(slot)
-                    .and_then(|p| pol.characters.get(p))
-                    .map(|c| c.traits.join(", "))
-                    .unwrap_or_default(),
-            ),
-            U::Personality { slot, axis, .. } => {
-                if let Some(p) = slot_person(slot).and_then(|p| characters::profile(pol, &st.world, p))
-                {
-                    let x = &p.personality;
-                    let val = match axis.as_str() {
-                        "ambition" => Some(x.ambition),
-                        "integrity" => Some(x.integrity),
-                        "warmth" => Some(x.warmth),
-                        "boldness" => Some(x.boldness),
-                        "loyalty" => Some(x.loyalty),
-                        _ => None,
-                    };
-                    put(
-                        axis,
-                        val.map(|v| num(v as f64))
-                            .unwrap_or_else(|| "unknown axis".into()),
-                    );
-                }
-            }
-            U::Goal { slot, .. } => put(
-                "goals",
-                slot_person(slot)
-                    .map(|p| {
-                        pol.characters
-                            .goals
-                            .iter()
-                            .filter(|g| g.holder == p)
-                            .map(|g| g.goal.as_str())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    })
-                    .unwrap_or_default(),
-            ),
-            U::Opinion { slot, .. } => {
-                if let (Some(p), Some(cx)) = (slot_person(slot), ctx) {
-                    put("opinion", num(characters::opinion(pol, p, cx.me) as f64));
-                }
-            }
-            U::Trust { slot, .. } => {
-                if let (Some(p), Some(cx)) = (slot_person(slot), ctx) {
-                    put(
-                        "trust",
-                        num(characters::trust(pol, content, p, cx.me) as f64),
-                    );
-                }
-            }
-            U::Remembers { slot, .. } => {
-                if let (Some(p), Some(cx)) = (slot_person(slot), ctx) {
-                    let kinds: Vec<&str> = pol
-                        .characters
-                        .get(p)
-                        .map(|c| {
-                            c.memories
-                                .iter()
-                                .filter(|x| x.actor == cx.me)
-                                .map(|x| x.kind.key())
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    put("memories of player", kinds.join(", "));
-                }
-            }
-            U::Favour { slot, .. } => {
-                if let (Some(p), Some(cx)) = (slot_person(slot), ctx) {
-                    put(
-                        "player owes",
-                        characters::favours_owed(pol, cx.me, p).to_string(),
-                    );
-                    put(
-                        "owed to player",
-                        characters::favours_owed(pol, p, cx.me).to_string(),
-                    );
-                }
-            }
-            U::IsBroker { slot, .. } => {
-                put(slot, slot_person(slot).map(|p| name(st, p)).unwrap_or_default());
-                put(
-                    "broker",
-                    town.and_then(|t| t.broker)
-                        .map(|p| name(st, p))
-                        .unwrap_or_else(|| "none".into()),
-                );
-            }
-            U::IsRival { slot, .. } => {
-                put(slot, slot_person(slot).map(|p| name(st, p)).unwrap_or_default());
-                put(
-                    "rival",
-                    town.and_then(|t| t.rival)
-                        .map(|p| name(st, p))
-                        .unwrap_or_else(|| "none".into()),
-                );
-            }
-            U::Tells { subject, .. } => {
-                if let Some(cx) = ctx {
-                    put(
-                        "would tell",
-                        cx.subject(subject)
-                            .map(|s| cx.told(&s).key().to_string())
-                            .unwrap_or_else(|| "no such subject here".into()),
-                    );
-                    put("discretion cap", cx.cap.key().into());
-                }
-            }
-            U::PlayerKnows { subject, .. } => {
-                if let Some(cx) = ctx {
-                    put(
-                        "player knows",
-                        cx.subject(subject)
-                            .map(|s| crate::player::knowledge::knows(st, &s).key().to_string())
-                            .unwrap_or_else(|| "no such subject here".into()),
-                    );
-                }
-            }
-            U::Any { .. } => {}
-            U::Voice { .. } => {
-                if let Some(cx) = ctx {
-                    put(
-                        "speaker's voice",
-                        crate::talk::reply::voice(cx)
-                            .map(|v| v.id.clone())
-                            .unwrap_or_else(|| "none".into()),
-                    );
-                }
-            }
-            U::About { .. } => {
-                if let Some(cx) = ctx {
-                    put(
-                        "about",
-                        cx.about
-                            .map(|a| match a {
-                                crate::talk::AboutRef::Place { place } => st
-                                    .world
-                                    .places
-                                    .get(place.index())
-                                    .map(|p| format!("place: {}", p.kind.key()))
-                                    .unwrap_or_else(|| "place".into()),
-                                other => other.kind().key().to_string(),
-                            })
-                            .unwrap_or_else(|| "nothing".into()),
-                    );
-                    put(
-                        "speaker's workplace",
-                        cx.workplace(cx.speaker)
-                            .map(|p| p.kind.key().to_string())
-                            .unwrap_or_else(|| "none".into()),
-                    );
-                }
-            }
-            U::Concern { of, .. } => {
-                // What the speaker's home neighbourhood feels most (the
-                // reading `Ctx::top_concern` makes; display only).
-                let top = match (of, ctx) {
-                    (ConcernOf::Speaker, Some(cx)) => cx
-                        .hood(mandate_content::conversation::HoodOf::SpeakerHome)
-                        .and_then(|h| st.world.neighborhoods.get(h.index()).map(|n| (h, n)))
-                        .and_then(|(h, n)| {
-                            crate::concerns::felt_concerns(
-                                &st.population,
-                                content,
-                                n.municipality.index(),
-                                &[h.index()],
-                            )
-                            .first()
-                            .filter(|(_, l)| *l > 0.0)
-                            .map(|(i, _)| *i)
-                        }),
-                    (ConcernOf::Speaker, None) => None,
-                    (ConcernOf::Town, _) => {
-                        crate::concerns::top_concerns(&st.population, m as usize)
-                            .first()
-                            .filter(|(_, l)| *l > 0.0)
-                            .map(|(i, _)| *i)
-                    }
-                };
-                put(
-                    "top concern",
-                    top.and_then(|i| content.concerns.get(i))
-                        .map(|c| c.id.clone())
-                        .unwrap_or_else(|| "none".into()),
-                );
-            }
-        }
-        out
-    }
-}
-
-// --- Adapter 3: overheard conditions ---------------------------------------------------
-
-/// `HeardCondition` at a neighbourhood (where a line is heard).
-pub struct HeardExplainer<'a> {
-    ctx: crate::overheard::Ctx<'a>,
-}
-
-impl<'a> HeardExplainer<'a> {
-    /// At a location in a town (`None`: the location has no neighbourhood).
-    pub fn at(st: &'a State, content: &'a ContentBundle, loc: Location) -> Option<Self> {
-        let h = crate::places::hood_of(st, loc)?;
-        let n = st.world.neighborhoods.get(h.index())?;
-        Some(HeardExplainer {
-            ctx: crate::overheard::Ctx {
-                st,
-                content,
-                m: n.municipality.0,
-                hood: h.index(),
-            },
-        })
-    }
-
-    /// The arguments every condition that holds provides (the line's own
-    /// arguments, as the draw gives them), with `town` and `hood`.
-    pub fn args(&self, cs: &[HeardCondition]) -> (BTreeMap<String, String>, Option<u32>) {
-        let mut args = BTreeMap::new();
-        let mut story = None;
-        for c in cs {
-            self.ctx.holds(c, &mut args, &mut story);
-        }
-        let st = self.ctx.st;
-        if let Some(m) = st.world.municipalities.get(self.ctx.m as usize) {
-            args.insert("town".into(), m.name.clone());
-        }
-        if let Some(n) = st.world.neighborhoods.get(self.ctx.hood) {
-            args.insert("hood".into(), n.name.clone());
-        }
-        (args, story)
-    }
-}
-
-impl Explainer for HeardExplainer<'_> {
-    type Cond = HeardCondition;
-
-    fn holds(&self, c: &HeardCondition) -> bool {
-        self.ctx
-            .holds(c, &mut BTreeMap::new(), &mut Default::default())
-    }
-
-    fn any_of<'c>(&self, c: &'c HeardCondition) -> Option<&'c [HeardCondition]> {
-        match c {
-            HeardCondition::Any { of } => Some(of),
-            _ => None,
-        }
-    }
-
-    fn observe(&self, c: &HeardCondition) -> Vec<(String, String)> {
-        let st = self.ctx.st;
-        let m = self.ctx.m;
-        let town = st.politics.characters.towns.get(m as usize);
-        let mu = st.world.municipalities.get(m as usize);
-        let mut out: Vec<(String, String)> = Vec::new();
-        let mut put = |k: &str, x: String| out.push((k.into(), x));
-        match c {
-            HeardCondition::Water { feature } => {
-                let waterfront = st.world.neighborhoods.get(self.ctx.hood).is_some_and(|n| {
-                    n.kind == crate::world::NeighborhoodKind::Waterfront
-                });
-                put("river", mu.is_some_and(|x| x.on_river).to_string());
-                put("coast", mu.is_some_and(|x| x.coastal).to_string());
-                if matches!(feature, WaterFeature::Any) {
-                    put("waterfront", waterfront.to_string());
-                }
-            }
-            HeardCondition::Dry => {
-                put("river", mu.is_some_and(|x| x.on_river).to_string());
-                put("coast", mu.is_some_and(|x| x.coastal).to_string());
-            }
-            HeardCondition::Crisis { .. } => put(
-                "crises",
-                town.map(|t| {
-                    t.crises
-                        .iter()
-                        .map(|x| format!("{} {}", x.kind, num(x.severity as f64)))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
-                .unwrap_or_default(),
-            ),
-            HeardCondition::PlantClosure { .. } => put(
-                "last closure",
-                st.events
-                    .iter()
-                    .rev()
-                    .find(|e| {
-                        matches!(e.kind, crate::events::EventKind::PlantClosure { municipality, .. } if municipality == m)
-                    })
-                    .map(|e| format!("{} days ago", e.date.days_until(st.calendar.date)))
-                    .unwrap_or_else(|| "none on record".into()),
-            ),
-            HeardCondition::Disaster { .. } => put(
-                "months since disaster",
-                st.economy
-                    .munis
-                    .get(m as usize)
-                    .map(|e| e.months_since_disaster.to_string())
-                    .unwrap_or_default(),
-            ),
-            HeardCondition::Industry => put(
-                "industry",
-                town.and_then(|t| t.industry.clone())
-                    .unwrap_or_else(|| "none".into()),
-            ),
-            HeardCondition::Broker => put(
-                "broker",
-                town.and_then(|t| t.broker)
-                    .map(|p| name(st, p))
-                    .unwrap_or_else(|| "none".into()),
-            ),
-            HeardCondition::Rival | HeardCondition::RivalRecord { .. } => {
-                let rival = town.and_then(|t| t.rival);
-                put(
-                    "rival",
-                    rival.map(|p| name(st, p)).unwrap_or_else(|| "none".into()),
-                );
-                if matches!(c, HeardCondition::RivalRecord { .. })
-                    && let Some(p) = rival.and_then(|r| {
-                        st.politics.politicians.iter().find(|p| p.character == r)
-                    })
-                {
-                    put("record", num(p.record as f64));
-                }
-            }
-            HeardCondition::PlayerAwareness { .. } | HeardCondition::PlayerApproval { .. } => {
-                // Residents' mean awareness and approval of the player here
-                // (as the evaluator weighs them; display only).
-                if let Some(cs) = st.population.hoods.get(self.ctx.hood).map(|h| &h.cohorts) {
-                    let n: f64 = cs.iter().map(|c| c.count as f64).sum::<f64>().max(1.0);
-                    let mean = |f: &dyn Fn(&crate::population::Cohort) -> f64| {
-                        cs.iter().map(|c| f(c) * c.count as f64).sum::<f64>() / n
-                    };
-                    put("awareness", num(mean(&|c| c.player_awareness as f64)));
-                    put("approval", num(mean(&|c| c.player_approval as f64)));
-                }
-            }
-            HeardCondition::Scandal { .. } => put(
-                "running scandals in town",
-                st.media
-                    .scandals
-                    .iter()
-                    .filter(|x| x.running() && x.town == m)
-                    .count()
-                    .to_string(),
-            ),
-            HeardCondition::Headline => put(
-                "latest story",
-                st.media
-                    .stories
-                    .iter()
-                    .rev()
-                    .find(|s| s.town == m)
-                    .map(|s| format!("{} days ago", s.date.days_until(st.calendar.date)))
-                    .unwrap_or_else(|| "none".into()),
-            ),
-            HeardCondition::ElectionWithin { .. } => put(
-                "days to election",
-                st.politics
-                    .elections
-                    .next_day
-                    .filter(|d| *d >= st.calendar.date)
-                    .map(|d| st.calendar.date.days_until(d).to_string())
-                    .unwrap_or_else(|| "none scheduled".into()),
-            ),
-            HeardCondition::Any { .. } => {}
-        }
-        out
     }
 }
 
@@ -1189,7 +1022,8 @@ fn cast_and_triggers(
         None => (forced_cast(v, &def.roles, preset, holder), true, None),
     };
     let roles = roles_node(v, &def.roles, &cast);
-    let e = NarrativeExplainer { v, cast: &cast };
+    let cx = condition::Ctx::narrative(v, &cast);
+    let e = CondExplainer { cx: &cx };
     let mut triggers = explain_all(&e, "triggers", &def.triggers);
     if forced && roles.ok && triggers.ok {
         // Every trigger holds for the first candidates but the search found
@@ -1416,7 +1250,8 @@ fn situational(st: &State, v: &View<'_>, content: &ContentBundle, id: &str) -> O
     let t = content.policies.get(id)?;
     let u = t.unlock.as_ref()?;
     let m = home(v)?;
-    let e = SituationExplainer::Town { st, content, m };
+    let cx = condition::Ctx::town(v, st, MunicipalityId(m));
+    let e = CondExplainer { cx: &cx };
     let mut any = Node::group(
         "any",
         "unlock (any)",
@@ -1506,7 +1341,8 @@ fn storyline(st: &State, v: &View<'_>, content: &ContentBundle, id: &str) -> Opt
                             .with("waiting", run.decision.is_some() || run.entered),
                         );
                     }
-                    let e = NarrativeExplainer { v, cast: &run.cast };
+                    let cx = condition::Ctx::narrative(v, &run.cast);
+                    let e = CondExplainer { cx: &cx };
                     sk.push(explain_all(&e, "advance", &stage.advance));
                     if let Some(dk) = &stage.decision
                         && let Some(ddef) = content.dilemma(dk)
@@ -1565,7 +1401,8 @@ fn storyline(st: &State, v: &View<'_>, content: &ContentBundle, id: &str) -> Opt
             match cast::cast_roles(v, &def.roles, &[], None) {
                 Some(c) => {
                     kids.push(roles_node(v, &def.roles, &c));
-                    let e = NarrativeExplainer { v, cast: &c };
+                    let cx = condition::Ctx::narrative(v, &c);
+                    let e = CondExplainer { cx: &cx };
                     kids.push(explain_all(&e, "start", &def.start));
                     cast = c;
                     forced = false;
@@ -1573,7 +1410,8 @@ fn storyline(st: &State, v: &View<'_>, content: &ContentBundle, id: &str) -> Opt
                 None => {
                     let c = forced_cast(v, &def.roles, &[], None);
                     kids.push(roles_node(v, &def.roles, &c));
-                    let e = NarrativeExplainer { v, cast: &c };
+                    let cx = condition::Ctx::narrative(v, &c);
+                    let e = CondExplainer { cx: &cx };
                     let mut s = explain_all(&e, "start", &def.start);
                     s.ok = false;
                     kids.push(s);
@@ -1613,7 +1451,7 @@ pub fn talk_places(st: &State, content: &ContentBundle) -> Vec<crate::world::Pla
 
 fn overheard(
     st: &State,
-    _v: &View<'_>,
+    v: &View<'_>,
     content: &ContentBundle,
     id: &str,
     focus: Focus,
@@ -1624,9 +1462,11 @@ fn overheard(
     let mut first_ok: Option<crate::world::PlaceId> = None;
     for p in &places {
         let loc = Location::Place { place: *p };
-        let Some(e) = HeardExplainer::at(st, content, loc) else {
+        let Some(hood) = crate::places::hood_of(st, loc) else {
             continue;
         };
+        let cx = condition::Ctx::at_location(v, st, loc);
+        let e = CondExplainer { cx: &cx };
         // The overheard system's verdict: the line is among those that hold.
         let holds = crate::overheard::available(st, content, loc)
             .iter()
@@ -1636,11 +1476,12 @@ fn overheard(
             .any(|l| l.id == def.id);
         let mut pk = Vec::new();
         if let Some(c) = &def.concern {
+            let m = cx.town_id().map(|t| t.index()).unwrap_or(0);
             let felt: Vec<String> = crate::concerns::felt_concerns(
                 &st.population,
                 content,
-                e.ctx.m as usize,
-                &[e.ctx.hood],
+                m,
+                &[hood.index()],
             )
             .into_iter()
             .filter(|(_, w)| *w > 0.0)
@@ -1696,9 +1537,10 @@ fn overheard(
     let tree = Node::group("all", id, vec![any]);
     let mut x = Explanation::new(ItemKind::Overheard, id, tree);
     if let Some(p) = chosen
-        && let Some(e) = HeardExplainer::at(st, content, Location::Place { place: p })
+        && crate::places::hood_of(st, Location::Place { place: p }).is_some()
     {
-        let (args, _) = e.args(&def.when);
+        let cx = condition::Ctx::at_location(v, st, Location::Place { place: p });
+        let (args, _) = heard_args(&cx, &def.when);
         x.texts.push(Text {
             slot: "line".into(),
             key: def.key.clone(),
@@ -1845,6 +1687,14 @@ pub fn talk_ctx<'a>(
     })
 }
 
+/// A conversation's conditions explained, with the conversation bound.
+fn talk_when(ctx: &TalkCtx<'_>, cs: &[Condition]) -> Node {
+    condition::on_state(ctx.st, ctx.content, |v| {
+        let cx = condition::Ctx::talk(v, ctx);
+        explain_all(&CondExplainer { cx: &cx }, "when", cs)
+    })
+}
+
 fn speaker_label(st: &State, content: &ContentBundle, s: CharacterId) -> String {
     format!(
         "{} ({})",
@@ -1880,8 +1730,7 @@ fn topic_node(ctx: &TalkCtx<'_>, t: &mandate_content::conversation::TopicDef) ->
             true,
         ));
     }
-    let e = SituationExplainer::Talk(ctx);
-    kids.push(explain_all(&e, "when", &o.when));
+    kids.push(talk_when(ctx, &o.when));
     Node::group(
         "speaker",
         &speaker_label(st, ctx.content, ctx.speaker),
@@ -2053,8 +1902,7 @@ fn line(
                 true,
             ));
         }
-        let e = SituationExplainer::Talk(ctx);
-        kids.push(explain_all(&e, "when", &l.when));
+        kids.push(talk_when(ctx, &l.when));
         // The reply's own reading: every condition holds (with its arguments).
         let mut args = crate::talk::context_args(ctx);
         let holds = ctx.all_hold(&l.when, &mut args);
@@ -2091,8 +1939,7 @@ fn voice(
 ) -> Option<Explanation> {
     let vd = content.talk_voice(id)?;
     let f = |ctx: &TalkCtx<'_>| -> (Node, Vec<Text>) {
-        let e = SituationExplainer::Talk(ctx);
-        let when = explain_all(&e, "when", &vd.when);
+        let when = talk_when(ctx, &vd.when);
         let actual = crate::talk::reply::voice(ctx);
         let is = actual.is_some_and(|v| v.id == vd.id);
         let mut node = Node::group(

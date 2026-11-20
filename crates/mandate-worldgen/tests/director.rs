@@ -390,7 +390,7 @@ fn answered_and_sponsored_law_read_the_players_record() {
         min_age_days: min,
         max_age_days: max,
         chance,
-        role: Some("law".into()),
+        slot: Some("law".into()),
     };
     assert!(holds(&law_cond(365, Some(730), 1.0), &law_cast));
     assert!(
@@ -404,7 +404,7 @@ fn answered_and_sponsored_law_read_the_players_record() {
         min_age_days: 365,
         max_age_days: Some(730),
         chance: 1.0,
-        role: None,
+        slot: None,
     };
     assert!(holds(&any, &[]));
     let pending = Condition::SponsoredLaw {
@@ -412,7 +412,7 @@ fn answered_and_sponsored_law_read_the_players_record() {
         min_age_days: 0,
         max_age_days: None,
         chance: 1.0,
-        role: None,
+        slot: None,
     };
     let any_pending = st.policy.instances.iter().any(|p| {
         p.sponsor == Some(me) && p.status == mandate_sim::policy::PolicyStatus::UnderConsideration
@@ -428,7 +428,7 @@ fn answered_and_sponsored_law_read_the_players_record() {
         min_age_days: 0,
         max_age_days: None,
         chance: 0.5,
-        role: Some("law".into()),
+        slot: Some("law".into()),
     };
     let first = holds(&half, &cast);
     for _ in 0..5 {

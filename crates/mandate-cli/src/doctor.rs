@@ -28,9 +28,8 @@ use mandate_content::conversation::{
     ConcernOf, LeadToDef, TalkLineDef, TalkPart, fluent_placeholders,
 };
 use mandate_content::validate::fluent_keys;
-use mandate_content::{
-    Cast, Condition, ContentBundle, HeardCondition, ScenePlace, SituationCondition, Source,
-};
+use mandate_content::condition::Worry;
+use mandate_content::{Cast, Condition, ContentBundle, ScenePlace, Source};
 use mandate_sim::explain;
 use mandate_sim::{Command, Engine};
 use mandate_worldgen::{WorldConfig, WorldSize, generate};
@@ -339,21 +338,29 @@ fn indicator_domain(i: mandate_content::Indicator) -> (f64, f64) {
     }
 }
 
-fn narrative_bound(c: &Condition) -> Option<Bound> {
+/// The quantity a condition bounds (one table for the one condition language).
+fn cond_bound(c: &Condition) -> Option<Bound> {
+    use Condition as C;
     Some(match c {
-        Condition::Crisis { kind, min_severity } => bound(
+        C::Crisis {
+            kind: Some(kind),
+            min_severity,
+        } => bound(
             format!("crisis {kind} severity"),
             Some(*min_severity),
             None,
             (0.0, 1.0),
         ),
-        Condition::LiveCrisis { min_severity } => bound(
+        C::Crisis {
+            kind: None,
+            min_severity,
+        } => bound(
             "live crisis severity".into(),
             Some(*min_severity),
             None,
             (0.0, 1.0),
         ),
-        Condition::Indicator {
+        C::Indicator {
             indicator,
             min,
             max,
@@ -364,79 +371,38 @@ fn narrative_bound(c: &Condition) -> Option<Bound> {
             indicator_domain(*indicator),
         ),
         // Every track, the record and the Mandate run 0..100.
-        Condition::Track { track, min, max } => {
-            bound(format!("track {track:?}"), *min, *max, (0.0, 100.0))
+        C::Track { track, min, max } => bound(format!("track {track:?}"), *min, *max, (0.0, 100.0)),
+        C::Money { min, max } => bound("money".into(), *min, *max, (-INF, INF)),
+        C::Opinion { slot, min, max } => {
+            bound(format!("opinion of {slot}"), *min, *max, (-100.0, 100.0))
         }
-        Condition::Money { min, max } => bound("money".into(), *min, *max, (-INF, INF)),
-        Condition::Opinion { role, min, max } => {
-            bound(format!("opinion of {role}"), *min, *max, (-100.0, 100.0))
-        }
-        Condition::Personality {
-            role,
-            axis,
-            min,
-            max,
-        } => bound(format!("{role} {axis}"), *min, *max, (0.0, 1.0)),
-        _ => return None,
-    })
-}
-
-fn situation_bound(c: &SituationCondition) -> Option<Bound> {
-    use SituationCondition as U;
-    Some(match c {
-        U::Crisis { kind, min_severity } => bound(
-            format!("crisis {kind} severity"),
-            Some(*min_severity),
-            None,
-            (0.0, 1.0),
-        ),
-        U::Indicator {
-            indicator,
-            min,
-            max,
-        } => bound(
-            format!("indicator {indicator:?}"),
-            *min,
-            *max,
-            indicator_domain(*indicator),
-        ),
-        U::Personality {
+        C::Personality {
             slot,
             axis,
             min,
             max,
         } => bound(format!("{slot} {axis}"), *min, *max, (0.0, 1.0)),
-        U::Opinion { slot, min, max } => {
-            bound(format!("opinion of {slot}"), *min, *max, (-100.0, 100.0))
-        }
-        U::Trust { slot, min, max } => bound(format!("trust of {slot}"), *min, *max, (0.0, 1.0)),
-        _ => return None,
-    })
-}
-
-fn heard_bound(c: &HeardCondition) -> Option<Bound> {
-    Some(match c {
-        HeardCondition::PlayerAwareness { min, max } => {
+        C::Trust { slot, min, max } => bound(format!("trust of {slot}"), *min, *max, (0.0, 1.0)),
+        C::PlayerAwareness { min, max } => {
             bound("player awareness".into(), *min, *max, (0.0, 1.0))
         }
-        HeardCondition::PlayerApproval { min, max } => {
+        C::PlayerApproval { min, max } => {
             bound("player approval".into(), *min, *max, (-1.0, 1.0))
         }
-        HeardCondition::RivalRecord { min, max } => {
-            bound("rival record".into(), *min, *max, (0.0, 1.0))
-        }
+        C::RivalRecord { min, max } => bound("rival record".into(), *min, *max, (0.0, 1.0)),
         _ => return None,
     })
 }
 
 /// A discrete quantity and the values a condition allows.
-fn narrative_discrete(c: &Condition, words: &[String]) -> Option<(String, BTreeSet<String>)> {
+fn cond_discrete(c: &Condition, words: &[String]) -> Option<(String, BTreeSet<String>)> {
+    use Condition as C;
     let set = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect::<BTreeSet<_>>();
     Some(match c {
-        Condition::Campaigning { is } => ("campaigning".into(), set(&[&is.to_string()])),
+        C::Campaigning { is } => ("campaigning".into(), set(&[&is.to_string()])),
         // The player's post as a role word (DEC-098): `any` is every post's
         // word, `none` out of office.
-        Condition::Office { posts, role } => (
+        C::Office { posts, role } => (
             "the player's post".into(),
             posts
                 .iter()
@@ -448,34 +414,33 @@ fn narrative_discrete(c: &Condition, words: &[String]) -> Option<(String, BTreeS
                 })
                 .collect(),
         ),
-        _ => return None,
-    })
-}
-
-fn situation_discrete(c: &SituationCondition) -> Option<(String, BTreeSet<String>)> {
-    use SituationCondition as U;
-    Some(match c {
-        U::Occupation { slot, occupations } => (
+        C::Occupation { slot, occupations } => (
             format!("role of {slot}"),
             occupations.iter().cloned().collect(),
         ),
-        U::IsBroker { slot, is } => (format!("{slot} is the broker"), [is.to_string()].into()),
-        U::IsRival { slot, is } => (format!("{slot} is the rival"), [is.to_string()].into()),
-        U::Voice { voices } => ("voice".into(), voices.iter().cloned().collect()),
-        U::Concern {
-            of: ConcernOf::Town,
-            concerns,
-        } => (
-            "the town's top concern".into(),
-            concerns.iter().cloned().collect(),
-        ),
-        U::Concern {
-            of: ConcernOf::Speaker,
-            concerns,
-        } => (
-            "the speaker's top concern".into(),
-            concerns.iter().cloned().collect(),
-        ),
+        C::IsBroker { slot, is } => (format!("{slot} is the broker"), [is.to_string()].into()),
+        C::IsRival { slot, is } => (format!("{slot} is the rival"), [is.to_string()].into()),
+        C::Voice { voices } => ("voice".into(), voices.iter().cloned().collect()),
+        // The one top worry (two top-one worries that share none contradict).
+        C::Concern { .. } => {
+            let w = c.worry()?;
+            if w.top != 1 {
+                return None;
+            }
+            let whose = match w.of {
+                ConcernOf::Town => "the town's",
+                ConcernOf::Speaker => "the speaker's",
+                ConcernOf::Here => "the neighbourhood's",
+            };
+            let how = match w.by {
+                Worry::Felt => "",
+                Worry::Measured => " measured",
+            };
+            (
+                format!("{whose} top{how} concern"),
+                w.concerns.into_iter().cloned().collect(),
+            )
+        }
         _ => return None,
     })
 }
@@ -550,13 +515,13 @@ fn check_conjunction(
     }
 }
 
-fn check_narrative(out: &mut Out, item: &str, what: &str, cs: &[Condition]) {
-    let bounds = cs.iter().filter_map(narrative_bound).collect();
+/// One list of conditions (a conjunction): bounds and discrete values, a law
+/// both absent and in force, `dry` with `water`, and each `any`
+/// alternative with the rest.
+fn check_conditions(out: &mut Out, item: &str, what: &str, cs: &[Condition]) {
+    let bounds = cs.iter().filter_map(cond_bound).collect();
     let words = out.role_words.clone();
-    let discrete = cs
-        .iter()
-        .filter_map(|c| narrative_discrete(c, &words))
-        .collect();
+    let discrete = cs.iter().filter_map(|c| cond_discrete(c, &words)).collect();
     check_conjunction(out, item, what, bounds, discrete);
     // Two `law_in_force` on the same templates, one absent and one present.
     for a in cs {
@@ -582,16 +547,20 @@ fn check_narrative(out: &mut Out, item: &str, what: &str, cs: &[Condition]) {
             }
         }
     }
-}
-
-fn check_situation(out: &mut Out, item: &str, what: &str, cs: &[SituationCondition]) {
-    let bounds = cs.iter().filter_map(situation_bound).collect();
-    let discrete = cs.iter().filter_map(situation_discrete).collect();
-    check_conjunction(out, item, what, bounds, discrete);
+    let dry = cs.iter().any(|c| matches!(c, Condition::Dry));
+    let wet = cs.iter().any(|c| matches!(c, Condition::Water { .. }));
+    if dry && wet {
+        out.add(
+            Sev::Error,
+            "contradiction",
+            item,
+            format!("{what}: `dry` and `water` together"),
+        );
+    }
     for c in cs {
-        if let SituationCondition::Any { of } = c {
+        if let Condition::Any { of } = c {
             for (i, x) in of.iter().enumerate() {
-                check_situation(
+                check_conditions(
                     out,
                     item,
                     &format!("{what} (any, alternative {})", i + 1),
@@ -602,26 +571,11 @@ fn check_situation(out: &mut Out, item: &str, what: &str, cs: &[SituationConditi
     }
 }
 
-fn check_heard(out: &mut Out, item: &str, what: &str, cs: &[HeardCondition]) {
-    let bounds = cs.iter().filter_map(heard_bound).collect();
-    check_conjunction(out, item, what, bounds, Vec::new());
-    let dry = cs.iter().any(|c| matches!(c, HeardCondition::Dry));
-    let wet = cs.iter().any(|c| matches!(c, HeardCondition::Water { .. }));
-    if dry && wet {
-        out.add(
-            Sev::Error,
-            "contradiction",
-            item,
-            format!("{what}: `dry` and `water` together"),
-        );
-    }
-}
-
 /// The speaker roles a line's conditions allow (`None`: any).
-fn speaker_roles(cs: &[SituationCondition]) -> Option<BTreeSet<String>> {
+fn speaker_roles(cs: &[Condition]) -> Option<BTreeSet<String>> {
     let mut out: Option<BTreeSet<String>> = None;
     for c in cs {
-        if let SituationCondition::Occupation { slot, occupations } = c
+        if let Condition::Occupation { slot, occupations } = c
             && slot == "speaker"
         {
             let s: BTreeSet<String> = occupations.iter().cloned().collect();
@@ -635,7 +589,6 @@ fn speaker_roles(cs: &[SituationCondition]) -> Option<BTreeSet<String>> {
 }
 
 fn static_checks(b: &ContentBundle, out: &mut Out) {
-    let crisis = |k: &str| b.crises.iter().any(|c| c.id == k);
     let concern = |k: &str| b.concerns.iter().any(|c| c.id == k);
     let roles_all = b.talk_roles();
     let unknown = |out: &mut Out, item: &str, what: &str, id: &str| {
@@ -645,63 +598,6 @@ fn static_checks(b: &ContentBundle, out: &mut Out) {
             item,
             format!("{what} `{id}` does not exist"),
         );
-    };
-    let narrative_refs = |out: &mut Out, item: &str, roles: &[&str], cs: &[Condition]| {
-        for c in cs {
-            for r in c.roles() {
-                if !roles.contains(&r) {
-                    out.add(
-                        Sev::Error,
-                        "unknown-ref",
-                        item,
-                        format!("a condition names role `{r}`, which the item does not cast"),
-                    );
-                }
-            }
-            match c {
-                Condition::Crisis { kind, .. } if !crisis(kind) => {
-                    unknown(out, item, "crisis", kind)
-                }
-                Condition::Concern { concern: k, top } => {
-                    if !concern(k) {
-                        unknown(out, item, "concern", k);
-                    }
-                    if *top == 0 {
-                        out.add(
-                            Sev::Error,
-                            "unsatisfiable",
-                            item,
-                            "a concern among the top 0 never holds",
-                        );
-                    }
-                }
-                Condition::Trait { traits, .. } => {
-                    for t in traits {
-                        if b.trait_def(t).is_none() {
-                            unknown(out, item, "trait", t);
-                        }
-                    }
-                }
-                Condition::LawInForce { templates, .. } => {
-                    for t in templates {
-                        if !b.policies.contains_key(t) {
-                            unknown(out, item, "policy template", t);
-                        }
-                    }
-                }
-                Condition::Goal { goal, .. } if b.goal(goal).is_none() => {
-                    unknown(out, item, "goal", goal)
-                }
-                Condition::Remembers { kinds, .. } => {
-                    for k in kinds {
-                        if !mandate_content::MEMORY_KINDS.contains(&k.as_str()) {
-                            unknown(out, item, "memory kind", k);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
     };
     // Dilemmas.
     for d in &b.dilemmas {
@@ -715,8 +611,8 @@ fn static_checks(b: &ContentBundle, out: &mut Out) {
                 roles.extend(s.roles.iter().map(|r| r.id.as_str()));
             }
         }
-        check_narrative(out, &d.id, "triggers", &d.triggers);
-        narrative_refs(out, &d.id, &roles, &d.triggers);
+        check_conditions(out, &d.id, "triggers", &d.triggers);
+        cond_refs(b, out, &d.id, Some(&roles), &d.triggers);
         if let Some(s) = &d.scene
             && b.scene(s).is_none()
         {
@@ -755,8 +651,8 @@ fn static_checks(b: &ContentBundle, out: &mut Out) {
     }
     // Goals.
     for g in &b.goals {
-        check_narrative(out, &g.id, "conditions", &g.conditions);
-        narrative_refs(out, &g.id, &["holder"], &g.conditions);
+        check_conditions(out, &g.id, "conditions", &g.conditions);
+        cond_refs(b, out, &g.id, Some(&["holder"]), &g.conditions);
         for (axis, [lo, hi]) in &g.personality {
             if lo > hi || *lo > 1.0 || *hi < 0.0 {
                 out.add(
@@ -776,11 +672,11 @@ fn static_checks(b: &ContentBundle, out: &mut Out) {
     // Storylines.
     for s in &b.storylines {
         let roles: Vec<&str> = s.roles.iter().map(|r| r.id.as_str()).collect();
-        check_narrative(out, &s.id, "start", &s.start);
-        narrative_refs(out, &s.id, &roles, &s.start);
+        check_conditions(out, &s.id, "start", &s.start);
+        cond_refs(b, out, &s.id, Some(&roles), &s.start);
         for st in &s.stages {
-            check_narrative(out, &s.id, &format!("stage {} advance", st.id), &st.advance);
-            narrative_refs(out, &s.id, &roles, &st.advance);
+            check_conditions(out, &s.id, &format!("stage {} advance", st.id), &st.advance);
+            cond_refs(b, out, &s.id, Some(&roles), &st.advance);
             if let Some(d) = &st.decision
                 && b.dilemma(d).is_none()
             {
@@ -815,26 +711,20 @@ fn static_checks(b: &ContentBundle, out: &mut Out) {
     for p in b.policies.values() {
         if let Some(u) = &p.unlock {
             for (i, c) in u.any.iter().enumerate() {
-                check_situation(
+                check_conditions(
                     out,
                     &p.id,
                     &format!("unlock alternative {}", i + 1),
                     std::slice::from_ref(c),
                 );
-                situation_refs(b, out, &p.id, std::slice::from_ref(c));
+                cond_refs(b, out, &p.id, None, std::slice::from_ref(c));
             }
         }
     }
     // Overheard lines.
     for o in &b.overheard {
-        check_heard(out, &o.id, "when", &o.when);
-        for c in &o.when {
-            if let HeardCondition::Crisis { kind: Some(k) } = c
-                && !crisis(k)
-            {
-                unknown(out, &o.id, "crisis", k);
-            }
-        }
+        check_conditions(out, &o.id, "when", &o.when);
+        cond_refs(b, out, &o.id, None, &o.when);
         if let Some(c) = &o.concern
             && !concern(c)
         {
@@ -843,8 +733,8 @@ fn static_checks(b: &ContentBundle, out: &mut Out) {
     }
     // Topics, voices, lines; with the voice and topic they need.
     for t in &b.talk_topics {
-        check_situation(out, &t.id, "offered when", &t.offered.when);
-        situation_refs(b, out, &t.id, &t.offered.when);
+        check_conditions(out, &t.id, "offered when", &t.offered.when);
+        cond_refs(b, out, &t.id, None, &t.offered.when);
         for r in &t.offered.roles {
             if !roles_all.contains(r) {
                 unknown(out, &t.id, "role", r);
@@ -854,8 +744,8 @@ fn static_checks(b: &ContentBundle, out: &mut Out) {
     // A voice never wins below an unconditional voice of higher priority
     // (or of equal priority, loaded earlier: ties go to load order).
     for (vi, v) in b.talk_voices.iter().enumerate() {
-        check_situation(out, &v.id, "when", &v.when);
-        situation_refs(b, out, &v.id, &v.when);
+        check_conditions(out, &v.id, "when", &v.when);
+        cond_refs(b, out, &v.id, None, &v.when);
         if let Some(w) = b.talk_voices.iter().enumerate().find_map(|(wi, w)| {
             (wi != vi
                 && w.when.is_empty()
@@ -874,8 +764,8 @@ fn static_checks(b: &ContentBundle, out: &mut Out) {
         }
     }
     for l in &b.talk_lines {
-        check_situation(out, &l.id, "when", &l.when);
-        situation_refs(b, out, &l.id, &l.when);
+        check_conditions(out, &l.id, "when", &l.when);
+        cond_refs(b, out, &l.id, None, &l.when);
         line_voice_checks(b, out, l);
     }
 }
@@ -910,54 +800,102 @@ fn check_cast(b: &ContentBundle, out: &mut Out, item: &str, c: &Cast) {
     }
 }
 
-fn situation_refs(b: &ContentBundle, out: &mut Out, item: &str, cs: &[SituationCondition]) {
-    use SituationCondition as U;
-    let roles = b.talk_roles();
+/// The ids a list of conditions names exist (`any` alternatives too), and,
+/// where the item has a cast (`roles`), the roles its conditions name are
+/// cast.
+fn cond_refs(
+    b: &ContentBundle,
+    out: &mut Out,
+    item: &str,
+    roles: Option<&[&str]>,
+    cs: &[Condition],
+) {
+    use Condition as C;
+    let talk_roles = b.talk_roles();
+    let unknown = |out: &mut Out, what: &str, id: &str| {
+        out.add(
+            Sev::Error,
+            "unknown-ref",
+            item,
+            format!("{what} `{id}` does not exist"),
+        );
+    };
     for c in cs {
+        if let Some(roles) = roles {
+            for r in c.slots() {
+                if !roles.contains(&r) {
+                    out.add(
+                        Sev::Error,
+                        "unknown-ref",
+                        item,
+                        format!("a condition names role `{r}`, which the item does not cast"),
+                    );
+                }
+            }
+        }
         match c {
-            U::Crisis { kind, .. } if !b.crises.iter().any(|x| &x.id == kind) => out.add(
-                Sev::Error,
-                "unknown-ref",
-                item,
-                format!("crisis `{kind}` does not exist"),
-            ),
-            U::Occupation { occupations, .. } => {
-                for o in occupations {
-                    if !roles.contains(o) {
-                        out.add(
-                            Sev::Error,
-                            "unknown-ref",
-                            item,
-                            format!("role `{o}` does not exist"),
-                        );
+            C::Crisis { kind: Some(kind), .. } if !b.crises.iter().any(|x| &x.id == kind) => {
+                unknown(out, "crisis", kind)
+            }
+            C::Concern { top, .. } => {
+                for k in c.worry().map(|w| w.concerns).unwrap_or_default() {
+                    if !b.concerns.iter().any(|x| &x.id == k) {
+                        unknown(out, "concern", k);
+                    }
+                }
+                if *top == Some(0) {
+                    out.add(
+                        Sev::Error,
+                        "unsatisfiable",
+                        item,
+                        "a concern among the top 0 never holds",
+                    );
+                }
+            }
+            C::Trait { traits, .. } => {
+                for t in traits {
+                    if b.trait_def(t).is_none() {
+                        unknown(out, "trait", t);
                     }
                 }
             }
-            U::Voice { voices } => {
+            C::LawInForce { templates, .. } => {
+                for t in templates {
+                    if !b.policies.contains_key(t) {
+                        unknown(out, "policy template", t);
+                    }
+                }
+            }
+            C::Goal { goal, .. } if b.goal(goal).is_none() => unknown(out, "goal", goal),
+            C::Remembers { kinds, .. } => {
+                for k in kinds {
+                    if !mandate_content::MEMORY_KINDS.contains(&k.as_str()) {
+                        unknown(out, "memory kind", k);
+                    }
+                }
+            }
+            C::Occupation { occupations, .. } => {
+                for o in occupations {
+                    if !talk_roles.contains(o) {
+                        unknown(out, "role", o);
+                    }
+                }
+            }
+            C::Present { occupations } => {
+                for o in occupations {
+                    if b.occupation(o).is_none() {
+                        unknown(out, "occupation", o);
+                    }
+                }
+            }
+            C::Voice { voices } => {
                 for v in voices {
                     if b.talk_voice(v).is_none() {
-                        out.add(
-                            Sev::Error,
-                            "unknown-ref",
-                            item,
-                            format!("voice `{v}` does not exist"),
-                        );
+                        unknown(out, "voice", v);
                     }
                 }
             }
-            U::Concern { concerns, .. } => {
-                for k in concerns {
-                    if !b.concerns.iter().any(|x| &x.id == k) {
-                        out.add(
-                            Sev::Error,
-                            "unknown-ref",
-                            item,
-                            format!("concern `{k}` does not exist"),
-                        );
-                    }
-                }
-            }
-            U::Any { of } => situation_refs(b, out, item, of),
+            C::Any { of } => cond_refs(b, out, item, roles, of),
             _ => {}
         }
     }
@@ -975,7 +913,7 @@ fn line_voice_checks(b: &ContentBundle, out: &mut Out, l: &TalkLineDef) {
             .when
             .iter()
             .filter_map(|c| match c {
-                SituationCondition::Voice { voices } => {
+                Condition::Voice { voices } => {
                     Some(voices.iter().map(|x| x.as_str()).collect::<Vec<_>>())
                 }
                 _ => None,
@@ -1018,10 +956,10 @@ fn line_voice_checks(b: &ContentBundle, out: &mut Out, l: &TalkLineDef) {
                 all.extend(
                     l.when
                         .iter()
-                        .filter(|c| !matches!(c, SituationCondition::Voice { .. }))
+                        .filter(|c| !matches!(c, Condition::Voice { .. }))
                         .cloned(),
                 );
-                check_situation(out, &l.id, &format!("with voice {v}"), &all);
+                check_conditions(out, &l.id, &format!("with voice {v}"), &all);
             }
         }
     }
@@ -1045,7 +983,7 @@ fn line_voice_checks(b: &ContentBundle, out: &mut Out, l: &TalkLineDef) {
         }
         let mut all = t.offered.when.clone();
         all.extend(l.when.iter().cloned());
-        check_situation(out, &l.id, &format!("with topic {}", t.id), &all);
+        check_conditions(out, &l.id, &format!("with topic {}", t.id), &all);
     }
     if let Some(lead) = &l.lead
         && let LeadToDef::PlaceKind { kind } = &lead.to
@@ -1795,35 +1733,6 @@ fn scan_sources(root: &Path) -> Option<SourceScan> {
     Some(scan)
 }
 
-/// The arguments a heard condition gives (an `any`: those every
-/// alternative gives).
-fn heard_args(c: &HeardCondition) -> Option<BTreeSet<String>> {
-    let set = |xs: &[&str]| Some(xs.iter().map(|x| x.to_string()).collect());
-    match c {
-        HeardCondition::Crisis { .. } => set(&["crisis_key"]),
-        HeardCondition::PlantClosure { .. } => set(&["industry_key", "jobs"]),
-        HeardCondition::Industry => set(&["industry_key"]),
-        HeardCondition::Broker => set(&["broker"]),
-        HeardCondition::Rival | HeardCondition::RivalRecord { .. } => set(&["rival"]),
-        HeardCondition::PlayerAwareness { .. } | HeardCondition::PlayerApproval { .. } => {
-            set(&["player"])
-        }
-        HeardCondition::Scandal { .. } => set(&["subject", "fact_key"]),
-        // A retold story brings its headline's own arguments: not static.
-        HeardCondition::Headline => None,
-        HeardCondition::Any { of } => {
-            let mut it = of.iter().map(heard_args);
-            let first = it.next().flatten()?;
-            let mut acc = first;
-            for x in it {
-                acc = acc.intersection(&x?).cloned().collect();
-            }
-            Some(acc)
-        }
-        _ => set(&[]),
-    }
-}
-
 /// `x_key` also provides `x` (the client renders the key as `$x`).
 fn with_stems(mut s: BTreeSet<String>) -> BTreeSet<String> {
     let stems: Vec<String> = s
@@ -1980,7 +1889,7 @@ fn fluent_checks(b: &ContentBundle, sources: &[Source], scan: Option<&SourceScan
         let crisis_trigger = d
             .triggers
             .iter()
-            .any(|c| matches!(c, Condition::Crisis { .. } | Condition::LiveCrisis { .. }));
+            .any(|c| matches!(c, Condition::Crisis { .. }));
         if !crisis_trigger
             && vars
                 .get(&d.situation_key)
@@ -2031,7 +1940,7 @@ fn fluent_checks(b: &ContentBundle, sources: &[Source], scan: Option<&SourceScan
             ["town", "hood"].iter().map(|x| x.to_string()).collect();
         let mut static_ok = true;
         for c in &o.when {
-            match heard_args(c) {
+            match c.provides() {
                 Some(a) => provided.extend(a),
                 None => static_ok = false,
             }
@@ -2256,55 +2165,24 @@ fn crisis_worry(kind: &str) -> Option<&'static str> {
 /// The worries a conversation line's conditions make true (a `tells` of the
 /// town's or a neighbourhood's worries is the speaker's top worry, whatever
 /// it is: it backs `$concern`, never a particular worry).
-fn situation_worries(cs: &[SituationCondition], out: &mut BTreeSet<String>) {
-    use SituationCondition as U;
+fn cond_worries(cs: &[Condition], out: &mut BTreeSet<String>) {
+    use Condition as C;
     for c in cs {
         match c {
-            U::Concern { concerns, .. } => out.extend(concerns.iter().cloned()),
-            U::Indicator { indicator, .. } => {
+            C::Concern { .. } => {
+                out.extend(c.worry().into_iter().flat_map(|w| w.concerns).cloned());
+            }
+            C::Indicator { indicator, .. } => {
                 out.insert(indicator_worry(*indicator).into());
             }
-            U::Crisis { kind, .. } => out.extend(crisis_worry(kind).map(String::from)),
-            U::PlantClosure { .. } => {
+            C::Crisis { kind: Some(k), .. } => out.extend(crisis_worry(k).map(String::from)),
+            C::PlantClosure { .. } => {
                 out.insert("concern.jobs".into());
             }
-            U::Disaster { .. } => {
+            C::Disaster { .. } => {
                 out.insert("concern.recovery".into());
             }
-            U::Any { of } => situation_worries(of, out),
-            _ => {}
-        }
-    }
-}
-
-fn heard_worries(cs: &[HeardCondition], out: &mut BTreeSet<String>) {
-    for c in cs {
-        match c {
-            HeardCondition::Crisis { kind: Some(k) } => {
-                out.extend(crisis_worry(k).map(String::from))
-            }
-            HeardCondition::PlantClosure { .. } => {
-                out.insert("concern.jobs".into());
-            }
-            HeardCondition::Disaster { .. } => {
-                out.insert("concern.recovery".into());
-            }
-            HeardCondition::Any { of } => heard_worries(of, out),
-            _ => {}
-        }
-    }
-}
-
-fn narrative_worries(cs: &[Condition], out: &mut BTreeSet<String>) {
-    for c in cs {
-        match c {
-            Condition::Concern { concern, .. } => {
-                out.insert(concern.clone());
-            }
-            Condition::Indicator { indicator, .. } => {
-                out.insert(indicator_worry(*indicator).into());
-            }
-            Condition::Crisis { kind, .. } => out.extend(crisis_worry(kind).map(String::from)),
+            C::Any { of } => cond_worries(of, out),
             _ => {}
         }
     }
@@ -2341,17 +2219,17 @@ fn worry_checks(b: &ContentBundle, out: &mut Out) {
     };
     for l in &b.talk_lines {
         let mut backed = BTreeSet::new();
-        situation_worries(&l.when, &mut backed);
+        cond_worries(&l.when, &mut backed);
         check(out, &l.id, &l.key, &backed);
     }
     for o in &b.overheard {
         let mut backed: BTreeSet<String> = o.concern.iter().cloned().collect();
-        heard_worries(&o.when, &mut backed);
+        cond_worries(&o.when, &mut backed);
         check(out, &o.id, &o.key, &backed);
     }
     for d in &b.dilemmas {
         let mut backed = BTreeSet::new();
-        narrative_worries(&d.triggers, &mut backed);
+        cond_worries(&d.triggers, &mut backed);
         check(out, &d.id, &d.situation_key, &backed);
     }
 }
@@ -2433,14 +2311,14 @@ fn relevance_checks(b: &ContentBundle, out: &mut Out) {
         let hood_only = l.when.iter().any(|c| {
             matches!(
                 c,
-                SituationCondition::Tells {
+                Condition::Tells {
                     subject: SubjectRef::HoodConcerns { of: HoodOf::About },
                     ..
                 }
             )
         });
         let keeps_out = l.when.iter().any(|c| match c {
-            SituationCondition::About {
+            Condition::About {
                 kinds, is: true, ..
             } => !kinds.is_empty() && !kinds.contains(&AboutKind::Place),
             _ => false,
@@ -3055,13 +2933,13 @@ mod tests {
             files: BTreeMap::new(),
             role_words: vec!["councillor".into(), "mayor".into()],
         };
-        check_narrative(
+        check_conditions(
             &mut out,
             "x",
             "triggers",
             &[
                 Condition::Opinion {
-                    role: "r".into(),
+                    slot: "r".into(),
                     min: Some(120.0),
                     max: None,
                 },

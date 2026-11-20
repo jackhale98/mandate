@@ -10,7 +10,7 @@ use crate::policy::{PolicyInstance, PolicyStatus};
 use crate::politics::{PoliticianId, PoliticsState, Role};
 use crate::scheduler::Reads;
 use mandate_content::{
-    BillSponsor, Cast, Condition, ContentBundle, LawStatus, PartyRel, Power, RoleDef, TrackKey,
+    BillSponsor, Cast, Condition, ContentBundle, PartyRel, Power, RoleDef, TrackKey,
 };
 use mandate_core::SimDate;
 
@@ -174,7 +174,7 @@ impl<'a> View<'a> {
         powers.contains(&Power::ApproveOrdinance) || powers.contains(&Power::Veto)
     }
 
-    fn track(&self, t: TrackKey) -> Option<f64> {
+    pub(crate) fn track(&self, t: TrackKey) -> Option<f64> {
         let pl = self.player()?;
         Some(match t {
             TrackKey::Viability => pl.tracks.viability as f64,
@@ -218,10 +218,6 @@ impl<'a> View<'a> {
             .filter(|id| self.pol.get(*id).is_some_and(|p| !p.is_player))
             .collect()
     }
-}
-
-fn in_range(v: f64, min: Option<f64>, max: Option<f64>) -> bool {
-    min.is_none_or(|m| v >= m) && max.is_none_or(|m| v <= m)
 }
 
 fn occupation_rank(
@@ -621,196 +617,11 @@ pub fn opposes_in_race(v: &View<'_>, id: CharacterId) -> bool {
     })
 }
 
-/// Does a condition hold for this cast?
+/// Does a condition hold for this cast? The one evaluator
+/// (`crate::condition`), in the player's home town, inside the simulation.
 pub fn holds(v: &View<'_>, c: &Condition, cast: &[CastEntry]) -> bool {
-    let me = v.me();
-    let who = |role: &str| super::person_of(cast, role);
-    let town = v.town_character();
-    match c {
-        Condition::Crisis { kind, min_severity } => town.is_some_and(|t| {
-            t.crises
-                .iter()
-                .any(|x| &x.kind == kind && x.severity as f64 >= *min_severity)
-        }),
-        Condition::LiveCrisis { min_severity } => town
-            .and_then(|t| t.crisis())
-            .is_some_and(|x| x.severity as f64 >= *min_severity),
-        Condition::Indicator {
-            indicator,
-            min,
-            max,
-        } => v.town().is_some_and(|m| {
-            in_range(
-                crate::concerns::indicator(v.r, m as usize, *indicator),
-                *min,
-                *max,
-            )
-        }),
-        Condition::Concern { concern, top } => town.is_some_and(|t| {
-            t.priorities
-                .iter()
-                .take(*top as usize)
-                .any(|p| p == concern)
-        }),
-        Condition::Industry { drivers } => town
-            .and_then(|t| t.industry.as_deref())
-            .and_then(|s| v.content().sector(s))
-            .is_some_and(|s| drivers.contains(&s.driver)),
-        Condition::ElectionWithin { days } => v
-            .next_election()
-            .is_some_and(|d| v.date().days_until(d) <= *days && d >= v.date()),
-        Condition::Campaigning { is } => v.campaigning() == *is,
-        Condition::Office { posts, role } => {
-            // Role words through the constitution (DEC-098), or `any` /
-            // `none`.
-            let Some(p) = v.player().and_then(|pl| v.pol.get(pl.politician)) else {
-                return false;
-            };
-            let word = v
-                .content()
-                .constitutions
-                .get(&v.r.meta.constitution)
-                .and_then(|c| crate::politics::role_word(c, p));
-            posts.iter().chain(role.iter()).any(|w| match w.as_str() {
-                mandate_content::OFFICE_ANY => p.in_office(),
-                mandate_content::OFFICE_NONE => !p.in_office(),
-                w => word == Some(w),
-            })
-        }
-        Condition::Track { track, min, max } => {
-            v.track(*track).is_some_and(|x| in_range(x, *min, *max))
-        }
-        Condition::Money { min, max } => v
-            .player()
-            .is_some_and(|pl| in_range(pl.money.units() as f64, *min, *max)),
-        Condition::Opinion { role, min, max } => match (who(role), me) {
-            (Some(p), Some(me)) => in_range(characters::opinion(v.pol, p, me) as f64, *min, *max),
-            _ => false,
-        },
-        Condition::Favour {
-            role,
-            owed_to_player,
-        } => match (who(role), me) {
-            (Some(p), Some(me)) => {
-                if *owed_to_player {
-                    characters::favours_owed(v.pol, p, me) > 0
-                } else {
-                    characters::favours_owed(v.pol, me, p) > 0
-                }
-            }
-            _ => false,
-        },
-        Condition::Remembers { role, kinds } => match (who(role), me) {
-            (Some(p), Some(me)) => v.pol.characters.get(p).is_some_and(|c| {
-                c.memories
-                    .iter()
-                    .any(|m| m.actor == me && kinds.iter().any(|k| k == m.kind.key()))
-            }),
-            _ => false,
-        },
-        Condition::Personality {
-            role,
-            axis,
-            min,
-            max,
-        } => who(role)
-            .and_then(|p| characters::profile(v.pol, v.r.world, p))
-            .is_some_and(|p| {
-                let x = &p.personality;
-                let val = match axis.as_str() {
-                    "ambition" => x.ambition,
-                    "integrity" => x.integrity,
-                    "warmth" => x.warmth,
-                    "boldness" => x.boldness,
-                    _ => x.loyalty,
-                };
-                in_range(val as f64, *min, *max)
-            }),
-        Condition::Trait { role, traits } => who(role)
-            .and_then(|p| v.pol.characters.get(p))
-            .is_some_and(|c| c.traits.iter().any(|t| traits.contains(t))),
-        Condition::LawInForce { templates, absent } => {
-            let any = v.town().is_some_and(|m| {
-                v.r.policy().in_municipality(m).any(|p| {
-                    matches!(p.status, PolicyStatus::Enacted | PolicyStatus::InEffect)
-                        && templates.contains(&p.template)
-                })
-            });
-            any != *absent
-        }
-        Condition::PartyLineAgainstWard { role } => match super::actor_of(cast, role) {
-            Some(Actor::Policy { id }) => {
-                let line = v.party_line(id);
-                let lean = v.ward_lean(id);
-                line != 0 && lean.abs() > 0.02 && (line as f64) * lean < 0.0
-            }
-            _ => false,
-        },
-        Condition::CanVote { role } => match super::actor_of(cast, role) {
-            Some(Actor::Policy { id }) => v.can_vote(id),
-            _ => false,
-        },
-        Condition::Goal { role, goal } => who(role).is_some_and(|p| {
-            v.pol
-                .characters
-                .goals
-                .iter()
-                .any(|g| g.holder == p && &g.goal == goal)
-        }),
-        Condition::MonthsInPlay { min } => {
-            v.play_began().days_until(v.date()) >= min * 30 && v.date() >= v.play_began()
-        }
-        Condition::Knows { subject, min } => super::learn::knows(v, subject, *min, cast, None),
-        Condition::Answered { .. } => !answered_matches(v, c, cast).is_empty(),
-        Condition::SponsoredLaw {
-            status,
-            min_age_days,
-            max_age_days,
-            chance,
-            role,
-        } => {
-            let Some(pl) = v.player() else { return false };
-            let only = match role {
-                Some(r) => match super::actor_of(cast, r) {
-                    Some(Actor::Policy { id }) => Some(id),
-                    _ => return false,
-                },
-                None => None,
-            };
-            let salt = sponsored_law_salt(c);
-            // The player's laws in any jurisdiction (DEC-098).
-            v.r.policy().instances.iter().any(|p| {
-                if p.sponsor != Some(pl.politician) || only.is_some_and(|id| id != p.id.0) {
-                    return false;
-                }
-                let (ok, from) = match status {
-                    LawStatus::InForce => (p.active(), p.enacted_on),
-                    LawStatus::Pending => (
-                        p.status == PolicyStatus::UnderConsideration,
-                        p.introduced_on,
-                    ),
-                    LawStatus::Ended => (
-                        p.status == PolicyStatus::Ended,
-                        p.enacted_on.or(p.introduced_on),
-                    ),
-                };
-                let Some(from) = from.filter(|f| *f <= v.date()) else {
-                    return false;
-                };
-                let age = from.days_until(v.date());
-                ok && age >= *min_age_days
-                    && max_age_days.is_none_or(|m| age <= m)
-                    && (*chance >= 1.0
-                        || mandate_core::rng::keyed(
-                            v.r.meta.seed,
-                            mandate_core::Stream::Director,
-                            &[super::KEY_SPONSORED_LAW, p.id.0 as u64, salt],
-                        )
-                        .next_f64()
-                            < *chance)
-            })
-        }
-    }
+    let cx = crate::condition::Ctx::narrative(v, cast);
+    crate::condition::holds(&cx, c, &mut crate::condition::Args::new())
 }
 
 /// The answers an `answered` condition matches for this cast, newest first
@@ -864,13 +675,13 @@ pub fn answered_records<'v>(v: &'v View<'_>, c: &Condition) -> Vec<&'v AnswerRec
 
 /// The keyed draw's salt for a `sponsored_law` condition: its own
 /// parameters, so one law gives one answer per condition.
-fn sponsored_law_salt(c: &Condition) -> u64 {
+pub(crate) fn sponsored_law_salt(c: &Condition) -> u64 {
     let Condition::SponsoredLaw {
         status,
         min_age_days,
         max_age_days,
         chance,
-        role,
+        slot,
     } = c
     else {
         return 0;
@@ -878,7 +689,7 @@ fn sponsored_law_salt(c: &Condition) -> u64 {
     mandate_core::hash::derive_u64(
         &format!(
             "sponsored_law/{status:?}/{min_age_days}/{max_age_days:?}/{chance}/{}",
-            role.as_deref().unwrap_or("")
+            slot.as_deref().unwrap_or("")
         ),
         &[],
     )
@@ -890,7 +701,7 @@ pub fn reasons(v: &View<'_>, conds: &[Condition], cast: &[CastEntry]) -> Vec<Rea
     let town = v.town_character();
     for c in conds {
         match c {
-            Condition::Crisis { kind, .. } => {
+            Condition::Crisis { kind: Some(kind), .. } => {
                 if let Some(x) = town.and_then(|t| t.crises.iter().find(|x| &x.kind == kind)) {
                     out.push(Reason::Crisis {
                         kind: kind.clone(),
@@ -898,7 +709,7 @@ pub fn reasons(v: &View<'_>, conds: &[Condition], cast: &[CastEntry]) -> Vec<Rea
                     });
                 }
             }
-            Condition::LiveCrisis { .. } => {
+            Condition::Crisis { kind: None, .. } => {
                 if let Some(x) = town.and_then(|t| t.crisis()) {
                     out.push(Reason::Crisis {
                         kind: x.kind.clone(),
@@ -906,7 +717,10 @@ pub fn reasons(v: &View<'_>, conds: &[Condition], cast: &[CastEntry]) -> Vec<Rea
                     });
                 }
             }
-            Condition::Concern { concern, .. } => out.push(Reason::Concern {
+            Condition::Concern {
+                concern: Some(concern),
+                ..
+            } => out.push(Reason::Concern {
                 concern: concern.clone(),
             }),
             Condition::ElectionWithin { .. } | Condition::Campaigning { is: true } => {
@@ -919,8 +733,8 @@ pub fn reasons(v: &View<'_>, conds: &[Condition], cast: &[CastEntry]) -> Vec<Rea
             Condition::Track { track, .. } => out.push(Reason::Pressure {
                 track: format!("{track:?}").to_lowercase(),
             }),
-            Condition::Goal { role, goal } => {
-                if let Some(p) = super::person_of(cast, role) {
+            Condition::Goal { slot, goal } => {
+                if let Some(p) = super::person_of(cast, slot) {
                     out.push(Reason::Goal {
                         person: p,
                         goal: goal.clone(),

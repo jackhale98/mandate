@@ -9,6 +9,7 @@ pub mod actions;
 pub mod characters;
 pub mod commands;
 pub mod concerns;
+pub mod condition;
 pub mod economy;
 pub mod engine;
 pub mod environment;
