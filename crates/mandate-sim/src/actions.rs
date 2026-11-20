@@ -463,6 +463,10 @@ fn validate_clauses(state: &State, m: u32, clauses: &[Clause]) -> Result<(), Eng
                     return Err(bad("pilot neighbourhood is not in this town"));
                 }
             }
+            // Where a family bill applies follows its choices (DEC-092).
+            Clause::Area { .. } => {
+                return Err(bad("where a proposal applies is one of its choices"));
+            }
         }
     }
     Ok(())
@@ -1556,6 +1560,7 @@ pub(crate) fn draft(
         end_reason: None,
         cause: None,
         ledger: BTreeMap::new(),
+        family: None,
     });
     Ok(id.0)
 }

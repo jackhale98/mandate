@@ -201,6 +201,18 @@ pub enum EventKind {
         from_engine: String,
         to_engine: String,
     },
+    /// A policy family's proposal came onto the table (DEC-092).
+    ProposalOpened {
+        proposal: u32,
+        family: String,
+        at: crate::world::Jurisdiction,
+    },
+    /// A proposal with no bill went away (expiry, eased, too long, removed).
+    ProposalLapsed {
+        proposal: u32,
+        family: String,
+        at: crate::world::Jurisdiction,
+    },
 }
 
 /// How long an event is kept in full detail.

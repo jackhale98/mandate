@@ -40,6 +40,13 @@ pub fn default_systems() -> Vec<SystemDef> {
             cadence: Monthly,
             run: SystemFn::Policy(policy::implementation),
         },
+        // Works you can see (DEC-099): approve, build, stall, age, decay.
+        SystemDef {
+            name: "policy.works",
+            phase: P::PolicyImplementation,
+            cadence: Monthly,
+            run: SystemFn::Policy(policy::works::monthly),
+        },
         SystemDef {
             name: "population.concerns",
             phase: P::Opinion,
@@ -153,6 +160,14 @@ pub fn default_systems() -> Vec<SystemDef> {
             phase: P::Characters,
             cadence: Monthly,
             run: SystemFn::Politics(crate::characters::monthly),
+        },
+        // Policy families (DEC-092): decks, lapses and new proposals, after
+        // the town's character and crises are fresh.
+        SystemDef {
+            name: "policy.families",
+            phase: P::Characters,
+            cadence: Monthly,
+            run: SystemFn::Policy(policy::families::monthly),
         },
         SystemDef {
             name: "narrative.fairness",

@@ -206,6 +206,20 @@ impl<'a> Reads<'a> {
         }
     }
 
+    /// The same reads with the policy domain readable (the policy families
+    /// system writes only `policy.families`, taken out of the domain while
+    /// it runs, and reads the rest of the domain through this).
+    pub fn with_policy<'b>(&self, policy: &'b PolicyState) -> Reads<'b>
+    where
+        'a: 'b,
+    {
+        Reads {
+            policy: Some(policy),
+            player: self.player,
+            ..*self
+        }
+    }
+
     pub fn population(&self) -> &'a PopulationState {
         self.population
             .expect("population is not readable from its own systems")

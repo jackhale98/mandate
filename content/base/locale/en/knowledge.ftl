@@ -71,6 +71,7 @@ learned-story = The paper
 learned-decision = A decision you faced
 learned-council = Council business
 learned-sponsor = A sponsor's briefing
+learned-proposal = A proposal on the table
 learned-talk = Talking with { $person }
 learned-lab = The lab
 

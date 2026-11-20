@@ -1289,6 +1289,31 @@ pub struct EconomyParams {
     /// neighbourhoods (DEC-090 D8).
     #[serde(default)]
     pub hazards: HazardParams,
+    /// How each tier's treasury splits its discretionary budget across the
+    /// budget categories at the start (DEC-098: content, not code).
+    #[serde(default)]
+    pub treasury_shares: TreasuryShares,
+}
+
+/// Starting budget shares by category (in `BudgetCategory` order:
+/// administration, education, health, safety, infrastructure, social,
+/// housing, environment, economic development), per tier.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TreasuryShares {
+    pub local: [f64; 9],
+    pub regional: [f64; 9],
+    pub national: [f64; 9],
+}
+
+impl Default for TreasuryShares {
+    fn default() -> Self {
+        TreasuryShares {
+            local: [0.15, 0.25, 0.0, 0.2, 0.2, 0.05, 0.05, 0.05, 0.05],
+            regional: [0.05, 0.3, 0.35, 0.0, 0.2, 0.0, 0.0, 0.05, 0.05],
+            national: [0.15, 0.1, 0.2, 0.2, 0.15, 0.0, 0.05, 0.05, 0.1],
+        }
+    }
 }
 
 /// Where a hazard falls within a town (DEC-090 D8). The town-level rolls and

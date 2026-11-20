@@ -320,7 +320,7 @@ fn validate_posts(b: &ContentBundle, c: &crate::types::ConstitutionDef, issues: 
 
 /// Whether the family mechanisms (`borrow`, `revenue`, `sector_capacity`)
 /// are simulated: content may use them (F2b).
-pub const FAMILY_MECHANISMS_SIMULATED: bool = false;
+pub const FAMILY_MECHANISMS_SIMULATED: bool = true;
 
 pub(crate) fn valid_key(id: &str) -> bool {
     !id.is_empty()
@@ -768,6 +768,24 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         // Situational policies (DEC-077 §3): conditions name real things.
         if let Some(u) = &p.unlock {
             check_situation(b, &p.id, p.tier, u, &mut issues);
+        }
+    }
+    // Treasury shares (DEC-098): each tier's starting budget split.
+    for (tier, shares) in [
+        ("local", &b.economy.treasury_shares.local),
+        ("regional", &b.economy.treasury_shares.regional),
+        ("national", &b.economy.treasury_shares.national),
+    ] {
+        let sum: f64 = shares.iter().sum();
+        if shares
+            .iter()
+            .any(|s| !(s.is_finite() && (0.0..=1.0).contains(s)))
+            || sum > 1.0 + 1e-9
+        {
+            issues.push(Issue::error(
+                "economy",
+                &format!("treasury_shares.{tier}: each share in [0, 1], at most 1 in all"),
+            ));
         }
     }
     // Policy families (DEC-092): items 1–10 of the contract's §2.13.

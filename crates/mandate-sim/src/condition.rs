@@ -69,6 +69,11 @@ pub struct Ctx<'a> {
     pub part: Option<DayPart>,
     /// The story a `headline` found (an overheard line retells it).
     pub story: Cell<Option<u32>>,
+    /// A policy family's bound slots (its trigger and expiry, DEC-092).
+    pub family: Option<&'a [crate::policy::families::SlotBinding]>,
+    /// The event log, where the whole state is not at hand (the policy
+    /// families system reads it for `plant_closure`).
+    pub events: Option<&'a crate::events::EventLog>,
 }
 
 impl<'a> Ctx<'a> {
@@ -83,7 +88,17 @@ impl<'a> Ctx<'a> {
             here: None,
             part: None,
             story: Cell::new(None),
+            family: None,
+            events: None,
         }
+    }
+
+    /// What a family slot is bound to.
+    fn bound(&self, slot: &str) -> Option<&'a crate::policy::families::Bound> {
+        self.family?
+            .iter()
+            .find(|b| b.slot == slot)
+            .map(|b| &b.bound)
     }
 
     /// The narrative's context: the player's home town, a cast, inside the
@@ -251,12 +266,11 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             true
         }
         C::PlantClosure { within_months } => {
-            let Some(st) = cx.st else {
+            let Some(events) = cx.st.map(|st| &st.events).or(cx.events) else {
                 return false;
             };
             let days = *within_months as u32 * 30;
-            let found = st
-                .events
+            let found = events
                 .iter()
                 .rev()
                 .take_while(|e| e.date.days_until(today) <= days)
@@ -744,12 +758,72 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             });
             holds == *is
         }
-        // --- A policy family's bound slots (F2b evaluates them) ------------------------
-        C::HoodConcern { .. }
-        | C::HoodHazard { .. }
-        | C::SectorDecline { .. }
-        | C::PlaceOpen { .. }
-        | C::PlaceClosed { .. } => false,
+        // --- A policy family's bound slots (DEC-092) ------------------------------------
+        C::HoodConcern {
+            slot, concern, top, ..
+        } => {
+            use crate::policy::families::Bound;
+            let Some(Bound::Neighborhood { hood }) = cx.bound(slot) else {
+                return false;
+            };
+            let Some(i) = content.concern_index(concern) else {
+                return false;
+            };
+            let Some(levels) =
+                v.r.population()
+                    .hood_concerns
+                    .get(hood.index())
+                    .map(|h| &h.levels)
+            else {
+                return false;
+            };
+            let Some(mine) = levels.get(i) else {
+                return false;
+            };
+            levels.iter().filter(|x| *x > mine).count() < *top as usize
+        }
+        C::HoodHazard { slot, hazard, min } => {
+            use crate::policy::families::Bound;
+            let Some(Bound::Neighborhood { hood }) = cx.bound(slot) else {
+                return false;
+            };
+            let Some(e) = v.r.environment().exposure(*hood) else {
+                return false;
+            };
+            let x = match hazard {
+                mandate_content::HazardKey::Flood => e.flood,
+                mandate_content::HazardKey::Storm => e.storm,
+                mandate_content::HazardKey::Wildfire => e.wildfire,
+            } as f64
+                / 1000.0;
+            x >= *min
+        }
+        C::SectorDecline { slot, min } => {
+            use crate::policy::families::Bound;
+            let Some(Bound::Sector { sector }) = cx.bound(slot) else {
+                return false;
+            };
+            let Some(s) = content
+                .sector_index(sector)
+                .and_then(|k| v.r.economy().munis.get(m as usize)?.sectors.get(k))
+            else {
+                return false;
+            };
+            let base = s.baseline_jobs as f64;
+            base > 0.0 && ((base - s.jobs) / base).max(0.0) >= *min
+        }
+        C::PlaceOpen { slot } | C::PlaceClosed { slot } => {
+            use crate::policy::families::Bound;
+            let Some(Bound::Place { place }) = cx.bound(slot) else {
+                return false;
+            };
+            let open =
+                v.r.world
+                    .places
+                    .get(place.index())
+                    .is_some_and(|p| p.is_open());
+            open == matches!(c, C::PlaceOpen { .. })
+        }
         // --- Composition -------------------------------------------------------------
         C::Any { of } => {
             for x in of {

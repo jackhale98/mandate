@@ -431,7 +431,11 @@ fn strike(
                 municipality,
                 kind,
                 damage,
-                protection,
+                &|h| match kind {
+                    HazardKind::Flood => mods.protection_at(mandate_content::HazardKey::Flood, h),
+                    HazardKind::Storm => mods.protection_at(mandate_content::HazardKey::Storm, h),
+                    _ => protection,
+                },
                 true,
                 cause,
             );
@@ -452,7 +456,7 @@ fn strike(
         }
         HazardKind::Drought => {
             // Felt evenly across the town.
-            fall(env, r, out, municipality, kind, 0.0, 0.0, false, cause);
+            fall(env, r, out, municipality, kind, 0.0, &|_| 0.0, false, cause);
             sector_shock(
                 out.effects,
                 r.content,
@@ -473,7 +477,7 @@ fn strike(
                 municipality,
                 kind,
                 severity * 0.008,
-                mods.wildfire_protection,
+                &|h| mods.protection_at(mandate_content::HazardKey::Wildfire, h),
                 false,
                 cause,
             );
@@ -546,7 +550,7 @@ fn regional_droughts(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'
                     m.0,
                     HazardKind::Drought,
                     0.0,
-                    0.0,
+                    &|_| 0.0,
                     false,
                     Some(ev),
                 );
@@ -577,15 +581,15 @@ fn fall(
     municipality: u32,
     kind: HazardKind,
     damage: f64,
-    protection: f64,
+    protection: &dyn Fn(u32) -> f64,
     leaves: bool,
     cause: Option<crate::events::EventId>,
 ) -> f64 {
     let params = &r.content.economy.hazards;
     let pop = r.population();
     let residents = |h: usize| pop.hood_total(h);
-    // Protection is a town's policies today; a neighbourhood-level clause
-    // (DEC-092 families) would answer per neighbourhood here.
+    // Protection: the town's policies, plus a neighbourhood's own (an
+    // `area` clause of a family bill, DEC-092).
     let hits = exposure::split(
         r.world,
         &env.exposure,
@@ -593,7 +597,7 @@ fn fall(
         municipality,
         kind,
         damage,
-        &|_| protection,
+        protection,
         params,
     );
     let mut town = 0.0;

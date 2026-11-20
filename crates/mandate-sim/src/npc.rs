@@ -860,6 +860,7 @@ fn act(
                 end_reason: None,
                 cause: Some(ev),
                 ledger: BTreeMap::new(),
+                family: None,
             });
         }
         AiAction::Rest => {}

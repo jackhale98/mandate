@@ -762,7 +762,12 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 SectorDriver::LandBased => s.capacity *= 1.0 - 0.004 / 12.0,
                 _ => {}
             }
-            let target = s.capacity * driver * shock;
+            // Structural jobs a policy adds (`sector_capacity`, DEC-092): on
+            // top of the sector's own capacity while the law runs.
+            let target = match mods.capacity.get(k) {
+                Some(extra) => (s.capacity + extra).max(0.0) * driver * shock,
+                None => s.capacity * driver * shock,
+            };
             let speed = if target < s.jobs { 0.16 } else { 0.1 };
             s.jobs = (s.jobs + (target - s.jobs) * speed).max(0.0);
             let extra = if def.driver == SectorDriver::Knowledge {
