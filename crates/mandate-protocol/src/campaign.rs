@@ -4,8 +4,8 @@
 
 use crate::views::DateView;
 use mandate_sim::Engine;
+use mandate_sim::politics::PoliticianId;
 use mandate_sim::politics::elections::{self, Filing, Seat};
-use mandate_sim::politics::{PoliticianId, Role};
 use mandate_sim::world::Tier;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -126,27 +126,32 @@ fn name_of(engine: &Engine, id: PoliticianId) -> String {
 }
 
 fn ward_number(engine: &Engine, seat: Seat) -> Option<u32> {
-    match seat {
-        Seat::Council { ward, .. } => engine
-            .state()
-            .world
-            .constituencies
-            .get(ward.index())
-            .filter(|c| c.tier == Tier::Local)
-            .map(|c| c.number),
-        Seat::Mayor { .. } => None,
-    }
+    let ward = seat.constituency()?;
+    engine
+        .state()
+        .world
+        .constituencies
+        .get(ward.index())
+        .filter(|c| c.tier == Tier::Local)
+        .map(|c| c.number)
 }
 
+/// `ward` for a seat in a body; an office's own id (DTO unchanged until R2).
 fn seat_key(seat: Seat) -> String {
-    if seat.is_executive() { "mayor" } else { "ward" }.into()
+    if seat.is_office() {
+        seat.id().to_string()
+    } else {
+        "ward".into()
+    }
 }
 
 pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
     let st = engine.state();
     let pl = st.player.as_ref()?;
     let me = st.politics.get(pl.politician)?;
-    let m = pl.municipality.0;
+    let town = mandate_sim::world::Jurisdiction::town(pl.home());
+    let constitution = engine.content().constitutions.get(&st.meta.constitution);
+    let executive = constitution.and_then(|c| mandate_sim::politics::executive_post(c, town));
     let el = &st.politics.elections;
     let parties = st
         .politics
@@ -187,7 +192,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
             .unwrap_or_default()
     };
     let mut races: Vec<(u8, RaceView)> = el
-        .races_in(m)
+        .races_in(town)
         .map(|(ri, r)| {
             let mine = r
                 .candidates
@@ -208,7 +213,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
                 .collect();
             let order = if mine.is_some() {
                 0
-            } else if r.seat.is_executive() {
+            } else if r.seat.is_office() {
                 1
             } else {
                 2
@@ -246,12 +251,12 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
     let mut results: Vec<(u8, ResultView)> = el
         .results
         .iter()
-        .filter(|r| Some(r.date) == last && r.seat.municipality() == m)
+        .filter(|r| Some(r.date) == last && r.seat.at() == town)
         .map(|r| {
             let ran = r.candidates.iter().any(|c| c.politician == pl.politician);
             let order = if ran {
                 0
-            } else if r.seat.is_executive() {
+            } else if r.seat.is_office() {
                 1
             } else {
                 2
@@ -297,25 +302,12 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
         (Some(d), Some(o)) => (Some(d), Some(o)),
         _ => {
             // Between cycles the schedule is computed on the next daily tick; derive it here.
-            let cal = engine
-                .content()
-                .constitutions
-                .get(&st.meta.constitution)
-                .and_then(|c| c.tier(mandate_content::TierKey::Local))
-                .and_then(|t| {
-                    let term = t.bodies.first().map(|b| b.term_years as u32).unwrap_or(4);
-                    t.elections.as_ref().map(|e| (e.clone(), term))
-                });
-            match cal {
-                Some((c, term)) => {
-                    let d = elections::next_election_day(&c, term, today);
-                    (
-                        Some(d),
-                        Some(mandate_core::SimDate(
-                            d.0.saturating_sub(c.campaign_weeks as u32 * 7),
-                        )),
-                    )
-                }
+            let next = constitution.and_then(|c| elections::next_cycle(c, today));
+            match next {
+                Some((d, weeks)) => (
+                    Some(d),
+                    Some(mandate_core::SimDate(d.0.saturating_sub(weeks as u32 * 7))),
+                ),
                 None => (None, None),
             }
         }
@@ -325,14 +317,20 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
         campaign_opens: opens.map(DateView::of),
         days_to_election: day.map(|d| today.days_until(d)),
         in_campaign: !el.races.is_empty(),
+        // The post's constitution id (DTO unchanged until R2).
         filing: match pl.filing {
-            Some(Filing::Council) => "council",
-            Some(Filing::Mayor) => "mayor",
-            Some(Filing::Retire) => "retire",
-            None => "default",
-        }
-        .into(),
-        mayor_nomination_open: pl.tracks.standing >= 40.0 && !matches!(me.role, Role::Mayor { .. }),
+            Some(Filing::Stand { post }) => post.id().to_string(),
+            Some(Filing::Retire) => "retire".into(),
+            None => "default".into(),
+        },
+        // The town's executive office: open to the player if they do not
+        // hold it and pass its nomination gate (`career.nomination`).
+        mayor_nomination_open: executive.is_some_and(|post| {
+            me.role.post() != Some(post)
+                && constitution.is_some_and(|c| {
+                    elections::nomination_open(engine.content(), c, post, pl.tracks.standing as f64)
+                })
+        }),
         player_in_office: me.in_office(),
         player_party: me.party.map(|p| p.0),
         parties,

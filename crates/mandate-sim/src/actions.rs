@@ -10,7 +10,7 @@ use crate::policy::{Clause, PolicyInstance, PolicyStatus, annual_cost};
 use crate::politics::{PoliticianId, Role};
 use crate::state::State;
 use crate::world::{ConstituencyId, MunicipalityId, NeighborhoodId, Tier};
-use mandate_content::{Constituency, ContentBundle, Power, Selection, TierKey};
+use mandate_content::{ContentBundle, Power, TierKey};
 use mandate_core::math::clamp;
 use mandate_core::{Money, Stream};
 use serde::{Deserialize, Serialize};
@@ -173,46 +173,30 @@ pub fn player_powers(state: &State, content: &ContentBundle) -> Vec<Power> {
     powers_for(content, &state.meta.constitution, me.role)
 }
 
-/// Powers a role holds under a constitution (the local tier).
+/// Powers a role holds under a constitution: its post's, as the
+/// constitution lists them (DEC-098). Out of office: none, only
+/// campaigning and networking.
 pub fn powers_for(content: &ContentBundle, constitution: &str, role: Role) -> Vec<Power> {
-    let Some(c) = content.constitutions.get(constitution) else {
+    let (Some(c), Some(post)) = (content.constitutions.get(constitution), role.post()) else {
         return Vec::new();
     };
-    let Some(local) = c.tier(TierKey::Local) else {
-        return Vec::new();
+    crate::politics::powers_of(c, post).to_vec()
+}
+
+/// Whether the player holds `power` for a jurisdiction (DEC-098).
+pub fn player_holds_power_at(
+    state: &State,
+    content: &ContentBundle,
+    power: Power,
+    at: crate::world::Jurisdiction,
+) -> bool {
+    let (Some(pl), Some(c)) = (
+        &state.player,
+        content.constitutions.get(&state.meta.constitution),
+    ) else {
+        return false;
     };
-    match role {
-        Role::Councillor { .. } => local
-            .bodies
-            .iter()
-            .filter(|b| {
-                matches!(
-                    b.selection,
-                    Selection::Election {
-                        constituency: Constituency::Ward,
-                        ..
-                    }
-                )
-            })
-            .flat_map(|b| b.powers.iter().copied())
-            .collect(),
-        Role::Mayor { .. } => local
-            .offices
-            .iter()
-            .filter(|o| {
-                matches!(
-                    o.selection,
-                    Selection::Election {
-                        constituency: Constituency::AtLarge,
-                        ..
-                    }
-                )
-            })
-            .flat_map(|o| o.powers.iter().copied())
-            .collect(),
-        // Out of office: no institutional powers, only campaigning and networking.
-        Role::Private { .. } => Vec::new(),
-    }
+    crate::politics::holds_power_at(&state.politics, c, pl.politician, power, at)
 }
 
 /// How well a canvass's worry fits the neighbourhood (DEC-091 "ignorance
@@ -573,13 +557,15 @@ pub fn apply(
                 p.filing = Some(*filing);
             }
             // New plans, new rival (DEC-077 §1).
-            characters::refresh_rival(state);
+            characters::refresh_rival(state, content);
+            // `outcome-filed-<word>`: the post's role word's family (a seat
+            // in a body files under the body's id, an office under its own).
             res.outcome_key = match filing {
-                crate::politics::elections::Filing::Council => "outcome-filed-council",
-                crate::politics::elections::Filing::Mayor => "outcome-filed-mayor",
-                crate::politics::elections::Filing::Retire => "outcome-filed-retire",
-            }
-            .into();
+                crate::politics::elections::Filing::Stand { post } => {
+                    format!("outcome-filed-{}", post.id())
+                }
+                crate::politics::elections::Filing::Retire => "outcome-filed-retire".into(),
+            };
         }
         PlayerCommand::DraftPolicy { template, params } => {
             res.created = Some(draft(state, content, template, params)?);
@@ -998,7 +984,7 @@ pub fn apply(
                         .neighborhoods
                         .get(*neighborhood as usize)
                         .ok_or_else(|| bad("no such neighbourhood"))?;
-                    if Some(h.municipality) != crate::player::ground::town(state) {
+                    if Some(h.municipality) != crate::player::home(state) {
                         return Err(bad("that neighbourhood is not in your town"));
                     }
                     if let Some(i) = issue
@@ -1349,7 +1335,6 @@ pub(crate) fn declare_vote(
         .as_ref()
         .ok_or_else(|| bad("no player"))?
         .clone();
-    let m = pl.municipality.0;
     let mut res = ActionResult::default();
     use crate::politics::Vote;
     let p = local_policy(state, *policy)?;
@@ -1359,8 +1344,11 @@ pub(crate) fn declare_vote(
     if p.sponsor == Some(pl.politician) {
         return Err(bad("sponsors vote for their own bills"));
     }
-    let powers = player_powers(state, content);
-    if !powers.contains(&Power::ApproveOrdinance) && !powers.contains(&Power::Veto) {
+    // A vote (or a signature) on the bill, for the bill's jurisdiction.
+    let at = p.at();
+    if !player_holds_power_at(state, content, Power::ApproveOrdinance, at)
+        && !player_holds_power_at(state, content, Power::Veto, at)
+    {
         return Err(bad("you have no vote on this bill"));
     }
     let key = (pl.politician.0, *policy);
@@ -1472,18 +1460,7 @@ pub(crate) fn declare_vote(
         && let Some(me) = me
     {
         let party = state.politics.get(pl.politician).and_then(|p| p.party);
-        let colleagues: Vec<_> = state
-            .politics
-            .councils
-            .get(m as usize)
-            .map(|c| {
-                c.members
-                    .iter()
-                    .chain(c.mayor.iter())
-                    .copied()
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
+        let colleagues: Vec<_> = crate::politics::officials_at(&state.politics, at)
             .into_iter()
             .filter_map(|id| state.politics.get(id))
             .filter(|p| !p.is_player && p.party.is_some() && p.party == party)
@@ -1534,7 +1511,9 @@ pub(crate) fn draft(
             "that policy is not available at your level of government",
         ));
     }
-    if !player_powers(state, content).contains(&t.requires) {
+    // Drafted for the player's town (the local tier, checked above).
+    let at = crate::world::Jurisdiction::town(pl.home());
+    if !player_holds_power_at(state, content, t.requires, at) {
         return Err(bad("your office cannot propose this"));
     }
     if !crate::policy::unlocked(state, content, t, m) {
@@ -1655,9 +1634,7 @@ pub fn estimate_cost(state: &State, content: &ContentBundle, p: &PolicyInstance)
     annual_cost(t, p, residents, state.economy.national.price_level)
 }
 
+/// The district of the seat a politician holds, if any.
 pub fn ward_of(state: &State, politician: PoliticianId) -> Option<ConstituencyId> {
-    match state.politics.get(politician)?.role {
-        Role::Councillor { ward, .. } => Some(ward),
-        Role::Mayor { .. } | Role::Private { .. } => None,
-    }
+    state.politics.get(politician)?.role.constituency()
 }

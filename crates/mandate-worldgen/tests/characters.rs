@@ -89,7 +89,7 @@ fn every_politician_is_a_character_and_towns_have_people() {
     }
     // The player's colleagues are Principals.
     let pl = st.player.as_ref().unwrap();
-    for id in &pol.councils[pl.municipality.index()].members {
+    for id in &council_members_of(pol, pl.municipality.index()) {
         let ch = pol.get(*id).unwrap().character;
         assert_eq!(characters::tier_of(pol, &c, ch), Tier::Principal);
     }
@@ -102,8 +102,7 @@ fn opinion_and_favours_live_on_relationship_edges() {
     let me = player_char(&e);
     let st = e.state();
     let pl = st.player.as_ref().unwrap();
-    let colleague = *st.politics.councils[pl.municipality.index()]
-        .members
+    let colleague = *council_members(st, pl.municipality.index())
         .iter()
         .find(|id| **id != pl.politician)
         .unwrap();
@@ -154,8 +153,7 @@ fn betrayal_is_remembered_years_later_while_trivia_fades() {
     let me = player_char(&e);
     let st = e.state();
     let pl = st.player.as_ref().unwrap();
-    let colleague = *st.politics.councils[pl.municipality.index()]
-        .members
+    let colleague = *council_members(st, pl.municipality.index())
         .iter()
         .find(|id| **id != pl.politician)
         .unwrap();
@@ -213,8 +211,7 @@ fn a_grudge_holder_forgives_slowly() {
     let (a, b) = {
         let st = e.state();
         let pl = st.player.as_ref().unwrap();
-        let ids: Vec<CharacterId> = st.politics.councils[pl.municipality.index()]
-            .members
+        let ids: Vec<CharacterId> = council_members(st, pl.municipality.index())
             .iter()
             .filter(|id| **id != pl.politician)
             .map(|id| st.politics.get(*id).unwrap().character)
@@ -459,13 +456,12 @@ fn the_rival_follows_the_players_plans() {
     let m = e.state().player.as_ref().unwrap().municipality.index();
     let before = e.state().politics.characters.towns[m].rival;
     e.apply(e.route(PlayerCommand::File {
-        filing: mandate_sim::politics::elections::Filing::Mayor,
+        filing: mandate_sim::politics::elections::executive_filing(e.state(), e.content()).unwrap(),
     }))
     .unwrap();
     let st = e.state();
     let after = st.politics.characters.towns[m].rival;
-    let mayor = st.politics.councils[m]
-        .mayor
+    let mayor = mayor_of(st, m)
         .and_then(|id| st.politics.get(id))
         .map(|p| p.character);
     assert_eq!(after, mayor, "running for mayor makes the mayor the rival");
@@ -630,8 +626,7 @@ fn personality_and_town_character_reach_the_npc_ai() {
     let st = e.state();
     let pl = st.player.as_ref().unwrap();
     let m = pl.municipality.index();
-    let target = *st.politics.councils[m]
-        .members
+    let target = *council_members(st, m)
         .iter()
         .find(|id| **id != pl.politician)
         .unwrap();
@@ -654,7 +649,7 @@ fn personality_and_town_character_reach_the_npc_ai() {
                 template: t,
                 instance: inst,
                 ward_support: 0.0,
-                mayor_lean: 0.0,
+                signer_lean: 0.0,
                 sway: 0.0,
                 sponsor_is_player: false,
                 player_opinion: 0.0,
@@ -698,8 +693,7 @@ fn warmth_and_traits_scale_opinion_changes() {
     let st = e.state();
     let me = player_char(&e);
     let pl = st.player.as_ref().unwrap();
-    let who = st.politics.councils[pl.municipality.index()]
-        .members
+    let who = council_members(st, pl.municipality.index())
         .iter()
         .find(|id| **id != pl.politician)
         .map(|id| st.politics.get(*id).unwrap().character)
@@ -713,4 +707,27 @@ fn warmth_and_traits_scale_opinion_changes() {
     };
     assert!(gain(0.9, vec![]) > gain(0.1, vec![]));
     assert!(gain(0.5, vec!["trait.grudge_holder".into()]) < gain(0.5, vec![]));
+}
+
+/// The members of a town's bodies (the base constitution's council; DEC-098).
+fn council_members(st: &mandate_sim::State, m: usize) -> Vec<mandate_sim::politics::PoliticianId> {
+    let at = mandate_sim::world::Jurisdiction::town(mandate_sim::world::MunicipalityId(m as u32));
+    mandate_sim::politics::body_members_at(&st.politics, at)
+}
+
+/// The holder of a town's office (the base constitution's mayor; DEC-098).
+fn mayor_of(st: &mandate_sim::State, m: usize) -> Option<mandate_sim::politics::PoliticianId> {
+    let at = mandate_sim::world::Jurisdiction::town(mandate_sim::world::MunicipalityId(m as u32));
+    mandate_sim::politics::office_holders_at(&st.politics, at)
+        .first()
+        .copied()
+}
+
+/// The members of a town's bodies, from the politics state.
+fn council_members_of(
+    pol: &mandate_sim::politics::PoliticsState,
+    m: usize,
+) -> Vec<mandate_sim::politics::PoliticianId> {
+    let at = mandate_sim::world::Jurisdiction::town(mandate_sim::world::MunicipalityId(m as u32));
+    mandate_sim::politics::body_members_at(pol, at)
 }

@@ -24,8 +24,10 @@ the back wall's face, no side-wall faces).
 | File | What |
 |---|---|
 | `interiorsParts.ts` | 12 surfaces (floors: planks, parquet, checker, carpet, stone tiles, terrazzo, lino; walls: plaster, panelling, brick, subway tile, stripes) and 63 parts: windows, doors, wall fixtures, furniture, things that stand on furniture, a doormat, a rug |
-| `interiorsRecipes.ts` | The recipe type and the three recipes |
-| `interiors.ts` | The composer, the recipe validator, placeholder people, the reference renderer |
+| `interiorsRecipes.ts` | The recipe type (mirroring the Rust `InteriorRecipe`) and the JSONC parser; the recipes themselves are content, `content/base/interiors.jsonc` |
+| `interiorsContent.ts` | The recipes as the Node tools see them: read from `content/base/interiors.jsonc` (sheets, tests) |
+| `interiorsCatalog.ts` | The part catalogue the Rust content check validates recipes against (`crates/mandate-content/src/interior_parts.json`, generated with `--write`, kept equal by the tests) |
+| `interiors.ts` | The composer, the recipe validator, placeholder people, the grade (`interiorGrade`, `gradeRoom`, `gradeImage`: shared by the reference renderer and the game) and the reference renderer |
 | `interiorsSheets.ts` | Review sheets (each room at four seeds by day and evening, 1×, 3×, through the day, debug, parts) |
 
 **Parts** are drawn in *roles*, not colours: `wood`, `uph` (upholstery),
@@ -39,10 +41,10 @@ sitter (`front`: a seat's front, a pew's backrest). Lit parts (`lit`) glow
 when the lamps are on, or always (`glow: "always"`: the TV, the jukebox, the
 neon sign).
 
-**A recipe** (`InteriorRecipe`) is plain data:
+**A recipe** (`InteriorRecipe`) is content (DEC-098 §4): `content/base/interiors.jsonc` is the single source of truth, typed in Rust (`mandate-content/src/interiors.rs`, schema generated, DEC-053) and checked by `content validate`. This tool reads that file (`interiorsContent.ts`); the game receives the recipe of the place it is entering in the engine's place view (`PlacePanelView.interior`, the content's JSON). Round 8 moved the TypeScript recipes there (the chamber's and diner's unchanged; the town hall's lower half furnished, version 2). A recipe holds:
 
 - `id`, `version` (DEC-085: a change that moves anything for the same seed bumps it; old versions stay callable), `place` (the `places.jsonc` key);
-- `cols` × `rows` floor tiles, the back wall's height `wallH` (px), the entrance column `door` (front wall, bottom row);
+- `cols` × `rows` floor tiles, the back wall's height `wall_h` (px), the entrance column `door` (front wall, bottom row);
 - `light`: lamp colour (`warm` or `white`), how much of the night's grade reaches inside, and unseen ceiling lights;
 - materials: weighted floor styles, wall styles (upper surface, optional lower band, trim), and the ramps of the variable roles. A ramp reference is a palette ramp, optionally shifted (`grass+1`), or a role (`@wood`);
 - `pieces`: parts on floor tiles (`x`, `y`, `len`, `mirror`, px nudges) or on the back wall (a column and `wy`, the centre's height on the wall, or `floor: true`), or over the entrance (`front: true`). A piece can name alternatives the seed picks from, and a `chance`;
@@ -76,9 +78,10 @@ night grade's brightness in the lamps' colour, plus banded pools around each
 lamp); the view through the glass takes the street's palette-moods colour for
 the hour, with far windows lit at night. Glowing parts are drawn after grading.
 
-## What a web integration needs
+## The web integration (DEC-088, M6)
 
-- **Renderer.** Compose the room once on entering (it takes a few ms) and cache it by place, recipe version and seed. Draw `base` graded as in `renderInterior` (indoor ambient on non-`outdoor` pixels, the moods palette on `outdoor` pixels), then `sprites` and people merged by `key`, then glows, pools and daylight. The canvas version is the street renderer's: multiply by an ambient colour, add pools with `lighter`, blit emissives over the top. Time of day comes from the turn's slots (`turnClock.ts`), as on the street.
-- **People.** The engine's place view (DEC-079) says who is present; the UI assigns them to spots by role (occupation → role: `occupation.diner_owner` → `owner`, councillors → `councillor`, the player's own seat → `player`), in the recipe's order, and draws sitters cropped at the hips (`sitCut`) on their seat. Extra people stand on free floor tiles near the door. Walking uses `walk` and `reachable`.
-- **Hotspots.** Tapping a hotspot walks to its `stand` tile and offers its `actions` and `services`, filtered by what the engine's place view allows now (`late` ones only late at night). A place kind without a recipe keeps the place panel (DEC-088).
-- **Content.** Recipes are JSON-shaped on purpose. They move to `content/base/interiors.jsonc` (one entry per recipe and version), validated by a schema generated from a Rust `InteriorRecipe` type (DEC-053), with a `content validate` check that every hotspot's actions exist in `places.jsonc` for that place and every part id exists in the art pack. Places name their recipe (`"interior": "interior.diner"`) in `places.jsonc`. The parts stay in the art pack; the recipe validator's tile checks run in both the Rust content check and these tests.
+`web/src/interior/` (see `docs/design/UI.md`, "Interiors"):
+
+- **Renderer.** The room is composed once on entering and cached by place, recipe version and seed (`roomCache.ts`, with the pack version). The static layers are graded per 5-minute light step with `interiorGrade` + `gradeRoom` (the reference renderer's maths, checked equal pixel for pixel by a test) and blitted; people are graded where they stand (`gradeImage`) and merged with the sprites by `key`; blob shadows as in the sheets. Time of day comes from the turn's slots (`turnClock.ts`), as on the street. Nothing in a room moves by itself, so the loop stops when the player stops (DEC-080).
+- **People.** The engine's place view says who is present and how (`here_as`: presiding, member, works, visitor; never an office or a name, DEC-098); the recipe's `cast` maps that to spot roles, taken in the recipe's order (`cast.ts`); sitters are cropped at `sitCut`; extra people stand on free floor nearest the door. Staff roles nobody present takes (`extras`: the clerks, the cook, the waiter, the usher) are drawn as scenery, like the street's townsfolk: no name, no conversation (fewer in the evening).
+- **Hotspots.** A tap walks to the `stand` tile and opens the hotspot's sheet, with its `actions` and `services` filtered by what the place view offers now (`late` ones only once the day's slots are spent), through the place panel's forms.

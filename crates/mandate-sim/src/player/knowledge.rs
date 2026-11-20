@@ -492,12 +492,12 @@ pub fn resolve(
                 }
             }
             GrantSubject::Council => {
-                if let Some(c) = state.politics.councils.get(town.index()) {
-                    let people = c
-                        .members
-                        .iter()
-                        .chain(c.mayor.iter())
-                        .filter_map(|id| state.politics.get(*id))
+                // Everyone holding the town's local-tier posts (DEC-098).
+                {
+                    let at = crate::world::Jurisdiction::town(town);
+                    let people = crate::politics::officials_at(&state.politics, at)
+                        .into_iter()
+                        .filter_map(|id| state.politics.get(id))
                         .map(|p| p.character);
                     for person in people {
                         if Some(person) != me {
@@ -845,26 +845,19 @@ pub fn action_source(state: &State, action: &str) -> Source {
     }
 }
 
-/// Every councillor and the mayor of the player's town, as people (not
-/// the player).
+/// Everyone holding a post in the player's focus (the members of its
+/// bodies, then its office holders), as people (not the player; DEC-098).
 pub fn council_people(state: &State) -> Vec<CharacterId> {
-    let Some(pl) = state.player.as_ref() else {
-        return Vec::new();
-    };
     let me = crate::characters::player_character(state);
     let pol = &state.politics;
-    pol.councils
-        .get(pl.municipality.index())
-        .map(|c| {
-            c.members
-                .iter()
-                .chain(c.mayor.iter())
-                .filter_map(|id| pol.get(*id))
-                .map(|p| p.character)
-                .filter(|c| Some(*c) != me)
-                .collect()
-        })
-        .unwrap_or_default()
+    state
+        .focus()
+        .into_iter()
+        .flat_map(|at| crate::politics::officials_at(pol, at))
+        .filter_map(|id| pol.get(id))
+        .map(|p| p.character)
+        .filter(|c| Some(*c) != me)
+        .collect()
 }
 
 /// Arriving at a place (`MoveTo`, or a `Go` landing there): the first visit

@@ -809,6 +809,7 @@ role-candidate = Candidate
 subject-mayoralty = the mayoralty
 subject-ward = Ward { $n }
 favour-bill = Support on { $subject }
+favour-support = Backing you asked for
 personality-ambition-high = Ambitious
 personality-ambition-low = Content where they are
 personality-integrity-high = Principled

@@ -9,12 +9,19 @@
 //! fixture corpus; any change to the serialized state shape must bump
 //! `SAVE_FORMAT_VERSION` (enforced by the shape-fingerprint test).
 
+pub mod runlog;
+
 use mandate_core::hash::StableHash;
 use mandate_sim::State;
 use serde::{Deserialize, Serialize};
 
+pub use runlog::{NewGameSetup, RunLog};
+
 pub const MAGIC: &[u8; 4] = b"MNDT";
-pub const SAVE_FORMAT_VERSION: u16 = 20;
+/// v18: neighbourhood concerns (N1). v19: the run log beside the state (bug
+/// reports). v20: offices from the constitution (R1, DEC-098). v21: the
+/// ground game's memory (E1, DEC-097 §1).
+pub const SAVE_FORMAT_VERSION: u16 = 21;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -63,6 +70,9 @@ pub struct SaveRequest {
 #[derive(Serialize, Deserialize)]
 struct Payload {
     state: State,
+    /// The run log (v18), outside the state: the state hash never covers it.
+    #[serde(default)]
+    log: Option<RunLog>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -81,8 +91,17 @@ pub enum SaveError {
 
 /// Encode a save file from the current state.
 pub fn encode(state: &State, req: &SaveRequest) -> Result<(Vec<u8>, SaveMeta), SaveError> {
-    let payload =
-        serde_json::to_vec(&PayloadRef { state }).map_err(|e| SaveError::Data(e.to_string()))?;
+    encode_with_log(state, None, req)
+}
+
+/// Encode a save file from the current state and the run's log.
+pub fn encode_with_log(
+    state: &State,
+    log: Option<&RunLog>,
+    req: &SaveRequest,
+) -> Result<(Vec<u8>, SaveMeta), SaveError> {
+    let payload = serde_json::to_vec(&PayloadRef { state, log })
+        .map_err(|e| SaveError::Data(e.to_string()))?;
     let meta = SaveMeta {
         format_version: SAVE_FORMAT_VERSION,
         run_id: req.run_id.clone(),
@@ -113,6 +132,7 @@ pub fn encode(state: &State, req: &SaveRequest) -> Result<(Vec<u8>, SaveMeta), S
 #[derive(Serialize)]
 struct PayloadRef<'a> {
     state: &'a State,
+    log: Option<&'a RunLog>,
 }
 
 fn split(bytes: &[u8]) -> Result<(u16, &[u8], &[u8]), SaveError> {
@@ -142,6 +162,11 @@ pub fn read_meta(bytes: &[u8]) -> Result<SaveMeta, SaveError> {
 
 /// Decode, verify, and migrate a save file to the current format.
 pub fn decode(bytes: &[u8]) -> Result<(State, SaveMeta), SaveError> {
+    decode_with_log(bytes).map(|(state, _, meta)| (state, meta))
+}
+
+/// `decode`, with the run's log (`None` before v18, or when not kept).
+pub fn decode_with_log(bytes: &[u8]) -> Result<(State, Option<RunLog>, SaveMeta), SaveError> {
     let meta = read_meta(bytes)?;
     let (version, _, compressed) = split(bytes)?;
     let payload = miniz_oxide::inflate::decompress_to_vec_with_limit(compressed, MAX_PAYLOAD_BYTES)
@@ -153,7 +178,7 @@ pub fn decode(bytes: &[u8]) -> Result<(State, SaveMeta), SaveError> {
         serde_json::from_slice(&payload).map_err(|e| SaveError::Data(e.to_string()))?;
     let value = migrate(version, value)?;
     let p: Payload = serde_json::from_value(value).map_err(|e| SaveError::Data(e.to_string()))?;
-    Ok((p.state, meta))
+    Ok((p.state, p.log, meta))
 }
 
 /// One migration step from format `vN` to `vN+1`.
@@ -180,15 +205,15 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Conversations (DEC-093): the previous format to the next.
         // Renumber only this key if another bump merges first.
         (16, talk_state),
-        // Neighbourhood concern levels (N1): the previous format to the
-        // next. Renumber only this key if another bump merges first.
+        // Neighbourhood concern levels (N1): v17 → v18.
         (17, hood_concerns),
-        // Reserved for R1 (offices from the constitution, v18 → v19), which
-        // runs beside E1: a no-op here; R1's own step replaces it at merge.
-        (18, reserved_for_r1),
-        // The ground game's memory (E1, DEC-097 §1): the previous format to
-        // the next. Renumber only this key if another bump merges first.
-        (19, ground_game),
+        // The run log (bug reports): v18 → v19.
+        (18, run_log),
+        // Offices from the constitution (DEC-098, R1): v19 → v20.
+        (19, constitution_posts),
+        // The ground game's memory (E1, DEC-097 §1): v20 → v21. Renumber
+        // only this key if another bump merges first.
+        (20, ground_game),
     ];
     let mut value = value;
     let mut v = from;
@@ -494,16 +519,163 @@ fn hood_concerns(mut value: serde_json::Value) -> Result<serde_json::Value, Save
     Ok(value)
 }
 
-/// R1's format step (v18 → v19), reserved while R1 and E1 run side by side:
-/// it changes nothing here, and R1's step takes its place at merge.
-fn reserved_for_r1(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+/// Previous format → next (v18 → v19): the run log beside the
+/// state (bug reports, `runlog`). A run from before it has none: its log
+/// starts empty when loaded, marked as not replayable from the start. The
+/// state is untouched (its hash is unchanged).
+fn run_log(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let payload = value.as_object_mut().ok_or(SaveError::Malformed)?;
+    payload.insert("log".into(), serde_json::Value::Null);
     Ok(value)
 }
 
-/// Previous format → next (v19 → v20 when written; E1, DEC-097 §1): the
-/// player's per-neighbourhood canvass memory. The step drops any a newer
-/// build might have left, so the serde default applies: no doorsteps
-/// remembered, every neighbourhood fresh.
+/// Previous format → next (v19 → v20; DEC-098, R1): offices
+/// from the constitution. The old format knew two posts, which existed only
+/// for the base constitution's local tier: a ward councillor and a mayor.
+/// They become constitution posts by id (the `council` body's seat for a
+/// ward, the `mayor` office), keyed by the town's jurisdiction; this step
+/// is the one place those ids are named. `Engine::from_state` then checks
+/// every post against the run's constitution and refuses a save that needs
+/// one it lacks (`missing_references`).
+///
+/// | Path | Old | New |
+/// |---|---|---|
+/// | `politicians/*/role` | `{"Councillor":{municipality,ward}}`, `{"Mayor":{municipality}}`, `{"Private":{municipality}}` | `{"type":"seat",…}`, `{"type":"office",…}`, `{"type":"private","home":m}` |
+/// | `politics/councils[m]` | `{municipality, members, mayor}` | `bodies[]` and `offices[]` |
+/// | races' and results' `seat`, memories' and favours' `{"type":"seat","seat":…}` | `{"Council":{…}}`, `{"Mayor":{…}}` | the post |
+/// | `player/filing` | `"Council"`, `"Mayor"`, `"Retire"` | `{"type":"stand","post":…}`, `{"type":"retire"}` |
+///
+/// Events keep their shape (`RaceDecided.post` is new and optional).
+fn constitution_posts(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::{Value, json};
+    // The base constitution's local posts, as the old format knew them.
+    const BODY: &str = "council";
+    const OFFICE: &str = "mayor";
+    let town = |m: &Value| json!({ "type": "municipality", "id": m.clone() });
+    let seat = |m: &Value, ward: &Value| json!({ "type": "seat", "body": BODY, "at": town(m), "constituency": ward.clone() });
+    let office = |m: &Value| json!({ "type": "office", "office": OFFICE, "at": town(m) });
+    // An old role or seat (the same shapes, `Councillor` and `Council` alike).
+    // A post already in the new shape (tagged by `type`) is left as it is.
+    let post = |old: &Value| -> Result<Value, SaveError> {
+        if old.get("type").is_some() {
+            return Ok(old.clone());
+        }
+        let obj = old.as_object().ok_or(SaveError::Malformed)?;
+        let (k, inner) = obj.iter().next().ok_or(SaveError::Malformed)?;
+        let m = inner.get("municipality").ok_or(SaveError::Malformed)?;
+        Ok(match k.as_str() {
+            "Councillor" | "Council" => seat(m, inner.get("ward").ok_or(SaveError::Malformed)?),
+            "Mayor" => office(m),
+            "Private" => json!({ "type": "private", "home": m.clone() }),
+            other => return Err(SaveError::Data(format!("unknown role `{other}`"))),
+        })
+    };
+    // Memories and favours about a seat, wherever a subject is kept.
+    fn subjects(
+        v: &mut Value,
+        post: &dyn Fn(&Value) -> Result<Value, SaveError>,
+    ) -> Result<(), SaveError> {
+        match v {
+            Value::Object(o) => {
+                if o.get("type").and_then(Value::as_str) == Some("seat")
+                    && let Some(old) = o.get("seat")
+                    && old.get("type").is_none()
+                {
+                    let new = post(old)?;
+                    o.insert("seat".into(), new);
+                }
+                for x in o.values_mut() {
+                    subjects(x, post)?;
+                }
+            }
+            Value::Array(a) => {
+                for x in a {
+                    subjects(x, post)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+    let pol = value
+        .pointer_mut("/state/politics")
+        .and_then(Value::as_object_mut)
+        .ok_or(SaveError::Malformed)?;
+    for p in pol
+        .get_mut("politicians")
+        .and_then(Value::as_array_mut)
+        .ok_or(SaveError::Malformed)?
+    {
+        let p = p.as_object_mut().ok_or(SaveError::Malformed)?;
+        let role = post(p.get("role").ok_or(SaveError::Malformed)?)?;
+        p.insert("role".into(), role);
+    }
+    let councils = pol.remove("councils");
+    let mut bodies = Vec::new();
+    let mut offices = Vec::new();
+    for c in councils
+        .iter()
+        .map(|c| c.as_array().ok_or(SaveError::Malformed))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+    {
+        let m = c.get("municipality").ok_or(SaveError::Malformed)?;
+        bodies.push(json!({
+            "body": BODY, "at": town(m),
+            "members": c.get("members").cloned().unwrap_or(json!([])),
+            "works_at": "CouncilChamber",
+        }));
+        offices.push(json!({
+            "office": OFFICE, "at": town(m),
+            "holder": c.get("mayor").cloned().unwrap_or(Value::Null),
+            "works_at": "TownHall",
+        }));
+    }
+    if councils.is_some() {
+        pol.insert("bodies".into(), Value::Array(bodies));
+        pol.insert("offices".into(), Value::Array(offices));
+    }
+    if let Some(el) = pol.get_mut("elections").and_then(Value::as_object_mut) {
+        for list in ["races", "results"] {
+            for r in el
+                .get_mut(list)
+                .and_then(Value::as_array_mut)
+                .into_iter()
+                .flatten()
+            {
+                let r = r.as_object_mut().ok_or(SaveError::Malformed)?;
+                let s = post(r.get("seat").ok_or(SaveError::Malformed)?)?;
+                r.insert("seat".into(), s);
+            }
+        }
+    }
+    if let Some(ch) = pol.get_mut("characters") {
+        subjects(ch, &post)?;
+    }
+    // The player's filing: their own ward's seat, or their town's office.
+    if let Some(pl) = value
+        .pointer_mut("/state/player")
+        .and_then(Value::as_object_mut)
+    {
+        let m = pl.get("municipality").cloned().unwrap_or(Value::Null);
+        let ward = pl.get("ward").cloned().unwrap_or(Value::Null);
+        let filing = match pl.get("filing").and_then(Value::as_str) {
+            None => pl.get("filing").cloned().unwrap_or(Value::Null),
+            Some("Council") => json!({ "type": "stand", "post": seat(&m, &ward) }),
+            Some("Mayor") => json!({ "type": "stand", "post": office(&m) }),
+            Some("Retire") => json!({ "type": "retire" }),
+            Some(other) => return Err(SaveError::Data(format!("unknown filing `{other}`"))),
+        };
+        pl.insert("filing".into(), filing);
+    }
+    Ok(value)
+}
+
+/// Previous format → next (v20 → v21; E1, DEC-097 §1): the player's
+/// per-neighbourhood canvass memory. The step drops any a newer build might
+/// have left, so the serde default applies: no doorsteps remembered, every
+/// neighbourhood fresh.
 fn ground_game(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
     let st = value
         .pointer_mut("/state")

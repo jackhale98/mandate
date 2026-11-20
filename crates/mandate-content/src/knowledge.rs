@@ -79,7 +79,10 @@ pub enum GrantSubject {
     /// Who really runs things (`which`: `town`; `here`: only if the broker
     /// is found at the place).
     Broker,
-    /// Every councillor and the mayor, as people (`which`: `town`).
+    /// Everyone holding a post in the town, as people (`which`: `town`):
+    /// the members of its bodies and the holders of its offices, as the
+    /// constitution defines them (DEC-098). The word is a grant subject,
+    /// not a body id.
     Council,
     /// The people found at places (`which`: `town` for every place, `here`,
     /// or a place kind such as `union_hall`).

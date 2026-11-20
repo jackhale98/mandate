@@ -843,6 +843,18 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - NPC AI reads personality (DEC-030, the same rules for the player): loyalty scales party discipline (`council.loyalty_discipline`), integrity resists lobbying (`council.lobby.integrity`), warmth and traits scale opinion changes. A politician who becomes the player keeps the relationships their seat-holder had with colleagues.
   - Protocol `CharacterView` (facts and keys: role, tier, personality labels, opinion and trust bands, bonds, favours, three most salient memories); character sheets in the web. Save format v11 with a v10 migration.
 
+- **Daily routines (owner, 2026-11-19: "Yeah let's do it").** Characters move through the day instead of standing in one place.
+  - **Today:** placement is static (`characters/ambient.rs`). Council members are always in the chamber, the mayor always at the town hall, a named person always at their workplace or on their home street.
+  - **The routines registry** (`content/base/routines.jsonc`) places people by post or occupation, time slot, weekday, season and events:
+    - session days and votes;
+    - lunch at the diner;
+    - the broker in the back booth late at night;
+    - meeting nights at the community centre.
+  - **Placement is deterministic,** with a little keyed variation, so players can learn routines. The notebook records where someone was last seen.
+  - **Nothing depends on walking (DEC-051).** "Go to them" from Places, People and quick mode reaches anyone.
+  - **Posts come from the constitution** (DEC-098, R1); no office name in code.
+  - **Task S1,** after R1, because R1 rewrites the hard-coded chamber and mayor placement.
+
 ### DEC-032 — NPC goals & storylines
 
 - **Status:** Accepted (owner, 2026-11-18; no objection raised).
@@ -2047,6 +2059,12 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - repeat questions give a different line and nothing new;
   - pronouns come with pixel-art P1.
 - **Dependencies:** DEC-024, DEC-026, DEC-041, DEC-053, DEC-073, DEC-077, DEC-078, DEC-079, DEC-090, DEC-091.
+
+- **Voters weigh their own district's worries (owner, 2026-11-19).** The owner said: "Voters weighing by their districts worries is a good improvement of currently we lump them within the town."
+  - **Before:** N1 gave each neighbourhood its own concern levels (`hood_concerns`), but the vote model's issue salience and NPC agendas still read the town-wide measured levels.
+  - **Task N2** computes salience per ward or constituency, from its neighbourhoods' levels weighted by residents. A platform's issue match then varies by ward, and so do NPC agendas where they target a ward.
+  - **Timing:** after E1 merges, so the two balance changes can be told apart. N2 runs beside E2. Bots at 16 and 32 seeds and the CI sweep are re-run, and BALANCE_LOG records the shift.
+  - **Fit:** this is the voting half of need-aware reactions (§2.22), and F7 builds on it.
 
 ### DEC-093 — Conversations
 

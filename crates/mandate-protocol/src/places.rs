@@ -350,6 +350,18 @@ pub struct PlacePanelView {
     /// passers-by. Listed wherever the panel is opened; meeting someone
     /// needs the player there.
     pub people: Vec<crate::characters::PersonRefView>,
+    /// How each of `people` is here, in the same order (DEC-088 interiors:
+    /// the room puts people on its spots by this, never by office or name):
+    /// `presiding` (heads the body or office that sits here), `member` (sits
+    /// in that body), `works` (works here), or `visitor`.
+    pub here_as: Vec<String>,
+    /// The interior the player walks into from the street (DEC-088), when
+    /// the place kind names one: its recipe (`interiors.jsonc`, the highest
+    /// version of the kind's `interior` id) as the content's JSON, which the
+    /// client composes the room from (presentation data the engine
+    /// validates and never reads; the art pack's `InteriorRecipe` shape).
+    #[ts(type = "unknown")]
+    pub interior: Option<serde_json::Value>,
     /// Pending decisions whose scene happens here (DEC-079: going there adds
     /// the conversation; they can always be answered from the pocket).
     pub decisions_here: Vec<crate::narrative::DecisionView>,
@@ -831,18 +843,16 @@ fn internal_poll(engine: &Engine) -> Option<InternalPollView> {
             *v /= sum;
         }
         InternalRaceView {
-            seat: if r.seat.is_executive() {
-                "mayor"
+            // An office's id, or `ward` for a seat (DTO unchanged until R2).
+            seat: if r.seat.is_office() {
+                r.seat.id().to_string()
             } else {
-                "ward"
-            }
-            .into(),
-            ward_number: match r.seat {
-                mandate_sim::politics::elections::Seat::Council { ward, .. } => {
-                    st.world.constituencies.get(ward.index()).map(|c| c.number)
-                }
-                _ => None,
+                "ward".into()
             },
+            ward_number: r
+                .seat
+                .constituency()
+                .and_then(|ward| st.world.constituencies.get(ward.index()).map(|c| c.number)),
             candidates: r
                 .candidates
                 .iter()
@@ -908,6 +918,55 @@ fn overheard(engine: &Engine, loc: Location) -> Option<OverheardView> {
     })
 }
 
+/// How each person present is here (`PlacePanelView.here_as`): presentation
+/// for the interior's spots. It follows `ambient::stored_at`, which places
+/// officials by the posts whose body or office works at a place kind
+/// (DEC-098): an office's holder there is `presiding`, a body's member there
+/// is a `member`; no office or body is named.
+fn here_as(st: &State, loc: Location, people: &[crate::characters::PersonRefView]) -> Vec<String> {
+    use mandate_sim::world::Jurisdiction;
+    let place = match loc {
+        Location::Place { place } => st.world.places.get(place.index()).map(|p| (place, p)),
+        _ => None,
+    };
+    let pol = &st.politics;
+    people
+        .iter()
+        .map(|p| {
+            let c = p.id.and_then(|id| {
+                pol.characters
+                    .get(mandate_sim::characters::CharacterId(id))
+            });
+            let (Some(c), Some((pid, pl))) = (c, place) else {
+                return "visitor";
+            };
+            let at = Jurisdiction::town(pl.municipality);
+            if let Some(who) = c.politician {
+                if pol
+                    .offices
+                    .iter()
+                    .any(|o| o.at == at && o.works_at == Some(pl.kind) && o.holder == Some(who))
+                {
+                    return "presiding";
+                }
+                if pol
+                    .bodies
+                    .iter()
+                    .any(|b| b.at == at && b.works_at == Some(pl.kind) && b.members.contains(&who))
+                {
+                    return "member";
+                }
+            }
+            if c.named.as_deref().is_some_and(|n| n.place == Some(pid)) {
+                "works"
+            } else {
+                "visitor"
+            }
+        })
+        .map(String::from)
+        .collect()
+}
+
 pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelView> {
     let st = engine.state();
     let content = engine.content();
@@ -920,6 +979,7 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
         .map(String::from)
         .collect();
     let has = |s: &str| here && services.iter().any(|x| x == s);
+    let people = crate::characters::people_at(engine, loc);
     Some(PlacePanelView {
         location: location_view(st, loc),
         here,
@@ -952,7 +1012,19 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
         } else {
             None
         },
-        people: crate::characters::people_at(engine, loc),
+        here_as: here_as(st, loc, &people),
+        interior: content
+            .place_kind(places::kind_key(st, loc))
+            .and_then(|k| k.interior.as_deref())
+            .and_then(|id| {
+                content
+                    .interiors
+                    .iter()
+                    .filter(|r| r.id == id)
+                    .max_by_key(|r| r.version)
+            })
+            .and_then(|r| serde_json::to_value(r).ok()),
+        people,
         decisions_here: crate::narrative::pending_decisions(engine)
             .into_iter()
             .filter(|d| {

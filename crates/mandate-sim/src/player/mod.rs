@@ -258,6 +258,32 @@ impl PlayerState {
             self.actions.remove(0);
         }
     }
+
+    /// The town the player lives in (DEC-098: read this, not the field).
+    pub fn home(&self) -> MunicipalityId {
+        self.municipality
+    }
+
+    /// The jurisdictions simulated in detail around the player (DEC-098):
+    /// in M6, their home town.
+    pub fn focus(&self) -> Vec<crate::world::Jurisdiction> {
+        vec![crate::world::Jurisdiction::town(self.home())]
+    }
+}
+
+/// The town the player lives in, if there is a player (DEC-098).
+pub fn home(state: &crate::State) -> Option<MunicipalityId> {
+    state.player.as_ref().map(|p| p.home())
+}
+
+/// The constitution posts the player holds (DEC-098; one in M6, none out of
+/// office).
+pub fn posts(state: &crate::State) -> Vec<crate::politics::Post> {
+    state
+        .player
+        .as_ref()
+        .map(|p| crate::politics::posts_of(&state.politics, p.politician))
+        .unwrap_or_default()
 }
 
 /// Monthly: Mandate from the player's standing with their own voters, and

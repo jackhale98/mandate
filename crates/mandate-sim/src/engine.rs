@@ -95,6 +95,13 @@ pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String>
             out.push(k.clone());
         }
     }
+    // Nor can politicians hold posts the constitution lacks (DEC-098).
+    let c = content.constitutions.get(&state.meta.constitution);
+    for k in crate::politics::missing_references(&state.politics, c) {
+        if !out.contains(&k) {
+            out.push(k);
+        }
+    }
     // Nor can characters keep traits or occupations that were removed.
     for k in crate::characters::missing_references(&state.politics, content) {
         if !out.contains(&k) {
@@ -289,6 +296,14 @@ impl Engine {
     /// Clear the replay log after a snapshot has been written.
     pub fn truncate_log(&mut self) {
         self.command_log.clear();
+    }
+
+    /// Carry a loaded run's command log on (bug reports, `mandate-save`'s
+    /// run log): the next command is logged after it. Touches nothing else;
+    /// the log is never replayed by the game (DEC-074).
+    pub fn restore_log(&mut self, log: Vec<LoggedCommand>) {
+        self.next_command = log.last().map_or(0, |c| c.index + 1);
+        self.command_log = log;
     }
 
     pub fn state_hash(&self) -> String {

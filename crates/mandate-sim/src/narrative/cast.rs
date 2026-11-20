@@ -10,7 +10,7 @@ use crate::policy::{PolicyInstance, PolicyStatus};
 use crate::politics::{PoliticianId, PoliticsState, Role};
 use crate::scheduler::Reads;
 use mandate_content::{
-    BillSponsor, Cast, Condition, ContentBundle, OfficeRole, PartyRel, Power, RoleDef, TrackKey,
+    BillSponsor, Cast, Condition, ContentBundle, PartyRel, Power, RoleDef, TrackKey,
 };
 use mandate_core::SimDate;
 
@@ -88,12 +88,11 @@ impl<'a> View<'a> {
         if let Some(d) = self.pol.elections.next_day.filter(|d| *d >= self.date()) {
             return Some(d);
         }
-        let (cal, term) = crate::politics::elections::local_calendar(self.r)?;
-        Some(crate::politics::elections::next_election_day(
-            cal,
-            term,
-            self.date(),
-        ))
+        let c = self
+            .content()
+            .constitutions
+            .get(&self.r.meta.constitution)?;
+        crate::politics::elections::next_cycle(c, self.date()).map(|(d, _)| d)
     }
 
     /// The player is standing in a running race.
@@ -194,18 +193,15 @@ impl<'a> View<'a> {
             .collect()
     }
 
-    /// Council members and the mayor of the town (not the player).
+    /// Everyone holding a post in the town: its bodies' members, then its
+    /// office holders (not the player; DEC-098).
     pub fn officeholders(&self) -> Vec<PoliticianId> {
         let Some(m) = self.town() else {
             return Vec::new();
         };
-        let Some(c) = self.pol.councils.get(m as usize) else {
-            return Vec::new();
-        };
-        c.members
-            .iter()
-            .chain(c.mayor.iter())
-            .copied()
+        let at = crate::world::Jurisdiction::town(crate::world::MunicipalityId(m));
+        crate::politics::officials_at(self.pol, at)
+            .into_iter()
             .filter(|id| self.pol.get(*id).is_some_and(|p| !p.is_player))
             .collect()
     }
@@ -298,16 +294,22 @@ pub fn candidates(
             }
             out
         }
-        Cast::Mayor => v
-            .pol
-            .councils
-            .get(m as usize)
-            .and_then(|c| c.mayor)
-            .and_then(|p| v.pol.get(p))
-            .filter(|p| !p.is_player)
-            .map(|p| person(p.character))
-            .into_iter()
-            .collect(),
+        Cast::Office { office } => {
+            // The named office of the town, else its executive (DEC-098).
+            let at = crate::world::Jurisdiction::town(crate::world::MunicipalityId(m));
+            let c = v.content().constitutions.get(&v.r.meta.constitution);
+            let holder = match (office, c) {
+                (Some(o), _) => crate::politics::holder_of(v.pol, o, at),
+                (None, Some(c)) => crate::politics::executive_of(v.pol, c, at),
+                (None, None) => None,
+            };
+            holder
+                .and_then(|p| v.pol.get(p))
+                .filter(|p| !p.is_player)
+                .map(|p| person(p.character))
+                .into_iter()
+                .collect()
+        }
         Cast::Occupation { occupations } => {
             let mut ids = v.named_in_town(occupations);
             ids.sort_by_key(|id| occupation_rank(v, *id, occupations));
@@ -321,7 +323,8 @@ pub fn candidates(
             v.officeholders()
                 .into_iter()
                 .filter_map(|id| v.pol.get(id))
-                .filter(|p| matches!(p.role, Role::Councillor { .. }))
+                // Colleagues sit in a body (a seat, not an office).
+                .filter(|p| matches!(p.role, Role::Seat { .. }))
                 .filter(|p| match party {
                     PartyRel::Any => true,
                     PartyRel::Same => p.party.is_some() && p.party == my_party,
@@ -637,21 +640,22 @@ pub fn holds(v: &View<'_>, c: &Condition, cast: &[CastEntry]) -> bool {
             .next_election()
             .is_some_and(|d| v.date().days_until(d) <= *days && d >= v.date()),
         Condition::Campaigning { is } => v.campaigning() == *is,
-        Condition::Office { role } => {
-            let r = v
-                .player()
-                .and_then(|pl| v.pol.get(pl.politician))
-                .map(|p| p.role);
-            matches!(
-                (role, r),
-                (OfficeRole::Councillor, Some(Role::Councillor { .. }))
-                    | (OfficeRole::Mayor, Some(Role::Mayor { .. }))
-                    | (
-                        OfficeRole::Any,
-                        Some(Role::Councillor { .. } | Role::Mayor { .. })
-                    )
-                    | (OfficeRole::None, Some(Role::Private { .. }))
-            )
+        Condition::Office { posts, role } => {
+            // Role words through the constitution (DEC-098), or `any` /
+            // `none`.
+            let Some(p) = v.player().and_then(|pl| v.pol.get(pl.politician)) else {
+                return false;
+            };
+            let word = v
+                .content()
+                .constitutions
+                .get(&v.r.meta.constitution)
+                .and_then(|c| crate::politics::role_word(c, p));
+            posts.iter().chain(role.iter()).any(|w| match w.as_str() {
+                mandate_content::OFFICE_ANY => p.in_office(),
+                mandate_content::OFFICE_NONE => !p.in_office(),
+                w => word == Some(w),
+            })
         }
         Condition::Track { track, min, max } => {
             v.track(*track).is_some_and(|x| in_range(x, *min, *max))

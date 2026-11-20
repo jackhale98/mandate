@@ -4,13 +4,13 @@
 //! (REQ-011).
 
 use crate::events::{EventId, EventKind};
-use crate::politics::{PoliticianId, PoliticsState, Role, alignment, mean_attitudes};
+use crate::politics::{PoliticianId, PoliticsState, alignment, mean_attitudes};
 use crate::population::PopulationState;
 use crate::scheduler::{Outs, Reads};
-use crate::world::{ConstituencyId, MunicipalityId, World};
+use crate::world::{ConstituencyId, World};
 use mandate_content::{
-    BudgetCategory, ClassKey, ContentBundle, CouncilParams, DecisionRule, HazardKey, MechanismDef,
-    PolicyTemplate, StageDef, TierKey,
+    BudgetCategory, ClassKey, ConstitutionDef, ContentBundle, CouncilParams, DecisionRule,
+    HazardKey, MechanismDef, PolicyTemplate, StageDef, TierKey,
 };
 use mandate_core::math::{clamp, sigmoid};
 use mandate_core::{IdAllocator, SimDate, Stream, define_id};
@@ -88,6 +88,10 @@ pub struct PolicyInstance {
 }
 
 impl PolicyInstance {
+    /// The jurisdiction the bill or law belongs to (DEC-098).
+    pub fn at(&self) -> crate::world::Jurisdiction {
+        crate::world::Jurisdiction::of(self.tier, self.jurisdiction)
+    }
     pub fn param(&self, id: &str) -> f64 {
         self.params.get(id).copied().unwrap_or(0.0)
     }
@@ -463,7 +467,8 @@ pub struct VoteInputs<'a> {
     pub template: &'a PolicyTemplate,
     pub instance: &'a PolicyInstance,
     pub ward_support: f64,
-    pub mayor_lean: f64,
+    /// The executive's (the signer's) public lean on the bill.
+    pub signer_lean: f64,
     pub sway: f64,
     pub sponsor_is_player: bool,
     /// The member's opinion of the sponsor when the sponsor is the player
@@ -481,11 +486,13 @@ pub struct VoteInputs<'a> {
 
 pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
     let own = alignment(&v.template.signature_weights, &p.attitudes);
+    // Earmarks name a district: the member for it gains, others' grate.
+    let district = p.role.constituency();
     let earmark = v
         .instance
         .clauses
         .iter()
-        .any(|c| matches!((c, p.role), (Clause::Earmark { ward }, Role::Councillor { ward: w, .. }) if *ward == w));
+        .any(|c| matches!(c, Clause::Earmark { ward } if district == Some(*ward)));
     let player = if v.sponsor_is_player {
         v.player_opinion / 100.0 * k.player_opinion
     } else {
@@ -508,7 +515,7 @@ pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInp
         .instance
         .clauses
         .iter()
-        .filter(|c| matches!((c, p.role), (Clause::Earmark { ward }, Role::Councillor { ward: w, .. }) if *ward != w))
+        .filter(|c| matches!(c, Clause::Earmark { ward } if district.is_some_and(|w| w != *ward)))
         .count() as f64;
     riders += k.foreign_earmark * foreign_earmarks;
     let discipline = match (v.sponsor_party, p.party) {
@@ -520,7 +527,7 @@ pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInp
     let prag = p.pragmatism as f64;
     k.own_values * (1.0 - prag) * own
         + k.ward_support * prag * v.ward_support
-        + k.mayor * v.mayor_lean
+        + k.mayor * v.signer_lean
         + v.sway
         + player
         + discipline
@@ -559,8 +566,11 @@ fn noise_for(k: &CouncilParams, seed: u64, politician: u32, policy: u32) -> f64 
     .normal(0.0, k.noise_sd)
 }
 
-/// Lean of every council member for a policy (also used for whip counts).
-pub fn council_leans(
+/// The lean of each member of a body on a bill (also whip counts), in seat
+/// order. `signer` is whoever signs the bill (the executive), whose public
+/// lean pulls members along (`council.mayor`).
+#[allow(clippy::too_many_arguments)]
+pub fn member_leans(
     k: &CouncilParams,
     r_world: &World,
     pop: &PopulationState,
@@ -568,15 +578,11 @@ pub fn council_leans(
     seed: u64,
     t: &PolicyTemplate,
     inst: &PolicyInstance,
+    members: &[PoliticianId],
+    signer: Option<PoliticianId>,
 ) -> Vec<(PoliticianId, f64)> {
-    let Some(council) = pol.councils.get(inst.jurisdiction as usize) else {
-        return Vec::new();
-    };
-    let all: Vec<usize> = r_world
-        .hoods_of(MunicipalityId(inst.jurisdiction))
-        .collect();
-    let mayor_lean = council
-        .mayor
+    let all: Vec<usize> = inst.at().hoods(r_world);
+    let signer_lean = signer
         .and_then(|m| pol.get(m))
         .map(|m| {
             alignment(&t.signature_weights, &m.attitudes) * k.mayor_own
@@ -587,13 +593,14 @@ pub fn council_leans(
         .sponsor
         .and_then(|s| pol.get(s))
         .is_some_and(|s| s.is_player);
-    council
-        .members
+    members
         .iter()
         .filter_map(|id| pol.get(*id))
         .map(|p| {
-            let ward_support = match p.role {
-                Role::Councillor { ward, .. } => {
+            // A member weighs their own district's support, else the
+            // jurisdiction's.
+            let ward_support = match p.role.constituency() {
+                Some(ward) => {
                     let hoods: Vec<usize> = r_world
                         .constituencies
                         .get(ward.index())
@@ -601,7 +608,7 @@ pub fn council_leans(
                         .unwrap_or_default();
                     public_support(t, pop, &hoods)
                 }
-                Role::Mayor { .. } | Role::Private { .. } => public_support(t, pop, &all),
+                None => public_support(t, pop, &all),
             };
             let lean = if inst.sponsor == Some(p.id) {
                 1.0
@@ -613,7 +620,7 @@ pub fn council_leans(
                         template: t,
                         instance: inst,
                         ward_support,
-                        mayor_lean,
+                        signer_lean,
                         // Goals (DEC-032) lean on the player's bills like lobbying does.
                         sway: pol.sway(p.id, inst.id.0) as f64
                             + crate::characters::goals::lean_on(
@@ -635,7 +642,29 @@ pub fn council_leans(
         .collect()
 }
 
-pub fn mayor_lean(
+/// The leans of the bill's legislature (the body of its jurisdiction's
+/// `ordinance` procedure's first vote; DEC-098), with its executive as the
+/// signer: the whip count.
+#[allow(clippy::too_many_arguments)]
+pub fn legislature_leans(
+    k: &CouncilParams,
+    c: &ConstitutionDef,
+    r_world: &World,
+    pop: &PopulationState,
+    pol: &PoliticsState,
+    seed: u64,
+    t: &PolicyTemplate,
+    inst: &PolicyInstance,
+) -> Vec<(PoliticianId, f64)> {
+    let at = inst.at();
+    let members = crate::politics::legislature_of(pol, c, at);
+    let signer = crate::politics::executive_of(pol, c, at);
+    member_leans(k, r_world, pop, pol, seed, t, inst, members, signer)
+}
+
+/// The lean of a bill's signer (whoever holds the signing office) on it.
+#[allow(clippy::too_many_arguments)]
+pub fn signer_lean(
     k: &CouncilParams,
     r_world: &World,
     pop: &PopulationState,
@@ -643,19 +672,15 @@ pub fn mayor_lean(
     seed: u64,
     t: &PolicyTemplate,
     inst: &PolicyInstance,
+    signer: Option<PoliticianId>,
 ) -> f64 {
-    let Some(council) = pol.councils.get(inst.jurisdiction as usize) else {
-        return 0.0;
-    };
-    let Some(m) = council.mayor.and_then(|m| pol.get(m)) else {
+    let Some(m) = signer.and_then(|m| pol.get(m)) else {
         return 0.0;
     };
     if inst.sponsor == Some(m.id) {
         return 1.0;
     }
-    let all: Vec<usize> = r_world
-        .hoods_of(MunicipalityId(inst.jurisdiction))
-        .collect();
+    let all: Vec<usize> = inst.at().hoods(r_world);
     let sponsor_is_player = inst
         .sponsor
         .and_then(|s| pol.get(s))
@@ -667,7 +692,7 @@ pub fn mayor_lean(
             template: t,
             instance: inst,
             ward_support: public_support(t, pop, &all),
-            mayor_lean: 0.0,
+            signer_lean: 0.0,
             sway: pol.sway(m.id, inst.id.0) as f64,
             sponsor_is_player,
             player_opinion: player_opinion(pol, m.id, inst.sponsor, sponsor_is_player),
@@ -677,6 +702,23 @@ pub fn mayor_lean(
             noise: noise_for(k, seed, m.id.0, inst.id.0),
         },
     )
+}
+
+/// The lean of the bill's jurisdiction's executive (its `ordinance`
+/// procedure's signer).
+#[allow(clippy::too_many_arguments)]
+pub fn executive_lean(
+    k: &CouncilParams,
+    c: &ConstitutionDef,
+    r_world: &World,
+    pop: &PopulationState,
+    pol: &PoliticsState,
+    seed: u64,
+    t: &PolicyTemplate,
+    inst: &PolicyInstance,
+) -> f64 {
+    let signer = crate::politics::executive_of(pol, c, inst.at());
+    signer_lean(k, r_world, pop, pol, seed, t, inst, signer)
 }
 
 /// Probability that a lean turns into a yes vote (shown as whip-count odds).
@@ -733,16 +775,35 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         };
         let rng = out.rng.get(Stream::Npc);
         let k = &r.content.council;
-        let leans = council_leans(k, r.world, pop, pol, seed, t, &inst);
+        // Each stage reads its own body and office (DEC-098): a vote tallies
+        // the stage's body, a signature asks the stage's office's holder,
+        // and an override tallies the override body. The procedure's
+        // signer's lean pulls members along.
+        let at = inst.at();
+        let signer = proc_def.stages.iter().find_map(|s| match s {
+            StageDef::Sign { office, .. } => crate::politics::holder_of(pol, office, at),
+            StageDef::Vote { .. } => None,
+        });
+        let first_body = proc_def.stages.iter().find_map(|s| match s {
+            StageDef::Vote { body, .. } => Some(body.as_str()),
+            StageDef::Sign { .. } => None,
+        });
+        let leans_of = |body: Option<&str>| -> Vec<(PoliticianId, f64)> {
+            let members = body
+                .map(|b| crate::politics::members_of(pol, b, at))
+                .unwrap_or(&[]);
+            member_leans(k, r.world, pop, pol, seed, t, &inst, members, signer)
+        };
         let tally = |rng: &mut mandate_core::SimRng, leans: &[(PoliticianId, f64)]| -> u32 {
             leans
                 .iter()
                 .filter(|(_, l)| rng.chance(yes_probability(k, *l)))
                 .count() as u32
         };
-        let total = leans.len() as u32;
         let (passed, record) = match stage {
-            StageDef::Vote { rule, .. } => {
+            StageDef::Vote { body, rule } => {
+                let leans = leans_of(Some(body));
+                let total = leans.len() as u32;
                 let yes = tally(rng, &leans);
                 let ok = passes(*rule, yes, total);
                 (
@@ -757,8 +818,13 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     },
                 )
             }
-            StageDef::Sign { override_rule, .. } => {
-                let lean = mayor_lean(k, r.world, pop, pol, seed, t, &inst);
+            StageDef::Sign {
+                office,
+                override_body,
+                override_rule,
+            } => {
+                let holder = crate::politics::holder_of(pol, office, at);
+                let lean = signer_lean(k, r.world, pop, pol, seed, t, &inst, holder);
                 if rng.chance(sign_probability(k, lean)) {
                     (
                         true,
@@ -772,6 +838,8 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         },
                     )
                 } else if let Some(rule) = override_rule {
+                    let leans = leans_of(override_body.as_deref().or(first_body));
+                    let total = leans.len() as u32;
                     let yes = tally(rng, &leans);
                     let ok = passes(*rule, yes, total);
                     (
@@ -800,20 +868,16 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 }
             }
         };
-        // A mayor's signature or veto is personal: the sponsor remembers it
-        // (DEC-031; the politics domain applies it).
-        if matches!(stage, StageDef::Sign { .. })
-            && let (Some(sponsor), Some(mayor)) = (
-                inst.sponsor,
-                pol.councils
-                    .get(inst.jurisdiction as usize)
-                    .and_then(|c| c.mayor),
-            )
-            && sponsor != mayor
+        // A signature or veto is personal: the sponsor remembers the
+        // signer (DEC-031; the politics domain applies it).
+        if let StageDef::Sign { office, .. } = stage
+            && let (Some(sponsor), Some(holder)) =
+                (inst.sponsor, crate::politics::holder_of(pol, office, at))
+            && sponsor != holder
         {
             out.effects.push(crate::scheduler::Effect::Memory {
                 holder: sponsor,
-                actor: mayor,
+                actor: holder,
                 kind: if record.veto {
                     crate::characters::MemoryKind::VetoedMyBill
                 } else {

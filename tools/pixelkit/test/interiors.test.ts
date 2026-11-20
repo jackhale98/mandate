@@ -7,9 +7,12 @@ import { describe, it } from "node:test";
 import { hash32 } from "../src/core/hash";
 import type { Indexed } from "../src/core/image";
 import { colourCount, offPalette } from "../src/core/lint";
-import { composeInterior, flattenInterior, optionCombos, placeholderPeople, reachable, renderInterior, TILE, validateRecipe } from "../art/mandate/interiors";
+import { composeInterior, flattenInterior, gradeImage, gradeRoom, interiorGrade, optionCombos, placeholderPeople, reachable, renderInterior, TILE, validateRecipe } from "../art/mandate/interiors";
 import { PARTS, partSlots, SURFACES, surfaceSlots } from "../art/mandate/interiorsParts";
-import { COUNCIL_CHAMBER, DINER, RECIPES, TOWN_HALL, type InteriorRecipe } from "../art/mandate/interiorsRecipes";
+import { readFileSync } from "node:fs";
+import { catalogText, CATALOG_FILE } from "../art/mandate/interiorsCatalog";
+import { COUNCIL_CHAMBER, DINER, RECIPES, TOWN_HALL } from "../art/mandate/interiorsContent";
+import { recipeFor, type InteriorRecipe } from "../art/mandate/interiorsRecipes";
 import { buildPack, PACK_VERSION } from "../art/mandate/pack";
 import { INTERIOR_SEEDS, INTERIOR_TIMES } from "../art/mandate/samples";
 
@@ -25,6 +28,14 @@ describe("interior recipes", () => {
   it("cover the three M6 places, each once per version, and are plain data (JSON round-trip)", () => {
     assert.deepEqual(RECIPES.map((r) => r.place).sort(), ["council_chamber", "diner", "town_hall"]);
     for (const r of RECIPES) assert.deepEqual(JSON.parse(JSON.stringify(r)), r, r.id);
+  });
+  it("come from the game's content (content/base/interiors.jsonc), the highest version per place", () => {
+    assert.equal(recipeFor(RECIPES, "town_hall")?.version, 2);
+    assert.equal(recipeFor(RECIPES, "interior.diner")?.place, "diner");
+    assert.equal(recipeFor(RECIPES, "school"), undefined);
+  });
+  it("keep the content check's part catalogue equal to the pack (regenerate: interiorsCatalog.ts --write)", () => {
+    assert.equal(readFileSync(CATALOG_FILE, "utf8"), catalogText());
   });
   it("give each place's actions a hotspot (chamber: vote, introduce, amend, withdraw; town hall: draft, file, withdraw; diner: lobby, trade_favor, take_bribe late)", () => {
     const offered = (r: InteriorRecipe) => {
@@ -108,6 +119,39 @@ describe("interior rooms", () => {
       }
     }
   });
+  it("grade layer by layer as the reference renderer does (the game's canvas path: base, then sprites and people by depth)", () => {
+    for (const r of RECIPES) {
+      const rm = compose(r, 23);
+      for (const minutes of [INTERIOR_TIMES.day, INTERIOR_TIMES.evening]) {
+        // Seated people only (no blob shadows, which the game draws on the canvas).
+        const actors = placeholderPeople(rm, pal, pack.lightness, 5).filter((a) => !a.feet);
+        const ref = renderInterior(rm, pal, pack.lighting, minutes, actors);
+        const g = interiorGrade(rm, pal, pack.lighting, minutes);
+        const graded = gradeRoom(rm, g);
+        const out = new Uint8Array(graded.base.data);
+        const layers: { data: Uint8ClampedArray; x: number; y: number; w: number; h: number; key: number }[] = [];
+        rm.sprites.forEach((s, i) => {
+          const gs = graded.sprites[i] as { img: Uint8ClampedArray; front: Uint8ClampedArray | null };
+          layers.push({ data: gs.img, x: s.x, y: s.y, w: s.img.w, h: s.img.h, key: s.key });
+          if (s.front && gs.front) layers.push({ data: gs.front, x: s.x, y: s.front.y, w: s.front.img.w, h: s.front.img.h, key: s.front.key });
+        });
+        for (const a of actors) layers.push({ data: gradeImage(g, a.img, a.x, a.y), x: a.x, y: a.y, w: a.img.w, h: a.img.h, key: a.key });
+        layers.sort((a, b) => a.key - b.key);
+        for (const l of layers) {
+          for (let y = 0; y < l.h; y++) {
+            for (let x = 0; x < l.w; x++) {
+              const j = (y * l.w + x) * 4;
+              const X = l.x + x;
+              const Y = l.y + y;
+              if (!l.data[j + 3] || X < 0 || Y < 0 || X >= rm.w || Y >= rm.h) continue;
+              out.set(l.data.subarray(j, j + 4), (Y * rm.w + X) * 4);
+            }
+          }
+        }
+        assert.deepEqual(out, ref.data, `${r.id} at ${minutes}`);
+      }
+    }
+  });
   it("fit a phone: at most 14 tiles wide and 13 deep", () => {
     for (const r of RECIPES) assert.ok(r.cols <= 14 && r.rows <= 13, r.id);
   });
@@ -137,21 +181,21 @@ describe("interior palette", () => {
 describe("interior goldens", () => {
   // Pinned rooms (flattened, no people): a change fails here. Update deliberately, with the pack version.
   const PINNED: Record<string, string> = {
-    "interior.council_chamber@1 11": "549f29bc",
-    "interior.council_chamber@1 23": "4d085d20",
-    "interior.council_chamber@1 47": "9ae41f8b",
+    "interior.council_chamber@1 11": "282d70bb",
+    "interior.council_chamber@1 23": "3da1754d",
+    "interior.council_chamber@1 47": "fba731dc",
     "interior.council_chamber@1 90": "c53c8745",
-    "interior.town_hall@1 11": "38b7e564",
-    "interior.town_hall@1 23": "cbec66bb",
-    "interior.town_hall@1 47": "db86f171",
-    "interior.town_hall@1 90": "17cf800f",
+    "interior.town_hall@2 11": "33aa7ccf",
+    "interior.town_hall@2 23": "b2b8aed",
+    "interior.town_hall@2 47": "a48a15a7",
+    "interior.town_hall@2 90": "d48c7bb3",
     "interior.diner@1 11": "c881d673",
     "interior.diner@1 23": "2855748c",
     "interior.diner@1 47": "9f2bb95d",
     "interior.diner@1 90": "49519df",
   };
   it("match the pinned rooms", () => {
-    assert.equal(PACK_VERSION, "mandate-p0.8");
+    assert.equal(PACK_VERSION, "mandate-p0.9");
     const now: Record<string, string> = {};
     for (const r of RECIPES) for (const s of INTERIOR_SEEDS) now[`${r.id}@${r.version} ${s}`] = h(flattenInterior(compose(r, s)));
     if (process.env.UPDATE_GOLDENS) {

@@ -150,7 +150,8 @@ test("walk up to a door: a hint says Enter and the place; Enter goes in and the 
     const W = v.map.width;
     const cost = v.scene.grid.cost;
     const open = (i: number) => (cost[i] ?? 0) > 0 && i % W !== W - 1;
-    const active = ["town_hall", "council_chamber", "diner", "party_office", "news_office", "market", "union_hall", "community_centre"];
+    // Places that open their panel at the door (the town hall, the chamber and the diner are walked into: e2e/interiors.spec.ts).
+    const active = ["party_office", "news_office", "market", "union_hall", "community_centre"];
     const fronts = new Set(v.map.buildings.map((b) => b.front));
     const b = v.map.buildings.find((x) => x.place !== null && active.includes(x.kind) && x.front % W >= 2 && open(x.front - 1) && open(x.front - 2) && !fronts.has(x.front - 1) && !fronts.has(x.front - 2));
     return b ? { front: b.front, index: b.index } : null;

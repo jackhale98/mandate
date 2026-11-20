@@ -7,7 +7,7 @@
 //! and any preview, so what the player is told is what happens.
 
 use crate::state::State;
-use crate::world::{MunicipalityId, NeighborhoodId};
+use crate::world::NeighborhoodId;
 use mandate_content::CanvassEffects;
 use mandate_core::SimDate;
 use serde::{Deserialize, Serialize};
@@ -85,12 +85,6 @@ pub struct Curve {
     /// The multiplier on the approval gain (× fit × room × `approval`):
     /// `fresh × season × same_turn`.
     pub approval: f64,
-}
-
-/// The player's town. One helper for the ground game's reads, which R1's
-/// `player::home(state)` replaces (DEC-098).
-pub fn town(state: &State) -> Option<MunicipalityId> {
-    state.player.as_ref().map(|p| p.municipality)
 }
 
 /// Whether the player is a candidate in an open race (campaign season).

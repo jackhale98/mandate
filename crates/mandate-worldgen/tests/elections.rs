@@ -4,7 +4,6 @@
 use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
 use mandate_sim::Engine;
 use mandate_sim::politics::Role;
-use mandate_sim::politics::elections::Seat;
 use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
@@ -59,7 +58,7 @@ fn stats(e: &Engine) -> Stats {
         if let Some(i) = r.incumbent
             && r.candidates.iter().any(|c| c.politician == i)
         {
-            let mayor = matches!(r.seat, Seat::Mayor { .. });
+            let mayor = r.seat.is_office();
             s.incumbent_ran += 1;
             if mayor {
                 s.mayor_incumbent_ran += 1;
@@ -129,17 +128,22 @@ fn burn_in_holds_plausible_elections() {
 fn councils_and_roles_stay_consistent() {
     let e = world(14);
     let st = e.state();
-    for (m, c) in st.politics.councils.iter().enumerate() {
-        for id in &c.members {
+    // Every body's members and every office's holder hold that post (DEC-098).
+    for b in &st.politics.bodies {
+        for id in &b.members {
             let p = st.politics.get(*id).unwrap();
             assert!(
-                matches!(p.role, Role::Councillor { municipality, .. } if municipality as usize == m),
+                matches!(p.role, Role::Seat { body, at, .. } if body == b.body && at == b.at),
                 "{:?}",
                 p.role
             );
         }
-        let mayor = st.politics.get(c.mayor.unwrap()).unwrap();
-        assert!(matches!(mayor.role, Role::Mayor { municipality } if municipality as usize == m));
+    }
+    for o in &st.politics.offices {
+        let holder = st.politics.get(o.holder.unwrap()).unwrap();
+        assert!(
+            matches!(holder.role, Role::Office { office, at } if office == o.office && at == o.at)
+        );
     }
     let seated = st
         .politics
@@ -149,10 +153,11 @@ fn councils_and_roles_stay_consistent() {
         .count();
     let seats: usize = st
         .politics
-        .councils
+        .bodies
         .iter()
-        .map(|c| c.members.len() + 1)
-        .sum();
+        .map(|b| b.members.len())
+        .sum::<usize>()
+        + st.politics.offices.len();
     assert_eq!(seated, seats, "every officeholder holds exactly one seat");
     // The player sits on a council after the burn-in.
     let pl = st.player.as_ref().unwrap();

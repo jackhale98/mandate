@@ -587,13 +587,15 @@ fn concern_args(args: &mut BTreeMap<String, String>, level: Level, keys: Vec<Str
 /// The rival's plan: the seat they mean to contest (the player's: the
 /// mayoralty if the player holds it or filed for it, else their ward).
 pub(crate) fn rival_seat(st: &State) -> Option<(String, Option<u32>)> {
-    use mandate_sim::politics::Role;
     use mandate_sim::politics::elections::Filing;
     let pl = st.player.as_ref()?;
     let me = st.politics.get(pl.politician)?;
-    match (pl.filing, me.role) {
+    // An office: its constitution id (DTO unchanged until R2); a seat: `ward`.
+    match (pl.filing, me.role.post()) {
         (Some(Filing::Retire), _) => None,
-        (Some(Filing::Mayor), _) | (None, Role::Mayor { .. }) => Some(("mayor".into(), None)),
+        (Some(Filing::Stand { post }), _) | (None, Some(post)) if post.is_office() => {
+            Some((post.id().to_string(), None))
+        }
         _ => Some((
             "ward".into(),
             st.world

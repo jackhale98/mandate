@@ -222,7 +222,7 @@ fn spots(e: &Engine) -> Vec<Location> {
 }
 
 fn role(e: &Engine, s: CharacterId) -> String {
-    knows::role_key(e.state(), s).unwrap_or_else(|| "none".into())
+    knows::role_key(e.state(), e.content(), s).unwrap_or_else(|| "none".into())
 }
 
 fn standard_template(c: &ContentBundle) -> String {

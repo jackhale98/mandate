@@ -39,13 +39,12 @@ fn draft(e: &mut Engine, template: &str, params: &[(&str, f64)]) -> u32 {
 fn whip_hard(e: &mut Engine, policy: u32) {
     let me = e.state().player.as_ref().unwrap().politician;
     let m = e.state().player.as_ref().unwrap().municipality;
-    let members: Vec<u32> = e.state().politics.councils[m.index()]
-        .members
+    let members: Vec<u32> = council_members(e.state(), m.index())
         .iter()
         .filter(|p| **p != me)
         .map(|p| p.0)
         .collect();
-    let mayor = e.state().politics.councils[m.index()].mayor.unwrap().0;
+    let mayor = mayor_of(e.state(), m.index()).unwrap().0;
     // Spend this turn's slots trading favours, nearest members first.
     for id in members.into_iter().chain([mayor]) {
         if e.state().player.as_ref().unwrap().slots_left() == 0 {
@@ -250,7 +249,7 @@ fn player_commands_are_deterministic() {
         e.apply(e.route(PlayerCommand::IntroducePolicy { policy: id }))
             .unwrap();
         let m = e.state().player.as_ref().unwrap().municipality;
-        let target = e.state().politics.councils[m.index()].mayor.unwrap().0;
+        let target = mayor_of(e.state(), m.index()).unwrap().0;
         let _ = e.apply(e.route(PlayerCommand::Act {
             action: Action::Lobby {
                 politician: target,
@@ -276,8 +275,7 @@ fn state_with_lobbying_round_trips_through_json() {
         .unwrap();
     let me = e.state().player.as_ref().unwrap().politician;
     let m = e.state().player.as_ref().unwrap().municipality;
-    let target = *e.state().politics.councils[m.index()]
-        .members
+    let target = *council_members(e.state(), m.index())
         .iter()
         .find(|p| **p != me)
         .unwrap();
@@ -305,8 +303,7 @@ fn favour_debt_is_capped() {
         .unwrap();
     let me = e.state().player.as_ref().unwrap().politician;
     let m = e.state().player.as_ref().unwrap().municipality;
-    let target = *e.state().politics.councils[m.index()]
-        .members
+    let target = *council_members(e.state(), m.index())
         .iter()
         .find(|p| **p != me)
         .unwrap();
@@ -374,16 +371,11 @@ fn the_players_vote_has_consequences() {
     };
     let my_party = e.state().politics.get(me).unwrap().party;
     // A colleague from the player's own party sponsors a bill; the player owes them.
-    let sponsor = *e.state().politics.councils[m as usize]
-        .members
+    let members = council_members(e.state(), m as usize);
+    let sponsor = *members
         .iter()
         .find(|id| **id != me && e.state().politics.get(**id).unwrap().party == my_party)
-        .or_else(|| {
-            e.state().politics.councils[m as usize]
-                .members
-                .iter()
-                .find(|id| **id != me)
-        })
+        .or_else(|| members.iter().find(|id| **id != me))
         .unwrap();
     let same_party = e.state().politics.get(sponsor).unwrap().party == my_party;
     let bill = e.state().policy.instances.len() as u32;
@@ -459,4 +451,18 @@ fn the_players_vote_has_consequences() {
         e.state().politics.declared_votes.get(&(me.0, bill)),
         Some(&1)
     );
+}
+
+/// The members of a town's bodies (the base constitution's council; DEC-098).
+fn council_members(st: &mandate_sim::State, m: usize) -> Vec<mandate_sim::politics::PoliticianId> {
+    let at = mandate_sim::world::Jurisdiction::town(mandate_sim::world::MunicipalityId(m as u32));
+    mandate_sim::politics::body_members_at(&st.politics, at)
+}
+
+/// The holder of a town's office (the base constitution's mayor; DEC-098).
+fn mayor_of(st: &mandate_sim::State, m: usize) -> Option<mandate_sim::politics::PoliticianId> {
+    let at = mandate_sim::world::Jurisdiction::town(mandate_sim::world::MunicipalityId(m as u32));
+    mandate_sim::politics::office_holders_at(&st.politics, at)
+        .first()
+        .copied()
 }

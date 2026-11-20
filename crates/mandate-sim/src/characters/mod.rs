@@ -39,7 +39,7 @@ pub mod town;
 pub use town::{ActiveCrisis, TownCharacter};
 
 use crate::politics::elections::Seat;
-use crate::politics::{Politician, PoliticianId, PoliticsState, Role};
+use crate::politics::{Politician, PoliticianId, PoliticsState};
 use crate::population::PopulationState;
 use crate::world::{PlaceId, World};
 use mandate_content::{CharacterParams, ContentBundle, ContentKey, TraitDef};
@@ -192,7 +192,7 @@ impl MemoryKind {
 pub enum Subject {
     /// A policy instance (a bill or a law).
     Policy { id: u32 },
-    /// An office: a ward seat or a mayoralty.
+    /// A post: a seat in a body or an office (DEC-098).
     Seat { seat: Seat },
     /// A decision the player took (`narrative::DecisionId`).
     Decision { id: u32 },
@@ -1387,12 +1387,13 @@ pub fn refresh_towns(state: &mut crate::State, content: &ContentBundle) {
 }
 
 /// The rival of the player's town, recomputed now (the player's plans changed).
-pub fn refresh_rival(state: &mut crate::State) {
+pub fn refresh_rival(state: &mut crate::State, content: &ContentBundle) {
     let Some(pl) = state.player.as_ref() else {
         return;
     };
-    let m = pl.municipality.index();
-    let rival = town::rival(&state.politics, &state.world, state.player.as_ref(), m);
+    let m = pl.home().index();
+    let c = content.constitutions.get(&state.meta.constitution);
+    let rival = town::rival(&state.politics, &state.world, c, state.player.as_ref(), m);
     if let Some(t) = state.politics.characters.towns.get_mut(m) {
         t.rival = rival;
     }
@@ -1422,13 +1423,4 @@ pub fn missing_references(pol: &PoliticsState, content: &ContentBundle) -> Vec<S
 pub fn player_character(state: &crate::State) -> Option<CharacterId> {
     let pl = state.player.as_ref()?;
     state.politics.get(pl.politician).map(|p| p.character)
-}
-
-/// The politician's role for display: in office, standing, or a former member.
-pub fn role_of(p: &Politician) -> &'static str {
-    match p.role {
-        Role::Councillor { .. } => "councillor",
-        Role::Mayor { .. } => "mayor",
-        Role::Private { .. } => "private",
-    }
 }

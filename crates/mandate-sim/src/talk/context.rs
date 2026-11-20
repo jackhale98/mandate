@@ -197,17 +197,30 @@ impl Ctx<'_> {
             .and_then(|n| n.place)
             .and_then(|p| st.world.places.get(p.index()));
         let office = || {
-            let kind = match st
+            // Where their post works (DEC-098), else where the town's
+            // legislature sits.
+            let at = crate::world::Jurisdiction::town(self.town);
+            let post_place = st
                 .politics
                 .characters
                 .get(c)
                 .and_then(|x| x.politician)
                 .and_then(|p| st.politics.get(p))
-                .map(|p| p.role)
-            {
-                Some(crate::politics::Role::Mayor { .. }) => crate::world::PlaceKind::TownHall,
-                _ => crate::world::PlaceKind::CouncilChamber,
-            };
+                .and_then(|p| p.role.post())
+                .and_then(|post| crate::politics::workplace_of(&st.politics, post));
+            let kind = post_place.or_else(|| {
+                let c = self.content.constitutions.get(&st.meta.constitution)?;
+                let body = crate::politics::legislature(c, at.tier())?;
+                let key = mandate_content::PostKey::new(&body.id)?;
+                crate::politics::workplace_of(
+                    &st.politics,
+                    crate::politics::Post::Seat {
+                        body: key,
+                        at,
+                        constituency: None,
+                    },
+                )
+            })?;
             st.world
                 .places
                 .iter()
@@ -324,7 +337,7 @@ impl Ctx<'_> {
             }
             U::Occupation { slot, occupations } => self
                 .person(slot)
-                .and_then(|p| characters::knows::role_key(st, p))
+                .and_then(|p| characters::knows::role_key(st, self.content, p))
                 .is_some_and(|r| occupations.contains(&r)),
             U::Trait { slot, traits } => self
                 .person(slot)
