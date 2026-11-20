@@ -13,7 +13,6 @@ use mandate_sim::places::Location;
 use mandate_sim::player::knowledge::{Level, Source, Subject};
 use mandate_sim::talk::context::Ctx;
 use mandate_sim::talk::{self, AboutRef, Exchange, TalkTarget, reply};
-use mandate_sim::world::PlaceKind;
 use mandate_sim::{Command, Engine, EngineError};
 use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use std::path::Path;
@@ -57,32 +56,35 @@ fn town(e: &Engine) -> mandate_sim::world::MunicipalityId {
     e.state().player.as_ref().unwrap().municipality
 }
 
-fn place(e: &Engine, kind: PlaceKind) -> Option<Location> {
-    let t = town(e);
-    e.state()
-        .world
-        .places
-        .iter()
-        .find(|p| p.municipality == t && p.kind == kind)
-        .map(|p| Location::Place { place: p.id })
-}
-
 fn go(e: &mut Engine, loc: Location) {
     e.apply(Command::Player(PlayerCommand::MoveTo { location: loc }))
         .unwrap();
 }
 
-/// At the council chamber, with the councillors who are not the rival.
+/// The council's members who are not the rival (nor the player), and the
+/// player where the first of them is now (their daily routine, DEC-031).
 fn at_chamber(e: &mut Engine) -> Vec<CharacterId> {
-    let loc = place(e, PlaceKind::CouncilChamber).unwrap();
-    go(e, loc);
     let rival = e.state().politics.characters.towns[town(e).index()].rival;
-    let v: Vec<CharacterId> = talk::present(e.state())
+    let at = mandate_sim::world::Jurisdiction::town(town(e));
+    let v: Vec<CharacterId> = mandate_sim::politics::body_members_at(&e.state().politics, at)
         .into_iter()
+        .filter_map(|p| e.state().politics.get(p))
+        .filter(|p| !p.is_player)
+        .map(|p| p.character)
         .filter(|c| Some(*c) != rival)
         .collect();
     assert!(v.len() >= 2, "a council to talk to");
+    find(e, v[0]);
     v
+}
+
+/// Go to where the engine says someone is now, unless they are here.
+fn find(e: &mut Engine, person: CharacterId) {
+    if !talk::can_talk(e.state(), e.content(), person)
+        && let Some(l) = characters::routines::whereabouts(e.state(), e.content(), person)
+    {
+        go(e, l);
+    }
 }
 
 fn say(
@@ -91,6 +93,7 @@ fn say(
     topic: &str,
     about: Option<AboutRef>,
 ) -> Result<ActionResult, EngineError> {
+    find(e, person);
     e.apply(Command::Player(PlayerCommand::Talk {
         to: TalkTarget::Person { person },
         topic: topic.into(),
@@ -280,7 +283,7 @@ fn favours_are_traded_only_with_politicians() {
         .filter(|p| p.municipality == t)
         .map(|p| Location::Place { place: p.id })
         .find(|l| {
-            characters::ambient::stored_at(&e.state().politics, e.state(), *l)
+            characters::ambient::stored_at(e.state(), e.content(), *l)
                 .iter()
                 .any(|c| {
                     e.state()
@@ -294,7 +297,7 @@ fn favours_are_traded_only_with_politicians() {
         })
         .unwrap();
     go(&mut e, spot);
-    let named = talk::present(e.state())
+    let named = talk::present(e.state(), e.content())
         .into_iter()
         .find(|c| {
             e.state()
@@ -596,17 +599,18 @@ fn asking_again_gives_another_line_and_nothing_new() {
     let first = say(&mut e, s, "topic.worries", None).unwrap();
     let a = exchange(&e, &first);
     assert!(!a.repeat);
+    // (They may have moved on as the day went on: go to them first.)
+    find(&mut e, s);
     let ledger = e.state().player.as_ref().unwrap().knowledge.clone();
     let second = say(&mut e, s, "topic.worries", None).unwrap();
     let b = exchange(&e, &second);
     assert!(b.repeat);
     assert_eq!(second.outcome_key, "outcome-talk-again");
     assert!(b.learned.is_empty() && b.leads.is_empty());
-    assert_eq!(
-        e.state().player.as_ref().unwrap().knowledge,
-        ledger,
-        "nothing new"
-    );
+    // Nothing new learned (where people were seen is noted, not learned).
+    let mut now = e.state().player.as_ref().unwrap().knowledge.clone();
+    now.seen = ledger.seen.clone();
+    assert_eq!(now, ledger, "nothing new");
     let lines = |x: &Exchange| x.parts.iter().map(|p| p.line.clone()).collect::<Vec<_>>();
     assert_ne!(lines(&a), lines(&b), "a different line");
     assert_ne!(
@@ -720,7 +724,7 @@ fn passers_by_are_met_by_talking() {
     );
     let x = exchange(&e, &r);
     assert_eq!(x.speaker.0 as usize, n);
-    assert!(talk::can_talk(e.state(), x.speaker));
+    assert!(talk::can_talk(e.state(), e.content(), x.speaker));
 }
 
 /// A scripted run with conversations: the same seed and commands give the

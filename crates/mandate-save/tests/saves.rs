@@ -763,16 +763,16 @@ fn saves_and_the_character_registries() {
         let (state, _) = decode(&bytes).unwrap();
         mandate_sim::Engine::from_state(state, bundle)
     };
-    // A used occupation removed: refused, naming it. (One only outlets and
-    // conversations name besides its own file; those lose it too, so the
-    // content itself still validates.)
+    // A used occupation removed: refused, naming it. (One only outlets,
+    // conversations and routines name besides its own file; those lose it
+    // too, so the content itself still validates.)
     let all =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
     let named_elsewhere = |id: &str| {
         all.iter().any(|s| {
             !matches!(
                 s.path.as_str(),
-                "base/occupations.jsonc" | "base/outlets.jsonc"
+                "base/occupations.jsonc" | "base/outlets.jsonc" | "base/routines.jsonc"
             ) && !s.path.starts_with("base/conversations/")
                 && s.text.contains(&format!("\"{id}\""))
         })
@@ -809,6 +809,18 @@ fn saves_and_the_character_registries() {
                 js.retain(|j| j != &serde_json::json!(used));
             }
         }
+        f.text = v.to_string();
+        // Routines: its routine goes.
+        let f = src
+            .iter_mut()
+            .find(|s| s.path == "base/routines.jsonc")
+            .unwrap();
+        let mut v: serde_json::Value =
+            serde_json::from_str(&mandate_content::jsonc::to_strict_json(&f.text)).unwrap();
+        v["items"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|r| r["occupation"] != serde_json::json!(used));
         f.text = v.to_string();
         // Conversations: the role leaves every list, and a line or topic
         // left for no role at all goes.

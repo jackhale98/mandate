@@ -112,6 +112,10 @@ pub enum ContentFile {
     MapLayers {
         items: Vec<crate::map_layers::MapLayerDef>,
     },
+    /// Daily routines: where people are through the day (DEC-031).
+    Routines {
+        items: Vec<crate::routines::RoutineDef>,
+    },
     /// Knowledge is earned (DEC-091): start profiles, the local option, the
     /// party primer, place introductions, and the effectiveness terms.
     Knowledge {
@@ -2958,6 +2962,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "map_layers" => ContentFile::MapLayers {
             items: serde_json::from_str::<ItemsFile<crate::map_layers::MapLayerDef>>(json)?.items,
+        },
+        "routines" => ContentFile::Routines {
+            items: serde_json::from_str::<ItemsFile<crate::routines::RoutineDef>>(json)?.items,
         },
         "knowledge" => ContentFile::Knowledge {
             value: Box::new(

@@ -451,6 +451,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     crate::layout::validate_layout(b, &mut issues);
     crate::map_layers::validate(b, &mut issues);
     crate::interiors::validate(b, &mut issues);
+    crate::routines::validate(b, &mut issues);
     validate_communities(b, &mut issues);
     validate_scenarios(b, &mut issues);
     validate_concerns(b, &mut issues);

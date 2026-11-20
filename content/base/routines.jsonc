@@ -1,0 +1,257 @@
+// Daily routines (DEC-031 "Daily routines", DEC-013 day parts): where stored
+// characters are through the day. Types: `mandate-content/src/routines.rs`.
+// The engine derives placement from the state and the turn's day; nothing is
+// stored (`mandate-sim/src/characters/routines.rs`).
+//
+// A routine is for one of:
+// - `post`: a role word from the constitution (a body's `member_key`, an
+//   office's id; DEC-098) — never an office named in code;
+// - `occupation`: an occupation id (occupations.jsonc);
+// - `role`: `broker` or `rival` (the town's featured characters; tried
+//   before their post's or occupation's), `politician` (out of office) or
+//   `anyone` (tried last).
+//
+// Its `rules` are tried in order. A rule applies when every condition holds:
+// - `parts`: morning | afternoon | evening | late_night (the player's
+//   standard slots are the first three; with none left it is late night);
+//   lunch is the afternoon;
+// - `days`: weekdays of the turn's representative day (mon … sun; it moves
+//   on one day each turn);
+// - `seasons`: winter | spring | summer | autumn;
+// - `events` (all) and `unless` (none): `session` (their jurisdiction's
+//   legislature sits: a law-making stage this turn, or its regular sitting
+//   day, one weekday per jurisdiction), `vote` (a vote stage), `campaign` (a race
+//   for one of its posts is running), `meeting_night` (the town's community
+//   meeting night, one weekday per town);
+// - `chance`: a keyed draw per person, day and part (default 1).
+// Then `at` picks by `weight` among the spots that exist in their town:
+// `works` (their post's workplace or their own place), `home_streets`,
+// `ward_streets` (their district's, for a seat), `legislature` (where their
+// jurisdiction's legislature sits), or a place kind (`diner`, `market`, …:
+// the one in their neighbourhood, else one kept for them). A rule with no
+// spot left does not apply; a routine with no rule left hands over to the
+// next routine that covers them, and the last resort is their workplace,
+// then their home street. Nobody is placed where their town has nothing.
+{
+  "kind": "routines",
+  "items": [
+    // --- Featured characters (before their post's or occupation's) ----------
+    {
+      "id": "routine.broker", "role": "broker",
+      "rules": [
+        // The back booth late at night.
+        { "parts": ["late_night"], "at": [{ "to": "diner" }] },
+        // At the market by day, except when their chamber sits.
+        { "parts": ["morning"], "unless": ["session"], "at": [{ "to": "market", "weight": 3 }, { "to": "works", "weight": 1 }] },
+        { "parts": ["afternoon"], "unless": ["session"], "chance": 0.6, "at": [{ "to": "market" }] },
+      ],
+    },
+    {
+      "id": "routine.rival", "role": "rival",
+      "rules": [
+        // Out on the doorsteps when there is a race.
+        { "parts": ["morning", "afternoon"], "events": ["campaign"], "unless": ["session"],
+          "at": [{ "to": "ward_streets", "weight": 3 }, { "to": "party_office", "weight": 1 }] },
+        { "parts": ["evening"], "events": ["campaign"], "at": [{ "to": "community_centre", "weight": 1 }, { "to": "party_office", "weight": 1 }] },
+        { "parts": ["late_night"], "chance": 0.4, "at": [{ "to": "diner" }] },
+      ],
+    },
+    // --- Posts (role words from the constitution) ---------------------------
+    {
+      "id": "routine.councillor", "post": "councillor",
+      "rules": [
+        // In the chamber on session days.
+        { "parts": ["morning", "afternoon", "evening"], "events": ["session"], "at": [{ "to": "works" }] },
+        { "parts": ["morning"], "events": ["campaign"], "at": [{ "to": "ward_streets", "weight": 3 }, { "to": "party_office", "weight": 1 }] },
+        // Otherwise their ward's streets in the morning,
+        { "parts": ["morning"], "at": [{ "to": "ward_streets", "weight": 4 }, { "to": "diner", "weight": 1 }] },
+        // the diner at lunch on Tuesdays and Thursdays,
+        { "parts": ["afternoon"], "days": ["tue", "thu"], "chance": 0.85, "at": [{ "to": "diner" }] },
+        // and the town hall in the afternoon.
+        { "parts": ["afternoon"], "at": [{ "to": "town_hall", "weight": 4 }, { "to": "diner", "weight": 1 }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.7, "at": [{ "to": "community_centre" }] },
+        { "parts": ["evening"], "at": [{ "to": "home_streets", "weight": 3 }, { "to": "diner", "weight": 1 }] },
+        { "parts": ["late_night"], "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.mayor", "post": "mayor",
+      "rules": [
+        // At the council's sittings in the afternoon.
+        { "parts": ["afternoon"], "events": ["session"], "chance": 0.6, "at": [{ "to": "legislature" }] },
+        { "parts": ["morning", "afternoon"], "events": ["campaign"], "chance": 0.35, "at": [{ "to": "home_streets", "weight": 1 }, { "to": "market", "weight": 1 }] },
+        // Lunch at the diner on Fridays.
+        { "parts": ["afternoon"], "days": ["fri"], "chance": 0.8, "at": [{ "to": "diner" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.5, "at": [{ "to": "community_centre" }] },
+        { "parts": ["evening"], "at": [{ "to": "works", "weight": 1 }, { "to": "home_streets", "weight": 2 }] },
+        { "parts": ["late_night"], "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    // --- Out of office ------------------------------------------------------
+    {
+      "id": "routine.politician", "role": "politician",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "events": ["campaign"], "chance": 0.7,
+          "at": [{ "to": "home_streets", "weight": 2 }, { "to": "party_office", "weight": 1 }] },
+        { "parts": ["morning"], "at": [{ "to": "home_streets", "weight": 3 }, { "to": "market", "weight": 1 }, { "to": "diner", "weight": 1 }] },
+        { "parts": ["afternoon"], "at": [{ "to": "home_streets", "weight": 2 }, { "to": "party_office", "weight": 1 }, { "to": "diner", "weight": 1 }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.4, "at": [{ "to": "community_centre" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    // --- Occupations --------------------------------------------------------
+    {
+      "id": "routine.journalist", "occupation": "occupation.journalist",
+      "rules": [
+        // In the chamber's press seats when there is a vote.
+        { "parts": ["morning", "afternoon"], "events": ["vote"], "chance": 0.8, "at": [{ "to": "legislature" }] },
+        { "parts": ["morning"], "at": [{ "to": "works" }] },
+        { "parts": ["afternoon"], "at": [{ "to": "works", "weight": 3 }, { "to": "town_hall", "weight": 1 }, { "to": "diner", "weight": 1 }] },
+        { "parts": ["evening"], "chance": 0.5, "at": [{ "to": "works", "weight": 1 }, { "to": "diner", "weight": 1 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.editor", "occupation": "occupation.editor",
+      "rules": [
+        { "parts": ["afternoon"], "events": ["vote"], "chance": 0.3, "at": [{ "to": "legislature" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.6, "at": [{ "to": "works" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.shopkeeper", "occupation": "occupation.shopkeeper",
+      "rules": [
+        // At the community centre on meeting nights.
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.8, "at": [{ "to": "community_centre" }] },
+        // The stall is shut on Sundays.
+        { "parts": ["morning", "afternoon"], "days": ["sun"], "at": [{ "to": "home_streets", "weight": 2 }, { "to": "park", "weight": 1 }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.3, "at": [{ "to": "diner" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.diner_owner", "occupation": "occupation.diner_owner",
+      "rules": [
+        // The diner keeps late hours.
+        { "parts": ["morning", "afternoon", "evening", "late_night"], "chance": 0.9, "at": [{ "to": "works" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.union_steward", "occupation": "occupation.union_steward",
+      "rules": [
+        { "parts": ["afternoon"], "events": ["vote"], "chance": 0.3, "at": [{ "to": "legislature" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works", "weight": 4 }, { "to": "diner", "weight": 1 }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.5, "at": [{ "to": "community_centre" }] },
+        { "parts": ["evening"], "at": [{ "to": "works", "weight": 1 }, { "to": "diner", "weight": 1 }, { "to": "home_streets", "weight": 2 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.business_leader", "occupation": "occupation.business_leader",
+      "rules": [
+        { "parts": ["morning"], "at": [{ "to": "works" }] },
+        { "parts": ["afternoon"], "at": [{ "to": "works", "weight": 2 }, { "to": "town_hall", "weight": 1 }, { "to": "diner", "weight": 1 }] },
+        { "parts": ["evening"], "chance": 0.4, "at": [{ "to": "hotel", "weight": 1 }, { "to": "diner", "weight": 1 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.party_chair", "occupation": "occupation.party_chair",
+      "rules": [
+        { "parts": ["morning", "afternoon", "evening"], "events": ["campaign"], "at": [{ "to": "works" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works", "weight": 3 }, { "to": "diner", "weight": 1 }] },
+        { "parts": ["evening"], "chance": 0.4, "at": [{ "to": "diner" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.plant_manager", "occupation": "occupation.plant_manager",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.25, "at": [{ "to": "hotel", "weight": 1 }, { "to": "diner", "weight": 1 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.farmer", "occupation": "occupation.farmer",
+      "rules": [
+        // Market day.
+        { "parts": ["morning"], "days": ["sat"], "at": [{ "to": "market" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "chance": 0.3, "at": [{ "to": "diner" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.organiser", "occupation": "occupation.organiser",
+      "rules": [
+        { "parts": ["evening"], "events": ["meeting_night"], "at": [{ "to": "works" }] },
+        { "parts": ["morning"], "at": [{ "to": "works", "weight": 2 }, { "to": "home_streets", "weight": 1 }] },
+        { "parts": ["afternoon"], "at": [{ "to": "works", "weight": 3 }, { "to": "market", "weight": 1 }] },
+        { "parts": ["evening"], "at": [{ "to": "works", "weight": 1 }, { "to": "home_streets", "weight": 1 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.clergy", "occupation": "occupation.clergy",
+      "rules": [
+        { "parts": ["morning"], "days": ["sun"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "at": [{ "to": "works" }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works", "weight": 2 }, { "to": "home_streets", "weight": 1 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.teacher", "occupation": "occupation.teacher",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "days": ["sat", "sun"], "at": [{ "to": "home_streets", "weight": 2 }, { "to": "park", "weight": 1 }, { "to": "market", "weight": 1 }] },
+        // School holidays.
+        { "parts": ["morning", "afternoon"], "seasons": ["summer"], "chance": 0.6, "at": [{ "to": "home_streets", "weight": 2 }, { "to": "park", "weight": 1 }] },
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.3, "at": [{ "to": "community_centre" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.nurse", "occupation": "occupation.nurse",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works" }] },
+        // Some nights on shift.
+        { "parts": ["evening", "late_night"], "chance": 0.3, "at": [{ "to": "works" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      // Met as passers-by: `works` is where they were met.
+      "id": "routine.resident", "occupation": "occupation.resident",
+      "rules": [
+        { "parts": ["morning"], "at": [{ "to": "home_streets", "weight": 2 }, { "to": "works", "weight": 1 }, { "to": "market", "weight": 1 }] },
+        { "parts": ["afternoon"], "at": [{ "to": "works", "weight": 2 }, { "to": "park", "weight": 1 }, { "to": "diner", "weight": 1 }, { "to": "home_streets", "weight": 1 }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.3, "at": [{ "to": "community_centre" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    {
+      "id": "routine.retiree", "occupation": "occupation.retiree",
+      "rules": [
+        { "parts": ["morning"], "at": [{ "to": "park", "weight": 2 }, { "to": "works", "weight": 1 }, { "to": "home_streets", "weight": 1 }] },
+        { "parts": ["afternoon"], "at": [{ "to": "diner", "weight": 2 }, { "to": "works", "weight": 1 }, { "to": "home_streets", "weight": 1 }] },
+        { "parts": ["evening"], "events": ["meeting_night"], "chance": 0.4, "at": [{ "to": "community_centre" }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+    // --- Everyone else ------------------------------------------------------
+    {
+      "id": "routine.anyone", "role": "anyone",
+      "rules": [
+        { "parts": ["morning", "afternoon"], "at": [{ "to": "works", "weight": 3 }, { "to": "home_streets", "weight": 1 }] },
+        { "at": [{ "to": "home_streets" }] },
+      ],
+    },
+  ],
+}

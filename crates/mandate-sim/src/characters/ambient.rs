@@ -1,7 +1,8 @@
 //! Ambient people (DEC-018): passers-by generated on demand from a place's
 //! cohorts — a pure function of (seed, place, period, slot) and the current
 //! state — and never stored. Meeting one promotes them to a Named character.
-//! Also: who can be found at a place (its Named regulars and staff).
+//! Also: who can be found at a place now (`stored_at`, by their daily
+//! routines) and who its regulars are (`regulars_at`).
 
 use super::{CharacterId, KEY_AMBIENT, named_character, rng};
 use crate::places::Location;
@@ -93,10 +94,23 @@ pub fn ambient_at(
         .collect()
 }
 
-/// Stored characters found at a location: politicians at their chamber or
-/// town hall, Named people at their workplace, and people met on a
-/// neighbourhood's streets.
-pub fn stored_at(pol: &PoliticsState, state: &State, loc: Location) -> Vec<CharacterId> {
+/// Stored characters at a location now: where their daily routines put
+/// them this turn, at the player's part of the day (`routines`, DEC-031).
+pub fn stored_at(state: &State, content: &ContentBundle, loc: Location) -> Vec<CharacterId> {
+    super::routines::present(
+        state,
+        content,
+        &super::routines::Now::of(state, content),
+        loc,
+    )
+}
+
+/// The regulars of a location, whatever the time: officials whose post
+/// works at the place, the Named people whose own place it is, and, on a
+/// neighbourhood's streets, the people without a place who live there. This
+/// is who a place is known for (first-visit introductions, grants); who is
+/// there now follows their routines ([`stored_at`]).
+pub fn regulars_at(pol: &PoliticsState, state: &State, loc: Location) -> Vec<CharacterId> {
     let mut out = Vec::new();
     match loc {
         Location::Home => {}

@@ -2630,6 +2630,16 @@
         }
       ]
     },
+    "DayPart": {
+      "description": "A part of the representative day (DEC-013): the three standard slots and\nthe late-night one. The engine reads it from the player's progress\nthrough the turn (`characters::routines::day_part`).",
+      "enum": [
+        "morning",
+        "afternoon",
+        "evening",
+        "late_night"
+      ],
+      "type": "string"
+    },
     "DecisionRule": {
       "oneOf": [
         {
@@ -8430,6 +8440,192 @@
       ],
       "type": "object"
     },
+    "RoutineDay": {
+      "description": "A day of the week, as content writes it.",
+      "enum": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "type": "string"
+    },
+    "RoutineDef": {
+      "additionalProperties": false,
+      "description": "A routine: whom it is for, and its rules in order. Exactly one of\n`post`, `occupation` and `role`.",
+      "properties": {
+        "id": {
+          "description": "Content id, `routine.<name>`.",
+          "type": "string"
+        },
+        "occupation": {
+          "description": "An occupation id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "post": {
+          "description": "A post's role word from the constitution (a body's `member_key`, an\noffice's id).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoutineRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A special role. The broker's and the rival's routines come before\ntheir post's or occupation's; `politician` and `anyone` after."
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/RoutineRule"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "rules"
+      ],
+      "type": "object"
+    },
+    "RoutineEvent": {
+      "description": "Something going on in the person's jurisdiction this turn.",
+      "oneOf": [
+        {
+          "const": "session",
+          "description": "The jurisdiction's legislature sits: a law-making stage (a vote, a\nsignature) falls in this turn, or it is its regular sitting day (one\nweekday per jurisdiction, keyed by the world seed).",
+          "type": "string"
+        },
+        {
+          "const": "vote",
+          "description": "A vote stage of the jurisdiction falls in this turn.",
+          "type": "string"
+        },
+        {
+          "const": "campaign",
+          "description": "A race for one of the jurisdiction's posts is running.",
+          "type": "string"
+        },
+        {
+          "const": "meeting_night",
+          "description": "The town's community meeting night (one weekday per town, keyed by\nthe world seed).",
+          "type": "string"
+        }
+      ]
+    },
+    "RoutineRole": {
+      "description": "Special roles a routine can be for.",
+      "oneOf": [
+        {
+          "const": "broker",
+          "description": "The town's power broker (DEC-077 §1).",
+          "type": "string"
+        },
+        {
+          "const": "rival",
+          "description": "The named rival of the town's leading figure.",
+          "type": "string"
+        },
+        {
+          "const": "politician",
+          "description": "A politician holding no post (a challenger, a former official).",
+          "type": "string"
+        },
+        {
+          "const": "anyone",
+          "description": "Any stored character (the last routine tried).",
+          "type": "string"
+        }
+      ]
+    },
+    "RoutineRule": {
+      "additionalProperties": false,
+      "description": "One rule of a routine: when it applies and where it sends them.",
+      "properties": {
+        "at": {
+          "description": "Where they go, by weight (spots their town lacks are skipped; a rule\nwith none left does not apply).",
+          "items": {
+            "$ref": "#/$defs/RoutineSpot"
+          },
+          "type": "array"
+        },
+        "chance": {
+          "default": 1.0,
+          "description": "Chance (0..1] the rule applies on a given day and part, keyed by the\nperson, the day and the part.",
+          "format": "double",
+          "type": "number"
+        },
+        "days": {
+          "description": "Weekdays of the turn's representative day (none listed: all).",
+          "items": {
+            "$ref": "#/$defs/RoutineDay"
+          },
+          "type": "array"
+        },
+        "events": {
+          "description": "Events that must all be going on.",
+          "items": {
+            "$ref": "#/$defs/RoutineEvent"
+          },
+          "type": "array"
+        },
+        "parts": {
+          "description": "Day parts it applies in (none listed: all).",
+          "items": {
+            "$ref": "#/$defs/DayPart"
+          },
+          "type": "array"
+        },
+        "seasons": {
+          "description": "Seasons (none listed: all).",
+          "items": {
+            "$ref": "#/$defs/Season"
+          },
+          "type": "array"
+        },
+        "unless": {
+          "description": "Events none of which may be going on.",
+          "items": {
+            "$ref": "#/$defs/RoutineEvent"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "at"
+      ],
+      "type": "object"
+    },
+    "RoutineSpot": {
+      "additionalProperties": false,
+      "description": "Where a rule sends someone, with a weight.",
+      "properties": {
+        "to": {
+          "description": "A location word or a place kind (`places.jsonc` `key`):\n- `works`: their workplace (an official: a place of the kind their\n  post works at, in its town; anyone else: their own place);\n- `home_streets`: their home neighbourhood's streets;\n- `ward_streets`: the streets of a neighbourhood of the district\n  their seat represents (their home streets without one);\n- `legislature`: where their jurisdiction's legislature works;\n- a place kind (`diner`, `market`, …): their own one of that kind in\n  their town (the one in their neighbourhood, else one kept for them).",
+          "type": "string"
+        },
+        "weight": {
+          "default": 1.0,
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "to"
+      ],
+      "type": "object"
+    },
     "RumourParams": {
       "additionalProperties": false,
       "description": "Unverified claims (DEC-034 rumours, kept small).",
@@ -8795,6 +8991,16 @@
           "type": "string"
         }
       ]
+    },
+    "Season": {
+      "description": "A season (months 12–2 are winter, 3–5 spring, 6–8 summer, 9–11 autumn).",
+      "enum": [
+        "winter",
+        "spring",
+        "summer",
+        "autumn"
+      ],
+      "type": "string"
     },
     "SectorClass": {
       "enum": [
@@ -12612,6 +12818,27 @@
         },
         "kind": {
           "const": "map_layers",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Daily routines: where people are through the day (DEC-031).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/RoutineDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "routines",
           "type": "string"
         }
       },

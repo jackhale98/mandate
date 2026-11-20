@@ -242,7 +242,7 @@ fn abouts(e: &Engine, c: &ContentBundle, s: CharacterId, kinds: &[AboutKind]) ->
     for k in kinds {
         match k {
             AboutKind::Person => {
-                if let Some(p) = talk::present(st).into_iter().find(|p| *p != s) {
+                if let Some(p) = talk::present(st, e.content()).into_iter().find(|p| *p != s) {
                     v.push(AboutRef::Person { person: p });
                 }
             }
@@ -365,7 +365,7 @@ fn every_picked_line_renders() {
                     characters::ambient::promote(st, &c, loc, slot);
                 });
             }
-            let people = talk::present(e.state());
+            let people = talk::present(e.state(), e.content());
             for s in people {
                 let r = role(&e, s);
                 // Each person remembers something of the player, and some
@@ -625,6 +625,15 @@ fn sample_exchanges() {
             }
         }
         // A guarded councillor (cautious): friendly, but one level more discreet.
+        // On a day the council sits, where the engine says its members are.
+        let at = mandate_sim::world::Jurisdiction::town(town(&e));
+        for _ in 0..8 {
+            let now = mandate_sim::characters::routines::Now::of(e.state(), e.content());
+            if now.session(e.state().meta.seed, at) {
+                break;
+            }
+            e.apply(Command::EndTurn).unwrap();
+        }
         let chamber = e
             .state()
             .world
@@ -635,7 +644,7 @@ fn sample_exchanges() {
             .unwrap();
         go(&mut e, chamber);
         let rival = e.state().politics.characters.towns[town(&e).index()].rival;
-        let s = talk::present(e.state())
+        let s = talk::present(e.state(), e.content())
             .into_iter()
             .find(|p| Some(*p) != rival && role(&e, *p) == "councillor")
             .unwrap();
@@ -683,7 +692,7 @@ fn ctx_for<'a>(
 fn someone(e: &mut Engine) -> CharacterId {
     for loc in spots(e) {
         go(e, loc);
-        if let Some(s) = talk::present(e.state()).first() {
+        if let Some(s) = talk::present(e.state(), e.content()).first() {
             return *s;
         }
     }

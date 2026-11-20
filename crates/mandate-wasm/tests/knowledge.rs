@@ -249,7 +249,7 @@ fn people_by_level() {
         .iter()
         .filter(|p| p.municipality == town(&e))
         .find_map(|p| {
-            let at = mandate_sim::characters::ambient::stored_at(
+            let at = mandate_sim::characters::ambient::regulars_at(
                 &st.politics,
                 st,
                 Location::Place { place: p.id },

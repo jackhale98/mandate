@@ -21,10 +21,11 @@
 use crate::office::{ConcernView, SupportView, coarse};
 use crate::places::{LocationView, RouteView, location_view};
 use crate::views::DateView;
+use mandate_sim::characters::routines::DayPart;
 use mandate_sim::characters::{self, CharacterId};
 use mandate_sim::places::{self, Location};
 use mandate_sim::player::knowledge::{
-    self as k, Lead, LeadTarget, Learned, Level, PolicyRef, Reading, Source, Subject,
+    self as k, Lead, LeadTarget, Learned, Level, PolicyRef, Reading, Sighting, Source, Subject,
 };
 use mandate_sim::world::{MunicipalityId, NeighborhoodId, PlaceId};
 use mandate_sim::{Engine, State};
@@ -84,6 +85,26 @@ pub struct LeadView {
     /// Auto-routing there (DEC-079 rule 2): action `go`.
     pub route: Option<RouteView>,
     pub since: DateView,
+}
+
+/// Where the player saw someone (S1, DEC-031 routines): the last sighting,
+/// or a habit (the same place and part of the day on two turns).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SeenView {
+    /// Fluent key: `seen-last` ("Last seen at …") or `seen-usually`
+    /// ("Usually at … in the afternoon").
+    pub key: String,
+    /// `place` (the place's name, or the neighbourhood's for its streets),
+    /// `kind_key` (`place-<kind>`) and `part_key`.
+    pub args: BTreeMap<String, String>,
+    pub at: LocationView,
+    /// `morning` | `afternoon` | `evening` | `late_night`.
+    pub part: String,
+    /// Fluent key of the part of the day (`day-part-<part>`).
+    pub part_key: String,
+    /// The turn it was (its first day).
+    pub on: DateView,
 }
 
 /// What the player knows of a gated value: its level, the date of the
@@ -316,7 +337,8 @@ pub fn place_listed(gate: &Gate<'_>, st: &State, place: PlaceId) -> bool {
 // --- Leads ----------------------------------------------------------------------------
 
 /// Where a lead's target is in town, if it is somewhere.
-fn target_location(st: &State, to: &LeadTarget) -> Option<Location> {
+fn target_location(engine: &Engine, to: &LeadTarget) -> Option<Location> {
+    let st = engine.state();
     match to {
         LeadTarget::Place { place } => Some(Location::Place { place: *place }),
         LeadTarget::PlaceKind { town, kind } => st
@@ -325,9 +347,10 @@ fn target_location(st: &State, to: &LeadTarget) -> Option<Location> {
             .iter()
             .find(|p| p.municipality == *town && p.kind.key() == kind && p.is_open())
             .map(|p| Location::Place { place: p.id }),
-        LeadTarget::Person { person } => characters::profile(&st.politics, &st.world, *person)
-            .and_then(|p| p.place)
-            .map(|place| Location::Place { place }),
+        // Where their daily routine has them now (DEC-031).
+        LeadTarget::Person { person } => {
+            characters::routines::whereabouts(st, engine.content(), *person)
+        }
         LeadTarget::Streets { hood } => Some(Location::Street {
             neighborhood: *hood,
         }),
@@ -394,7 +417,8 @@ pub(crate) fn lead_view(gate: &Gate<'_>, l: &Lead) -> LeadView {
             args.insert("to_hood".into(), hood_name(st, *hood));
         }
     }
-    let loc = target_location(st, &l.to).filter(|loc| places::validate_move(st, *loc).is_ok());
+    let loc =
+        target_location(gate.engine, &l.to).filter(|loc| places::validate_move(st, *loc).is_ok());
     let here = st.player.as_ref().map(|p| p.location);
     LeadView {
         subject: SubjectDto::of(&l.subject),
@@ -411,6 +435,99 @@ pub(crate) fn lead_view(gate: &Gate<'_>, l: &Lead) -> LeadView {
         }),
         since: DateView::of(l.since),
     }
+}
+
+// --- Sightings (S1) ---------------------------------------------------------------------
+
+fn part_key(p: DayPart) -> String {
+    format!("day-part-{}", p.key().replace('_', "-"))
+}
+
+fn seen_view(st: &State, key: &str, s: Sighting) -> SeenView {
+    let mut args = BTreeMap::new();
+    let (place, kind) = match s.at {
+        Location::Place { place } => (
+            place_name(st, place),
+            st.world
+                .places
+                .get(place.index())
+                .map(|p| p.kind.key())
+                .unwrap_or("home"),
+        ),
+        Location::Street { neighborhood } => (hood_name(st, neighborhood), "streets"),
+        Location::Home => (String::new(), "home"),
+    };
+    args.insert("place".into(), place);
+    args.insert("kind_key".into(), format!("place-{kind}"));
+    args.insert("part_key".into(), part_key(s.part));
+    SeenView {
+        key: key.into(),
+        args,
+        at: location_view(st, s.at),
+        part: s.part.key().into(),
+        part_key: part_key(s.part),
+        on: DateView::of(s.on),
+    }
+}
+
+/// Where the player last saw someone.
+pub fn last_seen(engine: &Engine, person: CharacterId) -> Option<SeenView> {
+    let st = engine.state();
+    let s = st.player.as_ref()?.knowledge.last_seen(person)?;
+    Some(seen_view(st, "seen-last", s))
+}
+
+/// Where someone usually is, as far as the player has seen.
+pub fn usually_seen(engine: &Engine, person: CharacterId) -> Option<SeenView> {
+    let st = engine.state();
+    let s = st.player.as_ref()?.knowledge.usually(person)?;
+    Some(seen_view(st, "seen-usually", s))
+}
+
+/// A lead from a habit the player has seen: "Usually at the diner around
+/// lunch" (`lead-usually-at`), routed there. Derived from the sightings, not
+/// stored; following it gives no level by itself.
+pub(crate) fn usual_lead(gate: &Gate<'_>, person: CharacterId) -> Option<LeadView> {
+    let st = gate.st();
+    let pl = st.player.as_ref()?;
+    let s = pl.knowledge.usually(person)?;
+    let subject = Subject::Person { person };
+    let have = gate.level(&subject);
+    let mut args = subject_args(gate, &subject, have.min(Level::Heard));
+    match s.at {
+        Location::Place { place } => {
+            args.insert("to_place".into(), place_name(st, place));
+            if let Some(p) = st.world.places.get(place.index()) {
+                args.insert("to_kind_key".into(), format!("place-{}", p.kind.key()));
+            }
+        }
+        Location::Street { neighborhood } => {
+            args.insert("to_hood".into(), hood_name(st, neighborhood));
+            args.insert("to_kind_key".into(), "place-streets".into());
+        }
+        Location::Home => return None,
+    }
+    args.insert("part_key".into(), part_key(s.part));
+    let key = match s.at {
+        Location::Street { .. } => "lead-usually-on-streets",
+        _ => "lead-usually-at",
+    };
+    let ok = places::validate_move(st, s.at).is_ok();
+    Some(LeadView {
+        subject: SubjectDto::of(&subject),
+        key: key.into(),
+        args,
+        level: have.into(),
+        to: ok.then(|| location_view(st, s.at)),
+        route: ok.then(|| RouteView {
+            action: "go".into(),
+            late_night: false,
+            neighborhood: places::hood_of(st, s.at).map(|h| h.0),
+            to: Some(location_view(st, s.at)),
+            here: pl.location == s.at,
+        }),
+        since: DateView::of(s.on),
+    })
 }
 
 // --- The notebook (§1.8) --------------------------------------------------------------
@@ -509,8 +626,13 @@ pub struct NotebookEntryView {
     /// with is never new.
     pub new_this_turn: bool,
     /// How to learn more, below `detailed`: an open lead, or where such
-    /// things are usually learned (K5).
+    /// things are usually learned (K5). For a person seen at the same place
+    /// and time twice: where they usually are (`lead-usually-at`, S1).
     pub lead: Option<LeadView>,
+    /// A person: where the player last saw them (S1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub seen: Option<SeenView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -941,7 +1063,15 @@ pub fn notebook_view(engine: &Engine) -> Option<NotebookView> {
                 as_of: e.reading.as_ref().map(|r| DateView::of(r.on)),
                 stale,
                 new_this_turn: is_new(engine, e),
-                lead: next_lead(&gate, s, e.level),
+                lead: match s {
+                    Subject::Person { person } => usual_lead(&gate, *person),
+                    _ => None,
+                }
+                .or_else(|| next_lead(&gate, s, e.level)),
+                seen: match s {
+                    Subject::Person { person } => last_seen(engine, *person),
+                    _ => None,
+                },
             });
     }
     Some(NotebookView {

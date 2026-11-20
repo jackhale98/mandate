@@ -91,21 +91,26 @@ fn bad(msg: &str) -> EngineError {
     EngineError::InvalidCommand(msg.into())
 }
 
-/// The stored people the player can talk to where they are (not themselves).
-pub fn present(state: &State) -> Vec<CharacterId> {
+/// The stored people the player can talk to where they are (not
+/// themselves): whoever's daily routine has them here now (DEC-031).
+pub fn present(state: &State, content: &ContentBundle) -> Vec<CharacterId> {
     let Some(pl) = state.player.as_ref() else {
         return Vec::new();
     };
     let me = characters::player_character(state);
-    characters::ambient::stored_at(&state.politics, state, pl.location)
+    characters::ambient::stored_at(state, content, pl.location)
         .into_iter()
         .filter(|c| Some(*c) != me)
         .collect()
 }
 
 /// Whether the player can talk to this person now (they are here).
-pub fn can_talk(state: &State, person: CharacterId) -> bool {
-    present(state).contains(&person)
+pub fn can_talk(state: &State, content: &ContentBundle, person: CharacterId) -> bool {
+    let Some(pl) = state.player.as_ref() else {
+        return false;
+    };
+    Some(person) != characters::player_character(state)
+        && characters::routines::whereabouts(state, content, person) == Some(pl.location)
 }
 
 /// Whether talking late at night is possible here (where lobbying late is).
@@ -414,7 +419,7 @@ fn prepare(
     let topic = content
         .talk_topic(topic_id)
         .ok_or_else(|| bad("unknown topic"))?;
-    if speaker == me || !can_talk(state, speaker) {
+    if speaker == me || !can_talk(state, content, speaker) {
         return Err(bad("they are not here to talk to"));
     }
     if late_night && !late_ok(state, content) {
@@ -678,6 +683,8 @@ fn talk_to(
     let date = state.calendar.date;
     let me = p.me;
     let before = characters::opinion(&state.politics, speaker, me);
+    // Who is here as the conversation starts is noted (S1: last seen).
+    knowledge::note_sightings(state, content);
     pay(state, content, late_night);
     // What it teaches and where it points: the player's ledger.
     let mut learned = Vec::new();

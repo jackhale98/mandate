@@ -114,6 +114,9 @@ pub struct ContentBundle {
     /// client's room composer, validated, never read by the simulation.
     #[serde(default)]
     pub interiors: Vec<crate::interiors::InteriorRecipe>,
+    /// Daily routines (DEC-031), in load order.
+    #[serde(default)]
+    pub routines: Vec<crate::routines::RoutineDef>,
     /// Conversation topics (DEC-093), in load order.
     #[serde(default)]
     pub talk_topics: Vec<crate::conversation::TopicDef>,
@@ -323,6 +326,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut connectors: Vec<crate::layout::ConnectorDef> = Vec::new();
     let mut map_layers: Vec<crate::map_layers::MapLayerDef> = Vec::new();
     let mut interiors: Vec<crate::interiors::InteriorRecipe> = Vec::new();
+    let mut routines: Vec<crate::routines::RoutineDef> = Vec::new();
     let mut talk_topics: Vec<crate::conversation::TopicDef> = Vec::new();
     let mut talk_lines: Vec<crate::conversation::TalkLineDef> = Vec::new();
     let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
@@ -625,6 +629,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Routines { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        routines.push(x);
+                    }
+                }
+            }
             ContentFile::TalkTopics { items } => {
                 for x in items {
                     if claim(&x.id, &mut issues) {
@@ -757,6 +768,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         connectors,
         map_layers,
         interiors,
+        routines,
         talk_topics,
         talk_lines,
         talk_voices,

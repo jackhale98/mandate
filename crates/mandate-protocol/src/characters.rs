@@ -129,6 +129,14 @@ pub struct CharacterView {
     /// Favours they hold with others, in detail only.
     pub favours_with_others: Option<Vec<FavourWithView>>,
     pub knowledge: KnowledgeView,
+    /// Where the player last saw them, and where they usually are once seen
+    /// at the same place and time twice (S1, DEC-031 routines).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub last_seen: Option<crate::knowledge::SeenView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub usually: Option<crate::knowledge::SeenView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -273,7 +281,7 @@ pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
         tier: tier_key(characters::tier_of(&st.politics, engine.content(), id)).into(),
         level: Gate::of(engine).person(id).into(),
         rumoured: false,
-        can_talk: mandate_sim::talk::can_talk(st, id),
+        can_talk: mandate_sim::talk::can_talk(st, engine.content(), id),
     })
 }
 
@@ -499,7 +507,15 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
         }) && town.is_some_and(|t| t.broker == Some(id)),
         goals,
         favours_with_others,
-        knowledge: gate.person_view(id),
+        knowledge: {
+            let mut k = gate.person_view(id);
+            if k.lead.is_none() {
+                k.lead = crate::knowledge::usual_lead(&gate, id);
+            }
+            k
+        },
+        last_seen: crate::knowledge::last_seen(engine, id),
+        usually: crate::knowledge::usually_seen(engine, id),
     })
 }
 
@@ -513,19 +529,19 @@ pub fn people_at(engine: &Engine, loc: Location) -> Vec<PersonRefView> {
     let max = content.characters.ambient.max_listed as usize;
     // A passer-by can be talked to (after meeting them) where the player is.
     let here = st.player.as_ref().is_some_and(|p| p.location == loc);
-    let mut out: Vec<PersonRefView> = ambient::stored_at(&st.politics, st, loc)
+    let mut out: Vec<PersonRefView> = ambient::stored_at(st, content, loc)
         .into_iter()
         .filter_map(|id| person_ref_known(engine, &gate, id))
         .collect();
-    // Council members are all in the chamber; elsewhere the list is short.
-    let chamber = matches!(loc, Location::Place { place } if st.world.places.get(place.index()).is_some_and(|p| p.kind == mandate_sim::world::PlaceKind::CouncilChamber));
-    if !chamber {
-        out.truncate(max);
+    // Everyone whose routine has them inside a place is listed (the room
+    // shows them all, DEC-031); a street's list is short, keeping room for
+    // the passers-by there (a few a week), who are always listed.
+    let passers = ambient::ambient_at(st, content, loc);
+    let room = matches!(loc, Location::Place { .. });
+    if !room {
+        out.truncate(max.saturating_sub(passers.len()));
     }
-    for (slot, c) in ambient::ambient_at(st, content, loc) {
-        if out.len() >= max.max(if chamber { out.len() + 1 } else { 0 }) {
-            break;
-        }
+    for (slot, c) in passers {
         let Some(n) = c.named.as_deref() else {
             continue;
         };

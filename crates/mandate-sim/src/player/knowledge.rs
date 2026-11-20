@@ -289,7 +289,27 @@ pub struct KnowledgeLedger {
     /// Lab only: every subject reads as `detailed` (baselines). Never set by the UI.
     #[serde(default)]
     pub lab_omniscient: bool,
+    /// Where the player has seen people (S1, DEC-031 routines): the last
+    /// few sightings of each, oldest first. Left out of the save while empty.
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        with = "mandate_core::serde_util::map_as_pairs"
+    )]
+    pub seen: BTreeMap<CharacterId, Vec<Sighting>>,
 }
+
+/// The player saw someone somewhere: the turn (its first day), the part of
+/// the day, and the location.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Sighting {
+    pub on: SimDate,
+    pub part: crate::characters::routines::DayPart,
+    pub at: Location,
+}
+
+/// Sightings kept per person (the newest).
+pub const SIGHTINGS_KEPT: usize = 4;
 
 impl KnowledgeLedger {
     /// The level recorded for a subject (`Unknown` if none). Views and bots
@@ -384,6 +404,38 @@ impl KnowledgeLedger {
         self.visited.insert(place)
     }
 
+    /// Record seeing someone (once per turn, part and location). Returns
+    /// whether it was new.
+    pub fn saw(&mut self, person: CharacterId, s: Sighting) -> bool {
+        let v = self.seen.entry(person).or_default();
+        if v.contains(&s) {
+            return false;
+        }
+        v.push(s);
+        let over = v.len().saturating_sub(SIGHTINGS_KEPT);
+        v.drain(..over);
+        true
+    }
+
+    /// Where the player last saw someone.
+    pub fn last_seen(&self, person: CharacterId) -> Option<Sighting> {
+        self.seen.get(&person).and_then(|v| v.last()).copied()
+    }
+
+    /// Where someone usually is, as far as the player has seen: a place and
+    /// part of the day they were seen at on two different turns (the most
+    /// recent such habit).
+    pub fn usually(&self, person: CharacterId) -> Option<Sighting> {
+        let v = self.seen.get(&person)?;
+        v.iter()
+            .rev()
+            .find(|s| {
+                v.iter()
+                    .any(|o| o.at == s.at && o.part == s.part && o.on != s.on)
+            })
+            .copied()
+    }
+
     fn apply(&mut self, grants: &[Grant], on: SimDate, src: &Source) {
         for g in grants {
             self.learn(g.subject.clone(), g.level, on, src.clone());
@@ -447,8 +499,9 @@ pub fn resolve(
         .here
         .and_then(|p| state.world.places.get(p.index()))
         .filter(|p| p.municipality == town);
+    // Who a place is known for (its regulars), whatever the time of day.
     let people_at = |place: PlaceId| -> Vec<CharacterId> {
-        crate::characters::ambient::stored_at(&state.politics, state, Location::Place { place })
+        crate::characters::ambient::regulars_at(&state.politics, state, Location::Place { place })
     };
     let mut out = Vec::new();
     for g in defs {
@@ -865,6 +918,30 @@ pub fn council_people(state: &State) -> Vec<CharacterId> {
 /// `visit_intro`), once. Arrival teaches lightly (the owner, 2026-11-19):
 /// introductions and names; anything deeper needs an action or a person.
 /// Returns how many subjects changed.
+/// The player notes who is where they are now (on arriving, after a
+/// conversation): a sighting of each stored character present. Returns how
+/// many were new.
+pub fn note_sightings(state: &mut State, content: &ContentBundle) -> usize {
+    let Some(at) = state.player.as_ref().map(|p| p.location) else {
+        return 0;
+    };
+    let now = crate::characters::routines::Now::of(state, content);
+    let me = crate::characters::player_character(state);
+    let here: Vec<CharacterId> = crate::characters::routines::present(state, content, &now, at)
+        .into_iter()
+        .filter(|c| Some(*c) != me)
+        .collect();
+    let s = Sighting {
+        on: now.date,
+        part: now.part,
+        at,
+    };
+    let Some(pl) = state.player.as_mut() else {
+        return 0;
+    };
+    here.into_iter().filter(|c| pl.knowledge.saw(*c, s)).count()
+}
+
 pub fn arrive_at(state: &mut State, content: &ContentBundle, place: PlaceId) -> usize {
     let first = match state.player.as_mut() {
         Some(pl) => pl.knowledge.visit(place),
