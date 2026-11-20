@@ -3,8 +3,10 @@
 // beside the town on wide screens, and which map the map overlay showed. Never game state; storage may be blocked
 // (private windows), so every read and write is guarded and falls back.
 
-export type PocketTab = "today" | "town" | "places" | "notebook" | "people";
-export const POCKET_TABS: readonly PocketTab[] = ["today", "town", "places", "notebook", "people"];
+// People are in the Notebook (its People section, DEC-088 "it later joins
+// the notebook"): there is no People tab of its own.
+export type PocketTab = "today" | "town" | "places" | "notebook";
+export const POCKET_TABS: readonly PocketTab[] = ["today", "town", "places", "notebook"];
 
 const TAB_KEY = "mandate.pocketTab";
 const DOCK_KEY = "mandate.pocketDocked";
@@ -29,10 +31,13 @@ function write(key: string, value: string) {
   }
 }
 
-/** The pocket tab chosen last on this device (Today at first). */
+/** Tabs that are gone, and where their content went. */
+const MOVED: Readonly<Record<string, PocketTab>> = { people: "notebook" };
+
+/** The pocket tab chosen last on this device (Today at first; the old People tab: the Notebook). */
 export function readPocketTab(): PocketTab {
   const v = read(TAB_KEY);
-  return POCKET_TABS.find((t) => t === v) ?? "today";
+  return POCKET_TABS.find((t) => t === v) ?? (v !== null ? MOVED[v] : undefined) ?? "today";
 }
 
 export function writePocketTab(tab: PocketTab) {

@@ -728,7 +728,7 @@ pub fn condition_args(c: &SituationCondition) -> BTreeSet<String> {
     let set = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect();
     match c {
         U::Crisis { .. } => set(&["crisis_key"]),
-        U::Remembers { .. } => set(&["memory_key", "subject_key", "year"]),
+        U::Remembers { .. } => set(&["memory_key", "subject_key", "subject_kind", "year"]),
         U::Favour { .. } => set(&["n"]),
         U::IsBroker { is: true, .. } => set(&["broker", "broker_place", "stake_key"]),
         U::IsRival { is: true, .. } => set(&["rival"]),
@@ -741,6 +741,34 @@ pub fn condition_args(c: &SituationCondition) -> BTreeSet<String> {
         }
         _ => BTreeSet::new(),
     }
+}
+
+/// Whether a line's conditions read the conversation's subject (the
+/// `about` slot, a subject `of: about`, an `about` condition that holds for
+/// a subject): a line that answers what was asked about, not the topic in
+/// general. Inside `any`, every alternative must read it.
+pub fn reads_about(cs: &[SituationCondition]) -> bool {
+    fn one(c: &SituationCondition) -> bool {
+        use SituationCondition as U;
+        let subject = |s: &SubjectRef| match s {
+            SubjectRef::HoodConcerns { of } => *of == HoodOf::About,
+            SubjectRef::Person { slot } => slot == "about",
+            SubjectRef::PolicySupport { of } => of == "about",
+            _ => false,
+        };
+        match c {
+            U::About { is, .. } => *is,
+            U::Tells { subject: s, .. } | U::PlayerKnows { subject: s, .. } => subject(s),
+            U::Occupation { slot, .. }
+            | U::Trait { slot, .. }
+            | U::Personality { slot, .. }
+            | U::IsRival { slot, is: true }
+            | U::IsBroker { slot, is: true } => slot == "about",
+            U::Any { of } => !of.is_empty() && of.iter().all(one),
+            _ => false,
+        }
+    }
+    cs.iter().any(one)
 }
 
 /// Every condition, depth first (inside `any` too).

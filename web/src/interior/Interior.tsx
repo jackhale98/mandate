@@ -115,7 +115,7 @@ export function Interior() {
     });
     return castRoom(room, recipe, cast, { fullStaff: minutes < EVENING }).map((pl) => {
       const e = byKey.get(pl.key);
-      return { ...pl, label: e?.label ?? null, variant: e ? lookVariant(e.key) : 100 + (hash(`${room.seed}:${pl.key}`) % 997) };
+      return { ...pl, label: e?.label ?? null, ...(e ? { marker: e.marker, tagLabel: e.tagLabel } : {}), variant: e ? lookVariant(e.key) : 100 + (hash(`${room.seed}:${pl.key}`) % 997) };
     });
   }, [room, recipe, v, tr, minutes]);
 

@@ -7,7 +7,7 @@ const tr = new Translator(
     "title-x = the bridge over { $hood }",
     "line-x = { $speaker } says { $concern } worries { $hood }.",
     "concern-rent = the rent",
-    "memory-backed-my-bill = you backed my bill in { $year }",
+    "scene-quote-backed-my-bill = you backed my bill in { $year }",
     "beat-x = { $memory }, { $player }.",
   ].join("\n"),
 );
@@ -26,7 +26,7 @@ const raw: RawItem[] = [
 describe("corpus rendering", () => {
   const items = renderAll(tr, raw);
 
-  it("renders as the game does: titles capitalised, `_key` arguments translated, memories quoted", () => {
+  it("renders as the game does: titles capitalised, `_key` arguments translated, memories quoted to your face", () => {
     expect(items[0]?.text).toBe("The bridge over Old Quay");
     expect(items[1]?.text).toBe("Ada Moss says the rent worries Old Quay.");
     expect(items.find((i) => i.kind === "scene")?.text).toBe("you backed my bill in 2030, Cleo.");

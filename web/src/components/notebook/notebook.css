@@ -16,7 +16,7 @@
 .nb-tab-name { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nb-tab-badge { position: absolute; top: 2px; left: calc(50% + 8px); padding: 0 5px; font-size: 0.66rem; line-height: 1.45; }
 
-/* Five pocket tabs (with the Notebook) in the 400 px side panel on wide
+/* The four pocket tabs in the 400 px side panel on wide
    screens: icon over label there too, as on phones (DEC-088). */
 @media (min-width: 481px) {
   .pocket .pocket-tabs { gap: 2px; padding: 0 4px; }

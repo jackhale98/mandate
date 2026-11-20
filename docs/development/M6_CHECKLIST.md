@@ -8,6 +8,22 @@ The working list for M6 (ROADMAP §2). M6 ends at the tester checkpoint: the own
 
 Status as of 2026-11-20.
 
+## Priority while tokens are tight (owner, 2026-11-20)
+
+Run 2–3 agents at a time, in this order:
+1. **U1:** one condition language. It unblocks E3, E6, F1 and E13.
+2. **E6–E8:** asks and promises, the goals layer.
+3. **Time skips, then Act 1 endings and Legacy:** Act 1 can be finished, and its length target met.
+4. **F1–F3:** policy families, engine and views.
+5. **R2,** then **V1**.
+
+On hold until then:
+- the content-pipeline pilot (E3, which needs U1 anyway);
+- the four-room art round;
+- tooling extras;
+- the draft of three openings;
+- the tutorial.
+
 ## Done
 - **Town:**
   - Layout v2 with the street rework, diagonals and street ends (DEC-090).

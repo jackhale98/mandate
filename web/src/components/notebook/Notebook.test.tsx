@@ -2,8 +2,10 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { PocketView } from "../../engine/protocol/PocketView";
 import { englishTranslator } from "../../i18n/englishLocale";
 import { useGame } from "../../state/gameStore";
-import { notebookFixture } from "./fixture";
+import type { TownPlacesView } from "../../engine/protocol/TownPlacesView";
+import { notebookFixture, officeFixture, seenAtDiner, sheetFixture, townCharacterFixture } from "./fixture";
 import { Notebook } from "./Notebook";
+import type { SheetLoader } from "./People";
 
 const pocket = (notebook_new: number) => ({ notebook_new }) as unknown as PocketView;
 
@@ -12,9 +14,14 @@ function setup(notebook_new = 0, fresh: string[] = []) {
   const loadNotebook = vi.fn(() => Promise.resolve());
   const leaveNotebook = vi.fn();
   const visit = vi.fn(() => Promise.resolve());
-  useGame.setState({ tr: englishTranslator(), busy: false, notebook: notebookFixture(), notebookFresh: fresh, pocket: pocket(notebook_new), seeNotebook, loadNotebook, leaveNotebook, visit });
-  return { seeNotebook, loadNotebook, leaveNotebook, visit };
+  const openTalk = vi.fn(() => Promise.resolve());
+  const openCharacter = vi.fn(() => Promise.resolve());
+  useGame.setState({ tr: englishTranslator(), busy: false, notebook: notebookFixture(), notebookFresh: fresh, pocket: pocket(notebook_new), office: null, town: null, seeNotebook, loadNotebook, leaveNotebook, visit, openTalk, openCharacter });
+  return { seeNotebook, loadNotebook, leaveNotebook, visit, openTalk, openCharacter };
 }
+
+/** Character sheets as the engine would send them (Vera usually at the diner; the mayor cool). */
+const sheets: SheetLoader = (ids) => Promise.resolve(new Map(ids.map((id) => [id, sheetFixture(id, id === 12 ? { usually: seenAtDiner } : id === 21 ? { opinion_band: "cool", trust_band: "low" } : {})])));
 
 describe("the notebook page", () => {
   it("is a tab list of sections; placeholders say what is not known, with the lead that would reveal it", () => {
@@ -65,10 +72,44 @@ describe("the notebook page", () => {
     render(<Notebook />);
     fireEvent.click(screen.getByRole("tab", { name: /People/ }));
     fireEvent.change(screen.getByTestId("notebook-search"), { target: { value: "vera" } });
-    expect(screen.getAllByTestId("notebook-entry")).toHaveLength(1);
+    expect(screen.getAllByTestId("notebook-person")).toHaveLength(1);
     fireEvent.click(screen.getByRole("tab", { name: /Worries/ }));
     expect(screen.getByRole("tabpanel").textContent).toContain("Nothing here matches “vera”.");
     expect(within(screen.getByTestId("notebook-elsewhere")).getByRole("button").textContent).toBe("People (1)");
+  });
+
+  it("People is the single place for people: the key figures pinned, then everyone else, each with Talk and Go to them", async () => {
+    const { openTalk, openCharacter } = setup();
+    useGame.setState({ office: officeFixture(), town: { character: townCharacterFixture() } as unknown as TownPlacesView });
+    render(<Notebook loadSheets={sheets} />);
+    fireEvent.click(screen.getByRole("tab", { name: /People/ }));
+    const pinned = within(screen.getByTestId("notebook-key-figures"));
+    expect(pinned.getByRole("heading", { name: "Key figures" })).toBeTruthy();
+    const cards = pinned.getAllByTestId("notebook-person");
+    // Who runs things, the rival, the executive, the members (the player left out).
+    expect(cards.map((c) => c.getAttribute("data-person"))).toEqual(["30", "31", "21", "12", "22"]);
+    expect(cards[0]?.textContent).toContain("Power broker");
+    expect(cards[0]?.textContent).toContain("(rumoured)");
+    expect(cards[1]?.textContent).toContain("Your rival · Councillor · Ward 1");
+    expect(cards[2]?.textContent).toContain("Mayor");
+    // How they stand with you, what you know and where you saw them (S1).
+    const vera = cards[3] as HTMLElement;
+    expect(await within(vera).findByText("Usually at Rosa's in the afternoon.", { exact: false })).toBeTruthy();
+    expect(within(vera).getByTestId("notebook-standing").textContent).toBe("Warm toward you · Trusts you a little");
+    expect(vera.textContent).toContain("●●○ Known");
+    expect(within(cards[2] as HTMLElement).getByTestId("notebook-standing").textContent).toBe("Cool toward you · Doesn't trust you");
+    // Talk opens the dialogue; the name opens the sheet; Go to them is there for each.
+    fireEvent.click(within(vera).getByRole("button", { name: "Talk to Vera Holt" }));
+    expect(openTalk).toHaveBeenCalledWith({ type: "person", person: 12 });
+    fireEvent.click(within(vera).getByTestId("notebook-person-name"));
+    expect(openCharacter).toHaveBeenCalledWith(12);
+    expect(within(vera).getByRole("button", { name: "Go to Vera Holt" })).toBeTruthy();
+    // Everyone else known, with the same card.
+    const others = within(screen.getByTestId("notebook-people-others")).getAllByTestId("notebook-person");
+    expect(others.map((c) => c.getAttribute("data-person"))).toEqual(["4"]);
+    expect(within(others[0] as HTMLElement).getByRole("button", { name: "Talk to Albert Crane" })).toBeTruthy();
+    // Placeholders stay (who runs things, the rival's plans).
+    expect(within(screen.getByTestId("notebook-people-power")).getAllByTestId("notebook-gap")).toHaveLength(2);
   });
 
   it("lists the leads picked up and the ways to find out the rest", () => {

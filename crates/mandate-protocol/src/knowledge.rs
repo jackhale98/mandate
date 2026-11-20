@@ -830,8 +830,11 @@ pub(crate) fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeM
                 put!("role_key", p.role_key);
             }
             // K5: who cares about what (their strongest conviction), and
-            // whom they are bound to (the one they owe most favours).
-            if level >= Level::Known
+            // whom they are bound to (the one they owe most favours). Both
+            // need the person known in detail: meeting someone (a chat
+            // teaches them at `known`) tells you who they are, not what
+            // they believe (text audit 1, owner report 2026-11-20).
+            if level >= Level::Detailed
                 && let Some(issue) = rival_focus(engine, *person)
             {
                 put!("cares_key", issue);

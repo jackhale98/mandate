@@ -33,4 +33,11 @@ rumoured: boolean,
  * (DEC-093; a passer-by: meet them first). Elsewhere, `QueryDto::Talk`
  * says where to find them.
  */
-can_talk: boolean, };
+can_talk: boolean, 
+/**
+ * They have something new for the player (the name tag's "!"; DEC-093,
+ * DEC-091): a topic that tells things the player has not asked them
+ * this week, or a lead in the notebook points to them. The engine
+ * decides (`has_news`); a passer-by not met yet: never.
+ */
+has_news: boolean, };

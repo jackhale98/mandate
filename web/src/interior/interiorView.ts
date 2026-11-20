@@ -22,6 +22,7 @@ import type { Facing, HotspotDef } from "../../../tools/pixelkit/art/mandate/int
 import { crop, type Indexed } from "../../../tools/pixelkit/src/core/image";
 import type { Placement } from "./cast";
 import { facingOf, InteriorScene, type Tile } from "./interiorScene";
+import { bobTags, fillPersonTag, type PersonMarker } from "../hub/hubView";
 
 interface Point {
   x: number;
@@ -32,6 +33,10 @@ interface Point {
 export interface RoomPerson extends Placement {
   /** Name tag text (people only; extras have none). */
   label: string | null;
+  /** The tag's marker, as in the street (default `talk`). */
+  marker?: PersonMarker;
+  /** The tag's accessible name, saying what the marker means (default: the label). */
+  tagLabel?: string;
   /** Their look's seed (the street's, so a person looks the same inside). */
   variant: number;
 }
@@ -212,9 +217,9 @@ export class InteriorView {
         el = document.createElement("button");
         el.type = "button";
         el.className = "hub-label hub-person-tag";
-        // The place panel's People list is the keyboard and screen-reader route (DEC-051).
+        // Out of the Tab order (the place panel's People list is the keyboard route, DEC-051), but
+        // named for screen readers, with what the marker means.
         el.tabIndex = -1;
-        el.setAttribute("aria-hidden", "true");
         el.dataset.person = p.key;
         Object.assign(el.style, { position: "absolute", left: "0", top: "0", pointerEvents: "auto", whiteSpace: "nowrap" });
         const key = p.key;
@@ -226,10 +231,7 @@ export class InteriorView {
         this.layer.appendChild(el);
         this.tags.set(p.key, el);
       }
-      if (el.textContent !== p.label) {
-        el.textContent = p.label;
-        this.labelSize.delete(el);
-      }
+      if (fillPersonTag(el, p.label, p.marker, p.tagLabel)) this.labelSize.delete(el);
     }
     this.actorCache.clear();
     this.invalidate();
@@ -591,6 +593,8 @@ export class InteriorView {
       el.style.display = fits ? "" : "none";
       if (fits) placed.push(box);
     }
+    // The "!" bobs only with frames drawn anyway: an idle room draws nothing, so it stays still.
+    bobTags(this.tags.values(), performance.now() / 1000, this.opts.reducedMotion === true);
     const spots = this.opts.hotspots.flatMap((h) => {
       const el = this.spotTags.get(h.id);
       if (!el) return [];

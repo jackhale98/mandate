@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 /// FNV-1a (32-bit) of the view's JSON, as the client test computes it from
 /// the WASM build's response.
-const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "d051251a");
+const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "d23444f1");
 
 fn fnv1a(s: &str) -> String {
     let mut h: u32 = 0x811c_9dc5;

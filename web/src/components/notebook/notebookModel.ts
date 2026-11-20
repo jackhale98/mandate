@@ -5,6 +5,10 @@
 // is known, what is new and what a lead would teach; this sorts and words it.
 import type { KnowledgeLevelDto } from "../../engine/protocol/KnowledgeLevelDto";
 import type { LeadView } from "../../engine/protocol/LeadView";
+import type { MemberView } from "../../engine/protocol/MemberView";
+import type { OfficeView } from "../../engine/protocol/OfficeView";
+import type { PersonRefView } from "../../engine/protocol/PersonRefView";
+import type { TownCharacterView } from "../../engine/protocol/TownCharacterView";
 import type { NotebookEntryView } from "../../engine/protocol/NotebookEntryView";
 import type { NotebookView } from "../../engine/protocol/NotebookView";
 import type { SubjectDto } from "../../engine/protocol/SubjectDto";
@@ -216,4 +220,63 @@ export function matches(text: string, q: string): boolean {
 export function levelDots(level: KnowledgeLevelDto): string {
   const n = { unknown: 0, heard: 1, known: 2, detailed: 3 }[level];
   return "●".repeat(n) + "○".repeat(3 - n);
+}
+
+// --- People (the notebook's People section: the single place for people) ---
+
+/** Someone pinned at the top of People: who runs things, the rival, the holder of the executive post and the members of the legislature. */
+export interface KeyFigure {
+  /** Their character (`QueryDto::Character`, `Talk`). */
+  id: number;
+  /** As far as the player knows them (empty below `heard`). */
+  name: string;
+  /** Why they are pinned besides their post: `broker` (who runs things), `rival`, or none. */
+  pin: "broker" | "rival" | null;
+  /** Their role as the views give it: the post's role word from the constitution (`role-<word>`), or an occupation's name key. */
+  roleKey: string;
+  ward: number | null;
+  /** In office: the office view's line on them (opinion of you, favours, convictions). */
+  member: MemberView | null;
+  /** The broker or the rival as the town's character gives them (the name may be a rumour). */
+  person: PersonRefView | null;
+}
+
+/**
+ * The key figures, in order: the broker (once heard of), the rival, then
+ * whoever holds the executive post and the members of the legislative body,
+ * as the office view lists them (the constitution's posts, DEC-098: its two
+ * fields are the executive and the body, whatever the constitution calls
+ * them; the words shown are the posts' role keys). The player is left out;
+ * someone in two places is pinned once, at the first.
+ */
+export function keyFigures(office: OfficeView | null, character: TownCharacterView | null): KeyFigure[] {
+  const out: KeyFigure[] = [];
+  const add = (f: KeyFigure) => {
+    const was = out.find((x) => x.id === f.id);
+    if (!was) out.push(f);
+    else if (!was.member && f.member) {
+      was.member = f.member;
+      was.ward = f.ward;
+    }
+  };
+  const fromRef = (p: PersonRefView | null | undefined, pin: "broker" | "rival") => {
+    if (p?.id === null || p?.id === undefined) return;
+    add({ id: p.id, name: p.name, pin, roleKey: p.role_key, ward: null, member: null, person: p });
+  };
+  fromRef(character?.broker, "broker");
+  fromRef(character?.rival, "rival");
+  const executive = office?.mayor ?? null;
+  const legislature = office?.council ?? [];
+  for (const m of [executive, ...legislature]) {
+    if (!m || m.is_player) continue;
+    add({ id: m.character, name: m.name, pin: null, roleKey: m.role_key, ward: m.ward_number, member: m, person: null });
+  }
+  return out;
+}
+
+/** The people the notebook knows of, by character id. */
+export function personItems(items: readonly NotebookItem[]): Map<number, NotebookItem> {
+  const m = new Map<number, NotebookItem>();
+  for (const i of items) if (i.subject.type === "person") m.set(i.subject.person, i);
+  return m;
 }

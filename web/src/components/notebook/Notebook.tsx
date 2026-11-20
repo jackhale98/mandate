@@ -1,7 +1,8 @@
 // The notebook (DEC-091 "the notebook"; M6 K5): what the player knows about
 // the town, organised for finding things rather than as a log. Its own tabs
 // (People, Places, Worries by neighbourhood, Policies, Leads) keep each list
-// short on a phone. Every entry shows its level (in dots and in words, never
+// short on a phone; People is the single place for people (./People: the
+// key figures pinned, then everyone else, each with Talk and Go to them). Every entry shows its level (in dots and in words, never
 // colour alone, DEC-051), where and when it was learned; placeholders show
 // what is still unknown with the lead that would reveal it, so the notebook
 // doubles as an exploration guide. Opening it tells the engine the new
@@ -14,6 +15,7 @@ import { formatDate } from "../../i18n/format";
 import { placeName } from "../../places/labels";
 import { useGame } from "../../state/gameStore";
 import { firstNewTab, groupNotebook, itemFacts, itemText, itemTitle, leadText, levelDots, matches, newCounts, NOTEBOOK_TABS, type NotebookItem, type NotebookTab } from "./notebookModel";
+import { PeopleSection, loadSheets as engineSheets, type SheetLoader } from "./People";
 import "./notebook.css";
 
 const ICON: Record<NotebookTab, string> = { people: "👤", places: "📍", issues: "💬", policies: "📜", leads: "🧭" };
@@ -121,8 +123,8 @@ function ItemList({ items, testId }: { items: NotebookItem[]; testId?: string })
   );
 }
 
-/** The notebook page: the pocket's Notebook tab. */
-export function Notebook() {
+/** The notebook page: the pocket's Notebook tab. `loadSheets`: the People cards' character sheets (the engine's; tests pass their own). */
+export function Notebook({ loadSheets = engineSheets }: { loadSheets?: SheetLoader }) {
   const tr = useGame((s) => s.tr);
   const notebook = useGame((s) => s.notebook);
   const fresh = useGame((s) => s.notebookFresh);
@@ -230,6 +232,8 @@ export function Notebook() {
       );
     }
     const items = groups[tab].filter(keep);
+    // People: the single place for people (the key figures pinned, everyone else known, then power and placeholders).
+    if (tab === "people") return <PeopleSection items={items} q={q} Rest={ItemList} load={loadSheets} />;
     if (items.length === 0) return <p className="muted small">{searching ? tr.t("ui-notebook-filter-none", { q }) : tr.t(`ui-notebook-empty-${tab}`)}</p>;
     if (tab === "issues") {
       const town = items.filter((i) => i.subject.type === "town_concerns");

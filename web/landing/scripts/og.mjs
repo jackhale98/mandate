@@ -1,6 +1,6 @@
 // Renders the 1200×630 share image (Open Graph, Twitter card) from the front-page
 // map captured from the game (capture.mjs, encode.py) and the DEC-081 mark.
-//   node web/landing/scripts/og.mjs
+// `npm run capture` runs this last; on its own: node web/landing/scripts/og.mjs
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
