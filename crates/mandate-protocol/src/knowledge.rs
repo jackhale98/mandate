@@ -729,23 +729,34 @@ pub(crate) fn rival_seat(engine: &Engine) -> Option<mandate_sim::politics::Post>
     match pl.filing {
         Some(Filing::Retire) => None,
         Some(Filing::Stand { post }) => Some(post),
-        None => mandate_sim::player::posts(st).first().copied().or_else(|| {
-            match elections::seat_filing(st, engine.content())? {
-                Filing::Stand { post } => Some(post),
-                Filing::Retire => None,
-            }
-        }),
+        None => {
+            mandate_sim::player::posts(st).first().copied().or_else(
+                || match elections::seat_filing(st, engine.content())? {
+                    Filing::Stand { post } => Some(post),
+                    Filing::Retire => None,
+                },
+            )
+        }
     }
 }
 
 /// The notebook's words for the rival's post: `rival-seat-ward` (`$ward`)
 /// for a districted seat, else `rival-seat-office` (`$post`, the
 /// constitution's label).
-pub(crate) fn rival_seat_args(engine: &Engine, post: mandate_sim::politics::Post) -> Vec<(&'static str, String)> {
+pub(crate) fn rival_seat_args(
+    engine: &Engine,
+    post: mandate_sim::politics::Post,
+) -> Vec<(&'static str, String)> {
     let dto = crate::post::post_dto(engine, post);
     match dto.constituency_number {
-        Some(n) => vec![("seat_key", "rival-seat-ward".into()), ("ward", n.to_string())],
-        None => vec![("seat_key", "rival-seat-office".into()), ("post_key", dto.label_key)],
+        Some(n) => vec![
+            ("seat_key", "rival-seat-ward".into()),
+            ("ward", n.to_string()),
+        ],
+        None => vec![
+            ("seat_key", "rival-seat-office".into()),
+            ("post_key", dto.label_key),
+        ],
     }
 }
 

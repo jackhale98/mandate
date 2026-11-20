@@ -1065,7 +1065,12 @@ fn bodies_view(engine: &Engine, gate: &Gate<'_>) -> Vec<BodyView> {
             let legislature = mandate_sim::politics::legislature(c, at.tier()).map(|b| &b.id);
             tier.into_iter()
                 .flat_map(|t| t.bodies.iter())
-                .filter(move |b| st.politics.bodies.iter().any(|x| x.at == at && x.body == b.id))
+                .filter(move |b| {
+                    st.politics
+                        .bodies
+                        .iter()
+                        .any(|x| x.at == at && x.body == b.id)
+                })
                 .map(move |b| BodyView {
                     id: b.id.clone(),
                     label_key: b.name_key.clone(),

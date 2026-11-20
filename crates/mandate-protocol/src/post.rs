@@ -77,10 +77,7 @@ pub fn jurisdiction_dto(world: &World, at: Jurisdiction) -> JurisdictionDto {
     let (kind, name) = match at {
         Jurisdiction::Municipality { id } => (
             JurisdictionKindDto::Municipality,
-            world
-                .municipalities
-                .get(id.index())
-                .map(|m| m.name.clone()),
+            world.municipalities.get(id.index()).map(|m| m.name.clone()),
         ),
         Jurisdiction::Region { id } => (
             JurisdictionKindDto::Region,
