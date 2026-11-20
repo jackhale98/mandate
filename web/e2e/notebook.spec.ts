@@ -32,7 +32,11 @@ test("without local knowledge: placeholders with leads; following one fills the 
   const broker = nb.locator('[data-testid="notebook-gap"][data-subject="broker"]');
   await expect(broker).toContainText("Not known yet");
   await expect(broker.getByTestId("notebook-lead")).toBeVisible();
-  await expect(nb.locator('[data-testid="notebook-entry"][data-subject="person"]').first()).toBeVisible();
+  // People known from the start are cards (the key figures pinned first), with Talk and Go to them.
+  const person = nb.getByTestId("notebook-person").first();
+  await expect(person).toBeVisible();
+  await expect(person.getByTestId("talk-button")).toBeVisible();
+  await expect(person.getByTestId("notebook-go-to")).toBeVisible();
 
   // Worries by neighbourhood: the ward is known from the start; another is a placeholder.
   await nb.getByTestId("notebook-tab-issues").click();

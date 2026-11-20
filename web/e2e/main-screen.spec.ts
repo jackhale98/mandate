@@ -1,8 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openPocket } from "./pocket";
+import { officeFigures, openPeople, openPocket } from "./pocket";
 
 // DEC-088 main screen (owner, 2026-11-19): the street full screen with a slim
-// bar; the pocket has tabs (Today, Town, Places, Notebook, People) with badges, docks
+// bar; the pocket has tabs (Today, Town, Places, Notebook; people are the
+// Notebook's People section) with badges, docks
 // beside the town on wide screens, and with the skip link and landmarks
 // reaches every place without the canvas (DEC-051). Desktop and phone.
 
@@ -91,7 +92,7 @@ test("the pocket's tabs: a tab list with arrow keys, panels, and badges that cou
   await start(page, "4242");
   const pocket = await openPocket(page, "today");
   const tabs = pocket.getByRole("tablist");
-  await expect(tabs.getByRole("tab")).toHaveText([/Today/, /Town/, /Places/, /Notebook/, /People/]);
+  await expect(tabs.getByRole("tab")).toHaveText([/Today/, /Town/, /Places/, /Notebook/]);
   // Only the open tab is in the Tab order; arrows, Home and End move between tabs.
   await pocket.getByTestId("pocket-tab-today").focus();
   await page.keyboard.press("ArrowRight");
@@ -103,17 +104,17 @@ test("the pocket's tabs: a tab list with arrow keys, panels, and badges that cou
   await expect(pocket.getByTestId("town-card")).toBeVisible();
   await expect(pocket.getByTestId("town-hoods").getByTestId("town-hood").first()).toBeVisible();
   await page.keyboard.press("End");
-  await expect(pocket.getByTestId("pocket-tab-people")).toBeFocused();
-  await expect(pocket.getByTestId("people-council")).toBeVisible();
+  await expect(pocket.getByTestId("pocket-tab-notebook")).toBeFocused();
+  await expect(pocket.getByTestId("notebook")).toBeVisible();
   await page.keyboard.press("ArrowRight");
   await expect(pocket.getByTestId("pocket-tab-today")).toBeFocused();
   await expect(pocket.getByTestId("agenda")).toBeVisible();
   await page.keyboard.press("Home");
   await expect(pocket.getByTestId("pocket-tab-today")).toBeFocused();
 
-  // People: a name opens their character sheet (relationships).
-  await openPocket(page, "people");
-  await pocket.getByTestId("people-council").getByTestId("member-name").first().click();
+  // People (the Notebook's People section): a name opens their character sheet (relationships).
+  await openPeople(page);
+  await officeFigures(pocket).getByTestId("notebook-person-name").first().click();
   const sheet = page.getByTestId("character-sheet");
   await expect(sheet.getByTestId("character-relationship")).toBeVisible();
   await sheet.getByRole("button", { name: "Close" }).click();
@@ -195,22 +196,24 @@ const learnSomething = async (page: Page) => {
 test("the notebook badge: none on a new game (what you start with is not news); learning something adds one", async ({ page }) => {
   await start(page, "4242");
   await expect(page.getByTestId("notebook-badge")).toHaveCount(0);
-  const pocket = await openPocket(page, "people");
+  const pocket = await openPocket(page, "town");
   await expect(pocket.getByTestId("pocket-tab-badge-notebook")).toHaveCount(0);
   await learnSomething(page);
   await expect(page.getByTestId("notebook-badge")).toBeVisible();
   expect(Number(((await page.getByTestId("notebook-badge").textContent()) ?? "").replace(/\D/g, ""))).toBeGreaterThan(0);
 });
 
-test("phone: the pocket's five tabs and their badges fit at 360 and 412 px", async ({ page }, info) => {
+test("phone: the pocket's four tabs and their badges fit at 360 and 412 px", async ({ page }, info) => {
   test.skip(info.project.name !== "phone", "a phone layout");
   await start(page, "4242");
   await learnSomething(page);
   await expect(page.getByTestId("notebook-badge")).toBeVisible();
-  const tabs = ["today", "town", "places", "notebook", "people"];
+  const tabs = ["today", "town", "places", "notebook"];
   for (const width of [360, 412]) {
     await page.setViewportSize({ width, height: 780 });
     const pocket = await openPocket(page, "today");
+    // People are the Notebook's People section: no tab of their own.
+    await expect(pocket.getByRole("tablist").first().getByRole("tab")).toHaveCount(tabs.length);
     await page.waitForTimeout(300);
     const list = pocket.getByRole("tablist");
     expect(await list.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);

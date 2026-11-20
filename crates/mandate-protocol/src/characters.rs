@@ -9,7 +9,7 @@ use crate::views::DateView;
 use mandate_sim::Engine;
 use mandate_sim::characters::{self, CharacterId, MemoryKind, Tier, ambient};
 use mandate_sim::places::Location;
-use mandate_sim::player::knowledge::{Level, Subject};
+use mandate_sim::player::knowledge::{LeadTarget, Level, Subject};
 use mandate_sim::world::MunicipalityId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -37,6 +37,11 @@ pub struct PersonRefView {
     /// (DEC-093; a passer-by: meet them first). Elsewhere, `QueryDto::Talk`
     /// says where to find them.
     pub can_talk: bool,
+    /// They have something new for the player (the name tag's "!"; DEC-093,
+    /// DEC-091): a topic that tells things the player has not asked them
+    /// this week, or a lead in the notebook points to them. The engine
+    /// decides (`has_news`); a passer-by not met yet: never.
+    pub has_news: bool,
 }
 
 /// What a memory or favour is about.
@@ -282,7 +287,81 @@ pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
         level: Gate::of(engine).person(id).into(),
         rumoured: false,
         can_talk: mandate_sim::talk::can_talk(st, engine.content(), id),
+        has_news: has_news(engine, id),
     })
+}
+
+/// Why someone has something new for the player (the name tag's "!").
+/// Asks (E6–E8: "has an ask for you") join as another reason here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum News {
+    /// A topic that tells things (`inform`, needing no subject) is offered
+    /// to them and the player has not asked them it this week.
+    Topic,
+    /// A lead in the player's notebook points to them.
+    Lead,
+}
+
+/// What this person has that is new for the player, first reason first;
+/// empty for the player themselves or without a game. Read-only: from the
+/// talk log (asked this week) and the knowledge ledger (leads).
+pub fn news(engine: &Engine, id: CharacterId) -> Vec<News> {
+    let st = engine.state();
+    let content = engine.content();
+    let (Some(pl), Some(me), Some(town)) = (
+        st.player.as_ref(),
+        characters::player_character(st),
+        mandate_sim::player::home(st),
+    ) else {
+        return Vec::new();
+    };
+    if id == me || characters::profile(&st.politics, &st.world, id).is_none() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    // Where a conversation with them would be: where their day has them.
+    let here = characters::routines::whereabouts(st, content, id).unwrap_or(pl.location);
+    let role = characters::knows::role_key(st, content, id);
+    let ctx = mandate_sim::talk::context::Ctx {
+        st,
+        content,
+        town,
+        me,
+        speaker: id,
+        about: None,
+        here,
+        cap: characters::knows::discretion_cap(st, content, id, me, Default::default()),
+    };
+    let unasked = content.talk_topics.iter().any(|t| {
+        let o = &t.offered;
+        t.mechanic == mandate_content::conversation::TalkMechanic::Inform
+            && !t.about_required
+            && (o.roles.is_empty() || role.as_ref().is_some_and(|r| o.roles.contains(r)))
+            && (o.places.is_empty()
+                || o.places
+                    .iter()
+                    .any(|k| k == mandate_sim::places::kind_key(st, here)))
+            && ctx.all_hold(&o.when, &mut Default::default())
+            && !mandate_sim::talk::asked_this_week(st, id, &t.id)
+    });
+    if unasked {
+        out.push(News::Topic);
+    }
+    if pl
+        .knowledge
+        .leads
+        .iter()
+        .any(|l| l.to == LeadTarget::Person { person: id })
+    {
+        out.push(News::Lead);
+    }
+    // E6–E8: `News::Ask` when they have an ask for the player.
+    out
+}
+
+/// Whether this person has something new for the player (`news`).
+pub fn has_news(engine: &Engine, id: CharacterId) -> bool {
+    !news(engine, id).is_empty()
 }
 
 /// Someone as the player knows them (DEC-091): no name below `heard`.
@@ -568,6 +647,8 @@ pub fn people_at(engine: &Engine, loc: Location) -> Vec<PersonRefView> {
             level: level.into(),
             rumoured: false,
             can_talk: here,
+            // A stranger has nothing for the player until met.
+            has_news: false,
         });
     }
     out

@@ -1,8 +1,8 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 // The pocket (DEC-088 main screen): a sheet with tabs (Today, Town, Places,
-// Notebook, People). Helpers shared by the specs.
-export type PocketTab = "today" | "town" | "places" | "notebook" | "people";
+// Notebook; people are the Notebook's People section). Helpers shared by the specs.
+export type PocketTab = "today" | "town" | "places" | "notebook";
 
 /** Open the pocket (if it is not open) on a tab; returns the pocket. */
 export async function openPocket(page: Page, tab: PocketTab = "today") {
@@ -22,4 +22,19 @@ export async function showPlaces(page: Page) {
   const pocket = await openPocket(page, "places");
   await expect(pocket.getByRole("tabpanel", { name: /Places/ })).toBeVisible();
   return pocket;
+}
+
+/** The Notebook's People section, the single place for people: the key figures pinned, then everyone else you know. */
+export async function openPeople(page: Page) {
+  const pocket = await openPocket(page, "notebook");
+  const t = pocket.getByTestId("notebook-tab-people");
+  if ((await t.getAttribute("aria-selected")) !== "true") await t.click();
+  await expect(t).toHaveAttribute("aria-selected", "true");
+  await expect(pocket.getByTestId("notebook-key-figures")).toBeVisible();
+  return pocket;
+}
+
+/** The key figures in office (the executive, then the members of the legislature), each a card with Talk and Go to them. */
+export function officeFigures(pocket: Locator): Locator {
+  return pocket.getByTestId("notebook-key-figures").locator("[data-office='true']");
 }
