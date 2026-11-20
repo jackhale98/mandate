@@ -24,7 +24,7 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "draft_policy":
       return k("draft");
     case "amend_policy": {
-      // Drafts are revised at the clerk's desk, bills on the council floor.
+      // Drafts are revised at the clerk's desk, bills on the chamber floor.
       const draft = office?.bills.find((b) => b.id === cmd.policy)?.status === "draft";
       return k(draft ? "draft" : "amend");
     }

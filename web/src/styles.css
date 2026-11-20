@@ -260,7 +260,7 @@ h2 { font-size: 1.1rem; }
 .legend { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); }
 .legend-ramp { width: 90px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--ramp-lo), var(--ramp-hi)); }
 
-/* M3: office, bills, council */
+/* M3: office, bills, chamber */
 .small { font-size: 0.875rem; }
 .chip-muted { border-color: var(--border); color: var(--muted); }
 .btn-sm { min-height: 40px; padding: 0 12px; font-size: 0.875rem; }

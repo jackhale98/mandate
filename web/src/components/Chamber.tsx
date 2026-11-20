@@ -5,8 +5,9 @@ import type { VoteDto } from "../engine/protocol/VoteDto";
 import { useGame } from "../state/gameStore";
 import { formatDate } from "../i18n/format";
 import { personName } from "./Knowing";
+import { legislature, signerText } from "./posts";
 
-/** A council member: name (opens their sheet), role, stances as known, and how they stand with you. */
+/** Someone in office: name (opens their sheet), role, stances as known, and how they stand with you. */
 export function Member({ m, children }: { m: MemberView; children?: ReactNode }) {
   const tr = useGame((s) => s.tr);
   const openCharacter = useGame((s) => s.openCharacter);
@@ -75,7 +76,7 @@ function YourVote({ bill }: { bill: BillView }) {
   );
 }
 
-/** The exact whip count, member by member, with lobbying (council chamber only, DEC-079). */
+/** The exact whip count, member by member, with lobbying (in the legislature's chamber only, DEC-079). */
 export function ChamberWhip() {
   const tr = useGame((s) => s.tr);
   const o = useGame((s) => s.office);
@@ -85,14 +86,15 @@ export function ChamberWhip() {
   const [sel, setSel] = useState<number | null>(null);
   if (!o) return null;
   const bill = pending.find((b) => b.id === sel) ?? pending[0];
-  const favours = new Map(o.council.map((m) => [m.id, m.favors]));
+  const body = legislature(o);
+  const favours = new Map((body?.members ?? []).map((m) => [m.id, m.favors]));
   const p = o.player;
 
   return (
     <>
       <section className="card" data-testid="whip">
         <div className="card-head">
-          <h2>{tr.t("ui-council")}</h2>
+          <h2>{body ? tr.t(body.label_key) : tr.t("ui-members")}</h2>
         </div>
         {!bill ? (
           <p className="muted">{tr.t("ui-no-pending")}</p>
@@ -115,8 +117,8 @@ export function ChamberWhip() {
               <p className="small">{tr.t("ui-next-vote", { stage: tr.t(bill.next_stage_key), date: formatDate(tr, bill.next_vote) })}</p>
             )}
             <p className="small">
-              <strong>{bill.whip_exact ? tr.t("ui-whip", { yes: bill.expected_yes.toFixed(1), seats: bill.seats, needed: bill.needed }) : tr.t("ui-whip-about", { yes: bill.expected_yes, seats: bill.seats, needed: bill.needed })}</strong> ·{" "}
-              {tr.t("ui-mayor-lean", { lean: tr.t(`mayor-${bill.mayor}`) })}
+              <strong>{bill.whip_exact ? tr.t("ui-whip", { yes: bill.expected_yes.toFixed(1), seats: bill.seats, needed: bill.needed }) : tr.t("ui-whip-about", { yes: bill.expected_yes, seats: bill.seats, needed: bill.needed })}</strong>
+              {bill.signer && <span data-testid="signer-lean"> · {signerText(tr, bill.signer)}</span>}
             </p>
             <YourVote bill={bill} />
             <p className="hint">{tr.t("ui-whip-help")}</p>
@@ -173,10 +175,12 @@ export function ChamberWhip() {
       <section className="card" data-testid="members">
         <h2>{tr.t("ui-members")}</h2>
         <ul className="member-list">
-          {o.mayor && <Member m={o.mayor} />}
-          {o.council.map((m) => (
-            <Member key={m.id} m={m} />
-          ))}
+          {o.executive && <Member m={o.executive} />}
+          {o.bodies.flatMap((b) =>
+            b.members.map((m) => (
+              <Member key={`${b.id}-${m.id}`} m={m} />
+            )),
+          )}
         </ul>
       </section>
     </>

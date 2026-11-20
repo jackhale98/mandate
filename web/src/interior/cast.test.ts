@@ -56,7 +56,7 @@ describe("castRoom (who stands where)", () => {
     expect(placed.filter((p) => p.extra).map((p) => p.role).sort()).toEqual(["cook", "waiter"]);
   });
 
-  it("seats the council: the presiding member in the chair, members at the desks, sitters on seats", () => {
+  it("seats the chamber: the presiding member in the chair, members at the desks, sitters on seats", () => {
     const { recipe, room: rm } = room("interior.council_chamber");
     const people = [{ key: "c1", hereAs: "presiding" }, ...Array.from({ length: 6 }, (_, i) => ({ key: `c${10 + i}`, hereAs: "member" }))];
     const placed = castRoom(rm, recipe, people);

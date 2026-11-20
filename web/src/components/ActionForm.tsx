@@ -42,7 +42,11 @@ export function ActionForm({ action, hood: fixedHood, lateOnly = false, allowLat
   const live = o.bills.filter((b) => b.status === "under_consideration" || b.status === "enacted" || b.status === "in_effect");
   const pending = o.bills.filter((b) => b.status === "under_consideration");
   const lobbyBill = action === "lobby" || action === "trade_favor" ? (pending.find((b) => b.id === bill) ?? pending[0]) : undefined;
-  const colleagues = o.council.filter((m) => !m.is_player).concat(o.mayor && !o.mayor.is_player ? [o.mayor] : []);
+  // The bodies' members, then the executive (DEC-098: whoever the constitution seats).
+  const colleagues = o.bodies
+    .flatMap((b) => b.members)
+    .concat(o.executive ? [o.executive] : [])
+    .filter((m) => !m.is_player);
   const target = colleagues.find((m) => m.id === member) ?? colleagues[0];
   const lateAllowed = allowLate && LATE.has(action);
   const useLate = (late || lateOnly || LATE_ONLY.has(action)) && lateAllowed;

@@ -555,8 +555,12 @@ ui-filing-closed = Nominations have closed for this election.
 ui-nomination-standing = Your party will only back you for { $post } with Standing of { $min } or more.
 ui-nomination-renomination = Your party will not renominate you with Standing below { $min }.
 ui-not-running = You are not on the ballot this time.
-# A race's title: a districted seat by its number; any other post by its label.
-ui-race-ward = Ward { $n }
+# A districted seat by its number ($tier: the post's tier); any other post
+# goes by its constitution label.
+ui-post-seat = { $tier ->
+    [local] Ward { $n }
+   *[other] District { $n }
+}
 ui-your-race = Your race
 ui-incumbent = incumbent
 ui-know-you = Voters who know you

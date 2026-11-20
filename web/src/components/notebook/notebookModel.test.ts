@@ -83,7 +83,7 @@ describe("the notebook's arrangement", () => {
     expect(itemFacts(tr, broker)).toEqual([]);
     // The rival's identity is public, their plans are not: a placeholder says nothing of them.
     expect(itemFacts(tr, rival)).toEqual(["The rival: Mara Quill"]);
-    expect(itemFacts(tr, vera)).toEqual(["Councillor", expect.stringMatching(/^Cares about /)]);
+    expect(itemFacts(tr, vera)).toEqual([tr.t("role-councillor"), expect.stringMatching(/^Cares about /)]);
     expect(itemFacts(tr, at(g.policies, 0))).toEqual(["Popular: net support +20 points"]);
     expect(itemText(tr, eastgate)).toContain("canvass eastgate");
   });

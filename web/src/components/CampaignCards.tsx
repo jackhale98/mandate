@@ -1,25 +1,37 @@
 import type { CampaignView } from "../engine/protocol/CampaignView";
-import type { FilingDto } from "../engine/protocol/FilingDto";
+import type { CommandDto } from "../engine/protocol/CommandDto";
 import type { RaceView } from "../engine/protocol/RaceView";
 import type { ResultView } from "../engine/protocol/ResultView";
 import { useGame } from "../state/gameStore";
 import { formatDate } from "../i18n/format";
 import { PartyChip, PollChart, ResultBars, WhyBars } from "./ElectionCharts";
-
-function seatTitle(tr: ReturnType<typeof useGame.getState>["tr"], seat: string, ward: number | null): string {
-  return seat === "mayor" ? tr.t("ui-race-mayor") : tr.t("ui-race-ward", { n: ward ?? 0 });
-}
+import { postTitle } from "./posts";
 
 export function Calendar({ c }: { c: CampaignView }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
   const perform = useGame((s) => s.perform);
-  const options: { id: FilingDto; key: string; disabled: boolean }[] = [
-    { id: "council", key: c.player_in_office ? "ui-file-defend" : "ui-file-council", disabled: false },
-    { id: "mayor", key: "ui-file-mayor", disabled: !c.mayor_nomination_open },
-    { id: "retire", key: "ui-file-retire", disabled: false },
-  ];
-  const current = c.filing === "default" ? "council" : c.filing;
+  // One option per post the engine says the player may stand for (seats
+  // before offices), then standing down; the engine marks the one chosen.
+  const retired = c.filing?.type === "retire";
+  const options: { id: string; label: string; disabled: boolean; on: boolean; command: CommandDto }[] = c.nominations.map((n, i) => {
+    const post = postTitle(tr, n.post);
+    return {
+      id: `post-${i}`,
+      label: tr.t(n.held ? "ui-file-defend" : "ui-file-post", { post }),
+      disabled: !n.held && !n.open,
+      on: n.chosen,
+      command: { type: "file", post: n.post, retire: false },
+    };
+  });
+  options.push({ id: "retire", label: tr.t("ui-file-retire"), disabled: false, on: retired, command: { type: "file", post: null, retire: true } });
+  // Why a post is closed to the player, for the first such post.
+  const closed = c.nominations.find((n) => !n.open && n.reason_key);
+  const hint = c.in_campaign
+    ? tr.t("ui-filing-closed")
+    : closed?.reason_key
+      ? tr.t(closed.reason_key, { post: postTitle(tr, closed.post), min: closed.min_standing ?? 0 })
+      : tr.t("ui-filing-help");
   return (
     <section className="card" data-testid="election-calendar">
       <div className="card-head">
@@ -43,19 +55,13 @@ export function Calendar({ c }: { c: CampaignView }) {
         <legend>{tr.t("ui-your-plans")}</legend>
         <div className="segmented segmented-sm" role="radiogroup">
           {options.map((o) => (
-            <label key={o.id} className={current === o.id ? "seg seg-on" : "seg"} aria-disabled={o.disabled}>
-              <input
-                type="radio"
-                name="filing"
-                checked={current === o.id}
-                disabled={o.disabled}
-                onChange={() => void perform({ type: "file", filing: o.id })}
-              />
-              {tr.t(o.key)}
+            <label key={o.id} className={o.on ? "seg seg-on" : "seg"} aria-disabled={o.disabled} data-testid={`file-${o.id}`}>
+              <input type="radio" name="filing" checked={o.on} disabled={o.disabled} onChange={() => void perform(o.command)} />
+              {o.label}
             </label>
           ))}
         </div>
-        <p className="hint">{c.in_campaign ? tr.t("ui-filing-closed") : !c.mayor_nomination_open ? tr.t("ui-mayor-needs-standing") : tr.t("ui-filing-help")}</p>
+        <p className="hint">{hint}</p>
       </fieldset>
     </section>
   );
@@ -67,7 +73,7 @@ export function RaceCard({ race, c }: { race: RaceView; c: CampaignView }) {
   return (
     <section className="card" data-testid={race.is_player_race ? "my-race" : undefined}>
       <div className="card-head">
-        <h2>{seatTitle(tr, race.seat, race.ward_number)}</h2>
+        <h2>{postTitle(tr, race.post)}</h2>
         {race.is_player_race && <span className="chip">{tr.t("ui-your-race")}</span>}
       </div>
       <ul className="candidate-list">
@@ -107,7 +113,7 @@ export function ResultCard({ r, c, headline = false }: { r: ResultView; c: Campa
   return (
     <section className="card" data-testid={r.player_ran ? "my-result" : undefined}>
       <div className="card-head">
-        <h2>{seatTitle(tr, r.seat, r.ward_number)}</h2>
+        <h2>{postTitle(tr, r.post)}</h2>
         <span className="muted small">
           {formatDate(tr, r.date)} · {tr.t("ui-turnout", { pct: Math.round(r.turnout * 100) })}
         </span>
@@ -145,7 +151,7 @@ export function CampaignHub() {
               const avg = r.poll_average;
               return (
                 <li key={i} className="other-race">
-                  <span>{seatTitle(tr, r.seat, r.ward_number)}</span>
+                  <span>{postTitle(tr, r.post)}</span>
                   <span className="small">
                     {r.candidates.map((cd, k) => (
                       <span key={cd.politician} className="other-cand">
@@ -190,7 +196,8 @@ export function ElectionNight() {
   const close = useGame((s) => s.closeElectionNight);
   if (!open || !c) return null;
   const mine = c.results.filter((r) => r.player_ran);
-  const rest = c.results.filter((r) => !r.player_ran && r.seat === "mayor");
+  // The rest of the night: the offices' results (the town's headline races).
+  const rest = c.results.filter((r) => !r.player_ran && r.post.kind === "office");
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="election-night-title" data-testid="election-night">
       <div className="modal">

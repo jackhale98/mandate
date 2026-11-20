@@ -26,7 +26,7 @@ export function learnedText(tr: Translator, l: LearnedItemView): string {
   if (l.subject.type === "broker" && a.name) details.push(a.rumoured === "true" ? `${a.name} (${tr.t("knowledge-rumoured")})` : a.name);
   if (l.subject.type === "person" && a.role_key) details.push(tr.t(a.role_key));
   if (a.stake_key) details.push(tr.t(a.stake_key));
-  if (a.seat_key) details.push(tr.t(a.seat_key, a.ward ? { ward: a.ward } : undefined));
+  if (a.seat_key) details.push(tr.t(a.seat_key, { ward: a.ward ?? "", post: a.post_key ? tr.t(a.post_key) : "" }));
   if (a.focus_key) details.push(tr.t(a.focus_key));
   if (a.band_key) details.push(tr.t(a.band_key));
   return details.length > 0 ? `${title}: ${details.join(", ")}` : title;

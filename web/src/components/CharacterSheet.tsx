@@ -11,7 +11,7 @@ import { Unknown, personName } from "./Knowing";
 /** A memory's or favour's subject, in words (a bill, a seat). */
 export function subjectText(tr: Translator, s: SubjectView | null): string {
   if (!s) return "";
-  return tr.t(s.key, s.n === null ? undefined : { n: s.n });
+  return tr.t(s.key, { ...(s.n === null ? {} : { n: s.n }), ...(s.post ? { post: tr.t(s.post.label_key) } : {}) });
 }
 
 /**

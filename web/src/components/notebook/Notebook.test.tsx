@@ -20,7 +20,7 @@ function setup(notebook_new = 0, fresh: string[] = []) {
   return { seeNotebook, loadNotebook, leaveNotebook, visit, openTalk, openCharacter };
 }
 
-/** Character sheets as the engine would send them (Vera usually at the diner; the mayor cool). */
+/** Character sheets as the engine would send them (Vera usually at the diner; the executive cool). */
 const sheets: SheetLoader = (ids) => Promise.resolve(new Map(ids.map((id) => [id, sheetFixture(id, id === 12 ? { usually: seenAtDiner } : id === 21 ? { opinion_band: "cool", trust_band: "low" } : {})])));
 
 describe("the notebook page", () => {
@@ -90,8 +90,8 @@ describe("the notebook page", () => {
     expect(cards.map((c) => c.getAttribute("data-person"))).toEqual(["30", "31", "21", "12", "22"]);
     expect(cards[0]?.textContent).toContain("Power broker");
     expect(cards[0]?.textContent).toContain("(rumoured)");
-    expect(cards[1]?.textContent).toContain("Your rival · Councillor · Ward 1");
-    expect(cards[2]?.textContent).toContain("Mayor");
+    expect(cards[1]?.textContent).toContain(`Your rival · ${englishTranslator().t("role-councillor")} · Ward 1`);
+    expect(cards[2]?.textContent).toContain(englishTranslator().t("role-mayor"));
     // How they stand with you, what you know and where you saw them (S1).
     const vera = cards[3] as HTMLElement;
     expect(await within(vera).findByText("Usually at Rosa's in the afternoon.", { exact: false })).toBeTruthy();

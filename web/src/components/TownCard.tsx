@@ -33,7 +33,9 @@ export function Who({ p }: { p: PersonRefView }) {
 
 /** What the rival is planning, as far as the player knows (`rival-plan-*`). */
 export function rivalPlanText(tr: Translator, plan: RivalPlanView, rival: PersonRefView | null): string {
-  const seat = plan.seat === "mayor" ? tr.t("rival-seat-mayor") : plan.seat === "ward" && plan.ward_number !== null ? tr.t("rival-seat-ward", { ward: plan.ward_number }) : "";
+  // A districted seat by its number, any other post by its constitution label.
+  const p = plan.post;
+  const seat = !p ? "" : p.constituency_number !== null ? tr.t("rival-seat-ward", { ward: p.constituency_number }) : tr.t("rival-seat-office", { post: tr.t(p.label_key) });
   return tr.t(plan.key, { rival: personName(tr, rival?.name ?? ""), seat, focus: plan.focus_key ? tr.t(plan.focus_key) : "" });
 }
 

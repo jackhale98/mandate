@@ -10,6 +10,7 @@ import { formatDate, formatMoney } from "../i18n/format";
 import { ParamSliders } from "./ParamSliders";
 import { TradeOffs } from "./TradeOffs";
 import { personName } from "./Knowing";
+import { signerText } from "./posts";
 
 /** Signed −1..1 score shown as −100..+100 with a text label (never colour alone, DEC-051). */
 export function SupportBars({ s }: { s: SupportView }) {
@@ -88,8 +89,8 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
         <p className="small">
           {tr.t("ui-next-vote", { stage: tr.t(bill.next_stage_key), date: formatDate(tr, bill.next_vote) })}
           <br />
-          <strong>{bill.whip_exact ? tr.t("ui-whip", { yes: bill.expected_yes.toFixed(1), seats: bill.seats, needed: bill.needed }) : tr.t("ui-whip-about", { yes: bill.expected_yes, seats: bill.seats, needed: bill.needed })}</strong> ·{" "}
-          {tr.t("ui-mayor-lean", { lean: tr.t(`mayor-${bill.mayor}`) })}
+          <strong>{bill.whip_exact ? tr.t("ui-whip", { yes: bill.expected_yes.toFixed(1), seats: bill.seats, needed: bill.needed }) : tr.t("ui-whip-about", { yes: bill.expected_yes, seats: bill.seats, needed: bill.needed })}</strong>
+          {bill.signer && <span data-testid="signer-lean"> · {signerText(tr, bill.signer)}</span>}
         </p>
       )}
       {(bill.status === "enacted" || bill.status === "in_effect") && (

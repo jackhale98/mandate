@@ -13,6 +13,7 @@ import type { NotebookEntryView } from "../../engine/protocol/NotebookEntryView"
 import type { NotebookView } from "../../engine/protocol/NotebookView";
 import type { SubjectDto } from "../../engine/protocol/SubjectDto";
 import type { Translator } from "../../i18n/fluent";
+import { officials } from "../posts";
 
 export type NotebookTab = "people" | "places" | "issues" | "policies" | "leads";
 export const NOTEBOOK_TABS: readonly NotebookTab[] = ["people", "places", "issues", "policies", "leads"];
@@ -173,7 +174,7 @@ export function itemFacts(tr: Translator, i: NotebookItem): string[] {
     case "rival_plans":
       if (a.rival) out.push(tr.t("ui-notebook-rival", { name: a.rival }));
       if (i.entry) {
-        if (a.seat_key) out.push(tr.t("ui-notebook-rival-seat", { seat: tr.t(a.seat_key, { ward: a.ward ?? "" }) }));
+        if (a.seat_key) out.push(tr.t("ui-notebook-rival-seat", { seat: tr.t(a.seat_key, { ward: a.ward ?? "", post: a.post_key ? tr.t(a.post_key) : "" }) }));
         if (a.focus_key) out.push(tr.t("ui-notebook-rival-focus", { issue: k(a.focus_key) }));
         if (!a.seat_key && !a.focus_key) out.push(tr.t("ui-notebook-rival-something"));
       }
@@ -265,9 +266,8 @@ export function keyFigures(office: OfficeView | null, character: TownCharacterVi
   };
   fromRef(character?.broker, "broker");
   fromRef(character?.rival, "rival");
-  const executive = office?.mayor ?? null;
-  const legislature = office?.council ?? [];
-  for (const m of [executive, ...legislature]) {
+  // The executive, then each body's members (DEC-098: from the constitution's lists).
+  for (const m of officials(office)) {
     if (!m || m.is_player) continue;
     add({ id: m.character, name: m.name, pin: null, roleKey: m.role_key, ward: m.ward_number, member: m, person: null });
   }

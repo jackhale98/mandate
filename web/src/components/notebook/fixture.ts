@@ -1,4 +1,4 @@
-// Tests only: a notebook as the engine might send it (a sitting councillor
+// Tests only: a notebook as the engine might send it (a sitting member
 // who has canvassed one more neighbourhood this turn and not looked yet).
 import type { DateView } from "../../engine/protocol/DateView";
 import type { LeadView } from "../../engine/protocol/LeadView";
@@ -141,11 +141,13 @@ export function personRef(over: Partial<PersonRefView> = {}): PersonRefView {
   return { id: 30, ambient_slot: null, name: "Otto Brandt", role_key: "role-private", tier: "principal", level: "heard", rumoured: true, can_talk: false, has_news: false, ...over };
 }
 
-/** A sitting member's office view: the executive post (role word "mayor") and the body, with the player in it. */
+/** A sitting member's office view: the executive post and the body, with the player in it (the base constitution's keys). */
 export function officeFixture(): OfficeView {
   const executive = member({ id: 9, name: "Ada Mills", role_key: "role-mayor", ward_number: null, character: 21, opinion_of_player: -20 });
-  const body = [member(), member({ id: 2, name: "", character: 22, level: "unknown", ward_number: 4 }), member({ id: 3, name: "You", is_player: true, character: 1 }), member({ id: 4, name: "Mara Quill", character: 31, ward_number: 1 })];
-  return { mayor: executive, council: body } as unknown as OfficeView;
+  const members = [member(), member({ id: 2, name: "", character: 22, level: "unknown", ward_number: 4 }), member({ id: 3, name: "You", is_player: true, character: 1 }), member({ id: 4, name: "Mara Quill", character: 31, ward_number: 1 })];
+  const at = { kind: "municipality" as const, tier: "local", id: 1, name: "Millbrook", name_key: "jurisdiction-municipality" };
+  const body = { id: "body", label_key: "body-council", role_key: "role-councillor", at, legislature: true, members };
+  return { executive, bodies: [body] } as unknown as OfficeView;
 }
 
 /** The broker (a rumour) and the rival, who also sits in the body. */

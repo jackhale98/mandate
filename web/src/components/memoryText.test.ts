@@ -19,16 +19,16 @@ const tr = new Translator(
 describe("memories in words", () => {
   it("says what kind of thing a memory is about", () => {
     expect(subjectKind(null)).toBe("none");
-    expect(subjectKind({ key: "policy-x", n: null })).toBe("bill");
-    expect(subjectKind({ key: "dilemma-x", n: null })).toBe("decision");
-    expect(subjectKind({ key: "subject-ward", n: 3 })).toBe("seat");
+    expect(subjectKind({ key: "policy-x", n: null, post: null })).toBe("bill");
+    expect(subjectKind({ key: "dilemma-x", n: null, post: null })).toBe("decision");
+    expect(subjectKind({ key: "subject-ward", n: 3, post: null })).toBe("seat");
   });
 
   it("quotes a memory to the player's face, with or without a subject", () => {
     const key = quoteKey("memory-pressed-me");
     expect(key).toBe("scene-quote-pressed-me");
-    expect(memoryText(tr, key, { subject: { key: "policy-x", n: null }, year: 2030 })).toBe("You leaned on me over the Local wage floor bill.");
-    expect(memoryText(tr, key, { subject: { key: "dilemma-x", n: null }, year: 2030 })).toBe("You leaned on me over the layoffs at the plant.");
+    expect(memoryText(tr, key, { subject: { key: "policy-x", n: null, post: null }, year: 2030 })).toBe("You leaned on me over the Local wage floor bill.");
+    expect(memoryText(tr, key, { subject: { key: "dilemma-x", n: null, post: null }, year: 2030 })).toBe("You leaned on me over the layoffs at the plant.");
     expect(memoryText(tr, key, { subject: null, year: 2030 })).toBe("You leaned on me once.");
   });
 });
