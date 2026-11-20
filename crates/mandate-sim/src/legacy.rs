@@ -57,6 +57,12 @@ pub enum LegacyKind {
     PromiseBroken {
         person: u32,
     },
+    /// A campaign promise to a constituency's voters was kept or broken
+    /// (DEC-097 §2; the asks' outcomes).
+    CampaignPromise {
+        template: String,
+        kept: bool,
+    },
     /// A story about the player broke.
     Scandal {
         scandal: u32,
@@ -337,6 +343,27 @@ pub fn observe(state: &mut crate::State, content: &ContentBundle) {
                 push(ev.date, LegacyKind::Imprisoned { years: *years })
             }
             EventKind::PlayerReleased => push(ev.date, LegacyKind::Released),
+            // Campaign promises (an ask's to a person is remembered by them,
+            // below).
+            EventKind::AskResolved {
+                ask,
+                template,
+                outcome,
+                ..
+            } if state
+                .asks
+                .get(crate::asks::AskId(*ask))
+                .is_some_and(|a| a.promise)
+                && (outcome == "kept" || outcome == "broken") =>
+            {
+                push(
+                    ev.date,
+                    LegacyKind::CampaignPromise {
+                        template: template.clone(),
+                        kept: outcome == "kept",
+                    },
+                )
+            }
             _ => {}
         }
     }
@@ -403,8 +430,18 @@ pub fn fact(state: &crate::State, rec: &LegacyRecord, f: EndingFact) -> i64 {
         EndingFact::Works => n(|k| matches!(k, LegacyKind::LawPassed { works: true, .. })),
         EndingFact::ElectionsWon => n(|k| matches!(k, LegacyKind::Election { won: true, .. })),
         EndingFact::ElectionsLost => n(|k| matches!(k, LegacyKind::Election { won: false, .. })),
-        EndingFact::PromisesKept => n(|k| matches!(k, LegacyKind::PromiseKept { .. })),
-        EndingFact::PromisesBroken => n(|k| matches!(k, LegacyKind::PromiseBroken { .. })),
+        EndingFact::PromisesKept => n(|k| {
+            matches!(
+                k,
+                LegacyKind::PromiseKept { .. } | LegacyKind::CampaignPromise { kept: true, .. }
+            )
+        }),
+        EndingFact::PromisesBroken => n(|k| {
+            matches!(
+                k,
+                LegacyKind::PromiseBroken { .. } | LegacyKind::CampaignPromise { kept: false, .. }
+            )
+        }),
         EndingFact::Decisions => n(|k| matches!(k, LegacyKind::Decision { .. })),
         EndingFact::Scandals => n(|k| matches!(k, LegacyKind::Scandal { .. })),
         EndingFact::Mandate => tracks.map_or(0, |(_, m)| m.round() as i64),

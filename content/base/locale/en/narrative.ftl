@@ -214,29 +214,7 @@ dilemma-rival-offer-refuse-after = You refused, loudly. The party liked the figh
 dilemma-rival-offer-ignore = Ignore it
 dilemma-rival-offer-ignore-after = You never answered and slept on it. { $rival } took the silence as an answer.
 
-## Requests (an NPC's goal needs the player)
-request-back-workers = the workers' campaign
-request-back-workers-situation = { $holder } ({ $holder_role }) is organising the laid-off workers of { $town } and asks you to speak at their meeting.
-request-back-workers-back = Speak at the meeting
-request-back-workers-back-after = You spoke to the workers. They cheered; the party grumbled.
-request-back-workers-decline = Decline
-request-back-workers-decline-after = You declined. { $holder } will remember who did not come; better-off voters approved.
-
-request-ally-vote = the vote between friends
-request-ally-vote-situation = { $holder } ({ $holder_role }) counts you as a friend and asks for your vote on their bill, { $bill }.
-request-ally-vote-yes = Promise your vote
-request-ally-vote-yes-after = You voted for the { $bill } bill. { $holder } owes you one.
-request-ally-vote-no = Vote against it
-request-ally-vote-no-after = You voted against the { $bill } bill. { $holder } was hurt.
-request-ally-vote-noncommittal = Stay noncommittal
-request-ally-vote-noncommittal-after = You never gave { $holder } an answer and spared yourself the argument. They noticed.
-
-request-traders-meeting = the traders' meeting
-request-traders-meeting-situation = { $holder } ({ $holder_role }) is rallying { $town }'s traders over the lost jobs and asks you to come and speak.
-request-traders-meeting-speak = Go and speak
-request-traders-meeting-speak-after = You spoke to the traders. It cost you a day; it won you a friend.
-request-traders-meeting-regrets = Send your regrets
-request-traders-meeting-regrets-after = You sent your regrets and kept the day. { $holder } was disappointed.
+## Requests (an NPC's goal needs the player): the three became asks (asks.ftl).
 
 ## Scenes: what people say when you meet them about it
 scene-plant-steward = "{ $memory } And now you want to talk about the plant?"
@@ -266,12 +244,6 @@ scene-donor-donor = "{ $memory } I'd like to help your campaign."
 scene-donor-donor-fresh = "I've been watching your work. I'd like to help."
 scene-rival-rival = "{ $memory } Let's keep this civil until the count."
 scene-rival-rival-fresh = "We don't need to tear each other apart. Not yet."
-scene-request-workers = "{ $memory } Will you speak to them?"
-scene-request-workers-fresh = "They want to hear it from someone who can do something about it."
-scene-request-ally = "{ $memory } I'm counting on your vote."
-scene-request-ally-fresh = "I'd like you on my side for this one."
-scene-request-traders = "{ $memory } The traders want to hear from you."
-scene-request-traders-fresh = "Half the shops on the high street are worried. Come and talk to them."
 
 ## Storylines
 story-plant = The plant

@@ -197,6 +197,100 @@ pub fn cast_args(engine: &Engine, cast: &[CastEntry]) -> BTreeMap<String, String
     a
 }
 
+/// Fluent arguments for an ask or a promise (DEC-097 §2; the seam for E7's
+/// `AskView`): its cast's (`cast_args`), `$<role>_occupation` for a person
+/// (their occupation id without its prefix, for variants), `history` (how
+/// the asker's last ask ended), `days` (to the answer or the deadline),
+/// `place` (where a visit is done), `answer_key` (a promise's chosen bill),
+/// `concern_key` (a statement's worry), and `constituency_key` with
+/// `number` (a promise's voters).
+pub fn ask_args(engine: &Engine, a: &mandate_sim::asks::Ask) -> BTreeMap<String, String> {
+    use mandate_sim::asks::{Asker, Need, StatementNeed};
+    let st = engine.state();
+    let content = engine.content();
+    let mut args = cast_args(engine, &a.cast);
+    for e in &a.cast {
+        if let Actor::Person { id } = e.actor
+            && let Some(n) = st
+                .politics
+                .characters
+                .get(id)
+                .and_then(|c| c.named.as_deref())
+        {
+            let occ = n.occupation.trim_start_matches("occupation.").to_string();
+            put(&mut args, &format!("{}_occupation", e.role), occ);
+        }
+    }
+    put(&mut args, "history", a.history.key().into());
+    let until = if a.offered() { a.respond_by } else { a.due };
+    put(
+        &mut args,
+        "days",
+        st.calendar.date.days_until(until).to_string(),
+    );
+    // The crisis mid-sentence: `ask-crisis-<kind>` ("the job losses").
+    if let Some(k) = args.get("crisis_key").cloned() {
+        let kind = content
+            .crises
+            .iter()
+            .find(|c| c.name_key == k)
+            .map(|c| c.id.trim_start_matches("crisis.").to_string());
+        let key = kind.map(|k| format!("ask-crisis-{k}"));
+        // A crisis a pack added without its phrase keeps its label.
+        if let Some(key) = key.filter(|key| {
+            let line = format!("{key} =");
+            content
+                .locales
+                .get("en")
+                .is_some_and(|files| files.values().any(|t| t.contains(&line)))
+        }) {
+            put(&mut args, "crisis_key", key);
+        }
+    }
+    for n in &a.needs {
+        match n {
+            Need::Visit { place } => {
+                if let Some(p) = st.world.places.get(place.index()) {
+                    if p.name.is_empty() {
+                        // A place with no name of its own: `ask-place-<kind>`.
+                        put(
+                            &mut args,
+                            "place_key",
+                            format!("ask-place-{}", p.kind.key()),
+                        );
+                    } else {
+                        put(&mut args, "place", p.name.clone());
+                    }
+                }
+            }
+            Need::Statement {
+                about: StatementNeed::Concern { concern },
+            } => {
+                if let Some(c) = content.concerns.iter().find(|c| &c.id == concern) {
+                    put(&mut args, "concern_key", c.name_key.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Some(t) = a.answer.as_deref().and_then(|t| content.policies.get(t)) {
+        put(&mut args, "answer_key", t.name_key.clone());
+    }
+    match a.asker {
+        Asker::Constituency { id } => {
+            put(&mut args, "constituency_key", "ask-constituency".into());
+            if let Some(c) = st.world.constituencies.get(id.index()) {
+                put(&mut args, "number", c.number.to_string());
+            }
+        }
+        Asker::Electorate { .. } => {
+            put(&mut args, "constituency_key", "ask-electorate".into());
+        }
+        _ => {}
+    }
+    args
+}
+
 /// Signed, with one decimal for small non-zero changes (so +0.5 is not "+0").
 fn signed(v: f64, digits: usize) -> String {
     let digits = if v != 0.0 && v.abs() < 0.95 {

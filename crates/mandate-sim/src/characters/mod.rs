@@ -980,6 +980,16 @@ pub fn apply_effects(
     r: &crate::scheduler::Reads<'_>,
     out: &mut crate::scheduler::Outs<'_>,
 ) {
+    use crate::scheduler::Effect;
+    // Asks kept, broken and declined (DEC-097 §2).
+    for e in out.effects.take(|e| {
+        matches!(
+            e,
+            Effect::Opinion { .. } | Effect::Favour { .. } | Effect::Record { .. }
+        )
+    }) {
+        apply_ask_effect(pol, r.content, r.meta.seed, r.date, &e);
+    }
     for e in out
         .effects
         .take(|e| matches!(e, crate::scheduler::Effect::Memory { .. }))
@@ -1001,6 +1011,69 @@ pub fn apply_effects(
             }
             remember(pol, r.content, r.date, h, a, kind, subject, None);
         }
+    }
+}
+
+/// Apply an opinion, favour or record request (an ask's effects), from
+/// the applier or at once from the asks' commands.
+pub fn apply_ask_effect(
+    pol: &mut PoliticsState,
+    content: &ContentBundle,
+    seed: u64,
+    date: SimDate,
+    e: &crate::scheduler::Effect,
+) {
+    use crate::scheduler::Effect;
+    match e {
+        Effect::Opinion {
+            holder,
+            toward,
+            delta,
+            memory,
+        } => {
+            if pol.characters.get(*holder).is_none() {
+                return;
+            }
+            touch(pol, content, seed, *holder, date);
+            match memory {
+                Some(kind) => {
+                    remember(
+                        pol,
+                        content,
+                        date,
+                        *holder,
+                        *toward,
+                        *kind,
+                        None,
+                        Some(*delta),
+                    );
+                }
+                None if *delta != 0.0 => {
+                    change_opinion(pol, content, *holder, *toward, *delta);
+                }
+                None => {}
+            }
+        }
+        Effect::Favour {
+            holder,
+            toward,
+            owed_to_player,
+        } => {
+            let (debtor, creditor) = if *owed_to_player {
+                (*holder, *toward)
+            } else {
+                (*toward, *holder)
+            };
+            owe(pol, debtor, creditor, "favour-ask", None, date);
+        }
+        Effect::Record { politician, delta } => {
+            if *delta >= 0.0 {
+                crate::politics::add_record(pol, *politician, *delta as f32);
+            } else if let Some(p) = pol.get_mut(*politician) {
+                p.record = (p.record + *delta as f32).max(0.0);
+            }
+        }
+        _ => {}
     }
 }
 

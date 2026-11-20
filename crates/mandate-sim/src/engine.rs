@@ -36,8 +36,9 @@ pub struct Engine {
 /// (OVERVIEW §4.3), in schedule order: run once more at the end of an
 /// advance (`Engine::settle`). Each must do nothing but drain its effects
 /// (re-running it on the same day with an empty queue changes nothing).
-const SETTLE_APPLIERS: [&str; 4] = [
+const SETTLE_APPLIERS: [&str; 5] = [
     "population.coverage",
+    "population.effects",
     "characters.effects",
     "politics.media_effects",
     "player.effects",

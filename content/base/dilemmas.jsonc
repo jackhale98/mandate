@@ -816,60 +816,8 @@
       ],
     },
     // --- Requests: an NPC's goal needs the player (DEC-032) -------------------------------
-    {
-      "id": "request.back_the_workers", "category": "request",
-      "title_key": "request-back-workers", "situation_key": "request-back-workers-situation",
-      "roles": [ { "id": "holder", "cast": { "type": "goal_holder" } } ],
-      "deadline_days": 28, "cooldown_days": 240, "scene": "scene.request_workers",
-      "options": [
-        { "id": "back", "label_key": "request-back-workers-back", "aftermath_key": "request-back-workers-back-after",
-          "effects": [
-            { "type": "slots", "n": 1 },
-            { "type": "opinion", "role": "holder", "delta": 10, "memory": "stood_with_me" },
-            { "type": "approval", "classes": [0], "delta": 0.015 },
-            { "type": "standing", "delta": -2 } ] },
-        { "id": "decline", "default": true, "label_key": "request-back-workers-decline", "aftermath_key": "request-back-workers-decline-after",
-          "effects": [
-            { "type": "opinion", "role": "holder", "delta": -7, "memory": "ignored_me" },
-            { "type": "approval", "classes": [2], "delta": 0.005 } ] },
-      ],
-    },
-    {
-      "id": "request.ally_vote", "category": "request",
-      "title_key": "request-ally-vote", "situation_key": "request-ally-vote-situation",
-      "roles": [
-        { "id": "holder", "cast": { "type": "goal_holder" } },
-        { "id": "bill", "cast": { "type": "bill", "sponsor": "other", "sponsored_by": "holder" } },
-      ],
-      "triggers": [ { "type": "can_vote", "role": "bill" } ],
-      "deadline_days": 21, "cooldown_days": 180, "scene": "scene.request_ally",
-      "options": [
-        { "id": "yes", "label_key": "request-ally-vote-yes", "aftermath_key": "request-ally-vote-yes-after",
-          "effects": [ { "type": "vote", "role": "bill", "vote": "yes" }, { "type": "favour", "role": "holder", "owed_to_player": true } ] },
-        { "id": "no", "label_key": "request-ally-vote-no", "aftermath_key": "request-ally-vote-no-after",
-          "effects": [ { "type": "vote", "role": "bill", "vote": "no" } ] },
-        { "id": "noncommittal", "default": true, "label_key": "request-ally-vote-noncommittal", "aftermath_key": "request-ally-vote-noncommittal-after",
-          "effects": [
-            { "type": "opinion", "role": "holder", "delta": -5, "memory": "ignored_me" },
-            { "type": "health", "delta": 1 } ] },
-      ],
-    },
-    {
-      "id": "request.traders_meeting", "category": "request",
-      "title_key": "request-traders-meeting", "situation_key": "request-traders-meeting-situation",
-      "roles": [ { "id": "holder", "cast": { "type": "goal_holder" } } ],
-      "deadline_days": 28, "cooldown_days": 300, "scene": "scene.request_traders",
-      "options": [
-        { "id": "speak", "label_key": "request-traders-meeting-speak", "aftermath_key": "request-traders-meeting-speak-after",
-          "effects": [
-            { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 },
-            { "type": "opinion", "role": "holder", "delta": 9, "memory": "stood_with_me" },
-            { "type": "awareness", "delta": 0.02 } ] },
-        { "id": "send_regrets", "default": true, "label_key": "request-traders-meeting-regrets", "aftermath_key": "request-traders-meeting-regrets-after",
-          "effects": [
-            { "type": "opinion", "role": "holder", "delta": -5, "memory": "ignored_me" },
-            { "type": "health", "delta": 1 } ] },
-      ],
-    },
+    // The three requests (`request.back_the_workers`, `request.ally_vote`,
+    // `request.traders_meeting`) became asks (DEC-097 §2): `ask.join_picket`,
+    // `ask.vote_with_me`, `ask.attend_meeting` in `asks/asks.jsonc`.
   ],
 }

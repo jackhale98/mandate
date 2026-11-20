@@ -1887,8 +1887,8 @@ const TAG_BUILD_UP: u64 = 1;
 const TAG_RELAX: u64 = 2;
 
 /// What happened since the last weekly step that ends a relax early: the
-/// player started something (introduced a bill, filed for office), or a
-/// crisis began in a focus town.
+/// player started something (introduced a bill, filed for office, accepted
+/// a big ask), or a crisis began in a focus town.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Stir {
     pub started: bool,
@@ -1906,6 +1906,10 @@ fn stir(n: &mut NarrativeState, v: &View<'_>, out: &Outs<'_>, first: bool) -> St
         if let EventKind::PolicyIntroduced { sponsor, .. } = &e.kind
             && Some(*sponsor) == me
         {
+            started = true;
+        }
+        // Accepting a big ask starts something too (ENGAGEMENT §3.3).
+        if let EventKind::AskAccepted { big: true, .. } = &e.kind {
             started = true;
         }
     }
@@ -2269,7 +2273,8 @@ fn is_beat(k: &FactKind) -> bool {
 }
 
 /// The last day something happened for the player: a decision opened, a
-/// storyline stage, news of the town spotlighted, press about them.
+/// storyline stage, news of the town spotlighted, press about them, an ask
+/// offered or resolved (the asks domain, read only).
 fn last_beat(n: &NarrativeState, v: &View<'_>) -> Option<SimDate> {
     let decided = n.decisions.iter().map(|x| x.opened).max();
     let fact = n
@@ -2279,7 +2284,14 @@ fn last_beat(n: &NarrativeState, v: &View<'_>) -> Option<SimDate> {
         .find(|f| f.spotlit && is_beat(&f.kind))
         .map(|f| f.date);
     let press = press_dates(v).into_iter().max();
-    [decided, fact, press, n.play_began]
+    let asked =
+        v.r.asks()
+            .asks
+            .iter()
+            .flat_map(|a| [Some(a.opened), a.status.resolved_on()])
+            .flatten()
+            .max();
+    [decided, fact, press, asked, n.play_began]
         .into_iter()
         .flatten()
         .max()

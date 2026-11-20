@@ -236,6 +236,33 @@ Casts: `broker`, `rival` (in a campaign, whoever stands against the player), `ma
 
 **Storyteller profiles**: Classic (default, `director.default_profile`), Unfiltered (no levers, no tension gating), Steady (30% of strikes on the player's town miss, one crisis at a time, three quarters of the budgets). A new game can set `narrative.profile`.
 
+### Adding an ask (asks and promises, DEC-097 §2)
+
+An ask is a concrete request with a deadline, made to the player by someone with a reason in the live state; a campaign promise is a public ask from a constituency's voters. The engine is `mandate_sim::asks` (its own domain, `State.asks`); the content is `content/base/asks/`: `params.jsonc` (`ask_params`: the sliding rate, caps, casework, promises), `asks.jsonc` (`asks`) and `promises.jsonc` (`promises`); the text is `locale/en/asks.ftl`. Types: `mandate-content/src/asks.rs`.
+
+```jsonc
+{ "id": "ask.say_something", "name_key": "ask-say-something",
+  "asker": { "type": "occupation", "occupations": ["occupation.journalist"] },   // a person, cast like a dilemma role: the role `asker`
+  "triggers": [ { "type": "crisis", "min_severity": 0.1 } ],                     // the one condition language; never `knows`
+  "needs": [ { "type": "statement", "about": { "type": "crisis" } } ],          // met in order
+  "deadline_days": [7, 14], "cooldown_days": 120, "public": true,
+  "keep":    [ { "type": "opinion", "role": "asker", "delta": 6, "memory": "kept_promise" },
+               { "type": "approval", "scope": "town", "delta": 0.004 } ],
+  "break":   [ { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" } ],
+  "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+  "detail_key": "ask-say-something-detail", "need_key": "ask-say-something-need",
+  "kept_key": "ask-say-something-kept", "broken_key": "ask-say-something-broken" }
+```
+
+- **Who asks.** `asker` is any dilemma cast (`occupation`, `broker`, `colleague` — a holder of a post in the same body —, `office` — the jurisdiction's executive, or `{ "office": "<constitution id>" }` —, `goal_holder` for an ask an NPC goal names with `"ask": "ask.…"` in `goals.jsonc`). Never write an office or body word: the test `asks_name_no_town_key_and_no_office` scans the asks' content and text. `on_behalf: "party"` makes it the party's ask (one at a time). The asker's home neighbourhood is the implicit role `asker_hood`; further roles go in `roles`.
+- **Where offers come from** (`from`): `week` (default; the weekly draw at the sliding rate), `doorstep` (a canvass: someone living in the canvassed neighbourhood, `doorstep_chance`), `talk` (the person the player talked with), `talked_about` (someone the player asked around about within `talked_about_days`). `min_career_days` holds an ask back until later in a career; `fresh_days` skips it while the player did its first need lately ("no town hall there in 180 days").
+- **Needs** (each an ordinary command the engine sees, DEC-032: no fetch quests): `vote` (`yes`, `no`, `with_party`, on a `bill` role; without `deadline_days` the ask is due by the vote), `statement` (about `crisis`, a `concern`, a `bill` role, or `any`), `town_hall` (a neighbourhood role or a person's home; `constituency: true` for every neighbourhood of a promise's race), `canvass` (`or_town_hall`), `visit` (place kinds, near a role), `talk`, `introduce` and `enacted` (bills: `templates`, `crisis_answer`, `concern_answer`, or a promise's `chosen` answer), `casework` (the one new verb, "Sort it out" at the town hall), and the needs kept by not acting, which stand alone: `against_all` (`tax_rise`), `no_surfaced_hidden_fact`, `quiet`.
+- **Effects** reuse the narrative effect list, limited to what the asks system can request from other domains: `opinion` (with a memory), `approval` (a neighbourhood role, the ward — a promise's race —, or the town), `standing`, `record`, `favour`, `learn`, `money`. Validation demands a gain on keeping and a cost on breaking (DEC-073); the record moves too (`career.record_gain`: `ask_kept`, `promise_kept`, `ask_broken`), and a kept `big` ask leaves the asker owing the player a favour. Accepting a `big` ask ends the director's relax phase.
+- **Text.** Five keys per ask. Arguments: each role as `$<role>` (a bill by its policy name), `$<role>_role`, `$<role>_occupation` (the occupation id without its prefix, for variants: `ask-casework` reads a drain, a form, an objection or a school place from it), `$history` (`kept`, `broken`, `none`: how the asker's last ask ended, for callbacks), `$days`, `$place`, `$crisis`, `$concern`, `$town`; promises add `$answer` and `$constituency`. Validation checks each key exists and uses only arguments the ask provides; the views build them with `mandate_protocol::narrative::ask_args`.
+- **Promises** name what they answer (`answers`: `crisis`, a `concern`, `any`) and when they fall due (`due`: `term` of the post run for, `budget_year`, `days`). The menu (`asks::promise_menu`) offers, while campaigning, each answer to the town's live crisis, the promises on the race's three most felt worries, and those that answer none.
+
+Read API for other systems: `AskState::due_within(date, days)` (the time skip's `request_due` interrupt reads the accepted ones), `promise_outcomes()` (the Legacy record), `deeds_since(date)` (the player's deed log), `history_of(asker)`. Lab: `bots --careers Y` prints each career's `asks` tally and per-template counts.
+
 ### Media, scandals, and the legal path (DEC-034, DEC-006)
 
 Two domains: `State::media` (`mandate_sim::media`: outlets, knowledge, stories, scandals, rumours) and `State::justice` (`mandate_sim::justice`: cases and bars from office). Both run only while play is on (outlets exist), never in the history warm-up.

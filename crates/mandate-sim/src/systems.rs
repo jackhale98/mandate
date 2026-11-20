@@ -54,6 +54,12 @@ pub fn default_systems() -> Vec<SystemDef> {
             run: SystemFn::Population(crate::concerns::refresh),
         },
         SystemDef {
+            name: "population.effects",
+            phase: P::Opinion,
+            cadence: Daily,
+            run: SystemFn::Population(population::effects),
+        },
+        SystemDef {
             name: "population.opinion",
             phase: P::Opinion,
             cadence: Monthly,
@@ -180,6 +186,18 @@ pub fn default_systems() -> Vec<SystemDef> {
             phase: P::Director,
             cadence: Weekly,
             run: SystemFn::Narrative(crate::narrative::weekly),
+        },
+        SystemDef {
+            name: "asks.daily",
+            phase: P::Director,
+            cadence: Daily,
+            run: SystemFn::Asks(crate::asks::daily),
+        },
+        SystemDef {
+            name: "asks.weekly",
+            phase: P::Director,
+            cadence: Weekly,
+            run: SystemFn::Asks(crate::asks::offers::weekly),
         },
         SystemDef {
             name: "calendar.year",

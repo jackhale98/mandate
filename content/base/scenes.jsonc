@@ -79,10 +79,6 @@
     { "id": "scene.debate", "place": { "type": "kind", "kind": "community_centre" },
       "teaches": [ { "subject": { "type": "rival_plans" }, "level": "known" } ],
       "beats": [ { "speaker": "rival", "line": "scene-debate-rival", "quote_fallback": "scene-debate-rival-fresh" } ] },
-    { "id": "scene.request_workers", "place": { "type": "workplace", "role": "holder", "fallback": "union_hall" },
-      "beats": [ { "speaker": "holder", "line": "scene-request-workers", "quote_fallback": "scene-request-workers-fresh" } ] },
-    { "id": "scene.request_ally", "place": { "type": "kind", "kind": "council_chamber" },
-      "beats": [ { "speaker": "holder", "line": "scene-request-ally", "quote_fallback": "scene-request-ally-fresh" } ] },
     // Borderline offers (DEC-034): a quiet word at a quiet table.
     { "id": "scene.consultancy_fee", "place": { "type": "kind", "kind": "diner" },
       "teaches": [ { "subject": { "type": "broker" }, "level": "heard" } ],
@@ -95,7 +91,5 @@
       "beats": [ { "speaker": "treasurer", "line": "scene-bills-treasurer" } ] },
     { "id": "scene.job_for_relative", "place": { "type": "kind", "kind": "diner" },
       "beats": [ { "speaker": "sponsor", "line": "scene-relative-sponsor", "quote_fallback": "scene-relative-sponsor-fresh" } ] },
-    { "id": "scene.request_traders", "place": { "type": "workplace", "role": "holder", "fallback": "market" },
-      "beats": [ { "speaker": "holder", "line": "scene-request-traders", "quote_fallback": "scene-request-traders-fresh" } ] },
   ],
 }

@@ -129,6 +129,15 @@ pub struct ContentBundle {
     /// Conversation rules (cost, discretion, speaker knowledge, the guard).
     #[serde(default)]
     pub talk: crate::conversation::TalkParams,
+    /// The asks system's numbers (DEC-097 §2).
+    #[serde(default)]
+    pub ask_params: crate::asks::AskParams,
+    /// Ask templates, in load order.
+    #[serde(default)]
+    pub asks: Vec<crate::asks::AskDef>,
+    /// Campaign promise templates, in load order.
+    #[serde(default)]
+    pub promises: Vec<crate::asks::PromiseDef>,
     /// The act flow (DEC-012): directives, interrupts, skip targets, the
     /// proxy and the Legacy record. Absent: no skips are offered.
     #[serde(default)]
@@ -147,6 +156,16 @@ pub struct ContentBundle {
 }
 
 impl ContentBundle {
+    /// An ask template by id.
+    pub fn ask(&self, id: &str) -> Option<&crate::asks::AskDef> {
+        self.asks.iter().find(|a| a.id == id)
+    }
+
+    /// A promise template by id.
+    pub fn promise(&self, id: &str) -> Option<&crate::asks::PromiseDef> {
+        self.promises.iter().find(|a| a.id == id)
+    }
+
     /// A policy family by id (disabled ones included: bills and laws of a
     /// disabled family still compose).
     pub fn family(&self, id: &str) -> Option<&crate::policy_family::PolicyFamilyDef> {
@@ -352,6 +371,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut talk_lines: Vec<crate::conversation::TalkLineDef> = Vec::new();
     let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
     let mut talk: Option<(crate::conversation::TalkParams, String)> = None;
+    let mut ask_params: Option<(crate::asks::AskParams, String)> = None;
+    let mut asks: Vec<crate::asks::AskDef> = Vec::new();
+    let mut promises: Vec<crate::asks::PromiseDef> = Vec::new();
     let mut act_flow: Option<(crate::act::ActFlowParams, String)> = None;
     let mut endings: Vec<crate::act::EndingDef> = Vec::new();
     let mut policy_families: Vec<crate::policy_family::PolicyFamilyDef> = Vec::new();
@@ -691,6 +713,27 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             ContentFile::TalkParams { value } => {
                 once(&mut talk, *value, "talk_params", &src.path, &mut issues)
             }
+            ContentFile::AskParams { value } => once(
+                &mut ask_params,
+                *value,
+                "ask_params",
+                &src.path,
+                &mut issues,
+            ),
+            ContentFile::Asks { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        asks.push(x);
+                    }
+                }
+            }
+            ContentFile::Promises { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        promises.push(x);
+                    }
+                }
+            }
             ContentFile::ActFlow { value } => {
                 once(&mut act_flow, *value, "act_flow", &src.path, &mut issues)
             }
@@ -849,6 +892,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         talk_lines,
         talk_voices,
         talk,
+        ask_params: ask_params.map(|(v, _)| v).unwrap_or_default(),
+        asks,
+        promises,
         act_flow: act_flow.map(|(a, _)| a).unwrap_or_default(),
         endings,
         policy_families,

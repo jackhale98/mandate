@@ -137,6 +137,12 @@ pub enum ContentFile {
     TalkParams {
         value: Box<crate::conversation::TalkParams>,
     },
+    /// The asks system's numbers: the sliding rate, caps, casework, promises (DEC-097 §2).
+    AskParams { value: Box<crate::asks::AskParams> },
+    /// Ask templates: concrete requests with a deadline (DEC-097 §2).
+    Asks { items: Vec<crate::asks::AskDef> },
+    /// Campaign promise templates (DEC-097 §2).
+    Promises { items: Vec<crate::asks::PromiseDef> },
     /// The act flow (DEC-012): time-skip directives, interrupts, skip
     /// targets, the player-proxy and the Legacy record.
     ActFlow {
@@ -1652,7 +1658,7 @@ fn ones3() -> [f64; 3] {
 /// The player actions a place can offer. The kinds of action stay in code
 /// (DEC-078 decision 7); these keys match the action-cost keys in tuning
 /// where an action costs time. `vote`, `draft`, `file`, and `withdraw` are free.
-pub const PLACE_ACTIONS: [&str; 17] = [
+pub const PLACE_ACTIONS: [&str; 18] = [
     "canvass",
     "town_hall",
     "press",
@@ -1670,6 +1676,7 @@ pub const PLACE_ACTIONS: [&str; 17] = [
     "take_bribe",
     "dip_funds",
     "leak_file",
+    "casework",
 ];
 
 /// Actions with a late-night variant (the optional fourth slot).
@@ -2966,6 +2973,15 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "talk_voices" => ContentFile::TalkVoices {
             items: serde_json::from_str::<ItemsFile<crate::conversation::VoiceDef>>(json)?.items,
+        },
+        "ask_params" => ContentFile::AskParams {
+            value: Box::new(serde_json::from_str::<ValueFile<crate::asks::AskParams>>(json)?.value),
+        },
+        "asks" => ContentFile::Asks {
+            items: serde_json::from_str::<ItemsFile<crate::asks::AskDef>>(json)?.items,
+        },
+        "promises" => ContentFile::Promises {
+            items: serde_json::from_str::<ItemsFile<crate::asks::PromiseDef>>(json)?.items,
         },
         "talk_params" => ContentFile::TalkParams {
             value: Box::new(

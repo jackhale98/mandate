@@ -61,6 +61,45 @@ pub fn class_of(ci: usize) -> usize {
     group_of(ci) % CLASSES
 }
 
+/// Approval of the player in an area, × room like every approval change,
+/// by income class (empty: all). The asks' effect requests and their
+/// commands apply it (DEC-097 §2).
+pub fn apply_approval(
+    pop: &mut PopulationState,
+    world: &World,
+    area: crate::world::Area,
+    delta: f64,
+    classes: &[u8],
+) {
+    for h in area.hoods(world) {
+        let Some(hp) = pop.hoods.get_mut(h) else {
+            continue;
+        };
+        for (ci, c) in hp.cohorts.iter_mut().enumerate() {
+            if !classes.is_empty() && !classes.contains(&(class_of(ci) as u8)) {
+                continue;
+            }
+            let room = 1.0 - (c.player_approval as f64).abs();
+            c.player_approval = clamp(c.player_approval as f64 + delta * room, -1.0, 1.0) as f32;
+        }
+    }
+}
+
+/// Population domain, Opinion phase, daily: approval other domains asked
+/// for (`Effect::Approval`: asks kept, broken and declined).
+pub fn effects(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
+    for e in out.effects.take(|e| matches!(e, Effect::Approval { .. })) {
+        if let Effect::Approval {
+            scope,
+            delta,
+            classes,
+        } = e
+        {
+            apply_approval(pop, r.world, scope, delta, &classes);
+        }
+    }
+}
+
 /// The community (registry index) of a cohort index.
 #[inline]
 pub fn community_of(ci: usize) -> usize {

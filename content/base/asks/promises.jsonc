@@ -1,0 +1,63 @@
+// Campaign promises (DEC-097 §2; ENGAGEMENT §3.5): while campaigning, up to
+// `promises.max_per_campaign` public promises to the voters of the
+// constituency the player is running in, from a menu built from its live
+// state (its top worries, the town's crisis). Each falls due by the term of
+// the post run for (or sooner), is kept or broken by what the player does,
+// and persuades where its worry is felt. Broken promises cost more than kept
+// ones gain (DEC-073). Every promise names what it answers.
+{
+  "kind": "promises",
+  "items": [
+    // "I'll get the answer on the books": one of the crisis's answers (the menu argument).
+    { "id": "promise.answer_crisis", "name_key": "promise-answer-crisis",
+      "answers": { "type": "crisis" },
+      "needs": [ { "type": "enacted", "bills": { "type": "chosen" }, "sponsor_player": true } ],
+      "due": { "type": "term" },
+      "keep": [ { "type": "approval", "scope": "ward", "delta": 0.02 }, { "type": "standing", "delta": 1 } ],
+      "break": [ { "type": "approval", "scope": "ward", "delta": -0.03 }, { "type": "standing", "delta": -1 } ],
+      "detail_key": "promise-answer-crisis-detail", "need_key": "promise-answer-crisis-need",
+      "kept_key": "promise-answer-crisis-kept", "broken_key": "promise-answer-crisis-broken" },
+    { "id": "promise.no_tax_rise", "name_key": "promise-no-tax-rise",
+      "answers": { "type": "concern", "concern": "concern.taxes" },
+      "needs": [ { "type": "against_all", "tag": "tax_rise" } ],
+      "due": { "type": "budget_year" },
+      "keep": [ { "type": "approval", "scope": "ward", "delta": 0.02 } ],
+      "break": [ { "type": "approval", "scope": "ward", "delta": -0.03 }, { "type": "standing", "delta": -1 } ],
+      "detail_key": "promise-no-tax-rise-detail", "need_key": "promise-no-tax-rise-need",
+      "kept_key": "promise-no-tax-rise-kept", "broken_key": "promise-no-tax-rise-broken" },
+    { "id": "promise.town_halls", "name_key": "promise-town-halls",
+      "answers": { "type": "any" },
+      "needs": [ { "type": "town_hall", "constituency": true } ],
+      "due": { "type": "days", "days": 180 },
+      "keep": [ { "type": "approval", "scope": "ward", "delta": 0.02 } ],
+      "break": [ { "type": "approval", "scope": "ward", "delta": -0.03 }, { "type": "standing", "delta": -1 } ],
+      "detail_key": "promise-town-halls-detail", "need_key": "promise-town-halls-need",
+      "kept_key": "promise-town-halls-kept", "broken_key": "promise-town-halls-broken" },
+    { "id": "promise.jobs", "name_key": "promise-jobs",
+      "answers": { "type": "concern", "concern": "concern.jobs" },
+      "needs": [ { "type": "enacted", "bills": { "type": "concern_answer", "concern": "concern.jobs" }, "sponsor_player": true } ],
+      "due": { "type": "term" },
+      "keep": [ { "type": "approval", "scope": "ward", "delta": 0.02 }, { "type": "standing", "delta": 1 } ],
+      "break": [ { "type": "approval", "scope": "ward", "delta": -0.03 }, { "type": "standing", "delta": -1 } ],
+      "detail_key": "promise-jobs-detail", "need_key": "promise-jobs-need",
+      "kept_key": "promise-jobs-kept", "broken_key": "promise-jobs-broken" },
+    { "id": "promise.services", "name_key": "promise-services",
+      "answers": { "type": "concern", "concern": "concern.services" },
+      "needs": [ { "type": "enacted", "bills": { "type": "templates", "templates": [
+        "policy.transit_frequency", "policy.police_staffing", "policy.parks", "policy.fiscal_bridge" ] }, "sponsor_player": true } ],
+      "due": { "type": "term" },
+      "keep": [ { "type": "approval", "scope": "ward", "delta": 0.02 }, { "type": "standing", "delta": 1 } ],
+      "break": [ { "type": "approval", "scope": "ward", "delta": -0.03 }, { "type": "standing", "delta": -1 } ],
+      "detail_key": "promise-services-detail", "need_key": "promise-services-need",
+      "kept_key": "promise-services-kept", "broken_key": "promise-services-broken" },
+    // An honest promise that a shady player breaks by being found out.
+    { "id": "promise.clean_politics", "name_key": "promise-clean-politics",
+      "answers": { "type": "any" },
+      "needs": [ { "type": "no_surfaced_hidden_fact" } ],
+      "due": { "type": "term" },
+      "keep": [ { "type": "approval", "scope": "ward", "delta": 0.02 } ],
+      "break": [ { "type": "approval", "scope": "ward", "delta": -0.03 }, { "type": "standing", "delta": -1 } ],
+      "detail_key": "promise-clean-politics-detail", "need_key": "promise-clean-politics-need",
+      "kept_key": "promise-clean-politics-kept", "broken_key": "promise-clean-politics-broken" },
+  ],
+}

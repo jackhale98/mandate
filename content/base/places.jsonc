@@ -48,9 +48,10 @@
       "interior": "interior.council_chamber",
     },
     {
-      // The clerk's office, the mayor's office, and the statistics desk.
+      // The clerk's office, the mayor's office, the statistics desk, and the
+      // services desk where casework is sorted out (DEC-097 §2).
       "id": "place.town_hall", "key": "town_hall", "name_key": "place-town_hall",
-      "actions": ["draft", "file", "withdraw"],
+      "actions": ["draft", "file", "withdraw", "casework"],
       "services": ["town_data_detailed", "budget_papers"],
       "layout": { "slot": "square", "footprint": [[7, 4], [9, 5]], "place": ["on_square"], "signature": "clock_tower", "with": ["flag"], "landmark": true, "art": { "kit": "kit.town_hall", "family": "civic" } },
       "interior": "interior.town_hall",

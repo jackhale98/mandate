@@ -882,6 +882,7 @@ pub fn generate_with_progress(
         narrative: Default::default(),
         media: Default::default(),
         justice: Default::default(),
+        asks: Default::default(),
         act: Default::default(),
     };
     let years = content.tuning.burn_in_years as u32;

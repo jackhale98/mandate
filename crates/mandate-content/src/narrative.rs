@@ -880,6 +880,10 @@ pub struct GoalDef {
     /// When the goal needs the player: a request (a dilemma of category `request`).
     #[serde(default)]
     pub request: Option<ContentKey>,
+    /// When the goal needs something done later: an ask (`asks.jsonc`) whose
+    /// asker is cast `goal_holder` (ENGAGEMENT §3.1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ask: Option<ContentKey>,
     /// A goal is given up after this many days (or when its conditions fail).
     pub max_days: u32,
 }
@@ -1273,7 +1277,7 @@ pub(crate) fn check_subject(
 }
 
 /// Cast definitions: earlier roles only, known references.
-fn check_roles<'a>(
+pub(crate) fn check_roles<'a>(
     owner: &'a str,
     b: &'a ContentBundle,
     roles: &'a [RoleDef],
@@ -1782,6 +1786,22 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     &format!("request `{r}` must be a dilemma of category `request`"),
                 )),
                 None => issues.push(Issue::error(owner, &format!("unknown request `{r}`"))),
+            }
+        }
+        if let Some(a) = &g.ask {
+            match b.asks.iter().find(|x| &x.id == a) {
+                Some(x) if matches!(x.asker, Cast::GoalHolder) => {}
+                Some(_) => issues.push(Issue::error(
+                    owner,
+                    &format!("ask `{a}` must cast its asker `goal_holder`"),
+                )),
+                None => issues.push(Issue::error(owner, &format!("unknown ask `{a}`"))),
+            }
+            if g.request.is_some() {
+                issues.push(Issue::error(
+                    owner,
+                    "a goal needs the player through a request or an ask, not both",
+                ));
             }
         }
         if g.max_days == 0 || g.max_days > 3650 {

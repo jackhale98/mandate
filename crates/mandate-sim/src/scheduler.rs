@@ -6,6 +6,7 @@
 //! as typed `Effect`s applied by the owning domain. The borrow checker
 //! therefore enforces the architecture rule.
 
+use crate::asks::AskState;
 use crate::economy::EconomyState;
 use crate::environment::EnvironmentState;
 use crate::events::{EventId, EventLog};
@@ -136,6 +137,33 @@ pub enum Effect {
         temporary: f64,
         cause: Option<EventId>,
     },
+    /// Someone's opinion of someone else changes, remembered as `memory`
+    /// (politics applies; scaled by personality like every opinion change).
+    Opinion {
+        holder: crate::characters::CharacterId,
+        toward: crate::characters::CharacterId,
+        delta: f64,
+        memory: Option<crate::characters::MemoryKind>,
+    },
+    /// A favour (politics applies): `holder` owes `toward` one, or with
+    /// `owed_to_player` the reverse.
+    Favour {
+        holder: crate::characters::CharacterId,
+        toward: crate::characters::CharacterId,
+        owed_to_player: bool,
+    },
+    /// Approval of the player in an area (population applies), × room, by
+    /// income class (empty: all).
+    Approval {
+        scope: crate::world::Area,
+        delta: f64,
+        classes: Vec<u8>,
+    },
+    /// A politician's record of visible work (politics applies).
+    Record {
+        politician: crate::politics::PoliticianId,
+        delta: f64,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -176,6 +204,7 @@ pub struct Reads<'a> {
     narrative: Option<&'a NarrativeState>,
     media: Option<&'a MediaState>,
     justice: Option<&'a JusticeState>,
+    asks: Option<&'a AskState>,
     /// The player, if one exists (lab runs may have none).
     pub player: Option<&'a PlayerState>,
 }
@@ -202,6 +231,7 @@ impl<'a> Reads<'a> {
             narrative: Some(&state.narrative),
             media: Some(&state.media),
             justice: Some(&state.justice),
+            asks: Some(&state.asks),
             player: state.player.as_ref(),
         }
     }
@@ -256,6 +286,10 @@ impl<'a> Reads<'a> {
         self.justice
             .expect("justice is not readable from its own systems")
     }
+    pub fn asks(&self) -> &'a AskState {
+        self.asks
+            .expect("asks are not readable from their own systems")
+    }
 }
 
 /// Shared outputs every system may use.
@@ -282,6 +316,8 @@ pub enum SystemFn {
     Media(fn(&mut MediaState, &Reads<'_>, &mut Outs<'_>)),
     /// The legal path (DEC-006).
     Justice(fn(&mut JusticeState, &Reads<'_>, &mut Outs<'_>)),
+    /// Asks and promises (DEC-097 §2).
+    Asks(fn(&mut AskState, &Reads<'_>, &mut Outs<'_>)),
     /// Writes nothing but the event log.
     Log(fn(&Reads<'_>, &mut Outs<'_>)),
 }
@@ -371,6 +407,7 @@ fn run_one(
         narrative,
         media,
         justice,
+        asks,
         // The act domain is engine turn code, not a scheduled system.
         act: _,
     } = state;
@@ -397,6 +434,21 @@ fn run_one(
             )
         };
         ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr, $narr:expr, $med:expr, $jus:expr) => {
+            reads!(
+                $pop,
+                $eco,
+                $fin,
+                $env,
+                $pol,
+                $poly,
+                $ply,
+                $narr,
+                $med,
+                $jus,
+                Some(&*asks)
+            )
+        };
+        ($pop:expr, $eco:expr, $fin:expr, $env:expr, $pol:expr, $poly:expr, $ply:expr, $narr:expr, $med:expr, $jus:expr, $asks:expr) => {
             Reads {
                 content,
                 date,
@@ -412,6 +464,7 @@ fn run_one(
                 narrative: $narr,
                 media: $med,
                 justice: $jus,
+                asks: $asks,
                 player: $ply,
             }
         };
@@ -547,6 +600,22 @@ fn run_one(
                 None
             );
             g(justice, &r, &mut outs)
+        }
+        SystemFn::Asks(g) => {
+            let r = reads!(
+                Some(&*population),
+                Some(&*economy),
+                Some(&*finance),
+                Some(&*environment),
+                Some(&*politics),
+                Some(&*policy),
+                player.as_ref(),
+                Some(&*narrative),
+                Some(&*media),
+                Some(&*justice),
+                None
+            );
+            g(asks, &r, &mut outs)
         }
         SystemFn::Log(g) => {
             let r = reads!(

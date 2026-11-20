@@ -160,6 +160,15 @@ fn put_policy(put: &mut dyn FnMut(&str, String), engine: &Engine, policy: u32, m
     put("town", muni_name(engine, municipality));
 }
 
+/// An ask's or a promise's name key, by template id.
+fn ask_name_key(engine: &Engine, template: &str) -> String {
+    let c = engine.content();
+    c.ask(template)
+        .map(|t| t.name_key.clone())
+        .or_else(|| c.promise(template).map(|t| t.name_key.clone()))
+        .unwrap_or_default()
+}
+
 pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
     let mut args = BTreeMap::new();
     let mut put = |k: &str, v: String| {
@@ -462,6 +471,23 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             put("name", pol_name(engine, *politician));
             "event-rumour-corrected"
         }
+        // Asks and promises (DEC-097 §2); the full view is E7's `AskView`.
+        EventKind::PlayerDeed { .. } => "event-player-deed",
+        EventKind::AskOffered { template, .. } => {
+            put("ask_key", ask_name_key(engine, template));
+            "event-ask-offered"
+        }
+        EventKind::AskAccepted { template, .. } => {
+            put("ask_key", ask_name_key(engine, template));
+            "event-ask-accepted"
+        }
+        EventKind::AskResolved {
+            template, outcome, ..
+        } => {
+            put("ask_key", ask_name_key(engine, template));
+            put("outcome", outcome.clone());
+            "event-ask-resolved"
+        }
         EventKind::RulesUpdated { to_engine, .. } => {
             put("version", to_engine.clone());
             "event-rules-updated"
@@ -512,6 +538,8 @@ pub fn overview(engine: &Engine) -> OverviewView {
                     // The director's levers are logged, not news (diagnostics).
                     | EventKind::DirectorIntervention { .. }
                     | EventKind::FactDiscoverable { .. }
+                    // What the player did is in their action log.
+                    | EventKind::PlayerDeed { .. }
             )
         })
         .take(15)

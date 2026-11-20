@@ -584,6 +584,16 @@ fn entry_line(engine: &Engine, date: mandate_core::SimDate, k: &LegacyKind) -> A
             args.insert("name".into(), person_name(engine, *person));
             "legacy-promise_broken"
         }
+        LegacyKind::CampaignPromise { template, kept } => {
+            if let Some(t) = engine.content().promise(template) {
+                args.insert("promise_key".into(), t.name_key.clone());
+            }
+            if *kept {
+                "legacy-campaign_promise-kept"
+            } else {
+                "legacy-campaign_promise-broken"
+            }
+        }
         LegacyKind::Scandal { kind, .. } => {
             args.insert("kind_key".into(), format!("fact-{kind}"));
             "legacy-scandal"

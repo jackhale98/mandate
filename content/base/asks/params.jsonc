@@ -1,0 +1,30 @@
+// The asks system (DEC-097 §2; ENGAGEMENT §3.2). The week's chance of an offer
+// is min(1, new_per_month × 12 / 52 × intent_by_open(open asks) ×
+// intent_by_quiet(days since the last offer)), both curves linear between
+// their points: a player with nothing open is asked sooner, a busy one is left
+// alone. Values tuned by E8 (BALANCE_LOG).
+{
+  "kind": "ask_params",
+  "value": {
+    "max_open": 4,                    // offered + accepted (a hard cap; promises are not counted)
+    "new_per_month": 1.5,             // governing
+    "new_per_month_campaign": 2.5,
+    "intent_by_open": [ [0, 2.0], [1, 1.3], [2, 1.0], [3, 0.5], [4, 0.0] ],
+    "intent_by_quiet": [ [0, 0.0], [7, 0.5], [21, 1.0], [42, 1.5] ],
+    "respond_days": 14,               // an offer lapses unanswered (declined); a governing turn (E8: was 7)
+    "per_asker_cooldown_days": 60,
+    "asker_kept_mult": 1.5,           // callbacks: a kept ask makes the next likelier
+    "asker_broken_mult": 0.5,
+    "doorstep_chance": 0.35,          // a canvass (or a talk) brings casework
+    "history": 60,                    // resolved asks kept
+    "deeds_kept": 120,                // the player's deed log
+    "talked_about_days": 30,
+    "casework": { "success_in_office": 0.85, "success_out_of_office": 0.5 },
+    "promises": {
+      "max_per_campaign": 3,
+      "persuasion": 0.04,             // × the worry's felt level in each neighbourhood of the race
+      "any_salience": 0.5,            // a promise that answers no one worry
+      "broken_discount": 0.5,         // × per public promise broken
+    },
+  },
+}

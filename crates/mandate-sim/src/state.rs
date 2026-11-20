@@ -81,6 +81,9 @@ pub struct State {
     /// Investigations, charges, trials, sentences (DEC-006).
     #[serde(default)]
     pub justice: crate::justice::JusticeState,
+    /// Asks and promises, and the player's deed log (DEC-097 §2).
+    #[serde(default)]
+    pub asks: crate::asks::AskState,
     /// The act flow (DEC-005, DEC-012): directives, time skips, the Legacy
     /// record and the act's ending.
     #[serde(default)]
