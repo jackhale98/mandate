@@ -1967,8 +1967,10 @@ fn play_all(
 /// (0.01 = one point) and win-rate shares.
 pub const ROTE_SHARE_MARGIN: f64 = 0.01;
 pub const ROTE_WIN_MARGIN: f64 = 0.05;
-/// `ladder_learned`: + 1.0 point until E8, + 3.0 from E8.
+/// `ladder_learned`: + 1.0 point until E8 (enforced), + 3.0 from E8
+/// (`LEARNED_MARGIN_E8`, reported as `ladder_learned_e8` until it passes).
 pub const LEARNED_MARGIN: f64 = 0.01;
+pub const LEARNED_MARGIN_E8: f64 = 0.03;
 pub const KNOWLEDGE_MARGIN: f64 = 0.03;
 pub const SKILL_SHARE_MARGIN: f64 = 0.03;
 pub const SKILL_WIN_MARGIN: f64 = 0.10;
@@ -2076,6 +2078,8 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
     let explorer = mean("explorer").unwrap_or(0.0);
     let ladder_learned =
         explorer >= mixed_mean + LEARNED_MARGIN && rate("explorer").unwrap_or(0.0) >= mixed_rate;
+    let ladder_learned_e8 = explorer >= mixed_mean + LEARNED_MARGIN_E8
+        && rate("explorer").unwrap_or(0.0) >= mixed_rate;
     let omni: Vec<&Played> = (1..=seeds)
         .filter_map(|seed| results.get(&("mixed", seed, true)))
         .collect();
@@ -2208,6 +2212,7 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
         "ladder_rote": ladder_rote,
         "explorer_minus_mixed_share": explorer - mixed_mean,
         "ladder_learned": ladder_learned,
+        "ladder_learned_e8": ladder_learned_e8,
         "omniscient_mixed_mean_share": omni_mean,
         "knowledge_matters": knowledge_matters,
         "skill_gap": skill_gap,
@@ -2239,13 +2244,18 @@ pub const GATES: [&str; 10] = [
     "proxy_not_optimal",
 ];
 
-/// The gates `bots` fails on from E1 (the ladder's "Enforced" column): the
-/// rest are reported until E8 (and `ladder_learned` rises to + 3.0 then).
+/// The gates `bots` fails on (the ladder's "Enforced" column, ENGAGEMENT
+/// §7.2): E1's, and from E8 `ladder_rote`. E8's other rungs
+/// (`ladder_learned` at + 3.0, reported as `ladder_learned_e8`;
+/// `knowledge_matters`; `skill_gap`; clauses (a) and (c) of
+/// `good_styles_vary`) do not pass yet and stay reported, at their full
+/// thresholds, until the levers named in the E8 report close the gap.
 /// `good_styles_vary_b` is clause (b) of `good_styles_vary`.
-pub const ENFORCED: [&str; 7] = [
+pub const ENFORCED: [&str; 8] = [
     "idle_cap",
     "effort_matters",
     "exploring_alone_never_wins",
+    "ladder_rote",
     "ladder_learned",
     "good_styles_vary_b",
     "corrupt_not_dominant",
