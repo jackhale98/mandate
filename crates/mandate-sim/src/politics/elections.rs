@@ -10,12 +10,18 @@
 //!    tabulation; seats change hands; a factor decomposition explains the result.
 
 use super::parties::PartyId;
-use super::{Council, PoliticianId, PoliticsState, Role, mean_attitudes, new_politician};
+use super::{
+    INSTANTIATED_TIERS, PoliticianId, PoliticsState, Post, Role, body_members_at, holder_of,
+    mean_attitudes, members_of, new_politician,
+};
 use crate::events::EventKind;
 use crate::population::{Cohort, PopulationState};
 use crate::scheduler::{Outs, Reads};
-use crate::world::{ConstituencyId, MunicipalityId, Tier, World};
-use mandate_content::{ElectionCalendarDef, ElectionTiming, PoliticsParams, TierKey};
+use crate::world::{Jurisdiction, MunicipalityId, World};
+use mandate_content::{
+    ConstitutionDef, ContentBundle, ElectionCalendarDef, ElectionTiming, PoliticsParams, PostKey,
+    PostRef,
+};
 use mandate_core::math::{clamp, exp};
 use mandate_core::{SimDate, SimRng, Stream};
 use serde::{Deserialize, Serialize};
@@ -23,27 +29,9 @@ use serde::{Deserialize, Serialize};
 /// Results are kept for this many past elections per seat (save size).
 const KEEP_ELECTIONS: usize = 3;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Seat {
-    Council {
-        municipality: u32,
-        ward: ConstituencyId,
-    },
-    Mayor {
-        municipality: u32,
-    },
-}
-
-impl Seat {
-    pub fn municipality(self) -> u32 {
-        match self {
-            Seat::Council { municipality, .. } | Seat::Mayor { municipality } => municipality,
-        }
-    }
-    pub fn is_executive(self) -> bool {
-        matches!(self, Seat::Mayor { .. })
-    }
-}
+/// What a race is for: a constitution post (DEC-098). The saved shape of a
+/// race's seat is a `Post`'s.
+pub type Seat = Post;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Candidate {
@@ -138,11 +126,12 @@ pub struct ElectionState {
 }
 
 impl ElectionState {
-    pub fn races_in(&self, municipality: u32) -> impl Iterator<Item = (usize, &Race)> {
+    /// The running races for posts of a jurisdiction.
+    pub fn races_in(&self, at: Jurisdiction) -> impl Iterator<Item = (usize, &Race)> {
         self.races
             .iter()
             .enumerate()
-            .filter(move |(_, r)| r.seat.municipality() == municipality)
+            .filter(move |(_, r)| r.seat.at() == at)
     }
 
     pub fn latest_result(&self, seat: Seat) -> Option<&RaceResult> {
@@ -152,17 +141,86 @@ impl ElectionState {
 
 // --- Calendar ------------------------------------------------------------------
 
-/// The local tier's election calendar and term, if elections are configured.
-pub fn local_calendar<'a>(r: &Reads<'a>) -> Option<(&'a ElectionCalendarDef, u32)> {
-    let c = r.content.constitutions.get(&r.meta.constitution)?;
-    let t = c.tier(TierKey::Local)?;
-    let term = t
-        .bodies
-        .first()
-        .map(|b| b.term_years as u32)
-        .unwrap_or(4)
-        .max(1);
-    t.elections.as_ref().map(|e| (e, term))
+/// A post's election calendar and term (DEC-098): its own calendar if it
+/// has one, else its tier's, with its own term. `None` for a post the
+/// voters do not choose, or a tier without elections.
+pub fn calendar_for(c: &ConstitutionDef, post: Post) -> Option<(&ElectionCalendarDef, u32)> {
+    calendar_of(c, post.at().tier(), post.def(c)?)
+}
+
+fn calendar_of<'a>(
+    c: &'a ConstitutionDef,
+    tier: mandate_content::TierKey,
+    d: PostRef<'a>,
+) -> Option<(&'a ElectionCalendarDef, u32)> {
+    if !d.elected() {
+        return None;
+    }
+    let cal = d.calendar().or(c.tier(tier)?.elections.as_ref())?;
+    Some((cal, (d.term_years() as u32).max(1)))
+}
+
+/// Whether a post (by definition) is elected on `day`.
+fn elects_on(
+    c: &ConstitutionDef,
+    tier: mandate_content::TierKey,
+    d: PostRef<'_>,
+    day: SimDate,
+) -> bool {
+    calendar_of(c, tier, d).is_some_and(|(cal, term)| {
+        next_election_day(cal, term, SimDate(day.0.saturating_sub(1))) == day
+    })
+}
+
+/// The next election day strictly after `after` across the instantiated
+/// tiers' elected posts, with its campaign length in weeks (the longest of
+/// the posts elected that day).
+pub fn next_cycle(c: &ConstitutionDef, after: SimDate) -> Option<(SimDate, u8)> {
+    let mut best: Option<(SimDate, u8)> = None;
+    for tier in INSTANTIATED_TIERS {
+        let Some(t) = c.tier(tier) else { continue };
+        for d in t.posts() {
+            let Some((cal, term)) = calendar_of(c, tier, d) else {
+                continue;
+            };
+            let day = next_election_day(cal, term, after);
+            best = match best {
+                Some((b, w)) if b < day => Some((b, w)),
+                Some((b, w)) if b == day => Some((b, w.max(cal.campaign_weeks))),
+                _ => Some((day, cal.campaign_weeks)),
+            };
+        }
+    }
+    best
+}
+
+/// The run's constitution, through the reads.
+fn constitution<'a>(r: &Reads<'a>) -> Option<&'a ConstitutionDef> {
+    r.content.constitutions.get(&r.meta.constitution)
+}
+
+/// The nomination gate for a post (`career.nomination`, by role word).
+pub fn nomination_open(
+    content: &ContentBundle,
+    c: &ConstitutionDef,
+    post: Post,
+    standing: f64,
+) -> bool {
+    post.word(c)
+        .and_then(|w| content.career.nomination.get(w))
+        .is_none_or(|g| g.open(standing))
+}
+
+/// Whether a politician lives in a jurisdiction (their town, or above it).
+fn lives_in(world: &World, p: &super::Politician, at: Jurisdiction) -> bool {
+    let mut j = Some(Jurisdiction::town(MunicipalityId(p.municipality())));
+    while let Some(x) = j {
+        if x == at {
+            return true;
+        }
+        j = x.parent(world);
+    }
+    false
 }
 
 /// First election day strictly after `after`.
@@ -184,23 +242,26 @@ pub fn next_election_day(cal: &ElectionCalendarDef, term: u32, after: SimDate) -
 /// Politics domain, Elections phase, daily: open campaigns, campaign weekly,
 /// publish polls, and hold elections on their day.
 pub fn daily(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
-    let Some((cal, term)) = local_calendar(r) else {
+    let Some(c) = constitution(r) else {
+        return;
+    };
+    let today = r.date;
+    // Schedule: the next day any elected post is chosen, each on its own
+    // term and calendar (one cycle in M6).
+    let Some((next, weeks)) = next_cycle(c, SimDate(today.0.saturating_sub(1))) else {
         return;
     };
     let params = &r.content.politics;
-    let today = r.date;
-    // Schedule.
     if st.elections.next_day.is_none_or(|d| d < today) {
-        let day = next_election_day(cal, term, SimDate(today.0.saturating_sub(1)));
-        st.elections.next_day = Some(day);
-        st.elections.campaign_open = Some(day.sub_days(cal.campaign_weeks as u32 * 7));
+        st.elections.next_day = Some(next);
+        st.elections.campaign_open = Some(next.sub_days(weeks as u32 * 7));
     }
     let (Some(day), Some(open)) = (st.elections.next_day, st.elections.campaign_open) else {
         return;
     };
     // Opens on its day, or late (a game starting or loading inside the window).
     if today >= open && today < day && st.elections.races.is_empty() {
-        open_campaign(st, r, out, cal, day);
+        open_campaign(st, r, out, c, day);
     }
     if !st.elections.races.is_empty() && today < day {
         let since = st
@@ -218,7 +279,7 @@ pub fn daily(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
         }
     }
     if today == day && !st.elections.races.is_empty() {
-        hold(st, r, out, cal);
+        hold(st, r, out);
     }
 }
 
@@ -275,7 +336,7 @@ fn open_campaign(
     st: &mut PoliticsState,
     r: &Reads<'_>,
     out: &mut Outs<'_>,
-    cal: &ElectionCalendarDef,
+    c: &ConstitutionDef,
     day: SimDate,
 ) {
     let params = &r.content.politics;
@@ -285,13 +346,6 @@ fn open_campaign(
     let seed = r.meta.seed;
     let np = st.parties.len();
     let (given, family) = names(r);
-    let term_limit = r
-        .content
-        .constitutions
-        .get(&r.meta.constitution)
-        .and_then(|c| c.tier(TierKey::Local))
-        .and_then(|t| t.offices.first())
-        .and_then(|o| o.term_limit);
     // National swing and pollster house effects for this cycle.
     let mut cycle_rng = mandate_core::rng::keyed(seed, Stream::Elections, &[day.0 as u64, 0]);
     st.elections.national_swing = (0..np)
@@ -307,6 +361,7 @@ fn open_campaign(
     st.elections.polls.clear();
     let player = r.player.map(|p| p.politician);
     let filing = r.player.and_then(|p| p.filing);
+    let standing = r.player.map(|p| p.tracks.standing as f64).unwrap_or(0.0);
     // A party will not renominate an officeholder it has lost patience with.
     let renominated = r
         .player
@@ -315,184 +370,228 @@ fn open_campaign(
         out.events
             .record(r.date, EventKind::PlayerDeselected, vec![]);
     }
+    // Whether the player defends what they hold (no filing) or files for `post`.
+    let stands_for = |post: Post| match filing {
+        None => true,
+        Some(Filing::Stand { post: p }) => p == post,
+        Some(Filing::Retire) => false,
+    };
 
     let mut races = Vec::new();
-    for (mi, mu) in world.municipalities.iter().enumerate() {
-        let m = mi as u32;
-        let Some(council) = st.councils.get(mi).cloned() else {
-            continue;
-        };
-        let all_hoods: Vec<u32> = mu.neighborhoods.iter().map(|h| h.0).collect();
-        let mut rng =
-            mandate_core::rng::keyed(seed, Stream::Elections, &[day.0 as u64, 1 + m as u64]);
-        // --- Mayor first: an open mayoralty draws ambitious councillors.
-        let mayor = council.mayor;
-        let mayor_runs = mayor.is_some_and(|id| {
-            let p = st.get(id);
-            let limited = term_limit.is_some_and(|l| p.is_some_and(|p| p.terms_in_office >= l));
-            if Some(id) == player {
-                return matches!(filing, Some(Filing::Mayor) | None) && !limited && renominated;
-            }
-            !limited && age(st, id, year) < 74 && rng.chance(0.85)
-        });
-        let strength = party_strength(pop, &all_hoods, np);
-        let mut mayor_candidates: Vec<PoliticianId> = Vec::new();
-        let mut leaving_council: Vec<PoliticianId> = Vec::new();
-        for pi in 0..np {
-            let pid = PartyId(pi as u32);
-            if pi >= 2 && strength[pi] < params.vote.minor_party_threshold {
+    for tier in INSTANTIATED_TIERS {
+        let Some(t) = c.tier(tier) else { continue };
+        for at in Jurisdiction::all_of(tier, world) {
+            if !st.bodies.iter().any(|b| b.at == at) && !st.offices.iter().any(|o| o.at == at) {
                 continue;
             }
-            if mayor_runs
-                && mayor
-                    .and_then(|id| st.get(id))
-                    .is_some_and(|p| p.party == Some(pid))
-            {
-                if let Some(id) = mayor {
-                    mayor_candidates.push(id);
-                }
-                continue;
-            }
-            // The player's party nominates the player when they file (Standing gate).
-            if filing == Some(Filing::Mayor)
-                && player
-                    .and_then(|id| st.get(id))
-                    .is_some_and(|p| p.party == Some(pid) && p.municipality() == m)
-                && r.player.is_some_and(|p| p.tracks.standing >= 40.0)
-            {
-                if let Some(id) = player {
-                    mayor_candidates.push(id);
-                    if council.members.contains(&id) {
-                        leaving_council.push(id);
-                    }
-                }
-                continue;
-            }
-            // An ambitious councillor of this party, else a fresh candidate.
-            let pick = council
-                .members
-                .iter()
-                .copied()
-                .filter(|id| Some(*id) != player)
-                .filter(|id| {
-                    st.get(*id)
-                        .is_some_and(|p| p.party == Some(pid) && p.ambition > 0.6)
-                })
-                .max_by(|a, b| {
-                    let s = |id: &PoliticianId| {
-                        st.get(*id).map(|p| p.ambition + p.oratory).unwrap_or(0.0)
-                    };
-                    s(a).total_cmp(&s(b))
-                })
-                .filter(|_| rng.chance(0.5));
-            let id = match pick {
-                Some(id) => {
-                    leaving_council.push(id);
-                    id
-                }
-                None => recruit(
-                    st, &mut rng, &given, &family, pop, &all_hoods, pid, m, year, r.content, seed,
-                ),
+            let all_hoods: Vec<u32> = at.hoods(world).into_iter().map(|h| h as u32).collect();
+            // Keyed by the day and the jurisdiction (the local tier's key is
+            // the town's alone, as before tiers).
+            let key: Vec<u64> = match at.tier_index() {
+                0 => vec![day.0 as u64, 1 + at.raw() as u64],
+                i => vec![day.0 as u64, 1 + at.raw() as u64, i],
             };
-            mayor_candidates.push(id);
-        }
-        if !mayor_candidates.is_empty() {
-            races.push(new_race(
-                st,
-                r,
-                Seat::Mayor { municipality: m },
-                all_hoods.clone(),
-                mayor,
-                mayor_candidates.clone(),
-                cal,
-                day,
-                &mut rng,
-            ));
-        }
-        // --- Council wards.
-        for (wi, ward) in world
-            .constituencies
-            .iter()
-            .filter(|c| c.tier == Tier::Local && c.jurisdiction == m)
-            .enumerate()
-        {
-            let hoods: Vec<u32> = ward.neighborhoods.iter().map(|h| h.0).collect();
-            let sitting = council.members.get(wi).copied();
-            let runs = sitting.is_some_and(|id| {
-                if leaving_council.contains(&id) {
-                    return false;
-                }
-                if Some(id) == player {
-                    return matches!(filing, Some(Filing::Council) | None) && renominated;
-                }
-                age(st, id, year) < 76 && rng.chance(0.82)
-            });
-            let strength = party_strength(pop, &hoods, np);
-            let mut cands = Vec::new();
-            for pi in 0..np {
-                let pid = PartyId(pi as u32);
-                if pi >= 2 && strength[pi] < params.vote.minor_party_threshold {
+            let mut rng = mandate_core::rng::keyed(seed, Stream::Elections, &key);
+            // The members of the jurisdiction's bodies (an open office draws
+            // ambitious members, who then leave their seats).
+            let members = body_members_at(st, at);
+            let mut leaving: Vec<PoliticianId> = Vec::new();
+            let mut office_candidates: Vec<PoliticianId> = Vec::new();
+            // --- Offices first: an open office draws ambitious members.
+            for office in t
+                .offices
+                .iter()
+                .filter(|o| elects_on(c, tier, PostRef::Office(o), day))
+            {
+                let Some(key) = PostKey::new(&office.id) else {
                     continue;
-                }
-                if runs
-                    && sitting
-                        .and_then(|id| st.get(id))
-                        .is_some_and(|p| p.party == Some(pid))
-                {
-                    if let Some(id) = sitting {
-                        cands.push(id);
-                    }
-                    continue;
-                }
-                // A player out of office who filed for their old ward is their
-                // party's nominee there.
-                if filing == Some(Filing::Council)
-                    && r.player.is_some_and(|p| p.ward == ward.id)
-                    && player
-                        .and_then(|id| st.get(id))
-                        .is_some_and(|p| !p.in_office() && p.party == Some(pid))
-                {
-                    if let Some(id) = player {
-                        cands.push(id);
-                    }
-                    continue;
-                }
-                // A former officeholder of this party living here, else a recruit.
-                let former = st
-                    .politicians
-                    .iter()
-                    .filter(|p| {
-                        matches!(p.role, Role::Private { municipality } if municipality == m)
-                            && p.party == Some(pid)
-                            && !p.is_player
-                            && hoods.contains(&p.home)
-                            && year.saturating_sub(p.birth_year) < 70
-                            && p.ambition > 0.5
-                    })
-                    .map(|p| p.id)
-                    .find(|id| !mayor_candidates.contains(id));
-                let id = match former {
-                    Some(id) if rng.chance(0.6) => id,
-                    _ => recruit(
-                        st, &mut rng, &given, &family, pop, &hoods, pid, m, year, r.content, seed,
-                    ),
                 };
-                cands.push(id);
+                let post = Post::Office { office: key, at };
+                let cal = calendar_for(c, post).map(|(cal, _)| cal);
+                let Some(cal) = cal else { continue };
+                let holder = holder_of(st, &office.id, at);
+                let term_limit = office.term_limit;
+                let gate = nomination_open(r.content, c, post, standing);
+                let holder_runs = holder.is_some_and(|id| {
+                    let p = st.get(id);
+                    let limited =
+                        term_limit.is_some_and(|l| p.is_some_and(|p| p.terms_in_office >= l));
+                    if Some(id) == player {
+                        return stands_for(post) && !limited && renominated;
+                    }
+                    !limited && age(st, id, year) < 74 && rng.chance(0.85)
+                });
+                let strength = party_strength(pop, &all_hoods, np);
+                let mut cands: Vec<PoliticianId> = Vec::new();
+                for pi in 0..np {
+                    let pid = PartyId(pi as u32);
+                    if pi >= 2 && strength[pi] < params.vote.minor_party_threshold {
+                        continue;
+                    }
+                    if holder_runs
+                        && holder
+                            .and_then(|id| st.get(id))
+                            .is_some_and(|p| p.party == Some(pid))
+                    {
+                        if let Some(id) = holder {
+                            cands.push(id);
+                        }
+                        continue;
+                    }
+                    // The player's party nominates the player when they file
+                    // (the post's nomination gate, `career.nomination`).
+                    if filing == Some(Filing::Stand { post })
+                        && player
+                            .and_then(|id| st.get(id))
+                            .is_some_and(|p| p.party == Some(pid) && lives_in(world, p, at))
+                        && gate
+                    {
+                        if let Some(id) = player {
+                            cands.push(id);
+                            if members.contains(&id) {
+                                leaving.push(id);
+                            }
+                        }
+                        continue;
+                    }
+                    // An ambitious member of this party, else a fresh candidate.
+                    let pick = members
+                        .iter()
+                        .copied()
+                        .filter(|id| Some(*id) != player)
+                        .filter(|id| {
+                            st.get(*id)
+                                .is_some_and(|p| p.party == Some(pid) && p.ambition > 0.6)
+                        })
+                        .max_by(|a, b| {
+                            let s = |id: &PoliticianId| {
+                                st.get(*id).map(|p| p.ambition + p.oratory).unwrap_or(0.0)
+                            };
+                            s(a).total_cmp(&s(b))
+                        })
+                        .filter(|_| rng.chance(0.5));
+                    let id = match pick {
+                        Some(id) => {
+                            leaving.push(id);
+                            id
+                        }
+                        None => recruit(
+                            st, &mut rng, &given, &family, world, pop, &all_hoods, pid, year,
+                            r.content, seed,
+                        ),
+                    };
+                    cands.push(id);
+                }
+                if !cands.is_empty() {
+                    races.push(new_race(
+                        st,
+                        r,
+                        post,
+                        all_hoods.clone(),
+                        holder,
+                        cands.clone(),
+                        cal,
+                        day,
+                        &mut rng,
+                    ));
+                }
+                office_candidates.extend(cands);
             }
-            races.push(new_race(
-                st,
-                r,
-                Seat::Council {
-                    municipality: m,
-                    ward: ward.id,
-                },
-                hoods,
-                sitting,
-                cands,
-                cal,
-                day,
-                &mut rng,
-            ));
+            // --- Then each body's seats, constituency by constituency.
+            for body in t
+                .bodies
+                .iter()
+                .filter(|b| elects_on(c, tier, PostRef::Body(b), day))
+            {
+                let Some(key) = PostKey::new(&body.id) else {
+                    continue;
+                };
+                if PostRef::Body(body).constituency() != Some(mandate_content::Constituency::Ward) {
+                    // At-large bodies are not instantiated here yet (validation).
+                    continue;
+                }
+                let sitting_members: Vec<PoliticianId> = members_of(st, &body.id, at).to_vec();
+                let wards: Vec<_> = at.constituencies(world).cloned().collect();
+                for (wi, ward) in wards.iter().enumerate() {
+                    let post = Post::Seat {
+                        body: key,
+                        at,
+                        constituency: Some(ward.id),
+                    };
+                    let Some((cal, _)) = calendar_for(c, post) else {
+                        continue;
+                    };
+                    let hoods: Vec<u32> = ward.neighborhoods.iter().map(|h| h.0).collect();
+                    let sitting = sitting_members.get(wi).copied();
+                    let runs = sitting.is_some_and(|id| {
+                        if leaving.contains(&id) {
+                            return false;
+                        }
+                        if Some(id) == player {
+                            return stands_for(post) && renominated;
+                        }
+                        age(st, id, year) < 76 && rng.chance(0.82)
+                    });
+                    let gate = nomination_open(r.content, c, post, standing);
+                    let strength = party_strength(pop, &hoods, np);
+                    let mut cands = Vec::new();
+                    for pi in 0..np {
+                        let pid = PartyId(pi as u32);
+                        if pi >= 2 && strength[pi] < params.vote.minor_party_threshold {
+                            continue;
+                        }
+                        if runs
+                            && sitting
+                                .and_then(|id| st.get(id))
+                                .is_some_and(|p| p.party == Some(pid))
+                        {
+                            if let Some(id) = sitting {
+                                cands.push(id);
+                            }
+                            continue;
+                        }
+                        // A player out of office who filed for this seat is
+                        // their party's nominee there.
+                        if filing == Some(Filing::Stand { post })
+                            && gate
+                            && player
+                                .and_then(|id| st.get(id))
+                                .is_some_and(|p| !p.in_office() && p.party == Some(pid))
+                        {
+                            if let Some(id) = player {
+                                cands.push(id);
+                            }
+                            continue;
+                        }
+                        // A former officeholder of this party living here, else a recruit.
+                        let former = st
+                            .politicians
+                            .iter()
+                            .filter(|p| {
+                                !p.in_office()
+                                    && lives_in(world, p, at)
+                                    && p.party == Some(pid)
+                                    && !p.is_player
+                                    && hoods.contains(&p.home)
+                                    && year.saturating_sub(p.birth_year) < 70
+                                    && p.ambition > 0.5
+                            })
+                            .map(|p| p.id)
+                            .find(|id| !office_candidates.contains(id));
+                        let id = match former {
+                            Some(id) if rng.chance(0.6) => id,
+                            _ => recruit(
+                                st, &mut rng, &given, &family, world, pop, &hoods, pid, year,
+                                r.content, seed,
+                            ),
+                        };
+                        cands.push(id);
+                    }
+                    races.push(new_race(
+                        st, r, post, hoods, sitting, cands, cal, day, &mut rng,
+                    ));
+                }
+            }
         }
     }
     st.elections.races = races;
@@ -503,16 +602,18 @@ fn open_campaign(
     );
 }
 
+/// A fresh candidate for a party, from the neighbourhoods of a race: their
+/// home is one of them, and they live in its town.
 #[allow(clippy::too_many_arguments)]
 fn recruit(
     st: &mut PoliticsState,
     rng: &mut SimRng,
     given: &[String],
     family: &[String],
+    world: &World,
     pop: &PopulationState,
     hoods: &[u32],
     party: PartyId,
-    municipality: u32,
     year: u32,
     content: &mandate_content::ContentBundle,
     seed: u64,
@@ -532,12 +633,18 @@ fn recruit(
         ) as f32;
     }
     let home = *rng.pick(hoods).unwrap_or(&0);
+    let town = world
+        .neighborhoods
+        .get(home as usize)
+        .map(|n| n.municipality)
+        .unwrap_or(MunicipalityId(0));
+    let municipality = town.0;
     let id = new_politician(
         st,
         rng,
         given,
         family,
-        Role::Private { municipality },
+        Role::Private { home: town },
         att,
         Some(party),
         home,
@@ -591,7 +698,7 @@ fn new_race(
         .map(|id| {
             let p = st.get(*id);
             let in_office_here =
-                p.is_some_and(|p| p.in_office() && p.municipality() == seat.municipality());
+                p.is_some_and(|p| p.role.post().is_some_and(|q| q.at() == seat.at()));
             let is_incumbent = Some(*id) == incumbent;
             let awareness: Vec<f32> = hoods
                 .iter()
@@ -666,7 +773,7 @@ fn campaign_week(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let params = &r.content.politics.campaign;
     let decay = exp(-7.0 * core_ln2() / params.persuasion_half_life_days.max(1.0)) as f32;
     let player = r.player.map(|p| p.politician);
-    let home = r.player.map(|p| p.municipality.0);
+    let focus = r.player.map(|p| p.focus()).unwrap_or_default();
     let pop = r.population();
     let rng = out.rng.get(Stream::Elections);
     let PoliticsState {
@@ -684,7 +791,7 @@ fn campaign_week(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
             }
             // The player campaigns with commands; NPCs in the player's town use
             // the full AI (npc.rs). Everyone else is abstracted here.
-            if Some(c.politician) == player || Some(race.seat.municipality()) == home {
+            if Some(c.politician) == player || focus.contains(&race.seat.at()) {
                 continue;
             }
             // NPC campaign effort: contacts weighted toward populous neighbourhoods
@@ -829,13 +936,16 @@ fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> Race
         1.0,
     );
     let beta = v.beta_low + (v.beta_high - v.beta_low) * t;
-    let timing = local_calendar(r).map(|(c, _)| c.timing);
+    let timing = constitution(r)
+        .and_then(|c| calendar_for(c, race.seat))
+        .map(|(c, _)| c.timing);
     let turnout_mult = match timing {
         Some(ElectionTiming::Concurrent) => params.turnout.concurrent,
         _ => params.turnout.standalone,
     };
     // Media weight: towns that dominate their region are judged on their record.
-    let m = race.seat.municipality() as usize;
+    // (M6: local races; a town is its jurisdiction's raw id.)
+    let m = race.seat.at().raw() as usize;
     let world = r.world;
     let region_pop: u64 = world
         .municipalities
@@ -980,7 +1090,7 @@ impl RaceCtx<'_> {
                 } else {
                     0.0
                 };
-                let exec = if self.race.seat.is_executive() {
+                let exec = if self.race.seat.is_office() {
                     v.executive_multiplier
                 } else {
                     1.0
@@ -1123,12 +1233,13 @@ fn publish_polls(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>, day:
         return;
     }
     let params = &r.content.politics.polls;
-    let home = r.player.map(|p| p.municipality.0);
+    let focus = r.player.map(|p| p.focus()).unwrap_or_default();
     let rng = out.rng.get(Stream::Elections);
     let mut new_polls = Vec::new();
     for (ri, race) in st.elections.races.iter().enumerate() {
-        // Pollsters cover mayoral races everywhere and council races in the player's town.
-        if !race.seat.is_executive() && Some(race.seat.municipality()) != home {
+        // Pollsters cover races for offices everywhere and seats in the
+        // player's focus.
+        if !race.seat.is_office() && !focus.contains(&race.seat.at()) {
             continue;
         }
         let ctx = race_ctx(st, r, race);
@@ -1221,7 +1332,7 @@ pub fn poll_average(st: &ElectionState, race: usize) -> Option<Vec<f32>> {
 
 const FACTORS: [&str; 6] = ["issues", "party", "valence", "record", "campaign", "shock"];
 
-fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>, _cal: &ElectionCalendarDef) {
+fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let races = std::mem::take(&mut st.elections.races);
     let swing = st.elections.national_swing.clone();
     let player = r.player.map(|p| p.politician);
@@ -1275,7 +1386,7 @@ fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>, _cal: &Electi
             .map(|(h, hv)| (*h, shares(hv)[w] as f32))
             .collect();
         for (i, h) in race.hoods.iter().enumerate() {
-            if race.seat.is_executive() {
+            if race.seat.is_office() {
                 let t: f64 = ctx.pop.hoods[*h as usize]
                     .cohorts
                     .iter()
@@ -1307,69 +1418,42 @@ fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>, _cal: &Electi
             hood_winner_share,
         });
     }
-    // Seats change hands: councils first, then mayors.
-    let mut winners_council: Vec<(u32, ConstituencyId, PoliticianId)> = Vec::new();
-    let mut winners_mayor: Vec<(u32, PoliticianId)> = Vec::new();
+    // Posts change hands: seats first, then offices.
     let mut ran: Vec<PoliticianId> = Vec::new();
     for res in &results {
         for c in &res.candidates {
             ran.push(c.politician);
         }
-        match res.seat {
-            Seat::Council { municipality, ward } => {
-                winners_council.push((municipality, ward, res.winner))
-            }
-            Seat::Mayor { municipality } => winners_mayor.push((municipality, res.winner)),
-        }
     }
-    let ward_index = |world: &World, m: u32, ward: ConstituencyId| {
-        world
-            .constituencies
-            .iter()
-            .filter(|c| c.tier == Tier::Local && c.jurisdiction == m)
-            .position(|c| c.id == ward)
-    };
     let mut new_holders: Vec<PoliticianId> = Vec::new();
-    for (m, ward, id) in &winners_council {
-        if let (Some(council), Some(wi)) = (
-            st.councils.get_mut(*m as usize),
-            ward_index(r.world, *m, *ward),
-        ) && let Some(slot) = council.members.get_mut(wi)
+    for offices_pass in [false, true] {
+        for res in results
+            .iter()
+            .filter(|x| x.seat.is_office() == offices_pass)
         {
-            *slot = *id;
+            super::seat_holder(st, r.world, res.seat, res.winner);
+            set_role(st, res.winner, res.seat.into());
+            new_holders.push(res.winner);
         }
-        set_role(
-            st,
-            *id,
-            Role::Councillor {
-                municipality: *m,
-                ward: *ward,
-            },
-        );
-        new_holders.push(*id);
     }
-    for (m, id) in &winners_mayor {
-        if let Some(council) = st.councils.get_mut(*m as usize) {
-            council.mayor = Some(*id);
-        }
-        set_role(st, *id, Role::Mayor { municipality: *m });
-        new_holders.push(*id);
-    }
-    // Anyone whose claimed seat now belongs to someone else leaves office.
-    let councils: Vec<Council> = st.councils.clone();
+    // Anyone whose claimed post now belongs to someone else leaves office.
+    let bodies = st.bodies.clone();
+    let offices = st.offices.clone();
     for p in st.politicians.iter_mut() {
         let holds = match p.role {
-            Role::Councillor { municipality, .. } => councils
-                .get(municipality as usize)
-                .is_some_and(|c| c.members.contains(&p.id)),
-            Role::Mayor { municipality } => councils
-                .get(municipality as usize)
-                .is_some_and(|c| c.mayor == Some(p.id)),
+            Role::Seat { body, at, .. } => bodies
+                .iter()
+                .find(|b| b.at == at && b.body == body)
+                .is_some_and(|b| b.members.contains(&p.id)),
+            Role::Office { office, at } => offices
+                .iter()
+                .find(|o| o.at == at && o.office == office)
+                .is_some_and(|o| o.holder == Some(p.id)),
             Role::Private { .. } => true,
         };
         if !holds {
             p.role = Role::Private {
-                municipality: p.municipality(),
+                home: MunicipalityId(p.municipality()),
             };
             p.terms_in_office = 0;
         }
@@ -1384,20 +1468,21 @@ fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>, _cal: &Electi
             }
         }
     }
-    // Events: the player's town in detail, other towns' mayoral upsets.
-    let home = r.player.map(|p| p.municipality.0);
+    // Events: the player's focus in detail, elsewhere offices changing hands.
+    let focus = r.player.map(|p| p.focus()).unwrap_or_default();
     for res in &results {
-        let m = res.seat.municipality();
+        let m = res.seat.at().raw();
         let defeated = res
             .incumbent
             .is_some_and(|i| i != res.winner && res.candidates.iter().any(|c| c.politician == i));
-        let mine = Some(m) == home;
-        if mine || (res.seat.is_executive() && defeated) {
+        let mine = focus.contains(&res.seat.at());
+        if mine || (res.seat.is_office() && defeated) {
             out.events.record(
                 r.date,
                 EventKind::RaceDecided {
                     municipality: m,
-                    mayor: res.seat.is_executive(),
+                    mayor: res.seat.is_office(),
+                    post: Some(res.seat),
                     winner: res.winner.0,
                     incumbent_defeated: defeated,
                     player_won: player == Some(res.winner),
@@ -1507,51 +1592,48 @@ pub fn yearly(st: &mut PoliticsState, r: &Reads<'_>, _out: &mut Outs<'_>) {
     }
 }
 
-/// The player's intention for the next local election.
+/// The player's intention for the next election (DEC-098): stand for a post
+/// (`None` on the player's side means "defend what I hold").
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Filing {
-    Council,
-    Mayor,
+    Stand {
+        post: Post,
+    },
     /// Sit this election out.
     Retire,
 }
 
-/// Fill a seat left empty mid-term (a removal from office, DEC-006): the
-/// departing member's party appoints a newcomer from the ward (or town),
-/// like a recruit for an election. Keyed by the date and the departing
-/// politician, so no sequential stream moves.
+/// The player's seat in their town's legislature (their district's), as a
+/// filing: standing again for the body.
+pub fn seat_filing(state: &crate::State, content: &ContentBundle) -> Option<Filing> {
+    let pl = state.player.as_ref()?;
+    let c = content.constitutions.get(&state.meta.constitution)?;
+    let at = Jurisdiction::town(pl.home());
+    let post = super::legislature_seat(c, at, pl.ward)?;
+    Some(Filing::Stand { post })
+}
+
+/// The executive office of the player's town, as a filing.
+pub fn executive_filing(state: &crate::State, content: &ContentBundle) -> Option<Filing> {
+    let pl = state.player.as_ref()?;
+    let c = content.constitutions.get(&state.meta.constitution)?;
+    let post = super::executive_post(c, Jurisdiction::town(pl.home()))?;
+    Some(Filing::Stand { post })
+}
+
+/// Fill a post left empty mid-term (a removal from office, DEC-006): the
+/// departing holder's party appoints a newcomer from the seat's district
+/// (or the jurisdiction), like a recruit for an election. Keyed by the date
+/// and the departing politician, so no sequential stream moves.
 pub(crate) fn appoint_replacement(
     st: &mut PoliticsState,
     r: &Reads<'_>,
     leaving: PoliticianId,
 ) -> Option<PoliticianId> {
     let p = st.get(leaving)?.clone();
-    let m = p.municipality();
-    let council = st.councils.get(m as usize)?.clone();
-    let (role, hoods): (Role, Vec<u32>) = if council.mayor == Some(leaving) {
-        (
-            Role::Mayor { municipality: m },
-            r.world
-                .hoods_of(crate::world::MunicipalityId(m))
-                .map(|h| h as u32)
-                .collect(),
-        )
-    } else {
-        let wi = council.members.iter().position(|x| *x == leaving)?;
-        let ward = r
-            .world
-            .constituencies
-            .iter()
-            .filter(|c| c.tier == Tier::Local && c.jurisdiction == m)
-            .nth(wi)?;
-        (
-            Role::Councillor {
-                municipality: m,
-                ward: ward.id,
-            },
-            ward.neighborhoods.iter().map(|h| h.0).collect(),
-        )
-    };
+    let post = super::post_held(st, r.world, leaving)?;
+    let hoods: Vec<u32> = post.hoods(r.world).into_iter().map(|h| h as u32).collect();
     let party = p.party.or(st.parties.first().map(|x| x.id))?;
     let (given, family) = names(r);
     let mut rng = mandate_core::rng::keyed(
@@ -1564,22 +1646,16 @@ pub(crate) fn appoint_replacement(
         &mut rng,
         &given,
         &family,
+        r.world,
         r.population(),
         &hoods,
         party,
-        m,
         r.date.calendar().year,
         r.content,
         r.meta.seed,
     );
-    if let Some(c) = st.councils.get_mut(m as usize) {
-        if c.mayor == Some(leaving) {
-            c.mayor = Some(id);
-        } else if let Some(slot) = c.members.iter_mut().find(|x| **x == leaving) {
-            *slot = id;
-        }
-    }
-    set_role(st, id, role);
+    super::seat_holder(st, r.world, post, id);
+    set_role(st, id, post.into());
     if let Some(x) = st.get_mut(id) {
         x.record = 0.3;
     }

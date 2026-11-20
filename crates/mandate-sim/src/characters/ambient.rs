@@ -104,32 +104,15 @@ pub fn stored_at(pol: &PoliticsState, state: &State, loc: Location) -> Vec<Chara
             let Some(p) = state.world.places.get(place.index()) else {
                 return out;
             };
-            let m = p.municipality.index();
-            match p.kind {
-                crate::world::PlaceKind::CouncilChamber => {
-                    if let Some(c) = pol.councils.get(m) {
-                        out.extend(
-                            c.members
-                                .iter()
-                                .filter_map(|id| pol.get(*id))
-                                .filter(|x| !x.is_player)
-                                .map(|x| x.character),
-                        );
-                    }
-                }
-                crate::world::PlaceKind::TownHall => {
-                    if let Some(x) = pol
-                        .councils
-                        .get(m)
-                        .and_then(|c| c.mayor)
-                        .and_then(|id| pol.get(id))
-                        && !x.is_player
-                    {
-                        out.push(x.character);
-                    }
-                }
-                _ => {}
-            }
+            // Officials at the place their post works at (DEC-098).
+            let at = crate::world::Jurisdiction::town(p.municipality);
+            out.extend(
+                crate::politics::working_at(pol, at, p.kind)
+                    .into_iter()
+                    .filter_map(|id| pol.get(id))
+                    .filter(|x| !x.is_player)
+                    .map(|x| x.character),
+            );
             out.extend(
                 pol.characters
                     .people

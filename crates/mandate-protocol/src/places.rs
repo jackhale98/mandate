@@ -843,18 +843,16 @@ fn internal_poll(engine: &Engine) -> Option<InternalPollView> {
             *v /= sum;
         }
         InternalRaceView {
-            seat: if r.seat.is_executive() {
-                "mayor"
+            // An office's id, or `ward` for a seat (DTO unchanged until R2).
+            seat: if r.seat.is_office() {
+                r.seat.id().to_string()
             } else {
-                "ward"
-            }
-            .into(),
-            ward_number: match r.seat {
-                mandate_sim::politics::elections::Seat::Council { ward, .. } => {
-                    st.world.constituencies.get(ward.index()).map(|c| c.number)
-                }
-                _ => None,
+                "ward".into()
             },
+            ward_number: r
+                .seat
+                .constituency()
+                .and_then(|ward| st.world.constituencies.get(ward.index()).map(|c| c.number)),
             candidates: r
                 .candidates
                 .iter()
@@ -921,33 +919,41 @@ fn overheard(engine: &Engine, loc: Location) -> Option<OverheardView> {
 }
 
 /// How each person present is here (`PlacePanelView.here_as`): presentation
-/// for the interior's spots. It follows `ambient::stored_at`, which decides
-/// who is present at the civic places; R1 (DEC-098) moves both to the posts
-/// whose body or office sits at a place.
+/// for the interior's spots. It follows `ambient::stored_at`, which places
+/// officials by the posts whose body or office works at a place kind
+/// (DEC-098): an office's holder there is `presiding`, a body's member there
+/// is a `member`; no office or body is named.
 fn here_as(st: &State, loc: Location, people: &[crate::characters::PersonRefView]) -> Vec<String> {
-    use mandate_sim::world::PlaceKind;
+    use mandate_sim::world::Jurisdiction;
     let place = match loc {
         Location::Place { place } => st.world.places.get(place.index()).map(|p| (place, p)),
         _ => None,
     };
-    let council = place.and_then(|(_, p)| st.politics.councils.get(p.municipality.index()));
+    let pol = &st.politics;
     people
         .iter()
         .map(|p| {
             let c = p.id.and_then(|id| {
-                st.politics
-                    .characters
+                pol.characters
                     .get(mandate_sim::characters::CharacterId(id))
             });
             let (Some(c), Some((pid, pl))) = (c, place) else {
                 return "visitor";
             };
-            let civic = matches!(pl.kind, PlaceKind::CouncilChamber | PlaceKind::TownHall);
-            if let (Some(pol), Some(co)) = (c.politician, council) {
-                if civic && co.mayor == Some(pol) {
+            let at = Jurisdiction::town(pl.municipality);
+            if let Some(who) = c.politician {
+                if pol
+                    .offices
+                    .iter()
+                    .any(|o| o.at == at && o.works_at == Some(pl.kind) && o.holder == Some(who))
+                {
                     return "presiding";
                 }
-                if pl.kind == PlaceKind::CouncilChamber && co.members.contains(&pol) {
+                if pol
+                    .bodies
+                    .iter()
+                    .any(|b| b.at == at && b.works_at == Some(pl.kind) && b.members.contains(&who))
+                {
                     return "member";
                 }
             }

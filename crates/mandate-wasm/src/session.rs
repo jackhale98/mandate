@@ -201,7 +201,7 @@ impl Session {
                     CommandDto::EndTurn => Command::EndTurn,
                     CommandDto::AdvanceDays { days } => Command::AdvanceDays { days },
                     CommandDto::NotebookSeen => Command::NotebookSeen,
-                    other => Command::Player(player_command(other)?),
+                    other => Command::Player(player_command(self.engine.as_ref(), other)?),
                 };
                 let engine = self
                     .engine
@@ -443,7 +443,10 @@ fn params(v: Vec<ParamValue>) -> std::collections::BTreeMap<String, f64> {
 }
 
 /// Protocol DTO → simulation command (the protocol never exposes lab commands).
-fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, ProtocolError> {
+fn player_command(
+    engine: Option<&mandate_sim::Engine>,
+    c: CommandDto,
+) -> Result<mandate_sim::actions::PlayerCommand, ProtocolError> {
     use mandate_sim::actions::{Action, PlayerCommand as P};
     use mandate_sim::policy::Clause;
     use mandate_sim::world::ConstituencyId;
@@ -467,7 +470,7 @@ fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, 
         CommandDto::Go { location, then } => P::Go {
             location: location.to_sim(),
             then: match then {
-                Some(c) => Some(Box::new(player_command(*c)?)),
+                Some(c) => Some(Box::new(player_command(engine, *c)?)),
                 None => None,
             },
         },
@@ -507,13 +510,21 @@ fn player_command(c: CommandDto) -> Result<mandate_sim::actions::PlayerCommand, 
                 VoteDto::Abstain => mandate_sim::politics::Vote::Abstain,
             },
         },
-        CommandDto::File { filing } => P::File {
-            filing: match filing {
-                FilingDto::Council => mandate_sim::politics::elections::Filing::Council,
-                FilingDto::Mayor => mandate_sim::politics::elections::Filing::Mayor,
-                FilingDto::Retire => mandate_sim::politics::elections::Filing::Retire,
-            },
-        },
+        CommandDto::File { filing } => {
+            // The DTO names the player's own seat or their town's executive
+            // office; the engine files for that constitution post (R2 sends
+            // the post itself).
+            use mandate_sim::politics::elections as el;
+            let engine = engine.ok_or_else(|| err(ErrorCode::InvalidCommand, "no game"))?;
+            let (state, content) = (engine.state(), engine.content());
+            let filing = match filing {
+                FilingDto::Council => el::seat_filing(state, content),
+                FilingDto::Mayor => el::executive_filing(state, content),
+                FilingDto::Retire => Some(el::Filing::Retire),
+            }
+            .ok_or_else(|| err(ErrorCode::InvalidCommand, "no such post to file for"))?;
+            P::File { filing }
+        }
         CommandDto::WithdrawPolicy { policy } => P::WithdrawPolicy { policy },
         CommandDto::Act { action, late_night } => P::Act {
             late_night,

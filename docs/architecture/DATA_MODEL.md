@@ -39,6 +39,7 @@ The terrain raster is not in `State`: it is rebuilt from the seed and scenario o
 | `Municipality` | `MunicipalityId` | name, region, `SettlementClass` (metro, city, town, rural), centre cell, coastal / river / port flags, neighbouring towns, neighbourhoods, places, `GeoProfile` (climate, resources, hazard exposure, dominant biome) |
 | `Neighborhood` | `NeighborhoodId` | municipality, name, `NeighborhoodKind` (core, inner, waterfront, industrial, suburb, rural), adjacency. Residents live in `population`, not here |
 | `Constituency` | `ConstituencyId` | tier (local, regional, national), jurisdiction, number, neighbourhoods (contiguous, population-balanced) |
+| `Jurisdiction` | — | a government's territory at any tier: `municipality { id }`, `region { id }` or `nation` (DEC-098). The key for state that belongs to a town, a region or the nation (posts, bodies, offices); `Area` (`hood`, `constituency`, `in { at }`) says where an effect applies. Physical things in a town keep `MunicipalityId` |
 | `TransportLink` | `LinkId` | two towns, mode (road, highway, rail), length, travel cost, cell path |
 | `Place` | `PlaceId` | `PlaceKind` (23 kinds: town hall, council chamber, diner, market, school, clinic, community centre, park, news office, party office, union hall, business association, factory, port, farm, mine, mill, hotel, university, tech campus, regional assembly, parliament, executive residence), municipality, neighbourhood, name. What a kind offers comes from the `places` registry (DEC-079) |
 
@@ -60,7 +61,7 @@ The street plan of a town is not engine state: the client derives it from the `T
 
 | Entity | ID | Main fields |
 |---|---|---|
-| Constitution | content key in `meta.constitution` | Not state: a content definition built from primitives (DEC-017): bodies, offices, powers, decision rules, constituencies, staged procedures, election calendars. The Federal Presidential archetype ships; regional and national tiers are defined but not simulated yet |
+| Constitution | content key in `meta.constitution` | Not state: a content definition built from primitives (DEC-017): bodies (with a member word, seats, workplace and optional own calendar), offices (with term limits, workplace and optional own calendar), powers, decision rules, constituencies, staged procedures (`ordinance` and `budget` are a contract with the engine), election calendars, and the `career` ladder (summit and acts). Politicians hold its posts by id (DEC-098). The Federal Presidential archetype ships; regional and national tiers are defined but not simulated yet |
 | `PolicyState` | — | id allocator, `instances`, one `Agency` (competence) per municipality |
 | `PolicyInstance` | `PolicyInstanceId` | template key, tier, jurisdiction, sponsor, parameters, clauses (`Earmark` for a ward, `Sunset`, `Pilot` in a neighbourhood), `PolicyStatus` (draft, under consideration, enacted, in effect, ended), procedure stage and next date, vote records (including vetoes), dates, implementation progress, public awareness, end reason, cause, attribution ledger |
 | `FinanceState` | — | tax rates (`TaxRates`: property per town, sales per region, national income tax by class, business), `appropriations` keyed by policy id (funded share), local treasuries (per town), regional treasuries, the national treasury, grant rates, structural deficit, indexation bases |
@@ -72,11 +73,11 @@ Budget categories, revenue types, and hazards become registries before national 
 
 | Entity | ID | Main fields |
 |---|---|---|
-| `PoliticsState` | — | id allocator, politicians, `councils` (per municipality: members by ward, mayor), parties, `ElectionState`, `sway` (politician, policy) → lobbying persuasion, `declared_votes` (politician, policy) → yes / no / abstain, `characters` (§5) |
-| `Politician` | `PoliticianId` | name, `Role` (councillor of a ward, mayor, or private), `is_player`, birth year, attitudes (registry order), pragmatism, integrity, oratory, negotiation, ambition, `character` (their `CharacterId`), party, home neighbourhood, scandal damage, funds, years and terms in office, `record` of visible work (DEC-076) |
+| `PoliticsState` | — | id allocator, politicians, `bodies` (`BodySeats`: a constitution body id, its `Jurisdiction`, members by constituency, where it sits) and `offices` (`OfficeHolder`: an office id, its `Jurisdiction`, the holder, where they work), parties, `ElectionState`, `sway` (politician, policy) → lobbying persuasion, `declared_votes` (politician, policy) → yes / no / abstain, `characters` (§5) |
+| `Politician` | `PoliticianId` | name, `Role` (a `Post`, a seat in a constitution body or a constitution office for a `Jurisdiction`, or private with a home town; DEC-098), `is_player`, birth year, attitudes (registry order), pragmatism, integrity, oratory, negotiation, ambition, `character` (their `CharacterId`), party, home neighbourhood, scandal damage, funds, years and terms in office, `record` of visible work (DEC-076) |
 | `Party` | `PartyId` | name, short name, platform (blended from factions), `factions` (wing key, position, strength), colour slot |
 | `ElectionState` | — | the current campaign's `Race`s, polls, hidden national swing, pollster house effects, results, last turnout per neighbourhood, dates of the last election, the campaign opening, and the next election |
-| `Race` | by `Seat` (a ward seat or a mayoralty) | dates, neighbourhoods, incumbent, `Candidate`s (awareness, persuasion, mobilisation, contacts per neighbourhood; spending), partisan ballot, hidden shocks and poll bias |
+| `Race` | by `Post` (a seat in a body, by constituency, or an office; each post on its own term, limit and calendar, DEC-098) | dates, neighbourhoods, incumbent, `Candidate`s (awareness, persuasion, mobilisation, contacts per neighbourhood; spending), partisan ballot, hidden shocks and poll bias |
 | `RaceResult` | — | seat, date, per-candidate votes, shares, and final poll, winner, incumbent, turnout, the winner's share by neighbourhood, and the six-factor decomposition (issues, party, candidate, record, campaign, luck) for player-era races |
 | `Poll` | — | race, date, pollster, shares among decided voters, undecided, sample size |
 

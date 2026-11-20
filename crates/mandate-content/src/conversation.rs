@@ -18,9 +18,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// The roles every topic is offered to besides the occupations.
-pub const POLITICIAN_ROLES: [&str; 2] = ["councillor", "mayor"];
-
 /// The slots a conversation binds: the speaker, the subject (`about`) and
 /// the player (people); the place is `here` (subject selectors only).
 pub const TALK_SLOTS: [&str; 3] = ["speaker", "about", "player"];
@@ -560,14 +557,41 @@ impl ContentBundle {
         self.talk_voices.iter().find(|v| v.id == id)
     }
 
-    /// Every role a topic can be offered to: occupations, then `councillor`
-    /// and `mayor`.
+    /// Every role a topic can be offered to: occupations, then the role
+    /// words of the posts politicians hold (DEC-098).
     pub fn talk_roles(&self) -> Vec<String> {
         self.occupations
             .iter()
             .map(|o| o.id.clone())
-            .chain(POLITICIAN_ROLES.iter().map(|r| r.to_string()))
+            .chain(self.role_words())
             .collect()
+    }
+
+    /// The role words of the posts politicians hold and speak as (DEC-098):
+    /// the local tier's bodies' `member_key`s and offices' ids, from every
+    /// constitution, in constitution order, without repeats. M6 seats the
+    /// local tier only; M7 adds the regional tier here.
+    pub fn role_words(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for c in self.constitutions.values() {
+            let Some(t) = c.tier(crate::types::TierKey::Local) else {
+                continue;
+            };
+            for p in t.posts() {
+                if !out.iter().any(|w| w == p.word()) {
+                    out.push(p.word().to_string());
+                }
+            }
+        }
+        out
+    }
+
+    /// Whether `word` is a role word of any constitution's posts, on any
+    /// tier (what content may name; DEC-098).
+    pub fn is_role_word(&self, word: &str) -> bool {
+        self.constitutions
+            .values()
+            .any(|c| c.role_words().contains(&word))
     }
 }
 

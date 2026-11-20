@@ -188,9 +188,9 @@ fn lobby_target(e: &Engine, content: &ContentBundle, bill: u32) -> Option<u32> {
     let pl = st.player.as_ref()?;
     let mine = st.politics.get(pl.politician)?;
     let me = mine.character;
-    let council = st.politics.councils.get(pl.municipality.index())?;
-    council
-        .members
+    let c = content.constitutions.get(&st.meta.constitution)?;
+    let town = mandate_sim::world::Jurisdiction::town(pl.home());
+    mandate_sim::politics::legislature_of(&st.politics, c, town)
         .iter()
         .filter(|id| **id != pl.politician)
         .filter_map(|id| st.politics.get(*id))
@@ -1392,6 +1392,16 @@ mod tests {
     use super::*;
     use mandate_sim::player::knowledge::Subject;
 
+    /// The members of the player's town's legislature.
+    fn legislature<'a>(
+        st: &'a mandate_sim::State,
+        content: &ContentBundle,
+    ) -> &'a [mandate_sim::politics::PoliticianId] {
+        let c = content.constitutions.get(&st.meta.constitution).unwrap();
+        let town = mandate_sim::world::Jurisdiction::town(st.player.as_ref().unwrap().home());
+        mandate_sim::politics::legislature_of(&st.politics, c, town)
+    }
+
     fn content() -> Arc<ContentBundle> {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
         crate::lab::load(&root, &[]).unwrap_or_else(|e| panic!("{e}"))
@@ -1630,8 +1640,7 @@ mod tests {
         let e = new_game(&content, 2).expect("game");
         let st = e.state();
         let pl = st.player.as_ref().unwrap();
-        let target = *st.politics.councils[pl.municipality.index()]
-            .members
+        let target = *legislature(st, &content)
             .iter()
             .find(|id| **id != pl.politician)
             .unwrap();
@@ -1660,8 +1669,7 @@ mod tests {
         assert!(v.windows(2).all(|w| w[0] <= w[1]), "{v:?}");
         assert!(v[3] > v[0], "{v:?}");
         // NPC deals use `known` (NPCs keep no ledger).
-        let other = *st.politics.councils[pl.municipality.index()]
-            .members
+        let other = *legislature(st, &content)
             .iter()
             .find(|id| **id != pl.politician && **id != target)
             .unwrap();

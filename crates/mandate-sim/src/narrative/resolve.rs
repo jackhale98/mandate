@@ -384,10 +384,7 @@ fn apply_effect(
                         .politicians
                         .iter()
                         .find(|p| p.character == c)
-                        .and_then(|p| match p.role {
-                            crate::politics::Role::Councillor { ward, .. } => Some(ward),
-                            _ => None,
-                        })
+                        .and_then(|p| p.role.constituency())
                 }),
                 None => state.player.as_ref().map(|p| p.ward),
             };

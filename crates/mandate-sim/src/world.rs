@@ -204,6 +204,166 @@ pub enum Tier {
     National,
 }
 
+impl From<Tier> for mandate_content::TierKey {
+    fn from(t: Tier) -> Self {
+        match t {
+            Tier::Local => mandate_content::TierKey::Local,
+            Tier::Regional => mandate_content::TierKey::Regional,
+            Tier::National => mandate_content::TierKey::National,
+        }
+    }
+}
+
+/// A government's territory at any tier (DEC-017, DEC-098). The key for
+/// anything that belongs to "a town, a region or the nation". Physical
+/// things in a town (places, neighbourhoods, curiosities) keep
+/// `MunicipalityId`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Jurisdiction {
+    Municipality { id: MunicipalityId },
+    Region { id: RegionId },
+    Nation,
+}
+
+impl Jurisdiction {
+    /// A town's jurisdiction.
+    pub fn town(m: MunicipalityId) -> Self {
+        Jurisdiction::Municipality { id: m }
+    }
+
+    pub fn tier(self) -> mandate_content::TierKey {
+        use mandate_content::TierKey;
+        match self {
+            Jurisdiction::Municipality { .. } => TierKey::Local,
+            Jurisdiction::Region { .. } => TierKey::Regional,
+            Jurisdiction::Nation => TierKey::National,
+        }
+    }
+
+    /// From the (tier, raw id) pairs stored today (`Constituency`,
+    /// `PolicyInstance`).
+    pub fn of(tier: mandate_content::TierKey, raw: u32) -> Self {
+        use mandate_content::TierKey;
+        match tier {
+            TierKey::Local => Jurisdiction::Municipality {
+                id: MunicipalityId(raw),
+            },
+            TierKey::Regional => Jurisdiction::Region { id: RegionId(raw) },
+            TierKey::National => Jurisdiction::Nation,
+        }
+    }
+
+    /// The raw id: 0 for the nation, as `Constituency.jurisdiction`.
+    pub fn raw(self) -> u32 {
+        match self {
+            Jurisdiction::Municipality { id } => id.0,
+            Jurisdiction::Region { id } => id.0,
+            Jurisdiction::Nation => 0,
+        }
+    }
+
+    /// A stable index for keyed RNG streams.
+    pub fn tier_index(self) -> u64 {
+        match self {
+            Jurisdiction::Municipality { .. } => 0,
+            Jurisdiction::Region { .. } => 1,
+            Jurisdiction::Nation => 2,
+        }
+    }
+
+    /// The town, when this is a town's jurisdiction.
+    pub fn municipality(self) -> Option<MunicipalityId> {
+        match self {
+            Jurisdiction::Municipality { id } => Some(id),
+            _ => None,
+        }
+    }
+
+    /// Neighbourhood indices inside the jurisdiction.
+    pub fn hoods(self, w: &World) -> Vec<usize> {
+        match self {
+            Jurisdiction::Municipality { id } => w.hoods_of(id).collect(),
+            Jurisdiction::Region { id } => w.hoods_of_region(id),
+            Jurisdiction::Nation => (0..w.neighborhoods.len()).collect(),
+        }
+    }
+
+    pub fn contains_hood(self, w: &World, h: NeighborhoodId) -> bool {
+        let Some(n) = w.neighborhoods.get(h.index()) else {
+            return false;
+        };
+        match self {
+            Jurisdiction::Municipality { id } => n.municipality == id,
+            Jurisdiction::Region { id } => w
+                .municipalities
+                .get(n.municipality.index())
+                .is_some_and(|m| m.region == id),
+            Jurisdiction::Nation => true,
+        }
+    }
+
+    /// The jurisdiction above: a town's region, a region's nation.
+    pub fn parent(self, w: &World) -> Option<Jurisdiction> {
+        match self {
+            Jurisdiction::Municipality { id } => w
+                .municipalities
+                .get(id.index())
+                .map(|m| Jurisdiction::Region { id: m.region }),
+            Jurisdiction::Region { .. } => Some(Jurisdiction::Nation),
+            Jurisdiction::Nation => None,
+        }
+    }
+
+    /// Every jurisdiction of a tier, in world order.
+    pub fn all_of(tier: mandate_content::TierKey, w: &World) -> Vec<Jurisdiction> {
+        use mandate_content::TierKey;
+        match tier {
+            TierKey::Local => w
+                .municipalities
+                .iter()
+                .map(|m| Jurisdiction::town(m.id))
+                .collect(),
+            TierKey::Regional => w
+                .regions
+                .iter()
+                .map(|r| Jurisdiction::Region { id: r.id })
+                .collect(),
+            TierKey::National => vec![Jurisdiction::Nation],
+        }
+    }
+
+    /// The constituencies (wards, districts) of this jurisdiction's tier
+    /// inside it, in world order.
+    pub fn constituencies(self, w: &World) -> impl Iterator<Item = &Constituency> + '_ {
+        w.constituencies.iter().filter(move |c| c.at() == self)
+    }
+}
+
+/// Where an effect or a scope applies (DEC-098).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Area {
+    Hood { id: NeighborhoodId },
+    Constituency { id: ConstituencyId },
+    In { at: Jurisdiction },
+}
+
+impl Area {
+    /// Neighbourhood indices the area covers.
+    pub fn hoods(self, w: &World) -> Vec<usize> {
+        match self {
+            Area::Hood { id } => vec![id.index()],
+            Area::Constituency { id } => w
+                .constituencies
+                .get(id.index())
+                .map(|c| c.neighborhoods.iter().map(|h| h.index()).collect())
+                .unwrap_or_default(),
+            Area::In { at } => at.hoods(w),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Constituency {
     pub id: ConstituencyId,
@@ -212,6 +372,13 @@ pub struct Constituency {
     pub jurisdiction: u32,
     pub number: u32,
     pub neighborhoods: Vec<NeighborhoodId>,
+}
+
+impl Constituency {
+    /// The jurisdiction this constituency divides.
+    pub fn at(&self) -> Jurisdiction {
+        Jurisdiction::of(self.tier.into(), self.jurisdiction)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -315,6 +482,11 @@ impl PlaceKind {
             PlaceKind::Parliament => "parliament",
             PlaceKind::ExecutiveResidence => "executive_residence",
         }
+    }
+
+    /// The kind with this snake-case key.
+    pub fn from_key(key: &str) -> Option<PlaceKind> {
+        PlaceKind::ALL.into_iter().find(|k| k.key() == key)
     }
 }
 

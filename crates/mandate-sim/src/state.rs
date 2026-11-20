@@ -116,6 +116,12 @@ pub struct SectorBaseline {
 }
 
 impl State {
+    /// The jurisdictions simulated in detail (DEC-098): the player's focus;
+    /// in M6, their home town. Empty without a player.
+    pub fn focus(&self) -> Vec<crate::world::Jurisdiction> {
+        self.player.as_ref().map(|p| p.focus()).unwrap_or_default()
+    }
+
     /// Record the town baselines (population per neighbourhood, jobs per
     /// sector, housing stock) from the current state. Worldgen calls this
     /// once, as play begins after the history burn-in; saves from before

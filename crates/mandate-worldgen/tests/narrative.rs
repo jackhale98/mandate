@@ -396,7 +396,8 @@ fn endogenous(e: &Engine) -> serde_json::Value {
     serde_json::json!({
         "elections": st.politics.elections,
         "politicians": st.politics.politicians,
-        "councils": st.politics.councils,
+        "bodies": st.politics.bodies,
+        "offices": st.politics.offices,
         "declared": serde_json::to_value(st.politics.declared_votes.iter().collect::<Vec<_>>()).unwrap(),
         "characters": st.politics.characters,
         "policy": policy,
@@ -649,8 +650,7 @@ fn an_opposing_goal_turns_a_colleague_against_the_players_bills() {
         .created
         .unwrap();
     let st = e.state();
-    let colleague = st.politics.councils[m as usize]
-        .members
+    let colleague = council_members(st, m as usize)
         .iter()
         .copied()
         .find(|p| !st.politics.get(*p).unwrap().is_player)
@@ -658,8 +658,9 @@ fn an_opposing_goal_turns_a_colleague_against_the_players_bills() {
     let leans = |e: &Engine| {
         let st = e.state();
         let inst = &st.policy.instances[id as usize];
-        mandate_sim::policy::council_leans(
+        mandate_sim::policy::legislature_leans(
             &c.council,
+            c.constitutions.get(&st.meta.constitution).unwrap(),
             &st.world,
             &st.population,
             &st.politics,
@@ -765,4 +766,10 @@ fn storyteller_profiles_shape_chance_not_consequences() {
         "hazards on the player's town (16 careers × 10 years): Unfiltered {struck_unfiltered}, Steady {struck_steady} ({averted} averted)"
     );
     assert!(struck_steady <= struck_unfiltered);
+}
+
+/// The members of a town's bodies (the base constitution's council; DEC-098).
+fn council_members(st: &mandate_sim::State, m: usize) -> Vec<mandate_sim::politics::PoliticianId> {
+    let at = mandate_sim::world::Jurisdiction::town(mandate_sim::world::MunicipalityId(m as u32));
+    mandate_sim::politics::body_members_at(&st.politics, at)
 }

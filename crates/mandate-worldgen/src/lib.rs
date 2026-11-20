@@ -847,6 +847,7 @@ pub fn generate_with_progress(
         content.tuning.start_year,
         parties,
         &content,
+        &meta.constitution,
         config.seed,
     );
     let policy = mandate_sim::policy::init(&world, rng.get(Stream::Npc));
@@ -897,12 +898,19 @@ pub fn generate_with_progress(
     let content2 = engine.content_arc();
     engine.setup(|state| {
         let year = state.calendar.date.calendar().year;
-        let player = place_player(
-            &state.world,
-            &mut state.politics,
-            &mut state.population,
-            &content2,
-        );
+        let start = content2
+            .constitutions
+            .get(&state.meta.constitution)
+            .and_then(Start::sitting_member);
+        let player = start.and_then(|start| {
+            seat_player(
+                &state.world,
+                &mut state.politics,
+                &mut state.population,
+                &content2,
+                &start,
+            )
+        });
         if let Some(me) = player
             .as_ref()
             .and_then(|p| state.politics.get_mut(p.politician))
@@ -939,15 +947,55 @@ pub fn generate_with_progress(
     Ok(engine)
 }
 
-/// The player starts as a sitting ward councillor in the largest town (or a
-/// city if there is no town), never the capital. M6's draft will replace this.
-fn place_player(
+/// What the player starts as (DEC-098; EXTENSIBILITY_AUDIT §3.9): a
+/// constitution post, by id, and which of its seats. M6's draft of three
+/// will name one per background in content; today's start is a sitting
+/// member of the home town's legislature in its most marginal seat.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Start {
+    pub post: StartPost,
+    pub constituency: Selector,
+}
+
+/// The post a start names, by constitution id.
+#[derive(Clone, Debug, PartialEq)]
+pub enum StartPost {
+    /// A seat in this body.
+    Body(String),
+    /// This office.
+    Office(String),
+}
+
+/// Which seat a start takes, by the last result's margin.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Selector {
+    Marginal,
+    Safe,
+    Any,
+}
+
+impl Start {
+    /// Today's start: a seat in the local legislature (the body of the
+    /// `ordinance` procedure's first vote), in a marginal district.
+    pub fn sitting_member(c: &mandate_content::ConstitutionDef) -> Option<Start> {
+        let body = mandate_sim::politics::legislature(c, mandate_content::TierKey::Local)?;
+        Some(Start {
+            post: StartPost::Body(body.id.clone()),
+            constituency: Selector::Marginal,
+        })
+    }
+}
+
+/// Seat the player in their start post in the largest town (or a city if
+/// there is no town), never the capital.
+fn seat_player(
     world: &World,
     politics: &mut mandate_sim::politics::PoliticsState,
     population: &mut mandate_sim::population::PopulationState,
     content: &ContentBundle,
+    start: &Start,
 ) -> Option<mandate_sim::player::PlayerState> {
-    use mandate_sim::politics::Role;
+    use mandate_sim::politics::{holder_of, members_of};
     let home = world
         .municipalities
         .iter()
@@ -961,9 +1009,9 @@ fn place_player(
                 .find(|m| m.class == SettlementClass::City)
         })
         .or(world.municipalities.first())?;
-    let council = politics.councils.get(home.id.index())?;
-    // Start in the town's most marginal ward held by a major party: the first
-    // election is winnable and losable (drama, DEC-059). M6's draft replaces this.
+    let at = mandate_sim::world::Jurisdiction::town(home.id);
+    // Start in the post's most marginal (or safest) seat held by a major
+    // party: the first election is winnable and losable (drama, DEC-059).
     let margin_of = |id: mandate_sim::politics::PoliticianId| -> f32 {
         politics
             .elections
@@ -978,30 +1026,45 @@ fn place_player(
             })
             .unwrap_or(0.5)
     };
-    let seat = council
-        .members
-        .iter()
-        .copied()
-        .filter(|id| {
-            politics
-                .get(*id)
-                .is_some_and(|p| p.party.is_some_and(|x| x.0 < 2))
-        })
-        .min_by(|a, b| margin_of(*a).total_cmp(&margin_of(*b)))
-        .or_else(|| council.members.get(council.members.len() / 2).copied())?;
+    let members: Vec<_> = match &start.post {
+        StartPost::Body(id) => members_of(politics, id, at).to_vec(),
+        StartPost::Office(id) => holder_of(politics, id, at).into_iter().collect(),
+    };
+    let major = |id: &mandate_sim::politics::PoliticianId| {
+        politics
+            .get(*id)
+            .is_some_and(|p| p.party.is_some_and(|x| x.0 < 2))
+    };
+    let by_margin = |a: &mandate_sim::politics::PoliticianId,
+                     b: &mandate_sim::politics::PoliticianId| {
+        margin_of(*a).total_cmp(&margin_of(*b))
+    };
+    let picked = match start.constituency {
+        Selector::Marginal => members.iter().copied().filter(major).min_by(by_margin),
+        Selector::Safe => members.iter().copied().filter(major).max_by(by_margin),
+        Selector::Any => None,
+    };
+    let seat = picked.or_else(|| members.get(members.len() / 2).copied())?;
     let me = politics.get_mut(seat)?;
     me.is_player = true;
     me.oratory = 0.6;
     me.negotiation = 0.6;
-    let Role::Councillor { ward, .. } = me.role else {
-        return None;
+    // The player's district: their seat's, else the one their home is in.
+    let home_hood = mandate_sim::world::NeighborhoodId(me.home);
+    let ward = me.role.constituency().or_else(|| {
+        at.constituencies(world)
+            .find(|c| c.neighborhoods.contains(&home_hood))
+            .map(|c| c.id)
+    })?;
+    let known: Vec<_> = match me.role.post() {
+        Some(p) if p.is_office() => world.hoods_of(home.id).map(|h| h as u32).collect(),
+        _ => world
+            .constituencies
+            .get(ward.index())
+            .map(|c| c.neighborhoods.iter().map(|h| h.0).collect())
+            .unwrap_or_default(),
     };
-    for h in world
-        .constituencies
-        .get(ward.index())
-        .map(|c| c.neighborhoods.clone())
-        .unwrap_or_default()
-    {
+    for h in known.into_iter().map(mandate_sim::world::NeighborhoodId) {
         for c in population.hoods[h.index()].cohorts.iter_mut() {
             c.player_awareness = 0.3;
             c.player_approval = 0.1;

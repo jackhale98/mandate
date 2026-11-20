@@ -1,5 +1,11 @@
 // Federal Presidential Republic (DEC-015 archetype 1; MVP default, DEC-016).
 // Built from primitives (DEC-017): the engine reads these rules; nothing is hardcoded.
+// Politicians hold these posts (DEC-098): a seat in a body or an office, by id.
+// Each post has its own term, limit and (optionally) calendar; `member_key` is
+// a body member's role word (Fluent `role-<word>`), an office's id is its own.
+// `works_at` is a place kind. The `ordinance` and `budget` procedures are a
+// contract with the engine: law-making runs `ordinance`, whose first `vote`
+// stage is the tier's legislature and whose `sign` stage is its executive.
 {
   "kind": "constitution",
   "value": {
@@ -12,7 +18,7 @@
         "elections": { "month": 11, "day": 3, "cycle_offset": 0, "campaign_weeks": 8, "timing": "concurrent", "partisan_ballot": true },
         "bodies": [
           {
-            "id": "council", "name_key": "body-council",
+            "id": "council", "name_key": "body-council", "member_key": "councillor", "works_at": "council_chamber",
             "selection": { "type": "election", "rule": "plurality", "constituency": "ward" },
             "term_years": 4, "decision": { "type": "majority" },
             "powers": ["propose_ordinance", "approve_ordinance", "override", "approve_budget", "set_local_taxes"],
@@ -20,7 +26,7 @@
         ],
         "offices": [
           {
-            "id": "mayor", "name_key": "office-mayor",
+            "id": "mayor", "name_key": "office-mayor", "works_at": "town_hall",
             "selection": { "type": "election", "rule": "plurality", "constituency": "at_large" },
             "term_years": 4, "term_limit": 2,
             "powers": ["propose_ordinance", "veto", "propose_budget", "appoint"],
@@ -49,7 +55,7 @@
         "elections": { "month": 11, "day": 3, "cycle_offset": 2, "campaign_weeks": 10, "timing": "concurrent", "partisan_ballot": true },
         "bodies": [
           {
-            "id": "assembly", "name_key": "body-regional-assembly",
+            "id": "assembly", "name_key": "body-regional-assembly", "member_key": "assembly_member", "works_at": "regional_assembly",
             "selection": { "type": "election", "rule": "plurality", "constituency": "ward" },
             "term_years": 4, "decision": { "type": "majority" },
             "powers": ["propose_ordinance", "approve_ordinance", "override", "approve_budget"],
@@ -57,7 +63,7 @@
         ],
         "offices": [
           {
-            "id": "governor", "name_key": "office-governor",
+            "id": "governor", "name_key": "office-governor", "works_at": "regional_assembly",
             "selection": { "type": "election", "rule": "plurality", "constituency": "at_large" },
             "term_years": 4, "term_limit": 2,
             "powers": ["propose_ordinance", "veto", "propose_budget", "appoint"],
@@ -86,13 +92,13 @@
         "elections": { "month": 11, "day": 3, "cycle_offset": 0, "campaign_weeks": 12, "timing": "concurrent", "partisan_ballot": true },
         "bodies": [
           {
-            "id": "house", "name_key": "body-house",
+            "id": "house", "name_key": "body-house", "member_key": "representative", "works_at": "parliament",
             "selection": { "type": "election", "rule": "plurality", "constituency": "ward" },
             "term_years": 2, "decision": { "type": "majority" },
             "powers": ["propose_ordinance", "approve_ordinance", "override", "approve_budget"],
           },
           {
-            "id": "senate", "name_key": "body-senate",
+            "id": "senate", "name_key": "body-senate", "member_key": "senator", "works_at": "parliament", "seats": 30,
             "selection": { "type": "election", "rule": "plurality", "constituency": "at_large" },
             "term_years": 6, "decision": { "type": "majority" },
             "powers": ["approve_ordinance", "override", "approve_budget"],
@@ -100,7 +106,7 @@
         ],
         "offices": [
           {
-            "id": "president", "name_key": "office-president",
+            "id": "president", "name_key": "office-president", "works_at": "executive_residence",
             "selection": { "type": "election", "rule": "plurality", "constituency": "at_large" },
             "term_years": 4, "term_limit": 2,
             "powers": ["veto", "propose_budget", "appoint"],
@@ -126,5 +132,16 @@
         ],
       },
     ],
+    // The career ladder (DEC-098): acts are not tiers; the presidency is an
+    // act of its own (DEC-004).
+    "career": {
+      "summit": "president",
+      "acts": [
+        { "id": "act.local", "tier": "local" },
+        { "id": "act.regional", "tier": "regional" },
+        { "id": "act.national", "tier": "national", "except": ["president"] },
+        { "id": "act.summit", "posts": ["president"] },
+      ],
+    },
   },
 }

@@ -6,13 +6,11 @@ use crate::knowledge::{Gate, KnowledgeLevelDto, KnowledgeView, gate_concerns};
 use crate::office::ConcernView;
 use crate::places::{LocationView, location_view};
 use crate::views::DateView;
+use mandate_sim::Engine;
 use mandate_sim::characters::{self, CharacterId, MemoryKind, Tier, ambient};
 use mandate_sim::places::Location;
 use mandate_sim::player::knowledge::{Level, Subject};
-use mandate_sim::politics::Role;
-use mandate_sim::politics::elections::Seat;
 use mandate_sim::world::MunicipalityId;
-use mandate_sim::{Engine, State};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -224,23 +222,29 @@ fn tier_key(t: Tier) -> &'static str {
     }
 }
 
-fn role_key(st: &State, id: CharacterId) -> (String, Option<u32>, Option<u32>) {
+fn role_key(engine: &Engine, id: CharacterId) -> (String, Option<u32>, Option<u32>) {
+    let st = engine.state();
     let Some(c) = st.politics.characters.get(id) else {
         return (String::new(), None, None);
     };
     if let Some(p) = c.politician.and_then(|p| st.politics.get(p)) {
-        let (key, ward) = match p.role {
-            Role::Councillor { ward, .. } => (
-                "role-councillor",
-                st.world.constituencies.get(ward.index()).map(|w| w.number),
+        // `role-<word>`: the post's role word from the constitution.
+        let word = engine
+            .content()
+            .constitutions
+            .get(&st.meta.constitution)
+            .and_then(|k| mandate_sim::politics::role_word(k, p));
+        let (key, ward) = match (word, p.role.constituency()) {
+            (Some(w), ward) => (
+                format!("role-{w}"),
+                ward.and_then(|w| st.world.constituencies.get(w.index()).map(|w| w.number)),
             ),
-            Role::Mayor { .. } => ("role-mayor", None),
-            Role::Private { .. } if characters::is_candidate(&st.politics, p.id) => {
-                ("role-candidate", None)
+            (None, _) if characters::is_candidate(&st.politics, p.id) => {
+                ("role-candidate".into(), None)
             }
-            Role::Private { .. } => ("role-private", None),
+            (None, _) => ("role-private".into(), None),
         };
-        return (key.into(), ward, p.party.map(|x| x.0));
+        return (key, ward, p.party.map(|x| x.0));
     }
     (String::new(), None, None)
 }
@@ -257,7 +261,7 @@ fn occupation_key(engine: &Engine, occ: Option<&str>) -> String {
 pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
     let st = engine.state();
     let p = characters::profile(&st.politics, &st.world, id)?;
-    let (mut role, _, _) = role_key(st, id);
+    let (mut role, _, _) = role_key(engine, id);
     if role.is_empty() {
         role = occupation_key(engine, p.occupation.as_deref());
     }
@@ -305,12 +309,13 @@ pub(crate) fn subject_view(engine: &Engine, s: Option<characters::Subject>) -> O
                 n: None,
             })
         }
-        Subject::Seat { seat } => Some(match seat {
-            Seat::Mayor { .. } => SubjectView {
+        // Labels stay as they were until R2 gives posts their own.
+        Subject::Seat { seat } => Some(match seat.constituency() {
+            None => SubjectView {
                 key: "subject-mayoralty".into(),
                 n: None,
             },
-            Seat::Council { ward, .. } => SubjectView {
+            Some(ward) => SubjectView {
                 key: "subject-ward".into(),
                 n: st.world.constituencies.get(ward.index()).map(|w| w.number),
             },
@@ -342,7 +347,7 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
     let level = gate.person(id);
     let known = level >= Level::Known;
     let detailed = level >= Level::Detailed;
-    let (mut role, ward, party) = role_key(st, id);
+    let (mut role, ward, party) = role_key(engine, id);
     if role.is_empty() {
         role = occupation_key(engine, p.occupation.as_deref());
     }

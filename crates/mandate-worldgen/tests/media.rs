@@ -316,8 +316,7 @@ fn npc_corruption_uses_the_same_mechanics() {
     let mut e = engine(&c, 9);
     let p = me(&e);
     let m = e.state().player.as_ref().unwrap().municipality.0;
-    let npc = e.state().politics.councils[m as usize]
-        .members
+    let npc = council_members(e.state(), m as usize)
         .iter()
         .copied()
         .find(|id| *id != p)
@@ -374,13 +373,12 @@ fn npc_corruption_uses_the_same_mechanics() {
         assert!(st.politics.get(who).unwrap().scandal > 0.0);
     }
     // The NPC's seat went to their party.
-    let council = &st.politics.councils[m as usize];
+    let council = council_members(st, m as usize);
     let seat = council
-        .members
         .iter()
         .find(|id| st.politics.get(**id).unwrap().party == party && **id != npc);
     assert!(seat.is_some());
-    assert!(!council.members.contains(&npc) && !council.members.contains(&p));
+    assert!(!council.contains(&npc) && !council.contains(&p));
     // NPCs take bribes on their own too (by personality), with fates.
     let mut e = engine(&base(), 11);
     for _ in 0..(5 * 26) {
@@ -475,7 +473,7 @@ fn a_short_sentence_is_time_out_and_a_comeback() {
     assert!(pl.tracks.standing as f64 <= c.justice.release_standing);
     // A comeback path: they may file for their old ward again.
     let r = e.apply(e.route(PlayerCommand::File {
-        filing: mandate_sim::politics::elections::Filing::Council,
+        filing: mandate_sim::politics::elections::seat_filing(e.state(), e.content()).unwrap(),
     }));
     assert!(r.is_ok(), "{r:?}");
 }
@@ -590,7 +588,7 @@ fn cases_can_be_dropped_end_in_acquittal_or_remove_from_office() {
         .politics
         .politicians
         .iter()
-        .find(|x| matches!(x.role, mandate_sim::politics::Role::Councillor { ward: w, .. } if w == ward))
+        .find(|x| x.role.constituency() == Some(ward))
         .unwrap();
     assert_eq!(holder.party, party, "the party keeps the seat");
 }
@@ -662,4 +660,10 @@ fn media_play_is_deterministic_through_saves() {
         let _ = h.apply(Command::EndTurn);
     }
     assert_eq!(a.state_hash(), h.state_hash());
+}
+
+/// The members of a town's bodies (the base constitution's council; DEC-098).
+fn council_members(st: &mandate_sim::State, m: usize) -> Vec<mandate_sim::politics::PoliticianId> {
+    let at = mandate_sim::world::Jurisdiction::town(mandate_sim::world::MunicipalityId(m as u32));
+    mandate_sim::politics::body_members_at(&st.politics, at)
 }

@@ -95,6 +95,13 @@ pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String>
             out.push(k.clone());
         }
     }
+    // Nor can politicians hold posts the constitution lacks (DEC-098).
+    let c = content.constitutions.get(&state.meta.constitution);
+    for k in crate::politics::missing_references(&state.politics, c) {
+        if !out.contains(&k) {
+            out.push(k);
+        }
+    }
     // Nor can characters keep traits or occupations that were removed.
     for k in crate::characters::missing_references(&state.politics, content) {
         if !out.contains(&k) {

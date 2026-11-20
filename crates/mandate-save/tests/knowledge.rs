@@ -38,10 +38,9 @@ fn ledger(e: &Engine) -> &knowledge::KnowledgeLedger {
 fn council_people(e: &Engine) -> Vec<mandate_sim::characters::CharacterId> {
     let st = e.state();
     let pl = st.player.as_ref().unwrap();
-    let c = &st.politics.councils[pl.municipality.index()];
-    c.members
+    let at = mandate_sim::world::Jurisdiction::town(pl.home());
+    mandate_sim::politics::officials_at(&st.politics, at)
         .iter()
-        .chain(c.mayor.iter())
         .filter(|id| **id != pl.politician)
         .map(|id| st.politics.get(*id).unwrap().character)
         .collect()
@@ -275,8 +274,11 @@ fn a_new_zone_starts_fresh_with_the_primer_and_forgets_nothing() {
     );
     assert_eq!(k.level(&Subject::Broker { town: other }), Level::Heard);
     assert_eq!(k.level(&Subject::Broker { town: home }), Level::Unknown);
-    let c2 = &st.politics.councils[other.index()];
-    let first = st.politics.get(c2.members[0]).unwrap().character;
+    let c2 = mandate_sim::politics::body_members_at(
+        &st.politics,
+        mandate_sim::world::Jurisdiction::town(other),
+    );
+    let first = st.politics.get(c2[0]).unwrap().character;
     assert_eq!(k.level(&Subject::Person { person: first }), Level::Heard);
     assert!(
         k.entry(&Subject::Broker { town: other }).unwrap().learned[0].source

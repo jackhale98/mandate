@@ -199,8 +199,15 @@ pub enum Cast {
     Broker,
     /// The player's named rival.
     Rival,
-    /// The mayor (when the player is not the mayor).
-    Mayor,
+    /// The holder of an office in the player's town (when it is not the
+    /// player): `office` names it by constitution id; by default the town's
+    /// executive (the office that signs its ordinances; DEC-098). The old
+    /// spelling `{ "type": "mayor" }` reads as the executive.
+    #[serde(alias = "mayor")]
+    Office {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        office: Option<String>,
+    },
     /// A Named person with one of these occupations: one with a stake in the
     /// live crisis first, then leaders, then the most influential.
     Occupation { occupations: Vec<ContentKey> },
@@ -252,17 +259,10 @@ pub enum TrackKey {
     Mandate,
 }
 
-/// The office a condition asks the player to hold.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum OfficeRole {
-    Councillor,
-    Mayor,
-    /// Either.
-    Any,
-    /// Out of office.
-    None,
-}
+/// The office words a condition can name besides role words (DEC-098):
+/// `any` (holds any post) and `none` (out of office).
+pub const OFFICE_ANY: &str = "any";
+pub const OFFICE_NONE: &str = "none";
 
 /// A knowledge subject named by role, never by id (DEC-091;
 /// M6_ENGINE_CONTRACTS §1.3): resolved against the cast and the player's
@@ -400,8 +400,16 @@ pub enum Condition {
         #[serde(default = "yes")]
         is: bool,
     },
-    /// The player holds this office.
-    Office { role: OfficeRole },
+    /// The player holds one of these posts (DEC-098): role words (a body's
+    /// `member_key` or an office's id, from the run's constitution), `any`
+    /// (any post) or `none` (out of office). `role` is the one-word
+    /// spelling (`{ "type": "office", "role": "councillor" }`).
+    Office {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        posts: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        role: Option<String>,
+    },
     /// A track within [min, max].
     Track {
         track: TrackKey,
@@ -1318,8 +1326,20 @@ impl Refs<'_> {
                     );
                 }
             }
+            Condition::Office { posts, role } => {
+                if posts.is_empty() && role.is_none() {
+                    bad(issues, "an office condition needs `posts` or `role`".into());
+                }
+                for w in posts.iter().chain(role.iter()) {
+                    if w != OFFICE_ANY && w != OFFICE_NONE && !b.is_role_word(w) {
+                        bad(
+                            issues,
+                            format!("unknown office word `{w}` (not a constitution role word)"),
+                        );
+                    }
+                }
+            }
             Condition::Campaigning { .. }
-            | Condition::Office { .. }
             | Condition::Favour { .. }
             | Condition::PartyLineAgainstWard { .. }
             | Condition::CanVote { .. }
@@ -1433,6 +1453,15 @@ fn check_roles<'a>(
                     if !b.policies.contains_key(t) {
                         issues.push(Issue::error(owner, &format!("unknown policy `{t}`")));
                     }
+                }
+            }
+            Cast::Office { office: Some(o) } => {
+                if !b
+                    .constitutions
+                    .values()
+                    .any(|c| c.tiers.iter().any(|t| t.office(o).is_some()))
+                {
+                    issues.push(Issue::error(owner, &format!("unknown office `{o}`")));
                 }
             }
             Cast::GoalHolder if !request => {
