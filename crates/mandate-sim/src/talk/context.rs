@@ -409,8 +409,7 @@ impl Ctx<'_> {
                         .map(|t| (t.title_key.clone(), "decision")),
                     _ => None,
                 };
-                let (subject, kind) =
-                    subject.unwrap_or_else(|| (SUBJECT_FALLBACK.into(), "none"));
+                let (subject, kind) = subject.unwrap_or_else(|| (SUBJECT_FALLBACK.into(), "none"));
                 args.insert("memory_key".into(), m.kind.fluent_key());
                 args.insert("subject_key".into(), subject);
                 args.insert("subject_kind".into(), kind.into());

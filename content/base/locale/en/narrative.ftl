@@ -98,7 +98,10 @@ goal-seek-backing = Looking for your support
 goal-champion-fix = Pushing for a fix
 goal-traders-help = Rallying the traders
 
-## Dilemmas: titles are noun phrases (they are also what memories are about)
+## Dilemmas: titles are noun phrases (they are also what memories are about,
+## so the people in them quote them: "You stood with me over { $title }").
+## Name the business, not the player's view of it: "the truce offer", not
+## "the rival's offer", which reads oddly from the rival's own mouth.
 dilemma-plant-layoffs = the layoffs at the plant
 dilemma-plant-layoffs-situation = Jobs are going in { $town }, and the town is choosing sides. { $owner } ({ $owner_role }) wants the council to hold off on anything that raises an employer's costs. { $steward } ({ $steward_role }) wants you on the picket line. In { $hood }, people are asking where you stand.
 dilemma-plant-layoffs-back-owner = Back { $owner }: no new costs on employers while jobs are at risk
@@ -155,7 +158,7 @@ dilemma-tax-revolt-defend-after = You defended the services. { $trader } took it
 dilemma-tax-revolt-nothing = Say nothing
 dilemma-tax-revolt-nothing-after = You kept your head down. { $trader } read it as a no, and so did the homeowners signing the petition.
 
-dilemma-pollution = the smoke over town
+dilemma-pollution = the pollution row
 dilemma-pollution-situation = Pollution has become one of { $town }'s worries. { $voice } ({ $voice_role }) wants an inspection of { $owner }'s operation. { $owner } ({ $owner_role }) says an inspection will cost jobs.
 dilemma-pollution-inspection = Demand an inspection
 dilemma-pollution-inspection-after = You demanded an inspection. { $voice } thanked you; { $owner } will not, and workers fear for their jobs.
@@ -175,7 +178,7 @@ dilemma-building-protest-meet-after = You spent an afternoon on the street with 
 dilemma-building-protest-ignore = Ignore it
 dilemma-building-protest-ignore-after = You stayed away and kept your evening. { $organiser } told the local paper you never came.
 
-dilemma-favour-called-in = the favour you owe
+dilemma-favour-called-in = the favour called in
 dilemma-favour-called-in-situation = { $creditor } has not forgotten the favour you owe. Their bill, { $bill }, is before the council, and they expect your vote.
 dilemma-favour-called-in-pay = Vote for the bill and repay the favour
 dilemma-favour-called-in-pay-after = You voted for the { $bill } bill and paid your debt. { $creditor } will remember you kept your word.
@@ -193,7 +196,7 @@ dilemma-party-line-ward-after = You voted with your ward against the party line.
 dilemma-party-line-abstain = Abstain
 dilemma-party-line-abstain-after = You abstained. It pleased no one.
 
-dilemma-donor-offer = the donor's offer
+dilemma-donor-offer = the donation
 dilemma-donor-offer-situation = { $donor } ({ $donor_role }) offers a generous donation to your campaign. In return, they would like to be able to call you.
 dilemma-donor-offer-accept = Take the money
 dilemma-donor-offer-accept-after = You took { $donor }'s money. Your campaign is richer; you owe them, and a file somewhere notes the gift.
@@ -202,7 +205,7 @@ dilemma-donor-offer-decline-after = You turned { $donor } down. They were offend
 dilemma-donor-offer-lapse = Let the offer lapse
 dilemma-donor-offer-lapse-after = You let the offer lapse. { $donor } felt snubbed, and the party wondered why you left money on the table.
 
-dilemma-rival-offer = the rival's offer
+dilemma-rival-offer = the truce offer
 dilemma-rival-offer-situation = { $rival } ({ $rival_role }) suggests a quiet pact: no attacks from either side until the votes are counted.
 dilemma-rival-offer-truce = Accept the pact
 dilemma-rival-offer-truce-after = You shook on it. { $rival } warmed to you, you owe them for their restraint, and your party thinks you have gone soft.
@@ -219,7 +222,7 @@ request-back-workers-back-after = You spoke to the workers. They cheered; the pa
 request-back-workers-decline = Decline
 request-back-workers-decline-after = You declined. { $holder } will remember who did not come; better-off voters approved.
 
-request-ally-vote = a colleague's bill
+request-ally-vote = the vote between friends
 request-ally-vote-situation = { $holder } ({ $holder_role }) counts you as a friend and asks for your vote on their bill, { $bill }.
 request-ally-vote-yes = Promise your vote
 request-ally-vote-yes-after = You voted for the { $bill } bill. { $holder } owes you one.
@@ -442,7 +445,7 @@ dilemma-amendment-for-vote-sunset-after = You put a four-year sunset on the { $b
 dilemma-amendment-for-vote-merits = Let it pass on its merits
 dilemma-amendment-for-vote-merits-after = You kept the { $bill } bill clean and spent the evening at home. { $swing } took it as a no.
 
-dilemma-sponsor-rider = a rider on someone else's bill
+dilemma-sponsor-rider = a project for your ward
 dilemma-sponsor-rider-situation = { $sponsor } wants your yes on the { $bill } bill, and offers to write in a project for your ward.
 dilemma-sponsor-rider-take = Take the project and vote yes
 dilemma-sponsor-rider-take-after = Your ward gets its project in the { $bill } bill, and you voted yes. Other wards' councillors noticed what it cost.
@@ -451,7 +454,7 @@ dilemma-sponsor-rider-ward-after = You voted on the { $bill } bill as your ward 
 dilemma-sponsor-rider-decline = Decline and abstain
 dilemma-sponsor-rider-decline-after = You abstained on the { $bill } bill. { $sponsor } read it as a snub.
 
-dilemma-whip-deal = the whip's offer
+dilemma-whip-deal = the party's deal
 dilemma-whip-deal-situation = { $whip } has a deal: vote with the party on the { $bill } bill, against your ward's mood, and the party pays toward your campaign.
 dilemma-whip-deal-take = Take the deal
 dilemma-whip-deal-take-after = You voted with the party on the { $bill } bill. The money arrived; your ward noticed which way you went.
@@ -462,7 +465,7 @@ dilemma-whip-deal-refuse-after = You voted with your ward on the { $bill } bill.
 dilemma-whip-deal-counted = Say nothing; the whip counts you in
 dilemma-whip-deal-counted-after = You never answered, so { $whip } counted you with the party on the { $bill } bill: no money, and your ward saw how you voted.
 
-dilemma-call-in-favour = the favour you are owed
+dilemma-call-in-favour = the favour owed
 dilemma-call-in-favour-situation = { $debtor } owes you a favour, and the { $bill } bill is short of votes.
 dilemma-call-in-favour-call = Call it in quietly
 dilemma-call-in-favour-call-after = { $debtor } paid what they owed: their vote leans towards the { $bill } bill now. The debt is clear, and so is the slight chill.
@@ -480,7 +483,7 @@ dilemma-favour-for-vote-ward-after = You voted on the { $bill } bill as your war
 dilemma-favour-for-vote-not-yet = Say you need to think
 dilemma-favour-for-vote-not-yet-after = You put { $sponsor } off. They took the hint.
 
-dilemma-creditor-against-rival = the debt and the rival's bill
+dilemma-creditor-against-rival = the debt and the bill
 dilemma-creditor-against-rival-situation = { $creditor } is calling in the favour you owe: vote down { $rival }'s bill, { $bill }.
 dilemma-creditor-against-rival-sink = Vote it down and clear the debt
 dilemma-creditor-against-rival-sink-after = You voted against the { $bill } bill. The debt to { $creditor } is paid; { $rival } knows who sank it.

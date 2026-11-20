@@ -106,7 +106,7 @@ talk-open-earnest-warm = "Good," says { $speaker }. "I wanted to talk to someone
 # Wry.
 talk-open-wry-cool = { $speaker } looks you up and down. "Well. To what do I owe the displeasure?"
 talk-open-wry-neutral = { $speaker } raises an eyebrow, which seems to be the whole greeting.
-talk-open-wry-warm = "You again," says { $speaker }. "People will talk. Mostly about me, I hope."
+talk-open-wry-warm = "Well, well," says { $speaker }. "People will talk. Mostly about me, I hope."
 # Anxious.
 talk-open-anxious-cool = { $speaker } looks round as if hoping someone else will deal with you.
 talk-open-anxious-neutral = { $speaker } starts. "Oh! Sorry, I was miles away. Is this – are you after me?"
@@ -194,7 +194,7 @@ talk-quote-stood-against-me = { $subject_kind ->
    *[other] "You went the other way, back in { $year }. I've not decided yet what that tells me."
 }
 talk-quote-stood-against-me-2 = { $subject_kind ->
-    [decision] "{ $subject }. You chose the other lot. I'm still a bit sore, if I'm honest."
+    [decision] "Over { $subject }, you chose the other lot. I'm still a bit sore, if I'm honest."
    *[other] "You chose the other lot, back in { $year }. I'm still a bit sore, if I'm honest."
 }
 talk-quote-ignored-me = { $subject_kind ->
@@ -209,7 +209,7 @@ talk-quote-scandal = "I read about you in the paper. Everyone did."
 # Deflections (the safe answers), by role.
 talk-worries-shrug = "Same as everyone, I suppose. Bills, mostly."
 talk-worries-weather = "Couldn't tell you what the rest of { $town } thinks."
-talk-worries-fb-politician = "You get the same postbag I do. Read it."
+talk-worries-fb-politician = "If I knew what worried people, I'd have a bigger majority. Ask them yourself."
 talk-worries-fb-party = "If the branch knew what people wanted, we'd have won more often."
 talk-worries-fb-workers = "Ask the members. Oh, that's right – you'd have to come to a meeting."
 talk-worries-fb-business = "My worries are my own, and the bank's."

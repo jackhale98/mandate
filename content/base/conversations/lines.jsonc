@@ -1041,6 +1041,7 @@
     { "id": "line.small.councillor", "part": "substance", "topic": "topic.small_talk", "weight": 2,
       "key": "talk-small-councillor",
       "when": [ { "type": "occupation", "slot": "speaker", "occupations": ["councillor"] },
+                { "type": "occupation", "slot": "player", "occupations": ["councillor", "mayor"] },
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.small.mayor", "part": "substance", "topic": "topic.small_talk", "weight": 2,
       "key": "talk-small-mayor",

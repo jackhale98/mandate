@@ -62,7 +62,7 @@ dilemma-paid-crowd-skip = Hold it as it is
 dilemma-paid-crowd-skip-after = The hall was thin. The photos were worse.
 scene-paid-crowd-fixer = { $fixer }: "Twenty people, fifty each, and they bring signs."
 
-dilemma-personal-bills = the bills at home
+dilemma-personal-bills = the household bills
 dilemma-personal-bills-situation = You are worn out and the bills at home are piling up. { $treasurer } ({ $treasurer_role }) keeps the campaign's card, and nobody checks it very closely.
 dilemma-personal-bills-use = Put the household bills on the campaign card
 dilemma-personal-bills-use-after = The bills are paid and you slept for the first time in weeks. The card statements are filed with the campaign's accounts.
@@ -72,7 +72,7 @@ dilemma-personal-bills-carry-on = Grit your teeth and carry on
 dilemma-personal-bills-carry-on-after = You carried on. It showed.
 scene-bills-treasurer = { $treasurer }: "It's your campaign. Who's going to look?"
 
-dilemma-job-for-relative = the job for your nephew
+dilemma-job-for-relative = the nephew's job
 dilemma-job-for-relative-situation = { $sponsor } needs one more vote for the { $bill } bill, and mentions a job opening at the town hall for your nephew.
 dilemma-job-for-relative-deal = Vote yes; your nephew gets the job
 dilemma-job-for-relative-deal-after = You voted for the { $bill } bill, and your nephew started on Monday. Your family is relieved. The hiring file has both your names in it.
@@ -84,7 +84,7 @@ scene-relative-sponsor = { $sponsor }: "Family is family. One vote."
 scene-relative-sponsor-fresh = { $sponsor }: "We should help each other."
 
 ## Raised decisions: a story about you, an investigation of you.
-dilemma-scandal-response = the story about you
+dilemma-scandal-response = the newspaper story
 dilemma-scandal-response-situation = { $outlet } has the story: { $fact }. How you answer decides how long it runs.
 dilemma-scandal-response-deny = Deny it flatly
 dilemma-scandal-response-deny-after = You denied it. If they had little, the story died; if they had a lot, the denial became the story.
