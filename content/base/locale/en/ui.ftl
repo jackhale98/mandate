@@ -48,7 +48,6 @@ ui-pocket-tabs = Pocket sections
 ui-pocket-tab-today = Today
 ui-pocket-tab-town = Town
 ui-pocket-tab-places = Places
-ui-pocket-tab-people = People
 ui-pocket-dock = Keep the pocket open beside the town
 ui-pocket-dock-hint = Dock the pocket beside the town
 ui-pocket-undock-hint = Let the pocket close when you go somewhere
@@ -56,12 +55,7 @@ ui-notebook-new-count = { $n } new in your notebook
 ui-places-help = Every place in town. Choose one to go straight there and open it.
 ui-town-hoods = Neighbourhoods
 ui-town-hood-worry = Worried most about { $concern }
-ui-people-town = Who matters in town
 ui-people-help = Tap a name to see how they stand with you.
-ui-people-learned = You learned { $n ->
-    [one] one new thing
-   *[other] { $n } new things
-} this turn.
 
 ## Notebook (DEC-091, M6 K5): what the player knows about the town, by
 ## tab, with where and when each thing was learned, placeholders for what
@@ -315,3 +309,24 @@ interior-hotspot-booth_mid = A quiet booth
 interior-hotspot-booth_front = The front booth
 interior-hotspot-booth_back = The back booth
 interior-hotspot-counter = The counter
+
+## Daily routines (S1, DEC-031): parts of the day, and where people were seen
+day-part-morning = in the morning
+day-part-afternoon = in the afternoon
+day-part-evening = in the evening
+day-part-late-night = late at night
+seen-last = Last seen at { $place }, { $part }.
+seen-usually = Usually at { $place } { $part }.
+lead-usually-at = Usually at { $to_place } ({ $to_kind }) { $part }.
+lead-usually-on-streets = Usually on the streets of { $to_hood } { $part }.
+
+## Notebook people and markers: the Notebook's People section (the single
+## place for people: key figures pinned, then everyone else you know) and the
+## name tags' markers in the street and in rooms.
+ui-people-key = Key figures
+ui-people-others = Everyone else you know
+ui-people-power = Power, plans and gossip
+ui-people-go = Go to them
+ui-people-go-to = Go to { $name }
+ui-tag-can-talk = { $name }, can talk
+ui-tag-has-news = { $name }, has something new

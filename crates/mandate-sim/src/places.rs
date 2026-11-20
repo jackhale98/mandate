@@ -5,8 +5,9 @@
 //!
 //! Moving within the town is free (no slot). Pseudo-locations: `Home` (the
 //! player's home, in their home neighbourhood) and the `Street`s of each
-//! neighbourhood. NPCs are abstracted and have no location (DEC-030 symmetry
-//! for location is deferred).
+//! neighbourhood. Stored characters are somewhere in town by their daily
+//! routines (`characters::routines`, DEC-031); their actions stay abstract
+//! (DEC-030 symmetry for location is deferred).
 //!
 //! Places are never deleted during a run; one that shuts is marked closed
 //! (`World::close_place`, DEC-090 D3) and then offers nothing and cannot be
@@ -348,6 +349,8 @@ pub fn validate_move(state: &State, loc: Location) -> Result<(), EngineError> {
 /// lightly; anything deeper needs an action or a person. Returns how many
 /// subjects changed in the player's ledger.
 pub fn arrive(state: &mut State, content: &ContentBundle, loc: Location) -> usize {
+    // Who is here is noted (where the player last saw them, S1).
+    crate::player::knowledge::note_sightings(state, content);
     let Location::Place { place } = loc else {
         return 0;
     };

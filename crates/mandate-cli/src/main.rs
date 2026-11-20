@@ -1,10 +1,13 @@
 //! Mandate simulation lab CLI (DEC-058). Output is JSON for scripting.
 
 mod bots;
+mod corpus;
+mod doctor;
 mod lab;
 mod mapimg;
 mod png;
 mod replay;
+mod routines;
 mod story;
 mod sweep;
 
@@ -159,6 +162,23 @@ enum Cmd {
         #[arg(long, default_value_t = 1)]
         seeds: u64,
     },
+    /// Daily routines (DEC-031): where the town's key people are in each part
+    /// of the day, one turn's representative day after another.
+    Routines {
+        #[arg(long, default_value_t = 1)]
+        seed: u64,
+        /// Turns (representative days) to follow.
+        #[arg(long, default_value_t = 7)]
+        days: u32,
+        #[arg(long, value_enum, default_value_t = Size::Small)]
+        size: Size,
+        /// Everyone in town, not one of each kind.
+        #[arg(long)]
+        all: bool,
+        /// One line per person and day instead of JSON.
+        #[arg(long)]
+        text: bool,
+    },
     /// Yearly economic trace (balancing diagnostics): jobs by sector, labour
     /// force, prices, and demand drivers.
     TraceEcon {
@@ -270,6 +290,9 @@ enum ContentCmd {
         #[arg(long, default_value = "content/schemas/content.schema.json")]
         out: PathBuf,
     },
+    /// Report content that never fires, fires too often, Fluent and length
+    /// problems (the content workbench); `--strict` fails on errors.
+    Doctor(doctor::DoctorArgs),
 }
 
 fn load_content(root: &Path) -> Result<Arc<ContentBundle>, String> {
@@ -357,6 +380,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 }
             }
         }
+        Cmd::Content {
+            cmd: ContentCmd::Doctor(args),
+        } => doctor::run(&cli.content, &args),
         Cmd::Content {
             cmd: ContentCmd::Schema { out: path },
         } => {
@@ -734,6 +760,20 @@ fn run(cli: Cli) -> Result<(), String> {
             } else {
                 Err(format!("bot gates failed: {}", failed.join(", ")))
             }
+        }
+        Cmd::Routines {
+            seed,
+            days,
+            size,
+            all,
+            text,
+        } => {
+            let content = load_content(&cli.content)?;
+            let v = routines::run(&content, seed, days, size.into(), all, text)?;
+            if !text {
+                out(v);
+            }
+            Ok(())
         }
         Cmd::TraceEcon { seed, years, size } => {
             let content = load_content(&cli.content)?;

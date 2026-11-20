@@ -295,15 +295,15 @@ pub fn cooldown_days(d: &DirectorParams, cooldown: u32, uses: u16) -> u32 {
 }
 
 /// A situation ready to be spotlighted.
-struct Candidate<'c> {
-    def: &'c DilemmaDef,
-    cast: Vec<CastEntry>,
-    reasons: Vec<Reason>,
-    relevance: f64,
-    goal: Option<(CharacterId, String)>,
-    tier: Tier,
+pub(crate) struct Candidate<'c> {
+    pub(crate) def: &'c DilemmaDef,
+    pub(crate) cast: Vec<CastEntry>,
+    pub(crate) reasons: Vec<Reason>,
+    pub(crate) relevance: f64,
+    pub(crate) goal: Option<(CharacterId, String)>,
+    pub(crate) tier: Tier,
     /// A storyline stage's decision: the run (index into `storylines`).
-    run: Option<usize>,
+    pub(crate) run: Option<usize>,
 }
 
 /// Roles an `answered` trigger carries over (`same_cast`), from the newest
@@ -363,7 +363,7 @@ fn is_consequence(def: &DilemmaDef) -> bool {
 
 /// Cast a dilemma and check its triggers (plus any extra conditions); its
 /// tier in the current chapter.
-fn evaluate<'c>(
+pub(crate) fn evaluate<'c>(
     v: &View<'_>,
     n: &NarrativeState,
     def: &'c DilemmaDef,

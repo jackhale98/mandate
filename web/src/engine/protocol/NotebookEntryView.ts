@@ -3,6 +3,7 @@ import type { DateView } from "./DateView";
 import type { KnowledgeLevelDto } from "./KnowledgeLevelDto";
 import type { LeadView } from "./LeadView";
 import type { LearnedView } from "./LearnedView";
+import type { SeenView } from "./SeenView";
 import type { SubjectDto } from "./SubjectDto";
 
 export type NotebookEntryView = { subject: SubjectDto, level: KnowledgeLevelDto, 
@@ -22,6 +23,11 @@ args: { [key in string]: string }, history: Array<LearnedView>, as_of: DateView 
 new_this_turn: boolean, 
 /**
  * How to learn more, below `detailed`: an open lead, or where such
- * things are usually learned (K5).
+ * things are usually learned (K5). For a person seen at the same place
+ * and time twice: where they usually are (`lead-usually-at`, S1).
  */
-lead: LeadView | null, };
+lead: LeadView | null, 
+/**
+ * A person: where the player last saw them (S1).
+ */
+seen?: SeenView, };

@@ -14,6 +14,8 @@ import { buildMandatePalette } from "./palette";
 import { buildProps, lampPool, windowSpill, type BuiltProp, type Pool, type Spill } from "./props";
 import { buildTerrain, type TerrainSet } from "./terrain";
 import { buildTiles, type TileSet } from "./tiles";
+import { WORKS_KINDS, WORKS_PHASES, WORKS_RULES_VERSION } from "./works";
+import { buildWorksParts, type WorksSprite } from "./worksParts";
 
 /** Bump when any drawing or rule changes what an existing look or building looks like (§3.5 rule 8). */
 export const PACK_VERSION = "mandate-p0.9";
@@ -38,6 +40,13 @@ export interface ArtPack {
    * are code, as the character and building kits are.
    */
   interiors: { composer: number; parts: Record<string, string>; surfaces: Record<string, string> };
+  /**
+   * Works you can see (art round 8, DEC-099): the dress rules' version, the
+   * kinds and phases, and the kit's drawn parts (built ahead of time like
+   * props). Looks come from `worksLook`; sites are drawn on the device by
+   * `composeWorks` (deck states, runs of fence and wall, frames and marks).
+   */
+  works: { rules: number; kinds: readonly string[]; phases: readonly string[]; parts: Record<string, WorksSprite> };
 }
 
 export interface PaletteData {
@@ -70,6 +79,7 @@ export function buildPack(): ArtPack {
       parts: Object.fromEntries(INTERIOR_PARTS.map((p) => [p.id, p.kind])),
       surfaces: Object.fromEntries(INTERIOR_SURFACES.map((s) => [s.id, s.on])),
     },
+    works: { rules: WORKS_RULES_VERSION, kinds: WORKS_KINDS, phases: WORKS_PHASES, parts: buildWorksParts(palette, L) },
   };
 }
 
@@ -81,3 +91,5 @@ export { END_KINDS, END_FACINGS, endPropVariant, type StreetEndView } from "./en
 export type { Pool } from "./props";
 export { composeInterior, renderInterior, flattenInterior, interiorSeed, placeholderPeople, placeholderLook, sitCut, interiorGrade, gradeImage, gradeRoom, BLOB, BAND, validateRecipe, reachable, TILE, type InteriorRoom, type InteriorSprite, type InteriorGrade, type Actor } from "./interiors";
 export { parseInteriorRecipes, recipeFor, HERE_AS, type InteriorRecipe, type SpotDef, type HotspotDef, type HereAs, type Facing } from "./interiorsRecipes";
+export { worksLook, workerLook, wearLevel, WORKS_KINDS, WORKS_PHASES, WORKS_RULES, WORKS_RULES_VERSION, type WorksKind, type WorksPhase, type WorksLook, type WorksPart } from "./works";
+export { composeWorks, worksKit, type WorksSite, type ComposedWorks } from "./worksCompose";

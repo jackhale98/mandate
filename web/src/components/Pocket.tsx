@@ -14,7 +14,6 @@ import { Legal } from "./Newspaper";
 import { PocketTabs, pocketPanelId, pocketTabId, type TabBadge } from "./PocketTabs";
 import { TownTab } from "./TownCard";
 import { PlaceList } from "./PlaceList";
-import { PeopleList } from "./PeopleList";
 import { Notebook } from "./notebook/Notebook";
 import type { PocketTab } from "../state/devicePrefs";
 import type { Translator } from "../i18n/fluent";
@@ -212,8 +211,10 @@ export function pocketBadges(tr: Translator, p: PocketView): Partial<Record<Pock
  * The pocket (phone and notebook): always available, coarse, never the only
  * path to anything vital (DEC-079 rule 3). Tabs keep it short (DEC-088 main
  * screen): Today, Town (the town card), Places (every place, no walking),
- * Notebook (what you know, with placeholders and leads, DEC-091) and People. A bottom sheet on phones; on wide screens a side panel that can stay
- * docked open beside the town.
+ * Notebook (what you know, with placeholders and leads, DEC-091; its People
+ * section is the one place for people: the key figures pinned, then everyone
+ * else you know, each with Talk and Go to them). A bottom sheet on phones; on
+ * wide screens a side panel that can stay docked open beside the town.
  */
 export function Pocket() {
   const tr = useGame((s) => s.tr);
@@ -278,7 +279,7 @@ export function Pocket() {
         </div>
         <div className="sheet-body pocket-body">
           <div ref={panelRef} role="tabpanel" id={pocketPanelId(tab)} aria-labelledby={pocketTabId(tab)} tabIndex={-1} className="pocket-panel" data-testid={`pocket-panel-${tab}`}>
-            {tab === "today" ? <TodayTab p={p} /> : tab === "town" ? <TownTab /> : tab === "places" ? <PlaceList /> : tab === "notebook" ? <Notebook /> : <PeopleList />}
+            {tab === "today" ? <TodayTab p={p} /> : tab === "town" ? <TownTab /> : tab === "places" ? <PlaceList /> : <Notebook />}
           </div>
           <nav className="pocket-links" aria-label={tr.t("ui-pocket-links")}>
             <button type="button" className="btn" onClick={() => openMap("country")} data-testid="pocket-country-map">

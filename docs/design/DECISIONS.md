@@ -1684,6 +1684,20 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Interface:** the town screen (neighbourhood sections with place buttons) replaces the tabs; tapping a place walks there and opens its panel; the pocket drawer holds the coarse figures, alerts, bills, and the agenda (auto-routed, with a skippable walk of at most 600 ms), and links to the map and national overview.
   - **Deferred:** NPC locations (DEC-030 symmetry for location), travel between towns, other towns' detailed data (still public on the map), opening hours, commissioned polls (rule 5).
 
+- **Places with purpose (owner, 2026-11-20: "Yes that works").** Twelve place kinds offered nothing to do: the factory, mill, mine, port, farm, school, clinic, university, park, hotel, tech campus and the business association.
+  - **What changes (task PL1):** every place kind gets one to three things to do, defined as data:
+    - at works and industry: tour the works, listen at the gate, a photo op at the gate;
+    - at services: visit, which reads the service's real need (DEC-092 §2.22), and talk to the head teacher or doctor;
+    - at the business association: lobbying, favours and business fundraising;
+    - at the hotel: fundraising dinners;
+    - at the farm: the farmers' worries;
+    - at the park: being seen;
+    - at the tech campus: donors and young voters.
+  - **One generic data-driven "visit" action in the engine.** Its effects are knowledge grants, awareness by community, time cost and risks, read from content. New verbs at a place are then content (DEC-098 §4, the action availability table).
+  - **Named people.** World generation seeds one to three named people at each of these places (a manager, a steward, a head teacher, a GP), and routines move them (S1).
+  - **Rooms.** Interiors for these places come in later art rounds; until then they keep the place panel (DEC-088).
+  - **Order:** after S1 (routines), beside E2 and U1.
+
 ### DEC-080 — Hub renderer: Canvas 2D
 
 - **Status:** Accepted (owner, 2026-11-18: "Canvas 2D is fine if you think we can still make the final game beautiful with it"). This revises the provisional PixiJS choice in DEC-009 and OVERVIEW §10. Evidence: the hub spike (DEC-050) on branch `spike/hub-render`, `web/spikes/hub/RESULTS.md`.

@@ -10,6 +10,9 @@ import { stream, type Rng } from "./rng";
 import { Terrain, locationCell, townFootprints, townGrid, type TownMap } from "./townLayout";
 import type { TownLocation } from "./townInput";
 
+/** How much faster than the usual pace a brisk walk (an action's auto-route) may go. */
+export const BRISK_MAX = 10;
+
 export interface Walker {
   id: number;
   /** Feet position, tiles. */
@@ -309,12 +312,22 @@ export class TownScene {
     return true;
   }
 
-  /** Walk to an engine location (a place's door, home, or a neighbourhood's streets). */
-  goToLocation(loc: TownLocation, onArrive?: () => void): boolean {
+  /**
+   * Walk to an engine location (a place's door, home, or a neighbourhood's streets). With
+   * `withinSeconds`, the walk is brisk: fast enough to arrive in about that time (at most
+   * BRISK_MAX × the usual pace), as for an action chosen from the pocket somewhere else.
+   */
+  goToLocation(loc: TownLocation, onArrive?: () => void, withinSeconds?: number): boolean {
     const cell = locationCell(this.map, loc);
     if (cell === null) return false;
     const b = this.map.buildings.find((x) => x.front === cell && (loc.type !== "home" || x.home));
-    return b && loc.type !== "street" ? this.goToBuilding(b.index, onArrive) : this.goToCell(cell, onArrive);
+    const ok = b && loc.type !== "street" ? this.goToBuilding(b.index, onArrive) : this.goToCell(cell, onArrive);
+    const w = this.player.walk;
+    if (ok && withinSeconds && w) {
+      const speed = Math.min(this.player.speed * BRISK_MAX, Math.max(this.player.speed, w.length / withinSeconds));
+      if (speed > w.speed) this.player.walk = new Walk(w.points, speed);
+    }
+    return ok;
   }
 
   /** Put the player somewhere at once (a skipped walk, or the engine moved them). */

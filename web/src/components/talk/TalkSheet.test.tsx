@@ -21,6 +21,7 @@ const person = (over: Partial<PersonRefView> = {}): PersonRefView => ({
   level: "known",
   rumoured: false,
   can_talk: true,
+  has_news: false,
   ...over,
 });
 

@@ -11,7 +11,8 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "test": "vitest run",
-    "e2e": "playwright test --trace off"
+    "e2e": "playwright test --trace off",
+    "capture": "node landing/scripts/capture.mjs"
   },
   "dependencies": {
     "@fluent/bundle": "0.19.1",

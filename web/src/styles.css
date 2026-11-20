@@ -671,7 +671,7 @@ h2 { font-size: 1.1rem; }
 .pocket-tabs { margin: 0 -16px; padding: 0 8px; background: none; border-bottom: 0; }
 .pocket-tab { position: relative; flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 0 8px; }
 .pocket-tab-badge { padding: 1px 6px; }
-/* Phones (360–480 px): the five tabs share the width, the icon over the label and the count on the
+/* Phones (360–480 px): the four tabs share the width, the icon over the label and the count on the
    icon's shoulder, so every label and badge shows whole. Tabs size to their labels (a longer label,
    "Notebook", takes a little more room) and the type steps down a touch on the narrowest phones, so
    no label is cut short whatever the system font's widths. */
@@ -696,7 +696,6 @@ h2 { font-size: 1.1rem; }
 .town-hoods li:last-child { border-bottom: 0; }
 .town-hood-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .town-rival-plan { display: block; margin-top: 2px; }
-.people-figures li { padding: 6px 0; }
 .pocket-dock { display: none; }
 @media (min-width: 900px) {
   .pocket-dock { display: inline-flex; align-items: center; }
@@ -709,6 +708,21 @@ h2 { font-size: 1.1rem; }
 .hub-label-landmark { border-color: #e8b44c; color: #e8b44c; }
 .hub-label-icon { width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; fill: currentColor; shape-rendering: crispEdges; }
 .hub-label:hover { border-color: #e8b44c; }
+/* People's name tags in the street and in rooms carry a pixel marker (DEC-093): a bubble with dots
+   for someone to talk to, with "!" for someone with something new (the engine's has_news). The
+   shapes differ, not only the colours; the tag's accessible name says it in words (DEC-051). The
+   "!" bobs a pixel only on frames the view draws anyway (no animation of its own, DEC-080). */
+.hub-person-tag { display: inline-flex; align-items: center; gap: 4px; padding-left: 4px; }
+.hub-tag-mark { display: inline-flex; flex: none; }
+.hub-tag-mark svg { display: block; width: 12px; height: 10px; }
+.hub-mark-bubble { fill: #f4f1e8; }
+.hub-mark-glyph { fill: #11131a; }
+.hub-person-news { border-color: #e8b44c; }
+.hub-person-news .hub-mark-bubble { fill: #e8b44c; }
+.hub-tag-bob .hub-tag-mark { transform: translateY(-1px); }
+.nb-person-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.nb-person-name { font: inherit; text-align: left; }
+.nb-seen { color: var(--muted); }
 /* Keyboard walking: the focused street gets an inset ring (the canvas fills a clipped frame), and a
    hint over the door the player stands at. */
 .town-street-stage canvas:focus { outline: none; }

@@ -12,7 +12,7 @@ node --import ./bin/hooks.mjs art/mandate/interiorsSheets.ts --out target/pixelk
 
 - `src/core`: the tool (compose, recolour, outline, palette, autotile, lints). Imports nothing from `art/` or the game.
 - `src/cli`, `src/node`: the CLI and contact sheets.
-- `art/mandate`: Mandate's pack (all rights reserved): palette, lighting, characters, buildings, tiles, props, terrain, interiors. `pack.ts` builds it (`PACK_VERSION`).
+- `art/mandate`: Mandate's pack (all rights reserved): palette, lighting, characters, buildings, tiles, props, terrain, interiors, works. `pack.ts` builds it (`PACK_VERSION`).
 
 ## Interiors
 
@@ -85,3 +85,82 @@ the hour, with far windows lit at night. Glowing parts are drawn after grading.
 - **Renderer.** The room is composed once on entering and cached by place, recipe version and seed (`roomCache.ts`, with the pack version). The static layers are graded per 5-minute light step with `interiorGrade` + `gradeRoom` (the reference renderer's maths, checked equal pixel for pixel by a test) and blitted; people are graded where they stand (`gradeImage`) and merged with the sprites by `key`; blob shadows as in the sheets. Time of day comes from the turn's slots (`turnClock.ts`), as on the street. Nothing in a room moves by itself, so the loop stops when the player stops (DEC-080).
 - **People.** The engine's place view says who is present and how (`here_as`: presiding, member, works, visitor; never an office or a name, DEC-098); the recipe's `cast` maps that to spot roles, taken in the recipe's order (`cast.ts`); sitters are cropped at `sitCut`; extra people stand on free floor nearest the door. Staff roles nobody present takes (`extras`: the clerks, the cook, the waiter, the usher) are drawn as scenery, like the street's townsfolk: no name, no conversation (fewer in the evening).
 - **Hotspots.** A tap walks to the `stand` tile and opens the hotspot's sheet, with its `actions` and `services` filtered by what the place view offers now (`late` ones only once the day's slots are spent), through the place panel's forms.
+
+## Works
+
+Art round 8 (DEC-099, "works you can see"): funded projects change the town,
+stalled ones sit half-built and decay, and finished ones carry the sponsor's
+plaque. The kit draws eight kinds in every phase:
+
+- `bridge`: a deck replaced;
+- `flood_wall` and `levee`: runs along a bank;
+- `civic`: a clinic, library or community centre in a free slot;
+- `housing`: infill;
+- `road`: resurfacing, orthogonal or 45°;
+- `mine` and `factory`: also how an existing works shows idle, working, busy and closed.
+
+No palette colour was added (still 114). `PACK_VERSION` is `mandate-p0.9`.
+
+```text
+node --import ./bin/hooks.mjs art/mandate/worksSheets.ts --out target/pixelkit/works
+```
+
+| File | What |
+|---|---|
+| `works.ts` | The dress rules: `worksLook(kind, phase, progress, monthsStalled, seed, opts?)`; the tables (`BUILD_FROM`, `DECAY_FROM`, `ACTIVITY_FROM`, `WORKS_RULES`, `WEAR`, `MARKS`); `wearLevel`, `workerLook` |
+| `worksParts.ts` | 42 drawn parts: cabin, tower crane, excavator, piles, skip, signs, cones, boards (fresh, faded, peeling), headframe (turning, rusted, half-built), spoil tip, shaft cap, chimney, smoke, lorries, goods, yard gates, plaque, ribbon, plastic sheet, buddleia |
+| `worksLines.ts` | Runs on the street grid's lines: Heras fencing, hoarding, barriers, railings, flood walls, levees, sheet piles |
+| `worksCompose.ts` | `composeWorks(look, site, kit, seed)`: places a look on a site and draws what depends on the site's shape |
+| `worksScenes.ts`, `worksSheets.ts` | Sample sites in the round 4 and 5 towns, a compositor with the works layers, and the review sheets |
+
+**The rules** (`worksLook`) are pure, keyed and monotonic, like the dress pass
+(TOWN_GENERATION.md §9.2):
+
+- `progress` (whole percent) picks a build stage at 0, 20, 45, 80 and 100 %: the site set up, the ground work, the structure rising, finishing, and complete (the ribbon waits for the opening). A stalled or cleared project keeps the stage it reached.
+- `monthsStalled` picks a decay stage at 0, 3, 9 and 18 months. Stalling stops the site at once: no workers, lights off, the crane's load set down, machines parked, gates shut. Decay then adds marks.
+- **Marks** (weeds, scrub, moss, litter, puddles, potholes, gullies, graffiti, rust, a flapping sheet, buddleia) have per-kind counts per stage that never fall. Mark `n` always lands where the seed and `n` put it, so a later stage only adds.
+- **Wear chains** move one way:
+  - Heras and hoarding panels stand, sag, then fall, each panel at its own seeded stage;
+  - boards fade, then peel;
+  - cabins are broken into;
+  - the crane, excavator, headframe and gates rust;
+  - a frame weathers, then is overgrown;
+  - scaffolding loses its boards;
+  - a boarded shell becomes derelict.
+- Open mines and works take `opts.activity` (0–100: idle, working, busy). A mine also takes `opts.extraction`: round 4's three heaps, then a flat-topped tip. A works that closes is `stalled` at 100 %. `opts.sponsor: false` leaves the plaque off.
+- The look is plain data. Each part has a `role` (structure, ground, perimeter, closure, yard, front, entrance, crane, marks, people), an instance `n`, and optionally `frames` (idle loops), `lit`, `mark`, `level`, `wear` and `worn`. `WORKS_RULES_VERSION` versions the rules (DEC-085).
+
+**Sites** (`WorksSite`) come from the plan:
+
+- a connector (bridge);
+- a run of `LinePiece`s (walls, levees);
+- a slot and its finished `FacadeSpec` (civic, housing, factory);
+- road cells, with the closed lane as a half-plane (a row, or one side of a 45° street's centre line);
+- the mine's headframe and heap cells.
+
+Each site also names a yard, the board's cell and the entrance. `composeWorks` returns:
+
+- `tints`: ground remaps (planed or fresh asphalt);
+- `decals`: deck states, foundations, slabs, marks on the ground;
+- `sprites`: with a depth row, frames and lit layers;
+- `people`: workers' looks, composed on the device;
+- `replaces`: the slot whose plan building the works stands in for.
+
+**Lines.** A piece joins two mid-sides of a cell, a side and the centre, or
+two sides round a sharp corner through the centre. These are the lines round
+5's 45° streets use for their edges, so a fence or wall can follow a diagonal
+street or bank and meets the next piece at the same point. A run is drawn as
+one heightfield (each footprint pixel stands a column up the screen) and cut
+into one sprite per cell for depth sorting. Thin runs keep their mesh open,
+because the kit's outline goes round the outside only.
+
+**Budgets** (the round 7 precedent): a part at most 14 colours, a line piece
+10, a composed site 56 (facades excepted). No colour is added.
+
+**What the dress pass needs from the engine** (TownStateView, per project):
+
+- the kind;
+- its place in the plan (connector id, slot id, bank run or road strip);
+- the phase, progress, and months since the stall;
+- for an open mine or works, the activity and extraction;
+- the sponsor, for the plaque's label and hotspot (the art draws no letters).

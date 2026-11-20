@@ -1,6 +1,6 @@
 import { englishTranslator } from "../../i18n/englishLocale";
-import { canvassLead, notebookFixture, talkLead } from "./fixture";
-import { firstNewTab, freshKeys, groupNotebook, itemFacts, itemText, itemTitle, levelDots, matches, newCounts, subjectKey, tabOf } from "./notebookModel";
+import { canvassLead, notebookFixture, officeFixture, talkLead, townCharacterFixture } from "./fixture";
+import { firstNewTab, freshKeys, groupNotebook, itemFacts, itemText, itemTitle, keyFigures, levelDots, matches, newCounts, personItems, subjectKey, tabOf } from "./notebookModel";
 
 const tr = englishTranslator();
 
@@ -96,5 +96,29 @@ describe("the notebook's arrangement", () => {
     expect(matches("what eastgate worries about canvass eastgate", "east canvass")).toBe(true);
     expect(matches("what eastgate worries about", "westfield")).toBe(false);
     expect(matches("anything", "  ")).toBe(true);
+  });
+});
+
+describe("the key figures (pinned at the top of People)", () => {
+  it("pins the broker, the rival, the executive and the body's members, in that order, once each and without the player", () => {
+    const f = keyFigures(officeFixture(), townCharacterFixture());
+    expect(f.map((x) => x.id)).toEqual([30, 31, 21, 12, 22]);
+    expect(f.map((x) => x.pin)).toEqual(["broker", "rival", null, null, null]);
+    // The rival sits in the body: pinned once, as the rival, with the office view's line on them.
+    expect(at(f, 1).member?.id).toBe(4);
+    expect(at(f, 1).ward).toBe(1);
+    // The words are the posts' role keys the views give (from the constitution), never named here.
+    expect(f.map((x) => x.roleKey)).toEqual(["role-private", "role-councillor", "role-mayor", "role-councillor", "role-councillor"]);
+    expect(at(f, 0).person?.rumoured).toBe(true);
+  });
+
+  it("is empty without the views, and leaves out a broker not heard of", () => {
+    expect(keyFigures(null, null)).toEqual([]);
+    expect(keyFigures(null, { ...townCharacterFixture(), broker: null }).map((x) => x.pin)).toEqual(["rival"]);
+  });
+
+  it("finds the notebook's people by id", () => {
+    const g = groupNotebook(notebookFixture());
+    expect([...personItems(g.people).keys()].sort((a, b) => a - b)).toEqual([4, 12]);
   });
 });

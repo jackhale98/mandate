@@ -9,7 +9,7 @@ use crate::views::DateView;
 use mandate_sim::Engine;
 use mandate_sim::characters::{self, CharacterId, MemoryKind, Tier, ambient};
 use mandate_sim::places::Location;
-use mandate_sim::player::knowledge::{Level, Subject};
+use mandate_sim::player::knowledge::{LeadTarget, Level, Subject};
 use mandate_sim::world::MunicipalityId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -37,6 +37,11 @@ pub struct PersonRefView {
     /// (DEC-093; a passer-by: meet them first). Elsewhere, `QueryDto::Talk`
     /// says where to find them.
     pub can_talk: bool,
+    /// They have something new for the player (the name tag's "!"; DEC-093,
+    /// DEC-091): a topic that tells things the player has not asked them
+    /// this week, or a lead in the notebook points to them. The engine
+    /// decides (`has_news`); a passer-by not met yet: never.
+    pub has_news: bool,
 }
 
 /// What a memory or favour is about.
@@ -129,6 +134,14 @@ pub struct CharacterView {
     /// Favours they hold with others, in detail only.
     pub favours_with_others: Option<Vec<FavourWithView>>,
     pub knowledge: KnowledgeView,
+    /// Where the player last saw them, and where they usually are once seen
+    /// at the same place and time twice (S1, DEC-031 routines).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub last_seen: Option<crate::knowledge::SeenView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub usually: Option<crate::knowledge::SeenView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -273,8 +286,82 @@ pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
         tier: tier_key(characters::tier_of(&st.politics, engine.content(), id)).into(),
         level: Gate::of(engine).person(id).into(),
         rumoured: false,
-        can_talk: mandate_sim::talk::can_talk(st, id),
+        can_talk: mandate_sim::talk::can_talk(st, engine.content(), id),
+        has_news: has_news(engine, id),
     })
+}
+
+/// Why someone has something new for the player (the name tag's "!").
+/// Asks (E6–E8: "has an ask for you") join as another reason here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum News {
+    /// A topic that tells things (`inform`, needing no subject) is offered
+    /// to them and the player has not asked them it this week.
+    Topic,
+    /// A lead in the player's notebook points to them.
+    Lead,
+}
+
+/// What this person has that is new for the player, first reason first;
+/// empty for the player themselves or without a game. Read-only: from the
+/// talk log (asked this week) and the knowledge ledger (leads).
+pub fn news(engine: &Engine, id: CharacterId) -> Vec<News> {
+    let st = engine.state();
+    let content = engine.content();
+    let (Some(pl), Some(me), Some(town)) = (
+        st.player.as_ref(),
+        characters::player_character(st),
+        mandate_sim::player::home(st),
+    ) else {
+        return Vec::new();
+    };
+    if id == me || characters::profile(&st.politics, &st.world, id).is_none() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    // Where a conversation with them would be: where their day has them.
+    let here = characters::routines::whereabouts(st, content, id).unwrap_or(pl.location);
+    let role = characters::knows::role_key(st, content, id);
+    let ctx = mandate_sim::talk::context::Ctx {
+        st,
+        content,
+        town,
+        me,
+        speaker: id,
+        about: None,
+        here,
+        cap: characters::knows::discretion_cap(st, content, id, me, Default::default()),
+    };
+    let unasked = content.talk_topics.iter().any(|t| {
+        let o = &t.offered;
+        t.mechanic == mandate_content::conversation::TalkMechanic::Inform
+            && !t.about_required
+            && (o.roles.is_empty() || role.as_ref().is_some_and(|r| o.roles.contains(r)))
+            && (o.places.is_empty()
+                || o.places
+                    .iter()
+                    .any(|k| k == mandate_sim::places::kind_key(st, here)))
+            && ctx.all_hold(&o.when, &mut Default::default())
+            && !mandate_sim::talk::asked_this_week(st, id, &t.id)
+    });
+    if unasked {
+        out.push(News::Topic);
+    }
+    if pl
+        .knowledge
+        .leads
+        .iter()
+        .any(|l| l.to == LeadTarget::Person { person: id })
+    {
+        out.push(News::Lead);
+    }
+    // E6–E8: `News::Ask` when they have an ask for the player.
+    out
+}
+
+/// Whether this person has something new for the player (`news`).
+pub fn has_news(engine: &Engine, id: CharacterId) -> bool {
+    !news(engine, id).is_empty()
 }
 
 /// Someone as the player knows them (DEC-091): no name below `heard`.
@@ -499,7 +586,15 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
         }) && town.is_some_and(|t| t.broker == Some(id)),
         goals,
         favours_with_others,
-        knowledge: gate.person_view(id),
+        knowledge: {
+            let mut k = gate.person_view(id);
+            if k.lead.is_none() {
+                k.lead = crate::knowledge::usual_lead(&gate, id);
+            }
+            k
+        },
+        last_seen: crate::knowledge::last_seen(engine, id),
+        usually: crate::knowledge::usually_seen(engine, id),
     })
 }
 
@@ -513,19 +608,19 @@ pub fn people_at(engine: &Engine, loc: Location) -> Vec<PersonRefView> {
     let max = content.characters.ambient.max_listed as usize;
     // A passer-by can be talked to (after meeting them) where the player is.
     let here = st.player.as_ref().is_some_and(|p| p.location == loc);
-    let mut out: Vec<PersonRefView> = ambient::stored_at(&st.politics, st, loc)
+    let mut out: Vec<PersonRefView> = ambient::stored_at(st, content, loc)
         .into_iter()
         .filter_map(|id| person_ref_known(engine, &gate, id))
         .collect();
-    // Council members are all in the chamber; elsewhere the list is short.
-    let chamber = matches!(loc, Location::Place { place } if st.world.places.get(place.index()).is_some_and(|p| p.kind == mandate_sim::world::PlaceKind::CouncilChamber));
-    if !chamber {
-        out.truncate(max);
+    // Everyone whose routine has them inside a place is listed (the room
+    // shows them all, DEC-031); a street's list is short, keeping room for
+    // the passers-by there (a few a week), who are always listed.
+    let passers = ambient::ambient_at(st, content, loc);
+    let room = matches!(loc, Location::Place { .. });
+    if !room {
+        out.truncate(max.saturating_sub(passers.len()));
     }
-    for (slot, c) in ambient::ambient_at(st, content, loc) {
-        if out.len() >= max.max(if chamber { out.len() + 1 } else { 0 }) {
-            break;
-        }
+    for (slot, c) in passers {
         let Some(n) = c.named.as_deref() else {
             continue;
         };
@@ -552,6 +647,8 @@ pub fn people_at(engine: &Engine, loc: Location) -> Vec<PersonRefView> {
             level: level.into(),
             rumoured: false,
             can_talk: here,
+            // A stranger has nothing for the player until met.
+            has_news: false,
         });
     }
     out

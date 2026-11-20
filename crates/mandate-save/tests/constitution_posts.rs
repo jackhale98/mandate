@@ -156,7 +156,8 @@ fn v18_paths_migrate_to_posts() {
 /// A real v18 save (mid-campaign) loads and plays on to the same state as
 /// the old build reached by playing on before saving (the second fixture
 /// is the same run 20 turns later): the change of shape changes no
-/// outcome.
+/// outcome. Since N2 a ward race's vote figures follow the ward's own
+/// worries, so only those figures may differ from the old build's.
 #[test]
 fn v18_save_continues_identically() {
     // The old build played on with its own balance: where a later task has
@@ -173,6 +174,7 @@ fn v18_save_continues_identically() {
     let (mut campaign, meta) = decode(&fixture("v18_campaign.mndt")).unwrap();
     assert_eq!(meta.format_version, 18);
     let (mut after, _) = decode(&fixture("v18_after.mndt")).unwrap();
+    let saved_on = campaign.calendar.date;
     assert!(
         !campaign.politics.elections.races.is_empty(),
         "mid-campaign"
@@ -218,8 +220,47 @@ fn v18_save_continues_identically() {
             _ => {}
         }
     }
-    let mut a = serde_json::to_value(e.state()).unwrap();
-    let mut b = serde_json::to_value(reached.state()).unwrap();
+    // Ward races decided after loading weigh their ward's own worries (N2,
+    // DEC-092 note) where the old build weighed the town's: their vote
+    // figures move, their candidates, winners and turnout do not. Town-wide
+    // races (the mayor's) read the town's salience as before and must match
+    // to the last vote.
+    fn ward_figures_only(
+        st: &mandate_sim::State,
+        saved_on: mandate_core::SimDate,
+    ) -> mandate_sim::State {
+        let mut st = st.clone();
+        for r in st.politics.elections.results.iter_mut().filter(|r| {
+            r.date > saved_on
+                && matches!(
+                    r.seat,
+                    Post::Seat {
+                        constituency: Some(_),
+                        ..
+                    }
+                )
+        }) {
+            for c in &mut r.candidates {
+                c.votes = 0;
+                c.share = 0.0;
+                c.final_poll = None;
+            }
+            r.decomposition.iter_mut().for_each(|f| f.margin = 0.0);
+            r.hood_winner_share.iter_mut().for_each(|h| h.1 = 0.0);
+        }
+        st
+    }
+    let wards_after = e
+        .state()
+        .politics
+        .elections
+        .results
+        .iter()
+        .filter(|r| r.date > saved_on && !r.seat.is_office())
+        .count();
+    assert!(wards_after > 0, "ward races between the fixtures");
+    let mut a = serde_json::to_value(ward_figures_only(e.state(), saved_on)).unwrap();
+    let mut b = serde_json::to_value(ward_figures_only(reached.state(), saved_on)).unwrap();
     strip(&mut a);
     strip(&mut b);
     if a != b {
@@ -309,7 +350,9 @@ fn renamed() -> Arc<mandate_content::ContentBundle> {
     let mut src = sources();
     for s in src.iter_mut() {
         let p = s.path.replace('\\', "/");
-        if p.contains("locale/") || p.ends_with("council.jsonc") {
+        // Interior spot roles ("councillor" desks) are presentation words of
+        // the art pack, not role words.
+        if p.contains("locale/") || p.ends_with("council.jsonc") || p.ends_with("interiors.jsonc") {
             continue;
         }
         // The executive cast in its new spelling, then the role words.

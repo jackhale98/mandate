@@ -29,6 +29,58 @@ import { TALK_REACH, TownScene, type StandingPerson, type Walker } from "./townS
 export interface StreetPerson extends StandingPerson {
   /** Their name tag (a name, or a role for a stranger). */
   label: string;
+  /** The tag's marker (default `talk`). */
+  marker?: PersonMarker;
+  /** The tag's accessible name, saying what the marker means (default: the label). */
+  tagLabel?: string;
+}
+
+/**
+ * A name tag's marker (DEC-093): `talk`, someone to talk to (a 💬 bubble with
+ * dots); `news`, someone with something new for the player (a bubble with
+ * "!": the engine's `has_news`). The shapes differ, not only the colours, and
+ * the tag's accessible name says it in words (DEC-051).
+ */
+export type PersonMarker = "talk" | "news";
+
+/** Pixel speech bubbles, 12 × 10 art px at one CSS px each (crisp, no smoothing). */
+const BUBBLE = "M1 0h10v1h1v6h-1v1H5v1H4v1H3V8H1V7H0V1h1z";
+const MARK_SVG: Record<PersonMarker, string> = {
+  talk: `<svg viewBox="0 0 12 10" width="12" height="10" shape-rendering="crispEdges"><path class="hub-mark-bubble" d="${BUBBLE}"/><path class="hub-mark-glyph" d="M2 3h2v2H2zM5 3h2v2H5zM8 3h2v2H8z"/></svg>`,
+  news: `<svg viewBox="0 0 12 10" width="12" height="10" shape-rendering="crispEdges"><path class="hub-mark-bubble" d="${BUBBLE}"/><path class="hub-mark-glyph" d="M5 1h2v4H5zM5 6h2v1H5z"/></svg>`,
+};
+
+/**
+ * Fill a person's name tag (in the street and in rooms): the marker, then
+ * the name. Its accessible name is `tagLabel` ("Vera Holt, can talk"). The
+ * "!" bobs a pixel on alternate frames the view already draws (`bobTags`),
+ * never on a timer of its own (DEC-080 battery). Returns whether it changed
+ * (a room measures its tags once).
+ */
+export function fillPersonTag(el: HTMLElement, label: string, marker: PersonMarker = "talk", tagLabel: string = label): boolean {
+  const sig = `${marker}|${label}|${tagLabel}`;
+  if (el.dataset.tag === sig) return false;
+  el.dataset.tag = sig;
+  el.dataset.marker = marker;
+  el.classList.toggle("hub-person-news", marker === "news");
+  el.classList.toggle("hub-person-talk", marker === "talk");
+  el.setAttribute("aria-label", tagLabel);
+  el.title = tagLabel;
+  const mark = document.createElement("span");
+  mark.className = "hub-tag-mark";
+  mark.setAttribute("aria-hidden", "true");
+  mark.innerHTML = MARK_SVG[marker];
+  const name = document.createElement("span");
+  name.className = "hub-tag-name";
+  name.textContent = label;
+  el.replaceChildren(mark, name);
+  return true;
+}
+
+/** The "!" markers' two-frame bob: up on odd half-seconds of `seconds` (the view's clock, read only on frames it draws anyway). */
+export function bobTags(tags: Iterable<HTMLElement>, seconds: number, still: boolean) {
+  const up = !still && Math.floor(seconds * 2) % 2 === 1;
+  for (const el of tags) if (el.dataset.marker === "news") el.classList.toggle("hub-tag-bob", up);
 }
 
 export interface HubViewOptions {
@@ -334,9 +386,9 @@ export class HubView {
         el = document.createElement("button");
         el.type = "button";
         el.className = "hub-label hub-person-tag";
-        // The People lists and the place panel are the keyboard and screen-reader route (DEC-051).
+        // Out of the Tab order (the Notebook's People and the place panel are the keyboard route, DEC-051),
+        // but named for screen readers, with what the marker means.
         el.tabIndex = -1;
-        el.setAttribute("aria-hidden", "true");
         el.dataset.person = p.key;
         Object.assign(el.style, { position: "absolute", left: "0", top: "0", pointerEvents: "auto", whiteSpace: "nowrap", willChange: "transform" });
         const key = p.key;
@@ -348,7 +400,7 @@ export class HubView {
         this.labelLayer.appendChild(el);
         this.personTags.set(p.key, el);
       }
-      el.textContent = p.label;
+      fillPersonTag(el, p.label, p.marker, p.tagLabel);
     }
     this.nearKey = null;
     this.wake();
@@ -478,12 +530,17 @@ export class HubView {
   }
 
   /** Walk to an engine location (a place, home, or a neighbourhood's streets); `notify`: call `onArrive` there. */
-  goToLocation(loc: TownLocation, notify = true): boolean {
-    const ok = this.scene.goToLocation(loc, () => {
-      if (!notify) return;
-      const b = this.scene.atBuilding;
-      this.arrived(b !== null ? (this.map.buildings[b] ?? null) : null);
-    });
+  goToLocation(loc: TownLocation, notify = true, onDone?: () => void, withinSeconds?: number): boolean {
+    const ok = this.scene.goToLocation(
+      loc,
+      () => {
+        onDone?.();
+        if (!notify) return;
+        const b = this.scene.atBuilding;
+        this.arrived(b !== null ? (this.map.buildings[b] ?? null) : null);
+      },
+      withinSeconds,
+    );
     if (ok) this.follow = true;
     this.wake();
     return ok;
@@ -601,6 +658,8 @@ export class HubView {
       el.classList.toggle("hub-person-near", key === this.nearKey);
       if (on) el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`;
     }
+    // The "!" bobs with the frames drawn anyway (ambient ones included): still once the loop sleeps.
+    bobTags(this.personTags.values(), this.time, this.reducedMotion);
     this.placeHint();
   }
 

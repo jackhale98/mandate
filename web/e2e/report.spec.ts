@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { openPocket, showPlaces } from "./pocket";
+import { officeFigures, openPeople, openPocket, showPlaces } from "./pocket";
 
 // "Report a problem" (bug bundles for the M6 testers): play a few turns
 // (canvass, talk, end turn), save a report from the pocket, read the file,
@@ -75,8 +75,8 @@ test("report a problem: the file holds the run, and it replays to the same hashe
   await endTurn(page, 1);
 
   // Talk to a council member (walked to first).
-  const people = await openPocket(page, "people");
-  await people.getByTestId("people-council").getByTestId("talk-button").first().click();
+  const people = await openPeople(page);
+  await officeFigures(people).getByTestId("talk-button").first().click();
   // The dialogue box (dialogue mode, DEC-093): walk there if they are elsewhere, ask, and wait for the reply's bubble.
   const talk = page.getByTestId("talk-panel");
   await expect(talk).toBeVisible();

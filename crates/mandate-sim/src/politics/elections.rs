@@ -901,7 +901,8 @@ struct RaceCtx<'a> {
     retro: f64,
     /// Local viability per candidate (party strength relative to the strongest).
     viability: Vec<f64>,
-    /// How much the town's voters weigh each issue (mean 1; DEC-078 decision 3).
+    /// How much the constituency's voters weigh each issue (mean 1; DEC-078
+    /// decision 3, per constituency since N2).
     salience: Vec<f64>,
 }
 
@@ -991,7 +992,9 @@ fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> Race
             None => v.independent_viability,
         })
         .collect();
-    let salience = match crate::concerns::salience(pop, m) {
+    // The constituency's own worries (DEC-092, N2): a ward weighs its
+    // neighbourhoods' concerns; a town-wide race, the town's.
+    let salience = match crate::concerns::salience_in(pop, r.content, world, &hs) {
         Some(s) => s.iter().map(|x| *x as f64).collect(),
         None => vec![1.0; mean.len()],
     };
@@ -1013,7 +1016,7 @@ fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> Race
 
 impl RaceCtx<'_> {
     /// Utility of each candidate for one cohort in race neighbourhood `i`. The
-    /// issue term weighs each attitude by the town's salience (mean 1).
+    /// issue term weighs each attitude by the constituency's salience (mean 1).
     fn utilities(&self, i: usize, c: &Cohort, terms: Terms, swing: &[f32]) -> Vec<f64> {
         let v = &self.params.vote;
         let h = self.race.hoods[i];
@@ -1041,7 +1044,7 @@ impl RaceCtx<'_> {
                         }
                         None => p.attitudes[a],
                     } as f64;
-                    // Each issue weighs as much as the town's concerns make it.
+                    // Each issue weighs as much as the constituency's concerns make it.
                     let w = self.salience[a];
                     prox -= w * (x - q) * (x - q);
                     dir += w * (x - self.mean[a] as f64) * (q - self.mean[a] as f64);
