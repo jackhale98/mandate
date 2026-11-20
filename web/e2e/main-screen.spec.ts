@@ -126,10 +126,11 @@ test("the pocket's tabs: a tab list with arrow keys, panels, and badges that cou
     await expect(pocket.getByTestId("pocket-tab-notebook")).toHaveAccessibleName(new RegExp(`Notebook ?, ${n} new in your notebook`));
     await expect(page.getByTestId("notebook-badge")).toContainText(n);
   }
-  // The Today badge counts decisions and alerts, as the pocket button's do.
+  // The Today badge counts decisions, asks waiting and alerts, as the pocket button's do.
   const decisions = await page.getByTestId("decision-badge").count();
   const alerts = await page.getByTestId("alert-badge").count();
-  if (decisions + alerts > 0) await expect(pocket.getByTestId("pocket-tab-badge-today")).toBeVisible();
+  const asks = await page.getByTestId("asks-badge").count();
+  if (decisions + alerts + asks > 0) await expect(pocket.getByTestId("pocket-tab-badge-today")).toBeVisible();
   else await expect(pocket.getByTestId("pocket-tab-badge-today")).toHaveCount(0);
 });
 

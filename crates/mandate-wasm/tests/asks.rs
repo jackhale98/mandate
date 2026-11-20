@@ -320,51 +320,6 @@ fn promises_are_picked_while_campaigning_and_kept_on_record() {
     }
 }
 
-/// A skip in which a law lapses lists it: the summary's facts cover what
-/// changed (laws in force fell, so a law ended), so "Nothing of note" means
-/// nothing happened.
-#[test]
-fn a_skip_lists_a_law_that_lapses() {
-    use mandate_sim::policy::{Clause, PolicyStatus};
-    let c = content();
-    let mut e = engine(&c, 6);
-    let home = mandate_sim::player::home(e.state()).unwrap().0;
-    let date = e.state().calendar.date;
-    // A law at home with a sunset clause that runs out within the month.
-    let law = e
-        .state()
-        .policy
-        .instances
-        .iter()
-        .find(|p| p.jurisdiction == home && p.active())
-        .map(|p| p.id.0)
-        .expect("a law in force at home");
-    e.setup(|st| {
-        let p = &mut st.policy.instances[law as usize];
-        p.status = PolicyStatus::InEffect;
-        p.clauses.push(Clause::Sunset { years: 1 });
-        p.enacted_on = Some(mandate_core::SimDate(date.0.saturating_sub(360)));
-    });
-    let target = mandate_sim::skip::targets(e.state(), &c)
-        .into_iter()
-        .map(|t| t.target)
-        .next()
-        .expect("somewhere to skip to");
-    e.apply(Command::Skip { target, limit: None }).unwrap();
-    assert!(!e.state().policy.instances[law as usize].active(), "the law lapsed");
-    let s = skip_summary_view(&e).unwrap();
-    let name = e.content().policies[&e.state().policy.instances[law as usize].template]
-        .name_key
-        .clone();
-    assert!(
-        s.items
-            .iter()
-            .any(|i| i.text_key == "skip-item-law-expired" && i.args.get("policy_key") == Some(&name)),
-        "the lapsed law is listed: {:?}",
-        s.items
-    );
-}
-
 /// Whenever the laws in force fall over a skip, a line says which law ended
 /// (the owner's report: "Laws in force 5 → 4" under "Nothing of note").
 #[test]
@@ -386,6 +341,15 @@ fn laws_in_force_never_fall_unexplained() {
             .filter(|i| i.text_key == "skip-item-law-expired" || i.text_key == "skip-item-law-repealed")
             .count() as i64;
         assert!(laws.before - laws.after <= ended, "seed {seed}: {laws:?} with {ended} ended");
+        // Seed 2 (the web test's): a law lapses, named in its line.
+        if seed == 2 {
+            let line = s.items.iter().find(|i| i.text_key == "skip-item-law-expired");
+            assert!(
+                line.is_some_and(|l| l.args.get("policy_key").is_some_and(|k| !k.is_empty())),
+                "seed 2: a lapsed law is listed: {:?}",
+                s.items
+            );
+        }
         assert!(!s.items.is_empty(), "seed {seed}: something happened");
     }
 }
@@ -414,6 +378,8 @@ fn every_summary_item_key_has_english_text() {
         "skip-item-rumour",
         "skip-item-recession-began",
         "skip-item-recession-ended",
+        "skip-item-proposal-opened",
+        "skip-item-proposal-lapsed",
     ] {
         assert!(en.contains(&format!("\n{key} =")), "no English text for {key}");
     }

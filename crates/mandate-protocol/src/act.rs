@@ -464,6 +464,15 @@ fn item_line(engine: &Engine, it: &SummaryItem) -> ActLineView {
                 "skip-item-recession-ended"
             }
         }
+        // A family's title takes its slots as arguments (F3 brings its view):
+        // the line says only that it came or went.
+        SummaryItem::Proposal { opened, .. } => {
+            if *opened {
+                "skip-item-proposal-opened"
+            } else {
+                "skip-item-proposal-lapsed"
+            }
+        }
     };
     ActLineView {
         date: None,

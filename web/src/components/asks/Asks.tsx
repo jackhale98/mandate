@@ -127,7 +127,7 @@ export function AskItem({ a }: { a: AskView }) {
   const open = offered || a.status === "accepted";
   const headId = `ask-${a.id}-title`;
   return (
-    <li className="ask" data-testid={`ask-${a.id}`} data-status={a.status} aria-labelledby={headId}>
+    <li className="ask" data-testid={`ask-${a.id}`} data-status={a.status} data-template={a.template} aria-labelledby={headId}>
       <div className="ask-head">
         <strong id={headId}>{title}</strong>
         <span className="muted small">

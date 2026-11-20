@@ -185,6 +185,13 @@ pub enum SummaryItem {
     Rumour { rumour: u32 },
     /// A national recession began (`began`) or recovery set in.
     Recession { began: bool },
+    /// A proposal (a policy family, DEC-092) came onto the table at home,
+    /// or left it without a bill.
+    Proposal {
+        proposal: u32,
+        family: String,
+        opened: bool,
+    },
 }
 
 /// Why a skip stopped.
@@ -769,6 +776,28 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
             }
             K::GlobalRecessionBegan { .. } => Some(SummaryItem::Recession { began: true }),
             K::GlobalRecoveryBegan => Some(SummaryItem::Recession { began: false }),
+            K::ProposalOpened {
+                proposal,
+                family,
+                at,
+            } if *at == crate::world::Jurisdiction::town(pl.home()) => {
+                Some(SummaryItem::Proposal {
+                    proposal: *proposal,
+                    family: family.clone(),
+                    opened: true,
+                })
+            }
+            K::ProposalLapsed {
+                proposal,
+                family,
+                at,
+            } if *at == crate::world::Jurisdiction::town(pl.home()) => {
+                Some(SummaryItem::Proposal {
+                    proposal: *proposal,
+                    family: family.clone(),
+                    opened: false,
+                })
+            }
             _ => None,
         };
         if let Some(i) = item {
