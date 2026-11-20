@@ -5,6 +5,9 @@
 // `about`, `player`); each adds Fluent arguments, and every line has
 // `$speaker`, `$player`, `$town` and `$here` (and `$about` on topics with a
 // subject). Arguments named `x_key` are Fluent keys, written `{ $x }`.
+// A `remembers` condition gives `$subject` and `$subject_kind` (`bill`,
+// `decision` or `none`): a quote has a variant for each, so a memory about
+// nothing in particular never reads "over that business".
 // `teaches` is capped at what the speaker will tell, and needs a `tells`
 // condition at that level or higher. `fallback` lines are a topic's safe
 // answer for the roles in their `occupation` condition (none: every role).
@@ -220,8 +223,14 @@
     { "id": "line.quote.stood_with_me", "part": "quote", "key": "talk-quote-stood-with-me",
       "when": [ { "type": "remembers", "slot": "speaker", "kinds": ["stood_with_me"] },
                 { "type": "opinion", "slot": "speaker", "min": -15 } ] },
+    { "id": "line.quote.stood_with_me.2", "part": "quote", "key": "talk-quote-stood-with-me-2",
+      "when": [ { "type": "remembers", "slot": "speaker", "kinds": ["stood_with_me"] },
+                { "type": "opinion", "slot": "speaker", "min": 15 } ] },
     { "id": "line.quote.stood_against_me", "part": "quote", "key": "talk-quote-stood-against-me",
       "when": [ { "type": "remembers", "slot": "speaker", "kinds": ["stood_against_me"] } ] },
+    { "id": "line.quote.stood_against_me.2", "part": "quote", "key": "talk-quote-stood-against-me-2",
+      "when": [ { "type": "remembers", "slot": "speaker", "kinds": ["stood_against_me"] },
+                { "type": "opinion", "slot": "speaker", "min": -50, "max": 15 } ] },
     { "id": "line.quote.ignored_me", "part": "quote", "key": "talk-quote-ignored-me",
       "when": [ { "type": "remembers", "slot": "speaker", "kinds": ["ignored_me"] } ] },
     { "id": "line.quote.blamed_me", "part": "quote", "key": "talk-quote-blamed-me", "weight": 3,
@@ -1015,8 +1024,15 @@
     { "id": "line.small.cool.2", "part": "substance", "topic": "topic.small_talk",
       "key": "talk-small-cool-2",
       "when": [ { "type": "opinion", "slot": "speaker", "max": -15 } ] },
+    // Anyone's small talk (three, so no one line is everyone's).
     { "id": "line.small.bus", "part": "substance", "topic": "topic.small_talk",
       "key": "talk-small-bus",
+      "when": [ { "type": "opinion", "slot": "speaker", "min": -15 } ] },
+    { "id": "line.small.ducks", "part": "substance", "topic": "topic.small_talk",
+      "key": "talk-small-ducks",
+      "when": [ { "type": "opinion", "slot": "speaker", "min": -15 } ] },
+    { "id": "line.small.match", "part": "substance", "topic": "topic.small_talk",
+      "key": "talk-small-match",
       "when": [ { "type": "opinion", "slot": "speaker", "min": -15 } ] },
     { "id": "line.small.disaster", "part": "substance", "topic": "topic.small_talk", "weight": 3,
       "key": "talk-small-disaster",

@@ -219,7 +219,10 @@ pub fn article(engine: &Engine, s: &Story) -> Option<ArticleView> {
             let e = st.events.get(*event)?;
             let v = event_view(e, engine);
             args.extend(v.args);
-            v.text_key
+            // A paper's headline, not the event log's line (`event-…` is
+            // second person and ends in a full stop; a headline is neither,
+            // so it reads in a column and retold in a quote).
+            v.text_key.replacen("event-", "headline-", 1)
         }
     };
     Some(ArticleView {

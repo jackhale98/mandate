@@ -3,17 +3,21 @@
 ## condition adds its own: $broker, $broker_place, $stake (the broker's
 ## stake, the town's industry), $rival, $person, $hood, $concern (and
 ## $concern_talk, a lower-case noun phrase for mid-sentence use), $policy,
-## $support, $memory, $subject, $year, $n, $crisis. A place without a proper
+## $support, $memory, $subject (and $subject_kind: bill, decision or none),
+## $year, $n, $crisis. A place without a proper
 ## name comes as its kind's noun phrase (talk-place-*: "the union hall"), so
-## $here, $about and $broker_place read mid-sentence. Lines use names, not
-## pronouns, until characters have a pronoun field.
+## $here, $about and $broker_place read mid-sentence. People are named, or
+## "they" (never he or she) until characters have a pronoun field; say a
+## name once or twice in a line, not three times.
 ##
-## House style: British English. Openers are stage directions or a first
-## remark, and name the speaker; quotes, substance and spoken closers are in
-## double quotes. Concern and policy names are capitalised labels
-## ("Housing costs", "Transit frequency"), so lines put them at the start of
-## a sentence or after a colon, never mid-sentence. Every claim a line makes
-## must be true whenever its conditions hold.
+## House style (docs/development/EXTENDING.md, "Writing for Mandate"):
+## British English. Openers are stage directions or a first remark, and name
+## the speaker; quotes, substance and spoken closers are in double quotes.
+## Concern names are capitalised labels ("Housing costs"): mid-sentence, use
+## $concern_talk ("the rent"). Policy names are titles ("Transit
+## frequency"): put them first, after a colon, or as "the { $policy } bill",
+## never bare as a sentence's subject ("Small business grants was…"). Every
+## claim a line makes must be true whenever its conditions hold.
 
 # Places without a proper name, as talk names them ($here, $about,
 # $broker_place): lower-case noun phrases.
@@ -53,7 +57,7 @@ talk-topic-small-talk = Small talk
 ## Openers, by relationship (anyone).
 
 # Cool, and hostile.
-talk-open-cool = { $speaker } carries on as if you weren't there.
+talk-open-cool = { $speaker } barely looks up.
 talk-open-cool-2 = { $speaker } folds both arms and waits.
 talk-open-cool-3 = { $speaker } lets you get halfway through the question before looking up.
 talk-open-cool-4 = { $speaker } sees you coming and doesn't pretend otherwise. "Oh. It's you."
@@ -61,7 +65,7 @@ talk-open-hostile = { $speaker } offers neither a hand nor a seat.
 talk-open-hostile-2 = { $speaker } looks at the time, pointedly. "You've got two minutes, and you're using them."
 # Neutral.
 talk-open-neutral = { $speaker } gives you a polite nod and waits for the question.
-talk-open-neutral-2 = "{ $player }, isn't it? I've seen you about," says { $speaker }.
+talk-open-neutral-2 = "{ $player }," says { $speaker }, with a nod. "What can I do for you?"
 talk-open-neutral-3 = { $speaker } checks the time, then decides you can have a minute.
 talk-open-neutral-4 = { $speaker } squints at you. "Right, then. What's this about?"
 # Warm.
@@ -117,24 +121,86 @@ talk-open-press = { $speaker } flips a notebook to a clean page, then thinks bet
 talk-open-politician = { $speaker } falls into step beside you. "Walk with me. I've a committee at the top of the hour."
 talk-open-clergy = { $speaker } hears the question all the way through, which almost nobody does.
 
-## Memory quotes ($subject: the bill or business it was about; $year).
-talk-quote-broke-promise = "You made me a promise once, over { $subject }, back in { $year }. I remember."
-talk-quote-broke-promise-2 = "{ $year }. { $subject }. You looked me in the eye and said you'd see it through."
-talk-quote-kept-promise = "You kept your word on { $subject }. That counts for something here."
-talk-quote-kept-promise-2 = "People told me you'd forget about { $subject } once the votes were in. You didn't."
-talk-quote-backed-my-bill = "You stood up for { $subject } when it wasn't fashionable. I haven't forgotten."
-talk-quote-opposed-my-bill = "You voted against { $subject }. I'm still waiting to hear why."
-talk-quote-vetoed-my-bill = "That was my bill you vetoed, in { $year }. { $subject }. All that work, and one stroke of a pen."
-talk-quote-signed-my-bill = "You signed { $subject } into law. I've the photograph on my wall, if you must know."
-talk-quote-promised-favour = "You promised me a favour over { $subject }. I'm not chasing. I'm just saying."
-talk-quote-broke-ranks = "You broke with the party over { $subject }. Some of us had to explain that on the doorstep."
-talk-quote-lobbied-me = "You talked me round on { $subject }. Don't make a habit of it."
-talk-quote-pressed-me = "Last time you leaned on me, over { $subject }, it didn't work. Just so you know."
+## Memory quotes ($subject: what it was about, $subject_kind: bill, a
+## policy's name; decision, a decision's title; none, nothing in particular;
+## $year). Every line has a variant without a subject.
+talk-quote-broke-promise = { $subject_kind ->
+    [bill] "You made me a promise once, over the { $subject } bill, back in { $year }. I remember."
+    [decision] "You made me a promise once, over { $subject }, back in { $year }. I remember."
+   *[other] "You made me a promise once, back in { $year }. I remember."
+}
+talk-quote-broke-promise-2 = { $subject_kind ->
+    [bill] "{ $year }. The { $subject } bill. You looked me in the eye and said you'd see it through."
+   *[other] "{ $year }. You looked me in the eye and said you'd see it through."
+}
+talk-quote-kept-promise = { $subject_kind ->
+    [bill] "You kept your word on the { $subject } bill. That counts for something here."
+    [decision] "You kept your word over { $subject }. That counts for something here."
+   *[other] "You kept your word to me. That counts for something here."
+}
+talk-quote-kept-promise-2 = { $subject_kind ->
+    [bill] "People told me you'd forget about the { $subject } bill once the votes were in. You didn't."
+   *[other] "People told me you'd forget your promise once the votes were in. You didn't."
+}
+talk-quote-backed-my-bill = { $subject_kind ->
+    [bill] "You stood up for my bill, { $subject }, when it wasn't fashionable. I haven't forgotten."
+   *[other] "You stood up for my bill when it wasn't fashionable. I haven't forgotten."
+}
+talk-quote-opposed-my-bill = { $subject_kind ->
+    [bill] "You voted against my bill, { $subject }. I'm still waiting to hear why."
+   *[other] "You voted against my bill. I'm still waiting to hear why."
+}
+talk-quote-vetoed-my-bill = { $subject_kind ->
+    [bill] "That was my bill you vetoed, in { $year }: { $subject }. All that work, and one stroke of a pen."
+   *[other] "That was my bill you vetoed, in { $year }. All that work, and one stroke of a pen."
+}
+talk-quote-signed-my-bill = { $subject_kind ->
+    [bill] "You signed my bill, { $subject }, into law. I've the photograph on my wall, if you must know."
+   *[other] "You signed my bill into law. I've the photograph on my wall, if you must know."
+}
+talk-quote-promised-favour = { $subject_kind ->
+    [bill] "You promised me a favour over the { $subject } bill. I'm not chasing. I'm just saying."
+    [decision] "You promised me a favour over { $subject }. I'm not chasing. I'm just saying."
+   *[other] "You promised me a favour. I'm not chasing. I'm just saying."
+}
+talk-quote-broke-ranks = { $subject_kind ->
+    [bill] "You broke with the party over the { $subject } bill. Some of us had to explain that on the doorstep."
+   *[other] "You broke with the party. Some of us had to explain that on the doorstep."
+}
+talk-quote-lobbied-me = { $subject_kind ->
+    [bill] "You talked me round on the { $subject } bill. Don't make a habit of it."
+    [decision] "You talked me round over { $subject }. Don't make a habit of it."
+   *[other] "You talked me round once. Don't make a habit of it."
+}
+talk-quote-pressed-me = { $subject_kind ->
+    [bill] "Last time you leaned on me, over the { $subject } bill, it didn't work. Just so you know."
+    [decision] "Last time you leaned on me, over { $subject }, it didn't work. Just so you know."
+   *[other] "Last time you leaned on me, it didn't work. Just so you know."
+}
 talk-quote-defeated-me = "You beat me in { $year }. Fair and square, I'm told."
 talk-quote-lost-to-me = "I beat you in { $year }, if you remember. I do."
-talk-quote-stood-with-me = "When it came to { $subject }, you were on my side. People notice that sort of thing."
-talk-quote-stood-against-me = "You went the other way on { $subject }. I've not decided yet what that tells me."
-talk-quote-ignored-me = "I waited on you over { $subject }. Weeks, I waited."
+talk-quote-stood-with-me = { $subject_kind ->
+    [decision] "When it came to { $subject }, you were on my side. People notice that sort of thing."
+    [bill] "When it came to the { $subject } bill, you were on my side. People notice that sort of thing."
+   *[other] "When it mattered, you were on my side. People notice that sort of thing."
+}
+talk-quote-stood-with-me-2 = { $subject_kind ->
+    [decision] "I've not forgotten { $subject }. You turned up for me, and plenty didn't."
+   *[other] "I've not forgotten { $year }. You turned up for me, and plenty didn't."
+}
+talk-quote-stood-against-me = { $subject_kind ->
+    [decision] "You went the other way on { $subject }. I've not decided yet what that tells me."
+    [bill] "You went the other way on the { $subject } bill. I've not decided yet what that tells me."
+   *[other] "You went the other way, back in { $year }. I've not decided yet what that tells me."
+}
+talk-quote-stood-against-me-2 = { $subject_kind ->
+    [decision] "{ $subject }. You chose the other lot. I'm still a bit sore, if I'm honest."
+   *[other] "You chose the other lot, back in { $year }. I'm still a bit sore, if I'm honest."
+}
+talk-quote-ignored-me = { $subject_kind ->
+    [decision] "I waited on you over { $subject }. Weeks, I waited."
+   *[other] "I waited on you, back in { $year }. Weeks, I waited."
+}
 talk-quote-blamed-me = "You put your own mess on my doorstep. I'll be living that down for years."
 talk-quote-scandal = "I read about you in the paper. Everyone did."
 
@@ -155,19 +221,19 @@ talk-worries-fb-care = "I hear plenty. It isn't mine to pass on."
 talk-worries-fb-folk = "Me? I keep myself to myself."
 
 # The town's worries: a rumour, plainly, and the speaker's own street.
-talk-worries-rumour = "{ $concern }, from what I hear. People don't talk about much else."
-talk-worries-rumour-2 = "What I hear in passing? { $concern }. Over and over."
-talk-worries-town = "{ $concern }. Ask anyone in { $town } and you'll get that answer before you've finished the question."
-talk-worries-town-2 = "If you want one thing, it's this: { $concern }. Everything else is a long way behind."
-talk-worries-town-3 = "Honestly? { $concern }. It comes up at every table and in every queue."
-talk-worries-press = "{ $concern }. I can tell by the letters page. Nobody writes in about the things that are going well."
+talk-worries-rumour = "From what I hear, it's { $concern_talk }. People don't talk about much else."
+talk-worries-rumour-2 = "In passing? People moan about { $concern_talk }, over and over."
+talk-worries-town = "It's { $concern_talk }. Ask anyone in { $town } and you'll get that answer before you've finished the question."
+talk-worries-town-2 = "If you want one thing, it's { $concern_talk }. Everything else is a long way behind."
+talk-worries-town-3 = "Honestly? You hear about { $concern_talk } at every table and in every queue."
+talk-worries-press = "Every other letter we get is about { $concern_talk }. Nobody writes in about the things that are going well."
 talk-worries-street = "Round my way it's { $concern_talk }, every time. Ask anyone on my street."
 talk-worries-town-talk = "Ask ten people in { $town } what's wrong and nine will say { $concern_talk }. The tenth hasn't been paying attention."
 talk-worries-town-rent = "It's the rent. Everyone I know hands over more of their wages for it than they did a few years ago."
-talk-worries-home = "In { $hood }? { $concern }, plain and simple. Knock on any door on my road and you'll hear it."
-talk-worries-home-2 = "{ $concern }. I live in { $hood }, and I could name you six households on my street who'd say the same."
-talk-worries-home-3 = "You want the truth about { $hood }? { $concern }. It's at the kitchen table every night, and nobody's fixed it."
-talk-worries-about-hood = "{ $hood }? I'd know; it's home. { $concern }. You could set your watch by the complaints."
+talk-worries-home = "In { $hood }? It's { $concern_talk }, plain and simple. Knock on any door on my road and you'll hear it."
+talk-worries-home-2 = "I live in { $hood }, and I could name you six households on my street losing sleep over { $concern_talk }."
+talk-worries-home-3 = "You want the truth about { $hood }? It's { $concern_talk }, at the kitchen table every night, and nobody's fixed it."
+talk-worries-about-hood = "{ $hood }? I'd know; it's home. It's { $concern_talk }, and you could set your watch by the complaints."
 
 # What the facts are doing to people (anyone).
 talk-worries-jobs = "Another lot laid off. You stop asking where, after a while. You just ask who."
@@ -184,7 +250,7 @@ talk-worries-teacher-rent = "Families keep moving further out, where the rent's 
 talk-worries-teacher-budget = "We're buying our own glue sticks. I'm not exaggerating; there's a receipt in my bag."
 talk-worries-teacher-jobs = "The children know before the grown-ups say anything. You can tell whose parent's been laid off by who stops bringing a snack."
 talk-worries-trade-jobs = "Takings are down. People still come in; they just put things back on the shelf."
-talk-worries-trade-tax = "The rates are the first bill I open and the last I can pay. One more rise and I'll be working for the council, not the other way round."
+talk-worries-trade-tax = "The rates are the first bill I open and the last I can pay. One more rise and I'm working for the council, not for myself."
 talk-worries-trade-rent = "My Saturday help is moving away, because the family can't make the rent. That's another one I've trained up for somewhere else."
 talk-worries-workers-jobs = "We've had lay-off notices on the board. Every shift, someone asks me if they're next, and I don't know what to tell them."
 talk-worries-workers-closure = "When the plant shut, it wasn't just the jobs. It was the overtime, the suppliers, the café across the road. It runs down the street like a crack in a windscreen."
@@ -228,14 +294,14 @@ talk-runs-fb-folk = "Couldn't tell you. The stallholders at the market know ever
 talk-runs-rumour = "People say nothing much happens without { $broker } hearing about it first. That's all I know."
 talk-runs-rumour-2 = "There's a name you hear: { $broker }. Whether it's true, I couldn't say."
 talk-runs-rumour-3 = "{ $broker }, if you listen to gossip. And I do, a bit."
-talk-runs-named = "{ $broker }. Nothing gets decided in this town without someone checking with { $broker } first."
+talk-runs-named = "{ $broker }. Nothing gets decided in this town without someone checking with them first."
 talk-runs-named-2 = "Officially? The council. In practice, { $broker }."
 talk-runs-named-3 = "{ $broker }. Not the loudest in the room. Never needs to be."
 talk-runs-named-where = "{ $broker }. Spend an afternoon at { $broker_place } and watch who gets offered a chair."
-talk-runs-stake = "{ $broker }. Follow the money in { $stake } and you'll find { $broker } at the end of it. Watch what happens there."
-talk-runs-stake-2 = "Ask yourself why every decision about { $stake } seems to suit { $broker } so well. Then ask { $broker }, and watch the face."
-talk-runs-stake-3 = "Everything round here comes back to { $stake }, and { $broker } has a hand in all of it. Cross { $broker } and you'll find doors shutting you didn't know were open."
-talk-runs-workers = "{ $broker }. Every time we sit down with management, { $broker } has been in the room first. You can tell by how little's left to negotiate."
+talk-runs-stake = "Follow the money in { $stake } and you'll find { $broker } at the end of it. Every time."
+talk-runs-stake-2 = "Ask yourself why every decision about { $stake } seems to suit { $broker } so well. Then ask them, and watch the face."
+talk-runs-stake-3 = "Everything round here comes back to { $stake }, and { $broker } has a hand in all of it. Cross them and you'll find doors shutting you didn't know were open."
+talk-runs-workers = "{ $broker }. Every time we sit down with management, they've been in the room first. You can tell by how little's left to negotiate."
 talk-runs-farm = "Out here you learn who to ask before you open a gate. In town, you ask { $broker }."
 talk-runs-party = "{ $broker }. And yes, the branch has noticed, and no, there's nothing in the rulebook about it."
 
@@ -264,7 +330,7 @@ talk-about-fb-folk = "I mind my own business, mostly."
 
 # A person: a name, and what they are like.
 talk-about-person-heard = "{ $person }? I know who you mean. I'll leave it at that."
-talk-about-person = "{ $person }? Everyone round here knows { $person }. Knowing what { $person } will do next is another matter."
+talk-about-person = "{ $person }? Everyone round here knows them. Knowing what they'll do next is another matter."
 talk-about-person-warm = "{ $person }? Kind as anything. Remembers your birthday, and your mother's."
 talk-about-person-cold = "{ $person } is civil. Don't mistake it for friendly."
 talk-about-person-bold = "{ $person } doesn't wait to be asked. Charges in, sorts it out, apologises later. Sometimes."
@@ -272,29 +338,29 @@ talk-about-person-timid = "{ $person } will agree with whoever spoke last. Make 
 talk-about-person-straight = "{ $person } is straight. You mightn't like the answer, but it'll be the real one."
 talk-about-person-crooked = "Count your fingers after you shake hands with { $person }. I'm only half joking."
 talk-about-person-loyal = "{ $person } sticks by people. Even the ones who don't deserve it."
-talk-about-person-ambitious = "{ $person } wants more than { $person } has got. Everybody can see it, except possibly { $person }."
-talk-about-person-grudge = "Don't cross { $person }. Not ever. { $person } forgets nothing."
+talk-about-person-ambitious = "{ $person } wants more than they've got. Everybody can see it, except possibly { $person }."
+talk-about-person-grudge = "Don't cross { $person }. Not ever. They forget nothing."
 talk-about-person-charmer = "{ $person } could talk the birds out of the trees, and has."
-talk-about-person-vain = "{ $person } likes seeing { $person }'s name in the paper more than most people like their dinner."
+talk-about-person-vain = "{ $person } likes seeing their own name in the paper more than most people like their dinner."
 talk-about-person-cautious = "{ $person } won't commit to the weather without checking first."
 talk-about-person-reformer = "{ $person } wants to change everything. Some of it even needs changing."
-talk-about-person-maverick = "{ $person } does whatever { $person } likes, and lets everyone else catch up."
+talk-about-person-maverick = "{ $person } does whatever they like, and lets everyone else catch up."
 
 # A neighbourhood or a place (the speaker's own end of town).
-talk-about-hood-heard = "{ $concern }, mostly, round { $hood }. But don't quote me."
-talk-about-hood = "That's my end of town, { $hood }. { $concern }, if you're asking what keeps people up at night."
-talk-about-hood-detailed = "I've lived in { $hood } long enough to tell you. { $concern }, first and last. Anyone who says different hasn't knocked on a door there."
+talk-about-hood-heard = "Round { $hood } it's mostly { $concern_talk }, I'm told. But don't quote me."
+talk-about-hood = "{ $hood }'s my end of town. If you're asking what keeps people up at night, it's { $concern_talk }."
+talk-about-hood-detailed = "I've lived in { $hood } long enough to tell you: { $concern_talk }, first and last. Anyone who says different hasn't knocked on a door there."
 
 # The rival.
-talk-about-rival = "{ $rival } wants your seat, and isn't shy about it. Everybody on the council knows."
-talk-about-rival-close = "Between us: { $rival } wants your seat and thinks you're beatable. Prove that wrong and you'll sleep better."
+talk-about-rival = "{ $rival } is after the same thing you are, and makes no secret of it. Everybody in the chamber knows."
+talk-about-rival-close = "Between us: { $rival } thinks you're beatable, and is planning on it. Prove that wrong and you'll sleep better."
 talk-about-rival-name = "{ $rival }? I know the name. Ask me again when I know you better."
 talk-about-rival-local = "{ $rival }? Wants to get on, that one. I'd keep an eye over your shoulder."
-talk-about-rival-bold = "{ $rival }? Bold as brass. If { $rival } wants something, the whole town hears about it."
+talk-about-rival-bold = "{ $rival }? Bold as brass. If they want something, the whole town hears about it."
 
 # A bill or a policy.
 talk-about-bill = "{ $policy }? From what I hear, { $support }."
-talk-about-bill-2 = "I've counted heads on { $policy }: { $support }. I'd not bet my seat on more than that."
+talk-about-bill-2 = "{ $policy }? On the doorstep, { $support }. I'd not bet my seat on more than that."
 talk-about-bill-heard = "{ $policy }? I've heard it both ways. I'll make my own mind up."
 
 ## Pitching a policy ($about: the policy).
@@ -313,7 +379,7 @@ talk-pitch-fb-folk = "{ $about }. Sounds expensive. Is it?"
 talk-pitch-cool = "You've a nerve, coming to me with this."
 talk-pitch-cool-2 = "Sell it to me, then. I could do with a laugh."
 talk-pitch-trusted = "You know I'll hear you out. Just don't oversell it. You're better when you don't."
-talk-pitch-support = "{ $policy }. I've counted heads: { $support }. Persuade me that's enough."
+talk-pitch-support = "{ $policy }. The word on the street is that { $support }. Persuade me that's enough."
 talk-pitch-owed = "You want my ear on top of what you already owe me? Bold."
 
 ## Asking for support.
@@ -357,6 +423,8 @@ talk-small-trusted = "You look tired. Are you sleeping? You're not, are you."
 talk-small-cool = "I'm not here to chat, if it's all the same to you."
 talk-small-cool-2 = "Weather's fine. Anything else?"
 talk-small-bus = "Have you seen the state of the bus shelter? Someone's had another go at it."
+talk-small-ducks = "Someone's been feeding the ducks bread again. There's a sign and everything."
+talk-small-match = "Did you see the match on Saturday? No, nor did I. I heard it, though. The whole street did."
 talk-small-disaster = "Everybody's got a story from when it hit. I've stopped telling mine."
 talk-small-councillor = "Did you sit through the whole planning item last week? I think I lost a year of my life."
 talk-small-mayor = "I've cut so many ribbons this year I've started carrying my own scissors."
@@ -383,7 +451,7 @@ talk-close-smooth-2 = "Let's keep this between friends."
 talk-close-smooth-3 = { $speaker } smiles, as though you'd agreed to something.
 talk-close-smooth-4 = "Remember who told you first. That's all I ask."
 talk-close-smooth-5 = "Lovely to see you. Do come again when you've something to offer."
-talk-close-pompous-1 = "I did say as much at the last committee, but nobody writes these things down."
+talk-close-pompous-1 = "I did say as much at the last public meeting, but nobody writes these things down."
 talk-close-pompous-2 = "You may quote me. Most people do."
 talk-close-pompous-3 = { $speaker } pauses, apparently for applause.
 talk-close-pompous-4 = "I'm sure you'll find that useful. People generally do."

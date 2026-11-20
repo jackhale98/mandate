@@ -391,18 +391,29 @@ impl Ctx<'_> {
                 else {
                     return false;
                 };
+                // What it was about, and what kind of thing that is
+                // (`$subject_kind`: `bill`, a policy's name; `decision`, a
+                // decision's title, a noun phrase; `none`), so a line can
+                // say it naturally or leave it out.
                 let subject = match m.subject {
                     Some(characters::Subject::Policy { id }) => st
                         .policy
                         .instances
                         .get(id as usize)
                         .and_then(|i| self.content.policies.get(&i.template))
-                        .map(|t| t.name_key.clone()),
+                        .map(|t| (t.name_key.clone(), "bill")),
+                    Some(characters::Subject::Decision { id }) => st
+                        .narrative
+                        .decision(crate::narrative::DecisionId(id))
+                        .and_then(|d| self.content.dilemma(&d.template))
+                        .map(|t| (t.title_key.clone(), "decision")),
                     _ => None,
-                }
-                .unwrap_or_else(|| SUBJECT_FALLBACK.into());
+                };
+                let (subject, kind) =
+                    subject.unwrap_or_else(|| (SUBJECT_FALLBACK.into(), "none"));
                 args.insert("memory_key".into(), m.kind.fluent_key());
                 args.insert("subject_key".into(), subject);
+                args.insert("subject_kind".into(), kind.into());
                 args.insert("year".into(), m.date.calendar().year.to_string());
                 true
             }

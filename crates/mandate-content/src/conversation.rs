@@ -728,7 +728,7 @@ pub fn condition_args(c: &SituationCondition) -> BTreeSet<String> {
     let set = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect();
     match c {
         U::Crisis { .. } => set(&["crisis_key"]),
-        U::Remembers { .. } => set(&["memory_key", "subject_key", "year"]),
+        U::Remembers { .. } => set(&["memory_key", "subject_key", "subject_kind", "year"]),
         U::Favour { .. } => set(&["n"]),
         U::IsBroker { is: true, .. } => set(&["broker", "broker_place", "stake_key"]),
         U::IsRival { is: true, .. } => set(&["rival"]),

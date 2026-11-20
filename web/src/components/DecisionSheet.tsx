@@ -7,7 +7,7 @@ import type { Translator } from "../i18n/fluent";
 import { formatDate } from "../i18n/format";
 import { placeIcon, placeName } from "../places/labels";
 import { useSheetClose } from "./useSheetClose";
-import { roleText, subjectText } from "./CharacterSheet";
+import { memoryText, quoteKey, roleText } from "./CharacterSheet";
 
 /** One trade-off or aftermath line (facts and Fluent keys from the engine). */
 function Line({ l }: { l: EffectLineView }) {
@@ -18,7 +18,7 @@ function Line({ l }: { l: EffectLineView }) {
 /** A line of dialogue: the speaker may quote a memory ("You promised the bridge in '31"). */
 function beatText(tr: Translator, d: DecisionView, b: BeatView): string {
   const args: Record<string, string> = { ...d.args };
-  if (b.quote) args.memory = tr.t(b.quote.key, { subject: subjectText(tr, b.quote.subject), year: String(b.quote.year) });
+  if (b.quote) args.memory = memoryText(tr, quoteKey(b.quote.key), b.quote);
   return tr.event(b.key, args);
 }
 

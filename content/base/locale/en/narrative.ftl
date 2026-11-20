@@ -11,11 +11,85 @@ storyteller-unfiltered-desc = Pure chance. Storms and shocks arrive as they fall
 storyteller-steady = Steady
 storyteller-steady-desc = Fewer crises and fewer decisions: one emergency at a time.
 
-## Memories recorded by decisions
-memory-stood-with-me = You stood with them over { $subject } ({ $year }).
-memory-stood-against-me = You took the other side over { $subject } ({ $year }).
-memory-ignored-me = You left them waiting over { $subject } ({ $year }).
+## Memories recorded by decisions (on the sheet; see base.ftl for $subject_kind)
+memory-stood-with-me = { $subject_kind ->
+    [decision] You stood with them over { $subject } ({ $year }).
+   *[other] You stood with them ({ $year }).
+}
+memory-stood-against-me = { $subject_kind ->
+    [decision] You took the other side over { $subject } ({ $year }).
+   *[other] You took the other side from them ({ $year }).
+}
+memory-ignored-me = { $subject_kind ->
+    [decision] You left them waiting over { $subject } ({ $year }).
+   *[other] You left them waiting ({ $year }).
+}
 subject-decision = { $title }
+
+## A memory quoted to the player's face, opening a scene's line ($memory):
+## first person, the year said, not bracketed. Each is a whole sentence.
+## $subject and $subject_kind as on the sheet (base.ftl).
+scene-quote-backed-my-bill = { $subject_kind ->
+    [bill] You backed my bill, { $subject }, in { $year }.
+   *[other] You backed my bill in { $year }.
+}
+scene-quote-opposed-my-bill = { $subject_kind ->
+    [bill] You voted against my bill, { $subject }, in { $year }.
+   *[other] You voted against my bill in { $year }.
+}
+scene-quote-promised-favour = { $subject_kind ->
+    [bill] You promised me a favour over the { $subject } bill.
+    [decision] You promised me a favour over { $subject }.
+   *[other] You promised me a favour, back in { $year }.
+}
+scene-quote-kept-promise = { $subject_kind ->
+    [bill] You kept your word on the { $subject } bill.
+    [decision] You kept your word over { $subject }.
+   *[other] You kept your word to me once.
+}
+scene-quote-broke-promise = { $subject_kind ->
+    [bill] You broke your word on the { $subject } bill.
+    [decision] You broke your word over { $subject }.
+   *[other] You broke your word to me once.
+}
+scene-quote-broke-ranks = { $subject_kind ->
+    [bill] You broke with the party over the { $subject } bill.
+   *[other] You broke with the party in { $year }.
+}
+scene-quote-lobbied-me = { $subject_kind ->
+    [bill] You talked me round on the { $subject } bill.
+    [decision] You talked me round over { $subject }.
+   *[other] You talked me round once.
+}
+scene-quote-pressed-me = { $subject_kind ->
+    [bill] You leaned on me over the { $subject } bill, and it didn't work.
+    [decision] You leaned on me over { $subject }, and it didn't work.
+   *[other] You leaned on me once, and it didn't work.
+}
+scene-quote-defeated-me = You beat me in { $year }.
+scene-quote-lost-to-me = I beat you in { $year }, if you remember.
+scene-quote-vetoed-my-bill = { $subject_kind ->
+    [bill] You vetoed my bill, { $subject }.
+   *[other] You vetoed my bill.
+}
+scene-quote-signed-my-bill = { $subject_kind ->
+    [bill] You signed my bill, { $subject }, into law.
+   *[other] You signed my bill into law.
+}
+scene-quote-met = We met in { $year }.
+scene-quote-scandal = I read about you in the paper in { $year }.
+scene-quote-stood-with-me = { $subject_kind ->
+    [decision] You stood with me over { $subject }.
+   *[other] You stood with me once.
+}
+scene-quote-stood-against-me = { $subject_kind ->
+    [decision] You took the other side over { $subject }.
+   *[other] You took the other side from me once.
+}
+scene-quote-ignored-me = { $subject_kind ->
+    [decision] You left me waiting over { $subject }.
+   *[other] You left me waiting once.
+}
 
 ## NPC goals
 goal-organise-workers = Organising the workers
@@ -58,7 +132,7 @@ dilemma-disaster-relief = the rebuilding
 dilemma-disaster-relief-situation = After the disaster, { $hood } is still clearing up. { $helper } ({ $helper_role }) is running a relief effort out of a borrowed hall and asks what you will do.
 dilemma-disaster-relief-drive = Put your own campaign money and a day's work into the relief drive
 dilemma-disaster-relief-drive-after = You spent campaign money and a long day hauling boxes. { $hood } will remember who turned up.
-dilemma-disaster-relief-defences = Draft flood defences so it does not happen again
+dilemma-disaster-relief-defences = Draft flood defences, for the long term
 dilemma-disaster-relief-defences-after = You drafted flood defences. It will take years, and people clearing up today wanted help now.
 dilemma-disaster-relief-leave = Leave it to the town's emergency services
 dilemma-disaster-relief-leave-after = You left it to the services and kept your strength. { $helper } noticed you were not there, and so did { $hood }.
@@ -88,10 +162,10 @@ dilemma-pollution-inspection-after = You demanded an inspection. { $voice } than
 dilemma-pollution-jobs = Put jobs first
 dilemma-pollution-jobs-after = You put jobs first. { $owner } is relieved; { $voice } and voters worried about the air are not.
 dilemma-pollution-wait = Wait for better data
-dilemma-pollution-wait-after = You asked for more data. { $voice } heard a delay.
+dilemma-pollution-wait-after = You asked for more data. { $voice } heard a delay; { $owner } heard a reprieve.
 
 dilemma-building-protest = the building work
-dilemma-building-protest-situation = The { $law } work has torn up streets in { $hood }. { $organiser } ({ $organiser_role }) has organised a protest and wants the work slowed down.
+dilemma-building-protest-situation = The { $law } works have torn up streets in { $hood }. { $organiser } ({ $organiser_role }) has organised a protest and wants the work slowed down.
 dilemma-building-protest-residents = Side with the residents and press the council to slow the work
 dilemma-building-protest-residents-after = You sided with { $hood }. The residents cheered; the council and your party did not.
 dilemma-building-protest-defend = Defend the project
@@ -103,15 +177,15 @@ dilemma-building-protest-ignore-after = You stayed away and kept your evening. {
 
 dilemma-favour-called-in = the favour you owe
 dilemma-favour-called-in-situation = { $creditor } has not forgotten the favour you owe. Their bill, { $bill }, is before the council, and they expect your vote.
-dilemma-favour-called-in-pay = Vote for { $bill } and repay the favour
-dilemma-favour-called-in-pay-after = You voted for { $bill } and paid your debt. { $creditor } will remember you kept your word.
-dilemma-favour-called-in-refuse = Vote against { $bill }
-dilemma-favour-called-in-refuse-after = You voted against { $bill } while you still owed { $creditor }. They called it a betrayal.
+dilemma-favour-called-in-pay = Vote for the bill and repay the favour
+dilemma-favour-called-in-pay-after = You voted for the { $bill } bill and paid your debt. { $creditor } will remember you kept your word.
+dilemma-favour-called-in-refuse = Vote against the bill
+dilemma-favour-called-in-refuse-after = You voted against the { $bill } bill while you still owed { $creditor }. They called it a betrayal.
 dilemma-favour-called-in-dodge = Abstain and hope it blows over
 dilemma-favour-called-in-dodge-after = You abstained. Nobody was fooled: { $creditor } counts it as a promise broken.
 
 dilemma-party-line = the party line
-dilemma-party-line-situation = Your party wants your vote one way on { $bill }, sponsored by { $sponsor }. Your ward leans the other way.
+dilemma-party-line-situation = Your party has told you how to vote on the { $bill } bill, sponsored by { $sponsor }. Your ward leans the other way.
 dilemma-party-line-party = Vote with the party
 dilemma-party-line-party-after = You voted with the party. The whips were pleased; your ward was not.
 dilemma-party-line-ward = Vote with your ward
@@ -120,7 +194,7 @@ dilemma-party-line-abstain = Abstain
 dilemma-party-line-abstain-after = You abstained. It pleased no one.
 
 dilemma-donor-offer = the donor's offer
-dilemma-donor-offer-situation = { $donor } ({ $donor_role }) offers a generous donation to your campaign. They would like to be able to call you.
+dilemma-donor-offer-situation = { $donor } ({ $donor_role }) offers a generous donation to your campaign. In return, they would like to be able to call you.
 dilemma-donor-offer-accept = Take the money
 dilemma-donor-offer-accept-after = You took { $donor }'s money. Your campaign is richer; you owe them, and a file somewhere notes the gift.
 dilemma-donor-offer-decline = Decline, politely but firmly
@@ -148,9 +222,9 @@ request-back-workers-decline-after = You declined. { $holder } will remember who
 request-ally-vote = a colleague's bill
 request-ally-vote-situation = { $holder } ({ $holder_role }) counts you as a friend and asks for your vote on their bill, { $bill }.
 request-ally-vote-yes = Promise your vote
-request-ally-vote-yes-after = You voted for { $bill }. { $holder } owes you one.
+request-ally-vote-yes-after = You voted for the { $bill } bill. { $holder } owes you one.
 request-ally-vote-no = Vote against it
-request-ally-vote-no-after = You voted against { $bill }. { $holder } was hurt.
+request-ally-vote-no-after = You voted against the { $bill } bill. { $holder } was hurt.
 request-ally-vote-noncommittal = Stay noncommittal
 request-ally-vote-noncommittal-after = You never gave { $holder } an answer and spared yourself the argument. They noticed.
 
@@ -163,7 +237,7 @@ request-traders-meeting-regrets-after = You sent your regrets and kept the day. 
 
 ## Scenes: what people say when you meet them about it
 scene-plant-steward = "{ $memory } And now you want to talk about the plant?"
-scene-plant-steward-fresh = "We've never really spoken, councillor. Today would be a good day to start."
+scene-plant-steward-fresh = "We've never really spoken, you and I. Today would be a good day to start."
 scene-plant-owner = "Every cost the council adds is another shift I can't keep."
 scene-workers-steward = "{ $memory } Are you marching with us or not?"
 scene-workers-steward-fresh = "We're marching on Saturday. The front row has room."
@@ -172,7 +246,7 @@ scene-housing-organiser-fresh = "Come and meet the people on this street. Then t
 scene-disaster-helper = "{ $memory } We could use your hands, not just your sympathy."
 scene-disaster-helper-fresh = "We're short of everything. Whatever you can bring, bring it."
 scene-fiscal-mayor = "{ $memory } I need your vote on the cuts."
-scene-fiscal-mayor-fresh = "The numbers don't lie, councillor. Something has to give."
+scene-fiscal-mayor-fresh = "The numbers don't lie, { $player }. Something has to give."
 scene-fiscal-steward = "Cut the clinic hours and see who you meet at the next election."
 scene-tax-trader = "{ $memory } Will you sign the petition?"
 scene-tax-trader-fresh = "Everyone on this street has signed. Will you?"
@@ -190,7 +264,7 @@ scene-donor-donor-fresh = "I've been watching your work. I'd like to help."
 scene-rival-rival = "{ $memory } Let's keep this civil until the count."
 scene-rival-rival-fresh = "We don't need to tear each other apart. Not yet."
 scene-request-workers = "{ $memory } Will you speak to them?"
-scene-request-workers-fresh = "They want to hear it from someone on the council."
+scene-request-workers-fresh = "They want to hear it from someone who can do something about it."
 scene-request-ally = "{ $memory } I'm counting on your vote."
 scene-request-ally-fresh = "I'd like you on my side for this one."
 scene-request-traders = "{ $memory } The traders want to hear from you."
@@ -229,7 +303,7 @@ event-development-crisis-worse = { $crisis } in { $town } is getting worse.
 event-development-goal = { $name } ({ $role }): { $goal }.
 event-development-rival = { $name } is your rival now.
 event-chapter-began = A new chapter begins: { $kind }.
-event-track-warning = Warning: your { $track } is in danger.
+event-track-warning = Warning: { $track } is in danger.
 event-director-hazard-held = The director held back a hazard in { $town }.
 event-fact-discoverable = Something you did may come to light.
 chapter-kind-session = a year in office
@@ -249,8 +323,8 @@ effect-record = Record of work: { $delta }
 effect-favour-owed = You owe { $name } a favour
 effect-favour-owed-to-you = { $name } owes you a favour
 effect-repaid = You repaid { $name }
-effect-vote = Your vote on { $bill }: { $vote }
-effect-draft = You drafted { $bill }
+effect-vote = Your vote on the { $bill } bill: { $vote }
+effect-draft = A draft bill: { $bill }
 effect-skipped = Not possible any more: { $what }
 effect-learn = You learn about { $what }
 effect-learned = You learned about { $what }
@@ -309,15 +383,15 @@ ui-gains = Gains
 ui-not-enough-time = Needs more time than you have left this turn
 ui-not-enough-money = Needs more money than you have
 alert-decisions = Decisions waiting for you: { $n }.
-alert-track-warning = Your { $track } is in danger. Act before it ends your career.
+alert-track-warning = { $track } is in danger. Act before it ends your career.
 why-crisis = { $crisis } in { $town }
 why-concern = Among the town's worries: { $concern }
 why-election = Your seat is up soon
-why-storyline = Part of the story of { $title }
-why-memory = { $name } remembers what you did
-why-goal = { $name } is { $goal }
+why-storyline = Part of a storyline: { $title }
+why-memory = You and { $name } have history
+why-goal = What { $name } is after: { $goal }
 why-ward = It is happening in your ward
-why-pressure = Your { $track } is at stake
+why-pressure = At stake: { $track }
 vote-with-party = with your party
 vote-with-ward = with your ward
 event-director-intervention = The storyteller held chance back ({ $lever }) in { $town }.
@@ -325,7 +399,7 @@ favour-decision = A promise over { $subject }
 
 ## More dilemmas
 dilemma-jobs-plea = the jobless figures
-dilemma-jobs-plea-situation = Jobs are the first thing anyone in { $town } talks about. { $voice } ({ $voice_role }) asks what you will do for people out of work in { $hood }. { $employer } ({ $employer_role }) says a wage subsidy would let them hire.
+dilemma-jobs-plea-situation = Jobs come up in every conversation in { $town }. { $voice } ({ $voice_role }) asks what you will do for people out of work in { $hood }. { $employer } ({ $employer_role }) says a wage subsidy would let them hire.
 dilemma-jobs-plea-subsidy = Draft a wage subsidy for small employers
 dilemma-jobs-plea-subsidy-after = You drafted a wage subsidy. { $employer } is pleased; the party worries about the cost, and the jobless wonder when it will reach them.
 dilemma-jobs-plea-fair = Organise a jobs fair yourself
@@ -354,66 +428,66 @@ scene-debate-rival = "{ $memory } Let the voters see us side by side."
 scene-debate-rival-fresh = "One stage, two candidates. Unless you're afraid of the questions."
 
 ## Bills in progress and the favour ledger (M5d part 2)
-effect-rider-ward-project = A project for your ward is added to { $bill }
-effect-rider-ward-project-for = A project for { $name }'s ward is added to { $bill }
-effect-rider-sunset = { $bill } gains a four-year sunset
-effect-call-in = { $name } repays the favour they owe you on { $bill }
+effect-rider-ward-project = A project for your ward goes into the { $bill } bill
+effect-rider-ward-project-for = A project for { $name }'s ward goes into the { $bill } bill
+effect-rider-sunset = The { $bill } bill gets a four-year sunset
+effect-call-in = { $name } repays the favour they owe you, on the { $bill } bill
 
 dilemma-amendment-for-vote = a vote for a project
-dilemma-amendment-for-vote-situation = { $swing } is the vote { $bill } is waiting on. The price: a project in their ward, written into your bill.
+dilemma-amendment-for-vote-situation = Your bill, { $bill }, is one vote short, and { $swing } could be that vote. The price: a project in their ward, written into the bill.
 dilemma-amendment-for-vote-project = Write in their ward project
-dilemma-amendment-for-vote-project-after = { $bill } now pays for a project in { $swing }'s ward. They are on board; other wards grumble at the cost, and so does your party.
+dilemma-amendment-for-vote-project-after = The { $bill } bill now pays for a project in { $swing }'s ward. They are on board; other wards grumble at the cost, and so does your party.
 dilemma-amendment-for-vote-sunset = Offer a sunset instead
-dilemma-amendment-for-vote-sunset-after = You put a four-year sunset on { $bill }. { $swing } is warmer, and the law, if it passes, will need renewing.
+dilemma-amendment-for-vote-sunset-after = You put a four-year sunset on the { $bill } bill. { $swing } is warmer, and the law, if it passes, will need renewing.
 dilemma-amendment-for-vote-merits = Let it pass on its merits
-dilemma-amendment-for-vote-merits-after = You kept { $bill } clean and spent the evening at home. { $swing } took it as a no.
+dilemma-amendment-for-vote-merits-after = You kept the { $bill } bill clean and spent the evening at home. { $swing } took it as a no.
 
 dilemma-sponsor-rider = a rider on someone else's bill
-dilemma-sponsor-rider-situation = { $sponsor } wants your yes on { $bill }, and offers to write in a project for your ward.
+dilemma-sponsor-rider-situation = { $sponsor } wants your yes on the { $bill } bill, and offers to write in a project for your ward.
 dilemma-sponsor-rider-take = Take the project and vote yes
-dilemma-sponsor-rider-take-after = Your ward gets its project in { $bill }, and you voted yes. Other wards' councillors noticed what it cost.
+dilemma-sponsor-rider-take-after = Your ward gets its project in the { $bill } bill, and you voted yes. Other wards' councillors noticed what it cost.
 dilemma-sponsor-rider-ward = Vote as your ward wants, no project
-dilemma-sponsor-rider-ward-after = You voted on { $bill } as your ward leans, and turned down the project. { $sponsor } expected better.
+dilemma-sponsor-rider-ward-after = You voted on the { $bill } bill as your ward leans, and turned down the project. { $sponsor } expected better.
 dilemma-sponsor-rider-decline = Decline and abstain
-dilemma-sponsor-rider-decline-after = You abstained on { $bill }. { $sponsor } read it as a snub.
+dilemma-sponsor-rider-decline-after = You abstained on the { $bill } bill. { $sponsor } read it as a snub.
 
 dilemma-whip-deal = the whip's offer
-dilemma-whip-deal-situation = { $whip } has a deal: vote with the party on { $bill }, against your ward's mood, and the party pays toward your campaign.
+dilemma-whip-deal-situation = { $whip } has a deal: vote with the party on the { $bill } bill, against your ward's mood, and the party pays toward your campaign.
 dilemma-whip-deal-take = Take the deal
-dilemma-whip-deal-take-after = You voted with the party on { $bill }. The money arrived; your ward noticed which way you went.
+dilemma-whip-deal-take-after = You voted with the party on the { $bill } bill. The money arrived; your ward noticed which way you went.
 dilemma-whip-deal-haggle = Haggle for a promise
-dilemma-whip-deal-haggle-after = A long evening at the party office: less money, but { $whip } now owes you one. You voted with the party on { $bill }.
+dilemma-whip-deal-haggle-after = A long evening at the party office: less money, but { $whip } now owes you one. You voted with the party on the { $bill } bill.
 dilemma-whip-deal-refuse = Refuse and vote with your ward
-dilemma-whip-deal-refuse-after = You voted with your ward on { $bill }. { $whip } will not forget it, and neither will the party.
+dilemma-whip-deal-refuse-after = You voted with your ward on the { $bill } bill. { $whip } will not forget it, and neither will the party.
 dilemma-whip-deal-counted = Say nothing; the whip counts you in
-dilemma-whip-deal-counted-after = You never answered, so { $whip } counted you with the party on { $bill }: no money, and your ward saw how you voted.
+dilemma-whip-deal-counted-after = You never answered, so { $whip } counted you with the party on the { $bill } bill: no money, and your ward saw how you voted.
 
 dilemma-call-in-favour = the favour you are owed
-dilemma-call-in-favour-situation = { $debtor } owes you a favour, and { $bill } is short of votes.
+dilemma-call-in-favour-situation = { $debtor } owes you a favour, and the { $bill } bill is short of votes.
 dilemma-call-in-favour-call = Call it in quietly
-dilemma-call-in-favour-call-after = { $debtor } paid what they owed: their vote leans to { $bill } now. The debt is clear, and so is the slight chill.
+dilemma-call-in-favour-call-after = { $debtor } paid what they owed: their vote leans towards the { $bill } bill now. The debt is clear, and so is the slight chill.
 dilemma-call-in-favour-public = Call it in where others can see
-dilemma-call-in-favour-public-after = Everyone saw { $debtor } come round on { $bill }. It looks like work; { $debtor } feels used.
+dilemma-call-in-favour-public-after = Everyone saw { $debtor } come round on the { $bill } bill. It looks like work; { $debtor } feels used.
 dilemma-call-in-favour-save = Save it for something bigger
-dilemma-call-in-favour-save-after = You kept the favour in your pocket. { $debtor } was relieved; the party wonders why { $bill } is stuck.
+dilemma-call-in-favour-save-after = You kept the favour in your pocket. { $debtor } was relieved; the party wonders why the { $bill } bill is stuck.
 
 dilemma-favour-for-vote = a favour for a vote
-dilemma-favour-for-vote-situation = { $sponsor } needs votes for { $bill } and offers you a favour in return.
+dilemma-favour-for-vote-situation = { $sponsor } needs votes for the { $bill } bill and offers you a favour in return.
 dilemma-favour-for-vote-deal = Vote yes; they owe you one
-dilemma-favour-for-vote-deal-after = You voted for { $bill }, and { $sponsor } owes you a favour. Your ward will judge the vote on its own.
+dilemma-favour-for-vote-deal-after = You voted for the { $bill } bill, and { $sponsor } owes you a favour. Your ward will judge the vote on its own.
 dilemma-favour-for-vote-ward = Vote as your ward wants
-dilemma-favour-for-vote-ward-after = You voted on { $bill } as your ward leans and took nothing for it. { $sponsor } wanted more.
+dilemma-favour-for-vote-ward-after = You voted on the { $bill } bill as your ward leans and took nothing for it. { $sponsor } wanted more.
 dilemma-favour-for-vote-not-yet = Say you need to think
 dilemma-favour-for-vote-not-yet-after = You put { $sponsor } off. They took the hint.
 
 dilemma-creditor-against-rival = the debt and the rival's bill
 dilemma-creditor-against-rival-situation = { $creditor } is calling in the favour you owe: vote down { $rival }'s bill, { $bill }.
 dilemma-creditor-against-rival-sink = Vote it down and clear the debt
-dilemma-creditor-against-rival-sink-after = You voted against { $bill }. The debt to { $creditor } is paid; { $rival } knows who sank it.
+dilemma-creditor-against-rival-sink-after = You voted against the { $bill } bill. The debt to { $creditor } is paid; { $rival } knows who sank it.
 dilemma-creditor-against-rival-merits = Vote on the merits
-dilemma-creditor-against-rival-merits-after = You voted on { $bill } as your ward leans, debt or no debt. { $creditor } calls it a promise broken.
+dilemma-creditor-against-rival-merits-after = You voted on the { $bill } bill as your ward leans, debt or no debt. { $creditor } calls it a promise broken.
 dilemma-creditor-against-rival-dodge = Abstain
-dilemma-creditor-against-rival-dodge-after = You abstained on { $bill }. Neither side thanks you.
+dilemma-creditor-against-rival-dodge-after = You abstained on the { $bill } bill. Neither side thanks you.
 
 scene-amendment-swing = "{ $memory } Put my ward in your bill and you have my vote."
 scene-amendment-swing-fresh = "I could vote for your bill. My ward would need a reason to let me."

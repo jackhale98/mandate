@@ -1,6 +1,8 @@
 ## Overheard talk (content/base/overheard.jsonc). Arguments: $town, $hood,
 ## and what each line's conditions provide ($industry, $jobs, $broker,
-## $rival, $player, $subject, $fact, $outlet, $headline).
+## $rival, $player, $subject, $fact, $outlet, $headline). $headline is a
+## paper's headline (`headline-…`, media.ftl): no full stop of its own, so
+## a line that quotes it adds one.
 
 # A town's industry as residents name it (a noun phrase).
 talk-sector-agriculture = the farms
@@ -14,11 +16,11 @@ talk-sector-public = the council and the hospital
 
 heard-jobs-closure = "Another closure in { $industry }. { $jobs } jobs gone, just like that."
 heard-jobs-notices = "More lay-off notices went out at the plant. Everyone's waiting to see who's next."
-heard-jobs-industry = "This town lives on { $industry }. When that sneezes, { $hood } catches cold."
+heard-jobs-industry = "Everything in { $town } comes back to { $industry }. One bad year there and the whole of { $hood } feels it."
 heard-jobs-applications = "Three applications this week and not one call back."
 heard-jobs-young = "The young ones are all leaving for the city. Can't say I blame them."
 heard-jobs-shifts = "They've cut my shifts again. Twenty hours, if I'm lucky."
-heard-jobs-broker = "If { $broker } wanted those jobs to stay in { $town }, they'd stay. That's how it works here."
+heard-jobs-broker = "If { $broker } wanted the jobs kept in { $town }, they'd be kept. That's how it works here."
 
 heard-housing-rent = "The rent went up again. My kids can't afford to live here."
 heard-housing-viewing = "Forty people turned up to view one flat in { $hood }. Forty."
@@ -59,7 +61,7 @@ heard-recovery-builders = "You can't get a builder for love nor money. They're b
 
 heard-player-unknown = "{ $player }? Never heard of them. Are they from round here?"
 heard-player-liked = "{ $player } came round { $hood } and actually listened. That's rare."
-heard-player-disliked = "{ $player }? All talk. Haven't seen them since the last election."
+heard-player-disliked = "{ $player }? All talk. You never see them round { $hood } unless they want something."
 heard-player-unsure = "{ $player } seems all right. Can't say they've done much for { $hood } yet."
 heard-rival-idle = "What has { $rival } actually done? Name one thing."
 heard-rival-busy = "Say what you like about { $rival }, they turn up and get things done."
