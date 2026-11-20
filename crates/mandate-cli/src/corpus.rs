@@ -256,6 +256,20 @@ fn situation(e: &Engine, run: &Run, extra: Value) -> Value {
         "town_worries": m
             .map(|m| concern_ids(content, &mandate_sim::concerns::top_concerns(&st.population, m), 3))
             .unwrap_or_default(),
+        // As the notebook records them (felt across the town's neighbourhoods).
+        "town_worries_noted": m
+            .map(|m| {
+                let hoods: Vec<usize> = st
+                    .world
+                    .hoods_of(mandate_sim::world::MunicipalityId(m as u32))
+                    .collect();
+                concern_ids(
+                    content,
+                    &mandate_sim::concerns::felt_concerns(&st.population, content, m, &hoods),
+                    3,
+                )
+            })
+            .unwrap_or_default(),
         "broker": tc.and_then(|t| t.broker).map(|b| name(st, b)),
         "rival": tc.and_then(|t| t.rival).map(|r| name(st, r)),
         "player_post": post.unwrap_or_else(|| "out of office".into()),
@@ -501,7 +515,7 @@ fn talk_sample(
             if !o.roles.is_empty() && !role.as_ref().is_some_and(|r| o.roles.contains(r)) {
                 continue;
             }
-            for about in explain::sample_abouts(st, content, &t.about, t.about_required) {
+            for about in explain::sample_abouts_for(st, content, s, &t.about, t.about_required) {
                 let Some(ctx) = explain::talk_ctx(st, content, s, about.as_ref()) else {
                     continue;
                 };

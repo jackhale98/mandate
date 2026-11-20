@@ -152,11 +152,23 @@ impl Ctx<'_> {
         }
     }
 
+    /// A town's worries as the notebook records them (felt across all its
+    /// neighbourhoods: `concerns::felt_concerns`), strongest first, so what
+    /// a speaker says of the town is what the player is told they learned.
+    fn town_felt(&self, town: MunicipalityId) -> Vec<(usize, f64)> {
+        let st = self.st;
+        let hoods: Vec<usize> = st.world.hoods_of(town).collect();
+        let mut v =
+            crate::concerns::felt_concerns(&st.population, self.content, town.index(), &hoods);
+        v.retain(|(_, w)| *w > 0.0);
+        v
+    }
+
     /// The registry index of a top concern (one that worries at all).
     fn top_concern(&self, of: ConcernOf) -> Option<usize> {
         let st = self.st;
         let top = match of {
-            ConcernOf::Town => crate::concerns::top_concerns(&st.population, self.town.index()),
+            ConcernOf::Town => self.town_felt(self.town),
             ConcernOf::Speaker => {
                 let home = self.hood(HoodOf::SpeakerHome)?;
                 let m = st.world.neighborhoods.get(home.index())?.municipality;
@@ -182,6 +194,31 @@ impl Ctx<'_> {
             args.remove(&format!("{name}_key"));
             args.insert(name.into(), p.name.clone());
         }
+    }
+
+    /// Where a person works: their own place (a named character's), else
+    /// where their post sits (DEC-098), in this town. `None` for someone
+    /// with neither.
+    pub fn workplace(&self, c: CharacterId) -> Option<&crate::world::Place> {
+        let st = self.st;
+        let ch = st.politics.characters.get(c)?;
+        if let Some(p) = ch
+            .named
+            .as_deref()
+            .and_then(|n| n.place)
+            .and_then(|p| st.world.places.get(p.index()))
+        {
+            return Some(p);
+        }
+        let kind = ch
+            .politician
+            .and_then(|p| st.politics.get(p))
+            .and_then(|p| p.role.post())
+            .and_then(|post| crate::politics::workplace_of(&st.politics, post))?;
+        st.world
+            .places
+            .iter()
+            .find(|p| p.municipality == self.town && p.kind == kind)
     }
 
     /// Where a person is found, as the argument `name`: their workplace,
@@ -258,7 +295,7 @@ impl Ctx<'_> {
         let st = self.st;
         match s {
             Subject::TownConcerns { town } => {
-                let top = crate::concerns::top_concerns(&st.population, town.index());
+                let top = self.town_felt(*town);
                 if let Some((i, _)) = top.first() {
                     self.concern_args(*i, args);
                 }
@@ -272,7 +309,7 @@ impl Ctx<'_> {
                         h.municipality.index(),
                         &[hood.index()],
                     );
-                    if let Some((i, _)) = felt.first() {
+                    if let Some((i, _)) = felt.first().filter(|(_, w)| *w > 0.0) {
                         self.concern_args(*i, args);
                     }
                 }
@@ -461,7 +498,17 @@ impl Ctx<'_> {
                 if self.told(&s) < *min {
                     return false;
                 }
-                self.subject_args(&s, args);
+                let mut a = Args::new();
+                self.subject_args(&s, &mut a);
+                // Worries that worry nobody are no answer.
+                if matches!(
+                    s,
+                    Subject::TownConcerns { .. } | Subject::HoodConcerns { .. }
+                ) && !a.contains_key("concern_key")
+                {
+                    return false;
+                }
+                args.extend(a);
                 true
             }
             U::PlayerKnows { subject, min, max } => {
@@ -492,6 +539,45 @@ impl Ctx<'_> {
             }
             U::Voice { voices } => {
                 super::reply::voice(self).is_some_and(|v| voices.contains(&v.id))
+            }
+            U::About {
+                kinds,
+                places,
+                workplace,
+                home,
+                is,
+            } => {
+                let holds = self.about.is_some_and(|a| {
+                    if !kinds.is_empty() && !kinds.contains(&a.kind()) {
+                        return false;
+                    }
+                    let place = match a {
+                        AboutRef::Place { place } => st.world.places.get(place.index()),
+                        _ => None,
+                    };
+                    if !places.is_empty()
+                        && !place.is_some_and(|p| places.iter().any(|k| k == p.kind.key()))
+                    {
+                        return false;
+                    }
+                    if let Some(h) = home {
+                        let mine = matches!(a, AboutRef::Hood { .. })
+                            && self.hood(HoodOf::About) == self.hood(HoodOf::SpeakerHome);
+                        if mine != *h {
+                            return false;
+                        }
+                    }
+                    match workplace {
+                        None => true,
+                        Some(w) => {
+                            let mine = place.is_some_and(|p| {
+                                self.workplace(self.speaker).is_some_and(|q| q.id == p.id)
+                            });
+                            mine == *w
+                        }
+                    }
+                });
+                holds == *is
             }
             U::Concern { of, concerns } => {
                 let Some(i) = self.top_concern(*of) else {

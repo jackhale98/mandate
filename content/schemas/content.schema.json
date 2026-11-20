@@ -9649,6 +9649,52 @@
         },
         {
           "additionalProperties": false,
+          "description": "What the conversation is about (the `about` subject): one of these\nkinds (empty: any subject); for a place, one of `places` (place kinds;\nempty: any) and, if `workplace` is given, the speaker's own\nworkplace (`true`) or not (`false`): where they work, or where their\npost sits; for a neighbourhood, if `home` is given, the speaker's home\n(`true`) or not. With `is: false` it holds when the subject is not that\n(or there is none). Conversations only.",
+          "properties": {
+            "home": {
+              "default": null,
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "kinds": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/AboutKind"
+              },
+              "type": "array"
+            },
+            "places": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "about",
+              "type": "string"
+            },
+            "workplace": {
+              "default": null,
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "The top concern of the speaker's home neighbourhood (`speaker`) or of\nthe town (`town`) is one of these: `$concern_key` (the name),\n`$concern_talk_key` (the noun phrase of talk). The town form reads no\nslot, so it may also stand in a town's situation.",
           "properties": {
             "concerns": {

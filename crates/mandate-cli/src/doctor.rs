@@ -139,7 +139,8 @@ pub struct Finding {
     /// `no-town-has` | `never-fired` | `too-often` | `fluent-missing` |
     /// `fluent-unused` | `fluent-args` | `too-long` | `voice` |
     /// `text-raw` | `text-empty-arg` | `text-doubled-punct` |
-    /// `worry-unconditioned`.
+    /// `worry-unconditioned` | `subject-unread` | `subject-drift` |
+    /// `talk-off-subject` (corpus).
     pub check: String,
     /// The content file (or `.ftl`) that defines the item.
     pub file: String,
@@ -1147,7 +1148,7 @@ fn sample_talk(e: &Engine, content: &ContentBundle, seen: &mut Seen) {
             // Without a subject (when it needs none), then with one of each
             // kind it takes.
             let mut asked = false;
-            for about in explain::sample_abouts(st, content, &t.about, t.about_required) {
+            for about in explain::sample_abouts_for(st, content, s, &t.about, t.about_required) {
                 let Some(ctx) = explain::talk_ctx(st, content, s, about.as_ref()) else {
                     continue;
                 };
@@ -2390,6 +2391,135 @@ pub fn corpus_text_findings(dir: &Path) -> Result<Vec<Finding>, String> {
         .collect())
 }
 
+/// Replies that answer the question (owner report 2026-11-20: "npcs respond
+/// with answers that aren't really relevant"), statically:
+///
+/// - `subject-unread`: a line of a topic that is always about something
+///   (`about_required`, an `inform` topic: "Ask about…") whose conditions
+///   never read the subject. It can win over the subject's own lines and
+///   answer something else. Fallbacks are deflections and exempt.
+/// - `subject-drift`: a line of a topic that can be about a place, reading
+///   the subject only as a neighbourhood's worries (`hood_concerns` of
+///   `about`, which a place resolves to its neighbourhood) without an
+///   `about` condition that keeps places out: asked about the paper, it
+///   answers with the cost of living.
+fn relevance_checks(b: &ContentBundle, out: &mut Out) {
+    use mandate_content::conversation::{AboutKind, HoodOf, SubjectRef, TalkMechanic, reads_about};
+    for l in &b.talk_lines {
+        if l.part != TalkPart::Substance || l.fallback {
+            continue;
+        }
+        let Some(t) = l
+            .topic
+            .as_deref()
+            .and_then(|t| b.talk_topics.iter().find(|x| x.id == t))
+        else {
+            continue;
+        };
+        if t.mechanic != TalkMechanic::Inform || t.about.is_empty() {
+            continue;
+        }
+        if t.about_required && !reads_about(&l.when) {
+            out.add(
+                Sev::Warn,
+                "subject-unread",
+                &l.id,
+                format!(
+                    "`{}` answers `{}` (always about something) without reading the subject",
+                    l.id, t.id
+                ),
+            );
+        }
+        let hood_only = l.when.iter().any(|c| {
+            matches!(
+                c,
+                SituationCondition::Tells {
+                    subject: SubjectRef::HoodConcerns { of: HoodOf::About },
+                    ..
+                }
+            )
+        });
+        let keeps_out = l.when.iter().any(|c| match c {
+            SituationCondition::About {
+                kinds, is: true, ..
+            } => !kinds.is_empty() && !kinds.contains(&AboutKind::Place),
+            _ => false,
+        });
+        if t.about.contains(&AboutKind::Place) && hood_only && !keeps_out {
+            out.add(
+                Sev::Warn,
+                "subject-drift",
+                &l.id,
+                format!(
+                    "`{}` reads a place subject as its neighbourhood's worries; add `{{ \"type\": \"about\", \"kinds\": [\"hood\"] }}`",
+                    l.id
+                ),
+            );
+        }
+    }
+}
+
+/// The same in a rendered corpus (`talk-off-subject`): a reply to "Ask
+/// about…", or to "What are people worried about?" asked of a
+/// neighbourhood, must name what was asked about (`$about`: a person, the
+/// rival, a neighbourhood, a place), unless it comes from a fallback (a
+/// deflection). Bills and templates are named by their own arguments and
+/// are not checked here.
+pub fn corpus_relevance_findings(dir: &Path, b: &ContentBundle) -> Result<Vec<Finding>, String> {
+    let path = dir.join("corpus.jsonl");
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let msgs = messages(&b.locale_text("en"));
+    let fallback: BTreeSet<&str> = b
+        .talk_lines
+        .iter()
+        .filter(|l| l.fallback)
+        .map(|l| l.id.as_str())
+        .collect();
+    let mut seen: BTreeMap<String, (usize, String, String)> = BTreeMap::new();
+    for line in text.lines().filter(|l| !l.trim().is_empty()) {
+        let v: serde_json::Value =
+            serde_json::from_str(line).map_err(|e| format!("{}: {e}", path.display()))?;
+        let s = |k: &str| v.get(k).and_then(|x| x.as_str()).unwrap_or("").to_string();
+        if s("kind") != "talk" || s("part") != "substance" || fallback.contains(s("id").as_str()) {
+            continue;
+        }
+        let topic = v
+            .pointer("/situation/topic")
+            .and_then(|x| x.as_str())
+            .unwrap_or("");
+        let about = v.pointer("/situation/about");
+        let hood_asked = about.and_then(|a| a.get("hood")).is_some()
+            && about.and_then(|a| a.get("place")).is_none();
+        if !(topic == "topic.about" || (topic == "topic.worries" && hood_asked)) {
+            continue;
+        }
+        let args = v.get("args");
+        let arg = |k: &str| args.and_then(|a| a.get(k)).and_then(|x| x.as_str());
+        let named = match (arg("about"), arg("about_key")) {
+            (Some(n), _) => n.to_string(),
+            (None, Some(k)) => msgs.get(k).cloned().unwrap_or_default(),
+            (None, None) => continue,
+        };
+        if named.is_empty() || s("text").to_lowercase().contains(&named.to_lowercase()) {
+            continue;
+        }
+        let e = seen
+            .entry(s("id"))
+            .or_insert_with(|| (0, s("key"), format!("asked about {named}: {}", s("text"))));
+        e.0 += 1;
+    }
+    Ok(seen
+        .into_iter()
+        .map(|(id, (n, key, what))| Finding {
+            severity: Sev::Warn,
+            check: "talk-off-subject".into(),
+            file: "corpus".into(),
+            item: format!("talk {id}"),
+            message: format!("{n} reply(ies) from `{key}` do not name what was asked, e.g. {what}"),
+        })
+        .collect())
+}
+
 // --- Length -------------------------------------------------------------------------
 
 /// A representative value for an argument: long names, a long town.
@@ -2611,6 +2741,7 @@ pub fn diagnose(sources: &[Source], args: &DoctorArgs) -> Report {
         length_checks(&b, args, &mut out);
         text_checks(&b, &mut out);
         worry_checks(&b, &mut out);
+        relevance_checks(&b, &mut out);
         if args.seeds > 0 {
             let seen = careers(&b, args);
             report.careers = seen.len();
@@ -2737,7 +2868,10 @@ pub fn run(root: &Path, args: &DoctorArgs) -> Result<(), String> {
     let sources = mandate_content::bundle::read_dir_sources(root)
         .map_err(|e| format!("reading {}: {e}", root.display()))?;
     if let Some(dir) = &args.check_corpus {
-        let found = corpus_text_findings(dir)?;
+        let mut found = corpus_text_findings(dir)?;
+        if let Ok((b, _)) = mandate_content::load(&sources) {
+            found.extend(corpus_relevance_findings(dir, &b)?);
+        }
         print_text_findings(&found);
         if args.strict && !found.is_empty() {
             return Err(format!("content doctor: {} text problem(s)", found.len()));
@@ -2750,7 +2884,8 @@ pub fn run(root: &Path, args: &DoctorArgs) -> Result<(), String> {
             .map_err(|issues| {
                 format!("{} content error(s); run `content validate`", issues.len())
             })?;
-        let counts = crate::corpus::run(content, dir, args.seeds, args.years, &args.source)?;
+        let counts =
+            crate::corpus::run(content.clone(), dir, args.seeds, args.years, &args.source)?;
         use std::io::Write;
         let _ = writeln!(
             std::io::stdout().lock(),
@@ -2759,7 +2894,8 @@ pub fn run(root: &Path, args: &DoctorArgs) -> Result<(), String> {
         );
         // What reads wrong in it (only when it was rendered).
         if dir.join("corpus.jsonl").exists() {
-            let found = corpus_text_findings(dir)?;
+            let mut found = corpus_text_findings(dir)?;
+            found.extend(corpus_relevance_findings(dir, &content)?);
             print_text_findings(&found);
         }
         return Ok(());
@@ -3104,5 +3240,91 @@ mod tests {
             "{}",
             found[0].message
         );
+    }
+
+    #[test]
+    fn replies_that_ignore_the_subject_are_found() {
+        let mut s = base_sources();
+        s.push(Source {
+            path: "base/planted_lines.jsonc".into(),
+            text: r#"{ "kind": "talk_lines", "items": [
+  { "id": "line.planted.about_anything", "part": "substance", "topic": "topic.about",
+    "key": "talk-planted-anything",
+    "when": [ { "type": "opinion", "slot": "speaker", "min": -15 } ] },
+  { "id": "line.planted.about_hood_drift", "part": "substance", "topic": "topic.about",
+    "key": "talk-planted-drift",
+    "when": [ { "type": "tells", "subject": { "type": "hood_concerns", "of": "about" }, "min": "known" } ] },
+  { "id": "line.planted.about_hood_ok", "part": "substance", "topic": "topic.about",
+    "key": "talk-planted-drift",
+    "when": [ { "type": "about", "kinds": ["hood"] },
+              { "type": "tells", "subject": { "type": "hood_concerns", "of": "about" }, "min": "known" } ] }
+] }"#
+                .into(),
+        });
+        s.push(Source {
+            path: "base/locale/en/planted.ftl".into(),
+            text: "talk-planted-anything = \"Lovely weather.\"\n\
+                   talk-planted-drift = \"Round { $hood } it's { $concern_talk }.\"\n"
+                .into(),
+        });
+        let r = diagnose(&s, &quick());
+        assert!(
+            r.has("subject-unread", "line.planted.about_anything"),
+            "{}",
+            human(&r)
+        );
+        assert!(
+            r.has("subject-drift", "line.planted.about_hood_drift"),
+            "{}",
+            human(&r)
+        );
+        assert!(!r.has("subject-drift", "line.planted.about_hood_ok"));
+        // The base pack answers what it is asked.
+        let base = diagnose(&base_sources(), &quick());
+        let off: Vec<_> = base
+            .findings
+            .iter()
+            .filter(|f| f.check == "subject-unread" || f.check == "subject-drift")
+            .collect();
+        assert!(off.is_empty(), "{off:#?}");
+    }
+
+    /// The owner's report (2026-11-20): asked about the newspaper office, a
+    /// reporter talked about the cost of living. In a corpus, a reply to
+    /// "Ask about…" that does not name the place is found; a fallback (a
+    /// deflection) is not.
+    #[test]
+    fn a_corpus_reply_that_does_not_name_the_place_asked_about_is_found() {
+        let dir = std::env::temp_dir().join(format!("doctor-relevance-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let item = |id: &str, text: &str| {
+            serde_json::json!({
+                "kind": "talk", "part": "substance", "id": id, "text": text, "key": "k",
+                "args": { "about_key": "talk-place-news_office", "speaker": "Ada Moss" },
+                "situation": { "topic": "topic.about", "about": { "hood": "Old Quay", "place": "news_office" } }
+            })
+            .to_string()
+        };
+        std::fs::write(
+            dir.join("corpus.jsonl"),
+            [
+                item(
+                    "line.about.hood",
+                    "\"Old Quay's my end of town. It's the rent.\"",
+                ),
+                item(
+                    "line.about.place.own.press",
+                    "\"You mean the newspaper office? Two desks, one kettle.\"",
+                ),
+                item("line.about.shrug", "\"Can't say I know much about that.\""),
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        let b = mandate_content::load(&base_sources()).unwrap().0;
+        let found = corpus_relevance_findings(&dir, &b).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(found.len(), 1, "{found:#?}");
+        assert_eq!(found[0].item, "talk line.about.hood");
     }
 }
