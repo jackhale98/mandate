@@ -23,6 +23,7 @@ import {
   englishFtl,
   isDevless,
   newGame,
+  probeDevTools,
   type DevKind,
 } from "./devClient";
 import { ExplainTree } from "./ExplainTree";
@@ -205,6 +206,10 @@ export function DesignerPage() {
     void (async () => {
       try {
         await client.ready;
+        if (!(await probeDevTools(client))) {
+          setStatus({ kind: "devless" });
+          return;
+        }
         setTr(new Translator("en", await englishFtl(client)));
         const runs = await saveStore()
           .listRuns()

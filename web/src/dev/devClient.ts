@@ -51,7 +51,22 @@ export async function devExplain(
 
 /** The engine was built without `dev-tools` (it does not know the dev queries). */
 export function isDevless(e: unknown): boolean {
-  return e instanceof EngineError && e.code === "bad_request" && /unknown variant `dev_catalog`/.test(e.message);
+  return e instanceof EngineError && e.code === "bad_request" && /unknown variant `dev_/.test(e.message);
+}
+
+/**
+ * Whether the engine answers dev queries. A release engine cannot even read
+ * one, so its error carries no request id and never reaches the caller: ask
+ * something cheap (an explanation of nothing, before any game) and wait a
+ * little. A dev engine answers at once, with an error.
+ */
+export async function probeDevTools(client: EngineClient, waitMs = 8000): Promise<boolean> {
+  const answer = devExplain(client, "none", "", null, null).then(
+    () => true,
+    (e: unknown) => !isDevless(e),
+  );
+  const silence = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), waitMs));
+  return Promise.race([answer, silence]);
 }
 
 /** A new game for the workbench (its own engine; nothing is saved). */

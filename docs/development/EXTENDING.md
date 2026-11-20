@@ -265,6 +265,21 @@ cargo run --release -p mandate-cli -- content doctor --seeds 0 --json   # static
 
 `--strict` exits non-zero on errors. CI runs the doctor as a report step only, until the base pack's counts are clean.
 
+**The rendered-text corpus** (`--corpus <dir>`) is for reading content through, the way a player meets it, to catch lines that do not make sense or read oddly:
+
+```text
+cargo run --release -p mandate-cli -- content doctor --corpus /tmp/corpus --seeds 12 --years 4
+```
+
+It plays the careers (rotating scenarios, storytellers and bot strategies) and writes every piece of player-visible prose: dilemma titles, situations, options with their trade-off lines, reasons and aftermaths; scene beats as the place shows them; storyline steps; press headlines; overheard lines; conversations (every line that holds for every speaker in town, passers-by included, on every topic and kind of subject, in the speaker's voice, plus the exchanges the bots really had, with what they taught and their outcome); notebook entries, sources, gaps and leads; and outcome lines (the action log, aftermath lines). Text is rendered by the game's own Fluent code (the web `Translator` and the screens' helpers, run with Vitest from `web/src/dev/corpus/`), with the real arguments.
+
+Each item carries its **situation**: seed, date, strategy and storyteller, the town and its class; the speaker (role or post word, voice, traits, opinion band, strongest convictions, home neighbourhood and its worries); where; the topic and subject (with the truth about it: a bill's status and the town's support, a neighbourhood's worries); the template or line id; and the town's truth at that moment (top worries, live crisis, broker, rival, the player's post). Identical renderings are kept once; different argument fills are kept (up to six per line and voice). Files:
+
+- `corpus.jsonl`: one rendered item per line (`kind`, `part`, `id`, `voice`, `text`, `key`, `args`, `situation`, `flags`).
+- `corpus.md`: the same, grouped by kind and id, with the situation under each line.
+- `counts.json`: items and ids per kind, flags (a missing key `⟦…⟧`, an unfilled `{$x}`, doubled spaces), and the line × voice coverage: pairs a speaker could say, pairs sampled, lines that never held.
+- `raw.jsonl`: the keys and arguments before rendering. Rendering needs `web/node_modules`; without it the command stops after this file.
+
 **The designer page** shows one game at a time: open the app with `?dev=1` under `npm run dev` (optionally `&seed=…`). It needs an engine built with the `dev-tools` feature (the release engine never has it, and the page says so):
 
 ```text
