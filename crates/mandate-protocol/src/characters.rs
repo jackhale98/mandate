@@ -277,8 +277,14 @@ pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
     let st = engine.state();
     let p = characters::profile(&st.politics, &st.world, id)?;
     let (mut role, _, _) = role_key(engine, id);
-    if role.is_empty() {
-        role = occupation_key(engine, p.occupation.as_deref());
+    // A politician with no post and no race ("Out of office") is shown by
+    // their trade when they have one: the label is for the player's own
+    // standing, and read as an auto-reply over a passer-by's head.
+    if role.is_empty() || role == "role-private" {
+        let job = occupation_key(engine, p.occupation.as_deref());
+        if !job.is_empty() || role.is_empty() {
+            role = job;
+        }
     }
     Some(PersonRefView {
         id: Some(id.0),
