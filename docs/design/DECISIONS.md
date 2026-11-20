@@ -105,6 +105,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-096 | The power broker acts: lobbies, backs people, and helps or hinders the player | Accepted |
 | DEC-097 | Engagement and variety: ground-game rebalance, asks and promises, storyteller variety, secrets and walking rewards, an engagement gate | Accepted |
 | DEC-098 | Built for every tier: offices from the constitution, jurisdiction keys, what becomes data, one condition language | Accepted |
+| DEC-099 | Works you can see: funded projects change the town physically, stall and decay if abandoned, and carry your name | Accepted |
 
 ---
 
@@ -2308,3 +2309,43 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - R2 runs after R1, beside the asks work.
   - X1 is a lab timing check of layout v2 on a regional capital (any time).
 - **Dependencies:** DEC-006, DEC-017, DEC-020, DEC-036, DEC-039, DEC-041, DEC-051, DEC-075, DEC-076, DEC-077, DEC-078, DEC-087, DEC-097.
+
+### DEC-099 — Works you can see
+
+- **Status:** Accepted (owner, 2026-11-20: "Yes let's do it"). The owner asked for "showing physical changes in the region you are working. So getting funding for a bridge improvement, more mine jobs, etc actually shows a change on the map so you feel more connection to it not just from your polling numbers". They added: "an impact shown if a work is started but you don't manage to finish so it sits partly done and starts to decay".
+- **Context:**
+  - The town plan never moves. A dress pass (DEC-090 D2, TOWN_GENERATION §9.2) already shows built, reserved, construction, boarded and derelict plots, and closed works.
+  - What is missing is the link from a player's policies to a visible change, and from that change back to the player.
+- **Decision:**
+  1. **Works projects (engine).** A funded physical policy option creates a works project at a real spot: a bridge connector, a district's flood edge, a free civic or works slot, the mine.
+     - **Phases:** approved → under construction (a duration) → open → ageing.
+     - **Data-driven:** works kinds are declared by policy families and options in content, giving kind, where, duration and cost profile.
+     - **Records:** sponsor and voters (feeding V1 credit), plus the jurisdiction (DEC-098).
+     - **Determinism:** deterministic, and keyed to the plan's slots so nothing ever moves.
+  2. **Stalled and abandoned works.** A project stalls when any of these happens:
+     - its funding is cut or the budget runs dry;
+     - the policy is repealed;
+     - a successor cancels it;
+     - a contractor fails (a keyed risk).
+
+     Effects of a stall:
+     - **On the map:** the site stays half-built, with fencing, an idle crane and exposed frame. It then decays over months: rust, weeds, graffiti, a collapsed fence.
+     - **In politics:** it is a local grievance for nearby neighbourhoods. The press runs "bridge to nowhere" stories and the rival gets material. Blame attaches to the sponsor through V1.
+
+     A stalled project can be resumed at extra cost, or cleared. Either is a decision with trade-offs (DEC-073).
+  3. **The map and street show it (dress pass):**
+     - while building: works fencing, cones, scaffolding, cranes, closed lanes;
+     - when open: new bridge decks, flood walls and levees, a new clinic in its slot, a busier mine (turning headframe, lorries);
+     - jobs: more workers at gates and lit windows when jobs grow; shops opening in booming districts, with decline as the mirror image;
+     - abandoned works: the decay states in item 2;
+     - townsfolk density follows activity.
+  4. **The connection to the player:**
+     - a Today item when work starts, stalls or opens, with **"See it"**, which walks there or zooms the map;
+     - an optional opening ceremony (an action: awareness and a press story);
+     - a **plaque with the sponsor's name** at finished works, found by walking past them. Plaques are curiosities (DEC-097 §5).
+  5. **Later, M7:** regional projects show on the country map.
+- **Order:**
+  - The works art kit (pixelkit) starts now, including stalled and decay variants.
+  - The engine works model is part of **F2b** (policy families in the simulation, which create the money and mechanisms).
+  - The dress pass, the street, Today and "See it" follow **F3**.
+- **Dependencies:** DEC-051, DEC-073, DEC-084, DEC-085, DEC-090, DEC-092, DEC-094, DEC-097, DEC-098.
