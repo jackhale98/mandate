@@ -13,6 +13,8 @@ pub mod economy;
 pub mod engine;
 pub mod environment;
 pub mod events;
+#[cfg(feature = "explain")]
+pub mod explain;
 pub mod finance;
 pub mod justice;
 pub mod media;

@@ -16,3 +16,8 @@ proptest = "1.12.0"
 
 [lints]
 workspace = true
+
+[features]
+# The content workbench's explanations (`explain`): the lab and dev builds
+# only, so the release engine compiles exactly as without them.
+explain = []

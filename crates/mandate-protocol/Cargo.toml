@@ -16,3 +16,7 @@ mandate-content = { version = "0.1.0", path = "../mandate-content", features = [
 
 [lints]
 workspace = true
+
+[features]
+# The content workbench's dev queries (`dev.rs`): off in the release engine.
+dev-tools = ["mandate-sim/explain"]

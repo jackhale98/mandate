@@ -53,11 +53,11 @@ fn location_key(loc: Location) -> u64 {
     }
 }
 
-struct Ctx<'a> {
-    st: &'a State,
-    content: &'a ContentBundle,
-    m: u32,
-    hood: usize,
+pub(crate) struct Ctx<'a> {
+    pub(crate) st: &'a State,
+    pub(crate) content: &'a ContentBundle,
+    pub(crate) m: u32,
+    pub(crate) hood: usize,
 }
 
 fn in_range(v: f64, min: Option<f64>, max: Option<f64>) -> bool {
@@ -111,7 +111,7 @@ impl Ctx<'_> {
     }
 
     /// Does a condition hold? Adds its arguments when it does.
-    fn holds(
+    pub(crate) fn holds(
         &self,
         c: &HeardCondition,
         args: &mut BTreeMap<String, String>,

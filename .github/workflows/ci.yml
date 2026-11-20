@@ -105,6 +105,11 @@ jobs:
         run: cargo run -q --release -p mandate-cli -- sweep --seeds 8 --years 20 > /dev/null
       - name: Bot players (the gate ladder, DEC-097 balance principle; ENGAGEMENT §7.2)
         run: cargo run -q --release -p mandate-cli -- bots --seeds 16 > bots.json || (cat bots.json; exit 1)
+      # TODO(content workbench): make this blocking (add --strict, drop
+      # continue-on-error) once the doctor reports no errors on the base pack.
+      - name: Content doctor (report only, non-blocking)
+        continue-on-error: true
+        run: cargo run -q --release -p mandate-cli -- content doctor --seeds 8 --years 2
       - uses: actions/download-artifact@v4
         with:
           name: engine-pkg

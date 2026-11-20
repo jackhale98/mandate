@@ -245,6 +245,52 @@ Example: `cargo run --release -p mandate-cli -- bots --seeds 32 --grid politics.
 
 Base-content results must not change: compare the `sweep`, `bots`, and `trace-econ` output, and decoded saves, before and after the change.
 
+### Checking your content (the content workbench)
+
+`content validate` says whether a pack is well formed. Two lab tools say whether it *works*: whether each item can come up, how often it does, and how it reads on a phone.
+
+**`content doctor`** reports problems across the pack, with severities (error, warn, info), a summary table, coverage by kind, and findings filed under the file that defines each item:
+
+```text
+cargo run --release -p mandate-cli -- content doctor --seeds 16 --years 4
+cargo run --release -p mandate-cli -- content doctor --seeds 0 --json   # static checks only, as JSON
+```
+
+- **Can never fire** (error): contradictory or impossible bounds (`min` above `max`, an opinion above 100), conditions that contradict each other in one list (`office` mayor and none, two `track` bounds that do not meet, `dry` with `water`), a line's conditions together with its voice's or its topic's, references to ids that do not exist, requests no goal raises, scenes no dilemma presents, and roles or places no generated town had (`no-town-has`, from the careers).
+- **Never fired** (warn): items that did not come up in N bot-played careers (`--seeds`, `--years`, `--strategy`, default `mixed`): dilemmas, situational policies, storylines and each of their steps, scenes, overheard lines, topics, conversation lines and voices. A line whose conditions held for someone but that was never picked is an info.
+- **Fires too often** (warn): in more than 60% of careers (`--often-careers`), or more than 25% of the picks of its kind and 2.5 times its fair share (`--often-share`).
+- **Fluent**: keys content references but English lacks (error; the doctor stubs them so the rest can still be checked), keys the engine names but English lacks (warn, a scan of `crates/*/src`), keys nothing references (info; content, other messages, engine and UI literals and the prefixes keys are built from count as references), and arguments a message uses that its caller never supplies (dilemma, storyline and scene casts; overheard conditions).
+- **Too long** (warn): titles over 60 characters, lines over 280, situations and aftermaths over 600 (`--max-title`, `--max-line`, `--max-body`), rendered with long representative names and the longest variant of every selector.
+- **Voice**: a closer whose voice's speakers never have the line's roles, a substance line for roles its topic is never offered to, a voice that an unconditional voice of higher priority always beats, and (from the careers) voice and role pairs never met.
+
+`--strict` exits non-zero on errors. CI runs the doctor as a report step only, until the base pack's counts are clean.
+
+**The rendered-text corpus** (`--corpus <dir>`) is for reading content through, the way a player meets it, to catch lines that do not make sense or read oddly:
+
+```text
+cargo run --release -p mandate-cli -- content doctor --corpus /tmp/corpus --seeds 12 --years 4
+```
+
+It plays the careers (rotating scenarios, storytellers and bot strategies) and writes every piece of player-visible prose: dilemma titles, situations, options with their trade-off lines, reasons and aftermaths; scene beats as the place shows them; storyline steps; press headlines; overheard lines; conversations (every line that holds for every speaker in town, passers-by included, on every topic and kind of subject, in the speaker's voice, plus the exchanges the bots really had, with what they taught and their outcome); notebook entries, sources, gaps and leads; and outcome lines (the action log, aftermath lines). Text is rendered by the game's own Fluent code (the web `Translator` and the screens' helpers, run with Vitest from `web/src/dev/corpus/`), with the real arguments.
+
+Each item carries its **situation**: seed, date, strategy and storyteller, the town and its class; the speaker (role or post word, voice, traits, opinion band, strongest convictions, home neighbourhood and its worries); where; the topic and subject (with the truth about it: a bill's status and the town's support, a neighbourhood's worries); the template or line id; and the town's truth at that moment (top worries, live crisis, broker, rival, the player's post). Identical renderings are kept once; different argument fills are kept (up to six per line and voice). Files:
+
+- `corpus.jsonl`: one rendered item per line (`kind`, `part`, `id`, `voice`, `text`, `key`, `args`, `situation`, `flags`).
+- `corpus.md`: the same, grouped by kind and id, with the situation under each line.
+- `counts.json`: items and ids per kind, flags (a missing key `⟦…⟧`, an unfilled `{$x}`, doubled spaces), and the line × voice coverage: pairs a speaker could say, pairs sampled, lines that never held.
+- `raw.jsonl`: the keys and arguments before rendering. Rendering needs `web/node_modules`; without it the command stops after this file.
+
+**The designer page** shows one game at a time: open the app with `?dev=1` under `npm run dev` (optionally `&seed=…`). It needs an engine built with the `dev-tools` feature (the release engine never has it, and the page says so):
+
+```text
+cargo build -p mandate-wasm --target wasm32-unknown-unknown --profile release-wasm --features dev-tools
+wasm-bindgen target/wasm32-unknown-unknown/release-wasm/mandate_wasm.wasm --out-dir web/src/engine/pkg --target web --omit-default-module-path
+```
+
+It starts a new game from the seed, or loads a copy of the current run's save (never written back), and can pass turns in its own sandbox. It lists every dilemma, situational policy, storyline, scene, overheard line, topic, conversation line and voice, with search and filters by kind and by whether it could fire now. For the item you pick, the engine answers `QueryDto::DevExplain`: the gates and conditions as a tree, each with the engine's own verdict (✓ or ✗) and the values the evaluator read; the cast it found (or, to preview something that cannot fire, a forced cast); and the text rendered with its real arguments, including a dilemma's options and their trade-off lines. Conversation items are explained for a speaker you pick, overheard lines at a place where people talk. A `vite build --mode devtools` bundle carries the page too; a normal build drops it.
+
+The explanations come from `mandate_sim::explain`: one small adapter per condition language (`Explainer` for `Condition`, `SituationCondition`, `HeardCondition`), each answering with the language's own evaluator. When the languages are unified (DEC-098 §5) one adapter replaces the three.
+
 ## Code extension points
 
 Each of these is a closed enum by design, because new behaviour needs code. Adding one is one enum variant, one handler, content that uses it, and a test.
