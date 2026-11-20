@@ -825,8 +825,10 @@ fn unlearned(e: &Engine, place: mandate_sim::world::PlaceId, verb: &str) -> bool
     use mandate_sim::player::knowledge::Subject;
     let st = e.state();
     let content = e.content();
-    let (Some(def), Some(p)) = (content.actions.visit.verb(verb), st.world.places.get(place.index()))
-    else {
+    let (Some(def), Some(p)) = (
+        content.actions.visit.verb(verb),
+        st.world.places.get(place.index()),
+    ) else {
         return false;
     };
     let k = Knowing::of(e);
@@ -837,10 +839,12 @@ fn unlearned(e: &Engine, place: mandate_sim::world::PlaceId, verb: &str) -> bool
         };
         grants.iter().any(|g| {
             let s = match g.subject {
-                G::Sector => kind.and_then(|d| d.sector.clone()).map(|sector| Subject::Sector {
-                    town: p.municipality,
-                    sector,
-                }),
+                G::Sector => kind
+                    .and_then(|d| d.sector.clone())
+                    .map(|sector| Subject::Sector {
+                        town: p.municipality,
+                        sector,
+                    }),
                 G::Site => Some(Subject::Site { place }),
                 G::Service => Some(Subject::Service { place }),
                 _ => None,
@@ -898,8 +902,10 @@ fn learning_visit(e: &mut Engine) -> bool {
 /// things while that is a rumour. Returns whether any time went on it.
 /// With `all` (the `explore_only` probe) it only finds out: walks, meets and
 /// asks, and never campaigns (canvassing teaches too, but it is the ground
-/// game), and nothing else is ever done.
-fn explore(e: &mut Engine, content: &ContentBundle, all: bool) -> bool {
+/// game), and nothing else is ever done. With `visits` (the coalition
+/// builder, who goes where people work) it also visits the works, fields
+/// and services to learn what they teach and meet the people there.
+fn explore(e: &mut Engine, content: &ContentBundle, all: bool, visits: bool) -> bool {
     tour(e);
     meet_passers_by(e, content, all);
     let mut busy = false;
@@ -918,7 +924,7 @@ fn explore(e: &mut Engine, content: &ContentBundle, all: bool) -> bool {
                 "topic.worries"
             };
             talk(e, p, topic) || talk(e, p, "topic.worries")
-        } else if !all {
+        } else if visits && !all {
             // The town's works, fields and services (places with purpose).
             learning_visit(e)
         } else {
@@ -1142,7 +1148,7 @@ pub fn play_turn_from(e: &mut Engine, content: &ContentBundle, strategy: &str, s
     if strategy == "explore_only" {
         // Only learning: no decisions answered, no campaigning, no rest.
         if e.state().player.as_ref().is_some_and(|p| p.status.active()) {
-            explore(e, content, true);
+            explore(e, content, true, false);
         }
         return;
     }
@@ -1173,7 +1179,7 @@ pub fn play_turn_from(e: &mut Engine, content: &ContentBundle, strategy: &str, s
     // The informed styles' first turns go on learning the town; then each
     // plays its own way (`explorer`: the mix).
     if is_informed(strategy) && exploring(e, start_turn) {
-        explore(e, content, false);
+        explore(e, content, false, strategy == "explorer_coalition");
     }
     for _ in 0..3 {
         let slots = e

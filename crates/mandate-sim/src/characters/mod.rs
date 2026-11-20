@@ -1208,9 +1208,11 @@ pub fn seed_named(
         .flat_map(|r| slots.iter().map(move |s| (*r, *s)))
         .collect();
     for (round, (key, hood, place, kind)) in slots {
-        for o in content.occupations.iter().filter(|o| {
-            o.round == round && o.chance > 0.0 && o.places.iter().any(|k| k == kind)
-        }) {
+        for o in content
+            .occupations
+            .iter()
+            .filter(|o| o.round == round && o.chance > 0.0 && o.places.iter().any(|k| k == kind))
+        {
             let mut r = rng(seed, &[KEY_NAMED, key, key_of(&o.id)]);
             if !r.chance(o.chance) {
                 continue;

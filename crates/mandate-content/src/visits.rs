@@ -230,10 +230,16 @@ fn check_effects(b: &ContentBundle, owner: &str, fx: &[VisitEffect], issues: &mu
                     }
                 }
                 if *level == Level::Unknown {
-                    issues.push(Issue::error(owner, "people are met to heard, known or detailed"));
+                    issues.push(Issue::error(
+                        owner,
+                        "people are met to heard, known or detailed",
+                    ));
                 }
                 if !opinion.is_finite() || opinion.abs() > 10.0 {
-                    issues.push(Issue::error(owner, "a visit's opinion change is within ±10"));
+                    issues.push(Issue::error(
+                        owner,
+                        "a visit's opinion change is within ±10",
+                    ));
                 }
             }
             VisitEffect::Awareness { amount, among } | VisitEffect::Approval { amount, among } => {
@@ -270,7 +276,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             issues.push(Issue::error(owner, "duplicate verb id"));
         }
         if d.name_key.is_empty() || d.outcome_key.is_empty() {
-            issues.push(Issue::error(owner, "a verb needs a name and an outcome key"));
+            issues.push(Issue::error(
+                owner,
+                "a verb needs a name and an outcome key",
+            ));
         }
         if !d.health.is_finite() || !(0.0..=20.0).contains(&d.health) {
             issues.push(Issue::error(owner, "health cost within [0, 20]"));
@@ -340,7 +349,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         if let Some(s) = &p.sector
             && b.sector(s).is_none()
         {
-            issues.push(Issue::warning(&p.id, &format!("unknown sector `{s}` (its verbs read nothing for it)")));
+            issues.push(Issue::warning(
+                &p.id,
+                &format!("unknown sector `{s}` (its verbs read nothing for it)"),
+            ));
         }
         for c in &p.addresses {
             if b.concern_index(c).is_none() {
@@ -353,7 +365,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         // A verb that teaches about the place's industry or service needs the
         // kind to name them.
         for d in p.verbs.iter().filter_map(|id| v.verb(id)) {
-            let grants = d.effects.iter().chain(d.risk.iter().flat_map(|r| &r.effects));
+            let grants = d
+                .effects
+                .iter()
+                .chain(d.risk.iter().flat_map(|r| &r.effects));
             for g in grants.flat_map(|e| match e {
                 VisitEffect::Learn { grants } => grants.as_slice(),
                 _ => &[],
@@ -362,13 +377,19 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 if g.subject == G::Sector && p.sector.is_none() {
                     issues.push(Issue::error(
                         &p.id,
-                        &format!("verb `{}` teaches the place's industry: the kind needs a `sector`", d.id),
+                        &format!(
+                            "verb `{}` teaches the place's industry: the kind needs a `sector`",
+                            d.id
+                        ),
                     ));
                 }
                 if g.subject == G::Service && p.addresses.is_empty() {
                     issues.push(Issue::error(
                         &p.id,
-                        &format!("verb `{}` teaches the service's need: the kind needs `addresses`", d.id),
+                        &format!(
+                            "verb `{}` teaches the service's need: the kind needs `addresses`",
+                            d.id
+                        ),
                     ));
                 }
             }

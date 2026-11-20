@@ -75,7 +75,7 @@ learned-talk = Talking with { $person }
 learned-lab = The lab
 
 # Places with purpose (PL1): what a visit teaches.
-notebook-sector = { $sector_key } in { $town }: { $outlook ->
+notebook-sector = { $sector } in { $town }: { $outlook ->
         [growing] taking people on
         [shedding] letting people go
         [steady] steady

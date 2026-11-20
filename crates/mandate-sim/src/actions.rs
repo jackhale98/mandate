@@ -60,7 +60,9 @@ pub enum Action {
     /// note): a verb id from `actions.jsonc` `visit.verbs`, e.g.
     /// `verb.tour_works`. Its cost, conditions, effects and risk are data
     /// (`crate::visits`).
-    Visit { verb: String },
+    Visit {
+        verb: String,
+    },
 }
 
 impl Action {

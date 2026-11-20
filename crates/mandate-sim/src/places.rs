@@ -38,7 +38,10 @@ pub enum Location {
 /// variant) or an information service.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Offer<'a> {
-    Action { key: &'a str, late_night: bool },
+    Action {
+        key: &'a str,
+        late_night: bool,
+    },
     Service(&'a str),
     /// A verb of the visit action (places with purpose): a verb id.
     Verb(&'a str),

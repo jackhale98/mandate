@@ -116,7 +116,11 @@ fn touring_the_works_lands_in_the_ledger() {
     assert_eq!(level(&e, &sector), Level::Unknown);
     // The panel lists the verb, available, with its cost.
     let panel = place_panel_view(&e, LocationDto::of(Location::Place { place: factory })).unwrap();
-    let tour = panel.verbs.iter().find(|v| v.verb == "verb.tour_works").unwrap();
+    let tour = panel
+        .verbs
+        .iter()
+        .find(|v| v.verb == "verb.tour_works")
+        .unwrap();
     assert!(tour.available, "{:?}", tour.blocked_key);
     assert_eq!(tour.halves, 2);
     let slots = e.state().player.as_ref().unwrap().slots_left();
@@ -178,7 +182,10 @@ fn a_visits_shown_odds_are_the_odds_rolled() {
             .unwrap();
         let odds = visits::risk(t.state(), &c, factory, &def).unwrap();
         assert_eq!(shown, odds, "the panel shows the engine's odds");
-        assert!(odds >= def.risk.as_ref().unwrap().base + 0.29, "shedding adds risk: {odds}");
+        assert!(
+            odds >= def.risk.as_ref().unwrap().base + 0.29,
+            "shedding adds risk: {odds}"
+        );
         let expect = visits::goes_wrong(t.state(), factory, &def.id, odds);
         let res = visit(&mut t, &def.id).unwrap();
         let heckled = res.outcome_key == "outcome-verb-photo_op_gate-heckled";
@@ -243,14 +250,16 @@ fn verbs_follow_the_hours_and_who_is_there() {
     for _ in 0..8 {
         morning(&mut e);
         let now = Now::of(e.state(), &c);
-        let in_school = routines::present(e.state(), &c, &now, loc).into_iter().any(|p| {
-            e.state()
-                .politics
-                .characters
-                .get(p)
-                .and_then(|x| x.named.as_deref())
-                .is_some_and(|n| n.occupation == "occupation.head_teacher")
-        });
+        let in_school = routines::present(e.state(), &c, &now, loc)
+            .into_iter()
+            .any(|p| {
+                e.state()
+                    .politics
+                    .characters
+                    .get(p)
+                    .and_then(|x| x.named.as_deref())
+                    .is_some_and(|n| n.occupation == "occupation.head_teacher")
+            });
         if in_school {
             let res = visit(&mut e, "verb.talk_to_head").unwrap();
             assert!(res.args.contains_key("name"));
@@ -326,7 +335,8 @@ fn named_people_work_at_these_places_and_routines_bring_them_there() {
                 e.setup(|s| s.player.as_mut().unwrap().slots_used = used);
                 let now = Now::of(e.state(), &c);
                 for (p, s) in &found {
-                    let here = routines::present(e.state(), &c, &now, Location::Place { place: *p });
+                    let here =
+                        routines::present(e.state(), &c, &now, Location::Place { place: *p });
                     met.extend(s.iter().filter(|x| here.contains(x)).copied());
                 }
             }
@@ -339,7 +349,10 @@ fn named_people_work_at_these_places_and_routines_bring_them_there() {
             );
         }
     }
-    assert!(seen_kinds.len() >= 4, "too few kinds sampled: {seen_kinds:?}");
+    assert!(
+        seen_kinds.len() >= 4,
+        "too few kinds sampled: {seen_kinds:?}"
+    );
 }
 
 #[test]
@@ -362,7 +375,10 @@ fn people_seeded_later_append_ids() {
     assert!(first1 != u32::MAX, "no round-1 people");
     // Named people of round 0 are all seeded before round 1 (passers-by
     // promoted later have later ids, and none exist yet).
-    assert!(last0 < first1, "round 0 ends at {last0}, round 1 starts at {first1}");
+    assert!(
+        last0 < first1,
+        "round 0 ends at {last0}, round 1 starts at {first1}"
+    );
 }
 
 /// The base pack with its local posts renamed (as in the save crate's
@@ -450,8 +466,7 @@ fn the_public_gallery_of_a_regional_assembly() {
         .expect("medium seed 7's town is a regional capital");
     go(&mut e, assembly);
     morning(&mut e);
-    let panel =
-        place_panel_view(&e, LocationDto::of(Location::Place { place: assembly })).unwrap();
+    let panel = place_panel_view(&e, LocationDto::of(Location::Place { place: assembly })).unwrap();
     let gallery = panel
         .verbs
         .iter()

@@ -24,9 +24,7 @@ use crate::player::knowledge::{self, Grant, Level, Subject};
 use crate::state::State;
 use crate::world::{MunicipalityId, Place, PlaceId};
 use mandate_content::routines::DayPart;
-use mandate_content::visits::{
-    VisitAmong, VisitEffect, VisitReach, VisitTime, VisitVerbDef,
-};
+use mandate_content::visits::{VisitAmong, VisitEffect, VisitReach, VisitTime, VisitVerbDef};
 use mandate_content::{ContentBundle, PlaceKindDef};
 use mandate_core::Stream;
 use mandate_core::math::clamp;
@@ -98,13 +96,8 @@ pub fn verbs_at<'a>(
     for d in &content.places {
         for v in &d.verbs {
             if !ids.contains(&v.as_str())
-                && crate::places::locations_for(
-                    state,
-                    content,
-                    crate::places::Offer::Verb(v),
-                    None,
-                )
-                .contains(&loc)
+                && crate::places::locations_for(state, content, crate::places::Offer::Verb(v), None)
+                    .contains(&loc)
             {
                 ids.push(v);
             }
@@ -210,7 +203,12 @@ pub fn availability(
 
 /// How far a town's industry is working to its capacity at neutral demand
 /// (jobs over capacity; 1 when it has none).
-pub fn sector_use(state: &State, content: &ContentBundle, town: MunicipalityId, sector: &str) -> f64 {
+pub fn sector_use(
+    state: &State,
+    content: &ContentBundle,
+    town: MunicipalityId,
+    sector: &str,
+) -> f64 {
     let Some(k) = content.sector_index(sector) else {
         return 1.0;
     };
@@ -228,11 +226,20 @@ pub fn sector_use(state: &State, content: &ContentBundle, town: MunicipalityId, 
 pub fn shedding(state: &State, content: &ContentBundle, town: MunicipalityId, sector: &str) -> f64 {
     let o = &content.actions.visit.outlook;
     let u = sector_use(state, content, town, sector);
-    clamp((o.shedding - u) / (o.shedding - o.shed_full).max(1e-6), 0.0, 1.0)
+    clamp(
+        (o.shedding - u) / (o.shedding - o.shed_full).max(1e-6),
+        0.0,
+        1.0,
+    )
 }
 
 /// An industry's outlook in words: `growing` | `steady` | `shedding`.
-pub fn outlook_band(state: &State, content: &ContentBundle, town: MunicipalityId, sector: &str) -> &'static str {
+pub fn outlook_band(
+    state: &State,
+    content: &ContentBundle,
+    town: MunicipalityId,
+    sector: &str,
+) -> &'static str {
     let o = &content.actions.visit.outlook;
     let u = sector_use(state, content, town, sector);
     if u >= o.growing {
@@ -246,7 +253,12 @@ pub fn outlook_band(state: &State, content: &ContentBundle, town: MunicipalityId
 
 /// The chance a verb goes wrong at a place now (`None`: it cannot). The
 /// command rolls exactly this (DEC-073: odds shown are odds rolled).
-pub fn risk(state: &State, content: &ContentBundle, place: PlaceId, def: &VisitVerbDef) -> Option<f64> {
+pub fn risk(
+    state: &State,
+    content: &ContentBundle,
+    place: PlaceId,
+    def: &VisitVerbDef,
+) -> Option<f64> {
     let r = def.risk.as_ref()?;
     let p = state.world.places.get(place.index())?;
     let m = p.municipality.0;
@@ -340,7 +352,11 @@ pub fn site_reading(state: &State, place: PlaceId) -> Vec<(String, i32)> {
 /// A service's need reading: its neighbourhood's felt level of each concern
 /// the place kind addresses (per mille), the quantity F7's need term reads
 /// (DEC-092 §2.22).
-pub fn service_reading(state: &State, content: &ContentBundle, place: PlaceId) -> Vec<(String, i32)> {
+pub fn service_reading(
+    state: &State,
+    content: &ContentBundle,
+    place: PlaceId,
+) -> Vec<(String, i32)> {
     let Some(p) = state.world.places.get(place.index()) else {
         return Vec::new();
     };
@@ -351,14 +367,22 @@ pub fn service_reading(state: &State, content: &ContentBundle, place: PlaceId) -
     k.addresses
         .iter()
         .map(|c| {
-            let v = felt.iter().find(|(id, _)| id == c).map(|x| x.1).unwrap_or(0);
+            let v = felt
+                .iter()
+                .find(|(id, _)| id == c)
+                .map(|x| x.1)
+                .unwrap_or(0);
             (c.clone(), v)
         })
         .collect()
 }
 
 /// The dated reading of a numeric subject, now.
-pub fn reading_of(state: &State, content: &ContentBundle, s: &Subject) -> Option<Vec<(String, i32)>> {
+pub fn reading_of(
+    state: &State,
+    content: &ContentBundle,
+    s: &Subject,
+) -> Option<Vec<(String, i32)>> {
     match s {
         Subject::HoodConcerns { hood } => Some(knowledge::hood_reading(state, content, *hood)),
         Subject::Sector { town, sector } => Some(sector_reading(state, content, *town, sector)),
@@ -371,7 +395,12 @@ pub fn reading_of(state: &State, content: &ContentBundle, s: &Subject) -> Option
 // --- Effects ----------------------------------------------------------------------
 
 /// The cohorts an effect reaches: (neighbourhood index, cohort index).
-fn reached(state: &State, content: &ContentBundle, p: &Place, a: &VisitAmong) -> Vec<(usize, usize)> {
+fn reached(
+    state: &State,
+    content: &ContentBundle,
+    p: &Place,
+    a: &VisitAmong,
+) -> Vec<(usize, usize)> {
     let hoods: Vec<usize> = match a.reach {
         VisitReach::Hood => vec![p.neighborhood.index()],
         VisitReach::Town => state.world.hoods_of(p.municipality).collect(),
