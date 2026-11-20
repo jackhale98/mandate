@@ -259,8 +259,8 @@ const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.
 let skipResolve: (() => void) | null = null;
 /** An outcome held back until the walk to where it happened is over (owner: no result before arriving). */
 let heldToast: { key: string; args: Record<string, string> } | null = null;
-/** How long a walk on the street may take before the result shows anyway (a stuck route never hides it). */
-export const STREET_WALK_MAX_MS = 12_000;
+/** How long an action's walk on the street may take before the result shows anyway (the walk is brisk, about 2.5 s; a stuck route never hides the result). */
+export const STREET_WALK_MAX_MS = 4_000;
 
 /** Going somewhere or opening a sheet closes the pocket, unless it is docked open beside the town. */
 const pocketAfterMove = (s: { pocketOpen: boolean; pocketDocked: boolean }) => ({ pocketOpen: s.pocketOpen && s.pocketDocked && isWide() });

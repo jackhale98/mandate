@@ -34,6 +34,9 @@ import { Interior } from "../interior/Interior";
 import { enterable } from "../interior/recipes";
 
 /** Walk to a place picked on the town map; a new `id` is a new request. */
+/** How long an action's auto-walk takes on the street, about (seconds): brisk, then the result. */
+const ACTION_WALK_S = 2.5;
+
 export interface WalkRequest {
   location: LocationDto;
   id: number;
@@ -280,16 +283,26 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   }, [ready]);
   useEffect(() => {
     const v = viewRef.current;
-    // The store holds an action's result until the player is there (`arrived`).
+    // The store holds an action's result until the player is there (`arrived`). The walk is
+    // brisk (about ACTION_WALK_S whatever the distance), and arrival is checked every frame: a
+    // later re-route must not lose it.
     const done = () => useGame.getState().arrived();
     if (!walking || !ready || !v) return;
-    if (!v.scene.playerMoving && atLocation(v.map, walking.location, v.scene.playerCell)) return done();
+    const there = () => !v.scene.playerMoving && atLocation(v.map, walking.location, v.scene.playerCell);
+    if (there()) return done();
     const cell = coveredNow.current ? locationCell(v.map, walking.location) : null;
     if (cell !== null) {
       v.scene.placePlayer(cell);
       v.wake();
+      return done();
+    }
+    if (!v.goToLocation(walking.location, false, done, ACTION_WALK_S)) return done();
+    const off = v.addFrameListener(() => {
+      if (!there()) return;
+      off();
       done();
-    } else if (!v.goToLocation(walking.location, false, done)) done();
+    });
+    return off;
   }, [walking, ready]);
   // While the street is shown, a walk ends when the player arrives (not after a fixed time).
   useEffect(() => {
