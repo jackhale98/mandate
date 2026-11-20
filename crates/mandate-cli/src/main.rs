@@ -1,6 +1,7 @@
 //! Mandate simulation lab CLI (DEC-058). Output is JSON for scripting.
 
 mod bots;
+mod corpus;
 mod doctor;
 mod lab;
 mod mapimg;

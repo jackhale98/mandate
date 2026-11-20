@@ -76,6 +76,11 @@ pub struct DoctorArgs {
     /// (`crates/*/src`, `web/src`); empty to skip.
     #[arg(long, default_value = ".")]
     pub source: PathBuf,
+    /// Write the rendered-text corpus here instead of the report: every
+    /// piece of player-visible prose from the careers, as the player sees
+    /// it, with its situation (JSONL, Markdown, counts).
+    #[arg(long, value_name = "DIR")]
+    pub corpus: Option<PathBuf>,
 }
 
 impl Default for DoctorArgs {
@@ -93,6 +98,7 @@ impl Default for DoctorArgs {
             often_careers: 0.6,
             often_share: 0.25,
             source: PathBuf::from("."),
+            corpus: None,
         }
     }
 }
@@ -2358,6 +2364,21 @@ pub fn human(r: &Report) -> String {
 pub fn run(root: &Path, args: &DoctorArgs) -> Result<(), String> {
     let sources = mandate_content::bundle::read_dir_sources(root)
         .map_err(|e| format!("reading {}: {e}", root.display()))?;
+    if let Some(dir) = &args.corpus {
+        let content = mandate_content::load(&sources)
+            .map(|(b, _)| Arc::new(b))
+            .map_err(|issues| {
+                format!("{} content error(s); run `content validate`", issues.len())
+            })?;
+        let counts = crate::corpus::run(content, dir, args.seeds, args.years, &args.source)?;
+        use std::io::Write;
+        let _ = writeln!(
+            std::io::stdout().lock(),
+            "{}",
+            serde_json::to_string_pretty(&counts).unwrap_or_default()
+        );
+        return Ok(());
+    }
     let report = diagnose(&sources, args);
     {
         use std::io::Write;
