@@ -121,7 +121,7 @@ fn people(e: &Engine) -> Vec<(Engine, CharacterId)> {
         {
             continue;
         }
-        for who in talk::present(x.state()) {
+        for who in talk::present(x.state(), x.content()) {
             if seen.insert(who) {
                 out.push((copy(&x), who));
             }
