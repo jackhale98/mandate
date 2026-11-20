@@ -4,4 +4,9 @@ import type { LocationView } from "./LocationView";
 /**
  * One location on the town schematic, with what it offers.
  */
-export type SpotView = { location: LocationView, actions: Array<string>, late_night: Array<string>, services: Array<string>, here: boolean, };
+export type SpotView = { location: LocationView, actions: Array<string>, late_night: Array<string>, services: Array<string>, 
+/**
+ * The visit verbs offered here, as Fluent name keys (places with
+ * purpose; `PlacePanelView.verbs` has the details).
+ */
+verbs: Array<string>, here: boolean, };

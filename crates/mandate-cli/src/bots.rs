@@ -816,6 +816,83 @@ fn meet_passers_by(e: &mut Engine, content: &ContentBundle, all: bool) {
     }
 }
 
+/// What a verb would teach about a place that the player does not know
+/// yet: its industry, its site or its service's need (places with
+/// purpose). Read through `Knowing`, as everything a bot learns from.
+fn unlearned(e: &Engine, place: mandate_sim::world::PlaceId, verb: &str) -> bool {
+    use mandate_content::knowledge::GrantSubject as G;
+    use mandate_content::visits::VisitEffect;
+    use mandate_sim::player::knowledge::Subject;
+    let st = e.state();
+    let content = e.content();
+    let (Some(def), Some(p)) = (content.actions.visit.verb(verb), st.world.places.get(place.index()))
+    else {
+        return false;
+    };
+    let k = Knowing::of(e);
+    let kind = content.place_kind(p.kind.key());
+    def.effects.iter().any(|fx| {
+        let VisitEffect::Learn { grants } = fx else {
+            return false;
+        };
+        grants.iter().any(|g| {
+            let s = match g.subject {
+                G::Sector => kind.and_then(|d| d.sector.clone()).map(|sector| Subject::Sector {
+                    town: p.municipality,
+                    sector,
+                }),
+                G::Site => Some(Subject::Site { place }),
+                G::Service => Some(Subject::Service { place }),
+                _ => None,
+            };
+            s.is_some_and(|s| k.level(&s) < Level::Known)
+        })
+    })
+}
+
+/// Visit a place to learn what it teaches (places with purpose): the first
+/// place in town, in id order, with a verb that teaches something not yet
+/// known and can be done now. Returns whether it was done.
+fn learning_visit(e: &mut Engine) -> bool {
+    let pick = {
+        let st = e.state();
+        let content = e.content();
+        let Some(town) = mandate_sim::player::home(st) else {
+            return false;
+        };
+        st.world
+            .places
+            .iter()
+            .filter(|p| p.municipality == town && p.is_open())
+            .find_map(|p| {
+                let loc = Location::Place { place: p.id };
+                mandate_sim::visits::verbs_at(st, content, loc)
+                    .into_iter()
+                    .find(|v| {
+                        unlearned(e, p.id, &v.id)
+                            && mandate_sim::visits::availability(st, content, loc, v, false).is_ok()
+                    })
+                    .map(|v| (loc, v.id.clone()))
+            })
+    };
+    let Some((location, verb)) = pick else {
+        return false;
+    };
+    let then = PlayerCommand::Act {
+        action: Action::Visit { verb },
+        late_night: false,
+    };
+    let cmd = if e.state().player.as_ref().map(|p| p.location) == Some(location) {
+        then
+    } else {
+        PlayerCommand::Go {
+            location,
+            then: Some(Box::new(then)),
+        }
+    };
+    apply(e, Command::Player(cmd)).is_ok()
+}
+
 /// One turn of learning: walk the town and the streets, read the ward's worries on the
 /// doorsteps, and meet the people named so far, asking who really runs
 /// things while that is a rumour. Returns whether any time went on it.
@@ -841,6 +918,9 @@ fn explore(e: &mut Engine, content: &ContentBundle, all: bool) -> bool {
                 "topic.worries"
             };
             talk(e, p, topic) || talk(e, p, "topic.worries")
+        } else if !all {
+            // The town's works, fields and services (places with purpose).
+            learning_visit(e)
         } else {
             false
         };

@@ -42,7 +42,7 @@ function townKey(town: TownPlacesView): string {
   const parts = [town.municipality, town.home_neighborhood ?? "-"];
   for (const h of town.neighborhoods) {
     parts.push(`${h.id}:${h.kind}:${h.name}`);
-    for (const s of h.spots) parts.push(`${JSON.stringify(s.location.location)}${s.location.kind_key}${s.location.name}${s.actions.length + s.services.length > 0 ? "+" : "-"}`);
+    for (const s of h.spots) parts.push(`${JSON.stringify(s.location.location)}${s.location.kind_key}${s.location.name}${s.actions.length + s.services.length + s.verbs.length > 0 ? "+" : "-"}`);
   }
   return parts.join("|");
 }

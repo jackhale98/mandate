@@ -112,6 +112,33 @@ Example:
 
 Who is where is asked through `characters::routines` (`whereabouts`, `locate`, `present`) or `characters::ambient::stored_at`; a place's *regulars* (first-visit introductions, grants) stay `ambient::regulars_at`. The player's ledger notes sightings (`KnowledgeLedger::seen`, on arriving and when talking); two at the same place and part on different turns make a habit, shown as the lead `lead-usually-at`.
 
+### Adding a verb to a place (places with purpose, DEC-079 note)
+
+What the player can do at a place beyond the coded actions is one generic action, `visit` (`Action::Visit { verb }`), whose verbs are data. A verb is defined once in `content/base/actions.jsonc` under `visit.verbs` (`VisitVerbDef` in `mandate-content/src/visits.rs`) and offered by every place kind that lists its id in `places.jsonc` `verbs`. Adding one is content: no code, no save change.
+
+- **Cost:** `time` (`slot`, or `half`: half a slot, sharing the conversation's half-slot bank, so two halves fill one slot) and `health`; `late_night: true` also allows the late slot.
+- **When:** `parts` (`morning`, `afternoon`, `evening`; none: any standard part), `when` (situation conditions that must all hold for the place's town: the shared `SituationCondition`, slot-free only, as a policy unlock uses), and `with` (someone of one of these occupations is here now, by their routines). A closed place offers nothing.
+- **Effects** (small; a visit is depth, not a campaign): `learn` (knowledge grants with `which: here`, the place: `people_at`, `hood_concerns`, `broker`, and the visit subjects `sector`, the place kind's industry in its town, `site`, its pollution and hazard exposure, and `service`, its neighbourhood's felt level of the concerns the kind `addresses`; a numeric subject granted `detailed` is a dated reading), `people` (who is here now, met to a level, with an opinion change), `awareness` and `approval` (`among`: `reach` `hood` or `town`, `classes`, `ages` 0–3, `communities`).
+- **Risk:** `base`, `terms` (a condition and what it adds), and `shedding` × how fast the place's industry is letting people go (`visit.outlook`), within `[min, max]`. The place panel shows `mandate_sim::visits::risk`, and the command rolls exactly that (a keyed draw per turn, place and verb, `visits::goes_wrong`). A bad roll adds the risk's `effects` and its `outcome_key` replaces the verb's.
+- **The place kind** names its `sector` (a sector id) for `sector` grants and the risk's `shedding`, and the concerns it `addresses` for `service` grants; validation refuses a verb the kind cannot support.
+- **Text:** the verb's `name_key` and `outcome_key` (args `place`, `kind`, `outlook`, `sector_key`, `name` for the first person met, `learned`, `met`), and `action-verb-<name>` for the log (underscores as dashes).
+- **People to meet:** an occupation in `occupations.jsonc` with the place kind in `places`, and a routine for it. Occupations added after a release take `"round": 1` (or higher): their people are seeded after everyone of earlier rounds, so the existing cast keeps its ids.
+
+Example (the farm's verb):
+
+```jsonc
+{ "id": "verb.walk_fields", "name_key": "verb-walk_fields", "outcome_key": "outcome-verb-walk_fields",
+  "time": "slot", "health": 1, "parts": ["morning", "afternoon"],
+  "effects": [
+    { "type": "people", "level": "known", "opinion": 2 },
+    { "type": "learn", "grants": [
+      { "subject": "hood_concerns", "which": "here", "level": "known" },
+      { "subject": "sector", "which": "here", "level": "detailed" } ] },
+    { "type": "awareness", "amount": 0.03 } ] }
+```
+
+The panel lists a place's verbs (`PlacePanelView.verbs`: cost in half slots, whether it can be done now and why not, the risk), the town's spots name them (`SpotView.verbs`), and the bots' informed styles use the learning ones while they explore (`bots.rs` `learning_visit`).
+
 ### Town character (DEC-077 §1)
 
 Each month (and on load when the crisis registry changed) every town gets a `TownCharacter` in `PoliticsState::characters.towns`:

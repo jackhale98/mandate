@@ -340,11 +340,14 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         if let Some(s) = &p.sector
             && b.sector(s).is_none()
         {
-            issues.push(Issue::error(&p.id, &format!("unknown sector `{s}`")));
+            issues.push(Issue::warning(&p.id, &format!("unknown sector `{s}` (its verbs read nothing for it)")));
         }
         for c in &p.addresses {
             if b.concern_index(c).is_none() {
-                issues.push(Issue::error(&p.id, &format!("unknown concern `{c}`")));
+                issues.push(Issue::warning(
+                    &p.id,
+                    &format!("unknown concern `{c}` (its service reads nothing for it)"),
+                ));
             }
         }
         // A verb that teaches about the place's industry or service needs the

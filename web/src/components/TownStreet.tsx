@@ -139,7 +139,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       }
       // As on the map and in the list: a place with nothing to do yet says so.
       const spot = town.neighborhoods.flatMap((h) => h.spots).find((s) => loc && sameLocation(s.location.location, loc));
-      if (spot && spot.actions.length + spot.services.length === 0) {
+      if (spot && spot.actions.length + spot.services.length + spot.verbs.length === 0) {
         setStatus(tr.t("ui-town-map-quiet", { place: spot.location.name || tr.t(`place-${spot.location.kind_key}`) }));
         return;
       }

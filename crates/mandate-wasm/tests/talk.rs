@@ -499,8 +499,16 @@ fn exchanges_leak_nothing_hidden() {
                         )
                     };
                     let json = serde_json::to_string(&ev).unwrap();
+                    // A name inside the speaker's own (Rhea Petrov in Rhea
+                    // Petrovfield) is the speaker, not someone else.
+                    let speaker = people
+                        .iter()
+                        .find(|(c, _)| *c == person)
+                        .map(|(_, n)| n.clone())
+                        .unwrap_or_default();
                     for (c, name) in &people {
                         if *c == person
+                            || speaker.contains(name.as_str())
                             || Some(*c) == characters::player_character(x.state())
                             || name.is_empty()
                             || !json.contains(name.as_str())

@@ -264,6 +264,24 @@ pub fn risk(state: &State, content: &ContentBundle, place: PlaceId, def: &VisitV
     Some(clamp(x, r.min, r.max))
 }
 
+/// The roll of a verb's risk at `odds`: a keyed draw per turn, place and
+/// verb (DEC-041), so it advances no stream and a repeat in the same turn
+/// lands the same way. `visit` rolls exactly this with `risk`'s odds.
+pub fn goes_wrong(state: &State, place: PlaceId, verb: &str, odds: f64) -> bool {
+    state
+        .rng
+        .keyed(
+            Stream::Player,
+            &[
+                KEY_VISIT,
+                state.calendar.turn as u64,
+                place.0 as u64,
+                mandate_core::hash::derive_u64(verb, &[]),
+            ],
+        )
+        .chance(odds)
+}
+
 // --- Readings (DEC-091: numbers learned first-hand are dated readings) ---------------
 
 /// A town industry's reading: jobs, jobs over capacity (per mille), and how
@@ -544,20 +562,7 @@ pub fn visit(
     // Decided before anything changes: the odds shown.
     let odds = risk(state, content, place, def);
     pay(state, content, def, late_night);
-    let hit = odds.is_some_and(|p| {
-        state
-            .rng
-            .keyed(
-                Stream::Player,
-                &[
-                    KEY_VISIT,
-                    state.calendar.turn as u64,
-                    place.0 as u64,
-                    mandate_core::hash::derive_u64(verb, &[]),
-                ],
-            )
-            .chance(p)
-    });
+    let hit = odds.is_some_and(|p| goes_wrong(state, place, verb, p));
     let mut done = Done::default();
     apply_effects(state, content, place, verb, &def.effects, &mut done);
     let mut res = ActionResult {

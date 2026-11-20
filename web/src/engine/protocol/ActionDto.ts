@@ -6,4 +6,4 @@ export type ActionDto = { "type": "lobby", politician: number, policy: number, }
  * neighbourhood's real top worry works better, one it barely feels
  * worse. Omitted: a general canvass.
  */
-issue?: string, } | { "type": "fundraise" } | { "type": "rest" } | { "type": "advertise" } | { "type": "take_bribe" } | { "type": "dip_funds" } | { "type": "leak_file" };
+issue?: string, } | { "type": "fundraise" } | { "type": "rest" } | { "type": "advertise" } | { "type": "take_bribe" } | { "type": "dip_funds" } | { "type": "leak_file" } | { "type": "visit", verb: string, };
