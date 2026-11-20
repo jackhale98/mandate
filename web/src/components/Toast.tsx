@@ -14,7 +14,8 @@ export function Toast() {
   if (!toast) return null;
   return (
     <div className="toast" role="status" data-testid="toast">
-      <span>{tr.t(toast.key, toast.args)}</span>
+      {/* `*_key` arguments are keys (an ask's title names its cast). */}
+      <span>{tr.event(toast.key, toast.args)}</span>
       <button type="button" className="btn btn-sm btn-ghost" onClick={dismiss} aria-label={tr.t("ui-dismiss")}>
         ×
       </button>

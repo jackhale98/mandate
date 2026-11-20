@@ -200,8 +200,9 @@ pub struct PromiseMenuView {
     /// Promises made in this race, and the most a race allows.
     pub made: u32,
     pub max: u32,
-    /// Who the promises are made to.
+    /// Who the promises are made to, and the Fluent arguments of its `name_key`.
     pub voters: Option<AskerView>,
+    pub voters_args: BTreeMap<String, String>,
 }
 
 fn jurisdiction_ref(engine: &Engine, at: Jurisdiction) -> JurisdictionRefView {
@@ -721,6 +722,34 @@ pub fn can_promise(engine: &Engine) -> bool {
     !mandate_sim::asks::promise_menu(engine.state(), engine.content()).is_empty()
 }
 
+/// A promise as it would stand if made now (for its text): to the race's
+/// voters, with the option's answer.
+fn would_be(engine: &Engine, template: &str, answer: Option<String>, race: Option<Post>) -> Ask {
+    let date = engine.state().calendar.date;
+    Ask {
+        id: AskId(0),
+        template: template.to_string(),
+        promise: true,
+        asker: race.map(voters_of).unwrap_or(Asker::Electorate {
+            at: Jurisdiction::Nation,
+        }),
+        cast: Vec::new(),
+        needs: Vec::new(),
+        step: 0,
+        done: Vec::new(),
+        public: true,
+        big: false,
+        opened: date,
+        respond_by: date,
+        due: date,
+        status: AskStatus::Accepted { on: date },
+        history: History::None,
+        race,
+        answer,
+        tries: 0,
+    }
+}
+
 /// `QueryDto::PromiseMenu`: the promises the player could make now, with
 /// their text and what keeping or breaking them does. Empty when not
 /// campaigning.
@@ -733,36 +762,11 @@ pub fn promise_menu_view(engine: &Engine) -> PromiseMenuView {
         Some(r) if st.asks.promises_race == Some(r) => st.asks.promises_this_campaign as u32,
         _ => 0,
     };
-    let voters = race.map(voters_of);
     let options = mandate_sim::asks::promise_menu(st, content)
         .into_iter()
         .filter_map(|o| {
             let t = content.promise(&o.template)?;
-            // The promise as it would stand, for its text.
-            let a = Ask {
-                id: AskId(0),
-                template: o.template.clone(),
-                promise: true,
-                asker: voters.unwrap_or(Asker::Electorate {
-                    at: Jurisdiction::Nation,
-                }),
-                cast: Vec::new(),
-                needs: Vec::new(),
-                step: 0,
-                done: Vec::new(),
-                public: true,
-                big: false,
-                opened: st.calendar.date,
-                respond_by: st.calendar.date,
-                due: st.calendar.date,
-                status: AskStatus::Accepted {
-                    on: st.calendar.date,
-                },
-                history: History::None,
-                race,
-                answer: o.answer.clone(),
-                tries: 0,
-            };
+            let a = would_be(engine, &o.template, o.answer.clone(), race);
             let mut args = args_of(engine, &a);
             args.remove("days");
             let due_key = match &t.due {
@@ -787,34 +791,18 @@ pub fn promise_menu_view(engine: &Engine) -> PromiseMenuView {
             })
         })
         .collect();
+    let voters = race.map(|r| {
+        let a = would_be(engine, "", None, Some(r));
+        let mut args = args_of(engine, &a);
+        args.remove("days");
+        (asker_view(engine, &a), args)
+    });
     PromiseMenuView {
         options,
         made,
         max,
-        voters: voters.map(|v| {
-            asker_view(
-                engine,
-                &Ask {
-                    id: AskId(0),
-                    template: String::new(),
-                    promise: true,
-                    asker: v,
-                    cast: Vec::new(),
-                    needs: Vec::new(),
-                    step: 0,
-                    done: Vec::new(),
-                    public: true,
-                    big: false,
-                    opened: st.calendar.date,
-                    respond_by: st.calendar.date,
-                    due: st.calendar.date,
-                    status: AskStatus::Offered,
-                    history: History::None,
-                    race,
-                    answer: None,
-                    tries: 0,
-                },
-            )
-        }),
+        voters_args: voters.as_ref().map(|v| v.1.clone()).unwrap_or_default(),
+        voters: voters.map(|v| v.0),
     }
 }
+

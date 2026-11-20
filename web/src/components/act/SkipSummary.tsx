@@ -1,5 +1,5 @@
 import { useGame } from "../../state/gameStore";
-import { formatDate, formatMoney } from "../../i18n/format";
+import { formatDate, formatMoney, formatPct, formatWhole } from "../../i18n/format";
 import { useSheetClose } from "../useSheetClose";
 import { capital } from "../DecisionSheet";
 import type { ChangeView } from "../../engine/protocol/ChangeView";
@@ -8,8 +8,9 @@ import { actArgs } from "./actArgs";
 /** A figure as the engine gave it (unemployment comes per mille). */
 function figure(c: ChangeView, v: number): string {
   if (c.figure === "money") return formatMoney(v);
-  if (c.figure === "unemployment") return `${(v / 10).toFixed(1)}%`;
-  return String(v);
+  if (c.figure === "unemployment") return formatPct(v / 1000, 1);
+  // Counts in the locale's style, as money is (110,766, not 110766).
+  return formatWhole(v);
 }
 
 /**

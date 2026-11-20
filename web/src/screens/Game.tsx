@@ -18,6 +18,7 @@ import { TalkSheet } from "../components/talk/TalkSheet";
 import { TermReview } from "../components/act/TermReview";
 import { SkipSummary } from "../components/act/SkipSummary";
 import { Epilogue } from "../components/act/Epilogue";
+import { PromisePicker } from "../components/asks/PromisePicker";
 
 function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
   const tr = useGame((s) => s.tr);
@@ -174,6 +175,7 @@ export function Game() {
       <TalkSheet />
       <TermReview />
       <SkipSummary />
+      <PromisePicker />
       <Epilogue />
       <Walking />
       <TurnPassage />
@@ -218,6 +220,7 @@ export function Game() {
           <span aria-hidden="true">📒</span>
           <span className="gamebar-label">{tr.t("ui-pocket")}</span>
           {pocket && pocket.decisions.length > 0 && <Badge icon="❗" n={pocket.decisions.length} text={tr.t("ui-decision-count", { n: pocket.decisions.length })} cls="badge-decisions" testId="decision-badge" />}
+          {pocket && pocket.asks_due_soon > 0 && <Badge icon="🤝" n={pocket.asks_due_soon} text={tr.t("ui-ask-count", { n: pocket.asks_due_soon })} cls="badge-asks" testId="asks-badge" />}
           {pocket && pocket.alerts.length > 0 && <Badge icon="🔔" n={pocket.alerts.length} text={tr.t("ui-alert-count", { n: pocket.alerts.length })} cls="badge-alerts" testId="alert-badge" />}
           {notebookNew > 0 && <Badge icon="✎" n={notebookNew} text={tr.t("ui-notebook-new-count", { n: notebookNew })} cls="badge-notebook" testId="notebook-badge" />}
         </button>

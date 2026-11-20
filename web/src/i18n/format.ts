@@ -9,6 +9,11 @@ export function formatCount(n: number): string {
   return new Intl.NumberFormat("en", { notation: n >= 1e6 ? "compact" : "standard", maximumFractionDigits: 2 }).format(n);
 }
 
+/** A whole count with the locale's grouping, never abbreviated (a before-and-after must show the change). */
+export function formatWhole(n: number): string {
+  return new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(n);
+}
+
 export function formatPct(v: number, digits = 1): string {
   return new Intl.NumberFormat("en", { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v);
 }

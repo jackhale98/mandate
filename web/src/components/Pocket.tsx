@@ -17,6 +17,7 @@ import { PlaceList } from "./PlaceList";
 import { Notebook } from "./notebook/Notebook";
 import type { PocketTab } from "../state/devicePrefs";
 import type { Translator } from "../i18n/fluent";
+import { TodayAsks } from "./asks/Asks";
 
 const TRACKS = ["record", "viability", "standing", "health", "legal_jeopardy", "threat"] as const;
 /** Tracks where a high value is bad (shown with a "risk" bar plus the text label). */
@@ -175,6 +176,7 @@ function TodayTab({ p }: { p: PocketView }) {
         </p>
       )}
       <Decisions p={p} />
+      <TodayAsks p={p} />
       {p.legal && <Legal l={p.legal} />}
       <Agenda p={p} />
       <h3 className="sub">{tr.t("ui-your-bills")}</h3>
@@ -200,9 +202,13 @@ function TodayTab({ p }: { p: PocketView }) {
 
 /** What waits on each tab, counted (the tabs' badges and the pocket button's). */
 export function pocketBadges(tr: Translator, p: PocketView): Partial<Record<PocketTab, TabBadge>> {
-  const today = [p.decisions.length > 0 ? tr.t("ui-decision-count", { n: p.decisions.length }) : null, p.alerts.length > 0 ? tr.t("ui-alert-count", { n: p.alerts.length }) : null].filter((x): x is string => x !== null);
+  const today = [
+    p.decisions.length > 0 ? tr.t("ui-decision-count", { n: p.decisions.length }) : null,
+    p.asks_due_soon > 0 ? tr.t("ui-ask-count", { n: p.asks_due_soon }) : null,
+    p.alerts.length > 0 ? tr.t("ui-alert-count", { n: p.alerts.length }) : null,
+  ].filter((x): x is string => x !== null);
   return {
-    today: { n: p.decisions.length + p.alerts.length, text: today.join(", ") },
+    today: { n: p.decisions.length + p.asks_due_soon + p.alerts.length, text: today.join(", ") },
     notebook: { n: p.notebook_new, text: tr.t("ui-notebook-new-count", { n: p.notebook_new }) },
   };
 }

@@ -34,6 +34,8 @@ import type { SkipProgressView } from "../engine/protocol/SkipProgressView";
 import type { SkipSummaryView } from "../engine/protocol/SkipSummaryView";
 import type { SkipTargetDto } from "../engine/protocol/SkipTargetDto";
 import type { LegacyView } from "../engine/protocol/LegacyView";
+import type { AsksView } from "../engine/protocol/AsksView";
+import type { PromiseMenuView } from "../engine/protocol/PromiseMenuView";
 import { findRoute, sameLocation } from "./routing";
 import type { RunModeDto } from "../engine/protocol/RunModeDto";
 import type { WorldSizeDto } from "../engine/protocol/WorldSizeDto";
@@ -123,6 +125,10 @@ interface GameState {
   skipSummary: SkipSummaryView | null;
   /** The act's Legacy record and epilogue (DEC-006), when open. */
   legacy: LegacyView | null;
+  /** Asks and promises on record (DEC-097 §2): loaded with the story so far (its promises). */
+  asks: AsksView | null;
+  /** The promise picker (campaigning), when open. */
+  promiseMenu: PromiseMenuView | null;
   /** The notebook (DEC-091, K5), while its tab is open. */
   notebook: NotebookView | null;
   /**
@@ -222,6 +228,14 @@ interface GameState {
   closeSkipSummary(): void;
   /** Open (or close) the Legacy record and epilogue. */
   openLegacy(open: boolean): Promise<void>;
+  /** Accept or decline an ask (free, from anywhere; DEC-097 §2). */
+  respondAsk(ask: number, accept: boolean): Promise<void>;
+  /** Casework on an accepted ask ("Sort it out", one slot): walks to where it is done first. */
+  casework(ask: number): Promise<void>;
+  /** Open (or close) the promise picker (campaigning only): the engine's menu. */
+  openPromises(open: boolean): Promise<void>;
+  /** Make a campaign promise from the menu; the picker follows what is left. */
+  makePromise(template: string, answer: string | null): Promise<void>;
   /** Fetch the notebook (its tab is open). */
   loadNotebook(): Promise<void>;
   /**
@@ -345,6 +359,8 @@ export const useGame = create<GameState>((set, get) => {
     skipCancel: false,
     skipSummary: null,
     legacy: null,
+    asks: null,
+    promiseMenu: null,
     notebook: null,
     notebookFresh: [],
     talk: null,
@@ -402,7 +418,7 @@ export const useGame = create<GameState>((set, get) => {
       try {
         const body = await engine().request({ kind: "new_game", payload: { seed: seed ?? randomSeed(), size, scenario, storyteller: storyteller ?? null, local_knowledge: localKnowledge ?? false } });
         const overview = expectKind(body, "game_started");
-        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
+        set({ overview, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId: randomHex(16), mode, revision: 0 }, screen: "game" });
         await persist();
         await get().refreshDesk();
       } catch (e) {
@@ -621,7 +637,8 @@ export const useGame = create<GameState>((set, get) => {
         return;
       }
       try {
-        set({ story: expectKind(await engine().request({ kind: "query", payload: { type: "story" } }), "story"), ...pocketAfterMove(get()) });
+        const asks = expectKind(await engine().request({ kind: "query", payload: { type: "asks" } }), "asks");
+        set({ asks, story: expectKind(await engine().request({ kind: "query", payload: { type: "story" } }), "story"), ...pocketAfterMove(get()) });
       } catch (e) {
         set({ error: errText(e) });
       }
@@ -690,6 +707,36 @@ export const useGame = create<GameState>((set, get) => {
 
     closeSkipSummary() {
       set({ skipSummary: null });
+    },
+
+    async respondAsk(ask, accept) {
+      await get().command({ type: "respond_ask", ask, accept });
+    },
+
+    async casework(ask) {
+      await get().perform({ type: "act", action: { type: "casework", ask }, late_night: false });
+    },
+
+    async openPromises(open) {
+      if (!open) {
+        set({ promiseMenu: null });
+        return;
+      }
+      try {
+        set({ promiseMenu: expectKind(await engine().request({ kind: "query", payload: { type: "promise_menu" } }), "promise_menu"), ...pocketAfterMove(get()) });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
+    },
+
+    async makePromise(template, answer) {
+      await get().command({ type: "promise", template, answer });
+      if (!get().promiseMenu) return;
+      try {
+        set({ promiseMenu: expectKind(await engine().request({ kind: "query", payload: { type: "promise_menu" } }), "promise_menu") });
+      } catch (e) {
+        set({ error: errText(e) });
+      }
     },
 
     async openLegacy(open) {
@@ -915,7 +962,7 @@ export const useGame = create<GameState>((set, get) => {
       set({ busy: true });
       try {
         await persist();
-        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
+        set({ screen: "title", overview: null, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, pocketOpen: false, townMapOpen: false, view: "town", electionNight: false, passage: null, afterPassage: { electionNight: false }, run: null });
         await get().refreshRuns();
       } catch (e) {
         set({ error: errText(e) });
@@ -930,7 +977,7 @@ export const useGame = create<GameState>((set, get) => {
         const rec = await saveStore().getRun(runId);
         if (!rec) throw new Error("Save not found");
         const overview = await engine().importSave(rec.bytes);
-        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
+        set({ overview, map: null, office: null, campaign: null, pocket: null, town: null, place: null, character: null, decision: null, story: null, termReview: null, skipSummary: null, legacy: null, asks: null, promiseMenu: null, notebook: null, notebookFresh: [], talk: null, exchange: null, openPlace: null, interior: null, interiorPlace: null, view: "town", townMapOpen: false, run: { runId, mode: rec.mode, revision: rec.revision }, screen: "game" });
         await get().refreshDesk();
       } catch (e) {
         set({ error: errText(e) });

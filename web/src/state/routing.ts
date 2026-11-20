@@ -52,6 +52,8 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
           return k(a.type);
         case "take_bribe":
           return k("take_bribe", true);
+        case "casework": // the services desk (DEC-097 §2)
+          return k("casework");
       }
       return null;
     }
@@ -66,6 +68,8 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "set_directives": // time skips (DEC-012): no place, no slot
     case "skip":
     case "cancel_skip":
+    case "respond_ask": // asks are answered from anywhere (DEC-097 §2)
+    case "promise": // a promise is made from anywhere while campaigning
       return null;
   }
 }

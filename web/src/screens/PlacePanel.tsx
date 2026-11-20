@@ -19,6 +19,7 @@ import { personName } from "../components/Knowing";
 import { capital } from "../components/DecisionSheet";
 import { Newspaper } from "../components/Newspaper";
 import { TalkButton } from "../components/talk/TalkButton";
+import { CaseworkHere } from "../components/asks/Asks";
 
 /** Decisions whose scene happens here (DEC-079: here, the conversation). */
 function WaitingHere({ v }: { v: PlacePanelView }) {
@@ -383,6 +384,7 @@ export function PlacePanel() {
             </>
           )}
           {offers("file") && c && <Calendar c={c} />}
+          {offers("casework") && <CaseworkHere />}
           {v.town_data && <TownData d={v.town_data} />}
           {has("town_data_detailed") && o && v.here && <TownOpinion o={o} />}
           {v.budget && <Budget b={v.budget} />}

@@ -229,3 +229,68 @@ event-ask-resolved = { $outcome ->
         [declined] You said no: { $ask }.
        *[void] It no longer stands: { $ask }.
     }
+
+## Interface: the Today block, casework, the promise picker, the story sheet (E7)
+ui-asks = Asks and promises
+ui-asks-none = Nobody is waiting on you for anything.
+ui-asks-recent = Lately
+ui-ask-count = { $n ->
+    [one] 1 ask or promise waiting
+   *[other] { $n } asks or promises waiting
+}
+ui-ask-from = From { $who }
+ui-ask-asker-party = { $party }, through { $name }
+ui-ask-respond-by = Answer by { $date } · { $n ->
+    [0] today
+    [one] 1 day left
+   *[other] { $n } days left
+}
+ui-ask-due = Due { $date } · { $n ->
+    [0] today
+    [one] 1 day left
+   *[other] { $n } days left
+}
+ui-ask-next = Next: { $need }
+ui-ask-progress = { $done } of { $total } done
+ui-ask-watch = Nothing to do but keep to it until the deadline.
+ui-ask-accept = Accept
+ui-ask-decline = Decline
+ui-ask-accept-label = Accept: { $ask }
+ui-ask-decline-label = Decline: { $ask }
+ui-ask-go-label = Go to { $place } for: { $ask }
+ui-ask-talk = Talk to { $name }
+ui-ask-casework = Sort it out
+ui-ask-casework-label = Sort it out at the town hall: { $ask } ({ $pct }% chance)
+ui-ask-odds = { $pct }% chance it is sorted this try; a try takes a slot.
+ui-ask-details = What it means
+ui-ask-if-kept = If you keep it
+ui-ask-if-broken = If you break it
+ui-ask-if-declined = If you say no, or do not answer
+ui-ask-public = Public
+ui-ask-big = Big ask
+ui-ask-promise = Campaign promise
+ui-ask-status-offered = Waiting for your answer
+ui-ask-status-accepted = Promised
+ui-ask-status-kept = Kept
+ui-ask-status-broken = Broken
+ui-ask-status-declined = Declined
+ui-ask-status-lapsed = Lapsed unanswered
+ui-ask-status-void = No longer stands
+ui-casework = Casework
+ui-casework-help = The services desk sorts out residents' problems you have promised to help with.
+ui-casework-none = No casework waits on you.
+ui-promise-make = Make a campaign promise
+ui-promise-picker = Campaign promises
+ui-promise-picker-intro = Promise the voters something. It wins support where the worry is felt; breaking it later costs you, in public.
+ui-promise-made = { $made } of { $max } promises made in this race
+ui-promise-to = Made to { $voters }
+ui-promise-choose = Promise this
+ui-promise-choose-label = Promise: { $promise }
+ui-promise-none = There is nothing more to promise in this race.
+ui-promise-due-term = Due at the end of the term
+ui-promise-due-budget-year = Due by the end of the next budget year
+ui-promise-due-days = Due { $due_days } days after election day
+ui-story-promises = Promises
+ui-story-promises-none = You have made no campaign promises yet.
+ui-story-promises-tally = Made { $made } · kept { $kept } · broken { $broken }
+ui-story-asks-tally = Asks: accepted { $accepted } · kept { $kept } · broken { $broken } · declined { $declined }
