@@ -2,7 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { officeFigures, openPeople, openPocket } from "./pocket";
 
 // DEC-088 main screen (owner, 2026-11-19): the street full screen with a slim
-// bar; the pocket has tabs (Today, Town, Places, Notebook, People) with badges, docks
+// bar; the pocket has tabs (Today, Town, Places, Notebook; people are the
+// Notebook's People section) with badges, docks
 // beside the town on wide screens, and with the skip link and landmarks
 // reaches every place without the canvas (DEC-051). Desktop and phone.
 
@@ -91,7 +92,7 @@ test("the pocket's tabs: a tab list with arrow keys, panels, and badges that cou
   await start(page, "4242");
   const pocket = await openPocket(page, "today");
   const tabs = pocket.getByRole("tablist");
-  await expect(tabs.getByRole("tab")).toHaveText([/Today/, /Town/, /Places/, /Notebook/, /People/]);
+  await expect(tabs.getByRole("tab")).toHaveText([/Today/, /Town/, /Places/, /Notebook/]);
   // Only the open tab is in the Tab order; arrows, Home and End move between tabs.
   await pocket.getByTestId("pocket-tab-today").focus();
   await page.keyboard.press("ArrowRight");

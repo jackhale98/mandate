@@ -9,7 +9,7 @@ use crate::views::DateView;
 use mandate_sim::Engine;
 use mandate_sim::characters::{self, CharacterId, MemoryKind, Tier, ambient};
 use mandate_sim::places::Location;
-use mandate_sim::player::knowledge::{Level, Subject};
+use mandate_sim::player::knowledge::{LeadTarget, Level, Subject};
 use mandate_sim::world::MunicipalityId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -40,7 +40,7 @@ pub struct PersonRefView {
     /// They have something new for the player (the name tag's "!"; DEC-093,
     /// DEC-091): a topic that tells things the player has not asked them
     /// this week, or a lead in the notebook points to them. The engine
-    /// decides (`has_news`); passers-by: never.
+    /// decides (`has_news`); a passer-by not met yet: never.
     pub has_news: bool,
 }
 
@@ -347,7 +347,6 @@ pub fn news(engine: &Engine, id: CharacterId) -> Vec<News> {
     if unasked {
         out.push(News::Topic);
     }
-    use mandate_sim::player::knowledge::LeadTarget;
     if pl
         .knowledge
         .leads
