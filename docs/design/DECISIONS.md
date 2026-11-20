@@ -106,6 +106,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-097 | Engagement and variety: ground-game rebalance, asks and promises, storyteller variety, secrets and walking rewards, an engagement gate | Accepted |
 | DEC-098 | Built for every tier: offices from the constitution, jurisdiction keys, what becomes data, one condition language | Accepted |
 | DEC-099 | Works you can see: funded projects change the town physically, stall and decay if abandoned, and carry your name | Accepted |
+| DEC-100 | Variety across careers: a cross-career repetition gate, Act 1 content targets, recombinable templates, a per-run twist (Legacy unlocks deferred) | Accepted |
 
 ---
 
@@ -2349,3 +2350,33 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - The engine works model is part of **F2b** (policy families in the simulation, which create the money and mechanisms).
   - The dress pass, the street, Today and "See it" follow **F3**.
 - **Dependencies:** DEC-051, DEC-073, DEC-084, DEC-085, DEC-090, DEC-092, DEC-094, DEC-097, DEC-098.
+
+### DEC-100 — Variety across careers
+
+- **Status:** Accepted (owner, 2026-11-20). The owner asked whether "these quests and actions seem very redundant from game to game", and accepted the plan: "we should plan to do the variety plan but we don't want legacy unlocks just yet".
+- **Context:** DEC-097 deals with repetition within one career. Across careers the risk is volume.
+  - **Today's pool:** 31 dilemma templates, plus 22 planned in E3. A career shows about 25 distinct dilemmas, so roughly half of a second career's dilemmas would be ones the player has seen.
+  - **Openings and goals:** the opening is always the same (a sitting councillor), and so is the goal (win, then win again).
+  - **Systemic variety already exists:** generated towns and characters, policy families bound to the town's features, storytellers, and asks, secrets and curiosities drawn from live state. But players notice repeated text more than repeated systems.
+- **Decision:**
+  1. **A cross-career repetition gate (with E12).** The lab simulates five consecutive careers, as a returning player would, and measures the share of each career's dilemmas, storylines, asks and conversation lines already seen. Target: under 40% repeats in career 3 (E12 tunes the threshold).
+  2. **Act 1 content targets:**
+     - about 90–110 dilemma templates;
+     - 12–15 storylines;
+     - 40+ ask templates;
+     - about 800 conversation lines.
+
+     The content workbench (doctor, designer page and corpus) and the text read-through audit make this volume practical. Agents may draft in batches against the doctor's checks, with owner review of samples.
+  3. **Recombinable templates first.** New dilemmas are written as situations built from the town's live details ("a <local employer> threatens <cuts> unless <your stance on a live bill>") rather than fixed stories. Casting and conditions do the varying. E3 and E8 favour this.
+  4. **A per-run twist.** Each run gets one opening condition from a data registry, for example:
+     - a hostile local paper;
+     - a council at war with itself;
+     - a factory announcing closure in year 1;
+     - an inherited scandal;
+     - a flood year;
+     - a popular rival.
+
+     The twist is chosen by the run seed and fitted to the town. It is shown at the start and recorded for the lab.
+- **Deferred:** Legacy unlocks (backgrounds and perks earned across careers). Endings and the Legacy record stay in M6 as planned.
+- **Order:** item 1 with E12; items 2 and 3 with E3, E8 and E13; item 4 with the draft of three openings.
+- **Dependencies:** DEC-006, DEC-030, DEC-036, DEC-039, DEC-077, DEC-097, DEC-098.
