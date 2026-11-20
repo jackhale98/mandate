@@ -869,7 +869,7 @@ pub fn apply(
                         .unwrap_or(0.5) as f64;
                     let sig = policy
                         .and_then(|id| state.policy.instances.get(id as usize))
-                        .and_then(|p| content.policies.get(&p.template))
+                        .and_then(|p| crate::policy::resolve(content, &state.policy, p))
                         .map(|t| t.signature_weights.clone());
                     for c in state.population.hoods[*neighborhood as usize]
                         .cohorts
@@ -1372,12 +1372,9 @@ pub(crate) fn declare_vote(
     if state.politics.declared_votes.contains_key(&key) {
         return Err(bad("you have already declared your vote"));
     }
-    let template = p.template.clone();
     let sponsor = p.sponsor;
     let awareness = p.awareness as f64;
-    let sig = content
-        .policies
-        .get(&template)
+    let sig = crate::policy::resolve(content, &state.policy, p)
         .map(|t| t.signature_weights.clone())
         .unwrap_or_default();
     let line = party_line(state, *policy);
@@ -1641,14 +1638,14 @@ fn move_to(
 
 /// Estimated annual cost of a draft or bill, for display.
 pub fn estimate_cost(state: &State, content: &ContentBundle, p: &PolicyInstance) -> f64 {
-    let Some(t) = content.policies.get(&p.template) else {
+    let Some(t) = crate::policy::resolve(content, &state.policy, p) else {
         return 0.0;
     };
     let residents = state
         .population
         .municipality_total(&state.world, MunicipalityId(p.jurisdiction))
         as f64;
-    annual_cost(t, p, residents, state.economy.national.price_level)
+    annual_cost(&t, p, residents, state.economy.national.price_level)
 }
 
 /// The district of the seat a politician holds, if any.

@@ -411,12 +411,12 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         .collect();
     fin.appropriations.retain(|id, _| active.contains(id));
     for p in policy.instances.iter().filter(|p| p.active()) {
-        let Some(t) = r.content.policies.get(&p.template) else {
+        let Some(t) = crate::policy::resolve(r.content, policy, p) else {
             continue;
         };
         let m = p.jurisdiction as usize;
         let residents = f.population_by_muni.get(m).copied().unwrap_or(0.0);
-        let cost = crate::policy::annual_cost(t, p, residents, price);
+        let cost = crate::policy::annual_cost(&t, p, residents, price);
         let category = t.category as usize;
         if let Some(a) = fin.appropriations.get_mut(&p.id.0) {
             a.annual_cost = cost;

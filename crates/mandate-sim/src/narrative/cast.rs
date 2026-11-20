@@ -142,11 +142,11 @@ impl<'a> View<'a> {
         let (Some(pl), Some(inst)) = (self.player(), self.policy(bill)) else {
             return 0.0;
         };
-        let Some(t) = self.content().policies.get(&inst.template) else {
+        let Some(t) = crate::policy::resolve(self.content(), self.r.policy(), inst) else {
             return 0.0;
         };
         let hoods = crate::policy::ward_hoods(self.r.world, pl.ward);
-        crate::policy::public_support(t, self.r.population(), &hoods)
+        crate::policy::public_support(&t, self.r.population(), &hoods)
     }
 
     /// The player can still declare a vote on the bill.

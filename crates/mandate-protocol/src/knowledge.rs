@@ -1029,7 +1029,9 @@ fn source_args(gate: &Gate<'_>, src: &Source) -> BTreeMap<String, String> {
                 .policy
                 .instances
                 .get(policy.index())
-                .and_then(|p| engine.content().policies.get(&p.template))
+                .and_then(|p| {
+                    mandate_sim::policy::resolve(engine.content(), &engine.state().policy, p)
+                })
                 .map(|t| t.name_key.clone())
             {
                 put!("policy_key", key);

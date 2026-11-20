@@ -936,8 +936,12 @@ fn remembers(cx: &Ctx<'_>, slot: &str, kinds: &[String], args: &mut Args) -> boo
     let subject = match m.subject {
         Some(characters::Subject::Policy { id }) => cx
             .st
-            .and_then(|st| st.policy.instances.get(id as usize))
-            .and_then(|i| content.policies.get(&i.template))
+            .and_then(|st| {
+                st.policy
+                    .instances
+                    .get(id as usize)
+                    .and_then(|i| crate::policy::resolve(content, &st.policy, i))
+            })
             .map(|t| (t.name_key.clone(), "bill")),
         Some(characters::Subject::Decision { id }) => cx
             .st

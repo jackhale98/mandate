@@ -240,7 +240,7 @@ fn inputs_memo(
     if me.in_office() {
         let mut best: Option<(u32, f64, f64)> = None;
         for p in &pending {
-            let Some(t) = content.policies.get(&p.template) else {
+            let Some(t) = crate::policy::resolve(content, &state.policy, p) else {
                 continue;
             };
             let a = alignment(&t.signature_weights, &me.attitudes);
@@ -273,8 +273,8 @@ fn inputs_memo(
             x.focus_bill = Some((bill, dir));
             let counted = memo.leans.get(&bill).copied().or_else(|| {
                 let inst = state.policy.instances.get(bill as usize)?;
-                let t = content.policies.get(&inst.template)?;
-                let leans = legislature_leans(state, content, t, inst);
+                let t = crate::policy::resolve(content, &state.policy, inst)?;
+                let leans = legislature_leans(state, content, &t, inst);
                 let v = (
                     leans
                         .iter()
@@ -753,10 +753,10 @@ fn act(
             let Some(inst) = state.policy.instances.get(bill as usize) else {
                 return;
             };
-            let Some(t) = content.policies.get(&inst.template) else {
+            let Some(t) = crate::policy::resolve(content, &state.policy, inst) else {
                 return;
             };
-            let leans = legislature_leans(state, content, t, inst);
+            let leans = legislature_leans(state, content, &t, inst);
             // The most persuadable colleague not already on our side.
             let target = leans
                 .iter()

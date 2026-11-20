@@ -323,7 +323,7 @@ fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<Ab
                     .in_municipality(town.0)
                     .filter(|b| b.status != PolicyStatus::Ended)
                 {
-                    if let Some(t) = content.policies.get(&b.template) {
+                    if let Some(t) = mandate_sim::policy::resolve(content, &st.policy, b) {
                         push(
                             AboutRef::Bill { policy: b.id },
                             String::new(),
@@ -634,7 +634,7 @@ fn about_label(engine: &Engine, a: &AboutRef) -> (Option<String>, Option<String>
             st.policy
                 .instances
                 .get(policy.index())
-                .and_then(|p| content.policies.get(&p.template))
+                .and_then(|p| mandate_sim::policy::resolve(content, &st.policy, p))
                 .map(|t| t.name_key.clone()),
         ),
         AboutRef::Template { template } => (

@@ -867,7 +867,7 @@ fn budget_papers(engine: &Engine) -> Option<BudgetPapersView> {
             .in_municipality(m.0)
             .filter(|p| matches!(p.status, PolicyStatus::Enacted | PolicyStatus::InEffect))
             .filter_map(|p| {
-                let t = engine.content().policies.get(&p.template)?;
+                let t = mandate_sim::policy::resolve(engine.content(), &engine.state().policy, p)?;
                 Some(ProgrammeCostView {
                     id: p.id.0,
                     name_key: t.name_key.clone(),

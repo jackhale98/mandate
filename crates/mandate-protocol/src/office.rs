@@ -526,7 +526,8 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let content = engine.content();
     let gate = Gate::of(engine);
     let town = MunicipalityId(p.jurisdiction);
-    let t = content.policies.get(&p.template)?;
+    let resolved = mandate_sim::policy::resolve(content, &st.policy, p)?;
+    let t = resolved.template();
     let hoods: Vec<usize> = st.world.hoods_of(MunicipalityId(p.jurisdiction)).collect();
     let pending = p.status == PolicyStatus::UnderConsideration || p.status == PolicyStatus::Draft;
     let constitution = content.constitutions.get(&st.meta.constitution);

@@ -207,7 +207,7 @@ pub fn article(engine: &Engine, s: &Story) -> Option<ArticleView> {
         StorySource::Statement { policy, .. } => {
             if let Some(t) = policy
                 .and_then(|p| st.policy.instances.get(p as usize))
-                .and_then(|p| content.policies.get(&p.template))
+                .and_then(|p| mandate_sim::policy::resolve(content, &st.policy, p))
             {
                 args.insert("bill_key".into(), t.name_key.clone());
                 "headline-statement-bill".into()

@@ -381,7 +381,7 @@ pub(crate) fn subject_view(engine: &Engine, s: Option<characters::Subject>) -> O
     match s? {
         Subject::Policy { id } => {
             let inst = st.policy.instances.get(id as usize)?;
-            let t = engine.content().policies.get(&inst.template)?;
+            let t = mandate_sim::policy::resolve(engine.content(), &engine.state().policy, inst)?;
             Some(SubjectView {
                 key: t.name_key.clone(),
                 n: None,

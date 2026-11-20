@@ -17,6 +17,9 @@ use mandate_core::{IdAllocator, SimDate, Stream, define_id};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+pub mod resolve;
+pub use resolve::{Resolved, resolve};
+
 define_id!(
     /// A policy instance (a bill or law).
     PolicyInstanceId
@@ -242,7 +245,7 @@ pub fn mods_for(
         .in_municipality(m)
         .filter(|p| p.status == PolicyStatus::InEffect)
     {
-        let Some(t) = content.policies.get(&p.template) else {
+        let Some(t) = resolve(content, st, p) else {
             continue;
         };
         let k = p.progress as f64 * p.pilot_scale() * funded(p.id.0);
@@ -731,7 +734,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             continue;
         }
         let inst = st.instances[i].clone();
-        let Some(t) = r.content.policies.get(&inst.template) else {
+        let Some(t) = resolve(r.content, st, &inst) else {
             continue;
         };
         let Some(tier) = constitution.tier(inst.tier) else {
@@ -762,7 +765,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             let members = body
                 .map(|b| crate::politics::members_of(pol, b, at))
                 .unwrap_or(&[]);
-            member_leans(k, r.world, pop, pol, seed, t, &inst, members, signer)
+            member_leans(k, r.world, pop, pol, seed, &t, &inst, members, signer)
         };
         let tally = |rng: &mut mandate_core::SimRng, leans: &[(PoliticianId, f64)]| -> u32 {
             leans
@@ -794,7 +797,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 override_rule,
             } => {
                 let holder = crate::politics::holder_of(pol, office, at);
-                let lean = signer_lean(k, r.world, pop, pol, seed, t, &inst, holder);
+                let lean = signer_lean(k, r.world, pop, pol, seed, &t, &inst, holder);
                 if rng.chance(sign_probability(k, lean)) {
                     (
                         true,
@@ -913,10 +916,10 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
     for i in 0..st.instances.len() {
         let m = st.instances[i].jurisdiction as usize;
         let competence = st.agencies.get(m).map(|a| a.competence).unwrap_or(0.6) as f64;
-        let p = &mut st.instances[i];
-        let Some(t) = r.content.policies.get(&p.template) else {
+        let Some(t) = resolve(r.content, st, &st.instances[i]) else {
             continue;
         };
+        let p = &mut st.instances[i];
         p.awareness = (p.awareness * (1.0 - r.content.council.awareness_fade) as f32).max(0.0);
         match p.status {
             PolicyStatus::Enacted | PolicyStatus::InEffect => {

@@ -1451,7 +1451,7 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                 PolicyStatus::UnderConsideration | PolicyStatus::Enacted | PolicyStatus::InEffect
             )
         }) {
-            let Some(t) = r.content.policies.get(&p.template) else {
+            let Some(t) = crate::policy::resolve(r.content, policy, p) else {
                 continue;
             };
             let sig = &t.signature_weights;
