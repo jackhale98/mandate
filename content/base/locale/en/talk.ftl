@@ -223,6 +223,7 @@ talk-worries-fb-folk = "Me? I keep myself to myself."
 # The town's worries: a rumour, plainly, and the speaker's own street.
 talk-worries-rumour = "From what I hear, it's { $concern_talk }. People don't talk about much else."
 talk-worries-rumour-2 = "In passing? People moan about { $concern_talk }, over and over."
+talk-worries-rumour-3 = "Depends who you ask, but mostly { $concern_talk }. That's what's said in the queues, anyway."
 talk-worries-town = "It's { $concern_talk }. Ask anyone in { $town } and you'll get that answer before you've finished the question."
 talk-worries-town-2 = "If you want one thing, it's { $concern_talk }. Everything else is a long way behind."
 talk-worries-town-3 = "Honestly? You hear about { $concern_talk } at every table and in every queue."
