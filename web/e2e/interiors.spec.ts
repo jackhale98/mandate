@@ -46,6 +46,7 @@ interface Probes {
       stats: { frames: number; ticks: number };
       asleep: boolean;
       scene: { tile: { x: number; y: number }; moving: boolean };
+      talking: string | null;
       setMinutes(m: number, ms?: number): void;
       tileToScreen(t: { x: number; y: number }): { x: number; y: number };
     };
@@ -174,6 +175,15 @@ test("walk into the town hall, see the clerk, use a counter, talk to someone, wa
   await expect(talk).toBeVisible({ timeout: 15_000 });
   const t = await probe(page, (w) => w.__interior?.view.scene.tile);
   expect(Math.abs((t?.x ?? 0) - (someone?.x ?? 99)) + Math.abs((t?.y ?? 0) - (someone?.y ?? 99))).toBe(1);
+  // Dialogue mode: the room is the talk stage: the two framed there, the rest dimmed, a bubble over the person.
+  await expect(page.getByTestId("talk-layer")).toHaveAttribute("data-mode", "street");
+  await expect(page.getByTestId("talk-veil")).toBeVisible();
+  await expect.poll(() => probe(page, (w) => w.__interior?.view.talking ?? null)).toBe(someone?.key);
+  await talk.getByTestId("talk-topic-topic.small_talk").or(talk.getByTestId("talk-topic-topic.who_runs")).first().locator("button.dlg-choice").click();
+  await expect(page.getByTestId("talk-bubble").locator("p").first()).not.toBeEmpty({ timeout: 15_000 });
+  const bb = await page.getByTestId("talk-bubble").boundingBox();
+  const vp = page.viewportSize();
+  expect(bb && vp && bb.x >= 0 && bb.x + bb.width <= vp.width && bb.y >= 0).toBe(true);
   await shot(page, info, "town-hall-talk");
   await page.keyboard.press("Escape");
   await expect(talk).toHaveCount(0);
