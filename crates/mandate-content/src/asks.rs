@@ -490,17 +490,19 @@ pub fn message_vars(ftl: &str, key: &str) -> BTreeSet<String> {
     out
 }
 
-/// Arguments every ask and promise message may use besides its roles.
-pub const COMMON_ARGS: [&str; 9] = [
+/// Arguments every ask and promise message may use besides its roles (as
+/// the player reads them: `$crisis` is the text of `crisis_key`).
+pub const COMMON_ARGS: [&str; 10] = [
     "player",
     "town",
-    "crisis_key",
-    "concern_key",
+    "crisis",
+    "concern",
     "days",
     "history",
     "place",
     "constituency",
     "count",
+    "answer",
 ];
 
 pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
@@ -629,8 +631,8 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         let mut provided: BTreeSet<String> = COMMON_ARGS.iter().map(|s| s.to_string()).collect();
         for r in &seen {
             provided.insert(r.to_string());
-            provided.insert(format!("{r}_key"));
-            provided.insert(format!("{r}_role_key"));
+            provided.insert(format!("{r}_role"));
+            provided.insert(format!("{r}_occupation"));
         }
         for key in [&a.name_key, &a.detail_key, &a.need_key, &a.kept_key, &a.broken_key] {
             check_key(owner, key, &en, &en_text, &provided, issues);
@@ -677,8 +679,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             err(issues, owner, "a promise's days must be within [7, 900]");
         }
         check_effects(owner, &x.keep, &x.broken, &[], &[], issues);
-        let mut provided: BTreeSet<String> = COMMON_ARGS.iter().map(|s| s.to_string()).collect();
-        provided.insert("answer_key".into());
+        let provided: BTreeSet<String> = COMMON_ARGS.iter().map(|s| s.to_string()).collect();
         for key in [&x.name_key, &x.detail_key, &x.need_key, &x.kept_key, &x.broken_key] {
             check_key(owner, key, &en, &en_text, &provided, issues);
         }
@@ -733,7 +734,7 @@ fn check_needs(
     }
     let cast_of = |r: &str| roles.iter().find(|x| x.id == r).map(|x| &x.cast);
     let is_bill = |r: &str| matches!(cast_of(r), Some(Cast::Bill { .. }));
-    let is_hood = |r: &str| {
+    let is_hood_only = |r: &str| {
         r == ROLE_ASKER_HOOD || matches!(cast_of(r), Some(Cast::WardNeighborhood))
     };
     let is_person = |r: &str| {
@@ -745,6 +746,8 @@ fn check_needs(
                 )
             })
     };
+    // A need done somewhere names a neighbourhood, or a person (where they live).
+    let is_hood = |r: &str| is_hood_only(r) || is_person(r);
     for n in needs {
         for r in n.roles() {
             if !seen.contains(&r) {

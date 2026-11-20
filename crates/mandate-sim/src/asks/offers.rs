@@ -449,8 +449,10 @@ pub(crate) fn needs(
     promise: Option<(&[u32], Option<&str>)>,
 ) -> Option<Vec<Need>> {
     let person = |role: &str| person_of(cast, role);
+    // A neighbourhood role, or a person's (where they live).
     let hood = |role: &str| match actor_of(cast, role) {
         Some(Actor::Neighborhood { id }) => Some(NeighborhoodId(id)),
+        Some(Actor::Person { id }) => home_hood(v, id).map(NeighborhoodId),
         _ => None,
     };
     let bill = |role: &str| match actor_of(cast, role) {

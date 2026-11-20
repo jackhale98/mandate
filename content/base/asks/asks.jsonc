@@ -1,0 +1,267 @@
+// Asks (DEC-097 §2; ENGAGEMENT §3): concrete requests with a deadline, made
+// to the player by someone with a reason in the live state. The asker is the
+// role `asker` (cast like a dilemma role), their home neighbourhood the role
+// `asker_hood`. Needs are met in order by ordinary commands (DEC-032: no fetch
+// quests) or by casework. Every ask has a gain when kept and a cost when
+// broken (DEC-073); the record moves too (`career.record_gain`). Offices and
+// bodies are named only through the constitution: a colleague is "a holder of
+// a post in the same body" (`colleague`), the executive `office` (DEC-098).
+// Triggers are U1 conditions and never read what the player knows (DEC-091).
+{
+  "kind": "asks",
+  "items": [
+    // Help to individuals: a drain, a form, an objection, a school place.
+    { "id": "ask.casework", "name_key": "ask-casework",
+      "asker": { "type": "occupation", "occupations": [
+        "occupation.resident", "occupation.retiree", "occupation.teacher", "occupation.nurse",
+        "occupation.shopkeeper", "occupation.farmer", "occupation.farmhand", "occupation.student",
+        "occupation.diner_owner", "occupation.software_engineer", "occupation.park_keeper", "occupation.shop_steward" ] },
+      "from": ["doorstep", "talk"],
+      "needs": [ { "type": "casework" } ],
+      "deadline_days": [21, 35], "cooldown_days": 0,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 10, "memory": "kept_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "delta": 0.012 } ],
+      "break": [
+        { "type": "opinion", "role": "asker", "delta": -12, "memory": "broke_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "delta": -0.004 } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-casework-detail", "need_key": "ask-casework-need",
+      "kept_key": "ask-casework-kept", "broken_key": "ask-casework-broken" },
+
+    // A colleague with a bill of their own (goal `seek_backing`).
+    { "id": "ask.vote_with_me", "name_key": "ask-vote-with-me",
+      "asker": { "type": "goal_holder" },
+      "roles": [ { "id": "bill", "cast": { "type": "bill", "sponsor": "other", "sponsored_by": "asker" } } ],
+      "triggers": [ { "type": "can_vote", "slot": "bill" } ],
+      "needs": [ { "type": "vote", "role": "bill", "vote": "yes" } ],
+      "cooldown_days": 120,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 8, "memory": "kept_promise" },
+        { "type": "favour", "role": "asker", "owed_to_player": true } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -12, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-vote-with-me-detail", "need_key": "ask-vote-with-me-need",
+      "kept_key": "ask-vote-with-me-kept", "broken_key": "ask-vote-with-me-broken" },
+
+    // The party counts heads on a bill with a cost.
+    { "id": "ask.party_budget", "name_key": "ask-party-budget",
+      "asker": { "type": "occupation", "occupations": ["occupation.party_chair"] }, "on_behalf": "party",
+      "roles": [ { "id": "bill", "cast": { "type": "bill", "sponsor": "other" } } ],
+      "triggers": [ { "type": "can_vote", "slot": "bill" } ],
+      "needs": [ { "type": "vote", "role": "bill", "vote": "with_party" } ],
+      "cooldown_days": 150,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 6, "memory": "kept_promise" },
+        { "type": "standing", "delta": 2 } ],
+      "break": [
+        { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" },
+        { "type": "standing", "delta": -3 } ],
+      "decline": [ { "type": "standing", "delta": -1 } ],
+      "detail_key": "ask-party-budget-detail", "need_key": "ask-party-budget-need",
+      "kept_key": "ask-party-budget-kept", "broken_key": "ask-party-budget-broken" },
+
+    // A colleague of the party in a close race wants to be seen with you.
+    { "id": "ask.colleague_event", "name_key": "ask-colleague-event",
+      "asker": { "type": "occupation", "occupations": ["occupation.party_chair"] }, "on_behalf": "party",
+      "roles": [ { "id": "ally", "cast": { "type": "colleague", "party": "same" } } ],
+      "triggers": [ { "type": "campaigning" } ],
+      "needs": [ { "type": "canvass", "role": "ally" } ],
+      "deadline_days": [14, 14], "cooldown_days": 90,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 5, "memory": "kept_promise" },
+        { "type": "opinion", "role": "ally", "delta": 6 },
+        { "type": "standing", "delta": 2 } ],
+      "break": [
+        { "type": "opinion", "role": "asker", "delta": -8, "memory": "broke_promise" },
+        { "type": "standing", "delta": -2 } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-colleague-event-detail", "need_key": "ask-colleague-event-need",
+      "kept_key": "ask-colleague-event-kept", "broken_key": "ask-colleague-event-broken" },
+
+    // The press wants a word on the crisis.
+    { "id": "ask.say_something", "name_key": "ask-say-something",
+      "asker": { "type": "occupation", "occupations": ["occupation.journalist", "occupation.editor"] },
+      "triggers": [ { "type": "crisis", "min_severity": 0.3 } ],
+      "needs": [ { "type": "statement", "about": { "type": "crisis" } } ],
+      "deadline_days": [7, 14], "cooldown_days": 120, "public": true,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 6, "memory": "kept_promise" },
+        { "type": "approval", "scope": "town", "delta": 0.004 } ],
+      "break": [
+        { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" },
+        { "type": "approval", "scope": "town", "delta": -0.004 } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-say-something-detail", "need_key": "ask-say-something-need",
+      "kept_key": "ask-say-something-kept", "broken_key": "ask-say-something-broken" },
+
+    // Traders worried about jobs want you at their meeting (goal `traders_help`).
+    { "id": "ask.attend_meeting", "name_key": "ask-attend-meeting",
+      "asker": { "type": "goal_holder" },
+      "needs": [ { "type": "visit", "kinds": ["business_association", "market"], "role": "asker_hood" } ],
+      "deadline_days": [21, 28], "cooldown_days": 200,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 9, "memory": "kept_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "classes": [1, 2], "delta": 0.012 } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -4 } ],
+      "detail_key": "ask-attend-meeting-detail", "need_key": "ask-attend-meeting-need",
+      "kept_key": "ask-attend-meeting-kept", "broken_key": "ask-attend-meeting-broken" },
+
+    // The laid-off workers want you on the picket line, then on the record
+    // (goal `organise_workers`).
+    { "id": "ask.join_picket", "name_key": "ask-join-picket",
+      "asker": { "type": "goal_holder" },
+      "triggers": [ { "type": "crisis", "kind": "crisis.plant_closure", "min_severity": 0.05 } ],
+      "needs": [
+        { "type": "visit", "kinds": ["union_hall"] },
+        { "type": "statement", "about": { "type": "concern", "concern": "concern.jobs" } } ],
+      "deadline_days": [14, 21], "cooldown_days": 200, "public": true,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 10, "memory": "kept_promise" },
+        { "type": "approval", "scope": "town", "classes": [0], "delta": 0.008 },
+        { "type": "standing", "delta": -1 } ],
+      "break": [
+        { "type": "opinion", "role": "asker", "delta": -12, "memory": "broke_promise" },
+        { "type": "approval", "scope": "town", "classes": [0], "delta": -0.006 } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -5 } ],
+      "detail_key": "ask-join-picket-detail", "need_key": "ask-join-picket-need",
+      "kept_key": "ask-join-picket-kept", "broken_key": "ask-join-picket-broken" },
+
+    // An organiser wants a public meeting where they live.
+    { "id": "ask.town_hall_here", "name_key": "ask-town-hall-here",
+      "asker": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.clergy"] },
+      "needs": [ { "type": "town_hall", "role": "asker_hood" } ],
+      "deadline_days": [30, 45], "cooldown_days": 150, "fresh_days": 180, "public": true,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 8, "memory": "kept_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "delta": 0.012 } ],
+      "break": [
+        { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "delta": -0.006 } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-town-hall-here-detail", "need_key": "ask-town-hall-here-need",
+      "kept_key": "ask-town-hall-here-kept", "broken_key": "ask-town-hall-here-broken" },
+
+    // A big one: put an answer to the crisis before the council.
+    { "id": "ask.draft_answer", "name_key": "ask-draft-answer",
+      "asker": { "type": "occupation", "occupations": [
+        "occupation.business_leader", "occupation.union_steward", "occupation.clergy",
+        "occupation.head_teacher", "occupation.dean", "occupation.organiser" ] },
+      "triggers": [ { "type": "crisis", "min_severity": 0.3 } ],
+      "needs": [ { "type": "introduce", "bills": { "type": "crisis_answer" } } ],
+      "deadline_days": [60, 90], "cooldown_days": 240, "big": true, "public": true,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 12, "memory": "kept_promise" },
+        { "type": "approval", "scope": "ward", "delta": 0.006 } ],
+      "break": [
+        { "type": "opinion", "role": "asker", "delta": -12, "memory": "broke_promise" },
+        { "type": "approval", "scope": "ward", "delta": -0.006 } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-draft-answer-detail", "need_key": "ask-draft-answer-need",
+      "kept_key": "ask-draft-answer-kept", "broken_key": "ask-draft-answer-broken" },
+
+    // The broker wants a vote; from the second year.
+    { "id": "ask.broker_vote", "name_key": "ask-broker-vote",
+      "asker": { "type": "broker" },
+      "roles": [ { "id": "bill", "cast": { "type": "bill", "sponsor": "other" } } ],
+      "triggers": [ { "type": "can_vote", "slot": "bill" } ],
+      "needs": [ { "type": "vote", "role": "bill", "vote": "yes" } ],
+      "cooldown_days": 240, "big": true, "min_career_days": 300,
+      "keep": [ { "type": "opinion", "role": "asker", "delta": 10, "memory": "kept_promise" } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -15, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -5 } ],
+      "detail_key": "ask-broker-vote-detail", "need_key": "ask-broker-vote-need",
+      "kept_key": "ask-broker-vote-kept", "broken_key": "ask-broker-vote-broken" },
+
+    // After a disaster: come and see us.
+    { "id": "ask.visit_after_flood", "name_key": "ask-visit-after-flood",
+      "asker": { "type": "occupation", "occupations": ["occupation.resident", "occupation.retiree", "occupation.shopkeeper", "occupation.clergy"] },
+      "triggers": [ { "type": "disaster", "within_months": 1 } ],
+      "needs": [ { "type": "canvass", "role": "asker_hood", "or_town_hall": true } ],
+      "deadline_days": [14, 14], "cooldown_days": 120, "public": true,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 8, "memory": "kept_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "delta": 0.015 } ],
+      "break": [
+        { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "delta": -0.008 } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -4 } ],
+      "detail_key": "ask-visit-after-flood-detail", "need_key": "ask-visit-after-flood-need",
+      "kept_key": "ask-visit-after-flood-kept", "broken_key": "ask-visit-after-flood-broken" },
+
+    // A colleague championing a fix wants you to hear them out, then vote yes
+    // (goal `champion_fix`).
+    { "id": "ask.second_my_bill", "name_key": "ask-second-my-bill",
+      "asker": { "type": "goal_holder" },
+      "roles": [ { "id": "bill", "cast": { "type": "bill", "sponsor": "other", "sponsored_by": "asker" } } ],
+      "triggers": [ { "type": "can_vote", "slot": "bill" } ],
+      "needs": [ { "type": "talk", "role": "asker" }, { "type": "vote", "role": "bill", "vote": "yes" } ],
+      "cooldown_days": 150,
+      "keep": [ { "type": "opinion", "role": "asker", "delta": 10, "memory": "kept_promise" } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -12, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -4 } ],
+      "detail_key": "ask-second-my-bill-detail", "need_key": "ask-second-my-bill-need",
+      "kept_key": "ask-second-my-bill-kept", "broken_key": "ask-second-my-bill-broken" },
+
+    // Services are stretched: say so in public.
+    { "id": "ask.fund_the_school", "name_key": "ask-fund-the-school",
+      "asker": { "type": "occupation", "occupations": ["occupation.teacher", "occupation.nurse", "occupation.head_teacher", "occupation.gp"] },
+      "triggers": [ { "type": "concern", "concern": "concern.services", "top": 2 } ],
+      "needs": [ { "type": "statement", "about": { "type": "concern", "concern": "concern.services" } } ],
+      "deadline_days": [21, 35], "cooldown_days": 180,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 7, "memory": "kept_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "classes": [0, 1], "delta": 0.01 } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-fund-the-school-detail", "need_key": "ask-fund-the-school-need",
+      "kept_key": "ask-fund-the-school-kept", "broken_key": "ask-fund-the-school-broken" },
+
+    // A business leader wants you to meet someone new in town while the jobs
+    // are holding up.
+    { "id": "ask.meet_the_newcomer", "name_key": "ask-meet-the-newcomer",
+      "asker": { "type": "occupation", "occupations": ["occupation.business_leader"] },
+      "roles": [ { "id": "newcomer", "cast": { "type": "occupation", "occupations": ["occupation.tech_founder", "occupation.hotel_manager", "occupation.plant_manager"] } } ],
+      "triggers": [ { "type": "indicator", "indicator": "unemployment_rise", "max": 0.0 } ],
+      "needs": [ { "type": "talk", "role": "newcomer" } ],
+      "deadline_days": [30, 30], "cooldown_days": 240,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 6, "memory": "kept_promise" },
+        { "type": "opinion", "role": "newcomer", "delta": 5 } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -8, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -2 } ],
+      "detail_key": "ask-meet-the-newcomer-detail", "need_key": "ask-meet-the-newcomer-need",
+      "kept_key": "ask-meet-the-newcomer-kept", "broken_key": "ask-meet-the-newcomer-broken" },
+
+    // Someone the player has been asking around about would rather they
+    // stopped; from the second year. Kept by not acting.
+    { "id": "ask.keep_it_quiet", "name_key": "ask-keep-it-quiet",
+      "asker": { "type": "colleague" },
+      "from": ["talked_about"],
+      "needs": [ { "type": "quiet", "role": "asker" } ],
+      "deadline_days": [90, 90], "cooldown_days": 240, "min_career_days": 300,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 8, "memory": "kept_promise" },
+        { "type": "favour", "role": "asker", "owed_to_player": true } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -15, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -5 } ],
+      "detail_key": "ask-keep-it-quiet-detail", "need_key": "ask-keep-it-quiet-need",
+      "kept_key": "ask-keep-it-quiet-kept", "broken_key": "ask-keep-it-quiet-broken" },
+
+    // A friendly resident wants an introduction to the town's executive.
+    { "id": "ask.introduce_me", "name_key": "ask-introduce-me",
+      "asker": { "type": "occupation", "occupations": ["occupation.shopkeeper", "occupation.organiser", "occupation.clergy", "occupation.tech_founder", "occupation.farmer"] },
+      "roles": [ { "id": "official", "cast": { "type": "office" } } ],
+      "triggers": [ { "type": "opinion", "slot": "asker", "min": 10 } ],
+      "needs": [ { "type": "talk", "role": "official" }, { "type": "talk", "role": "asker" } ],
+      "deadline_days": [30, 30], "cooldown_days": 240,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 8, "memory": "kept_promise" },
+        { "type": "opinion", "role": "official", "delta": 2 } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -8, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -2 } ],
+      "detail_key": "ask-introduce-me-detail", "need_key": "ask-introduce-me-need",
+      "kept_key": "ask-introduce-me-kept", "broken_key": "ask-introduce-me-broken" },
+  ],
+}

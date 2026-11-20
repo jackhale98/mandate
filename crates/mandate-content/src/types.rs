@@ -1508,7 +1508,7 @@ fn ones3() -> [f64; 3] {
 /// The player actions a place can offer. The kinds of action stay in code
 /// (DEC-078 decision 7); these keys match the action-cost keys in tuning
 /// where an action costs time. `vote`, `draft`, `file`, and `withdraw` are free.
-pub const PLACE_ACTIONS: [&str; 17] = [
+pub const PLACE_ACTIONS: [&str; 18] = [
     "canvass",
     "town_hall",
     "press",
@@ -1526,6 +1526,7 @@ pub const PLACE_ACTIONS: [&str; 17] = [
     "take_bribe",
     "dip_funds",
     "leak_file",
+    "casework",
 ];
 
 /// Actions with a late-night variant (the optional fourth slot).
