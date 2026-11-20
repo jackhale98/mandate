@@ -9,6 +9,11 @@
 // `idleMs` (20 s) without input the townsfolk stop where they are and nothing
 // is drawn until the next pointer, wheel, key or touch; it stops too when
 // the page is hidden or the view is paused (a panel or sheet over it).
+// Dialogue mode (DEC-093, `beginTalk`): the camera eases to frame the player
+// and the person they talk to, facing each other, above the dialogue box;
+// walking, street input, labels and the townsfolk pause until `endTalk`, and
+// only the speaker moves (a small bob while a reply is revealed, at most
+// TALK_FPS), so a conversation costs less than the idle street.
 // Framework-free, so the prototype page and the app's React screen can both
 // mount it.
 import { HubCamera } from "./camera";
@@ -18,7 +23,7 @@ import { PlaceholderArt } from "./render/placeholderArt";
 import { TownRenderer, type WalkerView } from "./render/townRenderer";
 import { ROOF_ROWS, buildingOfPlace, type TownBuilding, type TownMap } from "./townLayout";
 import type { TownLocation } from "./townInput";
-import { TownScene, type StandingPerson, type Walker } from "./townScene";
+import { TALK_REACH, TownScene, type StandingPerson, type Walker } from "./townScene";
 
 /** Someone standing in the street the player can walk up to and talk to (DEC-093). */
 export interface StreetPerson extends StandingPerson {
@@ -90,6 +95,17 @@ const editable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isCon
 
 const TILE = 16;
 
+/**
+ * Dialogue mode: the zoom (CSS px per art px) a conversation frames at, at
+ * least (more on a tall screen: about TALK_ROWS art px of street in its
+ * height); frames per second while only the speaker moves.
+ */
+export const TALK_ZOOM = 3;
+const TALK_ROWS = 260;
+export const TALK_FPS = 8;
+/** Where the speakers stand in the street left above the dialogue box (a share of its height from the top): room for the bubbles above them. */
+const TALK_AT = 0.62;
+
 /** Labels shown at once when zoomed out (TOWN_GENERATION.md §8: at most 12 on the overview). */
 export const LABEL_CAP = 12;
 /** Zoom (CSS px per art px) from which every building label may show; below it, landmarks and at most LABEL_CAP. Slightly under 2 so a device-pixel step just below 2 (e.g. 1.9 at DPR 2.625) still counts. */
@@ -152,6 +168,8 @@ export class HubView {
   private cssH = 1;
   private dpr = 1;
   private pausedFlag = false;
+  /** The canvas was cleared (resized) and not drawn since. */
+  private blank = true;
   private destroyed = false;
   private readonly cleanup: (() => void)[] = [];
   private walkerViews: WalkerView[] = [];
@@ -168,6 +186,16 @@ export class HubView {
   private readonly personTags = new Map<string, HTMLButtonElement>();
   /** The person the player stands next to. */
   private nearKey: string | null = null;
+  /**
+   * Dialogue mode: the person spoken to (their walker: a passer-by met keeps it
+   * under a new key), the street's height covered by the dialogue box, the
+   * zoom framed at and the zoom to go back to.
+   */
+  private talk: { w: Walker; inset: number; zoom: number; from: number } | null = null;
+  /** After a conversation: the zoom the camera eases back to, then it is the player's again. */
+  private talkReturn: number | null = null;
+  private speaker: "player" | "person" | null = null;
+  private readonly frameListeners = new Set<() => void>();
 
   constructor(
     readonly container: HTMLElement,
@@ -266,6 +294,8 @@ export class HubView {
     if (v) {
       this.letGo();
       this.stop();
+      // Whatever covers the street (a portrait conversation is see-through) shows its last frame, never a cleared canvas.
+      if (this.blank && !this.destroyed) this.drawNow();
     } else this.wake();
   }
 
@@ -332,6 +362,121 @@ export class HubView {
     return ok;
   }
 
+  // ------------------------------------------------------------------ dialogue mode (DEC-093)
+
+  /** Whether a conversation with someone standing in the street can be framed here: they stand by the player, and the street is in sight. */
+  canTalk(key: string): boolean {
+    if (this.pausedFlag || this.destroyed || this.scene.player.walk) return false;
+    const s = this.scene.standing.find((x) => x.key === key);
+    const p = this.scene.player;
+    return !!s && Math.hypot(s.w.x - p.x, s.w.y - p.y) <= TALK_REACH + 0.4;
+  }
+
+  /**
+   * Dialogue mode: frame the player and `key` facing each other, centred in
+   * the street above `insetBottom` CSS px (the dialogue box), zoomed in to at
+   * least TALK_ZOOM; walking and street input pause, labels hide and the
+   * townsfolk stop. Returns false if they are not standing in the street.
+   */
+  beginTalk(key: string, insetBottom = 0): boolean {
+    const s = this.scene.standing.find((x) => x.key === key);
+    if (!s) return false;
+    this.letGo();
+    const step = 1 / this.dpr;
+    const from = this.talk?.from ?? this.talkReturn ?? this.camera.state.zoom;
+    const want = Math.min(6, Math.max(Math.ceil(TALK_ZOOM / step - 1e-9), Math.round(this.cssH / TALK_ROWS / step)) * step);
+    this.talkReturn = null;
+    this.talk = { w: s.w, inset: Math.max(0, insetBottom), zoom: Math.max(from, want), from };
+    this.scene.folkPaused = true;
+    this.labelLayer.style.visibility = "hidden";
+    this.follow = false;
+    this.wake();
+    return true;
+  }
+
+  /** The dialogue box covers this much of the street now (CSS px from the bottom). */
+  setTalkInset(px: number) {
+    if (!this.talk || Math.abs(this.talk.inset - px) < 1) return;
+    this.talk.inset = Math.max(0, px);
+    this.wake();
+  }
+
+  /** Who is speaking (a reply being revealed): they bob a little (not with reduced motion). */
+  setSpeaking(who: "player" | "person" | null) {
+    if (this.speaker === who) return;
+    this.speaker = who;
+    this.wake();
+  }
+
+  /** Leave dialogue mode: the camera eases back to its zoom and follows the player again; walking resumes. */
+  endTalk() {
+    if (!this.talk) return;
+    this.talkReturn = this.talk.from;
+    this.talk = null;
+    this.speaker = null;
+    this.scene.folkPaused = false;
+    this.labelLayer.style.visibility = "";
+    this.follow = true;
+    this.lastInput = performance.now();
+    this.wake();
+  }
+
+  /** The person spoken to (their key now), or null outside dialogue mode. */
+  get talking(): string | null {
+    const t = this.talk;
+    return t ? (this.scene.standing.find((s) => s.w === t.w)?.key ?? null) : null;
+  }
+
+  /** In dialogue mode: the top of the speakers' heads (CSS px in the container), and CSS px per tile; null when the person is gone. */
+  talkAnchors(): { player: { x: number; y: number }; person: { x: number; y: number }; tile: number } | null {
+    const t = this.talk;
+    if (!t || !this.scene.standing.some((s) => s.w === t.w)) return null;
+    const head = (w: Walker) => this.camera.worldToScreen({ x: w.x * TILE, y: (w.y - 1.45) * TILE });
+    return { player: head(this.scene.player), person: head(t.w), tile: TILE * this.camera.state.zoom };
+  }
+
+  /** Called after every drawn frame (overlays that follow the camera). Returns the unsubscribe. */
+  addFrameListener(fn: () => void): () => void {
+    this.frameListeners.add(fn);
+    return () => this.frameListeners.delete(fn);
+  }
+
+  /** The camera's goal in dialogue mode: the two speakers' midpoint at TALK_AT of the street above the box. */
+  private talkCentre(t: { w: Walker; inset: number }, zoom: number): { x: number; y: number } {
+    const a = this.scene.player;
+    const b = t.w;
+    const free = Math.max(this.cssH * 0.3, this.cssH - t.inset);
+    const mx = ((a.x + b.x) / 2) * TILE;
+    const my = ((a.y + b.y) / 2 - 0.7) * TILE;
+    return this.camera.clampCentre(mx, my - (free * TALK_AT - this.cssH / 2) / zoom, zoom);
+  }
+
+  /** Ease the camera into (or back out of) dialogue mode; snaps with reduced motion. Returns true while still moving. */
+  private stepTalkCamera(dt: number): boolean {
+    const st = this.camera.state;
+    const k = this.reducedMotion ? 1 : 1 - Math.exp(-5 * Math.max(0, dt));
+    const zt = this.talk ? this.talk.zoom : (this.talkReturn ?? st.zoom);
+    let moving = false;
+    if (Math.abs(st.zoom - zt) > 1e-4) {
+      st.zoom = Math.abs(zt - st.zoom) < 0.01 ? zt : st.zoom * Math.pow(zt / st.zoom, k);
+      moving = true;
+    } else st.zoom = zt;
+    if (this.talk) {
+      const c = this.talkCentre(this.talk, st.zoom);
+      const dx = c.x - st.x;
+      const dy = c.y - st.y;
+      if (Math.hypot(dx, dy) * st.zoom > 0.3) {
+        st.x += dx * k;
+        st.y += dy * k;
+        moving = true;
+      } else {
+        st.x = c.x;
+        st.y = c.y;
+      }
+    } else if (!moving) this.talkReturn = null;
+    return moving;
+  }
+
   /** Walk to an engine location (a place, home, or a neighbourhood's streets); `notify`: call `onArrive` there. */
   goToLocation(loc: TownLocation, notify = true): boolean {
     const ok = this.scene.goToLocation(loc, () => {
@@ -379,6 +524,7 @@ export class HubView {
     this.canvas.remove();
     this.labelLayer.remove();
     this.personTags.clear();
+    this.frameListeners.clear();
   }
 
   // ------------------------------------------------------------------ labels
@@ -477,12 +623,15 @@ export class HubView {
     };
     for (const type of ["pointerdown", "wheel", "keydown"] as const) on(type, seen, { capture: true });
     on("pointerdown", (e) => {
+      // Dialogue mode: the street takes no input until the conversation ends.
+      if (this.talk) return;
       if (e.button !== 0 && e.pointerType === "mouse") return;
       c.setPointerCapture?.(e.pointerId);
       this.camera.pointerDown({ id: e.pointerId, ...local(e) });
       this.wake();
     });
     on("pointermove", (e) => {
+      if (this.talk) return;
       const s = this.camera.state;
       const before = [s.x, s.y, s.zoom];
       this.camera.pointerMove({ id: e.pointerId, ...local(e) });
@@ -493,6 +642,7 @@ export class HubView {
       }
     });
     on("pointerup", (e) => {
+      if (this.talk) return;
       const tap = this.camera.pointerUp({ id: e.pointerId, ...local(e) });
       if (tap) this.tap(tap.x, tap.y);
       this.wake();
@@ -505,6 +655,7 @@ export class HubView {
       "wheel",
       (e) => {
         e.preventDefault();
+        if (this.talk) return;
         this.follow = false;
         this.camera.wheel(local(e), e.deltaY);
         this.wake();
@@ -547,7 +698,7 @@ export class HubView {
       this.cleanup.push(() => target.removeEventListener(type, f as EventListener));
     };
     on(c, "keydown", (e) => {
-      if (this.pausedFlag || e.altKey || e.ctrlKey || e.metaKey || editable(e.target)) return;
+      if (this.pausedFlag || this.talk || e.altKey || e.ctrlKey || e.metaKey || editable(e.target)) return;
       const d = KEY_DIRS[e.code] ?? KEY_DIRS[e.key];
       if (d) {
         e.preventDefault();
@@ -708,7 +859,12 @@ export class HubView {
       this.camera.state.y = c.y;
     }
     this.renderer.invalidate();
-    if (!first) this.wake();
+    this.blank = true;
+    // Paused behind something (a portrait conversation, a sheet), the resized canvas is drawn once rather than left blank.
+    if (!first) {
+      if (this.pausedFlag && !this.destroyed) this.drawNow();
+      else this.wake();
+    }
   }
 
   private stop() {
@@ -744,7 +900,8 @@ export class HubView {
     this.last = now;
     this.time += dt;
     this.scene.step(dt);
-    const eased = this.camera.update(dt);
+    // Dialogue mode drives the camera itself (framing the speakers, then back to the player's zoom).
+    const eased = this.talk || this.talkReturn !== null ? this.stepTalkCamera(dt) : this.camera.update(dt);
     const p = this.scene.player;
     if (this.hint) this.updateDoor(false);
     else this.updatePerson();
@@ -758,13 +915,15 @@ export class HubView {
     const ticked = this.clock.advance(dt);
     if (ticked) this.syncFolk();
     const playerMoving = this.walking(p) || this.scene.steering;
-    const folkMoving = this.scene.activeFolk > 0;
+    // In dialogue mode the townsfolk stand still and only the speaker moves.
+    const folkMoving = this.scene.activeFolk > 0 && !this.scene.folkPaused;
+    const bobbing = this.speaker !== null && !this.reducedMotion;
     // Full rate: the player, the camera (easing, following, a gesture) and the light changing.
     const busy = playerMoving || eased || this.camera.gesturing || ticked || this.clock.running || this.renderer.animating || this.followSettling();
     // Idle sleep (DEC-080 "Battery"): nobody has touched anything for a while; draw this frame and stop.
     const idle = !busy && now - this.lastInput >= (this.opts.idleMs ?? 20_000);
     // Ambient-only frames are capped (DEC-080: battery).
-    const cap = 1000 / (this.opts.ambientFps ?? 15);
+    const cap = 1000 / (this.talk ? TALK_FPS : (this.opts.ambientFps ?? 15));
     if (busy || idle || now - this.lastTry >= cap - 1) {
       this.lastTry = now;
       this.drawNow(now);
@@ -772,7 +931,7 @@ export class HubView {
     this.sleeping = idle;
     if (idle || this.pausedFlag) return;
     if (busy) this.raf = requestAnimationFrame((t) => this.frame(t));
-    else if (folkMoving) {
+    else if (folkMoving || bobbing) {
       // Wait for the next ambient frame off the vsync; a frame or less away, the next vsync.
       const wait = this.lastTry + cap - performance.now();
       if (wait < 12) this.raf = requestAnimationFrame((t) => this.frame(t));
@@ -797,12 +956,19 @@ export class HubView {
     views.length = 0;
     // One walk frame per 4 art px walked (PIXEL_ART_TOOL §6), through every frame the art has.
     const frames = this.renderer.art.walkFrames;
-    const view = (w: Walker): WalkerView => ({ x: w.x, y: w.y, dir: w.dir, frame: w.moving ? 1 + (Math.floor(w.dist * 4) % frames) : 0, variant: w.variant });
+    const t = this.talk;
+    // Dialogue mode: the two speakers face each other; the one speaking bobs an art pixel (about 4 a second).
+    if (t) {
+      s.player.dir = facing(t.w.x - s.player.x, t.w.y - s.player.y);
+      t.w.dir = facing(s.player.x - t.w.x, s.player.y - t.w.y);
+    }
+    const bob = t && this.speaker && !this.reducedMotion && Math.floor(this.time * 4) % 2 === 1 ? (this.speaker === "player" ? s.player : t.w) : null;
+    const view = (w: Walker): WalkerView => ({ x: w.x, y: w.y - (w === bob ? 1 / TILE : 0), dir: w.dir, frame: w.moving ? 1 + (Math.floor(w.dist * 4) % frames) : 0, variant: w.variant });
     views.push(view(s.player));
     for (const w of s.outFolk) views.push(view(w));
     // People standing in the street turn to face the player when the player is by them.
     for (const { key, w } of s.standing) {
-      if (key === this.nearKey) w.dir = facing(s.player.x - w.x, s.player.y - w.y);
+      if (key === this.nearKey && !t) w.dir = facing(s.player.x - w.x, s.player.y - w.y);
       views.push(view(w));
     }
     const cam = this.camera.state;
@@ -815,17 +981,20 @@ export class HubView {
       zoom: cam.zoom * this.dpr,
       minutes: this.clock.minutes,
       walkers: views,
-      player: { x: s.player.x, y: s.player.y },
+      // In a conversation the speakers need no "you are here" (it would sit under the bubbles).
+      player: t ? null : { x: s.player.x, y: s.player.y },
       target: s.target ? { cell: s.target.cell, building: s.target.kind === "building" ? s.target.building : null } : null,
       time: this.time,
     });
     if (!drew) return;
+    this.blank = false;
     const t1 = performance.now();
     if (this.lastDraw) push(this.timings.intervals, now - this.lastDraw);
     push(this.timings.draws, t1 - t0);
     this.lastDraw = now;
     this.stats.frames++;
     this.placeLabels();
+    for (const f of this.frameListeners) f();
     this.opts.onFrame?.(this);
   }
 }

@@ -99,8 +99,9 @@ pub struct HoodPop {
     pub cohorts: Vec<Cohort>,
     /// Residents (adults and children) as play began (TOWN_GENERATION §4.1,
     /// §15 E1): recorded once by `record_baselines`, never changed after.
-    /// The town layout sizes this neighbourhood's district from it; no
-    /// system reads it.
+    /// The town layout sizes this neighbourhood's district from it; the
+    /// only system that reads it is the concerns refresh (a district that
+    /// grew faster than its town has dearer rents).
     pub baseline_population: u32,
 }
 
@@ -177,9 +178,14 @@ pub struct PopulationState {
     /// engine recomputes them on load.
     #[serde(default)]
     pub concern_keys: Vec<String>,
-    /// Per municipality: concern levels and issue salience (`concerns`).
+    /// Per municipality: concern levels (its neighbourhoods' levels,
+    /// weighted by residents) and issue salience (`concerns`).
     #[serde(default)]
     pub town_concerns: Vec<crate::concerns::TownConcerns>,
+    /// Per neighbourhood: concern levels from its own conditions
+    /// (`concerns`). Derived state, recomputed monthly and on load when it
+    /// does not match the world or the concern registry.
+    pub hood_concerns: Vec<crate::concerns::HoodConcerns>,
     /// Per neighbourhood: how hard its town's latest disaster hit it against
     /// the town's average (1 = average; DEC-090 D8). Empty until a disaster;
     /// a neighbourhood without an entry counts as 1. Opinion and the felt
@@ -580,6 +586,7 @@ pub fn init(
         // Computed by the engine when it takes over the state.
         concern_keys: Vec::new(),
         town_concerns: Vec::new(),
+        hood_concerns: Vec::new(),
         hood_impact: Vec::new(),
         displaced: Vec::new(),
     }

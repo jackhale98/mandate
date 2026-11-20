@@ -87,6 +87,8 @@ export class TownScene {
   activeFolk: number;
   /** People standing in the street, to walk up to (`setStanding`): they do not wander. */
   readonly standing: { key: string; w: Walker }[] = [];
+  /** Dialogue mode (DEC-093): the townsfolk stand where they are until the conversation ends. */
+  folkPaused = false;
   private reach: Uint8Array;
   private rng: Rng;
   private spots: number[] = [];
@@ -252,7 +254,11 @@ export class TownScene {
     return best;
   }
 
-  /** Walk up to someone standing in the street (to the side of them nearest the player); `onArrive` once there (at once if already). */
+  /**
+   * Walk up to someone standing in the street (beside them, left or right,
+   * the nearer side first, so the conversation frames them face to face;
+   * else in front or behind); `onArrive` once there (at once if already).
+   */
   goToPerson(key: string, onArrive?: () => void): boolean {
     const s = this.standing.find((x) => x.key === key);
     if (!s) return false;
@@ -272,7 +278,11 @@ export class TownScene {
     ]
       .map(([dx, dy]) => (cy + (dy as number)) * W + cx + (dx as number))
       .filter((c) => c >= 0 && c < this.reach.length && this.reach[c])
-      .sort((a, b) => Math.hypot((a % W) + 0.5 - this.player.x, Math.floor(a / W) + 0.5 - this.player.y) - Math.hypot((b % W) + 0.5 - this.player.x, Math.floor(b / W) + 0.5 - this.player.y));
+      .sort((a, b) => {
+        const side = (c: number) => (Math.floor(c / W) === cy ? 0 : 1);
+        const d = (c: number) => Math.hypot((c % W) + 0.5 - this.player.x, Math.floor(c / W) + 0.5 - this.player.y);
+        return side(a) - side(b) || d(a) - d(b);
+      });
     for (const c of around) if (this.goToCell(c, onArrive)) return true;
     return false;
   }
@@ -330,7 +340,7 @@ export class TownScene {
     let any = this.stepWalker(this.player, dt);
     if (this.steering) any = this.stepSteer(dt) || any;
     if (!this.player.walk && !this.player.moving) this.target = null;
-    for (const w of this.outFolk) {
+    for (const w of this.folkPaused ? [] : this.outFolk) {
       const m = this.stepWalker(w, dt);
       any ||= m;
       if (!w.walk) {

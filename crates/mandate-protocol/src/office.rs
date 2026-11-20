@@ -360,8 +360,9 @@ pub struct ConcernView {
     pub id: String,
     /// Fluent key of its name, e.g. `concern-jobs`.
     pub name_key: String,
-    /// How strongly it is felt (0..1.5; the town's level, adjusted for how
-    /// the residents in question lean).
+    /// How strongly it is felt (0..1.5; its level in the neighbourhoods in
+    /// question, from their own conditions, adjusted for how their residents
+    /// lean).
     pub weight: f64,
 }
 
@@ -978,7 +979,8 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
 }
 
 /// What worries residents of some neighbourhoods of a town, strongest first:
-/// the engine's concern levels (DEC-078 decision 3), as felt by those
+/// the engine's concern levels in those neighbourhoods (DEC-078 decision 3;
+/// each from its own conditions, weighted by residents), as felt by those
 /// residents (`mandate_sim::concerns::felt_concerns`). Concerns at level 0
 /// are left out.
 pub fn concerns_for(
@@ -1001,7 +1003,8 @@ pub fn concerns_for(
         .collect()
 }
 
-/// A town's strongest concerns by level (at most `n`), for any town.
+/// A town's strongest concerns by level (at most `n`; its neighbourhoods'
+/// levels weighted by residents), for any town.
 pub fn town_concerns(engine: &Engine, m: MunicipalityId, n: usize) -> Vec<ConcernView> {
     let content = engine.content();
     mandate_sim::concerns::top_concerns(&engine.state().population, m.index())

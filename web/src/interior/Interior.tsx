@@ -21,7 +21,8 @@ import { HotspotSheet, hotspotOffers } from "./HotspotSheet";
 import { InteriorView, type Near, type RoomPerson } from "./interiorView";
 import { recipeFromView } from "./recipes";
 import { roomFor } from "./roomCache";
-import { setInteriorStage } from "./stage";
+import { setTalkStage, useTalkStage, type TalkStage } from "../components/talk/stage";
+import { keepLook, lookVariant } from "../components/portrait/look";
 import "./interior.css";
 
 /** What tests see (`window.__interior`). */
@@ -61,7 +62,6 @@ export function Interior() {
   const passage = useGame((s) => s.passage?.phase ?? null);
   const busy = useGame((s) => s.busy);
   const openTalk = useGame((s) => s.openTalk);
-  const talkTo = useGame((s) => s.talkTo);
   const leaveInterior = useGame((s) => s.leaveInterior);
   const modal = useGame((s) => s.townMapOpen || s.electionNight);
   const sheets = useGame((s) => [s.pocketOpen && "pocket", s.openPlace !== null && "place", s.character !== null && "character", s.decision !== null && "decision", s.story !== null && "story", s.talk !== null && "talk"].filter(Boolean).join(" "));
@@ -115,7 +115,7 @@ export function Interior() {
     });
     return castRoom(room, recipe, cast, { fullStaff: minutes < EVENING }).map((pl) => {
       const e = byKey.get(pl.key);
-      return { ...pl, label: e?.label ?? null, variant: e?.variant ?? 100 + (hash(`${room.seed}:${pl.key}`) % 997) };
+      return { ...pl, label: e?.label ?? null, variant: e ? lookVariant(e.key) : 100 + (hash(`${room.seed}:${pl.key}`) % 997) };
     });
   }, [room, recipe, v, tr, minutes]);
 
@@ -152,7 +152,6 @@ export function Interior() {
       onTalk: (key) => {
         if (latest.current.busy) return;
         const id = Number(key.slice(1));
-        view.frame(key);
         void openTalk(key.startsWith("c") ? { type: "person", person: id } : { type: "ambient", slot: id });
       },
       onHotspot: (h) => setHot(h),
@@ -172,15 +171,7 @@ export function Interior() {
     view.setPeople(latest.current.people);
     view.focus();
     setReady(true);
-    setInteriorStage({
-      element: stage,
-      place: inside.place,
-      people: () => latest.current.people.filter((p) => !p.extra).map((p) => p.key),
-      anchorOf: (key) => view.anchorOf(key),
-      frame: (key) => view.frame(key),
-    });
     return () => {
-      setInteriorStage(null);
       view.destroy();
       viewRef.current = null;
       window.__interior = null;
@@ -192,6 +183,7 @@ export function Interior() {
 
   useEffect(() => {
     viewRef.current?.setPeople(people);
+    for (const p of people) if (!p.extra) keepLook(p.key, p.variant);
   }, [people, ready]);
   useEffect(() => {
     viewRef.current?.setHotspots(hotspots);
@@ -199,18 +191,53 @@ export function Interior() {
   useEffect(() => {
     viewRef.current?.setMinutes(minutes, reducedMotion() ? 0 : easeMs);
   }, [minutes, easeMs, ready]);
-  // A conversation through the store is framed in the room (and ends with it).
-  const talkKey = talkTo ? (talkTo.type === "person" ? `c${talkTo.person}` : `a${talkTo.slot}`) : null;
-  useEffect(() => {
-    viewRef.current?.frame(talkKey);
-  }, [talkKey, ready]);
-
-  // Nothing animates where nobody sees it.
+  // Nothing animates where nobody sees it (a conversation over a portrait covers the room too; framed in
+  // the room, it shows the speakers instead).
   const sheetCovers = useSheetsCover(stageRef, [sheets, hot ? "hotspot" : ""].filter(Boolean).join(" "));
-  const covered = modal || sheetCovers || hot !== null;
+  const portrait = useTalkStage((s) => s.mode === "portrait");
+  const covered = modal || sheetCovers || hot !== null || portrait;
+  const coveredNow = useRef(covered);
   useEffect(() => {
+    coveredNow.current = covered;
     if (viewRef.current) viewRef.current.paused = covered;
   }, [covered, ready]);
+
+  // Dialogue mode (DEC-093): inside, the room is the talk stage (as the street is outside): a conversation with
+  // someone beside the player is framed here, both facing each other above the dialogue box, with the speech
+  // bubbles on them (../components/talk/TalkSheet dims the rest). The street's stage comes back on the way out.
+  useEffect(() => {
+    const v = viewRef.current;
+    const el = stageRef.current;
+    if (!ready || !v || !el) return;
+    const inset = (boxTop: number) => Math.max(0, el.getBoundingClientRect().bottom - boxTop);
+    const before = useTalkStage.getState().stage;
+    const stage: TalkStage = {
+      canFrame: (key) => !coveredNow.current && v.canTalk(key),
+      begin: (key, boxTop) => void v.beginTalk(key, inset(boxTop)),
+      cover: (boxTop) => v.setTalkInset(inset(boxTop)),
+      speaking: (who) => v.setSpeaking(who),
+      end: () => v.endTalk(),
+      anchors: () => {
+        const a = v.talkAnchors();
+        if (!a) return null;
+        const r = el.getBoundingClientRect();
+        return {
+          player: { x: r.left + a.player.x, y: r.top + a.player.y },
+          person: { x: r.left + a.person.x, y: r.top + a.person.y },
+          scale: a.tile,
+          bounds: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+        };
+      },
+      onFrame: (fn) => v.addFrameListener(fn),
+      lookOf: (key) => (latest.current.people.some((p) => p.key === key && !p.extra) ? lookVariant(key) : null),
+      focus: () => v.focus(),
+    };
+    setTalkStage(stage);
+    return () => {
+      v.endTalk();
+      if (useTalkStage.getState().stage === stage) setTalkStage(before);
+    };
+  }, [ready]);
 
   useEffect(() => {
     const view = viewRef.current;

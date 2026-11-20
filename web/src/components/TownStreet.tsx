@@ -28,6 +28,8 @@ import { useGame } from "../state/gameStore";
 import { sameLocation } from "../state/routing";
 import { useSheetsCover } from "./sheetCover";
 import { streetPeople } from "./talk/streetPeople";
+import { setTalkStage, useTalkStage, type TalkStage } from "./talk/stage";
+import { keepLook } from "./portrait/look";
 import { Interior } from "../interior/Interior";
 import { enterable } from "../interior/recipes";
 
@@ -227,7 +229,9 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   // Nothing animates where nobody sees it: behind the map overlay, a modal, or a sheet over most of the
   // street (a phone). A sheet beside the street (wide screens) leaves it live: zoom and pan keep working.
   const sheetCovers = useSheetsCover(stageRef, sheets);
-  const covered = modal || sheetCovers;
+  // A conversation over a portrait covers the street too (in the street, it frames the speakers instead).
+  const portrait = useTalkStage((s) => s.mode === "portrait");
+  const covered = modal || sheetCovers || portrait;
   useEffect(() => {
     if (viewRef.current) viewRef.current.paused = covered;
   }, [covered, ready]);
@@ -239,6 +243,41 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   useEffect(() => {
     coveredNow.current = covered;
   }, [covered]);
+
+  // Dialogue mode (DEC-093): the street is the stage for a conversation with someone standing in it by the
+  // player (../talk/TalkSheet frames them, dims the rest and anchors the bubbles to them).
+  useEffect(() => {
+    const v = viewRef.current;
+    const el = stageRef.current;
+    if (!ready || !v || !el) return;
+    const inset = (boxTop: number) => Math.max(0, el.getBoundingClientRect().bottom - boxTop);
+    const stage: TalkStage = {
+      canFrame: (key) => !coveredNow.current && v.canTalk(key),
+      begin: (key, boxTop) => void v.beginTalk(key, inset(boxTop)),
+      cover: (boxTop) => v.setTalkInset(inset(boxTop)),
+      speaking: (who) => v.setSpeaking(who),
+      end: () => v.endTalk(),
+      anchors: () => {
+        const a = v.talkAnchors();
+        if (!a) return null;
+        const r = el.getBoundingClientRect();
+        return {
+          player: { x: r.left + a.player.x, y: r.top + a.player.y },
+          person: { x: r.left + a.person.x, y: r.top + a.person.y },
+          scale: a.tile,
+          bounds: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+        };
+      },
+      onFrame: (fn) => v.addFrameListener(fn),
+      lookOf: (key) => v.scene.standing.find((s) => s.key === key)?.w.variant ?? null,
+      focus: () => v.canvas.focus({ preventScroll: true }),
+    };
+    setTalkStage(stage);
+    return () => {
+      v.endTalk();
+      if (useTalkStage.getState().stage === stage) setTalkStage(null);
+    };
+  }, [ready]);
   useEffect(() => {
     const v = viewRef.current;
     if (!walking || !ready || !v || (!v.scene.playerMoving && atLocation(v.map, walking.location, v.scene.playerCell))) return;
@@ -290,6 +329,8 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       const people = streetPeople(tr, list);
       names.current = new Map(people.map((p) => [p.key, p.name]));
       v.setPeople(people);
+      // A passer-by met stands on under their new key with the look they had: the portrait keeps it too.
+      for (const s of v.scene.standing) keepLook(s.key, s.w.variant);
     });
     return () => {
       live = false;

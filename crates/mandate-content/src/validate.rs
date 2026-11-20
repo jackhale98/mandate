@@ -778,6 +778,49 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
         0.0,
         20.0,
     );
+    let lc = &o.local_concerns;
+    let kinds = |l: &crate::NeighborhoodLean| {
+        [
+            ("core", l.core),
+            ("inner", l.inner),
+            ("waterfront", l.waterfront),
+            ("industrial", l.industrial),
+            ("suburb", l.suburb),
+            ("rural", l.rural),
+        ]
+    };
+    for (k, v) in kinds(&lc.rent) {
+        r(&format!("opinion.local_concerns.rent.{k}"), v, 0.05, 10.0);
+    }
+    for (k, v) in kinds(&lc.pollution) {
+        r(
+            &format!("opinion.local_concerns.pollution.{k}"),
+            v,
+            0.0,
+            10.0,
+        );
+    }
+    for (name, v, hi) in [
+        ("rent_growth", lc.rent_growth, 10.0),
+        ("pollution_workplace", lc.pollution_workplace, 10.0),
+        ("pollution_next_door", lc.pollution_next_door, 10.0),
+        ("pollution_floodplain", lc.pollution_floodplain, 10.0),
+        ("workplace_affinity", lc.workplace_affinity, 20.0),
+        ("job_loss_decline", lc.job_loss_decline, 50.0),
+        ("jobs_sector_tilt", lc.jobs_sector_tilt, 5.0),
+    ] {
+        r(&format!("opinion.local_concerns.{name}"), v, 0.0, hi);
+    }
+    for s in &lc.sector_kinds {
+        for (k, v) in kinds(&s.kinds) {
+            r(
+                &format!("opinion.local_concerns.sector_kinds.{:?}.{k}", s.driver),
+                v,
+                0.0,
+                20.0,
+            );
+        }
+    }
 
     let a = &b.actions;
     r("actions.late_night_health", a.late_night_health, 0.0, 100.0);
@@ -1454,6 +1497,25 @@ fn validate_concerns(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
         if l.min > l.max {
             issues.push(Issue::error(&c.id, "level.min must not exceed level.max"));
+        }
+    }
+    // Neighbourhood concerns: workplaces are place kinds; a driver's kind
+    // lean is given once.
+    let lc = &b.opinion.local_concerns;
+    for k in lc.workplaces.keys() {
+        if b.place_kind(k).is_none() {
+            issues.push(Issue::error(
+                "opinion",
+                &format!("local_concerns.workplaces names unknown place kind `{k}`"),
+            ));
+        }
+    }
+    for (i, s) in lc.sector_kinds.iter().enumerate() {
+        if lc.sector_kinds[..i].iter().any(|x| x.driver == s.driver) {
+            issues.push(Issue::error(
+                "opinion",
+                &format!("local_concerns.sector_kinds lists {:?} twice", s.driver),
+            ));
         }
     }
 }

@@ -1,201 +1,627 @@
-// The talk panel (DEC-093): talking to someone by topic. Topics are buttons
-// with honest odds (DEC-073: the engine's, the ones it rolls) and the cost;
-// what is unavailable says why. A reply shows as a short dialogue in the
-// speaker's voice, then what the player learned (the notebook's entries,
-// DEC-091) and the leads. Everything shown comes from the engine's views
-// (`TalkView`, `ExchangeView`); the UI decides nothing. Reached from the
-// place panel's people, the pocket's People tab and the walkable street, so
-// the List view and quick mode reach the same conversations (DEC-051).
-import { useLayoutEffect, useRef, useState } from "react";
-import type { TopicView } from "../../engine/protocol/TopicView";
+// Talking to someone (DEC-093), in dialogue mode: a classic RPG dialogue box
+// at the bottom of the screen and speech bubbles over the speakers.
+//   - In the street (someone standing there by the player, ./stage): the
+//     camera frames the two of them facing each other, the rest of the
+//     street dims and walking pauses; bubbles follow their sprites.
+//   - Anywhere else (the People tab, a place's people, the List view, anyone
+//     not on screen): the same box over a large pixel portrait of the person
+//     (../portrait), bubbles beside it.
+// The box lists the topics the engine offers (`TalkView`) as one-tap
+// choices with the engine's odds (DEC-073); a topic about something opens a
+// second step in the same box with its subjects. A reply (`ExchangeView`)
+// shows in the person's bubble, page by page (tap, Enter or Space), stage
+// directions in italics; what was learned becomes a notebook toast and a
+// lead a choice ("Go to the market"). The UI decides nothing: it sends the
+// `Talk` command and renders what the engine says (DEC-054).
+// Accessibility (DEC-051): the box is DOM; choices are buttons in a list
+// (arrow keys move, Enter chooses, Escape steps back or leaves); the reply
+// is read out by a polite live region; focus goes back to the street or to
+// whatever opened the conversation.
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { AboutChoiceView } from "../../engine/protocol/AboutChoiceView";
+import type { ExchangeView } from "../../engine/protocol/ExchangeView";
+import type { LeadView } from "../../engine/protocol/LeadView";
 import type { TalkView } from "../../engine/protocol/TalkView";
+import type { TopicView } from "../../engine/protocol/TopicView";
 import { useGame } from "../../state/gameStore";
 import { placeName } from "../../places/labels";
-import { useSheetClose } from "../useSheetClose";
 import { roleText } from "../CharacterSheet";
-import { ExchangeCard } from "./ExchangeCard";
-import { aboutText, oddsText } from "./talkText";
+import { Portrait } from "../portrait/Portrait";
+import { keepLook, lookVariant } from "../portrait/look";
+import { Bubble, placeBubble } from "./Bubble";
+import { costText, pageText, questionText, replyPages, SEARCH_FROM, subjectGroups, topicRow, type Page } from "./dialogueModel";
+import { setTalkMode, useTalkStage, type TalkMode } from "./stage";
+import { displayName } from "./streetPeople";
+import { aboutText, learnedText } from "./talkText";
 import "./talk.css";
 
-/** The cost line: half a slot (or the half left over), the late slot, or out of time. */
-function Cost({ v }: { v: TalkView }) {
-  const tr = useGame((s) => s.tr);
-  if (v.out_of_time)
-    return (
-      <p className="talk-out" role="status" data-testid="talk-out-of-time">
-        <span aria-hidden="true">⌛ </span>
-        {v.late_night ? tr.t("talk-why-late-used") : tr.t("ui-talk-out-of-time")}
-      </p>
-    );
-  return (
-    <p className="tradeoff talk-cost" data-testid="talk-cost">
-      {v.late_night ? tr.t("ui-talk-cost-late") : v.half_slot_left ? tr.t("ui-talk-cost-half-left") : tr.t(v.cost_halves <= 1 ? "ui-talk-cost-half" : "ui-talk-cost-slot", { left: v.slots_left })}
-    </p>
-  );
+const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** The typewriter: characters a tick, and the tick (ms). */
+const TYPE_STEP = 2;
+const TYPE_MS = 28;
+/** The player's question stays up at least this long before the reply replaces it (ms). */
+const ASK_HOLD_MS = 900;
+/** The notebook toast goes after this long (ms) unless the pointer or the keyboard is on it. */
+const NOTED_MS = 8000;
+
+/** One conversation: with whom (their key now), where it is shown, and the look the portrait draws. */
+interface Conversation {
+  n: number;
+  key: string;
+  mode: TalkMode;
+  look: number;
 }
 
-/** Subjects by kind, in the order the engine lists them. */
-function groups(list: readonly AboutChoiceView[]): [string, AboutChoiceView[]][] {
-  const out: [string, AboutChoiceView[]][] = [];
-  for (const c of list) {
-    const g = out.find(([k]) => k === c.kind);
-    if (g) g[1].push(c);
-    else out.push([c.kind, [c]]);
+const targetKey = (to: { type: "person"; person: number } | { type: "ambient"; slot: number } | null) => (to ? (to.type === "person" ? `c${to.person}` : `a${to.slot}`) : null);
+
+/** The conversation: mounted by the game screen, shown while the engine offers a talk view. */
+export function TalkSheet() {
+  const v = useGame((s) => s.talk);
+  const to = useGame((s) => s.talkTo);
+  const x = useGame((s) => s.exchange);
+  const [conv, setConv] = useState<Conversation | null>(null);
+  const key = targetKey(to);
+  if (key !== (conv?.key ?? null)) {
+    if (key === null) setConv(null);
+    else if (conv && conv.key.startsWith("a") && key.startsWith("c") && x?.speaker.id === Number(key.slice(1))) {
+      // A passer-by met as the conversation started: the same conversation, with them as someone known.
+      setConv({ ...conv, key });
+    } else {
+      const stage = useTalkStage.getState().stage;
+      setConv({ n: (conv?.n ?? 0) + 1, key, mode: stage?.canFrame(key) ? "street" : "portrait", look: stage?.lookOf(key) ?? lookVariant(key) });
+    }
   }
-  return out;
+  // The street pauses behind a portrait (nobody sees it).
+  const mode = v && conv ? conv.mode : null;
+  useEffect(() => {
+    setTalkMode(mode);
+  }, [mode]);
+  useEffect(() => () => setTalkMode(null), []);
+  // The portrait keeps a passer-by's look once they are met.
+  useEffect(() => {
+    if (conv) keepLook(conv.key, conv.look);
+  }, [conv]);
+  const lost = useCallback(() => setConv((c) => (c ? { ...c, mode: "portrait" } : c)), []);
+  if (!v || !conv) return null;
+  return <Dialogue key={conv.n} v={v} x={x} conv={conv} onLost={lost} />;
 }
 
-/** One topic: a button, or (for a topic about something) the subject to choose and an Ask button. */
-function Topic({ t }: { t: TopicView }) {
+type Step = { kind: "topics" } | { kind: "subjects"; topic: string };
+
+/** The reply on show: which exchange, which page, how much of it is revealed. */
+interface Shown {
+  id: number | null;
+  page: number;
+  typed: number;
+}
+
+function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null; conv: Conversation; onLost: () => void }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
+  const late = useGame((s) => s.talkLate);
+  const openTalk = useGame((s) => s.openTalk);
   const talkAbout = useGame((s) => s.talkAbout);
-  // The subject chosen, by what it is (the list can change when the view is refreshed).
-  const first = t.about_required ? (t.about.find((c) => c.available) ?? t.about[0] ?? null) : null;
-  const [pick, setPick] = useState<string>(first ? JSON.stringify(first.about) : "");
-  const choice: AboutChoiceView | null = (pick ? t.about.find((c) => JSON.stringify(c.about) === pick) : null) ?? (t.about_required ? (first ?? null) : null);
-  const available = choice ? choice.available : t.available;
-  const odds = choice ? choice.odds : t.odds;
-  const why = choice ? choice.unavailable_key : t.unavailable_key;
-  const label = tr.t(t.name_key);
-  const meta = (
+  const goToTalk = useGame((s) => s.goToTalk);
+  const setLate = useGame((s) => s.setTalkLate);
+  const visit = useGame((s) => s.visit);
+  const openPocket = useGame((s) => s.openPocket);
+  const stage = useTalkStage((s) => s.stage);
+  const street = conv.mode === "street";
+
+  const [step, setStep] = useState<Step>({ kind: "topics" });
+  const [q, setQ] = useState("");
+  const [active, setActive] = useState<string | null>(null);
+  // The player's question (their bubble), and until when it holds the stage.
+  const [asked, setAsked] = useState<{ text: string; after: number | null } | null>(null);
+  const [holding, setHolding] = useState(false);
+  const [shown, setShown] = useState<Shown>({ id: x?.id ?? null, page: 0, typed: Infinity });
+  const [notedGone, setNotedGone] = useState<number | null>(null);
+
+  const boxRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const veilRef = useRef<HTMLDivElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
+  const personBubble = useRef<HTMLDivElement>(null);
+  const playerBubble = useRef<HTMLDivElement>(null);
+  /** What to focus after the next render: the first choice, or one by id. */
+  const [focusReq, setFocusReq] = useState<{ to: string; n: number }>({ to: "first", n: 1 });
+  const focusDone = useRef(0);
+  const focus = useCallback((to: string) => setFocusReq((r) => ({ to, n: r.n + 1 })), []);
+  const opener = useRef<Element | null>(null);
+
+  // A new reply starts at its first page (the derived-state pattern: no effect, no flash of the old one).
+  const xid = x?.id ?? null;
+  if (xid !== shown.id) setShown({ id: xid, page: 0, typed: reducedMotion() ? Infinity : 0 });
+  const pages = useMemo(() => (x ? replyPages(tr, x) : []), [x, tr]);
+  // The reply waits while the player's question is still up.
+  const waiting = asked !== null && (holding || asked.after === xid);
+  const page: Page | null = !waiting && x && pages.length > 0 ? (pages[Math.min(shown.page, pages.length - 1)] ?? null) : null;
+  const full = page ? pageText(page).length : 0;
+  const typing = page !== null && shown.typed < full;
+  const more = page !== null && shown.page < pages.length - 1;
+  const atEnd = x !== null && !waiting && !more;
+
+  // The typewriter (off with reduced motion: the page is all there at once).
+  useEffect(() => {
+    if (!typing) return;
+    const id = window.setInterval(() => setShown((s) => (s.typed >= full ? s : { ...s, typed: Math.min(full, s.typed + TYPE_STEP) })), TYPE_MS);
+    return () => window.clearInterval(id);
+  }, [typing, full]);
+
+  // The question holds the stage a moment, then gives way to the reply.
+  useEffect(() => {
+    if (!holding) return;
+    const id = window.setTimeout(() => setHolding(false), ASK_HOLD_MS);
+    return () => window.clearTimeout(id);
+  }, [holding]);
+
+  /** Tap, Enter or Space on a reply: reveal the page at once, else the next page. */
+  const advance = useCallback(() => {
+    if (!page) return;
+    if (shown.typed < full) setShown((s) => ({ ...s, typed: Infinity }));
+    else if (shown.page < pages.length - 1) {
+      focus(shown.page + 1 < pages.length - 1 ? "continue" : "first");
+      setShown((s) => ({ ...s, page: s.page + 1, typed: reducedMotion() ? Infinity : 0 }));
+    }
+  }, [page, shown, full, pages.length, focus]);
+
+  const leave = useCallback(() => void openTalk(null), [openTalk]);
+
+  const ask = (t: TopicView, about: AboutChoiceView | null) => {
+    if (busy) return;
+    setAsked({ text: questionText(tr, t, about), after: xid });
+    setHolding(true);
+    setStep({ kind: "topics" });
+    focus("continue");
+    // Nothing came of it (the engine refused): the question goes, rather than wait for a reply.
+    void talkAbout(t.id, about ? about.about : null).then(() => {
+      if ((useGame.getState().exchange?.id ?? null) === xid) {
+        setAsked(null);
+        setHolding(false);
+      }
+    });
+  };
+
+  const openSubjects = (t: TopicView) => {
+    setQ("");
+    setStep({ kind: "subjects", topic: t.id });
+    focus("first");
+  };
+  const back = useCallback(() => {
+    if (step.kind !== "subjects") return;
+    focus(`topic-${step.topic}`);
+    setStep({ kind: "topics" });
+  }, [step, focus]);
+
+  // ------------------------------------------------------------------ the keyboard
+
+  // Escape steps back from the subjects, else leaves; Enter or Space off any control turns the page.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (step.kind === "subjects") back();
+        else leave();
+        return;
+      }
+      const t = e.target;
+      const control = t instanceof HTMLElement && t.closest("button, input, select, textarea, a");
+      if ((e.key === "Enter" || e.key === " ") && !control && page) {
+        e.preventDefault();
+        advance();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [step, back, leave, advance, page]);
+
+  /** Arrow keys move between the choices (Home, End: the first, the last). */
+  const onListKey = (e: ReactKeyboardEvent) => {
+    const list = listRef.current;
+    if (!list) return;
+    const items = [...list.querySelectorAll<HTMLElement>("[data-choice]")];
+    if (items.length === 0) return;
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    const n = items.length;
+    const to = e.key === "ArrowDown" ? (i + 1) % n : e.key === "ArrowUp" ? (i <= 0 ? n - 1 : i - 1) : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    if (to < 0 || (e.target instanceof HTMLInputElement && e.key !== "ArrowDown")) return;
+    e.preventDefault();
+    items[to]?.focus();
+  };
+
+  // The keyboard comes into the box when it opens; it goes back to whatever opened it (still there), else the street.
+  useLayoutEffect(() => {
+    opener.current = document.activeElement;
+    return () => {
+      const o = opener.current;
+      const st = useTalkStage.getState().stage;
+      if (!street && o instanceof HTMLElement && o.isConnected && o.getClientRects().length > 0 && o !== document.body) o.focus({ preventScroll: true });
+      else st?.focus();
+    };
+    // Once per conversation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // After a render that asked for it, or that took away the focused choice: focus a choice.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const want = focusReq.n !== focusDone.current ? focusReq.to : null;
+    const lost = document.activeElement === document.body || document.activeElement === null;
+    if (!want && !lost) return;
+    const items = [...list.querySelectorAll<HTMLElement>("[data-choice], input")];
+    const pick = (want && want !== "first" ? items.find((el) => el.dataset.choice === want) : null) ?? items.find((el) => el.getAttribute("aria-disabled") !== "true") ?? items[0];
+    if (!pick) return;
+    if (want === "continue" && !items.some((el) => el.dataset.choice === "continue")) {
+      // The reply is not in yet: keep the request for when it is.
+      if (busy || waiting) return;
+    }
+    focusDone.current = focusReq.n;
+    pick.focus({ preventScroll: true });
+  });
+
+  // ------------------------------------------------------------------ the street
+
+  // Frame the two speakers (dims the rest, pauses walking) for as long as the conversation is in the street.
+  useLayoutEffect(() => {
+    if (!street) return;
+    if (!stage) {
+      onLost();
+      return;
+    }
+    const box = boxRef.current;
+    stage.begin(conv.key, box ? box.getBoundingClientRect().top : window.innerHeight);
+    return () => stage.end();
+    // The person keeps their walker when met (a new key): framing goes on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [street, stage]);
+
+  const notedOn = atEnd && x !== null && x.learned.length > 0 && notedGone !== x.id;
+  // Bubbles over the sprites, the light on the speakers: on every drawn frame (the camera easing) and every render.
+  const place = useCallback(() => {
+    if (!street || !stage) return;
+    const a = stage.anchors();
+    if (!a) {
+      onLost();
+      return;
+    }
+    const box = boxRef.current?.getBoundingClientRect();
+    const veil = veilRef.current;
+    if (veil) {
+      veil.style.setProperty("--dlg-x", `${Math.round((a.player.x + a.person.x) / 2)}px`);
+      veil.style.setProperty("--dlg-y", `${Math.round((a.player.y + a.person.y) / 2 + a.scale * 0.8)}px`);
+      veil.style.setProperty("--dlg-r", `${Math.round(Math.max(64, a.scale * 1.6))}px`);
+    }
+    const bounds = { left: 8, top: Math.max(8, a.bounds.top + 8) + (notedOn ? 52 : 0), right: window.innerWidth - 8, bottom: (box ? box.top : a.bounds.bottom) - 8 };
+    if (personBubble.current) placeBubble(personBubble.current, a.person, a.scale * 1.5, bounds);
+    if (playerBubble.current) placeBubble(playerBubble.current, a.player, a.scale * 1.5, bounds);
+  }, [street, stage, onLost, notedOn]);
+  useLayoutEffect(() => {
+    place();
+  });
+  useEffect(() => {
+    if (!street || !stage) return;
+    const off = stage.onFrame(place);
+    window.addEventListener("resize", place);
+    return () => {
+      off();
+      window.removeEventListener("resize", place);
+    };
+  }, [street, stage, place]);
+  // The box's height: the street frames the speakers above it; a portrait stands on it.
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box || typeof ResizeObserver !== "function") return;
+    const ro = new ResizeObserver(() => {
+      const r = box.getBoundingClientRect();
+      layerRef.current?.style.setProperty("--dlg-box-h", `${Math.round(window.innerHeight - r.top)}px`);
+      if (!street || !stage) return;
+      stage.cover(r.top);
+      place();
+    });
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [street, stage, place]);
+  // A new step, or the end of a reply (the outcome above the choices): the box's list from the top.
+  useLayoutEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = 0;
+  }, [step, atEnd]);
+  // The person speaks while their words come out.
+  useEffect(() => {
+    if (!street || !stage) return;
+    stage.speaking(typing ? "person" : null);
+  }, [street, stage, typing]);
+
+  // ------------------------------------------------------------------ the notebook toast
+
+  useEffect(() => {
+    if (!notedOn || !x) return;
+    const id = window.setTimeout(() => setNotedGone(x.id), NOTED_MS);
+    return () => window.clearTimeout(id);
+  }, [notedOn, x]);
+
+  // ------------------------------------------------------------------ what is shown
+
+  const name = displayName(tr, v.person);
+  const label = v.person.name ? tr.t("ui-talk-with", { name: v.person.name }) : tr.t("ui-talk-with-stranger");
+  const role = v.person.name ? roleText(tr, v.person) : tr.t("ui-dlg-stranger");
+  const cost = costText(tr, v);
+  const thinking = asked !== null && waiting && !holding;
+  const replyLive = page ? tr.t("ui-dlg-says", { name, line: pageText(page) }) : "";
+  // A reason every topic shares (out of time, not here) is said once, above the choices.
+  const shared = new Set<string>([...(v.out_of_time ? ["talk-why-time", "talk-why-late-used"] : []), ...(!v.here ? ["talk-why-away"] : [])]);
+  const statusId = "dlg-status";
+
+  const bubbles = (
     <>
-      {odds !== null && (
-        <strong className="talk-odds" data-testid="talk-odds">
-          {oddsText(tr, odds)}
-        </strong>
+      {asked && waiting && <Bubble who="player" page={asked.text} side={!street} testId="talk-you" bubbleRef={playerBubble} />}
+      {(page || thinking) && (
+        <Bubble who="person" page={page} typed={shown.typed} more={more && !typing} thinking={!page} side={!street} onAdvance={advance} testId="talk-bubble" bubbleRef={personBubble} />
       )}
-      {t.asked_this_week && <span className="muted small talk-asked">{tr.t("ui-talk-asked")}</span>}
     </>
   );
-  const reason = !available && why && (
-    <p className="muted small talk-why" data-testid="talk-why">
-      {tr.t(why)}
-    </p>
-  );
-  if (t.about.length === 0)
+
+  const choice = (id: string, opts: { label: string; onChoose: () => void; disabled?: boolean; why?: string | null; odds?: number | null; opens?: boolean; asked?: boolean; kind?: string; testId?: string; describedBy?: string | undefined }) => {
+    const disabled = !!opts.disabled || busy;
+    const whyId = opts.why ? `dlg-why-${id.replace(/\W/g, "-")}` : undefined;
     return (
-      <li className="talk-topic" data-testid={`talk-topic-${t.id}`}>
-        <button type="button" className="btn talk-topic-btn" disabled={busy || !available} onClick={() => void talkAbout(t.id, null)}>
-          <span className="talk-topic-name">{label}</span>
-          {meta}
+      <li key={id} className={`dlg-item${opts.kind ? ` dlg-item-${opts.kind}` : ""}`} data-testid={opts.testId}>
+        <button
+          type="button"
+          className="dlg-choice"
+          data-choice={id}
+          tabIndex={(active ?? "") === id ? 0 : -1}
+          aria-disabled={disabled || undefined}
+          aria-describedby={whyId ?? opts.describedBy}
+          onFocus={() => setActive(id)}
+          onClick={() => {
+            if (!disabled) opts.onChoose();
+          }}
+        >
+          <span className="dlg-choice-label">{opts.label}</span>
+          {opts.asked && <span className="dlg-tag dlg-tag-quiet">{tr.t("ui-talk-asked")}</span>}
+          {opts.odds !== null && opts.odds !== undefined && (
+            <span className="dlg-tag dlg-odds" data-testid="talk-odds" title={tr.t("ui-talk-odds", { pct: Math.round(opts.odds * 100) })}>
+              <span aria-hidden="true">{tr.t("ui-dlg-odds", { pct: Math.round(opts.odds * 100) })}</span>
+              <span className="visually-hidden">{tr.t("ui-talk-odds", { pct: Math.round(opts.odds * 100) })}</span>
+            </span>
+          )}
+          {opts.opens && (
+            <span className="dlg-opens" aria-hidden="true">
+              ›
+            </span>
+          )}
         </button>
-        {reason}
+        {opts.why && (
+          <p className="dlg-why" id={whyId} data-testid="talk-why">
+            {tr.t(opts.why)}
+          </p>
+        )}
       </li>
     );
-  const id = `talk-about-${t.id.replace(/\W/g, "-")}`;
-  return (
-    <li className="talk-topic talk-topic-about" data-testid={`talk-topic-${t.id}`}>
-      <div className="talk-topic-head">
-        <span className="talk-topic-name">{label}</span>
-        {meta}
-      </div>
-      <div className="talk-topic-row">
-        <label className="visually-hidden" htmlFor={id}>
-          {tr.t("ui-talk-about")}
-        </label>
-        <select id={id} className="input talk-about" value={choice ? JSON.stringify(choice.about) : ""} onChange={(e) => setPick(e.target.value)} data-testid="talk-about">
-          {!t.about_required && <option value="">{tr.t("ui-talk-about-none")}</option>}
-          {/* Grouped by kind where there are several: a bill and the policy it drafts share a name. */}
-          {groups(t.about).map(([kind, list]) => {
-            const options = list.map((c) => (
-              <option key={JSON.stringify(c.about)} value={JSON.stringify(c.about)}>
-                {aboutText(tr, c.label, c.label_key)}
-              </option>
-            ));
-            return groups(t.about).length > 1 ? (
-              <optgroup key={kind} label={tr.t(`ui-talk-kind-${kind}`)}>
-                {options}
-              </optgroup>
+  };
+
+  const leadGo = (l: LeadView, i: number) => {
+    const dest = l.route?.to ?? null;
+    if (!dest || l.route?.here) return null;
+    return choice(`lead-${i}`, {
+      label: tr.t("ui-talk-go", { place: placeName(tr, dest) }),
+      kind: "go",
+      testId: "talk-lead-go",
+      onChoose: () => {
+        void openTalk(null);
+        // The lead's place: go there and open it (free).
+        void visit(dest.location);
+      },
+    });
+  };
+
+  const topicItems = () =>
+    v.topics.map((t) => {
+      const r = topicRow(t);
+      const why = r.why && !shared.has(r.why) ? r.why : null;
+      return choice(`topic-${t.id}`, {
+        label: tr.t(t.name_key),
+        disabled: !r.available,
+        why,
+        describedBy: !r.available && !why ? statusId : undefined,
+        odds: r.odds,
+        opens: r.opens,
+        asked: t.asked_this_week,
+        testId: `talk-topic-${t.id}`,
+        onChoose: () => (r.opens ? openSubjects(t) : ask(t, null)),
+      });
+    });
+
+  const topic = step.kind === "subjects" ? (v.topics.find((t) => t.id === step.topic) ?? null) : null;
+  const subjects = () => {
+    if (!topic) return null;
+    const groups = subjectGroups(tr, topic.about, q);
+    const searching = topic.about.length >= SEARCH_FROM;
+    return (
+      <>
+        <div className="dlg-step-head">
+          <button type="button" className="dlg-back" onClick={back} data-testid="talk-back">
+            <span aria-hidden="true">‹ </span>
+            {tr.t("ui-dlg-back")}
+          </button>
+          <h3 className="dlg-step-title" id="dlg-step-title">
+            {tr.t(topic.name_key)}
+          </h3>
+        </div>
+        {searching && (
+          <input
+            type="search"
+            className="input dlg-search"
+            value={q}
+            placeholder={tr.t("ui-dlg-search")}
+            aria-label={tr.t("ui-dlg-search")}
+            onChange={(e) => setQ(e.target.value)}
+            data-testid="talk-subject-search"
+          />
+        )}
+        <ul className="dlg-choices" aria-labelledby="dlg-step-title" data-testid="talk-subjects">
+          {!topic.about_required &&
+            !q &&
+            choice("none", {
+              label: tr.t("ui-talk-about-none"),
+              disabled: !topic.available,
+              why: topic.available || shared.has(topic.unavailable_key ?? "") ? null : topic.unavailable_key,
+              odds: topic.odds,
+              testId: "talk-subject",
+              onChoose: () => ask(topic, null),
+            })}
+          {groups.map(([kind, items]) => {
+            const rows = items.map((c) =>
+              choice(`about-${JSON.stringify(c.about)}`, {
+                label: aboutText(tr, c.label, c.label_key),
+                disabled: !c.available,
+                why: c.available || shared.has(c.unavailable_key ?? "") ? null : c.unavailable_key,
+                describedBy: !c.available ? statusId : undefined,
+                odds: c.odds,
+                testId: "talk-subject",
+                onChoose: () => ask(topic, c),
+              }),
+            );
+            return groups.length > 1 ? (
+              <li key={kind} className="dlg-group">
+                <p className="dlg-group-name" id={`dlg-kind-${kind}`}>
+                  {tr.t(`ui-talk-kind-${kind}`)}
+                </p>
+                <ul className="dlg-choices" aria-labelledby={`dlg-kind-${kind}`}>
+                  {rows}
+                </ul>
+              </li>
             ) : (
-              options
+              <Fragment key={kind}>{rows}</Fragment>
             );
           })}
-        </select>
-        <button type="button" className="btn btn-primary talk-ask" disabled={busy || !available} onClick={() => void talkAbout(t.id, choice ? choice.about : null)} data-testid="talk-ask">
-          {tr.t("ui-talk-ask")}
-        </button>
-      </div>
-      {reason}
-    </li>
-  );
-}
+          {groups.length === 0 && q && <li className="dlg-none">{tr.t("ui-dlg-search-none", { q })}</li>}
+        </ul>
+      </>
+    );
+  };
 
-/** The talk panel: a sheet over the place panel (bottom sheet on phones, side panel from 900px). */
-export function TalkSheet() {
-  const tr = useGame((s) => s.tr);
-  const v = useGame((s) => s.talk);
-  const x = useGame((s) => s.exchange);
-  const late = useGame((s) => s.talkLate);
-  const busy = useGame((s) => s.busy);
-  const openTalk = useGame((s) => s.openTalk);
-  const setLate = useGame((s) => s.setTalkLate);
-  const goToTalk = useGame((s) => s.goToTalk);
-  const sheet = useRef<HTMLElement>(null);
-  const [closing, requestClose, sheetRef] = useSheetClose(() => void openTalk(null), sheet);
-  const who = v ? (v.person.id ?? `a${v.person.ambient_slot ?? ""}`) : null;
-  // Someone new starts at the top; a new reply is scrolled to (it is at the top of the body).
-  useLayoutEffect(() => {
-    if (sheet.current) sheet.current.scrollTop = 0;
-  }, [who, x?.id]);
-  if (!v) return null;
-  // A passer-by is a stranger until the conversation starts.
-  const title = v.person.name ? tr.t("ui-talk-with", { name: v.person.name }) : tr.t("ui-talk-with-stranger");
+  const away = !v.here;
+  const dest = v.route?.to ?? null;
+
   return (
-    <>
-      <div className={closing ? "sheet-scrim talk-scrim sheet-closing" : "sheet-scrim talk-scrim"} onClick={requestClose} aria-hidden="true" />
-      <aside ref={sheetRef} className={closing ? "sheet talk-sheet sheet-closing" : "sheet talk-sheet"} aria-labelledby="talk-title" data-testid="talk-panel">
-        <div className="sheet-head">
-          <div className="talk-head">
-            <h2 id="talk-title">{title}</h2>
-            <p className="muted small">
-              {roleText(tr, v.person)}
-              {roleText(tr, v.person) && " · "}
-              <span data-testid="talk-opinion">{tr.t(`ui-talk-opinion-${v.opinion_band}`)}</span>
-            </p>
-          </div>
-          <div className="sheet-tools">
-            <button type="button" className="btn btn-ghost" onClick={requestClose} aria-label={tr.t("ui-close")}>
-              ✕
-            </button>
+    <div ref={layerRef} className={`dlg-layer dlg-${conv.mode}`} data-mode={conv.mode} data-testid="talk-layer">
+      {street ? (
+        // The street, dimmed but for the two speakers; a tap turns the page.
+        <div ref={veilRef} className="dlg-veil" data-testid="talk-veil" onClick={advance} aria-hidden="true" />
+      ) : (
+        <div className="dlg-scene" onClick={advance} aria-hidden="true">
+          <div className="dlg-portrait-row">
+            <Portrait variant={conv.look} className="dlg-face" />
+            <div className="dlg-portrait-talk">{bubbles}</div>
           </div>
         </div>
-        <div className="sheet-body talk-body">
-          {x && <ExchangeCard x={x} />}
-          {!v.here && (
-            <div className="note" data-testid="talk-away">
-              {v.route?.to ? (
-                <>
-                  <p>{tr.t("ui-talk-away", { place: placeName(tr, v.route.to) })}</p>
-                  <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void goToTalk()} data-testid="talk-go">
-                    {tr.t("ui-talk-go", { place: placeName(tr, v.route.to) })}
-                  </button>
-                </>
-              ) : (
-                <p>{tr.t("ui-talk-nowhere")}</p>
-              )}
-            </div>
-          )}
-          <section className="card talk-topics" aria-labelledby="talk-topics-title" data-testid="talk-topics">
-            <h3 className="sub" id="talk-topics-title">
-              {x ? tr.t("ui-talk-again") : tr.t("ui-talk-topics")}
-            </h3>
-            {v.here && <Cost v={v} />}
+      )}
+      {street && bubbles}
+
+      {notedOn && x && (
+        <div className="dlg-noted" role="status" data-testid="talk-noted">
+          <button
+            type="button"
+            className="dlg-noted-open"
+            onClick={() => {
+              void openTalk(null);
+              openPocket("notebook");
+            }}
+            data-testid="talk-noted-open"
+          >
+            <span aria-hidden="true">✎ </span>
+            {x.learned.length > 1 ? tr.t("ui-dlg-noted-more", { what: learnedText(tr, x.learned[0] as ExchangeView["learned"][number]), more: x.learned.length - 1 }) : tr.t("ui-dlg-noted", { what: learnedText(tr, x.learned[0] as ExchangeView["learned"][number]) })}
+            <span className="visually-hidden"> {tr.t("ui-dlg-noted-open")}</span>
+          </button>
+          <button type="button" className="dlg-noted-x" aria-label={tr.t("ui-dismiss")} onClick={() => setNotedGone(x.id)}>
+            ×
+          </button>
+        </div>
+      )}
+
+      <div className="dlg-box-wrap" ref={boxRef}>
+        <div className="dlg-plate dlg-frame">
+          <h2 className="dlg-name" id="dlg-name">
+            {name}
+          </h2>
+        </div>
+        <section className="dlg-box dlg-frame" role="dialog" aria-label={label} aria-busy={busy || undefined} data-testid="talk-panel" data-leads={x?.leads.length ?? 0}>
+          <header className="dlg-head">
+            <p className="dlg-sub">
+              {role}
+              {role && " · "}
+              <span data-testid="talk-opinion">{tr.t(`ui-talk-opinion-${v.opinion_band}`)}</span>
+            </p>
+            {v.here && cost && (
+              <p className="dlg-cost" data-testid="talk-cost">
+                <span aria-hidden="true">{cost.short}</span>
+                <span className="visually-hidden">{cost.long}</span>
+              </p>
+            )}
+            {v.out_of_time && <p className="dlg-cost dlg-cost-out">{tr.t("ui-dlg-out-of-time")}</p>}
+            <button type="button" className="dlg-close" onClick={leave} aria-label={tr.t("ui-close")}>
+              ✕
+            </button>
+          </header>
+          {/* The reply as said, for screen readers (the bubble is drawn for the eyes). */}
+          <p className="visually-hidden" aria-live="polite" data-testid="talk-reply-live">
+            {replyLive}
+          </p>
+          <div className="dlg-body" ref={listRef} onKeyDown={onListKey}>
+            {away && (
+              <p className="dlg-status" id={statusId} data-testid="talk-away">
+                {dest ? tr.t("ui-talk-away", { place: placeName(tr, dest) }) : tr.t("ui-talk-nowhere")}
+              </p>
+            )}
+            {v.here && v.out_of_time && (
+              <p className="dlg-status dlg-status-out" id={statusId} role="status" data-testid="talk-out-of-time">
+                <span aria-hidden="true">⌛ </span>
+                {v.late_night ? tr.t("talk-why-late-used") : tr.t("ui-talk-out-of-time")}
+              </p>
+            )}
+            {atEnd && x && (
+              <p className="dlg-status dlg-outcome" data-testid="talk-outcome">
+                {tr.event(x.outcome_key, x.outcome_args)}
+              </p>
+            )}
+            {step.kind === "subjects" && topic ? (
+              subjects()
+            ) : (
+              <ul className="dlg-choices dlg-topics" aria-label={tr.t("ui-dlg-choices")} data-testid="talk-topics">
+                {page &&
+                  more &&
+                  choice("continue", {
+                    label: tr.t("ui-dlg-continue", { n: shown.page + 1, total: pages.length }),
+                    kind: "continue",
+                    testId: "talk-continue",
+                    onChoose: advance,
+                  })}
+                {away &&
+                  dest &&
+                  choice("go", {
+                    label: tr.t("ui-talk-go", { place: placeName(tr, dest) }),
+                    kind: "go",
+                    testId: "talk-go",
+                    onChoose: () => void goToTalk(),
+                  })}
+                {atEnd && x?.leads.map(leadGo)}
+                {topicItems()}
+                {choice("goodbye", { label: tr.t("ui-dlg-goodbye"), kind: "bye", testId: "talk-goodbye", onChoose: leave })}
+              </ul>
+            )}
             {v.late_night_possible && (
-              <label className="check">
+              <label className="check dlg-late">
                 <input type="checkbox" checked={late} disabled={busy} onChange={(e) => void setLate(e.target.checked)} data-testid="talk-late" />
                 {tr.t("ui-talk-late")}
               </label>
             )}
-            <ul className="talk-topic-list">
-              {v.topics.map((t) => (
-                <Topic key={`${who}-${t.id}`} t={t} />
-              ))}
-            </ul>
-          </section>
-        </div>
-      </aside>
-    </>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }

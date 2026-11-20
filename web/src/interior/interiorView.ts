@@ -23,6 +23,11 @@ import { crop, type Indexed } from "../../../tools/pixelkit/src/core/image";
 import type { Placement } from "./cast";
 import { facingOf, InteriorScene, type Tile } from "./interiorScene";
 
+interface Point {
+  x: number;
+  y: number;
+}
+
 /** Someone on a spot: a person the engine knows, or scenery staff. */
 export interface RoomPerson extends Placement {
   /** Name tag text (people only; extras have none). */
@@ -115,8 +120,11 @@ export class InteriorView {
   private focused = false;
   private near: Near = null;
   private nearSig = "";
-  /** The person a conversation is framed on (the dialogue hook): they and the player face each other. */
-  private talkFocus: string | null = null;
+  /** The conversation framed in the room (dialogue mode): with whom, and how much of the view the box covers (CSS px). */
+  private talk: { key: string; inset: number } | null = null;
+  private speaker: "player" | "person" | null = null;
+  private bob = 0;
+  private readonly frameListeners = new Set<() => void>();
   private zoom = 1;
   private ox = 0;
   private oy = 0;
@@ -269,26 +277,86 @@ export class InteriorView {
     return ok;
   }
 
+  // ------------------------------------------------------------------ dialogue mode (DEC-093)
+  // The room is a talk stage (../components/talk/stage, registered by ./Interior): a conversation with
+  // someone beside the player is framed here, above the dialogue box, with the speech bubbles on them.
+
+  /** Whether a conversation with `key` can be framed in the room now: they are here, beside the player, in sight. */
+  canTalk(key: string): boolean {
+    if (this.pausedFlag || this.destroyed || this.scene.moving) return false;
+    const p = this.people.find((x) => x.key === key && !x.extra);
+    const t = this.scene.tile;
+    return !!p && Math.abs(p.x - t.x) + Math.abs(p.y - t.y) <= 2;
+  }
+
   /**
-   * The dialogue hook: frame a conversation on someone present (they and the
-   * player turn to each other; null ends it). Bubbles attach with `anchorOf`.
+   * Frame a conversation with someone present: they and the player turn to
+   * each other, the room moves up so both stand clear of the dialogue box
+   * (`insetBottom` CSS px over the bottom of the view), tags hide, walking stops.
    */
-  frame(key: string | null) {
-    this.talkFocus = key;
-    const p = key ? this.people.find((x) => x.key === key) : undefined;
-    if (p) {
-      const t = this.scene.tile;
-      this.scene.player.dir = facingOf(p.x - t.x, p.y - t.y);
-    }
+  beginTalk(key: string, insetBottom = 0): boolean {
+    const p = this.people.find((x) => x.key === key && !x.extra);
+    if (!p) return false;
+    this.held.clear();
+    this.scene.steer(0, 0);
+    this.talk = { key, inset: Math.max(0, insetBottom) };
+    const t = this.scene.tile;
+    this.scene.player.dir = facingOf(p.x - t.x, p.y - t.y);
+    this.layer.style.visibility = "hidden";
+    this.layout();
+    return true;
+  }
+
+  /** The dialogue box covers this much of the view now (CSS px from the bottom). */
+  setTalkInset(px: number) {
+    if (!this.talk || Math.abs(this.talk.inset - px) < 1) return;
+    this.talk.inset = Math.max(0, px);
+    this.layout();
+  }
+
+  /** Who is speaking (a reply being revealed): they bob a little (not with reduced motion). */
+  setSpeaking(who: "player" | "person" | null) {
+    if (this.speaker === who) return;
+    this.speaker = who;
     this.invalidate();
   }
 
-  /** Where someone is drawn, CSS px in the container (the head's top to the feet): for bubbles and overlays. */
+  /** The conversation ended: the room settles back, tags return. */
+  endTalk() {
+    if (!this.talk) return;
+    this.talk = null;
+    this.speaker = null;
+    this.layer.style.visibility = "";
+    this.layout();
+  }
+
+  /** The person a conversation is framed on, or null. */
+  get talking(): string | null {
+    return this.talk?.key ?? null;
+  }
+
+  /** In a conversation: the top of the speakers' heads (CSS px in the container), and CSS px per tile. */
+  talkAnchors(): { player: Point; person: Point; tile: number } | null {
+    const t = this.talk;
+    const p = t ? this.people.find((x) => x.key === t.key) : undefined;
+    const a = this.anchorOf("player");
+    const b = p ? this.anchorOf(p.key) : null;
+    if (!a || !b) return null;
+    return { player: { x: a.x + a.w / 2, y: a.y + a.w * 0.3 }, person: { x: b.x + b.w / 2, y: b.y + b.w * 0.3 }, tile: (T * this.zoom) / this.dpr };
+  }
+
+  /** Called after every drawn frame (overlays that follow the room). Returns the unsubscribe. */
+  addFrameListener(fn: () => void): () => void {
+    this.frameListeners.add(fn);
+    return () => this.frameListeners.delete(fn);
+  }
+
+  /** Where someone is drawn, CSS px in the container (the head's top, the sprite's box): for bubbles and overlays. */
   anchorOf(key: string): { x: number; y: number; w: number; h: number } | null {
     const t = key === "player" ? { ...this.scene.player, pose: "stand" as const } : this.people.find((p) => p.key === key);
     if (!t) return null;
     const { fx, fy } = this.floor();
-    const top = fy + t.y * T + 14 - ANCHOR.y - (t.pose === "sit" ? 6 : 0);
+    const top = fy + t.y * T + 14 - ANCHOR.y + (t.pose === "sit" ? 5 : 0);
     const a = this.toScreen(fx + t.x * T, top);
     return { x: a.x, y: a.y, w: (T * this.zoom) / this.dpr, h: ((ANCHOR.y + 1) * this.zoom) / this.dpr };
   }
@@ -610,8 +678,25 @@ export class InteriorView {
     this.canvas.height = Math.round(this.cssH * this.dpr);
     // The whole room on screen at a whole number of device pixels per art pixel (at least 1).
     this.zoom = Math.max(1, Math.floor(Math.min(this.canvas.width / this.room.w, this.canvas.height / this.room.h)));
+    this.layout();
+  }
+
+  /** Place the room in the view: centred; in a conversation, moved up so the speakers stand clear of the dialogue box. */
+  private layout() {
+    const h = this.room.h * this.zoom;
     this.ox = Math.floor((this.canvas.width - this.room.w * this.zoom) / 2);
-    this.oy = Math.floor((this.canvas.height - this.room.h * this.zoom) / 2);
+    const centred = Math.floor((this.canvas.height - h) / 2);
+    this.oy = centred;
+    const t = this.talk;
+    const p = t ? this.people.find((x) => x.key === t.key) : undefined;
+    if (t && p) {
+      const free = Math.max(this.canvas.height * 0.3, this.canvas.height - t.inset * this.dpr);
+      if (centred + h > free) {
+        // The speakers' midpoint (about their heads) at the middle of the room left above the box.
+        const mid = this.room.floor.y + ((this.scene.player.y + p.y) / 2) * T - 6;
+        this.oy = Math.round(Math.min(centred, Math.max(free - h, free * 0.55 - mid * this.zoom)));
+      }
+    }
     this.invalidate();
   }
 
@@ -623,13 +708,13 @@ export class InteriorView {
   }
 
   private stop() {
-    if (this.raf) cancelAnimationFrame(this.raf);
+    if (this.raf > 0) cancelAnimationFrame(this.raf);
     this.raf = 0;
   }
 
   /** Run the loop (something may change). */
   wake() {
-    if (this.destroyed || this.pausedFlag || this.raf || (typeof document !== "undefined" && document.hidden)) return;
+    if (this.destroyed || this.pausedFlag || this.raf > 0 || (typeof document !== "undefined" && document.hidden)) return;
     this.last = performance.now();
     this.raf = requestAnimationFrame((t) => this.tick(t));
   }
@@ -649,6 +734,17 @@ export class InteriorView {
     if (moved || this.dirty) this.draw();
     this.updateNear();
     if (this.scene.moving || this.scene.steering || this.ease) this.raf = requestAnimationFrame((t) => this.tick(t));
+    else if (this.speaker && !this.opts.reducedMotion) {
+      // Someone speaking bobs a little: a few frames a second, only while the reply is revealed.
+      this.raf = -1;
+      window.setTimeout(() => {
+        if (this.raf !== -1 || this.destroyed) return;
+        this.raf = 0;
+        this.bob ^= 1;
+        this.dirty = true;
+        this.wake();
+      }, 180);
+    }
   }
 
   // ------------------------------------------------------------------ drawing
@@ -721,7 +817,8 @@ export class InteriorView {
       const look = p.extra || p.role !== "public" && p.role !== "patron" ? placeholderLook(p.role, p.variant) : lookFromSeed(p.variant >>> 0);
       const frames = this.sheet(look, `${p.role}:${p.variant}:${p.extra ? 1 : 0}`);
       const t = this.scene.player;
-      const dir = this.talkFocus === p.key || this.near?.kind === "person" && this.near.key === p.key ? facingOf(t.x - p.x, t.y - p.y) : p.facing;
+      const talking = this.talk?.key === p.key;
+      const dir = talking || (this.near?.kind === "person" && this.near.key === p.key) ? facingOf(t.x - p.x, t.y - p.y) : p.facing;
       let img = this.frameOf(frames, dir, 0);
       const tileX = fx + p.x * T;
       const tileY = fy + p.y * T;
@@ -733,11 +830,11 @@ export class InteriorView {
         const cut = sitCut(look);
         img = crop(img, 0, 0, 16, cut);
         x = tileX + (dir === "right" ? 1 : dir === "left" ? -1 : 0);
-        y = hip - cut;
+        y = hip - cut - (talking && this.speaker === "person" ? this.bob : 0);
       } else {
         const feetY = tileY + 14 - lift(p.x, p.y);
         x = tileX;
-        y = feetY - ANCHOR.y;
+        y = feetY - ANCHOR.y - (talking && this.speaker === "person" ? this.bob : 0);
         shadows.push({ x: tileX + ANCHOR.x, y: feetY - 1 });
       }
       layers.push({ canvas: this.actor(p.key, img, x, y, `${dir}:${p.pose}`, graded.g), x, y, key: (tileY + 14) * 4 });
@@ -752,7 +849,7 @@ export class InteriorView {
       const x = Math.round(fx + p.x * T);
       const tileY = fy + p.y * T;
       const feetY = Math.round(tileY + 14 - lift(p.x, p.y));
-      const y = feetY - ANCHOR.y;
+      const y = feetY - ANCHOR.y - (this.talk && this.speaker === "player" ? this.bob : 0);
       shadows.push({ x: x + ANCHOR.x, y: feetY - 1 });
       layers.push({ canvas: this.actor("player", img, x, y, `${p.dir}:${k}`, graded.g), x, y, key: Math.round((tileY + 14) * 4) + 3 });
     }
@@ -764,5 +861,6 @@ export class InteriorView {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.stats.frames++;
     this.placeLabels();
+    for (const f of this.frameListeners) f();
   }
 }

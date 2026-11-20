@@ -192,9 +192,6 @@ ui-talk = Talk
 ui-talk-to = Talk to { $name }
 ui-talk-with = Talking with { $name }
 ui-talk-with-stranger = Talking with someone you haven't met
-ui-talk-topics = What to ask
-ui-talk-ask = Ask
-ui-talk-about = About
 ui-talk-about-none = Nothing in particular
 ui-talk-odds = { $pct }% chance
 ui-talk-asked = asked this week
@@ -218,12 +215,6 @@ ui-talk-opinion-cool = Cool towards you
 ui-talk-opinion-neutral = Neutral towards you
 ui-talk-opinion-warm = Warm towards you
 ui-talk-opinion-friendly = Friendly towards you
-ui-talk-said = What was said
-ui-talk-you-asked = You: { $topic }
-ui-talk-you-asked-about = You: { $topic } ({ $about })
-ui-talk-learned = What you learned
-ui-talk-learned-none = Nothing new this time.
-ui-talk-in-notebook = Added to your notebook.
 ui-talk-kind-place = Places
 ui-talk-kind-person = People
 ui-talk-kind-hood = Neighbourhoods
@@ -231,11 +222,8 @@ ui-talk-kind-bill = Bills
 ui-talk-kind-template = Policies
 ui-talk-kind-rival = Your rival
 ui-talk-kind-proposal = Proposals
-ui-talk-leads = Leads
-ui-talk-lead-go = Go there
 ui-talk-warmer = { $name } seems warmer towards you.
 ui-talk-cooler = { $name } seems cooler towards you.
-ui-talk-again = Ask something else
 ui-talk-street-hint = Enter: talk to { $name }
 ui-talk-street-someone = Someone
 ui-talk-street-near = { $name } is here. Press Enter to talk.
@@ -254,6 +242,29 @@ ui-canvass-no-worries = You don't know what worries people here yet.
 ui-canvass-landed-strong = You raised { $issue }: it struck a chord.
 ui-canvass-landed-fair = You raised { $issue }: it went down fairly well.
 ui-canvass-landed-weak = You raised { $issue }: it fell flat here.
+
+## Dialogue mode (DEC-093): a conversation as a dialogue box at the bottom
+## of the screen with speech bubbles over the speakers (in the street) or
+## beside a portrait (anywhere else). The topics and the replies are the
+## engine's; these are the box's own words.
+
+ui-dlg-stranger = Someone you haven't met
+ui-dlg-cost-half = ½ slot · { $left } left
+ui-dlg-cost-slot = 1 slot · { $left } left
+ui-dlg-cost-late = The late slot
+ui-dlg-out-of-time = Out of time
+ui-dlg-odds = { $pct }%
+ui-dlg-choices = What to say
+ui-dlg-continue = Continue ({ $n } of { $total })
+ui-dlg-goodbye = Goodbye
+ui-dlg-back = Back
+ui-dlg-search = Search
+ui-dlg-search-none = Nothing matches “{ $q }”.
+ui-dlg-asked-about = { $topic }: { $about }
+ui-dlg-says = { $name }: { $line }
+ui-dlg-noted = Noted: { $what }
+ui-dlg-noted-more = Noted: { $what }, and { $more } more
+ui-dlg-noted-open = Open your notebook
 
 ## Interiors
 # Walking into a place from the street (DEC-088): the room, its hotspots, the door.
