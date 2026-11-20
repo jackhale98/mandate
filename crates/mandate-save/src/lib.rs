@@ -22,8 +22,9 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// reports). v20: offices from the constitution (R1, DEC-098). v21: the
 /// ground game's memory (E1, DEC-097 §1). v22: the director's variety and
 /// pacing cycle (E2, DEC-097 §3). v23: the act flow (time skips,
-/// directives, the Legacy record and act endings; DEC-012, DEC-006).
-pub const SAVE_FORMAT_VERSION: u16 = 23;
+/// directives, the Legacy record and act endings; DEC-012, DEC-006). v24:
+/// asks and promises and the player's deed log (E6, DEC-097 §2).
+pub const SAVE_FORMAT_VERSION: u16 = 24;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -222,6 +223,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // The act flow (DEC-012, DEC-006): v22 → v23. Renumber only this
         // key if another bump merges first.
         (22, act_flow),
+        // Asks and promises, the deed log (E6, DEC-097 §2): v23 → v24.
+        // Renumber only this key if another bump merges first.
+        (23, asks_domain),
     ];
     let mut value = value;
     let mut v = from;
@@ -717,6 +721,19 @@ fn act_flow(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError
         .and_then(|p| p.as_object_mut())
         .ok_or(SaveError::Malformed)?;
     st.remove("act");
+    Ok(value)
+}
+
+/// v23 → v24 (E6, DEC-097 §2): `State.asks` (asks, promises, the deed log)
+/// is new. A run from before has none: the step drops any a newer build
+/// might have left, so the serde default applies (nothing asked, nothing
+/// promised, an empty deed log; the first offer comes at the sliding rate).
+fn asks_domain(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let st = value
+        .pointer_mut("/state")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    st.remove("asks");
     Ok(value)
 }
 

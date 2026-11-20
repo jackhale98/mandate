@@ -82,7 +82,7 @@
     // The press wants a word on the crisis.
     { "id": "ask.say_something", "name_key": "ask-say-something",
       "asker": { "type": "occupation", "occupations": ["occupation.journalist", "occupation.editor"] },
-      "triggers": [ { "type": "crisis", "min_severity": 0.3 } ],
+      "triggers": [ { "type": "crisis", "min_severity": 0.1 } ],
       "needs": [ { "type": "statement", "about": { "type": "crisis" } } ],
       "deadline_days": [7, 14], "cooldown_days": 120, "public": true,
       "keep": [
@@ -132,7 +132,7 @@
     { "id": "ask.town_hall_here", "name_key": "ask-town-hall-here",
       "asker": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.clergy"] },
       "needs": [ { "type": "town_hall", "role": "asker_hood" } ],
-      "deadline_days": [30, 45], "cooldown_days": 150, "fresh_days": 180, "public": true,
+      "deadline_days": [30, 45], "weight": 0.6, "cooldown_days": 150, "fresh_days": 180, "public": true,
       "keep": [
         { "type": "opinion", "role": "asker", "delta": 8, "memory": "kept_promise" },
         { "type": "approval", "neighborhood": "asker_hood", "delta": 0.012 } ],
@@ -143,12 +143,12 @@
       "detail_key": "ask-town-hall-here-detail", "need_key": "ask-town-hall-here-need",
       "kept_key": "ask-town-hall-here-kept", "broken_key": "ask-town-hall-here-broken" },
 
-    // A big one: put an answer to the crisis before the council.
+    // A big one: put forward a bill that answers the crisis.
     { "id": "ask.draft_answer", "name_key": "ask-draft-answer",
       "asker": { "type": "occupation", "occupations": [
         "occupation.business_leader", "occupation.union_steward", "occupation.clergy",
         "occupation.head_teacher", "occupation.dean", "occupation.organiser" ] },
-      "triggers": [ { "type": "crisis", "min_severity": 0.3 } ],
+      "triggers": [ { "type": "crisis", "min_severity": 0.15 } ],
       "needs": [ { "type": "introduce", "bills": { "type": "crisis_answer" } } ],
       "deadline_days": [60, 90], "cooldown_days": 240, "big": true, "public": true,
       "keep": [
@@ -207,7 +207,7 @@
     // Services are stretched: say so in public.
     { "id": "ask.fund_the_school", "name_key": "ask-fund-the-school",
       "asker": { "type": "occupation", "occupations": ["occupation.teacher", "occupation.nurse", "occupation.head_teacher", "occupation.gp"] },
-      "triggers": [ { "type": "concern", "concern": "concern.services", "top": 2 } ],
+      "triggers": [ { "type": "concern", "concern": "concern.services", "top": 3 } ],
       "needs": [ { "type": "statement", "about": { "type": "concern", "concern": "concern.services" } } ],
       "deadline_days": [21, 35], "cooldown_days": 180,
       "keep": [
@@ -255,7 +255,7 @@
       "roles": [ { "id": "official", "cast": { "type": "office" } } ],
       "triggers": [ { "type": "opinion", "slot": "asker", "min": 10 } ],
       "needs": [ { "type": "talk", "role": "official" }, { "type": "talk", "role": "asker" } ],
-      "deadline_days": [30, 30], "cooldown_days": 240,
+      "deadline_days": [30, 30], "weight": 0.7, "cooldown_days": 240,
       "keep": [
         { "type": "opinion", "role": "asker", "delta": 8, "memory": "kept_promise" },
         { "type": "opinion", "role": "official", "delta": 2 } ],

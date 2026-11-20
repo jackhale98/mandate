@@ -384,8 +384,8 @@ fn done_lately(a: &AskState, r: &Reads<'_>, t: &AskDef, cast: &[CastEntry]) -> b
 /// after a re-election, ENGAGEMENT §4.7), or the vote on the bill.
 fn due_of(r: &Reads<'_>, t: &AskDef, needs: &[Need]) -> Option<SimDate> {
     match t.deadline_days {
-        Some([lo, hi]) => {
-            let hi = if second_term(r) { lo + (hi - lo) / 2 } else { hi };
+        Some(range) => {
+            let [lo, hi] = deadline_range(range, second_term(r));
             let key = mandate_core::hash::derive_u64(&t.id, &[]);
             let d = mandate_core::rng::keyed(
                 r.meta.seed,
@@ -404,6 +404,17 @@ fn due_of(r: &Reads<'_>, t: &AskDef, needs: &[Need]) -> Option<SimDate> {
             // Too close to the vote to ask in time.
             (on >= r.date.add_days(7)).then_some(on)
         }
+    }
+}
+
+/// The days an ask's deadline is drawn from: its range, or its lower half
+/// in a term after a re-election (ENGAGEMENT §4.7: expectations rise for
+/// incumbents).
+pub fn deadline_range([lo, hi]: [u32; 2], second_term: bool) -> [u32; 2] {
+    if second_term {
+        [lo, lo + (hi - lo) / 2]
+    } else {
+        [lo, hi]
     }
 }
 

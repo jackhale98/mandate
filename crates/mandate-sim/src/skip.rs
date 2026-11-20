@@ -490,7 +490,7 @@ pub fn interrupt_keys(state: &crate::State, content: &ContentBundle) -> Vec<Inte
             InterruptWhen::RequestDue { days } => {
                 let soon = today.add_days(*days as u32);
                 // A request raised by someone's goal (DEC-032), or a
-                // storyline's turn; the asks layer (E6–E8) adds its own.
+                // storyline's turn.
                 for d in state
                     .narrative
                     .pending()
@@ -501,6 +501,18 @@ pub fn interrupt_keys(state: &crate::State, content: &ContentBundle) -> Vec<Inte
                         vec![
                             ("decision".into(), d.id.0.to_string()),
                             ("template".into(), d.template.clone()),
+                        ],
+                    );
+                }
+                // Asks to answer and asks and promises to keep (DEC-097 §2),
+                // through the asks' read API.
+                for a in state.asks.due_within(today, *days as u32) {
+                    add(
+                        format!("ask:{}", a.id.0),
+                        vec![
+                            ("ask".into(), a.id.0.to_string()),
+                            ("template".into(), a.template.clone()),
+                            ("status".into(), a.status.key().into()),
                         ],
                     );
                 }

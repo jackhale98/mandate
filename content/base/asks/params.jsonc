@@ -11,7 +11,7 @@
     "new_per_month_campaign": 2.5,
     "intent_by_open": [ [0, 2.0], [1, 1.3], [2, 1.0], [3, 0.5], [4, 0.0] ],
     "intent_by_quiet": [ [0, 0.0], [7, 0.5], [21, 1.0], [42, 1.5] ],
-    "respond_days": 7,                // an offer lapses unanswered (declined)
+    "respond_days": 14,               // an offer lapses unanswered (declined); a governing turn (E8: was 7)
     "per_asker_cooldown_days": 60,
     "asker_kept_mult": 1.5,           // callbacks: a kept ask makes the next likelier
     "asker_broken_mult": 0.5,

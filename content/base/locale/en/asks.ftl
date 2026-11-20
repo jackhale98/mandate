@@ -26,11 +26,11 @@ ask-casework-detail = { $history ->
         [teacher] { $asker } has a family in { $asker_hood } turned down for a school place, and the appeal is going nowhere.
         [nurse] { $asker } has a child in { $asker_hood } turned down for a school place, and the appeal is going nowhere.
         [student] { $asker }'s younger brother has been turned down for a school place in { $asker_hood }, and the appeal is going nowhere.
-        [retiree] { $asker } has been waiting months for a benefits claim in { $asker_hood }. The council keeps losing the form.
-        [farmer] { $asker } is fighting a planning application next to their land in { $asker_hood } and cannot get the council to answer.
-        [farmhand] { $asker } is fighting a planning application at the edge of { $asker_hood } and cannot get the council to answer.
-        [shopkeeper] { $asker } is fighting a planning application next to their shop in { $asker_hood } and cannot get the council to answer.
-        [diner_owner] { $asker } is fighting a planning application next to their diner in { $asker_hood } and cannot get the council to answer.
+        [retiree] { $asker } has been waiting months for a benefits claim in { $asker_hood }. The town hall keeps losing the form.
+        [farmer] { $asker } is fighting a planning application next to their land in { $asker_hood } and cannot get anyone at the town hall to answer.
+        [farmhand] { $asker } is fighting a planning application at the edge of { $asker_hood } and cannot get anyone at the town hall to answer.
+        [shopkeeper] { $asker } is fighting a planning application next to their shop in { $asker_hood } and cannot get anyone at the town hall to answer.
+        [diner_owner] { $asker } is fighting a planning application next to their diner in { $asker_hood } and cannot get anyone at the town hall to answer.
        *[other] The drain on { $asker }'s street in { $asker_hood } has been blocked for weeks. Every time it rains, the road floods.
     }
 ask-casework-need = Sort it out at the town hall
@@ -96,9 +96,9 @@ ask-town-hall-here-broken = You promised { $asker_hood } a meeting and never hel
 
 ## Draft an answer (a big ask)
 ask-draft-answer = An answer to { $crisis }
-ask-draft-answer-detail = { $asker } ({ $asker_role }) says talk will not fix { $crisis }. They want a bill before the council, and they want it from you.
+ask-draft-answer-detail = { $asker } ({ $asker_role }) says talk will not fix { $crisis }. They want a bill put forward, and they want it from you.
 ask-draft-answer-need = Introduce a bill that answers { $crisis }
-ask-draft-answer-kept = You put a bill before the council, as you told { $asker } you would. They owe you for it.
+ask-draft-answer-kept = You put a bill forward, as you told { $asker } you would. They owe you for it.
 ask-draft-answer-broken = You promised { $asker } a bill on { $crisis }, and none came.
 
 ## The broker's vote (a big ask)
@@ -110,7 +110,7 @@ ask-broker-vote-broken = You let { $asker } down on { $bill }. They remember tha
 
 ## After the disaster
 ask-visit-after-flood = Come and see { $asker_hood }
-ask-visit-after-flood-detail = { $asker } ({ $asker_role }) lives in { $asker_hood }, which took the worst of it. People there want to see someone from the council on their streets.
+ask-visit-after-flood-detail = { $asker } ({ $asker_role }) lives in { $asker_hood }, which took the worst of it. People there want to see the people they elected on their streets.
 ask-visit-after-flood-need = Canvass or hold a town hall in { $asker_hood }
 ask-visit-after-flood-kept = You went to { $asker_hood } when it mattered.
 ask-visit-after-flood-broken = { $asker_hood } waited for you, and you did not come.
@@ -152,7 +152,7 @@ ask-introduce-me-broken = You never spoke to { $official } for { $asker }.
 
 ## Campaign promises
 promise-answer-crisis = Get { $answer } passed
-promise-answer-crisis-detail = You promise { $constituency } that you will get { $answer } through the council to answer { $crisis }.
+promise-answer-crisis-detail = You promise { $constituency } that you will get { $answer } passed to answer { $crisis }.
 promise-answer-crisis-need = Sponsor { $answer } and see it enacted
 promise-answer-crisis-kept = { $answer } is law. You kept your word to { $constituency }.
 promise-answer-crisis-broken = You promised { $constituency } { $answer }. It never came.
@@ -177,7 +177,7 @@ promise-services-need = Sponsor a services bill and see it enacted
 promise-services-kept = Your services bill is law. You kept your word.
 promise-services-broken = You promised to save the town's services. No bill of yours did it.
 promise-clean-politics = Clean politics
-promise-clean-politics-detail = You promise { $constituency } an honest representative: no back-room deals, nothing to hide.
+promise-clean-politics-detail = You promise { $constituency } clean hands: no back-room deals, nothing to hide.
 promise-clean-politics-need = Keep your record clean
 promise-clean-politics-kept = Your term ended with nothing to hide. You kept your word.
 promise-clean-politics-broken = Something you hid came to light. So much for clean politics.
@@ -196,6 +196,10 @@ outcome-promised = You made a promise: { $promise }.
 outcome-casework-sorted = You sorted out { $name }'s problem at the services desk.
 outcome-casework-chased = You chased it up for { $name }, but it is not sorted yet. ({ $odds }% chance each try.)
 action-casework = Sort it out
+
+## The Legacy record
+legacy-campaign_promise-kept = Kept a campaign promise: { $promise }.
+legacy-campaign_promise-broken = Broke a campaign promise: { $promise }.
 
 ## Events
 event-player-deed = You got something done.
