@@ -82,7 +82,7 @@ code { font-size: 0.92em; }
 
 /* Labels: the system font, small capitals. */
 .kicker, .strip, .dateline, figcaption, .tally, .listings dt, .rungs h3, .tag, .notices h2, .notices dt,
-.ledger thead, .ledger td::before, .cta-note, .aside, .colophon, .instr {
+.ledger thead, .ledger td::before, .cta-note, .colophon, .instr {
   font-family: var(--sans);
 }
 .kicker {
@@ -210,7 +210,7 @@ main h2 { font-size: clamp(1.6rem, 4.6vw, 2.4rem); line-height: 1.1; text-wrap: 
 }
 .dbar {
   position: absolute; top: 50%; height: 10px; margin-top: -5px;
-  left: 50%; width: calc(var(--v) * 1.4%); background: var(--for); transform-origin: left;
+  left: 50%; width: calc(var(--v) * 1.2%); background: var(--for); transform-origin: left;
 }
 .dbar.neg { left: auto; right: 50%; background: var(--against); transform-origin: right; }
 .why .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; padding-left: 8px; }
@@ -252,9 +252,10 @@ main h2 { font-size: clamp(1.6rem, 4.6vw, 2.4rem); line-height: 1.1; text-wrap: 
 }
 .listings dt::after { content: " · "; }
 .listings dd { display: inline; margin: 0; }
-.phones { display: flex; gap: 16px; justify-content: center; }
-.phones .phone { flex: 1 1 0; margin: 0; max-width: 240px; }
-.aside { margin: 14px 0 0; font-size: 0.9rem; font-style: italic; color: var(--ink-2); text-align: center; }
+/* Four phones: two by two on a phone, a row of four from 600 px. */
+.phones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 14px; justify-items: center; }
+.phones .phone { width: 100%; margin: 0; max-width: 240px; }
+.phones .phone img { border-width: 5px; border-radius: 18px; }
 .desk { margin: 18px 0 0; }
 .desk img { width: 100%; height: auto; border: 1px solid var(--ink); }
 
@@ -343,7 +344,8 @@ main > aside.notices { border-top: 0; padding: 0; margin: 28px 0; background: va
   .strip { display: flex; }
   .dateline .wide { display: inline; }
   .listings { column-count: 2; column-gap: 28px; }
-  .maps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  .phones { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .maps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 20px; }
 }
 @media (min-width: 960px) {
   main { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 32px; }
