@@ -15,9 +15,9 @@ This first pass covers the existing text: 298 conversation lines in nine voices 
 | 5. Tone (incl. real names) | 1 | 1 | 0 (no real people, parties or countries found) |
 | 6. Clarity (options, outcomes) | 8 | 7 | 1 (E3) |
 
-Text changed: 157 English messages rewritten and 83 added (`content/base/locale/en/*.ftl`).
+Text changed: 157 English messages rewritten and 85 added (`content/base/locale/en/*.ftl`).
 
-- Conversation lines (`content/base/conversations/lines.jsonc`): 52 added (five in the first pass, 47 in the relevance pass), and nine lines' conditions changed.
+- Conversation lines (`content/base/conversations/lines.jsonc`): 54 added (five in the first pass, 49 in the relevance pass), and nine lines' conditions changed.
 - Code: the two known bugs, then the relevance and teaching fixes (below). Corpus flags (unfilled `{$x}`, missing keys, doubled spaces): 3 before, 0 after. The new doctor text rules: 5 findings on the old corpus, 0 on the new one, and none in the pack's messages.
 
 ## The ten worst, before and after
@@ -160,6 +160,8 @@ Asked about a neighbourhood, people now deflect only when they are cool towards 
 - someone who lives there says "I'd know; it's home";
 - someone who has heard says "Not my end of town, but I hear it's mostly jobs over there";
 - someone who has not says "so I'd only be guessing. Ask someone who lives there".
+
+That last answer has two siblings: bot careers ask about other neighbourhoods often, and one line alone took 39% of worries picks.
 
 The corpus relevance rule (`talk-off-subject`, below) finds 32 off-subject renderings in the old corpus and 0 in the new.
 

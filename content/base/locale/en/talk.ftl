@@ -237,6 +237,8 @@ talk-worries-home-3 = "You want the truth about { $hood }? It's { $concern_talk 
 talk-worries-about-hood-heard = "{ $hood }? Not my end of town, but I hear it's mostly { $concern_talk } over there."
 talk-worries-about-hood-home = "{ $hood }? That's my way. Mostly { $concern_talk }, from what the neighbours say."
 talk-worries-about-hood-unknown = "{ $about }? Not my end of town, so I'd only be guessing. Ask someone who lives there."
+talk-worries-about-hood-unknown-2 = "{ $about }? I couldn't tell you. I'm never over that way; you'd want someone from there."
+talk-worries-about-hood-unknown-3 = "Don't ask me about { $about }. I only know my own street, and that's bad enough."
 talk-worries-about-hood = "{ $hood }? I'd know; it's home. It's { $concern_talk }, and you could set your watch by the complaints."
 
 # What the facts are doing to people (anyone).
