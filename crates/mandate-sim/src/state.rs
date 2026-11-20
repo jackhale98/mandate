@@ -81,6 +81,9 @@ pub struct State {
     /// Investigations, charges, trials, sentences (DEC-006).
     #[serde(default)]
     pub justice: crate::justice::JusticeState,
+    /// Asks and promises, and the player's deed log (DEC-097 §2).
+    #[serde(default)]
+    pub asks: crate::asks::AskState,
 }
 
 /// A town as play began (TOWN_GENERATION §4.1, §15 E1): what the layout's

@@ -461,6 +461,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     crate::knowledge::validate(b, &mut issues);
     crate::visits::validate(b, &mut issues);
     crate::conversation::validate(b, &mut issues);
+    crate::asks::validate(b, &mut issues);
     for (name, v, lo, hi) in param_ranges(b) {
         if !(v.is_finite() && (lo..=hi).contains(&v)) {
             let kind = name.split('.').next().unwrap_or("parameters").to_string();

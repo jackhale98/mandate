@@ -194,6 +194,31 @@ pub enum EventKind {
         rumour: u32,
         politician: u32,
     },
+    /// What the player did (DEC-097 §2): read by the asks system into the
+    /// deed log; not news.
+    PlayerDeed {
+        deed: crate::asks::Deed,
+    },
+    /// Someone asked the player for something (an offer, DEC-097 §2).
+    AskOffered {
+        ask: u32,
+        /// Ask template id.
+        template: String,
+        big: bool,
+    },
+    /// The player accepted an ask, or made a campaign promise.
+    AskAccepted {
+        ask: u32,
+        template: String,
+        big: bool,
+    },
+    /// An ask or promise ended: `kept`, `broken`, `declined` or `void`.
+    AskResolved {
+        ask: u32,
+        template: String,
+        outcome: String,
+        public: bool,
+    },
     /// The game's rules were updated under a running career (an app update).
     RulesUpdated {
         from_content: String,

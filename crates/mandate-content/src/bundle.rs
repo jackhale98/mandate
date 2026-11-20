@@ -129,9 +129,28 @@ pub struct ContentBundle {
     /// Conversation rules (cost, discretion, speaker knowledge, the guard).
     #[serde(default)]
     pub talk: crate::conversation::TalkParams,
+    /// The asks system's numbers (DEC-097 §2).
+    #[serde(default)]
+    pub ask_params: crate::asks::AskParams,
+    /// Ask templates, in load order.
+    #[serde(default)]
+    pub asks: Vec<crate::asks::AskDef>,
+    /// Campaign promise templates, in load order.
+    #[serde(default)]
+    pub promises: Vec<crate::asks::PromiseDef>,
 }
 
 impl ContentBundle {
+    /// An ask template by id.
+    pub fn ask(&self, id: &str) -> Option<&crate::asks::AskDef> {
+        self.asks.iter().find(|a| a.id == id)
+    }
+
+    /// A promise template by id.
+    pub fn promise(&self, id: &str) -> Option<&crate::asks::PromiseDef> {
+        self.promises.iter().find(|a| a.id == id)
+    }
+
     /// Registry index of a sector by content key.
     pub fn sector_index(&self, key: &str) -> Option<usize> {
         self.sectors.iter().position(|s| s.id == key)
@@ -331,6 +350,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut talk_lines: Vec<crate::conversation::TalkLineDef> = Vec::new();
     let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
     let mut talk: Option<(crate::conversation::TalkParams, String)> = None;
+    let mut ask_params: Option<(crate::asks::AskParams, String)> = None;
+    let mut asks: Vec<crate::asks::AskDef> = Vec::new();
+    let mut promises: Vec<crate::asks::PromiseDef> = Vec::new();
 
     for src in sorted {
         if src.path.ends_with(".ftl") {
@@ -660,6 +682,23 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             ContentFile::TalkParams { value } => {
                 once(&mut talk, *value, "talk_params", &src.path, &mut issues)
             }
+            ContentFile::AskParams { value } => {
+                once(&mut ask_params, *value, "ask_params", &src.path, &mut issues)
+            }
+            ContentFile::Asks { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        asks.push(x);
+                    }
+                }
+            }
+            ContentFile::Promises { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        promises.push(x);
+                    }
+                }
+            }
         }
     }
 
@@ -773,6 +812,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         talk_lines,
         talk_voices,
         talk,
+        ask_params: ask_params.map(|(v, _)| v).unwrap_or_default(),
+        asks,
+        promises,
     };
     issues.extend(validate_bundle(&bundle));
     if issues.iter().any(|i| i.severity == Severity::Error) {

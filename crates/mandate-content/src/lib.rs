@@ -1,6 +1,7 @@
 //! Mandate content: JSONC loading, schemas, validation, and the embedded base
 //! pack (DEC-053, DEC-054, DEC-055).
 
+pub mod asks;
 pub mod bundle;
 pub mod condition;
 pub mod conversation;

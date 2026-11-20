@@ -63,6 +63,12 @@ pub enum Action {
     Visit {
         verb: String,
     },
+    /// "Sort it out" (DEC-097 §2): casework on an accepted ask, at the town
+    /// hall's services desk, one slot. Its odds are shown before acting
+    /// (`asks::casework_odds`); a failure leaves the ask open.
+    Casework {
+        ask: u32,
+    },
 }
 
 impl Action {
@@ -81,6 +87,7 @@ impl Action {
             Action::DipFunds => "dip_funds",
             Action::LeakFile => "leak_file",
             Action::Visit { .. } => "visit",
+            Action::Casework { .. } => "casework",
         }
     }
 }
@@ -149,6 +156,20 @@ pub enum PlayerCommand {
         about: Option<crate::talk::AboutRef>,
         #[serde(default)]
         late_night: bool,
+    },
+    /// Answer an ask (DEC-097 §2): accept it (a promise) or decline it. Free,
+    /// from anywhere.
+    RespondAsk {
+        ask: u32,
+        accept: bool,
+    },
+    /// Make a campaign promise (DEC-097 §2): while campaigning, free, at most
+    /// `promises.max_per_campaign` a race; `args` carries a promise's
+    /// chosen answer (`answer`: a policy template), from the promise menu.
+    Promise {
+        template: String,
+        #[serde(default)]
+        args: Vec<(String, String)>,
     },
 }
 
@@ -502,6 +523,12 @@ pub fn apply(
                 false,
             );
         }
+        PlayerCommand::RespondAsk { ask, accept } => {
+            return crate::asks::commands::respond(state, content, *ask, *accept);
+        }
+        PlayerCommand::Promise { template, args } => {
+            return crate::asks::commands::promise(state, content, template, args);
+        }
         PlayerCommand::Go { location, then } => {
             if then.as_deref().is_some_and(|c| {
                 matches!(c, PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. })
@@ -519,7 +546,11 @@ pub fn apply(
     // Located actions (DEC-079): each is done at a place that offers it.
     crate::places::check_at(state, content, cmd)?;
     match cmd {
-        PlayerCommand::MoveTo { .. } | PlayerCommand::Go { .. } | PlayerCommand::Answer { .. } => {}
+        PlayerCommand::MoveTo { .. }
+        | PlayerCommand::Go { .. }
+        | PlayerCommand::Answer { .. }
+        | PlayerCommand::RespondAsk { .. }
+        | PlayerCommand::Promise { .. } => {}
         PlayerCommand::Talk {
             to,
             topic,
@@ -527,6 +558,20 @@ pub fn apply(
             late_night,
         } => {
             res = crate::talk::apply(state, content, to, topic, about.as_ref(), *late_night)?;
+            if let crate::talk::TalkTarget::Person { person } = to {
+                let about = match about {
+                    Some(crate::talk::AboutRef::Person { person }) => Some(*person),
+                    _ => None,
+                };
+                crate::asks::record_deed(
+                    state,
+                    crate::asks::Deed::Talk {
+                        person: *person,
+                        topic: topic.clone(),
+                        about,
+                    },
+                );
+            }
         }
         PlayerCommand::Meet { slot } => {
             let id = characters::ambient::promote(state, content, pl.location, *slot)
@@ -650,6 +695,7 @@ pub fn apply(
                 p.awareness = content.actions.introduce.awareness as f32;
                 p.cause = Some(ev);
             }
+            crate::asks::record_deed(state, crate::asks::Deed::Introduce { policy: *policy });
             learn_council_work(state, *policy);
             res.outcome_key = "outcome-introduced".into();
             res.args.insert("days".into(), days.to_string());
@@ -926,6 +972,12 @@ pub fn apply(
                             src,
                         );
                     }
+                    crate::asks::record_deed(
+                        state,
+                        crate::asks::Deed::TownHall {
+                            hood: NeighborhoodId(*neighborhood),
+                        },
+                    );
                     res.outcome_key = if hostile {
                         "outcome-town-hall-hostile"
                     } else {
@@ -978,6 +1030,15 @@ pub fn apply(
                     }
                     // Outlets decide whether and how to cover it (DEC-034).
                     crate::media::statement(state, content, pl.politician, *policy);
+                    crate::asks::record_deed(
+                        state,
+                        crate::asks::Deed::Statement {
+                            about: match policy {
+                                Some(id) => crate::asks::StatementAbout::Bill { policy: *id },
+                                None => crate::asks::StatementAbout::General,
+                            },
+                        },
+                    );
                     res.outcome_key = if gaffe {
                         "outcome-press-gaffe"
                     } else {
@@ -1043,6 +1104,7 @@ pub fn apply(
                         p.ground.remember(hood, curve.visits + 1.0, on, turn);
                     }
                     learn_canvass(state, content, hood);
+                    crate::asks::record_deed(state, crate::asks::Deed::Canvass { hood });
                     res.outcome_key = "outcome-canvass".into();
                     // How fresh the doorsteps were (the player's own memory).
                     res.args.insert(
@@ -1176,10 +1238,30 @@ pub fn apply(
                     res.outcome_key = "outcome-rest".into();
                 }
                 Action::TakeBribe | Action::DipFunds | Action::LeakFile => {
+                    let target = matches!(action, Action::LeakFile)
+                        .then(|| leak_target(state))
+                        .flatten();
                     res = shady(state, content, action, *late_night)?;
+                    if let Some(t) = target {
+                        crate::asks::record_deed(
+                            state,
+                            crate::asks::Deed::Leak { politician: t.0 },
+                        );
+                    }
                 }
                 Action::Visit { verb } => {
                     res = crate::visits::visit(state, content, verb, *late_night)?;
+                }
+                Action::Casework { ask } => {
+                    // Checked before the slot is spent; the roll is the asks'.
+                    let ok = state.asks.get(crate::asks::AskId(*ask)).is_some_and(|a| {
+                        a.accepted() && matches!(a.current(), Some(crate::asks::Need::Casework))
+                    });
+                    if !ok {
+                        return Err(bad("there is no casework to sort out for that ask"));
+                    }
+                    spend(state, content, "casework", false)?;
+                    res = crate::asks::commands::casework(state, content, *ask)?;
                 }
             }
             let word = match action {
@@ -1387,6 +1469,13 @@ pub(crate) fn declare_vote(
         Vote::Abstain => 0.0,
     };
     state.politics.declared_votes.insert(key, sign as i8);
+    crate::asks::record_deed(
+        state,
+        crate::asks::Deed::Vote {
+            policy: *policy,
+            vote: *vote,
+        },
+    );
     let fx = &content.actions.vote;
     crate::politics::add_record(
         &mut state.politics,
@@ -1631,6 +1720,9 @@ fn move_to(
         p.location = location;
     }
     crate::places::arrive(state, content, location);
+    if let crate::places::Location::Place { place } = location {
+        crate::asks::record_deed(state, crate::asks::Deed::Arrive { place });
+    }
     let mut res = ActionResult {
         outcome_key: "outcome-moved".into(),
         ..Default::default()

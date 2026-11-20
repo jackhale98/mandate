@@ -6,6 +6,7 @@
 //! only its own domain and emits effect requests for others (OVERVIEW §4.3).
 
 pub mod actions;
+pub mod asks;
 pub mod characters;
 pub mod commands;
 pub mod concerns;

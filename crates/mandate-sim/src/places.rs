@@ -202,7 +202,9 @@ pub fn action_of(state: &State, cmd: &PlayerCommand) -> Option<(&'static str, bo
         | PlayerCommand::Go { .. }
         | PlayerCommand::Meet { .. }
         | PlayerCommand::Answer { .. }
-        | PlayerCommand::Talk { .. } => {
+        | PlayerCommand::Talk { .. }
+        | PlayerCommand::RespondAsk { .. }
+        | PlayerCommand::Promise { .. } => {
             return None;
         }
         PlayerCommand::CastVote { .. } => ("vote", false, None),
@@ -234,6 +236,7 @@ pub fn action_of(state: &State, cmd: &PlayerCommand) -> Option<(&'static str, bo
             Action::LeakFile => ("leak_file", false, None),
             // Verbs are offered by id (`offer_of`), not by action key.
             Action::Visit { .. } => ("visit", *late_night, None),
+            Action::Casework { .. } => ("casework", false, None),
         },
     })
 }

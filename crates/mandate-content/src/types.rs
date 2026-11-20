@@ -137,6 +137,16 @@ pub enum ContentFile {
     TalkParams {
         value: Box<crate::conversation::TalkParams>,
     },
+    /// The asks system's numbers: the sliding rate, caps, casework, promises (DEC-097 §2).
+    AskParams {
+        value: Box<crate::asks::AskParams>,
+    },
+    /// Ask templates: concrete requests with a deadline (DEC-097 §2).
+    Asks { items: Vec<crate::asks::AskDef> },
+    /// Campaign promise templates (DEC-097 §2).
+    Promises {
+        items: Vec<crate::asks::PromiseDef>,
+    },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -2797,6 +2807,17 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "talk_voices" => ContentFile::TalkVoices {
             items: serde_json::from_str::<ItemsFile<crate::conversation::VoiceDef>>(json)?.items,
+        },
+        "ask_params" => ContentFile::AskParams {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::asks::AskParams>>(json)?.value,
+            ),
+        },
+        "asks" => ContentFile::Asks {
+            items: serde_json::from_str::<ItemsFile<crate::asks::AskDef>>(json)?.items,
+        },
+        "promises" => ContentFile::Promises {
+            items: serde_json::from_str::<ItemsFile<crate::asks::PromiseDef>>(json)?.items,
         },
         "talk_params" => ContentFile::TalkParams {
             value: Box::new(
