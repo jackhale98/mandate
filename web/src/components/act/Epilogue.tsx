@@ -2,6 +2,7 @@ import { useGame } from "../../state/gameStore";
 import { formatDate, formatMoney } from "../../i18n/format";
 import { useSheetClose } from "../useSheetClose";
 import { capital } from "../DecisionSheet";
+import { actArgs } from "./actArgs";
 
 /**
  * The act epilogue and its Legacy record (DEC-006, DEC-100: a record, no
@@ -38,7 +39,7 @@ export function Epilogue() {
           {e && (
             <section className={`card ending-${e.tone}`} data-testid="epilogue-ending" data-ending={e.id}>
               <h3 className="sub">{tr.t("ui-epilogue")}</h3>
-              <p>{tr.event(e.text_key, e.args)}</p>
+              <p>{tr.t(e.text_key, actArgs(tr, e.args))}</p>
               <h4 className="sub">{tr.t("ui-epilogue-facts")}</h4>
               <dl className="facts">
                 {e.facts.map((f) => (

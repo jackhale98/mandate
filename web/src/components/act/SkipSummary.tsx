@@ -3,6 +3,7 @@ import { formatDate, formatMoney } from "../../i18n/format";
 import { useSheetClose } from "../useSheetClose";
 import { capital } from "../DecisionSheet";
 import type { ChangeView } from "../../engine/protocol/ChangeView";
+import { actArgs } from "./actArgs";
 
 /** A figure as the engine gave it (unemployment comes per mille). */
 function figure(c: ChangeView, v: number): string {
@@ -41,7 +42,7 @@ export function SkipSummary() {
         <div className="sheet-body">
           <section className="card" data-testid="skip-stop" data-stop={s.stop.kind}>
             <p>
-              <strong>{tr.event(s.stop.text_key, s.stop.args)}</strong>
+              <strong>{tr.t(s.stop.text_key, actArgs(tr, s.stop.args))}</strong>
             </p>
             {s.stop.decision !== null && (
               <button
