@@ -280,13 +280,23 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   }, [ready]);
   useEffect(() => {
     const v = viewRef.current;
-    if (!walking || !ready || !v || (!v.scene.playerMoving && atLocation(v.map, walking.location, v.scene.playerCell))) return;
+    // The store holds an action's result until the player is there (`arrived`).
+    const done = () => useGame.getState().arrived();
+    if (!walking || !ready || !v) return;
+    if (!v.scene.playerMoving && atLocation(v.map, walking.location, v.scene.playerCell)) return done();
     const cell = coveredNow.current ? locationCell(v.map, walking.location) : null;
     if (cell !== null) {
       v.scene.placePlayer(cell);
       v.wake();
-    } else v.goToLocation(walking.location, false);
+      done();
+    } else if (!v.goToLocation(walking.location, false, done)) done();
   }, [walking, ready]);
+  // While the street is shown, a walk ends when the player arrives (not after a fixed time).
+  useEffect(() => {
+    if (!ready) return;
+    useGame.getState().setStreetWalks(true);
+    return () => useGame.getState().setStreetWalks(false);
+  }, [ready]);
 
   // Where the player stands, for the location label: the neighbourhood under them (from the dressed
   // map's districts) and whether they stand at the engine's location (not walking, at its door).

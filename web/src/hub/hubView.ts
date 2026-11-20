@@ -478,8 +478,9 @@ export class HubView {
   }
 
   /** Walk to an engine location (a place, home, or a neighbourhood's streets); `notify`: call `onArrive` there. */
-  goToLocation(loc: TownLocation, notify = true): boolean {
+  goToLocation(loc: TownLocation, notify = true, onDone?: () => void): boolean {
     const ok = this.scene.goToLocation(loc, () => {
+      onDone?.();
       if (!notify) return;
       const b = this.scene.atBuilding;
       this.arrived(b !== null ? (this.map.buildings[b] ?? null) : null);

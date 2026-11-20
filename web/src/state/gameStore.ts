@@ -169,7 +169,8 @@ interface GameState {
   refreshDesk(): Promise<void>;
   closeElectionNight(): void;
   /** Run a player command, save the whole game (Ironman), and refresh views. */
-  command(cmd: CommandDto): Promise<number | null>;
+  /** `deferToast`: keep the outcome's toast until `perform`'s walk is over (it shows it on arrival). */
+  command(cmd: CommandDto, opts?: { deferToast?: boolean }): Promise<number | null>;
   /** Run a command where it is done: walks there first if needed (auto-routing, DEC-079). */
   perform(cmd: CommandDto): Promise<number | null>;
   /** Walk to a location (free) and open its panel. */
@@ -217,6 +218,11 @@ interface GameState {
   /** Who is at a location (the street's passers-by, to walk up to). */
   peopleAt(location: LocationDto): Promise<PersonRefView[]>;
   skipWalk(): void;
+  /** The street reports the player has reached the walk's destination. */
+  arrived(): void;
+  /** Whether the walkable street is shown (walks then end on arrival, not after `WALK_MS`). */
+  streetWalks: boolean;
+  setStreetWalks(on: boolean): void;
   setPocketOpen(open: boolean): void;
   /** Open the pocket on a tab; `focus` moves the keyboard into it. */
   openPocket(tab?: PocketTab, focus?: boolean): void;
@@ -251,6 +257,10 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
 let skipResolve: (() => void) | null = null;
+/** An outcome held back until the walk to where it happened is over (owner: no result before arriving). */
+let heldToast: { key: string; args: Record<string, string> } | null = null;
+/** How long a walk on the street may take before the result shows anyway (a stuck route never hides it). */
+export const STREET_WALK_MAX_MS = 12_000;
 
 /** Going somewhere or opening a sheet closes the pocket, unless it is docked open beside the town. */
 const pocketAfterMove = (s: { pocketOpen: boolean; pocketDocked: boolean }) => ({ pocketOpen: s.pocketOpen && s.pocketDocked && isWide() });
@@ -441,7 +451,7 @@ export const useGame = create<GameState>((set, get) => {
       }
     },
 
-    async command(cmd) {
+    async command(cmd, opts) {
       const run = get().run;
       if (!run || get().busy) return null;
       set({ busy: true, error: null });
@@ -453,11 +463,12 @@ export const useGame = create<GameState>((set, get) => {
         // so an app update can never re-roll an outcome the player already saw.
         await persist();
         const r = applied.result;
-        set({
-          overview: applied.overview,
-          // Walking somewhere is not news; a decision's aftermath is on its sheet.
-          toast: r && r.outcome_key !== "outcome-moved" && cmd.type !== "answer_decision" && cmd.type !== "talk" ? { key: r.outcome_key, args: r.args } : null,
-        });
+        // Walking somewhere is not news; a decision's aftermath is on its sheet.
+        const toast = r && r.outcome_key !== "outcome-moved" && cmd.type !== "answer_decision" && cmd.type !== "talk" ? { key: r.outcome_key, args: r.args } : null;
+        if (opts?.deferToast) {
+          heldToast = toast;
+          set({ overview: applied.overview, toast: null });
+        } else set({ overview: applied.overview, toast });
         await get().refreshDesk();
         return applied.result?.created ?? null;
       } catch (e) {
@@ -475,14 +486,19 @@ export const useGame = create<GameState>((set, get) => {
       // A place panel that is open follows the player to where the action is done.
       if (get().openPlace) set({ openPlace: to.location });
       set({ walking: to, ...pocketAfterMove(get()) });
+      // The walk ends when the street reports arrival (or after WALK_MS without a street); the
+      // outcome is held until then, so the player never reads what happened before getting there.
       const walk = new Promise<void>((resolve) => {
         skipResolve = resolve;
-        window.setTimeout(resolve, reducedMotion() ? 0 : WALK_MS);
+        window.setTimeout(resolve, reducedMotion() ? 0 : get().streetWalks ? STREET_WALK_MAX_MS : WALK_MS);
       });
+      heldToast = null;
       try {
-        const [id] = await Promise.all([get().command({ type: "go", location: to.location, then: cmd }), walk]);
+        const [id] = await Promise.all([get().command({ type: "go", location: to.location, then: cmd }, { deferToast: true }), walk]);
+        if (heldToast) set({ toast: heldToast });
         return id;
       } finally {
+        heldToast = null;
         skipResolve = null;
         set({ walking: null });
       }
@@ -648,6 +664,13 @@ export const useGame = create<GameState>((set, get) => {
       }
     },
 
+    streetWalks: false,
+    setStreetWalks(on) {
+      set({ streetWalks: on });
+    },
+    arrived() {
+      skipResolve?.();
+    },
     skipWalk() {
       skipResolve?.();
     },
