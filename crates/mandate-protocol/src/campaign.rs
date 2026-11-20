@@ -279,9 +279,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
     let st = engine.state();
     let pl = st.player.as_ref()?;
     let me = st.politics.get(pl.politician)?;
-    let Some(town) = crate::post::home_at(st) else {
-        return None;
-    };
+    let town = crate::post::home_at(st)?;
     let constitution = crate::post::constitution(engine);
     let el = &st.politics.elections;
     let parties = st

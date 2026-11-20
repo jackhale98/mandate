@@ -308,13 +308,12 @@ fn the_file_command_round_trips_through_json() {
         .find(|sp| sp.actions.iter().any(|a| a == "file"))
         .unwrap()
         .location
-        .location
-        .clone();
+        .location;
     let file = |s: &mut Session, post: Option<PostDto>, retire: bool| {
         send(
             s,
             RequestBody::Command(CommandDto::Go {
-                location: at.clone(),
+                location: at,
                 then: Some(Box::new(CommandDto::File { post, retire })),
             }),
         )
