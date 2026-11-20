@@ -692,9 +692,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             ContentFile::TalkParams { value } => {
                 once(&mut talk, *value, "talk_params", &src.path, &mut issues)
             }
-            ContentFile::AskParams { value } => {
-                once(&mut ask_params, *value, "ask_params", &src.path, &mut issues)
-            }
+            ContentFile::AskParams { value } => once(
+                &mut ask_params,
+                *value,
+                "ask_params",
+                &src.path,
+                &mut issues,
+            ),
             ContentFile::Asks { items } => {
                 for x in items {
                     if claim(&x.id, &mut issues) {

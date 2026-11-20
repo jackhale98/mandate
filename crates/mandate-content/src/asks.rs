@@ -461,14 +461,9 @@ pub fn message_vars(ftl: &str, key: &str) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     let mut inside = false;
     for line in ftl.lines() {
-        let starts_message = line
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_ascii_alphabetic());
+        let starts_message = line.chars().next().is_some_and(|c| c.is_ascii_alphabetic());
         if starts_message {
-            inside = line
-                .split_once('=')
-                .is_some_and(|(id, _)| id.trim() == key);
+            inside = line.split_once('=').is_some_and(|(id, _)| id.trim() == key);
         } else if line.starts_with('#') {
             inside = false;
         }
@@ -507,7 +502,8 @@ pub const COMMON_ARGS: [&str; 10] = [
 
 pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
     let p = &b.ask_params;
-    let err = |issues: &mut Vec<Issue>, owner: &str, msg: &str| issues.push(Issue::error(owner, msg));
+    let err =
+        |issues: &mut Vec<Issue>, owner: &str, msg: &str| issues.push(Issue::error(owner, msg));
     let owner = "ask_params";
     for (name, curve) in [
         ("intent_by_open", &p.intent_by_open),
@@ -549,7 +545,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         err(issues, owner, "asker multipliers must be ≥ 0");
     }
     if p.history == 0 || p.history > 500 || p.deeds_kept == 0 || p.deeds_kept > 1000 {
-        err(issues, owner, "history and deeds_kept must be 1–500 and 1–1000");
+        err(
+            issues,
+            owner,
+            "history and deeds_kept must be 1–500 and 1–1000",
+        );
     }
     if p.respond_days == 0 || p.respond_days > 60 {
         err(issues, owner, "respond_days must be 1–60");
@@ -624,7 +624,11 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             err(issues, owner, "weight must be in [0, 10]");
         }
         if a.cooldown_days > 3650 || a.min_career_days > 3650 {
-            err(issues, owner, "cooldown_days and min_career_days must be at most 3650");
+            err(
+                issues,
+                owner,
+                "cooldown_days and min_career_days must be at most 3650",
+            );
         }
         check_effects(owner, &a.keep, &a.broken, &a.decline, &seen, issues);
         // Keys and their arguments (DEC-054).
@@ -634,8 +638,46 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             provided.insert(format!("{r}_role"));
             provided.insert(format!("{r}_occupation"));
         }
-        for key in [&a.name_key, &a.detail_key, &a.need_key, &a.kept_key, &a.broken_key] {
+        for key in [
+            &a.name_key,
+            &a.detail_key,
+            &a.need_key,
+            &a.kept_key,
+            &a.broken_key,
+        ] {
             check_key(owner, key, &en, &en_text, &provided, issues);
+        }
+    }
+
+    // A crisis mid-sentence and a nameless place to go have their own keys.
+    if !b.asks.is_empty() || !b.promises.is_empty() {
+        for c in &b.crises {
+            let key = format!("ask-crisis-{}", c.id.trim_start_matches("crisis."));
+            if !en.contains(&key) {
+                err(
+                    issues,
+                    &c.id,
+                    &format!(
+                        "missing Fluent key `{key}` in locale en (asks name the crisis with it)"
+                    ),
+                );
+            }
+        }
+        for a in &b.asks {
+            for n in &a.needs {
+                if let NeedDef::Visit { kinds, .. } = n {
+                    for k in kinds {
+                        let key = format!("ask-place-{k}");
+                        if !en.contains(&key) {
+                            err(
+                                issues,
+                                &a.id,
+                                &format!("missing Fluent key `{key}` in locale en"),
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -684,7 +726,13 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
         check_effects(owner, &x.keep, &x.broken, &[], &[], issues);
         let provided: BTreeSet<String> = COMMON_ARGS.iter().map(|s| s.to_string()).collect();
-        for key in [&x.name_key, &x.detail_key, &x.need_key, &x.kept_key, &x.broken_key] {
+        for key in [
+            &x.name_key,
+            &x.detail_key,
+            &x.need_key,
+            &x.kept_key,
+            &x.broken_key,
+        ] {
             check_key(owner, key, &en, &en_text, &provided, issues);
         }
     }
@@ -738,9 +786,8 @@ fn check_needs(
     }
     let cast_of = |r: &str| roles.iter().find(|x| x.id == r).map(|x| &x.cast);
     let is_bill = |r: &str| matches!(cast_of(r), Some(Cast::Bill { .. }));
-    let is_hood_only = |r: &str| {
-        r == ROLE_ASKER_HOOD || matches!(cast_of(r), Some(Cast::WardNeighborhood))
-    };
+    let is_hood_only =
+        |r: &str| r == ROLE_ASKER_HOOD || matches!(cast_of(r), Some(Cast::WardNeighborhood));
     let is_person = |r: &str| {
         r == ROLE_ASKER
             || cast_of(r).is_some_and(|c| {
@@ -784,12 +831,18 @@ fn check_needs(
         };
         match n {
             NeedDef::Vote { role, .. } if !is_bill(role) => {
-                err(issues, &format!("a vote need names a bill role (`{role}` is not)"));
+                err(
+                    issues,
+                    &format!("a vote need names a bill role (`{role}` is not)"),
+                );
             }
             NeedDef::Statement {
                 about: StatementDef::Bill { role },
             } if !is_bill(role) => {
-                err(issues, &format!("a statement on a bill names a bill role (`{role}` is not)"));
+                err(
+                    issues,
+                    &format!("a statement on a bill names a bill role (`{role}` is not)"),
+                );
             }
             NeedDef::Statement {
                 about: StatementDef::Concern { concern },
@@ -801,15 +854,24 @@ fn check_needs(
             }
             NeedDef::TownHall { role, constituency } => match (role, constituency) {
                 (Some(r), false) if !is_hood(r) => {
-                    err(issues, &format!("a town hall names a neighbourhood role (`{r}` is not)"));
+                    err(
+                        issues,
+                        &format!("a town hall names a neighbourhood role (`{r}` is not)"),
+                    );
                 }
                 (None, false) | (Some(_), true) => {
-                    err(issues, "a town hall names a neighbourhood role, or `constituency`");
+                    err(
+                        issues,
+                        "a town hall names a neighbourhood role, or `constituency`",
+                    );
                 }
                 _ => {}
             },
             NeedDef::Canvass { role, .. } if !is_hood(role) => {
-                err(issues, &format!("a canvass names a neighbourhood role (`{role}` is not)"));
+                err(
+                    issues,
+                    &format!("a canvass names a neighbourhood role (`{role}` is not)"),
+                );
             }
             NeedDef::Visit { kinds, role } => {
                 if kinds.is_empty() {
@@ -823,14 +885,20 @@ fn check_needs(
                 if let Some(r) = role
                     && !is_hood(r)
                 {
-                    err(issues, &format!("a visit's role is a neighbourhood (`{r}` is not)"));
+                    err(
+                        issues,
+                        &format!("a visit's role is a neighbourhood (`{r}` is not)"),
+                    );
                 }
             }
             NeedDef::Talk { role } | NeedDef::Quiet { role } if !is_person(role) => {
                 err(issues, &format!("`{role}` is not a person"));
             }
             NeedDef::AgainstAll { tag } if tag != TAG_TAX_RISE => {
-                err(issues, &format!("unknown tag `{tag}` (tags: {TAG_TAX_RISE})"));
+                err(
+                    issues,
+                    &format!("unknown tag `{tag}` (tags: {TAG_TAX_RISE})"),
+                );
             }
             NeedDef::Introduce { bills: x } | NeedDef::Enacted { bills: x, .. } => {
                 bills(x, issues);
@@ -898,7 +966,10 @@ fn check_effects(
             }
             EffectDef::Standing { delta } | EffectDef::Record { delta } => {
                 if !(-5.0..=5.0).contains(delta) {
-                    err(issues, "an ask's standing or record change is within [-5, 5]");
+                    err(
+                        issues,
+                        "an ask's standing or record change is within [-5, 5]",
+                    );
                 }
             }
             _ => {}

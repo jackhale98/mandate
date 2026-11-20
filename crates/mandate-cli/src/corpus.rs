@@ -721,6 +721,8 @@ fn career(
     let start_turn = e.state().calendar.turn;
     let mut opened: BTreeSet<u32> = BTreeSet::new();
     let mut closed: BTreeSet<u32> = BTreeSet::new();
+    let mut asks_opened: BTreeSet<u32> = BTreeSet::new();
+    let mut asks_closed: BTreeSet<u32> = BTreeSet::new();
     let mut stories = 0u32;
     let mut actions = 0usize;
     let mut exchanges: BTreeSet<u32> = BTreeSet::new();
@@ -772,6 +774,49 @@ fn career(
             if d.status != mandate_sim::narrative::DecisionStatus::Pending && closed.insert(d.id.0)
             {
                 decision_items(&e, &run, d, &mut bag, false);
+            }
+        }
+        // Asks and promises (DEC-097 §2): their texts when made, and how
+        // they ended.
+        for a in &st.asks.asks {
+            let (name, detail, need, kept, broken) =
+                match (content.ask(&a.template), content.promise(&a.template)) {
+                    (Some(t), _) => (
+                        &t.name_key,
+                        &t.detail_key,
+                        &t.need_key,
+                        &t.kept_key,
+                        &t.broken_key,
+                    ),
+                    (None, Some(t)) => (
+                        &t.name_key,
+                        &t.detail_key,
+                        &t.need_key,
+                        &t.kept_key,
+                        &t.broken_key,
+                    ),
+                    _ => continue,
+                };
+            let args = proto::narrative::ask_args(&e, a);
+            let sit = situation(
+                &e,
+                &run,
+                json!({ "ask": a.template, "status": a.status.key(), "cast": cast(st, content, &a.cast) }),
+            );
+            if asks_opened.insert(a.id.0) {
+                for (part, key) in [("title", name), ("detail", detail), ("need", need)] {
+                    bag.push(event_item("ask", part, &a.template, key, &args, &sit));
+                }
+            }
+            let end = match a.status {
+                mandate_sim::asks::AskStatus::Kept { .. } => Some(("kept", kept)),
+                mandate_sim::asks::AskStatus::Broken { .. } => Some(("broken", broken)),
+                _ => None,
+            };
+            if let Some((part, key)) = end
+                && asks_closed.insert(a.id.0)
+            {
+                bag.push(event_item("ask", part, &a.template, key, &args, &sit));
             }
         }
         // Storylines as the story so far tells them.

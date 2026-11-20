@@ -101,7 +101,11 @@ pub fn crisis_answers(content: &mandate_content::ContentBundle, kind: &str) -> V
 
 pub fn concern_answers(content: &mandate_content::ContentBundle, concern: &str) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
-    for c in content.crises.iter().filter(|c| c.concern.as_deref() == Some(concern)) {
+    for c in content
+        .crises
+        .iter()
+        .filter(|c| c.concern.as_deref() == Some(concern))
+    {
         for p in &c.policies {
             if !out.contains(p) {
                 out.push(p.clone());
@@ -354,7 +358,12 @@ fn settle_one(
             Step::Part | Step::Nothing => {}
         }
     }
-    if news.surfaced && ask.needs.iter().any(|n| matches!(n, Need::NoSurfacedHiddenFact)) {
+    if news.surfaced
+        && ask
+            .needs
+            .iter()
+            .any(|n| matches!(n, Need::NoSurfacedHiddenFact))
+    {
         return Some(Settle::Broken);
     }
     // State tests for the current need.

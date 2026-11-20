@@ -19,8 +19,8 @@ use crate::policy::PolicyStatus;
 use crate::scheduler::{Outs, Reads};
 use crate::world::NeighborhoodId;
 use mandate_content::asks::{
-    AskDef, AskFrom, BillsDef, NeedDef, NeedVote, OnBehalf, ROLE_ASKER,
-    ROLE_ASKER_HOOD, StatementDef, interpolate,
+    AskDef, AskFrom, BillsDef, NeedDef, NeedVote, OnBehalf, ROLE_ASKER, ROLE_ASKER_HOOD,
+    StatementDef, interpolate,
 };
 use mandate_content::{Cast, RoleDef};
 use mandate_core::{SimDate, Stream};
@@ -75,15 +75,23 @@ pub fn weekly(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>) {
     if p <= 0.0 {
         return;
     }
-    let draw = mandate_core::rng::keyed(r.meta.seed, Stream::Asks, &[super::KEY_OFFER, r.date.0 as u64])
-        .next_f64();
+    let draw = mandate_core::rng::keyed(
+        r.meta.seed,
+        Stream::Asks,
+        &[super::KEY_OFFER, r.date.0 as u64],
+    )
+    .next_f64();
     if draw >= p {
         return;
     }
     let cands = candidates(a, r, &[AskFrom::Week, AskFrom::TalkedAbout]);
     let weights: Vec<f64> = cands.iter().map(|c| c.weight).collect();
-    let pick = mandate_core::rng::keyed(r.meta.seed, Stream::Asks, &[super::KEY_PICK, r.date.0 as u64])
-        .weighted_index(&weights);
+    let pick = mandate_core::rng::keyed(
+        r.meta.seed,
+        Stream::Asks,
+        &[super::KEY_PICK, r.date.0 as u64],
+    )
+    .weighted_index(&weights);
     if let Some(i) = pick {
         offer(a, r, out, cands[i].clone());
     }
@@ -233,9 +241,7 @@ fn talked_about(a: &AskState, r: &Reads<'_>) -> Vec<CharacterId> {
     );
     let mut out = Vec::new();
     for d in a.deeds_since(from) {
-        if let Deed::Talk {
-            about: Some(p), ..
-        } = d.deed
+        if let Deed::Talk { about: Some(p), .. } = d.deed
             && !out.contains(&p)
         {
             out.push(p);
@@ -368,9 +374,12 @@ fn done_lately(a: &AskState, r: &Reads<'_>, t: &AskDef, cast: &[CastEntry]) -> b
         return false;
     };
     a.deeds_since(from).any(|d| match (first, &d.deed) {
-        (NeedDef::TownHall { role: Some(role), .. }, Deed::TownHall { hood }) => {
-            hood_of(role) == Some(*hood)
-        }
+        (
+            NeedDef::TownHall {
+                role: Some(role), ..
+            },
+            Deed::TownHall { hood },
+        ) => hood_of(role) == Some(*hood),
         (NeedDef::Canvass { role, .. }, Deed::Canvass { hood }) => hood_of(role) == Some(*hood),
         (NeedDef::Talk { role }, Deed::Talk { person, .. }) => {
             person_of(cast, role) == Some(*person)
@@ -516,11 +525,7 @@ pub(crate) fn needs(
                         Some((h, _)) => h.iter().map(|x| NeighborhoodId(*x)).collect(),
                         None => {
                             let c = super::effects::player_constituency(r)?;
-                            r.world
-                                .constituencies
-                                .get(c.index())?
-                                .neighborhoods
-                                .clone()
+                            r.world.constituencies.get(c.index())?.neighborhoods.clone()
                         }
                     }
                 } else {
@@ -604,8 +609,7 @@ fn offer(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>, c: Candidate) {
     a.last_offer = Some(r.date);
     a.cooldowns
         .insert(c.template.clone(), r.date.add_days(t.cooldown_days));
-    a.asker_cooldowns
-        .retain(|(_, until)| *until > r.date);
+    a.asker_cooldowns.retain(|(_, until)| *until > r.date);
     a.asker_cooldowns
         .push((c.asker, r.date.add_days(p.per_asker_cooldown_days)));
     a.tally.offered += 1;

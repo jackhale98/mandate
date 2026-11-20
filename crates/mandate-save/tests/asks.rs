@@ -39,8 +39,11 @@ fn turn(e: &mut mandate_sim::Engine) {
         .map(|a| a.id.0)
         .collect();
     for ask in offers {
-        e.apply(Command::Player(PlayerCommand::RespondAsk { ask, accept: true }))
-            .unwrap();
+        e.apply(Command::Player(PlayerCommand::RespondAsk {
+            ask,
+            accept: true,
+        }))
+        .unwrap();
     }
     let hood = {
         let st = e.state();

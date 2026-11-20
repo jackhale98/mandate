@@ -2284,14 +2284,13 @@ fn last_beat(n: &NarrativeState, v: &View<'_>) -> Option<SimDate> {
         .find(|f| f.spotlit && is_beat(&f.kind))
         .map(|f| f.date);
     let press = press_dates(v).into_iter().max();
-    let asked = v
-        .r
-        .asks()
-        .asks
-        .iter()
-        .flat_map(|a| [Some(a.opened), a.status.resolved_on()])
-        .flatten()
-        .max();
+    let asked =
+        v.r.asks()
+            .asks
+            .iter()
+            .flat_map(|a| [Some(a.opened), a.status.resolved_on()])
+            .flatten()
+            .max();
     [decided, fact, press, asked, n.play_began]
         .into_iter()
         .flatten()

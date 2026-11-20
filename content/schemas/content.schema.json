@@ -389,6 +389,301 @@
       ],
       "type": "object"
     },
+    "AskDef": {
+      "additionalProperties": false,
+      "description": "An ask template (`content/base/asks/asks.jsonc`).",
+      "properties": {
+        "asker": {
+          "$ref": "#/$defs/Cast",
+          "description": "Who asks (the role `asker`): a person cast like a dilemma role."
+        },
+        "big": {
+          "default": false,
+          "description": "A big ask: kept, a favour is owed to the player; accepting it ends\nthe director's relax phase.",
+          "type": "boolean"
+        },
+        "break": {
+          "items": {
+            "$ref": "#/$defs/EffectDef"
+          },
+          "type": "array"
+        },
+        "broken_key": {
+          "type": "string"
+        },
+        "cooldown_days": {
+          "description": "Days before this template is offered again.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deadline_days": {
+          "default": null,
+          "description": "Days to keep it, drawn in [min, max] (the lower half in a term after\na re-election). Absent: until the vote on the bill a `vote` need names.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "decline": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EffectDef"
+          },
+          "type": "array"
+        },
+        "detail_key": {
+          "description": "The situation, with the cast (and `$history`: `kept`, `broken` or\n`none`, the asker's last ask) as arguments.",
+          "type": "string"
+        },
+        "fresh_days": {
+          "default": null,
+          "description": "Not offered when the player did what its first need asks (a deed in\nthe deed log) within this many days (\"no town hall there in 180 days\").",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "from": {
+          "default": [
+            "week"
+          ],
+          "description": "Where offers come from (default: the weekly draw).",
+          "items": {
+            "$ref": "#/$defs/AskFrom"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "keep": {
+          "description": "Effects when kept, broken and declined (or left unanswered). A subset\nof the narrative effects: `opinion`, `approval`, `standing`, `record`,\n`favour`, `learn`, `money`.",
+          "items": {
+            "$ref": "#/$defs/EffectDef"
+          },
+          "type": "array"
+        },
+        "kept_key": {
+          "type": "string"
+        },
+        "min_career_days": {
+          "default": 0,
+          "description": "Days since play began before it is offered (ENGAGEMENT §4.7).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name_key": {
+          "description": "The ask in a few words (\"Say something about the closure\").",
+          "type": "string"
+        },
+        "need_key": {
+          "description": "What keeps it (\"Vote yes on { $bill_key }\").",
+          "type": "string"
+        },
+        "needs": {
+          "items": {
+            "$ref": "#/$defs/NeedDef"
+          },
+          "type": "array"
+        },
+        "on_behalf": {
+          "$ref": "#/$defs/OnBehalf",
+          "default": "person"
+        },
+        "public": {
+          "default": false,
+          "description": "Others see it: breaking it is public (approval, Standing, the press).",
+          "type": "boolean"
+        },
+        "roles": {
+          "default": [],
+          "description": "Further roles (a bill, a neighbourhood, an official), cast after the asker.",
+          "items": {
+            "$ref": "#/$defs/RoleDef"
+          },
+          "type": "array"
+        },
+        "triggers": {
+          "default": [],
+          "description": "U1's conditions on the live state and the cast (never `knows`:\nasks are aimed at the player, DEC-091).",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
+        "weight": {
+          "default": 1.0,
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "asker",
+        "needs",
+        "cooldown_days",
+        "keep",
+        "break",
+        "detail_key",
+        "need_key",
+        "kept_key",
+        "broken_key"
+      ],
+      "type": "object"
+    },
+    "AskFrom": {
+      "description": "Where an offer comes from (ENGAGEMENT §3.2 \"Comes from\").",
+      "oneOf": [
+        {
+          "const": "week",
+          "description": "The weekly draw at the sliding rate. An asker cast `goal_holder` is\nsomeone whose NPC goal names this ask (`goals.jsonc` `ask`).",
+          "type": "string"
+        },
+        {
+          "const": "doorstep",
+          "description": "A canvass: someone on the doorstep of the canvassed neighbourhood\n(`doorstep_chance` a canvass), cast among its residents.",
+          "type": "string"
+        },
+        {
+          "const": "talk",
+          "description": "A conversation: the person the player talked with\n(`doorstep_chance` a conversation).",
+          "type": "string"
+        },
+        {
+          "const": "talked_about",
+          "description": "The player asked around about someone (a conversation about them\nwithin `talked_about_days`): that person asks.",
+          "type": "string"
+        }
+      ]
+    },
+    "AskParams": {
+      "additionalProperties": false,
+      "description": "The asks system's numbers (`content/base/asks/params.jsonc`).",
+      "properties": {
+        "asker_broken_mult": {
+          "format": "double",
+          "type": "number"
+        },
+        "asker_kept_mult": {
+          "description": "A person whose earlier ask the player kept is this much more likely\nto ask again; one whose ask was broken, this much (callbacks).",
+          "format": "double",
+          "type": "number"
+        },
+        "casework": {
+          "$ref": "#/$defs/CaseworkParams"
+        },
+        "deeds_kept": {
+          "description": "The player's deed log (ENGAGEMENT §3.6).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "doorstep_chance": {
+          "description": "Chance a canvass (or a conversation) brings a doorstep ask.",
+          "format": "double",
+          "type": "number"
+        },
+        "history": {
+          "description": "Resolved asks kept for views and the lab.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "intent_by_open": {
+          "description": "Open asks → factor (points `[x, factor]`, linear between them).",
+          "items": {
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "intent_by_quiet": {
+          "description": "Days since the last offer → factor.",
+          "items": {
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "max_open": {
+          "description": "Offered and accepted asks at once (a hard cap; promises are not counted).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "new_per_month": {
+          "description": "The base rate of new offers a month, governing and in a campaign: the\ntwo intent curves multiply it.",
+          "format": "double",
+          "type": "number"
+        },
+        "new_per_month_campaign": {
+          "format": "double",
+          "type": "number"
+        },
+        "per_asker_cooldown_days": {
+          "description": "Days before the same person (or party) asks again.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "promises": {
+          "$ref": "#/$defs/PromiseParams"
+        },
+        "respond_days": {
+          "description": "An offer lapses unanswered (as declined) after this many days.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "talked_about_days": {
+          "default": 30,
+          "description": "How far back \"the player asked around about someone\" reaches (days).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_open",
+        "new_per_month",
+        "new_per_month_campaign",
+        "intent_by_open",
+        "intent_by_quiet",
+        "respond_days",
+        "per_asker_cooldown_days",
+        "asker_kept_mult",
+        "asker_broken_mult",
+        "doorstep_chance",
+        "history",
+        "deeds_kept",
+        "casework",
+        "promises"
+      ],
+      "type": "object"
+    },
     "AttitudeDef": {
       "additionalProperties": false,
       "description": "An attitude dimension (DEC-075): an issue every cohort, politician, and\nparty holds a position on, in [-1, 1]. Registry order is load order (files\nby path, then item order); the engine stores attitudes densely in that order.",
@@ -595,6 +890,78 @@
           "const": "other",
           "description": "Anyone but the player.",
           "type": "string"
+        }
+      ]
+    },
+    "BillsDef": {
+      "description": "Which bills a need counts.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "Bills of these policy templates.",
+          "properties": {
+            "templates": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "templates",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "templates"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A template that answers the town's live crisis (its `policies`).",
+          "properties": {
+            "type": {
+              "const": "crisis_answer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A template that answers this worry (the `policies` of the crises\nthat sharpen it).",
+          "properties": {
+            "concern": {
+              "type": "string"
+            },
+            "type": {
+              "const": "concern_answer",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "concern"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A promise's chosen answer (its `answer` argument).",
+          "properties": {
+            "type": {
+              "const": "chosen",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -1105,6 +1472,26 @@
         "scandal_keep_yearly",
         "officeholder_funds",
         "officeholder_funds_oratory"
+      ],
+      "type": "object"
+    },
+    "CaseworkParams": {
+      "additionalProperties": false,
+      "description": "Casework (ENGAGEMENT §3.4): \"Sort it out\" at the town hall, one slot.",
+      "properties": {
+        "success_in_office": {
+          "format": "double",
+          "type": "number"
+        },
+        "success_out_of_office": {
+          "description": "Out of office the player can only chase it up.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "success_in_office",
+        "success_out_of_office"
       ],
       "type": "object"
     },
@@ -5996,6 +6383,13 @@
       "additionalProperties": false,
       "description": "An NPC goal template (DEC-032): emerges from circumstances plus personality.",
       "properties": {
+        "ask": {
+          "description": "When the goal needs something done later: an ask (`asks.jsonc`) whose\nasker is cast `goal_holder` (ENGAGEMENT §3.1).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "conditions": {
           "default": [],
           "description": "Conditions on the town and the holder (role `holder`).",
@@ -8196,6 +8590,265 @@
       ],
       "type": "string"
     },
+    "NeedDef": {
+      "description": "What keeps an ask: an ordinary command the engine checks (DEC-032: no\nfetch quests), or casework. An ask's needs are met in order.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A declared vote on the bill cast in `role` (a bill before the\ncouncil); due by its vote unless `deadline_days` says otherwise.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "vote",
+              "type": "string"
+            },
+            "vote": {
+              "$ref": "#/$defs/NeedVote"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "vote"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "No yes vote on (and no sponsoring of) any bill with this tag until\nthe deadline (`tax_rise`): kept at the deadline unless broken.",
+          "properties": {
+            "tag": {
+              "type": "string"
+            },
+            "type": {
+              "const": "against_all",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "tag"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A press statement.",
+          "properties": {
+            "about": {
+              "$ref": "#/$defs/StatementDef"
+            },
+            "type": {
+              "const": "statement",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "about"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A town hall in the neighbourhood cast in `role`; with\n`constituency`, one in every neighbourhood of the constituency.",
+          "properties": {
+            "constituency": {
+              "default": false,
+              "type": "boolean"
+            },
+            "role": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "town_hall",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A canvass of the neighbourhood cast in `role` (`or_town_hall`: a town\nhall there counts too).",
+          "properties": {
+            "or_town_hall": {
+              "default": false,
+              "type": "boolean"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "canvass",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Be at a place of one of these kinds in the town (the first such\nplace; in the neighbourhood cast in `role`, if it has one).",
+          "properties": {
+            "kinds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "role": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "visit",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kinds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A conversation with the person cast in `role`.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "talk",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Introduce a bill of these templates.",
+          "properties": {
+            "bills": {
+              "$ref": "#/$defs/BillsDef"
+            },
+            "type": {
+              "const": "introduce",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "bills"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A bill of these templates becomes law (`sponsor_player`: the player's\nown). A promise counts a failed vote on the player's own bill as\nhalf kept (void: no cost, no reward).",
+          "properties": {
+            "bills": {
+              "$ref": "#/$defs/BillsDef"
+            },
+            "sponsor_player": {
+              "default": false,
+              "type": "boolean"
+            },
+            "type": {
+              "const": "enacted",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "bills"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "\"Sort it out\" at the town hall (`Action::Casework`).",
+          "properties": {
+            "type": {
+              "const": "casework",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "None of the player's own hidden facts comes to light before the\ndeadline: kept at the deadline unless broken.",
+          "properties": {
+            "type": {
+              "const": "no_surfaced_hidden_fact",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player does not leak about the person cast in `role` (or tip\nthe press, E9) before the deadline: kept at the deadline unless broken.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "quiet",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "NeedVote": {
+      "description": "How the player must vote.",
+      "oneOf": [
+        {
+          "enum": [
+            "yes",
+            "no"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "with_party",
+          "description": "As the player's party expects on the bill.",
+          "type": "string"
+        }
+      ]
+    },
     "NeighborhoodLean": {
       "additionalProperties": false,
       "description": "A value per neighbourhood kind (omitted kinds are 0).",
@@ -8562,6 +9215,14 @@
         "works_at"
       ],
       "type": "object"
+    },
+    "OnBehalf": {
+      "description": "Who the asker speaks for. A party's ask is voiced by the person cast as\nthe asker (its chair), and remembered as the party's.",
+      "enum": [
+        "person",
+        "party"
+      ],
+      "type": "string"
     },
     "OpenRange": {
       "additionalProperties": false,
@@ -9742,6 +10403,205 @@
         "id",
         "deliberation_days",
         "stages"
+      ],
+      "type": "object"
+    },
+    "PromiseAnswers": {
+      "description": "What a promise answers (validation: every promise names it).",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The town's live crisis: the menu offers each template that answers it\n(the `answer` argument). Offered only while a crisis is live.",
+          "properties": {
+            "type": {
+              "const": "crisis",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A worry of the constituency's voters.",
+          "properties": {
+            "concern": {
+              "type": "string"
+            },
+            "type": {
+              "const": "concern",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "concern"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "No one worry (a promise of presence, of honesty).",
+          "properties": {
+            "type": {
+              "const": "any",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PromiseDef": {
+      "additionalProperties": false,
+      "description": "A promise template (`content/base/asks/promises.jsonc`).",
+      "properties": {
+        "answers": {
+          "$ref": "#/$defs/PromiseAnswers"
+        },
+        "break": {
+          "items": {
+            "$ref": "#/$defs/EffectDef"
+          },
+          "type": "array"
+        },
+        "broken_key": {
+          "type": "string"
+        },
+        "detail_key": {
+          "type": "string"
+        },
+        "due": {
+          "$ref": "#/$defs/PromiseDue"
+        },
+        "id": {
+          "type": "string"
+        },
+        "keep": {
+          "items": {
+            "$ref": "#/$defs/EffectDef"
+          },
+          "type": "array"
+        },
+        "kept_key": {
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "need_key": {
+          "type": "string"
+        },
+        "needs": {
+          "items": {
+            "$ref": "#/$defs/NeedDef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name_key",
+        "answers",
+        "needs",
+        "due",
+        "keep",
+        "break",
+        "detail_key",
+        "need_key",
+        "kept_key",
+        "broken_key"
+      ],
+      "type": "object"
+    },
+    "PromiseDue": {
+      "description": "When a promise falls due.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The end of the term of the post the player is running for.",
+          "properties": {
+            "type": {
+              "const": "term",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The end of the first full budget year after election day.",
+          "properties": {
+            "type": {
+              "const": "budget_year",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "This many days after election day.",
+          "properties": {
+            "days": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "days",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "days"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PromiseParams": {
+      "additionalProperties": false,
+      "description": "Campaign promises (ENGAGEMENT §3.5).",
+      "properties": {
+        "any_salience": {
+          "format": "double",
+          "type": "number"
+        },
+        "broken_discount": {
+          "description": "× this per public promise the player has broken.",
+          "format": "double",
+          "type": "number"
+        },
+        "max_per_campaign": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "persuasion": {
+          "description": "Persuasion a promise adds where its worry is felt: × the felt level\nof the worry in each neighbourhood of the race (× `any_salience` for\na promise that answers no worry), approval × room.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "max_per_campaign",
+        "persuasion",
+        "any_salience",
+        "broken_discount"
       ],
       "type": "object"
     },
@@ -11118,6 +11978,75 @@
         "grants"
       ],
       "type": "object"
+    },
+    "StatementDef": {
+      "description": "What a statement must be about.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The town's live crisis: a general statement while it lasts, or one on\na bill that answers it.",
+          "properties": {
+            "type": {
+              "const": "crisis",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A worry: a general statement, or one on a bill that answers it.",
+          "properties": {
+            "concern": {
+              "type": "string"
+            },
+            "type": {
+              "const": "concern",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "concern"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The bill cast in `role`.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "bill",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Any statement.",
+          "properties": {
+            "type": {
+              "const": "any",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "StatusKey": {
       "description": "A run status an ending can read.",
@@ -14545,6 +15474,66 @@
       "required": [
         "kind",
         "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The asks system's numbers: the sliding rate, caps, casework, promises (DEC-097 §2).",
+      "properties": {
+        "kind": {
+          "const": "ask_params",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/AskParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Ask templates: concrete requests with a deadline (DEC-097 §2).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AskDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "asks",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Campaign promise templates (DEC-097 §2).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PromiseDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "promises",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
       ],
       "type": "object"
     },

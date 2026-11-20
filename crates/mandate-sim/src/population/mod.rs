@@ -88,10 +88,7 @@ pub fn apply_approval(
 /// Population domain, Opinion phase, daily: approval other domains asked
 /// for (`Effect::Approval`: asks kept, broken and declined).
 pub fn effects(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
-    for e in out
-        .effects
-        .take(|e| matches!(e, Effect::Approval { .. }))
-    {
+    for e in out.effects.take(|e| matches!(e, Effect::Approval { .. })) {
         if let Effect::Approval {
             scope,
             delta,

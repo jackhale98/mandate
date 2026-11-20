@@ -12,9 +12,7 @@
 
 use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
 use mandate_sim::actions::{Action, PlayerCommand};
-use mandate_sim::asks::{
-    Ask, AskId, AskStatus, Asker, Deed, History, Need, StatementNeed, offers,
-};
+use mandate_sim::asks::{Ask, AskId, AskStatus, Asker, Deed, History, Need, StatementNeed, offers};
 use mandate_sim::narrative::{Actor, CastEntry};
 use mandate_sim::places::Location;
 use mandate_sim::policy::PolicyStatus;
@@ -188,7 +186,11 @@ fn deeds_keep_their_needs() {
     assert!(kept(&status(&e, v)));
     // The deed log has them, in order.
     let deeds = &e.state().asks.deeds;
-    assert!(deeds.iter().any(|d| matches!(d.deed, Deed::Statement { .. })));
+    assert!(
+        deeds
+            .iter()
+            .any(|d| matches!(d.deed, Deed::Statement { .. }))
+    );
     assert!(deeds.iter().any(|d| matches!(d.deed, Deed::Canvass { .. })));
     assert!(deeds.iter().any(|d| matches!(d.deed, Deed::Arrive { .. })));
     assert!(deeds.windows(2).all(|w| w[0].on <= w[1].on));
@@ -406,7 +408,11 @@ fn the_sliding_rate_follows_its_curves() {
     // Nothing open, 21 quiet days: twice the base chance.
     let date = e.state().calendar.date;
     e.setup(|st| st.asks.last_offer = Some(mandate_core::SimDate(date.0 - 21)));
-    assert!((chance(&e) - 2.0 * base_rate).abs() < 1e-9, "{}", chance(&e));
+    assert!(
+        (chance(&e) - 2.0 * base_rate).abs() < 1e-9,
+        "{}",
+        chance(&e)
+    );
     // An offer today: none until days have passed.
     e.setup(|st| st.asks.last_offer = Some(date));
     assert_eq!(chance(&e), 0.0);
@@ -497,7 +503,12 @@ fn asks_resolve_exactly_once_over_careers() {
         assert!(seen.values().all(|n| *n == 1), "seed {seed}: {seen:?}");
         let t = &st.asks.tally;
         assert!(t.offered >= 8, "seed {seed}: {t:?}");
-        let open = st.asks.asks.iter().filter(|a| a.open() && !a.promise).count() as u32;
+        let open = st
+            .asks
+            .asks
+            .iter()
+            .filter(|a| a.open() && !a.promise)
+            .count() as u32;
         assert_eq!(
             t.offered,
             t.kept + t.broken + t.declined + t.void + open,
@@ -545,12 +556,11 @@ fn promises_are_made_while_campaigning_and_counted_per_race() {
             .clone()
             .map(|a| vec![("answer".to_string(), a)])
             .unwrap_or_default();
-        if e
-            .apply(Command::Player(PlayerCommand::Promise {
-                template: o.template.clone(),
-                args,
-            }))
-            .is_ok()
+        if e.apply(Command::Player(PlayerCommand::Promise {
+            template: o.template.clone(),
+            args,
+        }))
+        .is_ok()
         {
             made += 1;
         }
@@ -586,7 +596,8 @@ fn accepting_a_big_ask_ends_a_relax() {
             let n = &e.state().narrative;
             if let Some(p) = &n.phase
                 && p.kind == PhaseKind::Relax
-                && p.until.is_some_and(|u| u > e.state().calendar.date.add_days(10))
+                && p.until
+                    .is_some_and(|u| u > e.state().calendar.date.add_days(10))
             {
                 found = true;
                 break;
@@ -625,12 +636,23 @@ fn asks_name_no_town_key_and_no_office() {
         e.apply(Command::EndTurn).unwrap();
     }
     let v = serde_json::to_string(&e.state().asks).unwrap();
-    assert!(!v.contains("municipality"), "the asks state is tier-generic");
+    assert!(
+        !v.contains("municipality"),
+        "the asks state is tier-generic"
+    );
     // No office or body word in the asks' content or text (DEC-098).
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content/base");
     let mut text = String::new();
-    for f in ["asks/asks.jsonc", "asks/promises.jsonc", "locale/en/asks.ftl"] {
-        text.push_str(&std::fs::read_to_string(root.join(f)).unwrap().to_lowercase());
+    for f in [
+        "asks/asks.jsonc",
+        "asks/promises.jsonc",
+        "locale/en/asks.ftl",
+    ] {
+        text.push_str(
+            &std::fs::read_to_string(root.join(f))
+                .unwrap()
+                .to_lowercase(),
+        );
     }
     for k in c.constitutions.values() {
         for t in &k.tiers {

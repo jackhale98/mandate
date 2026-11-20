@@ -209,10 +209,7 @@ fn top_worries(state: &State, hoods: &[u32], n: usize) -> Vec<String> {
 /// Promises made in this race already (same template and answer).
 fn promised_here(state: &State, race: Post, template: &str, answer: Option<&str>) -> bool {
     state.asks.asks.iter().any(|a| {
-        a.promise
-            && a.race == Some(race)
-            && a.template == template
-            && a.answer.as_deref() == answer
+        a.promise && a.race == Some(race) && a.template == template && a.answer.as_deref() == answer
     })
 }
 
@@ -224,11 +221,7 @@ pub fn promise_menu(state: &State, content: &ContentBundle) -> Vec<PromiseOption
     let Some((race, _, hoods)) = my_race(state) else {
         return Vec::new();
     };
-    if state
-        .player
-        .as_ref()
-        .is_none_or(|p| !p.status.active())
-    {
+    if state.player.as_ref().is_none_or(|p| !p.status.active()) {
         return Vec::new();
     }
     let made = if state.asks.promises_race == Some(race) {
@@ -277,8 +270,7 @@ pub fn promise_menu(state: &State, content: &ContentBundle) -> Vec<PromiseOption
             if promised_here(state, race, &o.template, o.answer.as_deref()) {
                 continue;
             }
-            if offers::needs(&r, &v, &t.needs, &[], Some((&hoods, o.answer.as_deref()))).is_none()
-            {
+            if offers::needs(&r, &v, &t.needs, &[], Some((&hoods, o.answer.as_deref()))).is_none() {
                 continue;
             }
             out.push(o);
@@ -428,10 +420,7 @@ pub fn promise(
         ..Default::default()
     };
     res.args.insert("promise_key".into(), t.name_key.clone());
-    if let Some(x) = answer
-        .as_deref()
-        .and_then(|x| content.policies.get(x))
-    {
+    if let Some(x) = answer.as_deref().and_then(|x| content.policies.get(x)) {
         res.args.insert("answer_key".into(), x.name_key.clone());
     }
     Ok(res)

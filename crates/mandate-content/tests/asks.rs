@@ -86,7 +86,9 @@ fn deadlines_and_needs_are_checked() {
     ));
     assert!(e.iter().any(|x| x.contains("deadline_days")), "{e:?}");
     // Without a deadline, an ask is due by a vote.
-    let e = errs(&format!(r#""needs":[{{"type":"casework"}}],{KEEP},{BREAK}"#));
+    let e = errs(&format!(
+        r#""needs":[{{"type":"casework"}}],{KEEP},{BREAK}"#
+    ));
     assert!(e.iter().any(|x| x.contains("due by a vote")), "{e:?}");
     // A vote on a role that is not a bill.
     let e = errs(&format!(
@@ -97,7 +99,10 @@ fn deadlines_and_needs_are_checked() {
     let e = errs(&format!(
         r#""needs":[{{"type":"talk","role":"ghost"}}],"deadline_days":[21,35],{KEEP},{BREAK}"#
     ));
-    assert!(e.iter().any(|x| x.contains("unknown role `ghost`")), "{e:?}");
+    assert!(
+        e.iter().any(|x| x.contains("unknown role `ghost`")),
+        "{e:?}"
+    );
     // A need kept by not acting stands alone.
     let e = errs(&format!(
         r#""needs":[{{"type":"no_surfaced_hidden_fact"}},{{"type":"casework"}}],"deadline_days":[21,35],{KEEP},{BREAK}"#
@@ -144,7 +149,9 @@ fn promises_name_what_they_answer() {
     });
     let (_, warnings) = load(&src).unwrap();
     assert!(
-        warnings.iter().any(|x| x.to_string().contains("unknown concern")),
+        warnings
+            .iter()
+            .any(|x| x.to_string().contains("unknown concern")),
         "{warnings:?}"
     );
 }
@@ -164,7 +171,10 @@ fn the_intent_curves_are_well_formed() {
     // Defined twice (the base pack has one): refused, which also shows the
     // kind loads.
     let e = with("aa_test/params.jsonc", &params("[[0,2.0],[4,0.0]]"));
-    assert!(e.iter().any(|x| x.contains("ask_params defined twice")), "{e:?}");
+    assert!(
+        e.iter().any(|x| x.contains("ask_params defined twice")),
+        "{e:?}"
+    );
     // On its own, a curve that is not 0 at max_open, and one that goes back.
     let mut src: Vec<Source> =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content"))

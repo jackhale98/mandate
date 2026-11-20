@@ -1226,9 +1226,6 @@ enum AskStyle {
 }
 
 fn ask_style(strategy: &str) -> Option<AskStyle> {
-    if std::env::var("DBG_NO_ASKS").is_ok_and(|v| v.split(',').any(|x| x == strategy)) {
-        return None;
-    }
     match strategy {
         "asks_only" => Some(AskStyle::All),
         "mixed" => Some(AskStyle::Meetable),
@@ -1365,7 +1362,11 @@ fn draft_one_of(e: &mut Engine, content: &ContentBundle, templates: &[String]) -
         template: t,
         params: BTreeMap::new(),
     });
-    let Some(id) = apply(e, cmd).ok().and_then(|r| r.result).and_then(|x| x.created) else {
+    let Some(id) = apply(e, cmd)
+        .ok()
+        .and_then(|r| r.result)
+        .and_then(|x| x.created)
+    else {
         return false;
     };
     let cmd = e.route(PlayerCommand::IntroducePolicy { policy: id });
@@ -1388,7 +1389,10 @@ fn work_asks(e: &mut Engine, content: &ContentBundle, strategy: &str) {
         .asks
         .iter()
         .filter(|a| a.accepted())
-        .filter_map(|a| a.current().map(|n| (a.due, a.id.0, n.clone(), a.done.clone())))
+        .filter_map(|a| {
+            a.current()
+                .map(|n| (a.due, a.id.0, n.clone(), a.done.clone()))
+        })
         .collect();
     todo.sort_by_key(|x| (x.0, x.1));
     for (due, ask, need, done) in todo {

@@ -273,7 +273,8 @@ impl<'a> Reads<'a> {
             .expect("justice is not readable from its own systems")
     }
     pub fn asks(&self) -> &'a AskState {
-        self.asks.expect("asks are not readable from their own systems")
+        self.asks
+            .expect("asks are not readable from their own systems")
     }
 }
 

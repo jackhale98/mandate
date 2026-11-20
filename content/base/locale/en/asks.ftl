@@ -44,16 +44,16 @@ ask-vote-with-me-detail = { $history ->
         [broken] { $asker } ({ $asker_role }) asks for your vote on their bill, { $bill }, though they remember the last time.
        *[none] { $asker } ({ $asker_role }) counts you as a friend and asks for your vote on their bill, { $bill }.
     }
-ask-vote-with-me-need = Vote yes on { $bill }
+ask-vote-with-me-need = Vote yes on the { $bill } bill
 ask-vote-with-me-kept = You voted for { $asker }'s bill. They owe you one.
-ask-vote-with-me-broken = You promised { $asker } your vote on { $bill } and did not give it. They will remember.
+ask-vote-with-me-broken = You promised { $asker } your vote on the { $bill } bill and did not give it. They will remember.
 
 ## The party counts heads
 ask-party-budget = The party counts heads
-ask-party-budget-detail = { $asker } ({ $asker_role }) is counting the party's votes on { $bill }. With money tight, they need to know you will vote with the party.
-ask-party-budget-need = Vote with the party on { $bill }
-ask-party-budget-kept = You voted with the party on { $bill }. { $asker } noticed.
-ask-party-budget-broken = You told { $asker } you would vote with the party on { $bill }, and you did not.
+ask-party-budget-detail = { $asker } ({ $asker_role }) is counting the party's votes on the { $bill } bill. With money tight, they need to know you will vote with the party.
+ask-party-budget-need = Vote with the party on the { $bill } bill
+ask-party-budget-kept = You voted with the party on the { $bill } bill. { $asker } noticed.
+ask-party-budget-broken = You told { $asker } you would vote with the party on the { $bill } bill, and you did not.
 
 ## A colleague's event
 ask-colleague-event = A colleague in a close race
@@ -103,10 +103,10 @@ ask-draft-answer-broken = You promised { $asker } a bill on { $crisis }, and non
 
 ## The broker's vote (a big ask)
 ask-broker-vote = A word from { $asker }
-ask-broker-vote-detail = { $asker } ({ $asker_role }) has an interest in { $bill } and lets you know, over coffee, that a yes would be remembered.
-ask-broker-vote-need = Vote yes on { $bill }
-ask-broker-vote-kept = You voted yes on { $bill }. { $asker } remembers favours.
-ask-broker-vote-broken = You let { $asker } down on { $bill }. They remember that too.
+ask-broker-vote-detail = { $asker } ({ $asker_role }) has an interest in the { $bill } bill and lets you know, over coffee, that a yes would be remembered.
+ask-broker-vote-need = Vote yes on the { $bill } bill
+ask-broker-vote-kept = You voted yes on the { $bill } bill. { $asker } remembers favours.
+ask-broker-vote-broken = You let { $asker } down on the { $bill } bill. They remember that too.
 
 ## After the disaster
 ask-visit-after-flood = Come and see { $asker_hood }
@@ -117,10 +117,10 @@ ask-visit-after-flood-broken = { $asker_hood } waited for you, and you did not c
 
 ## Second my bill
 ask-second-my-bill = Hear me out
-ask-second-my-bill-detail = { $asker } ({ $asker_role }) is pushing { $bill } to fix what is wrong in { $town }. They want to talk it through with you, then count on your vote.
-ask-second-my-bill-need = Talk to { $asker }, then vote yes on { $bill }
-ask-second-my-bill-kept = You heard { $asker } out and voted for { $bill }.
-ask-second-my-bill-broken = You told { $asker } you would back { $bill }. You did not.
+ask-second-my-bill-detail = { $asker } ({ $asker_role }) is pushing the { $bill } bill to fix what is wrong in { $town }. They want to talk it through with you, then count on your vote.
+ask-second-my-bill-need = Talk to { $asker }, then vote yes on the { $bill } bill
+ask-second-my-bill-kept = You heard { $asker } out and voted for the { $bill } bill.
+ask-second-my-bill-broken = You told { $asker } you would back the { $bill } bill. You did not.
 
 ## Services
 ask-fund-the-school = Speak up for services
@@ -151,11 +151,11 @@ ask-introduce-me-kept = You put in a word with { $official }, and told { $asker 
 ask-introduce-me-broken = You never spoke to { $official } for { $asker }.
 
 ## Campaign promises
-promise-answer-crisis = Get { $answer } passed
-promise-answer-crisis-detail = You promise { $constituency } that you will get { $answer } passed to answer { $crisis }.
-promise-answer-crisis-need = Sponsor { $answer } and see it enacted
-promise-answer-crisis-kept = { $answer } is law. You kept your word to { $constituency }.
-promise-answer-crisis-broken = You promised { $constituency } { $answer }. It never came.
+promise-answer-crisis = Get the { $answer } bill passed
+promise-answer-crisis-detail = You promise { $constituency } that you will get the { $answer } bill passed to answer { $crisis }.
+promise-answer-crisis-need = Sponsor the { $answer } bill and see it enacted
+promise-answer-crisis-kept = The { $answer } bill is law. You kept your word to { $constituency }.
+promise-answer-crisis-broken = You promised { $constituency } the { $answer } bill. It never came.
 promise-no-tax-rise = No rise in taxes
 promise-no-tax-rise-detail = You promise { $constituency } that you will not vote for or propose any rise in the town's taxes.
 promise-no-tax-rise-need = Vote against every tax rise
@@ -182,6 +182,21 @@ promise-clean-politics-need = Keep your record clean
 promise-clean-politics-kept = Your term ended with nothing to hide. You kept your word.
 promise-clean-politics-broken = Something you hid came to light. So much for clean politics.
 
+## A crisis mid-sentence (`$crisis` in asks), by crisis kind
+ask-crisis-plant_closure = the job losses
+ask-crisis-disaster_recovery = the recovery from the disaster
+ask-crisis-housing_squeeze = the housing squeeze
+ask-crisis-fiscal_hole = the hole in the town's finances
+
+## A place to go when it has no name of its own (`$place`), by place kind
+ask-place-union_hall = the union hall
+ask-place-market = the market
+ask-place-business_association = the chamber of commerce
+
+## Who a promise is made to
+ask-constituency = the voters of ward { $number }
+ask-electorate = the voters of { $town }
+
 ## Why an ask ended without a winner or a loser
 ask-void-left = They have left town.
 ask-void-withdrawn = The bill was withdrawn.
@@ -196,6 +211,9 @@ outcome-promised = You made a promise: { $promise }.
 outcome-casework-sorted = You sorted out { $name }'s problem at the services desk.
 outcome-casework-chased = You chased it up for { $name }, but it is not sorted yet. ({ $odds }% chance each try.)
 action-casework = Sort it out
+
+## A favour owed over an ask (the favour ledger)
+favour-ask = A promise kept or made over an ask
 
 ## The Legacy record
 legacy-campaign_promise-kept = Kept a campaign promise: { $promise }.

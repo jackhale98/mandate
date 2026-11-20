@@ -265,9 +265,15 @@ impl History {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StatementNeed {
     /// The live crisis (of this kind).
-    Crisis { kind: ContentKey },
-    Concern { concern: ContentKey },
-    Bill { policy: u32 },
+    Crisis {
+        kind: ContentKey,
+    },
+    Concern {
+        concern: ContentKey,
+    },
+    Bill {
+        policy: u32,
+    },
     Any,
 }
 
@@ -503,7 +509,11 @@ impl AskState {
 /// Asks domain, Director phase, daily: the player's new deeds into the deed
 /// log; asks kept, broken, declined and void; doorstep and conversation
 /// offers. (The weekly draw is [`offers::weekly`].)
-pub fn daily(a: &mut AskState, r: &crate::scheduler::Reads<'_>, out: &mut crate::scheduler::Outs<'_>) {
+pub fn daily(
+    a: &mut AskState,
+    r: &crate::scheduler::Reads<'_>,
+    out: &mut crate::scheduler::Outs<'_>,
+) {
     if r.player.is_none() {
         return;
     }
@@ -515,8 +525,9 @@ pub fn daily(a: &mut AskState, r: &crate::scheduler::Reads<'_>, out: &mut crate:
 
 /// The days since play began (`min_career_days`; ENGAGEMENT §4.7).
 pub fn career_days(r: &crate::scheduler::Reads<'_>) -> u32 {
-    let began = r.meta.start_date.add_days(
-        r.content.tuning.burn_in_years as u32 * mandate_core::time::DAYS_PER_YEAR,
-    );
+    let began = r
+        .meta
+        .start_date
+        .add_days(r.content.tuning.burn_in_years as u32 * mandate_core::time::DAYS_PER_YEAR);
     began.days_until(r.date)
 }

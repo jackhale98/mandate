@@ -1037,7 +1037,16 @@ pub fn apply_ask_effect(
             touch(pol, content, seed, *holder, date);
             match memory {
                 Some(kind) => {
-                    remember(pol, content, date, *holder, *toward, *kind, None, Some(*delta));
+                    remember(
+                        pol,
+                        content,
+                        date,
+                        *holder,
+                        *toward,
+                        *kind,
+                        None,
+                        Some(*delta),
+                    );
                 }
                 None if *delta != 0.0 => {
                     change_opinion(pol, content, *holder, *toward, *delta);
