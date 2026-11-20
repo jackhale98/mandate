@@ -59,7 +59,7 @@ fn new_game_with(content: &Arc<ContentBundle>, seed: u64, omniscient: bool) -> O
     Some(e)
 }
 
-pub const STRATEGIES: [&str; 13] = [
+pub const STRATEGIES: [&str; 14] = [
     "idle",
     "canvass",
     "media",
@@ -73,6 +73,7 @@ pub const STRATEGIES: [&str; 13] = [
     "explorer_legislator",
     "explorer_campaigner",
     "explore_only",
+    "directed",
 ];
 
 /// The strategy classes the gate ladder compares (ENGAGEMENT §2.4).
@@ -85,7 +86,8 @@ pub enum Class {
     /// Learn the town first, then lean on one way of playing: `explorer`
     /// and its three variants.
     Informed,
-    /// Compared only by their own gates: `idle`, `explore_only`, `corrupt`.
+    /// Compared only by their own gates: `idle`, `explore_only`, `corrupt`,
+    /// `directed` (the time-skip proxy alone, by default directives).
     Probe,
 }
 
@@ -1216,8 +1218,31 @@ fn exploring(e: &Engine, start_turn: u32) -> bool {
     e.state().calendar.turn < start_turn + EXPLORE_TURNS && !campaigning(e)
 }
 
+/// The time-skip proxy's turn (DEC-012), by the player's directives (the
+/// content's defaults unless set): the `directed` probe plays every turn
+/// this way, as a career skipped from start to finish would.
+pub fn directed_turn(e: &mut Engine) {
+    let mut t = mandate_sim::proxy::ProxyTurn::new(e.state(), e.content());
+    loop {
+        let Some(cmd) = t.next(e.state(), e.content()) else {
+            break;
+        };
+        let r = apply(e, Command::Player(cmd));
+        let created = r
+            .as_ref()
+            .ok()
+            .and_then(|o| o.result.as_ref())
+            .and_then(|x| x.created);
+        t.result(r.is_ok(), created);
+    }
+}
+
 /// A bot's turn; `start_turn` is the turn play began (for `explorer`).
 pub fn play_turn_from(e: &mut Engine, content: &ContentBundle, strategy: &str, start_turn: u32) {
+    if strategy == "directed" {
+        directed_turn(e);
+        return;
+    }
     if strategy == "explore_only" {
         // Only learning: no decisions answered, no campaigning, no rest.
         if e.state().player.as_ref().is_some_and(|p| p.status.active()) {
@@ -1772,6 +1797,19 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
     let skill_gap = best_informed_mean >= best_rote_mean + SKILL_SHARE_MARGIN
         && best_informed_rate >= best_rote_rate + SKILL_WIN_MARGIN;
     let styles = variety(&shares, &situations, &informed);
+    // Skipping is a convenience, never the best way to play (DEC-097,
+    // DEC-012): the proxy alone stays at or below the median informed style.
+    let directed = mean("directed").unwrap_or(1.0);
+    let informed_median = {
+        let mut m: Vec<f64> = informed.iter().filter_map(|s| mean(s)).collect();
+        m.sort_by(|a, b| a.total_cmp(b));
+        match m.len() {
+            0 => 0.0,
+            n if n % 2 == 0 => (m[n / 2 - 1] + m[n / 2]) / 2.0,
+            n => m[n / 2],
+        }
+    };
+    let proxy_not_optimal = directed <= informed_median;
     // Corruption tempts but never dominates.
     let corrupt = rate("corrupt").unwrap_or(0.0);
     let corrupt_ok = corrupt <= best + CORRUPT_MARGIN;
@@ -1859,6 +1897,12 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
             corrupt_ok.into(),
             json!({ "corrupt_minus_best_honest": corrupt - best }),
         ),
+        rung(
+            9,
+            "proxy_not_optimal",
+            proxy_not_optimal.into(),
+            json!({ "directed_mean_share": directed, "informed_median_mean_share": informed_median }),
+        ),
     ];
     json!({
         "seeds": seeds,
@@ -1881,6 +1925,8 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
         "styles": styles,
         "corrupt_minus_best_honest": corrupt - best,
         "corrupt_not_dominant": corrupt_ok,
+        "proxy_not_optimal": proxy_not_optimal,
+        "directed_minus_informed_median_share": directed - informed_median,
         "best_minus_median": best - median_of(&honest),
         "mix_vs_explorer": mix_vs_explorer,
         "best_win_rate_strategy": top_by(&rate),
@@ -1889,7 +1935,7 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
 }
 
 /// The gate ladder (ENGAGEMENT §7.2), every rung, reported in this order.
-pub const GATES: [&str; 9] = [
+pub const GATES: [&str; 10] = [
     "idle_cap",
     "effort_matters",
     "exploring_alone_never_wins",
@@ -1899,18 +1945,20 @@ pub const GATES: [&str; 9] = [
     "skill_gap",
     "good_styles_vary",
     "corrupt_not_dominant",
+    "proxy_not_optimal",
 ];
 
 /// The gates `bots` fails on from E1 (the ladder's "Enforced" column): the
 /// rest are reported until E8 (and `ladder_learned` rises to + 3.0 then).
 /// `good_styles_vary_b` is clause (b) of `good_styles_vary`.
-pub const ENFORCED: [&str; 6] = [
+pub const ENFORCED: [&str; 7] = [
     "idle_cap",
     "effort_matters",
     "exploring_alone_never_wins",
     "ladder_learned",
     "good_styles_vary_b",
     "corrupt_not_dominant",
+    "proxy_not_optimal",
 ];
 
 /// "Exploring alone never wins": `explore_only` wins at most this much more

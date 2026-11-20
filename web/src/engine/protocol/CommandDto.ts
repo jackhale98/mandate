@@ -2,9 +2,11 @@
 import type { AboutRefDto } from "./AboutRefDto";
 import type { ActionDto } from "./ActionDto";
 import type { ClauseDto } from "./ClauseDto";
+import type { DirectiveChoiceDto } from "./DirectiveChoiceDto";
 import type { FilingDto } from "./FilingDto";
 import type { LocationDto } from "./LocationDto";
 import type { ParamValue } from "./ParamValue";
+import type { SkipTargetDto } from "./SkipTargetDto";
 import type { TalkTargetDto } from "./TalkTargetDto";
 import type { VoteDto } from "./VoteDto";
 
@@ -12,4 +14,4 @@ export type CommandDto = { "type": "end_turn" } | { "type": "advance_days", days
 /**
  * Topic content id (`TopicView.id`).
  */
-topic: string, about: AboutRefDto | null, late_night: boolean, };
+topic: string, about: AboutRefDto | null, late_night: boolean, } | { "type": "set_directives", choices: Array<DirectiveChoiceDto>, } | { "type": "skip", target: SkipTargetDto, limit: number | null, } | { "type": "cancel_skip" };

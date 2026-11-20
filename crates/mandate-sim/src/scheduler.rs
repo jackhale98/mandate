@@ -357,6 +357,8 @@ fn run_one(
         narrative,
         media,
         justice,
+        // The act domain is engine turn code, not a scheduled system.
+        act: _,
     } = state;
     let mut outs = Outs {
         rng,

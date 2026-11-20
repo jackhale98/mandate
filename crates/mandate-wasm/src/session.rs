@@ -201,6 +201,15 @@ impl Session {
                     CommandDto::EndTurn => Command::EndTurn,
                     CommandDto::AdvanceDays { days } => Command::AdvanceDays { days },
                     CommandDto::NotebookSeen => Command::NotebookSeen,
+                    CommandDto::SetDirectives { choices } => Command::SetDirectives {
+                        choices: choices.into_iter().map(|c| (c.directive, c.option)).collect(),
+                    },
+                    CommandDto::Skip { target, limit } => Command::Skip {
+                        target: target.to_content(),
+                        // At most a year a request: the client asks again.
+                        limit: Some(limit.unwrap_or(26).clamp(1, 26)),
+                    },
+                    CommandDto::CancelSkip => Command::CancelSkip,
                     other => Command::Player(player_command(self.engine.as_ref(), other)?),
                 };
                 let engine = self
@@ -224,6 +233,7 @@ impl Session {
                         outcome_key: r.outcome_key,
                         args: r.args,
                     }),
+                    skip: outcome.skip.as_ref().map(SkipProgressView::of),
                 }))
             }
             RequestBody::Query(q) => match q {
@@ -309,6 +319,13 @@ impl Session {
                 QueryDto::Exchange { id } => exchange_view(self.engine_mut()?, id)
                     .map(ResponseBody::Exchange)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no exchange {id}"))),
+                QueryDto::TermReview => Ok(ResponseBody::TermReview(term_review_view(
+                    self.engine_mut()?,
+                ))),
+                QueryDto::SkipSummary => Ok(ResponseBody::SkipSummary(skip_summary_view(
+                    self.engine_mut()?,
+                ))),
+                QueryDto::Legacy => Ok(ResponseBody::Legacy(legacy_view(self.engine_mut()?))),
                 QueryDto::Canvass { neighborhood } => {
                     canvass_view(self.engine_mut()?, neighborhood)
                         .map(ResponseBody::Canvass)
@@ -573,7 +590,12 @@ fn player_command(
         },
         // EndTurn and AdvanceDays are handled before this conversion; they
         // cannot follow a move.
-        CommandDto::EndTurn | CommandDto::AdvanceDays { .. } | CommandDto::NotebookSeen => {
+        CommandDto::EndTurn
+        | CommandDto::AdvanceDays { .. }
+        | CommandDto::NotebookSeen
+        | CommandDto::SetDirectives { .. }
+        | CommandDto::Skip { .. }
+        | CommandDto::CancelSkip => {
             return Err(err(
                 ErrorCode::InvalidCommand,
                 "time cannot pass as part of a move",

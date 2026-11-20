@@ -129,6 +129,14 @@ pub struct ContentBundle {
     /// Conversation rules (cost, discretion, speaker knowledge, the guard).
     #[serde(default)]
     pub talk: crate::conversation::TalkParams,
+    /// The act flow (DEC-012): directives, interrupts, skip targets, the
+    /// proxy and the Legacy record. Absent: no skips are offered.
+    #[serde(default)]
+    pub act_flow: crate::act::ActFlowParams,
+    /// The endings registry (DEC-006), in load order (the first that holds
+    /// ends the act).
+    #[serde(default)]
+    pub endings: Vec<crate::act::EndingDef>,
 }
 
 impl ContentBundle {
@@ -331,6 +339,8 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut talk_lines: Vec<crate::conversation::TalkLineDef> = Vec::new();
     let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
     let mut talk: Option<(crate::conversation::TalkParams, String)> = None;
+    let mut act_flow: Option<(crate::act::ActFlowParams, String)> = None;
+    let mut endings: Vec<crate::act::EndingDef> = Vec::new();
 
     for src in sorted {
         if src.path.ends_with(".ftl") {
@@ -660,6 +670,16 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             ContentFile::TalkParams { value } => {
                 once(&mut talk, *value, "talk_params", &src.path, &mut issues)
             }
+            ContentFile::ActFlow { value } => {
+                once(&mut act_flow, *value, "act_flow", &src.path, &mut issues)
+            }
+            ContentFile::Endings { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        endings.push(x);
+                    }
+                }
+            }
         }
     }
 
@@ -773,6 +793,8 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         talk_lines,
         talk_voices,
         talk,
+        act_flow: act_flow.map(|(a, _)| a).unwrap_or_default(),
+        endings,
     };
     issues.extend(validate_bundle(&bundle));
     if issues.iter().any(|i| i.severity == Severity::Error) {

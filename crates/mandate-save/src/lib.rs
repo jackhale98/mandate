@@ -20,8 +20,10 @@ pub use runlog::{NewGameSetup, RunLog};
 pub const MAGIC: &[u8; 4] = b"MNDT";
 /// v18: neighbourhood concerns (N1). v19: the run log beside the state (bug
 /// reports). v20: offices from the constitution (R1, DEC-098). v21: the
-/// ground game's memory (E1, DEC-097 §1).
-pub const SAVE_FORMAT_VERSION: u16 = 21;
+/// ground game's memory (E1, DEC-097 §1). v22: E2's director (merged
+/// separately). v23: the act flow (time skips, directives, the Legacy
+/// record and act endings; DEC-012, DEC-006).
+pub const SAVE_FORMAT_VERSION: u16 = 23;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -214,6 +216,12 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // The ground game's memory (E1, DEC-097 §1): v20 → v21. Renumber
         // only this key if another bump merges first.
         (20, ground_game),
+        // Placeholder for E2's v21 → v22 step (the director, merged
+        // separately): at merge, delete this line; E2's takes its place.
+        (21, |v| Ok(v)),
+        // The act flow (DEC-012, DEC-006): v22 → v23. Renumber only this
+        // key if another bump merges first.
+        (22, act_flow),
     ];
     let mut value = value;
     let mut v = from;
@@ -684,6 +692,18 @@ fn ground_game(mut value: serde_json::Value) -> Result<serde_json::Value, SaveEr
     if let Some(p) = st.get_mut("player").and_then(|p| p.as_object_mut()) {
         p.remove("ground");
     }
+    Ok(value)
+}
+
+/// v22 → v23 (DEC-012, DEC-006): the act flow (directives, a skip in
+/// progress, the Legacy record, the act's ending) is new state. A run from
+/// before starts it empty: the record opens at its next turn, from there on.
+fn act_flow(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let st = value
+        .pointer_mut("/state")
+        .and_then(|p| p.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    st.remove("act");
     Ok(value)
 }
 

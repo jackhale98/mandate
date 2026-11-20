@@ -236,6 +236,10 @@ impl Engine {
             vec![],
         );
         self.state.events.pin(id);
+        // The act's Legacy record opens as play begins (DEC-006).
+        if self.state.act.records.is_empty() {
+            crate::legacy::begin(&mut self.state, &self.content);
+        }
     }
 
     /// Choose the run's starting knowledge (DEC-091): a start profile
@@ -319,6 +323,15 @@ impl Engine {
     }
 
     pub fn apply(&mut self, command: Command) -> Result<CommandOutcome, EngineError> {
+        if !matches!(
+            command,
+            Command::Skip { .. }
+                | Command::CancelSkip
+                | Command::NotebookSeen
+                | Command::SetDirectives { .. }
+        ) {
+            self.finish_skip(crate::skip::SkipStop::Cancelled);
+        }
         let outcome = match &command {
             Command::EndTurn => {
                 if self
@@ -348,6 +361,7 @@ impl Engine {
                         days_advanced: days,
                         turn,
                         result: None,
+                        skip: None,
                     });
                 }
                 let days = self.end_one_turn();
@@ -355,6 +369,7 @@ impl Engine {
                     days_advanced: days,
                     turn: self.state.calendar.turn,
                     result: None,
+                    skip: None,
                 }
             }
             Command::Player(cmd) => {
@@ -378,6 +393,46 @@ impl Engine {
                     days_advanced: 0,
                     turn: self.state.calendar.turn,
                     result: Some(result),
+                    skip: None,
+                }
+            }
+            Command::Skip { target, limit } => {
+                return self.skip_with(*target, *limit, &mut |_| true);
+            }
+            Command::CancelSkip => {
+                self.finish_skip(crate::skip::SkipStop::Cancelled);
+                CommandOutcome {
+                    days_advanced: 0,
+                    turn: self.state.calendar.turn,
+                    result: None,
+                    skip: None,
+                }
+            }
+            Command::SetDirectives { choices } => {
+                let reg = &self.content.act_flow;
+                for (d, o) in choices {
+                    let Some(def) = reg.directive(d) else {
+                        return Err(EngineError::InvalidCommand(format!("no directive `{d}`")));
+                    };
+                    if !crate::skip::offered(def, o, &self.content) {
+                        return Err(EngineError::InvalidCommand(format!(
+                            "`{o}` is not an option of `{d}`"
+                        )));
+                    }
+                }
+                let dirs = &mut self.state.act.directives.choices;
+                for (d, o) in choices {
+                    match dirs.iter_mut().find(|(k, _)| k == d) {
+                        Some(x) => x.1 = o.clone(),
+                        None => dirs.push((d.clone(), o.clone())),
+                    }
+                }
+                dirs.sort();
+                CommandOutcome {
+                    days_advanced: 0,
+                    turn: self.state.calendar.turn,
+                    result: None,
+                    skip: None,
                 }
             }
             Command::NotebookSeen => {
@@ -388,6 +443,7 @@ impl Engine {
                     days_advanced: 0,
                     turn: self.state.calendar.turn,
                     result: None,
+                    skip: None,
                 }
             }
             Command::LabSectorShock {
@@ -417,6 +473,7 @@ impl Engine {
                     days_advanced: 0,
                     turn: self.state.calendar.turn,
                     result: None,
+                    skip: None,
                 }
             }
             Command::AdvanceDays { days } => {
@@ -447,6 +504,7 @@ impl Engine {
                     days_advanced: *days,
                     turn: self.state.calendar.turn,
                     result: None,
+                    skip: None,
                 }
             }
         };
@@ -486,7 +544,166 @@ impl Engine {
             p.ads_this_turn = 0;
         }
         self.update_phase();
+        // The act's record and its ending (played and skipped turns alike).
+        crate::act::after_turn(&mut self.state, &self.content);
         days
+    }
+
+    /// Close the skip in progress, if any, into its summary.
+    fn finish_skip(&mut self, stop: crate::skip::SkipStop) {
+        if let Some(run) = self.state.act.skip.take() {
+            let s = crate::skip::finish(run, &self.state, &self.content, stop);
+            self.state.act.last_skip = Some(s);
+        }
+    }
+
+    /// Play one of the proxy's commands as the player's (the Commands
+    /// phase, exactly as `Command::Player`; not logged: the skip is).
+    fn proxy_command(
+        &mut self,
+        cmd: &crate::actions::PlayerCommand,
+    ) -> Result<crate::actions::ActionResult, EngineError> {
+        crate::actions::apply(&mut self.state, &self.content, cmd)
+    }
+
+    /// A time skip (DEC-012), reporting progress before each turn: the
+    /// callback returns `false` to stop at that safe point (the skip stays
+    /// in progress, as after a chunk; `Command::CancelSkip` ends it). The
+    /// command is logged with the turns it ran, so a replay matches.
+    pub fn skip_with(
+        &mut self,
+        target: mandate_content::act::SkipTargetKind,
+        limit: Option<u32>,
+        progress: &mut dyn FnMut(&crate::skip::SkipProgress) -> bool,
+    ) -> Result<CommandOutcome, EngineError> {
+        use crate::skip::{self, SkipStop, SummaryItem};
+        let Some(pl) = self.state.player.as_ref() else {
+            return Err(EngineError::InvalidCommand("no player".into()));
+        };
+        if !pl.status.active() {
+            return Err(EngineError::InvalidCommand(
+                "there is no skipping out of prison".into(),
+            ));
+        }
+        if self.state.act.over() {
+            return Err(EngineError::InvalidCommand("the act is over".into()));
+        }
+        // Go on with the skip in progress, or start one.
+        let mut run = match self.state.act.skip.take() {
+            Some(r) if r.target == target => r,
+            other => {
+                if let Some(r) = other {
+                    self.state.act.skip = Some(r);
+                    self.finish_skip(SkipStop::Cancelled);
+                }
+                let r = skip::start(&self.state, &self.content, target).ok_or_else(|| {
+                    EngineError::InvalidCommand(format!(
+                        "there is no `{}` to skip to now",
+                        target.key()
+                    ))
+                })?;
+                self.state.act.last_skip = None;
+                r
+            }
+        };
+        let max = self.content.act_flow.max_turns as u32;
+        let mut days = 0;
+        let mut ran = 0u32;
+        let mut stopped_early = false;
+        let stop: Option<SkipStop> = loop {
+            if let Some(e) = &self.state.act.ending {
+                break Some(SkipStop::ActEnded {
+                    ending: e.ending.clone(),
+                });
+            }
+            if self.state.calendar.date >= run.until {
+                break Some(SkipStop::Reached);
+            }
+            if run.turns >= max {
+                break Some(SkipStop::Limit);
+            }
+            if limit.is_some_and(|l| ran >= l) {
+                break None;
+            }
+            if !progress(&skip::SkipProgress::of(&run, self.state.calendar.date, false)) {
+                stopped_early = true;
+                break None;
+            }
+            // The proxy plays the turn, command by command.
+            let mut t = crate::proxy::ProxyTurn::new(&self.state, &self.content);
+            while let Some(cmd) = t.next(&self.state, &self.content) {
+                let r = self.proxy_command(&cmd);
+                if r.is_ok() {
+                    if let Some((decision, option)) = t.answered() {
+                        let template = self
+                            .state
+                            .narrative
+                            .decision(crate::narrative::DecisionId(decision))
+                            .map(|d| d.template.clone())
+                            .unwrap_or_default();
+                        skip::push(
+                            &mut run,
+                            SummaryItem::Answered {
+                                decision,
+                                template,
+                                option: option.to_string(),
+                            },
+                        );
+                    }
+                    let inner = match &cmd {
+                        crate::actions::PlayerCommand::Go { then: Some(c), .. } => c.as_ref(),
+                        c => c,
+                    };
+                    if let Some((policy, vote)) = t.voted(inner) {
+                        skip::push(
+                            &mut run,
+                            SummaryItem::Voted {
+                                policy,
+                                vote: vote.into(),
+                            },
+                        );
+                    }
+                }
+                let created = r.as_ref().ok().and_then(|x| x.created);
+                t.result(r.is_ok(), created);
+            }
+            days += self.end_one_turn();
+            ran += 1;
+            run.turns += 1;
+            skip::observe(&mut run, &self.state);
+            if let Some(e) = &self.state.act.ending {
+                break Some(SkipStop::ActEnded {
+                    ending: e.ending.clone(),
+                });
+            }
+            if let Some(s) = skip::check_interrupts(&mut run, &self.state, &self.content) {
+                break Some(s);
+            }
+        };
+        let date = self.state.calendar.date;
+        let progress = skip::SkipProgress::of(&run, date, stop.is_some());
+        match stop {
+            Some(s) => {
+                let summary = skip::finish(run, &self.state, &self.content, s);
+                self.state.act.last_skip = Some(summary);
+            }
+            None => self.state.act.skip = Some(run),
+        }
+        let logged = Command::Skip {
+            target,
+            limit: if stopped_early { Some(ran) } else { limit },
+        };
+        self.command_log.push(LoggedCommand {
+            index: self.next_command,
+            command: logged,
+        });
+        self.next_command += 1;
+        Ok(CommandOutcome {
+            days_advanced: days,
+            turn: self.state.calendar.turn,
+            result: None,
+            skip: Some(progress),
+        })
     }
 
     /// Deliver what an advance left queued (OVERVIEW §4.3): requests made

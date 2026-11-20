@@ -1,5 +1,6 @@
 //! Mandate simulation lab CLI (DEC-058). Output is JSON for scripting.
 
+mod act;
 mod bots;
 mod corpus;
 mod doctor;
@@ -136,6 +137,30 @@ enum Cmd {
         omniscient: bool,
         #[command(flatten)]
         lab: LabArgs,
+    },
+    /// Act length (REQ-008, DEC-005): the informed bots play Act 1 to its
+    /// ending, with and without time skips; turns per chapter and per act,
+    /// and minutes at a per-turn time assumption.
+    ActLength {
+        #[arg(long, default_value_t = 8)]
+        seeds: u64,
+        /// Stop a career that has not ended after this many years.
+        #[arg(long, default_value_t = 12)]
+        years: u32,
+        /// Minutes a played turn takes (DEC-005's 1–3 min until measured).
+        #[arg(long, default_value_t = 2.0)]
+        minutes_per_turn: f64,
+        /// Minutes a skip takes (directives, the target, the summary).
+        #[arg(long, default_value_t = 1.0)]
+        minutes_per_skip: f64,
+    },
+    /// Determinism with time skips (DEC-041, DEC-012): a run that skips,
+    /// twice and through save/load, gives one state hash.
+    SkipDeterminism {
+        #[arg(long, default_value_t = 2026)]
+        seed: u64,
+        #[arg(long, default_value_t = 80)]
+        turns: u32,
     },
     /// Play a career with a bot strategy and print its story (DEC-033):
     /// chapters, every decision as the player reads it (Fluent keys and
@@ -501,6 +526,33 @@ fn run(cli: Cli) -> Result<(), String> {
                 "facts": e.state().narrative.facts.len(),
             }));
             Ok(())
+        }
+        Cmd::ActLength {
+            seeds,
+            years,
+            minutes_per_turn,
+            minutes_per_skip,
+        } => {
+            let content = load_content(&cli.content)?;
+            out(act::act_length(
+                &content,
+                seeds,
+                years,
+                minutes_per_turn,
+                minutes_per_skip,
+            ));
+            Ok(())
+        }
+        Cmd::SkipDeterminism { seed, turns } => {
+            let content = load_content(&cli.content)?;
+            let v = act::skip_determinism(&content, seed, turns)?;
+            let ok = v["ok"].as_bool().unwrap_or(false);
+            out(v);
+            if ok {
+                Ok(())
+            } else {
+                Err("determinism violation with skips".into())
+            }
         }
         Cmd::Determinism { seed, turns } => {
             let content = load_content(&cli.content)?;
