@@ -151,17 +151,24 @@ test("a full local election", async ({ page }) => {
   // On the streets the label names the neighbourhood alone (no place).
   await expect(page.getByTestId("where-place")).toHaveCount(0, { timeout: 30_000 });
   await expect.poll(async () => route.includes(((await page.getByTestId("where-zone").textContent()) ?? "-").trim()), { timeout: 30_000 }).toBe(true);
-  for (let i = 0; i < 12 && (await page.getByTestId("election-night").count()) === 0; i++) {
+  // A lost seat ends Act 1 (DEC-006, `endings.jsonc`): the bar then offers the epilogue instead of another turn.
+  const epilogue = page.getByTestId("open-epilogue");
+  for (let i = 0; i < 12 && (await page.getByTestId("election-night").count()) === 0 && (await epilogue.count()) === 0; i++) {
     await endTurn.click();
-    await expect(endTurn).toBeEnabled();
+    await expect(endTurn.or(epilogue)).toBeEnabled();
   }
   const night = page.getByTestId("election-night");
   await expect(night).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { __overlap?: boolean }).__overlap)).toBe(false);
   await expect(night.getByText(/You (won|lost)\./)).toBeVisible();
+  const lost = (await night.getByText("You lost.").count()) > 0;
   await expect(night.getByText("Why it went this way").first()).toBeVisible();
   await night.getByRole("button", { name: "Continue" }).last().click();
   await expect(night).toHaveCount(0);
+  if (lost) {
+    await epilogue.click();
+    await expect(page.getByTestId("epilogue-ending")).toHaveAttribute("data-ending", "ending.lost_seat");
+  } else await expect(endTurn).toBeEnabled();
 });
 
 // M5b: the town card shows the town's character (DEC-077 §1; in the pocket's
