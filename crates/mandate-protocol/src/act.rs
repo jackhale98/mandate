@@ -306,6 +306,43 @@ fn changes(a: &Snapshot, b: &Snapshot) -> Vec<ChangeView> {
     .collect()
 }
 
+/// An ask's title and its arguments (`ask_key`); whether it lapsed
+/// unanswered.
+fn ask_args(
+    engine: &Engine,
+    ask: u32,
+    template: &str,
+    args: &mut BTreeMap<String, String>,
+) -> bool {
+    let content = engine.content();
+    let title = content
+        .ask(template)
+        .map(|t| t.name_key.clone())
+        .or_else(|| content.promise(template).map(|t| t.name_key.clone()))
+        .unwrap_or_default();
+    let found = engine
+        .state()
+        .asks
+        .get(mandate_sim::asks::AskId(ask))
+        .filter(|a| a.template == template);
+    if let Some(a) = found {
+        let mut a_args = crate::narrative::ask_args(engine, a);
+        // The days left mean nothing once it is over.
+        a_args.remove("days");
+        args.extend(a_args);
+    }
+    args.insert("ask_key".into(), title);
+    found.is_some_and(|a| {
+        matches!(
+            a.status,
+            mandate_sim::asks::AskStatus::Declined {
+                unanswered: true,
+                ..
+            }
+        )
+    })
+}
+
 fn item_line(engine: &Engine, it: &SummaryItem) -> ActLineView {
     let mut args = BTreeMap::new();
     let mut decision = None;
@@ -368,6 +405,64 @@ fn item_line(engine: &Engine, it: &SummaryItem) -> ActLineView {
             args.insert("policy_key".into(), policy_key(engine, *policy));
             args.insert("vote".into(), vote.clone());
             "skip-item-voted"
+        }
+        SummaryItem::LawEnded { policy, reason } => {
+            args.insert("policy_key".into(), policy_key(engine, *policy));
+            if reason == "repealed" {
+                "skip-item-law-repealed"
+            } else {
+                "skip-item-law-expired"
+            }
+        }
+        SummaryItem::BillWithdrawn { policy } => {
+            args.insert("policy_key".into(), policy_key(engine, *policy));
+            "skip-item-bill-withdrawn"
+        }
+        SummaryItem::AskOffered { ask, template } => {
+            ask_args(engine, *ask, template, &mut args);
+            "skip-item-ask-offered"
+        }
+        SummaryItem::AskResolved {
+            ask,
+            template,
+            outcome,
+        } => {
+            let lapsed = ask_args(engine, *ask, template, &mut args);
+            match outcome.as_str() {
+                "kept" => "skip-item-ask-kept",
+                "broken" => "skip-item-ask-broken",
+                "void" => "skip-item-ask-void",
+                _ if lapsed => "skip-item-ask-lapsed",
+                _ => "skip-item-ask-declined",
+            }
+        }
+        SummaryItem::Crisis { kind, began } => {
+            if let Some(c) = engine.content().crises.iter().find(|c| &c.id == kind) {
+                args.insert("crisis_key".into(), c.name_key.clone());
+            }
+            if *began {
+                "skip-item-crisis-began"
+            } else {
+                "skip-item-crisis-ended"
+            }
+        }
+        SummaryItem::Deselected => "skip-item-deselected",
+        SummaryItem::Case { stage, .. } => {
+            args.insert("stage_key".into(), format!("case-stage-{stage}"));
+            "skip-item-case"
+        }
+        SummaryItem::Imprisoned { years } => {
+            args.insert("n".into(), years.to_string());
+            "skip-item-imprisoned"
+        }
+        SummaryItem::Released => "skip-item-released",
+        SummaryItem::Rumour { .. } => "skip-item-rumour",
+        SummaryItem::Recession { began } => {
+            if *began {
+                "skip-item-recession-began"
+            } else {
+                "skip-item-recession-ended"
+            }
         }
     };
     ActLineView {

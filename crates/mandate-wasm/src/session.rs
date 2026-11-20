@@ -231,10 +231,19 @@ impl Session {
                 Ok(ResponseBody::CommandApplied(CommandAppliedView {
                     days_advanced: outcome.days_advanced,
                     overview: overview(engine),
-                    result: outcome.result.map(|r| ActionResultView {
-                        created: r.created,
-                        outcome_key: r.outcome_key,
-                        args: r.args,
+                    result: outcome.result.map(|mut r| {
+                        // An ask's own commands name the ask: its text needs its arguments.
+                        let about_ask = ["outcome-ask-", "outcome-promised", "outcome-casework-"]
+                            .iter()
+                            .any(|p| r.outcome_key.starts_with(p));
+                        if about_ask && let Some(id) = r.created {
+                            outcome_args(engine, id, &mut r.args);
+                        }
+                        ActionResultView {
+                            created: r.created,
+                            outcome_key: r.outcome_key,
+                            args: r.args,
+                        }
                     }),
                     skip: outcome.skip.as_ref().map(SkipProgressView::of),
                 }))

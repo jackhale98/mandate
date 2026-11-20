@@ -132,6 +132,27 @@ skip-item-chapter = A new chapter: { $kind }.
 skip-item-disaster = A disaster struck the town.
 skip-item-plant-closure = A plant closed: { $jobs } jobs lost.
 skip-item-voted = You voted { $vote } on { $policy }.
+skip-item-law-expired = A law lapsed: { $policy }.
+skip-item-law-repealed = A law was repealed: { $policy }.
+skip-item-bill-withdrawn = Your bill was withdrawn: { $policy }.
+skip-item-ask-offered = Someone asked you for something: { $ask }.
+skip-item-ask-kept = You kept your word: { $ask }.
+skip-item-ask-broken = You broke your word: { $ask }.
+skip-item-ask-void = It no longer stands: { $ask }.
+skip-item-ask-declined = You said no: { $ask }.
+skip-item-ask-lapsed = You never answered, so it lapsed: { $ask }.
+skip-item-crisis-began = A crisis began at home: { $crisis }.
+skip-item-crisis-ended = A crisis at home is over: { $crisis }.
+skip-item-deselected = Your party refused to renominate you.
+skip-item-case = The case against you: { $stage }.
+skip-item-imprisoned = You went to prison for { $n ->
+    [one] a year
+   *[other] { $n } years
+}.
+skip-item-released = You were released from prison.
+skip-item-rumour = A rumour about you began to spread.
+skip-item-recession-began = A recession began.
+skip-item-recession-ended = The economy began to recover.
 ui-epilogue = Epilogue
 ui-epilogue-open = The act is over: read the epilogue
 ui-epilogue-legacy = Legacy

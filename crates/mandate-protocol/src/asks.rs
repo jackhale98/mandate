@@ -57,7 +57,8 @@ pub enum AskerView {
         number: u32,
     },
     /// The voters of a whole jurisdiction (a promise made running for an
-    /// office or an at-large seat): Fluent `name_key` with `electorate`.
+    /// office or an at-large seat): Fluent `name_key` with the ask's args;
+    /// `at` names the jurisdiction.
     Electorate {
         name_key: String,
         at: JurisdictionRefView,
@@ -78,7 +79,7 @@ pub struct AskProgressView {
 pub struct AskNeedView {
     /// `vote`, `against_all`, `statement`, `town_hall`, `canvass`, `visit`,
     /// `talk`, `introduce`, `enacted`, `casework`,
-    /// `no_surfaced_hidden_fact`, `quiet` (Fluent `ui-ask-need-<kind>`).
+    /// `no_surfaced_hidden_fact`, `quiet`.
     pub kind: String,
     /// `done` | `current` | `later`.
     pub state: String,
@@ -434,15 +435,19 @@ fn template_keys(engine: &Engine, a: &Ask) -> [String; 5] {
     keys.unwrap_or_default()
 }
 
-/// Fluent arguments for an ask: the engine's (`ask_args`) and the
-/// electorate's name for a promise to a whole jurisdiction.
+/// Fluent arguments for an ask or a promise (the engine's seam, `ask_args`).
 fn args_of(engine: &Engine, a: &Ask) -> BTreeMap<String, String> {
-    let mut args = crate::narrative::ask_args(engine, a);
-    if let Asker::Electorate { at } = a.asker {
-        let at = jurisdiction_ref(engine, at);
-        args.insert("electorate".into(), at.name);
+    crate::narrative::ask_args(engine, a)
+}
+
+/// Fluent arguments for the outcome of an ask's own command (the toast):
+/// the ask's, under the outcome's own.
+pub fn outcome_args(engine: &Engine, ask: u32, args: &mut BTreeMap<String, String>) {
+    if let Some(a) = engine.state().asks.get(AskId(ask)) {
+        for (k, v) in args_of(engine, a) {
+            args.entry(k).or_insert(v);
+        }
     }
-    args
 }
 
 fn route(
