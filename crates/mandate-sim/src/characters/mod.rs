@@ -1172,6 +1172,10 @@ pub(crate) fn named_character(
     }
 }
 
+/// Where Named people are seeded: the draw key, the neighbourhood, the
+/// place (none for a neighbourhood's streets) and its kind key.
+type Slot<'a> = (u64, u32, Option<PlaceId>, &'a str);
+
 /// Generate the Named characters of every town (DEC-018): for each place,
 /// each occupation found there by its chance; for each neighbourhood, each
 /// occupation found on the streets. Keyed by place (or neighbourhood) and
@@ -1193,7 +1197,7 @@ pub fn seed_named(
     let year = date.calendar().year;
     let g = content.characters.generation.clone();
     // Places first (in world order), then each neighbourhood's streets.
-    let mut slots: Vec<(u64, u32, Option<PlaceId>, &str)> = Vec::new();
+    let mut slots: Vec<Slot<'_>> = Vec::new();
     for p in &world.places {
         slots.push((p.id.0 as u64, p.neighborhood.0, Some(p.id), p.kind.key()));
     }
@@ -1203,7 +1207,7 @@ pub fn seed_named(
     let mut rounds: Vec<u8> = content.occupations.iter().map(|o| o.round).collect();
     rounds.sort_unstable();
     rounds.dedup();
-    let slots: Vec<(u8, (u64, u32, Option<PlaceId>, &str))> = rounds
+    let slots: Vec<(u8, Slot<'_>)> = rounds
         .iter()
         .flat_map(|r| slots.iter().map(move |s| (*r, *s)))
         .collect();

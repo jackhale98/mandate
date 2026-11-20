@@ -772,7 +772,18 @@ fn unmet(e: &Engine) -> Option<CharacterId> {
         .characters
         .people
         .iter()
-        .filter(|c| c.named.is_some())
+        // The people of places with purpose (seeded in a later round, PL1)
+        // are met where they work, by the visit verbs (the coalition
+        // builder's learning visits), not chased one by one in the exploring
+        // turns: chasing them all spent the campaigner's early groundwork
+        // and tilted the styles' variety (BALANCE_LOG, PL1).
+        .filter(|c| {
+            c.named.as_deref().is_some_and(|n| {
+                e.content()
+                    .occupation(&n.occupation)
+                    .is_none_or(|o| o.round == 0)
+            })
+        })
         .map(|c| c.id);
     council
         .into_iter()
@@ -1068,7 +1079,69 @@ fn campaigner_turn(e: &mut Engine, content: &ContentBundle, camp: bool, slots: u
         return ask_support(e, content) || act(e, Action::Press { policy });
     }
     legislate(e, content);
-    act(e, Action::Fundraise)
+    // Between elections, the odd slot goes on being seen at a works
+    // gate where that is safe (places with purpose), else on the donors.
+    photo_op(e, content) || act(e, Action::Fundraise)
+}
+
+/// Odds of a photo op going wrong the campaigner accepts.
+pub const CAMPAIGNER_PHOTO_RISK: f64 = 0.15;
+
+/// A photo op at a works gate in the player's ward, with the odds shown
+/// at most `CAMPAIGNER_PHOTO_RISK` (the shown odds, DEC-073), once a turn
+/// (the player's own log says whether there was one today).
+fn photo_op(e: &mut Engine, content: &ContentBundle) -> bool {
+    let verb = "verb.photo_op_gate";
+    let pick = {
+        let st = e.state();
+        let Some(pl) = st.player.as_ref() else {
+            return false;
+        };
+        let today = st.calendar.date;
+        if pl
+            .actions
+            .iter()
+            .any(|a| a.date == today && a.action == "action-verb-photo-op-gate")
+        {
+            return false;
+        }
+        let Some(def) = content.actions.visit.verb(verb) else {
+            return false;
+        };
+        let ward = ward_hoods(&st.world, pl.ward);
+        st.world
+            .places
+            .iter()
+            .filter(|p| p.municipality == pl.home() && ward.contains(&p.neighborhood.index()))
+            .map(|p| Location::Place { place: p.id })
+            .find(|loc| {
+                let Location::Place { place } = *loc else {
+                    return false;
+                };
+                mandate_sim::visits::verbs_at(st, content, *loc)
+                    .iter()
+                    .any(|v| v.id == verb)
+                    && mandate_sim::visits::availability(st, content, *loc, def, false).is_ok()
+                    && mandate_sim::visits::risk(st, content, place, def)
+                        .is_some_and(|r| r <= CAMPAIGNER_PHOTO_RISK)
+            })
+    };
+    let Some(location) = pick else {
+        return false;
+    };
+    let then = PlayerCommand::Act {
+        action: Action::Visit { verb: verb.into() },
+        late_night: false,
+    };
+    let cmd = if e.state().player.as_ref().map(|p| p.location) == Some(location) {
+        then
+    } else {
+        PlayerCommand::Go {
+            location,
+            then: Some(Box::new(then)),
+        }
+    };
+    apply(e, Command::Player(cmd)).is_ok()
 }
 
 /// Between elections the campaigner canvasses only doorsteps at least this

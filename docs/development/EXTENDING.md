@@ -137,7 +137,7 @@ Example (the farm's verb):
     { "type": "awareness", "amount": 0.03 } ] }
 ```
 
-The panel lists a place's verbs (`PlacePanelView.verbs`: cost in half slots, whether it can be done now and why not, the risk), the town's spots name them (`SpotView.verbs`), and the bots' informed styles use the learning ones while they explore (`bots.rs` `learning_visit`).
+The panel lists a place's verbs (`PlacePanelView.verbs`: cost in half slots, whether it can be done now and why not, the risk), the town's spots name them (`SpotView.verbs`), and the bots use them through the same command: the coalition builder visits to learn and meet people while it explores (`bots.rs` `learning_visit`), and the campaigner takes a photo op at a ward works between elections when the shown risk is at most 15% (`photo_op`).
 
 ### Town character (DEC-077 §1)
 

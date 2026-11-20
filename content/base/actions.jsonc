@@ -129,7 +129,6 @@
           "effects": [
             { "type": "awareness", "amount": 0.08, "among": { "classes": ["low", "middle"] } },
             { "type": "awareness", "amount": 0.01, "among": { "reach": "town" } },
-            { "type": "approval", "amount": 0.01, "among": { "classes": ["low", "middle"] } },
           ],
           "risk": {
             "base": 0.04,
