@@ -29,12 +29,6 @@ test("vote, see the signer's lean, file for the executive office and see its rac
   await expect(vote.getByText("You voted yes")).toBeVisible();
   await expect(panel.getByTestId("members").getByText("Mayor").first()).toBeVisible();
 
-  // Past the first month (its tick settles the last election's results).
-  const endTurn = page.getByRole("button", { name: "End turn" });
-  for (let i = 0; i < 3; i++) {
-    await endTurn.click();
-    await expect(endTurn).toBeEnabled();
-  }
 
   // File at the town hall: one option per post the engine offers, then standing down.
   await showPlaces(page);
@@ -50,6 +44,7 @@ test("vote, see the signer's lean, file for the executive office and see its rac
   await showPlaces(page);
   await page.getByTestId("spot-party_office").first().click();
   await expect(panel.getByTestId("internal-poll")).toBeVisible({ timeout: 30_000 });
+  const endTurn = page.getByRole("button", { name: "End turn" });
   for (let i = 0; i < 30 && (await page.getByTestId("my-race").count()) === 0; i++) {
     await endTurn.click();
     await expect(endTurn).toBeEnabled();

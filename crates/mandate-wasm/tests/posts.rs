@@ -192,11 +192,6 @@ fn filing_for_the_executive_office_names_its_race_and_rival_plan() {
     // its own incumbent before the player).
     for c in [content(), renamed()] {
         let mut e = game(1, c.clone());
-        // Past the first month: its tick lands the history's last election
-        // on the career, which clears any filing (`player::monthly`).
-        for _ in 0..3 {
-            e.apply(Command::EndTurn).unwrap();
-        }
         let cv = campaign_view(&e).unwrap();
         let exec = cv
             .nominations
@@ -242,6 +237,43 @@ fn filing_for_the_executive_office_names_its_race_and_rival_plan() {
                 .any(|r| r.post.kind == PostKindDto::Seat)
         );
     }
+}
+
+/// A filing made on the first turn still stands a month on: the first
+/// monthly tick lands the history's last election on the career, but only
+/// an election held during play ends a filing (`player::monthly`).
+#[test]
+fn a_filing_made_on_the_first_turn_holds_a_month_later() {
+    let mut e = game(1, content());
+    let st = e.state();
+    let last = st.politics.elections.last_election.unwrap();
+    assert!(last < st.calendar.date, "the history's election");
+    assert_eq!(st.player.as_ref().unwrap().last_election_seen, None);
+    let exec = campaign_view(&e)
+        .unwrap()
+        .nominations
+        .into_iter()
+        .find(|n| n.post.kind == PostKindDto::Office)
+        .unwrap();
+    let post = campaign::fileable(&e, &exec.post).unwrap();
+    file(&mut e, Filing::Stand { post });
+    let start = e.state().calendar.date;
+    while e.state().calendar.date.0 < start.0 + 40 {
+        e.apply(Command::EndTurn).unwrap();
+    }
+    // The history's election has landed, and the filing stands.
+    assert_eq!(
+        e.state().player.as_ref().unwrap().last_election_seen,
+        Some(last)
+    );
+    assert_eq!(
+        e.state().player.as_ref().unwrap().filing,
+        Some(Filing::Stand { post })
+    );
+    assert_eq!(
+        campaign_view(&e).unwrap().filing,
+        Some(FilingView::Stand { post: exec.post })
+    );
 }
 
 /// A request and its response, each through JSON (as the worker sends them).

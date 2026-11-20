@@ -24,16 +24,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
-/// A jurisdiction named for the client (a promise's electorate).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct JurisdictionRefView {
-    /// `local` | `regional` | `national`.
-    pub tier: String,
-    /// The town's or region's name (empty for the nation).
-    pub name: String,
-}
-
 /// Who asks.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -61,7 +51,7 @@ pub enum AskerView {
     /// `at` names the jurisdiction.
     Electorate {
         name_key: String,
-        at: JurisdictionRefView,
+        at: crate::post::JurisdictionDto,
     },
 }
 
@@ -205,31 +195,6 @@ pub struct PromiseMenuView {
     pub voters_args: BTreeMap<String, String>,
 }
 
-pub(crate) fn jurisdiction_ref(engine: &Engine, at: Jurisdiction) -> JurisdictionRefView {
-    let w = &engine.state().world;
-    let (tier, name) = match at {
-        Jurisdiction::Municipality { id } => (
-            "local",
-            w.municipalities
-                .get(id.index())
-                .map(|m| m.name.clone())
-                .unwrap_or_default(),
-        ),
-        Jurisdiction::Region { id } => (
-            "regional",
-            w.regions
-                .get(id.index())
-                .map(|r| r.name.clone())
-                .unwrap_or_default(),
-        ),
-        Jurisdiction::Nation => ("national", String::new()),
-    };
-    JurisdictionRefView {
-        tier: tier.into(),
-        name,
-    }
-}
-
 fn asker_view(engine: &Engine, a: &Ask) -> AskerView {
     let st = engine.state();
     let voice = || a.asker_person().and_then(|p| person_ref(engine, p));
@@ -269,7 +234,7 @@ fn asker_view(engine: &Engine, a: &Ask) -> AskerView {
         },
         Asker::Electorate { at } => AskerView::Electorate {
             name_key: "ask-electorate".into(),
-            at: jurisdiction_ref(engine, at),
+            at: crate::post::jurisdiction_dto(&engine.state().world, at),
         },
     }
 }

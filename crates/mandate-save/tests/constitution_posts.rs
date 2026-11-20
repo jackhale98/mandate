@@ -178,7 +178,8 @@ fn v18_paths_migrate_to_posts() {
 ///
 /// Re-recorded for R2 (offices from the constitution in the protocol): the
 /// locale's role, race and filing keys changed; checked against the previous
-/// golden, only `meta.content_hash` differs.
+/// golden, only `meta.content_hash` differs (checked again after merging E7's
+/// asks protocol and its Fluent).
 #[test]
 fn v18_save_continues_identically() {
     let c = content();

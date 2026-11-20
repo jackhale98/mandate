@@ -381,7 +381,16 @@ pub fn monthly(pl: &mut PlayerState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             }
         }
         // A new cycle: by default the player defends whatever they hold.
-        pl.filing = None;
+        // Only an election held during play ends a filing: the history's
+        // last election lands on the career in the first month, but a
+        // filing made since is for the next one.
+        let play_began = r
+            .meta
+            .start_date
+            .add_days(r.content.tuning.burn_in_years as u32 * mandate_core::time::DAYS_PER_YEAR);
+        if date.is_some_and(|d| d >= play_began) {
+            pl.filing = None;
+        }
     }
     let _ = CLASSES;
 }

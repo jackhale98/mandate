@@ -285,7 +285,7 @@ pub fn ask_args(engine: &Engine, a: &mandate_sim::asks::Ask) -> BTreeMap<String,
         }
         Asker::Electorate { at } => {
             // Tier-generic (DEC-098): the voters of the jurisdiction the race is for.
-            let j = crate::asks::jurisdiction_ref(engine, at);
+            let j = crate::post::jurisdiction_dto(&engine.state().world, at);
             put(&mut args, "constituency_key", "ask-electorate".into());
             put(&mut args, "electorate", j.name);
             put(&mut args, "electorate_tier", j.tier);
