@@ -91,7 +91,7 @@ fn base_pack_has_family_params_and_no_families_yet() {
 #[test]
 fn sample_families_validate() {
     let b = loaded();
-    assert_eq!(b.policy_families.len(), 2);
+    assert_eq!(b.policy_families.len(), 3);
     let f = b.family("family.test_flood_wall").unwrap();
     assert_eq!(f.max_instances, 2);
     assert_eq!(f.axes.len(), 2);
@@ -305,8 +305,9 @@ fn patches_apply_in_pack_order() {
     let patches = r#"{ "kind": "policy_family_patches", "items": [
         { "op": "set_draw", "family": "family.test_flood_wall", "draw": { "rarity": "rare", "weight": 5 } },
         { "op": "remove_sponsor", "family": "family.test_flood_wall", "sponsor": "builders" },
+        { "op": "remove_option", "family": "family.test_plant_rescue", "axis": "pay", "option": "levy" },
         { "op": "add_option", "family": "family.test_plant_rescue", "axis": "pay",
-          "option": { "id": "bond", "name_key": "opt-test-pay-bond", "desc_key": "opt-test-pay-bond-desc",
+          "option": { "id": "loan", "name_key": "opt-test-pay-bond", "desc_key": "opt-test-pay-bond-desc",
                       "cost_factor": 1.1, "effect_factor": 1.1 } },
         { "op": "disable", "family": "family.test_plant_rescue" }
     ] }"#;
@@ -322,7 +323,8 @@ fn patches_apply_in_pack_order() {
     assert!(f.sponsor("builders").is_none());
     let p = b.family("family.test_plant_rescue").unwrap();
     assert!(p.disabled);
-    assert!(p.axis("pay").unwrap().option("bond").is_some());
+    assert!(p.axis("pay").unwrap().option("loan").is_some());
+    assert!(p.axis("pay").unwrap().option("levy").is_none());
     // A patch for a family no pack defines is an error.
     let bad = r#"{ "kind": "policy_family_patches", "items": [ { "op": "disable", "family": "family.nope" } ] }"#;
     let e = errors(&with(&[("zz_patch/policy_family_patches.jsonc", bad)]));

@@ -1066,6 +1066,34 @@ fn announce(r: &Reads<'_>, f: &PolicyFamilyDef, inst: &FamilyInstance, out: &mut
     }
 }
 
+/// Would a family open in a jurisdiction now (the lab, tests and F5's
+/// coverage)? Its bindings, or why not: `slot <id>` (a required slot did not
+/// bind), `trigger`, or `tier` (the family is of another tier). Any
+/// jurisdiction, whatever the focus; read-only.
+pub fn probe(
+    state: &crate::state::State,
+    content: &ContentBundle,
+    f: &PolicyFamilyDef,
+    at: Jurisdiction,
+) -> Result<Vec<SlotBinding>, String> {
+    if f.tier != at.tier() {
+        return Err("tier".into());
+    }
+    let r = Reads::of_state(state, content);
+    let binder = Binder::new(&r, at);
+    let bindings = binder.bind(f, &[], 0).map_err(|s| format!("slot {s}"))?;
+    let v = View::new(&r, &state.politics);
+    let holds = f
+        .trigger
+        .as_ref()
+        .is_none_or(|t| trigger_holds(&v, Some(&state.events), t, at, &bindings));
+    if holds {
+        Ok(bindings)
+    } else {
+        Err("trigger".into())
+    }
+}
+
 // --- Area -------------------------------------------------------------------------------
 
 /// The neighbourhoods an option's area covers for an instance (`None`: the
