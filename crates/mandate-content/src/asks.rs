@@ -515,7 +515,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         if curve.windows(2).any(|w| w[1][0] <= w[0][0]) {
             err(issues, owner, &format!("{name}: x must increase"));
         }
-        if curve.iter().any(|q| !(q[1] >= 0.0) || !q[0].is_finite()) {
+        if curve.iter().any(|q| q[1].is_nan() || q[1] < 0.0 || !q[0].is_finite()) {
             err(issues, owner, &format!("{name}: factors must be ≥ 0"));
         }
     }
@@ -964,13 +964,13 @@ fn check_effects(
                     err(issues, "approval in a neighbourhood has no town scope");
                 }
             }
-            EffectDef::Standing { delta } | EffectDef::Record { delta } => {
-                if !(-5.0..=5.0).contains(delta) {
-                    err(
-                        issues,
-                        "an ask's standing or record change is within [-5, 5]",
-                    );
-                }
+            EffectDef::Standing { delta } | EffectDef::Record { delta }
+                if !(-5.0..=5.0).contains(delta) =>
+            {
+                err(
+                    issues,
+                    "an ask's standing or record change is within [-5, 5]",
+                );
             }
             _ => {}
         }
