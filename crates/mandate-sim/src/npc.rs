@@ -149,7 +149,8 @@ fn holds_power(state: &State, content: &ContentBundle, id: PoliticianId, power: 
 pub struct Memo {
     leans: BTreeMap<u32, (f64, f64)>,
     support: BTreeMap<(u32, String), f64>,
-    agenda: BTreeMap<(u32, String), f64>,
+    /// Agenda bonus by (town, constituency or `u32::MAX` for the town, template).
+    agenda: BTreeMap<(u32, u32, String), f64>,
     /// Situational templates on the table by (town, template) (DEC-077 §3).
     unlocked: BTreeMap<(u32, String), bool>,
 }
@@ -345,8 +346,8 @@ fn inputs_memo(
                 let prag = me.pragmatism as f64;
                 let agenda = *memo
                     .agenda
-                    .entry((m, t.id.clone()))
-                    .or_insert_with(|| agenda_bonus(state, content, m, t));
+                    .entry((m, key, t.id.clone()))
+                    .or_insert_with(|| agenda_bonus_in(state, content, m, &hoods, t));
                 // The town's character shapes which idea comes first, not
                 // how keen the NPC is to legislate at all.
                 let score = (1.0 - prag) * own + prag * public;
@@ -382,6 +383,21 @@ pub fn agenda_bonus(
     m: u32,
     t: &mandate_content::PolicyTemplate,
 ) -> f64 {
+    let all: Vec<usize> = state.world.hoods_of(MunicipalityId(m)).collect();
+    agenda_bonus_in(state, content, m, &all, t)
+}
+
+/// `agenda_bonus` for an NPC whose post serves some neighbourhoods of town
+/// `m` (a ward member's, DEC-092 N2): the concern fit reads those
+/// neighbourhoods' political levels (`concerns::political_levels`); the
+/// whole town reads the town's measured levels. The crisis is the town's.
+pub fn agenda_bonus_in(
+    state: &State,
+    content: &ContentBundle,
+    m: u32,
+    hoods: &[usize],
+    t: &mandate_content::PolicyTemplate,
+) -> f64 {
     let n = &content.npc;
     let mut bonus = 0.0;
     if n.crisis_agenda != 0.0
@@ -398,13 +414,16 @@ pub fn agenda_bonus(
     {
         bonus += n.crisis_agenda * c.severity as f64;
     }
-    if n.concern_agenda != 0.0
-        && let Some(tc) = state.population.town_concerns.get(m as usize)
-    {
+    if n.concern_agenda != 0.0 {
+        // The measured concerns of the post's district: politics, not talk.
+        let levels = if hoods.is_empty() {
+            Vec::new()
+        } else {
+            crate::concerns::political_levels(&state.population, content, &state.world, hoods)
+        };
         let (mut fit, mut w) = (0.0, 0.0);
-        // The town's measured concerns: its politics, not its talk.
-        for (c, level) in content.concerns.iter().zip(&tc.measured) {
-            let level = *level as f64;
+        for (c, level) in content.concerns.iter().zip(&levels) {
+            let level = *level;
             if level <= 0.0 {
                 continue;
             }

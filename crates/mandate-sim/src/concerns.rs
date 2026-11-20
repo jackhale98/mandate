@@ -15,9 +15,17 @@
 //! is the town's × a relative factor whose residents' mean over the town is
 //! 1, so the riverside district worries about the river, the estate by the
 //! plant about jobs, and the town's own figure is unchanged. A town's levels
-//! are its neighbourhoods' levels weighted by residents. The town's politics
-//! (the vote model's salience, NPC agendas) still read the levels measured
-//! from the town-wide indicators (`TownConcerns::measured`).
+//! are its neighbourhoods' levels weighted by residents.
+//!
+//! Politics reads the levels measured from the town-wide indicators
+//! (`TownConcerns::measured`), per constituency (DEC-092, N2): a ward's (or
+//! any tier's constituency's) political levels are each town's measured
+//! levels shifted by how much more or less its neighbourhoods feel each worry
+//! than the town as a whole (`political_levels`), and its issue salience comes
+//! from them by the town's formula (`salience_in`). The vote model weighs a
+//! race's voters by their constituency's salience and a ward member's agenda
+//! follows the ward's worries. A whole town (a mayoral race, a town-level
+//! agenda) gives exactly the town's measured levels and salience.
 //!
 //! The population domain owns the result (`PopulationState::town_concerns`,
 //! `hood_concerns`); the indicators are read-only views of other domains,
@@ -29,6 +37,7 @@ use crate::world::{NeighborhoodId, NeighborhoodKind, World};
 use mandate_content::{ContentBundle, Indicator, NeighborhoodLean, SectorDriver};
 use mandate_core::math::pow;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// One town's concerns, per concern in registry order: its level as its
 /// residents feel it (its neighbourhoods' levels weighted by residents) and
@@ -39,9 +48,11 @@ pub struct TownConcerns {
     /// As felt: what the town's views, talk and town character show.
     pub levels: Vec<f32>,
     /// As measured from the town-wide indicators: what drives the town's
-    /// politics (the salience below and NPC agendas).
+    /// politics (the salience below and NPC agendas; a constituency's shift
+    /// it by their own neighbourhoods', `political_levels`).
     pub measured: Vec<f32>,
-    /// The vote model's issue weights, from the measured levels.
+    /// The vote model's issue weights for the whole town, from the measured
+    /// levels (a ward's: `salience_in`).
     pub salience: Vec<f32>,
 }
 
@@ -558,6 +569,136 @@ pub fn salience(pop: &PopulationState, m: usize) -> Option<&[f32]> {
         .get(m)
         .map(|t| t.salience.as_slice())
         .filter(|s| s.len() == pop.attitude_count())
+}
+
+/// Whether `hoods` are exactly the neighbourhoods of town `m` (in any order).
+fn covers_town(world: &World, m: usize, hoods: &[usize]) -> bool {
+    let Some(mu) = world.municipalities.get(m) else {
+        return false;
+    };
+    let mut all: Vec<usize> = mu.neighborhoods.iter().map(|h| h.index()).collect();
+    let mut here = hoods.to_vec();
+    all.sort_unstable();
+    here.sort_unstable();
+    here.dedup();
+    all == here
+}
+
+/// The neighbourhoods given, grouped by their town (town order, then the
+/// order given).
+fn by_town(world: &World, hoods: &[usize]) -> BTreeMap<usize, Vec<usize>> {
+    let mut out: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for &h in hoods {
+        if let Some(n) = world.neighborhoods.get(h) {
+            out.entry(n.municipality.index()).or_default().push(h);
+        }
+    }
+    out
+}
+
+/// One town's political levels for some of its neighbourhoods: the town's
+/// measured levels, shifted by how much more (or less) they feel each worry
+/// than the town (`levels_in` − the town's felt level), within the
+/// concern's level range. All of a town gives its measured levels exactly.
+/// None while the town's concerns are not computed for this registry.
+fn town_political_levels(
+    pop: &PopulationState,
+    content: &ContentBundle,
+    world: &World,
+    m: usize,
+    hoods: &[usize],
+) -> Option<Vec<f64>> {
+    let n = content.concerns.len();
+    let tc = pop.town_concerns.get(m)?;
+    if tc.measured.len() != n {
+        return None;
+    }
+    let measured = tc.measured.iter().map(|l| *l as f64);
+    if covers_town(world, m, hoods) || tc.levels.len() != n {
+        return Some(measured.collect());
+    }
+    let here = levels_in(pop, content, m, hoods);
+    Some(
+        measured
+            .zip(&here)
+            .zip(&tc.levels)
+            .zip(&content.concerns)
+            .map(|(((m, h), t), c)| {
+                let (lo, hi) = (c.level.min, c.level.max.max(c.level.min));
+                (m + h - *t as f64).clamp(lo, hi)
+            })
+            .collect(),
+    )
+}
+
+/// The concern levels that drive the politics of a constituency of any tier
+/// (registry order), from its neighbourhoods (world indices): per town,
+/// its measured levels shifted by its listed neighbourhoods' own worries
+/// (`town_political_levels`), then the towns weighted by those
+/// neighbourhoods' residents. Whole towns give their measured levels, so a
+/// mayoral race or a town-level agenda reads the town's figure. Empty when
+/// no neighbourhood is given or a town's concerns are not computed yet.
+pub fn political_levels(
+    pop: &PopulationState,
+    content: &ContentBundle,
+    world: &World,
+    hoods: &[usize],
+) -> Vec<f64> {
+    let towns = by_town(world, hoods);
+    let mut parts = Vec::with_capacity(towns.len());
+    for (m, hs) in &towns {
+        let Some(levels) = town_political_levels(pop, content, world, *m, hs) else {
+            return Vec::new();
+        };
+        let residents: f64 = hs.iter().map(|h| pop.hood_total(*h) as f64).sum();
+        parts.push((residents, levels));
+    }
+    if parts.len() == 1 {
+        return parts.pop().map(|(_, l)| l).unwrap_or_default();
+    }
+    let even = parts.iter().all(|(w, _)| *w <= 0.0);
+    let mut sum = vec![0.0; content.concerns.len()];
+    let mut wsum = 0.0;
+    for (w, levels) in &parts {
+        let w = if even { 1.0 } else { *w };
+        for (s, l) in sum.iter_mut().zip(levels) {
+            *s += w * l;
+        }
+        wsum += w;
+    }
+    if wsum > 0.0 {
+        sum.iter().map(|s| s / wsum).collect()
+    } else {
+        sum
+    }
+}
+
+/// Issue salience for a constituency of any tier (its neighbourhoods, world
+/// indices): `salience_from` its political levels (`political_levels`).
+/// A whole town gives the town's own salience (`salience`), bit for bit.
+/// None when no neighbourhood is given or a town touched has no salience
+/// for this attitude registry (every issue then weighs the same).
+pub fn salience_in(
+    pop: &PopulationState,
+    content: &ContentBundle,
+    world: &World,
+    hoods: &[usize],
+) -> Option<Vec<f32>> {
+    let towns = by_town(world, hoods);
+    if towns.is_empty() || towns.keys().any(|m| salience(pop, *m).is_none()) {
+        return None;
+    }
+    if let Some((m, hs)) = towns.iter().next()
+        && towns.len() == 1
+        && covers_town(world, *m, hs)
+    {
+        return salience(pop, *m).map(<[f32]>::to_vec);
+    }
+    let levels = political_levels(pop, content, world, hoods);
+    if levels.len() != content.concerns.len() {
+        return None;
+    }
+    Some(salience_from(content, &levels)).filter(|s| s.len() == pop.attitude_count())
 }
 
 /// A town's concerns, strongest first: (registry index, level), the levels
