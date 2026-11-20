@@ -3,14 +3,14 @@ import type { AboutRefDto } from "./AboutRefDto";
 import type { ActionDto } from "./ActionDto";
 import type { ClauseDto } from "./ClauseDto";
 import type { DirectiveChoiceDto } from "./DirectiveChoiceDto";
-import type { FilingDto } from "./FilingDto";
 import type { LocationDto } from "./LocationDto";
 import type { ParamValue } from "./ParamValue";
+import type { PostDto } from "./PostDto";
 import type { SkipTargetDto } from "./SkipTargetDto";
 import type { TalkTargetDto } from "./TalkTargetDto";
 import type { VoteDto } from "./VoteDto";
 
-export type CommandDto = { "type": "end_turn" } | { "type": "advance_days", days: number, } | { "type": "draft_policy", template: string, params: Array<ParamValue>, } | { "type": "amend_policy", policy: number, params: Array<ParamValue>, clauses: Array<ClauseDto>, } | { "type": "introduce_policy", policy: number, } | { "type": "withdraw_policy", policy: number, } | { "type": "act", action: ActionDto, late_night: boolean, } | { "type": "file", filing: FilingDto, } | { "type": "cast_vote", policy: number, vote: VoteDto, } | { "type": "move_to", location: LocationDto, } | { "type": "go", location: LocationDto, then: CommandDto | null, } | { "type": "meet", slot: number, } | { "type": "answer_decision", decision: number, option: string, } | { "type": "notebook_seen" } | { "type": "talk", to: TalkTargetDto, 
+export type CommandDto = { "type": "end_turn" } | { "type": "advance_days", days: number, } | { "type": "draft_policy", template: string, params: Array<ParamValue>, } | { "type": "amend_policy", policy: number, params: Array<ParamValue>, clauses: Array<ClauseDto>, } | { "type": "introduce_policy", policy: number, } | { "type": "withdraw_policy", policy: number, } | { "type": "act", action: ActionDto, late_night: boolean, } | { "type": "file", post: PostDto | null, retire: boolean, } | { "type": "cast_vote", policy: number, vote: VoteDto, } | { "type": "move_to", location: LocationDto, } | { "type": "go", location: LocationDto, then: CommandDto | null, } | { "type": "meet", slot: number, } | { "type": "answer_decision", decision: number, option: string, } | { "type": "notebook_seen" } | { "type": "talk", to: TalkTargetDto, 
 /**
  * Topic content id (`TopicView.id`).
  */

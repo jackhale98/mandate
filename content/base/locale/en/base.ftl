@@ -255,6 +255,10 @@ body-senate = Senate
 office-mayor = Mayor
 office-governor = Governor
 office-president = President
+# A jurisdiction (DEC-098): a town or a region by its name ($name).
+jurisdiction-municipality = { $name }
+jurisdiction-region = { $name }
+jurisdiction-nation = the nation
 
 ## Policies (M3)
 policy-transit = Transit frequency
@@ -312,7 +316,6 @@ secondary-property-tax-owners = Homeowners feel it first; renters see it later i
 
 ## Office (M3)
 ui-office = Office
-ui-council = Council
 role-councillor = Councillor
 role-mayor = Mayor
 role-private = Out of office
@@ -404,7 +407,8 @@ ui-funded = { $pct }% funded
 ui-progress = Implementation { $pct }%
 ui-next-vote = { $stage } on { $date }
 ui-whip = Expected yes { $yes } of { $seats } (needs { $needed })
-ui-mayor-lean = Mayor: { $lean }
+# Who signs a bill ($office: the office's label) and how they lean.
+ui-signer-lean = { $office }: { $lean }
 ui-support = Expected public support
 ui-support-low = Low income
 ui-support-middle = Middle income
@@ -470,11 +474,11 @@ lean-lean_yes = Leaning yes
 lean-undecided = Undecided
 lean-lean_no = Leaning no
 lean-no = No
-mayor-sign = will sign
-mayor-lean_sign = leaning to sign
-mayor-undecided = undecided
-mayor-lean_veto = leaning to veto
-mayor-veto = will veto
+signer-sign = will sign
+signer-lean_sign = leaning to sign
+signer-undecided = undecided
+signer-lean_veto = leaning to veto
+signer-veto = will veto
 ledger-homes_built = Homes started
 ledger-funded_pct = Funded (%)
 ledger-service_gain_pct = Service level gain (%)
@@ -542,15 +546,16 @@ ui-campaign-opens = campaign opens { $date }
 ui-your-party = Your party
 ui-independent = Independent
 ui-your-plans = Your plans
-ui-file-defend = Defend my seat
-ui-file-council = Run for my old ward
-ui-file-mayor = Run for mayor
+# Filing ($post: the post's label, as on the ballot).
+ui-file-defend = Stand again: { $post }
+ui-file-post = Run for { $post }
 ui-file-retire = Stand down
 ui-filing-help = Candidates are fixed when the campaign opens.
 ui-filing-closed = Nominations have closed for this election.
-ui-mayor-needs-standing = Your party will only back you for mayor with Standing of 40 or more.
+ui-nomination-standing = Your party will only back you for { $post } with Standing of { $min } or more.
+ui-nomination-renomination = Your party will not renominate you with Standing below { $min }.
 ui-not-running = You are not on the ballot this time.
-ui-race-mayor = Mayor
+# A race's title: a districted seat by its number; any other post by its label.
 ui-race-ward = Ward { $n }
 ui-your-race = Your race
 ui-incumbent = incumbent
@@ -847,7 +852,7 @@ issue-reform_appetite = Reforming government
 
 # Character sheets (DEC-031).
 role-candidate = Candidate
-subject-mayoralty = the mayoralty
+subject-office = the post of { $post }
 subject-ward = Ward { $n }
 favour-bill = Support on { $subject }
 favour-support = Backing you asked for

@@ -116,8 +116,12 @@ pub struct PlayerView {
     pub politician: u32,
     pub name: String,
     pub party: Option<u32>,
-    /// Fluent key, e.g. `role-councillor`.
+    /// Fluent key of the title of the player's first post (`role-<word>`),
+    /// or `role-private` out of office: derived from `posts`.
     pub role_key: String,
+    /// The constitution posts the player holds (DEC-098; one in M6, none
+    /// out of office).
+    pub posts: Vec<crate::post::PostDto>,
     pub municipality: String,
     pub municipality_id: u32,
     pub ward_number: u32,
@@ -301,8 +305,9 @@ pub struct BillView {
     pub expected_yes: f64,
     pub seats: u32,
     pub needed: u32,
-    /// Mayor's inclination: `sign` | `lean_sign` | `undecided` | `lean_veto` | `veto`.
-    pub mayor: String,
+    /// Who signs or vetoes the bill (the office of its procedure's `sign`
+    /// stage, DEC-098) and how they lean; `None` when no office signs.
+    pub signer: Option<SignerView>,
     pub votes: Vec<VoteView>,
     pub ledger: Vec<LedgerEntry>,
     pub support: SupportView,
@@ -318,6 +323,34 @@ pub struct BillView {
     /// The player owes the sponsor a favour.
     pub owe_sponsor: bool,
     pub side_effects: Vec<SideEffectView>,
+}
+
+/// The office that signs or vetoes a bill, and its holder's inclination.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SignerView {
+    pub office: crate::post::PostDto,
+    /// `sign` | `lean_sign` | `undecided` | `lean_veto` | `veto` (Fluent
+    /// `signer-<lean>`).
+    pub lean: String,
+}
+
+/// A body of a jurisdiction (DEC-017, DEC-098) and its members, in seat
+/// order.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BodyView {
+    /// The body's constitution id.
+    pub id: String,
+    /// The constitution's Fluent key for the body (`name_key`).
+    pub label_key: String,
+    /// Fluent key of a member's title: `role-<member_key>`.
+    pub role_key: String,
+    pub at: crate::post::JurisdictionDto,
+    /// The jurisdiction's legislature: the body of its `ordinance`
+    /// procedure's first vote (bills are whipped there).
+    pub legislature: bool,
+    pub members: Vec<MemberView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -394,7 +427,16 @@ pub struct OfficeView {
     pub player: PlayerView,
     pub catalog: Vec<TemplateView>,
     pub bills: Vec<BillView>,
+    /// The bodies of the player's focus jurisdictions, in constitution
+    /// order, each with its members (DEC-098).
+    pub bodies: Vec<BodyView>,
+    /// The holder of the executive office (the office of the `ordinance`
+    /// procedure's `sign` stage) of the player's home jurisdiction.
+    pub executive: Option<MemberView>,
+    /// Deprecated (R2): the legislature's members (`bodies`); removed in
+    /// the next release.
     pub council: Vec<MemberView>,
+    /// Deprecated (R2): `executive`; removed in the next release.
     pub mayor: Option<MemberView>,
     pub town: TownView,
     pub date: DateView,
@@ -591,30 +633,40 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     } else {
         None
     };
-    let mayor = match (pending, constitution) {
-        (true, Some(c)) => sign_probability(
-            &content.council,
-            executive_lean(
-                &content.council,
-                c,
-                &st.world,
-                &st.population,
-                &st.politics,
-                st.meta.seed,
-                t,
-                p,
-            ),
-        ),
-        (true, None) => sign_probability(&content.council, 0.0),
-        (false, _) => 1.0,
-    };
-    let mayor_label = match mayor {
-        x if x >= 0.85 => "sign",
-        x if x >= 0.6 => "lean_sign",
-        x if x > 0.4 => "undecided",
-        x if x > 0.15 => "lean_veto",
-        _ => "veto",
-    };
+    // The office of the procedure's `sign` stage for the bill's
+    // jurisdiction, with its holder's inclination (certain once decided).
+    let signer = constitution
+        .and_then(|c| mandate_sim::politics::executive_post(c, p.at()))
+        .map(|office| {
+            let chance = match (pending, constitution) {
+                (true, Some(c)) => sign_probability(
+                    &content.council,
+                    executive_lean(
+                        &content.council,
+                        c,
+                        &st.world,
+                        &st.population,
+                        &st.politics,
+                        st.meta.seed,
+                        t,
+                        p,
+                    ),
+                ),
+                (true, None) => sign_probability(&content.council, 0.0),
+                (false, _) => 1.0,
+            };
+            SignerView {
+                office: crate::post::post_dto(engine, office),
+                lean: match chance {
+                    x if x >= 0.85 => "sign",
+                    x if x >= 0.6 => "lean_sign",
+                    x if x > 0.4 => "undecided",
+                    x if x > 0.15 => "lean_veto",
+                    _ => "veto",
+                }
+                .into(),
+            }
+        });
     let sponsor = p.sponsor.and_then(|s| st.politics.get(s));
     let me = st.player.as_ref();
     let my_vote = me
@@ -713,7 +765,7 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
         needed: seats / 2 + 1,
         whip: if whip_exact { whip } else { Vec::new() },
         whip_exact,
-        mayor: mayor_label.into(),
+        signer,
         votes: p
             .votes
             .iter()
@@ -878,12 +930,30 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
     let fine = |v: f64| if detailed { v } else { coarse(v, 0.05) };
     let can_propose =
         player_powers(st, content).contains(&mandate_content::Power::ProposeOrdinance);
+    let posts: Vec<crate::post::PostDto> = mandate_sim::player::posts(st)
+        .into_iter()
+        .map(|p| crate::post::post_dto(engine, p))
+        .collect();
+    let bodies = bodies_view(engine, &gate);
+    let executive = constitution
+        .and_then(|c| mandate_sim::politics::executive_of(&st.politics, c, at))
+        .and_then(|id| st.politics.get(id))
+        .map(|p| member_view(&gate, engine, p));
+    let legislature: Vec<MemberView> = bodies
+        .iter()
+        .find(|b| b.legislature && b.at == crate::post::jurisdiction_dto(&st.world, at))
+        .map(|b| b.members.clone())
+        .unwrap_or_default();
     Some(OfficeView {
         player: PlayerView {
             politician: me.id.0,
             name: full_name(me),
             party: me.party.map(|x| x.0),
-            role_key: role_label(engine, me),
+            role_key: posts
+                .first()
+                .map(|p| p.role_key.clone())
+                .unwrap_or_else(|| "role-private".into()),
+            posts,
             municipality: mu.name.clone(),
             municipality_id: m.0,
             ward_number: ward_number(st, pl.ward),
@@ -935,20 +1005,10 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
         },
         catalog,
         bills,
-        // The town's legislature and executive (DTO unchanged until R2).
-        council: constitution
-            .map(|c| {
-                mandate_sim::politics::legislature_of(&st.politics, c, at)
-                    .iter()
-                    .filter_map(|id| st.politics.get(*id))
-                    .map(|p| member_view(&gate, engine, p))
-                    .collect()
-            })
-            .unwrap_or_default(),
-        mayor: constitution
-            .and_then(|c| mandate_sim::politics::executive_of(&st.politics, c, at))
-            .and_then(|id| st.politics.get(id))
-            .map(|p| member_view(&gate, engine, p)),
+        bodies,
+        mayor: executive.clone(),
+        executive,
+        council: legislature,
         town: TownView {
             detailed,
             gov_approval: fine(weighted(st, &hoods, |c| c.gov_approval as f64)),
@@ -989,6 +1049,38 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
         },
         date: DateView::of(st.calendar.date),
     })
+}
+
+/// The bodies of the player's focus jurisdictions (DEC-098), in
+/// constitution order, with their members in seat order.
+fn bodies_view(engine: &Engine, gate: &Gate<'_>) -> Vec<BodyView> {
+    let st = engine.state();
+    let Some(c) = crate::post::constitution(engine) else {
+        return Vec::new();
+    };
+    st.focus()
+        .into_iter()
+        .flat_map(|at| {
+            let tier = c.tier(at.tier());
+            let legislature = mandate_sim::politics::legislature(c, at.tier()).map(|b| &b.id);
+            tier.into_iter()
+                .flat_map(|t| t.bodies.iter())
+                .filter(move |b| st.politics.bodies.iter().any(|x| x.at == at && x.body == b.id))
+                .map(move |b| BodyView {
+                    id: b.id.clone(),
+                    label_key: b.name_key.clone(),
+                    role_key: format!("role-{}", b.member_key),
+                    at: crate::post::jurisdiction_dto(&st.world, at),
+                    legislature: legislature == Some(&b.id),
+                    members: mandate_sim::politics::members_of(&st.politics, &b.id, at)
+                        .iter()
+                        .filter_map(|id| st.politics.get(*id))
+                        .map(|p| member_view(gate, engine, p))
+                        .collect(),
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
 }
 
 /// What worries residents of some neighbourhoods of a town, strongest first:

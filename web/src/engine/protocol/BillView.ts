@@ -4,6 +4,7 @@ import type { DateView } from "./DateView";
 import type { LedgerEntry } from "./LedgerEntry";
 import type { ParamValue } from "./ParamValue";
 import type { SideEffectView } from "./SideEffectView";
+import type { SignerView } from "./SignerView";
 import type { SupportView } from "./SupportView";
 import type { VoteView } from "./VoteView";
 import type { WhipView } from "./WhipView";
@@ -32,9 +33,10 @@ next_stage_key: string | null, est_annual_cost: number, funded_pct: number, prog
  */
 whip: Array<WhipView>, whip_exact: boolean, expected_yes: number, seats: number, needed: number, 
 /**
- * Mayor's inclination: `sign` | `lean_sign` | `undecided` | `lean_veto` | `veto`.
+ * Who signs or vetoes the bill (the office of its procedure's `sign`
+ * stage, DEC-098) and how they lean; `None` when no office signs.
  */
-mayor: string, votes: Array<VoteView>, ledger: Array<LedgerEntry>, support: SupportView, 
+signer: SignerView | null, votes: Array<VoteView>, ledger: Array<LedgerEntry>, support: SupportView, 
 /**
  * The player's declared vote: `yes` | `no` | `abstain`.
  */

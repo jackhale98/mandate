@@ -2,11 +2,11 @@
 //! the player's town with **polls only** (never the model truth, DEC-029), and
 //! the latest results with their explanation (DEC-028).
 
+use crate::post::{PostDto, post_dto};
 use crate::views::DateView;
 use mandate_sim::Engine;
-use mandate_sim::politics::PoliticianId;
-use mandate_sim::politics::elections::{self, Filing, Seat};
-use mandate_sim::world::Tier;
+use mandate_sim::politics::elections::{self, Filing};
+use mandate_sim::politics::{INSTANTIATED_TIERS, PoliticianId, Post};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -48,9 +48,8 @@ pub struct PollView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct RaceView {
-    /// `mayor` | `ward`
-    pub seat: String,
-    pub ward_number: Option<u32>,
+    /// The post contested (its label is the constitution's).
+    pub post: PostDto,
     pub is_player_race: bool,
     pub candidates: Vec<CandidateView>,
     pub polls: Vec<PollView>,
@@ -85,8 +84,7 @@ pub struct FactorView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct ResultView {
-    pub seat: String,
-    pub ward_number: Option<u32>,
+    pub post: PostDto,
     pub date: DateView,
     pub candidates: Vec<ResultCandidateView>,
     pub turnout: f64,
@@ -102,18 +100,170 @@ pub struct CampaignView {
     pub campaign_opens: Option<DateView>,
     pub days_to_election: Option<u32>,
     pub in_campaign: bool,
-    /// `council` | `mayor` | `retire` | `default`
-    pub filing: String,
-    /// Whether the player's party would nominate them for mayor (Standing).
-    pub mayor_nomination_open: bool,
+    /// What the player has filed for; `None`: stand again for the post they
+    /// hold (out of office, nothing).
+    pub filing: Option<FilingView>,
+    /// The posts the player may file for (elected posts whose constituency
+    /// holds their home, in the tiers that hold elections), seats before
+    /// offices, and whether their party would nominate them.
+    pub nominations: Vec<NominationView>,
     pub player_in_office: bool,
     pub player_party: Option<u32>,
     pub parties: Vec<PartyView>,
-    /// The player's race first, then the mayoralty, then other wards.
+    /// The player's race first, then offices, then seats by district.
     pub races: Vec<RaceView>,
     /// The latest election's results in the player's town (player's race first).
     pub results: Vec<ResultView>,
     pub last_election: Option<DateView>,
+}
+
+/// The player's filing (DEC-098).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum FilingView {
+    Stand { post: PostDto },
+    Retire,
+}
+
+/// A post the player may stand for at the next election.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NominationView {
+    pub post: PostDto,
+    /// The player holds it now (standing again defends it).
+    pub held: bool,
+    /// Whether the party would nominate the player for it (its nomination
+    /// gate, `career.nomination`; for a post held, renomination).
+    pub open: bool,
+    /// Why not, when closed: `ui-nomination-standing` (with `$post` and
+    /// `$min`) or `ui-nomination-renomination` (with `$min`).
+    pub reason_key: Option<String>,
+    /// The Standing the party asks, when closed.
+    pub min_standing: Option<f64>,
+    /// What the player stands for now: this post if filed for, or the post
+    /// held when nothing is filed.
+    pub chosen: bool,
+}
+
+/// The posts the player may file for (DEC-098 §1; audit §7.4): the elected
+/// posts of the tiers that hold elections, for the jurisdictions holding the
+/// player's home, whose constituency holds the player's district; in ladder
+/// order (seats before offices within a tier). In M6: their seat in the
+/// town's legislature and the town's executive office.
+pub fn fileable_posts(engine: &Engine) -> Vec<Post> {
+    let st = engine.state();
+    let (Some(pl), Some(c)) = (st.player.as_ref(), crate::post::constitution(engine)) else {
+        return Vec::new();
+    };
+    let Some(home) = crate::post::home_at(st) else {
+        return Vec::new();
+    };
+    // The player's district's first neighbourhood: the constituency of
+    // each districted body that holds it is theirs.
+    let hood = st
+        .world
+        .constituencies
+        .get(pl.ward.index())
+        .and_then(|w| w.neighborhoods.first().copied());
+    let mut chain = Vec::new();
+    let mut j = Some(home);
+    while let Some(x) = j {
+        chain.push(x);
+        j = x.parent(&st.world);
+    }
+    let mut out = Vec::new();
+    for (tier, d) in c.ladder() {
+        if !INSTANTIATED_TIERS.contains(&tier) || !d.elected() {
+            continue;
+        }
+        let Some(at) = chain.iter().copied().find(|a| a.tier() == tier) else {
+            continue;
+        };
+        let Some(key) = mandate_content::PostKey::new(d.id()) else {
+            continue;
+        };
+        let post = match d {
+            mandate_content::PostRef::Office(_) => Post::Office { office: key, at },
+            mandate_content::PostRef::Body(_) => {
+                let constituency = match d.constituency() {
+                    Some(mandate_content::Constituency::Ward) => {
+                        let Some(h) = hood else { continue };
+                        let Some(w) = at
+                            .constituencies(&st.world)
+                            .find(|w| w.neighborhoods.contains(&h))
+                        else {
+                            continue;
+                        };
+                        Some(w.id)
+                    }
+                    _ => None,
+                };
+                Post::Seat {
+                    body: key,
+                    at,
+                    constituency,
+                }
+            }
+        };
+        out.push(post);
+    }
+    out
+}
+
+/// The post a `File` command names, if the player may file for it.
+pub fn fileable(engine: &Engine, dto: &PostDto) -> Option<Post> {
+    let post = crate::post::post_of(engine, dto)?;
+    fileable_posts(engine).into_iter().find(|p| *p == post)
+}
+
+fn nominations(engine: &Engine) -> Vec<NominationView> {
+    let st = engine.state();
+    let content = engine.content();
+    let (Some(pl), Some(c)) = (st.player.as_ref(), crate::post::constitution(engine)) else {
+        return Vec::new();
+    };
+    let held = mandate_sim::player::posts(st);
+    let standing = pl.tracks.standing as f64;
+    let renominate = content.politics.vote.renomination_standing;
+    fileable_posts(engine)
+        .into_iter()
+        .map(|post| {
+            let is_held = held.contains(&post);
+            let gate = post
+                .word(c)
+                .and_then(|w| content.career.nomination.get(w))
+                .and_then(|g| g.min_standing);
+            let (open, reason_key, min) = if is_held {
+                let open = standing >= renominate;
+                (
+                    open,
+                    (!open).then(|| "ui-nomination-renomination".to_string()),
+                    (!open).then_some(renominate),
+                )
+            } else {
+                let open = elections::nomination_open(content, c, post, standing);
+                (
+                    open,
+                    (!open).then(|| "ui-nomination-standing".to_string()),
+                    if open { None } else { gate },
+                )
+            };
+            let chosen = match pl.filing {
+                Some(Filing::Stand { post: p }) => p == post,
+                Some(Filing::Retire) => false,
+                None => is_held,
+            };
+            NominationView {
+                post: post_dto(engine, post),
+                held: is_held,
+                open,
+                reason_key,
+                min_standing: min,
+                chosen,
+            }
+        })
+        .collect()
 }
 
 fn name_of(engine: &Engine, id: PoliticianId) -> String {
@@ -125,33 +275,14 @@ fn name_of(engine: &Engine, id: PoliticianId) -> String {
         .unwrap_or_default()
 }
 
-fn ward_number(engine: &Engine, seat: Seat) -> Option<u32> {
-    let ward = seat.constituency()?;
-    engine
-        .state()
-        .world
-        .constituencies
-        .get(ward.index())
-        .filter(|c| c.tier == Tier::Local)
-        .map(|c| c.number)
-}
-
-/// `ward` for a seat in a body; an office's own id (DTO unchanged until R2).
-fn seat_key(seat: Seat) -> String {
-    if seat.is_office() {
-        seat.id().to_string()
-    } else {
-        "ward".into()
-    }
-}
-
 pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
     let st = engine.state();
     let pl = st.player.as_ref()?;
     let me = st.politics.get(pl.politician)?;
-    let town = mandate_sim::world::Jurisdiction::town(pl.home());
-    let constitution = engine.content().constitutions.get(&st.meta.constitution);
-    let executive = constitution.and_then(|c| mandate_sim::politics::executive_post(c, town));
+    let Some(town) = crate::post::home_at(st) else {
+        return None;
+    };
+    let constitution = crate::post::constitution(engine);
     let el = &st.politics.elections;
     let parties = st
         .politics
@@ -221,8 +352,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
             (
                 order,
                 RaceView {
-                    seat: seat_key(r.seat),
-                    ward_number: ward_number(engine, r.seat),
+                    post: post_dto(engine, r.seat),
                     is_player_race: mine.is_some(),
                     candidates: r
                         .candidates
@@ -246,7 +376,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
             )
         })
         .collect();
-    races.sort_by_key(|(o, r)| (*o, r.ward_number.unwrap_or(0)));
+    races.sort_by_key(|(o, r)| (*o, r.post.constituency_number.unwrap_or(0)));
     let last = el.last_election;
     let mut results: Vec<(u8, ResultView)> = el
         .results
@@ -264,8 +394,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
             (
                 order,
                 ResultView {
-                    seat: seat_key(r.seat),
-                    ward_number: ward_number(engine, r.seat),
+                    post: post_dto(engine, r.seat),
                     date: DateView::of(r.date),
                     candidates: r
                         .candidates
@@ -296,7 +425,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
             )
         })
         .collect();
-    results.sort_by_key(|(o, r)| (*o, r.ward_number.unwrap_or(0)));
+    results.sort_by_key(|(o, r)| (*o, r.post.constituency_number.unwrap_or(0)));
     let today = st.calendar.date;
     let (day, opens) = match (el.next_day, el.campaign_open) {
         (Some(d), Some(o)) => (Some(d), Some(o)),
@@ -317,20 +446,14 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
         campaign_opens: opens.map(DateView::of),
         days_to_election: day.map(|d| today.days_until(d)),
         in_campaign: !el.races.is_empty(),
-        // The post's constitution id (DTO unchanged until R2).
         filing: match pl.filing {
-            Some(Filing::Stand { post }) => post.id().to_string(),
-            Some(Filing::Retire) => "retire".into(),
-            None => "default".into(),
+            Some(Filing::Stand { post }) => Some(FilingView::Stand {
+                post: post_dto(engine, post),
+            }),
+            Some(Filing::Retire) => Some(FilingView::Retire),
+            None => None,
         },
-        // The town's executive office: open to the player if they do not
-        // hold it and pass its nomination gate (`career.nomination`).
-        mayor_nomination_open: executive.is_some_and(|post| {
-            me.role.post() != Some(post)
-                && constitution.is_some_and(|c| {
-                    elections::nomination_open(engine.content(), c, post, pl.tracks.standing as f64)
-                })
-        }),
+        nominations: nominations(engine),
         player_in_office: me.in_office(),
         player_party: me.party.map(|p| p.0),
         parties,

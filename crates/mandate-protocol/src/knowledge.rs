@@ -719,25 +719,33 @@ fn concern_args(args: &mut BTreeMap<String, String>, level: Level, keys: Vec<Str
     }
 }
 
-/// The rival's plan: the seat they mean to contest (the player's: the
-/// mayoralty if the player holds it or filed for it, else their ward).
-pub(crate) fn rival_seat(st: &State) -> Option<(String, Option<u32>)> {
-    use mandate_sim::politics::elections::Filing;
+/// The rival's plan: the post they mean to contest, the player's (what the
+/// player filed for, else what they hold, else their seat in the town's
+/// legislature). `None` when the player stands down.
+pub(crate) fn rival_seat(engine: &Engine) -> Option<mandate_sim::politics::Post> {
+    use mandate_sim::politics::elections::{self, Filing};
+    let st = engine.state();
     let pl = st.player.as_ref()?;
-    let me = st.politics.get(pl.politician)?;
-    // An office: its constitution id (DTO unchanged until R2); a seat: `ward`.
-    match (pl.filing, me.role.post()) {
-        (Some(Filing::Retire), _) => None,
-        (Some(Filing::Stand { post }), _) | (None, Some(post)) if post.is_office() => {
-            Some((post.id().to_string(), None))
-        }
-        _ => Some((
-            "ward".into(),
-            st.world
-                .constituencies
-                .get(pl.ward.index())
-                .map(|c| c.number),
-        )),
+    match pl.filing {
+        Some(Filing::Retire) => None,
+        Some(Filing::Stand { post }) => Some(post),
+        None => mandate_sim::player::posts(st).first().copied().or_else(|| {
+            match elections::seat_filing(st, engine.content())? {
+                Filing::Stand { post } => Some(post),
+                Filing::Retire => None,
+            }
+        }),
+    }
+}
+
+/// The notebook's words for the rival's post: `rival-seat-ward` (`$ward`)
+/// for a districted seat, else `rival-seat-office` (`$post`, the
+/// constitution's label).
+pub(crate) fn rival_seat_args(engine: &Engine, post: mandate_sim::politics::Post) -> Vec<(&'static str, String)> {
+    let dto = crate::post::post_dto(engine, post);
+    match dto.constituency_number {
+        Some(n) => vec![("seat_key", "rival-seat-ward".into()), ("ward", n.to_string())],
+        None => vec![("seat_key", "rival-seat-office".into()), ("post_key", dto.label_key)],
     }
 }
 
@@ -861,11 +869,10 @@ pub(crate) fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeM
                     put!("rival", p.full_name());
                 }
                 if level >= Level::Known
-                    && let Some((seat, ward)) = rival_seat(st)
+                    && let Some(post) = rival_seat(engine)
                 {
-                    put!("seat_key", format!("rival-seat-{seat}"));
-                    if let Some(w) = ward {
-                        put!("ward", w.to_string());
+                    for (k, v) in rival_seat_args(engine, post) {
+                        put!(k, v);
                     }
                 }
                 if level >= Level::Detailed

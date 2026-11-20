@@ -355,7 +355,7 @@ fn rival_plans_by_level() {
         assert_eq!(plan.map(|p| p.key.as_str()), key, "{level:?}");
         if let Some(p) = plan {
             assert_eq!(p.knowledge.level, level.into());
-            assert_eq!(p.seat.is_some(), level >= Level::Known);
+            assert_eq!(p.post.is_some(), level >= Level::Known);
             assert_eq!(p.focus_key.is_some(), level == Level::Detailed);
         }
     }
@@ -742,7 +742,7 @@ fn knowledge_keys_are_in_the_locale() {
         "rival-plan-something",
         "rival-plan-seat",
         "rival-plan-focus",
-        "rival-seat-mayor",
+        "rival-seat-office",
         "rival-seat-ward",
         "knowledge-broker-unknown",
         "knowledge-person-unnamed",

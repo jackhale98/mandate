@@ -14,6 +14,7 @@ pub mod media;
 pub mod narrative;
 pub mod office;
 pub mod places;
+pub mod post;
 pub mod talk;
 pub mod town;
 pub mod views;
@@ -28,6 +29,7 @@ pub use media::*;
 pub use narrative::*;
 pub use office::*;
 pub use places::*;
+pub use post::*;
 use serde::{Deserialize, Serialize};
 pub use talk::*;
 pub use town::*;
@@ -172,9 +174,12 @@ pub enum CommandDto {
         action: ActionDto,
         late_night: bool,
     },
-    /// Declare intentions for the next local election.
+    /// Declare intentions for the next election (DEC-098): stand for a
+    /// post (one of `CampaignView.nominations`), or retire. With neither,
+    /// stand again for the post the player holds.
     File {
-        filing: FilingDto,
+        post: Option<PostDto>,
+        retire: bool,
     },
     /// Declare the player's vote on a bill (public and final).
     CastVote {
@@ -236,15 +241,6 @@ pub enum VoteDto {
     Yes,
     No,
     Abstain,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "snake_case")]
-pub enum FilingDto {
-    Council,
-    Mayor,
-    Retire,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

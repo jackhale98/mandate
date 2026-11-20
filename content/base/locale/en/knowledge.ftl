@@ -33,7 +33,7 @@ support-band-unpopular = Unpopular
 rival-plan-something = { $rival } is planning something.
 rival-plan-seat = { $rival } means to run for { $seat }.
 rival-plan-focus = { $rival } means to run for { $seat }, campaigning on { $focus }.
-rival-seat-mayor = the mayoralty
+rival-seat-office = { $post }
 rival-seat-ward = your seat in ward { $ward }
 
 # The notebook: sections and titles.

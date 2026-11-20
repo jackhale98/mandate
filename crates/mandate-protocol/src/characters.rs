@@ -48,10 +48,14 @@ pub struct PersonRefView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct SubjectView {
-    /// Fluent key: a policy's name key, `subject-mayoralty`, or `subject-ward`.
+    /// Fluent key: a policy's name key, a decision's title, `subject-ward`
+    /// (a districted seat, `$n`) or `subject-office` (any other post,
+    /// `$post`: the post's label).
     pub key: String,
     /// The ward number, for `subject-ward`.
     pub n: Option<u32>,
+    /// The post, for a seat or an office (DEC-098).
+    pub post: Option<crate::post::PostDto>,
 }
 
 /// A memory the character would bring up (facts and keys, no prose).
@@ -192,12 +196,10 @@ pub struct TownCharacterView {
 #[ts(export)]
 pub struct RivalPlanView {
     /// Fluent key: `rival-plan-something` (heard), `rival-plan-seat`
-    /// (known: `$seat_key`, `$ward`), `rival-plan-focus` (detailed: also
-    /// `$focus_key`).
+    /// (known), `rival-plan-focus` (detailed: also `$focus_key`).
     pub key: String,
-    /// `mayor` | `ward`, once known.
-    pub seat: Option<String>,
-    pub ward_number: Option<u32>,
+    /// The post they mean to contest, once known (the player's).
+    pub post: Option<crate::post::PostDto>,
     /// The issue they campaign on (`issue-<attitude key>`), in detail.
     pub focus_key: Option<String>,
     pub knowledge: KnowledgeView,
@@ -385,6 +387,7 @@ pub(crate) fn subject_view(engine: &Engine, s: Option<characters::Subject>) -> O
             Some(SubjectView {
                 key: t.name_key.clone(),
                 n: None,
+                post: None,
             })
         }
         Subject::Decision { id } => {
@@ -394,19 +397,23 @@ pub(crate) fn subject_view(engine: &Engine, s: Option<characters::Subject>) -> O
             Some(SubjectView {
                 key: engine.content().dilemma(&d.template)?.title_key.clone(),
                 n: None,
+                post: None,
             })
         }
-        // Labels stay as they were until R2 gives posts their own.
-        Subject::Seat { seat } => Some(match seat.constituency() {
-            None => SubjectView {
-                key: "subject-mayoralty".into(),
-                n: None,
-            },
-            Some(ward) => SubjectView {
-                key: "subject-ward".into(),
-                n: st.world.constituencies.get(ward.index()).map(|w| w.number),
-            },
-        }),
+        // A districted seat by its number; any other post by its label.
+        Subject::Seat { seat } => {
+            let post = crate::post::post_dto(engine, seat);
+            Some(SubjectView {
+                key: if post.constituency_number.is_some() {
+                    "subject-ward"
+                } else {
+                    "subject-office"
+                }
+                .into(),
+                n: post.constituency_number,
+                post: Some(post),
+            })
+        }
     }
 }
 
@@ -709,7 +716,7 @@ pub fn town_character_view(engine: &Engine, m: usize) -> Option<TownCharacterVie
     let plans = gate.level(&plans_subject);
     let rival_plan = t.rival.filter(|_| plans >= Level::Heard).map(|r| {
         let seat = (plans >= Level::Known)
-            .then(|| crate::knowledge::rival_seat(st))
+            .then(|| crate::knowledge::rival_seat(engine))
             .flatten();
         let focus_key = (plans >= Level::Detailed)
             .then(|| crate::knowledge::rival_focus(engine, r))
@@ -721,8 +728,7 @@ pub fn town_character_view(engine: &Engine, m: usize) -> Option<TownCharacterVie
                 _ => "rival-plan-something",
             }
             .into(),
-            ward_number: seat.as_ref().and_then(|s| s.1),
-            seat: seat.map(|s| s.0),
+            post: seat.map(|p| crate::post::post_dto(engine, p)),
             focus_key,
             knowledge: gate.view(&plans_subject),
         }

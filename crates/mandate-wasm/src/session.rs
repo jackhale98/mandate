@@ -546,17 +546,24 @@ fn player_command(
                 VoteDto::Abstain => mandate_sim::politics::Vote::Abstain,
             },
         },
-        CommandDto::File { filing } => {
-            // The DTO names the player's own seat or their town's executive
-            // office; the engine files for that constitution post (R2 sends
-            // the post itself).
-            use mandate_sim::politics::elections as el;
+        CommandDto::File { post, retire } => {
+            // A post the player may file for (`CampaignView.nominations`),
+            // or retire; with neither, stand again for the post held.
+            use mandate_sim::politics::elections::Filing;
             let engine = engine.ok_or_else(|| err(ErrorCode::InvalidCommand, "no game"))?;
-            let (state, content) = (engine.state(), engine.content());
-            let filing = match filing {
-                FilingDto::Council => el::seat_filing(state, content),
-                FilingDto::Mayor => el::executive_filing(state, content),
-                FilingDto::Retire => Some(el::Filing::Retire),
+            let filing = if retire {
+                Some(Filing::Retire)
+            } else {
+                match post {
+                    Some(dto) => mandate_protocol::campaign::fileable(engine, &dto),
+                    None => {
+                        let held = mandate_sim::player::posts(engine.state());
+                        mandate_protocol::campaign::fileable_posts(engine)
+                            .into_iter()
+                            .find(|p| held.contains(p))
+                    }
+                }
+                .map(|post| Filing::Stand { post })
             }
             .ok_or_else(|| err(ErrorCode::InvalidCommand, "no such post to file for"))?;
             P::File { filing }

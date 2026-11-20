@@ -320,9 +320,8 @@ pub struct InternalShareView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct InternalRaceView {
-    /// `mayor` | `ward`
-    pub seat: String,
-    pub ward_number: Option<u32>,
+    /// The post contested.
+    pub post: crate::post::PostDto,
     pub candidates: Vec<InternalShareView>,
 }
 
@@ -910,16 +909,7 @@ fn internal_poll(engine: &Engine) -> Option<InternalPollView> {
             *v /= sum;
         }
         InternalRaceView {
-            // An office's id, or `ward` for a seat (DTO unchanged until R2).
-            seat: if r.seat.is_office() {
-                r.seat.id().to_string()
-            } else {
-                "ward".into()
-            },
-            ward_number: r
-                .seat
-                .constituency()
-                .and_then(|ward| st.world.constituencies.get(ward.index()).map(|c| c.number)),
+            post: crate::post::post_dto(engine, r.seat),
             candidates: r
                 .candidates
                 .iter()
