@@ -744,6 +744,12 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             });
             holds == *is
         }
+        // --- A policy family's bound slots (F2b evaluates them) ------------------------
+        C::HoodConcern { .. }
+        | C::HoodHazard { .. }
+        | C::SectorDecline { .. }
+        | C::PlaceOpen { .. }
+        | C::PlaceClosed { .. } => false,
         // --- Composition -------------------------------------------------------------
         C::Any { of } => {
             for x in of {

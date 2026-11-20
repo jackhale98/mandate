@@ -300,12 +300,17 @@ pub fn mods_for(
                     per_unit,
                 } => {
                     let v = per_unit * p.param(param) * k;
-                    match hazard {
-                        HazardKey::Flood => out.flood_protection += v,
-                        HazardKey::Storm => out.storm_protection += v,
-                        HazardKey::Wildfire => out.wildfire_protection += v,
+                    match hazard.key() {
+                        Some(HazardKey::Flood) => out.flood_protection += v,
+                        Some(HazardKey::Storm) => out.storm_protection += v,
+                        Some(HazardKey::Wildfire) => out.wildfire_protection += v,
+                        None => {}
                     }
                 }
+                // Family mechanisms (F2b).
+                MechanismDef::Borrow { .. }
+                | MechanismDef::Revenue { .. }
+                | MechanismDef::SectorCapacity { .. } => {}
             }
         }
     }
@@ -1006,6 +1011,10 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         MechanismDef::LocalTaxRate { param } => {
                             p.ledger.insert("tax_change_pts".into(), p.param(param));
                         }
+                        // Family mechanisms (F2b).
+                        MechanismDef::Borrow { .. }
+                        | MechanismDef::Revenue { .. }
+                        | MechanismDef::SectorCapacity { .. } => {}
                     }
                 }
                 p.ledger.insert("funded_pct".into(), funded * 100.0);

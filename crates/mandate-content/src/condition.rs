@@ -29,8 +29,9 @@ use crate::bundle::ContentBundle;
 use crate::conversation::{AboutKind, ConcernOf, SubjectRef};
 use crate::knowledge::Level;
 use crate::narrative::{LawStatus, SubjectDef, TrackKey};
+use crate::policy_family::SlotKind;
 use crate::routines::DayPart;
-use crate::types::{ContentKey, Indicator, Power, SectorDriver, TierKey};
+use crate::types::{ContentKey, HazardKey, Indicator, Power, SectorDriver, TierKey};
 use crate::validate::Issue;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -379,9 +380,48 @@ pub enum Condition {
         #[serde(default = "yes")]
         is: bool,
     },
+    // --- A policy family's bound slots (local-only; F1, DEC-092) -------------------
+    /// This concern is among the `top` worries (measured) of the
+    /// neighbourhood bound to `slot`.
+    HoodConcern {
+        #[serde(alias = "role")]
+        slot: String,
+        concern: ContentKey,
+        #[serde(default = "three")]
+        top: u8,
+    },
+    /// The neighbourhood bound to `slot` is exposed to this hazard at least
+    /// `min` (0..1; DEC-090 D8).
+    HoodHazard {
+        #[serde(alias = "role")]
+        slot: String,
+        hazard: HazardKey,
+        min: f64,
+    },
+    /// The sector bound to `slot` has lost at least `min` of its jobs in the
+    /// jurisdiction since the baseline (E1; a share, 0..1).
+    SectorDecline {
+        #[serde(alias = "role")]
+        slot: String,
+        min: f64,
+    },
+    /// The place bound to `slot` is open (DEC-090 D3).
+    PlaceOpen {
+        #[serde(alias = "role")]
+        slot: String,
+    },
+    /// The place bound to `slot` has closed.
+    PlaceClosed {
+        #[serde(alias = "role")]
+        slot: String,
+    },
     // --- Composition ----------------------------------------------------------------
     /// Any one of these holds (the first that does gives the arguments).
     Any { of: Vec<Condition> },
+}
+
+fn three() -> u8 {
+    3
 }
 
 fn yes() -> bool {
@@ -481,6 +521,9 @@ pub struct Needs {
     pub state: bool,
     /// It reads where it is said or done (a place, a neighbourhood).
     pub here: bool,
+    /// It reads a policy family's bound slot (a place, neighbourhood or
+    /// sector): only a family's trigger or expiry binds them.
+    pub family: bool,
 }
 
 impl Condition {
@@ -535,6 +578,11 @@ impl Condition {
             C::Tells { .. } => "tells",
             C::Voice { .. } => "voice",
             C::About { .. } => "about",
+            C::HoodConcern { .. } => "hood_concern",
+            C::HoodHazard { .. } => "hood_hazard",
+            C::SectorDecline { .. } => "sector_decline",
+            C::PlaceOpen { .. } => "place_open",
+            C::PlaceClosed { .. } => "place_closed",
             C::Any { .. } => "any",
         }
     }
@@ -563,7 +611,12 @@ impl Condition {
             | C::Shedding { .. }
             | C::Present { .. }
             | C::IsBroker { .. }
-            | C::IsRival { .. } => CondTier::Local,
+            | C::IsRival { .. }
+            | C::HoodConcern { .. }
+            | C::HoodHazard { .. }
+            | C::SectorDecline { .. }
+            | C::PlaceOpen { .. }
+            | C::PlaceClosed { .. } => CondTier::Local,
             C::Any { of } => {
                 if of.iter().any(|c| c.tier() == CondTier::Local) {
                     CondTier::Local
@@ -626,9 +679,28 @@ impl Condition {
             | C::Dry
             | C::PlayerAwareness { .. }
             | C::PlayerApproval { .. } => n.here = true,
+            C::HoodConcern { .. }
+            | C::HoodHazard { .. }
+            | C::SectorDecline { .. }
+            | C::PlaceOpen { .. }
+            | C::PlaceClosed { .. } => n.family = true,
             _ => {}
         }
         n
+    }
+
+    /// The family slot a slot-relative family condition names, and the kind
+    /// of slot it needs.
+    pub fn family_slot(&self) -> Option<(&str, SlotKind)> {
+        use Condition as C;
+        match self {
+            C::HoodConcern { slot, .. } | C::HoodHazard { slot, .. } => {
+                Some((slot, SlotKind::Neighborhood))
+            }
+            C::SectorDecline { slot, .. } => Some((slot, SlotKind::Sector)),
+            C::PlaceOpen { slot } | C::PlaceClosed { slot } => Some((slot, SlotKind::Place)),
+            _ => None,
+        }
     }
 
     /// The slots (cast roles, or a conversation's slots) a condition names,
@@ -648,7 +720,12 @@ impl Condition {
             | C::IsBroker { slot, .. }
             | C::IsRival { slot, .. }
             | C::PartyLineAgainstWard { slot }
-            | C::CanVote { slot } => vec![slot.as_str()],
+            | C::CanVote { slot }
+            | C::HoodConcern { slot, .. }
+            | C::HoodHazard { slot, .. }
+            | C::SectorDecline { slot, .. }
+            | C::PlaceOpen { slot }
+            | C::PlaceClosed { slot } => vec![slot.as_str()],
             C::Knows { subject, .. } => subject.role().into_iter().collect(),
             C::Answered { same_cast, .. } => same_cast.iter().map(|s| s.as_str()).collect(),
             C::SponsoredLaw { slot, .. } => slot.iter().map(|s| s.as_str()).collect(),
@@ -760,8 +837,7 @@ pub enum ConditionUse {
     SceneVariant,
     /// An ask's trigger (E6–E8; no content field yet).
     Ask,
-    /// A policy family's trigger or expiry (F1; no content field yet; its
-    /// slot conditions come with F1).
+    /// A policy family's trigger or expiry (F1): its slots are bound.
     FamilyTrigger,
     /// A situational policy's unlock.
     PolicyUnlock,
@@ -788,6 +864,9 @@ pub enum Slots {
     Cast,
     /// A conversation's `speaker`, `about`, `player`.
     Talk,
+    /// A policy family's slots (places, neighbourhoods, people, sectors,
+    /// crises, hazards).
+    Family,
 }
 
 /// What a use provides (the other half of the validator's table).
@@ -857,7 +936,8 @@ impl ConditionUse {
             | U::StorylineAdvance
             | U::Ask => p(Slots::Cast, false, false, true),
             U::SceneVariant => p(Slots::Cast, true, true, false),
-            U::FamilyTrigger | U::PolicyUnlock => p(Slots::None, true, false, true),
+            U::FamilyTrigger => p(Slots::Family, true, false, true),
+            U::PolicyUnlock => p(Slots::None, true, false, true),
             U::TalkTopic | U::TalkLine | U::TalkVoice => p(Slots::Talk, true, true, false),
             U::Overheard => p(Slots::None, true, true, false),
             U::VisitVerb | U::VisitRisk => p(Slots::None, true, true, true),
@@ -882,12 +962,18 @@ impl ConditionUse {
                 "`{t}` reads a conversation (its speaker, subject or voice); {what} has none"
             ));
         }
+        if n.family && p.slots != Slots::Family {
+            return Some(format!(
+                "`{t}` reads a policy family's bound slot; only a family's trigger or expiry \
+                 binds them, and {what} has none"
+            ));
+        }
         if n.cast && p.slots != Slots::Cast {
             return Some(format!(
                 "`{t}` reads an actor cast in a role; {what} has no cast"
             ));
         }
-        if n.slot && p.slots == Slots::None {
+        if n.slot && matches!(p.slots, Slots::None | Slots::Family) {
             return Some(format!(
                 "this condition reads a slot (a conversation's speaker or subject, or a cast \
                  role); no slot is bound in {what}"
@@ -1105,8 +1191,8 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
                 err(issues, "law_in_force needs templates".into());
             }
             for t in templates {
-                if !b.policies.contains_key(t) {
-                    err(issues, format!("unknown policy `{t}`"));
+                if !b.policies.contains_key(t) && b.family(t).is_none() {
+                    err(issues, format!("unknown policy or family `{t}`"));
                 }
             }
         }
@@ -1329,6 +1415,22 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
                 );
             }
         }
+        C::HoodConcern { concern, top, .. } => {
+            if b.concern_index(concern).is_none() {
+                warn(
+                    issues,
+                    format!("unknown concern `{concern}` (the condition never holds)"),
+                );
+            }
+            if *top == 0 {
+                err(issues, "hood_concern `top` must be at least 1".into());
+            }
+        }
+        C::HoodHazard { min, .. } | C::SectorDecline { min, .. } => {
+            if !(min.is_finite() && (0.0..=1.0).contains(min)) {
+                err(issues, format!("{} `min` must be in [0, 1]", c.key()));
+            }
+        }
         C::Any { of } => {
             if of.is_empty() {
                 err(issues, "an `any` condition needs alternatives".into());
@@ -1348,7 +1450,9 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
         | C::Campaigning { .. }
         | C::HoldsPower { .. }
         | C::PartyLineAgainstWard { .. }
-        | C::CanVote { .. } => {}
+        | C::CanVote { .. }
+        | C::PlaceOpen { .. }
+        | C::PlaceClosed { .. } => {}
     }
 }
 

@@ -105,7 +105,8 @@
     // Places with purpose (DEC-079 note): `verbs` of the visit action
     // (actions.jsonc `visit.verbs`); `sector` is the industry a place is part
     // of and `addresses` the concerns its service meets (what the `sector`
-    // and `service` grants read). Interiors come in later art rounds.
+    // and `service` grants read). `drivers` are its sector drivers, which
+    // policy-family selectors read (DEC-092). Interiors come in later art rounds.
     {
       "id": "place.school", "key": "school", "name_key": "place-school",
       "verbs": ["verb.visit_service", "verb.talk_to_head"],
@@ -132,31 +133,31 @@
     {
       "id": "place.factory", "key": "factory", "name_key": "place-factory",
       "verbs": ["verb.tour_works", "verb.listen_at_gate", "verb.photo_op_gate"],
-      "sector": "sector.manufacturing",
+      "sector": "sector.manufacturing", "drivers": ["industrial"],
       "layout": { "slot": "works", "footprint": [[7, 4], [9, 5]], "place": ["near_rail", "by_water", "edge"], "signature": "chimney", "with": ["chimney"], "landmark": true, "art": { "kit": "kit.factory", "family": "industrial" } },
     },
     {
       "id": "place.port", "key": "port", "name_key": "place-port",
       "verbs": ["verb.tour_works", "verb.listen_at_gate", "verb.photo_op_gate"],
-      "sector": "sector.manufacturing",
+      "sector": "sector.manufacturing", "drivers": ["industrial"],
       "layout": { "slot": "harbour", "footprint": [[6, 3], [8, 4]], "place": ["shore", "by_water"], "signature": "cranes", "with": ["pier", "cranes"], "landmark": true, "art": { "kit": "kit.port", "family": "industrial" } },
     },
     {
       "id": "place.farm", "key": "farm", "name_key": "place-farm",
       "verbs": ["verb.walk_fields"],
-      "sector": "sector.agriculture",
+      "sector": "sector.agriculture", "drivers": ["land_based"],
       "layout": { "slot": "works", "footprint": [[5, 4], [6, 4]], "place": ["edge", "quiet"], "landmark": false, "art": { "kit": "kit.farm", "family": "rural" } },
     },
     {
       "id": "place.mine", "key": "mine", "name_key": "place-mine",
       "verbs": ["verb.tour_works", "verb.listen_at_gate", "verb.photo_op_gate"],
-      "sector": "sector.resources",
+      "sector": "sector.resources", "drivers": ["extraction"],
       "layout": { "slot": "works", "footprint": [[5, 4], [8, 5]], "place": ["edge", "toward:minerals", "near_rail"], "signature": "headframe", "with": ["spoil_heap", "rail_spur", "winding_house"], "landmark": true, "art": { "kit": "kit.colliery", "family": "industrial" } },
     },
     {
       "id": "place.mill", "key": "mill", "name_key": "place-mill",
       "verbs": ["verb.tour_works", "verb.listen_at_gate", "verb.photo_op_gate"],
-      "sector": "sector.manufacturing",
+      "sector": "sector.manufacturing", "drivers": ["industrial"],
       "layout": { "slot": "works", "footprint": [[5, 4], [6, 5]], "place": ["by_water", "riverbank", "edge"], "signature": "chimney", "landmark": true, "art": { "kit": "kit.mill", "family": "industrial" } },
     },
     {
@@ -164,13 +165,13 @@
       "id": "place.hotel", "key": "hotel", "name_key": "place-hotel",
       "actions": ["fundraise"],
       "late_night": ["fundraise"],
-      "sector": "sector.tourism",
+      "sector": "sector.tourism", "drivers": ["visitor"],
       "layout": { "slot": "commercial", "footprint": [[4, 4], [5, 5]], "place": ["near_square", "by_water", "central"], "landmark": false, "art": { "kit": "kit.hotel", "family": "commercial" } },
     },
     {
       "id": "place.university", "key": "university", "name_key": "place-university",
       "verbs": ["verb.visit_service", "verb.talk_to_head", "verb.meet_young_staff"],
-      "sector": "sector.knowledge", "addresses": ["concern.jobs"],
+      "sector": "sector.knowledge", "drivers": ["knowledge"], "addresses": ["concern.jobs"],
       "layout": { "slot": "civic", "footprint": [[7, 4], [9, 5]], "place": ["near_square", "high_ground", "quiet"], "signature": "tower", "landmark": true, "art": { "kit": "kit.university", "family": "civic" } },
     },
     {
@@ -178,7 +179,7 @@
       "id": "place.tech_campus", "key": "tech_campus", "name_key": "place-tech_campus",
       "actions": ["fundraise"],
       "verbs": ["verb.meet_young_staff"],
-      "sector": "sector.knowledge",
+      "sector": "sector.knowledge", "drivers": ["knowledge"],
       "layout": { "slot": "works", "footprint": [[6, 4], [8, 5]], "place": ["edge", "arterial", "by_water"], "landmark": false, "art": { "kit": "kit.campus", "family": "commercial" } },
     },
     {

@@ -144,6 +144,19 @@ pub enum ContentFile {
     },
     /// How acts end (DEC-006; DEC-098 note): the endings registry.
     Endings { items: Vec<crate::act::EndingDef> },
+    /// Policy families: proposals grounded in the town (DEC-092).
+    PolicyFamilies {
+        items: Vec<crate::policy_family::PolicyFamilyDef>,
+    },
+    /// The family numbers: rarity chances, the cap on open proposals,
+    /// sponsor goodwill, works (DEC-092, DEC-099).
+    PolicyFamilyParams {
+        value: Box<crate::policy_family::FamilyParams>,
+    },
+    /// Targeted changes to families of earlier packs (DEC-092), in pack order.
+    PolicyFamilyPatches {
+        items: Vec<crate::policy_family::FamilyPatch>,
+    },
 }
 
 // --- Constitution primitives (DEC-017) -----------------------------------------
@@ -665,6 +678,14 @@ pub struct ParamDef {
     pub step: f64,
     /// Fluent key for the unit label.
     pub unit_key: String,
+    /// Not a slider: a value an option fixes for its mechanisms (DEC-092
+    /// families). Hidden parameters are never shown or set by a draft.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub hidden: bool,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 /// Budget categories (mirror the finance domain's categories).
@@ -704,6 +725,26 @@ pub enum HazardKey {
     Wildfire,
 }
 
+/// A hazard a mechanism names: a hazard, or (in a policy family) `@slot`,
+/// the hazard bound to that slot. `"flood"` parses as before.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum HazardRef {
+    Key(HazardKey),
+    /// `@slot`: a family's hazard slot (composition replaces it).
+    Slot(String),
+}
+
+impl HazardRef {
+    /// The hazard, once any slot reference is resolved.
+    pub fn key(&self) -> Option<HazardKey> {
+        match self {
+            HazardRef::Key(k) => Some(*k),
+            HazardRef::Slot(_) => None,
+        }
+    }
+}
+
 /// Typed mechanism primitives (DEC-024). Policies never write outcomes
 /// directly; the domain models compute consequences from these.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -732,12 +773,83 @@ pub enum MechanismDef {
     WageFloor { param: String },
     /// Reduces damage from a hazard by `per_unit` × param (capped at 0.9).
     HazardProtection {
-        hazard: HazardKey,
+        hazard: HazardRef,
         param: String,
         per_unit: f64,
     },
     /// Changes the local property tax by `param` percentage points of value.
     LocalTaxRate { param: String },
+    /// Finance (DEC-092 families): this share of the annual cost is added to
+    /// the jurisdiction's debt instead of being spent from its budget.
+    Borrow { share: f64 },
+    /// Finance: income that offsets the cost, `per_capita` per resident (of
+    /// the area) plus `per_unit` × param a year, at price level 1.
+    Revenue {
+        #[serde(default)]
+        per_capita: f64,
+        #[serde(default)]
+        per_unit: f64,
+        #[serde(default)]
+        param: Option<String>,
+    },
+    /// Economy: structural jobs in a sector, `per_unit` × param.
+    SectorCapacity {
+        sector: ContentKey,
+        param: String,
+        per_unit: f64,
+    },
+}
+
+impl MechanismDef {
+    /// The parameter it reads, if any.
+    pub fn param(&self) -> Option<&str> {
+        use MechanismDef as M;
+        match self {
+            M::Service { param, .. }
+            | M::Transfer { param, .. }
+            | M::HousingSupply { param }
+            | M::Zoning { param, .. }
+            | M::SectorSubsidy { param, .. }
+            | M::WageFloor { param }
+            | M::HazardProtection { param, .. }
+            | M::LocalTaxRate { param }
+            | M::SectorCapacity { param, .. } => Some(param),
+            M::Revenue { param, .. } => param.as_deref(),
+            M::Borrow { .. } => None,
+        }
+    }
+
+    /// The direction of its effect (−1 for a negative coefficient, else 1).
+    pub fn sign(&self) -> f64 {
+        use MechanismDef as M;
+        let v = match self {
+            M::Service { per_unit, .. }
+            | M::Zoning { per_unit, .. }
+            | M::HazardProtection { per_unit, .. }
+            | M::SectorCapacity { per_unit, .. } => *per_unit,
+            M::SectorSubsidy { elasticity, .. } => *elasticity,
+            _ => 1.0,
+        };
+        if v < 0.0 { -1.0 } else { 1.0 }
+    }
+
+    /// Its Fluent-free type tag, as content writes it.
+    pub fn key(&self) -> &'static str {
+        use MechanismDef as M;
+        match self {
+            M::Service { .. } => "service",
+            M::Transfer { .. } => "transfer",
+            M::HousingSupply { .. } => "housing_supply",
+            M::Zoning { .. } => "zoning",
+            M::SectorSubsidy { .. } => "sector_subsidy",
+            M::WageFloor { .. } => "wage_floor",
+            M::HazardProtection { .. } => "hazard_protection",
+            M::LocalTaxRate { .. } => "local_tax_rate",
+            M::Borrow { .. } => "borrow",
+            M::Revenue { .. } => "revenue",
+            M::SectorCapacity { .. } => "sector_capacity",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -790,17 +902,27 @@ pub struct PolicyTemplate {
     /// Always available without one.
     #[serde(default)]
     pub unlock: Option<SituationTrigger>,
+    /// Retired (DEC-092 §2.19): not offered and not draftable by anyone;
+    /// bills and laws already made continue and saves that have them load.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub retired: bool,
 }
 
 // --- Situations (DEC-077 §3; reused by DEC-092 policy-family triggers) ------------
 
-/// A trigger on a town's situation: it holds while any of its conditions
-/// does. Reusable wherever content needs "when this town is in this kind of
-/// situation" (situational policies now; policy families later).
+/// A trigger on a jurisdiction's situation: it holds while every `all`
+/// condition holds and, when any are given, one of the `any` conditions
+/// does. Situational policies' unlocks and policy families' triggers and
+/// expiry (DEC-092).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SituationTrigger {
-    /// Any one of these holds (the one condition language, `condition.rs`).
+    /// Every one of these holds.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub all: Vec<crate::condition::Condition>,
+    /// At least one of these holds, when any are given (the one condition
+    /// language, `condition.rs`).
+    #[serde(default)]
     pub any: Vec<crate::condition::Condition>,
     /// Fluent key naming the circumstances, e.g. `unlock-closure`.
     pub reason_key: String,
@@ -1546,6 +1668,16 @@ pub const PLACE_SERVICES: [&str; 6] = [
     "newspaper",
 ];
 
+/// Neighbourhood kinds, as worldgen makes them (policy-family selectors).
+pub const NEIGHBORHOOD_KINDS: [&str; 6] = [
+    "core",
+    "inner",
+    "waterfront",
+    "industrial",
+    "suburb",
+    "rural",
+];
+
 /// Pseudo-locations that are not generated places: the player's home, and
 /// the streets of each neighbourhood.
 pub const PSEUDO_PLACES: [&str; 2] = ["home", "streets"];
@@ -1578,6 +1710,11 @@ pub struct PlaceKindDef {
     /// verb's `sector` grant and its risk's `shedding` read.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sector: Option<ContentKey>,
+    /// The sector drivers of this kind of place (DEC-092 families: a plant's
+    /// sector, `drivers` selectors): the factory and the mill are
+    /// `industrial`, the mine `extraction`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub drivers: Vec<SectorDriver>,
     /// The concerns its service addresses (concern ids): its real need is
     /// its neighbourhood's felt level of them (DEC-092 §2.22), what a
     /// verb's `service` grant reads.
@@ -2817,6 +2954,19 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         },
         "endings" => ContentFile::Endings {
             items: serde_json::from_str::<ItemsFile<crate::act::EndingDef>>(json)?.items,
+        },
+        "policy_families" => ContentFile::PolicyFamilies {
+            items: serde_json::from_str::<ItemsFile<crate::policy_family::PolicyFamilyDef>>(json)?
+                .items,
+        },
+        "policy_family_params" => ContentFile::PolicyFamilyParams {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::policy_family::FamilyParams>>(json)?.value,
+            ),
+        },
+        "policy_family_patches" => ContentFile::PolicyFamilyPatches {
+            items: serde_json::from_str::<ItemsFile<crate::policy_family::FamilyPatch>>(json)?
+                .items,
         },
         other => {
             use serde::de::Error;
