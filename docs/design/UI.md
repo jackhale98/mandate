@@ -37,26 +37,35 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
             │          (DEC-091: placeholders and leads where something is not known yet)
             ├─ Places → every place in town as a button, by neighbourhood, reachable without walking
             │          (the accessible path, DEC-051, and quick mode's future home)
-            ├─ Notebook → what you know about the town (DEC-091, K5), organised for finding things,
-            │          not as a log. Its own tabs, styled like the pocket's (icon over label):
-            │          People (who runs things, the rival's plans, people with their role, what they
-            │          care about and, in detail, whom they owe; gossip), Places (hidden places found),
-            │          Worries (the whole town, then by neighbourhood), Policies (support, proposals),
-            │          Leads (those picked up, newest first, then ways to find out what is not known).
-            │          Each entry: title, level as dots and in words (heard / known / detailed; never
-            │          colour alone), where and when it was learned ("Canvass a neighbourhood, 1 March"),
-            │          a reading's date and "old figures", "How you learned this" when the steps came
-            │          from different places, a lead to learn more, and for people a link to their
-            │          sheet. Placeholders (dashed) for public things not known yet (the town's and
-            │          each neighbourhood's worries, who runs things, the rival's plans, support for
-            │          the standard menu; never people or hidden places) with the lead that would
-            │          reveal them and "Go there" (auto-routed). New entries come first, marked "New",
-            │          with counts on the notebook's tabs; it opens on the first tab with news.
-            │          Opening it is seeing it: the engine is told (`notebook_seen`), the badge
-            │          clears and stays clear after a reload; the marks stay while you look. A search
-            │          box filters the open tab and names the other tabs with matches
-            └─ People → who matters in town (council and mayor, broker, rival) and how they stand
-                       with you
+            └─ Notebook → what you know about the town (DEC-091, K5), organised for finding things,
+                       not as a log. Its own tabs, styled like the pocket's (icon over label):
+                       People, the single place for people: the key figures pinned at the top (who
+                       runs things, the rival, the holder of the executive post and the members of the
+                       legislature, from the office view and the town's character, named by the role
+                       words the views give, DEC-098), then everyone else you know, each on the same
+                       card: name (opens the sheet), role and ward, how they stand with you (the sheet's
+                       opinion and trust bands, favours), what you know (dots and words, where and when,
+                       what they care about), where you saw them (S1: "Usually at … in the afternoon",
+                       else "Last seen at …"), Talk (the dialogue) and Go to them (where the engine's
+                       talk view says they are now; the talk panel when they are here or nowhere to go);
+                       then who runs things, the rival's plans and gossip, with their placeholders.
+                       Places (hidden places found),
+                       Worries (the whole town, then by neighbourhood), Policies (support, proposals),
+                       Leads (those picked up, newest first, then ways to find out what is not known).
+                       Each entry: title, level as dots and in words (heard / known / detailed; never
+                       colour alone), where and when it was learned ("Canvass a neighbourhood, 1 March"),
+                       a reading's date and "old figures", "How you learned this" when the steps came
+                       from different places, a lead to learn more, and for people a link to their
+                       sheet. Placeholders (dashed) for public things not known yet (the town's and
+                       each neighbourhood's worries, who runs things, the rival's plans, support for
+                       the standard menu; never people or hidden places) with the lead that would
+                       reveal them and "Go there" (auto-routed). New entries come first, marked "New",
+                       with counts on the notebook's tabs; it opens on the first tab with news.
+                       Opening it is seeing it: the engine is told (`notebook_seen`), the badge
+                       clears and stays clear after a reload; the marks stay while you look. A search
+                       box filters the open tab and names the other tabs with matches
+                       (People used to be a fifth pocket tab; it joined the notebook, DEC-088, and a
+                       remembered People tab opens the Notebook)
             plus links: national map, overview, the story so far, save & quit
           Accessibility: a "Skip to Places" link (visible on focus), landmarks (main: the town;
                complementary: the pocket; navigation: the bar), the canvas labelled with a pointer to
@@ -98,14 +107,14 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
 ## 3. Talking to people (DEC-093)
 - **Dialogue mode.** A conversation is a classic RPG dialogue box at the bottom of the screen (about a third of a phone's height; a compact 680 px box on desktop, with the topics in two columns) and pixel speech bubbles over the speakers. The box and the bubbles have the game's pixel frames (CSS: whole 3 px borders, notched corners, a hard drop shadow), with light and dark sets. It opens from:
   - the place panel's **People here** (a Talk button beside each person; a passer-by is met as the talk starts);
-  - the pocket's **People** tab (the council, the mayor, the power broker, the rival);
-  - the **walkable street**: the engine's people on the street the player is on stand about it with a name tag. A tap on them (or their tag) walks the player up beside them (left or right where possible) and starts the conversation. With the keyboard, standing beside them shows "Enter: talk to …" (the door-hint pattern) and Enter starts it. At a place, its people are in the place panel.
+  - the Notebook's **People** section (a Talk button on every card: the key figures pinned, then everyone else you know);
+  - the **walkable street**: the engine's people on the street the player is on stand about it with a name tag. Each tag carries a small pixel marker: a speech bubble with dots for someone to talk to, a gold bubble with "!" for someone with something new for you (the engine's `PersonRefView.has_news`: a topic that tells things they have not been asked this week, or a lead in the notebook points to them; asks join it with E6–E8; passers-by never). The shapes differ, not only the colours, and the tag's accessible name says it ("Vera Holt, can talk", "…, has something new"); tags stay out of the Tab order (the Notebook's People and the place panel are the keyboard route). The "!" bobs one pixel on alternate frames the street draws anyway (its ambient frames), so it stops with idle sleep and never runs a loop of its own; still with reduced motion. A tap on them (or their tag) walks the player up beside them (left or right where possible) and starts the conversation. With the keyboard, standing beside them shows "Enter: talk to …" (the door-hint pattern) and Enter starts it. At a place, its people are in the place panel.
 - **In the street** (the person stands there by the player, and the street is in sight):
   - the camera eases to frame the two of them facing each other above the box, zoomed in a little (it snaps with reduced motion);
   - the rest of the street dims (a pool of light stays on the speakers);
   - walking, street input, labels, the "you are here" marker and the townsfolk pause until the conversation ends;
   - only the speaker moves (a one-pixel bob while their words come out), so the street draws nothing between replies. The street is not paused as it is behind a sheet.
-- **Anywhere else** (the People tab, a place's people, the List view, anyone not on screen): the same box over a large pixel **portrait** of the person, with the bubbles beside it. The portrait is the bust of their street sprite: the same look, composed from the same character parts, at 8 CSS px per art pixel. The street behind is dimmed, blurred and paused.
+- **Anywhere else** (the Notebook's People, a place's people, the List view, anyone not on screen): the same box over a large pixel **portrait** of the person, with the bubbles beside it. The portrait is the bust of their street sprite: the same look, composed from the same character parts, at 8 CSS px per art pixel. The street behind is dimmed, blurred and paused.
 - **The box:**
   - A name plate shows the name (the role, for a stranger). The header gives their role, how warm they are, the cost ("½ slot · 2½ left"; late at night, "The late slot") and a close button.
   - **Choices** are one line each, one per topic the engine offers (`TalkView`). Topics a person is not asked (their role, the place, conditions) are left out.
@@ -136,7 +145,7 @@ Title ── Runs (concurrent run slots, DEC-008) ── Hall of Legacies (DEC-0
 - **Which places.** A place kind whose content names an interior (`places.jsonc` `interior`; M6: the council chamber, the town hall, the diner) is entered from the street: a tap on the building walks to its door and in, as does Enter at its door with the keyboard. Every other place keeps its panel. The **Places tab** and the **town map** always open the panel (DEC-051: nothing is reachable only by walking); so will quick mode.
 - **The transition.** A short fade from dark into the room (220 ms) and out again at the door; none with reduced motion.
 - **The room.** One screen, the whole room in view at a whole-pixel zoom, in the street's scale and view. Composed on the client from the recipe the engine's place view sends (`PlacePanelView.interior`, the content's JSON) and a seed keyed by the town and the place (DEC-085), cached by place, recipe version and seed. The light follows the turn's slots, as on the street: daylight under the windows by day, the lamps once they come on, the street's colour through the glass.
-- **People.** Who is here is the engine's (the place view's `people`); how they are here is the engine's too (`here_as`: presiding, member, works, visitor). The room only decides where they stand: the recipe's `cast` maps each to spot roles in order of preference, taken in the recipe's order; seated people sit on their seat, cut at the hips; more people than spots stand on free floor near the door. Each has a name tag (a stranger: their role). Staff nobody present takes (the clerk, the usher, the cook, the waiter) are scenery, like the street's townsfolk: no tag, no conversation; fewer in the evening.
+- **People.** Who is here is the engine's (the place view's `people`); how they are here is the engine's too (`here_as`: presiding, member, works, visitor). The room only decides where they stand: the recipe's `cast` maps each to spot roles in order of preference, taken in the recipe's order; seated people sit on their seat, cut at the hips; more people than spots stand on free floor near the door. Each has a name tag (a stranger: their role) with the street's marker (💬 or "!", the same words for screen readers; the "!" bobs only on frames the room draws anyway, so an idle room stays still). Staff nobody present takes (the clerk, the usher, the cook, the waiter) are scenery, like the street's townsfolk: no tag, no conversation; fewer in the evening.
 - **Talking.** A tap on someone (or their tag) walks up to them and starts a conversation through the store's `openTalk`; with the keyboard, standing beside them shows "Enter: talk to …" and Enter starts it. Inside, the room is the dialogue mode's talk stage (`components/talk/stage.ts`, registered by the interior as the street registers itself outside): the player and the person turn to each other, the room moves up clear of the dialogue box, the rest dims and the speech bubbles sit over the two; the street's stage comes back on the way out.
 - **Hotspots.** Each offered hotspot has a small label (the clerk's windows, the notice board, the lectern, a booth). A tap walks to the tile in front of it and opens its sheet: the place panel's forms for what the recipe puts there, filtered by what the place view offers now (the back booth's envelope only late at night); services open the place panel where their figures are. With the keyboard, Enter at the hotspot's tile opens it.
 - **Leaving.** The door (a tap, its "Out" label, Down or Enter on the door tile, or Escape) or the Leave button: back in the street at the place's door. Going somewhere else (an action routed elsewhere, the Places tab) leaves the room too.

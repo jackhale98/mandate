@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { openPocket, showPlaces } from "./pocket";
+import { officeFigures, openPeople, showPlaces } from "./pocket";
 
 // Talking to people (DEC-093) in dialogue mode, and canvassing on a worry
 // (DEC-091). A conversation is a dialogue box at the bottom of the screen:
@@ -109,10 +109,10 @@ const toStreets = async (page: Page) => {
   return panel;
 };
 
-test("talk from the People tab: over a portrait; someone elsewhere is gone to; topics with odds and the cost; a subject step; a reply in their voice", async ({ page, isMobile }) => {
+test("talk from the Notebook's People: over a portrait; someone elsewhere is gone to; topics with odds and the cost; a subject step; a reply in their voice", async ({ page, isMobile }) => {
   await start(page, "7311");
-  const pocket = await openPocket(page, "people");
-  await pocket.getByTestId("people-council").getByTestId("talk-button").first().click();
+  const pocket = await openPeople(page);
+  await officeFigures(pocket).getByTestId("talk-button").first().click();
   const dlg = box(page);
   await expect(dlg).toBeVisible();
   await expect(page.getByRole("dialog", { name: /^Talking with / })).toBeVisible();
@@ -271,8 +271,8 @@ test("walk up to someone in the street and talk (a tap on them; Enter beside the
 test("the keyboard in a conversation: arrows move between choices, Enter chooses, Escape steps back from a subject, then leaves", async ({ page, isMobile }) => {
   test.skip(isMobile, "keyboard on desktop");
   await start(page, "7311");
-  const pocket = await openPocket(page, "people");
-  const opener = pocket.getByTestId("people-council").getByTestId("talk-button").first();
+  const pocket = await openPeople(page);
+  const opener = officeFigures(pocket).getByTestId("talk-button").first();
   await opener.click();
   const dlg = box(page);
   await choiceIn(dlg.getByTestId("talk-go")).click();
@@ -330,8 +330,8 @@ test("the keyboard in a conversation: arrows move between choices, Enter chooses
 test("out of time: the box says so and every topic waits", async ({ page }) => {
   test.setTimeout(120_000);
   await start(page, "7311");
-  const pocket = await openPocket(page, "people");
-  await pocket.getByTestId("people-council").getByTestId("talk-button").first().click();
+  const pocket = await openPeople(page);
+  await officeFigures(pocket).getByTestId("talk-button").first().click();
   const dlg = box(page);
   await choiceIn(dlg.getByTestId("talk-go")).click();
   await expect(dlg.getByTestId("talk-away")).toHaveCount(0);
