@@ -1,6 +1,6 @@
 // Screenshots of the landing page in both themes, on a phone and a desktop,
 // for review (DEC-083). Writes to ../target/screens/.
-//   node web/landing/scripts/screens.mjs http://localhost:4173/mandate/
+//   node web/landing/scripts/screens.mjs http://localhost:4173/mandate/   (the port PW_PORT, if set)
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
@@ -14,6 +14,8 @@ const browser = await chromium.launch(
 );
 const sizes = {
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+  // The narrowest phone the page is laid out for.
+  narrow: { viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
 };
 for (const [name, size] of Object.entries(sizes)) {

@@ -32,7 +32,7 @@ The file holds this game's seed and settings, every move you made in it, the gam
 | `crates/` | The Rust workspace: `mandate-core` (IDs, calendar, money, deterministic math, RNG), `mandate-content` (JSONC loading, schemas, validation), `mandate-sim` (state, domain systems, scheduler, commands), `mandate-worldgen` (world generation and history burn-in), `mandate-save` (versioned saves and migrations), `mandate-protocol` (worker DTOs, TypeScript generation), `mandate-wasm` (the browser adapter), `mandate-cli` (the simulation lab) |
 | `content/base/` | The base content pack (JSONC registries and parameter blocks, Fluent text in `locale/en/`); `content/schemas/` holds the generated JSON Schema |
 | `web/src/` | The game: screens, sheets, the pocket, the engine worker and typed client, saves (IndexedDB), Fluent text, the map, and `hub/` (the walkable-town groundwork for M6) |
-| `web/landing/` | The landing page at the site root (plain HTML, CSS, a little TypeScript) and the scripts that capture its images from the game |
+| `web/landing/` | The landing page at the site root (plain HTML, CSS, a little TypeScript) and the scripts that capture its images from the game (`npm run capture` in `web/` retakes them all) |
 | `web/spikes/hub/` | Throwaway rendering prototypes: the walkable town on the real engine, and the Canvas 2D vs PixiJS comparison |
 | `web/e2e/` | Playwright tests |
 | `tools/pixelkit/` | The pixel-art tool (working name, DEC-084): hand-drawn parts composed by code, and Mandate's art pack |
