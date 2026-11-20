@@ -1,0 +1,917 @@
+{
+  "pocket_asks": [
+    {
+      "id": 5,
+      "template": "ask.casework",
+      "promise": false,
+      "title_key": "ask-casework",
+      "detail_key": "ask-casework-detail",
+      "need_key": "ask-casework-need",
+      "outcome_key": null,
+      "args": {
+        "asker": "Ada Dace",
+        "asker_hood": "Vellenbridge",
+        "asker_occupation": "party_chair",
+        "asker_role_key": "occupation-party_chair",
+        "days": "7",
+        "history": "none",
+        "player": "Elan Birch",
+        "town": "Vellenbridge"
+      },
+      "asker": {
+        "type": "person",
+        "person": {
+          "id": 1303,
+          "ambient_slot": null,
+          "name": "Ada Dace",
+          "role_key": "occupation-party_chair",
+          "tier": "principal",
+          "level": "unknown",
+          "rumoured": false,
+          "can_talk": false,
+          "has_news": true
+        }
+      },
+      "status": "offered",
+      "unanswered": false,
+      "history": "none",
+      "public": false,
+      "big": false,
+      "opened": {
+        "day_number": 737552,
+        "year": 2020,
+        "month": 9,
+        "day": 10
+      },
+      "respond_by": {
+        "day_number": 737559,
+        "year": 2020,
+        "month": 9,
+        "day": 17
+      },
+      "due": {
+        "day_number": 737582,
+        "year": 2020,
+        "month": 10,
+        "day": 10
+      },
+      "days_left": 7,
+      "resolved_on": null,
+      "due_this_turn": true,
+      "needs": [
+        {
+          "kind": "casework",
+          "state": "current",
+          "watch": false,
+          "progress": null
+        }
+      ],
+      "progress": null,
+      "how": {
+        "action": "casework",
+        "late_night": false,
+        "neighborhood": null,
+        "to": {
+          "location": {
+            "type": "place",
+            "place": 103
+          },
+          "kind_key": "town_hall",
+          "name": "",
+          "neighborhood": 81,
+          "neighborhood_name": "Vellenbridge"
+        },
+        "here": false
+      },
+      "person": null,
+      "odds": null,
+      "keep_lines": [
+        {
+          "key": "effect-opinion",
+          "args": {
+            "delta": "+10",
+            "name": "Ada Dace"
+          },
+          "tone": "gain"
+        },
+        {
+          "key": "effect-approval-hood",
+          "args": {
+            "delta": "+1",
+            "hood": "Vellenbridge"
+          },
+          "tone": "gain"
+        }
+      ],
+      "break_lines": [
+        {
+          "key": "effect-opinion",
+          "args": {
+            "delta": "−12",
+            "name": "Ada Dace"
+          },
+          "tone": "cost"
+        },
+        {
+          "key": "effect-approval-hood",
+          "args": {
+            "delta": "−0.4",
+            "hood": "Vellenbridge"
+          },
+          "tone": "cost"
+        }
+      ],
+      "decline_lines": [
+        {
+          "key": "effect-opinion",
+          "args": {
+            "delta": "−3",
+            "name": "Ada Dace"
+          },
+          "tone": "cost"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "template": "ask.casework",
+      "promise": false,
+      "title_key": "ask-casework",
+      "detail_key": "ask-casework-detail",
+      "need_key": "ask-casework-need",
+      "outcome_key": null,
+      "args": {
+        "asker": "Ada Dace",
+        "asker_hood": "Vellenbridge",
+        "asker_occupation": "party_chair",
+        "asker_role_key": "occupation-party_chair",
+        "days": "25",
+        "history": "none",
+        "player": "Elan Birch",
+        "town": "Vellenbridge"
+      },
+      "asker": {
+        "type": "person",
+        "person": {
+          "id": 1303,
+          "ambient_slot": null,
+          "name": "Ada Dace",
+          "role_key": "occupation-party_chair",
+          "tier": "principal",
+          "level": "unknown",
+          "rumoured": false,
+          "can_talk": false,
+          "has_news": true
+        }
+      },
+      "status": "accepted",
+      "unanswered": false,
+      "history": "none",
+      "public": false,
+      "big": false,
+      "opened": {
+        "day_number": 737552,
+        "year": 2020,
+        "month": 9,
+        "day": 10
+      },
+      "respond_by": null,
+      "due": {
+        "day_number": 737577,
+        "year": 2020,
+        "month": 10,
+        "day": 5
+      },
+      "days_left": 25,
+      "resolved_on": null,
+      "due_this_turn": false,
+      "needs": [
+        {
+          "kind": "casework",
+          "state": "current",
+          "watch": false,
+          "progress": null
+        }
+      ],
+      "progress": null,
+      "how": {
+        "action": "casework",
+        "late_night": false,
+        "neighborhood": null,
+        "to": {
+          "location": {
+            "type": "place",
+            "place": 103
+          },
+          "kind_key": "town_hall",
+          "name": "",
+          "neighborhood": 81,
+          "neighborhood_name": "Vellenbridge"
+        },
+        "here": false
+      },
+      "person": null,
+      "odds": 0.85,
+      "keep_lines": [
+        {
+          "key": "effect-opinion",
+          "args": {
+            "delta": "+10",
+            "name": "Ada Dace"
+          },
+          "tone": "gain"
+        },
+        {
+          "key": "effect-approval-hood",
+          "args": {
+            "delta": "+1",
+            "hood": "Vellenbridge"
+          },
+          "tone": "gain"
+        }
+      ],
+      "break_lines": [
+        {
+          "key": "effect-opinion",
+          "args": {
+            "delta": "−12",
+            "name": "Ada Dace"
+          },
+          "tone": "cost"
+        },
+        {
+          "key": "effect-approval-hood",
+          "args": {
+            "delta": "−0.4",
+            "hood": "Vellenbridge"
+          },
+          "tone": "cost"
+        }
+      ],
+      "decline_lines": []
+    }
+  ],
+  "asks_recent": [
+    {
+      "id": 3,
+      "template": "ask.casework",
+      "promise": false,
+      "title_key": "ask-casework",
+      "detail_key": "ask-casework-detail",
+      "need_key": "ask-casework-need",
+      "outcome_key": "ask-casework-kept",
+      "args": {
+        "asker": "Ada Dace",
+        "asker_hood": "Vellenbridge",
+        "asker_occupation": "party_chair",
+        "asker_role_key": "occupation-party_chair",
+        "days": "20",
+        "history": "none",
+        "player": "Elan Birch",
+        "town": "Vellenbridge"
+      },
+      "asker": {
+        "type": "person",
+        "person": {
+          "id": 1303,
+          "ambient_slot": null,
+          "name": "Ada Dace",
+          "role_key": "occupation-party_chair",
+          "tier": "principal",
+          "level": "unknown",
+          "rumoured": false,
+          "can_talk": false,
+          "has_news": true
+        }
+      },
+      "status": "kept",
+      "unanswered": false,
+      "history": "none",
+      "public": false,
+      "big": false,
+      "opened": {
+        "day_number": 737552,
+        "year": 2020,
+        "month": 9,
+        "day": 10
+      },
+      "respond_by": null,
+      "due": {
+        "day_number": 737572,
+        "year": 2020,
+        "month": 9,
+        "day": 30
+      },
+      "days_left": 0,
+      "resolved_on": {
+        "day_number": 737552,
+        "year": 2020,
+        "month": 9,
+        "day": 10
+      },
+      "due_this_turn": false,
+      "needs": [
+        {
+          "kind": "casework",
+          "state": "done",
+          "watch": false,
+          "progress": null
+        }
+      ],
+      "progress": null,
+      "how": null,
+      "person": null,
+      "odds": null,
+      "keep_lines": [
+        {
+          "key": "effect-opinion",
+          "args": {
+            "delta": "+10",
+            "name": "Ada Dace"
+          },
+          "tone": "gain"
+        },
+        {
+          "key": "effect-approval-hood",
+          "args": {
+            "delta": "+1",
+            "hood": "Vellenbridge"
+          },
+          "tone": "gain"
+        }
+      ],
+      "break_lines": [
+        {
+          "key": "effect-opinion",
+          "args": {
+            "delta": "−12",
+            "name": "Ada Dace"
+          },
+          "tone": "cost"
+        },
+        {
+          "key": "effect-approval-hood",
+          "args": {
+            "delta": "−0.4",
+            "hood": "Vellenbridge"
+          },
+          "tone": "cost"
+        }
+      ],
+      "decline_lines": []
+    }
+  ],
+  "asks_due_soon": 1,
+  "menu": {
+    "options": [
+      {
+        "template": "promise.no_tax_rise",
+        "answer": null,
+        "concern": "concern.taxes",
+        "title_key": "promise-no-tax-rise",
+        "detail_key": "promise-no-tax-rise-detail",
+        "need_key": "promise-no-tax-rise-need",
+        "args": {
+          "constituency_key": "ask-constituency",
+          "history": "none",
+          "number": "3",
+          "player": "Elan Birch",
+          "town": "Vellenbridge"
+        },
+        "due_key": "ui-promise-due-budget-year",
+        "keep_lines": [
+          {
+            "key": "effect-approval",
+            "args": {
+              "delta": "+2",
+              "who_key": "effect-who-ward"
+            },
+            "tone": "gain"
+          }
+        ],
+        "break_lines": [
+          {
+            "key": "effect-approval",
+            "args": {
+              "delta": "−3",
+              "who_key": "effect-who-ward"
+            },
+            "tone": "cost"
+          },
+          {
+            "key": "effect-standing",
+            "args": {
+              "delta": "−1"
+            },
+            "tone": "cost"
+          }
+        ]
+      },
+      {
+        "template": "promise.town_halls",
+        "answer": null,
+        "concern": null,
+        "title_key": "promise-town-halls",
+        "detail_key": "promise-town-halls-detail",
+        "need_key": "promise-town-halls-need",
+        "args": {
+          "constituency_key": "ask-constituency",
+          "due_days": "180",
+          "history": "none",
+          "number": "3",
+          "player": "Elan Birch",
+          "town": "Vellenbridge"
+        },
+        "due_key": "ui-promise-due-days",
+        "keep_lines": [
+          {
+            "key": "effect-approval",
+            "args": {
+              "delta": "+2",
+              "who_key": "effect-who-ward"
+            },
+            "tone": "gain"
+          }
+        ],
+        "break_lines": [
+          {
+            "key": "effect-approval",
+            "args": {
+              "delta": "−3",
+              "who_key": "effect-who-ward"
+            },
+            "tone": "cost"
+          },
+          {
+            "key": "effect-standing",
+            "args": {
+              "delta": "−1"
+            },
+            "tone": "cost"
+          }
+        ]
+      },
+      {
+        "template": "promise.clean_politics",
+        "answer": null,
+        "concern": null,
+        "title_key": "promise-clean-politics",
+        "detail_key": "promise-clean-politics-detail",
+        "need_key": "promise-clean-politics-need",
+        "args": {
+          "constituency_key": "ask-constituency",
+          "history": "none",
+          "number": "3",
+          "player": "Elan Birch",
+          "town": "Vellenbridge"
+        },
+        "due_key": "ui-promise-due-term",
+        "keep_lines": [
+          {
+            "key": "effect-approval",
+            "args": {
+              "delta": "+2",
+              "who_key": "effect-who-ward"
+            },
+            "tone": "gain"
+          }
+        ],
+        "break_lines": [
+          {
+            "key": "effect-approval",
+            "args": {
+              "delta": "−3",
+              "who_key": "effect-who-ward"
+            },
+            "tone": "cost"
+          },
+          {
+            "key": "effect-standing",
+            "args": {
+              "delta": "−1"
+            },
+            "tone": "cost"
+          }
+        ]
+      }
+    ],
+    "made": 0,
+    "max": 3,
+    "voters": {
+      "type": "constituency",
+      "name_key": "ask-constituency",
+      "number": 3
+    },
+    "voters_args": {
+      "constituency_key": "ask-constituency",
+      "history": "none",
+      "number": "3",
+      "player": "Elan Birch",
+      "town": "Vellenbridge"
+    }
+  },
+  "asks": {
+    "open": [
+      {
+        "id": 5,
+        "template": "ask.casework",
+        "promise": false,
+        "title_key": "ask-casework",
+        "detail_key": "ask-casework-detail",
+        "need_key": "ask-casework-need",
+        "outcome_key": null,
+        "args": {
+          "asker": "Ada Dace",
+          "asker_hood": "Vellenbridge",
+          "asker_occupation": "party_chair",
+          "asker_role_key": "occupation-party_chair",
+          "days": "7",
+          "history": "none",
+          "player": "Elan Birch",
+          "town": "Vellenbridge"
+        },
+        "asker": {
+          "type": "person",
+          "person": {
+            "id": 1303,
+            "ambient_slot": null,
+            "name": "Ada Dace",
+            "role_key": "occupation-party_chair",
+            "tier": "principal",
+            "level": "unknown",
+            "rumoured": false,
+            "can_talk": false,
+            "has_news": true
+          }
+        },
+        "status": "offered",
+        "unanswered": false,
+        "history": "none",
+        "public": false,
+        "big": false,
+        "opened": {
+          "day_number": 737552,
+          "year": 2020,
+          "month": 9,
+          "day": 10
+        },
+        "respond_by": {
+          "day_number": 737559,
+          "year": 2020,
+          "month": 9,
+          "day": 17
+        },
+        "due": {
+          "day_number": 737582,
+          "year": 2020,
+          "month": 10,
+          "day": 10
+        },
+        "days_left": 7,
+        "resolved_on": null,
+        "due_this_turn": true,
+        "needs": [
+          {
+            "kind": "casework",
+            "state": "current",
+            "watch": false,
+            "progress": null
+          }
+        ],
+        "progress": null,
+        "how": {
+          "action": "casework",
+          "late_night": false,
+          "neighborhood": null,
+          "to": {
+            "location": {
+              "type": "place",
+              "place": 103
+            },
+            "kind_key": "town_hall",
+            "name": "",
+            "neighborhood": 81,
+            "neighborhood_name": "Vellenbridge"
+          },
+          "here": false
+        },
+        "person": null,
+        "odds": null,
+        "keep_lines": [
+          {
+            "key": "effect-opinion",
+            "args": {
+              "delta": "+10",
+              "name": "Ada Dace"
+            },
+            "tone": "gain"
+          },
+          {
+            "key": "effect-approval-hood",
+            "args": {
+              "delta": "+1",
+              "hood": "Vellenbridge"
+            },
+            "tone": "gain"
+          }
+        ],
+        "break_lines": [
+          {
+            "key": "effect-opinion",
+            "args": {
+              "delta": "−12",
+              "name": "Ada Dace"
+            },
+            "tone": "cost"
+          },
+          {
+            "key": "effect-approval-hood",
+            "args": {
+              "delta": "−0.4",
+              "hood": "Vellenbridge"
+            },
+            "tone": "cost"
+          }
+        ],
+        "decline_lines": [
+          {
+            "key": "effect-opinion",
+            "args": {
+              "delta": "−3",
+              "name": "Ada Dace"
+            },
+            "tone": "cost"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "template": "ask.casework",
+        "promise": false,
+        "title_key": "ask-casework",
+        "detail_key": "ask-casework-detail",
+        "need_key": "ask-casework-need",
+        "outcome_key": null,
+        "args": {
+          "asker": "Ada Dace",
+          "asker_hood": "Vellenbridge",
+          "asker_occupation": "party_chair",
+          "asker_role_key": "occupation-party_chair",
+          "days": "25",
+          "history": "none",
+          "player": "Elan Birch",
+          "town": "Vellenbridge"
+        },
+        "asker": {
+          "type": "person",
+          "person": {
+            "id": 1303,
+            "ambient_slot": null,
+            "name": "Ada Dace",
+            "role_key": "occupation-party_chair",
+            "tier": "principal",
+            "level": "unknown",
+            "rumoured": false,
+            "can_talk": false,
+            "has_news": true
+          }
+        },
+        "status": "accepted",
+        "unanswered": false,
+        "history": "none",
+        "public": false,
+        "big": false,
+        "opened": {
+          "day_number": 737552,
+          "year": 2020,
+          "month": 9,
+          "day": 10
+        },
+        "respond_by": null,
+        "due": {
+          "day_number": 737577,
+          "year": 2020,
+          "month": 10,
+          "day": 5
+        },
+        "days_left": 25,
+        "resolved_on": null,
+        "due_this_turn": false,
+        "needs": [
+          {
+            "kind": "casework",
+            "state": "current",
+            "watch": false,
+            "progress": null
+          }
+        ],
+        "progress": null,
+        "how": {
+          "action": "casework",
+          "late_night": false,
+          "neighborhood": null,
+          "to": {
+            "location": {
+              "type": "place",
+              "place": 103
+            },
+            "kind_key": "town_hall",
+            "name": "",
+            "neighborhood": 81,
+            "neighborhood_name": "Vellenbridge"
+          },
+          "here": false
+        },
+        "person": null,
+        "odds": 0.85,
+        "keep_lines": [
+          {
+            "key": "effect-opinion",
+            "args": {
+              "delta": "+10",
+              "name": "Ada Dace"
+            },
+            "tone": "gain"
+          },
+          {
+            "key": "effect-approval-hood",
+            "args": {
+              "delta": "+1",
+              "hood": "Vellenbridge"
+            },
+            "tone": "gain"
+          }
+        ],
+        "break_lines": [
+          {
+            "key": "effect-opinion",
+            "args": {
+              "delta": "−12",
+              "name": "Ada Dace"
+            },
+            "tone": "cost"
+          },
+          {
+            "key": "effect-approval-hood",
+            "args": {
+              "delta": "−0.4",
+              "hood": "Vellenbridge"
+            },
+            "tone": "cost"
+          }
+        ],
+        "decline_lines": []
+      }
+    ],
+    "recent": [
+      {
+        "id": 3,
+        "template": "ask.casework",
+        "promise": false,
+        "title_key": "ask-casework",
+        "detail_key": "ask-casework-detail",
+        "need_key": "ask-casework-need",
+        "outcome_key": "ask-casework-kept",
+        "args": {
+          "asker": "Ada Dace",
+          "asker_hood": "Vellenbridge",
+          "asker_occupation": "party_chair",
+          "asker_role_key": "occupation-party_chair",
+          "days": "20",
+          "history": "none",
+          "player": "Elan Birch",
+          "town": "Vellenbridge"
+        },
+        "asker": {
+          "type": "person",
+          "person": {
+            "id": 1303,
+            "ambient_slot": null,
+            "name": "Ada Dace",
+            "role_key": "occupation-party_chair",
+            "tier": "principal",
+            "level": "unknown",
+            "rumoured": false,
+            "can_talk": false,
+            "has_news": true
+          }
+        },
+        "status": "kept",
+        "unanswered": false,
+        "history": "none",
+        "public": false,
+        "big": false,
+        "opened": {
+          "day_number": 737552,
+          "year": 2020,
+          "month": 9,
+          "day": 10
+        },
+        "respond_by": null,
+        "due": {
+          "day_number": 737572,
+          "year": 2020,
+          "month": 9,
+          "day": 30
+        },
+        "days_left": 0,
+        "resolved_on": {
+          "day_number": 737552,
+          "year": 2020,
+          "month": 9,
+          "day": 10
+        },
+        "due_this_turn": false,
+        "needs": [
+          {
+            "kind": "casework",
+            "state": "done",
+            "watch": false,
+            "progress": null
+          }
+        ],
+        "progress": null,
+        "how": null,
+        "person": null,
+        "odds": null,
+        "keep_lines": [
+          {
+            "key": "effect-opinion",
+            "args": {
+              "delta": "+10",
+              "name": "Ada Dace"
+            },
+            "tone": "gain"
+          },
+          {
+            "key": "effect-approval-hood",
+            "args": {
+              "delta": "+1",
+              "hood": "Vellenbridge"
+            },
+            "tone": "gain"
+          }
+        ],
+        "break_lines": [
+          {
+            "key": "effect-opinion",
+            "args": {
+              "delta": "−12",
+              "name": "Ada Dace"
+            },
+            "tone": "cost"
+          },
+          {
+            "key": "effect-approval-hood",
+            "args": {
+              "delta": "−0.4",
+              "hood": "Vellenbridge"
+            },
+            "tone": "cost"
+          }
+        ],
+        "decline_lines": []
+      }
+    ],
+    "promises": [],
+    "tally": {
+      "offered": 3,
+      "accepted": 0,
+      "declined": 3,
+      "lapsed": 3,
+      "kept": 0,
+      "broken": 0,
+      "void": 0,
+      "promises_made": 0,
+      "promises_kept": 0,
+      "promises_broken": 0,
+      "promises_void": 0,
+      "promises_open": 0
+    }
+  },
+  "commands": [
+    {
+      "type": "respond_ask",
+      "ask": 3,
+      "accept": true
+    },
+    {
+      "type": "respond_ask",
+      "ask": 3,
+      "accept": false
+    },
+    {
+      "type": "promise",
+      "template": "promise.town_halls",
+      "answer": null
+    },
+    {
+      "type": "act",
+      "action": {
+        "type": "casework",
+        "ask": 2
+      },
+      "late_night": false
+    }
+  ]
+}

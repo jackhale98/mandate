@@ -2,6 +2,7 @@ import { useGame } from "../state/gameStore";
 import { formatDate } from "../i18n/format";
 import { useSheetClose } from "./useSheetClose";
 import { capital } from "./DecisionSheet";
+import { StoryPromises } from "./asks/Asks";
 
 /** The story so far (DEC-033): the chapter and its tension, storylines, and what happened. */
 export function StorySheet() {
@@ -57,6 +58,7 @@ export function StorySheet() {
               ))}
             </section>
           )}
+          <StoryPromises />
           {story.past.length > 0 && (
             <section className="card">
               <h3 className="sub">{tr.t("ui-decisions")}</h3>

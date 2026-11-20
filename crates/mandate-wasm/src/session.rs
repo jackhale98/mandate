@@ -231,10 +231,19 @@ impl Session {
                 Ok(ResponseBody::CommandApplied(CommandAppliedView {
                     days_advanced: outcome.days_advanced,
                     overview: overview(engine),
-                    result: outcome.result.map(|r| ActionResultView {
-                        created: r.created,
-                        outcome_key: r.outcome_key,
-                        args: r.args,
+                    result: outcome.result.map(|mut r| {
+                        // An ask's own commands name the ask: its text needs its arguments.
+                        let about_ask = ["outcome-ask-", "outcome-promised", "outcome-casework-"]
+                            .iter()
+                            .any(|p| r.outcome_key.starts_with(p));
+                        if about_ask && let Some(id) = r.created {
+                            outcome_args(engine, id, &mut r.args);
+                        }
+                        ActionResultView {
+                            created: r.created,
+                            outcome_key: r.outcome_key,
+                            args: r.args,
+                        }
                     }),
                     skip: outcome.skip.as_ref().map(SkipProgressView::of),
                 }))
@@ -329,6 +338,10 @@ impl Session {
                     self.engine_mut()?,
                 ))),
                 QueryDto::Legacy => Ok(ResponseBody::Legacy(legacy_view(self.engine_mut()?))),
+                QueryDto::Asks => Ok(ResponseBody::Asks(asks_view(self.engine_mut()?))),
+                QueryDto::PromiseMenu => Ok(ResponseBody::PromiseMenu(promise_menu_view(
+                    self.engine_mut()?,
+                ))),
                 QueryDto::Canvass { neighborhood } => {
                     canvass_view(self.engine_mut()?, neighborhood)
                         .map(ResponseBody::Canvass)
@@ -569,6 +582,14 @@ fn player_command(
             P::File { filing }
         }
         CommandDto::WithdrawPolicy { policy } => P::WithdrawPolicy { policy },
+        CommandDto::RespondAsk { ask, accept } => P::RespondAsk { ask, accept },
+        CommandDto::Promise { template, answer } => P::Promise {
+            template,
+            args: answer
+                .map(|a| (mandate_content::asks::ROLE_ANSWER.to_string(), a))
+                .into_iter()
+                .collect(),
+        },
         CommandDto::Act { action, late_night } => P::Act {
             late_night,
             action: match action {
@@ -598,6 +619,7 @@ fn player_command(
                 ActionDto::DipFunds => Action::DipFunds,
                 ActionDto::LeakFile => Action::LeakFile,
                 ActionDto::Visit { verb } => Action::Visit { verb },
+                ActionDto::Casework { ask } => Action::Casework { ask },
             },
         },
         // EndTurn and AdvanceDays are handled before this conversion; they

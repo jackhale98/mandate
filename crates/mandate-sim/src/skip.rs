@@ -134,11 +134,19 @@ pub struct Snapshot {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SummaryItem {
     /// An election the player stood in.
-    Election { post: Post, won: bool },
+    Election {
+        post: Post,
+        won: bool,
+    },
     /// A law enacted at home (`mine`: the player sponsored it).
-    LawEnacted { policy: u32, mine: bool },
+    LawEnacted {
+        policy: u32,
+        mine: bool,
+    },
     /// A bill of the player's failed.
-    BillFailed { policy: u32 },
+    BillFailed {
+        policy: u32,
+    },
     /// The proxy answered a decision for the player.
     Answered {
         decision: u32,
@@ -146,17 +154,89 @@ pub enum SummaryItem {
         option: String,
     },
     /// A decision passed its deadline and took its default.
-    Defaulted { decision: u32, template: String },
+    Defaulted {
+        decision: u32,
+        template: String,
+    },
     /// A story about the player broke.
-    Scandal { scandal: u32, kind: String },
+    Scandal {
+        scandal: u32,
+        kind: String,
+    },
     /// A new chapter began.
-    Chapter { index: u32, kind: String },
+    Chapter {
+        index: u32,
+        kind: String,
+    },
     /// A disaster struck the home town.
-    Disaster { hazard: String },
+    Disaster {
+        hazard: String,
+    },
     /// A plant closed at home.
-    PlantClosure { sector: String, jobs: u32 },
+    PlantClosure {
+        sector: String,
+        jobs: u32,
+    },
     /// The player declared a vote on a bill.
-    Voted { policy: u32, vote: String },
+    Voted {
+        policy: u32,
+        vote: String,
+    },
+    /// A law at home stopped being in force: `expired` (a sunset clause),
+    /// `repealed`.
+    LawEnded {
+        policy: u32,
+        reason: String,
+    },
+    /// A bill of the player's was withdrawn.
+    BillWithdrawn {
+        policy: u32,
+    },
+    /// An ask or promise ended (DEC-097 §2): `kept`, `broken`, `void`, or
+    /// `declined` (an offer left to lapse).
+    AskResolved {
+        ask: u32,
+        template: String,
+        outcome: String,
+    },
+    /// Someone asked the player for something (still open, or lapsed).
+    AskOffered {
+        ask: u32,
+        template: String,
+    },
+    /// A crisis began (`began`) or ended at home.
+    Crisis {
+        kind: String,
+        began: bool,
+    },
+    /// The party refused to renominate the player.
+    Deselected,
+    /// A case against the player: `opened`, `charged`, `dropped`,
+    /// `acquitted`, `convicted`.
+    Case {
+        case: u32,
+        stage: String,
+    },
+    /// The player went to prison, or came out.
+    Imprisoned {
+        years: u32,
+    },
+    Released,
+    /// A rumour about the player began to spread.
+    Rumour {
+        rumour: u32,
+    },
+    /// A national recession began (`began`) or recovery set in.
+    Recession {
+        began: bool,
+    },
+    /// A proposal (a policy family, DEC-092) came onto the table at home,
+    /// or left it without a bill.
+    Proposal {
+        proposal: u32,
+        family: String,
+        opened: bool,
+    },
 }
 
 /// Why a skip stopped.
@@ -192,6 +272,11 @@ pub struct SkipRun {
     /// The event log entry looked at last (exclusive).
     pub cursor: u32,
     pub items: Vec<SummaryItem>,
+    /// The crises live at home when last looked (to tell when one begins
+    /// or ends); `None` in a skip saved before it was kept (the next look
+    /// starts it, reporting nothing).
+    #[serde(default)]
+    pub crises: Option<Vec<String>>,
 }
 
 /// Where a skip has got to (for a progress indicator).
@@ -561,7 +646,22 @@ pub fn start(
         seen,
         cursor: state.events.iter().last().map_or(0, |e| e.id.0 + 1),
         items: Vec::new(),
+        crises: Some(home_crises(state)),
     })
+}
+
+/// The kinds of crisis live in the player's home town, in registry order.
+fn home_crises(state: &crate::State) -> Vec<String> {
+    let Some(pl) = state.player.as_ref() else {
+        return Vec::new();
+    };
+    state
+        .politics
+        .characters
+        .towns
+        .get(pl.home().index())
+        .map(|t| t.crises.iter().map(|c| c.kind.clone()).collect())
+        .unwrap_or_default()
 }
 
 /// The first interrupt that newly holds, as a stop (and every key now so
@@ -601,6 +701,13 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
     let home = pl.home().0;
     let cursor = run.cursor;
     let mut last = cursor;
+    let mine = |policy: u32| {
+        state
+            .policy
+            .instances
+            .get(policy as usize)
+            .is_some_and(|p| p.sponsor == Some(me))
+    };
     for ev in state.events.iter().filter(|e| e.id.0 >= cursor) {
         last = ev.id.0 + 1;
         use crate::events::EventKind as K;
@@ -626,13 +733,7 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
                     .get(*policy as usize)
                     .is_some_and(|p| p.sponsor == Some(me)),
             }),
-            K::PolicyFailed { policy, .. }
-                if state
-                    .policy
-                    .instances
-                    .get(*policy as usize)
-                    .is_some_and(|p| p.sponsor == Some(me)) =>
-            {
+            K::PolicyFailed { policy, .. } if mine(*policy) => {
                 Some(SummaryItem::BillFailed { policy: *policy })
             }
             K::DecisionResolved {
@@ -672,6 +773,72 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
                 sector: sector.clone(),
                 jobs: *jobs,
             }),
+            K::PolicyExpired {
+                policy,
+                municipality,
+            } if *municipality == home => Some(SummaryItem::LawEnded {
+                policy: *policy,
+                reason: "expired".into(),
+            }),
+            K::PolicyWithdrawn { policy, .. } if mine(*policy) => {
+                Some(SummaryItem::BillWithdrawn { policy: *policy })
+            }
+            K::AskOffered { ask, template, .. } => Some(SummaryItem::AskOffered {
+                ask: *ask,
+                template: template.clone(),
+            }),
+            K::AskResolved {
+                ask,
+                template,
+                outcome,
+                ..
+            } => Some(SummaryItem::AskResolved {
+                ask: *ask,
+                template: template.clone(),
+                outcome: outcome.clone(),
+            }),
+            K::PlayerDeselected => Some(SummaryItem::Deselected),
+            K::CaseOpened { case, politician } if *politician == me.0 => Some(SummaryItem::Case {
+                case: *case,
+                stage: "investigation".into(),
+            }),
+            K::CaseDeveloped {
+                case,
+                politician,
+                stage,
+            } if *politician == me.0 => Some(SummaryItem::Case {
+                case: *case,
+                stage: stage.clone(),
+            }),
+            K::PlayerImprisoned { years, .. } => Some(SummaryItem::Imprisoned { years: *years }),
+            K::PlayerReleased => Some(SummaryItem::Released),
+            K::RumourSpread { rumour, politician } if *politician == me.0 => {
+                Some(SummaryItem::Rumour { rumour: *rumour })
+            }
+            K::GlobalRecessionBegan { .. } => Some(SummaryItem::Recession { began: true }),
+            K::GlobalRecoveryBegan => Some(SummaryItem::Recession { began: false }),
+            K::ProposalOpened {
+                proposal,
+                family,
+                at,
+            } if *at == crate::world::Jurisdiction::town(pl.home()) => {
+                Some(SummaryItem::Proposal {
+                    proposal: *proposal,
+                    family: family.clone(),
+                    opened: true,
+                })
+            }
+            K::ProposalLapsed {
+                proposal,
+                family,
+                at,
+            } if *at == crate::world::Jurisdiction::town(pl.home()) => {
+                Some(SummaryItem::Proposal {
+                    proposal: *proposal,
+                    family: family.clone(),
+                    opened: false,
+                })
+            }
             _ => None,
         };
         if let Some(i) = item {
@@ -679,6 +846,28 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
         }
     }
     run.cursor = last;
+    // Crises have no event: compare the town's live ones with the last look.
+    let now = home_crises(state);
+    let before = run.crises.take().unwrap_or_else(|| now.clone());
+    for k in now.iter().filter(|k| !before.contains(k)) {
+        push(
+            run,
+            SummaryItem::Crisis {
+                kind: k.clone(),
+                began: true,
+            },
+        );
+    }
+    for k in before.into_iter().filter(|k| !now.contains(k)) {
+        push(
+            run,
+            SummaryItem::Crisis {
+                kind: k,
+                began: false,
+            },
+        );
+    }
+    run.crises = Some(now);
 }
 
 /// Add an item, keeping the newest `ITEMS_CAP` (chapters go first).

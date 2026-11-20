@@ -47,18 +47,28 @@ On hold until then:
   - the extensibility audit;
   - DEC-097 to DEC-100.
 
+- **Done 2026-11-20 (live):**
+  - N2: voters weigh their own district's worries.
+  - PL1: places with purpose.
+  - Talk markers, and People merged into the Notebook.
+  - Text read-through pass 1, with the relevance fixes.
+  - E2: the director's variety and pacing.
+  - U1: one condition language.
+  - Time skips with directives, interrupts and the summary.
+  - Act 1 endings and the Legacy record.
+  - E6–E8: asks and promises (engine, content, bots).
+  - F1, F2a and F2b: policy families in the simulation, with works projects.
+- **Done on the branch:** E7, the asks screens (the Today block, casework, the promise picker, the badge), with the skip-summary fixes.
+
 ## Running
-- **E2:** the director's variety, chapter themes and pacing cycle.
-- **Text read-through, pass 1:** the style guide, fixes and doctor rules.
+- **R2:** offices from the constitution in the protocol and web.
 
 ## Next (queued)
-- **N2:** voters weigh their own district's worries (DEC-092 note).
-- **PL1:** places with purpose. Verbs at the factory, mill, mine, port, farm, school, clinic, university, park, hotel, tech campus and business association, plus named people at each (DEC-079 note).
-- **Talk markers:** 💬 and "!" in the street and rooms, and the pocket's People tab merged into the Notebook (four tabs).
-- **U1:** one condition language (DEC-098 §5).
-- **R2:** offices from the constitution in the protocol and web.
+- **F3–F6:** family views, the first pack, the lab and the proposal sheet, after R2.
+- **V1:** credit and blame for laws.
 - **X1:** a lab timing check of layout v2 on a regional capital.
 - **C5:** a talk lab and repetition gate.
+- **Proxy and asks:** the skip's proxy answers offers by its directives (offers now lapse during skips).
 - **More rooms:** the union hall, party office, news office and community centre. Awaiting the owner's go.
 
 ## Engagement (DEC-097, DEC-100)

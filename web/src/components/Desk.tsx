@@ -153,7 +153,7 @@ export function RecentActions() {
         {p.recent_actions.map((a, i) => (
           <li key={i}>
             <time className="muted">{formatDate(tr, a.date)}</time>
-            <span>{tr.t(a.outcome_key, a.args)}</span>
+            <span>{tr.event(a.outcome_key, a.args)}</span>
           </li>
         ))}
       </ol>

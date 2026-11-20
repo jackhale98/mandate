@@ -496,6 +496,15 @@ h2 { font-size: 1.1rem; }
 .badge-decisions { background: var(--accent); }
 .storyline + .storyline { margin-top: 8px; }
 
+/* Asks and promises (DEC-097 §2): the Today block, casework, the story sheet. */
+.asks > .ask { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.asks > .ask:last-child { border-bottom: 0; }
+.ask p { margin: 0; }
+.ask-next { display: flex; flex-direction: column; gap: 4px; }
+.ask-details summary { cursor: pointer; }
+.ask-details .option-tradeoffs { margin-top: 4px; }
+.ask[data-status="kept"] .chip { border-color: var(--good); }
+
 /* Media, scandals, and the legal path (DEC-034, DEC-006). */
 .articles { display: flex; flex-direction: column; gap: 10px; }
 .article { padding-bottom: 8px; border-bottom: 1px solid var(--border); }

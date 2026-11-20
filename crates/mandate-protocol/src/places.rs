@@ -166,6 +166,17 @@ pub struct PocketView {
     pub legal: Option<crate::media::LegalView>,
     /// Subjects learned of this turn (the notebook's badge, DEC-091).
     pub notebook_new: u32,
+    /// Asks and promises (DEC-097 §2): offers first, then accepted ones by
+    /// due date (the Today block).
+    pub asks: Vec<crate::asks::AskView>,
+    /// The badge: offers to answer, plus asks and promises with something
+    /// left to do that fall due within the turn.
+    pub asks_due_soon: u32,
+    /// Asks and promises resolved in the last four weeks, newest first (at
+    /// most three): the Today block's last outcomes.
+    pub asks_recent: Vec<crate::asks::AskView>,
+    /// A campaign promise can be made now (`QueryDto::PromiseMenu`).
+    pub can_promise: bool,
 }
 
 /// One location on the town schematic, with what it offers.
@@ -624,6 +635,10 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
             .unwrap_or_default(),
         legal: crate::media::legal_view(engine),
         notebook_new: crate::knowledge::notebook_new(engine),
+        asks: crate::asks::open_asks(engine),
+        asks_due_soon: crate::asks::asks_due_soon(engine),
+        asks_recent: crate::asks::recent_outcomes(engine, 28, 3),
+        can_promise: crate::asks::can_promise(engine),
     })
 }
 

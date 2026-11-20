@@ -14,4 +14,4 @@ export type CommandDto = { "type": "end_turn" } | { "type": "advance_days", days
 /**
  * Topic content id (`TopicView.id`).
  */
-topic: string, about: AboutRefDto | null, late_night: boolean, } | { "type": "set_directives", choices: Array<DirectiveChoiceDto>, } | { "type": "skip", target: SkipTargetDto, limit: number | null, } | { "type": "cancel_skip" };
+topic: string, about: AboutRefDto | null, late_night: boolean, } | { "type": "set_directives", choices: Array<DirectiveChoiceDto>, } | { "type": "skip", target: SkipTargetDto, limit: number | null, } | { "type": "cancel_skip" } | { "type": "respond_ask", ask: number, accept: boolean, } | { "type": "promise", template: string, answer: string | null, };
