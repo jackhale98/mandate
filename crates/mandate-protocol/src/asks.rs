@@ -205,7 +205,7 @@ pub struct PromiseMenuView {
     pub voters_args: BTreeMap<String, String>,
 }
 
-fn jurisdiction_ref(engine: &Engine, at: Jurisdiction) -> JurisdictionRefView {
+pub(crate) fn jurisdiction_ref(engine: &Engine, at: Jurisdiction) -> JurisdictionRefView {
     let w = &engine.state().world;
     let (tier, name) = match at {
         Jurisdiction::Municipality { id } => (

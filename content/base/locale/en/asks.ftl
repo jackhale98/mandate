@@ -195,7 +195,10 @@ ask-place-business_association = the chamber of commerce
 
 ## Who a promise is made to
 ask-constituency = the voters of ward { $number }
-ask-electorate = the voters of { $town }
+ask-electorate = { $electorate_tier ->
+    [national] the country's voters
+   *[other] the voters of { $electorate }
+}
 
 ## Why an ask ended without a winner or a loser
 ask-void-left = They have left town.
