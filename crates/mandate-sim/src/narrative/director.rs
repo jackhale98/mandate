@@ -1705,7 +1705,7 @@ fn dilemmas(
         // The climax fallback, as at a climax peak (DEC-097 note).
         let fallback = cands.is_empty();
         if fallback {
-            cands = gather(v, n, true, true);
+            cands = least_delayed(n, d, date, gather(v, n, true, true));
         }
         if let Some(c) = pick(v, n, cands, false, 2) {
             let key = c.def.id.clone();
@@ -1779,7 +1779,7 @@ fn peak(
         // memory, the last chapter's climax and no repeat in a chapter hold.
         let fallback = cands.is_empty() && spaced;
         if fallback {
-            cands = gather(v, n, true, true);
+            cands = least_delayed(n, d, date, gather(v, n, true, true));
         }
         if let Some(c) = pick(v, n, cands, ph.eased, 2) {
             let key = c.def.id.clone();
@@ -1789,9 +1789,8 @@ fn peak(
             } else {
                 open(n, v, out, c, Weight::Climax, None, None);
             }
-            // A borrowed climax as a template's second use cools it for its
-            // base cooldown, not a grown one, so it does not leave the rest
-            // of the career; a third use cools as usual (no fourth).
+            // A borrowed climax cools the template for its base cooldown,
+            // not a grown one, so it does not leave the rest of the career.
             if fallback {
                 n.cooldowns.insert(key, date.add_days(base));
             }
@@ -1856,12 +1855,31 @@ fn is_coda(n: &NarrativeState, ch: &Chapter) -> bool {
 /// fourth (ENGAGEMENT §4.1: at most three uses in five years).
 const FALLBACK_MAX_USES: u16 = 2;
 
-/// The cooldown a fallback climax sets: the base one when it is the
-/// template's second use, the usual grown one for a third (whose ×4 outlasts
-/// a five-year career, so there is never a fourth).
-fn fallback_cooldown(n: &NarrativeState, d: &DirectorParams, key: &str, cooldown: u32) -> u32 {
-    let after = n.uses.get(key).copied().unwrap_or(0) + 1;
-    cooldown_days(d, cooldown, if after <= 2 { 1 } else { after })
+/// The cooldown a fallback climax sets: the template's base cooldown, not a
+/// grown one, so a borrowed use does not take it out of the rest of the
+/// career.
+fn fallback_cooldown(_n: &NarrativeState, d: &DirectorParams, _key: &str, cooldown: u32) -> u32 {
+    cooldown_days(d, cooldown, 1)
+}
+
+/// The fallback borrows the templates whose return the climax delays
+/// least: the new cooldown's end against the one it was cooling to.
+fn least_delayed<'c>(
+    n: &NarrativeState,
+    d: &DirectorParams,
+    date: SimDate,
+    mut cands: Vec<Candidate<'c>>,
+) -> Vec<Candidate<'c>> {
+    let delay = |c: &Candidate<'_>| {
+        let new = date.add_days(fallback_cooldown(n, d, &c.def.id, c.def.cooldown_days));
+        let old = n.cooldowns.get(&c.def.id).copied().unwrap_or(date);
+        old.days_until(new)
+    };
+    let Some(least) = cands.iter().map(delay).min() else {
+        return cands;
+    };
+    cands.retain(|c| delay(c) == least);
+    cands
 }
 
 /// Draw tags for phase lengths.

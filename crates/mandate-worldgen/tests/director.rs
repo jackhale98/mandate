@@ -84,10 +84,10 @@ fn variety_rules_hold_over_careers() {
             }
         }
         let spot: Vec<_> = seen.values().filter(|x| !x.4).collect();
-        let mut uses: BTreeMap<&str, Vec<u32>> = BTreeMap::new();
+        let mut uses: BTreeMap<&str, Vec<(u32, Weight)>> = BTreeMap::new();
         let mut in_chapter: Vec<(u32, &str)> = Vec::new();
-        for (t, _, opened, ch, _) in &spot {
-            uses.entry(t.as_str()).or_default().push(*opened);
+        for (t, weight, opened, ch, _) in &spot {
+            uses.entry(t.as_str()).or_default().push((*opened, *weight));
             assert!(
                 !in_chapter.contains(&(*ch, t.as_str())),
                 "seed {seed}: {t} twice in chapter {ch}"
@@ -102,11 +102,19 @@ fn variety_rules_hold_over_careers() {
             );
             let cd = c.dilemma(t).unwrap().cooldown_days;
             for (i, w) in dates.windows(2).enumerate() {
-                let need = narrative::director::cooldown_days(d, cd, i as u16 + 1);
+                // A climax may be borrowed from a cooling template (the
+                // fallback, DEC-097 note): it then sets the base cooldown.
+                let uses_then = if w[0].1 == Weight::Climax {
+                    1
+                } else {
+                    i as u16 + 1
+                };
+                let need = narrative::director::cooldown_days(d, cd, uses_then);
+                let (w, borrowed) = ([w[0].0, w[1].0], w[1].1 == Weight::Climax);
                 // A storyline's stage presents its decision when the story
                 // reaches it (story first); standalone returns wait.
                 assert!(
-                    w[1] - w[0] >= need || c.dilemma(t).unwrap().storyline_only,
+                    w[1] - w[0] >= need || borrowed || c.dilemma(t).unwrap().storyline_only,
                     "seed {seed}: {t} returned after {} days (cooldown {need})",
                     w[1] - w[0]
                 );
@@ -372,16 +380,33 @@ fn answered_and_sponsored_law_read_the_players_record() {
         !holds(&answered(None, 0, None, &["voice"]), &[]),
         "another voice"
     );
+    // The law cast in a role (the player may sponsor others in this world).
+    let law_cast = [CastEntry {
+        role: "law".into(),
+        actor: Actor::Policy { id: law },
+    }];
     let law_cond = |min: u32, max: Option<u32>, chance: f64| Condition::SponsoredLaw {
         status: LawStatus::InForce,
         min_age_days: min,
         max_age_days: max,
         chance,
+        role: Some("law".into()),
+    };
+    assert!(holds(&law_cond(365, Some(730), 1.0), &law_cast));
+    assert!(
+        !holds(&law_cond(500, None, 1.0), &law_cast),
+        "not old enough"
+    );
+    assert!(!holds(&law_cond(0, None, 0.0), &law_cast), "chance 0");
+    // Without a role: any of the player's laws.
+    let any = Condition::SponsoredLaw {
+        status: LawStatus::InForce,
+        min_age_days: 365,
+        max_age_days: Some(730),
+        chance: 1.0,
         role: None,
     };
-    assert!(holds(&law_cond(365, Some(730), 1.0), &[]));
-    assert!(!holds(&law_cond(500, None, 1.0), &[]), "not old enough");
-    assert!(!holds(&law_cond(0, None, 0.0), &[]), "chance 0");
+    assert!(holds(&any, &[]));
     let pending = Condition::SponsoredLaw {
         status: LawStatus::Pending,
         min_age_days: 0,
