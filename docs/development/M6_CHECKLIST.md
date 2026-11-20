@@ -142,3 +142,11 @@ On hold until then:
   - TEST_STRATEGY.
 - **Refresh the landing page** with the walkable town (DEC-083).
 - **The tester checkpoint:** the owner plus 3–5 testers, with the §29.3 questions. M7 starts only on approval.
+
+## Later (owner, 2026-11-20)
+- **Account sync between devices:** passkey sign-in, saves synced through a Cloudflare Worker, D1 for metadata and R2 for save blobs (the free tier fits tester scale).
+  - Waits for a custom domain: the passkey's domain must not change after launch.
+  - Needs a new DEC first: it changes "offline-first, no backend" to "offline-first, with optional sync".
+  - Plan:
+    1. The Worker, the D1 schema, R2, passkeys and a recovery code.
+    2. Client sync: per-slot revisions, a conflict prompt, and "delete my account".
