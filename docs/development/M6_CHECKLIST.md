@@ -198,6 +198,20 @@ On hold until then:
 
     This is F3's extended policy preview (contracts §2.12) brought forward to ordinary bills, plus "Why?" afterwards.
 
+11. **Show dense information on the map** (owner). People, councillors and other dense lists should have a map view on the town map overview (DEC-086), so players link people to places and remember them:
+    - councillors' portraits in their wards;
+    - key figures at their workplaces or where last seen (S1);
+    - tap a portrait for their card, plus "Go to them";
+    - filters: council, party, people met.
+
+    Use the same pattern for:
+    - worries by neighbourhood (a shaded layer);
+    - a bill's impact by neighbourhood (item 10);
+    - asks pinned where they happen;
+    - works.
+
+    The list views stay for accessibility and quick mode (DEC-051). Only what the player knows is placed (DEC-091).
+
 ## Later (owner, 2026-11-20)
 - **Account sync between devices:** passkey sign-in, saves synced through a Cloudflare Worker, D1 for metadata and R2 for save blobs (the free tier fits tester scale).
   - Waits for a custom domain: the passkey's domain must not change after launch.
