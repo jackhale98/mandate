@@ -113,6 +113,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-104 | Account sync between devices: optional, passkey sign-in, Cloudflare; deferred until a custom domain | Deferred |
 | DEC-105 | Act 2 and beyond: capitals that play differently, levels of detail, home towns that remember | Proposed |
 | DEC-106 | More worries, faith communities with spread within each faith, and upkeep you can see | Accepted (direction) |
+| DEC-107 | Parties that live: moving wings, membership choices (leave, switch, independent, expelled), real independents, coalitions and pacts | Proposed |
 
 ---
 
@@ -2610,3 +2611,31 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   3. Faith communities, with the writing rules written first.
   4. Crime and the other models later.
 - **Dependencies:** DEC-075, DEC-077, DEC-078, DEC-092, DEC-095, DEC-098, DEC-099, DEC-101.
+
+### DEC-107 — Parties that live
+- **Status:** Proposed (2026-11-21). The owner asked whether the party system is robust, "with diverse coalitions and the ability to get kicked out, switch, or go independent".
+- **Today:**
+  - Parties come from clustering the society's attitudes (DEC-027), each a coalition of two wings that set its platform.
+  - Voters' party loyalty follows how close platforms are to their views.
+  - Renomination pressure exists, and the player can be deselected (an Act 1 ending).
+  - Missing:
+    - wing strength is fixed after generation;
+    - the party line ignores the platform (M6 checklist note 8);
+    - there is no way to leave, switch, go independent, be expelled or lose the party's backing;
+    - independents aren't first-class (a by-election replacement falls back to a party);
+    - there are no coalitions or pacts between parties, and no splits, mergers or new parties.
+- **Proposal.** Everything is data-driven, applies to NPCs and the player alike (DEC-030), and works at any tier (DEC-098).
+  1. **Wings that move.** Their strength shifts with events, elections, membership and scandal. There are leadership contests, and parties can split, merge or found new ones.
+  2. **Membership as a choice.** Leave, switch, go independent, or be expelled or lose the party's backing after rebellions or scandal. Each has real costs:
+     - the party's machine, money and loyal voters are lost;
+     - switchers are distrusted by both sides for a while;
+     - a new party gains them slowly.
+  3. **Independents as real candidates,** on the ballot by the constitution's rules (signatures or a deposit) and running on personal standing.
+  4. **Coalitions and pacts:**
+     - governing majorities in a body;
+     - electoral pacts (standing aside);
+     - confidence-and-supply deals, each with terms that can be kept or broken (like asks).
+- **Order:**
+  - **M6:** the party line from the platform (checklist note 8). If tokens allow, going independent or switching after deselection, which serves DEC-102's comeback path.
+  - **M7:** the rest. Coalitions, splits and leadership contests matter most in the Act 2 assemblies.
+- **Dependencies:** DEC-027, DEC-030, DEC-076, DEC-097, DEC-098, DEC-102, DEC-105.
