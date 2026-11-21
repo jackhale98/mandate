@@ -161,6 +161,10 @@ On hold until then:
    7. **Readability:** whether "Why?" explains each change.
 
    The harness becomes a CI or nightly gate.
+   **After the audit (DEC-106):**
+   - the first batch of new worries;
+   - the asset-condition model, with street cues (potholes, broken lights, overgrown parks as funding falls);
+   - faith communities (fictional faiths, tendencies with spread within each faith, devotion levels; writing rules first).
    It also checks **every system against what its docs and UI claim**, so nothing is described that the engine does not do. Known gaps (owner question, 2026-11-21):
    - one labour market per town, with no commuting or job access between neighbourhoods or towns;
    - rent per town only (neighbourhood rent is a worry multiplier, not a market);

@@ -112,6 +112,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-103 | Return to a world: legacy as a persistent world the player can re-enter as a new character | Accepted (direction) |
 | DEC-104 | Account sync between devices: optional, passkey sign-in, Cloudflare; deferred until a custom domain | Deferred |
 | DEC-105 | Act 2 and beyond: capitals that play differently, levels of detail, home towns that remember | Proposed |
+| DEC-106 | More worries, faith communities with spread within each faith, and upkeep you can see | Accepted (direction) |
 
 ---
 
@@ -2538,3 +2539,45 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      - performance and save size with several detailed towns, measured in the lab first;
      - per-tier content volume, through the content pipeline and the DEC-101 grader.
 - **Dependencies:** DEC-009, DEC-017, DEC-092, DEC-094, DEC-098, DEC-099, DEC-101, DEC-103.
+
+### DEC-106 — More worries, faith communities, and upkeep you can see
+- **Status:** Accepted as a direction (owner, 2026-11-21). The owner asked whether common public-policy concerns are missing, whether to add religion, and how to show cuts.
+  - On faith: "they should have a general tendency for certain priorities and beliefs but people vary within the belief so it's more realistic".
+  - On cuts: "show when funding is cut, pothole frequency increasing for example".
+- **Decision:**
+  1. **More worries, each driven by a simulated signal (DEC-095).**
+     - **First batch, with signals that exist:**
+       - cost of living: prices against real wages;
+       - newcomers and change: migration inflows;
+       - young people leaving and an ageing town: age groups and migration by age;
+       - schools and health care, split from services;
+       - roads and upkeep: the condition of the town's assets (item 3);
+       - trust and corruption: scandals and cases;
+       - development and character: construction pressure.
+     - **Second batch, each after its model:**
+       - crime and safety: a crime model is worth building;
+       - traffic and transport: after the commuting layer;
+       - energy bills: if utilities are modelled.
+     - Every worry works at any tier by data (DEC-098). The simulation audit checks that each one responds to its signal.
+  2. **Faith communities, as data in the communities dimension (DEC-075).**
+     - **Fictional faiths, not real religions,** plus a secular share, often the largest.
+     - **Each faith sets a tendency, not a rule.** It shifts the mean of a distribution on the relevant attitudes and issue priorities (for example tradition and social liberalism, or a faith's stance on a moral issue). People within the faith spread widely around that mean.
+     - **Devotion varies:** devout, practising or nominal, which sets how strongly a person's faith pulls on their views and priorities. Some disagree with their faith's stance outright. Named people are drawn from these distributions, so no faith votes as a bloc.
+     - **What faith communities have:** places of worship (a place kind) and leaders (clergy).
+     - **Civic life:** charities and food banks, schools, planning disputes, holy days and trading rules, and moral issues on which a family or bill can split a congregation.
+     - **Writing rules in the style guide:**
+       - no faith is the villain or the punchline;
+       - faith groups appear in ordinary civic life;
+       - lines never assume a person's views from their faith alone.
+
+       The text audit checks these rules.
+  3. **Upkeep you can see.**
+     - Each town tracks the **condition** of its asset kinds (roads, street lights, parks, public buildings, drains), funded through budget lines. Condition decays without maintenance and recovers with it.
+     - The street shows condition as **frequency**: more potholes, broken lights, overgrown parks, litter and shorter opening hours as funding falls, and fewer as it returns. The art is drawn from state, like DEC-099's works.
+     - Condition feeds the roads-and-upkeep worry, overheard lines, asks ("the pothole on my street") and crisis arcs (the bridge, the sinkhole).
+- **Order:**
+  1. The simulation audit.
+  2. The first batch of worries and the asset-condition model, with the street cues.
+  3. Faith communities, with the writing rules written first.
+  4. Crime and the other models later.
+- **Dependencies:** DEC-075, DEC-077, DEC-078, DEC-092, DEC-095, DEC-098, DEC-099, DEC-101.
