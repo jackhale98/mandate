@@ -2565,6 +2565,17 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
          - early-release and sentencing policy as families.
 
          Today prison exists only as a sentence for politicians (`justice.rs`). The jailed ending can use the prison place once it exists.
+         **Crime you can see and feel, without rewarding a police state** (owner, 2026-11-21):
+         - **Street cues drawn from state,** like upkeep: graffiti, broken windows, boarded shops, fewer people out at night, and police presence. Their frequency follows each neighbourhood's crime and the time of day.
+         - **The player can be a victim:** pickpocketing or a mugging that costs money or time, a break-in at the office, a threat during a scandal. The risk depends on the neighbourhood, the time of day and the player's routine. It is a small, fair risk shown in the place's information, never a sudden loss with no warning. It becomes story: an encounter, a memory, an ask.
+         - **A police state does not pay.** Policing has diminishing returns and real costs:
+           - the budget;
+           - backlash against civil liberties (social liberalism);
+           - lost trust in heavily policed neighbourhoods and communities;
+           - misconduct scandals;
+           - crime displaced to the next district.
+
+           Root causes work more slowly but last: jobs, youth services, lighting, upkeep, housing and treatment. A balance gate requires that a heavy-policing strategy is never dominant (DEC-097 balance principle).
        - traffic and transport: after the commuting layer;
        - energy bills: if utilities are modelled.
      - Every worry works at any tier by data (DEC-098). The simulation audit checks that each one responds to its signal.
