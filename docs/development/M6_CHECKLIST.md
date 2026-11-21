@@ -143,6 +143,26 @@ On hold until then:
 - **Refresh the landing page** with the walkable town (DEC-083).
 - **The tester checkpoint:** the owner plus 3–5 testers, with the §29.3 questions. M7 starts only on approval.
 
+## Next when tokens refresh (owner, 2026-11-21)
+1. **Cold open (the hook), with the openings drawn from the simulation:**
+   - Run the 20-year history as now.
+   - Scan every town in the country for situations that match **opening frames**: authored templates in U1 conditions, such as a plant shedding jobs, a recent disaster, a predecessor's scandal, a tight by-election or a budget hole.
+   - Offer a draft of three real towns with real situations. If nothing matches, simulate forward month by month, up to a cap.
+   - Each frame supplies:
+     - the player's post (from the constitution);
+     - a clock;
+     - an ally and an opponent cast from the real people;
+     - a seeded hidden fact (a small E9);
+     - a guaranteed first beat on turn 1 (the director).
+   - The first chapter is about 15–20 minutes and ends in a payoff.
+   - It replaces "the draft of three openings" and the "per-run twist".
+2. **A structure-only refactor:**
+   - Split `types.rs` and `validate.rs` by area, `actions.rs` into action modules, and `bots.rs`, `doctor.rs` and `director.rs` into folders.
+   - Make PROGRESS and BALANCE_LOG one entry per file, or lead-only.
+   - Drop the content hash from the v18 golden comparison.
+   - Proof: identical hashes, bot output and corpus.
+3. Then F4/F5, F3/F6 and V1 as before.
+
 ## Later (owner, 2026-11-20)
 - **Account sync between devices:** passkey sign-in, saves synced through a Cloudflare Worker, D1 for metadata and R2 for save blobs (the free tier fits tester scale).
   - Waits for a custom domain: the passkey's domain must not change after launch.
