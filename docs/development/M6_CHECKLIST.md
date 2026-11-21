@@ -182,6 +182,22 @@ On hold until then:
 6. **Arriving at a building.** Going to a place from the map (for example the town hall) opens its menu on arrival instead of entering the building. Places with an interior should be entered on arrival.
 7. **Leaving a conversation.** Talking moves the time of day, so on leaving, the person has vanished because of their routine. Instead, they should walk off towards their next routine location so the change is visible. The same applies to anyone whose slot changes while on screen.
 
+8. **The party line ignores the party's views.** `actions::party_line` returns yes if the bill's sponsor is in the player's party, otherwise no, so a socially liberal reformer party whips against affordable housing proposed by another party. Fix in the engine:
+   - the line comes from the party's platform against the bill's attitude axes;
+   - it is adjusted by deals, coalition and how strongly the party whips;
+   - conscience issues get free votes;
+   - the bill view says why ("Your party backs it: it fits their housing pledge").
+
+   Check the NPCs' own votes use the same rule, then re-run the bots.
+9. **The ward view is unreadable.** "Your ward's view: +20" is net support on −100..+100, rounded by what the player knows (to 25 below known, to 10 at known). Show words and shares instead, for example "Leans for: about 60% for, 40% against (rough estimate)", with how sure the estimate is.
+10. **Vote on impact, not just approval** (owner). Before voting, the bill view should show:
+    - what the bill does: cost, who pays, and who gains or loses by neighbourhood and group;
+    - side effects and trade-offs (DEC-073);
+    - what it does to the player's record and credit (V1);
+    - with knowledge gating, as for everything else.
+
+    This is F3's extended policy preview (contracts §2.12) brought forward to ordinary bills, plus "Why?" afterwards.
+
 ## Later (owner, 2026-11-20)
 - **Account sync between devices:** passkey sign-in, saves synced through a Cloudflare Worker, D1 for metadata and R2 for save blobs (the free tier fits tester scale).
   - Waits for a custom domain: the passkey's domain must not change after launch.
