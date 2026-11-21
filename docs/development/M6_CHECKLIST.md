@@ -161,6 +161,14 @@ On hold until then:
    7. **Readability:** whether "Why?" explains each change.
 
    The harness becomes a CI or nightly gate.
+   It also checks **every system against what its docs and UI claim**, so nothing is described that the engine does not do. Known gaps (owner question, 2026-11-21):
+   - one labour market per town, with no commuting or job access between neighbourhoods or towns;
+   - rent per town only (neighbourhood rent is a worry multiplier, not a market);
+   - no moves between neighbourhoods except disaster displacement.
+   **Later:**
+   - a commuting layer (travel times between neighbourhoods and nearby towns, employment by neighbourhood from reachable jobs, rents by neighbourhood);
+   - then transport (bus routes, rail, ferries as networks with service levels changed by families and works; vehicles drawn from the service level; DEC-095).
+   This needs its own decision.
 1. **Cold open (the hook), with the openings drawn from the simulation:**
    - Run the 20-year history as now.
    - Scan every town in the country for situations that match **opening frames**: authored templates in U1 conditions, such as a plant shedding jobs, a recent disaster, a predecessor's scandal, a tight by-election or a budget hole.
