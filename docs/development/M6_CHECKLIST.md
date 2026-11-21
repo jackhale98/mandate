@@ -241,6 +241,35 @@ On hold until then:
 
     The list views stay for accessibility and quick mode (DEC-051). Only what the player knows is placed (DEC-091).
 
+## M6 or M7 split (owner, 2026-11-21)
+- **M6 (needed for the tester checkpoint):**
+  - the play notes;
+  - the simulation audit;
+  - the cold open (crisis arcs, new crises, the audition, frames);
+  - the refactor;
+  - families F3–F6 and V1;
+  - DEC-102 targets and gates;
+  - the first batch of new worries, with upkeep you can see;
+  - the planned E3–E5 and E9–E13 content;
+  - text pass 2.
+- **Protect first if tokens are tight:**
+  1. the play notes;
+  2. the audit;
+  3. the cold open;
+  4. the families pack and screens;
+  5. the first worries.
+
+  V1, the difficulty modes and E9–E13 may slip to M7.
+- **M7:**
+  - faith communities;
+  - the crime model with the justice system and prisons;
+  - the commuting layer, then transport;
+  - energy;
+  - immigration and emigration (with DEC-087 neighbours);
+  - return to a world (DEC-103);
+  - the Act 2 design (DEC-105).
+- **When the custom domain exists:** account sync (DEC-104).
+
 ## Later (owner, 2026-11-20)
 - **Account sync between devices:** passkey sign-in, saves synced through a Cloudflare Worker, D1 for metadata and R2 for save blobs (the free tier fits tester scale).
   - Waits for a custom domain: the passkey's domain must not change after launch.

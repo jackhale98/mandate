@@ -2556,7 +2556,15 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
        - trust and corruption: scandals and cases;
        - development and character: construction pressure.
      - **Second batch, each after its model:**
-       - crime and safety: a crime model is worth building;
+       - crime and safety: a crime model is worth building. With it comes **the justice system as institutions** (owner, 2026-11-21):
+         - police, courts and prisons, with capacity, funding and conditions;
+         - prisons run by whichever tier the constitution assigns;
+         - a prison place kind with staff and visits, including casework for prisoners' families;
+         - effects: overcrowding, reoffending, cost, and jobs in the prison town;
+         - siting fights and riots as crisis arcs;
+         - early-release and sentencing policy as families.
+
+         Today prison exists only as a sentence for politicians (`justice.rs`). The jailed ending can use the prison place once it exists.
        - traffic and transport: after the commuting layer;
        - energy bills: if utilities are modelled.
      - Every worry works at any tier by data (DEC-098). The simulation audit checks that each one responds to its signal.
