@@ -165,6 +165,23 @@ On hold until then:
    - Proof: identical hashes, bot output and corpus.
 3. Then F4/F5, F3/F6 and V1 as before.
 
+## Owner notes to fix (2026-11-21), first when tokens reset
+1. **"Out of office" still shows over people's heads.** 0130b5d fixed only `person_ref` in `mandate-protocol/src/characters.rs`. Check the other paths:
+   - `characters::knows::role_key` (mandate-sim), used by the gated person views;
+   - `office.rs` (around lines 497 and 955);
+   - the street name tags and ambient townsfolk in `web/src/hub`;
+   - whether the PWA service worker served a stale build.
+
+   Add a test that no non-player name tag reads `role-private`.
+2. **Talk order.** A conversation's opener ("What's this about?") must come before the player's question, not after it, in the dialogue box.
+3. **Map:** the "Country" toggle button's label is not centred.
+4. **Town summary:**
+   - the crisis text overlaps "Defining industry";
+   - each neighbourhood should say which ward it is in.
+5. **Canvassing in the street.** Canvassing (and other ward activities) should start by walking up to actual houses, rather than opening the ward menu: tap a door, canvass it. The pocket keeps the quick path (DEC-051).
+6. **Arriving at a building.** Going to a place from the map (for example the town hall) opens its menu on arrival instead of entering the building. Places with an interior should be entered on arrival.
+7. **Leaving a conversation.** Talking moves the time of day, so on leaving, the person has vanished because of their routine. Instead, they should walk off towards their next routine location so the change is visible. The same applies to anyone whose slot changes while on screen.
+
 ## Later (owner, 2026-11-20)
 - **Account sync between devices:** passkey sign-in, saves synced through a Cloudflare Worker, D1 for metadata and R2 for save blobs (the free tier fits tester scale).
   - Waits for a custom domain: the passkey's domain must not change after launch.
