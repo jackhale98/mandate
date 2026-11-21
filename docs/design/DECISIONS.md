@@ -107,6 +107,11 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-098 | Built for every tier: offices from the constitution, jurisdiction keys, what becomes data, one condition language | Accepted |
 | DEC-099 | Works you can see: funded projects change the town physically, stall and decay if abandoned, and carry your name | Accepted |
 | DEC-100 | Variety across careers: a cross-career repetition gate, Act 1 content targets, recombinable templates, a per-run twist (Legacy unlocks deferred) | Accepted |
+| DEC-101 | The cold open: openings drawn from the simulated world, crises as arcs, and an audition that tests each opening before the player sees it | Accepted |
+| DEC-102 | Difficulty and run structure: a run is a career, target win rates, modes, difficulty levers as data | Proposed |
+| DEC-103 | Return to a world: legacy as a persistent world the player can re-enter as a new character | Accepted (direction) |
+| DEC-104 | Account sync between devices: optional, passkey sign-in, Cloudflare; deferred until a custom domain | Deferred |
+| DEC-105 | Act 2 and beyond: capitals that play differently, levels of detail, home towns that remember | Proposed |
 
 ---
 
@@ -2401,3 +2406,135 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Deferred:** Legacy unlocks (backgrounds and perks earned across careers). Endings and the Legacy record stay in M6 as planned.
 - **Order:** item 1 with E12; items 2 and 3 with E3, E8 and E13; item 4 with the draft of three openings.
 - **Dependencies:** DEC-006, DEC-030, DEC-036, DEC-039, DEC-077, DEC-097, DEC-098.
+
+- **Note (2026-11-21):** item 4, the per-run twist, is replaced by DEC-101. Openings are drawn from situations in the simulated world, not a fixed list of twists.
+
+### DEC-101 — The cold open
+- **Status:** Accepted (owner, 2026-11-21). The owner asked whether the game lacks "a real hook": players should "get a unique situation every time" and be "almost immediately engaged". They proposed drawing openings from the simulation (simulate on to the next crisis, offer several towns), asked whether crises are exciting, and suggested letting crises play out and rewinding with the deterministic engine. They accepted the plan below.
+- **Context:**
+  - Every run starts as a sitting councillor on turn 0, with no urgent situation.
+  - The director's first beat can come late: E2 measured governing gaps of up to about 250 days.
+  - Crises mostly reach the player as a headline and a one-turn decision.
+  - The simulation is deep, but the first minutes don't show it.
+  - Twenty simulated years take about half a second, so looking ahead is cheap.
+- **Decision:**
+  1. **Openings from the world.**
+     - After the history, scan every town in the country for situations that have just begun.
+     - If nothing strong is found, simulate forward month by month with no tight limit.
+     - Situations include crises, and also non-crisis hooks: a by-election after a resignation, a rival's scandal, a budget fight, a party coup.
+  2. **Opening frames (data, in U1's condition language).** A frame matches a situation and supplies:
+     - the player's post, from the constitution;
+     - a clock;
+     - an ally and an opponent cast from the real people;
+     - one hidden fact to uncover (a small DEC-097 secret);
+     - a guaranteed first beat on turn 1.
+
+     Frames are thin. The drama comes from the simulation and from crisis writing.
+  3. **The draft.** Offer three real towns with three real situations, each with a one-line pitch, and let the player choose. This replaces the planned "draft of three openings" and DEC-100's per-run twist.
+  4. **Crises are arcs, not votes.** Each crisis runs:
+     - warning signs;
+     - the break, with a face and a clock;
+     - escalation, as people act each turn;
+     - levers across systems: talk, visits, asks, policy families, deals, the press, staying out;
+     - a branching resolution that leaves a visible mark (DEC-099) and memories.
+
+     Rewrite today's crises to this template, and add about a dozen new ones: the bridge, the water, the beloved institution, the developer, the strike, the heatwave, the missing money, the newcomers, the sinkhole, the team, the recount, the buyer. Every crisis must also work at other tiers by data alone (DEC-098).
+  5. **The audition.**
+     - Copy the game for each candidate situation and run the copy 6–12 months with passive, engaged and contrarian stand-in players.
+     - Score escalation, agency (passive against engaged outcomes), visibility and pacing, then offer the best three.
+     - Discard the copies. The same seed gives the same draft, and nothing seen in the audition is shown to the player.
+     - The same tool runs in CI as the grader of crisis content (with E12).
+  6. **The first chapter** lasts about 15–20 minutes and ends in a payoff.
+- **Order:**
+  1. The crisis arc template.
+  2. Rewriting and adding crises.
+  3. The audition.
+  4. The frames and the draft.
+  5. The director's first-beat guarantee.
+
+  This comes before F4. A structure-only refactor runs first or alongside it.
+- **Dependencies:** DEC-005, DEC-012, DEC-036, DEC-077, DEC-078, DEC-092, DEC-097, DEC-098, DEC-099, DEC-100.
+
+### DEC-102 — Difficulty and run structure
+- **Status:** Proposed (2026-11-21). The owner asked to balance difficulty "between its length, its roguelike roots, and how engaging and replayable it is". The targets below are proposals for the owner to confirm before playtests.
+- **Context:**
+  - A full career runs 6–10 h (REQ-008), longer than most roguelike runs.
+  - Today a lost seat ends Act 1.
+  - The bot gate ladder, the idle cap and storyteller profiles exist, but there are no agreed win-rate targets.
+- **Proposal:**
+  1. **A run is a career.**
+     - Losing a seat ends the act with an epilogue, and the career continues into a comeback, which is itself a DEC-101 opening.
+     - The run ends on a final defeat: jail, total disgrace, or two losses in a row.
+  2. **Targets, measured by bots and then playtests:**
+     - an idle player wins at most 10%;
+     - an engaged newcomer is re-elected about 60–70%;
+     - a skilled player is re-elected about 85%;
+     - reaching the top office is rare (about 5–15% for skilled players);
+     - Act 1 lasts 1.5–2.5 h with skips.
+
+     Each storyteller and difficulty preset gets its own gates in CI.
+  3. **Difficulty levers as data:** rival competence, what the player knows at the start, event harshness, economic volatility, how long voters remember, and scandal rates.
+  4. **Modes:** Story (forgiving; skips encouraged), Standard, and Ironman (one save, no rewinds).
+  5. **Replay** comes from variety (DEC-100, DEC-101), mastery, comebacks, the Legacy record and returning to a world (DEC-103). Legacy unlocks stay deferred.
+- **Dependencies:** DEC-005, DEC-006, DEC-076, DEC-097, DEC-100, DEC-101, DEC-103.
+
+### DEC-103 — Return to a world
+- **Status:** Accepted as a direction (owner, 2026-11-21): "let people re-enter a world they finish or lost a run in … be a part of a town they haven't seen before, still face the consequences of their actions and reconnect with a world they are used to". Design details are to be written before implementation.
+- **Decision:**
+  1. **World saves.** A finished run (won, lost, jailed) keeps its world as a world save, separate from run saves.
+  2. **Return.** "Return to this world" simulates a chosen gap (about 4–12 years), so laws, works, economies and people play out. The player then starts as a new character in a different town, chosen through the DEC-101 draft and audition from that world's situations.
+  3. **The old character becomes a person in the world,** keeping their record and relationships: an elder statesman, a disgraced figure, a mentor or an opponent. People remember them, and their towns show their works.
+  4. **Knowledge.** The new character knows only public reputations. Everything else is learned again (DEC-091).
+  5. **Default.** "New world" stays the default; "Return" is an option. A wrecked world is a consequence, but the draft must still find playable openings.
+  6. **Not unlocks.** This is legacy as history, not meta-progression. DEC-100's deferral of Legacy unlocks stands.
+- **Open questions:**
+  - retiring the player into an ordinary character (new engine work);
+  - pruning history and capping generations to bound save size;
+  - how many returns a world allows;
+  - Ironman rules for returning.
+- **Order:** after DEC-101. It shares Act 2's levels of detail (DEC-105).
+- **Dependencies:** DEC-006, DEC-009, DEC-041, DEC-091, DEC-099, DEC-100, DEC-101, DEC-105.
+
+### DEC-104 — Account sync between devices
+- **Status:** Deferred (owner, 2026-11-20): "We can wait until I get a custom domain."
+- **Direction:**
+  - An optional account with passkey sign-in, and saves synced between devices.
+  - A Cloudflare Worker, with D1 for account and save metadata and R2 for save files. The free tier fits tester scale.
+  - The game stays offline-first; sync is one more place saves can go.
+  - Per-slot revisions and a conflict prompt.
+  - A one-time recovery code, and "delete my account and data".
+- **Conditions:**
+  - The site moves to the custom domain on Cloudflare before the first passkey exists, because the passkey's domain cannot change later.
+  - It amends "offline-first, no backend" to "offline-first, with optional sync".
+- **Dependencies:** DEC-064, DEC-082, DEC-083.
+
+### DEC-105 — Act 2 and beyond
+- **Status:** Proposed (2026-11-21). The owner asked how regional and national capitals differ from towns, whether home towns keep running and remember the player, and whether the architecture suits expansion. A design pass for Act 2 comes after Act 1 is finished.
+- **Direction:**
+  1. **Capitals play differently, not just bigger.**
+     - An institutional district: the assembly or parliament, ministries, party headquarters, the press gallery, lobbyists, a protest square and, nationally, embassies. These are place kinds as data, with their own people and routines.
+     - New verbs per tier: committees, coalition bargaining, staff, the press corps, fights with other levels of government, party leadership contests.
+     - Travel across a multi-town constituency.
+  2. **Keep it personal as stakes compound.**
+     - More visibility means more scrutiny.
+     - Rivals and allies rise with the player.
+     - Favours from lower tiers are called in.
+     - The map shows the player's record, and people remember it.
+  3. **Levels of detail (a decision before Act 2):**
+     - **Focus town:** full detail.
+     - **Home town and constituency towns:** a middle level, where people remember and react, goals simplify, works progress and worries update monthly.
+     - **Everywhere else:** the country-level simulation.
+
+     Check which systems run only for the focus town today (families, asks, routines), and make the middle level real.
+  4. **Home towns remember.**
+     - V1's credit and blame per neighbourhood and works at any tier carry the player's higher-level decisions back home.
+     - Returning gives a homecoming summary (REQ-010, using the time-skip summary).
+  5. **Gaps to close:**
+     - only the local tier is instantiated;
+     - capitals in the layout generator (X1);
+     - travel in the interface;
+     - leftover town-only keys and fields (R2's findings);
+     - one fiscal year for every tier;
+     - performance and save size with several detailed towns, measured in the lab first;
+     - per-tier content volume, through the content pipeline and the DEC-101 grader.
+- **Dependencies:** DEC-009, DEC-017, DEC-092, DEC-094, DEC-098, DEC-099, DEC-101, DEC-103.
