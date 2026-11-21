@@ -144,6 +144,23 @@ On hold until then:
 - **The tester checkpoint:** the owner plus 3–5 testers, with the §29.3 questions. M7 starts only on approval.
 
 ## Next when tokens refresh (owner, 2026-11-21)
+0. **Order** (owner, 2026-11-21):
+   1. the owner's play notes (items 1–11 below);
+   2. **the simulation audit**;
+   3. the cold open;
+   4. the refactor (alongside or before the cold open);
+   5. then F4/F5, F3/F6 and V1.
+
+   **The simulation audit** is one agent task: lab experiments and a written report with charts (`docs/design/research/SIMULATION_AUDIT.md`), then fixes tuned against it and logged in BALANCE_LOG. It measures:
+   1. **Policy responsiveness:** each policy's effect, sign and size across town types; that is, F7's gate.
+   2. **Believable behaviour:** unemployment hurts incumbents; rents follow supply; migration follows jobs and rent; incumbency advantage; turnout patterns.
+   3. **Sensitivity:** which parameters dominate outcomes.
+   4. **Towns diverging:** whether towns stay distinct over 20–30 years.
+   5. **Player leverage:** how much one councillor can move.
+   6. **Stuck states:** debt spirals, towns that never recover, parties that never lose.
+   7. **Readability:** whether "Why?" explains each change.
+
+   The harness becomes a CI or nightly gate.
 1. **Cold open (the hook), with the openings drawn from the simulation:**
    - Run the 20-year history as now.
    - Scan every town in the country for situations that match **opening frames**: authored templates in U1 conditions, such as a plant shedding jobs, a recent disaster, a predecessor's scandal, a tight by-election or a budget hole.
