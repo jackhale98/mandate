@@ -156,6 +156,8 @@ On hold until then:
      - a guaranteed first beat on turn 1 (the director).
    - The first chapter is about 15–20 minutes and ends in a payoff.
    - It replaces "the draft of three openings" and the "per-run twist".
+   - **Crisis arcs, not votes:** warning signs → the break → escalation (people act each turn) → levers across systems → a branching resolution that leaves a visible mark. Rewrite today's crises to that template and add about a dozen new ones (the bridge, the water, the institution, the developer, the strike, the heatwave, the missing money, the newcomers, the sinkhole, the team, the recount, the buyer).
+   - **The audition:** for each candidate situation, copy the game and run it 6–12 months with passive, engaged and contrarian stand-in players. Score escalation, agency (passive against engaged), visibility and pacing, then offer the best three. Throw the copies away; the same seed gives the same draft. The same tool runs in CI as the grader for crisis content (folds into E12).
 2. **A structure-only refactor:**
    - Split `types.rs` and `validate.rs` by area, `actions.rs` into action modules, and `bots.rs`, `doctor.rs` and `director.rs` into folders.
    - Make PROGRESS and BALANCE_LOG one entry per file, or lead-only.
