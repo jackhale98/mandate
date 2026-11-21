@@ -1895,6 +1895,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
   - **Generated with the world:** 2–5 neighbours with randomly drawn constitutions from the constitution registry (DEC-078 content), a ruling party and leader, population, a national economy (growth, unemployment, inflation), stability, an attitude vector, and a relationship with the home country. The greyed land drawn around the country on the map (UI polish round) becomes these real nations, with names and borders.
   - **How they reach the player, by tier:**
     - Local: foreign investment opening or closing a plant, migrants after a neighbour's crisis, border-town trade.
+    - **Note (2026-11-21, DEC-106 §4):** migration flows to and from neighbours, the immigration and emigration worries (salience by border proximity, recent arrivals and pace of change), and an openness-to-immigration attitude.
     - Regional: cross-border trade and shared rivers and hazards.
     - National and presidency: trade deals and tariffs, treaties, disputes, aid, alliances, summits, and defence and foreign-affairs budget lines (DEC-078 §5 budget registries).
   - **Same rules as everything else:** foreign shocks (a neighbour's recession, a refugee wave, a trade war) are exogenous events the director may time within plausible bounds (DEC-033 B); it never fakes outcomes. NPC foreign leaders use the same utility AI and rule symmetry as NPC politicians (DEC-030).
@@ -2575,6 +2576,15 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
      - Each town tracks the **condition** of its asset kinds (roads, street lights, parks, public buildings, drains), funded through budget lines. Condition decays without maintenance and recovers with it.
      - The street shows condition as **frequency**: more potholes, broken lights, overgrown parks, litter and shorter opening hours as funding falls, and fewer as it returns. The art is drawn from state, like DEC-099's works.
      - Condition feeds the roads-and-upkeep worry, overheard lines, asks ("the pothole on my street") and crisis arcs (the bridge, the sinkhole).
+  4. **Immigration and emigration** (owner, 2026-11-21, with DEC-087 neighbours).
+     - **Movement across borders:** monthly migration gains flows to and from neighbouring countries, weighted by distance and by the gap in wages, jobs and safety, and driven by their crises.
+       - The young and skilled may emigrate to a richer neighbour.
+       - Arrivals join the communities layer with their own spread of views and faiths. They vote as the constitution allows.
+     - **Two worries,** distinct from internal "newcomers": **immigration** and **emigration** ("our young people are leaving").
+     - **What drives the immigration worry:** proximity to a border, recent arrivals and the pace of change, not regional stereotypes. Border towns also get cross-border trade, and commuting once the commuting layer exists.
+     - **A new attitude, openness to immigration,** spread across people and shaped by contact, economic pressure and tradition.
+     - **The simulation is even-handed.** Effects come from the existing models: labour supply and demand, pressure on housing and services, ageing, and tax revenue. Nothing is judged good or bad in advance.
+     - **The same writing rules as faith:** no group is a villain or a punchline, people are individuals, and no line treats a scapegoating claim as fact.
 - **Order:**
   1. The simulation audit.
   2. The first batch of worries and the asset-condition model, with the street cues.
