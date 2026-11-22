@@ -241,6 +241,12 @@ On hold until then:
 
     The list views stay for accessibility and quick mode (DEC-051). Only what the player knows is placed (DEC-091).
 
+12. **Asks that need a conversation have no conversation for it** (owner report, "An introduction"). `ask.introduce_me` needs "talk to the official, then the asker". There is no "Put in a word for <asker>" choice and no lines for it, so the official says nothing when asked about the asker. Also, `Deed::Talk` is only recorded if `talk::apply` succeeds, and ask progress only advances when `asks.daily` runs, so "Next:" doesn't move until the day ticks over. Fix:
+    - an ask-aware talk option (the ask's need gives the dialogue a choice with its own lines and reply, for example the official agreeing to meet);
+    - resolve the step at once when the command lands (or show "done, confirmed tomorrow");
+    - make a failed or empty exchange visible, never silent;
+    - audit every ask need for a player-visible way to meet it (a test: each need kind has a command path and a UI path).
+
 ## M6 or M7 split (owner, 2026-11-21)
 - **M6 (needed for the tester checkpoint):**
   - the play notes;
