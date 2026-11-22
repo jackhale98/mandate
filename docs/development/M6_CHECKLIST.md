@@ -246,6 +246,30 @@ On hold until then:
     - resolve the step at once when the command lands (or show "done, confirmed tomorrow");
     - make a failed or empty exchange visible, never silent;
     - audit every ask need for a player-visible way to meet it (a test: each need kind has a command path and a UI path).
+    - **Second bug (owner repro):** talked to the mayor; the next day talked to Cosmo; the ask said *broken*. Reproduce it: a step kept on a later day, or steps met out of the expected order, must never break the ask.
+13. **The prose style bible** (owner), extending EXTENDING's "Writing for Mandate":
+    - two or three tonal anchors, for example dry civic realism (Yes Minister), terse event text (Crusader Kings), character-driven political choice (Suzerain), spare and humane (Citizen Sleeper). Tone and craft only, never copied text;
+    - owner-approved sample passages as the standard;
+    - voice sheets for each speaker type;
+    - a doctor lint for AI habits: stock phrases, "not X but Y", reflexive lists of three, too many em dashes, moralising closers, uniform sentence lengths, piled-up adjectives;
+    - agents draft, the doctor lints, the owner blind-reviews samples.
+
+    This comes before the cold-open and families content.
+14. **A legal and compliance pass,** before the tester checkpoint. Groundwork only; a lawyer reviews before any commercial release.
+    - A privacy notice: no data sent today; saves stay local; GitHub Pages logs; bug reports. Update it with DEC-104.
+    - An AI-assistance disclosure: storefront rules (Steam), and the EU AI Act's transparency duties. A decision on the wording.
+    - Open-source, font and art licence notices.
+    - A fiction disclaimer.
+    - A check on the name "Mandate".
+15. **A security pass:**
+    - a secret scan of the repo and its history;
+    - `npm audit` and `cargo audit` in CI;
+    - CI actions pinned, and token permissions narrowed;
+    - a CSP in a meta tag (Pages has no headers);
+    - save import hardened against hostile or huge files;
+    - the service worker's scope checked;
+    - no keys in the client bundle.
+
 
 ## M6 or M7 split (owner, 2026-11-21)
 - **M6 (needed for the tester checkpoint):**
