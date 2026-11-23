@@ -525,7 +525,7 @@ event-policy-withdrawn = The { $policy } bill was withdrawn in { $town }.
 event-campaign-opened = Campaign season has begun. Local elections are on { $day } { $month_key } { $year }.
 event-polls-published = New polls are out.
 event-player-elected = You won your race in { $town }.
-event-player-elected-mayor = You were elected mayor of { $town }!
+event-player-elected-mayor = You were elected mayor of { $town }.
 event-player-defeated = You lost your race in { $town }. { $name } won.
 event-mayor-ousted = { $town } threw out its mayor: { $name } won.
 event-mayor-elected = { $name } was elected mayor of { $town }.
@@ -619,7 +619,7 @@ ui-owe-sponsor = You owe { $name } a favour: voting yes repays it; voting no wil
 ui-vote-yes = Vote yes
 ui-vote-no = Vote no
 ui-vote-abstain = Abstain
-ui-vote-help = Your vote is public and final. Defying the party costs Standing; your ward will remember.
+ui-vote-help = Your vote is public and final. Defying the party costs Standing.
 ui-voted-yes = You voted yes
 ui-voted-no = You voted no
 ui-voted-abstain = You abstained
@@ -1012,7 +1012,7 @@ action-verb-public-gallery = Sat in the public gallery
 outcome-verb-tour_works = You toured { $place }. { $outlook ->
         [growing] The order book is full and they are taking people on.
         [shedding] The manager talks about "difficult months". Shifts are being cut.
-       *[other] Work is steady, for now.
+       *[other] Work is steady.
     }
 outcome-verb-listen_at_gate = You stood at the gate of { $place } as the shift changed, and listened.
 outcome-verb-photo_op_gate = Hard hat on, hand shaken: the photographer got the picture at { $place }.

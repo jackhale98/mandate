@@ -46,7 +46,7 @@ ask-vote-with-me-detail = { $history ->
     }
 ask-vote-with-me-need = Vote yes on the { $bill } bill
 ask-vote-with-me-kept = You voted for { $asker }'s bill. They owe you one.
-ask-vote-with-me-broken = You promised { $asker } your vote on the { $bill } bill and did not give it. They will remember.
+ask-vote-with-me-broken = You promised { $asker } your vote on the { $bill } bill and did not give it. They had you down as a yes.
 
 ## The party counts heads
 ask-party-budget = The party counts heads
@@ -77,7 +77,7 @@ ask-say-something-broken = { $asker } wrote that you had nothing to say about { 
 ask-attend-meeting = The traders' meeting
 ask-attend-meeting-detail = { $asker } ({ $asker_role }) is rallying { $town }'s traders over the lost jobs and asks you to come to their meeting at { $place }.
 ask-attend-meeting-need = Go to { $place }
-ask-attend-meeting-kept = You came to the traders' meeting. { $asker } will not forget it.
+ask-attend-meeting-kept = You sat through the whole of the traders' meeting at { $place }. { $asker } thanked you in front of the room.
 ask-attend-meeting-broken = The traders met without you. { $asker } made sure everyone knew you had promised to come.
 
 ## The picket line (was the request "the workers' campaign")
@@ -112,7 +112,7 @@ ask-broker-vote-broken = You let { $asker } down on the { $bill } bill. They rem
 ask-visit-after-flood = Come and see { $asker_hood }
 ask-visit-after-flood-detail = { $asker } ({ $asker_role }) lives in { $asker_hood }, which took the worst of it. People there want to see the people they elected on their streets.
 ask-visit-after-flood-need = Canvass or hold a town hall in { $asker_hood }
-ask-visit-after-flood-kept = You went to { $asker_hood } when it mattered.
+ask-visit-after-flood-kept = You came to { $asker_hood } after the flood, to the streets that took the worst of it.
 ask-visit-after-flood-broken = { $asker_hood } waited for you, and you did not come.
 
 ## Second my bill
