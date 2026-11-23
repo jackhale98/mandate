@@ -756,6 +756,8 @@ short-town_data_detailed = Statistics
 short-budget_papers = Budget papers
 short-internal_polls = Internal polls
 short-overheard = Overheard talk
+short-casework = Casework
+short-newspaper = Today's paper
 
 # Characters (DEC-031): traits, occupations, and memories.
 trait-grudge_holder = Holds grudges
