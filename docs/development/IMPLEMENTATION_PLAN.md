@@ -2,7 +2,7 @@
 
 Written 2026-11-23, before work resumes. It turns the owner's notes and DEC-101 to DEC-107 into an order of work, names the shared mechanisms to build once, and sets the rules for using agents cheaply. `M6_CHECKLIST.md` stays the status list; this file is the order and the method.
 
-**Status:** proposed. Three points need the owner's word (§7).
+**Status:** accepted (owner, 2026-11-23: "These suggestions sound good"), including the three points in §7.
 
 ## 1. Principles
 
@@ -127,11 +127,16 @@ Rules:
 - **Every gate has a harness.** A claim about balance, pacing or responsiveness is a lab command with a number, then a CI or nightly gate.
 - **Player and NPCs share rules** (DEC-030): new verbs are available to both unless a decision says otherwise.
 
-## 7. For the owner to decide
+## 7. Decided by the owner (2026-11-23)
 
-1. **The refactor moves first** (W0), ahead of the play notes. Nothing is running now, which is the only time a structure-only pass has no conflicts. The earlier order had the play notes first.
-2. **DEC-102's targets** (60 to 70% newcomer, about 85% skilled, top office 5 to 15%; a run is a career).
-3. **The reference voices** for the style bible, and approval of its sample passages when they are written.
+1. **The refactor goes first** (W0), ahead of the play notes.
+2. **DEC-102's targets are accepted:**
+   - a run is a career;
+   - an engaged newcomer is re-elected about 60 to 70% of the time, a skilled player about 85%;
+   - top office is reached 5 to 15% of the time.
+
+   Playtests may move the numbers.
+3. **The style bible's reference voices:** dry civic realism (*Yes Minister*), terse event text (Crusader Kings), character-driven political choice (*Suzerain*), spare and humane (*Citizen Sleeper*). Tone and craft only. The owner still approves the sample passages before any content wave.
 
 ## Sources
 - Anthropic, "Building multi-agent systems: when and how to use them": https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them

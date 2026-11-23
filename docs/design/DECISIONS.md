@@ -108,7 +108,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | DEC-099 | Works you can see: funded projects change the town physically, stall and decay if abandoned, and carry your name | Accepted |
 | DEC-100 | Variety across careers: a cross-career repetition gate, Act 1 content targets, recombinable templates, a per-run twist (Legacy unlocks deferred) | Accepted |
 | DEC-101 | The cold open: openings drawn from the simulated world, crises as arcs, and an audition that tests each opening before the player sees it | Accepted |
-| DEC-102 | Difficulty and run structure: a run is a career, target win rates, modes, difficulty levers as data | Proposed |
+| DEC-102 | Difficulty and run structure: a run is a career, target win rates, modes, difficulty levers as data | Accepted |
 | DEC-103 | Return to a world: legacy as a persistent world the player can re-enter as a new character | Accepted (direction) |
 | DEC-104 | Account sync between devices: optional, passkey sign-in, Cloudflare; deferred until a custom domain | Deferred |
 | DEC-105 | Act 2 and beyond: capitals that play differently, levels of detail, home towns that remember | Proposed |
@@ -2459,7 +2459,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 - **Dependencies:** DEC-005, DEC-012, DEC-036, DEC-077, DEC-078, DEC-092, DEC-097, DEC-098, DEC-099, DEC-100.
 
 ### DEC-102 — Difficulty and run structure
-- **Status:** Proposed (2026-11-21). The owner asked to balance difficulty "between its length, its roguelike roots, and how engaging and replayable it is". The targets below are proposals for the owner to confirm before playtests.
+- **Status:** Accepted (owner, 2026-11-23, with the implementation plan). The owner asked to balance difficulty "between its length, its roguelike roots, and how engaging and replayable it is". Playtests may move the numbers.
 - **Context:**
   - A full career runs 6–10 h (REQ-008), longer than most roguelike runs.
   - Today a lost seat ends Act 1.
