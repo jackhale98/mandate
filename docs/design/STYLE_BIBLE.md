@@ -2,7 +2,7 @@
 
 The standard for every word a player reads: conversation, overheard talk, asks, dilemmas, scenes, the press, summaries and the epilogue. It extends "Writing for Mandate" in `docs/development/EXTENDING.md`, which holds the truth rules (a line is true whenever it can be said) and the grammar of fills. Where the two disagree, EXTENDING's truth rules win. The approved passages in `docs/design/STYLE_SAMPLES.md` show the voice at its best; when this page and a sample disagree, follow the sample and fix this page.
 
-Status: draft for the owner's approval (M6 checklist, item 13).
+Status: approved (owner, 2026-11-23: "Style looks good"). It is the standard for all new text (M6 checklist, item 13).
 
 ## 1. The voice
 
