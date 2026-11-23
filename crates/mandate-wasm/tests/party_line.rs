@@ -56,7 +56,10 @@ fn an_own_bill_against_the_platform_is_a_free_vote_or_against() {
     // A party opposed to everything the bill stands for.
     let against: Vec<f32> = housing.iter().map(|w| -w.signum() as f32).collect();
     let strong = stance(k, &against, &housing, Sponsor::Own);
-    assert_eq!(strong.line, -1, "a strong contradiction is against: {strong:?}");
+    assert_eq!(
+        strong.line, -1,
+        "a strong contradiction is against: {strong:?}"
+    );
     assert_eq!(strong.reason.key, "party-reason-cuts");
     // A mild one is a free vote, noting the pull of both.
     let mild: Vec<f32> = housing.iter().map(|w| -w.signum() as f32 * 0.25).collect();

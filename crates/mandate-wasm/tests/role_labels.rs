@@ -95,12 +95,13 @@ fn nobody_but_the_player_is_out_of_office_over_their_head() {
             let me = st.player.as_ref().unwrap().politician;
             let ids: Vec<_> = st.politics.politicians.iter().map(|p| p.id).collect();
             for (i, id) in ids.into_iter().enumerate() {
-                if id != me && i % 3 == 0 {
-                    if let Some(p) = st.politics.get_mut(id) {
-                        p.role = Role::Private {
-                            home: mandate_sim::world::MunicipalityId(p.home),
-                        };
-                    }
+                if id != me
+                    && i % 3 == 0
+                    && let Some(p) = st.politics.get_mut(id)
+                {
+                    p.role = Role::Private {
+                        home: mandate_sim::world::MunicipalityId(p.home),
+                    };
                 }
             }
         });
