@@ -18,7 +18,9 @@
 //!   who can say them cannot have;
 //! - text that reads wrong (text audit 1): doubled punctuation and stray
 //!   braces in a message, a line asserting a worry its conditions do not
-//!   make real, and, in a rendered corpus, arguments that came out empty.
+//!   make real, and, in a rendered corpus, arguments that came out empty;
+//! - prose habits that read as machine-written (`prose-habit`, info, or
+//!   warn under `--strict-prose`; `docs/design/STYLE_BIBLE.md`).
 //!
 //! Findings have a severity (error, warn, info); `--strict` exits non-zero
 //! on errors. Read-only: careers are played on throwaway engines.
@@ -55,6 +57,9 @@ pub struct DoctorArgs {
     /// Exit non-zero when there are errors.
     #[arg(long)]
     pub strict: bool,
+    /// Report the prose habits (`prose-habit`) as warnings, not infos.
+    #[arg(long)]
+    pub strict_prose: bool,
     /// Longest title (dilemma, storyline, topic), in characters.
     #[arg(long, default_value_t = 60)]
     pub max_title: usize,
@@ -98,6 +103,7 @@ impl Default for DoctorArgs {
             strategy: "mixed".into(),
             json: false,
             strict: false,
+            strict_prose: false,
             max_title: 60,
             max_line: 280,
             max_body: 600,
@@ -139,7 +145,7 @@ pub struct Finding {
     /// `fluent-unused` | `fluent-args` | `too-long` | `voice` |
     /// `text-raw` | `text-empty-arg` | `text-doubled-punct` |
     /// `worry-unconditioned` | `subject-unread` | `subject-drift` |
-    /// `talk-off-subject` (corpus).
+    /// `talk-off-subject` (corpus) | `prose-habit`.
     pub check: String,
     /// The content file (or `.ftl`) that defines the item.
     pub file: String,
@@ -413,6 +419,7 @@ pub fn diagnose(sources: &[Source], args: &DoctorArgs) -> Report {
         fluent_checks(&b, sources, scan.as_ref(), &mut out);
         length_checks(&b, args, &mut out);
         text_checks(&b, &mut out);
+        prose_checks(&b, args, &mut out);
         worry_checks(&b, &mut out);
         relevance_checks(&b, &mut out);
         if args.seeds > 0 {

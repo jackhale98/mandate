@@ -425,6 +425,9 @@ cargo run --release -p mandate-cli -- content doctor --seeds 0 --json   # static
 - **Too long** (warn): titles over 60 characters, lines over 280, situations and aftermaths over 600 (`--max-title`, `--max-line`, `--max-body`), rendered with long representative names and the longest variant of every selector.
 - **Voice**: a closer whose voice's speakers never have the line's roles, a substance line for roles its topic is never offered to, a voice that an unconditional voice of higher priority always beats, and (from the careers) voice and role pairs never met.
 - **Text** (warn): doubled punctuation and stray braces written into a message (`text-doubled-punct`, `text-raw`), and a line that names a worry with nothing in its conditions behind it (`worry-unconditioned`); replies that do not answer what was asked (`subject-unread`, `subject-drift`). See "Writing for Mandate" below.
+- **Prose** (info; warn with `--strict-prose`): `prose-habit` reads every message in every variant for habits that read as machine-written (`docs/design/STYLE_BIBLE.md` §7):
+  stock phrases (`STOCK_PHRASES` in `doctor/text.rs`, meant to grow), "not just X, it's Y" frames, two lists of three in one message, more than one dash,
+  an exclamation outside speech, and a line over its kind's length target (by key prefix). It prefers missing a case to flagging a good line.
 
 `--strict` exits non-zero on errors. CI runs the doctor as a report step only, until the base pack's counts are clean.
 
