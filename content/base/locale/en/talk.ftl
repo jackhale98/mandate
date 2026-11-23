@@ -180,9 +180,9 @@ talk-quote-pressed-me = { $subject_kind ->
 talk-quote-defeated-me = "You beat me in { $year }. Fair and square, I'm told."
 talk-quote-lost-to-me = "I beat you in { $year }, if you remember. I do."
 talk-quote-stood-with-me = { $subject_kind ->
-    [decision] "When it came to { $subject }, you were on my side. People notice that sort of thing."
-    [bill] "When it came to the { $subject } bill, you were on my side. People notice that sort of thing."
-   *[other] "When it mattered, you were on my side. People notice that sort of thing."
+    [decision] "When it came to { $subject }, you were on my side. I've told people."
+    [bill] "When it came to the { $subject } bill, you were on my side. I've told people."
+   *[other] "You were on my side in { $year }. I've told people."
 }
 talk-quote-stood-with-me-2 = { $subject_kind ->
     [decision] "I've not forgotten { $subject }. You turned up for me, and plenty didn't."
@@ -344,7 +344,7 @@ talk-about-person-timid = "{ $person } will agree with whoever spoke last. Make 
 talk-about-person-straight = "{ $person } is straight. You mightn't like the answer, but it'll be the real one."
 talk-about-person-crooked = "Count your fingers after you shake hands with { $person }. I'm only half joking."
 talk-about-person-loyal = "{ $person } sticks by people. Even the ones who don't deserve it."
-talk-about-person-ambitious = "{ $person } wants more than they've got. Everybody can see it, except possibly { $person }."
+talk-about-person-ambitious = "{ $person } wants the next job before they've done this one. Everybody can see it but them."
 talk-about-person-grudge = "Don't cross { $person }. Not ever. They forget nothing."
 talk-about-person-charmer = "{ $person } could talk the birds out of the trees, and has."
 talk-about-person-vain = "{ $person } likes seeing their own name in the paper more than most people like their dinner."

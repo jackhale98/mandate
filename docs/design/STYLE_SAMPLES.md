@@ -1,6 +1,6 @@
 # Style samples
 
-**Approved by the owner (2026-11-23).** Twenty passages written to `docs/design/STYLE_BIBLE.md`. They are the standard a new line is read against. Each shows the text as a player meets it, with plausible fills; the template follows where the wording depends on one. Five are rewrites of lines now in the game (marked **Replaces**), so old and new can be compared. None of them is in the pack yet: the five rewrites and the lint's 17 findings go in with the next content pass.
+**Approved by the owner (2026-11-23).** Twenty passages written to `docs/design/STYLE_BIBLE.md`. They are the standard a new line is read against. Each shows the text as a player meets it, with plausible fills; the template follows where the wording depends on one. Five are rewrites of lines now in the game (marked **Replaces**), so old and new can be compared. The five rewrites are in the pack, and so is sample 19's `legacy-law_passed`; the lint's findings have been rewritten.
 
 Fills used: the town of Mireenwick, its neighbourhoods Quarryrow and Castlelands, the *Corriton Ledger*; Sofi Brook (union steward), Rafe Garrowby (plant manager), Halle Talliswell (community organiser), Aurel Garrowby (shopkeeper), Ada Roe (retiree), Celia Janssenfield (councillor).
 
