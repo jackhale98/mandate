@@ -113,7 +113,8 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   const [q, setQ] = useState("");
   const [active, setActive] = useState<string | null>(null);
   // The player's question (their bubble), and until when it holds the stage.
-  const [asked, setAsked] = useState<{ text: string; after: number | null; qShown: boolean } | null>(null);
+  const asked = useGame((s) => s.talkAsked);
+  const setAsked = useGame((s) => s.setTalkAsked);
   const [holding, setHolding] = useState(false);
   const [shown, setShown] = useState<Shown>({ id: x?.id ?? null, page: 0, typed: Infinity });
   const [notedGone, setNotedGone] = useState<number | null>(null);
@@ -163,12 +164,12 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
     return () => window.clearInterval(id);
   }, [typing, full]);
 
-  // No opener: the question goes up as the reply arrives.
+  // No opener: the question goes up as the reply arrives, and holds the stage a moment.
   useEffect(() => {
     if (!questionDue) return;
-    setAsked((a) => (a ? { ...a, qShown: true } : a));
-    setHolding(true);
-  }, [questionDue]);
+    const id = window.setTimeout(() => setAsked((a) => (a ? { ...a, qShown: true } : a)), ASK_HOLD_MS);
+    return () => window.clearTimeout(id);
+  }, [questionDue, setAsked]);
 
   // The question holds the stage a moment, then gives way to the reply.
   useEffect(() => {
@@ -191,7 +192,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
       focus(shown.page + 1 < pages.length - 1 ? "continue" : "first");
       setShown((s) => ({ ...s, page: s.page + 1, typed: reducedMotion() ? Infinity : 0 }));
     }
-  }, [page, shown, full, pages.length, focus, inOpener, nOpen]);
+  }, [page, shown, full, pages.length, focus, inOpener, nOpen, setAsked]);
 
   const leave = useCallback(() => void openTalk(null), [openTalk]);
 

@@ -84,6 +84,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const sheets = useGame((s) => [s.pocketOpen && "pocket", s.openPlace !== null && "place", s.character !== null && "character", s.decision !== null && "decision", s.story !== null && "story", s.talk !== null && "talk"].filter(Boolean).join(" "));
   // The talk hook (DEC-093): people standing in the street to walk up to.
   const peopleAt = useGame((s) => s.peopleAt);
+  const whereIs = useGame((s) => s.whereIs);
   const openTalk = useGame((s) => s.openTalk);
   const stageRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HubView | null>(null);
@@ -342,11 +343,16 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       return;
     }
     let live = true;
-    void peopleAt(hereNow).then((list) => {
+    void peopleAt(hereNow).then(async (list) => {
       if (!live || viewRef.current !== v) return;
       const people = streetPeople(tr, list);
+      // Anyone standing here who is not any more walks off towards where the engine's routines have them now.
+      const gone = v.scene.standing.map((s) => s.key).filter((k) => !people.some((p) => p.key === k));
+      const exits = new Map<string, LocationDto | null>();
+      await Promise.all(gone.map(async (k) => exits.set(k, k.startsWith("c") ? await whereIs({ type: "person", person: Number(k.slice(1)) }) : null)));
+      if (!live || viewRef.current !== v) return;
       names.current = new Map(people.map((p) => [p.key, p.name]));
-      v.setPeople(people);
+      v.setPeople(people, exits);
       // A passer-by met stands on under their new key with the look they had: the portrait keeps it too.
       for (const s of v.scene.standing) keepLook(s.key, s.w.variant);
     });
@@ -355,7 +361,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
     };
     // `hereNow` is read through `peopleKey` (its neighbourhood).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [peopleKey, pocket, ready, peopleAt, tr]);
+  }, [peopleKey, pocket, ready, peopleAt, whereIs, tr]);
 
   // A place picked on the town map: walk there (at once with reduced motion), then arrive as on a tap.
   // Each request is walked once (the view is remade when the town is redressed).

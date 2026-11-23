@@ -104,7 +104,7 @@ describe("dialogue mode", () => {
     reduceMotion(true);
     resetLooks();
     setTalkStage(null);
-    useGame.setState({ tr, talk: view(), talkTo: { type: "person", person: 7 }, exchange: null, talkLate: false, busy: false });
+    useGame.setState({ tr, talk: view(), talkTo: { type: "person", person: 7 }, exchange: null, talkLate: false, talkAsked: null, busy: false });
   });
 
   it("is a box of choices: the topics with the engine's odds, the cost, and why one can't be raised", () => {

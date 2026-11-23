@@ -20,8 +20,8 @@ describe("adapters from the protocol views", () => {
       home_neighborhood: 2,
       character: null,
       neighborhoods: [
-        { id: 1, name: "Centre", kind: "core", is_home: false, in_ward: false, top_concern_key: null, concern_knowledge: { level: "unknown", as_of: null, stale: false, lead: null }, spots: [loc({ type: "street", neighborhood: 1 }, "streets", "", 1), loc({ type: "place", place: 7 }, "town_hall", "", 1)] },
-        { id: 2, name: "Leafy", kind: "suburb", is_home: true, in_ward: true, top_concern_key: null, concern_knowledge: { level: "unknown", as_of: null, stale: false, lead: null }, spots: [loc({ type: "home" }, "home", "", 2), loc({ type: "place", place: 9 }, "diner", "Vera's", 2)] },
+        { id: 1, name: "Centre", kind: "core", is_home: false, in_ward: false, ward_number: 1, top_concern_key: null, concern_knowledge: { level: "unknown", as_of: null, stale: false, lead: null }, spots: [loc({ type: "street", neighborhood: 1 }, "streets", "", 1), loc({ type: "place", place: 7 }, "town_hall", "", 1)] },
+        { id: 2, name: "Leafy", kind: "suburb", is_home: true, in_ward: true, ward_number: 1, top_concern_key: null, concern_knowledge: { level: "unknown", as_of: null, stale: false, lead: null }, spots: [loc({ type: "home" }, "home", "", 2), loc({ type: "place", place: 9 }, "diner", "Vera's", 2)] },
       ],
     };
     const input = townInputFromView(view);

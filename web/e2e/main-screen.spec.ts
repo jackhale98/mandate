@@ -103,6 +103,12 @@ test("the pocket's tabs: a tab list with arrow keys, panels, and badges that cou
   await expect(pocket.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "pocket-tab-town");
   await expect(pocket.getByTestId("town-card")).toBeVisible();
   await expect(pocket.getByTestId("town-hoods").getByTestId("town-hood").first()).toBeVisible();
+  // Each neighbourhood says which ward it is in (note 4).
+  await expect(pocket.getByTestId("town-hoods").getByTestId("town-hood-ward").first()).toHaveText(/Ward \d+/);
+  // The crisis line does not run into the defining industry's (note 4).
+  const ind = await pocket.getByTestId("town-industry").boundingBox();
+  const cri = await pocket.getByTestId("town-crisis").boundingBox();
+  if (ind && cri) expect(cri.y).toBeGreaterThanOrEqual(ind.y + ind.height - 1);
   await page.keyboard.press("End");
   await expect(pocket.getByTestId("pocket-tab-notebook")).toBeFocused();
   await expect(pocket.getByTestId("notebook")).toBeVisible();

@@ -234,8 +234,11 @@ test("walk up to someone in the street and talk (a tap on them; Enter beside the
   await choiceIn(dlg.getByTestId("talk-topic-topic.who_runs")).click();
   await expect(page.getByTestId("talk-bubble").locator("p").first()).not.toBeEmpty({ timeout: 15_000 });
   await expect(page.getByTestId("talk-you")).toHaveCount(0);
-  await page.getByTestId("talk-bubble").click();
-  await page.getByTestId("talk-continue").click();
+  // Tap through the opener (the first tap shows it all, the next goes on) until the question goes up.
+  await expect(async () => {
+    if (!(await page.getByTestId("talk-you").isVisible())) await page.getByTestId("talk-bubble").click({ timeout: 1000 });
+    await expect(page.getByTestId("talk-you")).toBeVisible({ timeout: 800 });
+  }).toPass({ timeout: 15_000 });
   await expect(page.getByTestId("talk-you")).toHaveText("Who really runs things here?");
   await expect(page.getByTestId("talk-bubble").locator("p").first()).not.toBeEmpty({ timeout: 15_000 });
   // The bubble stays on screen and above the box.
