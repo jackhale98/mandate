@@ -27,7 +27,7 @@
       "governing_sponsor": 0.2,
       "other_sponsor": -0.2,
       "free_band": 0.25,
-      "npc_pull": 0.3,
+      "npc_pull": 0.6,
     },
     "vote": {
       "issue_weight": 3.0,
