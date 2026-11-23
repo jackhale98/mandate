@@ -2,15 +2,15 @@
 // town's streets full screen, drawn by the hub renderer (../hub/hubView) in
 // the pixel-art pack (DEC-084). Tap a building, or a place on the town map
 // overlay (`walkTo`), and the player walks there along the streets; arriving
-// sends the same command as the pocket's Places tab (`visit`: move there,
-// free, and open its panel). With reduced motion there is no walk: the
+// moves the player there (free) and enters the place when it has an interior,
+// else opens its panel (`walkIn`). With reduced motion there is no walk: the
 // player is there at once. Townsfolk walk about, and
 // the light follows the turn's slots like the town map's (../hub/turnClock):
 // it holds still between actions and eases forward when one is done.
 // Presentation only: the engine moves the player and says what a place offers.
 // A place with an interior (DEC-088) is walked into from its door (a tap, or
-// Enter at it) instead of opening its panel (../interior); the town map, like
-// the Places tab, still opens the panel (DEC-051: nothing only by walking).
+// Enter at it, or arrived at from the town map) instead of opening its panel
+// (../interior); the Places tab still opens the panel (DEC-051: nothing only by walking).
 // Loaded on demand (the renderer and the art are a chunk of their own); the
 // pack itself is built in the town worker.
 import { useEffect, useRef, useState } from "react";
@@ -71,7 +71,6 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const tr = useGame((s) => s.tr);
   const pocket = useGame((s) => s.pocket);
   const busy = useGame((s) => s.busy);
-  const visit = useGame((s) => s.visit);
   const command = useGame((s) => s.command);
   const walking = useGame((s) => s.walking);
   const passage = useGame((s) => s.passage?.phase ?? null);
@@ -82,7 +81,6 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   // The door hook (DEC-088): walk into a place's interior, or open its panel.
   const walkIn = useGame((s) => s.walkIn);
   const inside = useGame((s) => s.interior !== null);
-  const mapWalk = useRef<LocationDto | null>(null);
   const sheets = useGame((s) => [s.pocketOpen && "pocket", s.openPlace !== null && "place", s.character !== null && "character", s.decision !== null && "decision", s.story !== null && "story", s.talk !== null && "talk"].filter(Boolean).join(" "));
   // The talk hook (DEC-093): people standing in the street to walk up to.
   const peopleAt = useGame((s) => s.peopleAt);
@@ -107,7 +105,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   // The latest values the view's callbacks read (it is made once per map).
   const latest = useRef({ minutes, here, busy });
   const arrive = useRef<(b: TownBuilding | null) => void>(() => {});
-  const arriveAt = useRef<(loc: LocationDto, viaMap?: boolean) => void>(() => {});
+  const arriveAt = useRef<(loc: LocationDto) => void>(() => {});
   useEffect(() => {
     latest.current = { minutes, here, busy };
     talkTo.current = (key) => {
@@ -128,10 +126,8 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       }
       if (loc) arriveAt.current(loc);
     };
-    arriveAt.current = (loc, viaMap) => {
-      // Arriving where the town map sent the player opens the panel; at a door walked to, the place is entered.
-      const fromMap = viaMap ?? (mapWalk.current !== null && sameLocation(mapWalk.current, loc));
-      mapWalk.current = null;
+    arriveAt.current = (loc) => {
+      // Arriving at a place, from the town map or at a door walked to, enters it when it has an interior (as a tap on its door does); one without keeps its panel (`walkIn`).
       if (latest.current.busy) return;
       const probe = window.__townStreet;
       if (probe) probe.arrivals++;
@@ -147,8 +143,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
         return;
       }
       setStatus(null);
-      if (fromMap) void visit(loc);
-      else void walkIn(loc, map.seed, enterable);
+      void walkIn(loc, map.seed, enterable);
     };
   });
 
@@ -369,8 +364,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
     const v = viewRef.current;
     if (!walkTo || !ready || !v || walkTo.id <= walked.current) return;
     walked.current = walkTo.id;
-    mapWalk.current = walkTo.location;
-    if (sameLocation(walkTo.location, latest.current.here) || reducedMotion() || !v.goToLocation(walkTo.location, true)) arriveAt.current(walkTo.location, true);
+    if (sameLocation(walkTo.location, latest.current.here) || reducedMotion() || !v.goToLocation(walkTo.location, true)) arriveAt.current(walkTo.location);
   }, [walkTo, ready]);
 
   // The engine moved the player some other way (a skipped walk, an action elsewhere): stand there. On a

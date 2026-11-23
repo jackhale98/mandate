@@ -8,6 +8,11 @@ export type TownHoodView = { id: number, name: string,
  */
 kind: string, is_home: boolean, in_ward: boolean, 
 /**
+ * The number of the local constituency (ward) this neighbourhood is in;
+ * the label is the constitution's (`ui-post-seat` / `ui-ward`).
+ */
+ward_number: number | null, 
+/**
  * Home (in the home neighbourhood), the streets, then each place
  * (hidden places only once found, DEC-090 D7).
  */

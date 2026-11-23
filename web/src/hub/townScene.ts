@@ -56,6 +56,9 @@ export interface StandingPerson {
 /** How near (tiles) the player must stand to someone to talk to them. */
 export const TALK_REACH = 1.6;
 
+/** How fast someone walks off (tiles per second): a purposeful walk, brisker than the ambient stroll. */
+export const LEAVE_SPEED = 2;
+
 export interface TownSceneOptions {
   /** Ambient townsfolk (default 12). */
   townsfolk?: number;
@@ -90,6 +93,8 @@ export class TownScene {
   activeFolk: number;
   /** People standing in the street, to walk up to (`setStanding`): they do not wander. */
   readonly standing: { key: string; w: Walker }[] = [];
+  /** People who were standing here and are walking off to where they go next (`setStanding`); gone when they arrive. */
+  readonly leaving: { key: string; w: Walker }[] = [];
   /** Dialogue mode (DEC-093): the townsfolk stand where they are until the conversation ends. */
   folkPaused = false;
   private reach: Uint8Array;
@@ -182,11 +187,11 @@ export class TownScene {
    * (a stable choice: the same people around the same spot stand in the same
    * places). Those no longer listed go.
    */
-  setStanding(people: readonly StandingPerson[]) {
-    const gone: Walker[] = [];
+  setStanding(people: readonly StandingPerson[], exits?: ReadonlyMap<string, number | null>) {
+    const gone: { key: string; w: Walker }[] = [];
     for (let i = this.standing.length - 1; i >= 0; i--) {
       const s = this.standing[i] as { key: string; w: Walker };
-      if (!people.some((p) => p.key === s.key)) gone.unshift(...this.standing.splice(i, 1).map((x) => x.w));
+      if (!people.some((p) => p.key === s.key)) gone.unshift(...this.standing.splice(i, 1));
     }
     let fresh = people.filter((p) => !this.standing.some((s) => s.key === p.key));
     // Someone who went as someone new came (a passer-by met becomes someone the
@@ -194,10 +199,13 @@ export class TownScene {
     while (fresh.length > 0 && gone.length > 0) {
       const p = fresh[0] as StandingPerson;
       // The same look, too.
-      const w = gone.shift() as Walker;
+      const w = (gone.shift() as { key: string; w: Walker }).w;
       this.standing.push({ key: p.key, w });
       fresh = fresh.slice(1);
     }
+    // The rest walk off towards where they go next (`exits`: a cell, or null for the nearest way out of the street).
+    // Without `exits` (reduced motion, or no destination asked for) they are simply gone.
+    if (exits) for (const g of gone) this.sendOff(g, exits.get(g.key) ?? null);
     if (fresh.length === 0) return;
     const W = this.map.width;
     const pc = this.playerCell;
@@ -226,6 +234,54 @@ export class TownScene {
       const w = makeWalker(-1000 - this.standing.length, cellCentre(this.grid, cell), p.variant, 0);
       this.standing.push({ key: p.key, w });
     }
+  }
+
+  /** Walk someone off: to `goal` (a cell), or the way out of the street nearest to it (nearest to them, when there is no goal). */
+  private sendOff(g: { key: string; w: Walker }, goal: number | null) {
+    const W = this.map.width;
+    const at = Math.floor(g.w.y) * W + Math.floor(g.w.x);
+    const cell = goal !== null && this.reach[goal] ? goal : this.nearestExit(goal ?? at);
+    g.w.speed = LEAVE_SPEED;
+    if (cell === null || !this.walkTo(g.w, cell, () => this.drop(g))) return;
+    this.leaving.push(g);
+  }
+
+  private drop(g: { key: string; w: Walker }) {
+    const i = this.leaving.indexOf(g);
+    if (i >= 0) this.leaving.splice(i, 1);
+  }
+
+  /** The reachable walkable cell on the map's edge nearest to `cell`: where a person leaves the street towards it. */
+  private nearestExit(cell: number): number | null {
+    const W = this.map.width;
+    const H = this.map.height;
+    const cx = cell % W;
+    const cy = Math.floor(cell / W);
+    let best: number | null = null;
+    let bd = Infinity;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (x > 0 && y > 0 && x < W - 1 && y < H - 1) {
+          // Only the edge: skip the interior in steps.
+          x = W - 2;
+          continue;
+        }
+        const i = y * W + x;
+        if (!this.reach[i]) continue;
+        const d = Math.hypot(x - cx, y - cy);
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      }
+    }
+    if (best !== null) return best;
+    // No walkable edge (the street ends in grass): the walkable spot nearest an edge.
+    const edge = (i: number) => Math.min(i % W, Math.floor(i / W), W - 1 - (i % W), H - 1 - Math.floor(i / W));
+    for (const i of this.spots) {
+      if (edge(i) < (best === null ? Infinity : edge(best))) best = i;
+    }
+    return best;
   }
 
   /** The person standing within `TALK_REACH` of the player (the nearest), when the player is not walking a route. */
@@ -353,6 +409,7 @@ export class TownScene {
     let any = this.stepWalker(this.player, dt);
     if (this.steering) any = this.stepSteer(dt) || any;
     if (!this.player.walk && !this.player.moving) this.target = null;
+    for (const g of this.folkPaused ? [] : [...this.leaving]) any = this.stepWalker(g.w, dt) || any;
     for (const w of this.folkPaused ? [] : this.outFolk) {
       const m = this.stepWalker(w, dt);
       any ||= m;

@@ -137,8 +137,14 @@ describe("dialogue mode", () => {
     render(<TalkSheet />);
     fireEvent.click(choice("talk-topic-topic.who_runs"));
     expect(talkAbout).toHaveBeenCalledWith("topic.who_runs", null);
-    // The question goes up over the player while the engine answers.
+    // While the engine answers, nobody has spoken yet: the person's opener comes first, then the question.
+    expect(screen.queryByTestId("talk-you")).toBeNull();
+    act(() => useGame.setState({ exchange: { ...exchange, id: 9 } }));
+    expect(screen.getByTestId("talk-bubble").querySelector("[data-stage]")?.textContent).toContain("Dana Price checks the time");
+    expect(screen.queryByTestId("talk-you")).toBeNull();
+    fireEvent.click(choice("talk-continue"));
     expect(screen.getByTestId("talk-you").textContent).toBe("Who really runs things here?");
+    expect(screen.queryByTestId("talk-bubble")).toBeNull();
     fireEvent.click(choice("talk-topic-topic.pitch"));
     const subjects = screen.getByTestId("talk-subjects");
     // Grouped by kind, each with its own odds and availability.
@@ -153,6 +159,8 @@ describe("dialogue mode", () => {
     expect(talkAbout).toHaveBeenLastCalledWith("topic.pitch", { type: "bill", policy: 3 });
     // Back at the topics; the player's line names the subject.
     expect(screen.getByTestId("talk-topics")).toBeTruthy();
+    act(() => useGame.setState({ exchange: { ...exchange, id: 10, parts: exchange.parts.filter((p) => p.part !== "opener") } }));
+    // No opener: the question goes up as the reply arrives.
     expect(screen.getByTestId("talk-you").textContent).toBe("Pitch a policy: Pitch a policy");
   });
 

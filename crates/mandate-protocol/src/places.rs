@@ -202,6 +202,9 @@ pub struct TownHoodView {
     pub kind: String,
     pub is_home: bool,
     pub in_ward: bool,
+    /// The number of the local constituency (ward) this neighbourhood is in;
+    /// the label is the constitution's (`ui-post-seat` / `ui-ward`).
+    pub ward_number: Option<u32>,
     /// Home (in the home neighbourhood), the streets, then each place
     /// (hidden places only once found, DEC-090 D7).
     pub spots: Vec<SpotView>,
@@ -748,6 +751,16 @@ pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
                 kind: crate::office::snake(&n.kind),
                 is_home: home == Some(n.id),
                 in_ward: ward.contains(&n.id.index()),
+                ward_number: st
+                    .world
+                    .constituencies
+                    .iter()
+                    .find(|c| {
+                        c.tier == mandate_sim::world::Tier::Local
+                            && c.jurisdiction == n.municipality.0
+                            && c.neighborhoods.contains(&n.id)
+                    })
+                    .map(|c| c.number),
                 spots,
                 top_concern_key,
                 concern_knowledge: gate.view(&concern_subject),
