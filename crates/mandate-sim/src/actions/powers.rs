@@ -39,22 +39,27 @@ pub fn player_holds_power_at(
     crate::politics::holds_power_at(&state.politics, c, pl.politician, power, at)
 }
 
-/// What the player's party expects on a bill: +1 yes, −1 no, 0 free vote.
-pub fn party_line(state: &State, policy: u32) -> i8 {
-    let Some(pl) = &state.player else { return 0 };
-    let mine = state.politics.get(pl.politician).and_then(|p| p.party);
-    let sponsor = state
-        .policy
-        .instances
-        .get(policy as usize)
-        .and_then(|p| p.sponsor)
-        .and_then(|s| state.politics.get(s))
-        .and_then(|s| s.party);
-    match (mine, sponsor) {
-        (Some(a), Some(b)) if a == b => 1,
-        (Some(_), Some(_)) => -1,
-        _ => 0,
-    }
+/// What the player's party expects on a bill: +1 yes, −1 no, 0 free vote,
+/// with why (the party line: its platform against the bill, DEC-027).
+pub fn party_stance(
+    state: &State,
+    content: &ContentBundle,
+    policy: u32,
+) -> Option<crate::politics::party_line::Stance> {
+    let pl = state.player.as_ref()?;
+    crate::politics::party_line::player_stance(
+        content,
+        &state.politics,
+        &state.policy,
+        &state.meta.constitution,
+        pl.politician,
+        policy,
+    )
+}
+
+/// The party line as a sign: +1 yes, −1 no, 0 free vote.
+pub fn party_line(state: &State, content: &ContentBundle, policy: u32) -> i8 {
+    party_stance(state, content, policy).map_or(0, |s| s.line)
 }
 
 /// The district of the seat a politician holds, if any.

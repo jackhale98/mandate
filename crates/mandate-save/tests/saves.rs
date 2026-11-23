@@ -101,7 +101,10 @@ fn rejects_corruption() {
 /// the version too (old saves get the default).
 #[test]
 fn state_shape_matches_format_version() {
-    const EXPECTED: (u16, &str) = (25, "9193f13a5022eb59");
+    // 9193f13a5022eb59 -> dd1fe79093dba355: NPC votes follow the platform party
+    // line (W1 note 9). No serialized struct changed (checked in the diff); the
+    // sample game's contents did, so the version stays 25.
+    const EXPECTED: (u16, &str) = (25, "dd1fe79093dba355");
     let c = content();
     let mut e = generate(
         &WorldConfig {

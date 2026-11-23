@@ -237,31 +237,36 @@ fn tier_key(t: Tier) -> &'static str {
     }
 }
 
-fn role_key(engine: &Engine, id: CharacterId) -> (String, Option<u32>, Option<u32>) {
-    let st = engine.state();
-    let Some(c) = st.politics.characters.get(id) else {
-        return (String::new(), None, None);
-    };
-    if let Some(p) = c.politician.and_then(|p| st.politics.get(p)) {
-        // `role-<word>`: the post's role word from the constitution.
-        let word = engine
-            .content()
-            .constitutions
-            .get(&st.meta.constitution)
-            .and_then(|k| mandate_sim::politics::role_word(k, p));
-        let (key, ward) = match (word, p.role.constituency()) {
-            (Some(w), ward) => (
-                format!("role-{w}"),
-                ward.and_then(|w| st.world.constituencies.get(w.index()).map(|w| w.number)),
-            ),
-            (None, _) if characters::is_candidate(&st.politics, p.id) => {
-                ("role-candidate".into(), None)
-            }
-            (None, _) => ("role-private".into(), None),
-        };
-        return (key, ward, p.party.map(|x| x.0));
+/// The label every name tag, list, card and speaker line uses (one rule:
+/// `characters::knows::role_label`): `role-<word>`, `role-candidate`, a
+/// trade's name key, or `role-private` for the player's own standing.
+pub(crate) fn label_role_key(engine: &Engine, id: CharacterId) -> String {
+    use characters::knows::{RoleLabel, role_label};
+    match role_label(engine.state(), engine.content(), id) {
+        RoleLabel::Post(w) => format!("role-{w}"),
+        RoleLabel::Candidate => "role-candidate".into(),
+        RoleLabel::Trade(key) => key,
+        RoleLabel::OutOfOffice => "role-private".into(),
     }
-    (String::new(), None, None)
+}
+
+/// A politician's ward number and party, for their sheet.
+fn ward_and_party(engine: &Engine, id: CharacterId) -> (Option<u32>, Option<u32>) {
+    let st = engine.state();
+    let Some(p) = st
+        .politics
+        .characters
+        .get(id)
+        .and_then(|c| c.politician)
+        .and_then(|p| st.politics.get(p))
+    else {
+        return (None, None);
+    };
+    let ward = p
+        .role
+        .constituency()
+        .and_then(|w| st.world.constituencies.get(w.index()).map(|w| w.number));
+    (ward, p.party.map(|x| x.0))
 }
 
 fn occupation_key(engine: &Engine, occ: Option<&str>) -> String {
@@ -276,16 +281,7 @@ fn occupation_key(engine: &Engine, occ: Option<&str>) -> String {
 pub fn person_ref(engine: &Engine, id: CharacterId) -> Option<PersonRefView> {
     let st = engine.state();
     let p = characters::profile(&st.politics, &st.world, id)?;
-    let (mut role, _, _) = role_key(engine, id);
-    // A politician with no post and no race ("Out of office") is shown by
-    // their trade when they have one: the label is for the player's own
-    // standing, and read as an auto-reply over a passer-by's head.
-    if role.is_empty() || role == "role-private" {
-        let job = occupation_key(engine, p.occupation.as_deref());
-        if !job.is_empty() || role.is_empty() {
-            role = job;
-        }
-    }
+    let role = label_role_key(engine, id);
     Some(PersonRefView {
         id: Some(id.0),
         ambient_slot: None,
@@ -447,10 +443,8 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
     let level = gate.person(id);
     let known = level >= Level::Known;
     let detailed = level >= Level::Detailed;
-    let (mut role, ward, party) = role_key(engine, id);
-    if role.is_empty() {
-        role = occupation_key(engine, p.occupation.as_deref());
-    }
+    let role = label_role_key(engine, id);
+    let (ward, party) = ward_and_party(engine, id);
     let year = st.calendar.date.calendar().year;
     let px = &p.personality;
     let mut personality = Vec::new();

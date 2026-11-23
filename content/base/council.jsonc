@@ -8,8 +8,7 @@
     "ward_support": 0.35,
     "mayor": 0.15,
     "player_opinion": 0.4,         // goodwill toward the player as sponsor, per 100 points of opinion
-    "same_party": 0.15,            // party discipline
-    "rival_party": -0.08,
+    // Party discipline comes from the party line (politics.jsonc `party_line`).
     // Riders.
     "sunset": 0.08,
     "pilot": 0.12,

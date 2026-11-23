@@ -32,6 +32,74 @@ pub fn role_key(state: &State, content: &ContentBundle, id: CharacterId) -> Opti
     c.named.as_deref().map(|n| n.occupation.clone())
 }
 
+/// What a name tag, list row or card says someone is (the one label rule).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RoleLabel {
+    /// Holds a post: the constitution's role word (`councillor`, ...).
+    Post(String),
+    /// Stands in a running race.
+    Candidate,
+    /// Out of office: their trade, as an occupation's name key.
+    Trade(String),
+    /// Out of office with no trade: only ever the player's own standing.
+    OutOfOffice,
+}
+
+/// A politician out of office has no occupation in state (and saves do not
+/// change), so their trade is derived: stable for a character, drawn from the
+/// non-leader occupations that share their pet issue when any do.
+pub fn trade_of<'a>(
+    state: &State,
+    content: &'a ContentBundle,
+    id: CharacterId,
+) -> Option<&'a mandate_content::OccupationDef> {
+    let c = state.politics.characters.get(id)?;
+    if let Some(n) = c.named.as_deref() {
+        return content.occupation(&n.occupation);
+    }
+    let mut pool: Vec<&_> = content
+        .occupations
+        .iter()
+        .filter(|o| !o.leader && o.expertise.as_deref() == Some(c.expertise.as_str()))
+        .collect();
+    if pool.is_empty() {
+        pool = content.occupations.iter().filter(|o| !o.leader).collect();
+    }
+    if pool.is_empty() {
+        return None;
+    }
+    let h = (u64::from(id.0) + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    pool.get(((h >> 33) as usize) % pool.len()).copied()
+}
+
+/// The single rule for labelling a person: their post, else a running
+/// race, else their trade. "Out of office" is left for the player's own
+/// standing, never a passer-by's (owner note, 2026-11-21).
+pub fn role_label(state: &State, content: &ContentBundle, id: CharacterId) -> RoleLabel {
+    let Some(c) = state.politics.characters.get(id) else {
+        return RoleLabel::OutOfOffice;
+    };
+    if let Some(p) = c.politician.and_then(|p| state.politics.get(p)) {
+        let word = content
+            .constitutions
+            .get(&state.meta.constitution)
+            .and_then(|k| crate::politics::role_word(k, p));
+        if let Some(w) = word {
+            return RoleLabel::Post(w.to_string());
+        }
+        if super::is_candidate(&state.politics, p.id) {
+            return RoleLabel::Candidate;
+        }
+        if p.is_player {
+            return RoleLabel::OutOfOffice;
+        }
+    }
+    match trade_of(state, content, id) {
+        Some(o) => RoleLabel::Trade(o.name_key.clone()),
+        None => RoleLabel::OutOfOffice,
+    }
+}
+
 /// The town a subject is about (`None`: no town's local knowledge covers it).
 fn subject_town(state: &State, s: &Subject) -> Option<MunicipalityId> {
     match s {

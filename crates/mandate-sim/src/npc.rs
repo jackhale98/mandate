@@ -103,6 +103,7 @@ fn legislature_leans(
     };
     crate::policy::legislature_leans(
         &content.council,
+        &content.politics.party_line,
         c,
         &state.world,
         &state.population,

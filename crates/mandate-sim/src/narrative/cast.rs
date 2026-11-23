@@ -120,20 +120,19 @@ impl<'a> View<'a> {
         self.r.policy().instances.get(id as usize)
     }
 
-    /// What the player's party expects on a bill: +1 yes, −1 no, 0 free vote.
+    /// What the player's party expects on a bill: +1 yes, −1 no, 0 free vote
+    /// (the party line: its platform against the bill, DEC-027).
     pub fn party_line(&self, bill: u32) -> i8 {
         let Some(pl) = self.player() else { return 0 };
-        let mine = self.pol.get(pl.politician).and_then(|p| p.party);
-        let sponsor = self
-            .policy(bill)
-            .and_then(|p| p.sponsor)
-            .and_then(|s| self.pol.get(s))
-            .and_then(|s| s.party);
-        match (mine, sponsor) {
-            (Some(a), Some(b)) if a == b => 1,
-            (Some(_), Some(_)) => -1,
-            _ => 0,
-        }
+        crate::politics::party_line::player_stance(
+            self.content(),
+            self.pol,
+            self.r.policy(),
+            &self.r.meta.constitution,
+            pl.politician,
+            bill,
+        )
+        .map_or(0, |s| s.line)
     }
 
     /// How the player's ward leans on a bill: its public support there

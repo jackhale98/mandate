@@ -317,12 +317,56 @@ pub struct BillView {
     pub can_vote: bool,
     /// The party line for the player: `yes` | `no` | `free`.
     pub party_line: String,
+    /// Why the line is what it is: Fluent key `party-reason-<why>` and its
+    /// args (`issue`: the Fluent key `party-issue-<attitude>` of the issue behind
+    /// it). `None` when the player has no party.
+    pub party_line_reason: Option<ReasonView>,
     /// Support for the bill among the player's ward voters (−1..1): to 0.25
     /// below `known` (`support.level`), 0.1 at `known`, exact in detail.
     pub ward_support: f64,
+    /// The same figure in words and shares (as coarse as `ward_support`):
+    /// `strongly_against` | `against` | `leans_against` | `split` |
+    /// `leans_for` | `for` | `strongly_for` (Fluent `ward-lean-<lean>`).
+    pub ward_lean: String,
+    /// Share of ward voters for and against, in percent (the two sum to
+    /// 100): to 5 points unless the player knows the detail.
+    pub ward_for_pct: u32,
+    pub ward_against_pct: u32,
+    /// How sure the estimate is: `rough` | `fair` | `exact`
+    /// (Fluent `ward-certainty-<certainty>`).
+    pub ward_certainty: String,
     /// The player owes the sponsor a favour.
     pub owe_sponsor: bool,
     pub side_effects: Vec<SideEffectView>,
+}
+
+/// A Fluent key and its arguments (a reason the engine states as a fact).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ReasonView {
+    pub key: String,
+    pub args: std::collections::BTreeMap<String, String>,
+}
+
+/// A ward's view in words, shares and how sure it is, from the gated net
+/// support (−1..1) and the level it was gated at.
+pub fn ward_words(level: Level, net: f64) -> (&'static str, u32, u32, &'static str) {
+    let lean = match net {
+        x if x <= -0.6 => "strongly_against",
+        x if x <= -0.3 => "against",
+        x if x <= -0.1 => "leans_against",
+        x if x < 0.1 => "split",
+        x if x < 0.3 => "leans_for",
+        x if x < 0.6 => "for",
+        _ => "strongly_for",
+    };
+    let share = ((1.0 + net.clamp(-1.0, 1.0)) * 50.0).clamp(0.0, 100.0);
+    let (pct, certainty) = match level {
+        Level::Detailed => (share.round(), "exact"),
+        Level::Known => ((share / 5.0).round() * 5.0, "fair"),
+        _ => ((share / 5.0).round() * 5.0, "rough"),
+    };
+    (lean, pct as u32, 100 - pct as u32, certainty)
 }
 
 /// The office that signs or vetoes a bill, and its holder's inclination.
@@ -485,18 +529,6 @@ fn lean_label(p: f64) -> &'static str {
     }
 }
 
-/// `role-<word>` for a politician's post (its constitution role word), or
-/// `role-private` out of office.
-fn role_label(engine: &Engine, p: &Politician) -> String {
-    engine
-        .content()
-        .constitutions
-        .get(&engine.state().meta.constitution)
-        .and_then(|c| mandate_sim::politics::role_word(c, p))
-        .map(|w| format!("role-{w}"))
-        .unwrap_or_else(|| "role-private".into())
-}
-
 fn member_view(gate: &Gate<'_>, engine: &Engine, p: &Politician) -> MemberView {
     let st = engine.state();
     let content = engine.content();
@@ -526,7 +558,7 @@ fn member_view(gate: &Gate<'_>, engine: &Engine, p: &Politician) -> MemberView {
             )
         })
         .collect();
-    let role_key = role_label(engine, p);
+    let role_key = crate::characters::label_role_key(engine, p.character);
     let ward = p.role.constituency().map(|w| ward_number(st, w));
     MemberView {
         id: p.id.0,
@@ -576,6 +608,7 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let leans = match (pending, constitution) {
         (true, Some(c)) => legislature_leans(
             &content.council,
+            &content.politics.party_line,
             c,
             &st.world,
             &st.population,
@@ -643,6 +676,7 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
                     &content.council,
                     executive_lean(
                         &content.council,
+                        &content.politics.party_line,
                         c,
                         &st.world,
                         &st.population,
@@ -686,10 +720,11 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
         && my_vote.is_none()
         && (powers.contains(&mandate_content::Power::ApproveOrdinance)
             || powers.contains(&mandate_content::Power::Veto));
+    let support_level = gate.support(town, &t.id);
     let ward_support = me
         .map(|pl| {
             gate_ward_support(
-                gate.support(town, &t.id),
+                support_level,
                 public_support(
                     t,
                     &st.population,
@@ -704,16 +739,33 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
                 mandate_sim::characters::favours_owed(&st.politics, me, s.character) > 0
             })
     });
+    let party_stance = mandate_sim::actions::party_stance(st, content, p.id.0);
+    let (ward_lean, ward_for_pct, ward_against_pct, ward_certainty) =
+        ward_words(support_level, ward_support);
     Some(BillView {
         side_effects: side_effects_view(t, p),
         my_vote,
         can_vote,
-        party_line: match mandate_sim::actions::party_line(st, p.id.0) {
+        party_line: match party_stance.as_ref().map_or(0, |s| s.line) {
             1 => "yes",
             -1 => "no",
             _ => "free",
         }
         .into(),
+        party_line_reason: party_stance.map(|s| {
+            let mut args = std::collections::BTreeMap::new();
+            if let Some(k) = s.reason.issue.and_then(|i| content.attitudes.get(i)) {
+                args.insert("issue".to_string(), format!("party-issue-{}", k.key));
+            }
+            ReasonView {
+                key: s.reason.key.to_string(),
+                args,
+            }
+        }),
+        ward_lean: ward_lean.into(),
+        ward_for_pct,
+        ward_against_pct,
+        ward_certainty: ward_certainty.into(),
         ward_support,
         owe_sponsor,
         id: p.id.0,

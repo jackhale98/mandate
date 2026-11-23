@@ -197,7 +197,10 @@ test("a campaign promise is made from the picker", async ({ page }, info) => {
 
 test("the skip summary lists a lapsed law, with counts in the locale's style", async ({ page }, info) => {
   test.setTimeout(120_000);
-  await start(page, "2");
+  // Seed 5: its next-session skip lapses a law (seed 2's did until the party
+  // line changed which laws pass in the burn-in); the native twin is
+  // `laws_in_force_never_fall_unexplained` in crates/mandate-wasm/tests/asks.rs.
+  await start(page, "5");
   await endTurn(page);
   const pocket = await openPocket(page, "today");
   await pocket.getByTestId("open-term-review").click();

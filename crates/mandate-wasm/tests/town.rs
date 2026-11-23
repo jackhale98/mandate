@@ -10,8 +10,10 @@ use mandate_wasm::session::Session;
 use std::sync::Arc;
 
 /// FNV-1a (32-bit) of the view's JSON, as the client test computes it from
-/// the WASM build's response.
-const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "d23444f1");
+/// the WASM build's response. Re-pinned (d23444f1 -> 158ea778) when NPC votes
+/// began to follow the party line from platforms (W1 note 9): the burn-in
+/// history, and so the town's places, changed.
+const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "158ea778");
 
 fn fnv1a(s: &str) -> String {
     let mut h: u32 = 0x811c_9dc5;

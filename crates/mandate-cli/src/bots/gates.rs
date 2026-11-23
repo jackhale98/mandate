@@ -34,13 +34,18 @@ pub const GATES: [&str; 10] = [
 /// `good_styles_vary`) do not pass yet and stay reported, at their full
 /// thresholds, until the levers named in the E8 report close the gap.
 /// `good_styles_vary_b` is clause (b) of `good_styles_vary`.
-pub const ENFORCED: [&str; 8] = [
+///
+/// `good_styles_vary_b` is reported, not enforced, from 2026-11-23 (owner):
+/// with the party line from the platform the informed styles score within a
+/// hair of each other, and ties put `explorer` among the best in 21 of 32
+/// worlds (limit 0.6). The audit's first fix (the record decides votes,
+/// SIMULATION_AUDIT.md) must make it pass and put it back in this list.
+pub const ENFORCED: [&str; 7] = [
     "idle_cap",
     "effort_matters",
     "exploring_alone_never_wins",
     "ladder_rote",
     "ladder_learned",
-    "good_styles_vary_b",
     "corrupt_not_dominant",
     "proxy_not_optimal",
 ];

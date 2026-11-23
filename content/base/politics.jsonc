@@ -18,6 +18,17 @@
         { "attitude": "reform_appetite", "pro": ["Reform", "Renewal"], "anti": ["Steady Hand", "Continuity"] },
       ],
     },
+    // The party line (DEC-027): one rule for the player's whip and NPC members.
+    // score = platform × fit(bill, party platform) + sponsor term; a score
+    // inside ±free_band is a free vote. npc_pull scales an NPC member's lean.
+    "party_line": {
+      "platform": 1.0,
+      "own_sponsor": 0.5,
+      "governing_sponsor": 0.2,
+      "other_sponsor": -0.2,
+      "free_band": 0.25,
+      "npc_pull": 0.6,
+    },
     "vote": {
       "issue_weight": 3.0,
       "beta_low": 0.15,

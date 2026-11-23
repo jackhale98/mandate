@@ -10,7 +10,7 @@ use crate::scheduler::{Outs, Reads};
 use crate::world::{ConstituencyId, World};
 use mandate_content::{
     BudgetCategory, ClassKey, ConstitutionDef, ContentBundle, CouncilParams, DecisionRule,
-    HazardKey, MechanismDef, PolicyTemplate, StageDef, TierKey,
+    HazardKey, MechanismDef, PartyLineParams, PolicyTemplate, StageDef, TierKey,
 };
 use mandate_core::math::{clamp, sigmoid};
 use mandate_core::{IdAllocator, SimDate, Stream, define_id};
@@ -602,8 +602,9 @@ pub struct VoteInputs<'a> {
     pub player_opinion: f64,
     /// The member's loyalty (DEC-031): how much party discipline weighs.
     pub loyalty: f64,
-    /// The sponsor's party (party discipline: members back their own side).
-    pub sponsor_party: Option<crate::politics::PartyId>,
+    /// The pull of the member's party on this bill: the party line's score
+    /// (`politics::party_line::npc_pull`), nothing in a free vote.
+    pub party_pull: f64,
     /// A publicly declared vote overrides the model (+1 yes, −1 no, 0 abstain).
     pub declared: Option<i8>,
     /// Bill-specific idiosyncrasy (keyed RNG, stable per member and bill).
@@ -644,11 +645,7 @@ pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInp
         .filter(|c| matches!(c, Clause::Earmark { ward } if district.is_some_and(|w| w != *ward)))
         .count() as f64;
     riders += k.foreign_earmark * foreign_earmarks;
-    let discipline = match (v.sponsor_party, p.party) {
-        (Some(a), Some(b)) if a == b => k.same_party,
-        (Some(_), Some(_)) => k.rival_party,
-        _ => 0.0,
-    } * (1.0 + k.loyalty_discipline * (2.0 * v.loyalty - 1.0));
+    let discipline = v.party_pull * (1.0 + k.loyalty_discipline * (2.0 * v.loyalty - 1.0));
     // Pragmatists weigh constituents and deals; ideologues their own values.
     let prag = p.pragmatism as f64;
     k.own_values * (1.0 - prag) * own
@@ -698,6 +695,7 @@ fn noise_for(k: &CouncilParams, seed: u64, politician: u32, policy: u32) -> f64 
 #[allow(clippy::too_many_arguments)]
 pub fn member_leans(
     k: &CouncilParams,
+    pl: &PartyLineParams,
     r_world: &World,
     pop: &PopulationState,
     pol: &PoliticsState,
@@ -719,6 +717,8 @@ pub fn member_leans(
         .sponsor
         .and_then(|s| pol.get(s))
         .is_some_and(|s| s.is_player);
+    let sponsor_party = inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party);
+    let governing = signer.and_then(|m| pol.get(m)).and_then(|m| m.party);
     members
         .iter()
         .filter_map(|id| pol.get(*id))
@@ -757,7 +757,14 @@ pub fn member_leans(
                         sponsor_is_player,
                         player_opinion: player_opinion(pol, p.id, inst.sponsor, sponsor_is_player),
                         loyalty: loyalty(pol, p),
-                        sponsor_party: inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party),
+                        party_pull: crate::politics::party_line::npc_pull(
+                            pl,
+                            pol,
+                            p.party,
+                            sponsor_party,
+                            governing,
+                            &t.signature_weights,
+                        ),
                         declared: pol.declared_votes.get(&(p.id.0, inst.id.0)).copied(),
                         noise: noise_for(k, seed, p.id.0, inst.id.0),
                     },
@@ -774,6 +781,7 @@ pub fn member_leans(
 #[allow(clippy::too_many_arguments)]
 pub fn legislature_leans(
     k: &CouncilParams,
+    pl: &PartyLineParams,
     c: &ConstitutionDef,
     r_world: &World,
     pop: &PopulationState,
@@ -785,13 +793,14 @@ pub fn legislature_leans(
     let at = inst.at();
     let members = crate::politics::legislature_of(pol, c, at);
     let signer = crate::politics::executive_of(pol, c, at);
-    member_leans(k, r_world, pop, pol, seed, t, inst, members, signer)
+    member_leans(k, pl, r_world, pop, pol, seed, t, inst, members, signer)
 }
 
 /// The lean of a bill's signer (whoever holds the signing office) on it.
 #[allow(clippy::too_many_arguments)]
 pub fn signer_lean(
     k: &CouncilParams,
+    pl: &PartyLineParams,
     r_world: &World,
     pop: &PopulationState,
     pol: &PoliticsState,
@@ -823,7 +832,14 @@ pub fn signer_lean(
             sponsor_is_player,
             player_opinion: player_opinion(pol, m.id, inst.sponsor, sponsor_is_player),
             loyalty: loyalty(pol, m),
-            sponsor_party: inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party),
+            party_pull: crate::politics::party_line::npc_pull(
+                pl,
+                pol,
+                m.party,
+                inst.sponsor.and_then(|s| pol.get(s)).and_then(|s| s.party),
+                m.party,
+                &t.signature_weights,
+            ),
             declared: pol.declared_votes.get(&(m.id.0, inst.id.0)).copied(),
             noise: noise_for(k, seed, m.id.0, inst.id.0),
         },
@@ -835,6 +851,7 @@ pub fn signer_lean(
 #[allow(clippy::too_many_arguments)]
 pub fn executive_lean(
     k: &CouncilParams,
+    pl: &PartyLineParams,
     c: &ConstitutionDef,
     r_world: &World,
     pop: &PopulationState,
@@ -844,7 +861,7 @@ pub fn executive_lean(
     inst: &PolicyInstance,
 ) -> f64 {
     let signer = crate::politics::executive_of(pol, c, inst.at());
-    signer_lean(k, r_world, pop, pol, seed, t, inst, signer)
+    signer_lean(k, pl, r_world, pop, pol, seed, t, inst, signer)
 }
 
 /// Probability that a lean turns into a yes vote (shown as whip-count odds).
@@ -901,6 +918,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         };
         let rng = out.rng.get(Stream::Npc);
         let k = &r.content.council;
+        let pl = &r.content.politics.party_line;
         // Each stage reads its own body and office (DEC-098): a vote tallies
         // the stage's body, a signature asks the stage's office's holder,
         // and an override tallies the override body. The procedure's
@@ -918,7 +936,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             let members = body
                 .map(|b| crate::politics::members_of(pol, b, at))
                 .unwrap_or(&[]);
-            member_leans(k, r.world, pop, pol, seed, &t, &inst, members, signer)
+            member_leans(k, pl, r.world, pop, pol, seed, &t, &inst, members, signer)
         };
         let tally = |rng: &mut mandate_core::SimRng, leans: &[(PoliticianId, f64)]| -> u32 {
             leans
@@ -950,7 +968,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 override_rule,
             } => {
                 let holder = crate::politics::holder_of(pol, office, at);
-                let lean = signer_lean(k, r.world, pop, pol, seed, &t, &inst, holder);
+                let lean = signer_lean(k, pl, r.world, pop, pol, seed, &t, &inst, holder);
                 if rng.chance(sign_probability(k, lean)) {
                     (
                         true,

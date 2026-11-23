@@ -14,9 +14,6 @@ pub struct CouncilParams {
     pub mayor: f64,
     /// Goodwill toward the player as sponsor, per 100 points of opinion.
     pub player_opinion: f64,
-    /// Party discipline: the sponsor's party, and a rival party.
-    pub same_party: f64,
-    pub rival_party: f64,
     /// Riders: a sunset, a pilot, each other ward's earmark, and an earmark
     /// for the member's own ward.
     pub sunset: f64,

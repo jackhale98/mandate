@@ -152,6 +152,17 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
     ] {
         r(&format!("politics.vote.{name}"), x, lo, hi);
     }
+    let pl = &b.politics.party_line;
+    for (name, x, lo, hi) in [
+        ("platform", pl.platform, 0.0, 5.0),
+        ("own_sponsor", pl.own_sponsor, 0.0, 5.0),
+        ("governing_sponsor", pl.governing_sponsor, -5.0, 5.0),
+        ("other_sponsor", pl.other_sponsor, -5.0, 5.0),
+        ("free_band", pl.free_band, 0.0, 2.0),
+        ("npc_pull", pl.npc_pull, 0.0, 2.0),
+    ] {
+        r(&format!("politics.party_line.{name}"), x, lo, hi);
+    }
     let t = &b.politics.turnout;
     r("politics.turnout.habit", t.habit, 0.0, 1.0);
     r("politics.turnout.habit_base", t.habit_base, 0.0, 2.0);
@@ -380,8 +391,6 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
         ("ward_support", co.ward_support, 0.0, 5.0),
         ("mayor", co.mayor, 0.0, 5.0),
         ("player_opinion", co.player_opinion, 0.0, 5.0),
-        ("same_party", co.same_party, -2.0, 2.0),
-        ("rival_party", co.rival_party, -2.0, 2.0),
         ("sunset", co.sunset, -2.0, 2.0),
         ("pilot", co.pilot, -2.0, 2.0),
         ("foreign_earmark", co.foreign_earmark, -2.0, 2.0),

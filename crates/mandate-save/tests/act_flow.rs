@@ -125,6 +125,12 @@ fn a_skip_in_chunks_equals_one_in_a_go() {
         limit: None,
     })
     .unwrap();
+    // The skip's length depends on the world's history, which changes with
+    // balance (it was 4+ turns for this seed before NPC votes followed party
+    // platforms, 2 after), so the cancel below is placed from the measured
+    // length, never from a constant.
+    let full = a.state().act.last_skip.clone().unwrap().turns;
+    assert!(full >= 2, "the seed's skip must span at least two turns");
     let mut chunks = 0;
     loop {
         let out = b
@@ -145,14 +151,14 @@ fn a_skip_in_chunks_equals_one_in_a_go() {
     let mut d = game(&c, 22);
     d.apply(Command::Skip {
         target,
-        limit: Some(2),
+        limit: Some(full - 1),
     })
     .unwrap();
     assert!(d.state().act.skip.is_some());
     d.apply(Command::CancelSkip).unwrap();
     let s = d.state().act.last_skip.clone().unwrap();
     assert_eq!(s.stop, SkipStop::Cancelled);
-    assert_eq!(s.turns, 2);
+    assert_eq!(s.turns, full - 1);
 }
 
 type TrackChange = fn(&mut mandate_sim::player::Tracks);
