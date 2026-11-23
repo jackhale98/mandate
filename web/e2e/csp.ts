@@ -7,7 +7,7 @@ import { expect, test as base } from "@playwright/test";
 
 export { expect };
 
-export const test = base.extend<{ cspGuard: void }>({
+export const test = base.extend<{ cspGuard: undefined }>({
   cspGuard: [
     async ({ page }, use) => {
       const violations: string[] = [];
@@ -23,7 +23,7 @@ export const test = base.extend<{ cspGuard: void }>({
       page.on("pageerror", (e) => {
         if (/Content Security Policy|unsafe-eval|wasm-eval/i.test(e.message)) violations.push(e.message);
       });
-      await use();
+      await use(undefined);
       expect(violations, "Content Security Policy violations").toEqual([]);
     },
     { auto: true },

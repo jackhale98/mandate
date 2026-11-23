@@ -37,6 +37,8 @@ export const landingPolicy: Policy = {
   "script-src": ["'self'"],
   "worker-src": ["'self'"],
   "style-src": ["'self'"],
+  // The front page's bar chart sets one CSS variable per bar in a style attribute (--v: 8). Attributes cannot run script.
+  "style-src-attr": ["'unsafe-inline'"],
   "img-src": ["'self'", "data:"],
   "form-action": ["'none'"],
 };
