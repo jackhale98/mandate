@@ -112,8 +112,9 @@ test("desktop: with a place's panel open beside the street, the wheel still zoom
   const street = await page.locator(".town-street-stage").boundingBox();
   const pb = await panel.boundingBox();
   if (!street || !pb) throw new Error("no layout");
-  // Over the street, left of the panel.
-  await page.mouse.move(street.x + Math.min(200, (pb.x - street.x) / 2), street.y + street.height / 2);
+  // Over the street, right of the panel (it stands on the left).
+  const panelRight = pb.x + pb.width;
+  await page.mouse.move(panelRight + (street.x + street.width - panelRight) / 2, street.y + street.height / 2);
   await page.mouse.wheel(0, -400);
   await expect.poll(async () => (await probe(page, (s) => s.view.zoom)) ?? 0).toBeGreaterThan(z0);
   expect((await probe(page, (s) => s.view.stats.frames)) ?? 0).toBeGreaterThan(f0);
