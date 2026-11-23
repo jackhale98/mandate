@@ -112,7 +112,7 @@ ask-broker-vote-broken = You let { $asker } down on the { $bill } bill. They rem
 ask-visit-after-flood = Come and see { $asker_hood }
 ask-visit-after-flood-detail = { $asker } ({ $asker_role }) lives in { $asker_hood }, which took the worst of it. People there want to see the people they elected on their streets.
 ask-visit-after-flood-need = Canvass or hold a town hall in { $asker_hood }
-ask-visit-after-flood-kept = You came to { $asker_hood } after the flood, to the streets that took the worst of it.
+ask-visit-after-flood-kept = You came to { $asker_hood } while it was still clearing up, and walked the streets that took the worst of it.
 ask-visit-after-flood-broken = { $asker_hood } waited for you, and you did not come.
 
 ## Second my bill
