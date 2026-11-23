@@ -16,6 +16,29 @@ pub struct PoliticsParams {
     pub campaign: CampaignParams,
     pub party_id: PartyIdParams,
     pub ai: AiParams,
+    /// How a party takes a position on a bill (the party line, DEC-027).
+    pub party_line: PartyLineParams,
+}
+
+/// The party line: one rule for the player's whip and for NPC members
+/// (DEC-030). `score` = `platform` × the bill's fit with the party's
+/// platform (−1..1) + a term for who sponsors it; inside ±`free_band` the
+/// vote is free.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PartyLineParams {
+    /// Weight of the bill's fit with the party's platform.
+    pub platform: f64,
+    /// Sponsor terms: a bill from the party's own member, from the party that
+    /// governs (holds the signing office), and from any other party.
+    pub own_sponsor: f64,
+    pub governing_sponsor: f64,
+    pub other_sponsor: f64,
+    /// A score inside ±this is a free vote.
+    pub free_band: f64,
+    /// How hard a whipped NPC member is pulled: lean = this × score × the
+    /// member's loyalty factor.
+    pub npc_pull: f64,
 }
 
 // --- NPC utility AI (DEC-030, DEC-071 §8) ---------------------------------------

@@ -6,6 +6,7 @@
 
 pub mod elections;
 pub mod parties;
+pub mod party_line;
 
 pub use parties::{Party, PartyId};
 

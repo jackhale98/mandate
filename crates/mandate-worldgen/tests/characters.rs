@@ -654,7 +654,7 @@ fn personality_and_town_character_reach_the_npc_ai() {
                 sponsor_is_player: false,
                 player_opinion: 0.0,
                 loyalty,
-                sponsor_party: p.party,
+                party_pull: 0.2,
                 declared: None,
                 noise: 0.0,
             },

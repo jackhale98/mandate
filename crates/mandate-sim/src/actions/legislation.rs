@@ -215,7 +215,7 @@ pub(crate) fn declare_vote(
     let sig = crate::policy::resolve(content, &state.policy, p)
         .map(|t| t.signature_weights.clone())
         .unwrap_or_default();
-    let line = party_line(state, *policy);
+    let line = party_line(state, content, *policy);
     let sign = match vote {
         Vote::Yes => 1.0,
         Vote::No => -1.0,

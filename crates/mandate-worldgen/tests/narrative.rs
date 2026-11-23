@@ -660,6 +660,7 @@ fn an_opposing_goal_turns_a_colleague_against_the_players_bills() {
         let inst = &st.policy.instances[id as usize];
         mandate_sim::policy::legislature_leans(
             &c.council,
+            &c.politics.party_line,
             c.constitutions.get(&st.meta.constitution).unwrap(),
             &st.world,
             &st.population,

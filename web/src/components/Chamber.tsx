@@ -43,19 +43,40 @@ export function Member({ m, children }: { m: MemberView; children?: ReactNode })
   );
 }
 
+/** A reason's args: the `issue` is itself a Fluent key. */
+function issueArgs(tr: { t: (k: string, a?: Record<string, string | number>) => string }, args: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = { ...args };
+  if (args.issue) out.issue = tr.t(args.issue);
+  return out;
+}
+
 /** The player's own vote: public, final, and weighed against party, ward, and favours (DEC-073). */
-function YourVote({ bill }: { bill: BillView }) {
+export function YourVote({ bill }: { bill: BillView }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
   const perform = useGame((s) => s.perform);
   if (!bill.can_vote && !bill.my_vote) return null;
-  const ward = Math.round(bill.ward_support * 100);
   return (
     <div className="your-vote" data-testid="your-vote">
       <h4 className="sub">{tr.t("ui-your-vote")}</h4>
       <ul className="plain small">
-        <li>{tr.t(`ui-party-line-${bill.party_line}`)}</li>
-        <li>{tr.t("ui-ward-view", { n: ward > 0 ? `+${ward}` : String(ward) })}</li>
+        <li>
+          {tr.t(`ui-party-line-${bill.party_line}`)}
+          {bill.party_line_reason && (
+            <span className="hint" data-testid="party-line-reason">
+              {" "}
+              {tr.t(bill.party_line_reason.key, issueArgs(tr, bill.party_line_reason.args))}
+            </span>
+          )}
+        </li>
+        <li data-testid="ward-view">
+          {tr.t("ui-ward-view", {
+            lean: tr.t(`ward-lean-${bill.ward_lean}`),
+            for: bill.ward_for_pct,
+            against: bill.ward_against_pct,
+            certainty: tr.t(`ward-certainty-${bill.ward_certainty}`),
+          })}
+        </li>
         {bill.owe_sponsor && <li>{tr.t("ui-owe-sponsor", { name: personName(tr, bill.sponsor_name) })}</li>}
       </ul>
       {bill.my_vote ? (
