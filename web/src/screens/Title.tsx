@@ -165,7 +165,11 @@ export function Title() {
         <TransferStatus notice={notice} />
       </section>
       <footer className="foot muted">
+        <p className="fiction">{tr.t("app-fiction")}</p>
         v{__APP_VERSION__}{" "}
+        <a className="btn btn-ghost btn-sm" href={`${import.meta.env.BASE_URL}../privacy.html`} target="_blank" rel="noopener" title={tr.t("ui-privacy-note")} data-testid="privacy-link-title">
+          {tr.t("ui-privacy")}
+        </a>{" "}
         {/* After a crash and a reload, testers land here: the report takes the latest saved game. */}
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => openReport("title")} data-testid="report-problem-title">
           {tr.t("ui-report")}

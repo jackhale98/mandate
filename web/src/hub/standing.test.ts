@@ -38,6 +38,32 @@ describe("people standing in the street", () => {
     expect(s.standing.map(({ w }) => [w.x, w.y])).toEqual([before[0]]);
   });
 
+  it("someone whose place changes walks off towards it before they go (note 7)", () => {
+    const s = new TownScene(map, { townsfolk: 0 });
+    s.setStanding([
+      { key: "c1", variant: 101 },
+      { key: "c2", variant: 102 },
+    ]);
+    const start = { x: s.standing[0]?.w.x ?? 0, y: s.standing[0]?.w.y ?? 0 };
+    const goal = map.buildings.find((b) => b.place !== null)?.front ?? map.start;
+    // c1 goes to a place; c2 to nowhere the player can see (the nearest way out of the street).
+    s.setStanding([], new Map([["c1", goal]]));
+    expect(s.standing).toHaveLength(0);
+    expect(s.leaving.map((g) => g.key)).toEqual(["c1", "c2"]);
+    // Still on screen, and moving, rather than gone.
+    s.step(0.5);
+    const l = s.leaving[0]?.w;
+    expect(l?.moving).toBe(true);
+    expect(Math.hypot((l?.x ?? 0) - start.x, (l?.y ?? 0) - start.y)).toBeGreaterThan(0.5);
+    // Gone once there.
+    for (let i = 0; i < 6000 && s.leaving.length > 0; i++) s.step(1 / 30);
+    expect(s.leaving).toHaveLength(0);
+    // Without a destination request (reduced motion) they are simply gone.
+    s.setStanding([{ key: "c3", variant: 3 }]);
+    s.setStanding([]);
+    expect(s.leaving).toHaveLength(0);
+  });
+
   it("a passer-by met (a new key for the same person) stands where they stood", () => {
     const s = new TownScene(map, { townsfolk: 0 });
     s.setStanding([{ key: "a1", variant: 101 }]);

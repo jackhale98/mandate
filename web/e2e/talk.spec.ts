@@ -230,8 +230,15 @@ test("walk up to someone in the street and talk (a tap on them; Enter beside the
   await expect(page.getByRole("dialog", { name: "Talking with someone you haven't met" })).toBeVisible();
   await expect(dlg.locator(".dlg-sub")).toContainText("Someone you haven't met");
   await shot(page, "street-topics", isMobile);
-  // The question goes up over the player, then the reply over the person.
+  // The person's opener comes first (note 2), then the question goes up over the player, then the reply over the person.
   await choiceIn(dlg.getByTestId("talk-topic-topic.who_runs")).click();
+  await expect(page.getByTestId("talk-bubble").locator("p").first()).not.toBeEmpty({ timeout: 15_000 });
+  await expect(page.getByTestId("talk-you")).toHaveCount(0);
+  // Tap through the opener (the first tap shows it all, the next goes on) until the question goes up.
+  await expect(async () => {
+    if (!(await page.getByTestId("talk-you").isVisible())) await page.getByTestId("talk-bubble").click({ timeout: 1000 });
+    await expect(page.getByTestId("talk-you")).toBeVisible({ timeout: 800 });
+  }).toPass({ timeout: 15_000 });
   await expect(page.getByTestId("talk-you")).toHaveText("Who really runs things here?");
   await expect(page.getByTestId("talk-bubble").locator("p").first()).not.toBeEmpty({ timeout: 15_000 });
   // The bubble stays on screen and above the box.

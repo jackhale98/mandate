@@ -314,6 +314,9 @@ export function Pocket() {
             <button type="button" className="btn btn-ghost" onClick={() => openReport("menu")} data-testid="report-problem">
               {tr.t("ui-report")}
             </button>
+            <a className="btn btn-ghost" href={`${import.meta.env.BASE_URL}../privacy.html`} target="_blank" rel="noopener" title={tr.t("ui-privacy-note")} data-testid="privacy-link-pocket">
+              {tr.t("ui-privacy")}
+            </a>
           </nav>
         </div>
       </aside>

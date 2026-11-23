@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./csp";
+import type { Page } from "@playwright/test";
 import { openPocket, showPlaces } from "./pocket";
 
 // The town is the main screen (DEC-088: its street, full screen); the pocket

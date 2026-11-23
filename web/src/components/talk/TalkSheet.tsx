@@ -113,7 +113,8 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   const [q, setQ] = useState("");
   const [active, setActive] = useState<string | null>(null);
   // The player's question (their bubble), and until when it holds the stage.
-  const [asked, setAsked] = useState<{ text: string; after: number | null } | null>(null);
+  const asked = useGame((s) => s.talkAsked);
+  const setAsked = useGame((s) => s.setTalkAsked);
   const [holding, setHolding] = useState(false);
   const [shown, setShown] = useState<Shown>({ id: x?.id ?? null, page: 0, typed: Infinity });
   const [notedGone, setNotedGone] = useState<number | null>(null);
@@ -133,13 +134,27 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   // A new reply starts at its first page (the derived-state pattern: no effect, no flash of the old one).
   const xid = x?.id ?? null;
   if (xid !== shown.id) setShown({ id: xid, page: 0, typed: reducedMotion() ? Infinity : 0 });
-  const pages = useMemo(() => (x ? replyPages(tr, x) : []), [x, tr]);
-  // The reply waits while the player's question is still up.
-  const waiting = asked !== null && (holding || asked.after === xid);
+  // The person speaks first: their opener ("What's this about?") comes before the player's question, then the rest of the reply.
+  const askedHere = asked !== null && asked.after !== xid;
+  const { pages, nOpen } = useMemo(() => {
+    if (!x) return { pages: [] as Page[], nOpen: 0 };
+    // A reply to a question asked here: split. One met some other way (no question to place) reads as it always did.
+    if (!askedHere) return { pages: replyPages(tr, x), nOpen: 0 };
+    const opens = replyPages(tr, { ...x, parts: x.parts.filter((p) => p.part === "opener"), leads: [], relationship: null });
+    const rest = replyPages(tr, { ...x, parts: x.parts.filter((p) => p.part !== "opener") });
+    return { pages: [...opens, ...rest], nOpen: opens.length };
+  }, [x, tr, askedHere]);
+  // The reply is in (not the one the question was asked after); the question goes up once the opener is said.
+  const fresh = asked !== null && x !== null && asked.after !== xid;
+  const inOpener = fresh && !asked.qShown && nOpen > 0;
+  const questionDue = fresh && !asked.qShown && nOpen === 0;
+  const showQuestion = holding || questionDue;
+  // The reply waits while the engine answers, and while the player's question is up.
+  const waiting = asked !== null && (!fresh || showQuestion);
   const page: Page | null = !waiting && x && pages.length > 0 ? (pages[Math.min(shown.page, pages.length - 1)] ?? null) : null;
   const full = page ? pageText(page).length : 0;
   const typing = page !== null && shown.typed < full;
-  const more = page !== null && shown.page < pages.length - 1;
+  const more = page !== null && (inOpener || shown.page < pages.length - 1);
   const atEnd = x !== null && !waiting && !more;
 
   // The typewriter (off with reduced motion: the page is all there at once).
@@ -148,6 +163,13 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
     const id = window.setInterval(() => setShown((s) => (s.typed >= full ? s : { ...s, typed: Math.min(full, s.typed + TYPE_STEP) })), TYPE_MS);
     return () => window.clearInterval(id);
   }, [typing, full]);
+
+  // No opener: the question goes up as the reply arrives, and holds the stage a moment.
+  useEffect(() => {
+    if (!questionDue) return;
+    const id = window.setTimeout(() => setAsked((a) => (a ? { ...a, qShown: true } : a)), ASK_HOLD_MS);
+    return () => window.clearTimeout(id);
+  }, [questionDue, setAsked]);
 
   // The question holds the stage a moment, then gives way to the reply.
   useEffect(() => {
@@ -160,18 +182,24 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   const advance = useCallback(() => {
     if (!page) return;
     if (shown.typed < full) setShown((s) => ({ ...s, typed: Infinity }));
-    else if (shown.page < pages.length - 1) {
+    else if (inOpener && shown.page >= nOpen - 1) {
+      // The opener is said: now the player's question, then the rest.
+      setAsked((a) => (a ? { ...a, qShown: true } : a));
+      setHolding(true);
+      setShown((s) => ({ ...s, page: nOpen, typed: reducedMotion() ? Infinity : 0 }));
+      focus("continue");
+    } else if (shown.page < pages.length - 1) {
       focus(shown.page + 1 < pages.length - 1 ? "continue" : "first");
       setShown((s) => ({ ...s, page: s.page + 1, typed: reducedMotion() ? Infinity : 0 }));
     }
-  }, [page, shown, full, pages.length, focus]);
+  }, [page, shown, full, pages.length, focus, inOpener, nOpen, setAsked]);
 
   const leave = useCallback(() => void openTalk(null), [openTalk]);
 
   const ask = (t: TopicView, about: AboutChoiceView | null) => {
     if (busy) return;
-    setAsked({ text: questionText(tr, t, about), after: xid });
-    setHolding(true);
+    setAsked({ text: questionText(tr, t, about), after: xid, qShown: false });
+    setHolding(false);
     setStep({ kind: "topics" });
     focus("continue");
     // Nothing came of it (the engine refused): the question goes, rather than wait for a reply.
@@ -348,7 +376,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   const label = v.person.name ? tr.t("ui-talk-with", { name: v.person.name }) : tr.t("ui-talk-with-stranger");
   const role = v.person.name ? roleText(tr, v.person) : tr.t("ui-dlg-stranger");
   const cost = costText(tr, v);
-  const thinking = asked !== null && waiting && !holding;
+  const thinking = asked !== null && waiting && !showQuestion;
   const replyLive = page ? tr.t("ui-dlg-says", { name, line: pageText(page) }) : "";
   // A reason every topic shares (out of time, not here) is said once, above the choices.
   const shared = new Set<string>([...(v.out_of_time ? ["talk-why-time", "talk-why-late-used"] : []), ...(!v.here ? ["talk-why-away"] : [])]);
@@ -356,7 +384,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
 
   const bubbles = (
     <>
-      {asked && waiting && <Bubble who="player" page={asked.text} side={!street} testId="talk-you" bubbleRef={playerBubble} />}
+      {asked && showQuestion && <Bubble who="player" page={asked.text} side={!street} testId="talk-you" bubbleRef={playerBubble} />}
       {(page || thinking) && (
         <Bubble who="person" page={page} typed={shown.typed} more={more && !typing} thinking={!page} side={!street} onAdvance={advance} testId="talk-bubble" bubbleRef={personBubble} />
       )}

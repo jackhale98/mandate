@@ -9,7 +9,12 @@ import type { SignerView } from "../engine/protocol/SignerView";
 
 /** A post as on the ballot: a districted seat by its number, any other post by its label. */
 export function postTitle(tr: Translator, p: PostDto): string {
-  return p.constituency_number !== null ? tr.t("ui-post-seat", { n: p.constituency_number, tier: p.at.tier }) : tr.t(p.label_key);
+  return p.constituency_number !== null ? districtLabel(tr, p.constituency_number, p.at.tier) : tr.t(p.label_key);
+}
+
+/** A district by its number and tier, in the constitution's words ("Ward 3" for the local tier). */
+export function districtLabel(tr: Translator, n: number, tier: string): string {
+  return tr.t("ui-post-seat", { n, tier });
 }
 
 /** The body bills are voted in (the procedure's first vote), if the view has one. */

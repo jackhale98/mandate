@@ -494,6 +494,7 @@ export function viewForInput(input: TownInput): TownPlacesView {
         kind: h.kind,
         is_home: h.id === input.home,
         in_ward: false,
+        ward_number: null,
         spots: [
           ...(h.id === input.home ? [{ location: { location: { type: "home" as const }, kind_key: "home", name: "", neighborhood: h.id, neighborhood_name: h.name }, actions: ["rest"], late_night: [], services: [], verbs: [], here: false }] : []),
           { location: { location: { type: "street" as const, neighborhood: h.id }, kind_key: "streets", name: "", neighborhood: h.id, neighborhood_name: h.name }, actions: ["canvass"], late_night: [], services: [], verbs: [], here: false },

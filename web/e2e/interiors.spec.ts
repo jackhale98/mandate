@@ -8,7 +8,7 @@ import { showPlaces } from "./pocket";
 // engine says are here on the recipe's spots (scenery staff at the counter),
 // hotspots that offer what the place view offers now, talking through the
 // store's talk entry point, and out by the door to the street outside it.
-// The Places tab (and the town map) still open the place's panel (DEC-051).
+// The Places tab still opens the place's panel (DEC-051); the town map walks in like a tap on the door.
 // INTERIOR_SCREENS=<dir> also saves screenshots there.
 const SCREENS = process.env.INTERIOR_SCREENS ?? "";
 

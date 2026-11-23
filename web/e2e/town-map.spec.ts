@@ -91,14 +91,13 @@ test("the Map button opens the town map full screen; tapping a landmark closes i
   // With a mouse, focus goes back to the Map button (a finger's tap lands on the street below; the keyboard test checks the rest).
   if (info.project.name === "desktop") await expect(page.getByTestId("town-map-button")).toBeFocused();
   await expect.poll(() => page.evaluate(() => window.__townStreet?.view.scene.playerMoving ?? false), { timeout: 5000 }).toBe(true);
-  // …and the town hall's panel opens on arrival, with the player there.
-  const panel = page.getByTestId("place-panel");
-  await expect(panel.getByRole("heading", { name: /Town hall/ })).toBeVisible({ timeout: 60_000 });
-  await expect(panel.getByTestId("you-are-here-panel")).toBeVisible();
+  // …and arrives inside the town hall (it has an interior: note 6), not at its menu; the player is there.
+  await expect(page.locator("[data-testid='interior'][data-ready='1']")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId("place-panel")).toHaveCount(0);
   await expect(page.getByTestId("where")).toContainText("Town hall");
-  // Escape closes the panel, as elsewhere; on the map the town hall is now where you are.
-  await page.keyboard.press("Escape");
-  await expect(panel).toHaveCount(0);
+  // Out by the door; on the map the town hall is now where you are.
+  await page.getByTestId("interior-leave").click();
+  await expect(page.getByTestId("interior")).toHaveCount(0, { timeout: 15_000 });
   await openMap(page);
   await expect(page.getByTestId("map-town_hall")).toHaveAttribute("aria-current", "location");
   // Escape closes the map too.
@@ -169,8 +168,8 @@ test("the keyboard moves between places on the map and Enter walks there", async
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("town-map-overlay")).toHaveCount(0);
   await expect(page.getByTestId("town-map-button")).toBeFocused();
-  const panel = page.getByTestId("place-panel");
-  await expect(panel.locator("#place-title")).toContainText(name, { timeout: 60_000 });
+  // A place with an interior is entered; one without opens its panel.
+  await expect(page.getByTestId("place-panel").locator("#place-title").or(page.locator("[data-testid='interior'][data-ready='1']"))).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("where")).toContainText(name);
   expect(errors).toEqual([]);
 });

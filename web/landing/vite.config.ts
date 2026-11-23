@@ -4,8 +4,10 @@
 //   Build:   npx vite build -c landing/vite.config.ts   (part of `npm run build`)
 //   Dev:     npx vite -c landing/vite.config.ts
 //   Preview: npx vite preview -c landing/vite.config.ts  (serves landing, play/, spike-hub/)
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from "vite";
+import { cspMeta, landingPolicy } from "../csp.ts";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 // The single deploy variable (DEC-064): /mandate/ on GitHub Pages, / on a custom domain.
@@ -47,11 +49,13 @@ export default defineConfig({
   base,
   appType: "mpa",
   publicDir: "public",
-  plugins: [siteMeta()],
+  plugins: [siteMeta(), cspMeta(landingPolicy, { hashInlineScripts: true })],
   build: {
     target: "es2020",
     outDir: "../dist",
     emptyOutDir: true,
+    // Two pages: the front page and the plain-text privacy notice.
+    rollupOptions: { input: { index: resolve(root, "index.html"), privacy: resolve(root, "privacy.html") } },
     sourcemap: false,
     // Small icons and marks are inlined; the screenshots stay files.
     assetsInlineLimit: 2048,

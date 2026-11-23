@@ -21,7 +21,7 @@ import { DayClock, townsfolkShare, wrapMinutes } from "./dayCycle";
 import type { ArtProvider } from "./render/art";
 import { PlaceholderArt } from "./render/placeholderArt";
 import { TownRenderer, type WalkerView } from "./render/townRenderer";
-import { ROOF_ROWS, buildingOfPlace, type TownBuilding, type TownMap } from "./townLayout";
+import { ROOF_ROWS, buildingOfPlace, locationCell, type TownBuilding, type TownMap } from "./townLayout";
 import type { TownLocation } from "./townInput";
 import { TALK_REACH, TownScene, type StandingPerson, type Walker } from "./townScene";
 
@@ -243,6 +243,8 @@ export class HubView {
    * under a new key), the street's height covered by the dialogue box, the
    * zoom framed at and the zoom to go back to.
    */
+  /** A change of who is here made during a conversation, applied when it ends. */
+  private queuedPeople: { people: readonly StreetPerson[]; exits: ReadonlyMap<string, TownLocation | null> | undefined } | null = null;
   private talk: { w: Walker; inset: number; zoom: number; from: number } | null = null;
   /** After a conversation: the zoom the camera eases back to, then it is the player's again. */
   private talkReturn: number | null = null;
@@ -371,8 +373,20 @@ export class HubView {
    * stand a few steps from the player, those already there stay, the rest go.
    * Each has a name tag (a tap walks up to them).
    */
-  setPeople(people: readonly StreetPerson[]) {
-    this.scene.setStanding(people);
+  setPeople(people: readonly StreetPerson[], exits?: ReadonlyMap<string, TownLocation | null>) {
+    // In a conversation the speaker stays put (they would walk off in frame); the change is made when it ends.
+    if (this.talk) {
+      this.queuedPeople = { people, exits };
+      return;
+    }
+    this.queuedPeople = null;
+    // Anyone no longer here walks off towards where they go next (at once with reduced motion).
+    const cells = new Map<string, number | null>();
+    if (exits && !this.reducedMotion) {
+      for (const [k, loc] of exits) cells.set(k, loc ? locationCell(this.map, loc) : null);
+      for (const s of this.scene.standing) if (!cells.has(s.key)) cells.set(s.key, null);
+    }
+    this.scene.setStanding(people, this.reducedMotion ? undefined : cells);
     for (const [k, el] of this.personTags) {
       if (!this.scene.standing.some((x) => x.key === k)) {
         el.remove();
@@ -470,6 +484,8 @@ export class HubView {
     this.labelLayer.style.visibility = "";
     this.follow = true;
     this.lastInput = performance.now();
+    const q = this.queuedPeople;
+    if (q) this.setPeople(q.people, q.exits);
     this.wake();
   }
 
@@ -975,12 +991,12 @@ export class HubView {
     if (ticked) this.syncFolk();
     const playerMoving = this.walking(p) || this.scene.steering;
     // In dialogue mode the townsfolk stand still and only the speaker moves.
-    const folkMoving = this.scene.activeFolk > 0 && !this.scene.folkPaused;
+    const folkMoving = (this.scene.activeFolk > 0 || this.scene.leaving.length > 0) && !this.scene.folkPaused;
     const bobbing = this.speaker !== null && !this.reducedMotion;
     // Full rate: the player, the camera (easing, following, a gesture) and the light changing.
     const busy = playerMoving || eased || this.camera.gesturing || ticked || this.clock.running || this.renderer.animating || this.followSettling();
     // Idle sleep (DEC-080 "Battery"): nobody has touched anything for a while; draw this frame and stop.
-    const idle = !busy && now - this.lastInput >= (this.opts.idleMs ?? 20_000);
+    const idle = !busy && this.scene.leaving.length === 0 && now - this.lastInput >= (this.opts.idleMs ?? 20_000);
     // Ambient-only frames are capped (DEC-080: battery).
     const cap = 1000 / (this.talk ? TALK_FPS : (this.opts.ambientFps ?? 15));
     if (busy || idle || now - this.lastTry >= cap - 1) {
@@ -1025,6 +1041,7 @@ export class HubView {
     const view = (w: Walker): WalkerView => ({ x: w.x, y: w.y - (w === bob ? 1 / TILE : 0), dir: w.dir, frame: w.moving ? 1 + (Math.floor(w.dist * 4) % frames) : 0, variant: w.variant });
     views.push(view(s.player));
     for (const w of s.outFolk) views.push(view(w));
+    for (const { w } of s.leaving) views.push(view(w));
     // People standing in the street turn to face the player when the player is by them.
     for (const { key, w } of s.standing) {
       if (key === this.nearKey && !t) w.dir = facing(s.player.x - w.x, s.player.y - w.y);

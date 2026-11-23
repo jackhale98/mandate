@@ -452,7 +452,10 @@ h2 { font-size: 1.1rem; }
 .facts { margin: 0; display: grid; gap: 6px; }
 .facts > div { display: grid; grid-template-columns: minmax(7rem, 11rem) 1fr; gap: 8px; align-items: baseline; }
 .facts dt { color: var(--muted); font-size: 0.85rem; }
-.facts dd { margin: 0; }
+.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+/* The town card sits in the narrow pocket sheet at every viewport width: the label stacks over its text, so a long crisis or rival line wraps in a full-width row and never runs into the line beside or above it. */
+.town-card .facts > div { grid-template-columns: minmax(0, 1fr); gap: 0; align-items: start; }
+.town-card .facts { gap: 10px; }
 @media (max-width: 480px) {
   .facts > div { grid-template-columns: 1fr; gap: 0; }
 }
@@ -634,7 +637,7 @@ h2 { font-size: 1.1rem; }
 .town-map-overlay-head h2 { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 1rem; }
 /* Town | Country, between the title and ✕; on phones the title gives way (its hint is for screen readers only). */
 .map-scope { flex: none; flex-wrap: nowrap; gap: 4px; }
-.map-scope .seg { min-width: 0; min-height: 36px; padding: 4px 14px; color: var(--text); font: inherit; font-size: 0.85rem; font-weight: 600; }
+.map-scope .seg { flex: 0 0 auto; white-space: nowrap; min-width: 0; min-height: 36px; padding: 4px 14px; color: var(--text); font: inherit; font-size: 0.85rem; font-weight: 600; }
 .map-scope .seg:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
 @media (max-width: 520px) {
   .town-map-overlay-head h2 .muted { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -758,3 +761,8 @@ h2 { font-size: 1.1rem; }
 .turn-passage-quick.turn-passage-dawn { animation: fade-out 200ms linear forwards; }
 @keyframes fade-out { to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .turn-passage { transition: none; } }
+
+/* Legal links (LEGAL_GROUNDWORK.md): a link that looks like a button, and the fiction line under the title. */
+a.btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.fiction { margin: 0 0 8px; }
+.hub-icon-sprite { display: none; } /* the icon sprite is defs only; styled here because the page policy forbids inline style attributes */

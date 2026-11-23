@@ -77,6 +77,14 @@ export interface Passage {
  * street. The engine has the player at the place (as after `visit`); the room
  * is presentation, composed on the client from the recipe and a keyed seed.
  */
+export interface TalkAsked {
+  text: string;
+  /** The exchange id the question was asked after (null: the first). */
+  after: number | null;
+  /** The question has been put up (after the person's opener). */
+  qShown: boolean;
+}
+
 export interface InteriorState {
   location: LocationDto;
   place: number;
@@ -143,6 +151,12 @@ interface GameState {
   talkTo: TalkTargetDto | null;
   /** The panel is for a late-night conversation (the late slot). */
   talkLate: boolean;
+  /**
+   * The player's question in this conversation, shown over them once the person's opener is said. Kept here, not in the
+   * dialogue's own state: meeting a passer-by rebuilds the dialogue while the engine answers, and the question must outlive it.
+   */
+  talkAsked: TalkAsked | null;
+  setTalkAsked(update: TalkAsked | null | ((a: TalkAsked | null) => TalkAsked | null)): void;
   /** The latest exchange in the talk panel (what was said, what was learned). */
   exchange: ExchangeView | null;
   pocketOpen: boolean;
@@ -257,6 +271,8 @@ interface GameState {
   previewCanvass(neighborhood: number): Promise<CanvassView | null>;
   /** Who is at a location (the street's passers-by, to walk up to). */
   peopleAt(location: LocationDto): Promise<PersonRefView[]>;
+  /** Where someone is now, as the engine's routines have it (the talk view's route: what "Go to them" uses); null if nowhere the player can walk to. */
+  whereIs(to: TalkTargetDto): Promise<LocationDto | null>;
   skipWalk(): void;
   /** The street reports the player has reached the walk's destination. */
   arrived(): void;
@@ -366,6 +382,10 @@ export const useGame = create<GameState>((set, get) => {
     talk: null,
     talkTo: null,
     talkLate: false,
+    talkAsked: null,
+    setTalkAsked(update) {
+      set((s) => ({ talkAsked: typeof update === "function" ? update(s.talkAsked) : update }));
+    },
     exchange: null,
     pocketOpen: false,
     pocketTab: readPocketTab(),
@@ -753,13 +773,13 @@ export const useGame = create<GameState>((set, get) => {
 
     async openTalk(to) {
       if (to === null) {
-        set({ talk: null, talkTo: null, exchange: null, talkLate: false });
+        set({ talk: null, talkTo: null, exchange: null, talkLate: false, talkAsked: null });
         return;
       }
       try {
         const talk = expectKind(await engine().request({ kind: "query", payload: { type: "talk", to, late_night: false } }), "talk");
         // The talk panel replaces the character sheet and the pocket (unless docked) rather than stacking on them.
-        set({ talk, talkTo: to, exchange: null, talkLate: false, character: null, ...pocketAfterMove(get()) });
+        set({ talk, talkTo: to, exchange: null, talkLate: false, talkAsked: null, character: null, ...pocketAfterMove(get()) });
       } catch (e) {
         set({ error: errText(e) });
       }
@@ -816,6 +836,15 @@ export const useGame = create<GameState>((set, get) => {
         return expectKind(await engine().request({ kind: "query", payload: { type: "place", location } }), "place").people;
       } catch {
         return [];
+      }
+    },
+
+    async whereIs(to) {
+      try {
+        const v = expectKind(await engine().request({ kind: "query", payload: { type: "talk", to, late_night: false } }), "talk");
+        return v.here ? null : (v.route?.to?.location ?? null);
+      } catch {
+        return null;
       }
     },
 
