@@ -8,6 +8,8 @@ The working list for M6 (ROADMAP §2). M6 ends at the tester checkpoint: the own
 
 Status as of 2026-11-20.
 
+**Order and method:** `IMPLEMENTATION_PLAN.md` (2026-11-23) sets the order of work, the shared mechanisms and the agent rules. Where it and the lists below differ on order, the plan wins once the owner confirms it.
+
 ## Priority while tokens are tight (owner, 2026-11-20)
 
 Run 2–3 agents at a time, in this order:
