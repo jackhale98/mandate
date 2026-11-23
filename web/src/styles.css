@@ -761,3 +761,8 @@ h2 { font-size: 1.1rem; }
 .turn-passage-quick.turn-passage-dawn { animation: fade-out 200ms linear forwards; }
 @keyframes fade-out { to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .turn-passage { transition: none; } }
+
+/* Legal links (LEGAL_GROUNDWORK.md): a link that looks like a button, and the fiction line under the title. */
+a.btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.fiction { margin: 0 0 8px; }
+.hub-icon-sprite { display: none; } /* the icon sprite is defs only; styled here because the page policy forbids inline style attributes */

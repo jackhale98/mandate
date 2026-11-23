@@ -365,7 +365,7 @@ export class PlaceholderArt implements ArtProvider {
       g.forEach((row, y) => [...row].forEach((c, x) => (d += c === "#" ? `M${x} ${y}h1v1h-1z` : "")));
       return `<symbol id="hub-icon-${k}" viewBox="0 0 7 7"><path fill="currentColor" d="${d}"/></symbol>`;
     });
-    return `<svg xmlns="http://www.w3.org/2000/svg" style="display:none">${symbols.join("")}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" class="hub-icon-sprite" width="0" height="0" aria-hidden="true" focusable="false">${symbols.join("")}</svg>`;
   }
 
   // ------------------------------------------------------------------ ground
