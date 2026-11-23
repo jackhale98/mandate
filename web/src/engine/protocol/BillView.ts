@@ -3,6 +3,7 @@ import type { ClauseDto } from "./ClauseDto";
 import type { DateView } from "./DateView";
 import type { LedgerEntry } from "./LedgerEntry";
 import type { ParamValue } from "./ParamValue";
+import type { ReasonView } from "./ReasonView";
 import type { SideEffectView } from "./SideEffectView";
 import type { SignerView } from "./SignerView";
 import type { SupportView } from "./SupportView";
@@ -50,10 +51,32 @@ can_vote: boolean,
  */
 party_line: string, 
 /**
+ * Why the line is what it is: Fluent key `party-reason-<why>` and its
+ * args (`issue`: the Fluent key `party-issue-<attitude>` of the issue behind
+ * it). `None` when the player has no party.
+ */
+party_line_reason: ReasonView | null, 
+/**
  * Support for the bill among the player's ward voters (−1..1): to 0.25
  * below `known` (`support.level`), 0.1 at `known`, exact in detail.
  */
 ward_support: number, 
+/**
+ * The same figure in words and shares (as coarse as `ward_support`):
+ * `strongly_against` | `against` | `leans_against` | `split` |
+ * `leans_for` | `for` | `strongly_for` (Fluent `ward-lean-<lean>`).
+ */
+ward_lean: string, 
+/**
+ * Share of ward voters for and against, in percent (the two sum to
+ * 100): to 5 points unless the player knows the detail.
+ */
+ward_for_pct: number, ward_against_pct: number, 
+/**
+ * How sure the estimate is: `rough` | `fair` | `exact`
+ * (Fluent `ward-certainty-<certainty>`).
+ */
+ward_certainty: string, 
 /**
  * The player owes the sponsor a favour.
  */

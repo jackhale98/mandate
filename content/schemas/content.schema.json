@@ -4244,15 +4244,6 @@
           "format": "double",
           "type": "number"
         },
-        "rival_party": {
-          "format": "double",
-          "type": "number"
-        },
-        "same_party": {
-          "description": "Party discipline: the sponsor's party, and a rival party.",
-          "format": "double",
-          "type": "number"
-        },
         "sign_bias": {
           "description": "Mayors sign unless their lean is below −`sign_bias`.",
           "format": "double",
@@ -4278,8 +4269,6 @@
         "ward_support",
         "mayor",
         "player_opinion",
-        "same_party",
-        "rival_party",
         "sunset",
         "pilot",
         "foreign_earmark",
@@ -11047,6 +11036,49 @@
       ],
       "type": "object"
     },
+    "PartyLineParams": {
+      "additionalProperties": false,
+      "description": "The party line: one rule for the player's whip and for NPC members\n(DEC-030). `score` = `platform` × the bill's fit with the party's\nplatform (−1..1) + a term for who sponsors it; inside ±`free_band` the\nvote is free.",
+      "properties": {
+        "free_band": {
+          "description": "A score inside ±this is a free vote.",
+          "format": "double",
+          "type": "number"
+        },
+        "governing_sponsor": {
+          "format": "double",
+          "type": "number"
+        },
+        "npc_pull": {
+          "description": "How hard a whipped NPC member is pulled: lean = this × score × the\nmember's loyalty factor.",
+          "format": "double",
+          "type": "number"
+        },
+        "other_sponsor": {
+          "format": "double",
+          "type": "number"
+        },
+        "own_sponsor": {
+          "description": "Sponsor terms: a bill from the party's own member, from the party that\ngoverns (holds the signing office), and from any other party.",
+          "format": "double",
+          "type": "number"
+        },
+        "platform": {
+          "description": "Weight of the bill's fit with the party's platform.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "platform",
+        "own_sponsor",
+        "governing_sponsor",
+        "other_sponsor",
+        "free_band",
+        "npc_pull"
+      ],
+      "type": "object"
+    },
     "PartyNameParts": {
       "additionalProperties": false,
       "description": "Words for generated party names: an attitude-led adjective plus a noun.",
@@ -11824,6 +11856,10 @@
         "party_id": {
           "$ref": "#/$defs/PartyIdParams"
         },
+        "party_line": {
+          "$ref": "#/$defs/PartyLineParams",
+          "description": "How a party takes a position on a bill (the party line, DEC-027)."
+        },
         "party_names": {
           "$ref": "#/$defs/PartyNameParts"
         },
@@ -11845,7 +11881,8 @@
         "polls",
         "campaign",
         "party_id",
-        "ai"
+        "ai",
+        "party_line"
       ],
       "type": "object"
     },
