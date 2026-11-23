@@ -1,0 +1,13 @@
+# Asks and promises (M6 E6 + E8, DEC-097 §2): New `content/base/asks/params.jsonc` at the ENGAGEMENT §3.2 start valu
+
+**Date:** 2026-11-20
+**Area:** Asks and promises (M6 E6 + E8, DEC-097 §2)
+
+## Parameter and change
+New `content/base/asks/params.jsonc` at the ENGAGEMENT §3.2 start values except `respond_days` 7 → 14 (a governing turn is 14 days: at 7, half of all offers lapsed before a player's next turn, 15 of 30 a career for `mixed`). `new_per_month` 1.5 / 2.5 and both intent curves kept (the median already clears ≥ 15 offers in 5 years). First pack: 16 asks, 6 promises; triggers loosened from first drafts so each opens: `ask.say_something` crisis ≥ 0.3 → 0.1, `ask.draft_answer` 0.3 → 0.15, `ask.fund_the_school` services top 2 → top 3; `ask.town_hall_here` weight 0.6 and `ask.introduce_me` 0.7 (they took a third of offers at 1.0). Promises: `persuasion` 0.04, `any_salience` 0.5, `broken_discount` 0.5 (start). No `actions` or `career` value changed: the E1 grid points tried (`actions.canvass.approval` 0.012 / 0.016 × `campaign_mult` 2.0 / 2.5) moved `explorer − mixed` by ≤ 0.05 points; `ask_params.promises.persuasion` 0.04 / 0.08 × `any_salience` 0.25 / 0.5 by ≤ 0.04
+
+## Evidence
+`bots --careers 5 --seeds 12` (mixed): offered median 29 (22–38), accepted 360, kept 357 (99%), broken 3 asks + 1 promise (careers with a broken ask or promise: 3 of 12), declined 4, void 0; promises made 19, kept 15, broken 1. `explorer` takes only the asks that pay with its own voters: offered 435, accepted 147, kept 84%. `asks_only` wins 11 of 23 elections, `idle` 1 (every offer lapses). `bots --seeds 16`, before (588549d) → after: mixed 0.6113 → 0.6145, explorer 0.6246 → 0.6293, campaigner 0.6256 → 0.6272, legislator 0.6203 → 0.6209, coalition 0.6198 → 0.6109 (win 81% → 88%), asks_only 0.2805 → 0.5042 (win 6% → 56%); `ladder_learned` + 1.32 → + 1.48. 32 seeds: `ladder_learned` + 0.97 (failing) → + 1.24 (pass), `good_styles_vary` (a) false → true. Bots: informed styles in a campaign defer asks not due before their next turn (coalition lost 3 points when casework ate its doorstep slots); they decline asks costing time that pay outside their ward
+
+## Effect
+Asks are a steady source of beats and record (a kept ask, + 0.05) that every engaged style answers; they barely move first-election share (approval between elections is a small lever on the race model), so they do not open the ladder's E8 margins: `ladder_learned` + 3.0 (+ 1.48 / + 1.24), `knowledge_matters` + 3.0 (+ 0.51 / + 0.32), `skill_gap` + 3.0 and + 10 win points (+ 1.48, + 6.3 / + 1.24, + 3.1), `good_styles_vary` (a) at 16, (c) at 32 still fail and stay reported; `ladder_rote` is now enforced (passes at both)
