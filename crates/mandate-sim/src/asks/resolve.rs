@@ -184,7 +184,13 @@ fn step(r: &Reads<'_>, ask: &mut Ask, need: &Need, deed: &Deed) -> Step {
             Deed::TownHall { hood: h },
         ) if h == hood => Step::Met,
         (Need::Visit { place }, Deed::Arrive { place: p }) if p == place => Step::Met,
-        (Need::Talk { person }, Deed::Talk { person: p, .. }) if p == person => Step::Met,
+        // A talk need with a choice is met by that choice (`asks::hook`),
+        // when the person agrees; any talk with them meets one without.
+        (Need::Talk { person }, Deed::Talk { person: p, .. })
+            if p == person && super::hook::choice_def(r.content, ask).is_none() =>
+        {
+            Step::Met
+        }
         (Need::Introduce { templates }, Deed::Introduce { policy })
             if template_in(r, *policy, templates) =>
         {

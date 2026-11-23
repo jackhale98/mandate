@@ -150,6 +150,36 @@ ask-introduce-me-need = Talk to { $official }, then to { $asker }
 ask-introduce-me-kept = You put in a word with { $official }, and told { $asker } so.
 ask-introduce-me-broken = You never spoke to { $official } for { $asker }.
 
+## Asks in conversation (talk hooks, S4): an ask whose next step is a talk
+## puts a choice of its own in the conversation with that person. `ask-choice-*`
+## is the button, `ask-say-*` what the player says, `talk-ask-*` the reply.
+## Arguments: the ask's people by role (`$asker`, `$official`, `$newcomer`),
+## a bill by role (`$bill`), `$speaker`, `$player`, `$town`.
+ask-choice-introduce-official = Put in a word for { $asker }
+ask-say-introduce-official = "{ $asker } would like half an hour with you. I said I'd ask."
+talk-ask-introduce-warm = "For { $asker }? Of course. Tell them to come by on Thursday. I'll keep the afternoon free."
+talk-ask-introduce-curt = "Fine. Ten minutes, and they bring whatever it is in writing."
+talk-ask-introduce-decline = "I don't take meetings on your say-so. Ask me again when we're on better terms."
+ask-choice-introduce-asker = Tell { $asker } it is arranged
+ask-say-introduce-asker = "I spoke to { $official }. They'll see you."
+talk-ask-introduce-thanks = "They will? Thank you. I'll ring the office first thing tomorrow."
+ask-choice-second-my-bill = Hear { $asker } out on the { $bill } bill
+ask-say-second-my-bill = "Go on, then. What does the { $bill } bill do?"
+talk-ask-second-my-bill = "Thank you. Here's the page that matters, and here's who it helps. Read the rest on the bus."
+talk-ask-second-my-bill-cool = "I didn't think you'd come. Ten minutes, then. I've timed it."
+ask-choice-meet-newcomer = Welcome { $newcomer } to { $town }
+ask-say-meet-newcomer = "{ $asker } said I should come and say hello. Welcome to { $town }."
+talk-ask-meet-newcomer-warm = "{ $asker } sent you? Good. You're the first person here to ask how I'm finding it."
+talk-ask-meet-newcomer = "Thanks for coming over. I'm still learning where everything is. Which day is market day?"
+## What a choice did (the conversation's outcome line), and the ask's note
+## after a no.
+outcome-ask-choice-agreed = { $name } agreed. That step is done.
+outcome-ask-choice-kept = { $name } agreed. You kept your word to { $asker }.
+outcome-ask-choice-refused = { $name } said no. The ask is still open.
+ui-ask-talk-refused = { $name } said no last time. Ask again when they think better of you.
+## A conversation with nothing behind it says so (never an empty box).
+talk-nothing-to-say = "I've nothing to say about that."
+
 ## Campaign promises
 promise-answer-crisis = Get the { $answer } bill passed
 promise-answer-crisis-detail = You promise { $constituency } that you will get the { $answer } bill passed to answer { $crisis }.

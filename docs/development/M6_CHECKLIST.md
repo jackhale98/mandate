@@ -163,6 +163,19 @@ On hold until then:
    7. **Readability:** whether "Why?" explains each change.
 
    The harness becomes a CI or nightly gate.
+
+   **Done (2026-11-23): measured, nothing changed.** The report is `docs/design/research/SIMULATION_AUDIT.md`; the runner is `crates/mandate-cli/src/lab/` (`mandate-cli lab run|twin`, `mandate-cli audit <topic>`). `audit gate` runs nightly and does not block yet. Verdict: stable, not yet effective. Fixes, in order (each tuned against the gate and logged in the balance log):
+   1. **Record decides votes** (small): today re-election is 82% where unemployment fell and 80% where it rose.
+   2. **Rents bounded, private building restarts** (medium): today 7.8% of towns run away and building is stalled in 43% of town-months.
+   3. **Delivered results count in approval; the services worry reads service levels** (medium): today 12 of 15 laws cost approval.
+   4. **One-party lock broken** (medium): today 38% of towns never change the executive's party in 30 years.
+   5. **Honest ledgers** (small): the homes ledger overstates fourfold.
+   6. Neighbourhood approval follows neighbourhood conditions (small).
+   7. Dead mechanisms wired or removed: directional voting, the partisan filter, cohort trust (small).
+   8. Texts corrected where the engine does not back them (small).
+
+   Fixes 9–12 (migration, commuting, turnout, crime) are M7. After the engine play notes and the asks fix merge, re-run topics 1, 2, 5 and 7.
+
    **After the audit (DEC-106):**
    - the first batch of new worries;
    - the asset-condition model, with street cues (potholes, broken lights, overgrown parks as funding falls);

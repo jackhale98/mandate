@@ -78,6 +78,11 @@ function NextStep({ a }: { a: AskView }) {
         {a.progress && <span className="muted"> · {tr.t("ui-ask-progress", { done: a.progress.done, total: a.progress.total })}</span>}
       </p>
       {current?.watch && <p className="muted small">{tr.t("ui-ask-watch")}</p>}
+      {a.note_key && (
+        <p className="muted small" data-testid="ask-note">
+          {tr.event(a.note_key, a.args)}
+        </p>
+      )}
       <div className="bill-actions">
         {a.odds !== null ? (
           <>

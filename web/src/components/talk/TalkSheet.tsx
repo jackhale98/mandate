@@ -24,6 +24,7 @@ import type { LeadView } from "../../engine/protocol/LeadView";
 import type { TalkView } from "../../engine/protocol/TalkView";
 import type { TopicView } from "../../engine/protocol/TopicView";
 import { useGame } from "../../state/gameStore";
+import { topicLabel } from "../asks/choiceText";
 import { placeName } from "../../places/labels";
 import { roleText } from "../CharacterSheet";
 import { Portrait } from "../portrait/Portrait";
@@ -451,7 +452,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
       const r = topicRow(t);
       const why = r.why && !shared.has(r.why) ? r.why : null;
       return choice(`topic-${t.id}`, {
-        label: tr.t(t.name_key),
+        label: topicLabel(tr, t),
         disabled: !r.available,
         why,
         describedBy: !r.available && !why ? statusId : undefined,

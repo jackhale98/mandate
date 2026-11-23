@@ -238,6 +238,8 @@ pub fn apply(
     let res = apply_command(state, content, cmd)?;
     // What the command taught about open proposals (DEC-091 hooks).
     crate::policy::drafting::learn_from(state, content, cmd);
+    // A need the command met moves its ask on now (M6 note 12).
+    crate::asks::settle_now(state, content);
     Ok(res)
 }
 

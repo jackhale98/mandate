@@ -23,6 +23,7 @@
 
 pub mod commands;
 pub mod effects;
+pub mod hook;
 pub mod offers;
 pub mod resolve;
 
@@ -521,6 +522,36 @@ pub fn daily(
     resolve::resolve_all(a, r, out, &news);
     offers::from_deeds(a, r, out, &news.deeds);
     resolve::trim(a, r.content.ask_params.history as usize);
+}
+
+/// The daily step, run at once after a player command (M6 note 12): a
+/// command that meets a need advances the ask in that command, so its
+/// outcome and the Today block show it, not the next day's tick. It is the
+/// same step as [`daily`] (deeds read once, each ask resolved once, the
+/// same keyed draws), on the same date; its effect requests are applied at
+/// once through the appliers' functions ([`effects::apply_now`]), as the
+/// asks' own commands do.
+pub fn settle_now(state: &mut crate::State, content: &mandate_content::ContentBundle) {
+    if state.player.is_none() {
+        return;
+    }
+    let mut asks = std::mem::take(&mut state.asks);
+    let mut events = std::mem::take(&mut state.events);
+    let mut rng = state.rng.clone();
+    let mut fx = crate::scheduler::EffectQueue::default();
+    {
+        let r = crate::scheduler::Reads::of_state(state, content);
+        let mut out = crate::scheduler::Outs {
+            rng: &mut rng,
+            events: &mut events,
+            effects: &mut fx,
+        };
+        daily(&mut asks, &r, &mut out);
+    }
+    state.asks = asks;
+    state.events = events;
+    state.rng = rng;
+    effects::apply_now(state, content, fx.take(|_| true));
 }
 
 /// The days since play began (`min_career_days`; ENGAGEMENT §4.7).

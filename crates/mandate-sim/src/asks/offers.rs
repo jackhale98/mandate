@@ -381,7 +381,7 @@ fn done_lately(a: &AskState, r: &Reads<'_>, t: &AskDef, cast: &[CastEntry]) -> b
             Deed::TownHall { hood },
         ) => hood_of(role) == Some(*hood),
         (NeedDef::Canvass { role, .. }, Deed::Canvass { hood }) => hood_of(role) == Some(*hood),
-        (NeedDef::Talk { role }, Deed::Talk { person, .. }) => {
+        (NeedDef::Talk { role, .. }, Deed::Talk { person, .. }) => {
             person_of(cast, role) == Some(*person)
         }
         (NeedDef::Statement { .. }, Deed::Statement { .. }) => true,
@@ -555,7 +555,7 @@ pub(crate) fn needs(
                     place: places.first()?.id,
                 }
             }
-            NeedDef::Talk { role } => Need::Talk {
+            NeedDef::Talk { role, .. } => Need::Talk {
                 person: person(role)?,
             },
             NeedDef::Introduce { bills: b } => Need::Introduce {

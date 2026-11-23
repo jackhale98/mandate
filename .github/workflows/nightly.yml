@@ -48,6 +48,17 @@ jobs:
         run: cargo run -q --release -p mandate-cli -- bots --seeds 32 > bots.json || (cat bots.json; exit 1)
       - name: Omniscient baseline (DEC-091 lab switch)
         run: cargo run -q --release -p mandate-cli -- bots --seeds 32 --omniscient > bots-omniscient.json || (cat bots-omniscient.json; exit 1)
+      # The simulation audit's two cheapest checks (SIMULATION_AUDIT.md,
+      # "Nightly gate"): unemployment hurts incumbents, rent follows vacancy,
+      # migration follows jobs; no policy template with a wrong-sign effect.
+      # Non-blocking until the audit's fixes land.
+      - name: Simulation audit gate (non-blocking)
+        continue-on-error: true
+        run: |
+          status=0
+          cargo run -q --release -p mandate-cli -- audit gate > audit-gate.json || status=$?
+          cat audit-gate.json
+          exit $status
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:

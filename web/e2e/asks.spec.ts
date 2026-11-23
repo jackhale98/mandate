@@ -91,6 +91,63 @@ test("asks: accept one, decline one, keep one and see it kept", async ({ page },
   await expect(pocket.getByTestId("pocket-asks")).not.toContainText("⟦");
 });
 
+/** Talk to someone from an ask's Talk button: go to them if they are elsewhere, choose the ask's own choice, and return what they said. */
+const askInConversation = async (page: Page, askId: string, choice: string, label: RegExp) => {
+  const pocket = await openPocket(page, "today");
+  await press(pocket.getByTestId(askId).getByTestId("talk-button"));
+  const dlg = page.getByTestId("talk-panel");
+  await expect(dlg).toBeVisible();
+  if ((await dlg.getByTestId("talk-go").count()) > 0) await dlg.getByTestId("talk-go").locator("button.dlg-choice").click();
+  const row = dlg.getByTestId(`talk-topic-${choice}`);
+  await expect(row).toBeVisible();
+  await expect(row).toHaveText(label);
+  await expect(row).not.toContainText("{");
+  await row.locator("button.dlg-choice").click();
+  const live = page.getByTestId("talk-reply-live");
+  await expect(live).not.toBeEmpty({ timeout: 15_000 });
+  const said = (await live.textContent()) ?? "";
+  await dlg.getByTestId("talk-goodbye").locator("button.dlg-choice").click();
+  await expect(dlg).toHaveCount(0);
+  return said;
+};
+
+test("an introduction: put in a word with the official, tell the asker, and it is kept at once", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  await start(page, "61");
+  await openPocket(page, "today");
+  const offer = () => page.getByTestId("pocket").locator('li[data-template="ask.introduce_me"][data-status="offered"]');
+  for (let i = 0; i < 4 && (await offer().count()) === 0; i++) {
+    await endTurn(page);
+    await openPocket(page, "today");
+  }
+  await expect(offer()).toBeVisible();
+  const askId = (await offer().getAttribute("data-testid")) ?? "";
+  const choice = `choice.ask.${askId.replace(/^ask-/, "")}`;
+  await press(offer().getByRole("button", { name: /^Accept: / }));
+  await expect(page.getByTestId("toast")).toContainText("You said yes:");
+  let pocket = await openPocket(page, "today");
+  const first = (await pocket.getByTestId(askId).getByTestId("talk-button").getAttribute("aria-label")) ?? "";
+
+  // The official: the ask's own choice, named for the asker, and a real answer.
+  const said = await askInConversation(page, askId, choice, /^Put in a word for \S/);
+  expect(said).toMatch(/Of course|Ten minutes/);
+  // The step is met in that command: the ask now points at the asker.
+  pocket = await openPocket(page, "today");
+  const accepted = pocket.getByTestId(askId);
+  await expect(accepted).toHaveAttribute("data-status", "accepted");
+  await expect(accepted.getByTestId("talk-button")).not.toHaveAttribute("aria-label", first);
+  await shot(accepted, "ask-after-official", info.project.name);
+
+  // The asker: told it is arranged, and the ask is kept there and then.
+  const thanks = await askInConversation(page, askId, choice, /^Tell \S.* it is arranged$/);
+  expect(thanks).toContain("Thank you");
+  pocket = await openPocket(page, "today");
+  const kept = pocket.getByTestId("asks-recent").getByTestId(askId);
+  await expect(kept).toHaveAttribute("data-status", "kept");
+  await expect(kept.getByTestId("ask-status")).toHaveText("Kept");
+  await expect(pocket.getByTestId("pocket-asks")).not.toContainText("⟦");
+});
+
 test("a campaign promise is made from the picker", async ({ page }, info) => {
   test.setTimeout(180_000);
   await start(page, "2");

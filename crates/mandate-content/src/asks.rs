@@ -265,8 +265,13 @@ pub enum NeedDef {
         #[serde(default)]
         role: Option<String>,
     },
-    /// A conversation with the person cast in `role`.
-    Talk { role: String },
+    /// A conversation with the person cast in `role`: the ask's own choice
+    /// in it (`choice`; a talk hook, S4), met when they agree.
+    Talk {
+        role: String,
+        #[serde(default)]
+        choice: Option<TalkChoiceDef>,
+    },
     /// Introduce a bill of these templates.
     Introduce { bills: BillsDef },
     /// A bill of these templates becomes law (`sponsor_player`: the player's
@@ -301,7 +306,7 @@ impl NeedDef {
         match self {
             NeedDef::Vote { role, .. }
             | NeedDef::Canvass { role, .. }
-            | NeedDef::Talk { role }
+            | NeedDef::Talk { role, .. }
             | NeedDef::Quiet { role } => vec![role.as_str()],
             NeedDef::TownHall { role, .. } | NeedDef::Visit { role, .. } => {
                 role.iter().map(|s| s.as_str()).collect()
@@ -312,6 +317,40 @@ impl NeedDef {
             _ => Vec::new(),
         }
     }
+}
+
+/// The choice a talk need puts in the conversation with its person (a talk
+/// hook, S4): the button (`label_key`), what the player says (`say_key`),
+/// and the replies, the first whose conditions hold (slots `speaker` and
+/// `player`) being said. A reply that `agrees` meets the need; one that
+/// does not leaves it open, and the ask says so. The last reply has no
+/// conditions, so there is always one. Arguments: the ask's people by role
+/// (`$asker`, `$official`, …), a bill role as `$<role>_key` (`$bill` in the
+/// text), and `$speaker`, `$player`, `$town`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TalkChoiceDef {
+    pub label_key: String,
+    pub say_key: String,
+    pub replies: Vec<ChoiceReplyDef>,
+}
+
+/// One possible reply to a talk choice.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ChoiceReplyDef {
+    /// Fluent key of the reply.
+    pub key: String,
+    /// Every condition must hold (slots `speaker`, `player`).
+    #[serde(default)]
+    pub when: Vec<Condition>,
+    /// The person agrees: the need is met.
+    #[serde(default = "yes")]
+    pub agrees: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 /// An ask template (`content/base/asks/asks.jsonc`).
@@ -650,6 +689,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         ] {
             check_key(owner, key, &en, &en_text, &provided, issues);
         }
+        check_choices(b, owner, a, &seen, &en, &en_text, issues);
     }
 
     // A crisis mid-sentence and a nameless place to go have their own keys.
@@ -738,6 +778,59 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             &x.broken_key,
         ] {
             check_key(owner, key, &en, &en_text, &provided, issues);
+        }
+    }
+}
+
+/// Every talk need has its choice (S4), with keys that exist, arguments the
+/// ask provides, a reply that agrees and a last reply that always holds.
+fn check_choices(
+    b: &ContentBundle,
+    owner: &str,
+    a: &AskDef,
+    seen: &[&str],
+    en: &BTreeSet<String>,
+    text: &str,
+    issues: &mut Vec<Issue>,
+) {
+    let mut provided: BTreeSet<String> = ["speaker", "player", "town"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    for r in seen {
+        provided.insert(r.to_string());
+        provided.insert(format!("{r}_key"));
+    }
+    for n in &a.needs {
+        let NeedDef::Talk { choice, .. } = n else {
+            continue;
+        };
+        let Some(c) = choice else {
+            issues.push(Issue::error(
+                owner,
+                "a talk need names its choice in the conversation (`choice`)",
+            ));
+            continue;
+        };
+        check_key(owner, &c.label_key, en, text, &provided, issues);
+        check_key(owner, &c.say_key, en, text, &provided, issues);
+        if !c.replies.iter().any(|r| r.agrees) {
+            issues.push(Issue::error(
+                owner,
+                "a talk choice needs a reply that agrees",
+            ));
+        }
+        if !c.replies.last().is_some_and(|r| r.when.is_empty()) {
+            issues.push(Issue::error(
+                owner,
+                "a talk choice's last reply has no conditions (so there is always a reply)",
+            ));
+        }
+        let slots = ["speaker", "player"];
+        let site = crate::condition::Site::new(owner, ConditionUse::TalkLine, &slots);
+        for r in &c.replies {
+            check_key(owner, &r.key, en, text, &provided, issues);
+            crate::condition::check_all(b, &site, &r.when, issues);
         }
     }
 }
@@ -895,7 +988,7 @@ fn check_needs(
                     );
                 }
             }
-            NeedDef::Talk { role } | NeedDef::Quiet { role } if !is_person(role) => {
+            NeedDef::Talk { role, .. } | NeedDef::Quiet { role } if !is_person(role) => {
                 err(issues, &format!("`{role}` is not a person"));
             }
             NeedDef::AgainstAll { tag } if tag != TAG_TAX_RISE => {

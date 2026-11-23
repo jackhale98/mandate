@@ -11,6 +11,7 @@ import type { TopicView } from "../../engine/protocol/TopicView";
 import type { Translator } from "../../i18n/fluent";
 import { personName } from "../Knowing";
 import { aboutText } from "./talkText";
+import { topicSay } from "../asks/choiceText";
 
 /** A topic as a line in the dialogue box. */
 export interface TopicRow {
@@ -65,7 +66,7 @@ export function costText(tr: Translator, v: TalkView): { short: string; long: st
 
 /** What the player says, as their bubble shows it: the topic, and its subject. */
 export function questionText(tr: Translator, t: TopicView, about: AboutChoiceView | null): string {
-  const topic = tr.t(t.name_key);
+  const topic = topicSay(tr, t);
   return about ? tr.t("ui-dlg-asked-about", { topic, about: aboutText(tr, about.label, about.label_key) }) : topic;
 }
 
