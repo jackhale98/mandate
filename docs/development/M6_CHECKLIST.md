@@ -284,6 +284,11 @@ On hold until then:
     - save import hardened against hostile or huge files;
     - the service worker's scope checked;
     - no keys in the client bundle.
+16. **Former officeholders are invisible** (owner question, 2026-11-23). A politician out of office now shows a trade, and nothing says they once held a post. The engine keeps their years in office, and it matters (parties re-run them 60% of the time over a recruit; seniority feeds who the power broker is; they keep their opinions, favours and memories), but the player cannot learn it. Not every out-of-office politician is a former officeholder: some ran and lost. Proposed:
+    - the engine records the last post held and when it ended (a saved field; with the causal spine);
+    - the person's sheet says "Former <post word>, N years" once the player knows them that well, and a talk line about them says it;
+    - former officeholders can be asked about their time in office (how a past vote went, who owes whom), as a source of knowledge;
+    - the trade shown is tied to a real workplace (the open caveat from note 1).
 
 
 ## M6 or M7 split (owner, 2026-11-21)
