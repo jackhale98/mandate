@@ -74,7 +74,12 @@ person: PersonRefView | null,
 /**
  * Casework now: the chance "Sort it out" works (the odds rolled, DEC-073).
  */
-odds: number | null, keep_lines: Array<EffectLineView>, break_lines: Array<EffectLineView>, 
+odds: number | null, 
+/**
+ * A note on the current step, with `args` (`ui-ask-talk-refused`: the
+ * person said no to the ask's choice; `$name`).
+ */
+note_key?: string, keep_lines: Array<EffectLineView>, break_lines: Array<EffectLineView>, 
 /**
  * Offers only: what saying no (or not answering) does.
  */

@@ -21,6 +21,7 @@
 //! lobbying. No prose: Fluent keys and facts (DEC-054).
 
 pub mod context;
+pub mod hooks;
 pub mod reply;
 pub mod state;
 
@@ -679,7 +680,14 @@ fn talk_to(
     about: Option<&AboutRef>,
     late_night: bool,
 ) -> Result<ActionResult, EngineError> {
-    let p = prepare(state, content, speaker, topic, about, late_night)?;
+    if hooks::is_choice(topic) {
+        return choose(state, content, speaker, topic, late_night);
+    }
+    let mut p = prepare(state, content, speaker, topic, about, late_night)?;
+    if p.parts.is_empty() {
+        // Never an empty box: nothing to say is said (M6 note 12).
+        p.parts.push(nothing_to_say(state, speaker));
+    }
     let date = state.calendar.date;
     let me = p.me;
     let before = characters::opinion(&state.politics, speaker, me);
@@ -797,6 +805,176 @@ fn talk_to(
     };
     res.args.insert("name".into(), name);
     res.args.extend(outcome_args);
+    pl.log(
+        date,
+        "action-talk",
+        &res.outcome_key,
+        res.args
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
+    );
+    Ok(res)
+}
+
+/// The Fluent key of "they have nothing to say about that".
+pub const NOTHING_TO_SAY: &str = "talk-nothing-to-say";
+
+/// The line said when a conversation would otherwise say nothing.
+fn nothing_to_say(state: &State, speaker: CharacterId) -> SpokenLine {
+    let mut args: Vec<(String, String)> = Vec::new();
+    if let Some(p) = characters::profile(&state.politics, &state.world, speaker) {
+        args.push(("speaker".into(), p.full_name()));
+    }
+    SpokenLine {
+        part: mandate_content::conversation::TalkPart::Substance,
+        line: NOTHING_TO_SAY.into(),
+        key: NOTHING_TO_SAY.into(),
+        args,
+    }
+}
+
+/// Every check a hook's choice makes, without changing anything (the talk
+/// panel's "available"): they are here, it is offered now, and the time.
+pub fn check_choice(
+    state: &State,
+    content: &ContentBundle,
+    speaker: CharacterId,
+    id: &str,
+    late_night: bool,
+) -> Result<(&'static hooks::Hook, hooks::Choice), EngineError> {
+    let me = characters::player_character(state).ok_or_else(|| bad("no player"))?;
+    if speaker == me || !can_talk(state, content, speaker) {
+        return Err(bad("they are not here to talk to"));
+    }
+    if late_night && !late_ok(state, content) {
+        return Err(bad(
+            "late at night, people talk only where private meetings are held",
+        ));
+    }
+    let found = hooks::find(state, content, speaker, id)
+        .ok_or_else(|| bad("that is not something to ask them now"))?;
+    if found.1.cost == hooks::ChoiceCost::Conversation {
+        check_cost(state, content, late_night)?;
+    }
+    Ok(found)
+}
+
+/// A hook's choice (S4, [`hooks`]): the checks and the cost of a
+/// conversation, the reply by its conditions, the owner's effect, and the
+/// exchange in the log. Fails without changing anything.
+fn choose(
+    state: &mut State,
+    content: &ContentBundle,
+    speaker: CharacterId,
+    id: &str,
+    late_night: bool,
+) -> Result<ActionResult, EngineError> {
+    let date = state.calendar.date;
+    let pl = state.player.as_ref().ok_or_else(|| bad("no player"))?;
+    let me = characters::player_character(state).ok_or_else(|| bad("no player"))?;
+    let (hook, choice) = check_choice(state, content, speaker, id, late_night)?;
+    let open = Openness {
+        flattered: false,
+        favour_called: false,
+    };
+    let cap = knows::discretion_cap(state, content, speaker, me, open);
+    let ctx = Ctx {
+        st: state,
+        content,
+        town: pl.municipality,
+        me,
+        speaker,
+        about: None,
+        here: pl.location,
+        cap,
+    };
+    let mut args = context_args(&ctx);
+    args.extend(choice.args.iter().cloned());
+    let (reply, part) = match hooks::reply(&ctx, &choice) {
+        Some((r, extra)) => {
+            let mut a = args.clone();
+            a.extend(extra);
+            let line = SpokenLine {
+                part: mandate_content::conversation::TalkPart::Substance,
+                line: r.key.clone(),
+                key: r.key.clone(),
+                args: a.into_iter().collect(),
+            };
+            (r.clone(), line)
+        }
+        // No reply holds: nothing to say, and nothing agreed.
+        None => (
+            hooks::Reply {
+                key: NOTHING_TO_SAY.into(),
+                when: Vec::new(),
+                agrees: false,
+            },
+            nothing_to_say(state, speaker),
+        ),
+    };
+    let before = characters::opinion(&state.politics, speaker, me);
+    knowledge::note_sightings(state, content);
+    if choice.cost == hooks::ChoiceCost::Conversation {
+        pay(state, content, late_night);
+    }
+    // Talking to someone is meeting them properly.
+    let mut learned = Vec::new();
+    if let Some(pl) = state.player.as_mut() {
+        let subject = Subject::Person { person: speaker };
+        let e = Effect::Learn {
+            subject: subject.clone(),
+            level: Level::Known,
+            source: Source::Talk {
+                person: speaker,
+                topic: choice.id.clone(),
+            },
+        };
+        if knowledge::apply_effect(&mut pl.knowledge, e, date, content) {
+            learned.push((subject, Level::Known));
+        }
+    }
+    // What it does: the owner's code.
+    let done = (hook.chosen)(state, content, &choice, speaker, &reply);
+    let after = characters::opinion(&state.politics, speaker, me);
+    let name = characters::profile(&state.politics, &state.world, speaker)
+        .map(|x| x.full_name())
+        .unwrap_or_default();
+    let place = match state.player.as_ref().map(|x| x.location) {
+        Some(Location::Place { place }) => Some(place),
+        _ => None,
+    };
+    let t = &content.talk;
+    let Some(pl) = state.player.as_mut() else {
+        return Err(bad("no player"));
+    };
+    let id: ExchangeId = pl.talk.ids.alloc();
+    pl.talk.push(
+        Exchange {
+            id,
+            on: date,
+            speaker,
+            place,
+            topic: choice.id.clone(),
+            about: None,
+            parts: vec![part],
+            learned,
+            leads: Vec::new(),
+            cap,
+            repeat: false,
+            opinion: after - before,
+            outcome: Some(done.outcome_key.clone()),
+            outcome_args: done.args.clone(),
+        },
+        t.log_cap as usize,
+    );
+    let mut res = ActionResult {
+        created: Some(id.0),
+        outcome_key: done.outcome_key,
+        ..Default::default()
+    };
+    res.args.insert("name".into(), name);
+    res.args.extend(done.args);
     pl.log(
         date,
         "action-talk",

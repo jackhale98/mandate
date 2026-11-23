@@ -2226,6 +2226,33 @@
       ],
       "type": "object"
     },
+    "ChoiceReplyDef": {
+      "additionalProperties": false,
+      "description": "One possible reply to a talk choice.",
+      "properties": {
+        "agrees": {
+          "default": true,
+          "description": "The person agrees: the need is met.",
+          "type": "boolean"
+        },
+        "key": {
+          "description": "Fluent key of the reply.",
+          "type": "string"
+        },
+        "when": {
+          "default": [],
+          "description": "Every condition must hold (slots `speaker`, `player`).",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "type": "object"
+    },
     "ClassKey": {
       "enum": [
         "low",
@@ -10113,8 +10140,19 @@
         },
         {
           "additionalProperties": false,
-          "description": "A conversation with the person cast in `role`.",
+          "description": "A conversation with the person cast in `role`: the ask's own choice\nin it (`choice`; a talk hook, S4), met when they agree.",
           "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TalkChoiceDef"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
             "role": {
               "type": "string"
             },
@@ -14413,6 +14451,30 @@
       "required": [
         "surface",
         "ramps"
+      ],
+      "type": "object"
+    },
+    "TalkChoiceDef": {
+      "additionalProperties": false,
+      "description": "The choice a talk need puts in the conversation with its person (a talk\nhook, S4): the button (`label_key`), what the player says (`say_key`),\nand the replies, the first whose conditions hold (slots `speaker` and\n`player`) being said. A reply that `agrees` meets the need; one that\ndoes not leaves it open, and the ask says so. The last reply has no\nconditions, so there is always one. Arguments: the ask's people by role\n(`$asker`, `$official`, …), a bill role as `$<role>_key` (`$bill` in the\ntext), and `$speaker`, `$player`, `$town`.",
+      "properties": {
+        "label_key": {
+          "type": "string"
+        },
+        "replies": {
+          "items": {
+            "$ref": "#/$defs/ChoiceReplyDef"
+          },
+          "type": "array"
+        },
+        "say_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "label_key",
+        "say_key",
+        "replies"
       ],
       "type": "object"
     },

@@ -123,6 +123,11 @@ pub struct AskView {
     pub person: Option<PersonRefView>,
     /// Casework now: the chance "Sort it out" works (the odds rolled, DEC-073).
     pub odds: Option<f64>,
+    /// A note on the current step, with `args` (`ui-ask-talk-refused`: the
+    /// person said no to the ask's choice; `$name`).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note_key: Option<String>,
     pub keep_lines: Vec<EffectLineView>,
     pub break_lines: Vec<EffectLineView>,
     /// Offers only: what saying no (or not answering) does.
@@ -461,10 +466,31 @@ fn need_route(engine: &Engine, a: &Ask, n: &Need) -> Option<RouteView> {
         Need::Introduce { .. } => route(engine, "introduce", None, None),
         Need::Enacted { .. } => route(engine, "draft", None, None),
         Need::Casework => route(engine, "casework", None, None),
-        Need::Talk { .. }
-        | Need::VoteAgainstAll { .. }
-        | Need::NoSurfacedHiddenFact
-        | Need::Quiet { .. } => None,
+        // Where they are now (their routine), and the ask's own choice in
+        // the conversation (talk hooks, S4).
+        Need::Talk { person } => {
+            let st = engine.state();
+            st.player.as_ref()?;
+            let to = crate::talk::talk_location(engine, *person);
+            Some(RouteView {
+                action: "talk".into(),
+                late_night: false,
+                neighborhood: to.and_then(|l| places::hood_of(st, l)).map(|h| h.0),
+                here: mandate_sim::talk::can_talk(st, engine.content(), *person),
+                to: to.map(|l| location_view(st, l)),
+            })
+        }
+        // Kept by not acting: time passing (`end_turn`) keeps it.
+        Need::VoteAgainstAll { .. } | Need::NoSurfacedHiddenFact | Need::Quiet { .. } => {
+            engine.state().player.as_ref()?;
+            Some(RouteView {
+                action: "wait".into(),
+                late_night: false,
+                neighborhood: None,
+                here: true,
+                to: None,
+            })
+        }
     }
 }
 
@@ -544,6 +570,15 @@ pub fn ask_view(engine: &Engine, a: &Ask) -> AskView {
         Some(Need::Casework) => Some(mandate_sim::asks::casework_odds(st, content)),
         _ => None,
     };
+    let mut args = args_of(engine, a);
+    let note_key = if a.accepted() && mandate_sim::asks::hook::refused(a) {
+        if let Some(p) = person.as_ref() {
+            args.entry("name".into()).or_insert_with(|| p.name.clone());
+        }
+        Some("ui-ask-talk-refused".to_string())
+    } else {
+        None
+    };
     AskView {
         id: a.id.0,
         template: a.template.clone(),
@@ -552,7 +587,7 @@ pub fn ask_view(engine: &Engine, a: &Ask) -> AskView {
         detail_key,
         need_key,
         outcome_key,
-        args: args_of(engine, a),
+        args,
         asker: asker_view(engine, a),
         status: a.status.key().into(),
         unanswered,
@@ -575,6 +610,7 @@ pub fn ask_view(engine: &Engine, a: &Ask) -> AskView {
         how: shown.and_then(|n| need_route(engine, a, n)),
         person,
         odds,
+        note_key,
         keep_lines: lines(engine, &a.cast, &keep),
         break_lines: lines(engine, &a.cast, &broken),
         decline_lines: if a.offered() {

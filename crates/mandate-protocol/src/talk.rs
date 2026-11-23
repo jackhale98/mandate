@@ -160,6 +160,15 @@ pub struct TopicView {
     /// Asked of this person already this week: another line, nothing new
     /// unless the relationship changed (and no second roll).
     pub asked_this_week: bool,
+    /// A system's own choice (talk hooks, S4; `mechanic` `choice`): the
+    /// arguments of `name_key` and `say_key` (`*_key` arguments are keys).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_args: Option<BTreeMap<String, String>>,
+    /// A choice's line for the player (what they say), with `name_args`.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub say_key: Option<String>,
 }
 
 /// The talk panel for someone (§3.9): who they are, whether they are here
@@ -511,6 +520,8 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
                     available: false,
                     unavailable_key: shared,
                     asked_this_week: asked,
+                    name_args: None,
+                    say_key: None,
                 });
                 continue;
             }
@@ -525,8 +536,39 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
             available,
             unavailable_key: reason.map(String::from),
             asked_this_week: asked,
+            name_args: None,
+            say_key: None,
         });
     }
+    // Systems' own choices (talk hooks, S4) come first: an ask's "Put in a
+    // word" is why the player came. Checked as the command checks them.
+    let mut choices: Vec<TopicView> = talk::hooks::offered(st, content, id)
+        .into_iter()
+        .map(|c| {
+            let reason = if !here {
+                Some("talk-why-away")
+            } else {
+                talk::check_choice(st, content, id, &c.id, late)
+                    .err()
+                    .map(|e| why(&e))
+            };
+            TopicView {
+                id: c.id.clone(),
+                name_key: c.label_key.clone(),
+                mechanic: "choice".into(),
+                about_required: false,
+                about: Vec::new(),
+                odds: None,
+                available: reason.is_none(),
+                unavailable_key: reason.map(String::from),
+                asked_this_week: false,
+                name_args: Some(c.args.iter().cloned().collect()),
+                say_key: Some(c.say_key.clone()),
+            }
+        })
+        .collect();
+    choices.append(&mut topics);
+    let topics = choices;
     Some(TalkView {
         person: person_view,
         here,

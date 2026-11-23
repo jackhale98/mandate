@@ -221,7 +221,9 @@ pub(super) fn work_asks(e: &mut Engine, content: &ContentBundle, strategy: &str)
                 move_to(e, Location::Place { place });
             }
             Need::Talk { person } if slots >= 1 => {
-                talk(e, person, "topic.small_talk");
+                // The ask's own choice in the conversation (talk hooks, S4).
+                let topic = mandate_sim::asks::hook::choice_id(mandate_sim::asks::AskId(ask));
+                talk(e, person, &topic);
             }
             Need::Introduce { templates } | Need::Enacted { templates, .. } if slots >= 1 => {
                 draft_one_of(e, content, &templates);

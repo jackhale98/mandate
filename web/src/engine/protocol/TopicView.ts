@@ -38,4 +38,13 @@ available: boolean, unavailable_key: string | null,
  * Asked of this person already this week: another line, nothing new
  * unless the relationship changed (and no second roll).
  */
-asked_this_week: boolean, };
+asked_this_week: boolean, 
+/**
+ * A system's own choice (talk hooks, S4; `mechanic` `choice`): the
+ * arguments of `name_key` and `say_key` (`*_key` arguments are keys).
+ */
+name_args?: { [key in string]: string }, 
+/**
+ * A choice's line for the player (what they say), with `name_args`.
+ */
+say_key?: string, };

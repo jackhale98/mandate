@@ -196,7 +196,13 @@
       "asker": { "type": "goal_holder" },
       "roles": [ { "id": "bill", "cast": { "type": "bill", "sponsor": "other", "sponsored_by": "asker" } } ],
       "triggers": [ { "type": "can_vote", "slot": "bill" } ],
-      "needs": [ { "type": "talk", "role": "asker" }, { "type": "vote", "role": "bill", "vote": "yes" } ],
+      "needs": [
+        { "type": "talk", "role": "asker",
+          "choice": { "label_key": "ask-choice-second-my-bill", "say_key": "ask-say-second-my-bill",
+            "replies": [
+              { "key": "talk-ask-second-my-bill-cool", "when": [ { "type": "opinion", "slot": "speaker", "max": -10 } ] },
+              { "key": "talk-ask-second-my-bill" } ] } },
+        { "type": "vote", "role": "bill", "vote": "yes" } ],
       "cooldown_days": 150,
       "keep": [ { "type": "opinion", "role": "asker", "delta": 10, "memory": "kept_promise" } ],
       "break": [ { "type": "opinion", "role": "asker", "delta": -12, "memory": "broke_promise" } ],
@@ -224,7 +230,12 @@
       "asker": { "type": "occupation", "occupations": ["occupation.business_leader"] },
       "roles": [ { "id": "newcomer", "cast": { "type": "occupation", "occupations": ["occupation.tech_founder", "occupation.hotel_manager", "occupation.plant_manager"] } } ],
       "triggers": [ { "type": "indicator", "indicator": "unemployment_rise", "max": 0.0 } ],
-      "needs": [ { "type": "talk", "role": "newcomer" } ],
+      "needs": [
+        { "type": "talk", "role": "newcomer",
+          "choice": { "label_key": "ask-choice-meet-newcomer", "say_key": "ask-say-meet-newcomer",
+            "replies": [
+              { "key": "talk-ask-meet-newcomer-warm", "when": [ { "type": "opinion", "slot": "speaker", "min": 20 } ] },
+              { "key": "talk-ask-meet-newcomer" } ] } } ],
       "deadline_days": [30, 30], "cooldown_days": 240,
       "keep": [
         { "type": "opinion", "role": "asker", "delta": 6, "memory": "kept_promise" },
@@ -254,7 +265,18 @@
       "asker": { "type": "occupation", "occupations": ["occupation.shopkeeper", "occupation.organiser", "occupation.clergy", "occupation.tech_founder", "occupation.farmer"] },
       "roles": [ { "id": "official", "cast": { "type": "office" } } ],
       "triggers": [ { "type": "opinion", "slot": "asker", "min": 10 } ],
-      "needs": [ { "type": "talk", "role": "official" }, { "type": "talk", "role": "asker" } ],
+      // The official's answer depends on what they think of the player: a
+      // warm yes, a curt yes, or no (the need stays open; ask again later).
+      "needs": [
+        { "type": "talk", "role": "official",
+          "choice": { "label_key": "ask-choice-introduce-official", "say_key": "ask-say-introduce-official",
+            "replies": [
+              { "key": "talk-ask-introduce-warm", "when": [ { "type": "opinion", "slot": "speaker", "min": 25 } ] },
+              { "key": "talk-ask-introduce-curt", "when": [ { "type": "opinion", "slot": "speaker", "min": -10 } ] },
+              { "key": "talk-ask-introduce-decline", "agrees": false } ] } },
+        { "type": "talk", "role": "asker",
+          "choice": { "label_key": "ask-choice-introduce-asker", "say_key": "ask-say-introduce-asker",
+            "replies": [ { "key": "talk-ask-introduce-thanks" } ] } } ],
       "deadline_days": [30, 30], "weight": 0.7, "cooldown_days": 240,
       "keep": [
         { "type": "opinion", "role": "asker", "delta": 8, "memory": "kept_promise" },
