@@ -113,3 +113,65 @@ test.describe("street zoom on a phone at DPR 3", () => {
     expect(await settled(page)).toBeLessThan(pinchedIn - 1e-6);
   });
 });
+
+// Desktop screens (DPR 1 and 2): the zoom step is the whole device pixel, subdivided so a step is at
+// most a quarter of a CSS pixel per art pixel where that is coarser (DPR 1: 0.25, so 21 states from 1
+// to 6; DPR 2: 0.5, so 12 states, as before). A mouse-wheel notch always takes at least one step and
+// never more than about a quarter of the zoom.
+for (const [dpr, step, states] of [
+  [1, 0.25, 21],
+  [2, 0.5, 12],
+] as const) {
+  test.describe(`street zoom on a desktop at DPR ${dpr}`, () => {
+    test.use({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: dpr });
+
+    test(`wheel zoom reaches ${states} settled states between the limits`, async ({ page }, info) => {
+      test.skip(info.project.name !== "desktop", "a desktop profile; run once");
+      test.setTimeout(120_000);
+      await page.goto("./");
+      await page.getByPlaceholder("e.g. 20260").fill("4242");
+      await page.getByRole("button", { name: "Begin" }).click();
+      await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
+      const stage = page.locator(".town-street-stage[data-ready='1']");
+      await expect(stage).toBeVisible({ timeout: 30_000 });
+      const box = await stage.boundingBox();
+      if (!box) throw new Error("no street");
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.75);
+      const onLattice = (z: number) => Math.abs(z / step - Math.round(z / step)) < 1e-3;
+      const levels = new Set<number>();
+      let z = await settled(page);
+      expect(onLattice(z)).toBe(true);
+      levels.add(z);
+      // Small deltas in to the maximum, then out to the minimum: one step each.
+      for (let i = 0; i < 60 && z < MAX_ZOOM - 1e-6; i++) {
+        await page.mouse.wheel(0, -40);
+        const next = await settled(page);
+        expect(next, `in from ${z}`).toBeGreaterThan(z + 1e-6);
+        expect(onLattice(next)).toBe(true);
+        z = next;
+        levels.add(z);
+      }
+      expect(z).toBeCloseTo(MAX_ZOOM, 5);
+      for (let i = 0; i < 60 && z > 1 / dpr + 1e-6; i++) {
+        await page.mouse.wheel(0, 40);
+        const next = await settled(page);
+        expect(next, `out from ${z}`).toBeLessThan(z - 1e-6);
+        expect(onLattice(next)).toBe(true);
+        z = next;
+        levels.add(z);
+      }
+      expect(z).toBeCloseTo(1 / dpr, 5);
+      expect(levels.size).toBe(states);
+      // A full notch (100) in the middle moves between one step and a quarter of the zoom.
+      for (let i = 0; i < 5; i++) {
+        await page.mouse.wheel(0, -40);
+        await settled(page);
+      }
+      const before = await settled(page);
+      await page.mouse.wheel(0, -100);
+      const after = await settled(page);
+      expect(after).toBeGreaterThan(before + step - 1e-3);
+      expect(after / before).toBeLessThanOrEqual(1.26);
+    });
+  });
+}

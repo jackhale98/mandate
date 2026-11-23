@@ -153,6 +153,18 @@ const TILE = 16;
  * height); frames per second while only the speaker moves.
  */
 export const TALK_ZOOM = 3;
+
+/**
+ * The zoom step (CSS px per art px) the street settles on. Whole device pixels
+ * (1 / dpr) where that is fine already (DPR 2 and up); on lower-DPR screens it is
+ * subdivided so a step is at most 0.25, giving a desktop many zoom states instead
+ * of six (DPR 1: 0.25; 1.25: 0.2; 1.5: 0.222). The lowest zoom, one device pixel
+ * per art pixel (1 / dpr), is always on the lattice.
+ */
+export function zoomStepFor(dpr: number): number {
+  const whole = 1 / dpr;
+  return whole > 0.5 ? whole / Math.ceil(whole / 0.25 - 1e-9) : whole;
+}
 const TALK_ROWS = 260;
 export const TALK_FPS = 8;
 /** Where the speakers stand in the street left above the dialogue box (a share of its height from the top): room for the bubbles above them. */
@@ -448,7 +460,7 @@ export class HubView {
     const s = this.scene.standing.find((x) => x.key === key);
     if (!s) return false;
     this.letGo();
-    const step = 1 / this.dpr;
+    const step = zoomStepFor(this.dpr);
     const from = this.talk?.from ?? this.talkReturn ?? this.camera.state.zoom;
     const want = Math.min(6, Math.max(Math.ceil(TALK_ZOOM / step - 1e-9), Math.round(this.cssH / TALK_ROWS / step)) * step);
     this.talkReturn = null;
@@ -921,8 +933,8 @@ export class HubView {
     this.camera.resize(this.cssW, this.cssH);
     // Zoom in whole device pixels: at device resolution a phone gets many crisp
     // steps, out to one device pixel per art pixel (most of a town on screen).
-    const step = 1 / this.dpr;
-    this.camera.setZoomLimits(step, 6, step);
+    const step = zoomStepFor(this.dpr);
+    this.camera.setZoomLimits(1 / this.dpr, 6, step);
     if (first) {
       // About fourteen tiles across the shorter side, on a whole zoom step.
       const z0 = Math.max(2, Math.min(4, Math.min(this.cssW, this.cssH) / (TILE * 14)));
