@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./csp";
+import type { Page } from "@playwright/test";
 
 // DEC-083: the landing page at the site root, the game at play/. The
 // playwright baseURL is the game; the landing page is one level up.

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./csp";
+import type { Page } from "@playwright/test";
 import { officeFigures, openPeople, openPocket } from "./pocket";
 
 // DEC-088 main screen (owner, 2026-11-19): the street full screen with a slim

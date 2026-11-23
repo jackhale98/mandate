@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./csp";
+import type { Page } from "@playwright/test";
 
 // DEC-082 (proposed): export a run to a .mandate file and import it on another
 // device (a fresh browser context: empty storage), with the Ironman rule that
