@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { appPolicy, cspMeta } from "./csp.ts";
 
 // One variable controls the deploy base path (DEC-064):
 //   GitHub Pages project site: /mandate/   (default)
@@ -15,8 +16,12 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "dev") },
   plugins: [
     react(),
+    cspMeta(appPolicy),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt": a new build waits until the player taps Reload (UpdatePrompt),
+      // so it never replaces the code under a running turn. "autoUpdate" would
+      // skip the prompt and reload the page by itself.
+      registerType: "prompt",
       injectRegister: false,
       manifest: {
         // Before DEC-083 the app's id was its start_url, the site base. Keeping
@@ -41,6 +46,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,wasm,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // a size guard: the engine (WASM, names stripped) is ~5.2 MB raw, ~1.3 MB gzipped; it must be precached for offline play
+        clientsClaim: true, // the first install takes control at once (offline readiness); later updates still wait for the prompt
         navigateFallback: `${base}index.html`,
         // Prototype pages published beside the app (DEC-050) are never served the
         // app shell. They are outside this worker's scope since DEC-083; kept as a guard.

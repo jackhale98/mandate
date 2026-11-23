@@ -3,9 +3,9 @@
 // wires them to the browser (download, share, file picker, drag and drop)
 // and to the engine, which validates a save by loading it.
 import { useEffect, useRef, useState } from "react";
-import { engine } from "../engine/client";
+import { freshEngine } from "../engine/client";
 import { saveStore } from "../persistence/indexedDbStore";
-import { MAX_RUN_FILE_BYTES, RUN_FILE_EXTENSION, RunImportError, exportRun, importRun, type SaveValidator } from "../persistence/runFile";
+import { MAX_RUN_FILE_BYTES, RUN_FILE_EXTENSION, RunImportError, exportRun, importRun, validateInProbe, type SaveValidator } from "../persistence/runFile";
 import type { RunSummary } from "../persistence/saveStore";
 import { useGame } from "../state/gameStore";
 
@@ -18,12 +18,8 @@ export interface TransferNotice {
   detail?: string;
 }
 
-/** Load the save in the engine under the current rules; nothing is stored here. */
-const validateWithEngine: SaveValidator = async (bytes) => {
-  const meta = await engine().readSaveMeta(bytes);
-  await engine().importSave(bytes);
-  return meta;
-};
+/** Load the save under the current rules in a throwaway engine; nothing is stored here and the app's own engine is not touched. */
+const validateWithEngine: SaveValidator = (bytes) => validateInProbe(freshEngine, bytes);
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 

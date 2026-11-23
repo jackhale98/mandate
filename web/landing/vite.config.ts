@@ -6,6 +6,7 @@
 //   Preview: npx vite preview -c landing/vite.config.ts  (serves landing, play/, spike-hub/)
 import { fileURLToPath } from "node:url";
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from "vite";
+import { cspMeta, landingPolicy } from "../csp.ts";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 // The single deploy variable (DEC-064): /mandate/ on GitHub Pages, / on a custom domain.
@@ -47,7 +48,7 @@ export default defineConfig({
   base,
   appType: "mpa",
   publicDir: "public",
-  plugins: [siteMeta()],
+  plugins: [siteMeta(), cspMeta(landingPolicy, { hashInlineScripts: true })],
   build: {
     target: "es2020",
     outDir: "../dist",

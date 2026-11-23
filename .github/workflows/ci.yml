@@ -6,6 +6,14 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Least privilege: every job gets a read-only token unless it asks for more.
+# Nothing here uses repository secrets; pull requests from forks get a
+# read-only token and no secrets by default, and this workflow never uses
+# pull_request_target. Third-party actions are pinned to a commit sha (the
+# version is in the comment); bump them deliberately, or with Dependabot.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -21,6 +29,7 @@ jobs:
   verified:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       actions: read
     outputs:
       ok: ${{ steps.check.outputs.ok }}
@@ -44,11 +53,11 @@ jobs:
     outputs:
       key: ${{ steps.key.outputs.key }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - id: key
         run: echo "key=engine-pkg-v2-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'crates/**', 'content/**', 'scripts/build-wasm.sh') }}" >> "$GITHUB_OUTPUT"
       - id: cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             web/src/engine/pkg
@@ -64,18 +73,18 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.need.outputs.build == 'true'
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: wasm
       - if: steps.need.outputs.build == 'true'
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@0fd46367812ee04360509b4169d9f659d6892bb2 # v2.79.15
         with:
           tool: wasm-bindgen@${{ env.WASM_BINDGEN_VERSION }}
       - if: steps.need.outputs.build == 'true'
         run: ./scripts/build-wasm.sh
       - name: Both engine builds are present
         run: test -f web/src/engine/pkg/mandate_wasm.js && test -f target/wasm-node/mandate_wasm.js
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: engine-pkg
           path: |
@@ -88,8 +97,8 @@ jobs:
     needs: [wasm, verified]
     if: needs.verified.outputs.ok != 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
@@ -110,10 +119,10 @@ jobs:
       - name: Content doctor (report only, non-blocking)
         continue-on-error: true
         run: cargo run -q --release -p mandate-cli -- content doctor --seeds 8 --years 2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: engine-pkg
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - name: Native = WASM parity (TEST-001)
@@ -128,12 +137,12 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: engine-pkg
           path: .
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -167,7 +176,7 @@ jobs:
       - name: Playwright browsers (cached)
         if: needs.verified.outputs.ok != 'true'
         id: pw
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('web/package-lock.json') }}
@@ -177,11 +186,38 @@ jobs:
         run: npx playwright install-deps chromium
       - if: needs.verified.outputs.ok != 'true'
         run: npx playwright test --trace off
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: web-dist
           path: web/dist
           retention-days: 7
+
+  # Dependency advisories (SECURITY_REVIEW.md). Report only for now, so a new
+  # advisory in a dev tool cannot block a deploy.
+  # TODO(security): make this blocking (drop continue-on-error) before the
+  # first public or store release, once `npm audit --omit=dev` and
+  # `cargo audit` are clean and any accepted advisory is listed in
+  # .cargo/audit.toml (or an npm override) with a reason.
+  audit:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: npm audit (shipped dependencies, high and above)
+        working-directory: web
+        run: npm audit --omit=dev --audit-level=high
+      - name: npm audit (everything, including build tools; report only)
+        working-directory: web
+        continue-on-error: true
+        run: npm audit --audit-level=high
+      - uses: taiki-e/install-action@0fd46367812ee04360509b4169d9f659d6892bb2 # v2.79.15
+        with:
+          tool: cargo-audit
+      - name: cargo audit
+        run: cargo audit
 
   # Deploy main to GitHub Pages (DEC-064): the landing page at the base, the game
   # at play/, the hub spike at spike-hub/ (DEC-083), all from the web-dist artifact.
@@ -194,6 +230,7 @@ jobs:
     needs: [verified, rust, web]
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
@@ -203,12 +240,12 @@ jobs:
       group: pages
       cancel-in-progress: false
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: web-dist
           path: dist
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: dist
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

@@ -21,6 +21,14 @@ export const RUN_FILE_FORMAT = 1;
 export const RUN_FILE_EXTENSION = ".mandate";
 /** Refuse larger files before reading them (corrupt or hostile input). */
 export const MAX_RUN_FILE_BYTES = 64 * 1024 * 1024;
+/** The engine's save inside the file: base64 adds a third, so this fits the file cap. The engine caps the inflated size itself. */
+export const MAX_SAVE_BYTES = 40 * 1024 * 1024;
+/** The header is a few hundred bytes; anything bigger is not one of ours. */
+export const MAX_HEADER_BYTES = 16 * 1024;
+/** Longest text field accepted in a header (town names, versions, ids). */
+const MAX_FIELD_CHARS = 200;
+/** How long the engine gets to load an imported save before the import is abandoned. */
+export const VALIDATE_TIMEOUT_MS = 30_000;
 
 export interface RunFileHeader {
   format: number;
@@ -153,7 +161,7 @@ export function encodeRunFile(record: RunRecord, appVersion: string, now = new D
 }
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-const isStr = (v: unknown): v is string => typeof v === "string";
+const isStr = (v: unknown): v is string => typeof v === "string" && v.length <= MAX_FIELD_CHARS;
 const isNat = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0;
 
 function checkHeader(h: unknown): RunFileHeader {
@@ -179,7 +187,7 @@ function checkHeader(h: unknown): RunFileHeader {
 
 /** Parse a `.mandate` file. Throws `RunImportError` (never stores anything). */
 export function decodeRunFile(data: Uint8Array | string): RunFile {
-  if (typeof data !== "string" && data.length > MAX_RUN_FILE_BYTES) throw new RunImportError("corrupted", "file too large");
+  if (data.length > MAX_RUN_FILE_BYTES) throw new RunImportError("corrupted", "file too large");
   let text: string;
   try {
     text = typeof data === "string" ? data : new TextDecoder("utf-8", { fatal: true }).decode(data);
@@ -190,7 +198,10 @@ export function decodeRunFile(data: Uint8Array | string): RunFile {
   const firstBreak = text.indexOf("\n");
   const first = (firstBreak < 0 ? text : text.slice(0, firstBreak)).replace(/\r$/, "");
   if (first !== RUN_FILE_MAGIC) throw new RunImportError("not-mandate");
-  const lines = text.slice(firstBreak + 1).split(/\r?\n/);
+  const rest = text.slice(firstBreak + 1);
+  const headerEnd = rest.indexOf("\n");
+  if (headerEnd < 0 || headerEnd > MAX_HEADER_BYTES) throw new RunImportError("corrupted", "header missing or too long");
+  const lines = [rest.slice(0, headerEnd).replace(/\r$/, ""), rest.slice(headerEnd + 1).split(/\r?\n/, 1)[0] ?? ""];
   let raw: unknown;
   try {
     raw = JSON.parse(lines[0] ?? "");
@@ -198,15 +209,57 @@ export function decodeRunFile(data: Uint8Array | string): RunFile {
     throw new RunImportError("corrupted", "header is not JSON");
   }
   const header = checkHeader(raw);
+  // Sizes are checked from the header before anything is decoded or allocated.
+  if (header.save.length > MAX_SAVE_BYTES) throw new RunImportError("corrupted", "save too large");
+  const b64 = (lines[1] ?? "").trim();
+  if (b64.length !== Math.ceil(header.save.length / 3) * 4) throw new RunImportError("corrupted", "save length");
   let bytes: Uint8Array;
   try {
-    bytes = fromBase64((lines[1] ?? "").trim());
+    bytes = fromBase64(b64);
   } catch {
     throw new RunImportError("corrupted", "save is not base64");
   }
   if (bytes.length !== header.save.length) throw new RunImportError("corrupted", "save length");
   if (crc32(bytes) !== header.save.crc32) throw new RunImportError("corrupted", "save checksum");
   return { header, bytes };
+}
+
+/** The part of the engine client the probe uses (a fake in tests). */
+export interface ProbeEngine {
+  readonly ready: Promise<void>;
+  readSaveMeta(bytes: Uint8Array): Promise<SaveMetaDto>;
+  importSave(bytes: Uint8Array): Promise<unknown>;
+  terminate(): void;
+}
+
+/**
+ * Load an imported save in a throwaway engine, never the app's own: a hostile
+ * save that makes the engine panic or hang then costs one disposable worker,
+ * not the running game. Gives up after `timeoutMs`.
+ */
+export async function validateInProbe(
+  makeProbe: () => ProbeEngine,
+  bytes: Uint8Array,
+  timeoutMs = VALIDATE_TIMEOUT_MS,
+): Promise<SaveMetaDto> {
+  const probe = makeProbe();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new RunImportError("corrupted", "the engine took too long to load the file")), timeoutMs);
+  });
+  try {
+    const work = (async () => {
+      await probe.ready;
+      const meta = await probe.readSaveMeta(bytes);
+      await probe.importSave(bytes);
+      return meta;
+    })();
+    work.catch(() => undefined); // a late failure after the timeout is not reported twice
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+    probe.terminate();
+  }
 }
 
 /** Map an engine save error (`mandate-save` / `Engine::from_state` messages) to an import error. */
