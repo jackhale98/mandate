@@ -84,3 +84,7 @@ GitHub Actions (`.github/workflows/`):
 ## Art
 
 The app icon and loader are Mandate's own (DEC-081). The walkable town uses placeholder art drawn in code until the pixel-art tool's pack replaces it (DEC-084).
+
+## Licence
+
+Open source: code under MIT or Apache-2.0, text and art under CC BY 4.0. See [LICENSE.md](LICENSE.md).
