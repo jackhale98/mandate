@@ -12,3 +12,6 @@ node_modules/
 # Isolated agent worktrees (local only)
 .claude/worktrees/
 /target-lead/
+
+# Per-agent build directories (CARGO_TARGET_DIR=target-<name>)
+target-*/

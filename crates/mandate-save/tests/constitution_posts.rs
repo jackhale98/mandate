@@ -164,7 +164,9 @@ fn v18_paths_migrate_to_posts() {
 /// later task changed what those turns do (with carve-outs for E1's record
 /// value and N2's ward vote figures). E2 changes which situations the
 /// director spotlights, so no build after it can reach the old build's
-/// state. The comparison is the whole state, with no carve-outs. When a
+/// state. The comparison is the whole state with one carve-out: it ignores
+/// `meta.content_hash` (and nothing else), so Fluent and content text edits
+/// need no re-record. When a
 /// later task changes an outcome on purpose, re-record with
 /// `MANDATE_RECORD_FIXTURES=1 cargo test -p mandate-save --test
 /// constitution_posts v18_save_continues`, check the diff, and say why here.
@@ -232,15 +234,19 @@ fn v18_save_continues_identically() {
         std::fs::write(&golden, bytes).unwrap();
     }
     let (reached, _) = decode(&std::fs::read(&golden).unwrap()).unwrap();
-    assert_eq!(reached.hash(), e.state_hash(), "the golden round-trips");
-    let a = serde_json::to_value(e.state()).unwrap();
-    let b = serde_json::to_value(&reached).unwrap();
-    if a != b {
-        // Name the first part that differs.
-        for k in a.as_object().unwrap().keys() {
-            assert_eq!(a[k], b[k], "state.{k} differs");
-        }
+    // Mask `meta.content_hash` (and only it) in both states: it changes with
+    // every Fluent or content edit and says nothing about the simulation.
+    let masked = |v: &mandate_sim::State| {
+        let mut v = serde_json::to_value(v).unwrap();
+        let meta = v["meta"].as_object_mut().unwrap();
+        assert!(meta.remove("content_hash").is_some(), "meta.content_hash");
+        v
+    };
+    let (a, b) = (masked(e.state()), masked(&reached));
+    for k in a.as_object().unwrap().keys() {
+        assert_eq!(a[k], b[k], "state.{k} differs");
     }
+    // Nothing else differs, in `meta` or anywhere: same keys, same values.
     assert_eq!(a, b);
 }
 
