@@ -1,6 +1,7 @@
 //! Mandate simulation lab CLI (DEC-058). Output is JSON for scripting.
 
 mod act;
+mod audit;
 mod bots;
 mod corpus;
 mod doctor;
@@ -243,6 +244,13 @@ enum Cmd {
         #[arg(long)]
         full: bool,
     },
+    /// The simulation audit (S2, W2): experiments on the lab runner, one
+    /// topic at a time, with tables and verdicts as JSON
+    /// (`docs/design/research/SIMULATION_AUDIT.md`).
+    Audit(audit::AuditArgs),
+    /// The lab's experiment runner (S2): one game, or twins with and
+    /// without an intervention, sampled at chosen months, as JSON.
+    Lab(lab::cli::LabCmd),
     /// Show details for one municipality or region of a generated world.
     Inspect {
         #[arg(long, default_value_t = 1)]
@@ -909,6 +917,25 @@ fn run(cli: Cli) -> Result<(), String> {
             } else {
                 Err("the replay does not match the report (see `first_divergence`)".into())
             }
+        }
+        Cmd::Audit(args) => {
+            let content = load_content(&cli.content)?;
+            lab::runner::set_content_root(&cli.content);
+            let gate = args.topic == "gate";
+            let v = audit::run(content, args)?;
+            let failed = gate && !v["pass"].as_bool().unwrap_or(false);
+            out(v);
+            if failed {
+                Err("the simulation audit gate failed".into())
+            } else {
+                Ok(())
+            }
+        }
+        Cmd::Lab(cmd) => {
+            let content = load_content(&cli.content)?;
+            lab::runner::set_content_root(&cli.content);
+            out(lab::cli::run(content, cmd)?);
+            Ok(())
         }
         Cmd::SaveInfo { path } => {
             let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
