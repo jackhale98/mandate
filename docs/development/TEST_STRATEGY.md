@@ -136,7 +136,7 @@ Measured:
 - At the M6 vertical-slice gate, a small group (3–5 people) also plays.
 - Playtesters can make an opt-in **local run-report export**: a file with the run summary, key decisions, endings, and timings, containing no personal data. They share it manually. There is no telemetry backend.
 
-**Balance log.** `docs/development/BALANCE_LOG.md` records each tuning change: the parameter, old and new values, the evidence (sweep or bot result), and the observed effect.
+**Balance log.** `docs/development/BALANCE_LOG.md` points to `docs/development/balance/`, one file per tuning change (`scripts/new-entry.sh balance "<title>"`), recording: the parameter, old and new values, the evidence (sweep or bot result), and the observed effect.
 
 **Content health: the doctor and the designer page** (the content workbench, owner 2026-11-19). `mandate-cli content doctor` checks that content can fire, does not fire too often, has its English text and arguments, fits a phone, and has speakers who can say it (EXTENDING "Checking your content"). It plays `--seeds` careers of `--years` with the bots (`mixed` by default) on throwaway engines and combines what fired with static checks of the conditions. Severities: error (cannot fire, missing text, a role no speaker of that voice has), warn (never fired, too often, too long), info (unused keys, held but never picked). CI runs it as a non-blocking report (`--seeds 8 --years 2`); it becomes blocking (`--strict`) once the base pack has no errors.
 

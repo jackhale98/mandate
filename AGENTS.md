@@ -6,8 +6,9 @@ A political career roguelike: a deterministic Rust simulation compiled to WASM, 
 The system plan (`docs/design/SYSTEM_PLAN.md`) is **approved** (DEC-067). Implementation follows `docs/development/ROADMAP.md`. Current status is in `docs/development/PROGRESS.md`.
 
 ## Read first (only what your task needs)
+- `docs/development/AGENT_CONTEXT.md`: one page of rules, code map, commands and report format.
+- Decisions live in `docs/design/decisions/DEC-NNN.md` (index: `docs/design/DECISIONS.md`); read only the ones your brief cites.
 - Your task brief, written to the template in `docs/development/WORKFLOW.md`.
-- The decisions your brief cites: `docs/design/DECISIONS.md`.
 - Architecture: `docs/architecture/OVERVIEW.md`, `docs/architecture/DATA_MODEL.md`.
 - Testing: `docs/development/TEST_STRATEGY.md`.
 

@@ -112,7 +112,7 @@ Reports summarize outcomes and evidence. No narration.
 
 ## 6. Change control
 - Accepted decisions change only through a new or superseding DEC entry, with the owner's approval for gameplay or architecture tradeoffs.
-- `PROGRESS.md` is updated at the end of every working session.
+- At the end of every working session, add a progress entry with `scripts/new-entry.sh progress "<title>"` (one file per entry in `docs/development/progress/`; never edit a shared table). Tuning changes likewise: `scripts/new-entry.sh balance "<title>"` (`docs/development/balance/`).
 
 ## 7. Parallel agents in practice
 
