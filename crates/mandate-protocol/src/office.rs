@@ -485,18 +485,6 @@ fn lean_label(p: f64) -> &'static str {
     }
 }
 
-/// `role-<word>` for a politician's post (its constitution role word), or
-/// `role-private` out of office.
-fn role_label(engine: &Engine, p: &Politician) -> String {
-    engine
-        .content()
-        .constitutions
-        .get(&engine.state().meta.constitution)
-        .and_then(|c| mandate_sim::politics::role_word(c, p))
-        .map(|w| format!("role-{w}"))
-        .unwrap_or_else(|| "role-private".into())
-}
-
 fn member_view(gate: &Gate<'_>, engine: &Engine, p: &Politician) -> MemberView {
     let st = engine.state();
     let content = engine.content();
@@ -526,7 +514,7 @@ fn member_view(gate: &Gate<'_>, engine: &Engine, p: &Politician) -> MemberView {
             )
         })
         .collect();
-    let role_key = role_label(engine, p);
+    let role_key = crate::characters::label_role_key(engine, p.character);
     let ward = p.role.constituency().map(|w| ward_number(st, w));
     MemberView {
         id: p.id.0,
