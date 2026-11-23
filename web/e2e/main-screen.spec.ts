@@ -170,7 +170,7 @@ test("desktop: the pocket docks beside the town; the street makes room and the p
   await dock.click();
   await expect(dock).toHaveAttribute("aria-pressed", "true");
   // Docked: the street resizes to the space beside it…
-  await expect.poll(async () => (await page.getByTestId("town").boundingBox())?.x ?? 0).toBeGreaterThan(390);
+  await expect.poll(async () => { const b = await page.getByTestId("town").boundingBox(); return b ? b.x + b.width : wide; }).toBeLessThan(wide - 390);
   await expect.poll(async () => (await page.locator(".town-street-stage canvas").boundingBox())?.width ?? 0).toBeLessThan(wide - 390);
   // …and the pocket stays open when a place is chosen.
   await pocket.getByTestId("spot-town_hall").click();
@@ -183,7 +183,7 @@ test("desktop: the pocket docks beside the town; the street makes room and the p
   await expect(page.getByTestId("town")).toBeVisible();
   await page.getByTestId("pocket-button").click();
   await expect(page.getByTestId("pocket-dock")).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(async () => (await page.getByTestId("town").boundingBox())?.x ?? 0).toBeGreaterThan(390);
+  await expect.poll(async () => { const b = await page.getByTestId("town").boundingBox(); return b ? b.x + b.width : wide; }).toBeLessThan(wide - 390);
   // Undocked again, the town takes the whole width back once the pocket closes.
   await page.getByTestId("pocket-dock").click();
   await page.getByTestId("pocket").getByRole("button", { name: "Close" }).click();

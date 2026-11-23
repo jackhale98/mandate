@@ -54,15 +54,15 @@ test("the pocket slides in from the side it is docked on", async ({ page }, info
   await page.waitForTimeout(300);
   const box = await pocket.boundingBox();
   if (info.project.name === "desktop") {
-    expect(name).toBe("sheet-from-left");
-    expect(box?.x ?? 0).toBeLessThan(-10);
+    expect(name).toBe("sheet-from-right");
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThan((page.viewportSize()?.width ?? 0) + 10);
   } else {
     expect(name).toBe("sheet-up");
     expect(box?.x ?? 1).toBe(0);
   }
   await cdp.send("Animation.setPlaybackRate", { playbackRate: 1 });
   await pocket.getByRole("button", { name: "Close" }).click();
-  if (info.project.name === "desktop") await expect(pocket).toHaveCSS("animation-name", "sheet-to-left");
+  if (info.project.name === "desktop") await expect(pocket).toHaveCSS("animation-name", "sheet-to-right");
   await expect(pocket).toHaveCount(0);
 });
 
