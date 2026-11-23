@@ -6,13 +6,12 @@ import { showPlaces } from "./pocket";
 // leans; file for the town's executive office from the posts the engine
 // offers; see the race for it at the party office. Every label here is the
 // base constitution's own (its Fluent keys), not the web's.
-// Seed 1 (medium): a colleague's bill awaits the player's vote on the first
-// turn, and the executive is of another party, so the player's party backs
-// them for it.
+// Seed 2 (medium): a colleague's bill awaits the player's vote on the first
+// turn.
 test("vote, see the signer's lean, file for the executive office and see its race", async ({ page }) => {
   test.setTimeout(240_000);
   await page.goto("./");
-  await page.getByPlaceholder("e.g. 20260").fill("1");
+  await page.getByPlaceholder("e.g. 20260").fill("2");
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
 
