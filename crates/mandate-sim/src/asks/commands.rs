@@ -413,6 +413,7 @@ pub fn promise(
         race: Some(race),
         answer: answer.clone(),
         tries: 0,
+        arc: None,
     });
     a.tally.promises_made += 1;
     let cause = Cause::Player(PlayerAct::Promise);

@@ -51,12 +51,19 @@ pub(super) fn static_checks(b: &ContentBundle, out: &mut Out) {
                     .iter()
                     .any(|x| x.decision.as_deref() == Some(d.id.as_str()))
             })
+            // An arc's decision beat presents it (DEC-109).
+            && !b.arcs.iter().any(|a| {
+                a.beats().any(|(_, x)| {
+                    matches!(&x.kind, mandate_content::arcs::BeatKind::Decision { dilemma, .. }
+                        if dilemma == &d.id)
+                })
+            })
         {
             out.add(
                 Sev::Error,
                 "unsatisfiable",
                 &d.id,
-                "storyline-only, but no storyline stage presents it",
+                "storyline-only, but no storyline stage or arc beat presents it",
             );
         }
         for r in &d.roles {

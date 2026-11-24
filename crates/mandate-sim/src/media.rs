@@ -1170,6 +1170,25 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
             | EventKind::RaceDecided {
                 municipality: x, ..
             } => news.push((e.id, *x)),
+            // An arc's story (DEC-109): a press beat, or an exit with a
+            // headline, in the town it is about.
+            EventKind::ArcBeat { at, kind, .. } if kind == "press" => {
+                if let Some(m) = at.municipality() {
+                    news.push((e.id, m.0));
+                }
+            }
+            EventKind::ArcEnded {
+                at, template, exit, ..
+            } => {
+                let headline = content
+                    .arc(template)
+                    .and_then(|a| a.stage(exit))
+                    .and_then(|s| s.exit.as_ref())
+                    .is_some_and(|x| x.headline_key.is_some());
+                if let (true, Some(m)) = (headline, at.municipality()) {
+                    news.push((e.id, m.0));
+                }
+            }
             _ => {}
         }
     }

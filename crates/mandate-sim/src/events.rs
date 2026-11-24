@@ -240,6 +240,44 @@ pub enum EventKind {
         family: String,
         at: crate::world::Jurisdiction,
     },
+    /// An arc was raised (DEC-109): its `raise` held at a jurisdiction and
+    /// its cast was bound. Opens the run's thread.
+    ArcRaised {
+        arc: u32,
+        /// Arc content id.
+        template: String,
+        at: crate::world::Jurisdiction,
+    },
+    /// A run entered a stage. `facts`: its dates and readings as they
+    /// were (numbers and Fluent keys; names are resolved from its cast).
+    ArcStage {
+        arc: u32,
+        template: String,
+        stage: String,
+        at: crate::world::Jurisdiction,
+        facts: Vec<(String, String)>,
+    },
+    /// A beat of a run happened: `kind` is the beat's (`visit`, `talk`,
+    /// `decision`, `ask`, `move`, `press`); `ok`: it was done (a reply
+    /// agreed, a decision was answered, an ask was kept).
+    ArcBeat {
+        arc: u32,
+        template: String,
+        stage: String,
+        beat: String,
+        at: crate::world::Jurisdiction,
+        kind: String,
+        ok: bool,
+        facts: Vec<(String, String)>,
+    },
+    /// A run reached an exit. Closes its thread.
+    ArcEnded {
+        arc: u32,
+        template: String,
+        exit: String,
+        at: crate::world::Jurisdiction,
+        facts: Vec<(String, String)>,
+    },
 }
 
 /// How long an event is kept in full detail.

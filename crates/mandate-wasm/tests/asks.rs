@@ -58,6 +58,7 @@ fn put(e: &mut Engine, needs: Vec<Need>, due_in: u32, offered: bool) -> AskId {
     e.setup(|st| {
         id = st.asks.ids.alloc();
         st.asks.asks.push(Ask {
+            arc: None,
             id,
             template: "ask.casework".into(),
             promise: false,

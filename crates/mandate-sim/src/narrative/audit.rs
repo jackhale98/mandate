@@ -25,7 +25,38 @@ pub fn decision(state: &State, content: &ContentBundle, d: &Decision) -> Vec<Str
         .and_then(|id| state.narrative.storylines.iter().find(|r| r.id == id));
     let sdef = run.and_then(|r| content.storyline(&r.template));
     let holder = d.goal.as_ref().map(|g| g.0);
-    for e in &d.cast {
+    // Roles an arc cast (DEC-109) are the run's own, bound by the arc's
+    // rules: the run is live, the beat is a decision beat of its template
+    // for this dilemma, and the cast is the run's.
+    if let Some(a) = &d.arc {
+        match state.arcs.run(a.run) {
+            None => out.push(format!("{}: its arc run is not live", d.template)),
+            Some(run) => {
+                let beat = content
+                    .arc(&run.template)
+                    .and_then(|t| crate::arcs::beat_of(t, &a.beat))
+                    .is_some_and(|(_, b)| {
+                        matches!(&b.kind, mandate_content::arcs::BeatKind::Decision { dilemma, .. }
+                            if dilemma == &d.template)
+                    });
+                if !beat {
+                    out.push(format!(
+                        "{}: not the decision of beat `{}` of its arc",
+                        d.template,
+                        a.beat.key()
+                    ));
+                }
+                let cast = run.narrative_cast();
+                for e in d.cast.iter().filter(|e| !cast.contains(e)) {
+                    out.push(format!(
+                        "{}: role `{}` is not the run's {:?}",
+                        d.template, e.role, e.actor
+                    ));
+                }
+            }
+        }
+    }
+    for e in d.cast.iter().filter(|_| d.arc.is_none()) {
         let role: Option<&RoleDef> = sdef
             .and_then(|s| s.roles.iter().find(|x| x.id == e.role))
             .or_else(|| def.roles.iter().find(|x| x.id == e.role));

@@ -75,7 +75,10 @@ fn knows_never_decides_what_happens() {
     };
     let nested = Condition::Any {
         of: vec![
-            Condition::Disaster { within_months: 6 },
+            Condition::Disaster {
+                within_months: 6,
+                hazard: None,
+            },
             player_knows.clone(),
         ],
     };

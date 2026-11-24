@@ -115,7 +115,15 @@ fn state_shape_matches_format_version() {
     // `last_post`. Migration: `causal_spine`.
     // 740f115b1c8d9bf3 -> e90c9a8a50934436: the record decides votes (audit
     // fix 1). No serialized struct changed; the sample game's history did.
-    const EXPECTED: (u16, &str) = (26, "e90c9a8a50934436");
+    //
+    // e90c9a8a50934436 (v26) -> the same (v27): staged arcs (A1, DEC-109). The
+    // state gained `arcs` (not written while no arc has ever run), a
+    // decision's and an ask's `arc`, and the environment's `repairs`: each
+    // absent until an arc runs, and the sample game has no flood in the
+    // player's town, so its shape is the one it had. The version moves
+    // because a v27 save may hold them and a v26 build cannot read them.
+    // Migration: `staged_arcs`.
+    const EXPECTED: (u16, &str) = (27, "e90c9a8a50934436");
     let c = content();
     let mut e = generate(
         &WorldConfig {

@@ -11,6 +11,20 @@ pub fn default_systems() -> Vec<SystemDef> {
     use Cadence::*;
     use Phase as P;
     vec![
+        // Staged arcs (DEC-109), first in the day: what a run asks of
+        // another domain is applied by that domain's system the same day.
+        SystemDef {
+            name: "arcs.daily",
+            phase: P::NpcActions,
+            cadence: Daily,
+            run: SystemFn::Arcs(crate::arcs::daily),
+        },
+        SystemDef {
+            name: "arcs.weekly",
+            phase: P::NpcActions,
+            cadence: Weekly,
+            run: SystemFn::Arcs(crate::arcs::weekly),
+        },
         SystemDef {
             name: "policy.procedures",
             phase: P::Institutions,
@@ -71,6 +85,14 @@ pub fn default_systems() -> Vec<SystemDef> {
             phase: P::Characters,
             cadence: Monthly,
             run: SystemFn::Player(player::monthly),
+        },
+        // Repairs other domains asked for (`Effect::Recovery`), before the
+        // month's repairs.
+        SystemDef {
+            name: "environment.effects",
+            phase: P::Environment,
+            cadence: Daily,
+            run: SystemFn::Environment(environment::effects),
         },
         SystemDef {
             name: "environment.drift",
@@ -175,6 +197,19 @@ pub fn default_systems() -> Vec<SystemDef> {
             phase: P::Characters,
             cadence: Monthly,
             run: SystemFn::Policy(policy::families::monthly),
+        },
+        // Decisions and asks other domains asked for (an arc's beats).
+        SystemDef {
+            name: "narrative.requests",
+            phase: P::Director,
+            cadence: Daily,
+            run: SystemFn::Narrative(crate::narrative::offered::requests),
+        },
+        SystemDef {
+            name: "asks.requests",
+            phase: P::Director,
+            cadence: Daily,
+            run: SystemFn::Asks(crate::asks::offers::requests),
         },
         SystemDef {
             name: "narrative.fairness",

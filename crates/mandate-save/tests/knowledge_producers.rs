@@ -235,6 +235,7 @@ fn inject(e: &mut Engine, template: &str, cast: Vec<CastEntry>) -> DecisionId {
         id = st.narrative.decision_ids.alloc();
         let date = st.calendar.date;
         st.narrative.decisions.push(Decision {
+            arc: None,
             id,
             template: template.into(),
             weight: Weight::Significant,

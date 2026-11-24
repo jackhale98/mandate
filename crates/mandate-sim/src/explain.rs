@@ -720,6 +720,33 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
         | C::SectorDecline { .. }
         | C::PlaceOpen { .. }
         | C::PlaceClosed { .. } => {}
+        // An arc run (DEC-109): its stage, marks and heat.
+        C::Arc { arc, .. } => put(
+            "runs",
+            v.r.arcs()
+                .map(|a| {
+                    a.runs
+                        .iter()
+                        .filter(|r| &r.template == arc)
+                        .map(|r| r.stage.clone())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .unwrap_or_default(),
+        ),
+        C::ArcMark { .. }
+        | C::ArcHeat { .. }
+        | C::ArcDays { .. }
+        | C::Displaced { .. }
+        | C::Recovered { .. } => {
+            if let Some(r) = cx.arc {
+                put("stage", r.stage.clone());
+                put("marks", r.marks.join(", "));
+                put("heat", num(f64::from(r.heat)));
+            } else {
+                put("arc", "no run here (never holds)".into());
+            }
+        }
     }
     out
 }

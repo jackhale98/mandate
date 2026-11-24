@@ -163,6 +163,9 @@ pub enum Process {
     Society,
     /// What being somewhere or holding a post teaches the player.
     Knowledge,
+    /// Staged arcs: a run raised by its conditions, an edge that fired, a
+    /// beat a stage offers.
+    Arcs,
     /// The game's rules were updated under a running career.
     Update,
 }
@@ -394,6 +397,8 @@ pub enum Thread {
     Election(u32),
     /// The player's prison term.
     Sentence,
+    /// An arc run (DEC-109): raised, its stages, its beats, its exit.
+    Arc(u32),
 }
 
 /// What an event does to its thread.
@@ -456,6 +461,10 @@ pub fn thread(kind: &EventKind, date: SimDate) -> Option<(Thread, Role)> {
         K::CampaignOpened { election_day } => (Thread::Election(election_day.0), Role::Opens),
         K::RaceDecided { .. } => (Thread::Election(date.0), Role::Notes),
         K::ElectionHeld { .. } => (Thread::Election(date.0), Role::Closes),
+        K::ArcRaised { arc, .. } => (Thread::Arc(*arc), Role::Opens),
+        K::ArcStage { arc, .. } => (Thread::Arc(*arc), Role::Advances),
+        K::ArcBeat { arc, .. } => (Thread::Arc(*arc), Role::Notes),
+        K::ArcEnded { arc, .. } => (Thread::Arc(*arc), Role::Closes),
         K::PlayerImprisoned { .. } => (Thread::Sentence, Role::Opens),
         K::PlayerReleased => (Thread::Sentence, Role::Closes),
         K::DirectorIntervention { lever, .. } => match lever.as_str() {
@@ -511,6 +520,7 @@ pub fn salience(kind: &EventKind) -> Salience {
         | K::ProposalOpened { .. }
         | K::ProposalLapsed { .. }
         | K::TrackWarning { .. }
+        | K::ArcBeat { .. }
         | K::CaseDeveloped { .. } => Salience::Routine,
         K::RaceDecided {
             player_ran: false, ..
@@ -525,6 +535,9 @@ pub fn salience(kind: &EventKind) -> Salience {
         | K::ChapterBegan { .. }
         | K::ScandalBroke { .. }
         | K::CaseOpened { .. }
+        | K::ArcRaised { .. }
+        | K::ArcStage { .. }
+        | K::ArcEnded { .. }
         | K::AskResolved { .. } => Salience::Notable,
         K::GameStarted { .. }
         | K::HistoryBegan { .. }
@@ -595,6 +608,10 @@ pub fn kind_key(kind: &EventKind) -> &'static str {
         K::RulesUpdated { .. } => "rules_updated",
         K::ProposalOpened { .. } => "proposal_opened",
         K::ProposalLapsed { .. } => "proposal_lapsed",
+        K::ArcRaised { .. } => "arc_raised",
+        K::ArcStage { .. } => "arc_stage",
+        K::ArcBeat { .. } => "arc_beat",
+        K::ArcEnded { .. } => "arc_ended",
     }
 }
 

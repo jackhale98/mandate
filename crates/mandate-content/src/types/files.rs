@@ -40,6 +40,23 @@ pub(crate) struct ItemsFile<T> {
     pub items: Vec<T>,
 }
 
+/// An `arcs` file: the arcs, and what their beats name.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ArcsFile {
+    #[allow(dead_code)]
+    pub kind: String,
+    pub items: Vec<crate::arcs::ArcDef>,
+    #[serde(default)]
+    pub dilemmas: Vec<crate::narrative::DilemmaDef>,
+    #[serde(default)]
+    pub asks: Vec<crate::asks::AskDef>,
+    #[serde(default)]
+    pub scenes: Vec<crate::narrative::SceneDef>,
+    #[serde(default)]
+    pub overheard: Vec<OverheardDef>,
+}
+
 pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::Error> {
     let probe: KindProbe = serde_json::from_str(json)?;
     Ok(match probe.kind.as_str() {
@@ -205,6 +222,16 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         "endings" => ContentFile::Endings {
             items: serde_json::from_str::<ItemsFile<crate::act::EndingDef>>(json)?.items,
         },
+        "arcs" => {
+            let f: ArcsFile = serde_json::from_str(json)?;
+            ContentFile::Arcs {
+                items: f.items,
+                dilemmas: f.dilemmas,
+                asks: f.asks,
+                scenes: f.scenes,
+                overheard: f.overheard,
+            }
+        }
         "policy_families" => ContentFile::PolicyFamilies {
             items: serde_json::from_str::<ItemsFile<crate::policy_family::PolicyFamilyDef>>(json)?
                 .items,

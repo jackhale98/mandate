@@ -7,6 +7,7 @@
 
 pub mod act;
 pub mod actions;
+pub mod arcs;
 pub mod asks;
 pub mod characters;
 pub mod commands;

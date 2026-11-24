@@ -102,15 +102,22 @@ struct Prison {
 }
 
 /// (event stream digest, state digest, events seen). `keep_all`: the lab
-/// switch that turns the log's pruning off.
+/// switch that turns the log's pruning off. `arcs`: with the pack's arc
+/// content (staged arcs, DEC-109), or with none.
 fn digests(
     seed: u64,
     driver: Driver,
     months: u32,
     prison: Option<Prison>,
     keep_all: bool,
+    arcs: bool,
 ) -> (String, String, usize) {
-    let content = crate::lab::load(&super::runner::content_root(), &[]).unwrap();
+    let mut content = crate::lab::load(&super::runner::content_root(), &[]).unwrap();
+    if !arcs {
+        let mut bare = (*content).clone();
+        bare.arcs.clear();
+        content = std::sync::Arc::new(bare);
+    }
     let mut g = Game::new(&content, &Setup::small(seed, None), driver).unwrap();
     g.e.setup(|s| s.events.set_keep_all(keep_all));
     let mut stream = Vec::<u8>::new();
@@ -208,19 +215,38 @@ fn digests(
 /// states both moved. Recorded on the tree with both play note 19 and fix
 /// 1: the event streams equal fix 1's own; the states of the four games
 /// whose bot talks differ from fix 1's own, as they did with note 19.
+///
+/// **Staged arcs (A1, DEC-109) moved the two seed-31 games, and only
+/// those.** A flood strikes the player's town in seed 31 (October of the
+/// second year), so the base pack's flood arc is raised there: its events
+/// join the stream (raised, its stages, the story in the paper, the
+/// organiser's petition, the exit, and the ask and the decision they
+/// prompt: fourteen more events in each game when recorded on 4c2a2c1;
+/// thirteen and seventeen on the tree with audit fix 1, where the seed-31
+/// pins and `BEFORE_ARCS` were re-recorded and the no-arc digests of all
+/// eight games equal fix 1's pins exactly), and the state changes
+/// through what its beats and its exit request and nothing else: the ask
+/// it has the asks offer and the decision it has the narrative open (and
+/// so the ids, the sliding rate and the pending count of the asks and
+/// decisions that follow, by those systems' own rules), the default of
+/// its meeting, and its exit's effects. The other six games have no flood
+/// in the player's town within their years and did not move. With no arc
+/// content every game still gives the digests from before arcs
+/// (`BEFORE_ARCS` and the test below; all eight checked with
+/// `SPINE_PROOF_NO_ARCS=all`).
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "idle", 96, "1e3b972b3b5abb07", "da5f10a54ca8de33"), // 1254 events
     (2026, "mixed", 96, "923e5b3d25a4ef04", "385af4cc9b5ce86b"), // 2390 events
     (7, "idle", 96, "69ca0ae3748c2891", "132d29526700f9fc"),    // 1146 events
     (7, "corrupt", 96, "3b3fa70238acff2d", "4d095a3a1b9407cb"), // 1490 events
-    (31, "idle", 96, "397a0facb6fa3f58", "ee852502bc130b86"),   // 1277 events
+    (31, "idle", 96, "5649ad10c492f916", "28702694276c8ec5"),   // 1290 events
     (
         31,
         "explorer_legislator",
         96,
-        "fb722d09a2714fef",
-        "441520496d110d90",
-    ), // 2115 events
+        "3a542490ea1ec3f6",
+        "7276af5520373e41",
+    ), // 2132 events
     (
         2026,
         "mixed+prison",
@@ -269,9 +295,11 @@ fn the_spine_changes_no_outcome() {
     ];
     for (seed, label, months, prison) in games {
         let strategy = label.split('+').next().unwrap();
-        let (stream, state, seen) = digests(seed, Driver::parse(strategy), months, prison, true);
+        let (stream, state, seen) =
+            digests(seed, Driver::parse(strategy), months, prison, true, true);
         // As players have it (pruning on): the same state.
-        let (_, pruned_state, _) = digests(seed, Driver::parse(strategy), months, prison, false);
+        let (_, pruned_state, _) =
+            digests(seed, Driver::parse(strategy), months, prison, false, true);
         assert_eq!(
             state, pruned_state,
             "seed {seed}, {label}: pruning the log changed the state"
@@ -291,6 +319,71 @@ fn the_spine_changes_no_outcome() {
             (pin.3, pin.4),
             "seed {seed}, {label}: the event stream or the state changed. If this commit \
              changes outcomes on purpose, re-record the pins (see this file's header)"
+        );
+    }
+}
+
+/// Staged arcs (DEC-109) with no arc content change nothing. The games of
+/// `PINS` that an arc of the base pack touches (see the note above `PINS`),
+/// as they were pinned before arcs existed: played with no arc content,
+/// each still gives these digests. A game not listed here is pinned above
+/// with the pack's arcs loaded and did not move, so it needs no second
+/// pin. `SPINE_PROOF_NO_ARCS=all` plays every game of `PINS` with no arc
+/// content and checks each against this table, else against `PINS`;
+/// `=print` prints them.
+const BEFORE_ARCS: [(u64, &str, u32, &str, &str); 2] = [
+    (31, "idle", 96, "397a0facb6fa3f58", "ee852502bc130b86"), // 1277 events
+    (
+        31,
+        "explorer_legislator",
+        96,
+        "fb722d09a2714fef",
+        "441520496d110d90",
+    ), // 2115 events
+];
+
+#[test]
+fn with_no_arc_content_every_pin_holds() {
+    let mode = std::env::var("SPINE_PROOF_NO_ARCS").unwrap_or_default();
+    let prison = |label: &str| match label {
+        "mixed+prison" => Some(Prison {
+            after: 24,
+            years: 4,
+        }),
+        "idle+six_years" => Some(Prison {
+            after: 36,
+            years: 6,
+        }),
+        _ => None,
+    };
+    for pin in PINS {
+        let (seed, label, months) = (pin.0, pin.1, pin.2);
+        let before = BEFORE_ARCS
+            .iter()
+            .find(|p| p.0 == seed && p.1 == label && p.2 == months);
+        if before.is_none() && mode.is_empty() {
+            continue;
+        }
+        let strategy = label.split('+').next().unwrap();
+        let (stream, state, seen) = digests(
+            seed,
+            Driver::parse(strategy),
+            months,
+            prison(label),
+            true,
+            false,
+        );
+        if mode == "print" {
+            println!(
+                "    ({seed}, \"{label}\", {months}, \"{stream}\", \"{state}\"), // {seen} events"
+            );
+            continue;
+        }
+        let want = before.unwrap_or(&pin);
+        assert_eq!(
+            (stream.as_str(), state.as_str()),
+            (want.3, want.4),
+            "seed {seed}, {label}: with no arc content the game changed"
         );
     }
 }

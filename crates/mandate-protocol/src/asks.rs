@@ -735,6 +735,7 @@ fn would_be(engine: &Engine, template: &str, answer: Option<String>, race: Optio
         asker: race.map(voters_of).unwrap_or(Asker::Electorate {
             at: Jurisdiction::Nation,
         }),
+        arc: None,
         cast: Vec::new(),
         needs: Vec::new(),
         step: 0,

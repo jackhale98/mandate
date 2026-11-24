@@ -178,6 +178,12 @@ pub fn locations_for(
     if hood.is_some_and(|h| !hood_in_town(state, h)) {
         return Vec::new();
     }
+    // An arc's visit beat (DEC-109) is done where its run's cast is.
+    if let Offer::Verb(v) = offer
+        && crate::arcs::beats::is_verb(v)
+    {
+        return crate::arcs::beats::visit_locations(state, content, v);
+    }
     let offers = |k: &str| content.place_kind(k).is_some_and(|d| kind_offers(d, offer));
     let mut out = spots(state, &offers, hood);
     if out.is_empty() {

@@ -88,6 +88,11 @@ pub struct State {
     /// record and the act's ending.
     #[serde(default)]
     pub act: crate::act::ActState,
+    /// Staged arcs (DEC-109): live runs, cooldowns and the last summaries.
+    /// Not written while nothing has ever run, so a game no arc has
+    /// touched hashes as it did before arcs existed.
+    #[serde(default, skip_serializing_if = "crate::arcs::ArcsState::is_empty")]
+    pub arcs: crate::arcs::ArcsState,
 }
 
 /// A town as play began (TOWN_GENERATION §4.1, §15 E1): what the layout's

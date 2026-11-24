@@ -302,6 +302,7 @@ fn preview_decision(engine: &Engine, x: &Explanation) -> Option<DecisionView> {
         .and_then(|s| content.scene(s))
         .and_then(|s| mandate_sim::narrative::director::scene_place(&v, &s.place, &x.cast));
     let d = Decision {
+        arc: None,
         id: DecisionId(u32::MAX),
         template: def.id.clone(),
         weight: match def.category {

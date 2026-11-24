@@ -26,8 +26,10 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// asks and promises and the player's deed log (E6, DEC-097 §2). v25:
 /// policy families and works (F2b, DEC-092, DEC-099). v26: the causal
 /// spine (S1): typed causes on every event, thread heads, the pruning rule;
-/// and a politician's last post held (M6 note 16).
-pub const SAVE_FORMAT_VERSION: u16 = 26;
+/// and a politician's last post held (M6 note 16). v27: staged arcs (A1,
+/// DEC-109): the arcs domain, the run a decision or an ask belongs to, arc
+/// events on the spine, and repairs running faster on request.
+pub const SAVE_FORMAT_VERSION: u16 = 27;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -235,6 +237,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // The causal spine (S1) and the last post held: v25 → v26. Renumber
         // only this key if another bump merges first.
         (25, causal_spine),
+        // Staged arcs (A1, DEC-109): v26 → v27. Renumber only this key if
+        // another bump merges first.
+        (26, staged_arcs),
     ];
     let mut value = value;
     let mut v = from;
@@ -968,6 +973,29 @@ fn last_post_held(value: &mut serde_json::Value) -> Result<(), SaveError> {
         }
     }
     Ok(())
+}
+
+/// v26 → v27 (A1, DEC-109, `docs/design/STAGED_ARCS.md`): staged arcs.
+///
+/// An older save holds no arc, so nothing in it is rewritten: the arcs
+/// domain is absent (an empty domain is never written, so that a game no
+/// arc has touched hashes as it did), no decision or ask belongs to a run,
+/// no repairs run faster, and the log holds no arc event. The step checks
+/// that this is so and refuses a payload that claims the older format and
+/// carries arc state anyway (it was not written by a v26 build).
+///
+/// What the first turn after loading does is the simulation's, not the
+/// migration's: a matter already under way (a flood within the month)
+/// raises its arc at the next weekly step, at the stage the world is at.
+/// Running storylines stay storylines until task A2 folds them into arcs.
+fn staged_arcs(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let state = value.get("state").ok_or(SaveError::Malformed)?;
+    if state.get("arcs").is_some() {
+        return Err(SaveError::Data(
+            "a save older than v27 cannot hold arc runs".into(),
+        ));
+    }
+    Ok(value)
 }
 
 /// Structural fingerprint of a JSON value: object keys and value kinds, with

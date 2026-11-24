@@ -27,6 +27,7 @@
 | `policy` | `PolicyState` (§3) | policy |
 | `player` | `Option<PlayerState>` (§5); `None` during the burn-in | player |
 | `narrative` | `NarrativeState` (§6) | narrative |
+| `arcs` | `ArcsState` (§6.1): staged arcs (DEC-109). Not written while empty, so a game no arc has touched hashes as it did before arcs existed | arcs |
 
 The terrain raster is not in `State`: it is rebuilt from the seed and scenario on load (`rebuild_terrain`), checked by a terrain hash (DEC-068).
 
@@ -114,13 +115,25 @@ Not built (**planned**): appearance parameters (with the pixel-art tool, DEC-084
 
 Not built (**planned**, M5d part 1): outlets, coverage, perception, and scandals as media layers (DEC-034).
 
+### 6.1 Staged arcs — `arcs` (DEC-109, save v27)
+
+Keyed by `Jurisdiction`, never a town id (DEC-098). Templates are content (`mandate_content::arcs::ArcDef`, `content/base/arcs/*.jsonc`); design: `docs/design/STAGED_ARCS.md`.
+
+| Entity | ID | Main fields |
+|---|---|---|
+| `ArcsState` | — | `runs` (live, in id order: at most one a focus jurisdiction until the director schedules arcs); the id allocator; `cooldowns` (template, jurisdiction, until; gone once they pass); `past` (the last 40 `ArcSummary`); `deferred` (requests for a monthly applier, held until the month turns) |
+| `ArcRun` | `ArcId` | template; `at` (a `Jurisdiction`); `cast` (role → `ArcActor`: a person, an `Area`, a place, a jurisdiction); `stage` (its id); `since`, `started`, `began` (the root event's day); `clock`; `heat` (0..1); `marks` (sorted); `done` (beats done, one entry each); `open` (decision and ask beats asked of their owners and not yet settled); `base` (readings taken as it was raised: an area's damage and homes damaged); `root` (the event that made its `raise` true) |
+| `ArcSummary` | `ArcId` | template, jurisdiction, the exit's id, started, began, ended, the cast, the marks, the root event: what the spine's events of an ended run are read with |
+
+Bounds: a run's `done`, `open` and `marks` are bounded by its template; a run is about 1 KB of JSON, an ended one about 0.6 KB. Derived, never stored: which beats are on offer (`arcs::beats::offers`), the facts of the text (`arcs::cast::facts`). `Decision::arc` and `Ask::arc` name the run and beat that opened them; `EnvironmentState::repairs` holds the repair boosts a run (or anyone) asked for.
+
 ## 7. Engine
 
 | Item | Main fields |
 |---|---|
 | `EventLog` | id allocator; `DomainEvent`s in id order (id, date, `EventKind`, `causes`: one or more `spine::Cause`, retention `Recent` or `Pinned`); `heads`: each thread's latest kept event and whether it closed the thread, sorted by `spine::Thread`; `pruned_on`. Bounded by `spine::prune` (age and salience, live holds, whole chains, a cap of 6,000). The causal spine: `docs/design/CAUSAL_SPINE.md` |
 | `spine::Cause` | `Event(id, Link)`, `Player(PlayerAct)`, `Actor(CharacterId)`, `Process(Process)`, `Pressure(Pressure)`, `History`, `Exogenous(Shock)`, `Lab`, `Forgotten`, `Unknown`. `Link`: `caused`, `continues`, `prompted`, `revealed`, `ended` |
-| `scheduler::Request` | a transient cross-domain request within a turn: an `Effect` and its `Cause` (never saved) |
+| `scheduler::Request` | a transient cross-domain request within a turn: an `Effect` and its `Cause` (never saved, except those the arcs hold for a monthly applier in `ArcsState::deferred`) |
 | `HiddenFact.cause`, `LegacyEntry.source_event`, `DeferredHazard.hold_event`, `Politician.last_post` | what made a hidden fact; the event a Legacy entry records; the event that logged a hazard's hold; the last post someone held and when it ended (M6 note 16). All optional, absent in saves before v26 unless the migration could fill them |
 | Commands | not stored: each player command is applied, then the whole game is saved (DEC-074) |
 

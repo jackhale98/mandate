@@ -150,6 +150,7 @@ pub(super) fn open(
         status: DecisionStatus::Pending,
         resolution: None,
         about,
+        arc: None,
     });
     n.log(
         date,

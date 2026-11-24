@@ -178,6 +178,20 @@ pub enum ContentFile {
     },
     /// How acts end (DEC-006; DEC-098 note): the endings registry.
     Endings { items: Vec<crate::act::EndingDef> },
+    /// Staged arcs (DEC-109): one matter in one jurisdiction, in stages.
+    /// A file may carry the dilemmas, asks, scenes and overheard lines its
+    /// beats name; they join the same registries after every other file's.
+    Arcs {
+        items: Vec<crate::arcs::ArcDef>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        dilemmas: Vec<crate::narrative::DilemmaDef>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        asks: Vec<crate::asks::AskDef>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        scenes: Vec<crate::narrative::SceneDef>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        overheard: Vec<OverheardDef>,
+    },
     /// Policy families: proposals grounded in the town (DEC-092).
     PolicyFamilies {
         items: Vec<crate::policy_family::PolicyFamilyDef>,

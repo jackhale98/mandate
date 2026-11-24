@@ -80,6 +80,58 @@ pub struct EnvironmentState {
     /// Neighbourhoods with homes damaged and not yet repaired, by
     /// neighbourhood id (ascending).
     pub hood_damage: Vec<HoodDamage>,
+    /// Repairs running faster for a while (`Effect::Recovery`, DEC-109), in
+    /// the order asked. Not written while there are none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub repairs: Vec<RepairBoost>,
+}
+
+/// Damaged homes in a neighbourhood are repaired `factor` times as fast
+/// until a day (someone put money or hands to it).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RepairBoost {
+    pub neighborhood: u32,
+    pub factor: f64,
+    pub until: SimDate,
+}
+
+/// The longest a repair boost lasts, and the most it multiplies the rate.
+pub const REPAIR_BOOST_MAX_MONTHS: u16 = 36;
+pub const REPAIR_BOOST_MAX_FACTOR: f64 = 4.0;
+
+/// Repairs in a neighbourhood run `factor` times as fast for `months`
+/// months from `today` (clamped; a factor of 1 or less asks for nothing).
+/// The environment's own change: the applier of `Effect::Recovery`, and
+/// the commands that ask for it outside the scheduler.
+pub fn boost_repairs(
+    env: &mut EnvironmentState,
+    today: SimDate,
+    neighborhood: u32,
+    factor: f64,
+    months: u16,
+) {
+    if !factor.is_finite() || factor <= 1.0 || months == 0 {
+        return;
+    }
+    env.repairs.push(RepairBoost {
+        neighborhood,
+        factor: factor.min(REPAIR_BOOST_MAX_FACTOR),
+        until: today.add_days(u32::from(months.min(REPAIR_BOOST_MAX_MONTHS)) * 30),
+    });
+}
+
+/// Environment domain, daily: repairs other domains asked for.
+pub fn effects(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
+    for q in out.take(|e| matches!(e, Effect::Recovery { .. })) {
+        if let Effect::Recovery {
+            neighborhood,
+            factor,
+            months,
+        } = q.effect
+        {
+            boost_repairs(env, r.date, neighborhood, factor, months);
+        }
+    }
 }
 
 impl EnvironmentState {
@@ -168,6 +220,7 @@ pub fn init(
         // Derived from the terrain by worldgen once the world exists.
         exposure: Vec::new(),
         hood_damage: Vec::new(),
+        repairs: Vec::new(),
     }
 }
 
@@ -175,8 +228,18 @@ pub fn init(
 /// repaired.
 pub fn drift(env: &mut EnvironmentState, r: &Reads<'_>, _out: &mut Outs<'_>) {
     let rate = r.content.economy.hazards.repair_rate.clamp(0.0, 1.0);
+    // A boost that has run out is gone; the strongest one left counts.
+    env.repairs.retain(|b| b.until > r.date);
     for d in env.hood_damage.iter_mut() {
-        let fixed = (f64::from(d.damaged_pm) * rate).ceil().max(1.0) as u16;
+        let boost = env
+            .repairs
+            .iter()
+            .filter(|b| b.neighborhood == d.neighborhood)
+            .map(|b| b.factor)
+            .fold(1.0, f64::max);
+        let fixed = (f64::from(d.damaged_pm) * (rate * boost).min(1.0))
+            .ceil()
+            .max(1.0) as u16;
         d.damaged_pm = d.damaged_pm.saturating_sub(fixed);
     }
     env.hood_damage.retain(|d| d.damaged_pm > 0);

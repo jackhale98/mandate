@@ -178,6 +178,8 @@ pub enum AskFrom {
     /// The player asked around about someone (a conversation about them
     /// within `talked_about_days`): that person asks.
     TalkedAbout,
+    /// An arc's `ask` beat (DEC-109): offered only by a run, with its cast.
+    Arc,
 }
 
 /// Who the asker speaks for. A party's ask is voiced by the person cast as

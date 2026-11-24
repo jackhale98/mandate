@@ -153,9 +153,17 @@ pub struct ContentBundle {
     /// The family numbers (defaults when no pack defines them).
     #[serde(default)]
     pub policy_family_params: crate::policy_family::FamilyParams,
+    /// Staged arcs (DEC-109), in load order.
+    #[serde(default)]
+    pub arcs: Vec<crate::arcs::ArcDef>,
 }
 
 impl ContentBundle {
+    /// An arc template by id.
+    pub fn arc(&self, id: &str) -> Option<&crate::arcs::ArcDef> {
+        self.arcs.iter().find(|a| a.id == id)
+    }
+
     /// An ask template by id.
     pub fn ask(&self, id: &str) -> Option<&crate::asks::AskDef> {
         self.asks.iter().find(|a| a.id == id)
@@ -376,6 +384,14 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut promises: Vec<crate::asks::PromiseDef> = Vec::new();
     let mut act_flow: Option<(crate::act::ActFlowParams, String)> = None;
     let mut endings: Vec<crate::act::EndingDef> = Vec::new();
+    let mut arcs: Vec<crate::arcs::ArcDef> = Vec::new();
+    // What arc files carry for their beats joins each registry after every
+    // other file's items: registry order breaks ties and keys draws (an
+    // overheard line's index), so an arc's items never shift the rest.
+    let mut arc_dilemmas: Vec<crate::narrative::DilemmaDef> = Vec::new();
+    let mut arc_asks: Vec<crate::asks::AskDef> = Vec::new();
+    let mut arc_scenes: Vec<crate::narrative::SceneDef> = Vec::new();
+    let mut arc_overheard: Vec<OverheardDef> = Vec::new();
     let mut policy_families: Vec<crate::policy_family::PolicyFamilyDef> = Vec::new();
     let mut family_params: Option<(crate::policy_family::FamilyParams, String)> = None;
     // (pack directory, path, patch): applied after every family is loaded.
@@ -744,6 +760,41 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::Arcs {
+                items,
+                dilemmas: ds,
+                asks: aks,
+                scenes: ss,
+                overheard: os,
+            } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        arcs.push(x);
+                    }
+                }
+                // What an arc's beats name, in the registries they ride on
+                // (appended once every file is read).
+                for x in ds {
+                    if claim(&x.id, &mut issues) {
+                        arc_dilemmas.push(x);
+                    }
+                }
+                for x in aks {
+                    if claim(&x.id, &mut issues) {
+                        arc_asks.push(x);
+                    }
+                }
+                for x in ss {
+                    if claim(&x.id, &mut issues) {
+                        arc_scenes.push(x);
+                    }
+                }
+                for x in os {
+                    if claim(&x.id, &mut issues) {
+                        arc_overheard.push(x);
+                    }
+                }
+            }
             ContentFile::PolicyFamilies { items } => {
                 for x in items {
                     if claim(&x.id, &mut issues) {
@@ -766,6 +817,10 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             }
         }
     }
+    dilemmas.extend(arc_dilemmas);
+    asks.extend(arc_asks);
+    scenes.extend(arc_scenes);
+    overheard.extend(arc_overheard);
 
     let Some((tuning, _)) = tuning else {
         issues.push(Issue::error("<content>", "no tuning file found"));
@@ -899,6 +954,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         endings,
         policy_families,
         policy_family_params: family_params.map(|(p, _)| p).unwrap_or_default(),
+        arcs,
     };
     issues.extend(validate_bundle(&bundle));
     if issues.iter().any(|i| i.severity == Severity::Error) {

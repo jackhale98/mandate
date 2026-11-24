@@ -964,6 +964,113 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             seen.insert(k.into());
         }
     }
+    // --- Staged arcs (DEC-109): a run's own readings, and `arc` -------------------
+    {
+        use mandate_sim::arcs::{ArcActor, ArcCastEntry, ArcId, ArcRun};
+        use mandate_sim::world::Area;
+        let mut w3 = world();
+        let content = w3.e.content_arc();
+        let today = w3.e.state().calendar.date;
+        let (town, hood) = (w3.town, w3.hood);
+        let at = Jurisdiction::town(town);
+        let since = mandate_core::SimDate(today.0 - 10);
+        let run = ArcRun {
+            id: ArcId(0),
+            template: "arc.flood".into(),
+            at,
+            cast: vec![ArcCastEntry {
+                role: "hood".into(),
+                actor: ArcActor::Area {
+                    area: Area::Hood { id: hood },
+                },
+            }],
+            stage: "counting".into(),
+            since,
+            started: since,
+            began: since,
+            clock: None,
+            heat: 0.5,
+            marks: vec!["seen".into()],
+            done: Vec::new(),
+            open: Vec::new(),
+            base: vec![("hood.damage".into(), 1000), ("hood.homes".into(), 40)],
+            root: None,
+        };
+        let held = |e: &Engine, s: &str, run: Option<&ArcRun>, here: Option<Location>| {
+            let st = e.state();
+            let r = Reads::of_state(st, &content);
+            let v = View::new(&r, &st.politics);
+            let mut cx = Ctx::new(&v, Some(st), Some(at));
+            cx.arc = run;
+            cx.here = here;
+            let mut a = Args::new();
+            (condition::holds(&cx, &parse(s), &mut a), a)
+        };
+        let on = |s: &str| held(&w3.e, s, Some(&run), None);
+        assert!(on(r#"{ "type": "arc_mark", "mark": "seen" }"#).0);
+        assert!(!on(r#"{ "type": "arc_mark", "mark": "other" }"#).0);
+        assert!(on(r#"{ "type": "arc_mark", "mark": "other", "is": false }"#).0);
+        assert!(on(r#"{ "type": "arc_heat", "min": 0.4, "max": 0.6 }"#).0);
+        assert!(!on(r#"{ "type": "arc_heat", "min": 0.6 }"#).0);
+        assert!(on(r#"{ "type": "arc_days", "min": 10, "max": 10 }"#).0);
+        assert!(!on(r#"{ "type": "arc_days", "min": 11 }"#).0);
+        // Nobody is away and nothing is damaged now: all of what was
+        // damaged as the run was raised is repaired.
+        let (ok, a) = on(r#"{ "type": "displaced", "slot": "hood", "max": 0.0 }"#);
+        assert!(ok && a["away"] == "0", "{a:?}");
+        assert!(!on(r#"{ "type": "displaced", "slot": "hood", "min": 0.01 }"#).0);
+        let (ok, a) = on(r#"{ "type": "recovered", "slot": "hood", "min": 1.0 }"#);
+        assert!(ok && a["homes"] == "40" && a["repaired"] == "40", "{a:?}");
+        // Without bounds they are readings: they always hold.
+        assert!(on(r#"{ "type": "displaced", "slot": "hood" }"#).0);
+        assert!(on(r#"{ "type": "recovered", "slot": "hood" }"#).0);
+        // A role the run does not have, or no run at all: never.
+        assert!(!on(r#"{ "type": "displaced", "slot": "nowhere" }"#).0);
+        for s in [
+            r#"{ "type": "arc_mark", "mark": "seen" }"#,
+            r#"{ "type": "arc_heat", "min": 0.0 }"#,
+            r#"{ "type": "arc_days", "min": 0 }"#,
+            r#"{ "type": "displaced", "slot": "hood" }"#,
+            r#"{ "type": "recovered", "slot": "hood" }"#,
+        ] {
+            assert!(!held(&w3.e, s, None, None).0, "{s} held with no run");
+        }
+        // `arc`: a run of this arc at one of these stages here; with
+        // `here`, only where that role of the run is.
+        let arc = r#"{ "type": "arc", "arc": "arc.flood", "stages": ["counting"] }"#;
+        let here = r#"{ "type": "arc", "arc": "arc.flood", "here": "hood" }"#;
+        let street = |h: NeighborhoodId| Some(Location::Street { neighborhood: h });
+        assert!(!held(&w3.e, arc, None, None).0, "no run yet");
+        w3.e.setup(|st| st.arcs.runs.push(run.clone()));
+        assert!(held(&w3.e, arc, None, None).0);
+        assert!(
+            !held(
+                &w3.e,
+                r#"{ "type": "arc", "arc": "arc.flood", "stages": ["struck"] }"#,
+                None,
+                None
+            )
+            .0
+        );
+        assert!(held(&w3.e, here, None, street(hood)).0);
+        let other = w3.e.state().world.municipalities[town.index()]
+            .neighborhoods
+            .iter()
+            .copied()
+            .find(|h| *h != hood)
+            .unwrap();
+        assert!(!held(&w3.e, here, None, street(other)).0);
+        for k in [
+            "arc",
+            "arc_mark",
+            "arc_heat",
+            "arc_days",
+            "displaced",
+            "recovered",
+        ] {
+            seen.insert(k.into());
+        }
+    }
     // Every variant was evaluated.
     let missing: Vec<String> = every_variant().difference(&seen).cloned().collect();
     assert!(missing.is_empty(), "not evaluated: {missing:?}");

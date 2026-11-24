@@ -74,6 +74,10 @@ pub struct Ctx<'a> {
     /// The event log, where the whole state is not at hand (the policy
     /// families system reads it for `plant_closure`).
     pub events: Option<&'a crate::events::EventLog>,
+    /// An arc run (DEC-109): its marks, heat and days, and what its roles
+    /// are cast to (`arc_mark`, `arc_heat`, `arc_days`, `displaced`,
+    /// `recovered`).
+    pub arc: Option<&'a crate::arcs::ArcRun>,
 }
 
 impl<'a> Ctx<'a> {
@@ -90,6 +94,7 @@ impl<'a> Ctx<'a> {
             story: Cell::new(None),
             family: None,
             events: None,
+            arc: None,
         }
     }
 
@@ -291,11 +296,29 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             args.insert("jobs".into(), jobs.to_string());
             true
         }
-        C::Disaster { within_months } => {
+        C::Disaster {
+            within_months,
+            hazard: None,
+        } => {
             v.r.economy()
                 .munis
                 .get(m as usize)
                 .is_some_and(|e| e.months_since_disaster < *within_months)
+        }
+        // Of one hazard: the environment's footprint (homes it damaged
+        // that are not yet repaired).
+        C::Disaster {
+            within_months,
+            hazard: Some(k),
+        } => {
+            let kind = crate::arcs::cast::hazard_kind(*k);
+            let days = u32::from(*within_months) * 30;
+            let env = v.r.environment();
+            v.r.world.hoods_of(MunicipalityId(m)).any(|h| {
+                env.damage(NeighborhoodId(h as u32)).is_some_and(|d| {
+                    d.hazard == kind && d.struck <= today && d.struck.days_until(today) < days
+                })
+            })
         }
         C::LawInForce { templates, absent } => {
             let any = v.r.policy().in_municipality(m).any(|p| {
@@ -848,6 +871,64 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
                     .is_some_and(|p| p.is_open());
             open == matches!(c, C::PlaceOpen { .. })
         }
+        // --- Staged arcs (DEC-109) ---------------------------------------------------
+        C::Arc { arc, stages, here } => {
+            let (Some(at), Some(arcs)) = (cx.at, v.r.arcs()) else {
+                return false;
+            };
+            arcs.runs.iter().any(|run| {
+                run.at == at
+                    && &run.template == arc
+                    && (stages.is_empty() || stages.contains(&run.stage))
+                    && here.as_ref().is_none_or(|role| arc_here(cx, run, role))
+            })
+        }
+        C::ArcMark { mark, is } => cx.arc.is_some_and(|r| r.has_mark(mark) == *is),
+        C::ArcHeat { min, max } => cx
+            .arc
+            .is_some_and(|r| in_range(f64::from(r.heat), *min, *max)),
+        C::ArcDays { min, max } => cx
+            .arc
+            .is_some_and(|r| in_range(f64::from(r.days_in_stage(today)), *min, *max)),
+        C::Displaced { slot, min, max } => {
+            let Some(area) = cx.arc.and_then(|r| r.area(slot)) else {
+                return false;
+            };
+            let (away, all) = crate::arcs::cast::away(v.r, area);
+            let share = if all > 0 {
+                away as f64 / all as f64
+            } else {
+                0.0
+            };
+            if !in_range(share, *min, *max) {
+                return false;
+            }
+            args.insert("away".into(), away.to_string());
+            true
+        }
+        C::Recovered { slot, min, max } => {
+            let Some((run, area)) = cx.arc.and_then(|r| Some((r, r.area(slot)?))) else {
+                return false;
+            };
+            // Against the damage as the run was raised.
+            let base = run.base(&format!("{slot}.damage")).unwrap_or(0);
+            let now = crate::arcs::cast::damage(v.r, area, None);
+            let share = if base == 0 {
+                1.0
+            } else {
+                (1.0 - now as f64 / base as f64).clamp(0.0, 1.0)
+            };
+            if !in_range(share, *min, *max) {
+                return false;
+            }
+            let homes = run.base(&format!("{slot}.homes")).unwrap_or(0);
+            args.insert("homes".into(), homes.to_string());
+            args.insert(
+                "repaired".into(),
+                ((homes as f64 * share).round() as u64).to_string(),
+            );
+            true
+        }
         // --- Composition -------------------------------------------------------------
         C::Any { of } => {
             for x in of {
@@ -859,6 +940,19 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             }
             false
         }
+    }
+}
+
+/// Whether what is said or done here is where a role of an arc run is: its
+/// place, or anywhere in its area.
+fn arc_here(cx: &Ctx<'_>, run: &crate::arcs::ArcRun, role: &str) -> bool {
+    use crate::arcs::ArcActor;
+    match (run.actor(role), cx.here) {
+        (Some(ArcActor::Place { id }), Some(Location::Place { place })) => id == place,
+        (Some(ArcActor::Area { area }), Some(_)) => cx
+            .here_hood()
+            .is_some_and(|h| area.hoods(cx.v.r.world).contains(&h.index())),
+        _ => false,
     }
 }
 

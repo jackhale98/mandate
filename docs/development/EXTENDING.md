@@ -264,6 +264,24 @@ An ask is a concrete request with a deadline, made to the player by someone with
 
 Read API for other systems: `AskState::due_within(date, days)` (the time skip's `request_due` interrupt reads the accepted ones), `promise_outcomes()` (the Legacy record), `deeds_since(date)` (the player's deed log), `history_of(asker)`. Lab: `bots --careers Y` prints each career's `asks` tally and per-template counts.
 
+### Adding an arc (staged arcs, DEC-109)
+
+An arc is one matter in one jurisdiction that unfolds in stages: a cast bound to real people and places, a clock, a heat, marks, and exits with consequences. Design: `docs/design/STAGED_ARCS.md`. The engine is `mandate_sim::arcs` (its own domain, `State.arcs`); the content is one file an arc, `content/base/arcs/<name>.jsonc` (kind `arcs`), which also carries the dilemmas, asks, scenes and overheard lines its beats name (`dilemmas`, `asks`, `scenes`, `overheard`: they join the same registries, after every other file's items, so an arc never shifts the registry order that breaks ties and keys draws); the text is `locale/en/arcs.ftl`. Types: `mandate-content/src/arcs.rs`. The worked example is `arcs/flood.jsonc`.
+
+- **Transitions read; beats write.** A stage's `next` edges fire, in order, on conditions over simulated state, the run's marks, heat and days (`arc_mark`, `arc_heat`, `arc_days`), `after_days` in the stage, and `clock_within_days`. Nothing a player picks names a stage: a beat sets a mark (`sets`) and posts effects, and the edges read the result. Write every stage a drift edge (what happens when nobody acts) and a lever edge (a mark or a state change an act produces). The last edge of every stage is on time alone; validation refuses a stage that could last for ever.
+- **Raise and cast.** `raise` is conditions at a jurisdiction, never the ledger. `roles` bind in order, relative to the arc's jurisdiction: `occupation` (a named person there; `near` an area role), `post` (whoever holds a post with a power: never an office's name), `area` (one level down: `most_exposed` to a hazard, `least_pleased`), `place` (of a kind, `near` an area), `jurisdiction` (`parent`). A role may be `optional`: beats and effects naming an empty role are skipped. `given` are conditions on the cast as bound (a flood that sent nobody from their home raises no arc). `tiers` lists where it may run, and every condition is checked against each: a local-only condition (`disaster`, `law_in_force`) keeps an arc local.
+- **Beats** (seven kinds, each on a system that exists):
+  - `decision`: a dilemma with `storyline_only: true` whose roles are roles of the arc (people and areas); `on` maps an option to a mark, a heat change and effects. A default at the deadline counts.
+  - `ask`: an ask template with `"from": ["arc"]`, offered from a cast person; the beat is done when the ask is kept.
+  - `talk`: a `choice` in a conversation with a cast person (a talk hook): replies with conditions on `speaker`, `player`, the arc's roles and its marks; one that `agrees` does the beat.
+  - `visit`: a verb at a cast place or on the streets of a cast neighbourhood. Its `verb_key` is a button: no arguments.
+  - `press`: a headline the town's outlets may run. `heard`: an overheard line whose own conditions name the arc and the stage (`{ "type": "arc", "arc": …, "stages": […], "here": "<role>" }`). `move`: a cast person acts, a keyed weekly draw at `weight`, likelier for the bold and for someone who thinks little of the player.
+  - A beat is offered while its stage lasts, its roles are cast and its `when` holds; `once` (default) means once a run; `relief` lowers heat when it is done.
+- **Effects** (`effects`, a stage's `enter`, an exit's): `opinion` (with a memory), `approval` (an area role), `favour`, `record`, `standing`, `recovery` (repairs in an area run `repair` times as fast for `months`), `displacement` (those still away leave for good), `heat` (the run's own). Each may be gated with `when` and `unless`. They are requests to the owning systems; an exit needs at least one, and at least three exits is the rule.
+- **Text** by kind: `arc-*` (a stage's story so far, an exit's ending: one or two sentences, present tense, a fact and a date), `headline-arc-*`, `visit-arc-*`, `outcome-arc-*`, `talk-arc-*`, `skip-item-arc-*` (a move), `legacy-arc-*`. Arguments: each role as `$<role>` (and a person's `$<role>_role` in what the view renders: stages, headlines, moves), `$place`, `$day` and `$month` (when it began), `$weeks`, `$clock_day`, and the arguments of the arc's `facts` (conditions evaluated for their arguments: `displaced` gives `$away`, `recovered` gives `$homes` and `$repaired`). Validation checks every key exists and uses only what the arc provides. Numbers arrive as strings: write so that 0 and 1 read, or make a condition (`given`, a beat's `when`) rule them out.
+- **Not yet.** `mandate_content::arcs::not_yet` lists what a template uses that the engine does not do yet (a `subject` cast, a clock read from the subject, `gov_approval`, `place_state`, any `requires`): such a template validates and is never raised. `inert` lists what is parsed for later tasks (`hidden`, `climax`, `goals`, `teaches`, `sides`, `answers`, `opportunity`, `follow_up`, `legacy_key`).
+- **Check it.** `content validate` (the graph, the marks, the roles, the keys), then play it: `mandate-worldgen/tests/arcs.rs` plants a flood and walks a passive and an engaged script; `arcs::beats::offers(state, content)` lists what a player can do now as the command that does it.
+
 ### Media, scandals, and the legal path (DEC-034, DEC-006)
 
 Two domains: `State::media` (`mandate_sim::media`: outlets, knowledge, stories, scandals, rumours) and `State::justice` (`mandate_sim::justice`: cases and bars from office). Both run only while play is on (outlets exist), never in the history warm-up.
@@ -390,6 +408,9 @@ Every condition content writes is one type, `Condition` (`mandate-content/src/co
 | `knows` | generic | framing only: scene variants, conversations, overheard lines |
 | `player_knows`, `tells` | generic | conversations only |
 | `voice`, `about`, `concern of: speaker` | generic | conversations only (`voice` not in a voice's own conditions) |
+| `arc` (a run of an arc is at one of these stages here) | generic | everywhere outside an arc's own conditions; with `here` (where a role of the run is), where there is a place |
+| `arc_mark`, `arc_heat`, `arc_days`, `displaced`, `recovered` | generic | inside an arc only: its edges, its beats' and effects' gates, its `given` and `facts`, and the replies to its choice in a conversation |
+| `disaster` with a `hazard` | local | as `disaster`; it reads the hazard's unrepaired damage, so a strike that damaged no home does not count |
 | `any` | its alternatives' | each alternative where it is allowed |
 
 #### Adding a condition

@@ -22,6 +22,7 @@ pub mod audit;
 pub mod cast;
 pub mod director;
 pub mod learn;
+pub mod offered;
 pub mod resolve;
 
 use crate::characters::CharacterId;
@@ -259,6 +260,10 @@ pub struct Decision {
     /// The story or case a raised decision answers.
     #[serde(default)]
     pub about: Option<About>,
+    /// The arc run and beat that opened it (DEC-109): the run reads its
+    /// answer from here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arc: Option<crate::arcs::ArcRef>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

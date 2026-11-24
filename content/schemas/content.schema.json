@@ -398,6 +398,574 @@
       ],
       "type": "object"
     },
+    "ArcBeat": {
+      "description": "Something a stage offers. `ArcBeat`, because `narrative::BeatDef` is a\nscene's spoken line.",
+      "oneOf": [
+        {
+          "description": "A dilemma with the arc's cast (roles of the same ids). `on`: what\neach option does to the run; a default at the deadline counts.",
+          "properties": {
+            "dilemma": {
+              "type": "string"
+            },
+            "on": {
+              "additionalProperties": {
+                "$ref": "#/$defs/OptionOutcome"
+              },
+              "type": "object"
+            },
+            "type": {
+              "const": "decision",
+              "type": "string"
+            },
+            "weight": {
+              "$ref": "#/$defs/BeatWeight",
+              "default": "significant"
+            }
+          },
+          "required": [
+            "type",
+            "dilemma"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An ask (`from: [\"arc\"]`) from a cast person; the beat is done when\nit is kept.",
+          "properties": {
+            "asker": {
+              "type": "string"
+            },
+            "template": {
+              "type": "string"
+            },
+            "type": {
+              "const": "ask",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "template",
+            "asker"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The arc's own choice in a conversation with a cast person.",
+          "properties": {
+            "choice": {
+              "$ref": "#/$defs/ArcChoiceDef"
+            },
+            "type": {
+              "const": "talk",
+              "type": "string"
+            },
+            "with": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "with",
+            "choice"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Something to do at a cast place or in a cast area.",
+          "properties": {
+            "at": {
+              "type": "string"
+            },
+            "outcome_key": {
+              "type": "string"
+            },
+            "time": {
+              "$ref": "#/$defs/VisitTime",
+              "default": "slot"
+            },
+            "type": {
+              "const": "visit",
+              "type": "string"
+            },
+            "verb_key": {
+              "description": "The button (no arguments: the place lists it).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "at",
+            "verb_key",
+            "outcome_key"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A story the outlets may run.",
+          "properties": {
+            "headline_key": {
+              "type": "string"
+            },
+            "type": {
+              "const": "press",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "headline_key"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An overheard line that holds while the stage does (its own\nconditions name the arc).",
+          "properties": {
+            "line": {
+              "type": "string"
+            },
+            "type": {
+              "const": "heard",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "line"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A cast person acts: a keyed weekly draw at `weight`, scaled by\ntheir boldness.",
+          "properties": {
+            "actor": {
+              "type": "string"
+            },
+            "line_key": {
+              "description": "How Today and the skip summary report it.",
+              "type": "string"
+            },
+            "type": {
+              "const": "move",
+              "type": "string"
+            },
+            "weight": {
+              "format": "float",
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "actor",
+            "weight",
+            "line_key"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "effects": {
+          "description": "Effects when it is done.",
+          "items": {
+            "$ref": "#/$defs/GatedEffect"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Unique in its stage.",
+          "type": "string"
+        },
+        "once": {
+          "default": true,
+          "description": "Done at most once in a run (default).",
+          "type": "boolean"
+        },
+        "relief": {
+          "default": 0.0,
+          "description": "Heat it lowers when done.",
+          "format": "float",
+          "type": "number"
+        },
+        "sets": {
+          "description": "A mark set when it is done.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "teaches": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Level"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What doing it teaches about the arc (task A3)."
+        },
+        "when": {
+          "description": "Offered while these hold (the run's marks, heat and days; state).",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "ArcCast": {
+      "description": "How a role binds to something real, relative to the arc's jurisdiction.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "A named person there with one of these occupations (in list order,\nthen the most influential); with `near`, one who lives in that area\nrole first.",
+          "properties": {
+            "near": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "occupations": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "occupation",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "occupations"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Whoever holds a post there whose constitution lists this power (not\nthe player; an office before a seat).",
+          "properties": {
+            "power": {
+              "$ref": "#/$defs/Power"
+            },
+            "type": {
+              "const": "post",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "power"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An area one level down: of a town, a neighbourhood.",
+          "properties": {
+            "hazard": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/HazardKey"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The hazard `most_exposed` reads."
+            },
+            "pick": {
+              "$ref": "#/$defs/AreaPick"
+            },
+            "type": {
+              "const": "area",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "pick"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An open place of one of these kinds (in list order); with `near`,\none in that area role first.",
+          "properties": {
+            "kinds": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "near": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "place",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "kinds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Another jurisdiction.",
+          "properties": {
+            "pick": {
+              "$ref": "#/$defs/JurisdictionPick"
+            },
+            "type": {
+              "const": "jurisdiction",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "pick"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "What raised the arc (a plant, a fact). Not yet: task A5.",
+          "properties": {
+            "type": {
+              "const": "subject",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ArcChoiceDef": {
+      "additionalProperties": false,
+      "description": "The arc's own choice in a conversation with a cast person (a talk\nhook): the button, what the player says, and the replies, the first\nwhose conditions hold being said. The last has no conditions.",
+      "properties": {
+        "label_key": {
+          "type": "string"
+        },
+        "replies": {
+          "items": {
+            "$ref": "#/$defs/ArcReplyDef"
+          },
+          "type": "array"
+        },
+        "say_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "label_key",
+        "say_key",
+        "replies"
+      ],
+      "type": "object"
+    },
+    "ArcDef": {
+      "additionalProperties": false,
+      "description": "An arc template.",
+      "properties": {
+        "answers": {
+          "description": "Policy templates NPC agendas favour while it runs (task A2).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cooldown_days": {
+          "default": 0,
+          "description": "Days before it may be raised again in the same jurisdiction.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "facts": {
+          "description": "Readings for the text: conditions evaluated for their arguments\nonly (one without bounds always holds), with the arc's roles.",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
+        "given": {
+          "description": "Conditions on the cast as bound (the arc's roles as slots): a run\nis raised only if they hold, so a matter too small to tell raises\nnone (a flood that sent nobody from their home).",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
+        "heat": {
+          "$ref": "#/$defs/HeatDef",
+          "default": {
+            "start": 0.0
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "min_career_days": {
+          "default": 0,
+          "description": "Days since play began before it may be raised.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "opportunity": {
+          "default": false,
+          "description": "An opportunity: the director times its arrival (task A2).",
+          "type": "boolean"
+        },
+        "raise": {
+          "description": "Conditions over simulated state at a jurisdiction; never the ledger.",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
+        "requires": {
+          "description": "Engine features it needs (`parties.membership`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/ArcRoleDef"
+          },
+          "type": "array"
+        },
+        "sides": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Sides"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "For stand-in players and the opening frame (task A4)."
+        },
+        "stages": {
+          "description": "The first stage is where a run starts.",
+          "items": {
+            "$ref": "#/$defs/StageDef2"
+          },
+          "type": "array"
+        },
+        "themes": {
+          "description": "Chapter themes it carries (`crisis`, `scheme`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tiers": {
+          "description": "Where it may run.",
+          "items": {
+            "$ref": "#/$defs/TierKey"
+          },
+          "type": "array"
+        },
+        "title_key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title_key",
+        "tiers",
+        "raise",
+        "roles",
+        "stages"
+      ],
+      "type": "object"
+    },
+    "ArcReplyDef": {
+      "additionalProperties": false,
+      "properties": {
+        "agrees": {
+          "default": false,
+          "description": "They agree: the beat is done, and its own `sets`, `relief` and\n`effects` apply after this reply's.",
+          "type": "boolean"
+        },
+        "effects": {
+          "items": {
+            "$ref": "#/$defs/GatedEffect"
+          },
+          "type": "array"
+        },
+        "key": {
+          "type": "string"
+        },
+        "sets": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "teaches": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Level"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the reply teaches about the arc (task A3)."
+        },
+        "when": {
+          "description": "Slots `speaker` and `player`, the arc's roles, the run's marks.",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "type": "object"
+    },
+    "ArcRoleDef": {
+      "additionalProperties": false,
+      "properties": {
+        "cast": {
+          "$ref": "#/$defs/ArcCast"
+        },
+        "id": {
+          "description": "Role id: a Fluent argument (`$steward`, `$steward_role`, `$hood`)\nand the slot conditions name.",
+          "type": "string"
+        },
+        "optional": {
+          "default": false,
+          "description": "The arc runs without it (beats and effects naming it are skipped).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "cast"
+      ],
+      "type": "object"
+    },
     "AreaDef": {
       "description": "Where an option applies.",
       "oneOf": [
@@ -450,6 +1018,20 @@
             "slot"
           ],
           "type": "object"
+        }
+      ]
+    },
+    "AreaPick": {
+      "oneOf": [
+        {
+          "const": "most_exposed",
+          "description": "The area where the hazard damaged the largest share of homes (those\nnot yet repaired); where a strike fell evenly, where most people\nare away; else the most exposed to it.",
+          "type": "string"
+        },
+        {
+          "const": "least_pleased",
+          "description": "The area least pleased with the player (where a crisis bites).",
+          "type": "string"
         }
       ]
     },
@@ -628,6 +1210,11 @@
         {
           "const": "talked_about",
           "description": "The player asked around about someone (a conversation about them\nwithin `talked_about_days`): that person asks.",
+          "type": "string"
+        },
+        {
+          "const": "arc",
+          "description": "An arc's `ask` beat (DEC-109): offered only by a run, with its cast.",
           "type": "string"
         }
       ]
@@ -970,6 +1557,15 @@
         "line"
       ],
       "type": "object"
+    },
+    "BeatWeight": {
+      "description": "A beat's weight in the chapter's budgets (task A2).",
+      "enum": [
+        "climax",
+        "significant",
+        "minor"
+      ],
+      "type": "string"
     },
     "BillSponsor": {
       "description": "Who sponsored a cast bill.",
@@ -2270,6 +2866,45 @@
       ],
       "type": "string"
     },
+    "ClockDef": {
+      "additionalProperties": false,
+      "description": "A stage's deadline: a keyed draw in a range of days from its entry, or\n(not yet) the subject's own date.",
+      "properties": {
+        "days": {
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "from": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClockFrom"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ClockFrom": {
+      "oneOf": [
+        {
+          "const": "subject",
+          "description": "The date the simulation owns (a review, a forecast). Not yet: A5.",
+          "type": "string"
+        }
+      ]
+    },
     "CommunityDef": {
       "additionalProperties": false,
       "description": "A community (DEC-075): a cohort dimension beside age band and income\nclass. Every neighbourhood holds age × class cohorts for each community.\nRegistry order is load order (files by path, then item order). The base\npack ships one community, so the dimension costs nothing until an\nexpansion adds another (an Indigenous nation, an immigrant community, a\nlinguistic minority).",
@@ -2603,8 +3238,18 @@
         },
         {
           "additionalProperties": false,
-          "description": "A disaster struck the town within this many months.",
+          "description": "A disaster struck the town within this many months; with `hazard`,\none of that kind whose damage is not yet repaired (the environment's\nfootprint: a strike that damaged no home does not count).",
           "properties": {
+            "hazard": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/HazardKey"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "type": {
               "const": "disaster",
               "type": "string"
@@ -4038,6 +4683,214 @@
         },
         {
           "additionalProperties": false,
+          "description": "A run of this arc is at one of these stages (any, if empty) in the\njurisdiction: for overheard lines, topics and whatever holds while a\nstage does. With `here`, only where that role of the run is: its\nplace, or a place or street in its area.",
+          "properties": {
+            "arc": {
+              "type": "string"
+            },
+            "here": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "stages": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "arc",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "arc"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The run has (or has not) this mark. Inside an arc only.",
+          "properties": {
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "mark": {
+              "type": "string"
+            },
+            "type": {
+              "const": "arc_mark",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "mark"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The run's heat within [min, max] (0..1). Inside an arc only.",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "arc_heat",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Days since the run's current stage was entered, within [min, max].\nInside an arc only.",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "arc_days",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The share of the residents of the area cast in `slot` who are\nstaying elsewhere after a disaster, within [min, max] (0..1; without\nbounds it always holds): `$away` (people). Inside an arc only.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "displaced",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The share of the homes damaged in the area cast in `slot` when the\narc was raised that are repaired, within [min, max] (0..1; without\nbounds it always holds): `$homes` (damaged then), `$repaired`.\nInside an arc only.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "recovered",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Any one of these holds (the first that does gives the arguments).",
           "properties": {
             "of": {
@@ -5393,6 +6246,16 @@
       ],
       "type": "object"
     },
+    "DisplacedOf": {
+      "description": "Who a displacement effect moves.",
+      "oneOf": [
+        {
+          "const": "still_away",
+          "description": "Those still staying away from the area: they leave for good.",
+          "type": "string"
+        }
+      ]
+    },
     "DistrictAppears": {
       "additionalProperties": false,
       "description": "When a district type may be chosen. Among the eligible types the\ngenerator picks by weighted rendezvous hashing.",
@@ -5942,6 +6805,41 @@
         "pension_replacement",
         "tech_growth",
         "manufacturing_trend"
+      ],
+      "type": "object"
+    },
+    "EdgeDef": {
+      "additionalProperties": false,
+      "description": "An edge fires when every part given holds: its conditions, the days\nsince the stage was entered, and the clock.",
+      "properties": {
+        "after_days": {
+          "default": 0,
+          "description": "At least this many days in the stage.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "clock_within_days": {
+          "description": "The clock is at most this many days away (0: it has run out).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "to": {
+          "type": "string"
+        },
+        "when": {
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "to"
       ],
       "type": "object"
     },
@@ -6738,6 +7636,56 @@
         }
       ]
     },
+    "ExitDef": {
+      "additionalProperties": false,
+      "properties": {
+        "effects": {
+          "description": "Effect requests to the owning systems, each gated on the run.",
+          "items": {
+            "$ref": "#/$defs/GatedEffect"
+          },
+          "type": "array"
+        },
+        "follow_days": {
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "follow_up": {
+          "description": "An arc that may follow (task A2).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headline_key": {
+          "description": "A story the outlets may run as it ends.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "legacy_key": {
+          "description": "The Legacy record's line (task A2).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "effects"
+      ],
+      "type": "object"
+    },
     "ExperienceWeights": {
       "additionalProperties": false,
       "properties": {
@@ -7422,6 +8370,254 @@
       ],
       "type": "object"
     },
+    "GatedEffect": {
+      "description": "An effect, applied when every `when` holds and no `unless` does (the\nrun's marks, heat and days; simulated state).",
+      "oneOf": [
+        {
+          "description": "The role's opinion of the player, remembered as `memory` if given.",
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "memory": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "opinion",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Approval of the player in an area role (−1..1), by income class\n(empty: all).",
+          "properties": {
+            "area": {
+              "type": "string"
+            },
+            "classes": {
+              "items": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "approval",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "area",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A favour: the player owes the role one (or the reverse).",
+          "properties": {
+            "owed_to_player": {
+              "default": false,
+              "type": "boolean"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "favour",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The player's record of visible work (0..1).",
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "record",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The player's Standing.",
+          "properties": {
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "standing",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Damaged homes in an area role are repaired `repair` times as fast\nfor `months` months (the environment applies).",
+          "properties": {
+            "area": {
+              "type": "string"
+            },
+            "months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "repair": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "recovery",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "area",
+            "repair",
+            "months"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "People of an area role leave their town (the population applies).",
+          "properties": {
+            "area": {
+              "type": "string"
+            },
+            "of": {
+              "$ref": "#/$defs/DisplacedOf"
+            },
+            "type": {
+              "const": "displacement",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "area",
+            "of"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The run's own heat.",
+          "properties": {
+            "delta": {
+              "format": "float",
+              "type": "number"
+            },
+            "type": {
+              "const": "heat",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Approval of the jurisdiction's government in an area. Not yet: A5b.",
+          "properties": {
+            "area": {
+              "type": "string"
+            },
+            "delta": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "gov_approval",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "area",
+            "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A place's state for the dress pass (boarded, marked). Not yet: A5a.",
+          "properties": {
+            "place": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "type": {
+              "const": "place_state",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "place",
+            "state"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "unless": {
+          "description": "Applied unless all of these hold.",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        },
+        "when": {
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "GeoCondition": {
       "additionalProperties": false,
       "description": "Geography conditions (each a field of the town's geography, §6.5). Every\ncondition given must hold; per-mille ranges are 0..1000.",
@@ -7672,6 +8868,23 @@
         }
       ]
     },
+    "GoalGrant": {
+      "additionalProperties": false,
+      "description": "A goal a role holds while a stage lasts (task A2).",
+      "properties": {
+        "goal": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "goal"
+      ],
+      "type": "object"
+    },
     "GoalHolder": {
       "additionalProperties": false,
       "description": "Who may hold a goal.",
@@ -7863,6 +9076,47 @@
         "rival"
       ],
       "type": "string"
+    },
+    "HeatDef": {
+      "additionalProperties": false,
+      "description": "Heat: one number per run, 0 to 1, in the arc's own domain.",
+      "properties": {
+        "floor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HeatFloor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Heat never falls below this simulated reading."
+        },
+        "start": {
+          "default": 0.0,
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "HeatFloor": {
+      "additionalProperties": false,
+      "description": "A floor on heat: an indicator of the jurisdiction × `scale`.",
+      "properties": {
+        "indicator": {
+          "$ref": "#/$defs/Indicator"
+        },
+        "scale": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "indicator",
+        "scale"
+      ],
+      "type": "object"
     },
     "HiddenSpec": {
       "additionalProperties": false,
@@ -8599,6 +9853,15 @@
         "awareness"
       ],
       "type": "object"
+    },
+    "JurisdictionPick": {
+      "oneOf": [
+        {
+          "const": "parent",
+          "description": "The tier above.",
+          "type": "string"
+        }
+      ]
     },
     "JusticeParams": {
       "additionalProperties": false,
@@ -10978,6 +12241,31 @@
         "id",
         "pieces"
       ],
+      "type": "object"
+    },
+    "OptionOutcome": {
+      "additionalProperties": false,
+      "description": "What an option of a decision beat does to the run.",
+      "properties": {
+        "effects": {
+          "items": {
+            "$ref": "#/$defs/GatedEffect"
+          },
+          "type": "array"
+        },
+        "heat": {
+          "default": 0.0,
+          "description": "Added to the run's heat.",
+          "format": "float",
+          "type": "number"
+        },
+        "sets": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
       "type": "object"
     },
     "OutletDef": {
@@ -13743,6 +15031,23 @@
         }
       ]
     },
+    "Sides": {
+      "additionalProperties": false,
+      "description": "The two sides of an arc, by role.",
+      "properties": {
+        "ally": {
+          "type": "string"
+        },
+        "opponent": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ally",
+        "opponent"
+      ],
+      "type": "object"
+    },
     "SituationTrigger": {
       "additionalProperties": false,
       "description": "A trigger on a jurisdiction's situation: it holds while every `all`\ncondition holds and, when any are given, one of the `any` conditions\ndoes. Situational policies' unlocks and policy families' triggers and\nexpiry (DEC-092).",
@@ -13973,6 +15278,87 @@
           "type": "object"
         }
       ]
+    },
+    "StageDef2": {
+      "additionalProperties": false,
+      "properties": {
+        "beats": {
+          "items": {
+            "$ref": "#/$defs/ArcBeat"
+          },
+          "type": "array"
+        },
+        "climax": {
+          "default": false,
+          "description": "The turn: the chapter's climax when this arc leads (task A2).",
+          "type": "boolean"
+        },
+        "clock": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClockDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A deadline set on entry; later stages keep it until one sets another."
+        },
+        "enter": {
+          "description": "Effects on entry.",
+          "items": {
+            "$ref": "#/$defs/GatedEffect"
+          },
+          "type": "array"
+        },
+        "exit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExitDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A terminal stage."
+        },
+        "goals": {
+          "items": {
+            "$ref": "#/$defs/GoalGrant"
+          },
+          "type": "array"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Not shown until the ledger says so (task A3).",
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "key": {
+          "description": "The story so far (an exit's: how it ended), with the cast and the\narc's facts as arguments.",
+          "type": "string"
+        },
+        "next": {
+          "description": "Edges in priority order, checked weekly and on entry: the first\nthat holds is taken.",
+          "items": {
+            "$ref": "#/$defs/EdgeDef"
+          },
+          "type": "array"
+        },
+        "rise": {
+          "default": 0.0,
+          "description": "Heat added each week the stage lasts.",
+          "format": "float",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "key"
+      ],
+      "type": "object"
     },
     "StartProfile": {
       "additionalProperties": false,
@@ -17745,6 +19131,51 @@
         "kind": {
           "const": "endings",
           "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Staged arcs (DEC-109): one matter in one jurisdiction, in stages.\nA file may carry the dilemmas, asks, scenes and overheard lines its\nbeats name; they join the same registries after every other file's.",
+      "properties": {
+        "asks": {
+          "items": {
+            "$ref": "#/$defs/AskDef"
+          },
+          "type": "array"
+        },
+        "dilemmas": {
+          "items": {
+            "$ref": "#/$defs/DilemmaDef"
+          },
+          "type": "array"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ArcDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "arcs",
+          "type": "string"
+        },
+        "overheard": {
+          "items": {
+            "$ref": "#/$defs/OverheardDef"
+          },
+          "type": "array"
+        },
+        "scenes": {
+          "items": {
+            "$ref": "#/$defs/SceneDef"
+          },
+          "type": "array"
         }
       },
       "required": [

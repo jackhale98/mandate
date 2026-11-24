@@ -688,6 +688,12 @@ fn spot(engine: &Engine, loc: Location) -> SpotView {
         verbs: mandate_sim::visits::verbs_at(st, content, loc)
             .into_iter()
             .map(|v| v.name_key.clone())
+            // An arc's visit beats here (DEC-109).
+            .chain(
+                mandate_sim::arcs::beats::visits_at(st, content, loc)
+                    .into_iter()
+                    .map(|o| o.verb_key),
+            )
             .collect(),
         here: st.player.as_ref().is_some_and(|p| p.location == loc),
     }
@@ -724,6 +730,34 @@ fn verb_offers(engine: &Engine, loc: Location) -> Vec<VerbOfferView> {
                 risk: place.and_then(|p| mandate_sim::visits::risk(st, content, p, v)),
             }
         })
+        // An arc's visit beats here (DEC-109): verbs like any other, done
+        // with the same `Visit` action.
+        .chain(
+            mandate_sim::arcs::beats::visits_at(st, content, loc)
+                .into_iter()
+                .map(|o| {
+                    let why = if !here {
+                        Some("visit-blocked-away".to_string())
+                    } else if !mandate_sim::arcs::beats::has_time(st, o.time) {
+                        Some("visit-blocked-time".to_string())
+                    } else {
+                        None
+                    };
+                    VerbOfferView {
+                        verb: o.verb,
+                        name_key: o.verb_key,
+                        halves: match o.time {
+                            VisitTime::Half => 1,
+                            VisitTime::Slot => 2,
+                        },
+                        health: 0.0,
+                        late_night: false,
+                        available: why.is_none(),
+                        blocked_key: why,
+                        risk: None,
+                    }
+                }),
+        )
         .collect()
 }
 

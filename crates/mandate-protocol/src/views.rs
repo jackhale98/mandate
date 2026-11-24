@@ -169,7 +169,122 @@ fn ask_name_key(engine: &Engine, template: &str) -> String {
         .unwrap_or_default()
 }
 
+/// An arc event's line (DEC-109), until the arc view (task A3): a stage's
+/// story so far (an exit's: how it ended), a story's headline, a cast
+/// person's move, a visit's outcome; with the run's cast by role, the
+/// facts recorded with the event, and its dates. Facts and keys only.
+fn arc_event(e: &DomainEvent, engine: &Engine) -> Option<(String, BTreeMap<String, String>)> {
+    use mandate_content::arcs::BeatKind;
+    use mandate_sim::arcs::{ArcId, cast};
+    let st = engine.state();
+    let content = engine.content();
+    let mut args: BTreeMap<String, String> = BTreeMap::new();
+    let (arc, template, at, key) = match &e.kind {
+        EventKind::ArcRaised { arc, template, at } => {
+            let title = content.arc(template).map(|a| a.title_key.clone());
+            args.insert("title_key".into(), title.unwrap_or_default());
+            (*arc, template, *at, "event-arc-raised".to_string())
+        }
+        EventKind::ArcStage {
+            arc,
+            template,
+            stage: id,
+            at,
+            facts,
+        }
+        | EventKind::ArcEnded {
+            arc,
+            template,
+            exit: id,
+            at,
+            facts,
+        } => {
+            args.extend(facts.iter().cloned());
+            let key = content.arc(template)?.stage(id)?.key.clone();
+            (*arc, template, *at, key)
+        }
+        EventKind::ArcBeat {
+            arc,
+            template,
+            stage,
+            beat,
+            at,
+            kind,
+            ok,
+            facts,
+        } => {
+            args.extend(facts.iter().cloned());
+            args.insert("ok".into(), if *ok { "yes" } else { "no" }.into());
+            let b = content.arc(template)?.stage(stage)?.beat(beat)?;
+            let key = match &b.kind {
+                BeatKind::Press { headline_key } => headline_key.clone(),
+                BeatKind::Move { line_key, .. } => line_key.clone(),
+                BeatKind::Visit { outcome_key, .. } => outcome_key.clone(),
+                BeatKind::Talk { with, .. } => {
+                    args.insert("with_role".into(), with.clone());
+                    "event-arc-talk".into()
+                }
+                _ => format!("event-arc-{kind}"),
+            };
+            (*arc, template, *at, key)
+        }
+        _ => return None,
+    };
+    let _ = template;
+    args.insert("place".into(), cast::jurisdiction_name(&st.world, at));
+    let id = ArcId(arc);
+    if let Some(c) = st.arcs.cast_of(id) {
+        for (role, name) in cast::names(&st.politics, &st.world, c) {
+            args.entry(role).or_insert(name);
+        }
+        // People with their role words (and only as the player knows them).
+        let people: Vec<mandate_sim::narrative::CastEntry> = c
+            .iter()
+            .filter_map(|x| match x.actor {
+                mandate_sim::arcs::ArcActor::Person { id } => {
+                    Some(mandate_sim::narrative::CastEntry {
+                        role: x.role.clone(),
+                        actor: mandate_sim::narrative::Actor::Person { id },
+                    })
+                }
+                _ => None,
+            })
+            .collect();
+        for (k, v) in crate::narrative::cast_args(engine, &people) {
+            args.insert(k, v);
+        }
+        if let Some(role) = args.get("with_role").cloned() {
+            let name = args.get(&role).cloned().unwrap_or_default();
+            args.insert("with".into(), name);
+        }
+    }
+    // A beat's event carries no facts of its own: its run's dates.
+    let began = st
+        .arcs
+        .run(id)
+        .map(|r| r.began)
+        .or_else(|| st.arcs.past.iter().find(|p| p.id == id).map(|p| p.began));
+    if let Some(b) = began {
+        let c = b.calendar();
+        args.entry("day".into()).or_insert(c.day.to_string());
+        args.entry("month_key".into())
+            .or_insert(format!("month-{}", c.month));
+        args.entry("year".into()).or_insert(c.year.to_string());
+        let days = if e.date >= b { b.days_until(e.date) } else { 0 };
+        args.entry("weeks".into()).or_insert((days / 7).to_string());
+    }
+    Some((key, args))
+}
+
 pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
+    if let Some((text_key, args)) = arc_event(e, engine) {
+        return EventView {
+            id: e.id.0,
+            date: DateView::of(e.date),
+            text_key,
+            args,
+        };
+    }
     let mut args = BTreeMap::new();
     let mut put = |k: &str, v: String| {
         args.insert(k.to_string(), v);
@@ -501,6 +616,12 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             put("family", family.clone());
             "event-proposal-lapsed"
         }
+        // An arc's events have their own lines (`arc_event`); one whose
+        // template an update removed has only this.
+        EventKind::ArcRaised { .. }
+        | EventKind::ArcStage { .. }
+        | EventKind::ArcBeat { .. }
+        | EventKind::ArcEnded { .. } => "event-arc-raised",
         EventKind::NationalBudget {
             year,
             balance,
@@ -540,7 +661,10 @@ pub fn overview(engine: &Engine) -> OverviewView {
                     | EventKind::FactDiscoverable { .. }
                     // What the player did is in their action log.
                     | EventKind::PlayerDeed { .. }
-            )
+                    // An arc's first stage tells of its raising.
+                    | EventKind::ArcRaised { .. }
+            ) && !matches!(&e.kind, EventKind::ArcBeat { kind, .. }
+                if kind != "press" && kind != "move")
         })
         .take(15)
         .map(|e| event_view(e, engine))

@@ -578,8 +578,75 @@ pub(crate) fn needs(
     Some(out)
 }
 
+/// Asks domain, Director phase, daily: asks other domains asked for. An
+/// arc's ask beat (DEC-109, `Effect::OfferAsk`) is offered from the run's
+/// cast person with the run's cast, if it can be kept and they have no
+/// ask open; the matter is new, so their cooldown does not hold it back.
+/// A request that cannot be met is dropped (the run asks again).
+pub fn requests(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>) {
+    use crate::scheduler::Effect;
+    let reqs = out.take(|e| matches!(e, Effect::OfferAsk { .. }));
+    if reqs.is_empty() || !r.player.is_some_and(|pl| pl.status.active()) {
+        return;
+    }
+    let pol = r.politics();
+    let v = View::new(r, pol);
+    for q in reqs {
+        let Effect::OfferAsk {
+            template,
+            asker,
+            cast,
+            arc,
+        } = q.effect
+        else {
+            continue;
+        };
+        let Some(t) = r.content.ask(&template) else {
+            continue;
+        };
+        if a.asks.iter().any(|x| x.arc.as_ref() == Some(&arc))
+            || a.open_asks() >= r.content.ask_params.max_open as usize
+        {
+            continue;
+        }
+        let mut preset = vec![CastEntry {
+            role: ROLE_ASKER.into(),
+            actor: Actor::Person { id: asker },
+        }];
+        for role in &t.roles {
+            if let Some(e) = cast.iter().find(|e| e.role == role.id) {
+                preset.push(e.clone());
+            }
+        }
+        let who = asker_of(r, t, asker);
+        a.asker_cooldowns.retain(|(x, _)| *x != who);
+        let Some(c) = cast_one(a, r, &v, t, None, &preset) else {
+            continue;
+        };
+        let before = a.asks.len();
+        offer_caused(a, r, out, c, Some(q.cause));
+        if a.asks.len() > before
+            && let Some(x) = a.asks.last_mut()
+        {
+            x.arc = Some(arc);
+        }
+    }
+}
+
 /// Make an offer.
 fn offer(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>, c: Candidate) {
+    offer_caused(a, r, out, c, None);
+}
+
+/// Make an offer; `prompted`: what led someone to ask, beyond the
+/// template's trigger (an arc's stage).
+fn offer_caused(
+    a: &mut AskState,
+    r: &Reads<'_>,
+    out: &mut Outs<'_>,
+    c: Candidate,
+    prompted: Option<crate::spine::Cause>,
+) {
     let Some(t) = r.content.ask(&c.template) else {
         return;
     };
@@ -605,6 +672,7 @@ fn offer(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>, c: Candidate) {
         race: None,
         answer: None,
         tries: 0,
+        arc: None,
     });
     a.last_offer = Some(r.date);
     a.cooldowns
@@ -618,6 +686,9 @@ fn offer(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>, c: Candidate) {
         crate::spine::Causes::from(crate::spine::Cause::Process(crate::spine::Process::Asks));
     if let Asker::Person { id } = c.asker {
         cause = cause.and(crate::spine::Cause::Actor(id));
+    }
+    if let Some(p) = prompted {
+        cause = cause.and(p);
     }
     out.events.record(
         r.date,

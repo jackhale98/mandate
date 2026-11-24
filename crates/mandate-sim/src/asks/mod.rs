@@ -132,6 +132,10 @@ pub struct Ask {
     /// Casework attempts (each costs a slot).
     #[serde(default)]
     pub tries: u8,
+    /// The arc run and beat that offered it (DEC-109): the run reads how
+    /// it ended from here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arc: Option<crate::arcs::ArcRef>,
 }
 
 impl Ask {

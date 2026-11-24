@@ -1,6 +1,6 @@
 # Staged arcs (S3) and the crisis arc template
 
-**Status:** proposed design (2026-11-24) for DEC-101 item 4 and IMPLEMENTATION_PLAN W3.1. No code yet; the decision record is drafted in §11. It sits on the causal spine (`CAUSAL_SPINE.md`), the experiment runner (SIMULATION_AUDIT, "The experiment runner"), talk hooks (`talk/hooks.rs`) and the one condition language (`mandate_content::Condition`).
+**Status:** accepted design (DEC-109, 2026-11-24) for DEC-101 item 4 and IMPLEMENTATION_PLAN W3.1. Task A1 is built (the arc core and the flood arc from *struck*; save v27); where the build showed this note wrong, the text is corrected in place and marked **(A1)**, and §12 lists every correction. It sits on the causal spine (`CAUSAL_SPINE.md`), the experiment runner (SIMULATION_AUDIT, "The experiment runner"), talk hooks (`talk/hooks.rs`) and the one condition language (`mandate_content::Condition`).
 
 The owner's question: "Do you think these crises will actually be exciting? Or will they just come up as a quick decision vote?" Today a crisis is an indicator past a threshold (`crises.jsonc`), a flag on the town and one dilemma. This note replaces that with one structure, the **arc**: a matter that unfolds in stages the player can see coming, act inside and change. The rule throughout is the plan's first principle: simulate causes, template the changes.
 
@@ -27,7 +27,7 @@ The owner's question: "Do you think these crises will actually be exciting? Or w
    Ordinary commands are levers too: a bill from the arc's `answers` templates is read by `law_in_force`, and NPC agendas already favour those templates.
 6. **Heat: escalation and relief.** One number per run, 0 to 1, in the arc's own domain. It rises by the stage's `rise` each week and by moves; beats done lower it (`relief`); a `floor` ties it to a simulated reading where there is one (job loss, a scandal's own heat). Edges read it (`arc_heat`), the director's tension reads it in place of raw crisis severity, overheard lines grow likelier with it, and street dressing (S7) reads it. It changes no material outcome by itself. The player meets it as people and places, never as a bar.
 7. **Exits.** A terminal stage with an `exit` block: at least three per arc, and at least one reachable with no player act. An exit is reached like any stage. Its `effects` are effect requests to the owning systems (§4.3), and may be gated on marks, so two players at one exit still leave different memories. An exit never repeats what the simulation already did: when a plant closes, the economy removed the jobs; the exit boards the gate, settles who remembers what, and may start a follow-up arc.
-8. **On the spine.** `Thread::Arc(ArcId)`: the raise event opens it, each stage entry `Continues`, each beat is `Prompted`, the exit `Ended`. Sifting, the press, Legacy and conversation callbacks read arcs through the graph with no plumbing of their own.
+8. **On the spine.** `Thread::Arc(ArcId)`: the raise event opens it, each stage entry `Continues`, each beat is `Prompted`, the exit `Ended`. Sifting, the press, Legacy and conversation callbacks read arcs through the graph with no plumbing of their own. **(A1)** A beat's own event *notes* the thread, so the log links it `Continues` to the run's latest event, with its own root beside it (the player's act, the cast person who chose to, the decision's answer). What a beat opens in another domain (a decision, an ask) is `Prompted` by the run's latest event. The raise event's cause is the event that made `raise` true (the strike), linked `Caused`.
 
 **What happens to what exists (decided):**
 - **Storylines fold in.** A storyline is already a staged run with a cast, decisions and branches, and two such machines would drift. `storylines.jsonc` and `StorylineRun` become arcs: the plant storyline becomes §7.1; the rival and favour-debt storylines become `arc.rival` and `arc.favour_debt` with their stages kept. A save migration maps a running storyline to the arc stage of the same id, else ends it as faded. E4's six planned storylines are written as arcs.
@@ -104,7 +104,7 @@ It can never start an arc whose `raise` does not hold, block or force an edge, p
 ```
 
 - **Roles bind to real things** through `ArcCast`, relative to the arc's jurisdiction, never the player's town: `subject` (what raised it: a plant, a disaster, a fact), `occupation` (with `near` or `works_at`), `post` (a holder of a post there by `power`, or by party and faction; never an office's name), `area` (one level down, by `pick`: `most_exposed`, `most_workers_of`, `least_pleased`), `place` (by kind, `near` an area), `jurisdiction` (`parent`), `party_group`, `discoverer`. Each gives Fluent arguments (`$steward`, `$steward_role`, `$plant`, `$hood`); a post's role word comes from the constitution.
-- **New conditions** (U1, each with its tier and arguments): `arc_mark`, `arc_heat`, `arc_days`, and `arc` (a run of this template is at this stage here: for overheard lines and topics); and the readings the first three arcs need: `plant_review` (gives `$parent`, `$day`, `$jobs`, `$gap`, `$kept`), `hazard_forecast`, `displaced` and `recovered` (an area), `hidden_fact` and `case` (a slot), `holds_post` (a slot), `group_opinion` (the share of a party group whose opinion of a slot is under a line). `indicator`, `crisis`, `disaster` and `law_in_force` are promoted from local-only to tier-generic by evaluating over `Area::In { at }`.
+- **New conditions** (U1, each with its tier and arguments): `arc_mark`, `arc_heat`, `arc_days`, and `arc` (a run of this template is at this stage here: for overheard lines and topics); and the readings the first three arcs need: `plant_review` (gives `$parent`, `$day`, `$jobs`, `$gap`, `$kept`), `hazard_forecast`, `displaced` and `recovered` (an area), `hidden_fact` and `case` (a slot), `holds_post` (a slot), `group_opinion` (the share of a party group whose opinion of a slot is under a line). `indicator`, `crisis`, `disaster` and `law_in_force` are promoted from local-only to tier-generic by evaluating over `Area::In { at }`. **(A1)** Built: `arc` (with `here`: where a role of the run is), `arc_mark`, `arc_heat`, `arc_days`, `displaced`, `recovered`, and a `hazard` on `disaster`. Not built yet: the promotion to tier-generic (so the flood runs in towns only), `hazard_forecast`, `plant_review`, `hidden_fact`, `case`, `holds_post`, `group_opinion`. The `area` pick `most_exposed` reads the share of homes the hazard damaged, then who is away, then exposure. An arc also lists `given` (conditions on its cast as bound) and `facts` (the readings its text is given); see §12.
 - **Text keys by kind**, so the prose lint knows the register: `arc-*` (the story so far: one or two sentences, present tense, under 130 characters, a fact and a date), `pitch-*` (the draft's line), `scene-*`, `dilemma-*`, `ask-*`, `talk-arc-*`, `visit-arc-*` (a button), `outcome-arc-*`, `headline-arc-*`, `heard-*`, `skip-item-arc-*` (a move, as Today and the skip summary report it), `legacy-arc-*`.
 
 ### 4.2 Rust sketch
@@ -128,7 +128,14 @@ pub struct ArcRun { pub id: ArcId, pub template: ContentKey, pub at: Jurisdictio
 
 `ArcBeat` is named so because `narrative::BeatDef` is already a scene's spoken line. `Actor` gains `Place`, `Plant`, `Party` and `Jurisdiction`.
 
-**The step.** Arcs are their own domain, stepped weekly before the director (clocks daily: a date comparison). Raise and cast new runs in focus jurisdictions; for each run in id order, apply `rise` and the floor, draw moves, then take the first edge that holds. It reads through `Reads`, writes `ArcsState`, and posts effect requests and events. The director reads `ArcsState` and writes only its own domain: which arc leads, which beats are open. Arcs run with the spotlight off and under the Unfiltered profile; only presentation changes.
+**(A1) As built.** The types are in `mandate-content/src/arcs.rs` and `mandate-sim/src/arcs/mod.rs`; where they differ from the sketch:
+- A run names its stage by id and its marks by name (strings), so a content update that reorders stages cannot move a run; `done` holds one entry a beat; `open` holds the decision and ask beats asked of their owners and not yet settled; `base` holds the readings taken as it was raised (what `recovered` is measured against); `began` is the root event's day. An ended run leaves `runs` for `past` at once. A run is about 1 KB of JSON, not 200 bytes.
+- The arcs' cast has its own actor type (`ArcActor`: a person, an `Area`, a place, a jurisdiction); the narrative's `Actor` is unchanged. A decision or an ask a run opens carries the people and the neighbourhoods of its cast.
+- A decision beat maps an option to what it does to the run with `on: { "<option>": { "sets", "heat", "effects" } }`, not `marks`: the dilemma's own effects are the narrative's and cannot post an arc's requests.
+- `ArcDef` gains `given` (conditions on the cast as bound: a matter too small to tell raises nothing) and `facts` (conditions evaluated for their arguments: the readings the text is given). It has no `frame` yet (A8), a beat no `until` or `same_as`, and a talk beat's `with` is one role.
+- `ArcsState.deferred` holds requests whose applier runs monthly until the month turns (they would otherwise wait outside the state, and a save between would lose them).
+
+**The step.** Arcs are their own domain, stepped weekly before the director (clocks daily: a date comparison). **(A1)** It runs first in the day (the NPC actions phase), not in the director's phase: every request a run posts is then applied by its owner's system the same day, and none is left for the end-of-turn settle step, which drops what it does not know. Until A2 the step also opens a stage's decisions and asks itself (requests `OpenDecision` and `OfferAsk`, applied by the narrative and the asks), on the day the stage is entered. Raise and cast new runs in focus jurisdictions; for each run in id order, apply `rise` and the floor, draw moves, then take the first edge that holds. It reads through `Reads`, writes `ArcsState`, and posts effect requests and events. The director reads `ArcsState` and writes only its own domain: which arc leads, which beats are open. Arcs run with the spotlight off and under the Unfiltered profile; only presentation changes.
 
 ### 4.3 Effects, and who applies them
 
@@ -143,10 +150,12 @@ An `ArcEffect` is `narrative::EffectDef` plus the arc kinds. It reuses the reque
 | `faction_shift { party, faction, delta }` | politics | A wing's strength; the platform, and so the party line, follow |
 | `place_state { place, state }` | places | Boarded, on short time, marked; the dress pass shows it (DEC-099) |
 
+**(A1) As built.** `ArcEffect` is its own short list, not `EffectDef` plus arc kinds: `opinion`, `approval` (an area role), `favour`, `record`, `standing`, `recovery`, `displacement`, and `heat` (the run's own). `recovery { area, repair, months }` was brought forward from A5b (the environment applies it: `Effect::Recovery`, `EnvironmentState::repairs`), because without it the flood had no material lever; its `prep` half waits for the forecast. `gov_approval` and `place_state` parse and are *not yet*: a template that uses one is never raised (`mandate_content::arcs::not_yet`). Two requests were added so that a run can open its own beats: `OpenDecision` (narrative) and `OfferAsk` (asks).
+
 ### 4.4 Saved, bounded, deterministic
 
 - **Saved:** `ArcsState` (one version bump, with the storyline migration). A run is about 200 bytes; `past` keeps 40 summaries (template, place, exit, dates, people, root event). Stage entries and exits are `Notable` events on the spine and age out with everything else. Available beats, the view, the "signed" count and the next stage are derived, never stored.
-- **Determinism:** a new named stream `Stream::Arcs`, keyed draws only: `keyed(seed, Arcs, [tag, arc, stage, beat, week])` for moves, clocks and cast ties. No draw depends on what the player knows. Runs are visited in id order and edges in listed order. A fork (§6) is a copy; dropping it leaves the original's state and hash untouched.
+- **Determinism:** a new named stream `Stream::Arcs`, keyed draws only: `keyed(seed, Arcs, [tag, arc, stage, beat, week])` for moves, clocks and cast ties. **(A1)** The draws are keyed on the existing `Stream::Misc` with the arcs' own tags (`KEY_CLOCK`, `KEY_MOVE`): every named stream's generator is saved in `State.rng`, so a new one would change the hash of every game, arc content or none. A cast draws nothing: ties go to simulated state, then to the lowest id. No draw depends on what the player knows. Runs are visited in id order and edges in listed order. A fork (§6) is a copy; dropping it leaves the original's state and hash untouched.
 
 ### 4.5 What the doctor lints (`content doctor`, kind `arcs`)
 
@@ -264,6 +273,14 @@ Needs the economy to give a closure a fuse (task A5a): a plant whose demand stay
 ### 7.2 `arc.flood`: after the water
 
 Needs a forecast lead on hazards and the `recovery` request (task A5b). Without them the arc starts at *struck*, which is how it is built first (§9).
+
+**(A1) As built** (`content/base/arcs/flood.jsonc`; the JSONC below is the design's and is not what ships until A5b and A6):
+- From *struck*: no *warning* stage and no *passed* exit. `tiers` is `["local"]`: `disaster` and `law_in_force` still read a town.
+- The numbers follow the simulation's rates. Damaged homes are repaired at 8% a month, so a year repairs about 63%: the rebuilding edges read `recovered` at 0.72 by the clock and 0.85 before it (0.7 with a wall voted through), and *counting* turns to *rebuilding* when someone has paid or sent a crew and a fifth is repaired. A strike sends about 1% of a neighbourhood away, so the story reads people away as a count, and `given` asks for one in a thousand.
+- The money decision's lever is `recovery` (repairs twice as fast for eight months, or half as much again for six): the town's own money (`treasury`) waits for A5b, and until then the cost is the player's Standing.
+- The ask is for "a second roof", not the school gym: a town need not have a school. A talk beat was added to *counting* (ask the official for a repair crew), which had nothing a player could do.
+- Exits move the player's approval in the neighbourhood (`approval`), not the government's (`gov_approval`), and board nothing (`place_state`). *Hollowed* sends those still away from the town for good through the population's own `Displacement`.
+- The decisions' text names the organiser and the neighbourhood only: a decision's cast carries people and neighbourhoods, so `$hall`, `$official`, `$above` and the numbers reach the stages, the headlines and the visits, not the dilemmas, until the arc view (A3).
 
 ```jsonc
 { "id": "arc.flood", "title_key": "arc-flood", "themes": ["crisis"], "tiers": ["municipality", "region"], "cooldown_days": 0,
@@ -431,3 +448,27 @@ A3, A4 and one A5 can run together after A1 (disjoint files). A2 is serial with 
   9. **The audition** forks each candidate opening for 39 weeks under passive, engaged and contrarian stand-ins (the skip proxy with directives), scores agency, escalation, visibility, pacing and variety, and offers the best three. The same scorer gates arc content in CI.
 - **Order:** the arc core with the flood arc; the director and the storyline fold; protocol and web beside the stand-ins and grader; the simulated fuses; the three arcs and the rewrite; the audition; frames and the draft.
 - **Dependencies:** DEC-006, DEC-030, DEC-032, DEC-033, DEC-041, DEC-051, DEC-054, DEC-091, DEC-097, DEC-098, DEC-099, DEC-101, DEC-102, DEC-107.
+
+## 12. What task A1 built, and every correction it made to this note
+
+Built (save v27): the arcs domain (`mandate-sim/src/arcs/`: `mod.rs` the state, `cast.rs`, `step.rs`, `beats.rs`, `effects.rs`), the content types and their validation (`mandate-content/src/arcs.rs`), the arc conditions, `Thread::Arc` and the arc events, and the flood arc from *struck* (`content/base/arcs/flood.jsonc`, `locale/en/arcs.ftl`). All seven beat kinds work end to end. Tests: `mandate-worldgen/tests/arcs.rs`, `mandate-save/tests/arcs.rs`, `mandate-cli/src/lab/arcs_games.rs`, and the proof's `with_no_arc_content_every_pin_holds`.
+
+Corrections, each marked **(A1)** where it applies:
+
+| # | The note said | As built, and why |
+|---|---|---|
+| 1 | A new stream `Stream::Arcs` (§4.4) | Keyed draws on `Stream::Misc` with the arcs' tags. A named stream's generator is part of the saved state: a new one changes every game's hash |
+| 2 | Stepped weekly before the director (§4.2) | First in the day, so each request is applied the same day; a request for a monthly applier is held in `ArcsState::deferred` until the month turns |
+| 3 | `ArcRun` about 200 bytes, a stage index, mark bits (§4.2, §4.4) | Stage and marks by id; `open`, `base`, `began`; about 1 KB. Robust to a content update |
+| 4 | A decision beat's `marks: { option: mark }` (§4.1) | `on: { option: { sets, heat, effects } }`: an option may post the arc's own requests |
+| 5 | `ArcEffect` is `EffectDef` plus six new requests (§4.3) | Its own list of eight; `recovery` built now (from A5b); `gov_approval` and `place_state` not yet; `OpenDecision` and `OfferAsk` added |
+| 6 | `indicator`, `crisis`, `disaster`, `law_in_force` promoted to tier-generic (§4.1) | Not done: they still read a town, so the flood is `tiers: ["local"]`. `disaster` gains an optional `hazard` |
+| 7 | `displaced`, `recovered` come with A5b (§9) | Built now, as readings of an arc's area role (`recovered` against the damage as the run was raised). `hazard_forecast`, `plant_review`, `hidden_fact`, `case`, `holds_post`, `group_opinion` are not built |
+| 8 | Arguments come from the cast or "a condition on that path" (§4.1) | Explicit: an arc lists `facts`; each stage's event records them as they were |
+| 9 | Each beat is `Prompted` on the spine (§1.8) | A beat notes the run's thread (`Continues`) with its own root; what it opens elsewhere is `Prompted` |
+| 10 | `most_exposed` picks by exposure (§4.1) | By the share of homes the hazard damaged, then by people away (a strike that fell evenly), then by exposure |
+| 11 | The `arc` condition for overheard lines and topics (§4.1) | Gains `here` (where a role of the run is). An arc's own conditions cannot use it |
+| 12 | The flood's JSONC and numbers (§7.2) | See the note under §7.2 |
+| 13 | The doctor's static lints (§4.5) | Unreachable stage, no exit from a stage, a stage that does not end on time, an exit without effects, a mark read and never set (errors), under three exits and a mark never read (warnings), an unknown role, a missing key or argument: in content validation. The rest are A4's |
+
+What the engine parses and does not do yet (never raised: `arcs::not_yet`): a `subject` cast, a clock read from the subject, `gov_approval`, `place_state`, any `requires`. Parsed and inert until their task (`mandate_content::arcs::inert`): `hidden`, `teaches` (the arc's ledger subject, A3), `climax`, `goals`, `answers`, `opportunity`, `follow_up`, `legacy_key` (A2), `sides` (A4).

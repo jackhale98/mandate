@@ -95,8 +95,14 @@ pub enum Condition {
     /// A plant closed in the town within this many months (the event log):
     /// `$industry_key` (the closed plant's sector), `$jobs`.
     PlantClosure { within_months: u16 },
-    /// A disaster struck the town within this many months.
-    Disaster { within_months: u16 },
+    /// A disaster struck the town within this many months; with `hazard`,
+    /// one of that kind whose damage is not yet repaired (the environment's
+    /// footprint: a strike that damaged no home does not count).
+    Disaster {
+        within_months: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        hazard: Option<HazardKey>,
+    },
     /// A law of one of these templates is in force or being built in the
     /// town (`absent`: none is).
     LawInForce {
@@ -428,6 +434,62 @@ pub enum Condition {
         #[serde(alias = "role")]
         slot: String,
     },
+    // --- Staged arcs (DEC-109; tier-generic) ------------------------------------------
+    /// A run of this arc is at one of these stages (any, if empty) in the
+    /// jurisdiction: for overheard lines, topics and whatever holds while a
+    /// stage does. With `here`, only where that role of the run is: its
+    /// place, or a place or street in its area.
+    Arc {
+        arc: ContentKey,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        stages: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        here: Option<String>,
+    },
+    /// The run has (or has not) this mark. Inside an arc only.
+    ArcMark {
+        mark: String,
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    /// The run's heat within [min, max] (0..1). Inside an arc only.
+    ArcHeat {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// Days since the run's current stage was entered, within [min, max].
+    /// Inside an arc only.
+    ArcDays {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The share of the residents of the area cast in `slot` who are
+    /// staying elsewhere after a disaster, within [min, max] (0..1; without
+    /// bounds it always holds): `$away` (people). Inside an arc only.
+    Displaced {
+        #[serde(alias = "role")]
+        slot: String,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The share of the homes damaged in the area cast in `slot` when the
+    /// arc was raised that are repaired, within [min, max] (0..1; without
+    /// bounds it always holds): `$homes` (damaged then), `$repaired`.
+    /// Inside an arc only.
+    Recovered {
+        #[serde(alias = "role")]
+        slot: String,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
     // --- Composition ----------------------------------------------------------------
     /// Any one of these holds (the first that does gives the arguments).
     Any { of: Vec<Condition> },
@@ -537,6 +599,9 @@ pub struct Needs {
     /// It reads a policy family's bound slot (a place, neighbourhood or
     /// sector): only a family's trigger or expiry binds them.
     pub family: bool,
+    /// It reads an arc run (its marks, heat, days, or what a role of it is
+    /// cast to): only inside an arc.
+    pub arc: bool,
 }
 
 impl Condition {
@@ -596,6 +661,12 @@ impl Condition {
             C::SectorDecline { .. } => "sector_decline",
             C::PlaceOpen { .. } => "place_open",
             C::PlaceClosed { .. } => "place_closed",
+            C::Arc { .. } => "arc",
+            C::ArcMark { .. } => "arc_mark",
+            C::ArcHeat { .. } => "arc_heat",
+            C::ArcDays { .. } => "arc_days",
+            C::Displaced { .. } => "displaced",
+            C::Recovered { .. } => "recovered",
             C::Any { .. } => "any",
         }
     }
@@ -697,9 +768,23 @@ impl Condition {
             | C::SectorDecline { .. }
             | C::PlaceOpen { .. }
             | C::PlaceClosed { .. } => n.family = true,
+            C::ArcMark { .. }
+            | C::ArcHeat { .. }
+            | C::ArcDays { .. }
+            | C::Displaced { .. }
+            | C::Recovered { .. } => n.arc = true,
+            C::Arc { here, .. } => n.here = here.is_some(),
             _ => {}
         }
         n
+    }
+
+    /// Whether a condition reads an arc run anywhere in it (`any` included).
+    pub fn reads_arc(&self) -> bool {
+        match self {
+            Condition::Any { of } => of.iter().any(|c| c.reads_arc()),
+            c => c.needs().arc,
+        }
     }
 
     /// The family slot a slot-relative family condition names, and the kind
@@ -738,7 +823,9 @@ impl Condition {
             | C::HoodHazard { slot, .. }
             | C::SectorDecline { slot, .. }
             | C::PlaceOpen { slot }
-            | C::PlaceClosed { slot } => vec![slot.as_str()],
+            | C::PlaceClosed { slot }
+            | C::Displaced { slot, .. }
+            | C::Recovered { slot, .. } => vec![slot.as_str()],
             C::Knows { subject, .. } => subject.role().into_iter().collect(),
             C::Answered { same_cast, .. } => same_cast.iter().map(|s| s.as_str()).collect(),
             C::SponsoredLaw { slot, .. } => slot.iter().map(|s| s.as_str()).collect(),
@@ -777,6 +864,8 @@ impl Condition {
             C::Favour { .. } => set(&["n"]),
             C::IsBroker { is: true, .. } => set(&["broker", "broker_place", "stake_key"]),
             C::IsRival { is: true, .. } => set(&["rival"]),
+            C::Displaced { .. } => set(&["away"]),
+            C::Recovered { .. } => set(&["homes", "repaired"]),
             C::Tells { subject, .. } | C::PlayerKnows { subject, .. } => set(subject.args()),
             C::Any { of } => {
                 let mut it = of.iter().map(|c| c.provides());
@@ -866,6 +955,17 @@ pub enum ConditionUse {
     VisitVerb,
     /// A visit risk term.
     VisitRisk,
+    /// An arc's `raise`, at a jurisdiction (no cast yet).
+    ArcRaise,
+    /// An arc stage's edge: the run's marks, heat and days, its roles.
+    ArcEdge,
+    /// When an arc's beat is offered, and what gates an effect.
+    ArcGate,
+    /// An arc's readings for its text.
+    ArcFacts,
+    /// A reply to an arc's choice in a conversation: the conversation's
+    /// slots, and the run.
+    ArcReply,
 }
 
 /// Which slots a use binds.
@@ -893,10 +993,12 @@ pub struct Provides {
     pub here: bool,
     /// It decides whether something happens (DEC-091: the ledger is refused).
     pub decides: bool,
+    /// An arc run is bound: its marks, heat and days, and its roles.
+    pub arc: bool,
 }
 
 impl ConditionUse {
-    pub const ALL: [ConditionUse; 14] = [
+    pub const ALL: [ConditionUse; 19] = [
         ConditionUse::DilemmaTrigger,
         ConditionUse::GoalCondition,
         ConditionUse::StorylineStart,
@@ -911,6 +1013,11 @@ impl ConditionUse {
         ConditionUse::Overheard,
         ConditionUse::VisitVerb,
         ConditionUse::VisitRisk,
+        ConditionUse::ArcRaise,
+        ConditionUse::ArcEdge,
+        ConditionUse::ArcGate,
+        ConditionUse::ArcFacts,
+        ConditionUse::ArcReply,
     ];
 
     /// How content and messages name it.
@@ -930,6 +1037,11 @@ impl ConditionUse {
             ConditionUse::Overheard => "an overheard line",
             ConditionUse::VisitVerb => "a visit verb",
             ConditionUse::VisitRisk => "a visit risk term",
+            ConditionUse::ArcRaise => "an arc's raise",
+            ConditionUse::ArcEdge => "an arc stage's edge",
+            ConditionUse::ArcGate => "an arc's beat or effect",
+            ConditionUse::ArcFacts => "an arc's facts",
+            ConditionUse::ArcReply => "a reply to an arc's choice",
         }
     }
 
@@ -940,6 +1052,14 @@ impl ConditionUse {
             state,
             here,
             decides,
+            arc: false,
+        };
+        let arc = |slots, state, here| Provides {
+            slots,
+            state,
+            here,
+            decides: true,
+            arc: true,
         };
         match self {
             // Inside the simulation's systems: the scheduler's reads only.
@@ -954,6 +1074,12 @@ impl ConditionUse {
             U::TalkTopic | U::TalkLine | U::TalkVoice => p(Slots::Talk, true, true, false),
             U::Overheard => p(Slots::None, true, true, false),
             U::VisitVerb | U::VisitRisk => p(Slots::None, true, true, true),
+            // Inside the simulation (the arcs system), at a jurisdiction;
+            // the ledger never decides (STAGED_ARCS §2).
+            U::ArcRaise => p(Slots::None, false, false, true),
+            U::ArcEdge | U::ArcGate | U::ArcFacts => arc(Slots::Cast, false, false),
+            // In a conversation (the whole state, its place).
+            U::ArcReply => arc(Slots::Talk, true, true),
         }
     }
 
@@ -973,6 +1099,11 @@ impl ConditionUse {
         if n.talk && p.slots != Slots::Talk {
             return Some(format!(
                 "`{t}` reads a conversation (its speaker, subject or voice); {what} has none"
+            ));
+        }
+        if n.arc && !p.arc {
+            return Some(format!(
+                "`{t}` reads an arc run (its marks, heat, days or roles); {what} has none"
             ));
         }
         if n.family && p.slots != Slots::Family {
@@ -1196,7 +1327,7 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
                 );
             }
         }
-        C::PlantClosure { within_months } | C::Disaster { within_months } => {
+        C::PlantClosure { within_months } | C::Disaster { within_months, .. } => {
             within(within_months, issues)
         }
         C::LawInForce { templates, .. } => {
@@ -1450,6 +1581,33 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
         C::HoodHazard { min, .. } | C::SectorDecline { min, .. } => {
             if !(min.is_finite() && (0.0..=1.0).contains(min)) {
                 err(issues, format!("{} `min` must be in [0, 1]", c.key()));
+            }
+        }
+        C::Arc { arc, stages, .. } => match b.arcs.iter().find(|a| &a.id == arc) {
+            // A pack may remove an arc: the condition then never holds.
+            None => warn(
+                issues,
+                format!("unknown arc `{arc}` (the condition never holds)"),
+            ),
+            Some(a) => {
+                for s in stages {
+                    if a.stage(s).is_none() {
+                        err(issues, format!("`{arc}` has no stage `{s}`"));
+                    }
+                }
+            }
+        },
+        C::ArcMark { mark, .. } => {
+            if mark.is_empty() {
+                err(issues, "an arc_mark condition names a mark".into());
+            }
+        }
+        C::ArcHeat { min, max } => range(owner, "arc_heat", min, max, 0.0, 1.0, issues),
+        C::ArcDays { min, max } => range(owner, "arc_days", min, max, 0.0, 3650.0, issues),
+        C::Displaced { min, max, .. } | C::Recovered { min, max, .. } => {
+            // Without bounds it is a reading (an arc's `facts`).
+            if min.is_some() || max.is_some() {
+                range(owner, c.key(), min, max, 0.0, 1.0, issues);
             }
         }
         C::Any { of } => {

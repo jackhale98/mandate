@@ -587,6 +587,10 @@ pub fn visit(
     verb: &str,
     late_night: bool,
 ) -> Result<ActionResult, EngineError> {
+    // An arc's visit beat (DEC-109) is the arcs' own command.
+    if crate::arcs::beats::is_verb(verb) {
+        return crate::arcs::beats::visit(state, content, verb, late_night);
+    }
     let def = content
         .actions
         .visit
@@ -660,5 +664,9 @@ pub fn visit(
 /// The action word of a verb in the log and the ledger's sources:
 /// `verb_<name>` (Fluent `action-verb-<name>`, underscores as dashes).
 pub fn action_word(verb: &str) -> String {
+    if crate::arcs::beats::is_verb(verb) {
+        // One word for every arc's visit beat (`action-arc-visit`).
+        return "arc_visit".into();
+    }
     format!("verb_{}", verb.strip_prefix("verb.").unwrap_or(verb))
 }

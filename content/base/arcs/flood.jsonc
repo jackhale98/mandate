@@ -1,0 +1,234 @@
+// After the water (DEC-109; STAGED_ARCS §7.2): a flood in a town the
+// player is watching, from the day it strikes to the day the struck
+// neighbourhood is rebuilt, rebuilt behind a wall, or left as it is.
+//
+// Built from *struck* (task A1). The *warning* stage and the *passed* exit
+// need a forecast before a strike (task A5b) and are not here; nor are the
+// town's own money (`treasury`), the government's standing in the
+// neighbourhood (`gov_approval`) or boarded houses (`place_state`), which
+// their owners add in A5. Until then the money is the player's word in the
+// budget, and what it buys is the repairs (`recovery`).
+//
+// Transitions read; beats write. Nothing a player picks names a stage: the
+// edges read the neighbourhood's repairs (`recovered`), the laws in force, and
+// the run's marks, heat and days. A story reads who is still away (`displaced`).
+//
+// Marks: `at_hall` (carried boxes), `sheltered` (the ask kept), `paid_first`
+// (the money decision), `crew` (the official sent one), `dated` and `wall`
+// (the meeting).
+{
+  "kind": "arcs",
+  "items": [
+    {
+      "id": "arc.flood", "title_key": "arc-flood", "themes": ["crisis"],
+      // A town's matter until `disaster` and `law_in_force` read a region.
+      "tiers": ["local"], "cooldown_days": 0,
+      "raise": [ { "type": "disaster", "hazard": "flood", "within_months": 1 } ],
+      "roles": [
+        { "id": "hood", "cast": { "type": "area", "pick": "most_exposed", "hazard": "flood" } },
+        { "id": "organiser", "cast": { "type": "occupation", "near": "hood",
+            "occupations": ["occupation.organiser", "occupation.clergy", "occupation.nurse", "occupation.shopkeeper", "occupation.teacher"] } },
+        { "id": "hall", "cast": { "type": "place", "kinds": ["community_centre", "school", "town_hall"], "near": "hood" } },
+        { "id": "official", "cast": { "type": "post", "power": "propose_budget" }, "optional": true },
+        { "id": "above", "cast": { "type": "jurisdiction", "pick": "parent" } },
+      ],
+      // A flood that sent nobody from their home is no story.
+      "given": [ { "type": "displaced", "slot": "hood", "min": 0.001 } ],
+      "facts": [ { "type": "displaced", "slot": "hood" }, { "type": "recovered", "slot": "hood" } ],
+      "sides": { "ally": "organiser", "opponent": "official" },
+      "heat": { "start": 0.3, "floor": { "indicator": "recent_disaster", "scale": 0.4 } },
+      "answers": ["policy.rebuild_fund", "policy.flood_defenses", "policy.hardship_fund"],
+      "stages": [
+        // The first weeks: the hall, a second roof, and who pays.
+        { "id": "struck", "key": "arc-flood-struck", "clock": { "days": [21, 28] },
+          "beats": [
+            { "id": "press", "type": "press", "headline_key": "headline-arc-flood-struck" },
+            { "id": "skips", "type": "heard", "line": "overheard.flood.skips" },
+            { "id": "box", "type": "visit", "at": "hall", "verb_key": "visit-arc-flood-box", "outcome_key": "outcome-arc-flood-box",
+              "sets": "at_hall", "relief": 0.05,
+              "effects": [
+                { "type": "opinion", "role": "organiser", "delta": 8, "memory": "stood_with_me" },
+                { "type": "approval", "area": "hood", "delta": 0.01 } ] },
+            { "id": "shelter", "type": "ask", "template": "ask.flood_shelter", "asker": "organiser", "sets": "sheltered", "relief": 0.05 },
+            { "id": "money", "type": "decision", "dilemma": "dilemma.flood_money", "weight": "significant",
+              "when": [ { "type": "office", "posts": ["any"] } ],
+              "on": {
+                "now": { "sets": "paid_first", "heat": -0.1, "effects": [ { "type": "recovery", "area": "hood", "repair": 2.0, "months": 8 } ] },
+                "worst": { "sets": "paid_first", "effects": [ { "type": "recovery", "area": "hood", "repair": 1.5, "months": 6 } ] } } },
+          ],
+          "next": [ { "to": "counting", "clock_within_days": 0 } ] },
+
+        // The water is gone and the weeks are counted.
+        { "id": "counting", "key": "arc-flood-counting", "rise": 0.04,
+          "beats": [
+            { "id": "skips", "type": "heard", "line": "overheard.flood.skips" },
+            { "id": "crew", "type": "talk", "with": "official",
+              "choice": { "label_key": "talk-arc-flood-crew", "say_key": "talk-arc-flood-crew-say",
+                "replies": [
+                  { "key": "talk-arc-flood-crew-yes", "agrees": true, "sets": "crew",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "arc_mark", "mark": "sheltered" },
+                      { "type": "favour", "slot": "speaker", "owed_to_player": true },
+                      { "type": "opinion", "slot": "speaker", "min": 15 } ] } ],
+                    "effects": [ { "type": "recovery", "area": "hood", "repair": 1.5, "months": 3 } ] },
+                  { "key": "talk-arc-flood-crew-no" } ] } },
+            { "id": "petition", "type": "move", "actor": "organiser", "weight": 0.4, "line_key": "skip-item-arc-flood-petition",
+              "when": [ { "type": "arc_days", "min": 21 }, { "type": "arc_mark", "mark": "paid_first", "is": false }, { "type": "arc_mark", "mark": "crew", "is": false } ],
+              "effects": [ { "type": "heat", "delta": 0.1 } ] },
+            { "id": "weeks", "type": "press", "headline_key": "headline-arc-flood-weeks",
+              "when": [ { "type": "arc_days", "min": 35 }, { "type": "displaced", "slot": "hood", "min": 0.001 } ] },
+          ],
+          "next": [
+            { "to": "rebuilding", "when": [ { "type": "law_in_force", "templates": ["policy.rebuild_fund", "policy.flood_defenses"] } ] },
+            { "to": "rebuilding", "when": [
+                { "type": "any", "of": [ { "type": "arc_mark", "mark": "paid_first" }, { "type": "arc_mark", "mark": "crew" } ] },
+                { "type": "recovered", "slot": "hood", "min": 0.2 } ] },
+            { "to": "meeting", "when": [ { "type": "arc_heat", "min": 0.75 } ] },
+            { "to": "meeting", "after_days": 56 } ] },
+
+        // The turn: a full hall, and a question about a date.
+        { "id": "meeting", "key": "arc-flood-meeting", "climax": true, "clock": { "days": [7, 14] },
+          "beats": [
+            { "id": "room", "type": "decision", "dilemma": "dilemma.flood_meeting", "weight": "climax",
+              "on": {
+                "date": { "sets": "dated", "effects": [ { "type": "recovery", "area": "hood", "repair": 1.5, "months": 6 } ] },
+                "wall": { "sets": "wall" },
+                "honest": { "heat": -0.15 },
+                "absent": { "heat": 0.2 } } },
+          ],
+          "next": [
+            { "to": "rebuilding", "when": [ { "type": "law_in_force", "templates": ["policy.rebuild_fund", "policy.flood_defenses"] } ] },
+            { "to": "rebuilding", "when": [ { "type": "arc_mark", "mark": "dated" }, { "type": "recovered", "slot": "hood", "min": 0.45 } ] },
+            { "to": "hollowed", "after_days": 120 } ] },
+
+        // Work has started; the question is how it ends.
+        { "id": "rebuilding", "key": "arc-flood-rebuilding", "clock": { "days": [240, 300] },
+          "beats": [
+            { "id": "works", "type": "visit", "at": "hood", "verb_key": "visit-arc-flood-works", "outcome_key": "outcome-arc-flood-works",
+              "time": "half", "relief": 0.03, "effects": [ { "type": "approval", "area": "hood", "delta": 0.01 } ] },
+            { "id": "wall", "type": "press", "headline_key": "headline-arc-flood-wall",
+              "when": [ { "type": "law_in_force", "templates": ["policy.flood_defenses"] } ] },
+          ],
+          "next": [
+            { "to": "defended", "when": [ { "type": "law_in_force", "templates": ["policy.flood_defenses"] }, { "type": "recovered", "slot": "hood", "min": 0.7 } ] },
+            { "to": "rebuilt", "when": [ { "type": "recovered", "slot": "hood", "min": 0.85 } ] },
+            { "to": "rebuilt", "when": [ { "type": "recovered", "slot": "hood", "min": 0.72 } ], "clock_within_days": 0 },
+            { "to": "hollowed", "clock_within_days": 0 } ] },
+
+        // Rebuilt, and a wall voted through.
+        { "id": "defended", "key": "arc-flood-defended",
+          "exit": { "legacy_key": "legacy-arc-flood-defended", "effects": [
+            { "type": "approval", "area": "hood", "delta": 0.03 },
+            { "when": [ { "type": "arc_mark", "mark": "wall" } ], "type": "record", "delta": 0.08 },
+            { "when": [ { "type": "arc_mark", "mark": "at_hall" } ], "type": "opinion", "role": "organiser", "delta": 6 } ] } },
+        // Rebuilt as it was. A player nobody saw is in nobody's memory of it.
+        { "id": "rebuilt", "key": "arc-flood-rebuilt",
+          "exit": { "legacy_key": "legacy-arc-flood-rebuilt", "effects": [
+            { "when": [ { "type": "arc_mark", "mark": "at_hall" } ], "type": "approval", "area": "hood", "delta": 0.03 },
+            { "when": [ { "type": "arc_mark", "mark": "paid_first" } ], "type": "record", "delta": 0.04 },
+            { "when": [ { "type": "arc_mark", "mark": "sheltered" } ], "type": "favour", "role": "organiser", "owed_to_player": true } ] } },
+        // The work stopped short: those still away go for good.
+        { "id": "hollowed", "key": "arc-flood-hollowed",
+          "exit": { "headline_key": "headline-arc-flood-hollowed", "effects": [
+            { "type": "displacement", "area": "hood", "of": "still_away" },
+            { "type": "approval", "area": "hood", "delta": -0.04 },
+            { "unless": [ { "type": "arc_mark", "mark": "at_hall" } ], "type": "opinion", "role": "organiser", "delta": -12, "memory": "ignored_me" } ] } },
+      ],
+    },
+  ],
+
+  // The arc's decisions: never spotlit on their own (`storyline_only`); the
+  // run opens them with its cast.
+  "dilemmas": [
+    {
+      "id": "dilemma.flood_money", "category": "significant", "storyline_only": true,
+      "title_key": "dilemma-flood-money", "situation_key": "dilemma-flood-money-situation",
+      "roles": [
+        { "id": "organiser", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.nurse", "occupation.shopkeeper", "occupation.teacher"] } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "deadline_days": 14, "cooldown_days": 0, "scene": "scene.flood_hall",
+      "options": [
+        { "id": "now", "label_key": "dilemma-flood-money-now", "aftermath_key": "dilemma-flood-money-now-after",
+          "effects": [
+            { "type": "opinion", "role": "organiser", "delta": 8 },
+            { "type": "approval", "neighborhood": "hood", "delta": 0.02 },
+            { "type": "standing", "delta": -3 } ] },
+        { "id": "worst", "label_key": "dilemma-flood-money-worst", "aftermath_key": "dilemma-flood-money-worst-after",
+          "effects": [
+            { "type": "opinion", "role": "organiser", "delta": 3 },
+            { "type": "approval", "neighborhood": "hood", "delta": 0.01 },
+            { "type": "standing", "delta": -1 } ] },
+        { "id": "wait", "default": true, "label_key": "dilemma-flood-money-wait", "aftermath_key": "dilemma-flood-money-wait-after",
+          "effects": [
+            { "type": "opinion", "role": "organiser", "delta": -6 },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.01 },
+            { "type": "standing", "delta": 1 } ] },
+      ],
+    },
+    {
+      "id": "dilemma.flood_meeting", "category": "climax", "storyline_only": true,
+      "title_key": "dilemma-flood-meeting", "situation_key": "dilemma-flood-meeting-situation",
+      "roles": [
+        { "id": "organiser", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.nurse", "occupation.shopkeeper", "occupation.teacher"] } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "deadline_days": 14, "cooldown_days": 0, "scene": "scene.flood_meeting",
+      "options": [
+        { "id": "date", "label_key": "dilemma-flood-meeting-date", "aftermath_key": "dilemma-flood-meeting-date-after",
+          "effects": [
+            { "type": "approval", "neighborhood": "hood", "delta": 0.03 },
+            { "type": "opinion", "role": "organiser", "delta": 4 },
+            { "type": "standing", "delta": -2 } ] },
+        { "id": "wall", "label_key": "dilemma-flood-meeting-wall", "aftermath_key": "dilemma-flood-meeting-wall-after",
+          "effects": [
+            { "type": "draft", "template": "policy.flood_defenses" },
+            { "type": "record", "delta": 0.02 },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.01 } ] },
+        { "id": "honest", "label_key": "dilemma-flood-meeting-honest", "aftermath_key": "dilemma-flood-meeting-honest-after",
+          "effects": [
+            { "type": "slots", "n": 1 },
+            { "type": "opinion", "role": "organiser", "delta": 6, "memory": "stood_with_me" } ] },
+        { "id": "absent", "default": true, "label_key": "dilemma-flood-meeting-absent", "aftermath_key": "dilemma-flood-meeting-absent-after",
+          "effects": [
+            { "type": "opinion", "role": "organiser", "delta": -8, "memory": "ignored_me" },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.02 },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+  ],
+
+  // The arc's ask: offered only by a run, from its organiser.
+  "asks": [
+    { "id": "ask.flood_shelter", "name_key": "ask-flood-shelter", "from": ["arc"],
+      "asker": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.nurse", "occupation.shopkeeper", "occupation.teacher"] },
+      "roles": [ { "id": "official", "cast": { "type": "office" } } ],
+      "needs": [
+        { "type": "talk", "role": "official",
+          "choice": { "label_key": "ask-choice-flood-shelter", "say_key": "ask-say-flood-shelter",
+            "replies": [
+              { "key": "talk-ask-flood-shelter-yes", "when": [ { "type": "opinion", "slot": "speaker", "min": -20 } ] },
+              { "key": "talk-ask-flood-shelter-no", "agrees": false } ] } } ],
+      "deadline_days": [10, 14], "cooldown_days": 0, "big": true,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 10, "memory": "kept_promise" },
+        { "type": "approval", "neighborhood": "asker_hood", "delta": 0.01 } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -4 } ],
+      "detail_key": "ask-flood-shelter-detail", "need_key": "ask-flood-shelter-need",
+      "kept_key": "ask-flood-shelter-kept", "broken_key": "ask-flood-shelter-broken" },
+  ],
+
+  "scenes": [
+    { "id": "scene.flood_hall", "place": { "type": "kind", "kind": "streets" },
+      "beats": [ { "speaker": "organiser", "line": "scene-flood-hall-organiser" } ] },
+    { "id": "scene.flood_meeting", "place": { "type": "kind", "kind": "streets" },
+      "beats": [ { "speaker": "organiser", "line": "scene-flood-meeting-organiser" } ] },
+  ],
+
+  // Heard in the struck neighbourhood while the stages last.
+  "overheard": [
+    { "id": "overheard.flood.skips", "key": "heard-flood-skips", "weight": 1.5,
+      "when": [ { "type": "arc", "arc": "arc.flood", "stages": ["struck", "counting"], "here": "hood" } ] },
+  ],
+}
