@@ -117,6 +117,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | [DEC-108](decisions/DEC-108.md) | The causal spine: causes as bookkeeping on every event and effect, the log's retention rule, the outcome-unchanged proof | Accepted |
 | [DEC-109](decisions/DEC-109.md) | Staged arcs: one structure for crises, storylines and openings; simulated fuses; the standing budget round; the audition | Accepted |
 | [DEC-110](decisions/DEC-110.md) | Specific industries and named plants: industries under sectors, demand per industry, closures by notice and date | Accepted |
+| [DEC-111](decisions/DEC-111.md) | The impact estimate: what a bill will probably do, from its mechanisms and lab-fitted pass-through; the honesty gate; members weigh their district's gain | Proposed |
 
 ---
 
