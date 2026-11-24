@@ -310,6 +310,13 @@ On hold until then:
     - **The centre neighbourhood shares the town's name** (owner confirmed), so asking about it reads as asking about the town. Wherever a neighbourhood is named and it has its town's name, show it as the town centre ("Larkowick town centre": a label from the engine with the town as an argument; the stored name stays). And offer **the whole town** as its own choice in the worries question, answered from the town's worries, which any officeholder there knows.
     - **People pop into a room after a conversation** (owner): a talk takes time, routines move people, and newcomers appear at their spots. They should walk in: through the door in a room, from the street's edge outside; and those whose routine takes them away walk out the same way (note 7 did the street's leaving only).
     - While there: the talk view's choices read `player.municipality` (`mandate-protocol/src/talk.rs`); move to the player's focus (DEC-098).
+20. **Filing for a post and silently ending up on no ballot** (owner, 2026-11-24: "I had selected to run for Mayor, but I wasn't placed on the ballot, and at Election Day I didn't get any screen or notification"). The engine (`politics/elections.rs`, where a campaign opens) nominates a player who filed for an office only if (a) their Standing meets the post's gate (`career.nomination`, 40 for the base pack's executive) and (b) their own party's sitting holder is not standing again (85% do, and the party then nominates the holder). Gate (b) is never shown. A player who filed for the office is not defending their seat, so when the nomination fails they are in no race, get no election night, and leave office without a word. Fix:
+    - **Never off every ballot by accident:** when the nomination for the post filed for fails, the player defends the seat they hold (if their party would renominate them), and is told.
+    - **Say so when the campaign opens:** an event and a notice in plain words ("Your party has nominated { $holder } again for { $post }. You are standing for your seat."), with the reason (the holder stands again; Standing below the gate).
+    - **Show the rule before filing:** the filing screen names who holds the post, their party, whether they are expected to stand again, and the Standing gate with the player's Standing.
+    - **Election day always has a screen:** the results where the player lives, whether or not they were on a ballot, and what became of their seat.
+    - A test that walks: file for the office with the holder standing; with Standing below the gate; with the post open. Tier-generic: no office named in code.
+    - Later (DEC-107): challenging your own party's holder for the nomination.
 
 
 ## M6 or M7 split (owner, 2026-11-21)
