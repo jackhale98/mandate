@@ -6772,10 +6772,16 @@
           "description": "Per point of local unemployment rise beyond the national rise (a year).",
           "format": "double",
           "type": "number"
+        },
+        "unemployment_gap": {
+          "description": "Per point of local unemployment above the nation's, now (the\nbenchmarked level: a closure costs until the place recovers).",
+          "format": "double",
+          "type": "number"
         }
       },
       "required": [
         "unemployment",
+        "unemployment_gap",
         "rent_growth",
         "services",
         "disaster",
@@ -16251,7 +16257,16 @@
       "additionalProperties": false,
       "description": "Per-cohort vote utility (DEC-028, DEC-071 §1–2).",
       "properties": {
+        "awareness_beyond": {
+          "format": "double",
+          "type": "number"
+        },
         "awareness_cap": {
+          "format": "double",
+          "type": "number"
+        },
+        "awareness_known": {
+          "description": "Name recognition has diminishing returns: awareness up to\n`awareness_known` counts in full, each point beyond it\n`awareness_beyond` of a point (being known is what matters).",
           "format": "double",
           "type": "number"
         },
@@ -16389,12 +16404,18 @@
           "format": "double",
           "type": "number"
         },
+        "retro_level_weight": {
+          "description": "Weight of the town's unemployment rate now above the nation's, beside\nthe year's change, in the benchmarked economy.",
+          "format": "double",
+          "type": "number"
+        },
         "retro_unemployment_scale": {
           "description": "Retrospective signal per point of local unemployment change beyond the\nnational change over a year (clamped to ±1).",
           "format": "double",
           "type": "number"
         },
         "retrospective_weight": {
+          "description": "The record: utility per unit of (approval of the government − the\nnation's mean approval +\n`retro_economy_weight` × the benchmarked economy), before the\nexecutive and media multipliers.",
           "format": "double",
           "type": "number"
         },
@@ -16452,6 +16473,7 @@
         "governing_party_record",
         "retro_economy_weight",
         "retro_unemployment_scale",
+        "retro_level_weight",
         "media_base",
         "media_town_share",
         "player_approval_weight",
@@ -16459,7 +16481,9 @@
         "player_incumbent_awareness",
         "officeholder_awareness",
         "home_awareness_bonus",
-        "awareness_cap"
+        "awareness_cap",
+        "awareness_known",
+        "awareness_beyond"
       ],
       "type": "object"
     },

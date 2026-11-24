@@ -11,7 +11,7 @@
       "vote": 0.04,
       "lobby": 0.03,
       "town_hall": 0.06,
-      "canvass": 0.03,             // presence, not delivery (DEC-097 §1)
+      "canvass": 0.0,              // presence, not delivery (DEC-097 §1): door-knocking alone builds no record (audit fix 1)
       "press": 0.03,
       // Delivery (ENGAGEMENT §2.2): asks (E6) and the player's own laws (V1).
       "ask_kept": 0.05,

@@ -203,33 +203,38 @@ fn digests(
 /// used-lines guard, and spoken-line arguments carry the centre's label.
 /// With `player.talk` left out, all eight state digests equal the branch
 /// head's computed the same way.
+/// Re-recorded for audit fix 1 (the record decides votes; canvassing alone
+/// builds no record), which changes outcomes on purpose: event streams and
+/// states both moved. Recorded on the tree with both play note 19 and fix
+/// 1: the event streams equal fix 1's own; the states of the four games
+/// whose bot talks differ from fix 1's own, as they did with note 19.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
-    (2026, "idle", 96, "87c7f491cc59eb96", "288a01ff84986fb9"), // 1241 events
-    (2026, "mixed", 96, "30513a0fd79f8345", "8aa63534f5867600"), // 2014 events
-    (7, "idle", 96, "0c7529b9245d03ca", "86b30dc5e4bf38b7"),    // 1179 events
-    (7, "corrupt", 96, "c3167aacfc06bb48", "57df7e05c0fac541"), // 1904 events
-    (31, "idle", 96, "2e81ed540a34aee5", "e9ce189ffc9c4eda"),   // 1227 events
+    (2026, "idle", 96, "1e3b972b3b5abb07", "da5f10a54ca8de33"), // 1254 events
+    (2026, "mixed", 96, "923e5b3d25a4ef04", "385af4cc9b5ce86b"), // 2390 events
+    (7, "idle", 96, "69ca0ae3748c2891", "132d29526700f9fc"),    // 1146 events
+    (7, "corrupt", 96, "3b3fa70238acff2d", "4d095a3a1b9407cb"), // 1490 events
+    (31, "idle", 96, "397a0facb6fa3f58", "ee852502bc130b86"),   // 1277 events
     (
         31,
         "explorer_legislator",
         96,
-        "604610467beb7465",
-        "4aa0c9c1e78b3702",
-    ), // 3086 events
+        "fb722d09a2714fef",
+        "441520496d110d90",
+    ), // 2115 events
     (
         2026,
         "mixed+prison",
         96,
-        "2baccbdaf9b90ad5",
-        "6246052f1e5b62d5",
-    ), // 1702 events
+        "012b16a022d7a492",
+        "08cf93baae8862c4",
+    ), // 1773 events
     (
         2026,
         "idle+six_years",
         120,
-        "8fecd3f0c7ad80a8",
-        "68c869e495509270",
-    ), // 1431 events
+        "10407e999451b859",
+        "0f82072b0f75f933",
+    ), // 1484 events
 ];
 
 #[test]

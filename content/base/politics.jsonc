@@ -37,18 +37,18 @@
       "polarization_high": 0.45,
       "party_weight": 1.4,
       "valence_weight": 1.0,
-      "retrospective_weight": 6.0,
+      "retrospective_weight": 5.0,     // the record: utility per unit of (approval − the nation's + economy), × executive × media
       "executive_multiplier": 1.8,
       "home_ward_bonus": 0.25,
       "partisan_discount": 0.4,
-      "incumbent_awareness": 0.55,
+      "incumbent_awareness": 0.45,
       "challenger_awareness": 0.12,
-      "race_shock_sd": 0.25,
-      "national_swing_sd": 0.2,
+      "race_shock_sd": 0.12,
+      "national_swing_sd": 0.15,
       "strategic_weight": 1.6,
       "minor_party_threshold": 0.16,
       "record_penalty": 5.0,
-      "record_bonus": 0.15,
+      "record_bonus": 0.0,
       "record_baseline": 0.35,
       "renomination_standing": 25.0,
       "salience_base": 1.5,             // issue salience: base + concern levels, scaled to mean 1 (DEC-078)
@@ -59,17 +59,22 @@
       "valence_oratory": 0.5,
       "valence_integrity": 0.5,
       "governing_party_record": 0.4,   // the governing party's new nominee carries this share of the record
-      "retro_economy_weight": 0.5,     // the benchmarked economy beside approval of the government
+      "retro_economy_weight": 2.0,     // the benchmarked economy beside approval of the government
       "retro_unemployment_scale": 10.0, // per point of unemployment change beyond the national change
+      "retro_level_weight": 0.5,       // the rate now above the nation's, beside the year's change
       "media_base": 0.5,               // media attention: base + share of the region's people
       "media_town_share": 0.5,
-      "player_approval_weight": 1.2,
+      "player_approval_weight": 2.5,
       "independent_viability": 0.3,
       // Starting awareness (shares of incumbent_awareness), home bonus, cap.
       "player_incumbent_awareness": 0.8,
       "officeholder_awareness": 0.6,
       "home_awareness_bonus": 0.15,
       "awareness_cap": 0.95,
+      // Being known is what counts: awareness beyond `awareness_known` is
+      // worth `awareness_beyond` of a point each.
+      "awareness_known": 1.0,
+      "awareness_beyond": 1.0,
     },
     "turnout": {
       "standalone": 0.55,
@@ -91,7 +96,7 @@
     "campaign": {
       "persuasion_half_life_days": 60,
       "awareness_per_canvass": 0.18,
-      "persuasion_per_canvass": 0.08,
+      "persuasion_per_canvass": 0.03,
       "mobilisation_per_canvass": 0.25,
       "diminishing": 0.6,
       "ad_cost": 1500,

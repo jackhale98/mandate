@@ -907,6 +907,9 @@ struct RaceCtx<'a> {
     turnout_mult: f64,
     media: f64,
     retro: f64,
+    /// Approval of local government across the nation (residents' mean):
+    /// the benchmark a place's own approval is judged against.
+    approval_benchmark: f64,
     /// Local viability per candidate (party strength relative to the strongest).
     viability: Vec<f64>,
     /// How much the constituency's voters weigh each issue (mean 1; DEC-078
@@ -930,6 +933,19 @@ fn polarisation(pop: &PopulationState, hoods: &[u32], mean: &[f32]) -> f64 {
         }
     }
     mandate_core::math::sqrt(acc / w.max(1.0))
+}
+
+/// Approval of local government across the nation, weighted by residents
+/// (½ when nobody lives anywhere).
+fn national_approval(pop: &PopulationState) -> f64 {
+    let (mut s, mut n) = (0.0, 0.0);
+    for h in &pop.hoods {
+        for c in &h.cohorts {
+            s += c.gov_approval as f64 * c.count as f64;
+            n += c.count as f64;
+        }
+    }
+    if n > 0.0 { s / n } else { 0.5 }
 }
 
 fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> RaceCtx<'a> {
@@ -969,7 +985,9 @@ fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> Race
         .unwrap_or(1);
     let own = pop.municipality_total(world, MunicipalityId(m as u32));
     let media = v.media_base + v.media_town_share * own as f64 / region_pop.max(1) as f64;
-    // Benchmarked retrospective: local unemployment change against national (DEC-071 §2).
+    // Benchmarked retrospective (DEC-071 §2): the year's change in local
+    // unemployment against the nation's, and how far the town's rate now
+    // sits above the nation's (a closure is not forgotten in a year).
     let econ = r.economy();
     let retro = econ
         .munis
@@ -987,7 +1005,15 @@ fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> Race
                 (Some(a), Some(b)) => (a.unemployment - b.unemployment) as f64,
                 _ => 0.0,
             };
-            clamp(-(du - dn) * v.retro_unemployment_scale, -1.0, 1.0)
+            let level = match (e.history.last(), h.last()) {
+                (Some(a), Some(b)) => (a.unemployment - b.unemployment) as f64,
+                _ => 0.0,
+            };
+            clamp(
+                -(du - dn + v.retro_level_weight * level) * v.retro_unemployment_scale,
+                -1.0,
+                1.0,
+            )
         })
         .unwrap_or(0.0);
     let strength = party_strength(pop, &race.hoods, st.parties.len());
@@ -1019,6 +1045,7 @@ fn race_ctx<'a>(st: &'a PoliticsState, r: &'a Reads<'_>, race: &'a Race) -> Race
         turnout_mult,
         media,
         retro,
+        approval_benchmark: national_approval(pop),
     }
 }
 
@@ -1108,10 +1135,10 @@ impl RaceCtx<'_> {
                 };
                 let mut record = record_weight
                     * v.retrospective_weight
-                    * 0.1
                     * exec
                     * self.media
-                    * ((c.gov_approval as f64 - 0.5) + v.retro_economy_weight * self.retro);
+                    * ((c.gov_approval as f64 - self.approval_benchmark)
+                        + v.retro_economy_weight * self.retro);
                 if record < 0.0 && self.race.partisan {
                     record *= 1.0 - v.partisan_discount * pid_share / 0.7;
                 }
@@ -1132,6 +1159,7 @@ impl RaceCtx<'_> {
                 } else {
                     aw
                 };
+                let aw = known_share(aw, v.awareness_known, v.awareness_beyond);
                 let persuasion = if terms.campaign {
                     cand.persuasion[i] as f64
                 } else {
@@ -1217,6 +1245,17 @@ impl RaceCtx<'_> {
             }
         }
         (votes, voters, adults, hood_votes)
+    }
+}
+
+/// How much of a candidate's case reaches a voter at awareness `aw`: in
+/// full up to `awareness_known`, then `awareness_beyond` of each further
+/// point (name recognition has diminishing returns once a candidate is known).
+pub fn known_share(aw: f64, known: f64, beyond: f64) -> f64 {
+    if aw <= known {
+        aw
+    } else {
+        known + (aw - known) * beyond
     }
 }
 
@@ -1680,4 +1719,19 @@ pub(crate) fn appoint_replacement(
         x.record = 0.3;
     }
     Some(id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::known_share;
+
+    #[test]
+    fn being_known_matters_more_than_being_famous() {
+        assert_eq!(known_share(0.3, 0.6, 0.25), 0.3);
+        assert_eq!(known_share(0.6, 0.6, 0.25), 0.6);
+        let top = known_share(1.0, 0.6, 0.25);
+        assert!((top - 0.7).abs() < 1e-12, "{top}");
+        // Off (known 1): awareness counts in full.
+        assert_eq!(known_share(0.9, 1.0, 0.25), 0.9);
+    }
 }

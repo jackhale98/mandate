@@ -13,6 +13,7 @@ use mandate_sim::places::Location;
 use mandate_sim::player::knowledge::{Level, Source, Subject};
 use mandate_sim::talk::context::Ctx;
 use mandate_sim::talk::{self, AboutRef, Exchange, TalkTarget, reply};
+use mandate_sim::world::PlaceKind;
 use mandate_sim::{Command, Engine, EngineError};
 use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use std::path::Path;
@@ -244,6 +245,23 @@ fn every_topic_works() {
         "small talk is remembered"
     );
     // Topics are offered by role, and subjects must be real.
+    // At the council chamber itself: `say` follows `a` wherever their
+    // routine takes them (a diner, where talking late is allowed, in some
+    // worlds), so the late-night rule is checked in the chamber, not where
+    // `a` happens to be.
+    let chamber = e
+        .state()
+        .world
+        .places
+        .iter()
+        .find(|p| p.municipality == town(&e) && p.kind == PlaceKind::CouncilChamber)
+        .map(|p| Location::Place { place: p.id })
+        .expect("the town has a council chamber");
+    go(&mut e, chamber);
+    assert!(
+        !talk::late_ok(e.state(), e.content()),
+        "the chamber offers no late-night talk"
+    );
     let late = e.apply(Command::Player(PlayerCommand::Talk {
         to: TalkTarget::Person { person: a },
         topic: "topic.small_talk".into(),

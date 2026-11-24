@@ -184,7 +184,17 @@ fn pacing_stays_within_budgets_and_cooldowns_hold() {
         sessions.len()
     );
     // About one climax per chapter (DEC-005): nearly every chapter has one.
-    assert!(climax as f64 >= 0.85 * chapters.len() as f64);
+    // Lowered from 85% to 80% on 2026-11-24 (owner's decision): once the
+    // record decides votes (audit fix 1) towns are no longer in permanent
+    // crisis, and quiet years in calm towns have no climax-sized decision
+    // left. The task that puts the director on arcs (A2, DEC-109: the yearly
+    // budget round as a standing arc) must raise this to 95% and remove the
+    // climax fallback.
+    assert!(
+        climax as f64 >= 0.80 * chapters.len() as f64,
+        "climax in {climax} of {} chapters",
+        chapters.len()
+    );
     assert!((1.5..=4.0).contains(&sig), "significant per chapter {sig}");
 }
 

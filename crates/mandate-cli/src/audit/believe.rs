@@ -465,7 +465,16 @@ pub fn core(cx: &Ctx, seeds: u64, years: u32) -> Result<Value, String> {
     let hs = histories(&sub, years, Driver::Idle)?;
     let (a, b, c) = (retrospective(&hs), rent(&hs), migration(&hs));
     let ok = |v: &Value| v["verdict"] != "broken";
-    Ok(json!({ "pass": ok(&a) && ok(&b) && ok(&c), "retrospective": a, "rent": b, "migration": c }))
+    // Retrospective voting must work, not merely show (audit fix 1): a gap
+    // of 10 points between the best and worst terciles, and approval worth
+    // at least half a point of re-election per point.
+    let retro_ok = a["verdict"] == "works"
+        && a["reelection_per_approval_pt"]["beta"]
+            .as_f64()
+            .is_some_and(|b| b >= 0.005);
+    Ok(
+        json!({ "pass": retro_ok && ok(&b) && ok(&c), "retrospective": a, "rent": b, "migration": c }),
+    )
 }
 
 pub fn run(cx: &Ctx) -> Result<Value, String> {

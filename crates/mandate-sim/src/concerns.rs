@@ -502,6 +502,23 @@ fn compute_town(
     )
 }
 
+/// Each neighbourhood's unemployment against its town's (residents' mean
+/// 1), per town (world order) in `Municipality::neighborhoods` order: its
+/// income classes' rates and the jobs its workers' sectors have lost since
+/// play began (the factor the jobs worry reads). `pop` as `compute_all`.
+pub fn hood_unemployment(r: &Reads<'_>, pop: &PopulationState) -> Vec<Vec<f64>> {
+    let wp = workplaces(r.world, r.content);
+    let ones = [1.0; INDICATORS];
+    (0..r.world.municipalities.len())
+        .map(|m| {
+            hood_indicators(r, pop, m, &ones, &wp)
+                .into_iter()
+                .map(|(_, _, v)| v[slot(Indicator::Unemployment)])
+                .collect()
+        })
+        .collect()
+}
+
 /// Levels and salience for one town from its indicators.
 pub fn compute(r: &Reads<'_>, pop: &PopulationState, m: usize) -> TownConcerns {
     compute_town(r, pop, m, &workplaces(r.world, r.content)).0

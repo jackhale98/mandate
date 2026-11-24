@@ -38,9 +38,12 @@ const press = async (l: Locator) => {
 };
 
 test("asks: accept one, decline one, keep one and see it kept", async ({ page }, info) => {
-  // Seed 10: seed 3 stopped offering a town-hall ask in its first turns once
-  // rents were bounded by incomes and movers shared fairly (audit fix 2).
-  await start(page, "10");
+  // Seed 17: a town-hall ask and one other offered in its first turns. Seed
+  // 3 stopped offering a town-hall ask once rents were bounded by incomes
+  // and movers shared fairly (audit fix 2); seed 10 stopped offering a
+  // second ask beside it once the record began to decide votes (audit fix
+  // 1); 17 is the first seed after 10 with both.
+  await start(page, "17");
   // Two turns in, two offers wait (the badge counts them).
   for (let i = 0; i < 4 && (await page.getByTestId("asks-badge").count()) === 0; i++) await endTurn(page);
   await expect(page.getByTestId("asks-badge")).toBeVisible();
@@ -202,11 +205,12 @@ test("a campaign promise is made from the picker", async ({ page }, info) => {
 
 test("the skip summary lists a lapsed law, with counts in the locale's style", async ({ page }, info) => {
   test.setTimeout(120_000);
-  // Seed 14: its next-session skip lapses a law (seed 2's did until the party
+  // Seed 15: its next-session skip lapses a law (seed 2's did until the party
   // line changed which laws pass in the burn-in, then seed 5's and 9's until
-  // the audit fix 2 changed rents and migration); the native twin is
+  // the audit fix 2 changed rents and migration, then seed 14's until the
+  // record began to decide votes, audit fix 1); the native twin is
   // `laws_in_force_never_fall_unexplained` in crates/mandate-wasm/tests/asks.rs.
-  await start(page, "14");
+  await start(page, "15");
   await endTurn(page);
   const pocket = await openPocket(page, "today");
   await pocket.getByTestId("open-term-review").click();

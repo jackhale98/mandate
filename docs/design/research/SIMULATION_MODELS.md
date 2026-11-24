@@ -55,6 +55,13 @@ DEC-028 already specifies per-cohort utility feeding a logit model. Refinements:
 
   Our current "experienced" opinion term uses absolute local unemployment change. It changes to the benchmarked form, so a national recession is not blamed on the mayor.
 
+- **As built (audit fix 1, 2026-11-23; `SIMULATION_AUDIT.md`, "After fix 1"):**
+  - *The record* in a candidate's utility is `retrospective_weight × executive × media × ((approval − the nation's approval) + retro_economy_weight × economy)`, carried in full by the incumbent and in part by the governing party's nominee. The old hidden `× 0.1` is gone, so the weight in content is the weight that applies. Approval is judged against the nation's mean approval, not against ½, so a contented country does not hand every incumbent a free bonus.
+  - *The economy* term is benchmarked twice: the year's change in local unemployment against the nation's, plus `retro_level_weight` × how far the town's rate now sits above the nation's. A closure is therefore not forgiven within a year.
+  - *Approval remembers:* the opinion step's experienced term adds `opinion.experience.unemployment_gap` × (the town's rate − the nation's rate) beside the change term, and each neighbourhood feels both through its own unemployment factor (its income classes and the sectors its workers lost, as the jobs worry reads). A closure costs the government most in the estate by the plant, and keeps costing until the town is back at the nation's rate.
+  - *The race's luck* is smaller (`race_shock_sd` 0.12, `national_swing_sd` 0.15), so the record, not the shock, is what election night most often names when an incumbent loses.
+  - *The record of visible work* (DEC-076) counts delivery, not presence: canvassing adds nothing to it (`career.record_gain.canvass` 0), so a councillor who only knocks on doors meets the thin-record attack. Approval of the player weighs more (`player_approval_weight` 2.5) and persuasion per canvass is small (0.03), in line with §5. Name recognition can be given diminishing returns (`awareness_known`, `awareness_beyond`; off in the base pack, because every active style is well known by election day and the cap did not separate them).
+
 ## 3. Party identification
 
 ### Findings

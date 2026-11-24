@@ -166,6 +166,10 @@ pub struct VoteParams {
     pub polarization_high: f64,
     pub party_weight: f64,
     pub valence_weight: f64,
+    /// The record: utility per unit of (approval of the government − the
+    /// nation's mean approval +
+    /// `retro_economy_weight` × the benchmarked economy), before the
+    /// executive and media multipliers.
     pub retrospective_weight: f64,
     /// Retrospective weight multiplier for executive offices.
     pub executive_multiplier: f64,
@@ -213,6 +217,9 @@ pub struct VoteParams {
     /// Retrospective signal per point of local unemployment change beyond the
     /// national change over a year (clamped to ±1).
     pub retro_unemployment_scale: f64,
+    /// Weight of the town's unemployment rate now above the nation's, beside
+    /// the year's change, in the benchmarked economy.
+    pub retro_level_weight: f64,
     /// Media attention on a town's record: a base, plus its share of the region's people.
     pub media_base: f64,
     pub media_town_share: f64,
@@ -227,6 +234,11 @@ pub struct VoteParams {
     pub officeholder_awareness: f64,
     pub home_awareness_bonus: f64,
     pub awareness_cap: f64,
+    /// Name recognition has diminishing returns: awareness up to
+    /// `awareness_known` counts in full, each point beyond it
+    /// `awareness_beyond` of a point (being known is what matters).
+    pub awareness_known: f64,
+    pub awareness_beyond: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]

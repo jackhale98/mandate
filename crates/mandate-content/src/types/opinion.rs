@@ -87,6 +87,9 @@ pub struct SectorKindLean {
 pub struct ExperienceWeights {
     /// Per point of local unemployment rise beyond the national rise (a year).
     pub unemployment: f64,
+    /// Per point of local unemployment above the nation's, now (the
+    /// benchmarked level: a closure costs until the place recovers).
+    pub unemployment_gap: f64,
     /// Per point of real rent growth (a year).
     pub rent_growth: f64,
     /// Per unit of service improvement from laws in effect.

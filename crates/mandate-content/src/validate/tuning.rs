@@ -131,6 +131,7 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
             0.0,
             100.0,
         ),
+        ("retro_level_weight", v.retro_level_weight, 0.0, 5.0),
         ("media_base", v.media_base, 0.0, 5.0),
         ("media_town_share", v.media_town_share, 0.0, 5.0),
         (
@@ -149,6 +150,8 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
         ("officeholder_awareness", v.officeholder_awareness, 0.0, 1.0),
         ("home_awareness_bonus", v.home_awareness_bonus, 0.0, 1.0),
         ("awareness_cap", v.awareness_cap, 0.0, 1.0),
+        ("awareness_known", v.awareness_known, 0.0, 1.0),
+        ("awareness_beyond", v.awareness_beyond, 0.0, 1.0),
     ] {
         r(&format!("politics.vote.{name}"), x, lo, hi);
     }
@@ -211,6 +214,12 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
     r(
         "opinion.experience.unemployment",
         e.unemployment,
+        0.0,
+        100.0,
+    );
+    r(
+        "opinion.experience.unemployment_gap",
+        e.unemployment_gap,
         0.0,
         100.0,
     );

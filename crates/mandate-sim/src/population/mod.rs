@@ -1418,6 +1418,24 @@ fn settle(
     }
 }
 
+/// Unemployment as a neighbourhood lives it, in approval units (DEC-071
+/// §2, benchmarked against the nation): the year's change in the town's
+/// rate (`du`) beyond the nation's (`dn`), and the town's rate now beyond
+/// the nation's (`level`: (town, nation)), each as the neighbourhood feels
+/// it (`f`: its unemployment against the town's, mean 1). The level term
+/// keeps a closure's cost until the place has recovered; the change term
+/// alone forgives it within a year and then rewards the recovery.
+pub fn unemployment_felt(
+    x: &mandate_content::ExperienceWeights,
+    f: f64,
+    du: f64,
+    dn: f64,
+    level: Option<(f64, f64)>,
+) -> f64 {
+    let gap = level.map_or(0.0, |(u, n)| u * f - n);
+    -x.unemployment * (du * f - dn) - x.unemployment_gap * gap
+}
+
 /// Monthly opinion (DEC-025): experienced conditions and anticipated reactions
 /// to policies shape approval of the local government and of the player.
 pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
@@ -1428,13 +1446,17 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
     let pol = r.politics();
     // Retrospection is benchmarked against the nation (DEC-071 §2): a national
     // recession is not the town hall's fault.
-    let dn = {
+    let (dn, un) = {
         let h = &econ.national.history;
-        match (h.last(), h.get(h.len().saturating_sub(13))) {
+        let dn = match (h.last(), h.get(h.len().saturating_sub(13))) {
             (Some(a), Some(b)) => (a.unemployment - b.unemployment) as f64,
             _ => 0.0,
-        }
+        };
+        (dn, h.last().map(|a| a.unemployment as f64))
     };
+    // Each neighbourhood feels its town's unemployment through its own
+    // residents and sectors (the factor the jobs worry reads; mean 1).
+    let hood_u = crate::concerns::hood_unemployment(r, pop);
     let params = &r.content.politics;
     let parties = &pol.parties;
     // Name recognition fades faster for an invisible officeholder (DEC-076).
@@ -1508,9 +1530,15 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         };
         // The disaster is felt by neighbourhood (DEC-090 D8): × how hard
         // each was hit against the town (residents' mean 1).
-        let experienced = -x.unemployment * (du - dn) - x.rent_growth * rent_growth
-            + x.services * services
-            - x.disruption * mods.disruption;
+        // Unemployment is felt by neighbourhood, below: the year's change
+        // and the level, each against the nation's (DEC-071 §2).
+        let u_now = e.history.last().map(|a| a.unemployment as f64);
+        let gap = match (u_now, un) {
+            (Some(u), Some(n)) => Some((u, n)),
+            _ => None,
+        };
+        let experienced =
+            -x.rent_growth * rent_growth + x.services * services - x.disruption * mods.disruption;
         // Reactions to laws and bills, pre-summed into one weighted signature
         // per town (linear in attitudes, so each cohort needs one dot product).
         let na = pop.attitude_count();
@@ -1592,8 +1620,11 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         }
         // Many laws should not saturate opinion: scale by √n.
         let gov_scale = 1.0 / mandate_core::math::sqrt(n_gov.max(1) as f64);
-        for h in &mu.neighborhoods {
-            let mut experienced = experienced - disaster * pop.impact(h.index());
+        let factors = hood_u.get(m);
+        for (hi, h) in mu.neighborhoods.iter().enumerate() {
+            let f = factors.and_then(|v| v.get(hi)).copied().unwrap_or(1.0);
+            let mut experienced = experienced + unemployment_felt(x, f, du, dn, gap)
+                - disaster * pop.impact(h.index());
             // A family bill's works in this neighbourhood only (DEC-092).
             let local = mods.disruption_at(h.0);
             if local != 0.0 {
@@ -1692,7 +1723,48 @@ pub fn assign_party_ids(
 
 #[cfg(test)]
 mod tests {
-    use super::{apportion, displaced_shares, hood_shares};
+    use super::{apportion, displaced_shares, hood_shares, unemployment_felt};
+
+    fn weights(change: f64, level: f64) -> mandate_content::ExperienceWeights {
+        mandate_content::ExperienceWeights {
+            unemployment: change,
+            unemployment_gap: level,
+            rent_growth: 0.0,
+            services: 0.0,
+            disaster: 0.0,
+            disaster_months: 0,
+            disruption: 0.0,
+        }
+    }
+
+    #[test]
+    fn a_closure_costs_until_the_place_recovers() {
+        // A year after a closure: three points above the nation, the rate
+        // falling a point a year. The change alone rewards the recovery.
+        let change_only = unemployment_felt(&weights(8.0, 0.0), 1.0, -0.01, 0.0, None);
+        assert!(change_only > 0.0);
+        let x = weights(8.0, 5.0);
+        let felt = unemployment_felt(&x, 1.0, -0.01, 0.0, Some((0.08, 0.05)));
+        assert!(felt < 0.0, "{felt}");
+        // Back at the nation's rate: nothing left to blame.
+        let done = unemployment_felt(&x, 1.0, 0.0, 0.0, Some((0.05, 0.05)));
+        assert!(done.abs() < 1e-12);
+    }
+
+    #[test]
+    fn a_national_rise_is_not_the_town_halls_fault() {
+        let x = weights(8.0, 5.0);
+        let felt = unemployment_felt(&x, 1.0, 0.02, 0.02, Some((0.07, 0.07)));
+        assert!(felt.abs() < 1e-12);
+    }
+
+    #[test]
+    fn the_estate_by_the_plant_feels_it_most() {
+        let x = weights(8.0, 5.0);
+        let estate = unemployment_felt(&x, 1.6, 0.03, 0.0, Some((0.09, 0.05)));
+        let suburb = unemployment_felt(&x, 0.6, 0.03, 0.0, Some((0.09, 0.05)));
+        assert!(estate < suburb, "{estate} vs {suburb}");
+    }
 
     /// Arrivals over a town's neighbourhoods: within one of the fair share
     /// by adults, every arrival placed, whatever the list order.

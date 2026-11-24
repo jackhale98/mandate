@@ -358,7 +358,7 @@ fn promises_are_picked_while_campaigning_and_kept_on_record() {
 #[test]
 fn laws_in_force_never_fall_unexplained() {
     let c = content();
-    for seed in [14, 4, 20] {
+    for seed in [15, 4, 20] {
         let mut e = engine(&c, seed);
         e.apply(Command::EndTurn).unwrap();
         e.apply(Command::Skip {
@@ -379,20 +379,21 @@ fn laws_in_force_never_fall_unexplained() {
             laws.before - laws.after <= ended,
             "seed {seed}: {laws:?} with {ended} ended"
         );
-        // Seed 14 (the web test's): a law lapses, named in its line. It was
+        // Seed 15 (the web test's): a law lapses, named in its line. It was
         // seed 2 until the party line changed which laws pass in the burn-in,
         // then 5 until rents were bounded by incomes, then 9 until arrivals
-        // were shared fairly over neighbourhoods (audit fix 2); 14 is the
-        // first seed after 9 with a lapsing law (0 is avoided: "0" is falsy
-        // in web code).
-        if seed == 14 {
+        // were shared fairly over neighbourhoods (audit fix 2), then 14 until
+        // the record began to decide votes (audit fix 1); 15 is the first
+        // seed after 14 with a lapsing law (0 is avoided: "0" is falsy in
+        // web code).
+        if seed == 15 {
             let line = s
                 .items
                 .iter()
                 .find(|i| i.text_key == "skip-item-law-expired");
             assert!(
                 line.is_some_and(|l| l.args.get("policy_key").is_some_and(|k| !k.is_empty())),
-                "seed 14: a lapsed law is listed: {:?}",
+                "seed 15: a lapsed law is listed: {:?}",
                 s.items
             );
         }

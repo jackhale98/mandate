@@ -381,6 +381,26 @@ Numbers the audit can compute every night, with thresholds that hold once fixes 
 
 Before handing back, `git merge claude/bold-brown-shyeug` reported "Already up to date": the other agents' changes to the party-line rule and the asks had not reached that branch (its head is `5d66329`). Topic 5 was re-run anyway (`audit leverage --seeds 16`) and its JSON is byte-identical to the first run, as determinism requires. **Topics 1 (policy), 2 (the retrospective and closure rows), 5 (leverage) and 7 (the election-night rows) should be re-run once those changes land**: the party-line rule changes how councils vote and so which laws pass, and the asks change what the bots do and what approval the player earns. The commands above regenerate every table.
 
+## After fix 1 (2026-11-23; final 2026-11-24): the record decides votes
+
+Fix 1 is on the tree with the party line from the platform, fix 2 (rents and migration) and the causal spine (rule and values: `docs/development/balance/2026-11-23-the-record-decides-votes.md`). The record term has no hidden `× 0.1`; approval is judged against the nation's; the vote and approval both read the town's unemployment level against the nation's beside the year's change; each neighbourhood feels unemployment through its own factor (fix 6); the race shock is smaller; and canvassing alone builds no record of visible work. Same commands, release build, two threads. "Before" is the tree with the party line and without fixes 1 and 2 (the "before" of fix 2's own table is not repeated here); "after" is the final tree.
+
+| Check | Before | After |
+|---|---|---|
+| Re-election gap, worst minus best tercile of relative unemployment change (`believe --seeds 8`) | 3.0 pts (82.1, 82.4, 79.1%) | 22.8 pts (88.4, 82.7, 65.6%) |
+| Re-election per approval point | +0.1 pts | +2.1 pts (t 51.8) |
+| Re-election when running (council / executive) | 80.8% (81.8 / 72.5) | 78.0% (78.7 / 71.8); 15.9% of races within 10 pts |
+| Planted closure: incumbents' wins in the home town afterwards | 229 → 232 of 378 | 220 → 94; 170 races flipped |
+| Closure: approval at +12 / +48 months (unemployment +3.7 pts at +48) | −11.9 / +3.0 | −18.0 / −6.8 |
+| Closure: approval by neighbourhood at +12 | −11.9 to −11.8 | −28.2 to −13.2 |
+| Incumbent lost: largest factor shock / record (`readability --seeds 6`) | 55.9% / 1.2% | 16.1% / 47.7%; record moved most in all 98 comparable closure flips |
+| `audit gate`, retrospective (now: gap ≥ 10 pts and ≥ +0.5 per approval point) | fails | passes (24.6 pts, +2.1); the policy part fails (transfers lower approval: fix 3) |
+| Canvass / best informed first-election wins (`bots --seeds 16`; `--seeds 32`; `leverage --seeds 16`) | 0.69 / 0.81; 0.72 / 0.81; 0.69 / 0.81 | 0.31 / 0.88; 0.34 / 0.84; 0.31 / 0.88 |
+| `good_styles_vary_b` (16 / 32 seeds) | fails / fails | passes / passes (enforced again) |
+| Executive party never changed in 30 years (`stuck --seeds 8`) | 38.3% | 38.5% |
+
+Still open: the best informed style wins 0.88 on 16 seeds (band top 0.85; 0.84 on 32), the price of keeping `ladder_learned` above its margin at 32 seeds; `knowledge_matters` and `skill_gap` still fail; the director finds no climax in 13 of 84 chapters on seeds 1–12 and 15 of 84 on seeds 13–24, every one a quiet `local_life` session whose climax peaks had no grounded candidate even with cooldowns waived (the pacing test's floor is 85%).
+
 ## Limits
 
 - Small worlds only (the size the bots play); medium and large worlds were not audited.

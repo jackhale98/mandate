@@ -113,7 +113,9 @@ fn state_shape_matches_format_version() {
     // `pruned_on`; a hidden fact its `cause`; a Legacy entry its
     // `source_event`; a held hazard its `hold_event`; a politician
     // `last_post`. Migration: `causal_spine`.
-    const EXPECTED: (u16, &str) = (26, "740f115b1c8d9bf3");
+    // 740f115b1c8d9bf3 -> e90c9a8a50934436: the record decides votes (audit
+    // fix 1). No serialized struct changed; the sample game's history did.
+    const EXPECTED: (u16, &str) = (26, "e90c9a8a50934436");
     let c = content();
     let mut e = generate(
         &WorldConfig {

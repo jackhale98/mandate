@@ -7,7 +7,8 @@
   "value": {
     // Experienced conditions, in approval units (tanh scale).
     "experience": {
-      "unemployment": 8.0,     // per point of local unemployment rise beyond the national rise (a year)
+      "unemployment": 12.0,     // per point of local unemployment rise beyond the national rise (a year)
+      "unemployment_gap": 6.0, // per point of local unemployment above the nation's, now (the benchmarked level)
       "rent_growth": 2.0,      // per point of real rent growth (a year)
       "services": 2.0,         // per unit of service improvement from laws in effect
       "disaster": 0.3,         // while a disaster is recent

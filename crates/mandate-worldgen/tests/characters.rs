@@ -98,30 +98,47 @@ fn every_politician_is_a_character_and_towns_have_people() {
 #[test]
 fn opinion_and_favours_live_on_relationship_edges() {
     let c = base();
-    let mut e = engine(&c, 37);
+    // A world with a fresh acquaintance (a council colleague who shares no
+    // history with the player: no edge yet) and a bill before the council to
+    // trade a favour on. Burn-in bonds (a mentor, a rival, an election lost
+    // to them) give some colleagues an edge, and which ones depends on the
+    // history's elections, so the world and the colleague are found by
+    // search: seed 37 served until the record began to decide votes (audit
+    // fix 1), when every colleague there had a history with the player.
+    let fresh = |st: &mandate_sim::State, me: CharacterId| {
+        let pl = st.player.as_ref().unwrap();
+        let colleague = council_members(st, pl.municipality.index())
+            .into_iter()
+            .find(|id| {
+                *id != pl.politician
+                    && st
+                        .politics
+                        .characters
+                        .edge(st.politics.get(*id).unwrap().character, me)
+                        .is_none()
+            })?;
+        let bill = st.policy.instances.iter().find(|p| {
+            p.jurisdiction == pl.municipality.0
+                && p.status == mandate_sim::policy::PolicyStatus::UnderConsideration
+        })?;
+        Some((colleague, bill.id.0))
+    };
+    let (mut e, colleague, bill) = (37..=60u64)
+        .find_map(|seed| {
+            let e = engine(&c, seed);
+            let me = player_char(&e);
+            fresh(e.state(), me).map(|(col, bill)| (e, col, bill))
+        })
+        .expect("a world with a fresh colleague and a bill before the council");
     let me = player_char(&e);
     let st = e.state();
-    let pl = st.player.as_ref().unwrap();
-    let colleague = *council_members(st, pl.municipality.index())
-        .iter()
-        .find(|id| **id != pl.politician)
-        .unwrap();
     let cc = st.politics.get(colleague).unwrap().character;
-    // No history: their first impression, no edge.
+    // No history: no edge, and their opinion of the player is their first
+    // impression.
     assert!(st.politics.characters.edge(cc, me).is_none());
     let first = st.politics.characters.get(cc).unwrap().first_impression;
     assert_eq!(characters::opinion(&st.politics, cc, me), first);
     // A favour traded: the ledger records it, and they remember the promise.
-    let bill = st
-        .policy
-        .instances
-        .iter()
-        .find(|p| {
-            p.jurisdiction == pl.municipality.0
-                && p.status == mandate_sim::policy::PolicyStatus::UnderConsideration
-        })
-        .map(|p| p.id.0);
-    let Some(bill) = bill else { return };
     let r = e.apply(e.route(PlayerCommand::Act {
         action: mandate_sim::actions::Action::TradeFavor {
             politician: colleague.0,
@@ -136,7 +153,11 @@ fn opinion_and_favours_live_on_relationship_edges() {
     let f = &pol.characters.favours[0];
     assert_eq!(f.context, "favour-bill");
     assert_eq!(f.subject, Some(Subject::Policy { id: bill }));
-    let edge = pol.characters.edge(cc, me).unwrap();
+    // The trade created the edge the colleague did not have before.
+    let edge = pol
+        .characters
+        .edge(cc, me)
+        .expect("a favour traded opens a relationship edge");
     // The colleague's warmth and traits scale the goodwill (DEC-031).
     let d = c.actions.lobby.opinion_success;
     let scaled = d * characters::opinion_scale(pol, &c, cc, d);

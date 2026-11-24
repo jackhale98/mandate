@@ -14,7 +14,9 @@ use std::sync::Arc;
 /// began to follow the party line from platforms (W1 note 9): the burn-in
 /// history, and so the town's places, changed. Re-pinned (158ea778 -> baff2383)
 /// when rents became bounded by incomes (audit fix 2): baseline housing moved.
-const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "baff2383");
+/// Re-pinned (baff2383 -> c720a820) when the record began to decide votes
+/// (audit fix 1): the burn-in's elections, and so the town, changed.
+const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "c720a820");
 
 fn fnv1a(s: &str) -> String {
     let mut h: u32 = 0x811c_9dc5;

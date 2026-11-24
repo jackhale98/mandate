@@ -192,6 +192,12 @@ fn v18_paths_migrate_to_posts() {
 /// spine's rule instead of "the last 2,000".
 /// Re-recorded again on top of the rents fix's golden (audit fix 2), with
 /// the same check against it and the same result.
+///
+/// Re-recorded for audit fix 1 (the record decides votes), on top of the
+/// spine's golden: the eight turns hold an election, and the vote now weighs
+/// approval against the nation and the benchmarked unemployment level, and
+/// canvassing alone builds no record, so the ward's figures and what follows
+/// from them changed on purpose.
 #[test]
 fn v18_save_continues_identically() {
     let c = content();
