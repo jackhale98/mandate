@@ -13,4 +13,10 @@ kind_key: string,
 /**
  * A generated proper name (e.g. "The Ashford Herald"), or empty.
  */
-name: string, neighborhood: number | null, neighborhood_name: string, };
+name: string, neighborhood: number | null, neighborhood_name: string, 
+/**
+ * For the centre (a neighbourhood with its town's name): the Fluent key
+ * that names it to the player in place of `neighborhood_name` ("Larkowick
+ * town centre"), with `neighborhood_args` (M6 note 19).
+ */
+neighborhood_key?: string, neighborhood_args?: { [key in string]: string }, };

@@ -8,8 +8,9 @@ export function oddsText(tr: Translator, odds: number): string {
   return tr.t("ui-talk-odds", { pct: Math.round(odds * 100) });
 }
 
-/** A subject's name: its own (a person, a neighbourhood, a named place), else its kind's or policy's name. */
-export function aboutText(tr: Translator, label: string | null, labelKey: string | null): string {
+/** A subject's name: its own (a person, a neighbourhood, a named place), else its kind's or policy's name; with arguments, the key names it (the town centre). */
+export function aboutText(tr: Translator, label: string | null, labelKey: string | null, labelArgs?: Record<string, string> | null): string {
+  if (labelKey && labelArgs) return tr.t(labelKey, labelArgs);
   if (label) return label;
   return labelKey ? tr.t(labelKey) : "";
 }

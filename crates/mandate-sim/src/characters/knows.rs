@@ -12,6 +12,13 @@
 //! cautious one more guarded; the vain one more open when flattered), and a
 //! favour they owe the player, called in, opens them up by one. They tell
 //! `min(what they know, the cap)`.
+//!
+//! **Officeholders and workers** (M6 note 19): someone holding a post knows
+//! every neighbourhood of its jurisdiction by report (the `officeholder`
+//! rules: the letters and the casework tell them the complaint plainly, not
+//! the street-by-street detail a resident has), and someone who works in a
+//! neighbourhood hears what is said there (`works_there`). The levels are
+//! content; who counts is read from the constitution's posts, never by name.
 
 use super::CharacterId;
 use crate::player::knowledge::{Level, Subject};
@@ -100,6 +107,81 @@ pub fn role_label(state: &State, content: &ContentBundle, id: CharacterId) -> Ro
     }
 }
 
+/// Where someone works, in town `town`: their own place (a named
+/// character's), else where their post sits (DEC-098). `None` for someone
+/// with neither.
+pub fn workplace(
+    state: &State,
+    c: CharacterId,
+    town: MunicipalityId,
+) -> Option<&crate::world::Place> {
+    let ch = state.politics.characters.get(c)?;
+    if let Some(p) = ch
+        .named
+        .as_deref()
+        .and_then(|n| n.place)
+        .and_then(|p| state.world.places.get(p.index()))
+    {
+        return Some(p);
+    }
+    let kind = ch
+        .politician
+        .and_then(|p| state.politics.get(p))
+        .and_then(|p| p.role.post())
+        .and_then(|post| crate::politics::workplace_of(&state.politics, post))?;
+    state
+        .world
+        .places
+        .iter()
+        .find(|p| p.municipality == town && p.kind == kind)
+}
+
+/// The jurisdiction of the post someone holds (`None`: no post).
+fn post_at(state: &State, c: CharacterId) -> Option<crate::world::Jurisdiction> {
+    state
+        .politics
+        .characters
+        .get(c)?
+        .politician
+        .and_then(|p| state.politics.get(p))
+        .and_then(|p| p.role.post())
+        .map(|post| post.at())
+}
+
+/// Whether someone holds a post whose jurisdiction (and so its districts)
+/// covers this neighbourhood (DEC-098).
+pub fn holds_post_over(state: &State, c: CharacterId, hood: crate::world::NeighborhoodId) -> bool {
+    post_at(state, c).is_some_and(|at| at.contains_hood(&state.world, hood))
+}
+
+/// Whether someone holds a post whose jurisdiction covers this town.
+fn holds_post_over_town(state: &State, c: CharacterId, town: MunicipalityId) -> bool {
+    use crate::world::Jurisdiction as J;
+    match post_at(state, c) {
+        Some(J::Municipality { id }) => id == town,
+        Some(J::Region { id }) => state
+            .world
+            .municipalities
+            .get(town.index())
+            .is_some_and(|m| m.region == id),
+        Some(J::Nation) => true,
+        None => false,
+    }
+}
+
+/// Whether someone works in this neighbourhood (their workplace is there).
+pub fn works_in(state: &State, c: CharacterId, hood: crate::world::NeighborhoodId) -> bool {
+    let Some(town) = state
+        .world
+        .neighborhoods
+        .get(hood.index())
+        .map(|h| h.municipality)
+    else {
+        return false;
+    };
+    workplace(state, c, town).is_some_and(|p| p.neighborhood == hood)
+}
+
 /// The town a subject is about (`None`: no town's local knowledge covers it).
 fn subject_town(state: &State, s: &Subject) -> Option<MunicipalityId> {
     match s {
@@ -132,13 +214,14 @@ fn subject_town(state: &State, s: &Subject) -> Option<MunicipalityId> {
     }
 }
 
-/// Whether a `who` rule describes the speaker (in town `town`).
+/// Whether a `who` rule describes the speaker (in town `town`, on subject `s`).
 fn is_who(
     state: &State,
     content: &ContentBundle,
     speaker: CharacterId,
     who: KnowsWho,
     town: MunicipalityId,
+    s: &Subject,
 ) -> bool {
     let Some(c) = state.politics.characters.get(speaker) else {
         return false;
@@ -166,6 +249,14 @@ fn is_who(
         // Sponsors arrive with policy families (F-series): nobody yet.
         KnowsWho::Sponsor => false,
         KnowsWho::Workplace => named.is_some_and(|n| n.place.is_some()),
+        KnowsWho::Officeholder => match s {
+            Subject::HoodConcerns { hood } => holds_post_over(state, speaker, *hood),
+            _ => holds_post_over_town(state, speaker, town),
+        },
+        KnowsWho::WorksThere => match s {
+            Subject::HoodConcerns { hood } => works_in(state, speaker, *hood),
+            _ => false,
+        },
     }
 }
 
@@ -180,6 +271,7 @@ fn covers(state: &State, speaker: CharacterId, what: KnownSubject, s: &Subject) 
         (KnownSubject::HomeConcerns, Subject::HoodConcerns { hood }) => {
             super::profile(&state.politics, &state.world, speaker).is_some_and(|p| p.home == hood.0)
         }
+        (KnownSubject::HoodConcerns, Subject::HoodConcerns { .. }) => true,
         (KnownSubject::Council, Subject::Person { person }) => ch
             .get(*person)
             .and_then(|c| c.politician)
@@ -197,7 +289,8 @@ fn covers(state: &State, speaker: CharacterId, what: KnownSubject, s: &Subject) 
 }
 
 /// What a speaker knows of a subject (derived from `talk_params.speaker_knows`;
-/// never stored). Local knowledge only: a subject of another town is unknown.
+/// never stored). Local knowledge only: a subject of another town is unknown,
+/// except to someone holding a post over it (the `officeholder` rules).
 pub fn speaker_knows(
     state: &State,
     content: &ContentBundle,
@@ -207,15 +300,14 @@ pub fn speaker_knows(
     let Some(town) = subject_town(state, s) else {
         return Level::Unknown;
     };
-    if super::municipality_of(&state.politics, &state.world, speaker) != Some(town.0) {
-        return Level::Unknown;
-    }
+    let local = super::municipality_of(&state.politics, &state.world, speaker) == Some(town.0);
     content
         .talk
         .speaker_knows
         .iter()
+        .filter(|r| local || r.who == KnowsWho::Officeholder)
         .filter(|r| covers(state, speaker, r.subject, s))
-        .filter(|r| is_who(state, content, speaker, r.who, town))
+        .filter(|r| is_who(state, content, speaker, r.who, town, s))
         .map(|r| r.level)
         .max()
         .unwrap_or_default()

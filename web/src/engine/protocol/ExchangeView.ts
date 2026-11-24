@@ -20,9 +20,11 @@ place: LocationView | null,
  */
 topic: string, topic_key: string, 
 /**
- * What it was about: a name (`about_label`) or a Fluent key.
+ * What it was about: a name (`about_label`) or a Fluent key. With
+ * `about_label_args`, the key (with them) names it in place of the
+ * name (the town centre).
  */
-about_label: string | null, about_label_key: string | null, 
+about_label: string | null, about_label_key: string | null, about_label_args?: { [key in string]: string }, 
 /**
  * The reply, in order (opener, quote, substance, closer).
  */

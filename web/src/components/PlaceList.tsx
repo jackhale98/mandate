@@ -5,7 +5,7 @@
 // place and quick mode's future home. Places with nothing to do yet are named
 // under "Also here".
 import type { SpotView } from "../engine/protocol/SpotView";
-import { placeIcon, placeName } from "../places/labels";
+import { hoodLabel, placeIcon, placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 
 function Spot({ s }: { s: SpotView }) {
@@ -59,7 +59,7 @@ export function PlaceList() {
           return (
             <section key={h.id} className={`hood hood-${h.kind}`} aria-labelledby={`hood-${h.id}`}>
               <div className="hood-head">
-                <h3 id={`hood-${h.id}`}>{h.name}</h3>
+                <h3 id={`hood-${h.id}`}>{hoodLabel(tr, h.name, h.name_key, h.name_args)}</h3>
                 <span className="muted small">{tr.t(`hood-${h.kind}`)}</span>
                 {h.is_home && <span className="chip chip-muted">{tr.t("ui-home-hood")}</span>}
                 {h.in_ward && <span className="chip chip-muted">{tr.t("ui-your-ward")}</span>}

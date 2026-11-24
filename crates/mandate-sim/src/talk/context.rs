@@ -15,6 +15,24 @@ use mandate_content::{Condition, ContentBundle};
 
 pub type Args = crate::condition::Args;
 
+/// How a speaker is tied to a neighbourhood (the `about` condition's
+/// `home`, `office`, `works`, `here`): whether they have reason to know it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct HoodTies {
+    pub home: bool,
+    /// Inside the jurisdiction (or district) of a post they hold.
+    pub office: bool,
+    pub works: bool,
+    /// The conversation happens there.
+    pub here: bool,
+}
+
+impl HoodTies {
+    pub fn any(self) -> bool {
+        self.home || self.office || self.works || self.here
+    }
+}
+
 /// Everything a conversation's conditions read.
 pub struct Ctx<'a> {
     pub st: &'a State,
@@ -169,25 +187,19 @@ impl Ctx<'_> {
     /// where their post sits (DEC-098), in this town. `None` for someone
     /// with neither.
     pub fn workplace(&self, c: CharacterId) -> Option<&crate::world::Place> {
+        characters::knows::workplace(self.st, c, self.town)
+    }
+
+    /// How the speaker is tied to a neighbourhood: they live there, hold a
+    /// post over it, work there, or are talking there now.
+    pub fn ties(&self, hood: NeighborhoodId) -> HoodTies {
         let st = self.st;
-        let ch = st.politics.characters.get(c)?;
-        if let Some(p) = ch
-            .named
-            .as_deref()
-            .and_then(|n| n.place)
-            .and_then(|p| st.world.places.get(p.index()))
-        {
-            return Some(p);
+        HoodTies {
+            home: self.hood(HoodOf::SpeakerHome) == Some(hood),
+            office: characters::knows::holds_post_over(st, self.speaker, hood),
+            works: characters::knows::works_in(st, self.speaker, hood),
+            here: crate::places::hood_of(st, self.here) == Some(hood),
         }
-        let kind = ch
-            .politician
-            .and_then(|p| st.politics.get(p))
-            .and_then(|p| p.role.post())
-            .and_then(|post| crate::politics::workplace_of(&st.politics, post))?;
-        st.world
-            .places
-            .iter()
-            .find(|p| p.municipality == self.town && p.kind == kind)
     }
 
     /// Where a person is found, as the argument `name`: their workplace,
@@ -271,7 +283,7 @@ impl Ctx<'_> {
             }
             Subject::HoodConcerns { hood } => {
                 if let Some(h) = st.world.neighborhoods.get(hood.index()) {
-                    args.insert("hood".into(), h.name.clone());
+                    hood_arg(st, *hood, "hood", args);
                     let felt = crate::concerns::felt_concerns(
                         &st.population,
                         self.content,
@@ -333,6 +345,37 @@ impl Ctx<'_> {
             let cx = crate::condition::Ctx::talk(v, self);
             crate::condition::holds(&cx, c, args)
         })
+    }
+}
+
+/// The Fluent key naming a neighbourhood that has its town's name: the
+/// town centre ("Larkowick town centre"; `$centre_town`). The stored name
+/// stays; only how it is named to the player changes (M6 note 19).
+pub const HOOD_CENTRE_KEY: &str = "ui-hood-centre";
+
+/// The town whose name a neighbourhood shares (its centre), if it does.
+pub fn centre_town(st: &State, hood: NeighborhoodId) -> Option<&str> {
+    let h = st.world.neighborhoods.get(hood.index())?;
+    let m = st.world.municipalities.get(h.municipality.index())?;
+    (m.name == h.name).then_some(m.name.as_str())
+}
+
+/// A neighbourhood's name as an argument: `name` (the stored name) and,
+/// for the centre, `<name>_key` (`ui-hood-centre`, which the client reads in
+/// place of the name) with `$centre_town`.
+pub fn hood_arg(st: &State, hood: NeighborhoodId, name: &str, args: &mut Args) {
+    let Some(h) = st.world.neighborhoods.get(hood.index()) else {
+        return;
+    };
+    args.insert(name.into(), h.name.clone());
+    match centre_town(st, hood) {
+        Some(town) => {
+            args.insert(format!("{name}_key"), HOOD_CENTRE_KEY.into());
+            args.insert("centre_town".into(), town.into());
+        }
+        None => {
+            args.remove(&format!("{name}_key"));
+        }
     }
 }
 

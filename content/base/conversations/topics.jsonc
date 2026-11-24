@@ -10,7 +10,7 @@
   "kind": "talk_topics",
   "items": [
     { "id": "topic.worries", "name_key": "talk-topic-worries", "mechanic": "inform",
-      "about": ["hood"] },
+      "about": ["jurisdiction", "hood"] },
     { "id": "topic.who_runs", "name_key": "talk-topic-who-runs", "mechanic": "inform",
       // Offered until the player knows the broker in detail.
       "offered": { "when": [ { "type": "player_knows", "subject": { "type": "broker" }, "max": "known" } ] } },

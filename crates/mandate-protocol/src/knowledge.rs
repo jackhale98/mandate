@@ -394,6 +394,17 @@ fn hood_name(st: &State, hood: NeighborhoodId) -> String {
         .unwrap_or_default()
 }
 
+/// A neighbourhood's name as an argument (`name`), and for the centre (it
+/// has its town's name) `<name>_key` naming it as the town centre, which a
+/// client reads in place of the name (M6 note 19).
+fn put_hood(st: &State, args: &mut BTreeMap<String, String>, name: &str, hood: NeighborhoodId) {
+    args.insert(name.into(), hood_name(st, hood));
+    if let Some((key, extra)) = crate::talk::hood_centre_label(st, hood) {
+        args.insert(format!("{name}_key"), key);
+        args.extend(extra);
+    }
+}
+
 fn town_name(st: &State, town: MunicipalityId) -> String {
     st.world
         .municipalities
@@ -434,9 +445,7 @@ pub(crate) fn lead_view(gate: &Gate<'_>, l: &Lead) -> LeadView {
                     .unwrap_or_default(),
             );
         }
-        LeadTarget::Streets { hood } => {
-            args.insert("to_hood".into(), hood_name(st, *hood));
-        }
+        LeadTarget::Streets { hood } => put_hood(st, &mut args, "to_hood", *hood),
     }
     let loc =
         target_location(gate.engine, &l.to).filter(|loc| places::validate_move(st, *loc).is_ok());
@@ -528,7 +537,7 @@ pub(crate) fn usual_lead(gate: &Gate<'_>, person: CharacterId) -> Option<LeadVie
             }
         }
         Location::Street { neighborhood } => {
-            args.insert("to_hood".into(), hood_name(st, neighborhood));
+            put_hood(st, &mut args, "to_hood", neighborhood);
             args.insert("to_kind_key".into(), "place-streets".into());
         }
         Location::Home => return None,
@@ -837,7 +846,7 @@ pub(crate) fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeM
             concern_args(&mut args, level, keys);
         }
         Subject::HoodConcerns { hood } => {
-            put!("hood", hood_name(st, *hood));
+            put_hood(st, &mut args, "hood", *hood);
             if let Some(h) = st.world.neighborhoods.get(hood.index()) {
                 let keys =
                     crate::office::concerns_for(st, content, h.municipality, &[hood.index()])

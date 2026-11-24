@@ -6,6 +6,7 @@
 // this only formats and pages them.
 import type { AboutChoiceView } from "../../engine/protocol/AboutChoiceView";
 import type { ExchangeView } from "../../engine/protocol/ExchangeView";
+import type { SpokenLineView } from "../../engine/protocol/SpokenLineView";
 import type { TalkView } from "../../engine/protocol/TalkView";
 import type { TopicView } from "../../engine/protocol/TopicView";
 import type { Translator } from "../../i18n/fluent";
@@ -40,7 +41,7 @@ export function subjectGroups(tr: Translator, list: readonly AboutChoiceView[], 
   const needle = q.trim().toLocaleLowerCase();
   const out: [string, AboutChoiceView[]][] = [];
   for (const c of list) {
-    if (needle && !aboutText(tr, c.label, c.label_key).toLocaleLowerCase().includes(needle)) continue;
+    if (needle && !aboutText(tr, c.label, c.label_key, c.label_args).toLocaleLowerCase().includes(needle)) continue;
     const g = out.find(([k]) => k === c.kind);
     if (g) g[1].push(c);
     else out.push([c.kind, [c]]);
@@ -67,7 +68,7 @@ export function costText(tr: Translator, v: TalkView): { short: string; long: st
 /** What the player says, as their bubble shows it: the topic, and its subject. */
 export function questionText(tr: Translator, t: TopicView, about: AboutChoiceView | null): string {
   const topic = topicSay(tr, t);
-  return about ? tr.t("ui-dlg-asked-about", { topic, about: aboutText(tr, about.label, about.label_key) }) : topic;
+  return about ? tr.t("ui-dlg-asked-about", { topic, about: aboutText(tr, about.label, about.label_key, about.label_args) }) : topic;
 }
 
 /** One stretch of a reply: a stage direction (italic: an opener, an unquoted closer, a change of mood) or a spoken line. */
@@ -140,6 +141,11 @@ export function replyPages(tr: Translator, x: ExchangeView, limit = PAGE_CHARS):
   }
   if (cur.length > 0) pages.push(cur);
   return pages;
+}
+
+/** The greeting (what the person says as the conversation opens, before any topic): one page, a stage direction as an opener is. */
+export function greetingPage(tr: Translator, g: SpokenLineView): Page {
+  return [{ text: tr.event(g.key, g.args), stage: true }];
 }
 
 /** A page's text as one string (the live region, the typewriter's length). */

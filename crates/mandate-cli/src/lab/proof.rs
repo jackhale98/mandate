@@ -195,26 +195,33 @@ fn digests(
 /// The state digests were re-recorded once more at 7a54822 with
 /// `meta.content_hash` left out of the state (the event streams did not
 /// move): the hash covers the pack's text, so a reworded line moved the
-/// digest without changing any outcome.
+/// digest without changing any outcome. The state digests of the four games
+/// whose bot talks were re-recorded with M6 play note 19 (the event streams
+/// did not move, and neither did the idle games): the conversation record
+/// (`player.talk`) changed on purpose, as the first reply of the day stores
+/// no opener (the greeting took its place), the greeting is in the
+/// used-lines guard, and spoken-line arguments carry the centre's label.
+/// With `player.talk` left out, all eight state digests equal the branch
+/// head's computed the same way.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "idle", 96, "87c7f491cc59eb96", "288a01ff84986fb9"), // 1241 events
-    (2026, "mixed", 96, "30513a0fd79f8345", "25ead84c95ebe4f3"), // 2014 events
+    (2026, "mixed", 96, "30513a0fd79f8345", "8aa63534f5867600"), // 2014 events
     (7, "idle", 96, "0c7529b9245d03ca", "86b30dc5e4bf38b7"),    // 1179 events
-    (7, "corrupt", 96, "c3167aacfc06bb48", "fcb734cf3e81c21f"), // 1904 events
+    (7, "corrupt", 96, "c3167aacfc06bb48", "57df7e05c0fac541"), // 1904 events
     (31, "idle", 96, "2e81ed540a34aee5", "e9ce189ffc9c4eda"),   // 1227 events
     (
         31,
         "explorer_legislator",
         96,
         "604610467beb7465",
-        "8683da9efb1ecfbe",
+        "4aa0c9c1e78b3702",
     ), // 3086 events
     (
         2026,
         "mixed+prison",
         96,
         "2baccbdaf9b90ad5",
-        "b045e652c3529320",
+        "6246052f1e5b62d5",
     ), // 1702 events
     (
         2026,

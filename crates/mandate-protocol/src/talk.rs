@@ -27,7 +27,7 @@ use mandate_sim::places::{self, Location};
 use mandate_sim::player::knowledge::{Level, Subject};
 use mandate_sim::policy::PolicyStatus;
 use mandate_sim::talk::{self, AboutRef, Exchange, ExchangeId, TalkTarget};
-use mandate_sim::world::{NeighborhoodId, PlaceId};
+use mandate_sim::world::{Jurisdiction, MunicipalityId, NeighborhoodId, PlaceId};
 use mandate_sim::{Engine, State};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -63,13 +63,72 @@ impl TalkTargetDto {
 #[ts(export)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AboutRefDto {
-    Place { place: u32 },
-    Person { person: u32 },
-    Hood { hood: u32 },
-    Bill { policy: u32 },
-    Template { template: String },
-    Proposal { proposal: u32 },
+    Place {
+        place: u32,
+    },
+    Person {
+        person: u32,
+    },
+    Hood {
+        hood: u32,
+    },
+    Bill {
+        policy: u32,
+    },
+    Template {
+        template: String,
+    },
+    Proposal {
+        proposal: u32,
+    },
     Rival,
+    /// The whole jurisdiction the conversation is in: its tier (`local` |
+    /// `regional` | `national`) and id (0 for the nation).
+    Jurisdiction {
+        tier: String,
+        id: u32,
+    },
+}
+
+/// A jurisdiction from its tier word and raw id (`None`: no such tier).
+fn jurisdiction_of(tier: &str, id: u32) -> Option<Jurisdiction> {
+    let t = match tier {
+        "local" => TierKey::Local,
+        "regional" => TierKey::Regional,
+        "national" => TierKey::National,
+        _ => return None,
+    };
+    Some(Jurisdiction::of(t, id))
+}
+
+/// A jurisdiction's tier word (`local` | `regional` | `national`).
+fn tier_word(at: Jurisdiction) -> &'static str {
+    match at.tier() {
+        TierKey::Local => "local",
+        TierKey::Regional => "regional",
+        TierKey::National => "national",
+    }
+}
+
+/// How a neighbourhood that has its town's name is named to the player: as
+/// the town centre (`ui-hood-centre`, with `$centre_town`; M6 note 19). The
+/// stored name stays. `None` for every other neighbourhood.
+pub fn hood_centre_label(
+    st: &State,
+    hood: NeighborhoodId,
+) -> Option<(String, BTreeMap<String, String>)> {
+    let town = mandate_sim::talk::context::centre_town(st, hood)?;
+    let args = BTreeMap::from([("centre_town".to_string(), town.to_string())]);
+    Some((
+        mandate_sim::talk::context::HOOD_CENTRE_KEY.to_string(),
+        args,
+    ))
+}
+
+/// The town of the player's focus (DEC-098: the jurisdictions simulated in
+/// detail around them; their home town in M6).
+fn focus_town(st: &State) -> Option<MunicipalityId> {
+    st.focus().into_iter().find_map(|j| j.municipality())
 }
 
 impl AboutRefDto {
@@ -96,6 +155,11 @@ impl AboutRefDto {
                 proposal: FamilyInstanceId(*proposal),
             },
             AboutRefDto::Rival => AboutRef::Rival,
+            // A tier that does not exist names the nation's whole: refused
+            // by the command's own checks unless the player is there.
+            AboutRefDto::Jurisdiction { tier, id } => AboutRef::Jurisdiction {
+                at: jurisdiction_of(tier, *id).unwrap_or(Jurisdiction::Nation),
+            },
         }
     }
 
@@ -112,6 +176,10 @@ impl AboutRefDto {
                 proposal: proposal.0,
             },
             AboutRef::Rival => AboutRefDto::Rival,
+            AboutRef::Jurisdiction { at } => AboutRefDto::Jurisdiction {
+                tier: tier_word(*at).into(),
+                id: at.raw(),
+            },
         }
     }
 }
@@ -120,15 +188,22 @@ impl AboutRefDto {
 
 /// A subject the player can raise on a topic: only things they know of
 /// (DEC-091). Named by `label` (a name) or, where that is empty, by
-/// `label_key` (a Fluent key: a policy's or a place kind's name).
+/// `label_key` (a Fluent key: a policy's or a place kind's name). With
+/// `label_args`, `label_key` names it (with those arguments) in place of
+/// `label`: the town centre ("Larkowick town centre"; `label` keeps the
+/// stored name).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AboutChoiceView {
     pub about: AboutRefDto,
-    /// `place` | `person` | `hood` | `bill` | `template` | `rival`.
+    /// `place` | `person` | `hood` | `bill` | `template` | `rival` |
+    /// `jurisdiction`.
     pub kind: String,
     pub label: String,
     pub label_key: Option<String>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label_args: Option<BTreeMap<String, String>>,
     /// The odds of a contested topic on this subject (DEC-073): the
     /// engine's, the ones the roll uses. `None` where nothing is rolled.
     pub odds: Option<f64>,
@@ -200,6 +275,13 @@ pub struct TalkView {
     /// night, the late slot used).
     pub out_of_time: bool,
     pub topics: Vec<TopicView>,
+    /// What they say as the conversation opens, before any topic is chosen
+    /// (M6 note 19; `talk::greeting`): the opener the first reply would have
+    /// started with, which that reply then leaves out. `None` once they
+    /// have talked with the player today, or when they are not here.
+    pub greeting: Option<SpokenLineView>,
+    /// The speaker's voice (`talk_voices` id), when one holds.
+    pub voice: Option<String>,
 }
 
 /// The reason key for a refused conversation. The engine's checks are the
@@ -258,7 +340,9 @@ fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<Ab
     let Some(pl) = st.player.as_ref() else {
         return Vec::new();
     };
-    let town = pl.municipality;
+    let Some(town) = focus_town(st) else {
+        return Vec::new();
+    };
     let me = characters::player_character(st);
     let mut out = Vec::new();
     let mut push = |about: AboutRef, label: String, label_key: Option<String>| {
@@ -267,6 +351,7 @@ fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<Ab
             about: AboutRefDto::of(&about),
             label,
             label_key,
+            label_args: None,
             odds: None,
             available: false,
             unavailable_key: None,
@@ -274,8 +359,21 @@ fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<Ab
     };
     for k in kinds {
         match k {
+            AboutKind::Jurisdiction => {
+                for at in talk::jurisdictions_here(st) {
+                    let key = format!("talk-whole-{}", tier_word(at));
+                    push(AboutRef::Jurisdiction { at }, String::new(), Some(key));
+                }
+            }
             AboutKind::Hood => {
-                for h in st.world.hoods_of(town) {
+                // The neighbourhoods of the player's focus (DEC-098).
+                let mut hoods: Vec<usize> = st
+                    .focus()
+                    .into_iter()
+                    .flat_map(|j| j.hoods(&st.world))
+                    .collect();
+                hoods.dedup();
+                for h in hoods {
                     if let Some(n) = st.world.neighborhoods.get(h) {
                         push(AboutRef::Hood { hood: n.id }, n.name.clone(), None);
                     }
@@ -384,6 +482,15 @@ fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<Ab
             AboutKind::Proposal => {}
         }
     }
+    // The centre is named as the town centre.
+    for c in &mut out {
+        if let AboutRefDto::Hood { hood } = c.about
+            && let Some((key, args)) = hood_centre_label(st, NeighborhoodId(hood))
+        {
+            c.label_key = Some(key);
+            c.label_args = Some(args);
+        }
+    }
     out
 }
 
@@ -453,6 +560,16 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
             here: false,
         })
     };
+    let greeting = if here {
+        talk::greeting(st, content, id).map(|g| SpokenLineView {
+            part: g.part.key().into(),
+            key: g.key,
+            args: g.args.into_iter().collect(),
+        })
+    } else {
+        None
+    };
+    let voice = talk_voice(st, content, id);
     let turn = st.calendar.turn;
     let half_slot_left = pl.talk.half_slot == Some(turn) && talk::cost_halves(content) == 1;
     let late_possible = here && !pl.late_night_used && talk::late_ok(st, content);
@@ -582,7 +699,26 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
         late_night_possible: late_possible,
         out_of_time,
         topics,
+        greeting,
+        voice,
     })
+}
+
+/// The speaker's voice (`talk::reply::voice`) in this conversation.
+fn talk_voice(st: &State, content: &ContentBundle, speaker: CharacterId) -> Option<String> {
+    let pl = st.player.as_ref()?;
+    let me = characters::player_character(st)?;
+    let ctx = mandate_sim::talk::context::Ctx {
+        st,
+        content,
+        town: pl.home(),
+        me,
+        speaker,
+        about: None,
+        here: pl.location,
+        cap: Level::Unknown,
+    };
+    mandate_sim::talk::reply::voice(&ctx).map(|v| v.id.clone())
 }
 
 // --- An exchange ---------------------------------------------------------------------
@@ -623,9 +759,14 @@ pub struct ExchangeView {
     /// Topic content id, and its Fluent name key.
     pub topic: String,
     pub topic_key: String,
-    /// What it was about: a name (`about_label`) or a Fluent key.
+    /// What it was about: a name (`about_label`) or a Fluent key. With
+    /// `about_label_args`, the key (with them) names it in place of the
+    /// name (the town centre).
     pub about_label: Option<String>,
     pub about_label_key: Option<String>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub about_label_args: Option<BTreeMap<String, String>>,
     /// The reply, in order (opener, quote, substance, closer).
     pub parts: Vec<SpokenLineView>,
     /// What the player learned from it (only what was new).
@@ -669,8 +810,9 @@ fn about_label(engine: &Engine, a: &AboutRef) -> (Option<String>, Option<String>
                 .neighborhoods
                 .get(hood.index())
                 .map(|h| h.name.clone()),
-            None,
+            hood_centre_label(st, *hood).map(|(k, _)| k),
         ),
+        AboutRef::Jurisdiction { at } => (None, Some(format!("talk-whole-{}", tier_word(*at)))),
         AboutRef::Bill { policy } => (
             None,
             st.policy
@@ -685,9 +827,8 @@ fn about_label(engine: &Engine, a: &AboutRef) -> (Option<String>, Option<String>
         ),
         AboutRef::Proposal { .. } => (None, None),
         AboutRef::Rival => (
-            st.player
-                .as_ref()
-                .and_then(|pl| st.politics.characters.towns.get(pl.municipality.index()))
+            focus_town(st)
+                .and_then(|town| st.politics.characters.towns.get(town.index()))
                 .and_then(|t| t.rival)
                 .and_then(|r| characters::profile(&st.politics, &st.world, r))
                 .map(|p| p.full_name()),
@@ -726,6 +867,10 @@ fn exchange_view_of(engine: &Engine, e: &Exchange) -> Option<ExchangeView> {
         speaker,
         topic: e.topic.clone(),
         topic_key,
+        about_label_args: match &e.about {
+            Some(AboutRef::Hood { hood }) => hood_centre_label(st, *hood).map(|(_, a)| a),
+            _ => None,
+        },
         about_label,
         about_label_key,
         parts: e
@@ -847,8 +992,8 @@ pub fn fit_band(content: &ContentBundle, fit: f64) -> &'static str {
 pub fn canvass_view(engine: &Engine, neighborhood: u32) -> Option<CanvassView> {
     let st = engine.state();
     let content = engine.content();
-    let pl = st.player.as_ref()?;
-    let town = pl.municipality;
+    st.player.as_ref()?;
+    let town = focus_town(st)?;
     let hood = NeighborhoodId(neighborhood);
     let n = st.world.neighborhoods.get(hood.index())?;
     if n.municipality != town {

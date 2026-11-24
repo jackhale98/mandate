@@ -238,6 +238,8 @@ ui-talk-kind-bill = Bills
 ui-talk-kind-template = Policies
 ui-talk-kind-rival = Your rival
 ui-talk-kind-proposal = Proposals
+# A neighbourhood with its town's name, named as the town centre (M6 note 19).
+ui-hood-centre = { $centre_town } town centre
 ui-talk-warmer = { $name } seems warmer towards you.
 ui-talk-cooler = { $name } seems cooler towards you.
 ui-talk-street-hint = Enter: talk to { $name }

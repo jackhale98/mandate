@@ -24,7 +24,7 @@ import { LIGHT_EASE_MS, PASSAGE_EASE_MS, shownMinutes } from "../hub/turnClock";
 import { artPack } from "../hub/townWorkerClient";
 import { Loader } from "./Brand";
 import { districtLabel } from "./posts";
-import { placeName } from "../places/labels";
+import { hoodLabel, placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 import { sameLocation } from "../state/routing";
 import { useSheetsCover } from "./sheetCover";
@@ -326,10 +326,14 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
     return () => window.clearInterval(id);
   }, [ready]);
   const engineAt = pocket?.location ?? null;
-  const hoodName = (id: number | null) => town.neighborhoods.find((h) => h.id === id)?.name ?? null;
+  // A neighbourhood as named to the player: the centre (it has its town's name) as the town centre.
+  const hoodName = (id: number | null) => {
+    const h = town.neighborhoods.find((x) => x.id === id);
+    return h ? hoodLabel(tr, h.name, h.name_key, h.name_args) : null;
+  };
   // Standing at the engine's location: its neighbourhood (a door on a border belongs to its place's); walking: the ground underfoot.
   const zoneHood = (ready && !spot.at ? spot.hood : null) ?? (engineAt?.neighborhood_name ? engineAt.neighborhood : null) ?? spot.hood;
-  const zoneName = (ready && !spot.at ? hoodName(spot.hood) : null) ?? (engineAt?.neighborhood_name || null) ?? hoodName(spot.hood) ?? town.municipality;
+  const zoneName = (ready && !spot.at ? hoodName(spot.hood) : null) ?? (engineAt?.neighborhood_name ? hoodLabel(tr, engineAt.neighborhood_name, engineAt.neighborhood_key, engineAt.neighborhood_args) : null) ?? hoodName(spot.hood) ?? town.municipality;
   // The district it sits in, in the constitution's words ("Eastfield · Ward 3"); none for a neighbourhood outside any ward.
   const wardNumber = town.neighborhoods.find((h) => h.id === zoneHood)?.ward_number ?? null;
   const zone = zoneName;

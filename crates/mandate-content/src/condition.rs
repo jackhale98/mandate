@@ -366,8 +366,13 @@ pub enum Condition {
     /// empty: any) and, if `workplace` is given, the speaker's own
     /// workplace (`true`) or not (`false`): where they work, or where their
     /// post sits; for a neighbourhood, if `home` is given, the speaker's home
-    /// (`true`) or not. With `is: false` it holds when the subject is not that
-    /// (or there is none).
+    /// (`true`) or not, if `office` is given, inside the jurisdiction or
+    /// district of a post the speaker holds (`true`) or not, if `works` is
+    /// given, where the speaker works (`true`) or not, if `here` is given,
+    /// where the conversation happens (`true`) or not, and if `tied` is
+    /// given, any of those four (`true`) or none of them (`false`: somewhere
+    /// the speaker has no reason to know). With `is: false` it holds when
+    /// the subject is not that (or there is none).
     About {
         #[serde(default)]
         kinds: Vec<AboutKind>,
@@ -377,6 +382,14 @@ pub enum Condition {
         workplace: Option<bool>,
         #[serde(default)]
         home: Option<bool>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        office: Option<bool>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        works: Option<bool>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        here: Option<bool>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tied: Option<bool>,
         #[serde(default = "yes")]
         is: bool,
     },
@@ -1394,6 +1407,10 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
             places,
             workplace,
             home,
+            office,
+            works,
+            here,
+            tied,
             ..
         } => {
             let place_ok = kinds.is_empty() || kinds.contains(&AboutKind::Place);
@@ -1408,10 +1425,14 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
                     err(issues, format!("unknown place kind `{k}`"));
                 }
             }
-            if home.is_some() && !(kinds.is_empty() || kinds.contains(&AboutKind::Hood)) {
+            let ties = [home, office, works, here, tied];
+            if ties.iter().any(|x| x.is_some())
+                && !(kinds.is_empty() || kinds.contains(&AboutKind::Hood))
+            {
                 err(
                     issues,
-                    "an about condition with `home` needs the hood kind".into(),
+                    "an about condition with `home`, `office`, `works`, `here` or `tied` needs the hood kind"
+                        .into(),
                 );
             }
         }

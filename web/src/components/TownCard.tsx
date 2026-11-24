@@ -16,6 +16,7 @@ import { roleText } from "./CharacterSheet";
 import { LeadLine, Unknown, personName } from "./Knowing";
 import { Headlines } from "./Newspaper";
 import { districtLabel } from "./posts";
+import { hoodLabel } from "../places/labels";
 import { StatTile } from "./StatTile";
 
 /** Someone in a list: their name as known (a role for a stranger), opening their sheet. */
@@ -134,7 +135,7 @@ function Neighbourhoods({ town }: { town: TownPlacesView }) {
         {town.neighborhoods.map((h) => (
           <li key={h.id} className="town-hood" data-testid="town-hood">
             <div className="town-hood-head">
-              <strong>{h.name}</strong>
+              <strong>{hoodLabel(tr, h.name, h.name_key, h.name_args)}</strong>
               <span className="muted small">{tr.t(`hood-${h.kind}`)}</span>
               {h.ward_number !== null && (
                 <span className="muted small" data-testid="town-hood-ward">

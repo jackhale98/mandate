@@ -65,6 +65,15 @@ pub struct LocationView {
     pub name: String,
     pub neighborhood: Option<u32>,
     pub neighborhood_name: String,
+    /// For the centre (a neighbourhood with its town's name): the Fluent key
+    /// that names it to the player in place of `neighborhood_name` ("Larkowick
+    /// town centre"), with `neighborhood_args` (M6 note 19).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub neighborhood_key: Option<String>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub neighborhood_args: Option<BTreeMap<String, String>>,
 }
 
 /// Where an action is done (auto-routing, DEC-079 rule 2).
@@ -198,6 +207,14 @@ pub struct SpotView {
 pub struct TownHoodView {
     pub id: u32,
     pub name: String,
+    /// For the centre (it has its town's name): the Fluent key that names it
+    /// in place of `name` ("Larkowick town centre"), with `name_args`.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_key: Option<String>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_args: Option<BTreeMap<String, String>>,
     /// Neighbourhood kind (Fluent `hood-<kind>`).
     pub kind: String,
     pub is_home: bool,
@@ -411,6 +428,7 @@ pub struct PlacePanelView {
 
 pub fn location_view(st: &State, loc: Location) -> LocationView {
     let hood = places::hood_of(st, loc);
+    let centre = hood.and_then(|h| crate::talk::hood_centre_label(st, h));
     LocationView {
         location: LocationDto::of(loc),
         kind_key: places::kind_key(st, loc).into(),
@@ -428,6 +446,8 @@ pub fn location_view(st: &State, loc: Location) -> LocationView {
             .and_then(|h| st.world.neighborhoods.get(h.index()))
             .map(|n| n.name.clone())
             .unwrap_or_default(),
+        neighborhood_key: centre.as_ref().map(|(k, _)| k.clone()),
+        neighborhood_args: centre.map(|(_, a)| a),
     }
 }
 
@@ -745,9 +765,12 @@ pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
                         .map(|c| c.name_key)
                 })
                 .flatten();
+            let centre = crate::talk::hood_centre_label(st, n.id);
             TownHoodView {
                 id: n.id.0,
                 name: n.name.clone(),
+                name_key: centre.as_ref().map(|(k, _)| k.clone()),
+                name_args: centre.map(|(_, a)| a),
                 kind: crate::office::snake(&n.kind),
                 is_home: home == Some(n.id),
                 in_ward: ward.contains(&n.id.index()),

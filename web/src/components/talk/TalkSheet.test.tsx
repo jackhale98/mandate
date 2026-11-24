@@ -58,6 +58,8 @@ function view(over: Partial<TalkView> = {}): TalkView {
       },
       { id: "topic.small_talk", name_key: "talk-topic-small-talk", mechanic: "small_talk", about: [], about_required: false, odds: 0.4, available: false, unavailable_key: "talk-why-owe", asked_this_week: true },
     ],
+    greeting: null,
+    voice: null,
     ...over,
   };
 }
@@ -131,20 +133,51 @@ describe("dialogue mode", () => {
     expect(screen.getByTestId("talk-layer").textContent).not.toMatch(/\b(talk|ui|notebook|lead)-[a-z-]+\b/);
   });
 
+  it("the person speaks as the conversation opens: the greeting with the choices, then the player's line, then the reply with no second opener", () => {
+    vi.useFakeTimers();
+    try {
+      const talkAbout = vi.fn(async () => {});
+      const greeting = { part: "opener", key: "talk-open-neutral-3", args: { speaker: "Dana Price" } };
+      useGame.setState({ talkAbout, talk: view({ greeting }) });
+      render(<TalkSheet />);
+      // At once, before any topic: their greeting in their bubble, read out, with every choice there to pick.
+      const bubble = () => screen.getByTestId("talk-bubble");
+      expect(bubble().querySelector("[data-stage]")?.textContent).toBe("Dana Price checks the time, then decides you can have a minute.");
+      expect(screen.getByTestId("talk-reply-live").textContent).toContain("checks the time");
+      expect(screen.queryByTestId("talk-you")).toBeNull();
+      expect(screen.queryByTestId("talk-continue")).toBeNull();
+      expect(choice("talk-topic-topic.who_runs").getAttribute("aria-disabled")).toBeNull();
+      expect(document.activeElement).toBe(choice("talk-topic-topic.who_runs"));
+      // The player picks: their line goes up at once; the person is thinking.
+      fireEvent.click(choice("talk-topic-topic.who_runs"));
+      expect(talkAbout).toHaveBeenCalledWith("topic.who_runs", null);
+      expect(screen.getByTestId("talk-you").textContent).toBe("Who really runs things here?");
+      expect(bubble().textContent).not.toContain("checks the time");
+      // The reply (no opener: the greeting took its place) follows once the line has held the stage.
+      const reply = { ...exchange, id: 9, parts: exchange.parts.filter((p) => p.part !== "opener") };
+      act(() => useGame.setState({ exchange: reply, talk: view({ greeting: null }) }));
+      expect(screen.getByTestId("talk-you").textContent).toBe("Who really runs things here?");
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.queryByTestId("talk-you")).toBeNull();
+      expect(bubble().textContent).not.toContain("checks the time");
+      expect(bubble().textContent).toContain(replyPages(tr, reply)[0]?.[0]?.text ?? "?");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("raises a topic in one tap; a topic about something asks for the subject in the same box", () => {
     const talkAbout = vi.fn(async () => {});
     useGame.setState({ talkAbout });
     render(<TalkSheet />);
     fireEvent.click(choice("talk-topic-topic.who_runs"));
     expect(talkAbout).toHaveBeenCalledWith("topic.who_runs", null);
-    // While the engine answers, nobody has spoken yet: the person's opener comes first, then the question.
-    expect(screen.queryByTestId("talk-you")).toBeNull();
-    act(() => useGame.setState({ exchange: { ...exchange, id: 9 } }));
-    expect(screen.getByTestId("talk-bubble").querySelector("[data-stage]")?.textContent).toContain("Dana Price checks the time");
-    expect(screen.queryByTestId("talk-you")).toBeNull();
-    fireEvent.click(choice("talk-continue"));
+    // The player's line goes up as they ask; the reply waits behind it.
     expect(screen.getByTestId("talk-you").textContent).toBe("Who really runs things here?");
-    expect(screen.queryByTestId("talk-bubble")).toBeNull();
+    act(() => useGame.setState({ exchange: { ...exchange, id: 9 } }));
+    expect(screen.getByTestId("talk-you").textContent).toBe("Who really runs things here?");
     fireEvent.click(choice("talk-topic-topic.pitch"));
     const subjects = screen.getByTestId("talk-subjects");
     // Grouped by kind, each with its own odds and availability.
@@ -159,8 +192,6 @@ describe("dialogue mode", () => {
     expect(talkAbout).toHaveBeenLastCalledWith("topic.pitch", { type: "bill", policy: 3 });
     // Back at the topics; the player's line names the subject.
     expect(screen.getByTestId("talk-topics")).toBeTruthy();
-    act(() => useGame.setState({ exchange: { ...exchange, id: 10, parts: exchange.parts.filter((p) => p.part !== "opener") } }));
-    // No opener: the question goes up as the reply arrives.
     expect(screen.getByTestId("talk-you").textContent).toBe("Pitch a policy: Pitch a policy");
   });
 
@@ -213,6 +244,10 @@ describe("dialogue mode", () => {
     expect(document.activeElement).toBe(go);
     fireEvent.click(go);
     expect(goToTalk).toHaveBeenCalled();
+    // There: the view now carries their greeting, and they say it before anything is asked.
+    expect(screen.queryByTestId("talk-bubble")).toBeNull();
+    act(() => useGame.setState({ talk: view({ greeting: { part: "opener", key: "talk-open-neutral-3", args: { speaker: "Dana Price" } } }) }));
+    expect(screen.getByTestId("talk-bubble").textContent).toContain("Dana Price checks the time");
   });
 
   it("a reply: page by page in their voice (stage directions in italics), read out, then the outcome, a notebook toast and a lead to follow", () => {

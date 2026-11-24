@@ -38,7 +38,7 @@ use crate::politics::PoliticianId;
 use crate::scheduler::Effect;
 use crate::spine::{Cause, PlayerAct};
 use crate::state::State;
-use crate::world::{NeighborhoodId, PlaceId};
+use crate::world::{Jurisdiction, NeighborhoodId, PlaceId};
 use context::{Args, Ctx};
 use mandate_content::conversation::{
     AboutKind, LeadToDef, TalkCost, TalkEffectDef, TalkMechanic, TopicDef,
@@ -61,13 +61,29 @@ pub enum TalkTarget {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AboutRef {
-    Place { place: PlaceId },
-    Person { person: CharacterId },
-    Hood { hood: NeighborhoodId },
-    Bill { policy: PolicyInstanceId },
-    Template { template: ContentKey },
-    Proposal { proposal: FamilyInstanceId },
+    Place {
+        place: PlaceId,
+    },
+    Person {
+        person: CharacterId,
+    },
+    Hood {
+        hood: NeighborhoodId,
+    },
+    Bill {
+        policy: PolicyInstanceId,
+    },
+    Template {
+        template: ContentKey,
+    },
+    Proposal {
+        proposal: FamilyInstanceId,
+    },
     Rival,
+    /// The whole jurisdiction the conversation is in (M6 note 19).
+    Jurisdiction {
+        at: Jurisdiction,
+    },
 }
 
 impl AboutRef {
@@ -80,6 +96,7 @@ impl AboutRef {
             AboutRef::Template { .. } => AboutKind::Template,
             AboutRef::Proposal { .. } => AboutKind::Proposal,
             AboutRef::Rival => AboutKind::Rival,
+            AboutRef::Jurisdiction { .. } => AboutKind::Jurisdiction,
         }
     }
 }
@@ -179,6 +196,23 @@ fn pay(state: &mut State, content: &ContentBundle, late_night: bool) {
     }
 }
 
+/// The jurisdictions a conversation where the player stands is "in" (the
+/// whole-town subject): those of the player's focus that contain where they
+/// are (DEC-098; the town in M6), widest last.
+pub fn jurisdictions_here(state: &State) -> Vec<Jurisdiction> {
+    let Some(pl) = state.player.as_ref() else {
+        return Vec::new();
+    };
+    let Some(hood) = crate::places::hood_of(state, pl.location) else {
+        return Vec::new();
+    };
+    state
+        .focus()
+        .into_iter()
+        .filter(|j| j.contains_hood(&state.world, hood))
+        .collect()
+}
+
 /// Is the subject a fair one to raise in this topic? (Exists, in the
 /// player's town, and a person the player has at least heard of.)
 fn check_about(
@@ -188,7 +222,7 @@ fn check_about(
     about: Option<&AboutRef>,
 ) -> Result<(), EngineError> {
     let pl = state.player.as_ref().ok_or_else(|| bad("no player"))?;
-    let town = pl.municipality;
+    let town = pl.home();
     let Some(a) = about else {
         if topic.about_required {
             return Err(bad("this topic needs a subject"));
@@ -225,6 +259,7 @@ fn check_about(
             .is_some_and(|t| t.tier == TierKey::Local),
         // Policy families (F-series) bring proposals.
         AboutRef::Proposal { .. } => false,
+        AboutRef::Jurisdiction { at } => jurisdictions_here(state).contains(at),
         AboutRef::Rival => state
             .politics
             .characters
@@ -372,6 +407,82 @@ pub fn asked_this_week(state: &State, speaker: CharacterId, topic: &str) -> bool
         .any(|e| e.topic == topic)
 }
 
+/// Whether a conversation with this person opens now (M6 note 19): the
+/// player has not talked with them today. Derived from the exchange log
+/// (every conversation, a hook's choice too, is logged the day it is had),
+/// so no state is kept for it. While it holds, the talk view carries the
+/// greeting and the reply says no opener of its own.
+pub fn opens_now(state: &State, speaker: CharacterId) -> bool {
+    let Some(pl) = state.player.as_ref() else {
+        return false;
+    };
+    let today = state.calendar.date;
+    !pl.talk
+        .log
+        .iter()
+        .any(|e| e.speaker == speaker && e.on == today)
+}
+
+/// Small talk with this person this week (flattery, §3.4).
+fn small_talks_this_week(state: &State, content: &ContentBundle, speaker: CharacterId) -> usize {
+    let Some(pl) = state.player.as_ref() else {
+        return 0;
+    };
+    pl.talk
+        .this_week(speaker, week_of(state.calendar.date))
+        .filter(|e| {
+            content
+                .talk_topic(&e.topic)
+                .is_some_and(|t| t.mechanic == TalkMechanic::SmallTalk)
+        })
+        .count()
+}
+
+/// The greeting (M6 note 19): what the person says as the conversation
+/// opens, before any topic is chosen. The opener rule (`reply::opener`: the
+/// openers that hold, the repetition guard, the keyed draw), with no topic
+/// and nothing asked about. `None` once they have talked with the player
+/// today (`opens_now`), or when no opener holds. Read-only.
+pub fn greeting(
+    state: &State,
+    content: &ContentBundle,
+    speaker: CharacterId,
+) -> Option<SpokenLine> {
+    if !opens_now(state, speaker) {
+        return None;
+    }
+    let pl = state.player.as_ref()?;
+    let me = characters::player_character(state)?;
+    if speaker == me {
+        return None;
+    }
+    let week = week_of(state.calendar.date);
+    let open = Openness {
+        flattered: small_talks_this_week(state, content, speaker) > 0,
+        favour_called: false,
+    };
+    let ctx = Ctx {
+        st: state,
+        content,
+        town: pl.home(),
+        me,
+        speaker,
+        about: None,
+        here: pl.location,
+        cap: knows::discretion_cap(state, content, speaker, me, open),
+    };
+    let n = pl.talk.this_week(speaker, week).count() as u32;
+    let c = reply::opener(&ctx, None, pl.talk.used_by(speaker), week, n)?;
+    let mut args = context_args(&ctx);
+    args.extend(c.args);
+    Some(SpokenLine {
+        part: c.part,
+        line: c.line.id.clone(),
+        key: c.line.key.clone(),
+        args: args.into_iter().collect(),
+    })
+}
+
 /// Every check the command makes, without changing anything (the talk
 /// panel's "available"). For a passer-by, ask after `Meet`.
 pub fn check(
@@ -395,6 +506,9 @@ struct Prepared {
     learn: bool,
     cap: Level,
     parts: Vec<SpokenLine>,
+    /// The greeting the conversation opened with (the talk view's), when it
+    /// opens now: remembered as a line the speaker used.
+    greeting: Option<SpokenLine>,
     teach: Vec<(Subject, Level)>,
     leads: Vec<Lead>,
     effects: Vec<TalkEffectDef>,
@@ -458,14 +572,7 @@ fn prepare(
         .filter(|e| e.about.as_ref() == about)
         .collect();
     let repeat = !same.is_empty();
-    let small_talks = talk
-        .this_week(speaker, week)
-        .filter(|e| {
-            content
-                .talk_topic(&e.topic)
-                .is_some_and(|t| t.mechanic == TalkMechanic::SmallTalk)
-        })
-        .count();
+    let small_talks = small_talks_this_week(state, content, speaker);
     let open = Openness {
         flattered: small_talks > 0,
         favour_called: matches!(mechanic, Mech::CallIn { .. }),
@@ -479,7 +586,7 @@ fn prepare(
     let ctx = Ctx {
         st: state,
         content,
-        town: pl.municipality,
+        town: pl.home(),
         me,
         speaker,
         about,
@@ -489,7 +596,17 @@ fn prepare(
     if !ctx.all_hold(&o.when, &mut Args::new()) {
         return Err(bad("that is not something to ask them now"));
     }
-    let composed = reply::compose(&ctx, topic, talk.used_by(speaker), week, n);
+    // The first conversation of the day opened with the greeting: no
+    // opener again. Later ones open as the greeting would.
+    let greeting = greeting(state, content, speaker);
+    let opening = if opens_now(state, speaker) {
+        reply::Opening::Greeted
+    } else {
+        reply::Opening::Opener {
+            n: talk.this_week(speaker, week).count() as u32,
+        }
+    };
+    let composed = reply::compose_reply(&ctx, topic, talk.used_by(speaker), week, n, opening);
     let base = context_args(&ctx);
     let source = Source::Talk {
         person: speaker,
@@ -544,6 +661,7 @@ fn prepare(
         learn,
         cap,
         parts,
+        greeting,
         teach,
         leads,
         effects,
@@ -570,10 +688,8 @@ pub fn context_args(ctx: &Ctx<'_>) -> Args {
             }
         }
         Location::Street { .. } | Location::Home => {
-            if let Some(h) = crate::places::hood_of(st, ctx.here)
-                .and_then(|h| st.world.neighborhoods.get(h.index()))
-            {
-                a.insert("here".into(), h.name.clone());
+            if let Some(h) = crate::places::hood_of(st, ctx.here) {
+                context::hood_arg(st, h, "here", &mut a);
             }
         }
     }
@@ -591,11 +707,7 @@ pub fn context_args(ctx: &Ctx<'_>) -> Args {
                 a.insert("about".into(), ctx.name_of(r));
             }
         }
-        Some(AboutRef::Hood { hood }) => {
-            if let Some(h) = st.world.neighborhoods.get(hood.index()) {
-                a.insert("about".into(), h.name.clone());
-            }
-        }
+        Some(AboutRef::Hood { hood }) => context::hood_arg(st, *hood, "about", &mut a),
         Some(AboutRef::Bill { policy }) => {
             if let Some(t) = st
                 .policy
@@ -609,6 +721,18 @@ pub fn context_args(ctx: &Ctx<'_>) -> Args {
         Some(AboutRef::Template { template }) => {
             if let Some(t) = ctx.content.policies.get(template) {
                 a.insert("about_key".into(), t.name_key.clone());
+            }
+        }
+        Some(AboutRef::Jurisdiction { at }) => {
+            let name = match at {
+                Jurisdiction::Municipality { id } => {
+                    st.world.municipalities.get(id.index()).map(|m| &m.name)
+                }
+                Jurisdiction::Region { id } => st.world.regions.get(id.index()).map(|r| &r.name),
+                Jurisdiction::Nation => None,
+            };
+            if let Some(n) = name {
+                a.insert("about".into(), n.clone());
             }
         }
         Some(AboutRef::Proposal { .. }) | None => {}
@@ -767,7 +891,12 @@ fn talk_to(
         Some(Location::Place { place }) => Some(place),
         _ => None,
     };
-    let lines: Vec<ContentKey> = p.parts.iter().map(|s| s.line.clone()).collect();
+    let lines: Vec<ContentKey> = p
+        .greeting
+        .iter()
+        .chain(p.parts.iter())
+        .map(|s| s.line.clone())
+        .collect();
     let t = &content.talk;
     let Some(pl) = state.player.as_mut() else {
         return Err(bad("no player"));
@@ -875,6 +1004,7 @@ fn choose(
     let pl = state.player.as_ref().ok_or_else(|| bad("no player"))?;
     let me = characters::player_character(state).ok_or_else(|| bad("no player"))?;
     let (hook, choice) = check_choice(state, content, speaker, id, late_night)?;
+    let greeted = greeting(state, content, speaker);
     let open = Openness {
         flattered: false,
         favour_called: false,
@@ -883,7 +1013,7 @@ fn choose(
     let ctx = Ctx {
         st: state,
         content,
-        town: pl.municipality,
+        town: pl.home(),
         me,
         speaker,
         about: None,
@@ -950,6 +1080,14 @@ fn choose(
         return Err(bad("no player"));
     };
     let id: ExchangeId = pl.talk.ids.alloc();
+    if let Some(g) = &greeted {
+        pl.talk.record_used(
+            speaker,
+            std::slice::from_ref(&g.line),
+            date,
+            t.memory_lines as usize,
+        );
+    }
     pl.talk.push(
         Exchange {
             id,

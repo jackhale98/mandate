@@ -47,6 +47,11 @@ talk-place-executive_residence = the executive residence
 
 # Topics (buttons).
 talk-topic-worries = What are people worried about?
+# The whole jurisdiction the conversation is in, as a subject (by tier).
+talk-whole-local = The whole town
+talk-whole-regional = The whole region
+talk-whole-national = The whole country
+ui-talk-kind-jurisdiction = All over
 talk-topic-who-runs = Who really runs things here?
 talk-topic-about = Ask about…
 talk-topic-pitch = Pitch a policy
@@ -59,7 +64,7 @@ talk-topic-small-talk = Small talk
 # Cool, and hostile.
 talk-open-cool = { $speaker } barely looks up.
 talk-open-cool-2 = { $speaker } folds both arms and waits.
-talk-open-cool-3 = { $speaker } lets you get halfway through the question before looking up.
+talk-open-cool-3 = { $speaker } lets you stand there a while before looking up.
 talk-open-cool-4 = { $speaker } sees you coming and doesn't pretend otherwise. "Oh. It's you."
 talk-open-hostile = { $speaker } offers neither a hand nor a seat.
 talk-open-hostile-2 = { $speaker } looks at the time, pointedly. "You've got two minutes, and you're using them."
@@ -96,7 +101,7 @@ talk-open-smooth-warm = { $speaker } takes your hand and holds it a beat longer 
 talk-open-smooth-trusted = "My favourite person in { $town }," says { $speaker }. "Don't tell the others."
 # Guarded.
 talk-open-guarded-cool = { $speaker } glances past your shoulder before answering at all.
-talk-open-guarded-neutral = { $speaker } considers the question as if it might be a trap. "That depends what you're asking."
+talk-open-guarded-neutral = { $speaker } looks at you as if you might be a trap. "That depends what you're after."
 talk-open-guarded-here = { $speaker } glances round { $here } before answering, voice low.
 talk-open-guarded-warm = { $speaker } waits until the nearest pair of ears has drifted off.
 # Earnest.
@@ -119,7 +124,7 @@ talk-open-pompous-warm = "Come, come," says { $speaker }, a little louder than n
 ## Openers, by role.
 talk-open-press = { $speaker } flips a notebook to a clean page, then thinks better of it and closes it.
 talk-open-politician = { $speaker } falls into step beside you. "Walk with me. I've a committee at the top of the hour."
-talk-open-clergy = { $speaker } hears the question all the way through, which almost nobody does.
+talk-open-clergy = { $speaker } gives you their whole attention and doesn't hurry you, which almost nobody does.
 
 ## Memory quotes ($subject: what it was about, $subject_kind: bill, a
 ## policy's name; decision, a decision's title; none, nothing in particular;
@@ -240,6 +245,17 @@ talk-worries-about-hood-unknown = "{ $about }? Not my end of town, so I'd only b
 talk-worries-about-hood-unknown-2 = "{ $about }? I couldn't tell you. I'm never over that way; you'd want someone from there."
 talk-worries-about-hood-unknown-3 = "Don't ask me about { $about }. I only know my own street, and that's bad enough."
 talk-worries-about-hood = "{ $hood }? I'd know; it's home. It's { $concern_talk }, and you could set your watch by the complaints."
+# A neighbourhood the speaker's post covers (by report), and one they work in.
+talk-worries-about-hood-office = "{ $hood }? I get the letters from there, and most of them are about { $concern_talk }. I know the complaint; I couldn't walk you to the door."
+talk-worries-about-hood-office-2 = "What comes in from { $hood } is { $concern_talk }, mostly. It's in the post every week."
+talk-worries-about-hood-office-3 = "From what reaches me, { $hood } is fretting about { $concern_talk }. You'd want someone on the doorstep for the rest."
+talk-worries-about-hood-works = "I don't live in { $hood }, but I work there. What I hear all day is { $concern_talk }."
+talk-worries-about-hood-works-2 = "{ $hood }? I'm there every working day. From what people say, it's { $concern_talk }."
+# The whole jurisdiction ($about: its name): a rumour, plainly, from the desk.
+talk-worries-whole-heard = "The whole of { $about }? From what I hear, it's { $concern_talk }. That's what comes up, whoever you ask."
+talk-worries-whole-known = "Across { $about }, it's { $concern_talk }. Every part of it says so in its own words."
+talk-worries-whole-known-2 = "If you want one answer for all of { $about }, it's { $concern_talk }."
+talk-worries-whole-desk = "All of { $about } comes across my desk, and the biggest pile is about { $concern_talk }. It is the same from every part of it."
 
 # What the facts are doing to people (anyone).
 talk-worries-jobs = "Another lot laid off. You stop asking where, after a while. You just ask who."

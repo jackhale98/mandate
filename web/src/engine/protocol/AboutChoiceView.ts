@@ -4,13 +4,17 @@ import type { AboutRefDto } from "./AboutRefDto";
 /**
  * A subject the player can raise on a topic: only things they know of
  * (DEC-091). Named by `label` (a name) or, where that is empty, by
- * `label_key` (a Fluent key: a policy's or a place kind's name).
+ * `label_key` (a Fluent key: a policy's or a place kind's name). With
+ * `label_args`, `label_key` names it (with those arguments) in place of
+ * `label`: the town centre ("Larkowick town centre"; `label` keeps the
+ * stored name).
  */
 export type AboutChoiceView = { about: AboutRefDto, 
 /**
- * `place` | `person` | `hood` | `bill` | `template` | `rival`.
+ * `place` | `person` | `hood` | `bill` | `template` | `rival` |
+ * `jurisdiction`.
  */
-kind: string, label: string, label_key: string | null, 
+kind: string, label: string, label_key: string | null, label_args?: { [key in string]: string }, 
 /**
  * The odds of a contested topic on this subject (DEC-073): the
  * engine's, the ones the roll uses. `None` where nothing is rolled.

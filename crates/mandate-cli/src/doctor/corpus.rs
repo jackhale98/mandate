@@ -49,11 +49,40 @@ pub fn corpus_text_findings(dir: &Path) -> Result<Vec<Finding>, String> {
 ///   `about`, which a place resolves to its neighbourhood) without an
 ///   `about` condition that keeps places out: asked about the paper, it
 ///   answers with the cost of living.
+/// - `subject-stranger`: a line for a neighbourhood the speaker does not
+///   live in (`home: false`) that does not also rule out the other ties
+///   (`tied: false`, or `office`/`works` given): "I'm never over that way"
+///   would be said by the mayor of the town, or by someone who works there
+///   (M6 note 19).
 pub(super) fn relevance_checks(b: &ContentBundle, out: &mut Out) {
     use mandate_content::conversation::{AboutKind, HoodOf, SubjectRef, TalkMechanic, reads_about};
     for l in &b.talk_lines {
         if l.part != TalkPart::Substance || l.fallback {
             continue;
+        }
+        let stranger = l.when.iter().any(|c| {
+            matches!(
+                c,
+                Condition::About {
+                    home: Some(false),
+                    office: None,
+                    works: None,
+                    tied: None,
+                    is: true,
+                    ..
+                }
+            )
+        });
+        if stranger {
+            out.add(
+                Sev::Warn,
+                "subject-stranger",
+                &l.id,
+                format!(
+                    "`{}` is for a neighbourhood the speaker does not live in, but not for one they have no tie to; add `\"tied\": false` (or say `office`/`works`)",
+                    l.id
+                ),
+            );
         }
         let Some(t) = l
             .topic
@@ -228,7 +257,13 @@ mod tests {
   { "id": "line.planted.about_hood_ok", "part": "substance", "topic": "topic.about",
     "key": "talk-planted-drift",
     "when": [ { "type": "about", "kinds": ["hood"] },
-              { "type": "tells", "subject": { "type": "hood_concerns", "of": "about" }, "min": "known" } ] }
+              { "type": "tells", "subject": { "type": "hood_concerns", "of": "about" }, "min": "known" } ] },
+  { "id": "line.planted.never_there", "part": "substance", "topic": "topic.worries",
+    "key": "talk-planted-anything",
+    "when": [ { "type": "about", "kinds": ["hood"], "home": false } ] },
+  { "id": "line.planted.never_there_ok", "part": "substance", "topic": "topic.worries",
+    "key": "talk-planted-anything",
+    "when": [ { "type": "about", "kinds": ["hood"], "home": false, "tied": false } ] }
 ] }"#
                 .into(),
         });
@@ -250,12 +285,23 @@ mod tests {
             human(&r)
         );
         assert!(!r.has("subject-drift", "line.planted.about_hood_ok"));
+        // "Never over that way", said by the mayor of the place (M6 note 19).
+        assert!(
+            r.has("subject-stranger", "line.planted.never_there"),
+            "{}",
+            human(&r)
+        );
+        assert!(!r.has("subject-stranger", "line.planted.never_there_ok"));
         // The base pack answers what it is asked.
         let base = diagnose(&base_sources(), &quick());
         let off: Vec<_> = base
             .findings
             .iter()
-            .filter(|f| f.check == "subject-unread" || f.check == "subject-drift")
+            .filter(|f| {
+                f.check == "subject-unread"
+                    || f.check == "subject-drift"
+                    || f.check == "subject-stranger"
+            })
             .collect();
         assert!(off.is_empty(), "{off:#?}");
     }

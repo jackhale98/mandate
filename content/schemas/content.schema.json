@@ -2,16 +2,25 @@
   "$defs": {
     "AboutKind": {
       "description": "The kind of subject a topic can be about.",
-      "enum": [
-        "place",
-        "person",
-        "hood",
-        "bill",
-        "template",
-        "proposal",
-        "rival"
-      ],
-      "type": "string"
+      "oneOf": [
+        {
+          "enum": [
+            "place",
+            "person",
+            "hood",
+            "bill",
+            "template",
+            "proposal",
+            "rival"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "jurisdiction",
+          "description": "The whole jurisdiction the conversation is in (the town; a region or\nthe nation where the player and the speaker are at that tier): its\nworries, as a whole (DEC-098).",
+          "type": "string"
+        }
+      ]
     },
     "ActDef": {
       "additionalProperties": false,
@@ -3774,8 +3783,14 @@
         },
         {
           "additionalProperties": false,
-          "description": "What the conversation is about (the `about` subject): one of these\nkinds (empty: any subject); for a place, one of `places` (place kinds;\nempty: any) and, if `workplace` is given, the speaker's own\nworkplace (`true`) or not (`false`): where they work, or where their\npost sits; for a neighbourhood, if `home` is given, the speaker's home\n(`true`) or not. With `is: false` it holds when the subject is not that\n(or there is none).",
+          "description": "What the conversation is about (the `about` subject): one of these\nkinds (empty: any subject); for a place, one of `places` (place kinds;\nempty: any) and, if `workplace` is given, the speaker's own\nworkplace (`true`) or not (`false`): where they work, or where their\npost sits; for a neighbourhood, if `home` is given, the speaker's home\n(`true`) or not, if `office` is given, inside the jurisdiction or\ndistrict of a post the speaker holds (`true`) or not, if `works` is\ngiven, where the speaker works (`true`) or not, if `here` is given,\nwhere the conversation happens (`true`) or not, and if `tied` is\ngiven, any of those four (`true`) or none of them (`false`: somewhere\nthe speaker has no reason to know). With `is: false` it holds when\nthe subject is not that (or there is none).",
           "properties": {
+            "here": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "home": {
               "default": null,
               "type": [
@@ -3794,6 +3809,12 @@
               },
               "type": "array"
             },
+            "office": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "places": {
               "default": [],
               "items": {
@@ -3801,12 +3822,24 @@
               },
               "type": "array"
             },
+            "tied": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "type": {
               "const": "about",
               "type": "string"
             },
             "workplace": {
               "default": null,
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "works": {
               "type": [
                 "boolean",
                 "null"
@@ -8835,6 +8868,11 @@
           "type": "string"
         },
         {
+          "const": "hood_concerns",
+          "description": "The worries of any neighbourhood (`who` says whose: an officeholder's\njurisdiction, where someone works).",
+          "type": "string"
+        },
+        {
           "const": "council",
           "description": "The councillors and the mayor, as people.",
           "type": "string"
@@ -8923,6 +8961,16 @@
         {
           "const": "workplace",
           "description": "Someone with a workplace.",
+          "type": "string"
+        },
+        {
+          "const": "officeholder",
+          "description": "Someone holding a post whose jurisdiction (or district) covers the\nsubject: a neighbourhood inside it, its town, the town itself\n(DEC-098; read from the constitution's posts, never by office name).",
+          "type": "string"
+        },
+        {
+          "const": "works_there",
+          "description": "Someone whose workplace (their own place, or where their post sits)\nis in the subject's neighbourhood.",
           "type": "string"
         }
       ]

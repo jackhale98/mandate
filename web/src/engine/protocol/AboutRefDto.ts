@@ -4,4 +4,4 @@
  * What a conversation is about, with plain ids (mirrors the engine's
  * `AboutRef`).
  */
-export type AboutRefDto = { "type": "place", place: number, } | { "type": "person", person: number, } | { "type": "hood", hood: number, } | { "type": "bill", policy: number, } | { "type": "template", template: string, } | { "type": "proposal", proposal: number, } | { "type": "rival" };
+export type AboutRefDto = { "type": "place", place: number, } | { "type": "person", person: number, } | { "type": "hood", hood: number, } | { "type": "bill", policy: number, } | { "type": "template", template: string, } | { "type": "proposal", proposal: number, } | { "type": "rival" } | { "type": "jurisdiction", tier: string, id: number, };

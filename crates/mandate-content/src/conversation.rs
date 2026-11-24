@@ -91,6 +91,10 @@ pub enum AboutKind {
     Template,
     Proposal,
     Rival,
+    /// The whole jurisdiction the conversation is in (the town; a region or
+    /// the nation where the player and the speaker are at that tier): its
+    /// worries, as a whole (DEC-098).
+    Jurisdiction,
 }
 
 impl AboutKind {
@@ -103,6 +107,7 @@ impl AboutKind {
             AboutKind::Template => "template",
             AboutKind::Proposal => "proposal",
             AboutKind::Rival => "rival",
+            AboutKind::Jurisdiction => "jurisdiction",
         }
     }
 
@@ -404,6 +409,13 @@ pub enum KnowsWho {
     Sponsor,
     /// Someone with a workplace.
     Workplace,
+    /// Someone holding a post whose jurisdiction (or district) covers the
+    /// subject: a neighbourhood inside it, its town, the town itself
+    /// (DEC-098; read from the constitution's posts, never by office name).
+    Officeholder,
+    /// Someone whose workplace (their own place, or where their post sits)
+    /// is in the subject's neighbourhood.
+    WorksThere,
 }
 
 /// What a rule knows.
@@ -416,6 +428,9 @@ pub enum KnownSubject {
     TownConcerns,
     /// The worries of the speaker's own neighbourhood.
     HomeConcerns,
+    /// The worries of any neighbourhood (`who` says whose: an officeholder's
+    /// jurisdiction, where someone works).
+    HoodConcerns,
     /// The councillors and the mayor, as people.
     Council,
     Broker,
@@ -892,6 +907,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 AboutKind::Template,
                 AboutKind::Proposal,
                 AboutKind::Rival,
+                AboutKind::Jurisdiction,
             ],
             TalkMechanic::Pitch => &[AboutKind::Bill, AboutKind::Template, AboutKind::Proposal],
             TalkMechanic::AskSupport | TalkMechanic::Favour => &[AboutKind::Bill],

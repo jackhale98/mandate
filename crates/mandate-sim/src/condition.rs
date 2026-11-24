@@ -722,10 +722,21 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             places,
             workplace,
             home,
+            office,
+            works,
+            here,
+            tied,
             is,
         } => {
             let Some(t) = cx.talk else {
                 return false;
+            };
+            // How the speaker is tied to the neighbourhood asked about.
+            let ties = |a: &AboutRef| -> Option<crate::talk::context::HoodTies> {
+                match a {
+                    AboutRef::Hood { hood } => Some(t.ties(*hood)),
+                    _ => None,
+                }
             };
             let holds = t.about.is_some_and(|a| {
                 if !kinds.is_empty() && !kinds.contains(&a.kind()) {
@@ -744,6 +755,19 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
                     let mine = matches!(a, AboutRef::Hood { .. })
                         && t.hood(HoodOf::About) == t.hood(HoodOf::SpeakerHome);
                     if mine != *h {
+                        return false;
+                    }
+                }
+                let tie = ties(a);
+                for (want, got) in [
+                    (office, tie.map(|x| x.office)),
+                    (works, tie.map(|x| x.works)),
+                    (here, tie.map(|x| x.here)),
+                    (tied, tie.map(|x| x.any())),
+                ] {
+                    if let Some(w) = want
+                        && got.unwrap_or(false) != *w
+                    {
                         return false;
                     }
                 }

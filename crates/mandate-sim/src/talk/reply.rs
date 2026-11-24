@@ -9,6 +9,13 @@
 //! where `n` counts this (speaker, topic) pair's earlier conversations this
 //! week, so asking again gives another line. No sequential stream advances
 //! and views can call this freely.
+//!
+//! **The opener is the greeting** (M6 note 19): the person speaks as the
+//! conversation opens, before any topic is chosen. Its draw is keyed on
+//! [`GREETING`] in place of the topic, with `n` counting every earlier
+//! conversation with this person this week, so the talk view's greeting
+//! ([`opener`] with no topic) and a reply's opener follow one rule. The
+//! first reply of the day says none: the greeting took its place.
 
 use super::context::{Args, Ctx};
 use super::state::UsedLine;
@@ -17,6 +24,21 @@ use mandate_core::Stream;
 
 /// Keyed-RNG tag of conversation draws (DEC-041): never reused.
 pub const TAG_TALK: u64 = 0x7A1C;
+
+/// What the opener's draw is keyed on in place of a topic: the greeting
+/// comes before any topic is chosen.
+pub const GREETING: &str = "greeting";
+
+/// How a reply opens.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Opening {
+    /// The conversation opened with the greeting (the talk view's): the reply
+    /// says no opener of its own.
+    Greeted,
+    /// An opener, drawn as the greeting is, `n` being the earlier
+    /// conversations with this person this week (any topic).
+    Opener { n: u32 },
+}
 
 /// One chosen part of a reply, with the arguments its conditions gave.
 #[derive(Clone, Debug)]
@@ -82,16 +104,7 @@ pub fn candidates<'c>(
     let lines = &ctx.content.talk_lines;
     let of = |p: TalkPart| lines.iter().filter(move |l| l.part == p);
     match part {
-        TalkPart::Opener => {
-            let own = holding(
-                ctx,
-                of(part).filter(|l| l.topic.as_deref() == Some(topic.id.as_str())),
-            );
-            if !own.is_empty() {
-                return (own, false);
-            }
-            (holding(ctx, of(part).filter(|l| l.topic.is_none())), false)
-        }
+        TalkPart::Opener => (opener_candidates(ctx, Some(topic)), false),
         TalkPart::Quote => (holding(ctx, of(part)), false),
         TalkPart::Substance => {
             let mine = of(part).filter(|l| l.topic.as_deref() == Some(topic.id.as_str()));
@@ -138,6 +151,55 @@ pub fn candidates<'c>(
     }
 }
 
+/// The openers that hold: a topic's own first (none before a topic is
+/// chosen), else those for any topic.
+fn opener_candidates<'c>(ctx: &Ctx<'c>, topic: Option<&TopicDef>) -> Vec<(&'c TalkLineDef, Args)> {
+    let of = || {
+        ctx.content
+            .talk_lines
+            .iter()
+            .filter(|l| l.part == TalkPart::Opener)
+    };
+    if let Some(t) = topic {
+        let own = holding(
+            ctx,
+            of().filter(|l| l.topic.as_deref() == Some(t.id.as_str())),
+        );
+        if !own.is_empty() {
+            return own;
+        }
+    }
+    holding(ctx, of().filter(|l| l.topic.is_none()))
+}
+
+/// The opener (the greeting, with no topic): the candidates that hold, the
+/// repetition guard, then the keyed draw on [`GREETING`]. `n`: the earlier
+/// conversations with this person this week.
+pub fn opener<'c>(
+    ctx: &Ctx<'c>,
+    topic: Option<&TopicDef>,
+    used: &[UsedLine],
+    week: u32,
+    n: u32,
+) -> Option<Chosen<'c>> {
+    let cands = opener_candidates(ctx, topic);
+    let mut rng = draw_rng(ctx, GREETING, week, TalkPart::Opener, n);
+    // The same draws as every part: the chance, then the line.
+    let _ = rng.next_f64();
+    if cands.is_empty() {
+        return None;
+    }
+    let cands = guard(cands, used);
+    let weights: Vec<f64> = cands.iter().map(|(l, _)| l.weight).collect();
+    let i = rng.weighted_index(&weights)?;
+    let (line, args) = cands.into_iter().nth(i)?;
+    Some(Chosen {
+        part: TalkPart::Opener,
+        line,
+        args,
+    })
+}
+
 /// Drop lines the speaker has used while others remain; if every one was
 /// used, keep the one used longest ago.
 pub fn guard<'c>(
@@ -181,8 +243,9 @@ pub fn draw_rng(
     )
 }
 
-/// Compose a reply (§3.5 steps 1–5). `used` is the speaker's used-lines
-/// memory, `n` this pair's earlier conversations this week.
+/// Compose a reply (§3.5 steps 1–5) with an opener (keyed on `n` too).
+/// `used` is the speaker's used-lines memory, `n` this pair's earlier
+/// conversations this week.
 pub fn compose<'c>(
     ctx: &Ctx<'c>,
     topic: &TopicDef,
@@ -190,10 +253,30 @@ pub fn compose<'c>(
     week: u32,
     n: u32,
 ) -> Composed<'c> {
+    compose_reply(ctx, topic, used, week, n, Opening::Opener { n })
+}
+
+/// Compose a reply, opening as `opening` says.
+pub fn compose_reply<'c>(
+    ctx: &Ctx<'c>,
+    topic: &TopicDef,
+    used: &[UsedLine],
+    week: u32,
+    n: u32,
+    opening: Opening,
+) -> Composed<'c> {
     let v = voice(ctx);
     let mut parts = Vec::new();
     let mut fell_back = false;
     for part in TalkPart::ALL {
+        if part == TalkPart::Opener {
+            if let Opening::Opener { n } = opening
+                && let Some(c) = opener(ctx, Some(topic), used, week, n)
+            {
+                parts.push(c);
+            }
+            continue;
+        }
         let (cands, fb) = candidates(ctx, topic, part, v);
         let mut rng = draw_rng(ctx, &topic.id, week, part, n);
         // A constant number of draws per part, whatever holds.

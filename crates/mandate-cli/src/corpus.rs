@@ -319,7 +319,7 @@ fn about_truth(st: &State, content: &ContentBundle, a: &mandate_sim::talk::About
             "hood_worries": hood_worries(st, content, hood.index()),
         }),
         A::Place { place: p } => place(st, content, Location::Place { place: *p }),
-        A::Proposal { .. } => serde_json::to_value(a).unwrap_or_default(),
+        A::Proposal { .. } | A::Jurisdiction { .. } => serde_json::to_value(a).unwrap_or_default(),
     }
 }
 

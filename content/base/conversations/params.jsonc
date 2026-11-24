@@ -34,6 +34,14 @@
       { "who": "anyone_local", "subject": "home_concerns", "level": "detailed" },
       { "who": "anyone_local", "subject": "council", "level": "known" },
       { "who": "anyone_local", "subject": "themselves", "level": "detailed" },
+      // Officeholders know every neighbourhood of their jurisdiction by
+      // report: the letters and the casework tell them the complaint
+      // plainly (known), not the street-by-street detail a resident has. The
+      // town as a whole they know in detail: it all comes across their desk.
+      { "who": "officeholder", "subject": "hood_concerns", "level": "known" },
+      { "who": "officeholder", "subject": "town_concerns", "level": "detailed" },
+      // Someone who works in a neighbourhood hears what is said there.
+      { "who": "works_there", "subject": "hood_concerns", "level": "heard" },
       { "who": "leader", "subject": "broker", "level": "known" },
       { "who": "stake_overlap", "subject": "broker", "level": "detailed" },
       { "who": "broker", "subject": "broker", "level": "detailed" },

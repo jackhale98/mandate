@@ -277,6 +277,13 @@ fn abouts(e: &Engine, c: &ContentBundle, s: CharacterId, kinds: &[AboutKind]) ->
                 }
             }
             AboutKind::Proposal => {}
+            AboutKind::Jurisdiction => {
+                v.extend(
+                    talk::jurisdictions_here(st)
+                        .into_iter()
+                        .map(|at| AboutRef::Jurisdiction { at }),
+                );
+            }
         }
     }
     v

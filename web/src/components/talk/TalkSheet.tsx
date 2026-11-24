@@ -8,11 +8,14 @@
 //     (../portrait), bubbles beside it.
 // The box lists the topics the engine offers (`TalkView`) as one-tap
 // choices with the engine's odds (DEC-073); a topic about something opens a
-// second step in the same box with its subjects. A reply (`ExchangeView`)
-// shows in the person's bubble, page by page (tap, Enter or Space), stage
-// directions in italics; what was learned becomes a notebook toast and a
-// lead a choice ("Go to the market"). The UI decides nothing: it sends the
-// `Talk` command and renders what the engine says (DEC-054).
+// second step in the same box with its subjects. The person speaks first:
+// their greeting (the view's) is in their bubble as the box opens, with the
+// choices beside it (M6 note 19). Then the player's line goes up over them,
+// and the reply (`ExchangeView`) follows in the person's bubble, page by
+// page (tap, Enter or Space), stage directions in italics; what was learned
+// becomes a notebook toast and a lead a choice ("Go to the market"). The UI
+// decides nothing: it sends the `Talk` command and renders what the engine
+// says (DEC-054).
 // Accessibility (DEC-051): the box is DOM; choices are buttons in a list
 // (arrow keys move, Enter chooses, Escape steps back or leaves); the reply
 // is read out by a polite live region; focus goes back to the street or to
@@ -30,7 +33,7 @@ import { roleText } from "../CharacterSheet";
 import { Portrait } from "../portrait/Portrait";
 import { keepLook, lookVariant } from "../portrait/look";
 import { Bubble, placeBubble } from "./Bubble";
-import { costText, pageText, questionText, replyPages, SEARCH_FROM, subjectGroups, topicRow, type Page } from "./dialogueModel";
+import { costText, greetingPage, pageText, questionText, replyPages, SEARCH_FROM, subjectGroups, topicRow, type Page } from "./dialogueModel";
 import { setTalkMode, useTalkStage, type TalkMode } from "./stage";
 import { displayName } from "./streetPeople";
 import { aboutText, learnedText } from "./talkText";
@@ -41,7 +44,7 @@ const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(pre
 /** The typewriter: characters a tick, and the tick (ms). */
 const TYPE_STEP = 2;
 const TYPE_MS = 28;
-/** The player's question stays up at least this long before the reply replaces it (ms). */
+/** The player's line stays up at least this long (from when they ask) before the reply replaces it (ms). */
 const ASK_HOLD_MS = 900;
 /** The notebook toast goes after this long (ms) unless the pointer or the keyboard is on it. */
 const NOTED_MS = 8000;
@@ -113,11 +116,15 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   const [step, setStep] = useState<Step>({ kind: "topics" });
   const [q, setQ] = useState("");
   const [active, setActive] = useState<string | null>(null);
-  // The player's question (their bubble), and until when it holds the stage.
+  // The player's line (their bubble), and the line that has held the stage long enough.
   const asked = useGame((s) => s.talkAsked);
   const setAsked = useGame((s) => s.setTalkAsked);
-  const [holding, setHolding] = useState(false);
-  const [shown, setShown] = useState<Shown>({ id: x?.id ?? null, page: 0, typed: Infinity });
+  const [held, setHeld] = useState<typeof asked>(null);
+  // The greeting, as the conversation opened (the engine's view drops it once they have talked today); one
+  // found away from them comes when the player reaches them ("Go to them"), before anything is asked.
+  const [greeting, setGreeting] = useState(() => v.greeting);
+  if (!greeting && v.greeting && !x && !asked) setGreeting(v.greeting);
+  const [shown, setShown] = useState<Shown>({ id: x?.id ?? null, page: 0, typed: !x && greeting && !reducedMotion() ? 0 : Infinity });
   const [notedGone, setNotedGone] = useState<number | null>(null);
 
   const boxRef = useRef<HTMLDivElement>(null);
@@ -135,27 +142,18 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   // A new reply starts at its first page (the derived-state pattern: no effect, no flash of the old one).
   const xid = x?.id ?? null;
   if (xid !== shown.id) setShown({ id: xid, page: 0, typed: reducedMotion() ? Infinity : 0 });
-  // The person speaks first: their opener ("What's this about?") comes before the player's question, then the rest of the reply.
-  const askedHere = asked !== null && asked.after !== xid;
-  const { pages, nOpen } = useMemo(() => {
-    if (!x) return { pages: [] as Page[], nOpen: 0 };
-    // A reply to a question asked here: split. One met some other way (no question to place) reads as it always did.
-    if (!askedHere) return { pages: replyPages(tr, x), nOpen: 0 };
-    const opens = replyPages(tr, { ...x, parts: x.parts.filter((p) => p.part === "opener"), leads: [], relationship: null });
-    const rest = replyPages(tr, { ...x, parts: x.parts.filter((p) => p.part !== "opener") });
-    return { pages: [...opens, ...rest], nOpen: opens.length };
-  }, [x, tr, askedHere]);
-  // The reply is in (not the one the question was asked after); the question goes up once the opener is said.
+  // Before any reply: the greeting. Then the latest reply, page by page.
+  const pages: Page[] = useMemo(() => (x ? replyPages(tr, x) : greeting ? [greetingPage(tr, greeting)] : []), [x, tr, greeting]);
+  // The reply is in (not the one the question was asked after).
   const fresh = asked !== null && x !== null && asked.after !== xid;
-  const inOpener = fresh && !asked.qShown && nOpen > 0;
-  const questionDue = fresh && !asked.qShown && nOpen === 0;
-  const showQuestion = holding || questionDue;
-  // The reply waits while the engine answers, and while the player's question is up.
+  // The player's line is up from the moment they ask until it has held the stage a moment with the reply in.
+  const showQuestion = asked !== null && !asked.qShown;
+  // The reply waits while the engine answers, and while the player's line is up.
   const waiting = asked !== null && (!fresh || showQuestion);
-  const page: Page | null = !waiting && x && pages.length > 0 ? (pages[Math.min(shown.page, pages.length - 1)] ?? null) : null;
+  const page: Page | null = !waiting && pages.length > 0 ? (pages[Math.min(shown.page, pages.length - 1)] ?? null) : null;
   const full = page ? pageText(page).length : 0;
   const typing = page !== null && shown.typed < full;
-  const more = page !== null && (inOpener || shown.page < pages.length - 1);
+  const more = page !== null && shown.page < pages.length - 1;
   const atEnd = x !== null && !waiting && !more;
 
   // The typewriter (off with reduced motion: the page is all there at once).
@@ -165,50 +163,37 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
     return () => window.clearInterval(id);
   }, [typing, full]);
 
-  // No opener: the question goes up as the reply arrives, and holds the stage a moment.
+  // The player's line holds the stage a moment from when they ask; once it has and the reply is in, it gives way.
   useEffect(() => {
-    if (!questionDue) return;
-    const id = window.setTimeout(() => setAsked((a) => (a ? { ...a, qShown: true } : a)), ASK_HOLD_MS);
+    if (!asked || asked.qShown) return;
+    const id = window.setTimeout(() => setHeld(asked), ASK_HOLD_MS);
     return () => window.clearTimeout(id);
-  }, [questionDue, setAsked]);
-
-  // The question holds the stage a moment, then gives way to the reply.
+  }, [asked]);
+  const lineDone = fresh && !asked.qShown && held === asked;
   useEffect(() => {
-    if (!holding) return;
-    const id = window.setTimeout(() => setHolding(false), ASK_HOLD_MS);
-    return () => window.clearTimeout(id);
-  }, [holding]);
+    if (lineDone) setAsked((a) => (a ? { ...a, qShown: true } : a));
+  }, [lineDone, setAsked]);
 
   /** Tap, Enter or Space on a reply: reveal the page at once, else the next page. */
   const advance = useCallback(() => {
     if (!page) return;
     if (shown.typed < full) setShown((s) => ({ ...s, typed: Infinity }));
-    else if (inOpener && shown.page >= nOpen - 1) {
-      // The opener is said: now the player's question, then the rest.
-      setAsked((a) => (a ? { ...a, qShown: true } : a));
-      setHolding(true);
-      setShown((s) => ({ ...s, page: nOpen, typed: reducedMotion() ? Infinity : 0 }));
-      focus("continue");
-    } else if (shown.page < pages.length - 1) {
+    else if (shown.page < pages.length - 1) {
       focus(shown.page + 1 < pages.length - 1 ? "continue" : "first");
       setShown((s) => ({ ...s, page: s.page + 1, typed: reducedMotion() ? Infinity : 0 }));
     }
-  }, [page, shown, full, pages.length, focus, inOpener, nOpen, setAsked]);
+  }, [page, shown, full, pages.length, focus]);
 
   const leave = useCallback(() => void openTalk(null), [openTalk]);
 
   const ask = (t: TopicView, about: AboutChoiceView | null) => {
     if (busy) return;
     setAsked({ text: questionText(tr, t, about), after: xid, qShown: false });
-    setHolding(false);
     setStep({ kind: "topics" });
     focus("continue");
     // Nothing came of it (the engine refused): the question goes, rather than wait for a reply.
     void talkAbout(t.id, about ? about.about : null).then(() => {
-      if ((useGame.getState().exchange?.id ?? null) === xid) {
-        setAsked(null);
-        setHolding(false);
-      }
+      if ((useGame.getState().exchange?.id ?? null) === xid) setAsked(null);
     });
   };
 
@@ -377,7 +362,8 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   const label = v.person.name ? tr.t("ui-talk-with", { name: v.person.name }) : tr.t("ui-talk-with-stranger");
   const role = v.person.name ? roleText(tr, v.person) : tr.t("ui-dlg-stranger");
   const cost = costText(tr, v);
-  const thinking = asked !== null && waiting && !showQuestion;
+  // The engine is answering: the person is thinking while the player's line is up.
+  const thinking = asked !== null && !fresh;
   const replyLive = page ? tr.t("ui-dlg-says", { name, line: pageText(page) }) : "";
   // A reason every topic shares (out of time, not here) is said once, above the choices.
   const shared = new Set<string>([...(v.out_of_time ? ["talk-why-time", "talk-why-late-used"] : []), ...(!v.here ? ["talk-why-away"] : [])]);
@@ -505,7 +491,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
           {groups.map(([kind, items]) => {
             const rows = items.map((c) =>
               choice(`about-${JSON.stringify(c.about)}`, {
-                label: aboutText(tr, c.label, c.label_key),
+                label: aboutText(tr, c.label, c.label_key, c.label_args),
                 disabled: !c.available,
                 why: c.available || shared.has(c.unavailable_key ?? "") ? null : c.unavailable_key,
                 describedBy: !c.available ? statusId : undefined,

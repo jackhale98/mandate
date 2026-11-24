@@ -1622,6 +1622,9 @@ fn sample_kind(st: &State, content: &ContentBundle, m: u32, k: AboutKind) -> Opt
             .find(|p| p.municipality.0 == m)
             .map(|p| AboutRef::Place { place: p.id }),
         AboutKind::Proposal => None,
+        AboutKind::Jurisdiction => Some(AboutRef::Jurisdiction {
+            at: crate::world::Jurisdiction::town(crate::world::MunicipalityId(m)),
+        }),
     }
 }
 

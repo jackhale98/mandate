@@ -145,6 +145,7 @@ pub struct Finding {
     /// `fluent-unused` | `fluent-args` | `too-long` | `voice` |
     /// `text-raw` | `text-empty-arg` | `text-doubled-punct` |
     /// `worry-unconditioned` | `subject-unread` | `subject-drift` |
+    /// `subject-stranger` |
     /// `talk-off-subject` (corpus) | `prose-habit`.
     pub check: String,
     /// The content file (or `.ftl`) that defines the item.

@@ -4,6 +4,11 @@ import type { SpotView } from "./SpotView";
 
 export type TownHoodView = { id: number, name: string, 
 /**
+ * For the centre (it has its town's name): the Fluent key that names it
+ * in place of `name` ("Larkowick town centre"), with `name_args`.
+ */
+name_key?: string, name_args?: { [key in string]: string }, 
+/**
  * Neighbourhood kind (Fluent `hood-<kind>`).
  */
 kind: string, is_home: boolean, in_ward: boolean, 
