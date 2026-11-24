@@ -92,6 +92,7 @@ Each wave builds on the one before. Within a wave, tasks marked ∥ have disjoin
 **W6 — Content and the checkpoint**
 - E3 to E5, E9 to E13 and text pass 2, through the content pipeline (§5.6).
 - Difficulty modes; settings; accessibility with a screen-reader playtest; PWA and performance; docs; the old-saves corpus.
+- **The landing page rewritten** (owner, 2026-11-24): the new pitch drafted at the end of W3 for the owner to read (the cold open is the hook), screenshots taken after W5 (named plants, works and upkeep change how towns look), shipped just before the checkpoint. Settle first: the name and any subtitle, a contact address, and a custom domain if there is one.
 - The tester checkpoint, with the engagement questions ("did you care about anyone?").
 
 **M7, one system at a time (each passing §1's tests):** faith communities; crime with justice and prisons; commuting, then transport; energy; immigration with DEC-087; living parties (DEC-107); NPC stress and the player's wellbeing with daily life; return to a world (DEC-103); the Act 2 design (DEC-105). Account sync when the domain exists (DEC-104).
