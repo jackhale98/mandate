@@ -11,7 +11,7 @@ One page. It replaces opening large documents. `AGENTS.md` is binding; this summ
 6. Content is JSONC, validated against schemas generated from Rust types (DEC-053).
 7. A system writes only its own domain; cross-domain changes go through effect requests (OVERVIEW §4.3).
 8. Never silently change an accepted decision, add an unjustified dependency, weaken a test, or edit outside your brief's `OWNS` list.
-9. Saves: a format change bumps the version and adds a migration; state hashes change only on purpose.
+9. Saves: a format change bumps the version; state hashes change only on purpose. Before release (owner, 2026-11-24) a migration is written only when it is cheap (defaults, a rename, state regenerated from the seed). When carrying an old save faithfully would cost real work or leave debt, drop the in-flight detail or add no step, so the save is refused with the clear message in `mandate-save::migrate`, and say so in the report.
 10. Shown = rolled: any odds the UI shows are the odds the engine uses.
 
 ## Code map
