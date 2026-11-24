@@ -376,6 +376,7 @@ fn each_ending_condition_fires() {
             s.act.records.last_mut().unwrap().entries.push(LegacyEntry {
                 date,
                 kind: LegacyKind::RemovedFromOffice { case: 1 },
+                source_event: None,
             });
         }),
     ));
@@ -410,6 +411,7 @@ fn each_ending_condition_fires() {
             s.act.records.last_mut().unwrap().entries.push(LegacyEntry {
                 date,
                 kind: LegacyKind::Deselected,
+                source_event: None,
             });
         }),
     ));
@@ -427,6 +429,7 @@ fn each_ending_condition_fires() {
                     won: false,
                     share: 0.4,
                 },
+                source_event: None,
             });
         }),
     ));
@@ -444,6 +447,7 @@ fn each_ending_condition_fires() {
                         won: true,
                         share: 0.55,
                     },
+                    source_event: None,
                 });
             }
         }),
@@ -465,6 +469,7 @@ fn each_ending_condition_fires() {
                 won: true,
                 share: 0.55,
             },
+            source_event: None,
         });
     });
     assert_eq!(ending_now(&e), None);
@@ -638,6 +643,7 @@ fn the_legacy_record_survives_save_load_and_migration() {
         s.act.records.last_mut().unwrap().entries.push(LegacyEntry {
             date,
             kind: LegacyKind::PromiseKept { person: 3 },
+            source_event: None,
         });
     });
     e.apply(Command::Skip {

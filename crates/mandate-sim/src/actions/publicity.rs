@@ -1,6 +1,7 @@
 //! Press statements, fundraising and advertising.
 
 use super::*;
+use crate::spine::{Cause, PlayerAct};
 
 /// Chance a press statement turns into a gaffe (shown before acting).
 pub fn press_gaffe_risk(state: &State, content: &ContentBundle) -> f64 {
@@ -112,12 +113,14 @@ pub(super) fn fundraise(
         }
     }
     if *late_night {
+        let cause = Cause::Player(PlayerAct::Fundraise);
         crate::media::hide(
             state,
             content,
             &content.media.late_night_fundraising,
             pl.politician,
             Vec::new(),
+            cause,
         );
     }
     // Donor ties: low-income voters who know you notice who you court.

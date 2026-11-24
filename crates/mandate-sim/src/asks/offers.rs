@@ -613,6 +613,12 @@ fn offer(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>, c: Candidate) {
     a.asker_cooldowns
         .push((c.asker, r.date.add_days(p.per_asker_cooldown_days)));
     a.tally.offered += 1;
+    // Someone chose to ask (a person), by the template's trigger.
+    let mut cause =
+        crate::spine::Causes::from(crate::spine::Cause::Process(crate::spine::Process::Asks));
+    if let Asker::Person { id } = c.asker {
+        cause = cause.and(crate::spine::Cause::Actor(id));
+    }
     out.events.record(
         r.date,
         crate::events::EventKind::AskOffered {
@@ -620,6 +626,6 @@ fn offer(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>, c: Candidate) {
             template: c.template,
             big: t.big,
         },
-        vec![],
+        cause,
     );
 }

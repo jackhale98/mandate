@@ -16,6 +16,7 @@ use crate::condition::{Args, Ctx};
 use crate::narrative::cast::View;
 use crate::policy::{PolicyInstanceId, PolicyState};
 use crate::scheduler::{Effect, Outs, Reads};
+use crate::spine::{Cause, Process};
 use crate::world::{Jurisdiction, NeighborhoodId, PlaceId};
 use mandate_content::policy_family::{
     AreaDef, BindDef, LeadDef, LeadToDef, PersonFallback, Pick, PolicyFamilyDef, SlotKind,
@@ -921,7 +922,7 @@ fn run(fam: &mut FamilyState, r: &Reads<'_>, st: &PolicyState, out: &mut Outs<'_
                     family: inst.family.clone(),
                     at: inst.at,
                 },
-                vec![],
+                Cause::Process(Process::Agenda),
             );
         }
     }
@@ -1001,16 +1002,18 @@ fn run(fam: &mut FamilyState, r: &Reads<'_>, st: &PolicyState, out: &mut Outs<'_
                 drafts: Vec::new(),
                 args,
             };
-            out.events.record(
+            // The family's trigger held here (the proposal names what it
+            // is bound to).
+            let ev = out.events.record(
                 today,
                 crate::events::EventKind::ProposalOpened {
                     proposal: id.0,
                     family: f.id.clone(),
                     at,
                 },
-                vec![],
+                Cause::Process(Process::Agenda),
             );
-            announce(r, f, &inst, out);
+            announce(r, f, &inst, out, Cause::caused_by(ev));
             fam.instances.push(inst);
             open_now += 1;
         }
@@ -1019,18 +1022,27 @@ fn run(fam: &mut FamilyState, r: &Reads<'_>, st: &PolicyState, out: &mut Outs<'_
 
 /// A new proposal's knowledge (DEC-091): a public one is heard by all; the
 /// lead is posted (to the bound person or place, else its `else`).
-fn announce(r: &Reads<'_>, f: &PolicyFamilyDef, inst: &FamilyInstance, out: &mut Outs<'_>) {
+fn announce(
+    r: &Reads<'_>,
+    f: &PolicyFamilyDef,
+    inst: &FamilyInstance,
+    out: &mut Outs<'_>,
+    cause: Cause,
+) {
     use crate::player::knowledge::{Lead, LeadTarget, Level, Source, Subject};
     if r.player.is_none() {
         return;
     }
     let subject = Subject::Proposal { proposal: inst.id };
     if f.knowledge.public {
-        out.effects.push(Effect::Learn {
-            subject: subject.clone(),
-            level: Level::Heard,
-            source: Source::Proposal { proposal: inst.id },
-        });
+        out.effects.push(
+            Effect::Learn {
+                subject: subject.clone(),
+                level: Level::Heard,
+                source: Source::Proposal { proposal: inst.id },
+            },
+            cause,
+        );
     }
     let mut lead: Option<&LeadDef> = f.knowledge.lead.as_ref();
     while let Some(l) = lead {
@@ -1050,16 +1062,19 @@ fn announce(r: &Reads<'_>, f: &PolicyFamilyDef, inst: &FamilyInstance, out: &mut
             }
         };
         if let Some(to) = to {
-            out.effects.push(Effect::Lead {
-                lead: Lead {
-                    subject: subject.clone(),
-                    level: Level::Known,
-                    key: l.key.clone(),
-                    to,
-                    since: r.date,
-                    source: Source::Proposal { proposal: inst.id },
+            out.effects.push(
+                Effect::Lead {
+                    lead: Lead {
+                        subject: subject.clone(),
+                        level: Level::Known,
+                        key: l.key.clone(),
+                        to,
+                        since: r.date,
+                        source: Source::Proposal { proposal: inst.id },
+                    },
                 },
-            });
+                cause,
+            );
             return;
         }
         lead = l.r#else.as_deref();

@@ -412,6 +412,24 @@ pub enum Deed {
     },
 }
 
+impl Deed {
+    /// The player's act a deed is (the causal spine's root for it).
+    pub fn act(&self) -> crate::spine::PlayerAct {
+        use crate::spine::PlayerAct as A;
+        match self {
+            Deed::Vote { .. } => A::Vote,
+            Deed::Statement { .. } => A::Press,
+            Deed::TownHall { .. } => A::TownHall,
+            Deed::Canvass { .. } => A::Canvass,
+            Deed::Arrive { .. } => A::Move,
+            Deed::Talk { .. } => A::Talk,
+            Deed::Introduce { .. } => A::Introduce,
+            Deed::Casework { .. } => A::Casework,
+            Deed::Leak { .. } => A::LeakFile,
+        }
+    }
+}
+
 /// Record a deed in the event log (command handlers call this; they never
 /// write the asks domain).
 pub fn record_deed(state: &mut crate::State, deed: Deed) {
@@ -419,9 +437,10 @@ pub fn record_deed(state: &mut crate::State, deed: Deed) {
         return;
     }
     let date = state.calendar.date;
+    let cause = crate::spine::Cause::Player(deed.act());
     state
         .events
-        .record(date, crate::events::EventKind::PlayerDeed { deed }, vec![]);
+        .record(date, crate::events::EventKind::PlayerDeed { deed }, cause);
 }
 
 /// Outcomes of the campaign promises, for the Legacy record and views.

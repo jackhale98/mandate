@@ -3,6 +3,7 @@
 
 use crate::events::EventKind;
 use crate::scheduler::{Outs, Phase, Reads, SystemDef, SystemFn};
+use crate::spine::{Cause, Process};
 use crate::{economy, environment, finance, player, policy, politics, population};
 use mandate_core::Cadence;
 
@@ -214,6 +215,6 @@ fn year_began(r: &Reads<'_>, out: &mut Outs<'_>) {
         EventKind::YearBegan {
             year: r.date.calendar().year,
         },
-        vec![],
+        Cause::Process(Process::Calendar),
     );
 }

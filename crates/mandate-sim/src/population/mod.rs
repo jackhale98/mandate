@@ -88,12 +88,12 @@ pub fn apply_approval(
 /// Population domain, Opinion phase, daily: approval other domains asked
 /// for (`Effect::Approval`: asks kept, broken and declined).
 pub fn effects(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
-    for e in out.effects.take(|e| matches!(e, Effect::Approval { .. })) {
+    for e in out.take(|e| matches!(e, Effect::Approval { .. })) {
         if let Effect::Approval {
             scope,
             delta,
             classes,
-        } = e
+        } = e.effect
         {
             apply_approval(pop, r.world, scope, delta, &classes);
         }
@@ -1070,15 +1070,11 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let mut hood_out = vec![0.0f64; pop.hoods.len()];
     // This month's strikes: (neighbourhood, relative hit, temporary share).
     let mut struck: Vec<(usize, f64, f64)> = Vec::new();
-    for e in out
-        .effects
-        .take(|e| matches!(e, Effect::Displacement { .. } | Effect::HoodDisaster { .. }))
-    {
-        match e {
+    for e in out.take(|e| matches!(e, Effect::Displacement { .. } | Effect::HoodDisaster { .. })) {
+        match e.effect {
             Effect::Displacement {
                 municipality,
                 fraction,
-                ..
             } => {
                 if let Some(x) = extra_out.get_mut(municipality as usize) {
                     *x += fraction;
@@ -1089,7 +1085,6 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 relative,
                 leave,
                 temporary,
-                ..
             } => {
                 let h = neighborhood as usize;
                 if h >= pop.hoods.len() {

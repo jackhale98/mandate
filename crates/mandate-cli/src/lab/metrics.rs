@@ -7,6 +7,7 @@ use mandate_content::ContentBundle;
 use mandate_sim::Engine;
 use mandate_sim::events::{EventId, EventKind};
 use mandate_sim::politics::Post;
+use mandate_sim::spine::Cause;
 use mandate_sim::world::{Jurisdiction, MunicipalityId};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -143,8 +144,32 @@ pub struct EventRec {
     pub kind: String,
     pub town: Option<u32>,
     pub detail: String,
-    /// Events this one names as its causes, by kind (the causal spine).
+    /// What this one names as its causes (the causal spine): a link as
+    /// `<link>:<kind of the earlier event>`, a root as its key
+    /// (`pressure:competitiveness`, `exogenous:hazard`, `player:vote`).
     pub causes: Vec<String>,
+    /// The best class among them: `linked`, `player`, `actor`, `pressure`,
+    /// `process`, `exogenous` or `unknown`.
+    pub cause_class: String,
+}
+
+/// Cause coverage of one event kind (the causal spine, S1).
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct CauseCoverage {
+    pub events: u32,
+    /// How many name a cause of each class (`linked`, `player`, `actor`,
+    /// `pressure`, `process`, `exogenous`, `unknown`); an event with two
+    /// classes counts in both.
+    pub naming: BTreeMap<String, u32>,
+    /// Explained: a link to an earlier event, the player's or someone's
+    /// act, or a named pressure.
+    pub explained: u32,
+    /// Exogenous by design, and saying so.
+    pub exogenous: u32,
+    /// Neither: only the scheduled process whose rule fired.
+    pub process_only: u32,
+    /// No named cause at all (the gap; an event from before the spine).
+    pub unnamed: u32,
 }
 
 /// A town crisis seen at monthly resolution.
@@ -160,6 +185,9 @@ pub struct CrisisSpan {
 pub struct Tally {
     pub elections: Vec<Election>,
     pub events: Vec<EventRec>,
+    /// Every event recorded in the run, by kind (`plant_closure`), with the
+    /// class of its cause: the spine's coverage.
+    pub spine: BTreeMap<String, CauseCoverage>,
     pub crises: Vec<CrisisSpan>,
     /// The last event seen (not serialized: bookkeeping).
     #[serde(skip)]
@@ -384,9 +412,29 @@ fn town_of_event(k: &EventKind) -> Option<(String, Option<u32>, String)> {
     })
 }
 
-fn kind_name(k: &EventKind) -> String {
-    let s = format!("{k:?}");
-    s.split([' ', '{', '(']).next().unwrap_or("").to_string()
+/// A cause as a short key for tables.
+fn cause_label(c: &Cause, log: &mandate_sim::events::EventLog) -> String {
+    let name = |v: &serde_json::Value| match v {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Object(m) => m
+            .iter()
+            .map(|(k, v)| match v {
+                serde_json::Value::String(s) => format!("{k}:{s}"),
+                _ => k.clone(),
+            })
+            .collect::<Vec<_>>()
+            .join(","),
+        _ => String::new(),
+    };
+    match c {
+        Cause::Event(id, link) => format!(
+            "{}:{}",
+            name(&serde_json::to_value(link).unwrap_or_default()),
+            log.get(*id)
+                .map_or("forgotten", |e| mandate_sim::spine::kind_key(&e.kind))
+        ),
+        root => name(&serde_json::to_value(root).unwrap_or_default()),
+    }
 }
 
 /// Fold what happened since the last call into the tally (call monthly).
@@ -395,12 +443,37 @@ pub fn observe(e: &Engine, month: u32, t: &mut Tally) {
     // Events.
     let last = t.last_event;
     for ev in st.events.iter().filter(|x| last.is_none_or(|l| x.id > l)) {
+        use mandate_sim::spine::CauseClass as Class;
+        let class = mandate_sim::spine::best_class(&ev.causes).key();
+        let cov = t
+            .spine
+            .entry(mandate_sim::spine::kind_key(&ev.kind).to_string())
+            .or_default();
+        cov.events += 1;
+        let mut classes: Vec<Class> = ev.causes.iter().map(|c| c.class()).collect();
+        classes.sort();
+        classes.dedup();
+        for c in &classes {
+            *cov.naming.entry(c.key().to_string()).or_default() += 1;
+        }
+        let has = |c: Class| classes.contains(&c);
+        if has(Class::Linked) || has(Class::Player) || has(Class::Actor) || has(Class::Pressure) {
+            cov.explained += 1;
+        }
+        if has(Class::Exogenous) {
+            cov.exogenous += 1;
+        }
+        if classes == [Class::Process] {
+            cov.process_only += 1;
+        }
+        if classes.is_empty() || classes == [Class::Unknown] {
+            cov.unnamed += 1;
+        }
         if let Some((kind, town, detail)) = town_of_event(&ev.kind) {
             let causes = ev
                 .causes
                 .iter()
-                .filter_map(|c| st.events.get(*c))
-                .map(|c| kind_name(&c.kind))
+                .map(|c| cause_label(c, &st.events))
                 .collect();
             t.events.push(EventRec {
                 month,
@@ -408,6 +481,7 @@ pub fn observe(e: &Engine, month: u32, t: &mut Tally) {
                 town,
                 detail,
                 causes,
+                cause_class: class.to_string(),
             });
         }
     }

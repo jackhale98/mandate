@@ -182,6 +182,16 @@ fn v18_paths_migrate_to_posts() {
 /// locale's role, race and filing keys changed; checked against the previous
 /// golden, only `meta.content_hash` differs (checked again after merging E7's
 /// asks protocol and its Fluent).
+///
+/// Re-recorded for the causal spine (save v26, S1) and the last post held
+/// (M6 note 16): the state's shape changed, no outcome did. Checked against
+/// the previous golden: every part of the state is equal once the event
+/// log and the new fields (`causes`, `source_event`, `last_post`) are set
+/// aside; the log's next id is the same; and the log is a subset of the old
+/// one, event for event (id, date, kind), 866 of 1,922, pruned by the
+/// spine's rule instead of "the last 2,000".
+/// Re-recorded again on top of the rents fix's golden (audit fix 2), with
+/// the same check against it and the same result.
 #[test]
 fn v18_save_continues_identically() {
     let c = content();

@@ -7,9 +7,11 @@
 
 use super::effects::{self, Outcome};
 use super::{Ask, AskState, AskStatus, Deed, DeedRecord, Need, StatementAbout, StatementNeed};
+use crate::events::EventId;
 use crate::events::EventKind;
 use crate::policy::{EndReason, PolicyStatus};
 use crate::scheduler::{Outs, Reads};
+use crate::spine::{Cause, Causes, Link, Process};
 use mandate_content::MechanismDef;
 use mandate_core::SimDate;
 
@@ -303,8 +305,8 @@ pub(crate) fn resolve_all(a: &mut AskState, r: &Reads<'_>, out: &mut Outs<'_>, n
             let ask = &mut a.asks[i];
             settle_one(r, ask, news, date, home)
         };
-        if let Some(s) = settle {
-            finish(a, i, s, r, out);
+        if let Some((s, deed)) = settle {
+            finish(a, i, s, deed, r, out);
         }
     }
 }
@@ -315,6 +317,19 @@ fn settle_one(
     news: &News,
     date: SimDate,
     home: u32,
+) -> Option<(Settle, Option<EventId>)> {
+    // The deed that last moved the ask on, or broke it (the spine's link).
+    let mut by: Option<EventId> = None;
+    settle_inner(r, ask, news, date, home, &mut by).map(|s| (s, by))
+}
+
+fn settle_inner(
+    r: &Reads<'_>,
+    ask: &mut Ask,
+    news: &News,
+    date: SimDate,
+    home: u32,
+    by: &mut Option<EventId>,
 ) -> Option<Settle> {
     // The asker left town (a person), or the race was lost (a promise).
     if let Some(p) = ask.asker_person()
@@ -351,7 +366,7 @@ fn settle_one(
         return None;
     };
     // Deeds since it was accepted, in order.
-    for (_, d) in news.deeds.iter().filter(|(_, d)| d.on >= on) {
+    for (ev, d) in news.deeds.iter().filter(|(_, d)| d.on >= on) {
         let Some(need) = ask.current().cloned() else {
             break;
         };
@@ -359,8 +374,12 @@ fn settle_one(
             Step::Met => {
                 ask.step = ask.step.saturating_add(1);
                 ask.done.clear();
+                *by = Some(EventId(*ev));
             }
-            Step::Broken => return Some(Settle::Broken),
+            Step::Broken => {
+                *by = Some(EventId(*ev));
+                return Some(Settle::Broken);
+            }
             Step::Part | Step::Nothing => {}
         }
     }
@@ -401,7 +420,14 @@ fn settle_one(
 }
 
 /// Close an ask: status, effects, the tally, an event.
-fn finish(a: &mut AskState, i: usize, s: Settle, r: &Reads<'_>, out: &mut Outs<'_>) {
+fn finish(
+    a: &mut AskState,
+    i: usize,
+    s: Settle,
+    deed: Option<EventId>,
+    r: &Reads<'_>,
+    out: &mut Outs<'_>,
+) {
     let date = r.date;
     let ask = &a.asks[i];
     let (status, outcome) = match s {
@@ -422,9 +448,6 @@ fn finish(a: &mut AskState, i: usize, s: Settle, r: &Reads<'_>, out: &mut Outs<'
         fx.extend(effects::requests(r, ask, &defs));
         fx.extend(effects::automatic(r, ask, o));
     }
-    for e in fx {
-        out.effects.push(e);
-    }
     let t = &mut a.tally;
     let promise = a.asks[i].promise;
     match (&status, promise) {
@@ -444,7 +467,10 @@ fn finish(a: &mut AskState, i: usize, s: Settle, r: &Reads<'_>, out: &mut Outs<'
     }
     let ask = &mut a.asks[i];
     ask.status = status;
-    out.events.record(
+    // The deed that settled it, when one did; else the deadline or the
+    // state of the world the asks system read. The effects are requested
+    // after the event (same order among themselves), naming it.
+    let ev = out.events.record(
         date,
         EventKind::AskResolved {
             ask: ask.id.0,
@@ -452,8 +478,11 @@ fn finish(a: &mut AskState, i: usize, s: Settle, r: &Reads<'_>, out: &mut Outs<'
             outcome: ask.status.key().into(),
             public: ask.public,
         },
-        vec![],
+        Causes::from(Cause::Process(Process::Asks)).and_event(deed, Link::Caused),
     );
+    for e in fx {
+        out.effects.push(e, Cause::caused_by(ev));
+    }
 }
 
 /// The template's effects for an outcome.

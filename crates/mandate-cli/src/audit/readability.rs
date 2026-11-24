@@ -268,22 +268,44 @@ fn flipped_races(cx: &Ctx) -> Result<Value, String> {
     )
 }
 
-/// The causal spine: which kinds of event name a cause.
+/// The causal spine (S1): for every kind of event recorded in the runs,
+/// the share that names a cause at all (`share`), and what kind of cause.
+/// `explained`: a link to an earlier event, the player's or someone's own
+/// act, or a named pressure (what "Why?" can say something about).
+/// `exogenous`: uncaused by design, and saying so. `process_only`: only
+/// the scheduled rule that fired. `unnamed`: the gap, which should be zero.
+/// `explained` and `exogenous` can both hold (a race is the calendar's, the
+/// campaign's and partly nobody's). `naming` counts each class of cause.
 fn spine(hs: &[History]) -> Value {
-    let mut by = BTreeMap::<String, (usize, usize)>::new();
-    for e in hs.iter().flat_map(|h| h.tally.events.iter()) {
-        let x = by.entry(e.kind.clone()).or_default();
-        x.0 += 1;
-        if !e.causes.is_empty() {
-            x.1 += 1;
+    let mut by = BTreeMap::<String, crate::lab::metrics::CauseCoverage>::new();
+    for (kind, cov) in hs.iter().flat_map(|h| h.tally.spine.iter()) {
+        let x = by.entry(kind.clone()).or_default();
+        x.events += cov.events;
+        x.explained += cov.explained;
+        x.exogenous += cov.exogenous;
+        x.process_only += cov.process_only;
+        x.unnamed += cov.unnamed;
+        for (class, n) in &cov.naming {
+            *x.naming.entry(class.clone()).or_default() += n;
         }
     }
     let rows: serde_json::Map<String, Value> = by
         .into_iter()
-        .map(|(k, (n, c))| {
+        .map(|(k, c)| {
+            let n = c.events;
+            let share = |x: u32| r3(x as f64 / n.max(1) as f64);
             (
                 k,
-                json!({ "events": n, "with_cause": c, "share": r3(c as f64 / n.max(1) as f64) }),
+                json!({
+                    "events": n,
+                    "with_cause": n - c.unnamed,
+                    "share": share(n - c.unnamed),
+                    "explained": share(c.explained),
+                    "exogenous": share(c.exogenous),
+                    "process_only": share(c.process_only),
+                    "unnamed": share(c.unnamed),
+                    "naming": c.naming,
+                }),
             )
         })
         .collect();

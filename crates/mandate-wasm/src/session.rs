@@ -339,6 +339,9 @@ impl Session {
                 ))),
                 QueryDto::Legacy => Ok(ResponseBody::Legacy(legacy_view(self.engine_mut()?))),
                 QueryDto::Asks => Ok(ResponseBody::Asks(asks_view(self.engine_mut()?))),
+                QueryDto::Why { event, depth } => why_view(self.engine_mut()?, event, depth)
+                    .map(ResponseBody::Why)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, format!("no event {event}"))),
                 QueryDto::PromiseMenu => Ok(ResponseBody::PromiseMenu(promise_menu_view(
                     self.engine_mut()?,
                 ))),

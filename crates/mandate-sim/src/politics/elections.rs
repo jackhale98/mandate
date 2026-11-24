@@ -17,6 +17,7 @@ use super::{
 use crate::events::EventKind;
 use crate::population::{Cohort, PopulationState};
 use crate::scheduler::{Outs, Reads};
+use crate::spine::{Cause, Causes, Link, Pressure, Process, Shock, Thread};
 use crate::world::{Jurisdiction, MunicipalityId, World};
 use mandate_content::{
     ConstitutionDef, ContentBundle, ElectionCalendarDef, ElectionTiming, PoliticsParams, PostKey,
@@ -367,8 +368,15 @@ fn open_campaign(
         .player
         .is_none_or(|p| p.tracks.standing as f64 >= params.vote.renomination_standing);
     if !renominated && !matches!(filing, Some(Filing::Retire)) {
-        out.events
-            .record(r.date, EventKind::PlayerDeselected, vec![]);
+        // The party's rule, on the player's Standing.
+        out.events.record(
+            r.date,
+            EventKind::PlayerDeselected,
+            [
+                Cause::Pressure(Pressure::Track),
+                Cause::Process(Process::Parties),
+            ],
+        );
     }
     // Whether the player defends what they hold (no filing) or files for `post`.
     let stands_for = |post: Post| match filing {
@@ -598,7 +606,7 @@ fn open_campaign(
     out.events.record(
         r.date,
         EventKind::CampaignOpened { election_day: day },
-        vec![],
+        Cause::Process(Process::Elections),
     );
 }
 
@@ -1307,7 +1315,12 @@ fn publish_polls(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>, day:
             EventKind::PollsPublished {
                 count: new_polls.len() as u32,
             },
-            vec![],
+            Causes::from(Cause::Process(Process::Elections)).and_event(
+                st.elections
+                    .next_day
+                    .and_then(|d| out.events.open_head(Thread::Election(d.0))),
+                Link::Continues,
+            ),
         );
     }
     st.elections.polls.extend(new_polls);
@@ -1455,10 +1468,7 @@ fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
             Role::Private { .. } => true,
         };
         if !holds {
-            p.role = Role::Private {
-                home: MunicipalityId(p.municipality()),
-            };
-            p.terms_in_office = 0;
+            p.leave_office(r.date, MunicipalityId(p.municipality()));
         }
     }
     // Re-elected incumbents add a term; newcomers start their first.
@@ -1492,7 +1502,14 @@ fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     player_ran: player
                         .is_some_and(|p| res.candidates.iter().any(|c| c.politician == p)),
                 },
-                vec![],
+                // The calendar's election, and the part of every race
+                // nobody controls (exogenous by design). The log links
+                // the campaign; what moved the votes is continuous, and
+                // attributed offline (the factor decomposition, the twins).
+                [
+                    Cause::Process(Process::Elections),
+                    Cause::Exogenous(Shock::Race),
+                ],
             );
         }
     }
@@ -1501,7 +1518,7 @@ fn hold(st: &mut PoliticsState, r: &Reads<'_>, out: &mut Outs<'_>) {
         EventKind::ElectionHeld {
             races: results.len() as u32,
         },
-        vec![],
+        Cause::Process(Process::Elections),
     );
     // Characters remember who beat them (DEC-031): a loser the winner (a
     // rival from then on), a winner the losers, briefly.

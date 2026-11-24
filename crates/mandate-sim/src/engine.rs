@@ -3,6 +3,7 @@
 use crate::commands::{Command, CommandOutcome, EngineError};
 use crate::events::EventKind;
 use crate::scheduler::Schedule;
+use crate::spine::{Cause, PlayerAct, Process};
 use crate::state::{GamePhase, State};
 use crate::systems::default_systems;
 use mandate_content::ContentBundle;
@@ -29,7 +30,7 @@ pub struct Engine {
     next_command: u64,
     /// Effects delivered on the next advance: those queued by lab commands,
     /// and those an advance left for an applier that runs monthly.
-    pending_effects: Vec<crate::scheduler::Effect>,
+    pending_effects: Vec<crate::scheduler::Request>,
 }
 
 /// The daily systems that only apply effect requests other systems made
@@ -161,7 +162,7 @@ impl Engine {
                     from_engine: state.meta.engine_version.clone(),
                     to_engine: mandate_core::ENGINE_VERSION.to_string(),
                 },
-                vec![],
+                Cause::Process(Process::Update),
             );
             state.events.pin(id);
             state.meta.content_hash = content.content_hash.clone();
@@ -261,7 +262,7 @@ impl Engine {
         let id = self.state.events.record(
             self.state.calendar.date,
             EventKind::GameStarted { seed },
-            vec![],
+            Cause::Player(PlayerAct::Start),
         );
         self.state.events.pin(id);
         // The act's Legacy record opens as play begins (DEC-006).
@@ -493,10 +494,12 @@ impl Engine {
                     sector: sector.clone(),
                     factor: *factor,
                     months: *months,
-                    cause: None,
                 };
                 // Delivered on the next advance; applied at the next monthly economy step.
-                self.pending_effects.push(effect);
+                self.pending_effects.push(crate::scheduler::Request {
+                    effect,
+                    cause: Cause::Lab,
+                });
                 CommandOutcome {
                     days_advanced: 0,
                     turn: self.state.calendar.turn,
@@ -528,6 +531,7 @@ impl Engine {
                     left -= step;
                 }
                 self.settle(seeded);
+                crate::spine::prune::due(&mut self.state);
                 CommandOutcome {
                     days_advanced: *days,
                     turn: self.state.calendar.turn,
@@ -564,7 +568,7 @@ impl Engine {
         self.state.events.record(
             self.state.calendar.date,
             EventKind::TurnEnded { turn },
-            vec![],
+            Cause::Process(Process::Calendar),
         );
         if let Some(p) = self.state.player.as_mut() {
             p.slots_used = 0;
@@ -574,6 +578,10 @@ impl Engine {
         self.update_phase();
         // The act's record and its ending (played and skipped turns alike).
         crate::act::after_turn(&mut self.state, &self.content);
+        // The event log's bound (the causal spine), about once a month, at
+        // a turn's end: a skip prunes exactly as its turns played one by
+        // one would.
+        crate::spine::prune::due(&mut self.state);
         days
     }
 
@@ -746,7 +754,7 @@ impl Engine {
     /// advance. So a turn ends with nothing queued, and a save between
     /// turns misses nothing. Nothing runs when nothing is left (a run without
     /// late requests is unchanged), and no RNG is drawn.
-    fn settle(&mut self, left: Vec<crate::scheduler::Effect>) {
+    fn settle(&mut self, left: Vec<crate::scheduler::Request>) {
         if left.is_empty() {
             return;
         }
@@ -762,7 +770,7 @@ impl Engine {
         // What no applier took is either for a monthly applier, or for the
         // player domain when there is no player (dropped).
         self.pending_effects
-            .extend(rest.into_iter().filter(waits_for_monthly));
+            .extend(rest.into_iter().filter(|r| waits_for_monthly(&r.effect)));
     }
 
     /// NPC-only history before play begins (DEC-022). Not logged as a command:
@@ -780,6 +788,7 @@ impl Engine {
                 let d = STEP.min(left);
                 self.schedule
                     .advance(&mut self.state, &self.content, d, &mut |_| {});
+                crate::spine::prune::due(&mut self.state);
                 left -= d;
             }
             progress(y + 1);

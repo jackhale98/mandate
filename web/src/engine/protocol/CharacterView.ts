@@ -2,6 +2,7 @@
 import type { FavourView } from "./FavourView";
 import type { FavourWithView } from "./FavourWithView";
 import type { KnowledgeView } from "./KnowledgeView";
+import type { LastPostView } from "./LastPostView";
 import type { LocationView } from "./LocationView";
 import type { MemoryView } from "./MemoryView";
 import type { SeenView } from "./SeenView";
@@ -66,4 +67,9 @@ favours_with_others: Array<FavourWithView> | null, knowledge: KnowledgeView,
  * Where the player last saw them, and where they usually are once seen
  * at the same place and time twice (S1, DEC-031 routines).
  */
-last_seen?: SeenView, usually?: SeenView, };
+last_seen?: SeenView, usually?: SeenView, 
+/**
+ * The last post they held, for someone out of office (M6 note 16):
+ * from `known` on, like the rest of who they are.
+ */
+last_post?: LastPostView, };

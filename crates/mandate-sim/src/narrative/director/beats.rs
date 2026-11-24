@@ -1,6 +1,7 @@
 //! Setbacks, answers, beats, the rescue, and spotlighted developments.
 
 use super::*;
+use crate::spine::{Cause, Causes, Link, Process};
 
 /// Setbacks (ENGAGEMENT §4.3, RimWorld's adaptation) since the last weekly
 /// step: an election lost, Standing or viability warned about. (A scandal
@@ -190,6 +191,11 @@ fn spotlight_development(
     if let Some(ph) = n.phase.as_mut() {
         ph.beats = ph.beats.saturating_add(1);
     }
+    // News of an event the log holds is that event, made known.
+    let about = match &kind {
+        FactKind::TownEvent { event } => Some(*event),
+        _ => None,
+    };
     let id = n.log(date, kind, actors, true, news);
     out.events.record(
         date,
@@ -197,7 +203,7 @@ fn spotlight_development(
             fact: id,
             municipality: v.town().unwrap_or(0),
         },
-        vec![],
+        Causes::from(Cause::Process(Process::Director)).and_event(about, Link::Revealed),
     );
 }
 

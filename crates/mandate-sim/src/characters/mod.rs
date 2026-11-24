@@ -982,24 +982,21 @@ pub fn apply_effects(
 ) {
     use crate::scheduler::Effect;
     // Asks kept, broken and declined (DEC-097 §2).
-    for e in out.effects.take(|e| {
+    for e in out.take(|e| {
         matches!(
             e,
             Effect::Opinion { .. } | Effect::Favour { .. } | Effect::Record { .. }
         )
     }) {
-        apply_ask_effect(pol, r.content, r.meta.seed, r.date, &e);
+        apply_ask_effect(pol, r.content, r.meta.seed, r.date, &e.effect);
     }
-    for e in out
-        .effects
-        .take(|e| matches!(e, crate::scheduler::Effect::Memory { .. }))
-    {
+    for e in out.take(|e| matches!(e, crate::scheduler::Effect::Memory { .. })) {
         if let crate::scheduler::Effect::Memory {
             holder,
             actor,
             kind,
             subject,
-        } = e
+        } = e.effect
         {
             let (Some(h), Some(a)) = (pol.get(holder), pol.get(actor)) else {
                 continue;

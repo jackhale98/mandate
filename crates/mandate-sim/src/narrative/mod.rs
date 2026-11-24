@@ -484,6 +484,10 @@ pub struct HiddenFact {
     pub town: Option<u32>,
     #[serde(default)]
     pub fate: Option<Fate>,
+    /// What made it (the causal spine): the act itself, the player's or
+    /// someone else's. Absent in a fact from before the spine.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cause: Option<crate::spine::Cause>,
 }
 
 /// What a raised decision answers (DEC-034, DEC-006).

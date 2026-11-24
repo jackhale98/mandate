@@ -1,6 +1,7 @@
 //! Shady actions (DEC-034, DEC-073): bribes, dipping into funds, leaks.
 
 use super::*;
+use crate::spine::{Cause, PlayerAct};
 
 /// Who offers a bribe in the player's town: the power broker, else a
 /// business leader or plant manager (a Named person who wants something).
@@ -117,7 +118,8 @@ pub(super) fn shady(
         p.tracks.legal_jeopardy =
             clamp(p.tracks.legal_jeopardy as f64 + def.legal, 0.0, 100.0) as f32;
     }
-    let hidden = crate::media::hide(state, content, &def.hidden, me, actors);
+    let cause = Cause::Player(PlayerAct::of_action(action));
+    let hidden = crate::media::hide(state, content, &def.hidden, me, actors, cause);
     res.outcome_key = format!("outcome-{}", key.replace('_', "-"));
     if def.money > 0.0 {
         res.args

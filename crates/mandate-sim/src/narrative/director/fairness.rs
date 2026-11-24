@@ -86,14 +86,13 @@ pub fn daily(n: &mut NarrativeState, r: &Reads<'_>, out: &mut Outs<'_>) {
             true,
             0.8,
         );
-        let ev = out.events.record(
+        out.events.record(
             r.date,
             EventKind::TrackWarning {
                 track: track.into(),
                 value: value.round() as i32,
             },
-            vec![],
+            crate::spine::Cause::Pressure(crate::spine::Pressure::Track),
         );
-        out.events.pin(ev);
     }
 }

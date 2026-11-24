@@ -23,4 +23,9 @@ pub mod metrics;
 pub mod overrides;
 pub mod runner;
 
+#[cfg(test)]
+mod proof;
+#[cfg(test)]
+mod spine_games;
+
 pub use overrides::*;

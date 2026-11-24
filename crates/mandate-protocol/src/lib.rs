@@ -19,6 +19,7 @@ pub mod post;
 pub mod talk;
 pub mod town;
 pub mod views;
+pub mod why;
 
 pub use act::*;
 pub use asks::*;
@@ -37,6 +38,7 @@ pub use talk::*;
 pub use town::*;
 use ts_rs::TS;
 pub use views::*;
+pub use why::*;
 
 pub const PROTOCOL_VERSION: u32 = 1;
 
@@ -401,6 +403,14 @@ pub enum QueryDto {
     Asks,
     /// The promises the player could make now (campaigning only).
     PromiseMenu,
+    /// Why an event happened (S1, the causal spine): the chain of what led
+    /// to it, at most `depth` links back (default 6, at most 12), as facts
+    /// and the engine's own text keys. Read-only.
+    Why {
+        event: u32,
+        #[serde(default)]
+        depth: Option<u8>,
+    },
     /// Dev builds only (`dev-tools`): every content item and whether it
     /// could fire now (the content workbench). Not in the generated types.
     #[cfg(feature = "dev-tools")]
@@ -487,6 +497,7 @@ pub enum ResponseBody {
     /// `None` before play began.
     Asks(Option<AsksView>),
     PromiseMenu(PromiseMenuView),
+    Why(WhyView),
     #[cfg(feature = "dev-tools")]
     #[ts(skip)]
     DevCatalog(dev::DevCatalogView),

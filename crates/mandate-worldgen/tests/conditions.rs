@@ -123,7 +123,7 @@ fn world() -> World {
                 sector: sector.clone(),
                 jobs: 120,
             },
-            Vec::new(),
+            mandate_sim::spine::Cause::Lab,
         );
         for x in &mut st.population.hoods[hood.index()].cohorts {
             x.player_awareness = 0.6;

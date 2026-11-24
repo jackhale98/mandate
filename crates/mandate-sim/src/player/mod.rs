@@ -131,7 +131,7 @@ impl RunStatus {
 pub fn effects(pl: &mut PlayerState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let j = &r.content.justice;
     let me = pl.politician;
-    for e in out.effects.take(|e| match e {
+    for req in out.take(|e| match e {
         crate::scheduler::Effect::PlayerTrack { .. } => true,
         crate::scheduler::Effect::Sentenced { politician, .. } => *politician == me,
         crate::scheduler::Effect::Learn { .. }
@@ -139,7 +139,9 @@ pub fn effects(pl: &mut PlayerState, r: &Reads<'_>, out: &mut Outs<'_>) {
         | crate::scheduler::Effect::Lead { .. } => true,
         _ => false,
     }) {
-        match e {
+        // What a sentence leads to is caused by what caused the sentence.
+        let cause = req.cause;
+        match req.effect {
             e @ (crate::scheduler::Effect::Learn { .. }
             | crate::scheduler::Effect::Read { .. }
             | crate::scheduler::Effect::Lead { .. }) => {
@@ -198,7 +200,7 @@ pub fn effects(pl: &mut PlayerState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         crate::events::EventKind::CareerEnded {
                             reason: reason.key().into(),
                         },
-                        vec![],
+                        cause,
                     );
                     out.events.pin(ev);
                 } else if years > 0 {
@@ -213,7 +215,7 @@ pub fn effects(pl: &mut PlayerState, r: &Reads<'_>, out: &mut Outs<'_>) {
                             years: years as u32,
                             until,
                         },
-                        vec![],
+                        cause,
                     );
                     out.events.pin(ev);
                 }
@@ -229,9 +231,12 @@ pub fn effects(pl: &mut PlayerState, r: &Reads<'_>, out: &mut Outs<'_>) {
         pl.tracks.standing = pl.tracks.standing.min(j.release_standing as f32);
         pl.tracks.viability = pl.tracks.viability.min(j.release_viability as f32);
         pl.tracks.legal_jeopardy = pl.tracks.legal_jeopardy.min(30.0);
-        let ev = out
-            .events
-            .record(r.date, crate::events::EventKind::PlayerReleased, vec![]);
+        // The term ran out (the log links the release to the sentence).
+        let ev = out.events.record(
+            r.date,
+            crate::events::EventKind::PlayerReleased,
+            crate::spine::Cause::Process(crate::spine::Process::Justice),
+        );
         out.events.pin(ev);
     }
 }

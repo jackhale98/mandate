@@ -14,6 +14,8 @@ use crate::events::EventKind;
 use crate::narrative::cast::View;
 use crate::politics::Post;
 use crate::scheduler::Reads;
+use crate::scheduler::Request;
+use crate::spine::{Cause, PlayerAct};
 use crate::state::State;
 use mandate_content::ContentBundle;
 use mandate_content::asks::{PromiseAnswers, PromiseDue};
@@ -46,7 +48,15 @@ pub fn respond(
         let defs = super::resolve::template_effects(&r, &a, Outcome::Declined);
         effects::requests(&r, &a, &defs)
     };
-    effects::apply_now(state, content, fx);
+    // The player's answer is the cause of what follows from it.
+    let cause = Cause::Player(PlayerAct::RespondAsk);
+    effects::apply_now(
+        state,
+        content,
+        fx.into_iter()
+            .map(|effect| Request { effect, cause })
+            .collect(),
+    );
     let mut res = ActionResult::default();
     let name_key = content
         .ask(&a.template)
@@ -71,7 +81,7 @@ pub fn respond(
                 template: a.template.clone(),
                 big: a.big,
             },
-            vec![],
+            cause,
         );
         res.outcome_key = "outcome-ask-accepted".into();
     } else {
@@ -84,7 +94,7 @@ pub fn respond(
                 outcome: "declined".into(),
                 public: a.public,
             },
-            vec![],
+            cause,
         );
         res.outcome_key = "outcome-ask-declined".into();
     }
@@ -405,6 +415,7 @@ pub fn promise(
         tries: 0,
     });
     a.tally.promises_made += 1;
+    let cause = Cause::Player(PlayerAct::Promise);
     state.events.record(
         date,
         EventKind::AskAccepted {
@@ -412,7 +423,7 @@ pub fn promise(
             template: template.to_string(),
             big: false,
         },
-        vec![],
+        cause,
     );
     let mut res = ActionResult {
         created: Some(id.0),

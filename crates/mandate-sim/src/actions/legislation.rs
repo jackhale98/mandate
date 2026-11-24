@@ -1,6 +1,7 @@
 //! Legislation: drafting, amending, introducing and withdrawing bills, and declared votes.
 
 use super::*;
+use crate::spine::{Cause, Causes, Link, PlayerAct};
 
 /// Amend a draft or a bill (`PlayerCommand::AmendPolicy`).
 pub(super) fn amend(
@@ -118,6 +119,11 @@ pub(super) fn introduce(
         pl.politician,
         content.career.record_gain.introduce as f32,
     );
+    // The player's act; a family bill answers the proposal on the table.
+    let cause = Causes::from(Cause::Player(PlayerAct::Introduce)).and_event(
+        crate::spine::proposal_of(state, crate::policy::PolicyInstanceId(*policy)),
+        Link::Prompted,
+    );
     let ev = state.events.record(
         date,
         EventKind::PolicyIntroduced {
@@ -125,7 +131,7 @@ pub(super) fn introduce(
             municipality: m,
             sponsor: pl.politician.0,
         },
-        vec![],
+        cause,
     );
     if let Some(p) = state.policy.instances.get_mut(*policy as usize) {
         p.status = PolicyStatus::UnderConsideration;
@@ -163,13 +169,14 @@ pub(super) fn withdraw(
         p.next_stage_on = None;
     }
     if was_bill {
+        let cause = Cause::Player(PlayerAct::Withdraw);
         state.events.record(
             date,
             EventKind::PolicyWithdrawn {
                 policy: *policy,
                 municipality: m,
             },
-            vec![],
+            cause,
         );
     }
     res.outcome_key = "outcome-withdrawn".into();

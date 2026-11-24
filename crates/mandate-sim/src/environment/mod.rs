@@ -9,6 +9,7 @@ pub use exposure::{HoodDamage, HoodExposure, HoodHazard, HoodHit, hood_hazard};
 
 use crate::events::EventKind;
 use crate::scheduler::{Effect, EffectQueue, Outs, Reads};
+use crate::spine::{Cause, Causes, Link, Process, Shock};
 use crate::state::WorldMeta;
 use crate::world::{NeighborhoodId, World};
 use mandate_content::{ContentBundle, SectorDriver};
@@ -57,6 +58,11 @@ pub struct DeferredHazard {
     pub kind: HazardKind,
     pub severity: f64,
     pub drawn: mandate_core::SimDate,
+    /// The event that logged the hold (the causal spine): what ends this
+    /// hold links to it, so two holds over one town never cross. Absent in
+    /// a hold from before the spine, and in the lab's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hold_event: Option<crate::events::EventId>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -271,20 +277,24 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
             // strikes miss. Neither draws from this stream.
             match director_lever(r, m as u32) {
                 Lever::Hold => {
-                    env.deferred.push(DeferredHazard {
-                        municipality: m as u32,
-                        kind,
-                        severity,
-                        drawn: r.date,
-                    });
-                    out.events.record(
+                    let hold = out.events.record(
                         r.date,
                         EventKind::DirectorIntervention {
                             lever: "hazard_held".into(),
                             municipality: m as u32,
                         },
-                        vec![],
+                        [
+                            Cause::Exogenous(Shock::Hazard),
+                            Cause::Process(Process::Director),
+                        ],
                     );
+                    env.deferred.push(DeferredHazard {
+                        municipality: m as u32,
+                        kind,
+                        severity,
+                        drawn: r.date,
+                        hold_event: Some(hold),
+                    });
                     continue;
                 }
                 Lever::Miss => {
@@ -294,13 +304,16 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
                             lever: "hazard_averted".into(),
                             municipality: m as u32,
                         },
-                        vec![],
+                        [
+                            Cause::Exogenous(Shock::Hazard),
+                            Cause::Process(Process::Director),
+                        ],
                     );
                     continue;
                 }
                 Lever::None => {}
             }
-            strike(env, r, out, m as u32, kind, severity, &mods);
+            strike(env, r, out, m as u32, kind, severity, &mods, None);
         }
     }
     // Held hazards strike once the hold lifts, or at the latest after the
@@ -322,7 +335,9 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     lever: "hazard_averted".into(),
                     municipality: h.municipality,
                 },
-                vec![],
+                // This hold's own end (a town can have several).
+                Causes::from(Cause::Process(Process::Director))
+                    .and_event(h.hold_event, Link::Ended),
             );
             continue;
         }
@@ -330,15 +345,24 @@ pub fn hazards(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
         let mods = crate::policy::mods_for(r.policy(), r.content, h.municipality, &|id| {
             fin.funded_share(id)
         });
-        out.events.record(
+        let late = out.events.record(
             r.date,
             EventKind::DirectorIntervention {
                 lever: "hazard_struck_late".into(),
                 municipality: h.municipality,
             },
-            vec![],
+            Causes::from(Cause::Process(Process::Director)).and_event(h.hold_event, Link::Ended),
         );
-        strike(env, r, out, h.municipality, h.kind, h.severity, &mods);
+        strike(
+            env,
+            r,
+            out,
+            h.municipality,
+            h.kind,
+            h.severity,
+            &mods,
+            Some(late),
+        );
     }
 }
 
@@ -384,7 +408,10 @@ fn missed(r: &Reads<'_>, m: u32) -> bool {
     false
 }
 
-/// A hazard strikes a municipality: the event and its consequences as effects.
+/// A hazard strikes a municipality: the event and its consequences as
+/// effects. Exogenous by design; `late` is the director's lever that moved
+/// its date (the cause is still the hazard).
+#[allow(clippy::too_many_arguments)]
 fn strike(
     env: &mut EnvironmentState,
     r: &Reads<'_>,
@@ -393,6 +420,7 @@ fn strike(
     kind: HazardKind,
     severity: f64,
     mods: &crate::policy::PolicyMods,
+    late: Option<crate::events::EventId>,
 ) {
     env.disasters_total += 1;
     let ev = out.events.record(
@@ -402,12 +430,12 @@ fn strike(
             hazard: kind,
             severity_pct: (severity * 100.0).round() as u32,
         },
-        vec![],
+        Causes::from(Cause::Exogenous(Shock::Hazard)).and_event(late, Link::Continues),
     );
     if severity > 0.7 {
         out.events.pin(ev);
     }
-    let cause = Some(ev);
+    let cause = Cause::caused_by(ev);
     match kind {
         HazardKind::Flood | HazardKind::Storm | HazardKind::Earthquake => {
             // Protective policies (flood defences) reduce the damage.
@@ -439,11 +467,13 @@ fn strike(
                 true,
                 cause,
             );
-            out.effects.push(Effect::HousingDamage {
-                municipality,
-                fraction: town,
+            out.effects.push(
+                Effect::HousingDamage {
+                    municipality,
+                    fraction: town,
+                },
                 cause,
-            });
+            );
             sector_shock(
                 out.effects,
                 r.content,
@@ -481,11 +511,13 @@ fn strike(
                 false,
                 cause,
             );
-            out.effects.push(Effect::HousingDamage {
-                municipality,
-                fraction: town,
+            out.effects.push(
+                Effect::HousingDamage {
+                    municipality,
+                    fraction: town,
+                },
                 cause,
-            });
+            );
             sector_shock(
                 out.effects,
                 r.content,
@@ -535,7 +567,7 @@ fn regional_droughts(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'
                 hazard: HazardKind::Drought,
                 severity_pct: (severity * 100.0).round() as u32,
             },
-            vec![],
+            Cause::Exogenous(Shock::Hazard),
         );
         if severity > 0.7 {
             out.events.pin(ev);
@@ -552,7 +584,7 @@ fn regional_droughts(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'
                     0.0,
                     &|_| 0.0,
                     false,
-                    Some(ev),
+                    Cause::caused_by(ev),
                 );
                 sector_shock(
                     out.effects,
@@ -561,7 +593,7 @@ fn regional_droughts(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'
                     m.0,
                     1.0 - 0.45 * severity * g.drought.min(1.0),
                     12,
-                    Some(ev),
+                    Cause::caused_by(ev),
                 );
             }
         }
@@ -583,7 +615,7 @@ fn fall(
     damage: f64,
     protection: &dyn Fn(u32) -> f64,
     leaves: bool,
-    cause: Option<crate::events::EventId>,
+    cause: Cause,
 ) -> f64 {
     let params = &r.content.economy.hazards;
     let pop = r.population();
@@ -604,17 +636,19 @@ fn fall(
     for hit in &hits {
         town += hit.share * hit.damage;
         env.record_damage(hit.neighborhood, kind, r.date, hit.damage);
-        out.effects.push(Effect::HoodDisaster {
-            neighborhood: hit.neighborhood,
-            relative: hit.relative,
-            leave: if leaves {
-                hit.damage * params.leave_share.clamp(0.0, 1.0)
-            } else {
-                0.0
+        out.effects.push(
+            Effect::HoodDisaster {
+                neighborhood: hit.neighborhood,
+                relative: hit.relative,
+                leave: if leaves {
+                    hit.damage * params.leave_share.clamp(0.0, 1.0)
+                } else {
+                    0.0
+                },
+                temporary: hit.damage * params.temporary_share.clamp(0.0, 1.0),
             },
-            temporary: hit.damage * params.temporary_share.clamp(0.0, 1.0),
             cause,
-        });
+        );
     }
     town
 }
@@ -627,15 +661,17 @@ fn sector_shock(
     municipality: u32,
     factor: f64,
     months: u16,
-    cause: Option<crate::events::EventId>,
+    cause: Cause,
 ) {
     for (_, def) in content.sectors_with(driver) {
-        effects.push(Effect::SectorShock {
-            municipality,
-            sector: def.id.clone(),
-            factor,
-            months,
+        effects.push(
+            Effect::SectorShock {
+                municipality,
+                sector: def.id.clone(),
+                factor,
+                months,
+            },
             cause,
-        });
+        );
     }
 }

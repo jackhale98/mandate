@@ -247,7 +247,7 @@ fn a_plant_closure_opens_the_closure_package() {
                     sector: "sector.manufacturing".into(),
                     jobs: 300,
                 },
-                vec![],
+                mandate_sim::spine::Cause::Lab,
             );
         })
     };

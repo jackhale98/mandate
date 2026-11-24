@@ -1,6 +1,7 @@
 //! Opening a spotlight, the climax horizon, and the decision and minor-beat gates.
 
 use super::*;
+use crate::spine::{Cause, Causes, Link, Process, Thread};
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn open(
@@ -54,15 +55,20 @@ pub(super) fn open(
     if v.player().is_some() {
         let holder = c.goal.as_ref().map(|(h, _)| *h);
         for person in super::super::learn::cast_people(v, &c.cast) {
-            out.effects.push(crate::scheduler::Effect::Learn {
-                subject: crate::player::knowledge::Subject::Person { person },
-                level: if Some(person) == holder {
-                    crate::player::knowledge::Level::Known
-                } else {
-                    crate::player::knowledge::Level::Heard
+            out.effects.push(
+                crate::scheduler::Effect::Learn {
+                    subject: crate::player::knowledge::Subject::Person { person },
+                    level: if Some(person) == holder {
+                        crate::player::knowledge::Level::Known
+                    } else {
+                        crate::player::knowledge::Level::Heard
+                    },
+                    source: crate::player::knowledge::Source::Decision { decision: id },
                 },
-                source: crate::player::knowledge::Source::Decision { decision: id },
-            });
+                // The decision being opened (its event is recorded below,
+                // on the same day): the director's spotlight.
+                Cause::Process(Process::Director),
+            );
         }
     }
     let actors: Vec<Actor> = c.cast.iter().map(|e| e.actor).collect();
@@ -109,6 +115,25 @@ pub(super) fn open(
         }
     }
     let news = (c.relevance / 3.0).clamp(0.0, 1.0) as f32;
+    // Why it opened (the spine): the director spotlit it; someone came with
+    // a request; it answers a story or a case; a storyline reached it.
+    let mut cause = Causes::from(Cause::Process(Process::Director));
+    if let Some((holder, _)) = &c.goal {
+        cause = cause.and(Cause::Actor(*holder));
+    }
+    cause = cause
+        .and_event(
+            match about {
+                Some(super::super::About::Scandal { id }) => out.events.head(Thread::Scandal(id)),
+                Some(super::super::About::Case { id }) => out.events.head(Thread::Case(id)),
+                None => None,
+            },
+            Link::Prompted,
+        )
+        .and_event(
+            storyline.and_then(|run| out.events.head(Thread::Storyline(run.0))),
+            Link::Continues,
+        );
     n.decisions.push(Decision {
         id,
         template: c.def.id.clone(),
@@ -139,7 +164,7 @@ pub(super) fn open(
             decision: id.0,
             template: c.def.id.clone(),
         },
-        vec![],
+        cause,
     );
     id
 }

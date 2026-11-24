@@ -1,6 +1,7 @@
 //! Sessions and chapters, their themes, chance and discovery, and lapsing decisions.
 
 use super::*;
+use crate::spine::{Cause, Causes, Process};
 
 /// The jurisdiction whose budget year a session chapter runs over (DEC-098):
 /// that of the player's main post, else of their home town.
@@ -205,7 +206,7 @@ pub(super) fn chapters(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>)
             index,
             kind: want.key().into(),
         },
-        vec![],
+        Cause::Process(Process::Director),
     );
     kind_changed
 }
@@ -270,8 +271,14 @@ pub(super) fn discovery(
             false,
             0.6,
         );
-        out.events
-            .record(date, EventKind::FactDiscoverable { hidden: id }, vec![]);
+        // The act that left the evidence (the player's or someone's own);
+        // the director only times when it can come out.
+        let made = n.hidden.iter().find(|h| h.id == id).and_then(|h| h.cause);
+        out.events.record(
+            date,
+            EventKind::FactDiscoverable { hidden: id },
+            Causes::from(made.unwrap_or(Cause::Unknown)).and(Cause::Process(Process::Director)),
+        );
     }
 }
 
@@ -328,7 +335,7 @@ pub(super) fn lapse(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>) {
                     decision: id.0,
                     template: d.template.clone(),
                 },
-                vec![],
+                Cause::Process(Process::Director),
             );
         }
         // A storyline stage whose decision lapsed waits for another chance.

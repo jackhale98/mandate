@@ -34,6 +34,7 @@ pub mod population;
 pub mod proxy;
 pub mod scheduler;
 pub mod skip;
+pub mod spine;
 pub mod state;
 pub mod systems;
 pub mod talk;

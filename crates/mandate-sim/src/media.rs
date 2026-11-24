@@ -27,6 +27,7 @@ use crate::events::{EventId, EventKind};
 use crate::narrative::{Actor, Fate, HiddenFact};
 use crate::politics::PoliticianId;
 use crate::scheduler::{Effect, Outs, Reads};
+use crate::spine::{Cause, Causes, Link, PlayerAct, Process, Thread};
 use crate::state::State;
 use crate::world::{MunicipalityId, PlaceId};
 use mandate_content::{
@@ -594,6 +595,7 @@ pub fn hide(
     spec: &HiddenSpec,
     subject: PoliticianId,
     actors: Vec<Actor>,
+    cause: Cause,
 ) -> u32 {
     let date = state.calendar.date;
     let e = exposure(state, content, spec, subject);
@@ -633,6 +635,7 @@ pub fn hide(
             by: by.0,
             who: by.1,
         }),
+        cause: Some(cause),
     })
 }
 
@@ -830,22 +833,16 @@ fn broke_effects(r: &Reads<'_>, out: &mut Outs<'_>, s: &Scandal) {
         }
     }
     holders.extend(s.who);
-    for h in holders {
-        out.effects.push(Effect::Remember {
-            holder: h,
-            actor,
-            kind: MemoryKind::Scandal,
-        });
-    }
-    if subj.is_player {
-        let w = r.content.media.perception.severity_weight.get(s.severity);
-        out.effects.push(Effect::PlayerTrack {
-            standing: -(r.content.media.perception.standing * w) as f32,
-            viability: 0.0,
-            money: 0.0,
-            legal_floor: None,
-        });
-    }
+    // The story makes the hidden fact known: it names the act that left the
+    // evidence (the player's or someone's own) and, once the director has
+    // logged that it can come out, links to that. The event is recorded
+    // first, so that its effects name it; nothing reads the log in between.
+    let made = r
+        .narrative()
+        .hidden
+        .iter()
+        .find(|h| h.id == s.hidden)
+        .and_then(|h| h.cause);
     let ev = out.events.record(
         r.date,
         EventKind::ScandalBroke {
@@ -855,10 +852,34 @@ fn broke_effects(r: &Reads<'_>, out: &mut Outs<'_>, s: &Scandal) {
             severity: s.severity.key().into(),
             kind: s.kind.clone(),
         },
-        vec![],
+        made.into_iter()
+            .fold(Causes::from(Cause::Process(Process::Press)), Causes::and)
+            .and_event(out.events.head(Thread::Hidden(s.hidden)), Link::Revealed),
     );
     if subj.is_player {
         out.events.pin(ev);
+    }
+    for h in holders {
+        out.effects.push(
+            Effect::Remember {
+                holder: h,
+                actor,
+                kind: MemoryKind::Scandal,
+            },
+            Cause::caused_by(ev),
+        );
+    }
+    if subj.is_player {
+        let w = r.content.media.perception.severity_weight.get(s.severity);
+        out.effects.push(
+            Effect::PlayerTrack {
+                standing: -(r.content.media.perception.standing * w) as f32,
+                viability: 0.0,
+                money: 0.0,
+                legal_floor: None,
+            },
+            Cause::caused_by(ev),
+        );
     }
 }
 
@@ -901,12 +922,20 @@ fn heat(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
             s.heat = (s.heat * c.responses.deny_backfire_heat as f32).clamp(0.3, 1.5);
             backfires.push(s.id);
             if Some(s.subject) == player {
-                out.effects.push(Effect::PlayerTrack {
-                    standing: -c.responses.deny_backfire_standing as f32,
-                    viability: 0.0,
-                    money: 0.0,
-                    legal_floor: None,
-                });
+                // The denial unravelled: the scandal's own consequence.
+                out.effects.push(
+                    Effect::PlayerTrack {
+                        standing: -c.responses.deny_backfire_standing as f32,
+                        viability: 0.0,
+                        money: 0.0,
+                        legal_floor: None,
+                    },
+                    Cause::event_or(
+                        out.events.head(Thread::Scandal(s.id)),
+                        Link::Caused,
+                        Cause::Process(Process::Press),
+                    ),
+                );
             }
         }
         if (s.heat as f64) < c.coverage.heat_end && s.backfire_on.is_none() {
@@ -1208,6 +1237,8 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
     for s in &ran {
         let o = &m.outlets[s.outlet as usize];
         let cred = o.credibility as f64;
+        // What the story makes known (the spine): its effects name that.
+        let cause = story_cause(out.events, &s.source);
         match &s.source {
             StorySource::Scandal { id }
             | StorySource::Response { scandal: id, .. }
@@ -1225,17 +1256,20 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 if let Some(u) = m.rumours.iter_mut().find(|u| u.id == *rumour) {
                     u.corrected = Some(date);
                     let back = u.harm as f64 * content.media.rumours.correction_share;
-                    out.effects.push(Effect::Valence {
-                        politician: u.about,
-                        delta: -back as f32,
-                    });
-                    out.events.record(
+                    let ev = out.events.record(
                         date,
                         EventKind::RumourCorrected {
                             rumour: u.id,
                             politician: u.about.0,
                         },
-                        vec![],
+                        Cause::Process(Process::Press),
+                    );
+                    out.effects.push(
+                        Effect::Valence {
+                            politician: u.about,
+                            delta: -back as f32,
+                        },
+                        Cause::caused_by(ev),
                     );
                 }
             }
@@ -1245,10 +1279,13 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
         // Elections read a politician's scandal valence: the same for anyone.
         if s.impact < 0.0 {
             let v = -(s.impact as f64) / pw.approval.max(1e-6) * pw.valence * o.reach as f64;
-            out.effects.push(Effect::Valence {
-                politician: subject,
-                delta: v as f32,
-            });
+            out.effects.push(
+                Effect::Valence {
+                    politician: subject,
+                    delta: v as f32,
+                },
+                cause,
+            );
             if let StorySource::Rumour { id } = s.source
                 && let Some(u) = m.rumours.iter_mut().find(|u| u.id == id)
             {
@@ -1261,13 +1298,16 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
             )
         {
             let v = s.impact as f64 / pw.approval.max(1e-6) * pw.valence * o.reach as f64 * 0.5;
-            out.effects.push(Effect::Valence {
-                politician: subject,
-                delta: -v as f32,
-            });
+            out.effects.push(
+                Effect::Valence {
+                    politician: subject,
+                    delta: -v as f32,
+                },
+                cause,
+            );
         }
         if Some(subject) == player && (s.impact != 0.0 || s.aware != 0.0) {
-            out.effects.push(Effect::Perceive { story: s.id });
+            out.effects.push(Effect::Perceive { story: s.id }, cause);
         }
         let _ = cred;
     }
@@ -1287,16 +1327,37 @@ fn cover(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 .and_then(|p| pol.get(p))
                 .map(|p| p.character);
             if let (true, Some(person)) = (covers, named) {
-                out.effects.push(Effect::Learn {
-                    subject: crate::player::knowledge::Subject::Person { person },
-                    level: crate::player::knowledge::Level::Heard,
-                    source: crate::player::knowledge::Source::Story { story: s.id },
-                });
+                out.effects.push(
+                    Effect::Learn {
+                        subject: crate::player::knowledge::Subject::Person { person },
+                        level: crate::player::knowledge::Level::Heard,
+                        source: crate::player::knowledge::Source::Story { story: s.id },
+                    },
+                    story_cause(out.events, &s.source),
+                );
             }
         }
     }
     m.stories.extend(ran);
     m.last_event = last;
+}
+
+/// What a story makes known, as a cause: the latest event of the scandal,
+/// case or rumour it covers, or the town event itself; a statement (or a
+/// matter whose thread has closed) is the press's own doing.
+fn story_cause(log: &crate::events::EventLog, source: &StorySource) -> Cause {
+    let about = match source {
+        StorySource::Scandal { id }
+        | StorySource::Response { scandal: id, .. }
+        | StorySource::Backfire { scandal: id } => log.head(Thread::Scandal(*id)),
+        StorySource::Case { id, .. } => log.head(Thread::Case(*id)),
+        StorySource::Rumour { id } | StorySource::Correction { rumour: id } => {
+            log.head(Thread::Rumour(*id))
+        }
+        StorySource::Town { event } => Some(*event),
+        StorySource::Statement { .. } => None,
+    };
+    Cause::event_or(about, Link::Revealed, Cause::Process(Process::Press))
 }
 
 // --- The player's communication and acts (the Commands phase) -------------------------
@@ -1415,6 +1476,16 @@ pub fn leak(state: &mut State, rival: PoliticianId, leak: u32) -> Option<Leak> {
             true,
         )?;
         let _ = who;
+        // The player's leak brought the rival's hidden fact out.
+        // (And the rival's own act, which the leak only exposed.)
+        let cause = h
+            .cause
+            .into_iter()
+            .fold(
+                Causes::from(Cause::Player(PlayerAct::LeakFile)),
+                Causes::and,
+            )
+            .and_event(state.events.head(Thread::Hidden(h.id)), Link::Revealed);
         state.events.record(
             date,
             EventKind::ScandalBroke {
@@ -1424,7 +1495,7 @@ pub fn leak(state: &mut State, rival: PoliticianId, leak: u32) -> Option<Leak> {
                 severity: h.severity.key().into(),
                 kind: h.kind.clone(),
             },
-            vec![],
+            cause,
         );
         return Some(Leak::Exposed { scandal: id });
     }
@@ -1441,13 +1512,14 @@ pub fn leak(state: &mut State, rival: PoliticianId, leak: u32) -> Option<Leak> {
         harm: 0.0,
         corrected: None,
     });
+    let cause = Cause::Player(PlayerAct::LeakFile);
     state.events.record(
         date,
         EventKind::RumourSpread {
             rumour: id,
             politician: rival.0,
         },
-        vec![],
+        cause,
     );
     Some(Leak::Rumour { id })
 }
@@ -1478,8 +1550,8 @@ pub fn town(m: u32) -> MunicipalityId {
 /// change in approval is room-scaled like every approval change.
 pub fn perceive(pop: &mut crate::population::PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let media = r.media();
-    for e in out.effects.take(|e| matches!(e, Effect::Perceive { .. })) {
-        let Effect::Perceive { story } = e else {
+    for e in out.take(|e| matches!(e, Effect::Perceive { .. })) {
+        let Effect::Perceive { story } = e.effect else {
             continue;
         };
         let Some(s) = media.story(story) else {

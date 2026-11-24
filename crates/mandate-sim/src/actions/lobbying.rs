@@ -1,6 +1,7 @@
 //! Lobbying and trading favours with colleagues (DEC-026, DEC-031).
 
 use super::*;
+use crate::spine::{Cause, PlayerAct};
 
 /// Lobbying success odds shown to the player before acting (the same
 /// formula as NPC deals, `npc::lobby_odds_between`).
@@ -138,12 +139,18 @@ pub(super) fn lobby(
     if *late_night {
         // A back-room deal is a hidden fact (DEC-034): its fate
         // is settled now; the director times when it surfaces.
+        let cause = Cause::Player(if trade {
+            PlayerAct::TradeFavor
+        } else {
+            PlayerAct::Lobby
+        });
         crate::media::hide(
             state,
             content,
             &content.media.late_night_deal,
             pl.politician,
             vec![crate::narrative::Actor::Person { id: tc }],
+            cause,
         );
     }
     res.outcome_key = if trade {

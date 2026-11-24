@@ -199,10 +199,16 @@ pub enum Outcome {
 
 /// Apply effect requests at once, outside the scheduler (the asks' own
 /// commands), through the functions the appliers use.
-pub fn apply_now(state: &mut crate::State, content: &ContentBundle, effects: Vec<Effect>) {
+pub fn apply_now(
+    state: &mut crate::State,
+    content: &ContentBundle,
+    effects: Vec<crate::scheduler::Request>,
+) {
     let date = state.calendar.date;
     let seed = state.meta.seed;
-    for e in effects {
+    for r in effects {
+        state.events.note_effect(&r.cause);
+        let e = r.effect;
         match e {
             Effect::Opinion { .. } | Effect::Favour { .. } | Effect::Record { .. } => {
                 crate::characters::apply_ask_effect(&mut state.politics, content, seed, date, &e);

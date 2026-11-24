@@ -9,6 +9,7 @@ use mandate_core::SimDate;
 use mandate_sim::environment::{DeferredHazard, HazardKind};
 use mandate_sim::events::EventKind;
 use mandate_sim::policy::PolicyStatus;
+use mandate_sim::spine::Cause;
 use mandate_sim::{Command, Engine};
 use mandate_worldgen::{WorldConfig, WorldSize, generate};
 use serde::Serialize;
@@ -309,7 +310,7 @@ impl Game {
                             no: 0,
                             overrode_veto: false,
                         },
-                        vec![],
+                        Cause::Lab,
                     );
                     st.events.pin(ev);
                     p.cause = Some(ev);
@@ -391,7 +392,7 @@ impl Game {
                             sector: key,
                             jobs: jobs as u32,
                         },
-                        vec![],
+                        Cause::Lab,
                     );
                     st.events.pin(ev);
                 });
@@ -417,6 +418,7 @@ impl Game {
                         kind,
                         severity: severity.clamp(0.0, 1.0),
                         drawn,
+                        hold_event: None,
                     })
                 });
             }
@@ -427,7 +429,7 @@ impl Game {
                         EventKind::GlobalRecessionBegan {
                             depth_pct: (depth * 100.0).round() as u32,
                         },
-                        vec![],
+                        Cause::Lab,
                     );
                     st.events.pin(ev);
                     st.economy.global.recession = Some(mandate_sim::economy::Recession {

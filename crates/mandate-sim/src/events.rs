@@ -1,5 +1,7 @@
-//! Domain event log with causal references (OVERVIEW §4.4).
+//! Domain event log with causal references (OVERVIEW §4.4): the nodes of
+//! the causal spine (`crate::spine`, S1).
 
+use crate::spine::{self, Cause, Causes, EffectAudit, Link, Role, Thread};
 use mandate_core::{IdAllocator, SimDate, define_id};
 use serde::{Deserialize, Serialize};
 
@@ -243,7 +245,10 @@ pub enum EventKind {
 /// How long an event is kept in full detail.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Retention {
+    /// Kept by the spine's rule: age by salience, and while live state
+    /// holds it (`spine::prune`).
     Recent,
+    /// A landmark whatever its kind: kept for the run.
     Pinned,
 }
 
@@ -252,22 +257,88 @@ pub struct DomainEvent {
     pub id: EventId,
     pub date: SimDate,
     pub kind: EventKind,
-    pub causes: Vec<EventId>,
+    /// What led to it (the causal spine, S1): links to earlier events and
+    /// roots. Never empty.
+    pub causes: Vec<Cause>,
     pub retention: Retention,
 }
 
+impl DomainEvent {
+    /// The earlier events it names, with how each led here.
+    pub fn links(&self) -> impl Iterator<Item = (EventId, Link)> + '_ {
+        self.causes.iter().filter_map(Cause::event)
+    }
+
+    /// Its roots: every cause that is not a link.
+    pub fn roots(&self) -> impl Iterator<Item = &Cause> + '_ {
+        self.causes.iter().filter(|c| c.is_root())
+    }
+}
+
+/// The event log: the causal graph's nodes, in id order (so in the order
+/// recorded), bounded by `spine::prune`.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EventLog {
     ids: IdAllocator,
-    events: Vec<DomainEvent>,
+    pub(crate) events: Vec<DomainEvent>,
+    /// The latest kept event of each thread, sorted by thread
+    /// (`spine::Thread`): the next event on a thread links to it. A thread
+    /// leaves when its latest event leaves the log. The flag: that event
+    /// closed the thread.
+    #[serde(default)]
+    heads: Vec<(Thread, EventId, bool)>,
+    /// When the log was last pruned.
+    #[serde(default)]
+    pruned_on: Option<SimDate>,
+    /// Effect requests applied (the spine's audit; not state).
+    #[serde(skip)]
+    audit: EffectAudit,
+    /// Lab switch (not state): keep everything. For tools that must read
+    /// every event (the proof that the spine changes no outcome).
+    #[serde(skip)]
+    keep_all: bool,
 }
 
-/// Recent events kept in full detail; older `Recent` events are dropped.
-pub const RECENT_CAPACITY: usize = 2_000;
-
 impl EventLog {
-    pub fn record(&mut self, date: SimDate, kind: EventKind, causes: Vec<EventId>) -> EventId {
+    /// Record an event with what led to it. The log adds the link to the
+    /// event before it on its thread (a bill's introduction to its
+    /// enactment), so a site names only what the thread cannot know: the
+    /// root, and links across threads.
+    pub fn record(&mut self, date: SimDate, kind: EventKind, causes: impl Into<Causes>) -> EventId {
+        self.record_caused(date, kind, causes.into().into_vec())
+    }
+
+    /// `record`, once (not per cause type: the body is not small).
+    fn record_caused(&mut self, date: SimDate, kind: EventKind, mut causes: Vec<Cause>) -> EventId {
         let id: EventId = self.ids.alloc();
+        if let Some((thread, role)) = spine::thread(&kind, date) {
+            let at = self.heads.binary_search_by_key(&thread, |h| h.0);
+            // A thread that ended starts afresh when something moves it on
+            // again (the next recession is not the last one's sequel);
+            // what only notes or closes it again still links to its end.
+            let fresh = role == Role::Opens
+                || (role == Role::Advances && at.is_ok_and(|i| self.heads[i].2));
+            if let (Ok(i), false) = (at, fresh) {
+                let head = self.heads[i].1;
+                if !causes
+                    .iter()
+                    .any(|c| c.event().is_some_and(|e| e.0 == head))
+                {
+                    let link = if role == Role::Closes {
+                        Link::Ended
+                    } else {
+                        Link::Continues
+                    };
+                    causes.push(Cause::Event(head, link));
+                }
+            }
+            let closed = role == Role::Closes;
+            match (role, at) {
+                (Role::Notes, _) => {}
+                (_, Ok(i)) => self.heads[i] = (thread, id, closed),
+                (_, Err(i)) => self.heads.insert(i, (thread, id, closed)),
+            }
+        }
         self.events.push(DomainEvent {
             id,
             date,
@@ -275,13 +346,13 @@ impl EventLog {
             causes,
             retention: Retention::Recent,
         });
-        self.compact();
         id
     }
 
+    /// Keep an event for the run, whatever its kind.
     pub fn pin(&mut self, id: EventId) {
-        if let Some(e) = self.events.iter_mut().find(|e| e.id == id) {
-            e.retention = Retention::Pinned;
+        if let Ok(i) = self.events.binary_search_by_key(&id, |e| e.id) {
+            self.events[i].retention = Retention::Pinned;
         }
     }
 
@@ -296,6 +367,12 @@ impl EventLog {
             .map(|i| &self.events[i])
     }
 
+    /// The events recorded after `id`, in order.
+    pub fn after(&self, id: EventId) -> &[DomainEvent] {
+        let from = self.events.partition_point(|e| e.id <= id);
+        &self.events[from..]
+    }
+
     pub fn len(&self) -> usize {
         self.events.len()
     }
@@ -304,22 +381,90 @@ impl EventLog {
         self.events.is_empty()
     }
 
-    fn compact(&mut self) {
-        let recent = self
-            .events
-            .iter()
-            .filter(|e| e.retention == Retention::Recent)
-            .count();
-        if recent > RECENT_CAPACITY {
-            let mut to_drop = recent - RECENT_CAPACITY;
-            self.events.retain(|e| {
-                if to_drop > 0 && e.retention == Retention::Recent {
-                    to_drop -= 1;
-                    false
-                } else {
-                    true
-                }
-            });
+    /// The latest event of a thread (the closing one, once it is closed),
+    /// while the log keeps it.
+    pub fn head(&self, thread: Thread) -> Option<EventId> {
+        self.heads
+            .binary_search_by_key(&thread, |h| h.0)
+            .ok()
+            .map(|i| self.heads[i].1)
+    }
+
+    /// The latest event of a thread that is still open: none once it has
+    /// closed (a lapsed proposal prompts no bill).
+    pub fn open_head(&self, thread: Thread) -> Option<EventId> {
+        self.heads
+            .binary_search_by_key(&thread, |h| h.0)
+            .ok()
+            .filter(|i| !self.heads[*i].2)
+            .map(|i| self.heads[i].1)
+    }
+
+    /// The threads, sorted, each with its latest event.
+    pub fn heads(&self) -> &[(Thread, EventId, bool)] {
+        &self.heads
+    }
+
+    /// The threads as replaying the kept events gives them (what a save
+    /// from before the spine is given).
+    pub fn replayed_heads(&self) -> Vec<(Thread, EventId, bool)> {
+        let mut heads: Vec<(Thread, EventId, bool)> = Vec::new();
+        for e in &self.events {
+            let Some((thread, role)) = spine::thread(&e.kind, e.date) else {
+                continue;
+            };
+            let at = heads.binary_search_by_key(&thread, |h| h.0);
+            let closed = role == Role::Closes;
+            match (role, at) {
+                (Role::Notes, _) => {}
+                (_, Ok(i)) => heads[i] = (thread, e.id, closed),
+                (_, Err(i)) => heads.insert(i, (thread, e.id, closed)),
+            }
         }
+        heads
+    }
+
+    /// Threads whose latest event is no longer kept are forgotten.
+    pub(crate) fn drop_dead_heads(&mut self) {
+        let events = &self.events;
+        self.heads
+            .retain(|(_, id, _)| events.binary_search_by_key(id, |e| e.id).is_ok());
+    }
+
+    /// Prune by the spine's rule if a month has passed since the last
+    /// time (`spine::prune`). `holds` is read only when it is time.
+    pub fn prune_if_due(
+        &mut self,
+        today: SimDate,
+        holds: impl FnOnce() -> spine::prune::Holds,
+    ) -> Option<spine::prune::Pruned> {
+        if self.keep_all
+            || self
+                .pruned_on
+                .is_some_and(|on| on.days_until(today) < spine::prune::PRUNE_EVERY_DAYS)
+        {
+            return None;
+        }
+        self.pruned_on = Some(today);
+        Some(spine::prune::prune(self, today, &holds()))
+    }
+
+    /// The id the next event will get.
+    pub fn next_id(&self) -> EventId {
+        EventId(self.ids.peek_next())
+    }
+
+    /// Lab switch: never prune (not saved; a loaded game prunes again).
+    pub fn set_keep_all(&mut self, on: bool) {
+        self.keep_all = on;
+    }
+
+    /// An effect request was applied (the spine's audit).
+    pub fn note_effect(&mut self, cause: &Cause) {
+        self.audit.note(cause);
+    }
+
+    pub fn effect_audit(&self) -> EffectAudit {
+        self.audit
     }
 }

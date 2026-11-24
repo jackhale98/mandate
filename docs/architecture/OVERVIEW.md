@@ -130,14 +130,17 @@ Changing this order is a recorded architecture change and needs a determinism te
 
 ### 4.3 Cross-system effects
 - During its phase, a system reads any state but writes only its own domain.
-- A cross-domain change is a typed `Effect` (today: `HousingDamage`, `SectorShock`, `Displacement`, `Memory`), applied by the owning domain in its own phase.
+- A cross-domain change is a typed `Effect` (housing damage, sector shocks, displacement, memories, opinions and favours, approval, the player's tracks and knowledge, removal and sentences, perception and valence), applied by the owning domain in its own phase.
+- **Every effect is requested with its cause** (S1, the causal spine): the queue holds `Request { effect, cause }`, and `EffectQueue::push(effect, cause)` is the only way in. The applier takes the request with its cause (`Outs::take`) and passes it on to whatever the effect leads to (a sentence's cause is the cause of the prison term). An effect a command applies to its own domain at once (the player's own ledger while talking) is the command's own and needs no request.
 - Policy never writes another domain: domains read the active laws' combined `PolicyMods`.
 - The director's exogenous requests (`Chance`: hazard holds, a thinner hazard rate, a held recession onset) are posted in the narrative domain and applied, clamped, and logged by environment and economy (DEC-033 B).
 
 ### 4.4 Event log and causality
-- `DomainEvent`s carry a kind, a date, and `causes` (earlier events), which form a causal graph.
-- Retention: the 2,000 most recent events are kept; events that memories, decisions, or updates refer to are pinned (`RulesUpdated` is always pinned).
-- The log feeds news lines, memories, "Why?" panels, and election-night breakdowns. The narrative domain keeps its own bounded facts log for the director (and, **planned**, the media layer).
+- The log is the causal spine (S1; `docs/design/CAUSAL_SPINE.md`, `mandate_sim::spine`). A `DomainEvent` carries a kind, a date, and `causes`, never empty: typed links to earlier events (`caused`, `continues`, `prompted`, `revealed`, `ended`) and roots (the player's act, someone's own choice, a scheduled process, a named pressure, worldgen, an explicit exogenous mark, or `unknown` for an event from before the spine). This is bookkeeping, never inference: continuous effects are attributed offline by the lab's twins.
+- **Threads.** Events about one matter (a bill, an ask, a case, a recession) share a thread; the log links each to the one before it, so a site names only the root and links across threads.
+- **Queries** (`spine::graph`, depth-limited, deterministic): the chain from an event back to its roots, the consequences of an event within N links, the nearest player act behind an event, and patterns of kinds along a chain (the base for story sifting). Nothing in the simulation reads a cause: the spine changes no outcome (pinned by `lab/proof.rs`).
+- **The bound.** About monthly, as a turn ends, events leave by age and salience (bookkeeping a year, routine four, notable twelve, landmarks never), except what live state holds (a law in force, an open ask, decision or case, a running crisis, the Legacy record), what a system that reads the log forward has yet to read (the director waits while the player is in prison, then reads the whole term), and everything a kept event descends from: a link in the log always points into the log. A hard cap (6,000) is the backstop; past it the unread go last, oldest first. Pinned events are landmarks (`RulesUpdated`, the game's start, the player's own scandals and cases).
+- The log feeds news lines, memories, "Why?" (`QueryDto::Why`), credit and blame, summaries and Legacy. The narrative domain keeps its own bounded facts log for the director.
 
 ### 4.5 Commands and queries
 - **Commands** mutate state and are deterministic: `EndTurn`, `AdvanceDays`, `DraftPolicy`, `AmendPolicy`, `IntroducePolicy`, `WithdrawPolicy`, `Act` (lobby, trade a favour, town hall, press, canvass, fundraise, rest, advertise; optionally late at night), `File`, `CastVote`, `MoveTo`, `Go` (move, then act: auto-routing), `Meet`, `AnswerDecision`. `LabSectorShock` is lab-only.

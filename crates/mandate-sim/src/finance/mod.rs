@@ -6,6 +6,7 @@ use crate::economy::EconomyState;
 use crate::events::EventKind;
 use crate::population::{CLASSES, PopulationState, group_index};
 use crate::scheduler::{Outs, Reads};
+use crate::spine::{Cause, Process};
 use crate::world::{MunicipalityId, World};
 use mandate_content::EconomyParams;
 use mandate_core::Money;
@@ -722,7 +723,7 @@ pub fn new_budget_year(fin: &mut FinanceState, r: &Reads<'_>, out: &mut Outs<'_>
                 balance: n.last_year.balance.units(),
                 debt_pct_gdp: (debt_ratio * 100.0).round() as u32,
             },
-            vec![],
+            Cause::Process(Process::Budget),
         );
     }
 }

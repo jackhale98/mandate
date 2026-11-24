@@ -329,7 +329,7 @@ pub(super) fn advance_runs(
                     storyline: def.id.clone(),
                     stage: stage.id.clone(),
                 },
-                vec![],
+                crate::spine::Cause::Process(crate::spine::Process::Director),
             );
             if ends || n.storylines[i].stage as usize >= def.stages.len() {
                 end_run(n, content, i, date, RunEnd::Ended);

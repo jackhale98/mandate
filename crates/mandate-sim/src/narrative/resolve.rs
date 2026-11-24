@@ -10,6 +10,7 @@ use crate::commands::EngineError;
 use crate::events::EventKind;
 use crate::player::knowledge::{self, Level};
 use crate::politics::Vote;
+use crate::spine::{Cause, PlayerAct};
 use crate::state::State;
 use crate::world::NeighborhoodId;
 use mandate_content::{ContentBundle, EffectDef, RiderKind, Scope, VoteChoice};
@@ -110,6 +111,15 @@ fn decision_hood(state: &State, place: Option<crate::places::Location>) -> Optio
         .or_else(|| crate::places::home_neighborhood(state))
 }
 
+/// The root of an answer: the player's choice, or letting it pass.
+fn answer_cause(by_default: bool) -> Cause {
+    Cause::Player(if by_default {
+        PlayerAct::LetPass
+    } else {
+        PlayerAct::Answer
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn apply_effect(
     state: &mut State,
@@ -125,6 +135,7 @@ fn apply_effect(
     let me = characters::player_character(state);
     let me_pol = state.player.as_ref().map(|p| p.politician);
     let subject = Some(Subject::Decision { id: id.0 });
+    let cause = answer_cause(by_default);
     let skip = |what: &str| Applied::Skipped {
         effect: what.into(),
     };
@@ -489,7 +500,7 @@ fn apply_effect(
                 .and_then(|r| super::actor_of(cast, r))
                 .into_iter()
                 .collect();
-            crate::media::hide(state, content, &spec, me, actors);
+            crate::media::hide(state, content, &spec, me, actors, cause);
             Applied::Hidden {
                 kind: spec.kind,
                 risk: risk as f32,
@@ -672,6 +683,7 @@ pub fn answer(
             super::director::end_run(n, content, i, date, RunEnd::Ended);
         }
     }
+    let cause = answer_cause(by_default);
     state.events.record(
         date,
         EventKind::DecisionResolved {
@@ -680,7 +692,7 @@ pub fn answer(
             option: option.into(),
             by_default,
         },
-        vec![],
+        cause,
     );
     let mut res = ActionResult {
         outcome_key: opt.aftermath_key.clone(),

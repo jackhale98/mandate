@@ -857,7 +857,7 @@ pub fn generate_with_progress(
         mandate_sim::events::EventKind::HistoryBegan {
             year: content.tuning.start_year,
         },
-        vec![],
+        mandate_sim::spine::Cause::History,
     );
     events.pin(began);
     let state = State {

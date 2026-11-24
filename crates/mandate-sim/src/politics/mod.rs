@@ -197,9 +197,31 @@ pub struct Politician {
     /// monthly; a thin record is an opponent's best attack (DEC-076).
     #[serde(default)]
     pub record: f32,
+    /// The last post they held and left (M6 note 16): set on leaving
+    /// office. `None`: never left one, or left before this was kept.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_post: Option<LastPost>,
+}
+
+/// A post someone held and left: which (by the constitution's ids, any
+/// tier), and when it ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LastPost {
+    pub post: Post,
+    pub ended: mandate_core::SimDate,
 }
 
 impl Politician {
+    /// Leave office on `on`: the post is remembered as the last held, and
+    /// they are a private citizen of `home`.
+    pub fn leave_office(&mut self, on: mandate_core::SimDate, home: MunicipalityId) {
+        if let Some(post) = self.role.post() {
+            self.last_post = Some(LastPost { post, ended: on });
+        }
+        self.role = Role::Private { home };
+        self.terms_in_office = 0;
+    }
+
     pub fn in_office(&self) -> bool {
         !matches!(self.role, Role::Private { .. })
     }
@@ -326,12 +348,12 @@ pub fn media_effects(
 ) {
     use crate::scheduler::Effect;
     let player = r.player.map(|p| p.politician);
-    for e in out.effects.take(|e| match e {
+    for e in out.take(|e| match e {
         Effect::Valence { .. } | Effect::Remember { .. } | Effect::Removal { .. } => true,
         Effect::Sentenced { politician, .. } => Some(*politician) != player,
         _ => false,
     }) {
-        match e {
+        match e.effect {
             Effect::Valence { politician, delta } => {
                 if let Some(p) = st.get_mut(politician) {
                     p.scandal = (p.scandal + delta).clamp(0.0, 1.0);
@@ -356,10 +378,7 @@ pub fn media_effects(
                     let m = p.municipality();
                     elections::appoint_replacement(st, r, politician);
                     if let Some(p) = st.get_mut(politician) {
-                        p.role = Role::Private {
-                            home: MunicipalityId(m),
-                        };
-                        p.terms_in_office = 0;
+                        p.leave_office(r.date, MunicipalityId(m));
                     }
                 }
                 if barred
@@ -851,6 +870,7 @@ pub fn new_politician(
         years_in_office: 0,
         terms_in_office: 0,
         record: 0.0,
+        last_post: None,
     });
     crate::characters::add_politician(st, content, seed, id, first_impression);
     id

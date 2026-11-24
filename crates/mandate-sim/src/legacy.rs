@@ -91,6 +91,10 @@ pub struct LegacyEntry {
     pub date: SimDate,
     #[serde(flatten)]
     pub kind: LegacyKind,
+    /// The event it records, when it came from one (the causal spine: the
+    /// log keeps that event, and the chain behind it, as long as the entry).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_event: Option<crate::events::EventId>,
 }
 
 /// The tracks when the act closed.
@@ -221,10 +225,19 @@ pub fn observe(state: &mut crate::State, content: &ContentBundle) {
     let legacy = &content.act_flow.legacy;
     let cursor = state.act.cursor;
     let mut new: Vec<LegacyEntry> = Vec::new();
-    let mut push = |d: SimDate, kind: LegacyKind| new.push(LegacyEntry { date: d, kind });
+    // The event being read (none for entries from memories and posts).
+    let reading = std::cell::Cell::new(None);
+    let mut push = |d: SimDate, kind: LegacyKind| {
+        new.push(LegacyEntry {
+            date: d,
+            kind,
+            source_event: reading.get(),
+        })
+    };
     let mut last = cursor;
     for ev in state.events.iter().filter(|e| e.id.0 >= cursor) {
         last = ev.id.0 + 1;
+        reading.set(Some(ev.id));
         match &ev.kind {
             EventKind::RaceDecided {
                 player_ran: true,
@@ -367,6 +380,7 @@ pub fn observe(state: &mut crate::State, content: &ContentBundle) {
             _ => {}
         }
     }
+    reading.set(None);
     // Promises kept and broken, as the people they were made to remember them.
     let from = state.act.scanned_to.unwrap_or(date);
     if let Some(mc) = my_char {

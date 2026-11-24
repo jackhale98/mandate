@@ -7,6 +7,7 @@ pub mod housing;
 use crate::events::{EventId, EventKind};
 use crate::population::{CLASSES, PopulationState};
 use crate::scheduler::{Effect, Outs, Reads};
+use crate::spine::{Cause, Causes, Link, Pressure, Process, Shock};
 use crate::state::WorldMeta;
 use crate::world::{MunicipalityId, NeighborhoodKind, PlaceKind, SettlementClass, World};
 use housing::Housing;
@@ -441,8 +442,13 @@ pub fn global(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         .is_some_and(|rec| rec.months_elapsed >= rec.months_total)
     {
         g.recession = None;
-        out.events
-            .record(r.date, EventKind::GlobalRecoveryBegan, vec![]);
+        // The recession's length was part of the exogenous draw; the log
+        // links the recovery to the onset (the recession's thread).
+        out.events.record(
+            r.date,
+            EventKind::GlobalRecoveryBegan,
+            Cause::Exogenous(Shock::WorldEconomy),
+        );
     } else if g.recession.is_none() && g.held_recession.is_some() {
         // A held onset begins once the hold lifts, or at the latest after
         // the longest hold the director may impose.
@@ -462,14 +468,16 @@ pub fn global(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     lever: "recession_released".into(),
                     municipality: u32::MAX,
                 },
-                vec![],
+                Cause::Process(Process::Director),
             );
+            // Exogenous still: the director moved its date, not its cause
+            // (the thread links the hold and the release).
             let ev = out.events.record(
                 r.date,
                 EventKind::GlobalRecessionBegan {
                     depth_pct: (h.depth * 100.0).round() as u32,
                 },
-                vec![],
+                Cause::Exogenous(Shock::WorldEconomy),
             );
             out.events.pin(ev);
             g.recession = Some(Recession {
@@ -500,7 +508,10 @@ pub fn global(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     lever: "recession_held".into(),
                     municipality: u32::MAX,
                 },
-                vec![],
+                [
+                    Cause::Exogenous(Shock::WorldEconomy),
+                    Cause::Process(Process::Director),
+                ],
             );
         } else {
             let ev = out.events.record(
@@ -508,7 +519,7 @@ pub fn global(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 EventKind::GlobalRecessionBegan {
                     depth_pct: (depth * 100.0).round() as u32,
                 },
-                vec![],
+                Cause::Exogenous(Shock::WorldEconomy),
             );
             out.events.pin(ev);
             g.recession = Some(Recession {
@@ -536,7 +547,7 @@ pub fn global(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     commodity: i as u8,
                     change_pct: (jump * 100.0).round() as i32,
                 },
-                vec![],
+                Cause::Exogenous(Shock::Commodities),
             );
         }
         *c = clamp(exp(lp), 0.3, 3.0);
@@ -634,15 +645,11 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let content = r.content;
     let nm = world.municipalities.len().min(econ.munis.len());
     // Apply effects from other domains.
-    for e in out
-        .effects
-        .take(|e| matches!(e, Effect::HousingDamage { .. } | Effect::SectorShock { .. }))
-    {
-        match e {
+    for e in out.take(|e| matches!(e, Effect::HousingDamage { .. } | Effect::SectorShock { .. })) {
+        match e.effect {
             Effect::HousingDamage {
                 municipality,
                 fraction,
-                ..
             } => {
                 if let Some(mu) = econ.munis.get_mut(municipality as usize) {
                     mu.housing.stock *= 1.0 - clamp(fraction, 0.0, 0.5);
@@ -654,7 +661,6 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 sector,
                 factor,
                 months,
-                ..
             } => {
                 if let Some(mu) = econ.munis.get_mut(municipality as usize) {
                     mu.shocks.push(ActiveShock {
@@ -794,16 +800,39 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 let frac = rng.range_f64(0.08, 0.25);
                 let jobs = (s.capacity * frac).round();
                 s.capacity -= jobs;
-                let ev = out.events.record(
+                // Why (the spine): the plant closed because the sector's
+                // demand driver is weak. The driver is a product of named
+                // factors; the weakest names the pressure. A running
+                // recession is linked as well.
+                let factors: &[(Pressure, f64)] = match def.driver {
+                    SectorDriver::Extraction => &[
+                        (Pressure::WorldDemand, gcyc),
+                        (
+                            Pressure::CommodityPrices,
+                            pow(g.commodities[1] * 0.6 + g.commodities[2] * 0.4, 0.6),
+                        ),
+                        (Pressure::Depletion, pow(mineral_stock.max(0.05), 0.5)),
+                        (Pressure::LabourCosts, competitive(0.3)),
+                    ],
+                    _ => &[
+                        (Pressure::WorldDemand, gcyc),
+                        (Pressure::Competitiveness, nat.manufacturing_competitiveness),
+                        (Pressure::LabourCosts, competitive(1.0)),
+                    ],
+                };
+                let weakest = factors
+                    .iter()
+                    .fold(factors[0], |a, b| if b.1 < a.1 { *b } else { a })
+                    .0;
+                out.events.record(
                     r.date,
                     EventKind::PlantClosure {
                         municipality: m as u32,
                         sector: def.id.clone(),
                         jobs: jobs as u32,
                     },
-                    recession_cause.into_iter().collect(),
+                    Causes::from(Cause::Pressure(weakest)).and_event(recession_cause, Link::Caused),
                 );
-                out.events.pin(ev);
             }
         }
         // Structural adjustment: idle labour slowly attracts new private
@@ -936,7 +965,7 @@ pub fn national(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 change_bp: bp,
                 rate_bp: (n.policy_rate * 10_000.0).round() as u32,
             },
-            vec![],
+            Cause::Process(Process::CentralBank),
         );
         n.last_rate_event = n.policy_rate;
     }

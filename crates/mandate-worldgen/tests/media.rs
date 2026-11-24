@@ -70,7 +70,7 @@ fn plant(e: &mut Engine, c: &ContentBundle, who: PoliticianId, sev: Gravity, day
     };
     let mut id = 0;
     e.setup(|s| {
-        id = media::hide(s, c, &spec, who, Vec::new());
+        id = media::hide(s, c, &spec, who, Vec::new(), mandate_sim::spine::Cause::Lab);
         let date = s.calendar.date;
         let h = s.narrative.hidden.iter_mut().find(|h| h.id == id).unwrap();
         h.window = [date.add_days(days), date.add_days(days + 7)];

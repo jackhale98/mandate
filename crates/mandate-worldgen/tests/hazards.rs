@@ -214,7 +214,7 @@ fn migrate(st: &mut mandate_sim::State, c: &ContentBundle, effects: Vec<Effect>)
     let mut events = EventLog::default();
     let mut q = EffectQueue::default();
     for e in effects {
-        q.push(e);
+        q.push(e, mandate_sim::spine::Cause::Lab);
     }
     let r = Reads::of_state(&snapshot, c);
     let mut out = Outs {
@@ -248,7 +248,6 @@ fn the_displaced_return_over_time() {
             relative: h.relative,
             leave: 0.0,
             temporary: 0.2 * h.relative,
-            cause: None,
         })
         .collect();
     migrate(&mut st, &c, effects);

@@ -9,7 +9,7 @@
 use crate::asks::AskState;
 use crate::economy::EconomyState;
 use crate::environment::EnvironmentState;
-use crate::events::{EventId, EventLog};
+use crate::events::EventLog;
 use crate::finance::FinanceState;
 use crate::justice::JusticeState;
 use crate::media::MediaState;
@@ -18,6 +18,7 @@ use crate::player::PlayerState;
 use crate::policy::PolicyState;
 use crate::politics::PoliticsState;
 use crate::population::PopulationState;
+use crate::spine::Cause;
 use crate::state::{Calendar, State, WorldMeta};
 use crate::world::World;
 use mandate_content::{ContentBundle, ContentKey};
@@ -43,15 +44,12 @@ pub enum Phase {
     Commit,
 }
 
-/// Cross-domain change request, applied by the owning system (OVERVIEW §4.3).
+/// A cross-domain change, applied by the owning system (OVERVIEW §4.3). It
+/// is always requested with its cause ([`Request`], the causal spine S1).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Effect {
     /// Destroy a share of a municipality's housing stock (economy applies).
-    HousingDamage {
-        municipality: u32,
-        fraction: f64,
-        cause: Option<EventId>,
-    },
+    HousingDamage { municipality: u32, fraction: f64 },
     /// Temporarily scale a sector's demand in a municipality (economy applies).
     SectorShock {
         municipality: u32,
@@ -59,14 +57,9 @@ pub enum Effect {
         sector: ContentKey,
         factor: f64,
         months: u16,
-        cause: Option<EventId>,
     },
     /// Residents leave a municipality after a disaster (population applies).
-    Displacement {
-        municipality: u32,
-        fraction: f64,
-        cause: Option<EventId>,
-    },
+    Displacement { municipality: u32, fraction: f64 },
     /// A politician remembers what another did (politics applies, DEC-031).
     Memory {
         holder: crate::politics::PoliticianId,
@@ -135,7 +128,6 @@ pub enum Effect {
         relative: f64,
         leave: f64,
         temporary: f64,
-        cause: Option<EventId>,
     },
     /// Someone's opinion of someone else changes, remembered as `memory`
     /// (politics applies; scaled by personality like every opinion change).
@@ -166,19 +158,33 @@ pub enum Effect {
     },
 }
 
+/// An effect request: the change, and what led to it (the causal spine,
+/// S1). Nothing crosses a domain without naming its cause.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Request {
+    pub effect: Effect,
+    pub cause: Cause,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct EffectQueue {
-    pending: Vec<Effect>,
+    pending: Vec<Request>,
 }
 
 impl EffectQueue {
-    pub fn push(&mut self, e: Effect) {
-        self.pending.push(e);
+    /// Request an effect, naming what led to it.
+    pub fn push(&mut self, effect: Effect, cause: Cause) {
+        self.pending.push(Request { effect, cause });
     }
 
-    /// Remove and return effects matching a predicate, preserving order.
-    pub fn take(&mut self, pred: impl Fn(&Effect) -> bool) -> Vec<Effect> {
-        let (taken, keep): (Vec<_>, Vec<_>) = self.pending.drain(..).partition(|e| pred(e));
+    pub fn push_request(&mut self, r: Request) {
+        self.pending.push(r);
+    }
+
+    /// Remove and return the requests whose effect matches a predicate,
+    /// preserving order.
+    pub fn take(&mut self, pred: impl Fn(&Effect) -> bool) -> Vec<Request> {
+        let (taken, keep): (Vec<_>, Vec<_>) = self.pending.drain(..).partition(|r| pred(&r.effect));
         self.pending = keep;
         taken
     }
@@ -299,6 +305,18 @@ pub struct Outs<'a> {
     pub effects: &'a mut EffectQueue,
 }
 
+impl Outs<'_> {
+    /// Take the effect requests an applier owns (those whose effect matches),
+    /// in order, counting them for the spine's audit.
+    pub fn take(&mut self, pred: impl Fn(&Effect) -> bool) -> Vec<Request> {
+        let taken = self.effects.take(pred);
+        for r in &taken {
+            self.events.note_effect(&r.cause);
+        }
+        taken
+    }
+}
+
 /// A system function bound to the domain it writes.
 #[derive(Clone, Copy)]
 pub enum SystemFn {
@@ -360,9 +378,9 @@ impl Schedule {
         state: &mut State,
         content: &ContentBundle,
         days: u32,
-        seed_effects: Vec<Effect>,
+        seed_effects: Vec<Request>,
         on_day: &mut dyn FnMut(u32),
-    ) -> Vec<Effect> {
+    ) -> Vec<Request> {
         let mut effects = EffectQueue {
             pending: seed_effects,
         };

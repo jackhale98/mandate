@@ -183,7 +183,17 @@ fn knowing_reads_only_what_the_player_knows() {
 
 #[test]
 fn other_systems_teach_through_effects() {
-    use mandate_sim::scheduler::{Effect, Schedule};
+    use mandate_sim::scheduler::{Effect, Request, Schedule};
+    // Lab requests: every effect names its cause (the causal spine).
+    let lab = |effects: Vec<Effect>| -> Vec<Request> {
+        effects
+            .into_iter()
+            .map(|effect| Request {
+                effect,
+                cause: mandate_sim::spine::Cause::Lab,
+            })
+            .collect()
+    };
     let c = content();
     let e = game(24, &c);
     let mut st = e.state().clone();
@@ -222,7 +232,7 @@ fn other_systems_teach_through_effects() {
         },
     ];
     let sched = Schedule::new(mandate_sim::systems::default_systems());
-    let left = sched.advance_with(&mut st, &c, 1, effects, &mut |_| {});
+    let left = sched.advance_with(&mut st, &c, 1, lab(effects), &mut |_| {});
     assert!(left.is_empty(), "the player domain takes its effects");
     let k = &st.player.as_ref().unwrap().knowledge;
     assert_eq!(k.level(&broker), Level::Heard);
@@ -246,7 +256,7 @@ fn other_systems_teach_through_effects() {
             reading: reading.clone(),
         },
     ];
-    sched.advance_with(&mut st, &c, 1, effects, &mut |_| {});
+    sched.advance_with(&mut st, &c, 1, lab(effects), &mut |_| {});
     let k = &st.player.as_ref().unwrap().knowledge;
     assert_eq!(k.level(&broker), Level::Known);
     assert!(k.leads.is_empty(), "the lead was followed");

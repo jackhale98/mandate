@@ -24,8 +24,10 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// pacing cycle (E2, DEC-097 §3). v23: the act flow (time skips,
 /// directives, the Legacy record and act endings; DEC-012, DEC-006). v24:
 /// asks and promises and the player's deed log (E6, DEC-097 §2). v25:
-/// policy families and works (F2b, DEC-092, DEC-099).
-pub const SAVE_FORMAT_VERSION: u16 = 25;
+/// policy families and works (F2b, DEC-092, DEC-099). v26: the causal
+/// spine (S1): typed causes on every event, thread heads, the pruning rule;
+/// and a politician's last post held (M6 note 16).
+pub const SAVE_FORMAT_VERSION: u16 = 26;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -230,6 +232,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Policy families and works (F2b, DEC-092, DEC-099): v24 → v25.
         // Renumber only this key if another bump merges first.
         (24, policy_families),
+        // The causal spine (S1) and the last post held: v25 → v26. Renumber
+        // only this key if another bump merges first.
+        (25, causal_spine),
     ];
     let mut value = value;
     let mut v = from;
@@ -756,6 +761,213 @@ fn policy_families(mut value: serde_json::Value) -> Result<serde_json::Value, Sa
     policy.remove("families");
     policy.remove("works");
     Ok(value)
+}
+
+/// v25 → v26 (S1, `docs/design/CAUSAL_SPINE.md`): the causal spine.
+///
+/// - An event's `causes` were ids of earlier events (laws and closures
+///   only). Each becomes a typed link: `ended` for a bill that failed or a
+///   law that expired, `continues` for an enactment, `caused` otherwise. An
+///   id the log no longer holds becomes `forgotten`.
+/// - An event with no recorded cause gets `unknown`: recorded before the
+///   spine. Nothing is invented (not even "exogenous" for a disaster).
+/// - Pins the new rule no longer needs are dropped (laws, closures and
+///   track warnings are kept by salience and by live state instead), so an
+///   old log shrinks to the rule's bound at its first prune.
+/// - The threads' latest events (`heads`) are found by replaying the
+///   log, so that what happens next to a bill, an ask or a case from before
+///   the spine links to it. The thread table below is the engine's at v26
+///   (`spine::thread`), frozen here.
+///
+/// The other new fields default: a hidden fact's `cause`, a Legacy entry's
+/// `source_event`, the log's `pruned_on`. A politician's `last_post` is
+/// filled where the kept election results show it (`last_post_held`).
+fn causal_spine(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::{Value, json};
+    let log = value
+        .pointer_mut("/state/events")
+        .and_then(|e| e.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    // A log that already has its threads is already the spine's (the
+    // tests of older steps hand this chain a current state with one part
+    // taken back): it is left as it is.
+    if log.contains_key("heads") {
+        last_post_held(&mut value)?;
+        return Ok(value);
+    }
+    let events = log
+        .get_mut("events")
+        .and_then(|e| e.as_array_mut())
+        .ok_or(SaveError::Malformed)?;
+    let ids: Vec<u64> = events
+        .iter()
+        .filter_map(|e| e.get("id").and_then(Value::as_u64))
+        .collect();
+    // (rank, payload) orders threads as the engine's `Thread` does.
+    let mut heads: std::collections::BTreeMap<(u8, u64), (Value, u64, bool)> = Default::default();
+    for e in events.iter_mut() {
+        let id = e
+            .get("id")
+            .and_then(Value::as_u64)
+            .ok_or(SaveError::Malformed)?;
+        let date = e.get("date").and_then(Value::as_u64).unwrap_or(0);
+        let kind = e.get("kind").cloned().unwrap_or(Value::Null);
+        let tag = kind.get("type").and_then(Value::as_str).unwrap_or("");
+        let num = |k: &str| kind.get(k).and_then(Value::as_u64);
+        // Causes.
+        let link = match tag {
+            "policy_failed" | "policy_expired" => "ended",
+            "policy_enacted" => "continues",
+            _ => "caused",
+        };
+        let old = e
+            .get("causes")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let mut causes: Vec<Value> = Vec::new();
+        for c in old.iter().filter_map(Value::as_u64) {
+            let new = if ids.binary_search(&c).is_ok() {
+                json!({ "event": [c, link] })
+            } else {
+                json!("forgotten")
+            };
+            if !causes.contains(&new) {
+                causes.push(new);
+            }
+        }
+        if causes.is_empty() {
+            causes.push(json!("unknown"));
+        }
+        let obj = e.as_object_mut().ok_or(SaveError::Malformed)?;
+        obj.insert("causes".into(), Value::Array(causes));
+        // Pins the rule replaces.
+        if matches!(
+            tag,
+            "policy_enacted" | "policy_failed" | "track_warning" | "plant_closure"
+        ) {
+            obj.insert("retention".into(), json!("Recent"));
+        }
+        // Threads: (rank, key, thread as saved, role).
+        let deed = kind.get("deed");
+        let deed_tag = deed
+            .and_then(|d| d.get("type"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let lever = kind.get("lever").and_then(Value::as_str).unwrap_or("");
+        let stage = kind.get("stage").and_then(Value::as_str).unwrap_or("");
+        let one = |rank: u8, name: &str, key: Option<u64>, role: char| {
+            key.map(|k| (rank, k, json!({ name: k }), role))
+        };
+        let unit = |rank: u8, name: &str, role: char| Some((rank, 0, json!(name), role));
+        // Roles: o opens, a advances, n notes, c closes.
+        let thread = match tag {
+            "policy_introduced" => one(0, "bill", num("policy"), 'o'),
+            "policy_enacted" => one(0, "bill", num("policy"), 'a'),
+            "policy_failed" | "policy_expired" | "policy_withdrawn" => {
+                one(0, "bill", num("policy"), 'c')
+            }
+            "player_deed" if deed_tag == "vote" => one(
+                0,
+                "bill",
+                deed.and_then(|d| d.get("policy")).and_then(Value::as_u64),
+                'a',
+            ),
+            "proposal_opened" => one(1, "proposal", num("proposal"), 'o'),
+            "proposal_lapsed" => one(1, "proposal", num("proposal"), 'c'),
+            "ask_offered" => one(2, "ask", num("ask"), 'o'),
+            "ask_accepted" => one(2, "ask", num("ask"), 'a'),
+            "ask_resolved" => one(2, "ask", num("ask"), 'c'),
+            "decision_opened" => one(3, "decision", num("decision"), 'o'),
+            "decision_resolved" | "decision_lapsed" => one(3, "decision", num("decision"), 'c'),
+            "fact_discoverable" => one(4, "hidden", num("hidden"), 'o'),
+            "scandal_broke" => one(5, "scandal", num("scandal"), 'o'),
+            "case_opened" => one(6, "case", num("case"), 'o'),
+            "case_developed" => one(
+                6,
+                "case",
+                num("case"),
+                if matches!(stage, "dropped" | "acquitted" | "convicted") {
+                    'c'
+                } else {
+                    'a'
+                },
+            ),
+            "rumour_spread" => one(7, "rumour", num("rumour"), 'o'),
+            "rumour_corrected" => one(7, "rumour", num("rumour"), 'c'),
+            "storyline_stage" => one(8, "storyline", num("run"), 'a'),
+            "global_recession_began" => unit(9, "recession", 'a'),
+            "global_recovery_began" => unit(9, "recession", 'c'),
+            "campaign_opened" => one(10, "election", num("election_day"), 'o'),
+            "election_held" => one(10, "election", Some(date), 'c'),
+            "player_imprisoned" => unit(11, "sentence", 'o'),
+            "player_released" => unit(11, "sentence", 'c'),
+            "director_intervention" => match lever {
+                "recession_held" => unit(9, "recession", 'o'),
+                "recession_released" => unit(9, "recession", 'a'),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some((rank, key, saved, role)) = thread
+            && role != 'n'
+        {
+            // The thread's latest event, and whether it closed the thread.
+            heads.insert((rank, key), (saved, id, role == 'c'));
+        }
+    }
+    let heads: Vec<Value> = heads
+        .into_values()
+        .map(|(thread, id, closed)| json!([thread, id, closed]))
+        .collect();
+    log.insert("heads".into(), Value::Array(heads));
+    last_post_held(&mut value)?;
+    Ok(value)
+}
+
+/// v25 → v26, the last post held (M6 note 16): known for someone out of
+/// office whom the kept election results show as a post's incumbent who
+/// did not win it again (and who won nothing later): that post, ended on
+/// that election's day. Anyone else's is left empty: a post lost longer
+/// ago, or to a sentence, was never recorded.
+fn last_post_held(value: &mut serde_json::Value) -> Result<(), SaveError> {
+    use serde_json::{Value, json};
+    let results = value
+        .pointer("/state/politics/elections/results")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let Some(list) = value
+        .pointer_mut("/state/politics/politicians")
+        .and_then(Value::as_array_mut)
+    else {
+        return Err(SaveError::Malformed);
+    };
+    for (i, p) in list.iter_mut().enumerate() {
+        let private = p.pointer("/role/type").and_then(Value::as_str) == Some("private");
+        let Some(obj) = p
+            .as_object_mut()
+            .filter(|o| private && !o.contains_key("last_post"))
+        else {
+            continue;
+        };
+        let id = obj.get("id").and_then(Value::as_u64).unwrap_or(i as u64);
+        // Results are kept in date order: the latest that concerns them.
+        let mut last: Option<(Value, Value)> = None;
+        for r in &results {
+            let won = r.get("winner").and_then(Value::as_u64) == Some(id);
+            let sat = r.get("incumbent").and_then(Value::as_u64) == Some(id);
+            if won {
+                last = None;
+            } else if sat && let (Some(seat), Some(date)) = (r.get("seat"), r.get("date")) {
+                last = Some((seat.clone(), date.clone()));
+            }
+        }
+        if let Some((post, ended)) = last {
+            obj.insert("last_post".into(), json!({ "post": post, "ended": ended }));
+        }
+    }
+    Ok(())
 }
 
 /// Structural fingerprint of a JSON value: object keys and value kinds, with

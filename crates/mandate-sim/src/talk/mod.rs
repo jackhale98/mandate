@@ -36,6 +36,7 @@ use crate::player::knowledge::{self, FamilyInstanceId, Lead, LeadTarget, Level, 
 use crate::policy::{PolicyInstanceId, PolicyStatus};
 use crate::politics::PoliticianId;
 use crate::scheduler::Effect;
+use crate::spine::{Cause, PlayerAct};
 use crate::state::State;
 use crate::world::{NeighborhoodId, PlaceId};
 use context::{Args, Ctx};
@@ -1253,11 +1254,13 @@ fn late_deal(state: &mut State, content: &ContentBundle, speaker: CharacterId) {
     }) else {
         return;
     };
+    let cause = Cause::Player(PlayerAct::Talk);
     crate::media::hide(
         state,
         content,
         &content.media.late_night_deal,
         me,
         vec![crate::narrative::Actor::Person { id: speaker }],
+        cause,
     );
 }

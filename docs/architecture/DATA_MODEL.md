@@ -118,8 +118,10 @@ Not built (**planned**, M5d part 1): outlets, coverage, perception, and scandals
 
 | Item | Main fields |
 |---|---|
-| `EventLog` | id allocator, `DomainEvent`s (id, date, `EventKind`, causes, retention `Recent` or `Pinned`); the 2,000 most recent are kept |
-| `Effect` | transient cross-domain requests within a turn: `HousingDamage`, `SectorShock`, `Displacement`, `Memory` |
+| `EventLog` | id allocator; `DomainEvent`s in id order (id, date, `EventKind`, `causes`: one or more `spine::Cause`, retention `Recent` or `Pinned`); `heads`: each thread's latest kept event and whether it closed the thread, sorted by `spine::Thread`; `pruned_on`. Bounded by `spine::prune` (age and salience, live holds, whole chains, a cap of 6,000). The causal spine: `docs/design/CAUSAL_SPINE.md` |
+| `spine::Cause` | `Event(id, Link)`, `Player(PlayerAct)`, `Actor(CharacterId)`, `Process(Process)`, `Pressure(Pressure)`, `History`, `Exogenous(Shock)`, `Lab`, `Forgotten`, `Unknown`. `Link`: `caused`, `continues`, `prompted`, `revealed`, `ended` |
+| `scheduler::Request` | a transient cross-domain request within a turn: an `Effect` and its `Cause` (never saved) |
+| `HiddenFact.cause`, `LegacyEntry.source_event`, `DeferredHazard.hold_event`, `Politician.last_post` | what made a hidden fact; the event a Legacy entry records; the event that logged a hazard's hold; the last post someone held and when it ended (M6 note 16). All optional, absent in saves before v26 unless the migration could fill them |
 | Commands | not stored: each player command is applied, then the whole game is saved (DEC-074) |
 
 ## 8. Save mapping (DEC-044 rev. 2, DEC-052, DEC-074)

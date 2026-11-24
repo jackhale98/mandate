@@ -14,6 +14,7 @@ use crate::events::EventKind;
 use crate::policy::{PolicyInstance, PolicyStatus};
 use crate::politics::elections::{self, Seat};
 use crate::politics::{PoliticianId, alignment};
+use crate::spine::{Causes, Link};
 use crate::state::State;
 use crate::world::{MunicipalityId, Tier};
 use mandate_content::{AiAction, AiInput, ContentBundle, Curve, Power, TierKey};
@@ -793,7 +794,8 @@ pub fn tempt(state: &mut State, content: &ContentBundle, id: PoliticianId, scale
         .map(|b| crate::narrative::Actor::Person { id: b })
         .into_iter()
         .collect();
-    crate::media::hide(state, content, &def.hidden, id, actors);
+    let cause = crate::spine::actor(&state.politics, id);
+    crate::media::hide(state, content, &def.hidden, id, actors, cause);
 }
 
 fn act(
@@ -951,6 +953,9 @@ fn act(
             let params: BTreeMap<String, f64> =
                 t.params.iter().map(|p| (p.id.clone(), p.default)).collect();
             let pid: crate::policy::PolicyInstanceId = state.policy.ids.alloc();
+            // Their own choice (the utility that picked it is not a cause
+            // the engine names).
+            let cause = crate::spine::actor(&state.politics, id);
             let ev = state.events.record(
                 date,
                 EventKind::PolicyIntroduced {
@@ -958,7 +963,7 @@ fn act(
                     municipality: m,
                     sponsor: id.0,
                 },
-                vec![],
+                cause,
             );
             state.policy.instances.push(PolicyInstance {
                 id: pid,
@@ -1035,6 +1040,9 @@ fn propose_family(
         PolicyStatus::UnderConsideration,
         vec![sunset],
     );
+    // Their own choice, answering the proposal on the table.
+    let cause = Causes::from(crate::spine::actor(&state.politics, id))
+        .and_event(crate::spine::proposal_of(state, pid), Link::Prompted);
     let ev = state.events.record(
         date,
         EventKind::PolicyIntroduced {
@@ -1042,7 +1050,7 @@ fn propose_family(
             municipality: m,
             sponsor: id.0,
         },
-        vec![],
+        cause,
     );
     if let Some(b) = state.policy.get_mut(pid) {
         b.next_stage_on = Some(date.add_days(days as u32));

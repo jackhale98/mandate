@@ -7,6 +7,7 @@ use crate::events::{EventId, EventKind};
 use crate::politics::{PoliticianId, PoliticsState, alignment, mean_attitudes};
 use crate::population::PopulationState;
 use crate::scheduler::{Outs, Reads};
+use crate::spine::{Cause, Causes, Link, Process};
 use crate::world::{ConstituencyId, World};
 use mandate_content::{
     BudgetCategory, ClassKey, ConstitutionDef, ContentBundle, CouncilParams, DecisionRule,
@@ -1019,16 +1020,20 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 (inst.sponsor, crate::politics::holder_of(pol, office, at))
             && sponsor != holder
         {
-            out.effects.push(crate::scheduler::Effect::Memory {
-                holder: sponsor,
-                actor: holder,
-                kind: if record.veto {
-                    crate::characters::MemoryKind::VetoedMyBill
-                } else {
-                    crate::characters::MemoryKind::SignedMyBill
+            out.effects.push(
+                crate::scheduler::Effect::Memory {
+                    holder: sponsor,
+                    actor: holder,
+                    kind: if record.veto {
+                        crate::characters::MemoryKind::VetoedMyBill
+                    } else {
+                        crate::characters::MemoryKind::SignedMyBill
+                    },
+                    subject: Some(crate::characters::Subject::Policy { id: inst.id.0 }),
                 },
-                subject: Some(crate::characters::Subject::Policy { id: inst.id.0 }),
-            });
+                // The bill (its latest event), at this stage of the procedure.
+                Cause::event_or(inst.cause, Link::Caused, Cause::Process(Process::Lawmaking)),
+            );
         }
         let p = &mut st.instances[i];
         let veto = record.veto;
@@ -1041,7 +1046,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 EndReason::Defeated
             });
             p.next_stage_on = None;
-            let ev = out.events.record(
+            out.events.record(
                 r.date,
                 EventKind::PolicyFailed {
                     policy: p.id.0,
@@ -1050,9 +1055,8 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     yes: record.yes,
                     no: record.no,
                 },
-                p.cause.into_iter().collect(),
+                Causes::from(Cause::Process(Process::Lawmaking)).and_event(p.cause, Link::Ended),
             );
-            out.events.pin(ev);
             continue;
         }
         p.stage += 1;
@@ -1072,9 +1076,9 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     no: record.no,
                     overrode_veto: veto,
                 },
-                p.cause.into_iter().collect(),
+                Causes::from(Cause::Process(Process::Lawmaking))
+                    .and_event(p.cause, Link::Continues),
             );
-            out.events.pin(ev);
             p.cause = Some(ev);
         }
     }
@@ -1124,7 +1128,9 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                             policy: p.id.0,
                             municipality: p.jurisdiction,
                         },
-                        p.cause.into_iter().collect(),
+                        // Its own sunset clause.
+                        Causes::from(Cause::Process(Process::Lawmaking))
+                            .and_event(p.cause, Link::Ended),
                     );
                 }
                 // Attribution ledger: direct contributions this month.

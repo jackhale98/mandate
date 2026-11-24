@@ -17,6 +17,7 @@ use crate::characters::CharacterId;
 use crate::events::EventKind;
 use crate::politics::PoliticianId;
 use crate::scheduler::{Effect, Outs, Reads};
+use crate::spine::{Cause, Causes, Link, Process, Thread};
 use mandate_content::{Discoverer, Gravity, LegalResponseKind};
 use mandate_core::math::{clamp, sigmoid};
 use mandate_core::{SimDate, Stream};
@@ -373,13 +374,15 @@ pub fn weekly(j: &mut JusticeState, r: &Reads<'_>, out: &mut Outs<'_>) {
             history: vec![(Stage::Investigation, date)],
             sentence: None,
         };
+        // Prosecutors act on the story that broke.
         let ev = out.events.record(
             date,
             EventKind::CaseOpened {
                 case: id,
                 politician: s.subject.0,
             },
-            vec![],
+            Causes::from(Cause::Process(Process::Justice))
+                .and_event(out.events.head(Thread::Scandal(s.id)), Link::Prompted),
         );
         if is_player {
             out.events.pin(ev);
@@ -410,7 +413,7 @@ pub fn weekly(j: &mut JusticeState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         politician: c.subject.0,
                         stage: c.stage.key().into(),
                     },
-                    vec![],
+                    Cause::Process(Process::Justice),
                 );
                 if is_player {
                     out.events.pin(ev);
@@ -447,7 +450,7 @@ pub fn weekly(j: &mut JusticeState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         politician: c.subject.0,
                         stage: c.stage.key().into(),
                     },
-                    vec![],
+                    Cause::Process(Process::Justice),
                 );
                 if is_player {
                     out.events.pin(ev);
@@ -460,19 +463,25 @@ pub fn weekly(j: &mut JusticeState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         let until = (years > 0 && !life).then(|| {
                             date.add_days(years as u32 * mandate_core::time::DAYS_PER_YEAR)
                         });
-                        out.effects.push(Effect::Removal {
-                            politician: c.subject,
-                            barred: years > 0 || life,
-                        });
+                        out.effects.push(
+                            Effect::Removal {
+                                politician: c.subject,
+                                barred: years > 0 || life,
+                            },
+                            Cause::caused_by(ev),
+                        );
                         if years > 0 || life {
                             j.barred.push((c.subject, if life { None } else { until }));
                         }
                     }
-                    out.effects.push(Effect::Sentenced {
-                        politician: c.subject,
-                        case: c.id,
-                        sentence: s,
-                    });
+                    out.effects.push(
+                        Effect::Sentenced {
+                            politician: c.subject,
+                            case: c.id,
+                            sentence: s,
+                        },
+                        Cause::caused_by(ev),
+                    );
                 }
             }
             _ => {}
@@ -485,12 +494,19 @@ pub fn weekly(j: &mut JusticeState, r: &Reads<'_>, out: &mut Outs<'_>) {
             .map(|c| track_floor(content, c))
             .fold(0.0f32, f32::max);
         if floor > 0.0 {
-            out.effects.push(Effect::PlayerTrack {
-                standing: 0.0,
-                viability: 0.0,
-                money: 0.0,
-                legal_floor: Some(floor),
-            });
+            // The open case (its latest development).
+            let case = j
+                .open_against(p)
+                .find_map(|c| out.events.head(Thread::Case(c.id)));
+            out.effects.push(
+                Effect::PlayerTrack {
+                    standing: 0.0,
+                    viability: 0.0,
+                    money: 0.0,
+                    legal_floor: Some(floor),
+                },
+                Cause::event_or(case, Link::Caused, Cause::Process(Process::Justice)),
+            );
         }
     }
     // 4. The barred cannot hold office (a prisoner re-elected leaves again).
@@ -498,10 +514,13 @@ pub fn weekly(j: &mut JusticeState, r: &Reads<'_>, out: &mut Outs<'_>) {
     j.barred.retain(|(_, until)| until.is_none_or(|u| u > date));
     for (p, _) in &j.barred {
         if pol.get(*p).is_some_and(|x| x.in_office()) {
-            out.effects.push(Effect::Removal {
-                politician: *p,
-                barred: true,
-            });
+            out.effects.push(
+                Effect::Removal {
+                    politician: *p,
+                    barred: true,
+                },
+                Cause::Process(Process::Justice),
+            );
         }
     }
     if j.cases.len() > 300

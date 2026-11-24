@@ -146,6 +146,25 @@ pub struct CharacterView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub usually: Option<crate::knowledge::SeenView>,
+    /// The last post they held, for someone out of office (M6 note 16):
+    /// from `known` on, like the rest of who they are.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub last_post: Option<LastPostView>,
+}
+
+/// A post someone held and left.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct LastPostView {
+    /// The post: its constitution id, its label key and its holder's role
+    /// word key (`role-…`), and where.
+    pub post: crate::post::PostDto,
+    /// Years they spent in elected office in all (the engine keeps the
+    /// total, not the years in each post).
+    pub years_in_office: u32,
+    /// When they left it.
+    pub ended: crate::DateView,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -602,6 +621,20 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
         },
         last_seen: crate::knowledge::last_seen(engine, id),
         usually: crate::knowledge::usually_seen(engine, id),
+        last_post: pol
+            .characters
+            .get(id)
+            .and_then(|c| c.politician)
+            .and_then(|p| pol.get(p))
+            .filter(|p| known && !p.in_office())
+            .and_then(|p| {
+                let last = p.last_post?;
+                Some(LastPostView {
+                    post: crate::post::post_dto(engine, last.post),
+                    years_in_office: p.years_in_office as u32,
+                    ended: crate::DateView::of(last.ended),
+                })
+            }),
     })
 }
 
