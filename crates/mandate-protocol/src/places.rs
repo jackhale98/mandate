@@ -606,6 +606,14 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
     {
         alerts.push(alert("alert-campaign", &[("n", d.to_string())]));
     }
+    // The party did not nominate the player for the post they filed for
+    // (play note 20): said for the whole campaign.
+    if let Some(r) = campaign.as_ref().and_then(|c| c.refusal.clone()) {
+        alerts.push(AlertView {
+            key: r.key,
+            args: r.args,
+        });
+    }
     let econ = st.economy.munis.get(m.index());
     let gate = Gate::of(engine);
     let concerns_subject = Subject::TownConcerns { town: m };

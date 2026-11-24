@@ -1,5 +1,6 @@
 import type { CampaignView } from "../engine/protocol/CampaignView";
 import type { CommandDto } from "../engine/protocol/CommandDto";
+import type { NominationView } from "../engine/protocol/NominationView";
 import type { RaceView } from "../engine/protocol/RaceView";
 import type { ResultView } from "../engine/protocol/ResultView";
 import { useGame } from "../state/gameStore";
@@ -63,7 +64,49 @@ export function Calendar({ c }: { c: CampaignView }) {
         </div>
         <p className="hint">{hint}</p>
       </fieldset>
+      {c.refusal && (
+        <p className="note" data-testid="nomination-refused">
+          {tr.event(c.refusal.key, c.refusal.args)}
+        </p>
+      )}
+      {c.nominations
+        .filter((n) => !n.held)
+        .map((n, i) => (
+          <NominationNotes key={i} n={n} c={c} />
+        ))}
     </section>
+  );
+}
+
+/** A post the player could file for: who holds it and whether they stand
+ * again (in words), the party's rule for its own holder, and the Standing it
+ * asks against the player's. All from the engine's view. */
+function NominationNotes({ n, c }: { n: NominationView; c: CampaignView }) {
+  const tr = useGame((s) => s.tr);
+  const holder = n.holder ?? "";
+  return (
+    <div className="nomination-notes" data-testid="nomination-notes">
+      <h3 className="sub">{postTitle(tr, n.post)}</h3>
+      <p className="small">
+        {n.holder !== null ? (
+          <>
+            {tr.t("ui-nomination-holder", { holder })} <PartyChip parties={c.parties} party={n.holder_party} />
+            {n.holder_outlook_key && <span className="muted"> · {tr.t(n.holder_outlook_key)}</span>}
+          </>
+        ) : (
+          tr.t("ui-nomination-vacant")
+        )}
+      </p>
+      {n.holder_same_party && <p className="small">{tr.t("ui-nomination-backs-holder")}</p>}
+      {n.warning_key && (
+        <p className="small">
+          <strong>{tr.t(n.warning_key, { holder })}</strong>
+        </p>
+      )}
+      {n.gate_standing !== null && (
+        <p className="small">{tr.t("ui-nomination-gate", { min: Math.round(n.gate_standing), standing: Math.round(n.standing) })}</p>
+      )}
+    </div>
   );
 }
 
@@ -142,6 +185,7 @@ export function CampaignHub() {
   return (
     <>
       {c.in_campaign && !mine && <p className="note">{tr.t("ui-not-running")}</p>}
+      {c.refusal && <p className="note">{tr.event(c.refusal.key, c.refusal.args)}</p>}
       {mine && <RaceCard race={mine} c={c} />}
       {others.length > 0 && (
         <section className="card">
@@ -188,7 +232,9 @@ export function CampaignHub() {
   );
 }
 
-/** Election night: the player's result first, then the town's. */
+/** Election night: the player's result first (or that they were on no
+ * ballot), what became of the post they held, the offices' results, then
+ * who won each other seat. Shown whether or not the player stood. */
 export function ElectionNight() {
   const tr = useGame((s) => s.tr);
   const c = useGame((s) => s.campaign);
@@ -198,6 +244,8 @@ export function ElectionNight() {
   const mine = c.results.filter((r) => r.player_ran);
   // The rest of the night: the offices' results (the town's headline races).
   const rest = c.results.filter((r) => !r.player_ran && r.post.kind === "office");
+  const seats = c.results.filter((r) => !r.player_ran && r.post.kind !== "office");
+  const outcome = c.seat_outcome;
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="election-night-title" data-testid="election-night">
       <div className="modal">
@@ -207,12 +255,44 @@ export function ElectionNight() {
             {tr.t("ui-continue-game")}
           </button>
         </div>
+        {mine.length === 0 && (
+          <p className="verdict" data-testid="night-not-running">
+            {tr.t("ui-night-not-running")}
+          </p>
+        )}
+        {outcome && (
+          <p className="note" data-testid="night-seat">
+            {tr.t(outcome.key, { post: postTitle(tr, outcome.post), winner: outcome.winner ?? "" })}
+          </p>
+        )}
         {mine.map((r, i) => (
           <ResultCard key={i} r={r} c={c} headline />
         ))}
         {rest.map((r, i) => (
           <ResultCard key={`m${i}`} r={r} c={c} />
         ))}
+        {seats.length > 0 && (
+          <section className="card" data-testid="night-seats">
+            <h2>{tr.t("ui-night-other-seats")}</h2>
+            <ul className="region-list">
+              {seats.map((r, i) => {
+                const w = r.candidates.find((cd) => cd.is_winner);
+                return (
+                  <li key={i} className="other-race">
+                    <span>{postTitle(tr, r.post)}</span>
+                    <span className="small">
+                      {w && (
+                        <>
+                          {tr.t("ui-night-won-by", { winner: w.name })} <PartyChip parties={c.parties} party={w.party} />
+                        </>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
         <button type="button" className="btn btn-primary btn-block" onClick={close}>
           {tr.t("ui-continue-game")}
         </button>

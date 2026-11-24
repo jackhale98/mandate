@@ -447,6 +447,23 @@ fn item_line(engine: &Engine, it: &SummaryItem) -> ActLineView {
             }
         }
         SummaryItem::Deselected => "skip-item-deselected",
+        SummaryItem::NotNominated {
+            post,
+            reason,
+            nominee,
+            standing,
+            min_standing,
+            instead,
+        } => crate::campaign::refusal_args(
+            engine,
+            *post,
+            reason,
+            *nominee,
+            *standing,
+            *min_standing,
+            *instead,
+            &mut args,
+        ),
         SummaryItem::Case { stage, .. } => {
             args.insert("stage_key".into(), format!("case-stage-{stage}"));
             "skip-item-case"

@@ -4,7 +4,9 @@ import type { FilingView } from "./FilingView";
 import type { NominationView } from "./NominationView";
 import type { PartyView } from "./PartyView";
 import type { RaceView } from "./RaceView";
+import type { RefusalView } from "./RefusalView";
 import type { ResultView } from "./ResultView";
+import type { SeatOutcomeView } from "./SeatOutcomeView";
 
 export type CampaignView = { election_day: DateView | null, campaign_opens: DateView | null, days_to_election: number | null, in_campaign: boolean, 
 /**
@@ -25,4 +27,14 @@ races: Array<RaceView>,
 /**
  * The latest election's results in the player's town (player's race first).
  */
-results: Array<ResultView>, last_election: DateView | null, };
+results: Array<ResultView>, last_election: DateView | null, 
+/**
+ * What became of the post the player held going into the latest
+ * election (election night shows it whether or not they stood).
+ */
+seat_outcome: SeatOutcomeView | null, 
+/**
+ * Why the player is not on the ballot they filed for this campaign
+ * (`EventKind::NominationRefused`): a Fluent key with its arguments.
+ */
+refusal: RefusalView | null, };

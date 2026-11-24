@@ -311,6 +311,46 @@ fn names(r: &Reads<'_>) -> (Vec<String>, Vec<String>) {
     (g, f)
 }
 
+/// A sitting holder of an office stands again at this chance (a hidden
+/// draw: the player is told only that they usually do).
+const OFFICE_STANDS_AGAIN: f64 = 0.85;
+/// A sitting member of a body stands again at this chance.
+const SEAT_STANDS_AGAIN: f64 = 0.82;
+/// Holders this old retire (an office's, a body's members').
+pub const OFFICE_RETIRE_AGE: u32 = 74;
+pub const SEAT_RETIRE_AGE: u32 = 76;
+
+/// Whether a sitting holder (not the player) may stand again: the rule a
+/// campaign's opening draws on, and the filing view shows in words.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Outlook {
+    /// They have served the post's term limit.
+    TermLimited,
+    /// They are of an age to retire.
+    Retiring,
+    /// They usually stand again (a draw the player does not see).
+    Usually,
+}
+
+/// A sitting holder's outlook (`term_limit`: the post's, for an office;
+/// `retire_age`: `OFFICE_RETIRE_AGE` or `SEAT_RETIRE_AGE`).
+pub fn outlook(
+    st: &PoliticsState,
+    id: PoliticianId,
+    year: u32,
+    term_limit: Option<u8>,
+    retire_age: u32,
+) -> Outlook {
+    let limited = term_limit.is_some_and(|l| st.get(id).is_some_and(|p| p.terms_in_office >= l));
+    if limited {
+        Outlook::TermLimited
+    } else if age(st, id, year) >= retire_age {
+        Outlook::Retiring
+    } else {
+        Outlook::Usually
+    }
+}
+
 fn age(st: &PoliticsState, id: PoliticianId, year: u32) -> u32 {
     st.get(id)
         .map(|p| year.saturating_sub(p.birth_year))
@@ -378,10 +418,26 @@ fn open_campaign(
             ],
         );
     }
-    // Whether the player defends what they hold (no filing) or files for `post`.
-    let stands_for = |post: Post| match filing {
+    // The post the player filed for, when it is not one they hold (standing
+    // again for a post held is renomination, above). When their party does
+    // not nominate them for it, they stand for what they hold as if they had
+    // not filed, and are told why (play note 20).
+    let held = player.and_then(|id| st.get(id)).and_then(|p| p.role.post());
+    let player_party = player.and_then(|id| st.get(id)).and_then(|p| p.party);
+    let sought = match filing {
+        Some(Filing::Stand { post }) if Some(post) != held => Some(post),
+        _ => None,
+    };
+    // Why the party passed the player over for `sought`, once decided. A
+    // jurisdiction's offices are decided before its seats, so a refused
+    // office leaves the player their seat (one instantiated tier: a seat and
+    // the office filed for are in the same town).
+    let mut refused: Option<Refusal> = None;
+    // Whether the player defends what they hold (no filing, or a filing the
+    // party refused) or files for `post`.
+    let stands_for = |post: Post, refused: bool| match filing {
         None => true,
-        Some(Filing::Stand { post: p }) => p == post,
+        Some(Filing::Stand { post: p }) => p == post || refused,
         Some(Filing::Retire) => false,
     };
 
@@ -425,9 +481,10 @@ fn open_campaign(
                     let limited =
                         term_limit.is_some_and(|l| p.is_some_and(|p| p.terms_in_office >= l));
                     if Some(id) == player {
-                        return stands_for(post) && !limited && renominated;
+                        return stands_for(post, refused.is_some()) && !limited && renominated;
                     }
-                    !limited && age(st, id, year) < 74 && rng.chance(0.85)
+                    outlook(st, id, year, term_limit, OFFICE_RETIRE_AGE) == Outlook::Usually
+                        && rng.chance(OFFICE_STANDS_AGAIN)
                 });
                 let strength = party_strength(pop, &all_hoods, np);
                 let mut cands: Vec<PoliticianId> = Vec::new();
@@ -490,6 +547,20 @@ fn open_campaign(
                     };
                     cands.push(id);
                 }
+                if sought == Some(post) && !player.is_some_and(|id| cands.contains(&id)) {
+                    let holder_stands = holder_runs
+                        && holder
+                            .and_then(|id| st.get(id))
+                            .is_some_and(|h| h.party.is_some() && h.party == player_party);
+                    refused = Some(Refusal::of(
+                        st,
+                        &cands,
+                        player_party,
+                        holder.filter(|_| holder_stands),
+                        gate,
+                        nomination_min(r.content, c, post),
+                    ));
+                }
                 if !cands.is_empty() {
                     races.push(new_race(
                         st,
@@ -536,9 +607,10 @@ fn open_campaign(
                             return false;
                         }
                         if Some(id) == player {
-                            return stands_for(post) && renominated;
+                            return stands_for(post, refused.is_some()) && renominated;
                         }
-                        age(st, id, year) < 76 && rng.chance(0.82)
+                        outlook(st, id, year, None, SEAT_RETIRE_AGE) == Outlook::Usually
+                            && rng.chance(SEAT_STANDS_AGAIN)
                     });
                     let gate = nomination_open(r.content, c, post, standing);
                     let strength = party_strength(pop, &hoods, np);
@@ -558,13 +630,14 @@ fn open_campaign(
                             }
                             continue;
                         }
-                        // A player out of office who filed for this seat is
-                        // their party's nominee there.
-                        if filing == Some(Filing::Stand { post })
+                        // A player who filed for this seat (not one they
+                        // hold: that is renomination, above) is their
+                        // party's nominee there.
+                        if sought == Some(post)
                             && gate
                             && player
                                 .and_then(|id| st.get(id))
-                                .is_some_and(|p| !p.in_office() && p.party == Some(pid))
+                                .is_some_and(|p| p.party == Some(pid))
                         {
                             if let Some(id) = player {
                                 cands.push(id);
@@ -595,6 +668,20 @@ fn open_campaign(
                         };
                         cands.push(id);
                     }
+                    if sought == Some(post) && !player.is_some_and(|id| cands.contains(&id)) {
+                        let sitting_stands = runs
+                            && sitting
+                                .and_then(|id| st.get(id))
+                                .is_some_and(|h| h.party.is_some() && h.party == player_party);
+                        refused = Some(Refusal::of(
+                            st,
+                            &cands,
+                            player_party,
+                            sitting.filter(|_| sitting_stands),
+                            gate,
+                            nomination_min(r.content, c, post),
+                        ));
+                    }
                     races.push(new_race(
                         st, r, post, hoods, sitting, cands, cal, day, &mut rng,
                     ));
@@ -602,12 +689,118 @@ fn open_campaign(
             }
         }
     }
+    // The player filed for a post and is not on its ballot: say why, and
+    // what they stand for now (play note 20).
+    let on_ballot = |race: &Race| {
+        race.candidates
+            .iter()
+            .any(|cd| Some(cd.politician) == player)
+    };
+    let refusal = sought
+        .filter(|post| {
+            !races
+                .iter()
+                .any(|race| race.seat == *post && on_ballot(race))
+        })
+        .map(|post| {
+            let instead = races
+                .iter()
+                .find(|race| on_ballot(race))
+                .map(|race| race.seat);
+            (post, refused.unwrap_or_default(), instead)
+        });
     st.elections.races = races;
     out.events.record(
         r.date,
         EventKind::CampaignOpened { election_day: day },
         Cause::Process(Process::Elections),
     );
+    if let Some((post, why, instead)) = refusal {
+        // The party's rule, and what lay behind it: the holder's own choice
+        // to stand again, or the player's Standing.
+        let behind = match why.holder.and_then(|id| st.get(id)) {
+            Some(h) => Cause::Actor(h.character),
+            None => Cause::Pressure(Pressure::Track),
+        };
+        out.events.record(
+            r.date,
+            EventKind::NominationRefused {
+                post,
+                reason: why.reason.into(),
+                nominee: why.nominee.map(|id| id.0),
+                standing: standing.max(0.0).round() as u32,
+                min_standing: why.min.map(|m| m.max(0.0).round() as u32),
+                instead,
+            },
+            [Cause::Process(Process::Parties), behind],
+        );
+    }
+}
+
+/// Why the player's party did not nominate them for the post they filed
+/// for (play note 20).
+#[derive(Clone, Copy, Debug)]
+struct Refusal {
+    /// `holder` (the party's sitting holder stands again), `standing` (below
+    /// the post's gate), `party` (the party fields no one there), `other`.
+    reason: &'static str,
+    /// The party's sitting holder, when they stand again.
+    holder: Option<PoliticianId>,
+    /// The party's nominee instead.
+    nominee: Option<PoliticianId>,
+    /// The post's Standing gate, if it has one.
+    min: Option<f64>,
+}
+
+impl Default for Refusal {
+    fn default() -> Self {
+        Refusal {
+            reason: "other",
+            holder: None,
+            nominee: None,
+            min: None,
+        }
+    }
+}
+
+impl Refusal {
+    fn of(
+        st: &PoliticsState,
+        cands: &[PoliticianId],
+        party: Option<PartyId>,
+        holder: Option<PoliticianId>,
+        gate: bool,
+        min: Option<f64>,
+    ) -> Refusal {
+        let nominee = party.and_then(|pid| {
+            cands
+                .iter()
+                .copied()
+                .find(|id| st.get(*id).is_some_and(|p| p.party == Some(pid)))
+        });
+        let reason = if holder.is_some() {
+            "holder"
+        } else if !gate {
+            "standing"
+        } else if nominee.is_none() {
+            "party"
+        } else {
+            "other"
+        };
+        Refusal {
+            reason,
+            holder,
+            nominee,
+            min,
+        }
+    }
+}
+
+/// The Standing a post's nomination gate asks (`career.nomination`), if any.
+pub fn nomination_min(content: &ContentBundle, c: &ConstitutionDef, post: Post) -> Option<f64> {
+    post.word(c)
+        .and_then(|w| content.career.nomination.get(w))
+        .and_then(|g| g.min_standing)
 }
 
 /// A fresh candidate for a party, from the neighbourhoods of a race: their

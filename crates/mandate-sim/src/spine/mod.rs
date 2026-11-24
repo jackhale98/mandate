@@ -545,6 +545,7 @@ pub fn salience(kind: &EventKind) -> Salience {
             player_ran: true, ..
         }
         | K::PlayerDeselected
+        | K::NominationRefused { .. }
         | K::PlayerImprisoned { .. }
         | K::PlayerReleased
         | K::CareerEnded { .. }
@@ -584,6 +585,7 @@ pub fn kind_key(kind: &EventKind) -> &'static str {
         K::RaceDecided { .. } => "race_decided",
         K::ElectionHeld { .. } => "election_held",
         K::PlayerDeselected => "player_deselected",
+        K::NominationRefused { .. } => "nomination_refused",
         K::DecisionOpened { .. } => "decision_opened",
         K::DecisionResolved { .. } => "decision_resolved",
         K::DecisionLapsed { .. } => "decision_lapsed",

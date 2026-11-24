@@ -8,6 +8,7 @@ use mandate_sim::Engine;
 use mandate_sim::politics::elections::{self, Filing};
 use mandate_sim::politics::{INSTANTIATED_TIERS, PoliticianId, Post};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use ts_rs::TS;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -115,6 +116,34 @@ pub struct CampaignView {
     /// The latest election's results in the player's town (player's race first).
     pub results: Vec<ResultView>,
     pub last_election: Option<DateView>,
+    /// What became of the post the player held going into the latest
+    /// election (election night shows it whether or not they stood).
+    pub seat_outcome: Option<SeatOutcomeView>,
+    /// Why the player is not on the ballot they filed for this campaign
+    /// (`EventKind::NominationRefused`): a Fluent key with its arguments.
+    pub refusal: Option<RefusalView>,
+}
+
+/// What became of the player's post at the latest election.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SeatOutcomeView {
+    pub post: PostDto,
+    /// `ui-seat-held` (they stood and won it), `ui-seat-lost` (they stood
+    /// and lost it), `ui-seat-passed` (they did not stand for it; `$winner`
+    /// holds it now), `ui-seat-not-contested` (it was not up).
+    pub key: String,
+    /// Who won it, when it was contested.
+    pub winner: Option<String>,
+}
+
+/// A refused nomination as text: `key` with `args` (`*_key` arguments are
+/// Fluent keys, DEC-054).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RefusalView {
+    pub key: String,
+    pub args: BTreeMap<String, String>,
 }
 
 /// The player's filing (DEC-098).
@@ -144,6 +173,26 @@ pub struct NominationView {
     /// What the player stands for now: this post if filed for, or the post
     /// held when nothing is filed.
     pub chosen: bool,
+    /// Who holds the post now, when it is not the player.
+    pub holder: Option<String>,
+    pub holder_party: Option<u32>,
+    /// The holder is of the player's party: the party backs them if they
+    /// stand again.
+    pub holder_same_party: bool,
+    /// Whether the holder stands again, in words (the engine's draw is not
+    /// shown): `ui-holder-usually-stands`, `ui-holder-term-limited`,
+    /// `ui-holder-retiring`.
+    pub holder_outlook_key: Option<String>,
+    /// The Standing the party asks before it nominates the player for this
+    /// post (`career.nomination`), if it asks any; shown whether met or not.
+    pub gate_standing: Option<f64>,
+    /// The player's Standing.
+    pub standing: f64,
+    /// What filing for it most likely means, when the party will most
+    /// likely back its sitting holder instead: `ui-nomination-warn-seat`
+    /// (the player will stand for their seat) or `ui-nomination-warn-none`
+    /// (they will be on no ballot).
+    pub warning_key: Option<String>,
 }
 
 /// The posts the player may file for (DEC-098 §1; audit §7.4): the elected
@@ -226,14 +275,42 @@ fn nominations(engine: &Engine) -> Vec<NominationView> {
     let held = mandate_sim::player::posts(st);
     let standing = pl.tracks.standing as f64;
     let renominate = content.politics.vote.renomination_standing;
+    let year = st.calendar.date.calendar().year;
+    let my_party = st.politics.get(pl.politician).and_then(|p| p.party);
+    // Would the party stand the player for a post they hold, if passed over?
+    let keeps_seat = !held.is_empty() && standing >= renominate;
     fileable_posts(engine)
         .into_iter()
         .map(|post| {
             let is_held = held.contains(&post);
-            let gate = post
-                .word(c)
-                .and_then(|w| content.career.nomination.get(w))
-                .and_then(|g| g.min_standing);
+            let gate = elections::nomination_min(content, c, post);
+            // The sitting holder (not the player), and whether they stand again.
+            let holder = sitting_holder(engine, post).filter(|id| *id != pl.politician);
+            let hp = holder.and_then(|id| st.politics.get(id));
+            let outlook = holder.map(|id| match post {
+                Post::Office { .. } => elections::outlook(
+                    &st.politics,
+                    id,
+                    year,
+                    post.def(c).and_then(|d| d.term_limit()),
+                    elections::OFFICE_RETIRE_AGE,
+                ),
+                Post::Seat { .. } => {
+                    elections::outlook(&st.politics, id, year, None, elections::SEAT_RETIRE_AGE)
+                }
+            });
+            let same_party = hp.is_some_and(|h| h.party.is_some() && h.party == my_party);
+            let warning_key = (!is_held
+                && same_party
+                && outlook == Some(elections::Outlook::Usually))
+            .then(|| {
+                if keeps_seat {
+                    "ui-nomination-warn-seat"
+                } else {
+                    "ui-nomination-warn-none"
+                }
+                .to_string()
+            });
             let (open, reason_key, min) = if is_held {
                 let open = standing >= renominate;
                 (
@@ -261,9 +338,148 @@ fn nominations(engine: &Engine) -> Vec<NominationView> {
                 reason_key,
                 min_standing: min,
                 chosen,
+                holder: hp.map(|h| h.full_name()),
+                holder_party: hp.and_then(|h| h.party).map(|p| p.0),
+                holder_same_party: same_party,
+                holder_outlook_key: outlook.map(|o| {
+                    match o {
+                        elections::Outlook::Usually => "ui-holder-usually-stands",
+                        elections::Outlook::TermLimited => "ui-holder-term-limited",
+                        elections::Outlook::Retiring => "ui-holder-retiring",
+                    }
+                    .to_string()
+                }),
+                gate_standing: if is_held { None } else { gate },
+                standing,
+                warning_key,
             }
         })
         .collect()
+}
+
+/// Who sits in a post now: an office's holder, or a seat's member.
+fn sitting_holder(engine: &Engine, post: Post) -> Option<PoliticianId> {
+    let st = engine.state();
+    st.politics
+        .politicians
+        .iter()
+        .find(|p| p.role.post() == Some(post))
+        .map(|p| p.id)
+}
+
+/// The text of a refused nomination (play note 20): `nomination-refused`
+/// ("{ $why } { $then }") with the reason's line (`nomination-why-<reason>`)
+/// and what the player stands for now (`nomination-then-*`).
+#[allow(clippy::too_many_arguments)]
+pub fn refusal_args(
+    engine: &Engine,
+    post: Post,
+    reason: &str,
+    nominee: Option<u32>,
+    standing: u32,
+    min_standing: Option<u32>,
+    instead: Option<Post>,
+    args: &mut BTreeMap<String, String>,
+) -> &'static str {
+    let mut put = |k: &str, v: String| {
+        args.insert(k.to_string(), v);
+    };
+    put("post_key", post_dto(engine, post).label_key);
+    if let Some(n) = nominee {
+        put("holder", name_of(engine, PoliticianId(n)));
+    }
+    put("standing", standing.to_string());
+    put("min", min_standing.unwrap_or(0).to_string());
+    let why = match reason {
+        "holder" | "standing" | "party" => reason,
+        _ => "other",
+    };
+    put("why_key", format!("nomination-why-{why}"));
+    let then = match instead.map(|p| post_dto(engine, p)) {
+        Some(d) => match d.constituency_number {
+            Some(n) => {
+                put("district_key", "ui-post-seat".into());
+                put("tier", d.at.tier.clone());
+                put("n", n.to_string());
+                "nomination-then-seat"
+            }
+            None => {
+                put("instead_key", d.label_key);
+                "nomination-then-post"
+            }
+        },
+        None => "nomination-then-none",
+    };
+    put("then_key", then.into());
+    "nomination-refused"
+}
+
+/// This campaign's refused nomination, if the player's party refused them.
+pub fn current_refusal(engine: &Engine) -> Option<RefusalView> {
+    let st = engine.state();
+    let opened = st.politics.elections.races.first()?.opened;
+    st.events
+        .iter()
+        .rev()
+        .take_while(|e| e.date >= opened)
+        .find_map(|e| match &e.kind {
+            mandate_sim::events::EventKind::NominationRefused {
+                post,
+                reason,
+                nominee,
+                standing,
+                min_standing,
+                instead,
+            } => {
+                let mut args = BTreeMap::new();
+                let key = refusal_args(
+                    engine,
+                    *post,
+                    reason,
+                    *nominee,
+                    *standing,
+                    *min_standing,
+                    *instead,
+                    &mut args,
+                );
+                Some(RefusalView {
+                    key: key.into(),
+                    args,
+                })
+            }
+            _ => None,
+        })
+}
+
+/// What became of the post the player held going into the latest election:
+/// the race whose incumbent they were, else a post they hold that was not up.
+fn seat_outcome(engine: &Engine) -> Option<SeatOutcomeView> {
+    let st = engine.state();
+    let pl = st.player.as_ref()?;
+    let el = &st.politics.elections;
+    let last = el.last_election?;
+    let at_last = || el.results.iter().filter(move |r| r.date == last);
+    if let Some(r) = at_last().find(|r| r.incumbent == Some(pl.politician)) {
+        let ran = r.candidates.iter().any(|c| c.politician == pl.politician);
+        let key = match (ran, r.winner == pl.politician) {
+            (true, true) => "ui-seat-held",
+            (true, false) => "ui-seat-lost",
+            _ => "ui-seat-passed",
+        };
+        return Some(SeatOutcomeView {
+            post: post_dto(engine, r.seat),
+            key: key.into(),
+            winner: Some(name_of(engine, r.winner)),
+        });
+    }
+    let held = mandate_sim::player::posts(st);
+    held.into_iter()
+        .find(|p| !at_last().any(|r| r.seat == *p))
+        .map(|p| SeatOutcomeView {
+            post: post_dto(engine, p),
+            key: "ui-seat-not-contested".into(),
+            winner: None,
+        })
 }
 
 fn name_of(engine: &Engine, id: PoliticianId) -> String {
@@ -458,5 +674,7 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
         races: races.into_iter().map(|(_, r)| r).collect(),
         results: results.into_iter().map(|(_, r)| r).collect(),
         last_election: last.map(DateView::of),
+        seat_outcome: seat_outcome(engine),
+        refusal: current_refusal(engine),
     })
 }

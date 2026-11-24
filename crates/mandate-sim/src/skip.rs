@@ -211,6 +211,16 @@ pub enum SummaryItem {
     },
     /// The party refused to renominate the player.
     Deselected,
+    /// The party did not nominate the player for the post they filed for
+    /// (`EventKind::NominationRefused`): why, and what they stand for now.
+    NotNominated {
+        post: Post,
+        reason: String,
+        nominee: Option<u32>,
+        standing: u32,
+        min_standing: Option<u32>,
+        instead: Option<Post>,
+    },
     /// A case against the player: `opened`, `charged`, `dropped`,
     /// `acquitted`, `convicted`.
     Case {
@@ -798,6 +808,21 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
                 outcome: outcome.clone(),
             }),
             K::PlayerDeselected => Some(SummaryItem::Deselected),
+            K::NominationRefused {
+                post,
+                reason,
+                nominee,
+                standing,
+                min_standing,
+                instead,
+            } => Some(SummaryItem::NotNominated {
+                post: *post,
+                reason: reason.clone(),
+                nominee: *nominee,
+                standing: *standing,
+                min_standing: *min_standing,
+                instead: *instead,
+            }),
             K::CaseOpened { case, politician } if *politician == me.0 => Some(SummaryItem::Case {
                 case: *case,
                 stage: "investigation".into(),

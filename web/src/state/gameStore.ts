@@ -991,7 +991,9 @@ export const useGame = create<GameState>((set, get) => {
         await get().refreshDesk();
         const after = get().campaign;
         const lastDay = after?.last_election?.day_number ?? null;
-        const night = lastDay !== null && lastDay !== before && (after?.results.some((r) => r.player_ran) ?? false);
+        // Election night whenever an election was held where the player
+        // lives, on a ballot or not (play note 20).
+        const night = lastDay !== null && lastDay !== before && (after?.results.length ?? 0) > 0;
         const p = get().passage;
         const date = get().overview?.date ?? null;
         if (p && date) set({ passage: { ...p, to: date }, afterPassage: { electionNight: night } });

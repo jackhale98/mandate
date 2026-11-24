@@ -27,4 +27,35 @@ min_standing: number | null,
  * What the player stands for now: this post if filed for, or the post
  * held when nothing is filed.
  */
-chosen: boolean, };
+chosen: boolean, 
+/**
+ * Who holds the post now, when it is not the player.
+ */
+holder: string | null, holder_party: number | null, 
+/**
+ * The holder is of the player's party: the party backs them if they
+ * stand again.
+ */
+holder_same_party: boolean, 
+/**
+ * Whether the holder stands again, in words (the engine's draw is not
+ * shown): `ui-holder-usually-stands`, `ui-holder-term-limited`,
+ * `ui-holder-retiring`.
+ */
+holder_outlook_key: string | null, 
+/**
+ * The Standing the party asks before it nominates the player for this
+ * post (`career.nomination`), if it asks any; shown whether met or not.
+ */
+gate_standing: number | null, 
+/**
+ * The player's Standing.
+ */
+standing: number, 
+/**
+ * What filing for it most likely means, when the party will most
+ * likely back its sitting holder instead: `ui-nomination-warn-seat`
+ * (the player will stand for their seat) or `ui-nomination-warn-none`
+ * (they will be on no ballot).
+ */
+warning_key: string | null, };

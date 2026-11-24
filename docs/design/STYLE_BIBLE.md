@@ -78,6 +78,11 @@ Lengths are targets on a phone with ordinary names filled in; the doctor's `pros
 - Good: "Your bill became law: { $policy }." (`skip-item-law-mine`)
 - Bad: "Great news: your hard work paid off and the bill passed!" Cheerleads, exclaims, and puts the name in the wrong place.
 
+**A party's rule, applied to the player** (`nomination-*`, `ui-nomination-*`, play note 20). Second person, present tense, under 130 characters a sentence. First the rule as it fell (who the party chose, or the Standing it asked and the player's, both numbers), then what the player stands for now. Never a percentage the engine draws on and the player cannot see: "usually stands again".
+- Good: "Your party has nominated { $holder } again for { $post }. You are standing for your seat in { $district }." (`nomination-why-holder`, `nomination-then-seat`)
+- Good: "Your party will not back you for { $post } with Standing of { $standing }. It asks { $min }." (`nomination-why-standing`)
+- Bad: "Unfortunately, your bid was unsuccessful this time." No rule, no names, and nothing about the ballot the player is now on.
+
 **An epilogue line** (`legacy-*`, `epilogue-*`). The record, in the past tense with the subject left out ("Won the election for { $post } ({ $share })."). One fact per line, under 110 characters. The epilogue does not judge the career; the numbers and the list already do.
 - Good: "Broke a promise to { $name }." (`legacy-promise_broken`)
 - Bad: "A career that will be remembered for its ups and downs." Judges, and could close any career.

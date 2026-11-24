@@ -464,6 +464,23 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             "event-election-held"
         }
         EventKind::PlayerDeselected => "event-player-deselected",
+        EventKind::NominationRefused {
+            post,
+            reason,
+            nominee,
+            standing,
+            min_standing,
+            instead,
+        } => crate::campaign::refusal_args(
+            engine,
+            *post,
+            reason,
+            *nominee,
+            *standing,
+            *min_standing,
+            *instead,
+            &mut args,
+        ),
         EventKind::DecisionOpened { template, .. } => {
             let t = engine.content().dilemma(template);
             put(

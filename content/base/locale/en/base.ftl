@@ -555,6 +555,27 @@ ui-filing-closed = Nominations have closed for this election.
 ui-nomination-standing = Your party will only back you for { $post } with Standing of { $min } or more.
 ui-nomination-renomination = Your party will not renominate you with Standing below { $min }.
 ui-not-running = You are not on the ballot this time.
+# The filing form: who holds each post, whether they stand again (in words:
+# the party's draw is not shown), and the Standing the party asks.
+ui-nomination-holder = Held by { $holder }
+ui-nomination-vacant = Nobody holds it now.
+ui-holder-usually-stands = usually stands again
+ui-holder-term-limited = has served the term limit
+ui-holder-retiring = is expected to retire
+ui-nomination-backs-holder = Your party backs its own holder when they stand again.
+ui-nomination-warn-seat = If { $holder } stands again, the party nominates them and you stand for your seat instead.
+ui-nomination-warn-none = If { $holder } stands again, the party nominates them and you will not be on the ballot.
+ui-nomination-gate = Your party asks Standing of { $min } for this. Yours is { $standing }.
+# A nomination the party refused when the campaign opened (play note 20):
+# the reason, then what the player stands for now.
+nomination-refused = { $why } { $then }
+nomination-why-holder = Your party has nominated { $holder } again for { $post }.
+nomination-why-standing = Your party will not back you for { $post } with Standing of { $standing }. It asks { $min }.
+nomination-why-party = Your party is putting no one up for { $post } this time.
+nomination-why-other = Your party did not nominate you for { $post }.
+nomination-then-seat = You are standing for your seat in { $district }.
+nomination-then-post = You are standing for { $instead } again.
+nomination-then-none = You are not on the ballot.
 # A districted seat by its number ($tier: the post's tier); any other post
 # goes by its constitution label.
 ui-post-seat = { $tier ->
@@ -590,6 +611,15 @@ factor-shock = Late swing and luck
 ui-you-won = You won.
 ui-you-lost = You lost.
 ui-election-night = Election night
+# Election night for a player on no ballot, and what became of the post they
+# held ($post: as on the ballot; $winner: who won it).
+ui-night-not-running = You were not on the ballot.
+ui-seat-held = You were re-elected: { $post }.
+ui-seat-lost = You lost { $post } to { $winner }.
+ui-seat-passed = { $winner } now holds { $post }, the post you held.
+ui-seat-not-contested = { $post } was not up this time. You still hold it.
+ui-night-other-seats = The other seats
+ui-night-won-by = won by { $winner }
 ui-continue-game = Continue
 ui-parties = Parties
 

@@ -106,6 +106,22 @@ pub enum EventKind {
     },
     /// The player's party refused to renominate them (Standing too low).
     PlayerDeselected,
+    /// The player filed for a post they do not hold and their party did not
+    /// nominate them for it (play note 20). `reason`: `holder` (the party's
+    /// sitting holder stands again), `standing` (below the post's gate,
+    /// `min_standing`), `party` (the party fields no one there), `other`.
+    /// `instead`: what the player stands for now (the seat they hold), or
+    /// nothing.
+    NominationRefused {
+        post: crate::politics::Post,
+        reason: String,
+        /// The party's nominee for the post (the holder, for `holder`).
+        nominee: Option<u32>,
+        /// The player's Standing when the campaign opened.
+        standing: u32,
+        min_standing: Option<u32>,
+        instead: Option<crate::politics::Post>,
+    },
     /// The director spotlighted a decision (DEC-033, DEC-077 §4).
     DecisionOpened {
         decision: u32,
