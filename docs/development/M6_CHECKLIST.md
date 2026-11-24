@@ -303,6 +303,11 @@ On hold until then:
     - "(would tell you: Known)" reads badly. Say what following the lead does, in the card's own terms: "Would raise this to ●●○ Known".
     - The date in the bottom bar is cut to "26 …" and "Turn …" on a narrow phone when three badges show.
     - **The update prompt did not appear for the owner.** Add a browser test that serves one build, swaps in a second, and checks the bar appears and Reload switches builds; show the build identifier on the title screen and in "Report a problem"; keep the update bar above every panel.
+19. **Talk: the greeting, and answers that make no sense** (owner, 2026-11-24):
+    - **The greeting still comes after the first question.** Note 2's fix only reordered the first reply (opener, then the player's question, then the rest). The person should speak as the conversation opens, before any topic is chosen. The engine gives the greeting with the conversation's view (the same line it would have opened the first reply with), the dialogue shows it at once, and the first reply does not repeat it.
+    - **The mayor, asked about part of their own town: "I couldn't tell you. I'm never over that way; you'd want someone from there."** The three `talk-worries-about-hood-unknown` lines fire for anyone not living in that neighbourhood. They must never fire for someone whose post covers it, who works there, or who is standing there as they speak. Officeholders know every neighbourhood of their jurisdiction at least by report, and get lines of their own ("I get the letters from there…"). Add a test over generated worlds: no speaker says they never go somewhere they hold office over, work in, live in or are standing in.
+    - Check what "the town in general" is in the worries question: if a neighbourhood shares the town's name, or the topic with no neighbourhood chosen falls to a neighbourhood line, fix that too.
+    - While there: the talk view's choices read `player.municipality` (`mandate-protocol/src/talk.rs`); move to the player's focus (DEC-098).
 
 
 ## M6 or M7 split (owner, 2026-11-21)
