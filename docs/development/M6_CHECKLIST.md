@@ -296,6 +296,13 @@ On hold until then:
     - **Named plants.** A town's larger employers are named workplaces with a product ("the Garrowby cannery"), as places with their people (PL1). A closure names the plant and what it made; the causal spine records the industry's weakest demand factor.
     - **Text and checks.** Crises, headlines, overheard lines and talk name the industry and the plant through arguments (the engine emits keys, never prose; nothing names a product in code). The audit gains a check per industry (closures explained, no industry dead or runaway). Lines per industry are a content cost: budget it with the crisis rewrite.
     - **Not this (later, after transport):** products as goods, firms, supply chains and trade between towns.
+    - **Designed (2026-11-24):** `docs/design/INDUSTRIES.md`. Sixteen industries under the broad sectors; closures by short time, a dated notice, then a reprieve or the closure; plants also open. The lead's answers to its six questions stand unless the owner objects (fishing under resources; closures by notice and date; seeds change; old saves get plants at the works they have; no tourism or knowledge industries yet; names and status lines first, flavour with the crisis rewrite). Save version 27, after the spine's 26.
+18. **Notebook and phone notes** (owner, 2026-11-24, with screenshots), one small web and protocol task, with the update prompt work:
+    - "Last seen at , in the morning.": a place with no proper name (the union hall, the community centre) prints nothing. Use the place's in-sentence kind ("the union hall") as talk does; the same for "Usually at …" and the lead's `to_place`.
+    - Remove the eye emoji from the seen line.
+    - "(would tell you: Known)" reads badly. Say what following the lead does, in the card's own terms: "Would raise this to ●●○ Known".
+    - The date in the bottom bar is cut to "26 …" and "Turn …" on a narrow phone when three badges show.
+    - **The update prompt did not appear for the owner.** Add a browser test that serves one build, swaps in a second, and checks the bar appears and Reload switches builds; show the build identifier on the title screen and in "Report a problem"; keep the update bar above every panel.
 
 
 ## M6 or M7 split (owner, 2026-11-21)
