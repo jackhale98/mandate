@@ -1,5 +1,6 @@
 import { expect, test } from "./csp";
 import type { Page } from "@playwright/test";
+import { useWideFont } from "./wide-font";
 
 // Play note 18: on a narrow phone with three badges beside the pocket button the bar's date read
 // "26 …" and "Turn …". The badges compress and wrap first; the date shortens before it truncates.
@@ -30,8 +31,10 @@ async function threeBadges(page: Page) {
   await expect(page.getByTestId("pocket-button").locator(".badge")).toHaveCount(3);
 }
 
-for (const width of [360, 390]) {
-  test(`the bar's date and turn stay readable at ${width}px with three badges`, async ({ page }) => {
+// The wide-font cases use a deliberately wide face, so the result does not depend on the machine's fonts.
+for (const [width, wide] of [[360, false], [390, false], [360, true], [320, true], [390, true]] as const) {
+  test(`the bar's date and turn stay readable at ${width}px with three badges${wide ? " (wide font)" : ""}`, async ({ page }) => {
+    if (wide) await useWideFont(page);
     await page.setViewportSize({ width, height: 844 });
     await start(page);
     await threeBadges(page);
@@ -56,6 +59,14 @@ for (const width of [360, 390]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const barBox = await bar.boundingBox();
     expect((barBox?.x ?? 0) + (barBox?.width ?? 0)).toBeLessThanOrEqual(width + 0.5);
+    // The date block (the turn line may wrap) stays inside the bar vertically.
+    const dateBox = await bar.locator(".gamebar-date").boundingBox();
+    expect(dateBox?.y ?? 0).toBeGreaterThanOrEqual((barBox?.y ?? 0) - 0.5);
+    expect((dateBox?.y ?? 0) + (dateBox?.height ?? 0)).toBeLessThanOrEqual((barBox?.y ?? 0) + (barBox?.height ?? 0) + 0.5);
+    if (wide) {
+      const dir = process.env.BAR_SHOTS;
+      if (dir) await page.screenshot({ path: `${dir}/bar-${width}.png`, clip: { x: 0, y: (barBox?.y ?? 0) - 6, width, height: (barBox?.height ?? 60) + 6 } });
+    }
     for (const id of ["town-map-button", "pocket-button", "end-turn"]) {
       const box = await page.getByTestId(id).boundingBox();
       expect(box?.height ?? 0, id).toBeGreaterThanOrEqual(44);
