@@ -1,4 +1,4 @@
-// The player's desk in a room with seats at desks (the council chamber, DEC-088): the free desk nearest the
+// The player's desk in a room with seats at desks (the debating chamber, DEC-088): the free desk nearest the
 // door by walking distance along clear floor, whatever the body's size or the recipe's variant, so the way to
 // it never crosses or goes round a seated member. The recipe's own `player` spot is where it would be
 // without this (a far end of a row); it is used only when no desk is on an aisle. Presentation only: the
