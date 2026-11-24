@@ -300,7 +300,7 @@ On hold until then:
 18. **Notebook and phone notes** (owner, 2026-11-24, with screenshots), one small web and protocol task, with the update prompt work:
     - "Last seen at , in the morning.": a place with no proper name (the union hall, the community centre) prints nothing. Use the place's in-sentence kind ("the union hall") as talk does; the same for "Usually at …" and the lead's `to_place`.
     - Remove the eye emoji from the seen line.
-    - "(would tell you: Known)" reads badly. Say what following the lead does, in the card's own terms: "Would raise this to ●●○ Known".
+    - "(would tell you: Known)" reads badly, and "(would tell you: Heard of)" on the Leads tab worse (owner, twice). One key, `ui-notebook-lead-gives`, serves both. Say what following the lead does, in the card's own terms: "Would raise this to ●●○ Known"; where the result is only "Heard of", say "You would hear of this".
     - The date in the bottom bar is cut to "26 …" and "Turn …" on a narrow phone when three badges show.
     - **The update prompt did not appear for the owner.** Add a browser test that serves one build, swaps in a second, and checks the bar appears and Reload switches builds; show the build identifier on the title screen and in "Report a problem"; keep the update bar above every panel.
 19. **Talk: the greeting, and answers that make no sense** (owner, 2026-11-24):
