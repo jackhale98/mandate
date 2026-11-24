@@ -108,11 +108,48 @@ pub(super) fn validate_policies(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 "policy needs at least one secondary effect (REQ-006)",
             ));
         }
+        // No secondary line without a mechanism or a measured side effect
+        // behind it (audit fix 8).
+        for k in &p.secondary_keys {
+            match p.secondary_backing.get(k) {
+                None => issues.push(Issue::error(
+                    &p.id,
+                    &format!("secondary line `{k}` names nothing that backs it (secondary_backing)"),
+                )),
+                Some(by) if !backs(p, by) => issues.push(Issue::error(
+                    &p.id,
+                    &format!(
+                        "secondary line `{k}` is backed by `{by}`: not a mechanism or side effect of this policy, `cost`, or `measured:<metric>`"
+                    ),
+                )),
+                Some(_) => {}
+            }
+        }
+        for k in p.secondary_backing.keys() {
+            if !p.secondary_keys.contains(k) {
+                issues.push(Issue::error(
+                    &p.id,
+                    &format!("secondary_backing names `{k}`, which is not a secondary line"),
+                ));
+            }
+        }
         // Situational policies (DEC-077 §3): conditions name real things.
         if let Some(u) = &p.unlock {
             check_situation(b, &p.id, p.tier, u, issues);
         }
     }
+}
+
+/// Does `by` back a secondary line of `p`: one of its mechanisms or side
+/// effects by type, its `cost`, or a metric the audit measures?
+fn backs(p: &crate::PolicyTemplate, by: &str) -> bool {
+    if by == "cost" {
+        return true;
+    }
+    if let Some(metric) = by.strip_prefix("measured:") {
+        return crate::types::SECONDARY_MEASURED.contains(&metric);
+    }
+    p.mechanisms.iter().any(|m| m.key() == by) || p.side_effects.iter().any(|f| f.key() == by)
 }
 
 /// A situation trigger (DEC-077 §3, reused by policy families): at least one

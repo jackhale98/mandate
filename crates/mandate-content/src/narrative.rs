@@ -607,6 +607,18 @@ pub enum EffectDef {
         #[serde(default)]
         kinds: Vec<String>,
     },
+    /// An inspection of the town's polluting industry (audit fix 8): its
+    /// operators must clean up, so the region's pollution falls at once by
+    /// `pollution` × the town's share of the region's polluting jobs (then
+    /// drifts back as industry keeps working), and the town's largest
+    /// polluting sector loses `output` of its demand for `months` months.
+    /// Effect requests to the environment and the economy, caused by the
+    /// player's answer.
+    Inspection {
+        pollution: f64,
+        output: f64,
+        months: u16,
+    },
 }
 
 /// A rider a decision can attach to a bill.
@@ -703,6 +715,8 @@ impl EffectDef {
             EffectDef::ScandalResponse { .. } | EffectDef::LegalResponse { .. } => (true, true),
             // Knowledge is a benefit, never a cost.
             EffectDef::Learn { .. } | EffectDef::RevealPlace { .. } => (false, true),
+            // Cleaner air, at the cost of an industry's output.
+            EffectDef::Inspection { .. } => (true, true),
         }
     }
 
@@ -1494,6 +1508,22 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
                 EffectDef::Record { delta } => {
                     if !in_range(*delta, -0.5, 0.5) {
                         issues.push(Issue::error(&at, "record changes must be in [-0.5, 0.5]"));
+                    }
+                }
+                EffectDef::Inspection {
+                    pollution,
+                    output,
+                    months,
+                } => {
+                    if !in_range(*pollution, 0.0, 0.5)
+                        || !in_range(*output, 0.0, 0.5)
+                        || *months == 0
+                        || *months > 36
+                    {
+                        issues.push(Issue::error(
+                            &at,
+                            "inspection: pollution and output in [0, 0.5], 1–36 months",
+                        ));
                     }
                 }
                 EffectDef::Slots { n } => {

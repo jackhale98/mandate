@@ -610,6 +610,15 @@ fn preview(engine: &Engine, d: &Decision, e: &EffectDef) -> EffectLineView {
             vec![("what_key", "knows-place".into())],
             "gain",
         ),
+        // Cleaner air, paid for in an industry's orders (audit fix 8).
+        EffectDef::Inspection { output, months, .. } => line(
+            "effect-inspection",
+            vec![
+                ("output", format!("{:.0}", output * 100.0)),
+                ("months", months.to_string()),
+            ],
+            "mixed",
+        ),
     }
 }
 

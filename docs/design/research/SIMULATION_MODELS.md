@@ -62,6 +62,11 @@ DEC-028 already specifies per-cohort utility feeding a logit model. Refinements:
   - *The race's luck* is smaller (`race_shock_sd` 0.12, `national_swing_sd` 0.15), so the record, not the shock, is what election night most often names when an incumbent loses.
   - *The record of visible work* (DEC-076) counts delivery, not presence: canvassing adds nothing to it (`career.record_gain.canvass` 0), so a councillor who only knocks on doors meets the thin-record attack. Approval of the player weighs more (`player_approval_weight` 2.5) and persuasion per canvass is small (0.03), in line with §5. Name recognition can be given diminishing returns (`awareness_known`, `awareness_beyond`; off in the base pack, because every active style is well known by election day and the cap did not separate them).
 
+- **As built (audit fix 3, 2026-11-24; `SIMULATION_AUDIT.md`, "After fix 3"): what a law delivers reaches approval.**
+  - *Delivered results.* The experienced term adds credit for what the town's laws in effect deliver now, read from their ledgers: jobs added (net, `jobs_added_*`) over the labour force, felt at working ages; income paid by a transfer or raised by a wage floor over the class's income, felt by that class (a law with an `area` clause pays its neighbourhoods only); homes added a year (a programme's pipeline completing, net) over the stock, and rent a cap holds below the market over tenants' income, both felt by the low and middle classes (`opinion.experience.delivered`). Doing nothing is zero; a law that delivers little earns little.
+  - *Services as delivered.* Besides the service gains of laws, approval reads the town's discretionary budget against the level its budget rule aims for (`service_budget`, 1 = need): a programme that crowds out the baseline costs everyone, and the services worry reads the same quantity (`service_shortfall`). Grievances, the tax and disruption costs are unchanged.
+  - *What the audit then showed:* the dominant cost of an extra law is not its money but the floor time it takes, because a busy statute book (`npc.busy_laws`) keeps the NPC bill (usually a services law) that would otherwise pass. Service laws weigh 1.2 (was 2) so that one services law no longer outweighs every other kind of result.
+
 ## 3. Party identification
 
 ### Findings
@@ -164,6 +169,7 @@ DEC-028 already specifies per-cohort utility feeding a logit model. Refinements:
 - **Fix (M4, small):** keep origin pools per municipality and weight destinations by `attractiveness × housing room × size^½ × (1 + d/d₀)^−γ`, with γ ≈ 1.2 and d₀ about a quarter of the map width, using distances between town centres.
 - **Result:** regional labour markets, and a stronger regional identity when a town declines and its people move to the regional city.
 - Our displacement after disasters already corresponds to Victoria 3's turmoil-driven channel.
+- **Housing as built (audit fixes 2 and 8, 2026-11-24):** rent clears vacancy and households double up as the burden rises (fix 2). The price is the rent capitalised at the user cost of housing, which now includes the property tax in force (the town's rate plus a law's change, against the content's rate): a higher tax lowers what a home is worth at once and the return on building, so starts fall. A rent cap (`rent_cap`, the emergency rent measure's freeze) holds rent growth while it binds; the excess demand shows as vacancy below target, builders answer only `capped_vacancy_signal` of it, and rents catch up when the cap lifts. Borrowing costs rise with a jurisdiction's debt against a year's revenue beyond `economy.borrowing.free_ratio` (finance's spread, floored at the tier's).
 
 ## 10. Demography
 

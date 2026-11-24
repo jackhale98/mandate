@@ -32,6 +32,7 @@ pub(super) fn indicator_domain(i: mandate_content::Indicator) -> (f64, f64) {
     match i {
         I::Unemployment | I::RecentDisaster | I::JobLoss => (0.0, 1.0),
         I::UnemploymentRise => (-1.0, 1.0),
+        I::ServiceShortfall => (-INF, 1.0),
         I::Pollution => (0.0, 3.0),
         I::RentBurden | I::TaxBurden | I::BudgetStress => (0.0, INF),
     }

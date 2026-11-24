@@ -74,6 +74,44 @@ pub struct HoodConcerns {
 /// An indicator's current value for a municipality (0 where it cannot be
 /// measured). Pure: reads the economy, environment, finance, and policy.
 pub fn indicator(r: &Reads<'_>, m: usize, which: Indicator) -> f64 {
+    indicator_with(r, r.population_opt(), m, which)
+}
+
+/// The town's discretionary budget against the level its budget rule aims
+/// for (its starting budget indexed to prices × productivity and to the
+/// nation's population, `finance::new_budget_year`): 1 at need, below
+/// after cuts or when programmes and interest crowd out the baseline.
+pub fn budget_index(r: &Reads<'_>, pop: Option<&PopulationState>, m: usize) -> f64 {
+    let econ = r.economy();
+    let fin = r.finance();
+    let Some(t) = fin.local.get(m) else {
+        return 1.0;
+    };
+    let wage_index = (econ.national.price_level * econ.national.productivity_index).max(0.1);
+    let pop_index = pop
+        .map(|p| (p.total() as f64 / fin.base_population.max(1.0)).max(0.1))
+        .unwrap_or(1.0);
+    let need = t.base_budget_total.units() as f64 * wage_index * pop_index;
+    t.budget_total().units() as f64 / need.max(1.0)
+}
+
+/// Services delivered against need, as a shortfall (`Indicator::ServiceShortfall`):
+/// 1 − the budget index (`budget_index`) − the service gains of laws in
+/// effect (the quantity approval reads). Programmes that crowd out the
+/// baseline, cuts and interest raise it; services laws lower it.
+pub fn service_shortfall(r: &Reads<'_>, pop: Option<&PopulationState>, m: usize) -> f64 {
+    let fin = r.finance();
+    let mods = crate::policy::mods_for(r.policy(), r.content, m as u32, &|id| fin.funded_share(id));
+    1.0 - budget_index(r, pop, m) - mods.services.iter().sum::<f64>()
+}
+
+/// [`indicator`] with the population given (its own systems hold it).
+pub fn indicator_with(
+    r: &Reads<'_>,
+    pop: Option<&PopulationState>,
+    m: usize,
+    which: Indicator,
+) -> f64 {
     let econ = r.economy();
     let Some(e) = econ.munis.get(m) else {
         return 0.0;
@@ -115,6 +153,7 @@ pub fn indicator(r: &Reads<'_>, m: usize, which: Indicator) -> f64 {
             .get(m)
             .map(|t| t.debt.units() as f64 / (t.budget_total().units() as f64).max(1.0))
             .unwrap_or(0.0),
+        Indicator::ServiceShortfall => service_shortfall(r, pop, m),
         Indicator::RecentDisaster => (1.0 - e.months_since_disaster as f64 / 24.0).max(0.0),
         Indicator::JobLoss => match (
             e.history.last(),
@@ -442,7 +481,10 @@ fn hood_indicators(
                     Indicator::RentBurden => t * rent[i],
                     Indicator::Pollution => t * pollution[i],
                     Indicator::JobLoss => t * job_loss[i],
-                    Indicator::TaxBurden | Indicator::BudgetStress | Indicator::RecentDisaster => t,
+                    Indicator::TaxBurden
+                    | Indicator::BudgetStress
+                    | Indicator::ServiceShortfall
+                    | Indicator::RecentDisaster => t,
                 };
             }
             (h, w[i], v)
@@ -459,7 +501,10 @@ fn compute_town(
     wp: &[[u16; DRIVERS]],
 ) -> (TownConcerns, Vec<(NeighborhoodId, HoodConcerns)>) {
     let content = r.content;
-    let town: Vec<f64> = Indicator::ALL.iter().map(|i| indicator(r, m, *i)).collect();
+    let town: Vec<f64> = Indicator::ALL
+        .iter()
+        .map(|i| indicator_with(r, Some(pop), m, *i))
+        .collect();
     let town_levels: Vec<f64> = content
         .concerns
         .iter()

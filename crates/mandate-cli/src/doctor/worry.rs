@@ -96,7 +96,7 @@ pub(super) fn indicator_worry(i: mandate_content::Indicator) -> &'static str {
         I::Unemployment | I::UnemploymentRise | I::JobLoss => "concern.jobs",
         I::Pollution => "concern.environment",
         I::TaxBurden => "concern.taxes",
-        I::BudgetStress => "concern.services",
+        I::BudgetStress | I::ServiceShortfall => "concern.services",
         I::RecentDisaster => "concern.recovery",
     }
 }

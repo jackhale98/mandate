@@ -1522,6 +1522,10 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         };
         let mods = crate::policy::mods_for(policy, r.content, m as u32, &|id| fin.funded_share(id));
         let services: f64 = mods.services.iter().sum();
+        // The baseline services the town's budget buys against need (the
+        // services worry reads both): programmes that crowd it out cost
+        // everyone, taxes that fund it pay back. Zero at need.
+        let budget = crate::concerns::budget_index(r, Some(pop), m) - 1.0;
         let x = &op.experience;
         let disaster = if e.months_since_disaster < x.disaster_months {
             x.disaster
@@ -1538,7 +1542,8 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             _ => None,
         };
         let experienced =
-            -x.rent_growth * rent_growth + x.services * services - x.disruption * mods.disruption;
+            -x.rent_growth * rent_growth + x.services * services + x.service_budget * budget
+                - x.disruption * mods.disruption;
         // Reactions to laws and bills, pre-summed into one weighted signature
         // per town (linear in attitudes, so each cohort needs one dot product).
         let na = pop.attitude_count();
@@ -1618,6 +1623,10 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                 }
             }
         }
+        // What laws in effect deliver now (audit fix 3), felt by the
+        // classes and neighbourhoods they reach: the town's and, for a law
+        // with an `area` clause, its neighbourhoods' own.
+        let (credit, hood_credit) = delivered_credit(r, policy, fin, e, m as u32);
         // Many laws should not saturate opinion: scale by √n.
         let gov_scale = 1.0 / mandate_core::math::sqrt(n_gov.max(1) as f64);
         let factors = hood_u.get(m);
@@ -1631,15 +1640,19 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                 experienced -= x.disruption * local;
             }
             let here = hood_grievance.get(&h.0);
+            let credit_here = hood_credit.get(&h.0);
             for (ci, c) in pop.hoods[h.index()].cohorts.iter_mut().enumerate() {
                 let a = age_of(ci);
+                let class = class_of(ci);
+                let experienced = experienced
+                    + credit.felt(a, class)
+                    + credit_here.map_or(0.0, |x| x.felt(a, class));
                 let mut gov_react = 0.0;
                 let mut player_react = 0.0;
                 for (k, a) in c.attitudes.iter().enumerate().take(na) {
                     gov_react += gov_vec[k] * *a as f64;
                     player_react += player_vec[k] * *a as f64;
                 }
-                let class = class_of(ci);
                 let (g, pg) = match here {
                     Some((g, pg)) => (
                         grievance[a][class] + g[a][class],
@@ -1665,6 +1678,97 @@ pub fn opinion(pop: &mut PopulationState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             }
         }
     }
+}
+
+/// Credit for what laws deliver (audit fix 3), in approval units: jobs
+/// added over the labour force (felt at working ages), income paid or raised
+/// over each class's income (felt by that class; a law with an `area`
+/// clause pays its neighbourhoods only), homes added a year over the stock
+/// (felt by the low and middle classes), and rent a cap holds down over
+/// tenants' income (the low and middle classes). Zero without laws.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Credit {
+    pub jobs: f64,
+    pub by_class: [f64; CLASSES],
+}
+
+impl Credit {
+    /// What a cohort of this age band and class feels.
+    pub fn felt(&self, age_band: usize, class: usize) -> f64 {
+        let jobs = if age_band < AGE_BANDS - 1 {
+            self.jobs
+        } else {
+            0.0
+        };
+        jobs + self.by_class.get(class).copied().unwrap_or(0.0)
+    }
+
+    /// Jobs and homes: one labour and housing market per town, so the
+    /// whole town feels them.
+    fn add_markets(
+        &mut self,
+        d: &crate::policy::Delivered,
+        e: &crate::economy::MuniEcon,
+        w: &mandate_content::DeliveredWeights,
+    ) {
+        self.jobs += w.jobs * d.jobs / e.labour_force.max(1.0);
+        let homes = w.homes * d.homes_per_year / e.housing.stock.max(1.0);
+        // Tenants (the low and middle classes) keep what a cap holds back:
+        // the rent held down as a share of their income.
+        let rent = e.housing.rent * 12.0 * d.rent_held;
+        for c in 0..2 {
+            self.by_class[c] += homes + w.income * rent / e.class_income[c].max(1.0);
+        }
+    }
+
+    /// Income paid (per adult of the class, at price level 1) or raised.
+    fn add_income(
+        &mut self,
+        d: &crate::policy::Delivered,
+        e: &crate::economy::MuniEcon,
+        w: &mandate_content::DeliveredWeights,
+        price: f64,
+    ) {
+        for c in 0..CLASSES {
+            self.by_class[c] += w.income * d.paid[c] * price / e.class_income[c].max(1.0);
+        }
+        self.by_class[0] += w.income * d.low_income_share;
+    }
+}
+
+/// The credit laws in effect in town `m` earn (town-wide, and by
+/// neighbourhood for laws with an `area` clause), from their ledgers.
+pub fn delivered_credit(
+    r: &Reads<'_>,
+    policy: &crate::policy::PolicyState,
+    fin: &crate::finance::FinanceState,
+    e: &crate::economy::MuniEcon,
+    m: u32,
+) -> (Credit, std::collections::BTreeMap<u32, Credit>) {
+    let w = &r.content.opinion.experience.delivered;
+    let price = r.economy().national.price_level.max(0.01);
+    let mut town = Credit::default();
+    let mut hoods: std::collections::BTreeMap<u32, Credit> = std::collections::BTreeMap::new();
+    for p in policy
+        .in_municipality(m)
+        .filter(|p| p.status == crate::policy::PolicyStatus::InEffect)
+    {
+        let Some(t) = crate::policy::resolve(r.content, policy, p) else {
+            continue;
+        };
+        let d = crate::policy::delivered(r.content, &t, p, fin.funded_share(p.id.0));
+        town.add_markets(&d, e, w);
+        match p.area() {
+            // Payments reach the area's residents only.
+            Some(area) => {
+                for h in area {
+                    hoods.entry(h.0).or_default().add_income(&d, e, w, price);
+                }
+            }
+            None => town.add_income(&d, e, w, price),
+        }
+    }
+    (town, hoods)
 }
 
 /// Mover–stayer party attachment (DEC-071 §3): the mover share drifts toward
@@ -1731,9 +1835,15 @@ mod tests {
             unemployment_gap: level,
             rent_growth: 0.0,
             services: 0.0,
+            service_budget: 0.0,
             disaster: 0.0,
             disaster_months: 0,
             disruption: 0.0,
+            delivered: mandate_content::DeliveredWeights {
+                jobs: 0.0,
+                income: 0.0,
+                homes: 0.0,
+            },
         }
     }
 

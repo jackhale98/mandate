@@ -401,6 +401,61 @@ Fix 1 is on the tree with the party line from the platform, fix 2 (rents and mig
 
 Still open: the best informed style wins 0.88 on 16 seeds (band top 0.85; 0.84 on 32), the price of keeping `ladder_learned` above its margin at 32 seeds; `knowledge_matters` and `skill_gap` still fail; the director finds no climax in 13 of 84 chapters on seeds 1–12 and 15 of 84 on seeds 13–24, every one a quiet `local_life` session whose climax peaks had no grounded candidate even with cooldowns waived (the pacing test's floor is 85%).
 
+## After fix 3 (2026-11-24): laws pay off, ledgers are honest, texts are backed
+
+Audit fixes 3, 5 and 8 (DEC-111 answer 6) are on the tree (rule and values: `docs/development/balance/2026-11-24-laws-pay-off-delivered-results-in.md`). "Before" is the tree at the start of the task (`8edba26`, with its own content); "after" is the final tree. Release build, two threads.
+
+**The rules.**
+- *Delivered results in approval* (`population::opinion`, `delivered_credit`; `opinion.experience.delivered`). Each month the experienced term adds what the town's laws in effect deliver now, read from their ledgers: jobs added (net) over the labour force, felt at working ages; income paid by a transfer or raised by a wage floor over the class's income, felt by that class; homes added a year (net) over the stock and rent a cap holds below the market over tenants' income, felt by the low and middle classes. Doing nothing is zero. Besides the gains of services laws, approval reads the town's budget against what its budget rule aims for (`service_budget`), so a programme that crowds out the baseline still costs everyone; grievances, taxes and disruption are unchanged. Services laws weigh 1.2 (was 2).
+- *The services worry reads service levels* (`Indicator::ServiceShortfall` = 1 − that budget index − the service gains of laws in effect). Budget stress keeps no worry of its own: its interest crowds out services and the fiscal-hole crisis already speaks for the services worry; it stays an indicator (the fiscal bridge's unlock, the crisis).
+- *Honest ledgers* (`policy::implementation`, `record_homes`; `economy.attribution`). Exact: `homes_started`, `jobs_supported_*`, `jobs_created_*`, `paid_per_person`. Estimated with one coefficient for every template: `homes_added` (completions over the construction lag, × `homes_net` 0.6, less demolition; an upzoning law's extra private starts the same way), `jobs_added_*` (× `jobs_net` 0.8), `low_income_added_pct` (× `wage_floor_net` 0.65), `rent_held_pct`. Fluent says "started" and "added, net (estimate)".
+
+**Approval at five years, home town, treated − base** (`audit policy --seeds 8`; mean, t):
+
+| Template | Before | After | Low class after | Low income % after | Jobs % after | Homes % after |
+|---|---|---|---|---|---|---|
+| affordable_housing | −2.10 (−3.9) | +6.18 (11.2) | +7.20 (5.6) | +0.74 (1.1) | +1.64 (6.2) | +1.28 (22.5) |
+| closure_response | +0.89 (1.0) | +6.20 (7.0) | +13.23 (8.6) | +6.28 (7.4) | +5.84 (18.3) | +0.08 |
+| emergency_rent | −2.50 (−5.1) | +1.90 (3.2) | +5.98 (4.4) | +1.53 (2.2) | −2.77 (−11.3) | −0.26 (−7.0) |
+| fiscal_bridge | −4.63 (−9.3) | **−2.95 (−7.8)** | −1.69 (−1.5) | −0.17 | −0.88 (−5.3) | −0.20 |
+| flood_defenses | −1.63 (−3.7) | **−1.40 (−3.4)** | −1.58 (−1.5) | −0.18 | −0.86 (−5.0) | −0.11 |
+| hardship_fund | −0.22 (−0.4) | +1.57 (2.9) | +3.89 (3.2) | +2.41 (3.7) | +0.94 (4.6) | −0.08 |
+| local_wage_floor | −2.43 (−5.1) | +3.00 (5.8) | +14.44 (10.0) | +6.33 (10.3) | −1.69 (−8.9) | −0.20 |
+| parks | +2.93 (5.6) | +1.54 (4.0) | +1.63 (1.6) | +0.45 | +0.63 (3.1) | −0.05 |
+| police_staffing | +2.97 (5.8) | +1.17 (3.1) | −0.55 (−0.5) | +0.03 | +0.77 (3.7) | −0.04 |
+| property_tax | −3.82 (−7.7) | **−2.96 (−7.9)** | −3.17 (−2.9) | −0.02 | −0.84 (−5.2) | −0.16 |
+| rebuild_fund | −2.28 (−4.5) | +3.86 (7.7) | +4.18 (3.3) | +0.46 | +0.96 (3.9) | +0.89 (16.7) |
+| small_business_grants | −2.10 (−3.9) | −0.01 (−0.0) | −1.82 (−1.3) | +0.32 | +0.52 (2.9) | −0.02 |
+| tech_incubator | −2.91 (−5.9) | **−1.55 (−3.5)** | −2.89 (−2.4) | +0.76 | −0.50 (−2.9) | −0.03 |
+| transit_frequency | +3.05 (6.4) | +1.26 (3.4) | +0.98 (1.1) | +0.13 | +0.58 (2.8) | −0.06 |
+| upzoning | −3.80 (−7.4) | +0.06 (0.1) | +0.48 (0.4) | +0.33 | +0.08 | +0.53 (9.5) |
+
+Before, 11 templates lowered approval (10 significantly); after, 4 do (each |t| ≥ 3), and each is one whose measured material effect is negative or nil: the property tax and the fiscal bridge (taxes; jobs −0.8 to −0.9%, building down), the tech incubator (total jobs −0.5%: other employers lose staff) and flood defences (nil without a flood; jobs −0.9% from the money it takes). The grants sit at −0.01 (t −0.0). Why every law used to cost: in a town with about five laws in force the statute book is full (`npc.busy_laws`), so an extra law keeps out the NPC bill that would have passed (usually a services law, worth twice as much as any other result before this fix), and nothing else a law did reached approval.
+
+| Check | Before | After |
+|---|---|---|
+| `audit gate` (believe / policy / rent) | fails: policy (emergency rent approval and rent, fiscal bridge approval) | passes all three |
+| Ledger over twin, month 36 (`readability`; after: `audit ledgers --seeds 6`) | 0.32, 0.38 (homes), 0.81, 0.75, 0.51, 0.58 | 1.02, 1.14, 1.32 (upzoning, new row), 1.06, 0.93, 0.78, 0.92 |
+| Services worry under a services law (5 years) | +0.0 (it read budget stress) | −1.2 to −1.4 pts (parks, police, transit); +1 to +2 for programmes that crowd the baseline out |
+| Re-election gap, worst − best tercile (`believe --seeds 8`) | 22.8 pts | 23.5 pts |
+| Re-election when running | 78.0% | 77.3% |
+| `stuck --seeds 8`: rent runaway / debt spirals / drained / stalled building | 0 / 0 / 0 / 0.7% | 0 / 0 / 0 / 1.0% |
+| Executive party never changed in 30 years | 38.5% | 41.1% |
+| `bots --seeds 16`: canvass / best informed first-election wins | 0.31 / 0.88 | 0.19 / 0.88 |
+| `bots --seeds 32` | 0.34 / 0.84 | 0.22 / 0.88 |
+| Enforced bot gates (16 and 32 seeds) | pass | pass |
+| `knowledge_matters` (omniscient − mixed share, needs +3 pts) | +0.5 / −0.3 | +0.5 / +0.1 (fails) |
+| `skill_gap` (share +3 pts and wins +0.10) | +3.0 / +1.9 pts, +0.06 / +0.03 | +3.5 / +3.4 pts (passes), wins +0.00 / +0.06 (fails) |
+
+**Part B: the texts.** Three mechanisms (`audit twins --seeds 8`, home town, mean (t)):
+- *Property tax in prices.* The price is rent capitalised at the user cost including the tax in force. +0.1 points: price −0.52% (−49) at a year, −0.93% at three; starts index −0.03 at a year, −0.09 at five; stock −0.16% (−4.2) at five, −0.56% at ten; revenue +5.6% at a year, +1.1% at five. Rent does **not** rise: −0.20% (−1.8) at five, −0.50% (−1.6) at ten, because the building slump costs construction jobs (−6% at five) and people leave faster than the stock falls behind. The line now says what the model does ("Homeowners feel it first: homes are worth less, and builders start fewer.").
+- *A rent freeze is a cap* (`rent_cap`; level 1 = 3% a year), twin with the freeze against the same measure without, lifted at month 37: rent −0.83% at a year, −2.36% at three; vacancy −1.0 point (the shortage; households +1.0%); price −1.4%; starts −0.07 to −0.09 while it binds. On lifting, rent grows 0.125 points a month faster (t 8.9) and starts jump +0.13; by month 60 rent is −0.93% and catching up.
+- *Borrowing costs rise with debt* (`economy.borrowing`: spread + 0.02 per year of revenue owed beyond 0.2 local, 0.5 regional, 4 national; at most +6 points). Prudent towns pay their tier's spread (100% of towns at year 10, highest 0 bp above). A planted hole of 1.5 years' revenue adds 141 bp; the fiscal bridge cuts the spread 15 bp at a year (−16), 12 bp at two, and interest 9.5% at two. `stuck`: no debt spiral.
+
+Reworded to what the audit measured: `secondary-transit-congestion` "Better buses draw people in, and rents rise with them." (rent +0.6%, population +0.6%); `secondary-incubator-rents` "Subsidised start-ups hire people other employers wanted." (manufacturing −0.5%, public −0.6%, retail −0.7%); `secondary-rebuild-wait` "Rebuilding draws workers away from other employers in town." (knowledge −1.6%, manufacturing −1.6%). Kept: `secondary-upzoning-construction` (construction jobs +7.4%, t 5.5). The inspection: the region's pollution falls by 15% × the town's share of its polluting jobs and drifts back at the drift's pace; the town's largest polluting sector loses 8% of its demand for 12 months (requests applied by the environment's and the economy's own functions, the answer as cause). Police staffing: "Pay for more officers on the street, a service the town funds every year." Every template's `secondary_keys` must now name its backing (`secondary_backing`: a mechanism or side effect, `cost`, or `measured:<metric>`); validation refuses a line without one (families are not covered yet).
+
+Still open: the property tax does not raise rents within ten years (above); `knowledge_matters` and the win half of `skill_gap`; one-party lock moved from 38.5% to 41.1%; a services law and its NPC rival are near substitutes, so services laws are weaker than before (+1.2 to +1.5 against +2.9 to +3.1).
+
 ## Limits
 
 - Small worlds only (the size the bots play); medium and large worlds were not audited.

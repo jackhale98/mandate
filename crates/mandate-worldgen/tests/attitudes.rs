@@ -40,6 +40,7 @@ fn content_with_land_rights() -> Arc<ContentBundle> {
               "implementation_months": 6,
               "signature": { "land_rights": 0.8, "localism": 0.2 },
               "secondary_keys": ["secondary-parks-upkeep"],
+              "secondary_backing": { "secondary-parks-upkeep": "cost" },
               "side_effects": [ { "type": "disruption", "per_unit": 0.01, "param": "level" } ],
             },
           ],
@@ -142,7 +143,7 @@ fn unknown_signature_attitudes_and_missing_conviction_keys_are_errors() {
     });
     src.push(Source {
         path: "bad/policies.jsonc".into(),
-        text: r#"{"kind":"policies","items":[{"id":"policy.x","name_key":"policy-parks","desc_key":"policy-parks-desc","tier":"local","category":"environment","requires":"propose_ordinance","params":[],"cost":{"per_capita_per_unit":1},"mechanisms":[],"implementation_months":1,"signature":{"whaling":0.5},"secondary_keys":["secondary-parks-upkeep"]}]}"#
+        text: r#"{"kind":"policies","items":[{"id":"policy.x","name_key":"policy-parks","desc_key":"policy-parks-desc","tier":"local","category":"environment","requires":"propose_ordinance","params":[],"cost":{"per_capita_per_unit":1},"mechanisms":[],"implementation_months":1,"signature":{"whaling":0.5},"secondary_keys":["secondary-parks-upkeep"],"secondary_backing":{"secondary-parks-upkeep":"cost"}}]}"#
             .into(),
     });
     let errs = load(&src).unwrap_err();

@@ -149,6 +149,42 @@ pub(super) fn validate_economy(b: &ContentBundle, issues: &mut Vec<Issue>) {
             "housing: positive sizes, responses at least 0, adults_per_household inside its range",
         ));
     }
+    unit(
+        issues,
+        "housing.capped_vacancy_signal",
+        h.capped_vacancy_signal,
+    );
+    let bw = &e.borrowing;
+    for (i, v) in bw.spreads.iter().enumerate() {
+        if !(0.0..=0.2).contains(v) {
+            issues.push(Issue::error(
+                "economy",
+                &format!("borrowing.spreads[{i}] = {v} outside [0, 0.2]"),
+            ));
+        }
+    }
+    if bw.free_ratio.iter().any(|v| !(v.is_finite() && *v >= 0.0))
+        || !(bw.per_ratio.is_finite() && bw.per_ratio >= 0.0)
+        || !(0.0..=0.5).contains(&bw.max_extra)
+    {
+        issues.push(Issue::error(
+            "economy",
+            "borrowing: free_ratio and per_ratio at least 0, max_extra in [0, 0.5]",
+        ));
+    }
+    let at = &e.attribution;
+    for (name, v) in [
+        ("attribution.homes_net", at.homes_net),
+        ("attribution.jobs_net", at.jobs_net),
+        ("attribution.wage_floor_net", at.wage_floor_net),
+    ] {
+        if !(0.0..=2.0).contains(&v) {
+            issues.push(Issue::error(
+                "economy",
+                &format!("{name} = {v} outside [0, 2]"),
+            ));
+        }
+    }
     for (i, r) in e.death_rates.iter().enumerate() {
         unit(issues, &format!("death_rates[{i}]"), *r);
     }

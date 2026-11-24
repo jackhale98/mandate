@@ -137,7 +137,8 @@ fn housing_programme_adds_homes_versus_control() {
             homes(&a)
         );
         assert!(
-            p.ledger.get("homes_built").copied().unwrap_or(0.0) > 50.0,
+            p.ledger.get("homes_started").copied().unwrap_or(0.0) > 50.0
+                && p.ledger.get("homes_added").copied().unwrap_or(0.0) > 0.0,
             "{:?}",
             p.ledger
         );

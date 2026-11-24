@@ -160,6 +160,8 @@ pub fn compose<'a>(
         signature,
         signature_weights,
         secondary_keys,
+        // A family's lines are validated with the family (policy_family).
+        secondary_backing: Default::default(),
         side_effects,
         requires: f.requires,
         unlock: None,

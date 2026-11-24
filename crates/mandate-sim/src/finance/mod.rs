@@ -511,18 +511,7 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         }
     }
 
-    let spreads = [
-        (TierKind::Local, 0.012),
-        (TierKind::Regional, 0.008),
-        (TierKind::National, 0.0),
-    ];
-    let spread_of = |t: TierKind| {
-        spreads
-            .iter()
-            .find(|(k, _)| *k == t)
-            .map(|(_, s)| *s)
-            .unwrap_or(0.0)
-    };
+    let borrowing = &r.content.economy.borrowing;
     let all = fin
         .local
         .iter_mut()
@@ -533,7 +522,7 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             let monthly = Money(t.budget[i].0 / 12);
             t.spend(*cat, monthly);
         }
-        let interest = t.debt.scale((rate + spread_of(t.tier)) / 12.0);
+        let interest = t.debt.scale((rate + spread(borrowing, t)) / 12.0);
         t.interest_ytd += interest;
         t.cash -= interest;
         let reserve = if t.tier == TierKind::National {
@@ -543,6 +532,31 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
         };
         t.settle(reserve);
     }
+}
+
+/// What a treasury pays to borrow over the policy rate: its tier's spread,
+/// rising with its debt against a year's revenue beyond what lenders
+/// ignore (`economy.borrowing`). Never below the tier's: a prudent
+/// jurisdiction pays what it always has.
+pub fn spread(b: &mandate_content::BorrowingParams, t: &Treasury) -> f64 {
+    let i = match t.tier {
+        TierKind::Local => 0,
+        TierKind::Regional => 1,
+        TierKind::National => 2,
+    };
+    let base = b.spreads[i];
+    // A year's revenue: last year's, else (in the first year) the budget.
+    let revenue = if t.last_year.revenue.0 > 0 {
+        t.last_year.revenue
+    } else {
+        t.budget_total()
+    };
+    let ratio = t.debt.units() as f64 / (revenue.units() as f64).max(1.0);
+    base + clamp(
+        (ratio - b.free_ratio[i]) * b.per_ratio,
+        0.0,
+        b.max_extra.max(0.0),
+    )
 }
 
 /// Yearly: close the books and set next year's budgets.
@@ -741,4 +755,38 @@ fn pass_through_estimate(t: &Treasury) -> Money {
 
 fn clamp(x: f64, lo: f64, hi: f64) -> f64 {
     mandate_core::math::clamp(x, lo, hi)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn params() -> EconomyParams {
+        let src = mandate_content::bundle::read_dir_sources(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content"),
+        )
+        .unwrap();
+        mandate_content::load(&src).unwrap().0.economy
+    }
+
+    fn treasury(debt: i64, revenue: i64) -> Treasury {
+        let mut t = Treasury::new(TierKind::Local, Money::from_units(revenue), &params());
+        t.debt = Money::from_units(debt);
+        t.last_year.revenue = Money::from_units(revenue);
+        t
+    }
+
+    /// A prudent town pays its tier's spread; debt beyond what lenders
+    /// ignore raises it, up to the cap.
+    #[test]
+    fn borrowing_costs_rise_with_debt() {
+        let b = params().borrowing;
+        let base = b.spreads[0];
+        assert_eq!(spread(&b, &treasury(0, 1_000_000)), base);
+        assert_eq!(spread(&b, &treasury(100_000, 1_000_000)), base);
+        let one = spread(&b, &treasury(1_000_000, 1_000_000));
+        assert!((one - (base + (1.0 - b.free_ratio[0]) * b.per_ratio)).abs() < 1e-12);
+        let huge = spread(&b, &treasury(1_000_000_000, 1_000_000));
+        assert!((huge - (base + b.max_extra)).abs() < 1e-12);
+    }
 }

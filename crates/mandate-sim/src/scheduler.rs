@@ -282,6 +282,11 @@ impl<'a> Reads<'a> {
         }
     }
 
+    /// The population, unless it is the domain being written (its own
+    /// systems pass it in themselves).
+    pub fn population_opt(&self) -> Option<&'a PopulationState> {
+        self.population
+    }
     pub fn population(&self) -> &'a PopulationState {
         self.population
             .expect("population is not readable from its own systems")

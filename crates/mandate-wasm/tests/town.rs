@@ -16,7 +16,7 @@ use std::sync::Arc;
 /// when rents became bounded by incomes (audit fix 2): baseline housing moved.
 /// Re-pinned (baff2383 -> c720a820) when the record began to decide votes
 /// (audit fix 1): the burn-in's elections, and so the town, changed.
-const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "c720a820");
+const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "08a45e56");
 
 fn fnv1a(s: &str) -> String {
     let mut h: u32 = 0x811c_9dc5;

@@ -225,6 +225,10 @@
       "options": [
         { "id": "inspection", "label_key": "dilemma-pollution-inspection", "aftermath_key": "dilemma-pollution-inspection-after",
           "effects": [
+            // The operator must clean up: the region's pollution falls by 15% × the
+            // town's share of its polluting jobs, and the town's largest polluting
+            // sector loses 8% of its demand for a year (audit fix 8).
+            { "type": "inspection", "pollution": 0.15, "output": 0.08, "months": 12 },
             { "type": "opinion", "role": "owner", "delta": -12, "memory": "stood_against_me" },
             { "type": "opinion", "role": "voice", "delta": 12, "memory": "stood_with_me" },
             { "type": "approval", "classes": [0], "delta": -0.01 },

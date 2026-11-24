@@ -531,6 +531,16 @@ fn apply_effect(
             let grants = knowledge_grants(state, content, subject, *level, cast, here);
             learned(state, subject.key(), *level, grants, id)
         }
+        EffectDef::Inspection {
+            pollution,
+            output,
+            months,
+        } => match inspect(state, content, *pollution, *output, *months, cause) {
+            Some(_) => Applied::Responded {
+                response: "inspection".into(),
+            },
+            None => skip("inspection"),
+        },
         EffectDef::RevealPlace { role, kinds } => {
             let def = mandate_content::SubjectDef::Place {
                 role: role.clone(),
@@ -542,6 +552,69 @@ fn apply_effect(
             learned(state, "place", Level::Known, grants, id)
         }
     }
+}
+
+/// An inspection of the player's town's polluting industry (audit fix 8):
+/// the town's largest polluting sector (industrial or extraction) loses
+/// `output` of its demand for `months` months, and the region's pollution
+/// falls by `pollution` × the town's share of the region's polluting jobs.
+/// Two requests, each applied by its domain's own function with the
+/// player's answer as its cause. Returns the sector, or `None` when the
+/// town has no polluting jobs.
+pub fn inspect(
+    state: &mut State,
+    content: &ContentBundle,
+    pollution: f64,
+    output: f64,
+    months: u16,
+    cause: Cause,
+) -> Option<String> {
+    use mandate_content::SectorDriver as D;
+    let town = crate::player::home(state)?;
+    let region = state.world.municipalities.get(town.index())?.region;
+    let polluting = |e: &crate::economy::MuniEcon| {
+        e.jobs_with(content, D::Industrial) + e.jobs_with(content, D::Extraction)
+    };
+    let econ = &state.economy;
+    let mine = econ.munis.get(town.index()).map(polluting).unwrap_or(0.0);
+    let all: f64 = state
+        .world
+        .municipalities
+        .iter()
+        .enumerate()
+        .filter(|(_, mu)| mu.region == region)
+        .filter_map(|(m, _)| econ.munis.get(m).map(polluting))
+        .sum();
+    if mine <= 0.0 || all <= 0.0 {
+        return None;
+    }
+    let e = econ.munis.get(town.index())?;
+    let (k, _) = content
+        .sectors
+        .iter()
+        .enumerate()
+        .filter(|(_, d)| matches!(d.driver, D::Industrial | D::Extraction))
+        .filter_map(|(k, _)| e.sectors.get(k).map(|s| (k, s.jobs)))
+        .fold(None, |best: Option<(usize, f64)>, x| match best {
+            Some(b) if b.1 >= x.1 => Some(b),
+            _ => Some(x),
+        })?;
+    let sector = content.sectors.get(k)?.id.clone();
+    state.events.note_effect(&cause);
+    crate::economy::add_shock(
+        &mut state.economy,
+        town.0,
+        &sector,
+        1.0 - output.clamp(0.0, 0.9),
+        months,
+    );
+    state.events.note_effect(&cause);
+    crate::environment::abate(
+        &mut state.environment,
+        region.index(),
+        pollution * mine / all,
+    );
+    Some(crate::policy::sector_key(&sector))
 }
 
 /// Teach grants from a decision. The aftermath records how many subjects

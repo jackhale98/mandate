@@ -12,7 +12,7 @@
 // The sign of a weight is the side worried voters lean toward; it ranks
 // concerns by neighbourhood for display. Indicators: unemployment,
 // unemployment_rise, rent_burden, pollution, tax_burden, budget_stress,
-// recent_disaster. The simulation has no crime yet, so there is no safety
+// service_shortfall, recent_disaster. The simulation has no crime yet, so there is no safety
 // concern. Registry order is load order. Levels are scaled so a typical town
 // sits around 0.2–0.5 and the worst few percent reach 0.7–1.
 {
@@ -38,11 +38,14 @@
       "indicator": "tax_burden",
       "attitudes": { "tax_tolerance": -0.8, "redistribution": -0.3 },
       "level": { "baseline": -0.4, "slope": 10.0, "min": 0.0, "max": 1.0 } },
-    // Town debt / annual budget: near 0 while budgets balance.
+    // Services delivered against need (audit fix 3): 0 at the start, about
+    // ±0.05 as budgets follow revenue; a cut or crowded-out baseline raises
+    // it, a services law lowers it. Debt is felt here too: its interest
+    // crowds out services (there is no separate debt worry).
     { "id": "concern.services", "name_key": "concern-services", "talk_key": "talk-concern-services",
-      "indicator": "budget_stress",
+      "indicator": "service_shortfall",
       "attitudes": { "tax_tolerance": 0.5, "redistribution": 0.3, "law_and_order": 0.2 },
-      "level": { "baseline": 0.1, "slope": 2.0, "min": 0.0, "max": 1.0 } },
+      "level": { "baseline": 0.25, "slope": 2.5, "min": 0.0, "max": 1.0 } },
     // 1 just after a disaster, fading over two years.
     { "id": "concern.recovery", "name_key": "concern-recovery", "talk_key": "talk-concern-recovery",
       "indicator": "recent_disaster",

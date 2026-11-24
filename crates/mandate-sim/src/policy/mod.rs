@@ -276,6 +276,9 @@ pub struct PolicyMods {
     pub transfer: [f64; 3],
     pub housing_units_per_year: f64,
     pub starts_multiplier: f64,
+    /// The tightest cap on yearly (nominal) rent growth of a law in force
+    /// (`rent_cap`), if any.
+    pub rent_cap: Option<f64>,
     /// Wage subsidy share and job elasticity by sector, in registry order
     /// (empty when no policy applies).
     pub subsidy: Vec<f64>,
@@ -346,6 +349,11 @@ pub fn class_index(c: ClassKey) -> usize {
     }
 }
 
+/// The yearly rent growth a `rent_cap` at `level` allows (`None` at 0).
+pub fn rent_cap_of(level: f64, loosest: f64, per_unit: f64) -> Option<f64> {
+    (level >= 0.5).then(|| loosest + per_unit * (level.round() - 1.0))
+}
+
 /// `funded(id)` returns the funded share (0..1) from finance.
 pub fn mods_for(
     st: &PolicyState,
@@ -408,6 +416,16 @@ pub fn mods_for(
                 }
                 MechanismDef::Zoning { param, per_unit } => {
                     out.starts_multiplier *= 1.0 + per_unit * p.param(param) * k
+                }
+                // A cap is a rule: in force in full once the law is (no ramp).
+                MechanismDef::RentCap {
+                    param,
+                    loosest,
+                    per_unit,
+                } => {
+                    if let Some(cap) = rent_cap_of(p.param(param), *loosest, *per_unit) {
+                        out.rent_cap = Some(out.rent_cap.map_or(cap, |c: f64| c.min(cap)));
+                    }
                 }
                 MechanismDef::SectorSubsidy {
                     sector,
@@ -1088,6 +1106,29 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
 pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let fin = r.finance();
     let econ = r.economy();
+    // Private starts last month in towns where a zoning law is in effect
+    // (all starts less public programmes'), for the homes it adds.
+    let zoned: BTreeMap<u32, f64> = st
+        .instances
+        .iter()
+        .filter(|p| p.tier == TierKey::Local && p.status == PolicyStatus::InEffect)
+        .filter(|p| {
+            resolve(r.content, st, p).is_some_and(|t| {
+                t.mechanisms
+                    .iter()
+                    .any(|m| matches!(m, MechanismDef::Zoning { .. }))
+            })
+        })
+        .map(|p| p.jurisdiction)
+        .collect::<std::collections::BTreeSet<u32>>()
+        .into_iter()
+        .filter_map(|m| {
+            let e = econ.munis.get(m as usize)?;
+            let public =
+                mods_for(st, r.content, m, &|id| fin.funded_share(id)).housing_units_per_year;
+            Some((m, (e.housing.last_starts - public / 12.0).max(0.0)))
+        })
+        .collect();
     for i in 0..st.instances.len() {
         let m = st.instances[i].jurisdiction as usize;
         let competence = st.agencies.get(m).map(|a| a.competence).unwrap_or(0.6) as f64;
@@ -1133,14 +1174,31 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                             .and_event(p.cause, Link::Ended),
                     );
                 }
-                // Attribution ledger: direct contributions this month.
-                let k = p.progress as f64 * p.pilot_scale() * funded;
+                // Attribution ledger (audit fix 5): direct counts, exact, and
+                // what they added, estimated with the same coefficient for
+                // every template (`economy.attribution`). The same scale as
+                // the mechanisms' own (`mods_for`), a family option's
+                // effect factor included.
+                let k = p.progress as f64 * p.pilot_scale() * funded * t.effect_factor;
                 let e = econ.munis.get(m);
+                let net = &r.content.economy.attribution;
+                let lag = r.content.economy.construction_lag_months.max(1) as f64;
+                let demolition = r.content.economy.housing.demolition_rate;
+                // Saves from before the split named homes started `homes_built`.
+                if let Some(v) = p.ledger.remove("homes_built") {
+                    *p.ledger.entry("homes_started".into()).or_default() += v;
+                }
                 for mech in &t.mechanisms {
                     match mech {
                         MechanismDef::HousingSupply { param } => {
-                            *p.ledger.entry("homes_built".into()).or_default() +=
-                                p.param(param) * k / 12.0
+                            let started = p.param(param) * k / 12.0;
+                            record_homes(
+                                &mut p.ledger,
+                                HomesStarted::Exact(started),
+                                lag,
+                                demolition,
+                                net.homes_net,
+                            );
                         }
                         MechanismDef::SectorSubsidy {
                             sector,
@@ -1153,10 +1211,11 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                                 .and_then(|i| e.and_then(|x| x.sectors.get(i)))
                                 .map(|x| x.capacity)
                                 .unwrap_or(0.0);
-                            p.ledger.insert(
-                                format!("jobs_supported_{}", sector_key(sector)),
-                                base * elasticity * p.param(param) / 100.0 * k,
-                            );
+                            let supported = base * elasticity * p.param(param) / 100.0 * k;
+                            let s = sector_key(sector);
+                            p.ledger.insert(format!("jobs_supported_{s}"), supported);
+                            p.ledger
+                                .insert(format!("jobs_added_{s}"), supported * net.jobs_net);
                         }
                         MechanismDef::Transfer { param, .. } => {
                             *p.ledger.entry("paid_per_person".into()).or_default() +=
@@ -1171,14 +1230,58 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                             );
                         }
                         MechanismDef::Zoning { param, per_unit } => {
-                            p.ledger.insert(
-                                "extra_building_pct".into(),
-                                per_unit * p.param(param) * k * 100.0,
-                            );
+                            let extra = per_unit * p.param(param) * k;
+                            p.ledger.insert("extra_building_pct".into(), extra * 100.0);
+                            // The private starts it brought: last month's
+                            // private starts × extra ÷ (1 + extra), an
+                            // estimate like what they add.
+                            if let Some(private) = zoned.get(&p.jurisdiction) {
+                                let started = private * extra / (1.0 + extra).max(0.1);
+                                record_homes(
+                                    &mut p.ledger,
+                                    HomesStarted::Estimated(started),
+                                    lag,
+                                    demolition,
+                                    net.homes_net,
+                                );
+                            }
+                        }
+                        MechanismDef::RentCap {
+                            param,
+                            loosest,
+                            per_unit,
+                        } => {
+                            if let Some(cap) = rent_cap_of(p.param(param), *loosest, *per_unit) {
+                                p.ledger.insert("rent_cap_pct".into(), cap * 100.0);
+                                // How far rents are held below where the
+                                // market would take them (an estimate):
+                                // what the cap withholds each month it
+                                // binds, given back as rents catch up.
+                                if let Some(x) = e {
+                                    let h = &r.content.economy;
+                                    let infl = econ.national.inflation / 12.0;
+                                    let market = (h.target_vacancy - x.housing.vacancy)
+                                        * h.housing.rent_response
+                                        + infl;
+                                    let held =
+                                        p.ledger.get("rent_held_pct").copied().unwrap_or(0.0)
+                                            / 100.0;
+                                    let held = if market > cap / 12.0 {
+                                        held + market - cap / 12.0
+                                    } else {
+                                        (held - (market - infl).max(0.0)).max(0.0)
+                                    };
+                                    p.ledger.insert("rent_held_pct".into(), held * 100.0);
+                                }
+                            }
                         }
                         MechanismDef::WageFloor { param } => {
                             p.ledger
                                 .insert("wage_uplift_pct".into(), p.param(param) * k);
+                            p.ledger.insert(
+                                "low_income_added_pct".into(),
+                                p.param(param) * k * net.wage_floor_net,
+                            );
                         }
                         MechanismDef::HazardProtection {
                             param, per_unit, ..
@@ -1196,10 +1299,11 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                             param,
                             per_unit,
                         } => {
-                            p.ledger.insert(
-                                format!("jobs_added_{}", sector_key(sector)),
-                                per_unit * p.param(param) * k,
-                            );
+                            let created = per_unit * p.param(param) * k;
+                            let s = sector_key(sector);
+                            p.ledger.insert(format!("jobs_created_{s}"), created);
+                            p.ledger
+                                .insert(format!("jobs_added_{s}"), created * net.jobs_net);
                         }
                         MechanismDef::Borrow { share } => {
                             p.ledger.insert("borrowed_pct".into(), share * 100.0);
@@ -1212,6 +1316,93 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             _ => {}
         }
     }
+}
+
+/// Homes a law started this month: counted (a programme's own) or
+/// estimated (private building a rule brought on, not booked as started).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum HomesStarted {
+    Exact(f64),
+    Estimated(f64),
+}
+
+/// A month of a housing programme in its ledger: `started` homes join the
+/// pipeline (`homes_building`), which completes over the construction lag
+/// (a first-order estimate of the fixed lag); `homes_added` is what the
+/// completions added to the stock, net of the private starts they displace
+/// (`net`) and of demolition since. `homes_started` is exact.
+pub fn record_homes(
+    ledger: &mut BTreeMap<String, f64>,
+    started: HomesStarted,
+    lag: f64,
+    demolition: f64,
+    net: f64,
+) {
+    let started = match started {
+        HomesStarted::Exact(n) => {
+            *ledger.entry("homes_started".into()).or_default() += n;
+            n
+        }
+        HomesStarted::Estimated(n) => n,
+    };
+    let building = ledger.get("homes_building").copied().unwrap_or(0.0) + started;
+    let done = building / lag.max(1.0);
+    ledger.insert("homes_building".into(), building - done);
+    let added =
+        ledger.get("homes_added").copied().unwrap_or(0.0) * (1.0 - demolition / 12.0) + done * net;
+    ledger.insert("homes_added".into(), added);
+}
+
+/// What a law delivers now, from its ledger (audit fix 3): jobs added
+/// (the sum of its `jobs_added_*` levels) and homes added a year (its
+/// pipeline completing, net); and what it pays a year per adult by class
+/// (at price level 1), the share by which it raises low incomes, and how far
+/// a rent cap holds rents down.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Delivered {
+    pub jobs: f64,
+    pub homes_per_year: f64,
+    pub paid: [f64; 3],
+    pub low_income_share: f64,
+    /// The share by which a rent cap holds rents below the market's (an
+    /// estimate; tenants keep it).
+    pub rent_held: f64,
+}
+
+pub fn delivered(
+    content: &ContentBundle,
+    t: &Resolved<'_>,
+    p: &PolicyInstance,
+    funded: f64,
+) -> Delivered {
+    let mut d = Delivered::default();
+    if p.status != PolicyStatus::InEffect {
+        return d;
+    }
+    let net = &content.economy.attribution;
+    let lag = content.economy.construction_lag_months.max(1) as f64;
+    d.jobs = p
+        .ledger
+        .iter()
+        .filter(|(k, _)| k.starts_with("jobs_added_"))
+        .map(|(_, v)| *v)
+        .sum();
+    d.homes_per_year =
+        p.ledger.get("homes_building").copied().unwrap_or(0.0) / lag * 12.0 * net.homes_net;
+    d.rent_held = p.ledger.get("rent_held_pct").copied().unwrap_or(0.0) / 100.0;
+    let k = p.progress as f64 * p.pilot_scale() * funded * t.effect_factor;
+    for mech in &t.mechanisms {
+        match mech {
+            MechanismDef::Transfer { class, param } => {
+                d.paid[class_index(*class)] += p.param(param) * k;
+            }
+            MechanismDef::WageFloor { param } => {
+                d.low_income_share += p.param(param) / 100.0 * k * net.wage_floor_net;
+            }
+            _ => {}
+        }
+    }
+    d
 }
 
 /// Short form of a sector's content key for ledger keys:

@@ -25,6 +25,11 @@ pub enum Indicator {
     TaxBurden,
     /// The town's debt as a share of its annual budget.
     BudgetStress,
+    /// Services delivered against need, as a shortfall: 1 − (the town's
+    /// discretionary budget in real terms per head, against the level its
+    /// budget rule aims for) − the service gains of laws in effect. 0 at
+    /// the start; above 0 after cuts, below 0 with better services.
+    ServiceShortfall,
     /// 1 just after a disaster, fading to 0 over two years.
     RecentDisaster,
     /// Share of the town's jobs lost over the last year (0 when jobs grew):
@@ -33,13 +38,14 @@ pub enum Indicator {
 }
 
 impl Indicator {
-    pub const ALL: [Indicator; 8] = [
+    pub const ALL: [Indicator; 9] = [
         Indicator::Unemployment,
         Indicator::UnemploymentRise,
         Indicator::RentBurden,
         Indicator::Pollution,
         Indicator::TaxBurden,
         Indicator::BudgetStress,
+        Indicator::ServiceShortfall,
         Indicator::RecentDisaster,
         Indicator::JobLoss,
     ];

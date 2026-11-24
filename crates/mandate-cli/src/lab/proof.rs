@@ -235,32 +235,32 @@ fn digests(
 /// (`BEFORE_ARCS` and the test below; all eight checked with
 /// `SPINE_PROOF_NO_ARCS=all`).
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
-    (2026, "idle", 96, "1e3b972b3b5abb07", "da5f10a54ca8de33"), // 1254 events
-    (2026, "mixed", 96, "923e5b3d25a4ef04", "385af4cc9b5ce86b"), // 2390 events
-    (7, "idle", 96, "69ca0ae3748c2891", "132d29526700f9fc"),    // 1146 events
-    (7, "corrupt", 96, "3b3fa70238acff2d", "4d095a3a1b9407cb"), // 1490 events
-    (31, "idle", 96, "5649ad10c492f916", "28702694276c8ec5"),   // 1290 events
+    (2026, "idle", 96, "ad33a87b73123b16", "3ec5aa226188ebe1"), // 1218 events
+    (2026, "mixed", 96, "2453df1ff9667333", "f5980b4536ca9832"), // 2169 events
+    (7, "idle", 96, "6c0cba6335fdb7a6", "ca4b7f26d742778f"),    // 1137 events
+    (7, "corrupt", 96, "edbc90befd2a68bb", "9da130809e304740"), // 1851 events
+    (31, "idle", 96, "cc219ec9c7cbb51d", "1c36dfe7e84774a3"),   // 1270 events
     (
         31,
         "explorer_legislator",
         96,
-        "3a542490ea1ec3f6",
-        "7276af5520373e41",
-    ), // 2132 events
+        "8d796d6967b23f47",
+        "3a931c1414089402",
+    ), // 2131 events
     (
         2026,
         "mixed+prison",
         96,
-        "012b16a022d7a492",
-        "08cf93baae8862c4",
-    ), // 1773 events
+        "dabacb86eeac72b0",
+        "be9c64ed6ddee51a",
+    ), // 1784 events
     (
         2026,
         "idle+six_years",
         120,
-        "10407e999451b859",
-        "0f82072b0f75f933",
-    ), // 1484 events
+        "2f74e2633390ebd8",
+        "e8905dfce1d4cdfd",
+    ), // 1465 events
 ];
 
 #[test]
@@ -332,14 +332,14 @@ fn the_spine_changes_no_outcome() {
 /// content and checks each against this table, else against `PINS`;
 /// `=print` prints them.
 const BEFORE_ARCS: [(u64, &str, u32, &str, &str); 2] = [
-    (31, "idle", 96, "397a0facb6fa3f58", "ee852502bc130b86"), // 1277 events
+    (31, "idle", 96, "8addb77a0d8dcb03", "c42e2524a89ae5f6"), // 1258 events
     (
         31,
         "explorer_legislator",
         96,
-        "fb722d09a2714fef",
-        "441520496d110d90",
-    ), // 2115 events
+        "5495f36e181abccf",
+        "ab201109bc51226e",
+    ), // 2118 events
 ];
 
 #[test]

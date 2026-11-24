@@ -17,6 +17,7 @@ mod policy;
 mod readability;
 mod sensitivity;
 mod stuck;
+mod twins;
 
 use mandate_content::ContentBundle;
 use serde_json::{Value, json};
@@ -25,7 +26,8 @@ use std::sync::Arc;
 #[derive(clap::Args, Clone)]
 pub struct AuditArgs {
     /// policy | believe | sensitivity | diverge | leverage | stuck |
-    /// readability | claims | gate (the nightly gate's cheap checks)
+    /// readability | ledgers | twins | claims | gate (the nightly gate's
+    /// cheap checks)
     pub topic: String,
     /// Seeds per scenario (or per run set).
     #[arg(long, default_value_t = 8)]
@@ -106,6 +108,10 @@ pub fn run(content: Arc<ContentBundle>, args: AuditArgs) -> Result<Value, String
         "leverage" => leverage::run(&cx)?,
         "stuck" => stuck::run(&cx)?,
         "readability" => readability::run(&cx)?,
+        // The ledger-against-twin rows of readability alone (audit fix 5).
+        "ledgers" => readability::ledgers(&cx)?,
+        // Part B of audit fix 8: the mechanisms that back the texts.
+        "twins" => twins::run(&cx)?,
         "claims" => claims::run(&cx)?,
         "gate" => gate(&cx)?,
         t => return Err(format!("unknown audit topic `{t}`")),

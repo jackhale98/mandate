@@ -10,10 +10,18 @@
       "unemployment": 12.0,     // per point of local unemployment rise beyond the national rise (a year)
       "unemployment_gap": 6.0, // per point of local unemployment above the nation's, now (the benchmarked level)
       "rent_growth": 2.0,      // per point of real rent growth (a year)
-      "services": 2.0,         // per unit of service improvement from laws in effect
+      "services": 1.2,         // per unit of service improvement from laws in effect
+      "service_budget": 1.0,   // per unit of the town's budget against what its budget rule aims for (1 = need)
       "disaster": 0.3,         // while a disaster is recent
       "disaster_months": 6,
       "disruption": 1.5,       // per unit of construction disruption
+      // What laws deliver now (audit fix 3), from their ledgers' net "added"
+      // quantities and what they pay; zero without laws, felt by those reached.
+      "delivered": {
+        "jobs": 8.0,           // per unit of jobs added over the labour force (working ages)
+        "income": 10.0,        // per unit of income paid or raised over the class's income
+        "homes": 120.0,        // per unit of homes added in a year over the stock (low and middle classes)
+      },
     },
     "policy_reaction": 2.0,        // a bill or law's anticipated reaction per unit of awareness
     "law_reaction_weight": 0.6,    // laws beside experience in government approval

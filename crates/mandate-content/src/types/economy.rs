@@ -256,6 +256,67 @@ pub struct EconomyParams {
     /// private building (`economy::housing`).
     #[serde(default)]
     pub housing: HousingParams,
+    /// What a jurisdiction pays to borrow: a spread over the policy rate by
+    /// tier that grows with its debt against its revenue (`finance::accrue`).
+    #[serde(default)]
+    pub borrowing: BorrowingParams,
+    /// Coefficients that turn a law's direct counts into what it added to
+    /// the town, net (its ledger's "added" entries, audit fix 5; the same
+    /// for every template).
+    #[serde(default)]
+    pub attribution: AttributionParams,
+}
+
+/// Borrowing costs (`finance::accrue`): spread = the tier's spread +
+/// `per_ratio` × (debt ÷ a year's revenue − the tier's `free_ratio`), from 0
+/// to `max_extra`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BorrowingParams {
+    /// Spread over the policy rate at a prudent debt: local, regional, national.
+    pub spreads: [f64; 3],
+    /// Debt, in years of revenue, that lenders do not price, by tier
+    /// (local, regional, national).
+    pub free_ratio: [f64; 3],
+    /// Added spread per year of revenue owed beyond `free_ratio`.
+    pub per_ratio: f64,
+    /// The most the spread rises above the tier's.
+    pub max_extra: f64,
+}
+
+impl Default for BorrowingParams {
+    fn default() -> Self {
+        BorrowingParams {
+            spreads: [0.012, 0.008, 0.0],
+            free_ratio: [0.2, 0.5, 4.0],
+            per_ratio: 0.02,
+            max_extra: 0.06,
+        }
+    }
+}
+
+/// Pass-through of a law's direct counts to what it added, net (the
+/// ledger's "added" estimates; measured on twins by the audit).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AttributionParams {
+    /// Share of a public programme's completed homes that private building
+    /// would not have built anyway (1 − the starts it displaces).
+    pub homes_net: f64,
+    /// Sector jobs added per job a subsidy supports (or a programme creates).
+    pub jobs_net: f64,
+    /// Low incomes' rise per unit of wage-floor uplift.
+    pub wage_floor_net: f64,
+}
+
+impl Default for AttributionParams {
+    fn default() -> Self {
+        AttributionParams {
+            homes_net: 1.0,
+            jobs_net: 1.0,
+            wage_floor_net: 1.0,
+        }
+    }
 }
 
 /// The town housing market (`economy::housing`). Rent clears vacancy;
@@ -300,6 +361,9 @@ pub struct HousingParams {
     pub starts_vacancy_response: f64,
     /// Most private starts, as a multiple of the baseline.
     pub starts_max: f64,
+    /// Share of the vacancy signal builders still answer while a rent cap
+    /// binds (a shortage promises no rise in rents they may charge).
+    pub capped_vacancy_signal: f64,
 }
 
 impl Default for HousingParams {
@@ -319,6 +383,7 @@ impl Default for HousingParams {
             starts_price_response: 4.0,
             starts_vacancy_response: 20.0,
             starts_max: 3.0,
+            capped_vacancy_signal: 0.0,
         }
     }
 }

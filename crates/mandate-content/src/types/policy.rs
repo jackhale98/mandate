@@ -99,6 +99,16 @@ pub enum MechanismDef {
     HousingSupply { param: String },
     /// Multiplies private housing starts by (1 + per_unit × param).
     Zoning { param: String, per_unit: f64 },
+    /// Caps how fast rent may rise while the law is in force: at a level
+    /// above 0, rent may grow at most `loosest` + `per_unit` × (level − 1)
+    /// a year (nominal). Level 0 caps nothing. The housing market does the
+    /// rest: excess demand shows as a shortage, returns and starts fall,
+    /// and rent catches up once the cap lifts.
+    RentCap {
+        param: String,
+        loosest: f64,
+        per_unit: f64,
+    },
     /// Subsidy as a share of a sector's wage bill; jobs respond with `elasticity`.
     SectorSubsidy {
         /// Content key of the sector, e.g. `sector.retail`.
@@ -146,6 +156,7 @@ impl MechanismDef {
             | M::Transfer { param, .. }
             | M::HousingSupply { param }
             | M::Zoning { param, .. }
+            | M::RentCap { param, .. }
             | M::SectorSubsidy { param, .. }
             | M::WageFloor { param }
             | M::HazardProtection { param, .. }
@@ -178,6 +189,7 @@ impl MechanismDef {
             M::Transfer { .. } => "transfer",
             M::HousingSupply { .. } => "housing_supply",
             M::Zoning { .. } => "zoning",
+            M::RentCap { .. } => "rent_cap",
             M::SectorSubsidy { .. } => "sector_subsidy",
             M::WageFloor { .. } => "wage_floor",
             M::HazardProtection { .. } => "hazard_protection",
@@ -228,6 +240,13 @@ pub struct PolicyTemplate {
     pub signature_weights: Vec<f64>,
     /// Fluent keys for at least one secondary effect (REQ-006).
     pub secondary_keys: Vec<String>,
+    /// What backs each secondary line (audit fix 8): a mechanism or side
+    /// effect of this template by its type (`rent_cap`, `grievance`), `cost`
+    /// (its money), or `measured:<metric>` (a side effect the audit measures
+    /// on twins, `SECONDARY_MEASURED`). Validation requires one for every
+    /// key, so a claim with nothing behind it cannot return unnoticed.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub secondary_backing: BTreeMap<String, String>,
     /// Simulated downsides (DEC-073): every policy costs something besides money.
     #[serde(default)]
     pub side_effects: Vec<SideEffectDef>,
@@ -244,6 +263,25 @@ pub struct PolicyTemplate {
     #[serde(default, skip_serializing_if = "is_false")]
     pub retired: bool,
 }
+
+/// Side effects a secondary line may cite as `measured:<metric>`: metrics
+/// the policy audit measures on twins (`mandate-cli audit policy`, `twins`).
+pub const SECONDARY_MEASURED: &[&str] = &[
+    "rent_pct",
+    "population_pct",
+    "labour_force_pct",
+    "starts_index",
+    "spread_bp",
+    "jobs_pct",
+    "jobs_agriculture_pct",
+    "jobs_construction_pct",
+    "jobs_knowledge_pct",
+    "jobs_manufacturing_pct",
+    "jobs_public_pct",
+    "jobs_resources_pct",
+    "jobs_retail_pct",
+    "jobs_tourism_pct",
+];
 
 // --- Situations (DEC-077 §3; reused by DEC-092 policy-family triggers) ------------
 

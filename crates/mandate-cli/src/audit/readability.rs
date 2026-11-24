@@ -91,29 +91,33 @@ fn large_changes(hs: &[History]) -> Value {
 }
 
 /// The bill's "Why?" ledger against the twin-measured effect, at month 36.
-fn ledgers(cx: &Ctx) -> Result<Value, String> {
-    // (template, ledger key, twin metric, ledger-to-twin unit)
-    let checks: [(&str, &str, &str); 6] = [
-        ("policy.affordable_housing", "homes_built", "housing_stock"),
-        ("policy.rebuild_fund", "homes_built", "housing_stock"),
+pub fn ledgers(cx: &Ctx) -> Result<Value, String> {
+    // (template, ledger key, twin metric). The ledger's "added" entries
+    // (audit fix 5: net of displaced private building and of demolition,
+    // estimated with one coefficient for every template) against the twin;
+    // "started" and "supported" are exact counts and are not compared.
+    let checks: [(&str, &str, &str); 7] = [
+        ("policy.affordable_housing", "homes_added", "housing_stock"),
+        ("policy.rebuild_fund", "homes_added", "housing_stock"),
+        ("policy.upzoning", "homes_added", "housing_stock"),
         (
             "policy.small_business_grants",
-            "jobs_supported_retail",
+            "jobs_added_retail",
             "jobs.retail",
         ),
         (
             "policy.tech_incubator",
-            "jobs_supported_knowledge",
+            "jobs_added_knowledge",
             "jobs.knowledge",
         ),
         (
             "policy.closure_response",
-            "jobs_supported_manufacturing",
+            "jobs_added_manufacturing",
             "jobs.manufacturing",
         ),
         (
             "policy.local_wage_floor",
-            "wage_uplift_pct",
+            "low_income_added_pct",
             "income_low_pct",
         ),
     ];

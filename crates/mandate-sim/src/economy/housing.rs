@@ -100,14 +100,38 @@ pub fn starts_index(h: &Housing) -> f64 {
     h.last_starts / h.base_starts.max(1e-9)
 }
 
+/// What the town's rules ask of its housing market this month.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Rules {
+    /// Homes public programmes start a year.
+    pub public_units_per_year: f64,
+    /// Scales private starts (zoning).
+    pub starts_multiplier: f64,
+    /// The property tax rate in force (share of value a year).
+    pub property_tax: f64,
+    /// The most rent may rise in a year while a cap is in force.
+    pub rent_cap: Option<f64>,
+}
+
+impl Rules {
+    /// No programmes, no zoning change, no cap, the content's tax rate.
+    pub fn none(e: &EconomyParams) -> Self {
+        Rules {
+            public_units_per_year: 0.0,
+            starts_multiplier: 1.0,
+            property_tax: e.taxes.property,
+            rent_cap: None,
+        }
+    }
+}
+
 pub fn step(
     h: &mut Housing,
     policy_rate: f64,
     inflation: f64,
     price_level: f64,
     e: &EconomyParams,
-    public_units_per_year: f64,
-    starts_multiplier: f64,
+    rules: &Rules,
 ) {
     let p = &e.housing;
     // Completions arrive; new starts join the back of the pipeline.
@@ -121,24 +145,44 @@ pub fn step(
         VACANCY_BOUNDS.1,
     );
     let gap = e.target_vacancy - h.vacancy;
-    h.rent *= 1.0 + gap * p.rent_response + inflation / 12.0;
-    // Price: the rent capitalised at the user cost of housing, against the
-    // neutral rate's (at which a year's rent is `rent_yield` of the price).
-    // Expected prices keep up with inflation; the gap closes slowly.
+    // Rent clears vacancy, unless a cap holds it (excess demand then shows
+    // as a shortage: households form at the capped rent).
+    let growth = gap * p.rent_response + inflation / 12.0;
+    let capped = rules.rent_cap.is_some_and(|c| growth > c / 12.0);
+    h.rent *= 1.0
+        + match rules.rent_cap {
+            Some(c) if capped => c / 12.0,
+            _ => growth,
+        };
+    // Price: the rent net of the property tax, capitalised at the user cost
+    // of housing (the real rate, a risk premium and the tax), against the
+    // neutral rate's and the content's tax rate (at which a year's rent is
+    // `rent_yield` of the price). A higher tax lowers what a home is worth
+    // at once. Expected prices keep up with inflation; the gap closes slowly.
     let real_rate = (policy_rate - inflation).max(-0.02);
-    let user_cost = |r: f64| (r + p.risk_premium).max(0.02);
-    let multiple = user_cost(e.neutral_real_rate) / user_cost(real_rate) / p.rent_yield;
+    let user_cost = |r: f64, tax: f64| (r + p.risk_premium + tax.max(0.0)).max(0.02);
+    let multiple = user_cost(e.neutral_real_rate, e.taxes.property)
+        / user_cost(real_rate, rules.property_tax)
+        / p.rent_yield;
     let target_price = h.rent * 12.0 * multiple;
     h.price *= 1.0 + inflation / 12.0;
     h.price += (target_price - h.price) * p.price_adjustment;
-    // Builders: price over build cost (1 at the start) and vacancy.
+    // Builders: price over build cost (1 at the start) and vacancy; a
+    // shortage under a binding cap promises them no higher rents.
     let q = h.price * p.build_cost_share / (h.build_cost * price_level).max(1.0);
     let neutral_rate = e.neutral_real_rate + e.inflation_target;
     let rate_factor = clamp(1.0 - (policy_rate - neutral_rate) * 8.0, 0.3, 1.6);
-    let signal = 1.0 + (q - 1.0) * p.starts_price_response + gap * p.starts_vacancy_response;
+    let vacancy_signal = if capped {
+        gap * p.capped_vacancy_signal
+    } else {
+        gap
+    };
+    let signal =
+        1.0 + (q - 1.0) * p.starts_price_response + vacancy_signal * p.starts_vacancy_response;
     // Zoning scales private building; public programmes add homes directly.
-    let starts = h.base_starts * clamp(signal, 0.0, p.starts_max) * rate_factor * starts_multiplier
-        + public_units_per_year / 12.0;
+    let starts =
+        h.base_starts * clamp(signal, 0.0, p.starts_max) * rate_factor * rules.starts_multiplier
+            + rules.public_units_per_year / 12.0;
     h.pipeline.push(starts);
     h.last_starts = starts;
 }
@@ -182,7 +226,14 @@ mod tests {
             for _ in 0..240 {
                 adults += 10_000.0 * e.housing.base_growth / 12.0;
                 pl *= 1.0 + e.inflation_target / 12.0;
-                step(&mut h, neutral, e.inflation_target, pl, &e, 0.0, 1.0);
+                step(
+                    &mut h,
+                    neutral,
+                    e.inflation_target,
+                    pl,
+                    &e,
+                    &Rules::none(&e),
+                );
                 h.households = households(adults, h.rent, income * pl, &e.housing);
                 assert!(
                     (starts_index(&h) - 1.0).abs() < 0.02,
@@ -214,13 +265,76 @@ mod tests {
         let mut adults = 10_000.0;
         for _ in 0..360 {
             adults *= 1.0 + 0.02 / 12.0;
-            step(&mut h, neutral, 0.0, 1.0, &e, 0.0, 1.0);
+            step(&mut h, neutral, 0.0, 1.0, &e, &Rules::none(&e));
             h.households = households(adults, h.rent, income, &e.housing);
         }
         let burden = h.rent * 12.0 / income;
         assert!(burden < 0.5, "burden {burden}");
         assert!(starts_index(&h) > 1.5, "starts {}", starts_index(&h));
         assert!(h.vacancy > -0.02, "vacancy {}", h.vacancy);
+    }
+
+    /// A higher property tax lowers what a home is worth at once (the price
+    /// follows rent net of the tax), so builders start fewer homes; the
+    /// stock then falls behind, and vacancy with it.
+    #[test]
+    fn the_property_tax_reaches_prices_and_starts() {
+        let e = params();
+        let neutral = e.neutral_real_rate + e.inflation_target;
+        let (mut a, _) = start(&e, 0.19);
+        let mut b = a.clone();
+        let taxed = Rules {
+            property_tax: e.taxes.property + 0.001,
+            ..Rules::none(&e)
+        };
+        for _ in 0..24 {
+            step(&mut a, neutral, 0.0, 1.0, &e, &Rules::none(&e));
+            step(&mut b, neutral, 0.0, 1.0, &e, &taxed);
+        }
+        assert!(b.price < a.price * 0.995, "{} vs {}", b.price, a.price);
+        assert!(
+            b.last_starts < a.last_starts,
+            "{} vs {}",
+            b.last_starts,
+            a.last_starts
+        );
+        assert!(b.stock < a.stock);
+    }
+
+    /// A rent cap holds rent growth to the cap while demand presses (the
+    /// shortage shows as vacancy below target), prices (what building
+    /// returns) fall with it, and rent jumps once the cap lifts.
+    #[test]
+    fn a_rent_cap_holds_rents_and_they_catch_up() {
+        let e = params();
+        let neutral = e.neutral_real_rate + e.inflation_target;
+        let (mut free, income) = start(&e, 0.19);
+        let mut capped = free.clone();
+        let cap = Rules {
+            rent_cap: Some(0.0),
+            ..Rules::none(&e)
+        };
+        let mut adults = 10_000.0;
+        for _ in 0..36 {
+            adults *= 1.0 + 0.03 / 12.0;
+            let r0 = capped.rent;
+            step(&mut free, neutral, 0.0, 1.0, &e, &Rules::none(&e));
+            step(&mut capped, neutral, 0.0, 1.0, &e, &cap);
+            assert!(capped.rent <= r0 * (1.0 + 1e-12));
+            free.households = households(adults, free.rent, income, &e.housing);
+            capped.households = households(adults, capped.rent, income, &e.housing);
+        }
+        assert!(capped.rent < free.rent);
+        assert!(capped.vacancy < free.vacancy);
+        // Returns fall with the rents builders may charge.
+        assert!(capped.price < free.price);
+        let before = capped.rent;
+        step(&mut capped, neutral, 0.0, 1.0, &e, &Rules::none(&e));
+        assert!(
+            capped.rent / before - 1.0 > 0.003,
+            "{}",
+            capped.rent / before
+        );
     }
 
     /// Zoning scales private building once builders are building.
@@ -230,8 +344,12 @@ mod tests {
         let neutral = e.neutral_real_rate + e.inflation_target;
         let (mut a, _) = start(&e, 0.19);
         let mut b = a.clone();
-        step(&mut a, neutral, 0.0, 1.0, &e, 0.0, 1.0);
-        step(&mut b, neutral, 0.0, 1.0, &e, 0.0, 1.5);
+        step(&mut a, neutral, 0.0, 1.0, &e, &Rules::none(&e));
+        let zoned = Rules {
+            starts_multiplier: 1.5,
+            ..Rules::none(&e)
+        };
+        step(&mut b, neutral, 0.0, 1.0, &e, &zoned);
         assert!((b.last_starts / a.last_starts - 1.5).abs() < 1e-9);
     }
 }

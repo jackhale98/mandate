@@ -150,6 +150,8 @@ pub(super) fn option_score(
             // Knowledge never sways a bot's choice (DEC-091: it costs
             // effectiveness, never fairness; K4 adds the effectiveness).
             EffectDef::Learn { .. } | EffectDef::RevealPlace { .. } => 0.0,
+            // A bot's taste has no term for the town's air or its industry.
+            EffectDef::Inspection { .. } => 0.0,
             // A rider or a favour called in helps a bill pass; a favour
             // called in is spent.
             EffectDef::Rider { .. } => 0.5 * t.draft,

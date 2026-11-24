@@ -123,7 +123,13 @@ fn state_shape_matches_format_version() {
     // player's town, so its shape is the one it had. The version moves
     // because a v27 save may hold them and a v26 build cannot read them.
     // Migration: `staged_arcs`.
-    const EXPECTED: (u16, &str) = (27, "e90c9a8a50934436");
+    // e90c9a8a50934436 -> c1e247b2e590b190: delivered results in approval
+    // and honest ledgers (audit fixes 3, 5, 8). No serialized struct
+    // changed: a law's ledger (a map) has new keys (`homes_started`,
+    // `homes_building`, `homes_added`, `jobs_added_*`, ...) in place of
+    // `homes_built`, which an older build reads as any other key, and the
+    // sample game's contents moved; the version stays 27.
+    const EXPECTED: (u16, &str) = (27, "c1e247b2e590b190");
     let c = content();
     let mut e = generate(
         &WorldConfig {

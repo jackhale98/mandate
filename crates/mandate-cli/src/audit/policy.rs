@@ -21,6 +21,8 @@ pub fn town_delta(b: &Town, t: &Town) -> BTreeMap<String, f64> {
     );
     put("wage_pct", pct(b.mean_wage, t.mean_wage));
     put("income_low_pct", pct(b.income[0], t.income[0]));
+    put("income_middle_pct", pct(b.income[1], t.income[1]));
+    put("income_high_pct", pct(b.income[2], t.income[2]));
     put("real_wage_pct", pct(b.real_wage, t.real_wage));
     put("rent_pct", pct(b.rent, t.rent));
     put("rent_burden_pts", (t.rent_burden - b.rent_burden) * 100.0);
@@ -80,6 +82,11 @@ pub fn expectations(t: &PolicyTemplate) -> Vec<(String, f64, String)> {
             MechanismDef::HousingSupply { .. } => {
                 add("housing_stock_pct", 1.0, "housing_supply: homes built");
                 add(
+                    "gov_approval_low_pts",
+                    1.0,
+                    "housing_supply: those it houses feel the homes added",
+                );
+                add(
                     "rent_pct",
                     -1.0,
                     "housing_supply: rents ease as supply grows",
@@ -94,6 +101,18 @@ pub fn expectations(t: &PolicyTemplate) -> Vec<(String, f64, String)> {
                 let s = per_unit.signum();
                 add("housing_stock_pct", s, "zoning: private building changes");
                 add("rent_pct", -s, "zoning: rents follow supply");
+            }
+            MechanismDef::RentCap { .. } => {
+                add(
+                    "rent_pct",
+                    -1.0,
+                    "rent_cap: rents held down while it is in force",
+                );
+                add(
+                    "housing_stock_pct",
+                    -1.0,
+                    "rent_cap: returns fall, so fewer homes are started",
+                );
             }
             MechanismDef::SectorSubsidy { sector, .. } => {
                 let k = sector.trim_start_matches("sector.");
@@ -112,13 +131,30 @@ pub fn expectations(t: &PolicyTemplate) -> Vec<(String, f64, String)> {
                 let k = sector.trim_start_matches("sector.");
                 add(&format!("jobs_{k}_pct"), 1.0, "sector_capacity: jobs added");
             }
-            MechanismDef::Transfer { .. } => {
-                add("income_low_pct", 1.0, "transfer: recipients' income rises");
-                add("gov_approval_pts", 1.0, "transfer: recipients better off");
+            MechanismDef::Transfer { class, .. } => {
+                let name = CLASS_NAMES[mandate_sim::policy::class_index(*class)];
+                add(
+                    &format!("income_{name}_pct"),
+                    1.0,
+                    "transfer: recipients' income rises",
+                );
+                // The recipients' own approval (audit fix 3): the claim is
+                // about them, not the town (a levy with a rebate can cost
+                // the town's approval and still leave the rebated better off).
+                add(
+                    &format!("gov_approval_{name}_pts"),
+                    1.0,
+                    "transfer: recipients better off",
+                );
             }
             MechanismDef::WageFloor { .. } => {
                 add("income_low_pct", 1.0, "wage_floor: low pay rises");
                 add("jobs_pct", -1.0, "wage_floor: some low-paid jobs go");
+                add(
+                    "gov_approval_low_pts",
+                    1.0,
+                    "wage_floor: the low-paid feel the rise",
+                );
             }
             MechanismDef::LocalTaxRate { .. } => {
                 let s = t
@@ -164,6 +200,50 @@ struct Row {
 
 const SAMPLES: [u32; 3] = [12, 36, 60];
 
+/// The town government's approval by income class (low, middle, high),
+/// count-weighted over the town's neighbourhoods.
+fn class_approval(g: &Game, town: u32) -> [f64; 3] {
+    let st = g.e.state();
+    let mut acc = [0.0; 3];
+    let mut n = [0.0; 3];
+    if let Some(mu) = st.world.municipalities.get(town as usize) {
+        for h in &mu.neighborhoods {
+            for (ci, c) in st.population.hoods[h.index()].cohorts.iter().enumerate() {
+                let k = mandate_sim::population::class_of(ci);
+                acc[k] += c.gov_approval as f64 * c.count as f64;
+                n[k] += c.count as f64;
+            }
+        }
+    }
+    std::array::from_fn(|k| if n[k] > 0.0 { acc[k] / n[k] } else { 0.0 })
+}
+
+/// Run to `months`, sampling at `samples`, with each sample's class
+/// approvals in the home town.
+fn run_sampled(
+    g: &mut Game,
+    months: u32,
+    samples: &[u32],
+    town: u32,
+) -> (Vec<crate::lab::metrics::Snapshot>, Vec<[f64; 3]>) {
+    let mut snaps = Vec::new();
+    let mut classes = Vec::new();
+    for &m in samples {
+        g.run_to(m, samples, &mut snaps);
+        classes.push(class_approval(g, town));
+    }
+    g.run_to(months, &[], &mut Vec::new());
+    (snaps, classes)
+}
+
+const CLASS_NAMES: [&str; 3] = ["low", "middle", "high"];
+
+fn put_classes(m: &mut BTreeMap<String, f64>, b: &[f64; 3], t: &[f64; 3]) {
+    for (k, name) in CLASS_NAMES.iter().enumerate() {
+        m.insert(format!("gov_approval_{name}_pts"), (t[k] - b[k]) * 100.0);
+    }
+}
+
 fn home_town(g: &Game, s: &crate::lab::metrics::Snapshot) -> Town {
     s.towns.get(g.home() as usize).cloned().unwrap_or_default()
 }
@@ -185,8 +265,7 @@ fn world(
     let home = g.home();
     let samples: Vec<u32> = SAMPLES.iter().copied().filter(|m| *m <= months).collect();
     let mut b = g.fork()?;
-    let mut base = Vec::new();
-    b.run_to(months, &samples, &mut base);
+    let (base, base_classes) = run_sampled(&mut b, months, &samples, home);
     let class = base
         .first()
         .and_then(|s| s.towns.get(home as usize))
@@ -220,8 +299,7 @@ fn world(
         let mut x = g.fork()?;
         let id = x.e.state().policy.instances.len();
         x.intervene(&iv)?;
-        let mut treated = Vec::new();
-        x.run_to(months, &samples, &mut treated);
+        let (treated, classes) = run_sampled(&mut x, months, &samples, home);
         let st = x.e.state();
         let inst = st.policy.instances.get(id);
         let funded = inst.map(|p| st.finance.funded_share(p.id.0)).unwrap_or(0.0);
@@ -232,8 +310,12 @@ fn world(
             .filter(|(k, w)| tr.iter().any(|(k2, w2)| k2 == k && w2 != w))
             .count() as u32;
         let mut at = BTreeMap::new();
-        for (sb, sx) in base.iter().zip(&treated) {
-            at.insert(sb.month, town_delta(&home_town(&b, sb), &home_town(&x, sx)));
+        for (i, (sb, sx)) in base.iter().zip(&treated).enumerate() {
+            let mut d = town_delta(&home_town(&b, sb), &home_town(&x, sx));
+            if let (Some(cb), Some(cx)) = (base_classes.get(i), classes.get(i)) {
+                put_classes(&mut d, cb, cx);
+            }
+            at.insert(sb.month, d);
         }
         // Protection only shows when the hazard strikes: a flood at month
         // 30 in both arms, read at 36.
@@ -306,8 +388,22 @@ fn rows(cx: &Ctx, months: u32) -> Result<Vec<Row>, String> {
 }
 
 /// Metrics shown in the summary table for every template.
-const KEY: [&str; 13] = [
+const KEY: [&str; 27] = [
+    "jobs_agriculture_pct",
+    "jobs_construction_pct",
+    "jobs_knowledge_pct",
+    "jobs_manufacturing_pct",
+    "jobs_public_pct",
+    "jobs_resources_pct",
+    "jobs_retail_pct",
+    "jobs_tourism_pct",
+    "labour_force_pct",
+    "starts_index",
+    "debt_per_head",
     "income_low_pct",
+    "gov_approval_low_pts",
+    "gov_approval_middle_pts",
+    "gov_approval_high_pts",
     "unemployment_pts",
     "wage_pct",
     "rent_pct",

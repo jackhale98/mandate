@@ -94,10 +94,33 @@ pub struct ExperienceWeights {
     pub rent_growth: f64,
     /// Per unit of service improvement from laws in effect.
     pub services: f64,
+    /// Per unit of the town's budget against the level its budget rule aims
+    /// for (1 at need): baseline services that programmes crowd out and
+    /// taxes fund (audit fix 3).
+    pub service_budget: f64,
     /// While a disaster is recent.
     pub disaster: f64,
     /// Months a disaster stays recent.
     pub disaster_months: u16,
     /// Per unit of construction disruption.
     pub disruption: f64,
+    /// What laws deliver (audit fix 3), felt by those they reach; zero
+    /// without laws.
+    pub delivered: DeliveredWeights,
+}
+
+/// Credit for a law's delivered results, in approval units per unit of
+/// what it delivers now (its ledger's net "added" quantities and what it pays).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DeliveredWeights {
+    /// Per unit of jobs added (a share of the town's labour force), felt by
+    /// working-age residents.
+    pub jobs: f64,
+    /// Per unit of income paid or raised (a share of the class's income),
+    /// felt by that class.
+    pub income: f64,
+    /// Per unit of homes added in a year (a share of the stock), felt by
+    /// the low and middle classes.
+    pub homes: f64,
 }

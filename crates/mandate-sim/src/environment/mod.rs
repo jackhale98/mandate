@@ -120,6 +120,21 @@ pub fn boost_repairs(
     });
 }
 
+/// The most an inspection cuts a region's pollution at once.
+pub const ABATE_MAX: f64 = 0.5;
+
+/// A region's pollution falls by `share` at once (an inspection made an
+/// operator clean up, `Effect::Abate`); the monthly drift then brings it
+/// back as industry keeps working. The environment's own change.
+pub fn abate(env: &mut EnvironmentState, region: usize, share: f64) {
+    if let Some(e) = env.regions.get_mut(region)
+        && share.is_finite()
+        && share > 0.0
+    {
+        e.pollution *= 1.0 - share.min(ABATE_MAX);
+    }
+}
+
 /// Environment domain, daily: repairs other domains asked for.
 pub fn effects(env: &mut EnvironmentState, r: &Reads<'_>, out: &mut Outs<'_>) {
     for q in out.take(|e| matches!(e, Effect::Recovery { .. })) {

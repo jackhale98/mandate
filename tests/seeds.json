@@ -40,11 +40,11 @@
     "needs": "the first key figure answers topic.who_runs with a spoken reply"
   },
   "plant_closure_crisis_starts_clean": {
-    "seed": 12,
+    "seed": 14,
     "needs": "a town with an industry and no closure crisis at the start, one after a shock and none three years on"
   },
   "player_race_for_the_executive_within_30_turns": {
-    "seed": 11,
+    "seed": 12,
     "needs": "a medium world where filing for the executive office puts the player in its race within 30 turns"
   },
   "promises_reachable_by_skipping": {

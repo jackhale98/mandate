@@ -34,6 +34,24 @@
       "starts_price_response": 4.0,         // per unit price over cost
       "starts_vacancy_response": 20.0,      // per unit vacancy below target
       "starts_max": 3.0,                    // × the baseline
+      "capped_vacancy_signal": 0.5,         // share of the vacancy signal builders answer while a rent cap binds
+    },
+    // Borrowing costs (finance::accrue): the tier's spread, plus per_ratio ×
+    // (debt over a year's revenue − free_ratio), at most max_extra more. A
+    // prudent jurisdiction pays its tier's spread.
+    "borrowing": {
+      "spreads": [0.012, 0.008, 0.0],       // local, regional, national
+      "free_ratio": [0.2, 0.5, 4.0],        // years of revenue owed that lenders ignore (the nation borrows by design)
+      "per_ratio": 0.02,
+      "max_extra": 0.06,
+    },
+    // A law's ledger (audit fix 5): direct counts are exact; "added" entries
+    // are the direct count × these coefficients, the same for every template
+    // (measured on twins by `audit readability`).
+    "attribution": {
+      "homes_net": 0.6,                     // completed public homes net of the private starts they displace
+      "jobs_net": 0.8,                      // sector jobs added per job supported
+      "wage_floor_net": 0.65,               // low incomes' rise per unit of wage-floor uplift
     },
     "taxes": {
       "property": 0.009,

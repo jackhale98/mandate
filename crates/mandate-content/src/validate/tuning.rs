@@ -233,6 +233,30 @@ pub fn param_ranges(b: &ContentBundle) -> Vec<(String, f64, f64, f64)> {
         120.0,
     );
     r("opinion.experience.disruption", e.disruption, 0.0, 100.0);
+    r(
+        "opinion.experience.service_budget",
+        e.service_budget,
+        0.0,
+        100.0,
+    );
+    r(
+        "opinion.experience.delivered.jobs",
+        e.delivered.jobs,
+        0.0,
+        100.0,
+    );
+    r(
+        "opinion.experience.delivered.income",
+        e.delivered.income,
+        0.0,
+        100.0,
+    );
+    r(
+        "opinion.experience.delivered.homes",
+        e.delivered.homes,
+        0.0,
+        1000.0,
+    );
     r("opinion.policy_reaction", o.policy_reaction, 0.0, 20.0);
     r(
         "opinion.law_reaction_weight",

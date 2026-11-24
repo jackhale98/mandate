@@ -1470,6 +1470,33 @@
       ],
       "type": "object"
     },
+    "AttributionParams": {
+      "additionalProperties": false,
+      "description": "Pass-through of a law's direct counts to what it added, net (the\nledger's \"added\" estimates; measured on twins by the audit).",
+      "properties": {
+        "homes_net": {
+          "description": "Share of a public programme's completed homes that private building\nwould not have built anyway (1 − the starts it displaces).",
+          "format": "double",
+          "type": "number"
+        },
+        "jobs_net": {
+          "description": "Sector jobs added per job a subsidy supports (or a programme creates).",
+          "format": "double",
+          "type": "number"
+        },
+        "wage_floor_net": {
+          "description": "Low incomes' rise per unit of wage-floor uplift.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "homes_net",
+        "jobs_net",
+        "wage_floor_net"
+      ],
+      "type": "object"
+    },
     "AudienceDef": {
       "additionalProperties": false,
       "description": "Who follows an outlet: relative weights by income class and age band.",
@@ -2003,6 +2030,49 @@
       "required": [
         "ally_above",
         "rival_below"
+      ],
+      "type": "object"
+    },
+    "BorrowingParams": {
+      "additionalProperties": false,
+      "description": "Borrowing costs (`finance::accrue`): spread = the tier's spread +\n`per_ratio` × (debt ÷ a year's revenue − the tier's `free_ratio`), from 0\nto `max_extra`.",
+      "properties": {
+        "free_ratio": {
+          "description": "Debt, in years of revenue, that lenders do not price, by tier\n(local, regional, national).",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "max_extra": {
+          "description": "The most the spread rises above the tier's.",
+          "format": "double",
+          "type": "number"
+        },
+        "per_ratio": {
+          "description": "Added spread per year of revenue owed beyond `free_ratio`.",
+          "format": "double",
+          "type": "number"
+        },
+        "spreads": {
+          "description": "Spread over the policy rate at a prudent debt: local, regional, national.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        }
+      },
+      "required": [
+        "spreads",
+        "free_ratio",
+        "per_ratio",
+        "max_extra"
       ],
       "type": "object"
     },
@@ -5605,6 +5675,33 @@
       ],
       "type": "string"
     },
+    "DeliveredWeights": {
+      "additionalProperties": false,
+      "description": "Credit for a law's delivered results, in approval units per unit of\nwhat it delivers now (its ledger's net \"added\" quantities and what it pays).",
+      "properties": {
+        "homes": {
+          "description": "Per unit of homes added in a year (a share of the stock), felt by\nthe low and middle classes.",
+          "format": "double",
+          "type": "number"
+        },
+        "income": {
+          "description": "Per unit of income paid or raised (a share of the class's income),\nfelt by that class.",
+          "format": "double",
+          "type": "number"
+        },
+        "jobs": {
+          "description": "Per unit of jobs added (a share of the town's labour force), felt by\nworking-age residents.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "jobs",
+        "income",
+        "homes"
+      ],
+      "type": "object"
+    },
     "DilemmaCategory": {
       "description": "The weight of a decision in the director's budgets.",
       "oneOf": [
@@ -6612,6 +6709,15 @@
       "additionalProperties": false,
       "description": "Economy and demography parameters (REQ-005).",
       "properties": {
+        "attribution": {
+          "$ref": "#/$defs/AttributionParams",
+          "default": {
+            "homes_net": 1.0,
+            "jobs_net": 1.0,
+            "wage_floor_net": 1.0
+          },
+          "description": "Coefficients that turn a law's direct counts into what it added to\nthe town, net (its ledger's \"added\" entries, audit fix 5; the same\nfor every template)."
+        },
         "base_dwelling_price": {
           "description": "Average dwelling price at price level 1.0.",
           "format": "double",
@@ -6621,6 +6727,24 @@
           "description": "Births per adult aged 18–44 per year.",
           "format": "double",
           "type": "number"
+        },
+        "borrowing": {
+          "$ref": "#/$defs/BorrowingParams",
+          "default": {
+            "free_ratio": [
+              0.2,
+              0.5,
+              4.0
+            ],
+            "max_extra": 0.06,
+            "per_ratio": 0.02,
+            "spreads": [
+              0.012,
+              0.008,
+              0.0
+            ]
+          },
+          "description": "What a jurisdiction pays to borrow: a spread over the policy rate by\ntier that grows with its debt against its revenue (`finance::accrue`)."
         },
         "commodity_volatility": {
           "description": "Monthly volatility of commodity prices (log scale).",
@@ -6665,6 +6789,7 @@
             ],
             "base_growth": 0.004,
             "build_cost_share": 0.85,
+            "capped_vacancy_signal": 0.0,
             "demolition_rate": 0.005,
             "headship_elasticity": 0.6,
             "price_adjustment": 0.05,
@@ -7326,6 +7451,37 @@
             "type"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "An inspection of the town's polluting industry (audit fix 8): its\noperators must clean up, so the region's pollution falls at once by\n`pollution` × the town's share of the region's polluting jobs (then\ndrifts back as industry keeps working), and the town's largest\npolluting sector loses `output` of its demand for `months` months.\nEffect requests to the environment and the economy, caused by the\nplayer's answer.",
+          "properties": {
+            "months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "output": {
+              "format": "double",
+              "type": "number"
+            },
+            "pollution": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "inspection",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "pollution",
+            "output",
+            "months"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -7689,6 +7845,10 @@
     "ExperienceWeights": {
       "additionalProperties": false,
       "properties": {
+        "delivered": {
+          "$ref": "#/$defs/DeliveredWeights",
+          "description": "What laws deliver (audit fix 3), felt by those they reach; zero\nwithout laws."
+        },
         "disaster": {
           "description": "While a disaster is recent.",
           "format": "double",
@@ -7708,6 +7868,11 @@
         },
         "rent_growth": {
           "description": "Per point of real rent growth (a year).",
+          "format": "double",
+          "type": "number"
+        },
+        "service_budget": {
+          "description": "Per unit of the town's budget against the level its budget rule aims\nfor (1 at need): baseline services that programmes crowd out and\ntaxes fund (audit fix 3).",
           "format": "double",
           "type": "number"
         },
@@ -7732,9 +7897,11 @@
         "unemployment_gap",
         "rent_growth",
         "services",
+        "service_budget",
         "disaster",
         "disaster_months",
-        "disruption"
+        "disruption",
+        "delivered"
       ],
       "type": "object"
     },
@@ -9409,6 +9576,11 @@
           "format": "double",
           "type": "number"
         },
+        "capped_vacancy_signal": {
+          "description": "Share of the vacancy signal builders still answer while a rent cap\nbinds (a shortage promises no rise in rents they may charge).",
+          "format": "double",
+          "type": "number"
+        },
         "demolition_rate": {
           "description": "Share of the stock demolished per year.",
           "format": "double",
@@ -9474,7 +9646,8 @@
         "base_growth",
         "starts_price_response",
         "starts_vacancy_response",
-        "starts_max"
+        "starts_max",
+        "capped_vacancy_signal"
       ],
       "type": "object"
     },
@@ -9509,6 +9682,11 @@
         {
           "const": "budget_stress",
           "description": "The town's debt as a share of its annual budget.",
+          "type": "string"
+        },
+        {
+          "const": "service_shortfall",
+          "description": "Services delivered against need, as a shortfall: 1 − (the town's\ndiscretionary budget in real terms per head, against the level its\nbudget rule aims for) − the service gains of laws in effect. 0 at\nthe start; above 0 after cuts, below 0 with better services.",
           "type": "string"
         },
         {
@@ -11072,6 +11250,33 @@
           "required": [
             "type",
             "param",
+            "per_unit"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Caps how fast rent may rise while the law is in force: at a level\nabove 0, rent may grow at most `loosest` + `per_unit` × (level − 1)\na year (nominal). Level 0 caps nothing. The housing market does the\nrest: excess demand shows as a shortage, returns and starts fall,\nand rent catches up once the cap lifts.",
+          "properties": {
+            "loosest": {
+              "format": "double",
+              "type": "number"
+            },
+            "param": {
+              "type": "string"
+            },
+            "per_unit": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "rent_cap",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "param",
+            "loosest",
             "per_unit"
           ],
           "type": "object"
@@ -13282,6 +13487,13 @@
         "retired": {
           "description": "Retired (DEC-092 §2.19): not offered and not draftable by anyone;\nbills and laws already made continue and saves that have them load.",
           "type": "boolean"
+        },
+        "secondary_backing": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "What backs each secondary line (audit fix 8): a mechanism or side\neffect of this template by its type (`rent_cap`, `grievance`), `cost`\n(its money), or `measured:<metric>` (a side effect the audit measures\non twins, `SECONDARY_MEASURED`). Validation requires one for every\nkey, so a claim with nothing behind it cannot return unnoticed.",
+          "type": "object"
         },
         "secondary_keys": {
           "description": "Fluent keys for at least one secondary effect (REQ-006).",

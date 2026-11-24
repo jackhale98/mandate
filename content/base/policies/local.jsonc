@@ -12,6 +12,7 @@
       "implementation_months": 9,
       "signature": { "redistribution": 0.3, "tax_tolerance": 0.2, "social_liberalism": 0.2, "environment": 0.5, "localism": -0.1, "tradition": -0.1, "reform_appetite": 0.3 },
       "secondary_keys": ["secondary-transit-congestion", "secondary-transit-taxes"],
+      "secondary_backing": { "secondary-transit-congestion": "measured:rent_pct", "secondary-transit-taxes": "cost" },
       "side_effects": [ { "type": "disruption", "per_unit": 0.03, "param": "level" } ],
     },
     {
@@ -23,6 +24,7 @@
       "implementation_months": 12,
       "signature": { "redistribution": 0.6, "tax_tolerance": 0.3, "social_liberalism": 0.2, "localism": -0.2, "tradition": -0.1, "reform_appetite": 0.3 },
       "secondary_keys": ["secondary-housing-rents", "secondary-housing-neighbours"],
+      "secondary_backing": { "secondary-housing-rents": "housing_supply", "secondary-housing-neighbours": "grievance" },
       "side_effects": [ { "type": "disruption", "per_unit": 0.0002, "param": "units" }, { "type": "grievance", "class": "high", "min_age_band": 2, "per_unit": 0.0005, "param": "units" } ],
     },
     {
@@ -34,6 +36,7 @@
       "implementation_months": 6,
       "signature": { "redistribution": 0.1, "social_liberalism": 0.2, "environment": -0.1, "localism": -0.5, "tradition": -0.4, "reform_appetite": 0.4 },
       "secondary_keys": ["secondary-upzoning-character", "secondary-upzoning-construction"],
+      "secondary_backing": { "secondary-upzoning-character": "grievance", "secondary-upzoning-construction": "measured:jobs_construction_pct" },
       "side_effects": [ { "type": "grievance", "min_age_band": 2, "per_unit": 0.1, "param": "density" }, { "type": "disruption", "per_unit": 0.04, "param": "density" } ],
     },
     {
@@ -48,6 +51,7 @@
       "implementation_months": 4,
       "signature": { "redistribution": -0.1, "tax_tolerance": -0.2, "law_and_order": 0.1, "localism": 0.3, "tradition": 0.2, "reform_appetite": 0.1 },
       "secondary_keys": ["secondary-grants-deadweight"],
+      "secondary_backing": { "secondary-grants-deadweight": "sector_subsidy" },
       "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.02, "param": "pct" } ],
     },
     {
@@ -59,6 +63,7 @@
       "implementation_months": 12,
       "signature": { "tax_tolerance": 0.1, "social_liberalism": 0.2, "environment": 0.1, "tradition": -0.2, "reform_appetite": 0.4 },
       "secondary_keys": ["secondary-incubator-rents"],
+      "secondary_backing": { "secondary-incubator-rents": "measured:jobs_manufacturing_pct" },
       "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.03, "param": "pct" } ],
     },
     {
@@ -70,6 +75,7 @@
       "implementation_months": 8,
       "signature": { "redistribution": -0.2, "social_liberalism": -0.3, "law_and_order": 0.7, "localism": 0.1, "tradition": 0.4, "reform_appetite": -0.2 },
       "secondary_keys": ["secondary-police-liberties"],
+      "secondary_backing": { "secondary-police-liberties": "grievance" },
       "side_effects": [ { "type": "grievance", "class": "low", "per_unit": 0.04, "param": "level" } ],
     },
     {
@@ -84,6 +90,7 @@
       "implementation_months": 24,
       "signature": { "tax_tolerance": 0.1, "environment": 0.4, "law_and_order": 0.2, "localism": 0.1 },
       "secondary_keys": ["secondary-flood-landscape"],
+      "secondary_backing": { "secondary-flood-landscape": "disruption" },
       "side_effects": [ { "type": "disruption", "per_unit": 0.05, "param": "level" } ],
     },
     {
@@ -95,6 +102,7 @@
       "implementation_months": 6,
       "signature": { "redistribution": 0.7, "tax_tolerance": 0.2, "social_liberalism": 0.1, "tradition": -0.1, "reform_appetite": 0.3 },
       "secondary_keys": ["secondary-wage-floor-jobs"],
+      "secondary_backing": { "secondary-wage-floor-jobs": "wage_floor" },
     },
     {
       "id": "policy.parks", "name_key": "policy-parks", "desc_key": "policy-parks-desc",
@@ -105,6 +113,7 @@
       "implementation_months": 10,
       "signature": { "redistribution": 0.1, "tax_tolerance": 0.1, "social_liberalism": 0.2, "environment": 0.6, "localism": 0.1, "tradition": 0.1, "reform_appetite": 0.1 },
       "secondary_keys": ["secondary-parks-upkeep"],
+      "secondary_backing": { "secondary-parks-upkeep": "cost" },
       "side_effects": [ { "type": "disruption", "per_unit": 0.02, "param": "level" } ],
     },
     {
@@ -116,6 +125,7 @@
       "implementation_months": 3,
       "signature": { "redistribution": 0.8, "tax_tolerance": 0.3, "social_liberalism": 0.2, "reform_appetite": 0.2 },
       "secondary_keys": ["secondary-hardship-work"],
+      "secondary_backing": { "secondary-hardship-work": "labour_supply" },
       "side_effects": [ { "type": "labour_supply", "class": "low", "per_unit": -0.000005, "param": "amount" } ],
     },
     {
@@ -127,6 +137,7 @@
       "implementation_months": 1,
       "signature": { "redistribution": 0.4, "tax_tolerance": 0.8, "tradition": -0.1, "reform_appetite": 0.1 },
       "secondary_keys": ["secondary-property-tax-owners"],
+      "secondary_backing": { "secondary-property-tax-owners": "local_tax_rate" },
       "side_effects": [ { "type": "grievance", "min_age_band": 1, "per_unit": 0.6, "param": "points" } ],
     },
   ],

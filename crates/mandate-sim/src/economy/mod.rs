@@ -636,6 +636,29 @@ fn settle_labour_and_incomes(
         - mods.disruption;
 }
 
+/// A sector's demand in a town scaled by `factor` for `months` months (a
+/// shock a command asked for, such as an inspection's lost output). The
+/// economy's own change; unlike a disaster's shock it does not mark the town
+/// as recently struck.
+pub fn add_shock(
+    econ: &mut EconomyState,
+    municipality: u32,
+    sector: &mandate_content::ContentKey,
+    factor: f64,
+    months: u16,
+) {
+    if let Some(mu) = econ.munis.get_mut(municipality as usize)
+        && factor.is_finite()
+        && months > 0
+    {
+        mu.shocks.push(ActiveShock {
+            sector: sector.clone(),
+            factor: clamp(factor, 0.1, 2.0),
+            months_left: months,
+        });
+    }
+}
+
 /// Monthly: sector demand, jobs, closures, wages, housing, incomes.
 pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let world = r.world;
@@ -868,14 +891,27 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             let target = base * nat.price_level * s.productivity * (1.0 + 2.0 * tight);
             s.wage += (target - s.wage) * 0.08;
         }
+        // The town's tax rate reaches prices (the finance domain's rate, a
+        // law's change on top).
+        let property_tax = fin
+            .taxes
+            .property
+            .get(m)
+            .copied()
+            .unwrap_or(content.economy.taxes.property)
+            + mods.property_tax_delta;
         housing::step(
             &mut mu.housing,
             rate,
             nat.inflation,
             nat.price_level,
             &content.economy,
-            mods.housing_units_per_year,
-            mods.starts_multiplier,
+            &housing::Rules {
+                public_units_per_year: mods.housing_units_per_year,
+                starts_multiplier: mods.starts_multiplier,
+                property_tax,
+                rent_cap: mods.rent_cap,
+            },
         );
     }
     for m in 0..nm {

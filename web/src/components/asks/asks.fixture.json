@@ -1,7 +1,7 @@
 {
   "pocket_asks": [
     {
-      "id": 5,
+      "id": 4,
       "template": "ask.casework",
       "promise": false,
       "title_key": "ask-casework",
@@ -15,13 +15,13 @@
         "asker_role_key": "occupation-party_chair",
         "days": "7",
         "history": "none",
-        "player": "Rania Garrower",
+        "player": "Lena Sedge",
         "town": "Vellenbridge"
       },
       "asker": {
         "type": "person",
         "person": {
-          "id": 1305,
+          "id": 1310,
           "ambient_slot": null,
           "name": "Ada Dace",
           "role_key": "occupation-party_chair",
@@ -137,7 +137,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": 3,
       "template": "ask.casework",
       "promise": false,
       "title_key": "ask-casework",
@@ -151,13 +151,13 @@
         "asker_role_key": "occupation-party_chair",
         "days": "25",
         "history": "none",
-        "player": "Rania Garrower",
+        "player": "Lena Sedge",
         "town": "Vellenbridge"
       },
       "asker": {
         "type": "person",
         "person": {
-          "id": 1305,
+          "id": 1310,
           "ambient_slot": null,
           "name": "Ada Dace",
           "role_key": "occupation-party_chair",
@@ -261,7 +261,7 @@
   ],
   "asks_recent": [
     {
-      "id": 3,
+      "id": 2,
       "template": "ask.casework",
       "promise": false,
       "title_key": "ask-casework",
@@ -275,13 +275,13 @@
         "asker_role_key": "occupation-party_chair",
         "days": "20",
         "history": "none",
-        "player": "Rania Garrower",
+        "player": "Lena Sedge",
         "town": "Vellenbridge"
       },
       "asker": {
         "type": "person",
         "person": {
-          "id": 1305,
+          "id": 1310,
           "ambient_slot": null,
           "name": "Ada Dace",
           "role_key": "occupation-party_chair",
@@ -382,8 +382,8 @@
         "args": {
           "constituency_key": "ask-constituency",
           "history": "none",
-          "number": "5",
-          "player": "Rania Garrower",
+          "number": "4",
+          "player": "Lena Sedge",
           "town": "Vellenbridge"
         },
         "due_key": "ui-promise-due-budget-year",
@@ -426,8 +426,8 @@
           "constituency_key": "ask-constituency",
           "due_days": "180",
           "history": "none",
-          "number": "5",
-          "player": "Rania Garrower",
+          "number": "4",
+          "player": "Lena Sedge",
           "town": "Vellenbridge"
         },
         "due_key": "ui-promise-due-days",
@@ -460,56 +460,6 @@
         ]
       },
       {
-        "template": "promise.services",
-        "answer": null,
-        "concern": "concern.services",
-        "title_key": "promise-services",
-        "detail_key": "promise-services-detail",
-        "need_key": "promise-services-need",
-        "args": {
-          "constituency_key": "ask-constituency",
-          "history": "none",
-          "number": "5",
-          "player": "Rania Garrower",
-          "town": "Vellenbridge"
-        },
-        "due_key": "ui-promise-due-term",
-        "keep_lines": [
-          {
-            "key": "effect-approval",
-            "args": {
-              "delta": "+2",
-              "who_key": "effect-who-ward"
-            },
-            "tone": "gain"
-          },
-          {
-            "key": "effect-standing",
-            "args": {
-              "delta": "+1"
-            },
-            "tone": "gain"
-          }
-        ],
-        "break_lines": [
-          {
-            "key": "effect-approval",
-            "args": {
-              "delta": "−3",
-              "who_key": "effect-who-ward"
-            },
-            "tone": "cost"
-          },
-          {
-            "key": "effect-standing",
-            "args": {
-              "delta": "−1"
-            },
-            "tone": "cost"
-          }
-        ]
-      },
-      {
         "template": "promise.clean_politics",
         "answer": null,
         "concern": null,
@@ -519,8 +469,8 @@
         "args": {
           "constituency_key": "ask-constituency",
           "history": "none",
-          "number": "5",
-          "player": "Rania Garrower",
+          "number": "4",
+          "player": "Lena Sedge",
           "town": "Vellenbridge"
         },
         "due_key": "ui-promise-due-term",
@@ -558,20 +508,20 @@
     "voters": {
       "type": "constituency",
       "name_key": "ask-constituency",
-      "number": 5
+      "number": 4
     },
     "voters_args": {
       "constituency_key": "ask-constituency",
       "history": "none",
-      "number": "5",
-      "player": "Rania Garrower",
+      "number": "4",
+      "player": "Lena Sedge",
       "town": "Vellenbridge"
     }
   },
   "asks": {
     "open": [
       {
-        "id": 5,
+        "id": 4,
         "template": "ask.casework",
         "promise": false,
         "title_key": "ask-casework",
@@ -585,13 +535,13 @@
           "asker_role_key": "occupation-party_chair",
           "days": "7",
           "history": "none",
-          "player": "Rania Garrower",
+          "player": "Lena Sedge",
           "town": "Vellenbridge"
         },
         "asker": {
           "type": "person",
           "person": {
-            "id": 1305,
+            "id": 1310,
             "ambient_slot": null,
             "name": "Ada Dace",
             "role_key": "occupation-party_chair",
@@ -707,7 +657,7 @@
         ]
       },
       {
-        "id": 4,
+        "id": 3,
         "template": "ask.casework",
         "promise": false,
         "title_key": "ask-casework",
@@ -721,13 +671,13 @@
           "asker_role_key": "occupation-party_chair",
           "days": "25",
           "history": "none",
-          "player": "Rania Garrower",
+          "player": "Lena Sedge",
           "town": "Vellenbridge"
         },
         "asker": {
           "type": "person",
           "person": {
-            "id": 1305,
+            "id": 1310,
             "ambient_slot": null,
             "name": "Ada Dace",
             "role_key": "occupation-party_chair",
@@ -831,7 +781,7 @@
     ],
     "recent": [
       {
-        "id": 3,
+        "id": 2,
         "template": "ask.casework",
         "promise": false,
         "title_key": "ask-casework",
@@ -845,13 +795,13 @@
           "asker_role_key": "occupation-party_chair",
           "days": "20",
           "history": "none",
-          "player": "Rania Garrower",
+          "player": "Lena Sedge",
           "town": "Vellenbridge"
         },
         "asker": {
           "type": "person",
           "person": {
-            "id": 1305,
+            "id": 1310,
             "ambient_slot": null,
             "name": "Ada Dace",
             "role_key": "occupation-party_chair",
@@ -941,10 +891,10 @@
     ],
     "promises": [],
     "tally": {
-      "offered": 3,
+      "offered": 2,
       "accepted": 0,
-      "declined": 3,
-      "lapsed": 3,
+      "declined": 2,
+      "lapsed": 2,
       "kept": 0,
       "broken": 0,
       "void": 0,
