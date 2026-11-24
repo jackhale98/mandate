@@ -114,6 +114,9 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | [DEC-105](decisions/DEC-105.md) | Act 2 and beyond: capitals that play differently, levels of detail, home towns that remember | Proposed |
 | [DEC-106](decisions/DEC-106.md) | More worries, faith communities with spread within each faith, and upkeep you can see | Accepted (direction) |
 | [DEC-107](decisions/DEC-107.md) | Parties that live: moving wings, membership choices (leave, switch, independent, expelled), real independents, coalitions and pacts | Proposed |
+| [DEC-108](decisions/DEC-108.md) | The causal spine: causes as bookkeeping on every event and effect, the log's retention rule, the outcome-unchanged proof | Accepted |
+| [DEC-109](decisions/DEC-109.md) | Staged arcs: one structure for crises, storylines and openings; simulated fuses; the standing budget round; the audition | Accepted |
+| [DEC-110](decisions/DEC-110.md) | Specific industries and named plants: industries under sectors, demand per industry, closures by notice and date | Accepted |
 
 ---
 
