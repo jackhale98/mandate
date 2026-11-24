@@ -1,10 +1,11 @@
 /* Inside a place (DEC-088): the room over the street, a fade in and out, the way out. */
 .interior { position: absolute; inset: 0; background: #11131a; }
 /* Clear of the where-you-are label above and the Leave button below. */
-.interior-stage { position: absolute; left: 0; right: 0; top: calc(46px + env(safe-area-inset-top)); bottom: 52px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.interior-stage { position: absolute; left: 0; right: 0; top: calc(46px + env(safe-area-inset-top)); bottom: 60px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .interior-stage canvas:focus { outline: none; }
 .interior-stage canvas:focus-visible { outline: 3px solid var(--info); outline-offset: -3px; }
-.interior-bar { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; gap: 8px; }
+.interior-bar { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; padding: 0 8px; }
+.interior-bar .btn { min-height: 44px; min-width: 44px; }
 .interior-failed { position: absolute; inset: auto 16px 56px; text-align: center; }
 .interior-spot-tag { min-width: 18px; border-color: rgba(232, 180, 76, 0.7); color: #e8b44c; font-weight: 700; opacity: 0.95; }
 .interior-spot-tag.interior-spot-near, .interior-spot-tag:hover { border-color: #e8b44c; opacity: 1; }

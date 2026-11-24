@@ -8,8 +8,9 @@
 // Presentation only: this decides where people stand, never who is there.
 import type { Facing, HotspotDef, InteriorRecipe, SpotDef } from "../../../tools/pixelkit/art/mandate/interiorsRecipes";
 
-/** Walk grid values (pixelkit's `TILE`). */
-export const BLOCKED = 0;
+import { BLOCKED, playerSeat, seatedSpots, seatRoute } from "./seat";
+
+export { BLOCKED };
 
 export interface CastPerson {
   /** `c<id>` for someone stored, `a<slot>` for a passer-by. */
@@ -53,7 +54,7 @@ export interface CastOptions {
  * as are hotspot stands). Deterministic for the same inputs.
  */
 export function castRoom(room: CastRoom, recipe: Pick<InteriorRecipe, "cast" | "extras">, people: readonly CastPerson[], opts: CastOptions = {}): Placement[] {
-  const free = room.spots.filter((s) => s.role !== "player");
+  const free = seatedSpots(room).filter((s) => s.role !== "player");
   const taken = new Set<string>();
   const out: Placement[] = [];
   const over: CastPerson[] = [];
@@ -82,6 +83,9 @@ export function castRoom(room: CastRoom, recipe: Pick<InteriorRecipe, "cast" | "
     const keep = new Set<number>([room.door.y * room.cols + room.door.x, (room.door.y - 1) * room.cols + room.door.x]);
     for (const s of room.spots) keep.add(s.y * room.cols + s.x);
     for (const h of room.hotspots) keep.add(h.stand.y * room.cols + h.stand.x);
+    // The way to the player's desk stays clear of loose people too.
+    const ps = playerSeat(room);
+    for (const t of ps ? seatRoute(room, ps.seat) : []) keep.add(t.y * room.cols + t.x);
     const tiles = floorFromDoor(room).filter((i) => !used.has(i) && !keep.has(i));
     over.forEach((p, k) => {
       const i = tiles[k];

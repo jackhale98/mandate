@@ -23,6 +23,8 @@ import { crop, type Indexed } from "../../../tools/pixelkit/src/core/image";
 import type { Placement } from "./cast";
 import { RoomCrowd } from "./crowd";
 import { facingOf, InteriorScene, type Tile } from "./interiorScene";
+import { isSeatHotspot } from "./seat";
+import { tapTarget } from "./tap";
 import { bobTags, fillPersonTag, type PersonMarker } from "../hub/hubView";
 
 interface Point {
@@ -59,6 +61,8 @@ export interface InteriorViewOptions {
   /** Hotspots offered now (the engine's place view filtered the recipe's). */
   hotspots: readonly HotspotDef[];
   hotspotLabel: (h: HotspotDef) => string;
+  /** The player's own desk, where the room has one (the chamber): the "Take your seat" button walks there. */
+  seat?: { x: number; y: number; facing: Facing } | null;
   doorLabel: string;
   onTalk: (key: string) => void;
   onHotspot: (h: HotspotDef) => void;
@@ -293,6 +297,15 @@ export class InteriorView {
     return ok;
   }
 
+  /** Walk to the player's own desk and sit (`opts.seat`); false if the room has none or it cannot be reached. */
+  walkToSeat(): boolean {
+    const seat = this.opts.seat;
+    if (!seat) return false;
+    const ok = this.scene.goTo({ x: seat.x, y: seat.y }, null, seat.facing);
+    this.wake();
+    return ok;
+  }
+
   /** Walk to the door and out (`onLeave`). */
   walkOut(): boolean {
     const ok = this.scene.goTo(this.room.door, () => this.opts.onLeave(), "down");
@@ -495,15 +508,15 @@ export class InteriorView {
     const { fx, fy } = this.floor();
     const px = (sx * this.dpr - this.ox) / this.zoom;
     const py = (sy * this.dpr - this.oy) / this.zoom;
-    // Someone: their figure's box (a seated one's upper half).
-    for (const p of this.shown().sort((a, b) => b.y - a.y)) {
-      if (p.extra) continue;
-      const x0 = fx + p.x * T;
-      const top = fy + p.y * T + 14 - ANCHOR.y;
-      if (px >= x0 + 2 && px < x0 + 14 && py >= top && py <= fy + p.y * T + 15) {
-        this.walkToPerson(p.key);
-        return;
-      }
+    // Your own desk, or someone's figure (see ./tap: where a neighbour's figure reaches over your desk, the desk wins).
+    const hit = tapTarget(this.room, this.opts.hotspots, this.shown(), px - fx, py - fy);
+    if (hit?.kind === "hotspot") {
+      this.walkToHotspot(hit.id);
+      return;
+    }
+    if (hit?.kind === "person") {
+      this.walkToPerson(hit.key);
+      return;
     }
     const tx = Math.floor((px - fx) / T);
     const ty = Math.floor((py - fy) / T);
@@ -672,9 +685,11 @@ export class InteriorView {
   private computeNear(): Near {
     if (this.scene.moving) return null;
     const t = this.scene.tile;
+    const h = this.opts.hotspots.find((x) => x.stand.x === t.x && x.stand.y === t.y);
+    // At your own desk the vote comes before whoever sits beside you (tap them to talk).
+    if (h && isSeatHotspot(this.room, h)) return { kind: "hotspot", id: h.id };
     const person = this.people.find((p) => !p.extra && Math.abs(p.x - t.x) + Math.abs(p.y - t.y) === 1);
     if (person) return { kind: "person", key: person.key };
-    const h = this.opts.hotspots.find((x) => x.stand.x === t.x && x.stand.y === t.y);
     if (h) return { kind: "hotspot", id: h.id };
     if (this.scene.atDoor) return { kind: "door" };
     return null;

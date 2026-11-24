@@ -307,6 +307,8 @@ ui-report-engine-failed = The game engine stopped. The report holds your latest 
 # Walking into a place from the street (DEC-088): the room, its hotspots, the door.
 ui-interior-label = Inside { $place }. Arrow keys walk; Enter talks to the person beside you, uses the counter or desk you stand at, or goes out at the door; Escape goes out.
 ui-interior-leave = Leave
+ui-interior-seat = Take your seat
+ui-interior-vote = Go to the vote
 ui-interior-door = Out
 ui-interior-entered = You go into { $place }.
 ui-interior-left = You step back out into the street.

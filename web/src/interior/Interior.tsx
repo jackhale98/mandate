@@ -17,6 +17,7 @@ import { useSheetsCover } from "../components/sheetCover";
 import { streetPeople } from "../components/talk/streetPeople";
 import { placeName } from "../places/labels";
 import { castRoom, type CastPerson } from "./cast";
+import { isSeatHotspot, playerSeat, retargetHotspots } from "./seat";
 import { HotspotSheet, hotspotOffers } from "./HotspotSheet";
 import { InteriorView, type Near, type RoomPerson } from "./interiorView";
 import { recipeFromView } from "./recipes";
@@ -32,6 +33,8 @@ interface InteriorProbe {
   recipe: string;
   people: RoomPerson[];
   hotspots: string[];
+  /** The player's own desk, where the room has one. */
+  seat: { x: number; y: number } | null;
 }
 declare global {
   interface Window {
@@ -98,10 +101,14 @@ export function Interior() {
   );
 
   // The hotspots offered now: the engine's view filters the recipe's (late ones only late at night).
-  const hotspots = useMemo(() => (room && v ? room.hotspots.filter((h) => (!h.late || late) && (() => {
+  const hotspots = useMemo(() => (room && v ? retargetHotspots(room, room.hotspots).filter((h) => (!h.late || late) && (() => {
     const o = hotspotOffers(h, v);
     return o.actions.length + o.services.length > 0;
   })()) : []), [room, v, late]);
+
+  // The player's own desk (the chamber): the one nearest the door along a clear aisle.
+  const seat = useMemo(() => (room ? (playerSeat(room)?.seat ?? null) : null), [room]);
+  const voteSpot = room && v ? hotspots.find((h) => isSeatHotspot(room, h) && hotspotOffers(h, v).actions.includes("vote")) : undefined;
 
   // The people present on their spots (the engine says who; this says where).
   const people = useMemo((): RoomPerson[] => {
@@ -120,14 +127,14 @@ export function Interior() {
   }, [room, recipe, v, tr, minutes]);
 
   // The latest values the view's callbacks read (it is made once per room).
-  const latest = useRef({ busy, hotspots, people, sheets: "" });
+  const latest = useRef({ busy, hotspots, people, sheets: "", seat });
   const leave = () => {
     if (reducedMotion()) leaveInterior();
     else setLeaving(true);
   };
   const leaveRef = useRef(leave);
   useEffect(() => {
-    latest.current = { busy, hotspots, people, sheets: [sheets, hot ? "hotspot" : ""].filter(Boolean).join(" ") };
+    latest.current = { busy, hotspots, people, seat, sheets: [sheets, hot ? "hotspot" : ""].filter(Boolean).join(" ") };
     leaveRef.current = leave;
   });
 
@@ -148,6 +155,7 @@ export function Interior() {
       label: tr.t("ui-interior-label", { place: placeLabel }),
       hotspots: latest.current.hotspots,
       hotspotLabel: (h) => tr.t(`interior-hotspot-${h.id}`),
+      seat: latest.current.seat,
       doorLabel: tr.t("ui-interior-door"),
       onTalk: (key) => {
         if (latest.current.busy) return;
@@ -243,8 +251,8 @@ export function Interior() {
   useEffect(() => {
     const view = viewRef.current;
     if (!view || !inside) return;
-    window.__interior = { view, place: inside.place, recipe: inside.recipe, people, hotspots: hotspots.map((h) => h.id) };
-  }, [people, hotspots, inside, ready]);
+    window.__interior = { view, place: inside.place, recipe: inside.recipe, people, hotspots: hotspots.map((h) => h.id), seat: seat ? { x: seat.x, y: seat.y } : null };
+  }, [people, hotspots, inside, ready, seat]);
 
   // A recipe the bundle lacks (or a failed pack): back to the street; the panel is the way in.
   useEffect(() => {
@@ -257,6 +265,16 @@ export function Interior() {
       <div ref={stageRef} className="interior-stage" />
       {failed && <p className="muted small interior-failed">{failed}</p>}
       <div className="interior-bar">
+        {seat && (
+          <button type="button" className="btn btn-sm interior-seat" onClick={() => viewRef.current?.walkToSeat()} disabled={!ready || busy} data-testid="interior-seat">
+            {tr.t("ui-interior-seat")}
+          </button>
+        )}
+        {voteSpot && (
+          <button type="button" className="btn btn-sm btn-primary interior-vote" onClick={() => viewRef.current?.walkToHotspot(voteSpot.id)} disabled={!ready || busy} data-testid="interior-vote">
+            {tr.t("ui-interior-vote")}
+          </button>
+        )}
         <button type="button" className="btn btn-sm interior-leave" onClick={() => leave()} data-testid="interior-leave">
           {tr.t("ui-interior-leave")}
         </button>

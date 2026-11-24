@@ -57,6 +57,7 @@ interface Probes {
     recipe: string;
     people: RoomPerson[];
     hotspots: string[];
+    seat: { x: number; y: number } | null;
   } | null;
 }
 
@@ -336,4 +337,85 @@ test("each room in the game, by day and in the evening, with the people present 
     await expect(page.getByTestId("interior")).toHaveCount(0, { timeout: 10_000 });
     await shot(page, info, `${kind}-out`);
   }
+});
+
+// Play note 21: with every member in the chamber the player's desk is the one nearest the door along a clear
+// aisle, "Take your seat" and the vote are real buttons, and a tap on your own desk is yours even where a
+// neighbour's figure reaches over it.
+test("the chamber full of members: your desk is on the aisle, the buttons take you there", async ({ page }, info) => {
+  test.setTimeout(150_000);
+  const errors = watchErrors(page);
+  await start(page, "31337");
+  await tapPlace(page, info, "council_chamber");
+  await inside(page, "interior.council_chamber");
+
+  // Every desk taken but the player's: members on each seated spot and the sides (what a full body looks like).
+  const seat = await probe(page, (w) => w.__interior?.seat ?? null);
+  expect(seat, "the chamber has a player desk").not.toBeNull();
+  const full = await page.evaluate(() => {
+    const i = (window as unknown as Probes).__interior;
+    if (!i || !i.seat) return null;
+    const { view, people } = i;
+    const seatTile = i.seat;
+    const template = people.find((p) => !p.extra && p.label) ?? people[0];
+    if (!template) return null;
+    const rm = view.room as unknown as { spots: { id: string; role: string; x: number; y: number; facing: string; pose?: string }[]; door: { x: number; y: number } };
+    const taken = new Set(people.map((p) => `${p.x},${p.y}`));
+    const added = rm.spots
+      .filter((s) => (s.role === "member" || s.role === "player") && !(s.x === seatTile.x && s.y === seatTile.y) && !taken.has(`${s.x},${s.y}`))
+      .map((s, k) => ({ ...template, key: `cfull${k}`, spot: s.id, role: "member", x: s.x, y: s.y, facing: s.facing, pose: s.pose ?? "stand", label: `Member ${k}` }));
+    view.setPeople([...people, ...added]);
+    return { members: added.length + people.length, door: rm.door };
+  });
+  expect(full?.members ?? 0).toBeGreaterThan(10);
+  // The way from the door to the desk exists past all of them, and goes straight (no detour round a seated member).
+  const route = await probe(page, (w) => {
+    const i = w.__interior;
+    const sc = i?.view.scene as unknown as { route(t: { x: number; y: number }): { x: number; y: number }[] | null } | undefined;
+    return i?.seat && sc ? (sc.route(i.seat)?.length ?? null) : null;
+  });
+  expect(route).not.toBeNull();
+  expect(route ?? 99).toBeLessThanOrEqual(Math.abs((seat?.x ?? 0) - (full?.door.x ?? 0)) + Math.abs((seat?.y ?? 0) - (full?.door.y ?? 0)) + 1);
+  await shot(page, info, "chamber-full");
+
+  // The buttons: real, reachable by keyboard, at least 44 px.
+  const takeSeat = page.getByTestId("interior-seat");
+  await expect(takeSeat).toBeVisible();
+  await expect(takeSeat).toHaveText("Take your seat");
+  const box = await takeSeat.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+  await takeSeat.focus();
+  await expect(takeSeat).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => probe(page, (w) => w.__interior?.view.scene.tile), { timeout: 15_000 }).toEqual(seat);
+  await expect.poll(() => probe(page, (w) => w.__interior?.view.scene.moving ?? true)).toBe(false);
+  await shot(page, info, "chamber-seated");
+
+  // At your desk, Enter opens the vote's sheet even with a member in the chair beside you.
+  await page.locator(".interior-stage canvas").focus();
+  await page.keyboard.press("Enter");
+  const sheet = page.getByTestId("interior-hotspot");
+  await expect(sheet).toHaveAttribute("data-hotspot", "vote");
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toHaveCount(0);
+
+  // The vote's own button, when one is open, goes there and opens it.
+  const vote = page.getByTestId("interior-vote");
+  if ((await vote.count()) > 0) {
+    const vb = await vote.boundingBox();
+    expect(vb?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await vote.click();
+    await expect(sheet).toHaveAttribute("data-hotspot", "vote");
+    await sheet.getByRole("button", { name: "Close" }).click();
+    await expect(sheet).toHaveCount(0);
+  }
+
+  // A tap on your desk itself (the desk tile in front of the seat) is the vote too (the overlap with a
+  // neighbour's figure is unit-tested in src/interior/tap.test.ts, where the figures can be placed exactly).
+  await expect(sheet).toHaveCount(0);
+  await tapTile(page, info, { x: seat?.x ?? 0, y: (seat?.y ?? 0) - 1 });
+  await expect(sheet).toHaveAttribute("data-hotspot", "vote", { timeout: 15_000 });
+  await expect(page.getByTestId("talk-panel")).toHaveCount(0);
+  expect(errors).toEqual([]);
 });
