@@ -317,6 +317,11 @@ On hold until then:
     - **Election day always has a screen:** the results where the player lives, whether or not they were on a ballot, and what became of their seat.
     - A test that walks: file for the office with the holder standing; with Standing below the gate; with the post open. Tier-generic: no office named in code.
     - Later (DEC-107): challenging your own party's holder for the nomination.
+21. **The chamber: reaching your seat and voting** (owner, 2026-11-24): after the council changed, "our chair is the far end so with all the members there we need to go the long way around to vote, and with someone in the chair next to us it is difficult to pull up your vote instead of talk to them".
+    - The player's desk is the one nearest the door along a clear aisle, whatever the body's make-up; the route to it never needs a detour round seated members.
+    - A tap on your own seat is yours: your seat's spot wins over a neighbour's figure where they overlap.
+    - The room offers "Take your seat" (and the vote, when one is open) as a button, so nothing depends on a precise tap; Places and quick mode keep their own route to the vote (DEC-051).
+    - With it: the phone bar's dangling "·" when the turn line wraps, and the town summary's crisis line overlapping the defining-industry line (a browser test for it fails now and then in CI, so the overlap the owner reported is real and depends on timing).
 
 
 ## M6 or M7 split (owner, 2026-11-21)
