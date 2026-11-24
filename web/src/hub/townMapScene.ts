@@ -44,6 +44,9 @@ export interface MapHotspot {
   /** Neighbourhood id and name (the list's section). */
   neighborhood: number;
   neighborhoodName: string;
+  /** The engine's label for the neighbourhood where it differs from its name (the town centre, note 19). */
+  neighborhoodKey?: string | undefined;
+  neighborhoodArgs?: Record<string, string> | undefined;
   /** Index into `map.buildings` (null for streets). */
   building: number | null;
   /** Index into `map.districts`. */
@@ -85,7 +88,7 @@ export function mapHotspots(map: TownMap, view: TownPlacesView): MapHotspot[] {
       const key = l.type === "home" ? "home" : l.type === "street" ? `streets:${l.neighborhood}` : `place:${l.place}`;
       if (seen.has(key)) continue;
       const active = s.actions.length + s.services.length + s.verbs.length > 0;
-      const base = { key, location: l, kindKey: s.location.kind_key, name: s.location.name, neighborhood: h.id, neighborhoodName: h.name, active, order: out.length };
+      const base = { key, location: l, kindKey: s.location.kind_key, name: s.location.name, neighborhood: h.id, neighborhoodName: h.name, neighborhoodKey: s.location.neighborhood_key, neighborhoodArgs: s.location.neighborhood_args, active, order: out.length };
       if (l.type === "street") {
         const d = map.districts[district];
         if (!d || d.street < 0) continue;

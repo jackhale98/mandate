@@ -22,7 +22,7 @@ import { planInWorker, townJobs } from "../hub/townWorkerClient";
 import { liveRecipe } from "../hub/gameTown";
 import { IdbPlanStore, TownPlanCache } from "../hub/townPlanCache";
 import type { Translator } from "../i18n/fluent";
-import { placeIcon, placeName } from "../places/labels";
+import { hoodLabel, placeIcon, placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 
 // ---------------------------------------------------------------------------
@@ -108,9 +108,14 @@ function waitingText(tr: Translator, w: Waiting | undefined): string | null {
 // ---------------------------------------------------------------------------
 
 function hotspotName(tr: Translator, h: MapHotspot): string {
-  if (h.kind === "streets") return tr.t("ui-streets-of", { hood: h.neighborhoodName });
+  if (h.kind === "streets") return tr.t("ui-streets-of", { hood: hotspotHood(tr, h) });
   if (h.kind === "home") return tr.t("place-home");
-  return placeName(tr, { location: h.location, kind_key: h.kindKey, name: h.name, neighborhood: h.neighborhood, neighborhood_name: h.neighborhoodName });
+  return placeName(tr, { location: h.location, kind_key: h.kindKey, name: h.name, neighborhood: h.neighborhood, neighborhood_name: h.neighborhoodName, ...(h.neighborhoodKey ? { neighborhood_key: h.neighborhoodKey, neighborhood_args: h.neighborhoodArgs ?? {} } : {}) });
+}
+
+/** The hotspot's neighbourhood as the Places tab names it (the centre reads as the town centre). */
+function hotspotHood(tr: Translator, h: MapHotspot): string {
+  return hoodLabel(tr, h.neighborhoodName, h.neighborhoodKey, h.neighborhoodArgs);
 }
 
 interface Probe {
@@ -261,7 +266,7 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
             const isHere = h.key === here;
             const w = waitingText(tr, waiting.get(h.key));
             const kind = h.kind === "place" && h.name ? tr.t(`place-${h.kindKey}`) : null;
-            const aria = [name, kind, h.kind !== "streets" ? h.neighborhoodName : null, isHere ? tr.t("ui-you-are-here") : null, w, h.active ? null : tr.t("ui-nothing-here")].filter(Boolean).join(", ");
+            const aria = [name, kind, h.kind !== "streets" ? hotspotHood(tr, h) : null, isHere ? tr.t("ui-you-are-here") : null, w, h.active ? null : tr.t("ui-nothing-here")].filter(Boolean).join(", ");
             return (
               <button
                 key={h.key}
@@ -284,7 +289,7 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
               <span key={h.key} className={cls} data-chip={h.key} data-shown="0" aria-hidden="true">
                 {h.kind !== "streets" && <span className="town-map-chip-icon">{placeIcon(h.kindKey)}</span>}
                 <span className="town-map-chip-text">
-                  <span className="town-map-chip-name">{h.kind === "streets" ? h.neighborhoodName : hotspotName(tr, h)}</span>
+                  <span className="town-map-chip-name">{h.kind === "streets" ? hotspotHood(tr, h) : hotspotName(tr, h)}</span>
                   {isHere && <span className="town-map-chip-flag">📍 {tr.t("ui-you-are-here")}</span>}
                   {w && <span className="town-map-chip-flag town-map-chip-flag-waiting">❗ {w}</span>}
                 </span>
