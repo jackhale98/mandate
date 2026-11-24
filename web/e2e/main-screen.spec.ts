@@ -1,5 +1,6 @@
 import { expect, test } from "./csp";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { useWideFont } from "./wide-font";
 import { officeFigures, openPeople, openPocket } from "./pocket";
 
 // DEC-088 main screen (owner, 2026-11-19): the street full screen with a slim
@@ -16,6 +17,35 @@ const start = async (page: Page, seed: string) => {
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
   await expect(page.locator(".town-street-stage[data-ready='1']")).toBeVisible({ timeout: 30_000 });
 };
+
+/** Wait until nothing finite is animating and the fonts are loaded, then two frames, so the layout is the settled one. */
+async function settled(page: Page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined)));
+    await new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())));
+  });
+}
+
+/** The town card's rows (the defining industry, the crisis, ...) as one reading of the layout: any row that starts above the end of the one before, or text running out of its row. */
+async function townCardOverlaps(page: Page, pocket: Locator): Promise<string[]> {
+  await settled(page);
+  return pocket.getByTestId("town-card").evaluate((card) => {
+    const rows = [...card.querySelectorAll<HTMLElement>(".facts > div")];
+    const out: string[] = [];
+    rows.forEach((row, i) => {
+      const r = row.getBoundingClientRect();
+      const prev = rows[i - 1]?.getBoundingClientRect();
+      if (prev && r.top < prev.bottom - 0.5) out.push(`row ${i} starts at ${r.top} above the end of the one before (${prev.bottom})`);
+      for (const dd of row.querySelectorAll<HTMLElement>("dd")) {
+        const b = dd.getBoundingClientRect();
+        if (b.bottom > r.bottom + 0.5) out.push(`row ${i}: its text runs below its row (${b.bottom} > ${r.bottom})`);
+        if (dd.scrollWidth > dd.clientWidth + 1) out.push(`row ${i}: its text is wider than its row`);
+      }
+    });
+    return out;
+  });
+}
 
 test("landmarks, the bar, and the skip link to Places", async ({ page }) => {
   await start(page, "4242");
@@ -108,10 +138,9 @@ test("the pocket's tabs: a tab list with arrow keys, panels, and badges that cou
   await expect(pocket.getByTestId("town-hoods").getByTestId("town-hood").first()).toBeVisible();
   // Each neighbourhood says which ward it is in (note 4).
   await expect(pocket.getByTestId("town-hoods").getByTestId("town-hood-ward").first()).toHaveText(/Ward \d+/);
-  // The crisis line does not run into the defining industry's (note 4).
-  const ind = await pocket.getByTestId("town-industry").boundingBox();
-  const cri = await pocket.getByTestId("town-crisis").boundingBox();
-  if (ind && cri) expect(cri.y).toBeGreaterThanOrEqual(ind.y + ind.height - 1);
+  // The crisis line does not run into the defining industry's (note 4): measured once the sheet has stopped
+  // sliding in (two reads of a moving sheet differ by the distance it moved) and the fonts are in.
+  expect(await townCardOverlaps(page, pocket)).toEqual([]);
   await page.keyboard.press("End");
   await expect(pocket.getByTestId("pocket-tab-notebook")).toBeFocused();
   await expect(pocket.getByTestId("notebook")).toBeVisible();
@@ -243,3 +272,26 @@ test("phone: the pocket's four tabs and their badges fit at 360 and 412 px", asy
     await expect(pocket).toHaveCount(0);
   }
 });
+
+// Play note 21: the crisis line ran into the defining industry's. The card is one flow of full-width rows, so
+// at any width from 320 px with the wide face a long crisis wraps inside its own row.
+for (const width of [320, 360, 390]) {
+  test(`the town card's crisis line stays below the industry line at ${width}px (wide font)`, async ({ page }) => {
+    await useWideFont(page);
+    await page.setViewportSize({ width, height: 800 });
+    await start(page, "4242");
+    const pocket = await openPocket(page, "town");
+    await expect(pocket.getByTestId("town-card")).toBeVisible();
+    // A crisis as the card prints it (a long name, its band and trend, since when), whether or not this run has one.
+    await pocket.getByTestId("town-crisis").evaluate((dd) => {
+      dd.innerHTML = '<strong>Flooding along the whole lower river</strong> · severe, worsening <span class="muted small">(since March of year 3)</span>';
+    });
+    await pocket.getByTestId("town-industry").evaluate((dd) => {
+      dd.textContent = "Agricultural processing and packing · 38% of the town's work";
+    });
+    expect(await townCardOverlaps(page, pocket)).toEqual([]);
+    if (process.env.TOWN_SHOTS) await page.screenshot({ path: `${process.env.TOWN_SHOTS}/town-card-${width}.png` });
+    const [ind, cri] = await Promise.all([pocket.getByTestId("town-industry").boundingBox(), pocket.getByTestId("town-crisis").boundingBox()]);
+    expect(cri?.y ?? 0).toBeGreaterThanOrEqual((ind?.y ?? 0) + (ind?.height ?? 0) - 1);
+  });
+}
