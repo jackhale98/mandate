@@ -11,6 +11,7 @@ import { ParamSliders } from "./ParamSliders";
 import { TradeOffs } from "./TradeOffs";
 import { personName } from "./Knowing";
 import { signerText } from "./posts";
+import { WhyButton } from "./why/WhyButton";
 
 /** Signed −1..1 score shown as −100..+100 with a text label (never colour alone, DEC-051). */
 export function SupportBars({ s }: { s: SupportView }) {
@@ -125,6 +126,8 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
         <button type="button" className="btn btn-sm btn-ghost" aria-expanded={why} onClick={() => setWhy(!why)}>
           {tr.t("ui-why")}
         </button>
+        {/* How it came to pass, fail or lapse (the causal chain); "Why?" above is the bill's support and trade-offs. */}
+        <WhyButton event={bill.outcome_event} label="ui-why-led" about={tr.t(bill.name_key)} />
         {editable && (
           <button type="button" className="btn btn-sm btn-ghost" aria-expanded={editing} onClick={() => setEditing(!editing)}>
             {tr.t("ui-amend-open")}

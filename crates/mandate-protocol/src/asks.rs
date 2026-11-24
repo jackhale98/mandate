@@ -132,6 +132,12 @@ pub struct AskView {
     pub break_lines: Vec<EffectLineView>,
     /// Offers only: what saying no (or not answering) does.
     pub decline_lines: Vec<EffectLineView>,
+    /// The event of its ending (kept, broken, declined, void), to ask
+    /// "Why?" about (`QueryDto::Why`); none while it is open, or once the
+    /// log no longer keeps it.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<u32>,
 }
 
 /// Whole-career counts.
@@ -580,6 +586,9 @@ pub fn ask_view(engine: &Engine, a: &Ask) -> AskView {
         None
     };
     AskView {
+        event: crate::why::thread_event(&st.events, mandate_sim::spine::Thread::Ask(a.id.0), |k| {
+            matches!(k, mandate_sim::events::EventKind::AskResolved { .. })
+        }),
         id: a.id.0,
         template: a.template.clone(),
         promise: a.promise,

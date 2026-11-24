@@ -13,4 +13,9 @@ chain: Array<WhyStepView>,
 /**
  * More lies behind than the depth asked for.
  */
-truncated: boolean, player: WhyPlayerView | null, };
+truncated: boolean, player: WhyPlayerView | null, 
+/**
+ * The links back this answer walked, and the most a query may ask
+ * for (a client offers "further back" while `depth < max_depth`).
+ */
+depth: number, max_depth: number, };

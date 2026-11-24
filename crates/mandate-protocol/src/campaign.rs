@@ -92,6 +92,11 @@ pub struct ResultView {
     pub decomposition: Vec<FactorView>,
     pub player_ran: bool,
     pub player_won: bool,
+    /// The event that records the race's result, to ask "Why?" about
+    /// (`QueryDto::Why`); none where the log has none for this race.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -635,6 +640,14 @@ pub fn campaign_view(engine: &Engine) -> Option<CampaignView> {
                         .collect(),
                     player_ran: ran,
                     player_won: r.winner == pl.politician,
+                    event: crate::why::event_since(&st.events, r.date, |e| {
+                        e.date == r.date
+                            && matches!(
+                                &e.kind,
+                                mandate_sim::events::EventKind::RaceDecided { post, winner, .. }
+                                    if *post == Some(r.seat) && *winner == r.winner.0
+                            )
+                    }),
                 },
             )
         })

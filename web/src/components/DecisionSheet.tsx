@@ -8,6 +8,7 @@ import { formatDate } from "../i18n/format";
 import { placeIcon, placeName } from "../places/labels";
 import { useSheetClose } from "./useSheetClose";
 import { memoryText, quoteKey, roleText } from "./CharacterSheet";
+import { WhyButton } from "./why/WhyButton";
 
 /** One trade-off or aftermath line (facts and Fluent keys from the engine). */
 function Line({ l }: { l: EffectLineView }) {
@@ -83,7 +84,10 @@ export function DecisionSheet() {
         <div className="sheet-body">
           {d.aftermath && (
             <section className="card aftermath" data-testid="decision-aftermath" aria-live="polite">
-              <h3 className="sub">{tr.t("ui-aftermath")}</h3>
+              <div className="why-row">
+                <h3 className="sub">{tr.t("ui-aftermath")}</h3>
+                <WhyButton event={d.aftermath.event} about={capital(tr.event(d.title_key, d.args))} />
+              </div>
               <p>
                 <strong>{d.aftermath.by_default ? tr.t("ui-aftermath-default") : tr.event(d.aftermath.label_key, d.args)}</strong>
               </p>

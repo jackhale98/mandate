@@ -338,6 +338,12 @@ pub struct BillView {
     /// The player owes the sponsor a favour.
     pub owe_sponsor: bool,
     pub side_effects: Vec<SideEffectView>,
+    /// The event that decided it (enacted, failed, expired, withdrawn), to
+    /// ask "Why?" about (`QueryDto::Why`); none for a draft or a bill
+    /// still before the body, or once the log no longer keeps it.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outcome_event: Option<u32>,
 }
 
 /// A Fluent key and its arguments (a reason the engine states as a fact).
@@ -743,6 +749,20 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let (ward_lean, ward_for_pct, ward_against_pct, ward_certainty) =
         ward_words(support_level, ward_support);
     Some(BillView {
+        outcome_event: crate::why::thread_event(
+            &st.events,
+            mandate_sim::spine::Thread::Bill(p.id.0),
+            |k| {
+                use mandate_sim::events::EventKind as K;
+                matches!(
+                    k,
+                    K::PolicyEnacted { .. }
+                        | K::PolicyFailed { .. }
+                        | K::PolicyExpired { .. }
+                        | K::PolicyWithdrawn { .. }
+                )
+            },
+        ),
         side_effects: side_effects_view(t, p),
         my_vote,
         can_vote,

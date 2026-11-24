@@ -374,44 +374,47 @@ fn a_run_of_hidden_events_is_never_shown() {
     assert!(hidden_ids.iter().all(|h| why_view(&e, h.0, None).is_none()));
 }
 
+/// What the player knows of someone (the ledger, as their sheet shows it).
+fn level_of(e: &Engine, c: mandate_sim::characters::CharacterId) -> KnowledgeLevelDto {
+    character_view(e, c.0)
+        .map(|v| v.knowledge.level)
+        .unwrap_or(KnowledgeLevelDto::Unknown)
+}
+
+/// A politician the player has not heard of, and their name.
+fn a_stranger(e: &Engine) -> (mandate_sim::politics::Politician, String) {
+    let st = e.state();
+    let me = st.player.as_ref().unwrap().politician;
+    let p = st
+        .politics
+        .politicians
+        .iter()
+        .filter(|p| p.id != me)
+        .find(|p| level_of(e, p.character) == KnowledgeLevelDto::Unknown)
+        .expect("someone the player has not heard of");
+    (p.clone(), p.full_name())
+}
+
 /// Why names people only as the player knows them: a step about someone
 /// the player has not heard of leaves the name empty (the unknown form),
-/// while the overview's line is unchanged.
+/// while the overview's line is unchanged. (An investigation opening is
+/// not a public result: see `PUBLIC_RESULTS` and the tests below.)
 #[test]
 fn a_step_names_only_people_the_player_knows() {
     use mandate_sim::player::knowledge::{self, Level, Source, Subject};
     let mut e = world(2026);
-    let (stranger, name) = {
-        let st = e.state();
-        let me = st.player.as_ref().unwrap().politician;
-        let gate_level = |c| {
-            character_view(&e, c)
-                .map(|v| v.knowledge.level)
-                .unwrap_or(KnowledgeLevelDto::Unknown)
-        };
-        let p = st
-            .politics
-            .politicians
-            .iter()
-            .filter(|p| p.id != me)
-            .find(|p| gate_level(p.character.0) == KnowledgeLevelDto::Unknown)
-            .expect("someone the player has not heard of");
-        (p.clone(), p.full_name())
-    };
+    let (stranger, name) = a_stranger(&e);
     let mut broke = EventId(0);
     e.setup(|s| {
         let date = s.calendar.date;
         broke = s.events.record(
             date,
-            EventKind::ScandalBroke {
-                scandal: 901,
+            EventKind::CaseOpened {
+                case: 901,
                 politician: stranger.id.0,
-                municipality: 0,
-                severity: "ethics".into(),
-                kind: "bribe".into(),
             },
             [
-                Cause::Process(Process::Press),
+                Cause::Process(Process::Justice),
                 Cause::Actor(stranger.character),
             ],
         );
@@ -530,4 +533,534 @@ fn why_through_the_protocol() {
         serde_json::to_string(&causes).unwrap(),
         r#"[{"type":"event","event":3,"link":"prompted","in_chain":true},{"type":"player","act":"vote"},{"type":"exogenous","shock":"hazard"},{"type":"unknown"}]"#
     );
+}
+
+// --- A public result is public (DEC-108 §8) ------------------------------
+
+/// The public kinds, as a list: a kind joins it on purpose, with a test
+/// below.
+#[test]
+fn the_public_results_are_these() {
+    assert_eq!(
+        PUBLIC_RESULTS,
+        [
+            "race_decided",
+            "policy_enacted",
+            "policy_failed",
+            "scandal_broke",
+            "case_developed"
+        ]
+    );
+}
+
+/// A step of a public kind about someone the player has not heard of: the
+/// step reads as the public line does, name and all, and nothing is
+/// written down (the ledger and the state are as they were). `as_town`:
+/// the town carries the stranger's name, for a kind whose line names no
+/// person today (a law's recorded vote), so the rule has a name to keep.
+fn public_step(
+    as_town: bool,
+    kind: impl FnOnce(&mandate_sim::politics::Politician) -> EventKind,
+    causes: impl FnOnce(&mandate_sim::politics::Politician) -> Causes,
+) -> (WhyStepView, String) {
+    let mut e = world(2026);
+    let (stranger, name) = a_stranger(&e);
+    let mut id = EventId(0);
+    e.setup(|s| {
+        if as_town {
+            s.world.municipalities[0].name = name.clone();
+        }
+        let date = s.calendar.date;
+        id = s.events.record(date, kind(&stranger), causes(&stranger));
+    });
+    let before = e.state_hash();
+    let v = why_view(&e, id.0, None).unwrap();
+    let step = v.chain[0].clone();
+    assert!(
+        PUBLIC_RESULTS.contains(&step.kind.as_str()),
+        "{}",
+        step.kind
+    );
+    assert!(public_result(&e.state().events.get(id).unwrap().kind));
+    // The step reads as the public line does.
+    let line = event_view(e.state().events.get(id).unwrap(), &e);
+    assert_eq!((&step.text_key, &step.args), (&line.text_key, &line.args));
+    assert!(step.args.values().any(|a| *a == name), "{:?}", step.args);
+    // A query writes nothing: the player has still not heard of them.
+    assert_eq!(e.state_hash(), before);
+    assert_eq!(level_of(&e, stranger.character), KnowledgeLevelDto::Unknown);
+    (step, name)
+}
+
+#[test]
+fn race_decided_names_its_winner() {
+    let (step, name) = public_step(
+        false,
+        |p| EventKind::RaceDecided {
+            municipality: 0,
+            mayor: false,
+            winner: p.id.0,
+            incumbent_defeated: false,
+            player_won: false,
+            player_ran: false,
+            post: None,
+        },
+        |_| {
+            [
+                Cause::Process(Process::Elections),
+                Cause::Exogenous(Shock::Race),
+            ]
+            .into()
+        },
+    );
+    assert_eq!(step.kind, "race_decided");
+    assert_eq!(step.args.get("name"), Some(&name));
+}
+
+#[test]
+fn policy_enacted_reads_as_the_public_record() {
+    let (step, name) = public_step(
+        true,
+        |_| EventKind::PolicyEnacted {
+            policy: 0,
+            municipality: 0,
+            yes: 5,
+            no: 2,
+            overrode_veto: false,
+        },
+        |_| Cause::Process(Process::Lawmaking).into(),
+    );
+    assert_eq!(step.kind, "policy_enacted");
+    assert_eq!(step.args.get("town"), Some(&name));
+    assert_eq!(step.args.get("yes").map(String::as_str), Some("5"));
+}
+
+#[test]
+fn policy_failed_reads_as_the_public_record() {
+    let (step, name) = public_step(
+        true,
+        |_| EventKind::PolicyFailed {
+            policy: 0,
+            municipality: 0,
+            vetoed: false,
+            yes: 3,
+            no: 4,
+        },
+        |_| Cause::Process(Process::Lawmaking).into(),
+    );
+    assert_eq!(step.kind, "policy_failed");
+    assert_eq!(step.args.get("town"), Some(&name));
+    assert_eq!(step.args.get("no").map(String::as_str), Some("4"));
+}
+
+#[test]
+fn scandal_broke_names_its_subject() {
+    let (step, name) = public_step(
+        false,
+        |p| EventKind::ScandalBroke {
+            scandal: 901,
+            politician: p.id.0,
+            municipality: 0,
+            severity: "ethics".into(),
+            kind: "bribe".into(),
+        },
+        |p| [Cause::Process(Process::Press), Cause::Actor(p.character)].into(),
+    );
+    assert_eq!(step.kind, "scandal_broke");
+    assert_eq!(step.args.get("name"), Some(&name));
+    // Whom the story names is named as the one whose choice it was.
+    assert!(step.causes.iter().any(|c| matches!(
+        c,
+        CauseView::Actor { person: Some(p) } if p.name == name
+    )));
+}
+
+#[test]
+fn case_developed_names_its_subject() {
+    for stage in ["charged", "dropped", "acquitted", "convicted"] {
+        let (step, name) = public_step(
+            false,
+            |p| EventKind::CaseDeveloped {
+                case: 901,
+                politician: p.id.0,
+                stage: stage.into(),
+            },
+            |_| Cause::Process(Process::Justice).into(),
+        );
+        assert_eq!(step.kind, "case_developed");
+        assert_eq!(step.args.get("name"), Some(&name), "{stage}");
+    }
+}
+
+/// Everything else stays under the knowledge gate: the same stranger in a
+/// step of another kind is not named, in its arguments or as its actor,
+/// and neither is anyone a public step does not itself name.
+#[test]
+fn every_other_kind_stays_gated() {
+    let mut e = world(2026);
+    let (stranger, name) = a_stranger(&e);
+    let other = {
+        let st = e.state();
+        st.politics
+            .politicians
+            .iter()
+            .find(|p| {
+                p.id != stranger.id
+                    && level_of(&e, p.character) == KnowledgeLevelDto::Unknown
+                    && p.full_name() != name
+            })
+            .expect("a second stranger")
+            .clone()
+    };
+    let mut ids: Vec<EventId> = Vec::new();
+    let mut law = EventId(0);
+    e.setup(|s| {
+        let date = s.calendar.date;
+        let gated: Vec<EventKind> = vec![
+            EventKind::CaseOpened {
+                case: 902,
+                politician: stranger.id.0,
+            },
+            EventKind::RumourSpread {
+                rumour: 902,
+                politician: stranger.id.0,
+            },
+            EventKind::RumourCorrected {
+                rumour: 902,
+                politician: stranger.id.0,
+            },
+            EventKind::PolicyIntroduced {
+                policy: 0,
+                municipality: 0,
+                sponsor: stranger.id.0,
+            },
+        ];
+        for kind in gated {
+            ids.push(s.events.record(
+                date,
+                kind,
+                [
+                    Cause::Process(Process::Press),
+                    Cause::Actor(stranger.character),
+                ],
+            ));
+        }
+        // A public step names its subject, not whoever else chose something.
+        law = s.events.record(
+            date,
+            EventKind::ScandalBroke {
+                scandal: 903,
+                politician: stranger.id.0,
+                municipality: 0,
+                severity: "ethics".into(),
+                kind: "bribe".into(),
+            },
+            [
+                Cause::Process(Process::Press),
+                Cause::Actor(other.character),
+            ],
+        );
+    });
+    for id in ids {
+        let v = why_view(&e, id.0, None).unwrap();
+        let step = &v.chain[0];
+        assert!(
+            !PUBLIC_RESULTS.contains(&step.kind.as_str()),
+            "{}",
+            step.kind
+        );
+        assert!(step.args.values().all(|a| *a != name), "{}", step.kind);
+        assert!(
+            step.causes.contains(&CauseView::Actor { person: None }),
+            "{}",
+            step.kind
+        );
+        assert!(!serde_json::to_string(&v).unwrap().contains(&name));
+    }
+    let v = why_view(&e, law.0, None).unwrap();
+    assert_eq!(v.chain[0].args.get("name"), Some(&name));
+    assert!(
+        v.chain[0]
+            .causes
+            .contains(&CauseView::Actor { person: None })
+    );
+    assert!(
+        !serde_json::to_string(&v)
+            .unwrap()
+            .contains(&other.full_name())
+    );
+}
+
+// --- Every typed value has a line ----------------------------------------
+
+/// Every variant of a type, as its serde key. The closure is an exhaustive
+/// match: a variant missing from the list does not compile, so a new cause
+/// cannot be added without being listed here, and then needs its line.
+macro_rules! every {
+    ($ty:ident: $($v:ident),+ $(,)?) => {{
+        let _exhaustive = |x: $ty| match x {
+            $($ty::$v => ()),+
+        };
+        vec![$(serde_key(&$ty::$v)),+]
+    }};
+}
+
+fn serde_key<T: serde::Serialize>(v: &T) -> String {
+    match serde_json::to_value(v).unwrap() {
+        serde_json::Value::String(s) => s,
+        other => panic!("not a plain key: {other}"),
+    }
+}
+
+/// The Why panel words every typed value the view can carry (links, the
+/// player's acts, processes, pressures, shocks and the bare roots) from
+/// `locale/en/why.ftl`: a value with no line fails here.
+#[test]
+fn every_cause_and_link_has_a_line() {
+    use mandate_sim::spine::Pressure;
+    let keys = mandate_content::validate::fluent_keys(&content().locale_text("en"));
+    let mut wanted: Vec<String> = Vec::new();
+    let mut family = |prefix: &str, variants: Vec<String>| {
+        assert!(!variants.is_empty());
+        wanted.extend(variants.into_iter().map(|v| format!("{prefix}-{v}")));
+    };
+    family(
+        "why-link",
+        every!(Link: Caused, Continues, Prompted, Revealed, Ended),
+    );
+    // The protocol's own link type has the same keys.
+    family(
+        "why-link",
+        every!(LinkDto: Caused, Continues, Prompted, Revealed, Ended),
+    );
+    family(
+        "why-player",
+        every!(PlayerAct: Start, Vote, File, Draft, Amend, Introduce, Withdraw, Move, Meet,
+            Answer, LetPass, Talk, RespondAsk, Promise, Lobby, TradeFavor, TownHall, Press,
+            Canvass, Fundraise, Rest, Advertise, TakeBribe, DipFunds, LeakFile, Visit, Casework),
+    );
+    family(
+        "why-process",
+        every!(Process: Calendar, Markets, CentralBank, Budget, Lawmaking, Agenda, Elections,
+            Parties, Director, Press, Justice, Asks, Society, Knowledge, Arcs, Update),
+    );
+    family(
+        "why-pressure",
+        every!(Pressure: WorldDemand, CommodityPrices, Depletion, Competitiveness, LabourCosts,
+            Track),
+    );
+    family(
+        "why-exogenous",
+        every!(Shock: WorldEconomy, Commodities, Hazard, Race),
+    );
+    // The roots with no value of their own: every kind of `CauseView` but a
+    // link, the player's act and the families above.
+    let bare = |c: &CauseView| match c {
+        CauseView::History => Some("why-history"),
+        CauseView::Forgotten => Some("why-forgotten"),
+        CauseView::Unknown => Some("why-unknown"),
+        CauseView::Actor { person: Some(_) } => Some("why-actor"),
+        CauseView::Actor { person: None } => Some("why-actor-unnamed"),
+        CauseView::Event { .. }
+        | CauseView::Player { .. }
+        | CauseView::Process { .. }
+        | CauseView::Pressure { .. }
+        | CauseView::Exogenous { .. } => None,
+    };
+    let e = world(2026);
+    let someone = person_ref(&e, e.state().politics.politicians[0].character);
+    assert!(someone.is_some());
+    for c in [
+        CauseView::History,
+        CauseView::Forgotten,
+        CauseView::Unknown,
+        CauseView::Actor { person: someone },
+        CauseView::Actor { person: None },
+    ] {
+        wanted.push(bare(&c).unwrap().to_string());
+    }
+    let missing: Vec<&String> = wanted.iter().filter(|k| !keys.contains(*k)).collect();
+    assert!(missing.is_empty(), "no English line for {missing:?}");
+    // And no line for a value the engine cannot send (a renamed variant
+    // leaves its old line behind).
+    let families = [
+        "why-link-",
+        "why-player-",
+        "why-process-",
+        "why-pressure-",
+        "why-exogenous-",
+    ];
+    let stale: Vec<&String> = keys
+        .iter()
+        .filter(|k| families.iter().any(|f| k.starts_with(f)))
+        .filter(|k| !wanted.contains(k))
+        .collect();
+    assert!(stale.is_empty(), "lines for no value: {stale:?}");
+}
+
+// --- The views that name an event to ask about ---------------------------
+
+/// A bill's card names the event that decided it, and every line of the
+/// overview's list can be asked about.
+#[test]
+fn a_bill_card_names_the_event_that_decided_it() {
+    let mut e = world(2026);
+    let from = last_id(&e);
+    // Play on until the player's council has decided a bill tabled since.
+    let mut decided = None;
+    for _ in 0..60 {
+        e.apply(Command::EndTurn).unwrap();
+        decided = office_view(&e).unwrap().bills.iter().find_map(|b| {
+            b.outcome_event
+                .filter(|ev| *ev > from.0)
+                .map(|ev| (b.id, ev))
+        });
+        if decided.is_some() {
+            break;
+        }
+    }
+    let (bill, ev) = decided.expect("a bill at home was decided");
+    let event = e.state().events.get(EventId(ev)).unwrap();
+    assert!(matches!(
+        event.kind,
+        EventKind::PolicyEnacted { policy, .. }
+            | EventKind::PolicyFailed { policy, .. }
+            | EventKind::PolicyExpired { policy, .. }
+            | EventKind::PolicyWithdrawn { policy, .. } if policy == bill
+    ));
+    // Behind it: at least its introduction.
+    let v = why_view(&e, ev, None).unwrap();
+    assert!(v.chain.len() >= 2, "{:?}", v.chain);
+    assert!(v.chain.iter().any(|s| s.kind == "policy_introduced"));
+    // A draft or a bill still before the body names none; whatever a card
+    // names can be asked about and is that bill's.
+    for b in &office_view(&e).unwrap().bills {
+        if matches!(b.status.as_str(), "draft" | "under_consideration") {
+            assert_eq!(b.outcome_event, None, "{} {}", b.id, b.status);
+        }
+        if let Some(ev) = b.outcome_event {
+            let v = why_view(&e, ev, None).unwrap();
+            assert!(
+                v.chain[0].kind.starts_with("policy_"),
+                "{}",
+                v.chain[0].kind
+            );
+        }
+    }
+    // The overview's list names events too: each line can be asked about.
+    for line in &overview(&e).recent_events {
+        assert!(why_view(&e, line.id, None).is_some(), "{}", line.text_key);
+    }
+}
+
+/// A race's result card names the event of the result; the chain behind it
+/// is the campaign, and the result's own factors travel with the view.
+#[test]
+fn a_result_names_its_race() {
+    let mut e = world(2);
+    let before = campaign_view(&e).unwrap().last_election;
+    for _ in 0..80 {
+        e.apply(Command::EndTurn).unwrap();
+        if campaign_view(&e).unwrap().last_election != before {
+            break;
+        }
+    }
+    let cv = campaign_view(&e).unwrap();
+    assert_ne!(cv.last_election, before, "an election was held");
+    assert!(!cv.results.is_empty());
+    for r in &cv.results {
+        let ev = r.event.expect("the result's event");
+        let v = why_view(&e, ev, None).unwrap();
+        assert_eq!(v.chain[0].kind, "race_decided");
+        assert_eq!(v.chain[0].date, r.date);
+        // The winner is named, known or not (a public result).
+        let winner = r.candidates.iter().find(|c| c.is_winner).unwrap();
+        assert_eq!(v.chain[0].args.get("name"), Some(&winner.name));
+        assert!(v.chain[0].causes.contains(&CauseView::Exogenous {
+            shock: "race".into()
+        }));
+        // Behind it: the campaign that led to election day.
+        assert!(v.chain.iter().any(|s| s.kind == "campaign_opened"));
+    }
+    // The Legacy record's lines name their events (`source_event`): the
+    // player's race is the result's event, and each can be asked about.
+    let mine = cv
+        .results
+        .iter()
+        .find(|r| r.player_ran)
+        .expect("the player stood");
+    let legacy = legacy_view(&e).unwrap();
+    assert!(
+        legacy
+            .entries
+            .iter()
+            .any(|l| l.text_key.starts_with("legacy-election") && l.event == mine.event),
+        "{:?}",
+        legacy.entries
+    );
+    for ev in legacy.entries.iter().filter_map(|l| l.event) {
+        assert!(why_view(&e, ev, None).is_some());
+    }
+}
+
+/// A line of the skip summary names its event where a thread of the log
+/// keeps it (a law, a decision, an ask, a story, a case), and never an
+/// event of another kind than the line reports.
+#[test]
+fn a_summary_line_names_its_event() {
+    use mandate_content::act::SkipTargetKind;
+    let mut named = 0;
+    for seed in [15u64, 2026, 2] {
+        let mut e = world(seed);
+        e.apply(Command::EndTurn).unwrap();
+        for _ in 0..3 {
+            if e.apply(Command::Skip {
+                target: SkipTargetKind::NextSession,
+                limit: None,
+            })
+            .is_err()
+            {
+                break;
+            }
+            let Some(s) = skip_summary_view(&e) else {
+                continue;
+            };
+            for line in &s.items {
+                let Some(ev) = line.event else { continue };
+                named += 1;
+                let v = why_view(&e, ev, None).expect("the line's event can be asked about");
+                let kind = v.chain[0].kind.as_str();
+                let fits = match line.text_key.as_str() {
+                    k if k.starts_with("skip-item-law-expired")
+                        || k.starts_with("skip-item-law-repealed") =>
+                    {
+                        kind == "policy_expired"
+                    }
+                    k if k.starts_with("skip-item-law") => kind == "policy_enacted",
+                    "skip-item-bill-failed" => kind == "policy_failed",
+                    "skip-item-bill-withdrawn" => kind == "policy_withdrawn",
+                    "skip-item-answered" | "skip-item-defaulted" => kind == "decision_resolved",
+                    "skip-item-scandal" => kind == "scandal_broke",
+                    "skip-item-case" => kind == "case_opened" || kind == "case_developed",
+                    k if k.starts_with("skip-item-ask-") => kind == "ask_resolved",
+                    _ => false,
+                };
+                assert!(fits, "{} names a {kind}", line.text_key);
+            }
+        }
+    }
+    assert!(named > 0, "no summary line named an event");
+}
+
+/// The answer says how far it walked and how far a query may ask.
+#[test]
+fn the_view_says_how_far_it_walked() {
+    let e = world(2026);
+    let id = last_id(&e);
+    let v = why_view(&e, id.0, None).unwrap();
+    assert_eq!((v.depth, v.max_depth), (WHY_DEPTH, WHY_MAX_DEPTH));
+    let v = why_view(&e, id.0, Some(200)).unwrap();
+    assert_eq!((v.depth, v.max_depth), (WHY_MAX_DEPTH, WHY_MAX_DEPTH));
+    let v = why_view(&e, id.0, Some(0)).unwrap();
+    assert_eq!(v.depth, 1);
 }

@@ -1,0 +1,39 @@
+/* "Why?" (the causal spine, DEC-108): the control on an outcome and the panel
+   it opens. The panel is a sheet like the others (a bottom sheet on phones, a
+   400 px panel on the left on wide screens); it opens over whatever showed the
+   outcome, election night included, so it sits above the modal layer (10). */
+.why-scrim { z-index: 11; }
+.sheet.why-sheet { z-index: 12; }
+@media (max-width: 899px) { .sheet.why-sheet { max-height: 85vh; } }
+@media (min-width: 900px) { .why-sheet { max-height: none; } }
+.why-title { margin: 0; }
+.why-title:focus { outline: none; }
+.why-title:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+
+/* The control. In a list row it sits to the right of the row's text. */
+.why-btn { flex: none; }
+.why-btn-inline { font-size: 0.85rem; color: var(--muted); min-height: 40px; padding: 0 4px; white-space: nowrap; }
+.events li:has(> .why-btn) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: center; }
+.events li:has(> .why-btn) > :not(.why-btn) { grid-column: 1; min-width: 0; }
+.events li > .why-btn { grid-column: 2; grid-row: 1 / span 2; }
+.why-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.why-row > :first-child { min-width: 0; }
+
+/* The line about the player's own act. */
+.why-player { margin: 0; padding: 8px 12px; border-radius: 10px; border-left: 3px solid var(--accent); background: var(--surface-2); overflow-wrap: anywhere; }
+
+/* The chain: one card a step, newest at the top, a joining phrase between. */
+.why-chain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.why-step { display: flex; flex-direction: column; min-width: 0; }
+.why-join { margin: 0; padding: 6px 0 6px 14px; margin-left: 13px; border-left: 2px solid var(--border); color: var(--muted); font-size: 0.875rem; font-style: italic; overflow-wrap: anywhere; }
+.why-from { font-style: normal; }
+.why-card { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); min-width: 0; }
+.why-step:first-child .why-card { border-color: var(--accent); }
+.why-text { margin: 0; overflow-wrap: anywhere; }
+.why-roots { list-style: none; margin: 6px 0 0; padding: 6px 0 0; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
+.why-root { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); gap: 6px; align-items: baseline; overflow-wrap: anywhere; }
+.why-mark { text-align: center; color: var(--muted); }
+.why-root-player { font-weight: 600; }
+.why-root-player .why-mark { color: var(--accent); }
+.why-more { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0 0 14px; margin-left: 13px; border-left: 2px dashed var(--border); }
+.why-more p { margin: 0; }

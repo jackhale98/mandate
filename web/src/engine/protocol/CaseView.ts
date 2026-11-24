@@ -21,4 +21,9 @@ odds: string | null,
 /**
  * The sentence, if convicted: `fine` | `removed` | `prison` | `disqualified`.
  */
-sentence: string | null, years: number, };
+sentence: string | null, years: number, 
+/**
+ * The case's latest step (opened, charged, its outcome), to ask
+ * "Why?" about.
+ */
+event?: number, };

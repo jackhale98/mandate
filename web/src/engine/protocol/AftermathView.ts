@@ -2,4 +2,9 @@
 import type { DateView } from "./DateView";
 import type { EffectLineView } from "./EffectLineView";
 
-export type AftermathView = { option: string, label_key: string, key: string, by_default: boolean, date: DateView, lines: Array<EffectLineView>, };
+export type AftermathView = { option: string, label_key: string, key: string, by_default: boolean, date: DateView, lines: Array<EffectLineView>, 
+/**
+ * The event of the decision being settled, to ask "Why?" about
+ * (`QueryDto::Why`); none once the log no longer keeps it.
+ */
+event?: number, };

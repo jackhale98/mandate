@@ -605,19 +605,27 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
         }
         // Asks and promises (DEC-097 §2); the full view is E7's `AskView`.
         EventKind::PlayerDeed { .. } => "event-player-deed",
-        EventKind::AskOffered { template, .. } => {
+        // An ask's name takes the ask's own arguments (who asked, where,
+        // about which bill), so they travel with the line.
+        EventKind::AskOffered { ask, template, .. } => {
             put("ask_key", ask_name_key(engine, template));
+            crate::asks::outcome_args(engine, *ask, &mut args);
             "event-ask-offered"
         }
-        EventKind::AskAccepted { template, .. } => {
+        EventKind::AskAccepted { ask, template, .. } => {
             put("ask_key", ask_name_key(engine, template));
+            crate::asks::outcome_args(engine, *ask, &mut args);
             "event-ask-accepted"
         }
         EventKind::AskResolved {
-            template, outcome, ..
+            ask,
+            template,
+            outcome,
+            ..
         } => {
             put("ask_key", ask_name_key(engine, template));
             put("outcome", outcome.clone());
+            crate::asks::outcome_args(engine, *ask, &mut args);
             "event-ask-resolved"
         }
         EventKind::RulesUpdated { to_engine, .. } => {

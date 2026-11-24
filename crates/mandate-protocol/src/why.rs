@@ -18,11 +18,16 @@
 //!   to read every name in the log. Every other kind of event is public
 //!   record (laws, races, closures, disasters, scandals once they break,
 //!   cases) or the player's own (their deeds, asks, decisions, warnings).
+//! - A public result is public (DEC-108 §8): whoever a step of one of the
+//!   [`PUBLIC_RESULTS`] kinds names is named here whatever the player
+//!   knows of them, in the step's arguments and as its actor. The ledger
+//!   is not written: everywhere else the player has still not heard of
+//!   them.
 
 use crate::{DateView, EventView, PersonRefView};
 use mandate_sim::Engine;
 use mandate_sim::events::{DomainEvent, EventId, EventKind, EventLog};
-use mandate_sim::spine::{Cause, Link, Process, kind_key};
+use mandate_sim::spine::{Cause, Link, Process, Thread, kind_key};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use ts_rs::TS;
@@ -139,6 +144,10 @@ pub struct WhyView {
     /// More lies behind than the depth asked for.
     pub truncated: bool,
     pub player: Option<WhyPlayerView>,
+    /// The links back this answer walked, and the most a query may ask
+    /// for (a client offers "further back" while `depth < max_depth`).
+    pub depth: u8,
+    pub max_depth: u8,
 }
 
 /// The depth a chain is walked when none is asked for, and the most.
@@ -151,6 +160,64 @@ fn hidden(kind: &EventKind) -> bool {
         kind,
         EventKind::DirectorIntervention { .. } | EventKind::FactDiscoverable { .. }
     )
+}
+
+/// The kinds of event that are a public result (their `kind_key`s): the
+/// people such a step names are public record, so they are named here
+/// whatever the player has learned (DEC-108 §8). Everything else stays
+/// under the knowledge gate (DEC-091).
+///
+/// - `race_decided`: the winner of an election.
+/// - `policy_enacted`, `policy_failed`: a law's recorded vote.
+/// - `scandal_broke`: the subject of a published story.
+/// - `case_developed`: the subject of a court's ruling (charged, dropped,
+///   acquitted, convicted).
+pub const PUBLIC_RESULTS: [&str; 5] = [
+    "race_decided",
+    "policy_enacted",
+    "policy_failed",
+    "scandal_broke",
+    "case_developed",
+];
+
+/// Whether an event is a public result ([`PUBLIC_RESULTS`]).
+pub fn public_result(kind: &EventKind) -> bool {
+    PUBLIC_RESULTS.contains(&kind_key(kind))
+}
+
+/// An event the player may ask "Why?" about, as a view carries it: one the
+/// log still keeps and that is not a diagnostic.
+pub(crate) fn askable(log: &EventLog, id: EventId) -> Option<u32> {
+    log.get(id).filter(|e| !hidden(&e.kind)).map(|e| e.id.0)
+}
+
+/// The latest event of a matter (a bill, an ask, a decision, a scandal, a
+/// case), when it is of the kind a view shows as the matter's outcome.
+pub(crate) fn thread_event(
+    log: &EventLog,
+    thread: Thread,
+    is: impl Fn(&EventKind) -> bool,
+) -> Option<u32> {
+    let e = log.get(log.head(thread)?)?;
+    if is(&e.kind) {
+        askable(log, e.id)
+    } else {
+        None
+    }
+}
+
+/// The latest event that holds `is`, looking back no further than `since`
+/// (a view names an outcome by its day when no thread keeps it).
+pub(crate) fn event_since(
+    log: &EventLog,
+    since: mandate_core::SimDate,
+    is: impl Fn(&DomainEvent) -> bool,
+) -> Option<u32> {
+    log.iter()
+        .rev()
+        .take_while(|e| e.date >= since)
+        .find(|e| is(e))
+        .and_then(|e| askable(log, e.id))
 }
 
 /// An event's causes as the player may see them: a link to a hidden event
@@ -218,9 +285,13 @@ fn unknown_names(engine: &Engine, gate: &crate::knowledge::Gate<'_>) -> BTreeSet
 /// The engine's text for an event, as the player may read it here: the
 /// overview's line, with the name of anyone the player has not heard of
 /// left empty (the unknown form, as in `PersonRefView`). The Why query
-/// takes any event id, so it must not be a way to read every name.
+/// takes any event id, so it must not be a way to read every name. A
+/// public result names whom it names ([`PUBLIC_RESULTS`]).
 fn gated_event_view(e: &DomainEvent, engine: &Engine, unknown: &BTreeSet<String>) -> EventView {
     let mut v = crate::views::event_view(e, engine);
+    if public_result(&e.kind) {
+        return v;
+    }
     for value in v.args.values_mut() {
         if unknown.contains(value.as_str()) {
             value.clear();
@@ -298,6 +369,56 @@ pub fn why_view(engine: &Engine, event: u32, depth: Option<u8>) -> Option<WhyVie
                 text_key,
                 args,
             } = gated_event_view(e, engine, &unknown);
+            // Whom a public result names is named as its actor too.
+            let named: BTreeSet<&str> = if public_result(&e.kind) {
+                args.values().map(String::as_str).collect()
+            } else {
+                BTreeSet::new()
+            };
+            let named_here = |w: mandate_sim::characters::CharacterId| {
+                mandate_sim::characters::profile(&st.politics, &st.world, w)
+                    .map(|p| p.full_name())
+                    .is_some_and(|n| !n.trim().is_empty() && named.contains(n.as_str()))
+            };
+            let causes = causes
+                .iter()
+                .filter_map(|c| {
+                    Some(match c {
+                        Cause::Event(to, link) => {
+                            // A link the log no longer holds reads as forgotten.
+                            if log.get(*to).is_none() {
+                                CauseView::Forgotten
+                            } else {
+                                CauseView::Event {
+                                    event: to.0,
+                                    link: (*link).into(),
+                                    in_chain: in_chain(*to),
+                                }
+                            }
+                        }
+                        Cause::Player(act) => CauseView::Player { act: key(act) },
+                        Cause::Actor(who) => CauseView::Actor {
+                            person: if gate.person(*who)
+                                >= mandate_sim::player::knowledge::Level::Heard
+                            {
+                                crate::person_ref_known(engine, &gate, *who)
+                            } else if named_here(*who) {
+                                crate::person_ref(engine, *who)
+                            } else {
+                                None
+                            },
+                        },
+                        Cause::Process(p) => CauseView::Process { process: key(p) },
+                        Cause::Pressure(p) => CauseView::Pressure { pressure: key(p) },
+                        Cause::History => CauseView::History,
+                        Cause::Exogenous(s) => CauseView::Exogenous { shock: key(s) },
+                        // A lab intervention is not a player's game.
+                        Cause::Lab => return None,
+                        Cause::Forgotten => CauseView::Forgotten,
+                        Cause::Unknown => CauseView::Unknown,
+                    })
+                })
+                .collect();
             Some(WhyStepView {
                 id,
                 kind: kind_key(&e.kind).to_string(),
@@ -309,42 +430,7 @@ pub fn why_view(engine: &Engine, event: u32, depth: Option<u8>) -> Option<WhyVie
                     event: to.0,
                     link: link.into(),
                 }),
-                causes: causes
-                    .iter()
-                    .filter_map(|c| {
-                        Some(match c {
-                            Cause::Event(to, link) => {
-                                // A link the log no longer holds reads as forgotten.
-                                if log.get(*to).is_none() {
-                                    CauseView::Forgotten
-                                } else {
-                                    CauseView::Event {
-                                        event: to.0,
-                                        link: (*link).into(),
-                                        in_chain: in_chain(*to),
-                                    }
-                                }
-                            }
-                            Cause::Player(act) => CauseView::Player { act: key(act) },
-                            Cause::Actor(who) => CauseView::Actor {
-                                person: Some(*who)
-                                    .filter(|w| {
-                                        gate.person(*w)
-                                            >= mandate_sim::player::knowledge::Level::Heard
-                                    })
-                                    .and_then(|w| crate::person_ref_known(engine, &gate, w)),
-                            },
-                            Cause::Process(p) => CauseView::Process { process: key(p) },
-                            Cause::Pressure(p) => CauseView::Pressure { pressure: key(p) },
-                            Cause::History => CauseView::History,
-                            Cause::Exogenous(s) => CauseView::Exogenous { shock: key(s) },
-                            // A lab intervention is not a player's game.
-                            Cause::Lab => return None,
-                            Cause::Forgotten => CauseView::Forgotten,
-                            Cause::Unknown => CauseView::Unknown,
-                        })
-                    })
-                    .collect(),
+                causes,
             })
         })
         .collect();
@@ -353,5 +439,7 @@ pub fn why_view(engine: &Engine, event: u32, depth: Option<u8>) -> Option<WhyVie
         chain,
         truncated,
         player,
+        depth: max,
+        max_depth: WHY_MAX_DEPTH,
     })
 }

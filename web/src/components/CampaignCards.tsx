@@ -7,6 +7,8 @@ import { useGame } from "../state/gameStore";
 import { formatDate } from "../i18n/format";
 import { PartyChip, PollChart, ResultBars, WhyBars } from "./ElectionCharts";
 import { postTitle } from "./posts";
+import { WhyButton } from "./why/WhyButton";
+import { useWhy } from "./why/whyStore";
 
 export function Calendar({ c }: { c: CampaignView }) {
   const tr = useGame((s) => s.tr);
@@ -171,6 +173,8 @@ export function ResultCard({ r, c, headline = false }: { r: ResultView; c: Campa
           <WhyBars factors={r.decomposition} sign={r.player_ran && !r.player_won ? -1 : 1} />
         </>
       )}
+      {/* What led to the race (the causal chain), with the same factors beside it. */}
+      <WhyButton event={r.event} about={postTitle(tr, r.post)} factors={{ factors: r.decomposition, sign: r.player_ran && !r.player_won ? -1 : 1 }} />
     </section>
   );
 }
@@ -240,6 +244,8 @@ export function ElectionNight() {
   const c = useGame((s) => s.campaign);
   const open = useGame((s) => s.electionNight);
   const close = useGame((s) => s.closeElectionNight);
+  // The "Why?" panel opens over the night: while it is up it has the keyboard (Escape closes it), not this dialog.
+  const whyOpen = useWhy((s) => s.open !== null);
   if (!open || !c) return null;
   const mine = c.results.filter((r) => r.player_ran);
   // The rest of the night: the offices' results (the town's headline races).
@@ -247,7 +253,7 @@ export function ElectionNight() {
   const seats = c.results.filter((r) => !r.player_ran && r.post.kind !== "office");
   const outcome = c.seat_outcome;
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="election-night-title" data-testid="election-night">
+    <div className="modal-backdrop" role="dialog" aria-modal={whyOpen ? "false" : "true"} aria-labelledby="election-night-title" data-testid="election-night">
       <div className="modal">
         <div className="sheet-head">
           <h2 id="election-night-title">{tr.t("ui-election-night")}</h2>

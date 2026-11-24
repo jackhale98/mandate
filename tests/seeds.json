@@ -7,6 +7,10 @@
     "seed": 17,
     "needs": "a town-hall ask and one other are offered within the first four turns (small world)"
   },
+  "closure_in_a_recession_listed_early": {
+    "seed": 24,
+    "needs": "a small idle world where, within eight turns, the overview lists a plant closure with a recession behind it"
+  },
   "councillor_and_regular_at_a_place": {
     "seed": 16,
     "needs": "a non-player councillor, and a regular whose own place is one in the town"
@@ -30,6 +34,10 @@
   "introduction_ask_offered_early": {
     "seed": 61,
     "needs": "an ask.introduce_me is offered within the first four turns (small world)"
+  },
+  "law_decided_early_with_its_chain": {
+    "seed": 1,
+    "needs": "a small idle world where, within six turns, the overview lists a law passed or voted down and the town's paper a story, each with what led to it"
   },
   "law_lapses_in_first_skip": {
     "seed": 15,

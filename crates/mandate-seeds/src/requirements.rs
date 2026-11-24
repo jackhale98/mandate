@@ -61,6 +61,16 @@ pub const ALL: &[Requirement] = &[
         holds: introduction_ask_offered_early,
     },
     Requirement {
+        name: "closure_in_a_recession_listed_early",
+        needs: "a small idle world where, within eight turns, the overview lists a plant closure with a recession behind it",
+        holds: closure_in_a_recession_listed_early,
+    },
+    Requirement {
+        name: "law_decided_early_with_its_chain",
+        needs: "a small idle world where, within six turns, the overview lists a law passed or voted down and the town's paper a story, each with what led to it",
+        holds: law_decided_early_with_its_chain,
+    },
+    Requirement {
         name: "law_lapses_in_first_skip",
         needs: "the first NextSession skip lists a lapsed law, with its policy named",
         holds: law_lapses_in_first_skip,
@@ -155,6 +165,42 @@ fn offered(e: &Engine, template: &str) -> bool {
 }
 
 // ---- the predicates -----------------------------------------------------
+
+/// The overview's recent events list a line with one of these text keys
+/// whose "Why?" has at least two steps (the event and what led to it).
+fn listed_with_a_chain(e: &Engine, text_keys: &[&str]) -> bool {
+    mandate_protocol::overview(e)
+        .recent_events
+        .iter()
+        .any(|ev| {
+            text_keys.contains(&ev.text_key.as_str())
+                && mandate_protocol::why_view(e, ev.id, None).is_some_and(|v| v.chain.len() >= 2)
+        })
+}
+
+/// The town's paper carries a story that names an event with what led to it.
+fn paper_names_an_event(e: &Engine) -> bool {
+    mandate_protocol::newspaper_view(e, 24).is_some_and(|n| {
+        n.articles
+            .iter()
+            .filter_map(|a| a.event)
+            .any(|ev| mandate_protocol::why_view(e, ev, None).is_some_and(|v| v.chain.len() >= 2))
+    })
+}
+
+fn law_decided_early_with_its_chain(seed: u64) -> bool {
+    let mut e = small(seed);
+    (0..6).any(|_| {
+        end_turn(&mut e)
+            && listed_with_a_chain(&e, &["event-policy-enacted", "event-policy-defeated"])
+            && paper_names_an_event(&e)
+    })
+}
+
+fn closure_in_a_recession_listed_early(seed: u64) -> bool {
+    let mut e = small(seed);
+    (0..8).any(|_| end_turn(&mut e) && listed_with_a_chain(&e, &["event-plant-closure"]))
+}
 
 fn law_lapses_in_first_skip(seed: u64) -> bool {
     let mut e = small(seed);

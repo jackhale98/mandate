@@ -80,4 +80,10 @@ ward_certainty: string,
 /**
  * The player owes the sponsor a favour.
  */
-owe_sponsor: boolean, side_effects: Array<SideEffectView>, };
+owe_sponsor: boolean, side_effects: Array<SideEffectView>, 
+/**
+ * The event that decided it (enacted, failed, expired, withdrawn), to
+ * ask "Why?" about (`QueryDto::Why`); none for a draft or a bill
+ * still before the body, or once the log no longer keeps it.
+ */
+outcome_event?: number, };

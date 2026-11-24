@@ -14,6 +14,7 @@ import { useGame } from "../../state/gameStore";
 import { capital } from "../DecisionSheet";
 import { personName } from "../Knowing";
 import { TalkButton } from "../talk/TalkButton";
+import { WhyButton } from "../why/WhyButton";
 
 /** The ask in a few words, as a heading. */
 export function askTitle(tr: Translator, a: AskView): string {
@@ -148,6 +149,8 @@ export function AskItem({ a }: { a: AskView }) {
         {a.big && <> · {tr.t("ui-ask-big")}</>}
         {open && <> · {deadline(tr, a)}</>}
         {a.resolved_on && <> · {formatDate(tr, a.resolved_on)}</>}
+        {a.event !== undefined && <> · </>}
+        <WhyButton event={a.event} about={title} inline />
       </p>
       {a.outcome_key && <p className="small">{tr.event(a.outcome_key, a.args)}</p>}
       {open && <p className="small">{tr.event(a.detail_key, a.args)}</p>}

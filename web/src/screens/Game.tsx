@@ -19,6 +19,8 @@ import { TermReview } from "../components/act/TermReview";
 import { SkipSummary } from "../components/act/SkipSummary";
 import { Epilogue } from "../components/act/Epilogue";
 import { PromisePicker } from "../components/asks/PromisePicker";
+import { WhyPanel } from "../components/why/WhyPanel";
+import { WhyButton } from "../components/why/WhyButton";
 
 function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
   const tr = useGame((s) => s.tr);
@@ -78,6 +80,7 @@ function OverviewScreen({ onSelect }: { onSelect: (id: number) => void }) {
             <li key={e.id}>
               <time className="muted">{formatDate(tr, e.date)}</time>
               <span>{tr.event(e.text_key, e.args)}</span>
+              <WhyButton event={e.id} about={tr.event(e.text_key, e.args)} inline />
             </li>
           ))}
         </ol>
@@ -177,6 +180,7 @@ export function Game() {
       <SkipSummary />
       <PromisePicker />
       <Epilogue />
+      <WhyPanel />
       <Walking />
       <TurnPassage />
       {selected !== null && <MunicipalityPanel id={selected} onClose={() => setSelected(null)} />}

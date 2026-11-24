@@ -3,6 +3,7 @@ import { formatDate, formatMoney } from "../../i18n/format";
 import { useSheetClose } from "../useSheetClose";
 import { capital } from "../DecisionSheet";
 import { actArgs } from "./actArgs";
+import { WhyButton } from "../why/WhyButton";
 
 /**
  * The act epilogue and its Legacy record (DEC-006, DEC-100: a record, no
@@ -89,6 +90,7 @@ export function Epilogue() {
                     ) : (
                       <span>{capital(tr.event(x.text_key, x.args))}</span>
                     )}
+                    <WhyButton event={x.event} about={capital(tr.event(x.text_key, x.args))} inline />
                   </li>
                 ))}
               </ol>

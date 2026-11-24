@@ -17,4 +17,11 @@ framing: string,
 /**
  * About the player.
  */
-about_you: boolean, };
+about_you: boolean, 
+/**
+ * The event the story reports (a town event, the scandal breaking,
+ * the case's step, the rumour), to ask "Why?" about
+ * (`QueryDto::Why`); none for a statement, or once the log no longer
+ * keeps it.
+ */
+event?: number, };

@@ -42,6 +42,13 @@ pub struct ArticleView {
     pub framing: String,
     /// About the player.
     pub about_you: bool,
+    /// The event the story reports (a town event, the scandal breaking,
+    /// the case's step, the rumour), to ask "Why?" about
+    /// (`QueryDto::Why`); none for a statement, or once the log no longer
+    /// keeps it.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<u32>,
 }
 
 /// The newspaper (DEC-079: the newspaper office): what the outlets that
@@ -67,6 +74,10 @@ pub struct ScandalView {
     pub heat: String,
     pub response: Option<String>,
     pub running: bool,
+    /// The event of the story breaking, to ask "Why?" about.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<u32>,
 }
 
 /// A case against the player.
@@ -88,6 +99,11 @@ pub struct CaseView {
     /// The sentence, if convicted: `fine` | `removed` | `prison` | `disqualified`.
     pub sentence: Option<String>,
     pub years: u32,
+    /// The case's latest step (opened, charged, its outcome), to ask
+    /// "Why?" about.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<u32>,
 }
 
 /// Where the career stands (DEC-006): `active`, `imprisoned`, or `ended`.
@@ -154,6 +170,50 @@ fn name(engine: &Engine, p: mandate_sim::politics::PoliticianId) -> String {
         .get(p)
         .map(|x| x.full_name())
         .unwrap_or_default()
+}
+
+/// The event a story reports, for "Why?": the town event itself, the
+/// scandal breaking, the case's step the story is about, the rumour or
+/// its correction. A statement reports no event.
+fn story_event(engine: &Engine, s: &Story) -> Option<u32> {
+    use mandate_sim::events::EventKind as K;
+    use mandate_sim::spine::Thread;
+    let log = &engine.state().events;
+    match &s.source {
+        StorySource::Town { event } => crate::why::askable(log, *event),
+        StorySource::Scandal { id }
+        | StorySource::Response { scandal: id, .. }
+        | StorySource::Backfire { scandal: id } => {
+            crate::why::thread_event(log, Thread::Scandal(*id), |k| {
+                matches!(k, K::ScandalBroke { .. })
+            })
+        }
+        StorySource::Case { id, stage } => {
+            // The step the story is about: the press covers a week's news.
+            let since = mandate_core::SimDate(s.date.0.saturating_sub(31));
+            crate::why::event_since(log, since, |e| match &e.kind {
+                K::CaseOpened { case, .. } => case == id && stage == "investigation",
+                K::CaseDeveloped {
+                    case, stage: at, ..
+                } => case == id && at == stage,
+                _ => false,
+            })
+            .or_else(|| {
+                crate::why::thread_event(log, Thread::Case(*id), |k| {
+                    matches!(k, K::CaseOpened { .. } | K::CaseDeveloped { .. })
+                })
+            })
+        }
+        StorySource::Rumour { id } => crate::why::thread_event(log, Thread::Rumour(*id), |k| {
+            matches!(k, K::RumourSpread { .. })
+        }),
+        StorySource::Correction { rumour } => {
+            crate::why::thread_event(log, Thread::Rumour(*rumour), |k| {
+                matches!(k, K::RumourCorrected { .. })
+            })
+        }
+        StorySource::Statement { .. } => None,
+    }
 }
 
 /// A story as a reader sees it.
@@ -226,6 +286,7 @@ pub fn article(engine: &Engine, s: &Story) -> Option<ArticleView> {
         }
     };
     Some(ArticleView {
+        event: story_event(engine, s),
         id: s.id,
         outlet: outlet_view(content, o),
         date: DateView::of(s.date),
@@ -335,6 +396,10 @@ fn case_view(engine: &Engine, c: &Case) -> CaseView {
         odds,
         sentence: c.sentence.map(|s| s.key().into()),
         years: c.sentence.map(|s| s.prison_years() as u32).unwrap_or(0),
+        event: crate::why::thread_event(&st.events, mandate_sim::spine::Thread::Case(c.id), |k| {
+            use mandate_sim::events::EventKind as K;
+            matches!(k, K::CaseOpened { .. } | K::CaseDeveloped { .. })
+        }),
     }
 }
 
@@ -364,6 +429,11 @@ pub fn legal_view(engine: &Engine) -> Option<LegalView> {
             heat: heat(s.heat).into(),
             response: s.response.map(|r| r.key().into()),
             running: s.running(),
+            event: crate::why::thread_event(
+                &st.events,
+                mandate_sim::spine::Thread::Scandal(s.id),
+                |k| matches!(k, mandate_sim::events::EventKind::ScandalBroke { .. }),
+            ),
         })
         .collect();
     scandals.sort_by_key(|s| !s.running);

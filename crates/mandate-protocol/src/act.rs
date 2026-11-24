@@ -204,6 +204,12 @@ pub struct ActLineView {
     pub args: BTreeMap<String, String>,
     /// A decision this line is about (to open it).
     pub decision: Option<u32>,
+    /// The event the line records, to ask "Why?" about (`QueryDto::Why`):
+    /// a Legacy entry's source event; a summary item's, where the log's
+    /// threads name it (a law, a decision, an ask, a story, a case).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<u32>,
 }
 
 /// Why a skip stopped.
@@ -496,6 +502,50 @@ fn item_line(engine: &Engine, it: &SummaryItem) -> ActLineView {
         text_key: key.into(),
         args,
         decision,
+        event: item_event(engine, it),
+    }
+}
+
+/// The event a summary item is about, where a thread of the log names it
+/// and its latest event is still the one the item reports.
+fn item_event(engine: &Engine, it: &SummaryItem) -> Option<u32> {
+    use mandate_sim::events::EventKind as K;
+    use mandate_sim::spine::Thread;
+    let log = &engine.state().events;
+    let at = |thread: Thread, is: fn(&K) -> bool| crate::why::thread_event(log, thread, is);
+    match it {
+        SummaryItem::LawEnacted { policy, .. } => at(Thread::Bill(*policy), |k| {
+            matches!(k, K::PolicyEnacted { .. })
+        }),
+        SummaryItem::BillFailed { policy } => at(Thread::Bill(*policy), |k| {
+            matches!(k, K::PolicyFailed { .. })
+        }),
+        SummaryItem::LawEnded { policy, .. } => at(Thread::Bill(*policy), |k| {
+            matches!(k, K::PolicyExpired { .. })
+        }),
+        SummaryItem::BillWithdrawn { policy } => at(Thread::Bill(*policy), |k| {
+            matches!(k, K::PolicyWithdrawn { .. })
+        }),
+        SummaryItem::Answered { decision, .. } | SummaryItem::Defaulted { decision, .. } => {
+            at(Thread::Decision(*decision), |k| {
+                matches!(k, K::DecisionResolved { .. })
+            })
+        }
+        SummaryItem::Scandal { scandal, .. } => at(Thread::Scandal(*scandal), |k| {
+            matches!(k, K::ScandalBroke { .. })
+        }),
+        SummaryItem::AskResolved { ask, .. } => {
+            at(Thread::Ask(*ask), |k| matches!(k, K::AskResolved { .. }))
+        }
+        SummaryItem::Case { case, stage } => {
+            let stage = stage.as_str();
+            crate::why::thread_event(log, Thread::Case(*case), |k| match k {
+                K::CaseOpened { .. } => stage == "opened",
+                K::CaseDeveloped { stage: at, .. } => at == stage,
+                _ => false,
+            })
+        }
+        _ => None,
     }
 }
 
@@ -564,6 +614,7 @@ fn summary_view(engine: &Engine, s: &SkipSummary) -> SkipSummaryView {
             text_key: "ui-skip-change-executive".into(),
             args,
             decision: None,
+            event: None,
         });
     }
     SkipSummaryView {
@@ -654,7 +705,12 @@ fn person_name(engine: &Engine, person: u32) -> String {
         .unwrap_or_default()
 }
 
-fn entry_line(engine: &Engine, date: mandate_core::SimDate, k: &LegacyKind) -> ActLineView {
+fn entry_line(
+    engine: &Engine,
+    date: mandate_core::SimDate,
+    k: &LegacyKind,
+    source: Option<mandate_sim::events::EventId>,
+) -> ActLineView {
     let mut args = BTreeMap::new();
     let mut decision = None;
     let key = match k {
@@ -736,6 +792,7 @@ fn entry_line(engine: &Engine, date: mandate_core::SimDate, k: &LegacyKind) -> A
         text_key: key.into(),
         args,
         decision,
+        event: source.and_then(|id| crate::why::askable(&engine.state().events, id)),
     }
 }
 
@@ -780,7 +837,7 @@ fn record_view(engine: &Engine, rec: &LegacyRecord) -> LegacyView {
             .entries
             .iter()
             .rev()
-            .map(|e| entry_line(engine, e.date, &e.kind))
+            .map(|e| entry_line(engine, e.date, &e.kind, e.source_event))
             .collect(),
     }
 }

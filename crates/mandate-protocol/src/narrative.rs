@@ -68,6 +68,11 @@ pub struct AftermathView {
     pub by_default: bool,
     pub date: DateView,
     pub lines: Vec<EffectLineView>,
+    /// The event of the decision being settled, to ask "Why?" about
+    /// (`QueryDto::Why`); none once the log no longer keeps it.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<u32>,
 }
 
 /// A decision (a dilemma, a request, or a storyline's turn).
@@ -993,6 +998,11 @@ pub fn decision_view(engine: &Engine, d: &Decision) -> Option<DecisionView> {
             by_default: r.by_default,
             date: DateView::of(r.date),
             lines: r.applied.iter().map(|a| applied_line(engine, a)).collect(),
+            event: crate::why::thread_event(
+                &st.events,
+                mandate_sim::spine::Thread::Decision(d.id.0),
+                |k| matches!(k, mandate_sim::events::EventKind::DecisionResolved { .. }),
+            ),
         })
     });
     let mut args = cast_args(engine, &d.cast);

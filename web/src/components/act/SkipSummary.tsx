@@ -4,6 +4,7 @@ import { useSheetClose } from "../useSheetClose";
 import { capital } from "../DecisionSheet";
 import type { ChangeView } from "../../engine/protocol/ChangeView";
 import { actArgs } from "./actArgs";
+import { WhyButton } from "../why/WhyButton";
 
 /** A figure as the engine gave it (unemployment comes per mille). */
 function figure(c: ChangeView, v: number): string {
@@ -106,6 +107,7 @@ export function SkipSummary() {
                     ) : (
                       <span>{capital(tr.event(l.text_key, l.args))}</span>
                     )}
+                    <WhyButton event={l.event} about={capital(tr.event(l.text_key, l.args))} inline />
                   </li>
                 ))}
               </ol>

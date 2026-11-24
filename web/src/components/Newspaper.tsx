@@ -5,6 +5,7 @@ import type { LegalView } from "../engine/protocol/LegalView";
 import { useGame } from "../state/gameStore";
 import type { Translator } from "../i18n/fluent";
 import { formatDate } from "../i18n/format";
+import { WhyButton } from "./why/WhyButton";
 
 /** An outlet's name (a town paper is named after its office, DEC-079). */
 export function outletName(tr: Translator, o: OutletView): string {
@@ -41,6 +42,8 @@ export function Newspaper({ n }: { n: NewspaperView }) {
               <p className="muted small">
                 {outletName(tr, a.outlet)} · {formatDate(tr, a.date)} · <span className={`chip chip-framing chip-${a.framing}`}>{tr.t(`framing-${a.framing}`)}</span>
                 {a.about_you && <> · {tr.t("ui-about-you")}</>}
+                {a.event !== undefined && <> · </>}
+                <WhyButton event={a.event} about={headline(tr, a)} inline />
               </p>
             </li>
           ))}
@@ -90,7 +93,8 @@ export function Legal({ l }: { l: LegalView }) {
                 <span className="muted">
                   · {s.running ? tr.t(`heat-${s.heat}`) : tr.t("ui-scandal-over")}
                   {s.response && <> · {tr.t(`response-${s.response.replace(/_/g, "-")}`)}</>}
-                </span>
+                </span>{" "}
+                <WhyButton event={s.event} about={tr.t(s.fact_key)} inline />
               </li>
             ))}
           </ul>
@@ -105,7 +109,8 @@ export function Legal({ l }: { l: LegalView }) {
                 {tr.t("ui-case-line", { fact: tr.t(c.fact_key), stage: tr.t(`case-stage-${c.stage}`) })}
                 {c.next && <span className="muted"> · {tr.t("ui-case-next", { date: formatDate(tr, c.next) })}</span>}
                 {c.odds && <span className="muted"> · {tr.t(`ui-case-odds-${c.stage === "investigation" ? "charge" : "convict"}`, { risk: tr.t(`risk-${c.odds}`) })}</span>}
-                {c.sentence && <span> · {tr.t(`sentence-${c.sentence}`)}{c.years > 0 ? ` (${tr.t("ui-years", { n: c.years })})` : ""}</span>}
+                {c.sentence && <span> · {tr.t(`sentence-${c.sentence}`)}{c.years > 0 ? ` (${tr.t("ui-years", { n: c.years })})` : ""}</span>}{" "}
+                <WhyButton event={c.event} about={tr.t(c.fact_key)} inline />
               </li>
             ))}
           </ul>

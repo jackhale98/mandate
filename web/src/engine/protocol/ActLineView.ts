@@ -8,4 +8,10 @@ export type ActLineView = { date: DateView | null, text_key: string, args: { [ke
 /**
  * A decision this line is about (to open it).
  */
-decision: number | null, };
+decision: number | null, 
+/**
+ * The event the line records, to ask "Why?" about (`QueryDto::Why`):
+ * a Legacy entry's source event; a summary item's, where the log's
+ * threads name it (a law, a decision, an ask, a story, a case).
+ */
+event?: number, };

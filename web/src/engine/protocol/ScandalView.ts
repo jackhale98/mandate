@@ -13,4 +13,8 @@ severity: string, broke: DateView, outlet: OutletView | null,
 /**
  * `fading` | `running` | `burning` (coarse heat).
  */
-heat: string, response: string | null, running: boolean, };
+heat: string, response: string | null, running: boolean, 
+/**
+ * The event of the story breaking, to ask "Why?" about.
+ */
+event?: number, };

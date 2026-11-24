@@ -105,9 +105,37 @@ What story sifting (W3) adds, and no more:
 
 ## 9. What the first consumers should build next
 
-- **"Why?" surfaces (bill and election):** lay out `WhyView`; add Fluent for links and roots (keys below). For an election, show the engine's factor decomposition beside the chain: the chain says what happened, the decomposition what moved the votes.
+- **"Why?" surfaces: built** (below).
 - **Credit and blame (V1):** `nearest_player_act` plus the lab's twins for size. A vote behind a law is one of many: weigh it by the margin.
 - **Sifting:** §8.
-- **Legacy:** entries now name their event (`source_event`); a Legacy line can open its "Why?".
 
-Fluent keys a later text pass needs (none are named by the engine today; the protocol gives typed values): `why-link-{caused,continues,prompted,revealed,ended}`; `why-player-{act}` for each `PlayerAct`; `why-process-{process}`; `why-pressure-{pressure}`; `why-exogenous-{shock}`; `why-history`, `why-forgotten`, `why-unknown`, `why-actor`, `why-actor-unnamed`.
+### 9.1 The "Why?" panel (built)
+
+One panel and one control (`web/src/components/why/`): `WhyButton` on an outcome asks `QueryDto::Why` for the event the view names and `WhyPanel` lays the answer out. The layout is a pure model (`whyModel.ts`); the panel computes nothing about the world.
+
+- **The panel** is a sheet like the others (a bottom sheet on phones, the left panel on wide screens; Escape, the close button, a swipe down or a tap outside close it; the keyboard goes to it when it opens and back to the control when it closes; nothing holds it there). It opens over whatever showed the outcome, election night included.
+- **The reading order** is newest at the top: the event asked about, then each earlier step as one sentence (the event's own line) with its date. Between two steps a phrase from the link type leads from the later event down to the earlier one: `caused` "because of", `continues` "after", `prompted` "prompted by", `revealed` "which brought to light", `ended` "which ended". The engine gives the steps level by level; the panel follows one line of causes back before it starts the next, and a step that joins a row further up says which ("And “…” which ended").
+- **Roots** are named under the step that names them, one line each: the player's own act, someone's own choice (by name as the player knows them, else "Someone's own choice"), a process, a pressure, an outside shock, history, forgotten, unknown.
+- **The player's act**: when `player` is set, a line at the top says something the player did is behind it, with the act and the day of the step that names it.
+- **Further back**: when `truncated`, the panel says more lies further back and offers one "Go further back", which asks again at `max_depth` (the view now carries `depth` and `max_depth`, so the client holds no constant).
+- **An election**: the result's own factor decomposition (`ResultView.decomposition`) is shown under the chain, as the result card shows it. The chain says what happened, the decomposition what moved the votes.
+
+**Text** (`content/base/locale/en/why.ftl`): `why-link-{caused,continues,prompted,revealed,ended}`; `why-player-{act}` for each `PlayerAct`; `why-process-{process}`; `why-pressure-{pressure}`; `why-exogenous-{shock}`; `why-history`, `why-forgotten`, `why-unknown`, `why-actor`, `why-actor-unnamed`; the panel's own strings are `ui-why-*`. `mandate-wasm/tests/why.rs` lists every variant of `Link`, `PlayerAct`, `Process`, `Pressure` and `Shock` in an exhaustive match and fails when one has no line (or a line has no variant), so a new cause cannot ship without text. No line names an office, a body, a market or an industry: a name comes from the step's own sentence.
+
+**A public result is public** (DEC-108 §8). §6's rule (a name is left empty until the player has heard of the person) has one exception, by event kind, as a list in `why.rs` (`PUBLIC_RESULTS`) with a test a kind: `race_decided` (the winner), `policy_enacted` and `policy_failed` (a law's recorded vote), `scandal_broke` (the subject of a published story), `case_developed` (the subject of a court's ruling). A step of one of these kinds reads as the public line does, and a person it names is named as its actor too. Everything else (an investigation opening, a rumour, a bill's sponsor, a storyline's cast) stays under DEC-091. The query writes nothing: the knowledge ledger is as it was.
+
+**Where the control is.** A view names the event to ask about (an optional id, absent when the log no longer keeps it; never a diagnostic):
+
+| Surface | Field | The event |
+|---|---|---|
+| The overview's event list | `EventView.id` | the event itself |
+| A race's result card (the party office, election night) | `ResultView.event` | the race decided, with the factors beside the chain |
+| A bill's card | `BillView.outcome_event` | enacted, failed, expired or withdrawn (the card's control reads "What led to this": its "Why?" is the bill's support) |
+| The newspaper's stories | `ArticleView.event` | the town event, the scandal breaking, the case's step, the rumour or its correction |
+| The pocket's scandals and cases | `ScandalView.event`, `CaseView.event` | the story breaking; the case's latest step |
+| An ask or promise, once it has ended (Today, the story sheet's promises) | `AskView.event` | kept, broken, declined or void |
+| A decision's aftermath | `AftermathView.event` | the decision resolved |
+| A Legacy entry | `ActLineView.event` | its `source_event` |
+| A line of the skip summary | `ActLineView.event` | where a thread names it: a law, a decision, an ask, a story, a case |
+
+Not yet: the story sheet's "Recent" lines and storyline stages (their ids are fact and run ids, not events); the skip summary's elections, closures and disasters (the summary keeps no event for them); a list of decided laws for the bill card to appear in (the app lists drafts and bills before the body only, so today a law's "Why?" is met in the overview, the newspaper, the summary and the Legacy record).

@@ -4,4 +4,9 @@ import type { FactorView } from "./FactorView";
 import type { PostDto } from "./PostDto";
 import type { ResultCandidateView } from "./ResultCandidateView";
 
-export type ResultView = { post: PostDto, date: DateView, candidates: Array<ResultCandidateView>, turnout: number, decomposition: Array<FactorView>, player_ran: boolean, player_won: boolean, };
+export type ResultView = { post: PostDto, date: DateView, candidates: Array<ResultCandidateView>, turnout: number, decomposition: Array<FactorView>, player_ran: boolean, player_won: boolean, 
+/**
+ * The event that records the race's result, to ask "Why?" about
+ * (`QueryDto::Why`); none where the log has none for this race.
+ */
+event?: number, };

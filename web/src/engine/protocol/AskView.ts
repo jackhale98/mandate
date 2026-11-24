@@ -83,4 +83,10 @@ note_key?: string, keep_lines: Array<EffectLineView>, break_lines: Array<EffectL
 /**
  * Offers only: what saying no (or not answering) does.
  */
-decline_lines: Array<EffectLineView>, };
+decline_lines: Array<EffectLineView>, 
+/**
+ * The event of its ending (kept, broken, declined, void), to ask
+ * "Why?" about (`QueryDto::Why`); none while it is open, or once the
+ * log no longer keeps it.
+ */
+event?: number, };
