@@ -327,6 +327,12 @@ On hold until then:
     - Promises and dilemmas ask for the measured ranking while the notebook shows the felt one, so a resident can ask for a promise on a worry outside the notebook's top three. What residents ask for should follow what they feel; decisions raised by an indicator may stay measured.
 
 
+23. **The career card** (owner, 2026-11-24). When a run ends, the player gets a card to copy or share, so they can compare how they did with others against how hard their conditions were. Built with the opening draft, after the grader (STAGED_ARCS A4) supplies the ratings.
+    - **On the card:** the character, party, town and kind of world; the opening with its measured rating and the facts behind it; every race entered with its rating at the time and the result; the highest post, years served, the notable decisions from the Legacy record and how each crisis ended; how the run ended; and one comparable figure, wins less the wins expected from the ratings.
+    - **Sharing, with no server:** "Copy" gives a short text block; "Share" opens the device's share sheet with an image. The card carries a world code (seed, scenario, constitution, opening) so someone else can play the same opening; it also carries the build, and a code from another build says so.
+    - **Stepping away:** the player may abandon a run at any time ("step away from politics"), after one confirmation. The run closes with a short epilogue, enters the Legacy record, and gives the same card marked as unfinished, with the year and post; a race under way is named as one walked away from.
+    - Nothing personal is on the card: the character and the world only.
+
 ## M6 or M7 split (owner, 2026-11-21)
 - **M6 (needed for the tester checkpoint):**
   - the play notes;
