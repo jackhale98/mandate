@@ -87,9 +87,20 @@ fn every_town_has_concern_levels_and_mean_one_salience() {
         .collect();
     assert!(distinct.len() > 3);
     // The top concerns are queryable for any town, strongest first.
-    let top = mandate_sim::concerns::top_concerns(pop, 0);
-    assert_eq!(top.len(), 6);
-    assert!(top.windows(2).all(|w| w[0].1 >= w[1].1));
+    for by in [
+        mandate_content::condition::Worry::Measured,
+        mandate_content::condition::Worry::Felt,
+    ] {
+        let top = mandate_sim::concerns::ranked(
+            pop,
+            &c,
+            &e.state().world,
+            mandate_sim::concerns::Scope::town(mandate_sim::world::MunicipalityId(0)),
+            by,
+        );
+        assert_eq!(top.len(), 6);
+        assert!(top.windows(2).all(|w| w[0].1 >= w[1].1));
+    }
 }
 
 #[test]

@@ -27,13 +27,21 @@
 //! follows the ward's worries. A whole town (a mayoral race, a town-level
 //! agenda) gives exactly the town's measured levels and salience.
 //!
+//! "What does this place worry about most" has one answer, from one function:
+//! `ranked` gives the ranked worries of a scope (a jurisdiction of any tier,
+//! a district, a neighbourhood) by a named reading, `felt` (what people say
+//! and the player is told) or `measured` (by level alone), with one
+//! tie-break (equal weights keep registry order). Views, talk, conditions,
+//! pickers and bots read it; none ranks worries itself.
+//!
 //! The population domain owns the result (`PopulationState::town_concerns`,
 //! `hood_concerns`); the indicators are read-only views of other domains,
 //! reusable by later systems (town character, situational policies).
 
 use crate::population::{CLASSES, PARTICIPATION, PopulationState, age_of, class_of};
 use crate::scheduler::{Outs, Reads};
-use crate::world::{NeighborhoodId, NeighborhoodKind, World};
+use crate::world::{Jurisdiction, MunicipalityId, NeighborhoodId, NeighborhoodKind, World};
+use mandate_content::condition::Worry;
 use mandate_content::{ContentBundle, Indicator, NeighborhoodLean, SectorDriver};
 use mandate_core::math::pow;
 use serde::{Deserialize, Serialize};
@@ -670,24 +678,7 @@ pub fn political_levels(
         let residents: f64 = hs.iter().map(|h| pop.hood_total(*h) as f64).sum();
         parts.push((residents, levels));
     }
-    if parts.len() == 1 {
-        return parts.pop().map(|(_, l)| l).unwrap_or_default();
-    }
-    let even = parts.iter().all(|(w, _)| *w <= 0.0);
-    let mut sum = vec![0.0; content.concerns.len()];
-    let mut wsum = 0.0;
-    for (w, levels) in &parts {
-        let w = if even { 1.0 } else { *w };
-        for (s, l) in sum.iter_mut().zip(levels) {
-            *s += w * l;
-        }
-        wsum += w;
-    }
-    if wsum > 0.0 {
-        sum.iter().map(|s| s / wsum).collect()
-    } else {
-        sum
-    }
+    across_towns(parts, content.concerns.len())
 }
 
 /// Issue salience for a constituency of any tier (its neighbourhoods, world
@@ -716,18 +707,6 @@ pub fn salience_in(
         return None;
     }
     Some(salience_from(content, &levels)).filter(|s| s.len() == pop.attitude_count())
-}
-
-/// A town's concerns, strongest first: (registry index, level), the levels
-/// of its neighbourhoods weighted by residents. Ties keep registry order.
-pub fn top_concerns(pop: &PopulationState, m: usize) -> Vec<(usize, f64)> {
-    let mut v: Vec<(usize, f64)> = pop
-        .town_concerns
-        .get(m)
-        .map(|t| t.levels.iter().map(|l| *l as f64).enumerate().collect())
-        .unwrap_or_default();
-    v.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
-    v
 }
 
 /// Concern levels in some neighbourhoods of a town (registry order): their
@@ -780,36 +759,227 @@ pub fn levels_in(
     sum.iter().map(|s| s / wsum).collect()
 }
 
-/// Concerns as felt in some neighbourhoods of a town, strongest first:
-/// their own levels (`levels_in`) × (1 + ½ × how far residents lean the way
-/// worried voters do), in [0, 1.5 × level]. For display, NPC talk and the
-/// canvass match, not the vote model.
-pub fn felt_concerns(
+// --- The ranked worries of a scope -------------------------------------------------
+//
+// "What does this place worry about most" has one answer per scope and
+// reading, and `ranked` is the only code that gives it: every view, line of
+// talk, condition, picker and bot reads it.
+
+/// Whose worries are ranked (tier-generic, DEC-098): everyone a jurisdiction
+/// of any tier covers, a district, or one neighbourhood.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Scope<'a> {
+    /// A town, a region or the nation: all its neighbourhoods.
+    Jurisdiction(Jurisdiction),
+    /// A district: some neighbourhoods (world indices) of one town or of
+    /// several (a ward, a race's constituency).
+    District(&'a [usize]),
+    /// One neighbourhood.
+    Neighbourhood(NeighborhoodId),
+}
+
+impl Scope<'_> {
+    /// A whole town.
+    pub fn town(m: MunicipalityId) -> Scope<'static> {
+        Scope::Jurisdiction(Jurisdiction::town(m))
+    }
+
+    /// The scope's neighbourhoods (world indices).
+    pub fn hoods(&self, world: &World) -> Vec<usize> {
+        match *self {
+            Scope::Jurisdiction(j) => j.hoods(world),
+            Scope::District(hs) => hs.to_vec(),
+            Scope::Neighbourhood(h) => vec![h.index()],
+        }
+    }
+}
+
+/// The one order of worries: the stronger first (`f64::total_cmp` on the
+/// weights); worries of exactly equal weight keep registry order (the
+/// lower index first, the order of `content/base/concerns.jsonc`). Nothing
+/// else breaks a tie: not a name, a cached order or the caller.
+fn order(v: &mut [(usize, f64)]) {
+    v.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+}
+
+/// One town's levels for some of its neighbourhoods (registry order): the
+/// town's own stored levels when they are all of the town, a single
+/// neighbourhood's own, else theirs weighted by residents (`levels_in`).
+fn town_levels(
     pop: &PopulationState,
     content: &ContentBundle,
+    world: &World,
     m: usize,
     hoods: &[usize],
-) -> Vec<(usize, f64)> {
-    let mean = crate::politics::mean_attitudes(pop, hoods);
-    let mut v: Vec<(usize, f64)> = levels_in(pop, content, m, hoods)
-        .into_iter()
-        .enumerate()
-        .filter_map(|(i, level)| {
-            let c = content.concerns.get(i)?;
-            let norm: f64 = c.attitude_weights.iter().map(|w| w.abs()).sum();
-            let lean = if norm > 0.0 {
-                c.attitude_weights
-                    .iter()
-                    .zip(&mean)
-                    .map(|(w, x)| w * *x as f64)
-                    .sum::<f64>()
-                    / norm
-            } else {
-                0.0
-            };
-            Some((i, level * (1.0 + 0.5 * lean.clamp(-1.0, 1.0))))
+) -> Vec<f64> {
+    let town = pop.town_concerns.get(m).map(|t| t.levels.as_slice());
+    if covers_town(world, m, hoods) {
+        return town
+            .map(|t| t.iter().map(|l| *l as f64).collect())
+            .unwrap_or_default();
+    }
+    if let [h] = hoods
+        && let Some(own) = pop.hood_concerns.get(*h)
+        && town.is_some_and(|t| t.len() == own.levels.len())
+    {
+        return own.levels.iter().map(|l| *l as f64).collect();
+    }
+    levels_in(pop, content, m, hoods)
+}
+
+/// Towns' levels as one, each weighted by its residents counted (evenly
+/// when none has any).
+fn across_towns(mut parts: Vec<(f64, Vec<f64>)>, n: usize) -> Vec<f64> {
+    if parts.len() == 1 {
+        return parts.pop().map(|(_, l)| l).unwrap_or_default();
+    }
+    let even = parts.iter().all(|(w, _)| *w <= 0.0);
+    let mut sum = vec![0.0; n];
+    let mut wsum = 0.0;
+    for (w, levels) in &parts {
+        let w = if even { 1.0 } else { *w };
+        for (s, l) in sum.iter_mut().zip(levels) {
+            *s += w * l;
+        }
+        wsum += w;
+    }
+    if wsum > 0.0 {
+        sum.iter().map(|s| s / wsum).collect()
+    } else {
+        sum
+    }
+}
+
+/// The level of every worry in a scope (registry order), as its residents
+/// live it: a town's stored levels (its neighbourhoods' weighted by
+/// residents), a neighbourhood's own, a district's neighbourhoods' weighted
+/// by residents; towns are weighted by their residents in the scope. Empty
+/// when the scope has no neighbourhood or its concerns are not computed.
+pub fn levels_of(
+    pop: &PopulationState,
+    content: &ContentBundle,
+    world: &World,
+    scope: Scope<'_>,
+) -> Vec<f64> {
+    let hoods = scope.hoods(world);
+    let n = content.concerns.len();
+    let parts: Vec<(f64, Vec<f64>)> = by_town(world, &hoods)
+        .iter()
+        .map(|(m, hs)| {
+            let residents: f64 = hs.iter().map(|h| pop.hood_total(*h) as f64).sum();
+            (residents, town_levels(pop, content, world, *m, hs))
         })
         .collect();
-    v.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+    if parts.len() > 1 && parts.iter().any(|(_, l)| l.len() != n) {
+        return Vec::new();
+    }
+    across_towns(parts, n)
+}
+
+/// The ranked worries of a scope, strongest first: (registry index, weight)
+/// for every concern, those nobody worries about (weight 0) last. The one
+/// source of "what this place worries about most"; `top` and `place` read
+/// the result.
+///
+/// `by` names the reading (the two a condition can ask for):
+/// - `Worry::Felt`: as residents feel it, each level (`levels_of`) × (1 + ½ ×
+///   how far the scope's residents lean the way worried voters do), in
+///   [0.5, 1.5] × the level. What people say and what the player is told:
+///   the notebook, the town card, the pocket, the canvass, talk, overheard
+///   lines and the canvass match.
+/// - `Worry::Measured`: by level alone, what a statistic of the place
+///   shows. A town's priorities, dilemmas, asks and promises, and a
+///   policy family's choice of neighbourhood read it.
+///
+/// What the player knows of either is a cut of the same list (the first
+/// one, three or all by knowledge level), never another ranking. The vote
+/// model does not rank: it weighs issues by `salience_in`.
+///
+/// Ties: see `order` (equal weights keep registry order).
+pub fn ranked(
+    pop: &PopulationState,
+    content: &ContentBundle,
+    world: &World,
+    scope: Scope<'_>,
+    by: Worry,
+) -> Vec<(usize, f64)> {
+    let levels = levels_of(pop, content, world, scope)
+        .into_iter()
+        .enumerate();
+    let mut v: Vec<(usize, f64)> = match by {
+        Worry::Measured => levels.collect(),
+        Worry::Felt => {
+            let hoods: Vec<usize> = scope
+                .hoods(world)
+                .into_iter()
+                .filter(|h| *h < pop.hoods.len())
+                .collect();
+            let mean = crate::politics::mean_attitudes(pop, &hoods);
+            levels
+                .filter_map(|(i, level)| {
+                    let c = content.concerns.get(i)?;
+                    let norm: f64 = c.attitude_weights.iter().map(|w| w.abs()).sum();
+                    let lean = if norm > 0.0 {
+                        c.attitude_weights
+                            .iter()
+                            .zip(&mean)
+                            .map(|(w, x)| w * *x as f64)
+                            .sum::<f64>()
+                            / norm
+                    } else {
+                        0.0
+                    };
+                    Some((i, level * (1.0 + 0.5 * lean.clamp(-1.0, 1.0))))
+                })
+                .collect()
+        }
+    };
+    order(&mut v);
     v
+}
+
+/// The `n` strongest worries of a ranking, of those anyone worries about
+/// (weight above 0): "the top n".
+pub fn top(ranking: &[(usize, f64)], n: usize) -> impl Iterator<Item = (usize, f64)> + '_ {
+    ranking.iter().copied().filter(|(_, w)| *w > 0.0).take(n)
+}
+
+/// A worry's place in a ranking (0 = the strongest) and its weight, if
+/// anyone worries about it: it is among the top n when its place is below n.
+pub fn place(ranking: &[(usize, f64)], concern: usize) -> Option<(usize, f64)> {
+    top(ranking, usize::MAX)
+        .enumerate()
+        .find(|(_, (i, _))| *i == concern)
+        .map(|(p, (_, w))| (p, w))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn equal_weights_keep_registry_order_and_stronger_come_first() {
+        let mut v = vec![(0, 0.2), (1, 0.5), (2, 0.2), (3, 0.5), (4, 0.0), (5, 0.9)];
+        order(&mut v);
+        let ids: Vec<usize> = v.iter().map(|x| x.0).collect();
+        assert_eq!(ids, [5, 1, 3, 0, 2, 4]);
+        // The same from any starting order.
+        let mut w = vec![(4, 0.0), (3, 0.5), (2, 0.2), (5, 0.9), (1, 0.5), (0, 0.2)];
+        order(&mut w);
+        assert_eq!(v, w);
+    }
+
+    #[test]
+    fn the_top_and_a_place_leave_out_what_nobody_worries_about() {
+        let mut v = vec![(0, 0.0), (1, 0.4), (2, 0.4), (3, 0.0), (4, 0.7)];
+        order(&mut v);
+        let top3: Vec<usize> = top(&v, 3).map(|x| x.0).collect();
+        assert_eq!(top3, [4, 1, 2]);
+        assert_eq!(top(&v, 9).count(), 3);
+        // Tied worries take successive places, in registry order.
+        assert_eq!(place(&v, 1), Some((1, 0.4)));
+        assert_eq!(place(&v, 2), Some((2, 0.4)));
+        assert_eq!(place(&v, 0), None);
+        assert_eq!(place(&v, 9), None);
+    }
 }

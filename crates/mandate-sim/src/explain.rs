@@ -1520,14 +1520,18 @@ fn overheard(
             .any(|l| l.id == def.id);
         let mut pk = Vec::new();
         if let Some(c) = &def.concern {
-            let m = cx.town_id().map(|t| t.index()).unwrap_or(0);
-            let felt: Vec<String> =
-                crate::concerns::felt_concerns(&st.population, content, m, &[hood.index()])
-                    .into_iter()
-                    .filter(|(_, w)| *w > 0.0)
-                    .take(3)
-                    .filter_map(|(i, _)| content.concerns.get(i).map(|x| x.id.clone()))
-                    .collect();
+            let felt: Vec<String> = crate::concerns::top(
+                &crate::concerns::ranked(
+                    &st.population,
+                    content,
+                    &st.world,
+                    crate::concerns::Scope::Neighbourhood(hood),
+                    Worry::Felt,
+                ),
+                3,
+            )
+            .filter_map(|(i, _)| content.concerns.get(i).map(|x| x.id.clone()))
+            .collect();
             pk.push(
                 Node::new(
                     "gate",

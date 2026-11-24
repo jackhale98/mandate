@@ -4,8 +4,9 @@
 //! worries differently; a town's felt levels are its neighbourhoods' weighted
 //! by residents; its politics still read the town-wide (measured) levels.
 
+use mandate_content::condition::Worry;
 use mandate_content::{ContentBundle, Indicator, bundle::read_dir_sources, load};
-use mandate_sim::concerns::{compute_all, felt_concerns, levels_in, salience_from, top_concerns};
+use mandate_sim::concerns::{Scope, compute_all, levels_in, ranked, salience_from};
 use mandate_sim::population::{AGE_BANDS, CLASSES, cohort_index};
 use mandate_sim::scheduler::Reads;
 use mandate_sim::world::{MunicipalityId, NeighborhoodKind, PlaceKind};
@@ -51,15 +52,24 @@ fn concern(c: &ContentBundle, id: &str) -> usize {
     c.concern_index(id).unwrap()
 }
 
+/// A neighbourhood's worries as felt there, strongest first.
+fn felt(st: &State, c: &ContentBundle, h: usize) -> Vec<(usize, f64)> {
+    let hood = st.world.neighborhoods[h].id;
+    ranked(
+        &st.population,
+        c,
+        &st.world,
+        Scope::Neighbourhood(hood),
+        Worry::Felt,
+    )
+}
+
 /// A neighbourhood's own level of a concern, and its rank among its felt
 /// concerns (0 = its top worry).
 fn level_and_rank(st: &State, c: &ContentBundle, h: usize, i: usize) -> (f64, usize) {
     let m = st.world.neighborhoods[h].municipality.index();
     let level = levels_in(&st.population, c, m, &[h])[i];
-    let rank = felt_concerns(&st.population, c, m, &[h])
-        .iter()
-        .position(|(j, _)| *j == i)
-        .unwrap();
+    let rank = felt(st, c, h).iter().position(|(j, _)| *j == i).unwrap();
     (level, rank)
 }
 
@@ -248,9 +258,18 @@ fn a_towns_levels_are_its_districts_weighted_by_residents() {
                 assert!((a - *b as f64).abs() < 1e-6);
             }
             assert_eq!(t.salience, salience_from(c, &measured));
-            // Ranked by the felt level.
-            let top = top_concerns(pop, m);
+            // Ranked by level, the town's stored levels exactly; all of its
+            // districts are the town.
+            let town = Scope::town(MunicipalityId(m as u32));
+            let top = ranked(pop, c, &st.world, town, Worry::Measured);
             assert!(top.windows(2).all(|w| w[0].1 >= w[1].1));
+            assert!(top.iter().all(|(i, l)| *l == t.levels[*i] as f64));
+            for by in [Worry::Measured, Worry::Felt] {
+                assert_eq!(
+                    ranked(pop, c, &st.world, Scope::District(&hoods), by),
+                    ranked(pop, c, &st.world, town, by)
+                );
+            }
         }
     }
 }
@@ -261,12 +280,12 @@ fn canvassing_a_districts_own_worry_matches_and_another_districts_does_not() {
     let st = e.state();
     let c = e.content();
     let (mut pairs, mut no_bonus) = (0, 0);
-    for (m, mu) in st.world.municipalities.iter().enumerate() {
+    for mu in st.world.municipalities.iter() {
         let top: Vec<(usize, usize)> = mu
             .neighborhoods
             .iter()
             .map(|h| {
-                let f = felt_concerns(&st.population, c, m, &[h.index()]);
+                let f = felt(st, c, h.index());
                 (h.index(), f[0].0)
             })
             .collect();
@@ -282,7 +301,7 @@ fn canvassing_a_districts_own_worry_matches_and_another_districts_does_not() {
                 assert!(own >= other, "own {own} vs another district's {other}");
                 // Another district's worry that is not a worry here (below
                 // this district's average) earns no bonus.
-                let felt = felt_concerns(&st.population, c, m, &[a]);
+                let felt = felt(st, c, a);
                 let mean = felt.iter().map(|x| x.1).sum::<f64>() / felt.len() as f64;
                 let here = felt.iter().find(|x| x.0 == tb).unwrap().1;
                 if here <= mean {

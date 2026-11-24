@@ -902,14 +902,15 @@ pub fn hood_reading(
     content: &ContentBundle,
     hood: NeighborhoodId,
 ) -> Vec<(String, i32)> {
-    let Some(h) = state.world.neighborhoods.get(hood.index()) else {
+    if state.world.neighborhoods.get(hood.index()).is_none() {
         return Vec::new();
-    };
-    crate::concerns::felt_concerns(
+    }
+    crate::concerns::ranked(
         &state.population,
         content,
-        h.municipality.index(),
-        &[hood.index()],
+        &state.world,
+        crate::concerns::Scope::Neighbourhood(hood),
+        mandate_content::condition::Worry::Felt,
     )
     .into_iter()
     .filter_map(|(i, w)| {
@@ -1061,6 +1062,21 @@ impl<'a> Knowing<'a> {
         self.state.player.as_ref().map(|p| p.municipality)
     }
 
+    /// A scope's worries as felt there, strongest first (`concerns::ranked`):
+    /// what the notebook, talk and every view tell of it.
+    fn felt(&self, scope: crate::concerns::Scope<'_>) -> Vec<ContentKey> {
+        crate::concerns::ranked(
+            &self.state.population,
+            self.content,
+            &self.state.world,
+            scope,
+            mandate_content::condition::Worry::Felt,
+        )
+        .into_iter()
+        .filter_map(|(i, _)| self.content.concerns.get(i).map(|c| c.id.clone()))
+        .collect()
+    }
+
     fn ranked(&self, level: Level, mut keys: Vec<ContentKey>) -> Option<Vec<ContentKey>> {
         match level {
             Level::Unknown => None,
@@ -1081,27 +1097,16 @@ impl<'a> Knowing<'a> {
     pub fn town_concerns(&self) -> Option<Vec<ContentKey>> {
         let town = self.town()?;
         let level = self.level(&Subject::TownConcerns { town });
-        let keys = crate::concerns::top_concerns(&self.state.population, town.index())
-            .into_iter()
-            .filter_map(|(i, _)| self.content.concerns.get(i).map(|c| c.id.clone()))
-            .collect();
+        let keys = self.felt(crate::concerns::Scope::town(town));
         self.ranked(level, keys)
     }
 
     /// A neighbourhood's worries, strongest first, as felt there: the top
     /// one at `heard`, three at `known`, all at `detailed`.
     pub fn concerns_of(&self, hood: NeighborhoodId) -> Option<Vec<ContentKey>> {
-        let h = self.state.world.neighborhoods.get(hood.index())?;
+        self.state.world.neighborhoods.get(hood.index())?;
         let level = self.level(&Subject::HoodConcerns { hood });
-        let keys = crate::concerns::felt_concerns(
-            &self.state.population,
-            self.content,
-            h.municipality.index(),
-            &[hood.index()],
-        )
-        .into_iter()
-        .filter_map(|(i, _)| self.content.concerns.get(i).map(|c| c.id.clone()))
-        .collect();
+        let keys = self.felt(crate::concerns::Scope::Neighbourhood(hood));
         self.ranked(level, keys)
     }
 

@@ -722,16 +722,12 @@ pub fn town_character_view(engine: &Engine, m: usize) -> Option<TownCharacterVie
             since: DateView::of(c.since),
         })
     });
-    let hoods: Vec<usize> = st
-        .world
-        .hoods_of(mandate_sim::world::MunicipalityId(m as u32))
-        .collect();
     let town = MunicipalityId(m as u32);
     let gate = Gate::of(engine);
     let concerns_subject = Subject::TownConcerns { town };
     let priorities = gate_concerns(
         gate.level(&concerns_subject),
-        crate::office::concerns_for(st, content, town, &hoods),
+        crate::office::concerns_for(st, content, mandate_sim::concerns::Scope::town(town)),
         true,
         3,
     );

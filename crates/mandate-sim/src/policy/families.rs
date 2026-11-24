@@ -407,10 +407,14 @@ impl<'a> Binder<'a> {
 
     fn hood_level(&self, hood: usize, concern: &str) -> Option<(f64, usize)> {
         let i = self.r.content.concern_index(concern)?;
-        let levels = &self.r.population().hood_concerns.get(hood)?.levels;
-        let v = *levels.get(i)? as f64;
-        let rank = levels.iter().filter(|x| **x as f64 > v).count();
-        Some((v, rank))
+        let ranking = crate::concerns::ranked(
+            self.r.population(),
+            self.r.content,
+            self.r.world,
+            crate::concerns::Scope::Neighbourhood(NeighborhoodId(hood as u32)),
+            mandate_content::condition::Worry::Measured,
+        );
+        crate::concerns::place(&ranking, i).map(|(place, level)| (level, place))
     }
 
     fn residents(&self, hood: usize) -> f64 {

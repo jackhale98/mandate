@@ -204,16 +204,20 @@ fn felt(state: &State, hoods: &[u32], concern: &str) -> f64 {
     }
 }
 
-/// The race's top worries (felt), strongest first.
-fn top_worries(state: &State, hoods: &[u32], n: usize) -> Vec<String> {
-    let mut v: Vec<(f64, &String)> = state
-        .population
-        .concern_keys
-        .iter()
-        .map(|k| (felt(state, hoods, k), k))
-        .collect();
-    v.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(b.1)));
-    v.into_iter().take(n).map(|(_, k)| k.clone()).collect()
+/// The race's top worries (measured across its constituency:
+/// `concerns::ranked`), strongest first.
+fn top_worries(state: &State, content: &ContentBundle, hoods: &[u32], n: usize) -> Vec<String> {
+    let hoods: Vec<usize> = hoods.iter().map(|h| *h as usize).collect();
+    let ranking = crate::concerns::ranked(
+        &state.population,
+        content,
+        &state.world,
+        crate::concerns::Scope::District(&hoods),
+        mandate_content::condition::Worry::Measured,
+    );
+    crate::concerns::top(&ranking, n)
+        .filter_map(|(i, _)| content.concerns.get(i).map(|c| c.id.clone()))
+        .collect()
 }
 
 /// Promises made in this race already (same template and answer).
@@ -244,7 +248,7 @@ pub fn promise_menu(state: &State, content: &ContentBundle) -> Vec<PromiseOption
     }
     let r = Reads::of_state(state, content);
     let v = View::new(&r, &state.politics);
-    let top = top_worries(state, &hoods, 3);
+    let top = top_worries(state, content, &hoods, 3);
     let mut out = Vec::new();
     for t in &content.promises {
         let options: Vec<PromiseOption> = match &t.answers {

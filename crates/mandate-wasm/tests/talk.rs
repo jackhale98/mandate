@@ -560,7 +560,11 @@ fn canvass_worries_are_known_ones_with_the_engines_match() {
     assert_eq!(v.worries.len(), 1);
     assert!(v.worries[0].top && v.worries[0].source == "hood");
     assert!(v.worries[0].fit.is_none() && v.worries[0].fit_band.is_none());
-    let hood_top = mandate_protocol::concerns_for(e.state(), e.content(), t, &[hood.index()]);
+    let hood_top = mandate_protocol::concerns_for(
+        e.state(),
+        e.content(),
+        mandate_sim::concerns::Scope::Neighbourhood(hood),
+    );
     assert_eq!(v.worries[0].id, hood_top[0].id);
     // The town's worries add theirs (known: three), still no match.
     set(&mut e, &ts, Level::Known);
@@ -583,7 +587,11 @@ fn canvass_worries_are_known_ones_with_the_engines_match() {
         assert_eq!(w.fit_band.as_deref(), Some(fit_band(e.content(), m)));
     }
     // A worry the player does not know of is never listed.
-    let all = mandate_protocol::concerns_for(e.state(), e.content(), t, &[hood.index()]);
+    let all = mandate_protocol::concerns_for(
+        e.state(),
+        e.content(),
+        mandate_sim::concerns::Scope::Neighbourhood(hood),
+    );
     wipe(&mut e);
     set(&mut e, &hs, Level::Heard);
     let v = canvass_view(&e, hood.0).unwrap();

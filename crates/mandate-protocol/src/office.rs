@@ -975,7 +975,7 @@ pub fn office_view(engine: &Engine) -> Option<OfficeView> {
     let concerns_subject = Subject::TownConcerns { town: m };
     let concerns = gate_concerns(
         gate.level(&concerns_subject),
-        concerns_for(st, content, m, &hoods),
+        concerns_for(st, content, mandate_sim::concerns::Scope::town(m)),
         detailed,
         usize::MAX,
     );
@@ -1140,20 +1140,24 @@ fn bodies_view(engine: &Engine, gate: &Gate<'_>) -> Vec<BodyView> {
         .collect()
 }
 
-/// What worries residents of some neighbourhoods of a town, strongest first:
-/// the engine's concern levels in those neighbourhoods (DEC-078 decision 3;
-/// each from its own conditions, weighted by residents), as felt by those
-/// residents (`mandate_sim::concerns::felt_concerns`). Concerns at level 0
-/// are left out.
+/// What worries the residents of a scope (a town or any jurisdiction, a
+/// district, a neighbourhood), strongest first, as they feel it: the one
+/// ranking every view shows (`mandate_sim::concerns::ranked`, felt), so the
+/// notebook, the town card, the pocket, the canvass and talk never
+/// disagree. Concerns nobody worries about are left out.
 pub fn concerns_for(
     st: &State,
     content: &mandate_content::ContentBundle,
-    m: MunicipalityId,
-    hoods: &[usize],
+    scope: mandate_sim::concerns::Scope<'_>,
 ) -> Vec<ConcernView> {
-    mandate_sim::concerns::felt_concerns(&st.population, content, m.index(), hoods)
-        .into_iter()
-        .filter(|(_, w)| *w > 0.0)
+    let ranking = mandate_sim::concerns::ranked(
+        &st.population,
+        content,
+        &st.world,
+        scope,
+        mandate_content::condition::Worry::Felt,
+    );
+    mandate_sim::concerns::top(&ranking, usize::MAX)
         .filter_map(|(i, w)| {
             let c = content.concerns.get(i)?;
             Some(ConcernView {
@@ -1165,23 +1169,16 @@ pub fn concerns_for(
         .collect()
 }
 
-/// A town's strongest concerns by level (at most `n`; its neighbourhoods'
-/// levels weighted by residents), for any town.
+/// A town's strongest concerns (at most `n`), for any town: the first of
+/// `concerns_for` the whole town.
 pub fn town_concerns(engine: &Engine, m: MunicipalityId, n: usize) -> Vec<ConcernView> {
-    let content = engine.content();
-    mandate_sim::concerns::top_concerns(&engine.state().population, m.index())
-        .into_iter()
-        .filter(|(_, w)| *w > 0.0)
-        .take(n)
-        .filter_map(|(i, w)| {
-            let c = content.concerns.get(i)?;
-            Some(ConcernView {
-                id: c.id.clone(),
-                name_key: c.name_key.clone(),
-                weight: w,
-            })
-        })
-        .collect()
+    let mut v = concerns_for(
+        engine.state(),
+        engine.content(),
+        mandate_sim::concerns::Scope::town(m),
+    );
+    v.truncate(n);
+    v
 }
 
 fn param_view(p: &ParamDef) -> ParamView {

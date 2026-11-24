@@ -55,7 +55,7 @@ Community share model, as an example of the content format:
 
 ### Concerns and issue salience (DEC-078 decision 3)
 
-Each month every town reads its indicators and turns each concern into a level, `clamp(baseline + slope × indicator, min, max)`. Each attitude's raw salience is `politics.vote.salience_base` plus every concern's level × |its weight on that attitude|. The vector is scaled to a mean of 1, and the vote model's issue term weighs each attitude by it. A larger `salience_base` mutes local priorities. The sign of a weight is the side worried voters lean toward; it ranks concerns by neighbourhood for display (`concerns::felt_concerns`).
+Each month every town reads its indicators and turns each concern into a level, `clamp(baseline + slope × indicator, min, max)`. Each attitude's raw salience is `politics.vote.salience_base` plus every concern's level × |its weight on that attitude|. The vector is scaled to a mean of 1, and the vote model's issue term weighs each attitude by it. A larger `salience_base` mutes local priorities. The sign of a weight is the side worried voters lean toward; it ranks concerns as residents feel them (`concerns::ranked` with `Worry::Felt`).
 
 ```jsonc
 { "id": "concern.jobs", "name_key": "concern-jobs", "overheard_key": "overheard-jobs",
@@ -64,7 +64,7 @@ Each month every town reads its indicators and turns each concern into a level, 
   "level": { "baseline": -0.15, "slope": 9.0, "min": 0.0, "max": 1.0 } }
 ```
 
-Indicators (`mandate_content::Indicator`, computed in `mandate_sim::concerns::indicator`): `unemployment`, `unemployment_rise`, `rent_burden`, `pollution` (the region's), `tax_burden`, `budget_stress`, `recent_disaster`, `job_loss` (share of jobs lost over a year). There is no crime in the simulation yet, so there is no safety concern. Query a town's concerns with `concerns::top_concerns(pop, m)` (by level) or `concerns::felt_concerns` (for some neighbourhoods); its salience with `concerns::salience(pop, m)`.
+Indicators (`mandate_content::Indicator`, computed in `mandate_sim::concerns::indicator`): `unemployment`, `unemployment_rise`, `rent_burden`, `pollution` (the region's), `tax_burden`, `budget_stress`, `recent_disaster`, `job_loss` (share of jobs lost over a year). There is no crime in the simulation yet, so there is no safety concern. Query the ranked worries of any scope (a jurisdiction, a district, a neighbourhood) with `concerns::ranked(pop, content, world, scope, by)`: `Worry::Felt` is what people say and every view shows, `Worry::Measured` is by level alone (a town's priorities, dilemma and promise conditions). It is the only code that ranks worries; equal weights keep registry order. A town's salience is `concerns::salience(pop, m)`.
 
 ### Characters (DEC-031, DEC-018)
 

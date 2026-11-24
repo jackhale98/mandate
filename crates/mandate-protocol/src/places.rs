@@ -619,7 +619,7 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
     let concerns_subject = Subject::TownConcerns { town: m };
     let concerns = gate_concerns(
         gate.level(&concerns_subject),
-        concerns_for(st, content, m, &hoods),
+        concerns_for(st, content, mandate_sim::concerns::Scope::town(m)),
         false,
         2,
     );
@@ -801,10 +801,14 @@ pub fn town_places_view(engine: &Engine) -> Option<TownPlacesView> {
             let concern_subject = Subject::HoodConcerns { hood: n.id };
             let top_concern_key = (gate.level(&concern_subject) >= Level::Heard)
                 .then(|| {
-                    concerns_for(st, content, n.municipality, &[n.id.index()])
-                        .into_iter()
-                        .next()
-                        .map(|c| c.name_key)
+                    concerns_for(
+                        st,
+                        content,
+                        mandate_sim::concerns::Scope::Neighbourhood(n.id),
+                    )
+                    .into_iter()
+                    .next()
+                    .map(|c| c.name_key)
                 })
                 .flatten();
             let centre = crate::talk::hood_centre_label(st, n.id);
@@ -914,7 +918,7 @@ fn town_data(engine: &Engine) -> Option<TownDataView> {
             })
             .collect(),
         concerns: if heard(Subject::TownConcerns { town: m }) {
-            concerns_for(st, content, m, &hoods)
+            concerns_for(st, content, mandate_sim::concerns::Scope::town(m))
         } else {
             Vec::new()
         },
@@ -934,9 +938,13 @@ fn town_data(engine: &Engine) -> Option<TownDataView> {
                     town_hall_risk: mandate_sim::actions::town_hall_risk(st, content, h as u32),
                     top_concern_key: heard(Subject::HoodConcerns { hood: n.id })
                         .then(|| {
-                            concerns_for(st, content, m, &[h])
-                                .first()
-                                .map(|c| c.name_key.clone())
+                            concerns_for(
+                                st,
+                                content,
+                                mandate_sim::concerns::Scope::Neighbourhood(n.id),
+                            )
+                            .first()
+                            .map(|c| c.name_key.clone())
                         })
                         .flatten(),
                 })

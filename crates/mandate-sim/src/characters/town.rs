@@ -176,12 +176,18 @@ pub fn compute_all_from(
                     r.player,
                     m,
                 ),
-                priorities: crate::concerns::top_concerns(r.population(), m)
-                    .into_iter()
-                    .filter(|(_, l)| *l > 0.0)
-                    .take(3)
-                    .filter_map(|(i, _)| content.concerns.get(i).map(|c| c.id.clone()))
-                    .collect(),
+                priorities: crate::concerns::top(
+                    &crate::concerns::ranked(
+                        r.population(),
+                        content,
+                        world,
+                        crate::concerns::Scope::town(crate::world::MunicipalityId(m as u32)),
+                        mandate_content::condition::Worry::Measured,
+                    ),
+                    3,
+                )
+                .filter_map(|(i, _)| content.concerns.get(i).map(|c| c.id.clone()))
+                .collect(),
             };
             t.broker = broker(pol, r, &t, &officeholders[m], &leaders[m]);
             t

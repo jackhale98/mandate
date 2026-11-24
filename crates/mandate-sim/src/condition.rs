@@ -816,18 +816,14 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             let Some(i) = content.concern_index(concern) else {
                 return false;
             };
-            let Some(levels) =
-                v.r.population()
-                    .hood_concerns
-                    .get(hood.index())
-                    .map(|h| &h.levels)
-            else {
-                return false;
-            };
-            let Some(mine) = levels.get(i) else {
-                return false;
-            };
-            levels.iter().filter(|x| *x > mine).count() < *top as usize
+            let ranking = crate::concerns::ranked(
+                v.r.population(),
+                content,
+                v.r.world,
+                crate::concerns::Scope::Neighbourhood(*hood),
+                Worry::Measured,
+            );
+            crate::concerns::place(&ranking, i).is_some_and(|(p, _)| p < *top as usize)
         }
         C::HoodHazard { slot, hazard, min } => {
             use crate::policy::families::Bound;
@@ -1010,71 +1006,23 @@ pub fn role_key(cx: &Ctx<'_>, id: CharacterId) -> Option<String> {
 }
 
 /// The worries a `concern` condition ranks, strongest first, as registry
-/// indices (those that worry at all): the town's priorities (measured; its
-/// character's three strongest), the town's felt worries across its
-/// neighbourhoods, or a neighbourhood's, felt or measured.
+/// indices (those that worry at all): the town's or a neighbourhood's, felt
+/// or measured, as `concerns::ranked` gives them.
 pub fn ranked_worries(cx: &Ctx<'_>, of: ConcernOf, by: Worry) -> Vec<usize> {
+    use crate::concerns::Scope;
     let v = cx.v;
-    let content = v.content();
-    let pop = v.r.population();
-    let ranked = |levels: Vec<(usize, f64)>| -> Vec<usize> {
-        levels
-            .into_iter()
-            .filter(|(_, l)| *l > 0.0)
-            .map(|(i, _)| i)
-            .collect()
+    let scope = match cx.worry_hood(of) {
+        Some(h) => Scope::Neighbourhood(h),
+        None if of == ConcernOf::Town => match cx.town_id() {
+            Some(m) => Scope::town(m),
+            None => return Vec::new(),
+        },
+        None => return Vec::new(),
     };
-    match cx.worry_hood(of) {
-        None if of == ConcernOf::Town => {
-            let Some(m) = cx.town_id() else {
-                return Vec::new();
-            };
-            match by {
-                Worry::Measured => cx
-                    .town_character()
-                    .map(|t| {
-                        t.priorities
-                            .iter()
-                            .filter_map(|id| content.concern_index(id))
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-                Worry::Felt => {
-                    let hoods: Vec<usize> = v.r.world.hoods_of(m).collect();
-                    ranked(crate::concerns::felt_concerns(
-                        pop,
-                        content,
-                        m.index(),
-                        &hoods,
-                    ))
-                }
-            }
-        }
-        None => Vec::new(),
-        Some(h) => {
-            let Some(n) = v.r.world.neighborhoods.get(h.index()) else {
-                return Vec::new();
-            };
-            let m = n.municipality.index();
-            match by {
-                Worry::Felt => ranked(crate::concerns::felt_concerns(
-                    pop,
-                    content,
-                    m,
-                    &[h.index()],
-                )),
-                Worry::Measured => {
-                    let mut l: Vec<(usize, f64)> =
-                        crate::concerns::levels_in(pop, content, m, &[h.index()])
-                            .into_iter()
-                            .enumerate()
-                            .collect();
-                    l.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
-                    ranked(l)
-                }
-            }
-        }
-    }
+    let ranking = crate::concerns::ranked(v.r.population(), v.content(), v.r.world, scope, by);
+    crate::concerns::top(&ranking, usize::MAX)
+        .map(|(i, _)| i)
+        .collect()
 }
 
 /// `$concern_key` and `$concern_talk_key` (the noun phrase of talk, or the

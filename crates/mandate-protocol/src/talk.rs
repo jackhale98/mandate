@@ -1005,14 +1005,17 @@ pub fn canvass_view(engine: &Engine, neighborhood: u32) -> Option<CanvassView> {
     let town_level = gate.town_concerns(town);
     let mine = crate::knowledge::gate_concerns(
         hood_level,
-        crate::office::concerns_for(st, content, town, &[hood.index()]),
+        crate::office::concerns_for(
+            st,
+            content,
+            mandate_sim::concerns::Scope::Neighbourhood(hood),
+        ),
         false,
         usize::MAX,
     );
-    let hoods: Vec<usize> = st.world.hoods_of(town).collect();
     let theirs = crate::knowledge::gate_concerns(
         town_level,
-        crate::office::concerns_for(st, content, town, &hoods),
+        crate::office::concerns_for(st, content, mandate_sim::concerns::Scope::town(town)),
         false,
         usize::MAX,
     );

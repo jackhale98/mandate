@@ -842,7 +842,13 @@ fn the_concern_condition_reads_the_top_concern() {
             e.apply(Command::EndTurn).unwrap();
         }
         let t = town(&e);
-        let top = mandate_sim::concerns::top_concerns(&e.state().population, t.index());
+        let top = mandate_sim::concerns::ranked(
+            &e.state().population,
+            &c,
+            &e.state().world,
+            mandate_sim::concerns::Scope::town(t),
+            mandate_content::condition::Worry::Felt,
+        );
         let Some(&(i, level)) = top.first() else {
             continue;
         };

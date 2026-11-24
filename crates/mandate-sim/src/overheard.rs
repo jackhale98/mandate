@@ -58,12 +58,17 @@ fn candidates(st: &State, content: &ContentBundle, loc: Location) -> Vec<(f64, H
     let v = crate::narrative::cast::View::new(&r, &st.politics);
     let cx = crate::condition::Ctx::at_location(&v, st, loc);
     // The neighbourhood's strongest three concerns, by how strongly felt.
-    let felt: Vec<(usize, f64)> =
-        crate::concerns::felt_concerns(&st.population, content, m as usize, &[h.index()])
-            .into_iter()
-            .filter(|(_, w)| *w > 0.0)
-            .take(3)
-            .collect();
+    let felt: Vec<(usize, f64)> = crate::concerns::top(
+        &crate::concerns::ranked(
+            &st.population,
+            content,
+            &st.world,
+            crate::concerns::Scope::Neighbourhood(h),
+            mandate_content::condition::Worry::Felt,
+        ),
+        3,
+    )
+    .collect();
     const RANK: [f64; 3] = [1.0, 0.7, 0.5];
     let town = st
         .world

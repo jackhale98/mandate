@@ -167,11 +167,12 @@ fn the_perturbation_changes_hidden_worries() {
             Knowing::of(&p).concerns_of(hood)
         );
         let truth = |g: &Engine| {
-            mandate_sim::concerns::felt_concerns(
+            mandate_sim::concerns::ranked(
                 &g.state().population,
                 &content,
-                pl.municipality.index(),
-                &[h],
+                &g.state().world,
+                mandate_sim::concerns::Scope::Neighbourhood(hood),
+                mandate_content::condition::Worry::Felt,
             )
         };
         differs |= truth(&e) != truth(&p);
@@ -188,11 +189,12 @@ fn canvassing_on_the_real_worry_works_better() {
     let st = e.state();
     let pl = st.player.as_ref().unwrap();
     let hood = ward_hoods(&st.world, pl.ward)[0];
-    let felt = mandate_sim::concerns::felt_concerns(
+    let felt = mandate_sim::concerns::ranked(
         &st.population,
         &content,
-        pl.municipality.index(),
-        &[hood],
+        &st.world,
+        mandate_sim::concerns::Scope::Neighbourhood(NeighborhoodId(hood as u32)),
+        mandate_content::condition::Worry::Felt,
     );
     let id = |i: usize| content.concerns[i].id.clone();
     let (top, last) = (id(felt[0].0), id(felt[felt.len() - 1].0));

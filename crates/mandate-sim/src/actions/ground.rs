@@ -20,14 +20,15 @@ pub fn canvass_match(
     let Some(issue) = issue else {
         return 1.0;
     };
-    let Some(h) = state.world.neighborhoods.get(hood.index()) else {
+    if state.world.neighborhoods.get(hood.index()).is_none() {
         return 1.0;
-    };
-    let felt = crate::concerns::felt_concerns(
+    }
+    let felt = crate::concerns::ranked(
         &state.population,
         content,
-        h.municipality.index(),
-        &[hood.index()],
+        &state.world,
+        crate::concerns::Scope::Neighbourhood(hood),
+        mandate_content::condition::Worry::Felt,
     );
     let mean = felt.iter().map(|x| x.1).sum::<f64>() / felt.len().max(1) as f64;
     let mine = felt

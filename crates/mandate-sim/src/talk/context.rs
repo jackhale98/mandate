@@ -158,16 +158,19 @@ impl Ctx<'_> {
         crate::condition::concern_args(self.content, i, args);
     }
 
-    /// A town's worries as the notebook records them (felt across all its
-    /// neighbourhoods: `concerns::felt_concerns`), strongest first, so what
-    /// a speaker says of the town is what the player is told they learned.
-    fn town_felt(&self, town: MunicipalityId) -> Vec<(usize, f64)> {
+    /// A scope's worries as the notebook records them (felt:
+    /// `concerns::ranked`), strongest first, so what a speaker says of a
+    /// place is what the player is told they learned.
+    fn felt(&self, scope: crate::concerns::Scope<'_>) -> Vec<(usize, f64)> {
         let st = self.st;
-        let hoods: Vec<usize> = st.world.hoods_of(town).collect();
-        let mut v =
-            crate::concerns::felt_concerns(&st.population, self.content, town.index(), &hoods);
-        v.retain(|(_, w)| *w > 0.0);
-        v
+        let ranking = crate::concerns::ranked(
+            &st.population,
+            self.content,
+            &st.world,
+            scope,
+            mandate_content::condition::Worry::Felt,
+        );
+        crate::concerns::top(&ranking, usize::MAX).collect()
     }
 
     /// A place's name as an argument: its proper name in `name`, or, for a
@@ -276,21 +279,16 @@ impl Ctx<'_> {
         let st = self.st;
         match s {
             Subject::TownConcerns { town } => {
-                let top = self.town_felt(*town);
+                let top = self.felt(crate::concerns::Scope::town(*town));
                 if let Some((i, _)) = top.first() {
                     self.concern_args(*i, args);
                 }
             }
             Subject::HoodConcerns { hood } => {
-                if let Some(h) = st.world.neighborhoods.get(hood.index()) {
+                if st.world.neighborhoods.get(hood.index()).is_some() {
                     hood_arg(st, *hood, "hood", args);
-                    let felt = crate::concerns::felt_concerns(
-                        &st.population,
-                        self.content,
-                        h.municipality.index(),
-                        &[hood.index()],
-                    );
-                    if let Some((i, _)) = felt.first().filter(|(_, w)| *w > 0.0) {
+                    let felt = self.felt(crate::concerns::Scope::Neighbourhood(*hood));
+                    if let Some((i, _)) = felt.first() {
                         self.concern_args(*i, args);
                     }
                 }

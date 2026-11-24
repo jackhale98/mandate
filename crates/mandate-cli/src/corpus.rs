@@ -137,26 +137,35 @@ fn name(st: &State, c: CharacterId) -> String {
         .unwrap_or_default()
 }
 
-fn concern_ids(content: &ContentBundle, xs: &[(usize, f64)], n: usize) -> Vec<String> {
-    xs.iter()
-        .filter(|(_, w)| *w > 0.0)
-        .take(n)
-        .filter_map(|(i, _)| content.concerns.get(*i).map(|c| c.id.clone()))
+/// A scope's `n` top worries by a reading (`concerns::ranked`), as ids.
+fn worries(
+    st: &State,
+    content: &ContentBundle,
+    scope: mandate_sim::concerns::Scope<'_>,
+    by: mandate_content::condition::Worry,
+    n: usize,
+) -> Vec<String> {
+    let ranking = mandate_sim::concerns::ranked(&st.population, content, &st.world, scope, by);
+    mandate_sim::concerns::top(&ranking, n)
+        .filter_map(|(i, _)| content.concerns.get(i).map(|c| c.id.clone()))
         .collect()
 }
 
 /// A neighbourhood's real top worries (felt, strongest first).
 fn hood_worries(st: &State, content: &ContentBundle, hood: usize) -> Vec<String> {
-    let Some(n) = st.world.neighborhoods.get(hood) else {
+    if st.world.neighborhoods.get(hood).is_none() {
         return Vec::new();
-    };
-    let felt = mandate_sim::concerns::felt_concerns(
-        &st.population,
+    }
+    let scope = mandate_sim::concerns::Scope::Neighbourhood(mandate_sim::world::NeighborhoodId(
+        hood as u32,
+    ));
+    worries(
+        st,
         content,
-        n.municipality.index(),
-        &[hood],
-    );
-    concern_ids(content, &felt, 3)
+        scope,
+        mandate_content::condition::Worry::Felt,
+        3,
+    )
 }
 
 fn opinion_band(o: f32) -> &'static str {
@@ -253,21 +262,20 @@ fn situation(e: &Engine, run: &Run, extra: Value) -> Value {
         "town": mu.map(|x| x.name.clone()),
         "town_class": mu.map(|x| format!("{:?}", x.class).to_lowercase()),
         "crisis": tc.and_then(|t| t.crisis()).map(|c| format!("{} {:.2}", c.kind, c.severity)),
+        // By level alone (the town's priorities).
         "town_worries": m
-            .map(|m| concern_ids(content, &mandate_sim::concerns::top_concerns(&st.population, m), 3))
+            .map(|m| {
+                let town = mandate_sim::world::MunicipalityId(m as u32);
+                let scope = mandate_sim::concerns::Scope::town(town);
+                worries(st, content, scope, mandate_content::condition::Worry::Measured, 3)
+            })
             .unwrap_or_default(),
         // As the notebook records them (felt across the town's neighbourhoods).
         "town_worries_noted": m
             .map(|m| {
-                let hoods: Vec<usize> = st
-                    .world
-                    .hoods_of(mandate_sim::world::MunicipalityId(m as u32))
-                    .collect();
-                concern_ids(
-                    content,
-                    &mandate_sim::concerns::felt_concerns(&st.population, content, m, &hoods),
-                    3,
-                )
+                let town = mandate_sim::world::MunicipalityId(m as u32);
+                let scope = mandate_sim::concerns::Scope::town(town);
+                worries(st, content, scope, mandate_content::condition::Worry::Felt, 3)
             })
             .unwrap_or_default(),
         "broker": tc.and_then(|t| t.broker).map(|b| name(st, b)),

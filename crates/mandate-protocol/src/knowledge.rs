@@ -838,21 +838,24 @@ pub(crate) fn subject_args(gate: &Gate<'_>, s: &Subject, level: Level) -> BTreeM
         Subject::TownConcerns { town } => {
             put!("town", town_name(st, *town));
             // As the town's views rank them (felt across its neighbourhoods).
-            let hoods: Vec<usize> = st.world.hoods_of(*town).collect();
-            let keys = crate::office::concerns_for(st, content, *town, &hoods)
-                .into_iter()
-                .map(|c| c.name_key)
-                .collect();
+            let keys =
+                crate::office::concerns_for(st, content, mandate_sim::concerns::Scope::town(*town))
+                    .into_iter()
+                    .map(|c| c.name_key)
+                    .collect();
             concern_args(&mut args, level, keys);
         }
         Subject::HoodConcerns { hood } => {
             put_hood(st, &mut args, "hood", *hood);
-            if let Some(h) = st.world.neighborhoods.get(hood.index()) {
-                let keys =
-                    crate::office::concerns_for(st, content, h.municipality, &[hood.index()])
-                        .into_iter()
-                        .map(|c| c.name_key)
-                        .collect();
+            if st.world.neighborhoods.get(hood.index()).is_some() {
+                let keys = crate::office::concerns_for(
+                    st,
+                    content,
+                    mandate_sim::concerns::Scope::Neighbourhood(*hood),
+                )
+                .into_iter()
+                .map(|c| c.name_key)
+                .collect();
                 concern_args(&mut args, level, keys);
             }
         }
