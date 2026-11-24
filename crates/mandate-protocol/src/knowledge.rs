@@ -365,6 +365,27 @@ fn place_name(st: &State, place: PlaceId) -> String {
         .unwrap_or_default()
 }
 
+/// A place's name as a sentence argument: its proper name under `name`, or,
+/// for a place with none (the union hall), its in-sentence kind as
+/// `{name}_key` (what talk does, `place_arg`), so a line never prints an
+/// empty name.
+fn place_arg(st: &State, place: PlaceId, name: &str, args: &mut BTreeMap<String, String>) {
+    match st.world.places.get(place.index()) {
+        Some(p) if !p.name.is_empty() => {
+            args.insert(name.into(), p.name.clone());
+        }
+        Some(p) => {
+            args.insert(
+                format!("{name}_key"),
+                mandate_sim::talk::context::place_talk_key(p.kind),
+            );
+        }
+        None => {
+            args.insert(format!("{name}_key"), "seen-place-unknown".into());
+        }
+    }
+}
+
 fn hood_name(st: &State, hood: NeighborhoodId) -> String {
     st.world
         .neighborhoods
@@ -396,7 +417,7 @@ pub(crate) fn lead_view(gate: &Gate<'_>, l: &Lead) -> LeadView {
     let mut args = subject_args(gate, &l.subject, gate.level(&l.subject).min(Level::Heard));
     match &l.to {
         LeadTarget::Place { place } => {
-            args.insert("to_place".into(), place_name(st, *place));
+            place_arg(st, *place, "to_place", &mut args);
             if let Some(p) = st.world.places.get(place.index()) {
                 args.insert("to_kind_key".into(), format!("place-{}", p.kind.key()));
             }
@@ -445,19 +466,24 @@ fn part_key(p: DayPart) -> String {
 
 fn seen_view(st: &State, key: &str, s: Sighting) -> SeenView {
     let mut args = BTreeMap::new();
-    let (place, kind) = match s.at {
-        Location::Place { place } => (
-            place_name(st, place),
+    let kind = match s.at {
+        Location::Place { place } => {
+            place_arg(st, place, "place", &mut args);
             st.world
                 .places
                 .get(place.index())
                 .map(|p| p.kind.key())
-                .unwrap_or("home"),
-        ),
-        Location::Street { neighborhood } => (hood_name(st, neighborhood), "streets"),
-        Location::Home => (String::new(), "home"),
+                .unwrap_or("home")
+        }
+        Location::Street { neighborhood } => {
+            args.insert("place".into(), hood_name(st, neighborhood));
+            "streets"
+        }
+        Location::Home => {
+            args.insert("place_key".into(), "seen-place-home".into());
+            "home"
+        }
     };
-    args.insert("place".into(), place);
     args.insert("kind_key".into(), format!("place-{kind}"));
     args.insert("part_key".into(), part_key(s.part));
     SeenView {
@@ -496,7 +522,7 @@ pub(crate) fn usual_lead(gate: &Gate<'_>, person: CharacterId) -> Option<LeadVie
     let mut args = subject_args(gate, &subject, have.min(Level::Heard));
     match s.at {
         Location::Place { place } => {
-            args.insert("to_place".into(), place_name(st, place));
+            place_arg(st, place, "to_place", &mut args);
             if let Some(p) = st.world.places.get(place.index()) {
                 args.insert("to_kind_key".into(), format!("place-{}", p.kind.key()));
             }
@@ -510,6 +536,7 @@ pub(crate) fn usual_lead(gate: &Gate<'_>, person: CharacterId) -> Option<LeadVie
     args.insert("part_key".into(), part_key(s.part));
     let key = match s.at {
         Location::Street { .. } => "lead-usually-on-streets",
+        _ if args.contains_key("to_place_key") => "lead-usually-at-kind",
         _ => "lead-usually-at",
     };
     let ok = places::validate_move(st, s.at).is_ok();

@@ -7,6 +7,7 @@ export type ToWorker =
   | { type: "export_save"; id: number; request: SaveRequestDto }
   | { type: "import_save"; id: number; bytes: Uint8Array }
   | { type: "read_save_meta"; id: number; bytes: Uint8Array }
+  | { type: "read_save_summary"; id: number; bytes: Uint8Array }
   /** The engine's part of a bug report (`ReportCore` JSON). */
   | { type: "report_core"; id: number };
 
@@ -18,5 +19,6 @@ export type FromWorker =
   | { type: "save_bytes"; id: number; bytes: Uint8Array }
   | { type: "import_result"; id: number; json: string }
   | { type: "meta_result"; id: number; json: string }
+  | { type: "summary_result"; id: number; json: string }
   | { type: "report_core_result"; id: number; json: string }
   | { type: "op_error"; id: number; message: string };

@@ -53,6 +53,16 @@ impl WasmSession {
         serde_json::to_string(&view).map_err(|e| JsError::new(&e.to_string()))
     }
 
+    /// Who a save belongs to (`SaveSummaryDto` JSON), without loading it as the running game.
+    #[wasm_bindgen(js_name = readSaveSummary)]
+    pub fn read_save_summary(&self, bytes: &[u8]) -> Result<String, JsError> {
+        let v = self
+            .inner
+            .read_save_summary(bytes)
+            .map_err(|e| JsError::new(&e))?;
+        serde_json::to_string(&v).map_err(|e| JsError::new(&e.to_string()))
+    }
+
     /// The engine's part of a bug report (`ReportCore` JSON): versions, the
     /// state hash, and the run log since the start.
     #[wasm_bindgen(js_name = reportCore)]

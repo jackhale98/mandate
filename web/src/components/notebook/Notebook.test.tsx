@@ -3,7 +3,7 @@ import type { PocketView } from "../../engine/protocol/PocketView";
 import { englishTranslator } from "../../i18n/englishLocale";
 import { useGame } from "../../state/gameStore";
 import type { TownPlacesView } from "../../engine/protocol/TownPlacesView";
-import { notebookFixture, officeFixture, seenAtDiner, sheetFixture, townCharacterFixture } from "./fixture";
+import { notebookFixture, officeFixture, seenAtDiner, seenAtUnionHall, sheetFixture, townCharacterFixture } from "./fixture";
 import { Notebook } from "./Notebook";
 import type { SheetLoader } from "./People";
 
@@ -23,6 +23,17 @@ function setup(notebook_new = 0, fresh: string[] = []) {
 /** Character sheets as the engine would send them (Vera usually at the diner; the executive cool). */
 const sheets: SheetLoader = (ids) => Promise.resolve(new Map(ids.map((id) => [id, sheetFixture(id, id === 12 ? { usually: seenAtDiner } : id === 21 ? { opinion_band: "cool", trust_band: "low" } : {})])));
 
+describe("sighting lines", () => {
+  const tr = englishTranslator();
+  it("name a place by its proper name, or by its kind when it has none; the first level reads as hearing of it", () => {
+    expect(tr.event(seenAtDiner.key, seenAtDiner.args)).toBe("Usually at Rosa's in the afternoon.");
+    expect(tr.event(seenAtUnionHall.key, seenAtUnionHall.args)).toBe("Last seen at the union hall, in the morning.");
+    expect(tr.event("seen-last", { place_key: "seen-place-home", part_key: "day-part-evening" })).toBe("Last seen at home, in the evening.");
+    expect(tr.event("lead-usually-at-kind", { to_place_key: "talk-place-union_hall", part_key: "day-part-morning" })).toBe("Usually at the union hall in the morning.");
+    expect(tr.t("ui-notebook-lead-gives", { level: "heard", dots: "●○○", name: "Heard of" })).toBe("You would hear of this");
+  });
+});
+
 describe("the notebook page", () => {
   it("is a tab list of sections; placeholders say what is not known, with the lead that would reveal it", () => {
     const { visit } = setup();
@@ -40,6 +51,9 @@ describe("the notebook page", () => {
     expect(gap.textContent).toContain("○○○");
     expect(gap.textContent).toContain("Not known yet");
     expect(within(gap).getByTestId("notebook-lead").textContent).toContain("Canvass Eastgate to hear what worries people there.");
+    // What following the lead does, in the card's own terms (dots and words).
+    expect(within(gap).getByTestId("notebook-lead-gives").textContent).toBe("Would raise this to ●●○ Known");
+    expect(gap.textContent).not.toContain("would tell you");
     fireEvent.click(within(gap).getByTestId("notebook-lead-go"));
     expect(visit).toHaveBeenCalledWith({ type: "street", neighborhood: 3 });
     // A known entry: what, how known, from where and when.

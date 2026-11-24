@@ -182,7 +182,8 @@ export function Interior() {
   }, [room, pack]);
 
   useEffect(() => {
-    viewRef.current?.setPeople(people);
+    // The view was made with the people present (they are simply there); later changes walk in and out.
+    viewRef.current?.setPeople(people, true);
     for (const p of people) if (!p.extra) keepLook(p.key, p.variant);
   }, [people, ready]);
   useEffect(() => {

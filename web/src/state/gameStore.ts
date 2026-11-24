@@ -193,6 +193,8 @@ interface GameState {
   storytellers: StorytellerView[];
   boot(): Promise<void>;
   refreshRuns(): Promise<void>;
+  /** Runs saved before names were kept: read whose they are from each save, once, and keep it in the index. */
+  fillRunNames(): Promise<void>;
   /** `localKnowledge`: "Start with local knowledge" (DEC-091, off by default). */
   newGame(opts: { seed?: string; size: WorldSizeDto; mode: RunModeDto; scenario: string | null; storyteller?: string | null; localKnowledge?: boolean }): Promise<void>;
   /** The engine's estimate for a draft with these parameters (the UI never computes it). */
@@ -339,6 +341,7 @@ export const useGame = create<GameState>((set, get) => {
       run_mode: run.mode,
     });
     const meta = await engine().readSaveMeta(bytes);
+    const office = get().office;
     await store.putRun({
       runId: run.runId,
       mode: run.mode,
@@ -348,6 +351,7 @@ export const useGame = create<GameState>((set, get) => {
       bytes,
       updatedAt: meta.saved_at,
       name: get().town?.municipality,
+      ...(office ? { player: { name: office.player.name, roleKey: office.player.role_key, home: office.player.municipality } } : {}),
       storyteller: get().overview?.storyteller_name_key,
     });
     set({ run: { ...run, revision } });
@@ -422,6 +426,28 @@ export const useGame = create<GameState>((set, get) => {
       } finally {
         set({ booting: false });
       }
+    },
+
+    async fillRunNames() {
+      const missing = get().runs.filter((r) => !r.player);
+      if (missing.length === 0) return;
+      const store = saveStore();
+      let changed = false;
+      for (const r of missing) {
+        try {
+          const rec = await store.getRun(r.runId);
+          if (!rec || rec.player) continue;
+          const s = await engine().readSaveSummary(rec.bytes);
+          // The run may have been saved or deleted while the worker read it.
+          const now = await store.getRun(r.runId);
+          if (!now || now.revision !== rec.revision) continue;
+          await store.putRun({ ...now, player: { name: s.player_name, roleKey: s.role_key, home: s.home } });
+          changed = true;
+        } catch {
+          // A corrupt or too-new save: its row stays as it is.
+        }
+      }
+      if (changed) await get().refreshRuns();
     },
 
     async refreshRuns() {

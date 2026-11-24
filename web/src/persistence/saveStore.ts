@@ -15,8 +15,20 @@ export interface RunRecord {
   updatedAt: string;
   /** The player's town, for the saved-runs list and export file names. */
   name?: string | undefined;
+  /**
+   * Whose run it is, for the title screen's list: the player's name, the Fluent key of their post's
+   * title and their home place (the pocket header's words). Written each time the game saves; runs
+   * saved before have none until the title screen reads it from the save once.
+   */
+  player?: RunPlayer | undefined;
   /** Fluent key of the run's storyteller (DEC-033), for the saved-runs list. */
   storyteller?: string | undefined;
+}
+
+export interface RunPlayer {
+  name: string;
+  roleKey: string;
+  home: string;
 }
 
 export type RunSummary = Omit<RunRecord, "bytes">;

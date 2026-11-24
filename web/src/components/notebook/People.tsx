@@ -165,7 +165,6 @@ function PersonCard({ id, name, role, figure, item, sheet }: CardProps) {
       {figure?.member && figure.member.convictions.length > 0 && <p className="nb-fact">{figure.member.convictions.map((c) => tr.t(`conviction-${c}`)).join(" · ")}</p>}
       {seen && (
         <p className="small nb-seen" data-testid="notebook-seen">
-          <span aria-hidden="true">👁 </span>
           {seenText(tr, seen)}
         </p>
       )}

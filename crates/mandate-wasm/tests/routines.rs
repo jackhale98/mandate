@@ -194,11 +194,94 @@ fn the_notebook_shows_where_someone_was_seen_and_usually_is() {
         .lead
         .as_ref()
         .expect("a lead to where they usually are");
-    assert_eq!(lead.key, "lead-usually-at");
+    assert!(lead.key.starts_with("lead-usually-at"), "{}", lead.key);
     assert_eq!(
         lead.args.get("part_key").map(String::as_str),
         Some("day-part-morning")
     );
     assert_eq!(lead.to.as_ref().unwrap().location.to_sim(), loc);
     let _ = characters::player_character(e.state());
+}
+
+/// No sighting line and no usual-place lead renders with an empty place: a
+/// place with no proper name gives its in-sentence kind as `*_key`, and a
+/// sighting at home reads "home".
+#[test]
+fn seen_lines_never_name_an_empty_place() {
+    use mandate_sim::player::knowledge::Sighting;
+    let text = content().locale_text("en");
+    let has = |k: &str| text.lines().any(|l| l.starts_with(&format!("{k} =")));
+    let filled = |args: &std::collections::BTreeMap<String, String>, name: &str| {
+        let key = format!("{name}_key");
+        match (args.get(name), args.get(&key)) {
+            (Some(v), None) => !v.trim().is_empty(),
+            (None, Some(k)) => has(k),
+            _ => false,
+        }
+    };
+    let mut unnamed = 0;
+    for seed in [5u64, 4242] {
+        let mut e = game(seed);
+        let who = routines::townsfolk(e.state(), town(&e))[0];
+        let d1 = e.state().calendar.date;
+        e.apply(Command::EndTurn).unwrap();
+        let d2 = e.state().calendar.date;
+        assert!(d1 != d2);
+        let mut spots: Vec<Location> = vec![Location::Home];
+        spots.extend(
+            e.state()
+                .world
+                .places
+                .iter()
+                .map(|p| Location::Place { place: p.id }),
+        );
+        spots.extend(
+            e.state()
+                .world
+                .neighborhoods
+                .iter()
+                .map(|h| Location::Street { neighborhood: h.id }),
+        );
+        for at in spots {
+            e.setup(|st| {
+                let k = &mut st.player.as_mut().unwrap().knowledge;
+                k.lab_omniscient = false;
+                k.seen.clear();
+                for on in [d1, d2] {
+                    k.saw(
+                        who,
+                        Sighting {
+                            on,
+                            part: DayPart::Morning,
+                            at,
+                        },
+                    );
+                }
+            });
+            let sheet = character_view(&e, who.0).unwrap();
+            for s in [sheet.last_seen, sheet.usually].into_iter().flatten() {
+                assert!(filled(&s.args, "place"), "{at:?}: {:?}", s.args);
+                assert!(has(&s.key));
+                if s.args
+                    .get("place_key")
+                    .is_some_and(|k| k.starts_with("talk-"))
+                {
+                    unnamed += 1;
+                }
+            }
+            let nb = notebook_view(&e).unwrap();
+            let lead = nb
+                .sections
+                .iter()
+                .flat_map(|s| s.entries.iter())
+                .find(|x| matches!(x.subject, SubjectDto::Person { person } if person == who.0))
+                .and_then(|x| x.lead.clone())
+                .filter(|l| l.key.starts_with("lead-usually-at"));
+            if let Some(lead) = lead {
+                assert!(filled(&lead.args, "to_place"), "{at:?}: {:?}", lead.args);
+                assert!(has(&lead.key));
+            }
+        }
+    }
+    assert!(unnamed > 0, "the world has places with no proper name");
 }

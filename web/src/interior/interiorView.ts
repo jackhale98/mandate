@@ -21,6 +21,7 @@ import { ANCHOR, BLOB, composeCharacter, faceLeft, gradeImage, gradeRoom, interi
 import type { Facing, HotspotDef } from "../../../tools/pixelkit/art/mandate/interiorsRecipes";
 import { crop, type Indexed } from "../../../tools/pixelkit/src/core/image";
 import type { Placement } from "./cast";
+import { RoomCrowd } from "./crowd";
 import { facingOf, InteriorScene, type Tile } from "./interiorScene";
 import { bobTags, fillPersonTag, type PersonMarker } from "../hub/hubView";
 
@@ -40,6 +41,9 @@ export interface RoomPerson extends Placement {
   /** Their look's seed (the street's, so a person looks the same inside). */
   variant: number;
 }
+
+/** Someone as drawn: where they are now, and how far they have walked (while they walk). */
+type ShownPerson = RoomPerson & { step?: number };
 
 /** What the player stands by (the keyboard hint and the announcement). */
 export type Near = { kind: "person"; key: string } | { kind: "hotspot"; id: string } | { kind: "door" } | null;
@@ -99,6 +103,8 @@ const FACE_ROW: Record<Facing, number> = { down: 0, up: 1, right: 2, left: 2 };
 
 export class InteriorView {
   readonly scene: InteriorScene;
+  /** People walking in from the door or out through it (`setPeople`). */
+  readonly crowd: RoomCrowd;
   readonly room: InteriorRoom;
   readonly canvas: HTMLCanvasElement;
   /** Frames drawn and loop iterations (tests and measurements). */
@@ -148,6 +154,7 @@ export class InteriorView {
     this.room = options.room;
     this.minutes = options.minutes;
     this.scene = new InteriorScene({ cols: this.room.cols, rows: this.room.rows, walk: this.room.walk, door: this.room.door });
+    this.crowd = new RoomCrowd({ cols: this.room.cols, rows: this.room.rows, walk: this.room.walk, door: this.room.door });
     container.style.overflow = "hidden";
     container.style.touchAction = "none";
     container.style.userSelect = "none";
@@ -201,7 +208,11 @@ export class InteriorView {
   }
 
   /** The people present on their spots (and scenery staff). Their tiles block walking. */
-  setPeople(people: readonly RoomPerson[]) {
+  setPeople(people: readonly RoomPerson[], animate = false) {
+    // Time passed: newcomers walk in from the door and those gone walk out (never with reduced motion, nor
+    // behind a sheet, where nothing animates: they are simply there).
+    if (animate && !this.opts.reducedMotion && !this.pausedFlag) this.crowd.sync(this.people, people);
+    else this.crowd.clear();
     this.people = [...people];
     this.scene.setOccupied(people.map((p) => ({ x: p.x, y: p.y })));
     for (const [k, el] of this.tags) {
@@ -235,6 +246,16 @@ export class InteriorView {
     }
     this.actorCache.clear();
     this.invalidate();
+  }
+
+  /** Everyone drawn now: those present (a newcomer on their way in is on the walk), and those walking out. */
+  private shown(): ShownPerson[] {
+    const out: ShownPerson[] = this.people.map((p) => {
+      const w = this.crowd.walkers.get(p.key);
+      return w ? { ...p, x: w.x, y: w.y, facing: w.dir, pose: "stand", step: w.dist } : p;
+    });
+    for (const w of this.crowd.walkers.values()) if (w.leaving) out.push({ ...(w.person as RoomPerson), x: w.x, y: w.y, facing: w.dir, pose: "stand", step: w.dist });
+    return out;
   }
 
   /** The hotspots offered now (the engine's view changed: a new slot, late at night). */
@@ -475,7 +496,7 @@ export class InteriorView {
     const px = (sx * this.dpr - this.ox) / this.zoom;
     const py = (sy * this.dpr - this.oy) / this.zoom;
     // Someone: their figure's box (a seated one's upper half).
-    for (const p of [...this.people].sort((a, b) => b.y - a.y)) {
+    for (const p of this.shown().sort((a, b) => b.y - a.y)) {
       if (p.extra) continue;
       const x0 = fx + p.x * T;
       const top = fy + p.y * T + 14 - ANCHOR.y;
@@ -577,7 +598,7 @@ export class InteriorView {
     // marker where it is clear, named where the name crowds nothing. Whatever is left out is still tapped
     // directly (a person, the thing on the wall).
     const placed: Box[] = [];
-    const people = this.people
+    const people = this.shown()
       .filter((p) => this.tags.has(p.key))
       .map((p) => ({ p, near: this.near?.kind === "person" && this.near.key === p.key }))
       .sort((a, c) => Number(c.near) - Number(a.near) || c.p.y - a.p.y || a.p.x - c.p.x);
@@ -729,15 +750,16 @@ export class InteriorView {
     const dt = Math.min(0.1, Math.max(0, (now - this.last) / 1000));
     this.last = now;
     const moved = this.scene.step(dt);
+    const crowded = this.crowd.step(dt);
     if (this.ease) {
       const k = Math.min(1, (now - this.ease.t0) / this.ease.ms);
       this.minutes = this.ease.from + (this.ease.to - this.ease.from) * (k * k * (3 - 2 * k));
       if (k >= 1) this.ease = null;
       this.dirty = true;
     }
-    if (moved || this.dirty) this.draw();
+    if (moved || crowded || this.dirty) this.draw();
     this.updateNear();
-    if (this.scene.moving || this.scene.steering || this.ease) this.raf = requestAnimationFrame((t) => this.tick(t));
+    if (this.scene.moving || this.scene.steering || this.ease || this.crowd.moving) this.raf = requestAnimationFrame((t) => this.tick(t));
     else if (this.speaker && !this.opts.reducedMotion) {
       // Someone speaking bobs a little: a few frames a second, only while the reply is revealed.
       this.raf = -1;
@@ -817,14 +839,15 @@ export class InteriorView {
     const shadows: { x: number; y: number }[] = [];
     const lift = (x: number, y: number) => this.room.lift[Math.round(y) * this.room.cols + Math.round(x)] ?? 0;
     // The people present.
-    for (const p of this.people) {
+    for (const p of this.shown()) {
       const look = p.extra || p.role !== "public" && p.role !== "patron" ? placeholderLook(p.role, p.variant) : lookFromSeed(p.variant >>> 0);
       const frames = this.sheet(look, `${p.role}:${p.variant}:${p.extra ? 1 : 0}`);
       const t = this.scene.player;
       const talking = this.talk?.key === p.key;
       const dir = talking || (this.near?.kind === "person" && this.near.key === p.key) ? facingOf(t.x - p.x, t.y - p.y) : p.facing;
-      let img = this.frameOf(frames, dir, 0);
-      const tileX = fx + p.x * T;
+      const stride = p.step !== undefined ? 2 + (Math.floor(p.step * 4) % 4) : 0;
+      let img = this.frameOf(frames, dir, stride);
+      const tileX = p.step !== undefined ? Math.round(fx + p.x * T) : fx + p.x * T;
       const tileY = fy + p.y * T;
       let x: number;
       let y: number;
@@ -836,12 +859,12 @@ export class InteriorView {
         x = tileX + (dir === "right" ? 1 : dir === "left" ? -1 : 0);
         y = hip - cut - (talking && this.speaker === "person" ? this.bob : 0);
       } else {
-        const feetY = tileY + 14 - lift(p.x, p.y);
+        const feetY = p.step !== undefined ? Math.round(tileY + 14 - lift(p.x, p.y)) : tileY + 14 - lift(p.x, p.y);
         x = tileX;
         y = feetY - ANCHOR.y - (talking && this.speaker === "person" ? this.bob : 0);
         shadows.push({ x: tileX + ANCHOR.x, y: feetY - 1 });
       }
-      layers.push({ canvas: this.actor(p.key, img, x, y, `${dir}:${p.pose}`, graded.g), x, y, key: (tileY + 14) * 4 });
+      layers.push({ canvas: this.actor(p.key, img, x, y, `${dir}:${p.pose}:${stride}`, graded.g), x, y, key: (tileY + 14) * 4 });
     }
     // The player.
     {

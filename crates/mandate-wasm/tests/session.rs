@@ -53,6 +53,17 @@ fn new_game_end_turn_save_load() {
     let mut s2 = Session::new().unwrap();
     s2.import_save(&save).unwrap();
     assert_eq!(s2.engine().unwrap().state_hash(), hash);
+    // Whose the save is, read by a session with no game of its own (the title screen's list): the
+    // pocket header's words, and the running game untouched.
+    let s3 = Session::new().unwrap();
+    let who = s3.read_save_summary(&save).unwrap();
+    let o = office_view(s.engine().unwrap()).unwrap();
+    assert_eq!(who.player_name, o.player.name);
+    assert_eq!(who.role_key, o.player.role_key);
+    assert_eq!(who.home, o.player.municipality);
+    assert!(!who.player_name.is_empty() && !who.home.is_empty());
+    assert!(s3.engine().is_none());
+    assert!(s3.read_save_summary(b"not a save").is_err());
 }
 
 #[test]

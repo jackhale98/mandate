@@ -23,6 +23,7 @@ import { atLocation, locationCell, type TownBuilding, type TownMap } from "../hu
 import { LIGHT_EASE_MS, PASSAGE_EASE_MS, shownMinutes } from "../hub/turnClock";
 import { artPack } from "../hub/townWorkerClient";
 import { Loader } from "./Brand";
+import { districtLabel } from "./posts";
 import { placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
 import { sameLocation } from "../state/routing";
@@ -327,7 +328,12 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const engineAt = pocket?.location ?? null;
   const hoodName = (id: number | null) => town.neighborhoods.find((h) => h.id === id)?.name ?? null;
   // Standing at the engine's location: its neighbourhood (a door on a border belongs to its place's); walking: the ground underfoot.
-  const zone = (ready && !spot.at ? hoodName(spot.hood) : null) ?? (engineAt?.neighborhood_name || null) ?? hoodName(spot.hood) ?? town.municipality;
+  const zoneHood = (ready && !spot.at ? spot.hood : null) ?? (engineAt?.neighborhood_name ? engineAt.neighborhood : null) ?? spot.hood;
+  const zoneName = (ready && !spot.at ? hoodName(spot.hood) : null) ?? (engineAt?.neighborhood_name || null) ?? hoodName(spot.hood) ?? town.municipality;
+  // The district it sits in, in the constitution's words ("Eastfield · Ward 3"); none for a neighbourhood outside any ward.
+  const wardNumber = town.neighborhoods.find((h) => h.id === zoneHood)?.ward_number ?? null;
+  const zone = zoneName;
+  const ward = wardNumber !== null ? districtLabel(tr, wardNumber, "local") : null;
   const place = engineAt && engineAt.location.type !== "street" && (!ready || spot.at) ? placeName(tr, engineAt) : null;
 
   // The people on the street the player is on stand about it, to walk up to and talk to (DEC-093). At a
@@ -335,13 +341,18 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const hereNow = pocket?.location.location ?? null;
   // Fetched again after every command (the pocket is new then): meeting a passer-by makes them someone stored.
   const peopleKey = hereNow?.type === "street" ? String(hereNow.neighborhood) : "";
+  // The street the people were last listed for: a list for the same street again means time has passed here
+  // (a conversation, a turn), so newcomers walk in; a street just arrived at has everyone already standing.
+  const listedFor = useRef("");
   useEffect(() => {
     const v = viewRef.current;
     if (!v || !ready) return;
     if (!peopleKey || !hereNow) {
+      listedFor.current = "";
       v.setPeople([]);
       return;
     }
+    const arrive = listedFor.current === peopleKey;
     let live = true;
     void peopleAt(hereNow).then(async (list) => {
       if (!live || viewRef.current !== v) return;
@@ -352,7 +363,8 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       await Promise.all(gone.map(async (k) => exits.set(k, k.startsWith("c") ? await whereIs({ type: "person", person: Number(k.slice(1)) }) : null)));
       if (!live || viewRef.current !== v) return;
       names.current = new Map(people.map((p) => [p.key, p.name]));
-      v.setPeople(people, exits);
+      v.setPeople(people, exits, arrive);
+      listedFor.current = peopleKey;
       // A passer-by met stands on under their new key with the look they had: the portrait keeps it too.
       for (const s of v.scene.standing) keepLook(s.key, s.w.variant);
     });
@@ -406,6 +418,14 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
           <strong className="town-where-zone" data-testid="where-zone">
             {zone}
           </strong>
+          {ward && (
+            <>
+              <span aria-hidden="true"> · </span>
+              <span className="town-where-ward" data-testid="where-ward">
+                {ward}
+              </span>
+            </>
+          )}
           {place && (
             <>
               <span aria-hidden="true"> · </span>

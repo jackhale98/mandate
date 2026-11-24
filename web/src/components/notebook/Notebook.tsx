@@ -32,7 +32,9 @@ export function Lead({ lead }: { lead: LeadView }) {
     <div className="nb-lead" data-testid="notebook-lead">
       <p>
         <span className="nb-lead-label">{tr.t("ui-notebook-lead")}: </span>
-        {leadText(tr, lead)} <span className="muted small">({tr.t("ui-notebook-lead-gives", { level: tr.t(`knowledge-level-${lead.level}`) })})</span>
+        {leadText(tr, lead)} <span className="muted small" data-testid="notebook-lead-gives">
+          {tr.t("ui-notebook-lead-gives", { level: lead.level, dots: levelDots(lead.level), name: tr.t(`knowledge-level-${lead.level}`) })}
+        </span>
       </p>
       {to &&
         (lead.route?.here ? (

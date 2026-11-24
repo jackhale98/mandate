@@ -92,9 +92,15 @@ export class TownScene {
   /** How many of `folk` are out (the first ones; the rest stay in, e.g. at night). */
   activeFolk: number;
   /** People standing in the street, to walk up to (`setStanding`): they do not wander. */
-  readonly standing: { key: string; w: Walker }[] = [];
+  readonly standing: { key: string; w: Walker; to?: number }[] = [];
   /** People who were standing here and are walking off to where they go next (`setStanding`); gone when they arrive. */
   readonly leaving: { key: string; w: Walker }[] = [];
+  /** How many of `standing` are still walking in to their spot (`setStanding` with `arrive`). */
+  get arriving(): number {
+    let n = 0;
+    for (const s of this.standing) if (s.w.walk) n++;
+    return n;
+  }
   /** Dialogue mode (DEC-093): the townsfolk stand where they are until the conversation ends. */
   folkPaused = false;
   private reach: Uint8Array;
@@ -187,7 +193,7 @@ export class TownScene {
    * (a stable choice: the same people around the same spot stand in the same
    * places). Those no longer listed go.
    */
-  setStanding(people: readonly StandingPerson[], exits?: ReadonlyMap<string, number | null>) {
+  setStanding(people: readonly StandingPerson[], exits?: ReadonlyMap<string, number | null>, arrive = false) {
     const gone: { key: string; w: Walker }[] = [];
     for (let i = this.standing.length - 1; i >= 0; i--) {
       const s = this.standing[i] as { key: string; w: Walker };
@@ -212,7 +218,7 @@ export class TownScene {
     const px = pc % W;
     const py = Math.floor(pc / W);
     const fronts = new Set(this.map.buildings.map((b) => b.front));
-    const taken = this.standing.map((s) => Math.floor(s.w.y) * W + Math.floor(s.w.x));
+    const taken = this.standing.map((s) => s.to ?? Math.floor(s.w.y) * W + Math.floor(s.w.x));
     const cands: number[] = [];
     for (let y = py - 6; y <= py + 6; y++) {
       for (let x = px - 6; x <= px + 6; x++) {
@@ -232,8 +238,45 @@ export class TownScene {
       if (cell === undefined) continue;
       taken.push(cell);
       const w = makeWalker(-1000 - this.standing.length, cellCentre(this.grid, cell), p.variant, 0);
-      this.standing.push({ key: p.key, w });
+      const s: { key: string; w: Walker; to?: number } = { key: p.key, w };
+      this.standing.push(s);
+      // Time passed and they came: from the nearest doorway or edge of the street to where they stand.
+      const from = arrive ? this.entryFor(cell) : null;
+      if (from !== null) {
+        const at = cellCentre(this.grid, from);
+        w.x = at.x;
+        w.y = at.y;
+        w.speed = LEAVE_SPEED;
+        s.to = cell;
+        if (this.walkTo(w, cell, () => this.settle(s))) continue;
+        this.settle(s);
+        const home = cellCentre(this.grid, cell);
+        w.x = home.x;
+        w.y = home.y;
+      }
     }
+  }
+
+  /** Someone who walked in has arrived: they stand still where they are. */
+  private settle(s: { key: string; w: Walker; to?: number }) {
+    s.w.speed = 0;
+    s.w.walk = null;
+    s.w.moving = false;
+    delete s.to;
+  }
+
+  /** Where a newcomer comes from: the nearest doorway or reachable edge of the street to their spot (at least three cells off), or null (they are simply there). */
+  private entryFor(spot: number): number | null {
+    const W = this.map.width;
+    const sx = spot % W;
+    const sy = Math.floor(spot / W);
+    const far = (i: number) => Math.hypot((i % W) - sx, Math.floor(i / W) - sy);
+    const cands: number[] = [];
+    const edge = this.nearestExit(spot);
+    if (edge !== null) cands.push(edge);
+    for (const b of this.map.buildings) if (b.place !== null && this.reach[b.front]) cands.push(b.front);
+    const ok = cands.filter((i) => far(i) >= 3).sort((a, b) => far(a) - far(b) || a - b);
+    return ok[0] ?? null;
   }
 
   /** Walk someone off: to `goal` (a cell), or the way out of the street nearest to it (nearest to them, when there is no goal). */
@@ -410,6 +453,7 @@ export class TownScene {
     if (this.steering) any = this.stepSteer(dt) || any;
     if (!this.player.walk && !this.player.moving) this.target = null;
     for (const g of this.folkPaused ? [] : [...this.leaving]) any = this.stepWalker(g.w, dt) || any;
+    for (const s of this.folkPaused ? [] : this.standing) if (s.w.walk) any = this.stepWalker(s.w, dt) || any;
     for (const w of this.folkPaused ? [] : this.outFolk) {
       const m = this.stepWalker(w, dt);
       any ||= m;

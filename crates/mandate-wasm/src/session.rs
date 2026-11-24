@@ -430,6 +430,18 @@ impl Session {
         serde_json::to_string(&outcome).map_err(|e| e.to_string())
     }
 
+    /// Who a save belongs to (a read-only look: the running game is untouched).
+    pub fn read_save_summary(&self, bytes: &[u8]) -> Result<SaveSummaryDto, String> {
+        let (state, _log, _) = mandate_save::decode_with_log(bytes).map_err(|e| e.to_string())?;
+        let engine = Engine::from_state(state, self.content.clone()).map_err(|e| e.to_string())?;
+        let office = office_view(&engine).ok_or("the save has no player")?;
+        Ok(SaveSummaryDto {
+            player_name: office.player.name,
+            role_key: office.player.role_key,
+            home: office.player.municipality,
+        })
+    }
+
     /// Replace the running game with a decoded save; returns its overview.
     pub fn import_save(&mut self, bytes: &[u8]) -> Result<OverviewView, String> {
         let (state, log, _) = mandate_save::decode_with_log(bytes).map_err(|e| e.to_string())?;

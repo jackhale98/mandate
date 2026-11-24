@@ -31,6 +31,23 @@ ui-town-street-loading = Drawing the streets…
 # The hint at a door the player stands at (keyboard walking).
 ui-town-street-enter = Enter: { $place }
 ui-town-where-zone = You are in { $zone }
+## Which build this is (title screen, "Report a problem").
+ui-build-id = Build { $id }
+ui-build-id-hint = Which build of the game this is: say it when you report a problem.
+## The bottom bar's date on a narrow phone: the day and a short month.
+ui-date-short = { $day } { $month }
+month-short-1 = Jan
+month-short-2 = Feb
+month-short-3 = Mar
+month-short-4 = Apr
+month-short-5 = May
+month-short-6 = Jun
+month-short-7 = Jul
+month-short-8 = Aug
+month-short-9 = Sep
+month-short-10 = Oct
+month-short-11 = Nov
+month-short-12 = Dec
 
 # The night between turns.
 ui-passage-day = A day later
@@ -83,7 +100,12 @@ ui-notebook-unknown = Not known yet
 ui-notebook-from = { $source }, { $date }
 ui-notebook-history = How you learned this
 ui-notebook-lead = To find out
-ui-notebook-lead-gives = would tell you: { $level }
+ui-notebook-lead-gives = { $level ->
+    [heard] You would hear of this
+    [known] Would raise this to { $dots } { $name }
+    [detailed] Would raise this to { $dots } { $name }
+   *[other] Would tell you more
+}
 ui-notebook-go = Go there
 ui-notebook-here = You are here
 ui-notebook-person-open = What you know of { $name }
@@ -318,6 +340,9 @@ day-part-late-night = late at night
 seen-last = Last seen at { $place }, { $part }.
 seen-usually = Usually at { $place } { $part }.
 lead-usually-at = Usually at { $to_place } ({ $to_kind }) { $part }.
+lead-usually-at-kind = Usually at { $to_place } { $part }.
+seen-place-home = home
+seen-place-unknown = a place you have not named
 lead-usually-on-streets = Usually on the streets of { $to_hood } { $part }.
 
 ## Notebook people and markers: the Notebook's People section (the single

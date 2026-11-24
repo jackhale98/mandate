@@ -575,6 +575,19 @@ pub struct SaveMetaDto {
     pub turn: u32,
 }
 
+/// Who a save belongs to, as the title screen lists it (a read-only look at a
+/// save: the player's name, the title of their post as a Fluent key, and
+/// their home place), in the same words as the pocket's header.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SaveSummaryDto {
+    pub player_name: String,
+    /// Fluent key of the title of the player's first post (`role-<word>`, or `role-private`).
+    pub role_key: String,
+    /// The player's home place.
+    pub home: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

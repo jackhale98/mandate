@@ -187,3 +187,6 @@ export function sheetFixture(id: number, over: Partial<CharacterView> = {}): Cha
 }
 
 export const seenAtDiner: SeenView = { key: "seen-usually", args: { place: "Rosa's", kind_key: "place-diner", part_key: "day-part-afternoon" }, at: diner, part: "afternoon", part_key: "day-part-afternoon", on: d(3) };
+
+/** Seen at a place with no proper name (the union hall): the engine sends its kind as a key. */
+export const seenAtUnionHall: SeenView = { key: "seen-last", args: { place_key: "talk-place-union_hall", kind_key: "place-union_hall", part_key: "day-part-morning" }, at: diner, part: "morning", part_key: "day-part-morning", on: d(3) };

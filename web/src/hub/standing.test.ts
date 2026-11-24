@@ -64,6 +64,78 @@ describe("people standing in the street", () => {
     expect(s.leaving).toHaveLength(0);
   });
 
+  it("newcomers after time passes walk in from the nearest doorway or edge to where they stand (note 18)", () => {
+    const s = new TownScene(map, { townsfolk: 0 });
+    s.setStanding([{ key: "c1", variant: 101 }]);
+    const c1 = [s.standing[0]?.w.x, s.standing[0]?.w.y];
+    // Listed again with a newcomer, and `arrive`: the old one stays put; the new one starts away from their spot.
+    s.setStanding(
+      [
+        { key: "c1", variant: 101 },
+        { key: "c2", variant: 102 },
+      ],
+      undefined,
+      true,
+    );
+    expect([s.standing[0]?.w.x, s.standing[0]?.w.y]).toEqual(c1);
+    const c2 = s.standing[1];
+    expect(c2?.key).toBe("c2");
+    const spot = c2?.to ?? -1;
+    expect(spot).toBeGreaterThanOrEqual(0);
+    const goal = { x: (spot % map.width) + 0.5, y: Math.floor(spot / map.width) + 0.5 };
+    const dist = () => Math.hypot((c2?.w.x ?? 0) - goal.x, (c2?.w.y ?? 0) - goal.y);
+    // From a doorway or the edge of the street: a doorway's front cell or an edge cell, at least three cells away.
+    const startCell = Math.floor(c2?.w.y ?? 0) * map.width + Math.floor(c2?.w.x ?? 0);
+    const doorways = new Set(map.buildings.filter((b) => b.place !== null).map((b) => b.front));
+    const onEdge = (i: number) => i % map.width === 0 || Math.floor(i / map.width) === 0 || i % map.width === map.width - 1 || Math.floor(i / map.width) === map.height - 1;
+    expect(doorways.has(startCell) || onEdge(startCell)).toBe(true);
+    expect(dist()).toBeGreaterThanOrEqual(3);
+    expect(s.arriving).toBe(1);
+    // Their position changes over time, towards the spot; the others do not move.
+    const d0 = dist();
+    s.step(1);
+    expect(dist()).toBeLessThan(d0);
+    expect([s.standing[0]?.w.x, s.standing[0]?.w.y]).toEqual(c1);
+    for (let i = 0; i < 6000 && s.arriving > 0; i++) s.step(1 / 30);
+    // There, standing still, free to be talked to.
+    expect(s.arriving).toBe(0);
+    expect(dist()).toBeLessThan(0.01);
+    expect(c2?.w.speed).toBe(0);
+    expect(c2?.to).toBeUndefined();
+    expect(s.personAt({ x: c2?.w.x ?? 0, y: (c2?.w.y ?? 0) - 0.4 })).toBe("c2");
+  });
+
+  it("without `arrive` (a street just reached) everyone is simply standing there", () => {
+    const s = new TownScene(map, { townsfolk: 0 });
+    s.setStanding([
+      { key: "c1", variant: 101 },
+      { key: "c2", variant: 102 },
+    ]);
+    expect(s.arriving).toBe(0);
+    expect(s.standing.every((x) => x.w.walk === null && x.to === undefined)).toBe(true);
+  });
+
+  it("no one walks in while a conversation holds the street still", () => {
+    const s = new TownScene(map, { townsfolk: 0 });
+    s.setStanding([{ key: "c1", variant: 101 }]);
+    s.setStanding(
+      [
+        { key: "c1", variant: 101 },
+        { key: "c2", variant: 102 },
+      ],
+      undefined,
+      true,
+    );
+    const c2 = s.standing[1]?.w;
+    const at = [c2?.x, c2?.y];
+    s.folkPaused = true;
+    for (let i = 0; i < 60; i++) s.step(1 / 30);
+    expect([c2?.x, c2?.y]).toEqual(at);
+    s.folkPaused = false;
+    s.step(0.5);
+    expect([c2?.x, c2?.y]).not.toEqual(at);
+  });
+
   it("a passer-by met (a new key for the same person) stands where they stood", () => {
     const s = new TownScene(map, { townsfolk: 0 });
     s.setStanding([{ key: "a1", variant: 101 }]);

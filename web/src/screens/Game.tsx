@@ -200,7 +200,12 @@ export function Game() {
           </span>
         </button>
         <div className="gamebar-date">
-          <strong>{formatDate(tr, overview.date)}</strong>
+          <strong>
+            <span className="gamebar-date-full">{formatDate(tr, overview.date)}</span>
+            <span className="gamebar-date-short" aria-hidden="true">
+              {tr.t("ui-date-short", { day: overview.date.day, month: tr.t(`month-short-${overview.date.month}`) })}
+            </span>
+          </strong>
           <span className="gamebar-sub muted">
             <span>{tr.t("ui-turn", { turn: overview.turn })}</span>
             <span className="gamebar-span"> · {tr.t("ui-turn-span", { days: overview.turn_days })}</span>

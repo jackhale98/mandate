@@ -111,6 +111,9 @@ function ReportDialogBody() {
           </button>
         </div>
         <p id={`${id}-intro`}>{tr.t("ui-report-intro")}</p>
+        <p className="small muted build-id" data-testid="report-build-id">
+          {tr.t("ui-build-id", { id: buildId(__APP_VERSION__) })}
+        </p>
         {(engineFailed || !run) && <p className="hint">{tr.t(engineFailed ? "ui-report-engine-failed" : "ui-report-no-game")}</p>}
         <div>
           <p className="report-contains">{tr.t("ui-report-contains")}</p>

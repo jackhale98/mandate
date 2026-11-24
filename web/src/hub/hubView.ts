@@ -256,7 +256,7 @@ export class HubView {
    * zoom framed at and the zoom to go back to.
    */
   /** A change of who is here made during a conversation, applied when it ends. */
-  private queuedPeople: { people: readonly StreetPerson[]; exits: ReadonlyMap<string, TownLocation | null> | undefined } | null = null;
+  private queuedPeople: { people: readonly StreetPerson[]; exits: ReadonlyMap<string, TownLocation | null> | undefined; arrive: boolean } | null = null;
   private talk: { w: Walker; inset: number; zoom: number; from: number } | null = null;
   /** After a conversation: the zoom the camera eases back to, then it is the player's again. */
   private talkReturn: number | null = null;
@@ -385,10 +385,10 @@ export class HubView {
    * stand a few steps from the player, those already there stay, the rest go.
    * Each has a name tag (a tap walks up to them).
    */
-  setPeople(people: readonly StreetPerson[], exits?: ReadonlyMap<string, TownLocation | null>) {
+  setPeople(people: readonly StreetPerson[], exits?: ReadonlyMap<string, TownLocation | null>, arrive = false) {
     // In a conversation the speaker stays put (they would walk off in frame); the change is made when it ends.
     if (this.talk) {
-      this.queuedPeople = { people, exits };
+      this.queuedPeople = { people, exits, arrive };
       return;
     }
     this.queuedPeople = null;
@@ -398,7 +398,8 @@ export class HubView {
       for (const [k, loc] of exits) cells.set(k, loc ? locationCell(this.map, loc) : null);
       for (const s of this.scene.standing) if (!cells.has(s.key)) cells.set(s.key, null);
     }
-    this.scene.setStanding(people, this.reducedMotion ? undefined : cells);
+    // Newcomers walk in from the nearest doorway or edge (`arrive`: time has passed here); not with reduced motion.
+    this.scene.setStanding(people, this.reducedMotion ? undefined : cells, arrive && !this.reducedMotion);
     for (const [k, el] of this.personTags) {
       if (!this.scene.standing.some((x) => x.key === k)) {
         el.remove();
@@ -497,7 +498,7 @@ export class HubView {
     this.follow = true;
     this.lastInput = performance.now();
     const q = this.queuedPeople;
-    if (q) this.setPeople(q.people, q.exits);
+    if (q) this.setPeople(q.people, q.exits, q.arrive);
     this.wake();
   }
 
@@ -1003,12 +1004,12 @@ export class HubView {
     if (ticked) this.syncFolk();
     const playerMoving = this.walking(p) || this.scene.steering;
     // In dialogue mode the townsfolk stand still and only the speaker moves.
-    const folkMoving = (this.scene.activeFolk > 0 || this.scene.leaving.length > 0) && !this.scene.folkPaused;
+    const folkMoving = (this.scene.activeFolk > 0 || this.scene.leaving.length > 0 || this.scene.arriving > 0) && !this.scene.folkPaused;
     const bobbing = this.speaker !== null && !this.reducedMotion;
     // Full rate: the player, the camera (easing, following, a gesture) and the light changing.
     const busy = playerMoving || eased || this.camera.gesturing || ticked || this.clock.running || this.renderer.animating || this.followSettling();
     // Idle sleep (DEC-080 "Battery"): nobody has touched anything for a while; draw this frame and stop.
-    const idle = !busy && this.scene.leaving.length === 0 && now - this.lastInput >= (this.opts.idleMs ?? 20_000);
+    const idle = !busy && this.scene.leaving.length === 0 && this.scene.arriving === 0 && now - this.lastInput >= (this.opts.idleMs ?? 20_000);
     // Ambient-only frames are capped (DEC-080: battery).
     const cap = 1000 / (this.talk ? TALK_FPS : (this.opts.ambientFps ?? 15));
     if (busy || idle || now - this.lastTry >= cap - 1) {
@@ -1056,7 +1057,7 @@ export class HubView {
     for (const { w } of s.leaving) views.push(view(w));
     // People standing in the street turn to face the player when the player is by them.
     for (const { key, w } of s.standing) {
-      if (key === this.nearKey && !t) w.dir = facing(s.player.x - w.x, s.player.y - w.y);
+      if (key === this.nearKey && !t && !w.walk) w.dir = facing(s.player.x - w.x, s.player.y - w.y);
       views.push(view(w));
     }
     const cam = this.camera.state;

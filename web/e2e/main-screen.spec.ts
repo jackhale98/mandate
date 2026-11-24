@@ -69,6 +69,8 @@ test("where you are: a label at the top of the street names the neighbourhood an
   expect((box?.y ?? 99) - (town?.y ?? 0)).toBeLessThan(40);
   // A new run starts at home, in the home neighbourhood.
   await expect(page.getByTestId("where-place")).toHaveText("Home");
+  // The district in the constitution's words follows the neighbourhood ("Old Green · Ward 2 · Home").
+  await expect(page.getByTestId("where-ward")).toHaveText(/^Ward \d+$/);
   const pocket = await openPocket(page, "places");
   const home = ((await pocket.locator(".hood", { has: page.getByTestId("you-are-here") }).locator("h3").textContent()) ?? "").trim();
   await expect(zone).toHaveText(home);

@@ -7,6 +7,7 @@ import type { ResponseBody } from "./protocol/ResponseBody";
 import type { ProtocolError } from "./protocol/ProtocolError";
 import type { SaveRequestDto } from "./protocol/SaveRequestDto";
 import type { SaveMetaDto } from "./protocol/SaveMetaDto";
+import type { SaveSummaryDto } from "./protocol/SaveSummaryDto";
 import type { OverviewView } from "./protocol/OverviewView";
 
 export const PROTOCOL_VERSION = 1;
@@ -79,6 +80,9 @@ export class EngineClient {
         case "meta_result":
           this.settle(m.id, () => ({ ok: JSON.parse(m.json) as SaveMetaDto }));
           break;
+        case "summary_result":
+          this.settle(m.id, () => ({ ok: JSON.parse(m.json) as SaveSummaryDto }));
+          break;
         case "report_core_result":
           this.settle(m.id, () => ({ ok: m.json }));
           break;
@@ -131,6 +135,14 @@ export class EngineClient {
     const id = this.nextId++;
     const p = this.track<SaveMetaDto>(id);
     this.worker.postMessage({ type: "read_save_meta", id, bytes });
+    return p;
+  }
+
+  /** Whose a save is (the player's name, post key and home), read without loading it as the game. */
+  readSaveSummary(bytes: Uint8Array): Promise<SaveSummaryDto> {
+    const id = this.nextId++;
+    const p = this.track<SaveSummaryDto>(id);
+    this.worker.postMessage({ type: "read_save_summary", id, bytes });
     return p;
   }
 

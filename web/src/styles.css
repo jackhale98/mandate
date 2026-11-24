@@ -134,7 +134,9 @@ h2 { font-size: 1.1rem; }
 
 .banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 16px; }
 .banner-error { background: color-mix(in srgb, var(--danger) 22%, var(--surface)); }
-.banner-info { position: fixed; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 5; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--info); }
+/* The update bar: above every sheet (the pocket and decisions sit at 6), the bottom bar (7) and the town map (8), and
+   clear of the bottom bar (its height, then a gap). The report dialog (10) still covers it. */
+.banner-info { position: fixed; left: 16px; right: 16px; bottom: calc(var(--bar-h, 60px) + 12px + env(safe-area-inset-bottom)); z-index: 9; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--info); }
 
 
 /* Brand (DEC-081): logo B (poll-line M), loader C (career ladder). */
@@ -669,6 +671,17 @@ h2 { font-size: 1.1rem; }
   .gamebar-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .gamebar-map, .pocket-btn { padding: 0 10px; }
   .gamebar-end { min-width: 0; padding: 0 12px; }
+}
+/* A narrow phone with several badges beside the pocket button: the badges compress and wrap first (two
+   rows, smaller), the date keeps its width and shortens to the day and a short month before it would be cut. */
+.gamebar-date-short { display: none; }
+@media (max-width: 440px) {
+  .gamebar-map, .gamebar-end { min-width: 44px; }
+  .gamebar-date { flex: 1 0 auto; }
+  .gamebar-date-full { display: none; }
+  .gamebar-date-short { display: inline; }
+  .pocket-btn { flex: 0 1 auto; flex-wrap: wrap; align-content: center; justify-content: center; gap: 2px 3px; padding: 2px 6px; min-width: 44px; max-width: 5.6rem; }
+  .pocket-btn .badge { padding: 1px 5px; font-size: 0.68rem; }
 }
 /* Skip link (DEC-051): hidden until focused, then the first thing on screen. */
 .skip-link {

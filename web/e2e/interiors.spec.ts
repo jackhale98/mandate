@@ -45,8 +45,11 @@ interface Probes {
     view: {
       stats: { frames: number; ticks: number };
       asleep: boolean;
-      scene: { tile: { x: number; y: number }; moving: boolean };
+      scene: { tile: { x: number; y: number }; moving: boolean; passable(x: number, y: number): boolean };
       talking: string | null;
+      room: { cols: number; rows: number; door: { x: number; y: number } };
+      crowd: { walkers: Map<string, { key: string; x: number; y: number; leaving: boolean }> };
+      setPeople(people: RoomPerson[], animate?: boolean): void;
       setMinutes(m: number, ms?: number): void;
       tileToScreen(t: { x: number; y: number }): { x: number; y: number };
     };
@@ -235,6 +238,77 @@ test("the diner: scenery staff, no late booth by day, an idle room sleeps; a pla
     await expect(page.getByTestId("interior")).toHaveCount(0);
   }
   expect(errors).toEqual([]);
+});
+
+/** The engine's next view of the room (as the room's effect hands it on): one person gone, a newcomer at a free tile. */
+const swapOne = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as Probes;
+    const i = w.__interior;
+    if (!i) return null;
+    const { view, people } = i;
+    const gone = people.find((p) => !p.extra && p.label);
+    if (!gone) return null;
+    const taken = new Set(people.map((p) => `${p.x},${p.y}`));
+    let spot: { x: number; y: number } | null = null;
+    let best = 0;
+    for (let y = 0; y < view.room.rows; y++)
+      for (let x = 0; x < view.room.cols; x++) {
+        const d = Math.abs(x - view.room.door.x) + Math.abs(y - view.room.door.y);
+        if (view.scene.passable(x, y) && !taken.has(`${x},${y}`) && d > best) {
+          best = d;
+          spot = { x, y };
+        }
+      }
+    if (!spot) return null;
+    const rest = people.filter((p) => p !== gone);
+    const newcomer = { ...gone, key: "c999999", spot: null, role: "public", x: spot.x, y: spot.y, label: null };
+    view.setPeople([...rest, newcomer], true);
+    return { gone: { key: gone.key, x: gone.x, y: gone.y }, to: spot, door: view.room.door };
+  });
+const walkers = (page: Page) => probe(page, (w) => [...(w.__interior?.view.crowd.walkers.values() ?? [])].map((x) => ({ key: x.key, x: x.x, y: x.y, leaving: x.leaving })));
+
+test("time passes: a newcomer walks in from the door to their spot and someone gone walks out through it", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  const errors = watchErrors(page);
+  await start(page, "31337");
+  await tapPlace(page, info, "diner");
+  await inside(page, "interior.diner");
+  await expect.poll(() => probe(page, (w) => w.__interior?.view.asleep ?? false), { timeout: 10_000 }).toBe(true);
+  const change = await swapOne(page);
+  expect(change, "someone to send out and a free tile to come in to").not.toBeNull();
+  if (!change) return;
+  // Right away: the newcomer is at the door, the leaver where they stood; both on their way (the room wakes).
+  const first = await walkers(page);
+  const comer = first.find((x) => x.key === "c999999");
+  const goer = first.find((x) => x.key === change.gone.key);
+  expect(comer && !comer.leaving).toBe(true);
+  expect(goer?.leaving).toBe(true);
+  expect(Math.abs((comer?.x ?? 0) - change.door.x) + Math.abs((comer?.y ?? 0) - change.door.y)).toBeLessThan(2);
+  // Over time the newcomer's position changes towards their spot, and the leaver's towards the door.
+  await expect
+    .poll(async () => {
+      const c = (await walkers(page)).find((x) => x.key === "c999999");
+      return c ? Math.abs(c.x - change.door.x) + Math.abs(c.y - change.door.y) : 99;
+    })
+    .toBeGreaterThan(2);
+  // Everyone is where they belong in the end (nobody walking), and the room goes back to sleep.
+  await expect.poll(async () => (await walkers(page)).length, { timeout: 20_000 }).toBe(0);
+  await expect.poll(() => probe(page, (w) => w.__interior?.view.asleep ?? false), { timeout: 10_000 }).toBe(true);
+  const now = await people(page);
+  expect(now.some((p) => p.key === change.gone.key)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("reduced motion: nobody walks; they are simply there", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await start(page, "31337");
+  await tapPlace(page, info, "diner");
+  await inside(page, "interior.diner");
+  const change = await swapOne(page);
+  expect(change).not.toBeNull();
+  expect(await walkers(page)).toEqual([]);
 });
 
 test("each room in the game, by day and in the evening, with the people present (screenshots)", async ({ page }, info) => {
