@@ -172,6 +172,11 @@ fn digests(
     }
     let mut state = serde_json::to_value(g.e.state()).unwrap();
     state.as_object_mut().unwrap().remove("events");
+    // The content hash covers the pack's text as well as its rules, so a
+    // reworded line would move the digest without changing any outcome.
+    if let Some(meta) = state.get_mut("meta").and_then(|m| m.as_object_mut()) {
+        meta.remove("content_hash");
+    }
     strip(&mut state);
     let state = serde_json::to_vec(&state).unwrap();
     (
@@ -187,32 +192,36 @@ fn digests(
 /// at c72cbbd, the branch head with the rents and migration fix (audit fix
 /// 2, which changes outcomes on purpose), built as it is, without the
 /// spine: these are that build's digests, and the merged tree matches them.
+/// The state digests were re-recorded once more at 7a54822 with
+/// `meta.content_hash` left out of the state (the event streams did not
+/// move): the hash covers the pack's text, so a reworded line moved the
+/// digest without changing any outcome.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
-    (2026, "idle", 96, "87c7f491cc59eb96", "1b62fa0a7e227026"), // 1241 events
-    (2026, "mixed", 96, "30513a0fd79f8345", "037e0eed3baa655d"), // 2014 events
-    (7, "idle", 96, "0c7529b9245d03ca", "3933a142c80a2378"),    // 1179 events
-    (7, "corrupt", 96, "c3167aacfc06bb48", "a01a320061529ea6"), // 1904 events
-    (31, "idle", 96, "2e81ed540a34aee5", "306c1e59ac04695a"),   // 1227 events
+    (2026, "idle", 96, "87c7f491cc59eb96", "288a01ff84986fb9"), // 1241 events
+    (2026, "mixed", 96, "30513a0fd79f8345", "25ead84c95ebe4f3"), // 2014 events
+    (7, "idle", 96, "0c7529b9245d03ca", "86b30dc5e4bf38b7"),    // 1179 events
+    (7, "corrupt", 96, "c3167aacfc06bb48", "fcb734cf3e81c21f"), // 1904 events
+    (31, "idle", 96, "2e81ed540a34aee5", "e9ce189ffc9c4eda"),   // 1227 events
     (
         31,
         "explorer_legislator",
         96,
         "604610467beb7465",
-        "88c6e22e0c0b2907",
+        "8683da9efb1ecfbe",
     ), // 3086 events
     (
         2026,
         "mixed+prison",
         96,
         "2baccbdaf9b90ad5",
-        "c21042eca3d47ed9",
+        "b045e652c3529320",
     ), // 1702 events
     (
         2026,
         "idle+six_years",
         120,
         "8fecd3f0c7ad80a8",
-        "e86a42d58483a21e",
+        "68c869e495509270",
     ), // 1431 events
 ];
 
