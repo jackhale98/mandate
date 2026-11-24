@@ -119,6 +119,12 @@ fn geography_is_static_survives_save_and_load_and_is_pinned() {
     for (m, v) in all.iter().enumerate() {
         assert_eq!(&geography(&mut s2, m as u32), v, "town {m} after load");
     }
+    // `scripts/repin.sh` re-records the pin (here and in the web test): it
+    // prints the hash and leaves the assertion to the confirming run.
+    if std::env::var_os("MANDATE_RECORD_PINS").is_some() {
+        println!("REPIN geography {}", fnv1a(&json));
+        return;
+    }
     assert_eq!(
         fnv1a(&json),
         pinned,

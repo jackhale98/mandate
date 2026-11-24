@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { officeFigures, openPeople, showPlaces } from "./pocket";
+import { seedFor } from "./seeds";
 
 // Talking to people (DEC-093) in dialogue mode, and canvassing on a worry
 // (DEC-091). A conversation is a dialogue box at the bottom of the screen:
@@ -110,9 +111,8 @@ const toStreets = async (page: Page) => {
 };
 
 test("talk from the Notebook's People: over a portrait; someone elsewhere is gone to; topics with odds and the cost; a subject step; a reply in their voice", async ({ page, isMobile }) => {
-  // Seed 7312: seed 7311's reply showed no outcome once rents were bounded
-  // by incomes and movers shared fairly (audit fix 2).
-  await start(page, "7312");
+  // A world where the first key figure's reply has an outcome (tests/seeds.json).
+  await start(page, seedFor("notebook_talk_reply_has_an_outcome"));
   const pocket = await openPeople(page);
   await officeFigures(pocket).getByTestId("talk-button").first().click();
   const dlg = box(page);

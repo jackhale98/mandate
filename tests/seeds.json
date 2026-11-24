@@ -1,0 +1,66 @@
+{
+  "act_skip_spans_two_turns": {
+    "seed": 22,
+    "needs": "the first NextSession skip, one turn in, spans at least two turns"
+  },
+  "ask_town_hall_and_another_offered": {
+    "seed": 17,
+    "needs": "a town-hall ask and one other are offered within the first four turns (small world)"
+  },
+  "councillor_and_regular_at_a_place": {
+    "seed": 16,
+    "needs": "a non-player councillor, and a regular whose own place is one in the town"
+  },
+  "executive_post_open_to_file_for": {
+    "seed": 1,
+    "needs": "the town's executive post is open, not held by the player, and fileable"
+  },
+  "explorer_enacts_own_law": {
+    "seed": 2026,
+    "needs": "a small world where the explorer legislator's own bill is enacted within 72 months"
+  },
+  "flood_arc_exits_idle_by_month_12": {
+    "seed": 7,
+    "needs": "a planted flood raises the arc, still running at month 3, and the idle game lets it exit by month 12"
+  },
+  "fresh_colleague_and_bill_before_council": {
+    "seed": 40,
+    "needs": "a council colleague with no edge to the player, and a bill before the council"
+  },
+  "introduction_ask_offered_early": {
+    "seed": 61,
+    "needs": "an ask.introduce_me is offered within the first four turns (small world)"
+  },
+  "law_lapses_in_first_skip": {
+    "seed": 15,
+    "needs": "the first NextSession skip lists a lapsed law, with its policy named"
+  },
+  "notebook_talk_reply_has_an_outcome": {
+    "seed": 7312,
+    "needs": "the first key figure answers topic.who_runs with a spoken reply"
+  },
+  "plant_closure_crisis_starts_clean": {
+    "seed": 12,
+    "needs": "a town with an industry and no closure crisis at the start, one after a shock and none three years on"
+  },
+  "player_race_for_the_executive_within_30_turns": {
+    "seed": 11,
+    "needs": "a medium world where filing for the executive office puts the player in its race within 30 turns"
+  },
+  "promises_reachable_by_skipping": {
+    "seed": 8,
+    "needs": "a small world where the campaign promise picker opens within six rounds of skips"
+  },
+  "regional_capital_medium": {
+    "seed": 7,
+    "needs": "a medium world whose player's town has a regional assembly"
+  },
+  "town_with_a_factory": {
+    "seed": 1,
+    "needs": "the player's town has a factory (small world)"
+  },
+  "voices_close_unequally": {
+    "seed": 36,
+    "needs": "a chamber where the smooth and plain voices each close, and smooth closes more often"
+  }
+}

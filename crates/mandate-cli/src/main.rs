@@ -10,6 +10,7 @@ mod mapimg;
 mod png;
 mod replay;
 mod routines;
+mod seeds;
 mod story;
 mod sweep;
 
@@ -47,6 +48,12 @@ impl From<Size> for WorldSize {
             Size::Large => WorldSize::Large,
         }
     }
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum SeedsAction {
+    Check,
+    Refresh,
 }
 
 #[derive(Subcommand)]
@@ -155,6 +162,13 @@ enum Cmd {
         /// Minutes a skip takes (directives, the target, the summary).
         #[arg(long, default_value_t = 1.0)]
         minutes_per_skip: f64,
+    },
+    /// The test seeds cached in tests/seeds.json: `check` fails, naming each
+    /// requirement whose cached seed no longer qualifies; `refresh` rewrites
+    /// the file with the seeds the world needs now.
+    Seeds {
+        #[arg(value_enum)]
+        action: SeedsAction,
     },
     /// Determinism with time skips (DEC-041, DEC-012): a run that skips,
     /// twice and through save/load, gives one state hash.
@@ -597,6 +611,7 @@ fn run(cli: Cli) -> Result<(), String> {
             ));
             Ok(())
         }
+        Cmd::Seeds { action } => seeds::run(matches!(action, SeedsAction::Refresh)),
         Cmd::SkipDeterminism { seed, turns } => {
             let content = load_content(&cli.content)?;
             let v = act::skip_determinism(&content, seed, turns)?;

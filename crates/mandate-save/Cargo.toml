@@ -14,6 +14,7 @@ thiserror = "2.0.21"
 [dev-dependencies]
 mandate-content = { path = "../mandate-content", features = ["fs"] }
 mandate-worldgen = { path = "../mandate-worldgen" }
+mandate-seeds = { path = "../mandate-seeds" }
 
 [lints]
 workspace = true

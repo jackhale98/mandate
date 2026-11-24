@@ -117,8 +117,10 @@ fn a_skip_equals_the_proxy_played_command_by_command() {
 #[test]
 fn a_skip_in_chunks_equals_one_in_a_go() {
     let c = content();
-    let mut a = game(&c, 22);
-    let mut b = game(&c, 22);
+    // A world whose first skip spans two turns or more (tests/seeds.json).
+    let seed = mandate_seeds::seed("act_skip_spans_two_turns");
+    let mut a = game(&c, seed);
+    let mut b = game(&c, seed);
     let target = SkipTargetKind::NextSession;
     a.apply(Command::Skip {
         target,
@@ -126,9 +128,8 @@ fn a_skip_in_chunks_equals_one_in_a_go() {
     })
     .unwrap();
     // The skip's length depends on the world's history, which changes with
-    // balance (it was 4+ turns for this seed before NPC votes followed party
-    // platforms, 2 after), so the cancel below is placed from the measured
-    // length, never from a constant.
+    // balance, so the cancel below is placed from the measured length, never
+    // from a constant.
     let full = a.state().act.last_skip.clone().unwrap().turns;
     assert!(full >= 2, "the seed's skip must span at least two turns");
     let mut chunks = 0;
@@ -148,7 +149,7 @@ fn a_skip_in_chunks_equals_one_in_a_go() {
     assert!(chunks > 1);
     assert_eq!(a.state_hash(), b.state_hash());
     // A cancel ends the skip in progress with its summary.
-    let mut d = game(&c, 22);
+    let mut d = game(&c, seed);
     d.apply(Command::Skip {
         target,
         limit: Some(full - 1),

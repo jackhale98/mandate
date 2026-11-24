@@ -30,17 +30,11 @@ fn game_with(seed: u64, c: Arc<ContentBundle>) -> Engine {
     generate(&WorldConfig::new(seed, WorldSize::Small), c).unwrap()
 }
 
-/// The first seed whose player's town has a place of this kind.
-fn seed_with(kind: PlaceKind) -> u64 {
-    (1u64..=60)
-        .find(|s| place_in(&game_with(*s, content()), kind).is_some())
-        .unwrap_or_else(|| panic!("no seed in 1..=60 has a {kind:?} in the player's town"))
-}
-
-/// Seeds of interest, found once.
+/// A seed whose player's town has a factory (tests/seeds.json, found again
+/// when the world changes), looked up once.
 fn factory_seed() -> u64 {
     static S: OnceLock<u64> = OnceLock::new();
-    *S.get_or_init(|| seed_with(PlaceKind::Factory))
+    *S.get_or_init(|| mandate_seeds::seed("town_with_a_factory"))
 }
 
 fn place_in(e: &Engine, kind: PlaceKind) -> Option<PlaceId> {
@@ -457,13 +451,15 @@ fn visits_are_deterministic_and_replay() {
     assert_eq!(a.state_hash(), b.state_hash());
 }
 
-/// A seat of a higher tier in the player's town (medium seed 7 is a
-/// regional capital): its public gallery is offered and done like any verb.
+/// A seat of a higher tier in the player's town (a medium world whose town is
+/// a regional capital, from tests/seeds.json): its public gallery is offered
+/// and done like any verb.
 #[test]
 fn the_public_gallery_of_a_regional_assembly() {
-    let mut e = generate(&WorldConfig::new(7, WorldSize::Medium), content()).unwrap();
+    let seed = mandate_seeds::seed("regional_capital_medium");
+    let mut e = generate(&WorldConfig::new(seed, WorldSize::Medium), content()).unwrap();
     let assembly = place_in(&e, PlaceKind::RegionalAssembly)
-        .expect("medium seed 7's town is a regional capital");
+        .expect("the town of this medium world is a regional capital");
     go(&mut e, assembly);
     morning(&mut e);
     let panel = place_panel_view(&e, LocationDto::of(Location::Place { place: assembly })).unwrap();

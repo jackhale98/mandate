@@ -195,7 +195,13 @@ fn nothing_significant_is_uncaused() {
 
 #[test]
 fn the_queries_answer_on_a_played_game() {
-    let p = play(2026, "explorer_legislator");
+    // A world where the explorer's own law is enacted (tests/seeds.json,
+    // found again when the world changes).
+    let seed = mandate_seeds::seed_for(
+        "explorer_enacts_own_law",
+        super::seed_reqs::explorer_enacts_own_law,
+    );
+    let p = play(seed, "explorer_legislator");
     let st = p.game.e.state();
     let log = &st.events;
     let me = st.player.as_ref().unwrap().politician.0;

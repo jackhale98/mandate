@@ -245,11 +245,6 @@ fn v18_save_continues_identically() {
     );
     let golden =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/v18_campaign_continued.mndt");
-    if std::env::var_os("MANDATE_RECORD_FIXTURES").is_some() {
-        let (bytes, _) = encode(e.state(), &req()).unwrap();
-        std::fs::write(&golden, bytes).unwrap();
-    }
-    let (reached, _) = decode(&std::fs::read(&golden).unwrap()).unwrap();
     // Mask `meta.content_hash` (and only it) in both states: it changes with
     // every Fluent or content edit and says nothing about the simulation.
     let masked = |v: &mandate_sim::State| {
@@ -258,6 +253,19 @@ fn v18_save_continues_identically() {
         assert!(meta.remove("content_hash").is_some(), "meta.content_hash");
         v
     };
+    // Recording (`scripts/repin.sh`) rewrites the golden only when the
+    // simulation's state differs from it: a content-text edit alone leaves it.
+    if std::env::var_os("MANDATE_RECORD_FIXTURES").is_some() {
+        let same = std::fs::read(&golden)
+            .ok()
+            .and_then(|b| decode(&b).ok())
+            .is_some_and(|(old, _)| masked(&old) == masked(e.state()));
+        if !same {
+            let (bytes, _) = encode(e.state(), &req()).unwrap();
+            std::fs::write(&golden, bytes).unwrap();
+        }
+    }
+    let (reached, _) = decode(&std::fs::read(&golden).unwrap()).unwrap();
     let (a, b) = (masked(e.state()), masked(&reached));
     for k in a.as_object().unwrap().keys() {
         assert_eq!(a[k], b[k], "state.{k} differs");

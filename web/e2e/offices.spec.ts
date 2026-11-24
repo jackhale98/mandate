@@ -1,20 +1,20 @@
 import { expect, test } from "@playwright/test";
 import { showPlaces } from "./pocket";
+import { seedFor } from "./seeds";
 
 // R2 (DEC-098): offices and bodies come from the constitution. Vote on a
 // colleague's bill in the chamber and see how the office that signs it
 // leans; file for the town's executive office from the posts the engine
 // offers; see the race for it at the party office. Every label here is the
 // base constitution's own (its Fluent keys), not the web's.
-// Seed 2 (medium): a colleague's bill awaits the player's vote on the first
+// Medium world: a colleague's bill awaits the player's vote on the first
 // turn.
 test("vote, see the signer's lean, file for the executive office and see its race", async ({ page }) => {
   test.setTimeout(240_000);
   await page.goto("./");
-  // Seed 11: seed 2 no longer reached the player's race within 30 turns once
-  // rents were bounded by incomes and movers shared fairly (audit fix 2),
-  // nor seed 4 once arrivals were shared fairly over neighbourhoods.
-  await page.getByPlaceholder("e.g. 20260").fill("11");
+  // A world that reaches the player's race within 30 turns (tests/seeds.json,
+  // found again by `mandate-cli seeds refresh` when the world changes).
+  await page.getByPlaceholder("e.g. 20260").fill(seedFor("player_race_for_the_executive_within_30_turns"));
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
 

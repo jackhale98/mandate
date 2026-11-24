@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { openPocket } from "./pocket";
+import { seedFor } from "./seeds";
 
 // Asks and promises (E7; DEC-097 §2, ENGAGEMENT §3.9): offers in the Today
 // tab with Accept and Decline, an accepted ask kept and marked kept; a
@@ -38,12 +39,9 @@ const press = async (l: Locator) => {
 };
 
 test("asks: accept one, decline one, keep one and see it kept", async ({ page }, info) => {
-  // Seed 17: a town-hall ask and one other offered in its first turns. Seed
-  // 3 stopped offering a town-hall ask once rents were bounded by incomes
-  // and movers shared fairly (audit fix 2); seed 10 stopped offering a
-  // second ask beside it once the record began to decide votes (audit fix
-  // 1); 17 is the first seed after 10 with both.
-  await start(page, "17");
+  // A town-hall ask and one other offered in its first turns (the seed is
+  // cached in tests/seeds.json and found again when the world changes).
+  await start(page, seedFor("ask_town_hall_and_another_offered"));
   // Two turns in, two offers wait (the badge counts them).
   for (let i = 0; i < 4 && (await page.getByTestId("asks-badge").count()) === 0; i++) await endTurn(page);
   await expect(page.getByTestId("asks-badge")).toBeVisible();
@@ -118,7 +116,8 @@ const askInConversation = async (page: Page, askId: string, choice: string, labe
 
 test("an introduction: put in a word with the official, tell the asker, and it is kept at once", async ({ page }, info) => {
   test.setTimeout(120_000);
-  await start(page, "61");
+  // An introduction ask offered in the first turns (tests/seeds.json).
+  await start(page, seedFor("introduction_ask_offered_early"));
   await openPocket(page, "today");
   const offer = () => page.getByTestId("pocket").locator('li[data-template="ask.introduce_me"][data-status="offered"]');
   for (let i = 0; i < 4 && (await offer().count()) === 0; i++) {
@@ -155,10 +154,8 @@ test("an introduction: put in a word with the official, tell the asker, and it i
 
 test("a campaign promise is made from the picker", async ({ page }, info) => {
   test.setTimeout(180_000);
-  // Seed 8: seed 2 no longer reached a campaign within six skips once rents
-  // were bounded by incomes and movers shared fairly (audit fix 2), nor
-  // seed 6 once arrivals were shared fairly over neighbourhoods.
-  await start(page, "8");
+  // A world that reaches a campaign within six skips (tests/seeds.json).
+  await start(page, seedFor("promises_reachable_by_skipping"));
   // Skip ahead to the campaign (interrupts may stop short: go on until promises can be made).
   for (let round = 0; round < 6; round++) {
     const pocket = await openPocket(page, "today");
@@ -205,12 +202,10 @@ test("a campaign promise is made from the picker", async ({ page }, info) => {
 
 test("the skip summary lists a lapsed law, with counts in the locale's style", async ({ page }, info) => {
   test.setTimeout(120_000);
-  // Seed 15: its next-session skip lapses a law (seed 2's did until the party
-  // line changed which laws pass in the burn-in, then seed 5's and 9's until
-  // the audit fix 2 changed rents and migration, then seed 14's until the
-  // record began to decide votes, audit fix 1); the native twin is
-  // `laws_in_force_never_fall_unexplained` in crates/mandate-wasm/tests/asks.rs.
-  await start(page, "15");
+  // A world whose next-session skip lapses a law (tests/seeds.json); the
+  // native twin is `laws_in_force_never_fall_unexplained` in
+  // crates/mandate-wasm/tests/asks.rs.
+  await start(page, seedFor("law_lapses_in_first_skip"));
   await endTurn(page);
   const pocket = await openPocket(page, "today");
   await pocket.getByTestId("open-term-review").click();

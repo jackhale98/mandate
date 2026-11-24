@@ -25,3 +25,6 @@ workspace = true
 [features]
 # The content workbench (dev builds only; the release WASM is built without it).
 dev-tools = ["mandate-protocol/dev-tools"]
+
+[dev-dependencies]
+mandate-seeds = { path = "../mandate-seeds" }

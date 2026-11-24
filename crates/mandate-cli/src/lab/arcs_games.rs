@@ -5,25 +5,12 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::print_stdout)]
 
-use super::runner::{Driver, Game, Intervention, Setup};
 use mandate_sim::events::EventKind;
 
 /// The seeds of the acceptance run.
 const SEEDS: [u64; 8] = [1, 2, 3, 7, 31, 99, 777, 2026];
-const SEVERITY: f64 = 0.9;
 
-fn flooded(seed: u64) -> Game {
-    let content = crate::lab::load(&super::runner::content_root(), &[]).unwrap();
-    let mut g = Game::new(&content, &Setup::small(seed, None), Driver::Idle).unwrap();
-    let town = g.home();
-    g.intervene(&Intervention::Disaster {
-        town,
-        hazard: "flood".into(),
-        severity: SEVERITY,
-    })
-    .unwrap();
-    g
-}
+use super::seed_reqs::flooded;
 
 #[test]
 fn a_planted_flood_raises_the_arc_in_eight_seeds_of_eight() {
@@ -63,7 +50,12 @@ fn a_planted_flood_raises_the_arc_in_eight_seeds_of_eight() {
 
 #[test]
 fn a_fork_with_a_run_in_progress_continues_as_the_original() {
-    let mut a = flooded(7);
+    // A world where the idle game lets the run drift to an exit by month 12
+    // (tests/seeds.json, found again when the world changes).
+    let mut a = flooded(mandate_seeds::seed_for(
+        "flood_arc_exits_idle_by_month_12",
+        super::seed_reqs::flood_arc_exits_idle_by_month_12,
+    ));
     a.run_to(3, &[], &mut Vec::new());
     assert!(
         !a.e.state().arcs.runs.is_empty(),

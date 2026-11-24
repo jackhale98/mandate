@@ -188,10 +188,11 @@ fn views_describe_posts_from_the_constitution() {
 
 #[test]
 fn filing_for_the_executive_office_names_its_race_and_rival_plan() {
-    // Seed 1: the town's executive is of another party (a party nominates
-    // its own incumbent before the player).
+    // A town whose executive post is open to file for (tests/seeds.json, found
+    // again when the world changes).
+    let seed = mandate_seeds::seed("executive_post_open_to_file_for");
     for c in [content(), renamed()] {
-        let mut e = game(1, c.clone());
+        let mut e = game(seed, c.clone());
         let cv = campaign_view(&e).unwrap();
         let exec = cv
             .nominations

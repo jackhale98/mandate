@@ -45,6 +45,8 @@ One page. It replaces opening large documents. `AGENTS.md` is binding; this summ
 - `... -- story --seed N --metrics`: the director's pacing and variety metrics.
 - `... -- content doctor --seeds 8 --years 2`: dead, over-firing, contradictory or too-long content; `--strict`, `--corpus`.
 - `... -- act-length`: turns and minutes for Act 1, with and without time skips.
+- `scripts/repin.sh [--check]`: after a commit that changes outcomes or the state's shape on purpose, re-records every pin (spine proof, state-shape fingerprint, fixtures, town geography) and `tests/seeds.json`, and prints old and new; `--check` lists what is stale and changes nothing. Say why in the commit message.
+- Tests that need a world with a feature take their seed from `tests/seeds.json` (`mandate_seeds::seed("name")`; browser specs: `web/e2e/seeds.ts`): found again if the world moved; `mandate-cli seeds check|refresh`.
 - `scripts/new-entry.sh progress|balance "<title>"`: a log entry (one file each); do not edit shared tables.
 
 ## Build hygiene

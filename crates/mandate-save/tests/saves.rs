@@ -138,6 +138,12 @@ fn state_shape_matches_format_version() {
         .unwrap();
     let v = serde_json::to_value(e.state()).unwrap();
     let fp = shape_fingerprint(&v);
+    // `scripts/repin.sh` re-records the fingerprint: it prints it here and
+    // leaves the assertion to the confirming run.
+    if std::env::var_os("MANDATE_RECORD_PINS").is_some() {
+        println!("REPIN shape {fp}");
+        return;
+    }
     assert_eq!(
         (SAVE_FORMAT_VERSION, fp.as_str()),
         EXPECTED,

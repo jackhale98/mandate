@@ -22,6 +22,7 @@ pub mod cli;
 pub mod metrics;
 pub mod overrides;
 pub mod runner;
+pub mod seed_reqs;
 
 #[cfg(test)]
 mod arcs_games;

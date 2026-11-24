@@ -102,9 +102,8 @@ fn opinion_and_favours_live_on_relationship_edges() {
     // history with the player: no edge yet) and a bill before the council to
     // trade a favour on. Burn-in bonds (a mentor, a rival, an election lost
     // to them) give some colleagues an edge, and which ones depends on the
-    // history's elections, so the world and the colleague are found by
-    // search: seed 37 served until the record began to decide votes (audit
-    // fix 1), when every colleague there had a history with the player.
+    // history's elections, so the world is found by search
+    // (tests/seeds.json, found again when the world changes).
     let fresh = |st: &mandate_sim::State, me: CharacterId| {
         let pl = st.player.as_ref().unwrap();
         let colleague = council_members(st, pl.municipality.index())
@@ -123,13 +122,13 @@ fn opinion_and_favours_live_on_relationship_edges() {
         })?;
         Some((colleague, bill.id.0))
     };
-    let (mut e, colleague, bill) = (37..=60u64)
-        .find_map(|seed| {
-            let e = engine(&c, seed);
-            let me = player_char(&e);
-            fresh(e.state(), me).map(|(col, bill)| (e, col, bill))
-        })
+    let e = engine(
+        &c,
+        mandate_seeds::seed("fresh_colleague_and_bill_before_council"),
+    );
+    let (colleague, bill) = fresh(e.state(), player_char(&e))
         .expect("a world with a fresh colleague and a bill before the council");
+    let mut e = e;
     let me = player_char(&e);
     let st = e.state();
     let cc = st.politics.get(colleague).unwrap().character;
@@ -494,9 +493,9 @@ fn the_rival_follows_the_players_plans() {
 #[test]
 fn a_plant_closure_crisis_comes_and_goes() {
     let c = base();
-    // Seed 12: seed 11's town already had a closure crisis as play began once
-    // movers were shared fairly (audit fix 2); the test needs a town without one.
-    let mut e = engine(&c, 12);
+    // A town without a closure crisis as play begins (tests/seeds.json, found
+    // again when the world changes).
+    let mut e = engine(&c, mandate_seeds::seed("plant_closure_crisis_starts_clean"));
     let m = e.state().player.as_ref().unwrap().municipality.index();
     let industry = e.state().politics.characters.towns[m]
         .industry

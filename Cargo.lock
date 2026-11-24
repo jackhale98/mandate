@@ -402,6 +402,7 @@ dependencies = [
  "mandate-core",
  "mandate-protocol",
  "mandate-save",
+ "mandate-seeds",
  "mandate-sim",
  "mandate-worldgen",
  "miniz_oxide",
@@ -452,12 +453,25 @@ version = "0.1.0"
 dependencies = [
  "mandate-content",
  "mandate-core",
+ "mandate-seeds",
  "mandate-sim",
  "mandate-worldgen",
  "miniz_oxide",
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "mandate-seeds"
+version = "0.1.0"
+dependencies = [
+ "mandate-content",
+ "mandate-protocol",
+ "mandate-sim",
+ "mandate-worldgen",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -482,6 +496,7 @@ dependencies = [
  "mandate-core",
  "mandate-protocol",
  "mandate-save",
+ "mandate-seeds",
  "mandate-sim",
  "mandate-worldgen",
  "serde",
@@ -495,6 +510,7 @@ version = "0.1.0"
 dependencies = [
  "mandate-content",
  "mandate-core",
+ "mandate-seeds",
  "mandate-sim",
  "proptest",
  "serde",

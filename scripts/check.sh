@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Quiet checks: scripts/check.sh fast|affected|full [--e2e]
-#   fast      fmt, clippy, content validate, generated files up to date
+#   fast      fmt, clippy, content validate, test seeds fresh, generated files up to date
 #   affected  fast, plus tests of the crates changed against BASE (and their
 #             dependants), plus web typecheck/lint/test if web/ changed
 #   full      what CI's rust and web jobs run (Playwright only with --e2e)
@@ -37,6 +37,7 @@ run_fast() {
   step fmt cargo fmt --all --check
   step clippy cargo clippy --workspace --all-targets -- -D warnings
   step content-validate cargo run -q -p mandate-cli -- content validate
+  step seeds cargo run -q -p mandate-cli -- seeds check
   sh_step generated 'cargo run -q -p mandate-cli -- content schema && git diff --exit-code content/schemas web/src/engine/protocol'
 }
 
@@ -95,6 +96,7 @@ web_checks() {
 run_full() {
   step fmt cargo fmt --all --check
   step clippy cargo clippy --workspace --all-targets -- -D warnings
+  step seeds cargo run -q -p mandate-cli -- seeds check
   step cargo-test cargo test --workspace
   step content-validate cargo run -q -p mandate-cli -- content validate
   sh_step generated 'cargo run -q -p mandate-cli -- content schema && git diff --exit-code content/schemas web/src/engine/protocol'

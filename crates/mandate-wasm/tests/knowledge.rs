@@ -230,10 +230,9 @@ fn broker_by_level() {
 
 #[test]
 fn people_by_level() {
-    // Seed 16: in seed 13's world, once rents were bounded by incomes (audit
-    // fix 2), the first regular found was away from their place; seed 15
-    // served until arrivals were shared fairly over neighbourhoods.
-    let mut e = game(16);
+    // A world with a councillor and a regular at their own place
+    // (tests/seeds.json, found again when the world changes).
+    let mut e = game(mandate_seeds::seed("councillor_and_regular_at_a_place"));
     // A councillor (not the player) and a worker at a place.
     let st = e.state();
     let council = mandate_sim::politics::body_members_at(
