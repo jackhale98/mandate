@@ -322,6 +322,9 @@ On hold until then:
     - A tap on your own seat is yours: your seat's spot wins over a neighbour's figure where they overlap.
     - The room offers "Take your seat" (and the vote, when one is open) as a button, so nothing depends on a precise tap; Places and quick mode keep their own route to the vote (DEC-051).
     - With it: the phone bar's dangling "·" when the turn line wraps, and the town summary's crisis line overlapping the defining-industry line (a browser test for it fails now and then in CI, so the overlap the owner reported is real and depends on timing).
+22. **One ranking of worries** (found by the re-record command's trial run, 2026-11-24; fixed the same day). Two readings of "a town's top worry" disagreed in close cases: by level alone (the map's town card, a town's priorities) and as felt (talk, the notebook, canvassing). `concerns::ranked(scope, by)` is now the only ranking, with `Felt` and `Measured` as named variants. Two follow-ups:
+    - The map's town card shows three worries of any town whatever the player knows, while the notebook shows one at "heard". The card should follow the knowledge ledger (DEC-091).
+    - Promises and dilemmas ask for the measured ranking while the notebook shows the felt one, so a resident can ask for a promise on a worry outside the notebook's top three. What residents ask for should follow what they feel; decisions raised by an indicator may stay measured.
 
 
 ## M6 or M7 split (owner, 2026-11-21)
