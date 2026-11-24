@@ -211,11 +211,15 @@ export function Game() {
             <span className="gamebar-span"> · {tr.t("ui-turn-span", { days: overview.turn_days })}</span>
             {pocket && (
               <>
-                {" · "}
-                <span className="gamebar-slots" data-testid="hud-slots" role="img" aria-label={tr.t("ui-slots", { left: pocket.slots_left })}>
-                  {"●".repeat(pocket.slots_left)}
-                  {"○".repeat(Math.max(0, pocket.slots_total - pocket.slots_left))}
-                  {pocket.late_night_available ? " ☾" : ""}
+                {" "}
+                {/* The separator belongs to the dots: when the line wraps they go down together, never "Turn 0 ·" on its own. */}
+                <span className="gamebar-more">
+                  {"· "}
+                  <span className="gamebar-slots" data-testid="hud-slots" role="img" aria-label={tr.t("ui-slots", { left: pocket.slots_left })}>
+                    {"●".repeat(pocket.slots_left)}
+                    {"○".repeat(Math.max(0, pocket.slots_total - pocket.slots_left))}
+                    {pocket.late_night_available ? " ☾" : ""}
+                  </span>
                 </span>
               </>
             )}

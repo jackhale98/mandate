@@ -661,6 +661,7 @@ h2 { font-size: 1.1rem; }
 .gamebar-date strong { font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gamebar-sub { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gamebar-slots { color: var(--text); letter-spacing: 0.05em; }
+.gamebar-more, .gamebar-span { white-space: nowrap; }
 .gamebar-end { min-width: 104px; }
 .pocket-btn { padding: 0 12px; }
 .pocket-btn .badge { display: inline-flex; gap: 2px; }

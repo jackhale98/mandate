@@ -51,6 +51,35 @@ for (const [width, wide] of [[360, false], [390, false], [360, true], [320, true
     });
     expect(clipped).toEqual([]);
     await expect(bar.getByText(/^Turn 0/)).toBeVisible();
+    // However the turn line wraps, a "·" is never left at the end of a line: it shares a line with what follows it.
+    const hanging = await bar.evaluate((el) => {
+      const sub = el.querySelector<HTMLElement>(".gamebar-sub");
+      if (!sub) return ["no turn line"];
+      const chars: { node: Text; i: number; c: string }[] = [];
+      const walker = document.createTreeWalker(sub, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const text = n as Text;
+        for (let i = 0; i < text.data.length; i++) chars.push({ node: text, i, c: text.data.charAt(i) });
+      }
+      const top = (ch: { node: Text; i: number }) => {
+        const r = document.createRange();
+        r.setStart(ch.node, ch.i);
+        r.setEnd(ch.node, ch.i + 1);
+        return r.getBoundingClientRect();
+      };
+      // Only what is drawn (the wide span is hidden on a phone).
+      chars.splice(0, chars.length, ...chars.filter((ch) => top(ch).width > 0 || ch.c === " "));
+      const out: string[] = [];
+      chars.forEach((ch, k) => {
+        if (ch.c !== "·") return;
+        const next = chars.slice(k + 1).find((o) => o.c.trim() !== "" && top(o).width > 0);
+        const here = top(ch);
+        if (here.width === 0) return;
+        if (next && Math.abs(top(next).top - here.top) > 2) out.push(`the separator is left at the end of a line (${here.top} vs ${top(next).top})`);
+      });
+      return out;
+    });
+    expect(hanging).toEqual([]);
     // The date shows (day and short month on a phone).
     await expect(bar.locator(".gamebar-date-short")).toBeVisible();
     expect(((await bar.locator(".gamebar-date-short").textContent()) ?? "").trim()).toMatch(/^\d{1,2} [A-Z][a-z]{2}$/);
