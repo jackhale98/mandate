@@ -584,7 +584,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                         &format!("economy defined twice (first in {prev})"),
                     ));
                 } else {
-                    economy = Some((value, src.path.clone()));
+                    economy = Some((*value, src.path.clone()));
                 }
             }
             ContentFile::Politics { value } => {

@@ -104,7 +104,10 @@ fn state_shape_matches_format_version() {
     // 9193f13a5022eb59 -> dd1fe79093dba355: NPC votes follow the platform party
     // line (W1 note 9). No serialized struct changed (checked in the diff); the
     // sample game's contents did, so the version stays 25.
-    const EXPECTED: (u16, &str) = (25, "dd1fe79093dba355");
+    // dd1fe79093dba355 -> c8db676e2177925f: rents bounded by incomes and movers
+    // shared without regard to list position (audit
+    // fix 2); values only, no struct changed.
+    const EXPECTED: (u16, &str) = (25, "c8db676e2177925f");
     let c = content();
     let mut e = generate(
         &WorldConfig {

@@ -117,6 +117,38 @@ pub(super) fn validate_economy(b: &ContentBundle, issues: &mut Vec<Issue>) {
     );
     unit(issues, "migration_rate", e.migration_rate);
     unit(issues, "target_vacancy", e.target_vacancy);
+    let h = &e.housing;
+    for (name, v) in [
+        ("housing.reference_burden", h.reference_burden),
+        ("housing.headship_elasticity", h.headship_elasticity),
+        ("housing.rent_yield", h.rent_yield),
+        ("housing.risk_premium", h.risk_premium),
+        ("housing.rent_response", h.rent_response),
+        ("housing.price_adjustment", h.price_adjustment),
+        ("housing.demolition_rate", h.demolition_rate),
+        ("housing.base_growth", h.base_growth),
+    ] {
+        unit(issues, name, v);
+    }
+    let [lo, hi] = h.adults_per_household_range;
+    let positive = [
+        h.adults_per_household,
+        h.reference_burden,
+        h.rent_yield,
+        h.build_cost_share,
+        h.starts_max,
+        lo,
+    ];
+    if positive.iter().any(|v| !(v.is_finite() && *v > 0.0))
+        || !(lo <= h.adults_per_household && h.adults_per_household <= hi)
+        || !(h.starts_price_response.is_finite() && h.starts_price_response >= 0.0)
+        || !(h.starts_vacancy_response.is_finite() && h.starts_vacancy_response >= 0.0)
+    {
+        issues.push(Issue::error(
+            "economy",
+            "housing: positive sizes, responses at least 0, adults_per_household inside its range",
+        ));
+    }
     for (i, r) in e.death_rates.iter().enumerate() {
         unit(issues, &format!("death_rates[{i}]"), *r);
     }

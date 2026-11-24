@@ -473,7 +473,9 @@ fn the_rival_follows_the_players_plans() {
 #[test]
 fn a_plant_closure_crisis_comes_and_goes() {
     let c = base();
-    let mut e = engine(&c, 11);
+    // Seed 12: seed 11's town already had a closure crisis as play began once
+    // movers were shared fairly (audit fix 2); the test needs a town without one.
+    let mut e = engine(&c, 12);
     let m = e.state().player.as_ref().unwrap().municipality.index();
     let industry = e.state().politics.characters.towns[m]
         .industry

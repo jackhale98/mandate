@@ -59,7 +59,7 @@ pub enum ContentFile {
     /// Place kinds: what the player can do and learn at each kind of place (DEC-079).
     Places { items: Vec<PlaceKindDef> },
     /// Economy and demography parameters (REQ-005).
-    Economy { value: EconomyParams },
+    Economy { value: Box<EconomyParams> },
     /// A constitutional archetype built from primitives (DEC-017).
     Constitution { value: ConstitutionDef },
     /// Policy templates (DEC-024, DEC-026).

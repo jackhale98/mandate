@@ -252,6 +252,75 @@ pub struct EconomyParams {
     /// budget categories at the start (DEC-098: content, not code).
     #[serde(default)]
     pub treasury_shares: TreasuryShares,
+    /// The town housing market: household formation, rents, prices and
+    /// private building (`economy::housing`).
+    #[serde(default)]
+    pub housing: HousingParams,
+}
+
+/// The town housing market (`economy::housing`). Rent clears vacancy;
+/// households form more slowly as rent takes more of an income, so rent is
+/// bounded by incomes; builders answer price over cost and vacancy. The
+/// starting state is an equilibrium: at the target vacancy and the neutral
+/// rate, private starts equal their baseline.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HousingParams {
+    /// Adults per household at the reference rent burden.
+    pub adults_per_household: f64,
+    /// Adults per household, [fewest, most]: the bounds of doubling up.
+    pub adults_per_household_range: [f64; 2],
+    /// A year's rent over a middle-class income at which households form at
+    /// `adults_per_household`.
+    pub reference_burden: f64,
+    /// Elasticity of adults per household to the rent burden: households
+    /// double up (or form later) as rent takes more of an income.
+    pub headship_elasticity: f64,
+    /// Gross rent yield at the neutral rate: a year's rent over a dwelling's
+    /// price as play begins.
+    pub rent_yield: f64,
+    /// Premium over the real rate in the user cost of housing (sets how
+    /// prices answer interest rates).
+    pub risk_premium: f64,
+    /// Build cost as a share of the starting price (below 1: building is
+    /// mildly profitable at the starting equilibrium).
+    pub build_cost_share: f64,
+    /// Monthly rent growth per unit of vacancy below target.
+    pub rent_response: f64,
+    /// Monthly share of the gap to the target price closed.
+    pub price_adjustment: f64,
+    /// Share of the stock demolished per year.
+    pub demolition_rate: f64,
+    /// Baseline building beyond replacing demolitions, as a share of the
+    /// stock per year.
+    pub base_growth: f64,
+    /// Private starts per unit of price over build cost (against the start).
+    pub starts_price_response: f64,
+    /// Private starts per unit of vacancy below target.
+    pub starts_vacancy_response: f64,
+    /// Most private starts, as a multiple of the baseline.
+    pub starts_max: f64,
+}
+
+impl Default for HousingParams {
+    fn default() -> Self {
+        HousingParams {
+            adults_per_household: 1.9,
+            adults_per_household_range: [1.2, 6.0],
+            reference_burden: 0.16,
+            headship_elasticity: 0.6,
+            rent_yield: 0.025,
+            risk_premium: 0.035,
+            build_cost_share: 0.85,
+            rent_response: 0.12,
+            price_adjustment: 0.05,
+            demolition_rate: 0.005,
+            base_growth: 0.004,
+            starts_price_response: 4.0,
+            starts_vacancy_response: 20.0,
+            starts_max: 3.0,
+        }
+    }
 }
 
 /// Starting budget shares by category (in `BudgetCategory` order:

@@ -243,6 +243,21 @@ A single run shows the rent runaway: `cargo run --release -p mandate-cli -- lab 
 
 **What would fix it.** Cap rent growth by affordability (rent burden pulls rent back, households double up or leave); let starts respond to vacancy and rent, not only to price over cost; a much stronger rent-burden push in migration; a sweep band on median real rent growth and on the rent-burden maximum. For parties: see topic 4.
 
+**After fix 2 (2026-11-23).** Households double up as the rent burden rises (adults per household 1.9 × (burden / 0.16)^0.6, within 1.2–6), so rent clears vacancy at a level incomes set; builders answer vacancy as well as price over cost, and the start is an equilibrium (`economy::housing`, `content/base/economy.jsonc` → `housing`). Migration shares movers, arrivals over a town's neighbourhoods and the displaced by the largest-remainder method (`population::apportion`): before, every origin's rounding remainder went to the last town in the list, which grew up to 15.4× over the burn-in (median town 1.0×) and dragged the mean attractiveness down until other towns' movers stopped leaving. Same command, same worlds, measured after merging the party-line change (W1 note 9):
+
+| Check | Before | After |
+|---|---|---|
+| Rent runaway (4× the median town's) | 112 towns (7.8%) | 0 |
+| Median town's real rent growth over 30 years | ×4.3 | ×1.23 (95th percentile ×1.53) |
+| Private building stalled (starts under 20% of baseline) | 43% of town-months | 0.7% |
+| Housing squeezes lasting 10+ years | 822 | 1 |
+| Highest rent burden as play begins | 4.67 | 0.22 |
+| Highest town growth over the burn-in | ×15.4 (48 towns over ×4) | ×1.57 (none over ×4) |
+| Debt spirals, drained or doubled towns, unemployment pinned | none | none (highest town rate 16%) |
+| Plant closures in 30 years (without recovery) | 920 (28) | 964 (21) |
+
+Migration follows unemployment more strongly (`audit believe`: −0.17 points of population growth per point, t −91, was −0.06). The rent rows keep their signs (−1.62 per point of vacancy, t −346; +0.78 per point of household-over-stock growth, t 148; R² 0.81), and rent growth on wage growth is 0.73 (R² 0.45; before 1.44, R² 0.08, driven by runaways). Upzoning builds (+0.52% stock at five years, t 9.5; rent −0.35%, t −2.0); affordable housing and the rebuild fund still add homes (+1.26%, +0.88%), but they also draw movers (population +0.45%, +0.24%) and their programme jobs lift wages (+0.47%, +0.19%), so rents do not measurably ease at five years (+0.15%, t 0.6; −0.09%, t −0.4). None of the three is wrong-signed in the gate's three-seed policy sample.
+
 ## 7. Readability
 
 `cargo run --release -p mandate-cli -- audit readability --seeds 6` (six worlds × 6 seeds × 20 years; ledger and closure twins on the same worlds).

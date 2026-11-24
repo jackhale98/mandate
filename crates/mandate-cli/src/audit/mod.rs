@@ -25,7 +25,7 @@ use std::sync::Arc;
 #[derive(clap::Args, Clone)]
 pub struct AuditArgs {
     /// policy | believe | sensitivity | diverge | leverage | stuck |
-    /// readability | claims | gate (the nightly gate's two cheap checks)
+    /// readability | claims | gate (the nightly gate's cheap checks)
     pub topic: String,
     /// Seeds per scenario (or per run set).
     #[arg(long, default_value_t = 8)]
@@ -114,15 +114,18 @@ pub fn run(content: Arc<ContentBundle>, args: AuditArgs) -> Result<Value, String
     Ok(v)
 }
 
-/// The nightly gate's two cheapest checks (report §"Nightly gate"): the
+/// The nightly gate's cheapest checks (report §"Nightly gate"): the
 /// believable-behaviour core (unemployment hurts incumbents; rent follows
-/// vacancy; migration follows jobs) and policy responsiveness on the
-/// home town for every template, at the gate's sample sizes.
+/// vacancy; migration follows jobs), policy responsiveness on the home
+/// town for every template, and rent sanity (no runaway town, median real
+/// rent growth within ±50% over 30 years), at the gate's sample sizes.
 fn gate(cx: &Ctx) -> Result<Value, String> {
     let b = believe::core(cx, 4, 12)?;
     let p = policy::gate(cx, 3)?;
-    let pass = b["pass"].as_bool().unwrap_or(false) && p["pass"].as_bool().unwrap_or(false);
-    Ok(json!({ "pass": pass, "believe": b, "policy": p }))
+    let r = stuck::rent_gate(cx, 2, 30)?;
+    let ok = |v: &Value| v["pass"].as_bool().unwrap_or(false);
+    let pass = ok(&b) && ok(&p) && ok(&r);
+    Ok(json!({ "pass": pass, "believe": b, "policy": p, "rent": r }))
 }
 
 // --- Small statistics ----------------------------------------------------------------

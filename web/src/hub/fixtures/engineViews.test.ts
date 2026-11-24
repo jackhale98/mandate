@@ -15,8 +15,8 @@ import type { TownStateView } from "../../engine/protocol/TownStateView";
 import { geoFromEngine, stateFromEngine } from "../townGeoAdapter";
 import { townInputFromView } from "../townInput";
 
-/** Seed, size and FNV-1a of the player's town's geography view: the same pin as the native test. Re-pinned (d23444f1 -> 158ea778) when NPC votes began to follow the platform party line (W1 note 9). */
-const PINNED = { seed: "777", size: "small", hash: "158ea778" };
+/** Seed, size and FNV-1a of the player's town's geography view: the same pin as the native test. Re-pinned (d23444f1 -> 158ea778) when NPC votes began to follow the platform party line (W1 note 9), then (158ea778 -> baff2383) when rents became bounded by incomes and movers were shared fairly (audit fix 2). */
+const PINNED = { seed: "777", size: "small", hash: "baff2383" };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dir = process.env.MANDATE_WASM_NODE ?? path.resolve(here, "../../../../target/wasm-node");

@@ -38,7 +38,9 @@ const press = async (l: Locator) => {
 };
 
 test("asks: accept one, decline one, keep one and see it kept", async ({ page }, info) => {
-  await start(page, "3");
+  // Seed 10: seed 3 stopped offering a town-hall ask in its first turns once
+  // rents were bounded by incomes and movers shared fairly (audit fix 2).
+  await start(page, "10");
   // Two turns in, two offers wait (the badge counts them).
   for (let i = 0; i < 4 && (await page.getByTestId("asks-badge").count()) === 0; i++) await endTurn(page);
   await expect(page.getByTestId("asks-badge")).toBeVisible();
@@ -150,7 +152,10 @@ test("an introduction: put in a word with the official, tell the asker, and it i
 
 test("a campaign promise is made from the picker", async ({ page }, info) => {
   test.setTimeout(180_000);
-  await start(page, "2");
+  // Seed 8: seed 2 no longer reached a campaign within six skips once rents
+  // were bounded by incomes and movers shared fairly (audit fix 2), nor
+  // seed 6 once arrivals were shared fairly over neighbourhoods.
+  await start(page, "8");
   // Skip ahead to the campaign (interrupts may stop short: go on until promises can be made).
   for (let round = 0; round < 6; round++) {
     const pocket = await openPocket(page, "today");
@@ -197,10 +202,11 @@ test("a campaign promise is made from the picker", async ({ page }, info) => {
 
 test("the skip summary lists a lapsed law, with counts in the locale's style", async ({ page }, info) => {
   test.setTimeout(120_000);
-  // Seed 5: its next-session skip lapses a law (seed 2's did until the party
-  // line changed which laws pass in the burn-in); the native twin is
+  // Seed 14: its next-session skip lapses a law (seed 2's did until the party
+  // line changed which laws pass in the burn-in, then seed 5's and 9's until
+  // the audit fix 2 changed rents and migration); the native twin is
   // `laws_in_force_never_fall_unexplained` in crates/mandate-wasm/tests/asks.rs.
-  await start(page, "5");
+  await start(page, "14");
   await endTurn(page);
   const pocket = await openPocket(page, "today");
   await pocket.getByTestId("open-term-review").click();

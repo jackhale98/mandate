@@ -321,6 +321,13 @@ pub fn init(
         let c = st.munis[m].consumption;
         st.munis[m].base_consumption = c;
         st.munis[m].base_mean_wage = st.munis[m].mean_wage;
+        // Households at the starting rent burden; the stock at target vacancy.
+        let adults: f64 = pop
+            .municipality_groups(world, MunicipalityId(m as u32))
+            .iter()
+            .sum();
+        let mu = &mut st.munis[m];
+        housing::settle_start(&mut mu.housing, adults, mu.class_income[1], e);
     }
     st
 }
@@ -847,11 +854,17 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             .municipality_groups(world, MunicipalityId(m as u32))
             .iter()
             .sum();
-        econ.munis[m].housing.households = adults / housing::ADULTS_PER_HOUSEHOLD;
         let mods =
             crate::policy::mods_for(r.policy(), content, m as u32, &|id| fin.funded_share(id));
         settle_labour_and_incomes(econ, m, world, pop, content, fin.taxes.income, &mods);
         let mu = &mut econ.munis[m];
+        // Households form at this month's rent burden (next month's demand).
+        mu.housing.households = housing::households(
+            adults,
+            mu.housing.rent,
+            mu.class_income[1],
+            &content.economy.housing,
+        );
         mu.history.push(MuniSnapshot {
             day: r.date.0,
             unemployment: mu.unemployment as f32,

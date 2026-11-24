@@ -5759,6 +5759,29 @@
           },
           "description": "How a hazard's damage and displacement fall across a town's\nneighbourhoods (DEC-090 D8)."
         },
+        "housing": {
+          "$ref": "#/$defs/HousingParams",
+          "default": {
+            "adults_per_household": 1.9,
+            "adults_per_household_range": [
+              1.2,
+              6.0
+            ],
+            "base_growth": 0.004,
+            "build_cost_share": 0.85,
+            "demolition_rate": 0.005,
+            "headship_elasticity": 0.6,
+            "price_adjustment": 0.05,
+            "reference_burden": 0.16,
+            "rent_response": 0.12,
+            "rent_yield": 0.025,
+            "risk_premium": 0.035,
+            "starts_max": 3.0,
+            "starts_price_response": 4.0,
+            "starts_vacancy_response": 20.0
+          },
+          "description": "The town housing market: household formation, rents, prices and\nprivate building (`economy::housing`)."
+        },
         "inflation_target": {
           "format": "double",
           "type": "number"
@@ -8061,6 +8084,104 @@
         "h",
         "stand",
         "facing"
+      ],
+      "type": "object"
+    },
+    "HousingParams": {
+      "additionalProperties": false,
+      "description": "The town housing market (`economy::housing`). Rent clears vacancy;\nhouseholds form more slowly as rent takes more of an income, so rent is\nbounded by incomes; builders answer price over cost and vacancy. The\nstarting state is an equilibrium: at the target vacancy and the neutral\nrate, private starts equal their baseline.",
+      "properties": {
+        "adults_per_household": {
+          "description": "Adults per household at the reference rent burden.",
+          "format": "double",
+          "type": "number"
+        },
+        "adults_per_household_range": {
+          "description": "Adults per household, [fewest, most]: the bounds of doubling up.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "base_growth": {
+          "description": "Baseline building beyond replacing demolitions, as a share of the\nstock per year.",
+          "format": "double",
+          "type": "number"
+        },
+        "build_cost_share": {
+          "description": "Build cost as a share of the starting price (below 1: building is\nmildly profitable at the starting equilibrium).",
+          "format": "double",
+          "type": "number"
+        },
+        "demolition_rate": {
+          "description": "Share of the stock demolished per year.",
+          "format": "double",
+          "type": "number"
+        },
+        "headship_elasticity": {
+          "description": "Elasticity of adults per household to the rent burden: households\ndouble up (or form later) as rent takes more of an income.",
+          "format": "double",
+          "type": "number"
+        },
+        "price_adjustment": {
+          "description": "Monthly share of the gap to the target price closed.",
+          "format": "double",
+          "type": "number"
+        },
+        "reference_burden": {
+          "description": "A year's rent over a middle-class income at which households form at\n`adults_per_household`.",
+          "format": "double",
+          "type": "number"
+        },
+        "rent_response": {
+          "description": "Monthly rent growth per unit of vacancy below target.",
+          "format": "double",
+          "type": "number"
+        },
+        "rent_yield": {
+          "description": "Gross rent yield at the neutral rate: a year's rent over a dwelling's\nprice as play begins.",
+          "format": "double",
+          "type": "number"
+        },
+        "risk_premium": {
+          "description": "Premium over the real rate in the user cost of housing (sets how\nprices answer interest rates).",
+          "format": "double",
+          "type": "number"
+        },
+        "starts_max": {
+          "description": "Most private starts, as a multiple of the baseline.",
+          "format": "double",
+          "type": "number"
+        },
+        "starts_price_response": {
+          "description": "Private starts per unit of price over build cost (against the start).",
+          "format": "double",
+          "type": "number"
+        },
+        "starts_vacancy_response": {
+          "description": "Private starts per unit of vacancy below target.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "adults_per_household",
+        "adults_per_household_range",
+        "reference_burden",
+        "headship_elasticity",
+        "rent_yield",
+        "risk_premium",
+        "build_cost_share",
+        "rent_response",
+        "price_adjustment",
+        "demolition_rate",
+        "base_growth",
+        "starts_price_response",
+        "starts_vacancy_response",
+        "starts_max"
       ],
       "type": "object"
     },

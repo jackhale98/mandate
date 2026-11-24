@@ -11,7 +11,10 @@ import { showPlaces } from "./pocket";
 test("vote, see the signer's lean, file for the executive office and see its race", async ({ page }) => {
   test.setTimeout(240_000);
   await page.goto("./");
-  await page.getByPlaceholder("e.g. 20260").fill("2");
+  // Seed 11: seed 2 no longer reached the player's race within 30 turns once
+  // rents were bounded by incomes and movers shared fairly (audit fix 2),
+  // nor seed 4 once arrivals were shared fairly over neighbourhoods.
+  await page.getByPlaceholder("e.g. 20260").fill("11");
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
 

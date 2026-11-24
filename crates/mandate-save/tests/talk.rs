@@ -451,7 +451,9 @@ fn a_cool_colleague_deflects_and_a_warm_one_tells() {
 #[test]
 fn voices_choose_the_closers() {
     let c = content();
-    let mut e = game(35, &c);
+    // Seed 36: seed 35's chamber gave the two voices six closers each once
+    // rents were bounded by incomes (audit fix 2) and the world changed.
+    let mut e = game(36, &c);
     let people = at_chamber(&mut e);
     let (smooth, flat) = (people[0], people[1]);
     set_traits(&mut e, smooth, &["trait.charmer"], 0.3, 0.6);

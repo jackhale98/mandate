@@ -77,7 +77,7 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
             items: serde_json::from_str::<ItemsFile<PlaceKindDef>>(json)?.items,
         },
         "economy" => ContentFile::Economy {
-            value: serde_json::from_str::<ValueFile<EconomyParams>>(json)?.value,
+            value: Box::new(serde_json::from_str::<ValueFile<EconomyParams>>(json)?.value),
         },
         "constitution" => ContentFile::Constitution {
             value: serde_json::from_str::<ValueFile<ConstitutionDef>>(json)?.value,

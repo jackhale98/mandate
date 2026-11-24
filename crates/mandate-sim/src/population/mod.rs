@@ -836,6 +836,63 @@ fn shift(h: &mut HoodPop, from: usize, to: usize, n: u32) {
     h.cohorts[from].count -= n;
 }
 
+/// Split `total` movers across destinations in proportion to `weights` by
+/// the largest-remainder method: each gets the whole part of its share, and
+/// the few left over go to the largest fractional parts. Ties go first to the
+/// destinations just after `origin` in the list, so across origins no town
+/// gains from its position. Deterministic, no randomness (DEC-041). Writes
+/// `shares` (one per weight) and returns false when no weight is positive.
+fn apportion(total: u64, weights: &[f64], origin: usize, shares: &mut [u64]) -> bool {
+    let n = weights.len();
+    let wsum: f64 = weights.iter().filter(|w| **w > 0.0).sum();
+    if wsum.is_nan() || wsum <= 0.0 {
+        return false;
+    }
+    let mut fracs: Vec<(f64, usize)> = Vec::with_capacity(n);
+    let mut given = 0u64;
+    for (d, w) in weights.iter().enumerate() {
+        if *w > 0.0 {
+            let exact = total as f64 * w / wsum;
+            let whole = exact.floor();
+            shares[d] = whole as u64;
+            given += shares[d];
+            fracs.push((exact - whole, (d + n - origin) % n));
+        } else {
+            shares[d] = 0;
+        }
+    }
+    // Largest fraction first; ties by position counted from the origin.
+    fracs.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
+    let left = total.saturating_sub(given) as usize;
+    for (_, pos) in fracs.iter().cycle().take(left) {
+        shares[(pos + origin) % n] += 1;
+    }
+    true
+}
+
+/// Arrivals of cohort `k` over a town's neighbourhoods, by adults living
+/// there (largest remainder; ties rotate with the cohort, so no
+/// neighbourhood gains from its place in the list).
+fn hood_shares(share: u64, adults: &[u64], k: usize) -> Vec<u64> {
+    let w: Vec<f64> = adults.iter().map(|a| *a as f64).collect();
+    let mut out = vec![0u64; w.len()];
+    if !w.is_empty() {
+        apportion(share, &w, k % w.len(), &mut out);
+    }
+    out
+}
+
+/// The displaced of cohort `k` over their destinations `(neighbourhood,
+/// weight)`, as `hood_shares`.
+fn displaced_shares(total: u32, dest: &[(usize, f64)], k: usize) -> Vec<u64> {
+    let w: Vec<f64> = dest.iter().map(|d| d.1).collect();
+    let mut out = vec![0u64; w.len()];
+    if !w.is_empty() {
+        apportion(u64::from(total), &w, k % w.len(), &mut out);
+    }
+    out
+}
+
 /// Stochastic rounding of an expected count (deterministic via the RNG stream).
 fn draw(rng: &mut SimRng, expected: f64) -> u32 {
     if expected <= 0.0 {
@@ -1107,6 +1164,7 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let mut arr_att = vec![vec![vec![0.0f64; na]; ncoh]; nm];
     let mut arr_pid = vec![vec![vec![0.0f64; np]; ncoh]; nm];
     let mut weights = vec![0.0f64; nm];
+    let mut shares = vec![0u64; nm];
     for origin in 0..nm {
         if movers[origin].iter().all(|n| *n == 0) {
             continue;
@@ -1124,26 +1182,19 @@ pub fn migration(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 pull[d] / (1.0 + dist / d0)
             };
         }
-        let wsum: f64 = weights.iter().sum::<f64>().max(1e-12);
-        let last = (0..nm).rev().find(|d| weights[*d] > 0.0).unwrap_or(origin);
         for &k in &mobile {
             let total = movers[origin][k];
             if total == 0 {
                 continue;
             }
+            // With no destination of any weight, movers settle back home.
+            if !apportion(total, &weights, origin, &mut shares) {
+                shares.iter_mut().for_each(|s| *s = 0);
+                shares[origin] = total;
+            }
             pop.moves_ytd += total;
-            let mut remaining = total;
             for m in 0..nm {
-                if weights[m] <= 0.0 {
-                    continue;
-                }
-                let share = if m == last {
-                    remaining
-                } else {
-                    ((total as f64) * weights[m] / wsum).floor() as u64
-                };
-                let share = share.min(remaining);
-                remaining -= share;
+                let share = shares[m];
                 if share == 0 {
                     continue;
                 }
@@ -1226,14 +1277,9 @@ fn shelter(pop: &mut PopulationState, world: &World, struck: &[(usize, f64, f64)
         }
         for k in 0..pop.hoods[h].cohorts.len() {
             let total = (pop.hoods[h].cohorts[k].count as f64 * t).floor() as u32;
-            let mut left = total;
-            for (i, &(j, w)) in dest.iter().enumerate() {
-                let n = if i + 1 == dest.len() {
-                    left
-                } else {
-                    ((total as f64 * w / wsum).floor() as u32).min(left)
-                };
-                left -= n;
+            let shares = displaced_shares(total, &dest, k);
+            for (i, &(j, _)) in dest.iter().enumerate() {
+                let n = shares[i] as u32;
                 if n == 0 {
                     continue;
                 }
@@ -1357,15 +1403,9 @@ fn settle(
         .iter()
         .map(|h| pop.hoods[h.index()].adults().max(1))
         .collect();
-    let asum: u64 = adults.iter().sum();
-    let mut left = share;
+    let shares = hood_shares(share, &adults, k);
     for (j, h) in hoods.iter().enumerate() {
-        let n = if j + 1 == hoods.len() {
-            left
-        } else {
-            (share * adults[j] / asum).min(left)
-        };
-        left -= n;
+        let n = shares[j];
         if n == 0 {
             continue;
         }
@@ -1652,5 +1692,115 @@ pub fn assign_party_ids(
                 params.party_id.sharpness,
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{apportion, displaced_shares, hood_shares};
+
+    /// Arrivals over a town's neighbourhoods: within one of the fair share
+    /// by adults, every arrival placed, whatever the list order.
+    #[test]
+    fn arrivals_are_shared_by_adults() {
+        let adults = [5_000u64; 7];
+        let mut got = [0u64; 7];
+        let mut fair = [0.0f64; 7];
+        for k in 0..28 {
+            for share in [1u64, 2, 3, 4, 6, 9] {
+                let s = hood_shares(share, &adults, k);
+                assert_eq!(s.iter().sum::<u64>(), share, "conserved");
+                for j in 0..7 {
+                    got[j] += s[j];
+                    fair[j] += share as f64 / 7.0;
+                }
+            }
+        }
+        for j in 0..7 {
+            assert!(
+                (got[j] as f64 - fair[j]).abs() <= 1.0,
+                "{j}: {} vs {}",
+                got[j],
+                fair[j]
+            );
+        }
+        assert_eq!(hood_shares(1000, &[1_000, 3_000], 0), vec![250, 750]);
+    }
+
+    /// The displaced over their destinations: within one of the fair share,
+    /// every one placed.
+    #[test]
+    fn the_displaced_are_shared_by_weight() {
+        let dest = [(3usize, 1.0f64), (5, 1.0), (8, 1.0)];
+        let mut got = [0u64; 3];
+        let mut fair = [0.0f64; 3];
+        for k in 0..30 {
+            for total in [1u32, 2, 4, 5] {
+                let s = displaced_shares(total, &dest, k);
+                assert_eq!(s.iter().sum::<u64>(), u64::from(total), "conserved");
+                for i in 0..3 {
+                    got[i] += s[i];
+                    fair[i] += f64::from(total) / 3.0;
+                }
+            }
+        }
+        for i in 0..3 {
+            assert!(
+                (got[i] as f64 - fair[i]).abs() <= 1.0,
+                "{i}: {} vs {}",
+                got[i],
+                fair[i]
+            );
+        }
+        assert_eq!(displaced_shares(10, &[(1, 1.0), (2, 4.0)], 0), vec![2, 8]);
+    }
+
+    /// Equal weights, many origins and cohorts of a few movers each: every
+    /// destination gets its fair share within rounding, whatever its place
+    /// in the list, and every mover lands somewhere.
+    #[test]
+    fn movers_are_shared_without_regard_to_position() {
+        let n = 30;
+        let mut inflow = vec![0u64; n];
+        let mut fair = vec![0.0f64; n];
+        let mut shares = vec![0u64; n];
+        for origin in 0..n {
+            let weights: Vec<f64> = (0..n)
+                .map(|d| if d == origin { 0.0 } else { 1.0 })
+                .collect();
+            for total in [1u64, 2, 3, 5, 7, 11, 13, 28, 29, 31] {
+                assert!(apportion(total, &weights, origin, &mut shares));
+                assert_eq!(shares.iter().sum::<u64>(), total, "conserved");
+                assert_eq!(shares[origin], 0);
+                for d in 0..n {
+                    inflow[d] += shares[d];
+                    fair[d] += weights[d] * total as f64 / (n - 1) as f64;
+                }
+            }
+        }
+        for d in 0..n {
+            assert!(
+                (inflow[d] as f64 - fair[d]).abs() <= 1.0,
+                "town {d}: {} against a fair {}",
+                inflow[d],
+                fair[d]
+            );
+        }
+    }
+
+    /// Unequal weights: shares follow the weights within one mover, and no
+    /// weight means no mover.
+    #[test]
+    fn shares_follow_the_weights() {
+        let weights = [0.0, 1.0, 2.0, 3.0, 0.5];
+        let mut shares = [0u64; 5];
+        assert!(apportion(1000, &weights, 0, &mut shares));
+        assert_eq!(shares.iter().sum::<u64>(), 1000);
+        assert_eq!(shares[0], 0);
+        for d in 1..5 {
+            let exact = 1000.0 * weights[d] / 6.5;
+            assert!((shares[d] as f64 - exact).abs() < 1.0, "{d}: {}", shares[d]);
+        }
+        assert!(!apportion(5, &[0.0, 0.0], 0, &mut [0, 0]));
     }
 }

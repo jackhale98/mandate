@@ -110,7 +110,9 @@ const toStreets = async (page: Page) => {
 };
 
 test("talk from the Notebook's People: over a portrait; someone elsewhere is gone to; topics with odds and the cost; a subject step; a reply in their voice", async ({ page, isMobile }) => {
-  await start(page, "7311");
+  // Seed 7312: seed 7311's reply showed no outcome once rents were bounded
+  // by incomes and movers shared fairly (audit fix 2).
+  await start(page, "7312");
   const pocket = await openPeople(page);
   await officeFigures(pocket).getByTestId("talk-button").first().click();
   const dlg = box(page);

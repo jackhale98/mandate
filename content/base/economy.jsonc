@@ -15,6 +15,26 @@
     "target_vacancy": 0.05,
     "construction_lag_months": 18,
     "base_dwelling_price": 240000,
+    // The town housing market (economy::housing). Rent clears vacancy;
+    // households double up as rent takes more of a middle-class income, so
+    // incomes bound rent; builders answer price over cost and vacancy. At the
+    // target vacancy and the neutral rate, starts equal the baseline.
+    "housing": {
+      "adults_per_household": 1.9,          // at the reference burden
+      "adults_per_household_range": [1.2, 6.0],
+      "reference_burden": 0.16,             // a year's rent over a middle-class income
+      "headship_elasticity": 0.6,           // adults per household per unit log burden
+      "rent_yield": 0.025,                  // a year's rent over the price at the neutral rate
+      "risk_premium": 0.035,                // over the real rate in the user cost
+      "build_cost_share": 0.85,             // build cost over the starting price
+      "rent_response": 0.12,                // monthly rent growth per unit vacancy gap
+      "price_adjustment": 0.05,             // monthly share of the gap to the target price
+      "demolition_rate": 0.005,             // a year
+      "base_growth": 0.004,                 // baseline building beyond replacement, a year
+      "starts_price_response": 4.0,         // per unit price over cost
+      "starts_vacancy_response": 20.0,      // per unit vacancy below target
+      "starts_max": 3.0,                    // × the baseline
+    },
     "taxes": {
       "property": 0.009,
       "sales": 0.06,

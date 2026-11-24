@@ -15,7 +15,6 @@ pub fn run(cx: &Ctx) -> Result<Value, String> {
     let mut pinned_low = 0usize;
     let mut drained = Vec::new();
     let mut boomed = Vec::new();
-    let mut rent_runaway = Vec::new();
     let mut gov_pinned = 0usize;
     let mut no_recovery = Vec::new();
     let mut closures = 0usize;
@@ -25,6 +24,7 @@ pub fn run(cx: &Ctx) -> Result<Value, String> {
     let mut nat_debt = Vec::new();
     let mut u_max: f64 = 0.0;
     let (mut stalled, mut town_months) = (0usize, 0usize);
+    let mut rents = Rents::default();
     for h in &hs {
         let nt = h.months[0].len();
         towns += nt;
@@ -85,16 +85,7 @@ pub fn run(cx: &Ctx) -> Result<Value, String> {
                 one_party_town += 1;
             }
         }
-        // Rent runaway: a town whose rent rose 4× more than the median town's.
-        let growth: Vec<f64> = (0..nt)
-            .map(|t| h.months[end][t].rent / h.months[0][t].rent.max(1e-9))
-            .collect();
-        let med = median(&growth);
-        for (t, g) in growth.iter().enumerate() {
-            if *g > 4.0 * med {
-                rent_runaway.push(json!({ "scenario": h.scenario, "seed": h.seed, "town": t, "rent_ratio": r1(*g), "median_town_ratio": r3(med), "start_rent": r1(h.months[0][t].rent), "end_rent": r1(h.months[end][t].rent), "end_vacancy": r3(h.months[end][t].vacancy), "pop_ratio": r3(h.months[end][t].pop / h.months[0][t].pop.max(1.0)) }));
-            }
-        }
+        rents.add(h, end);
         // Closures: is the town's unemployment back within 2 points of its
         // pre-closure level (relative to the nation's) after 5 and 10 years?
         for e in h.tally.events.iter().filter(|e| e.kind == "plant_closure") {
@@ -149,12 +140,15 @@ pub fn run(cx: &Ctx) -> Result<Value, String> {
         "unemployment_under_1pct_for_2y": { "count": pinned_low, "share": share(pinned_low) },
         "towns_drained_below_60pct": { "count": drained.len(), "share": share(drained.len()), "verdict": if drained.len() * 50 < towns { "works" } else { "broken" } },
         "towns_more_than_doubled": { "count": boomed.len(), "share": share(boomed.len()) },
-        "rent_runaway_4x_median_town": { "count": rent_runaway.len(), "share": share(rent_runaway.len()), "verdict": if rent_runaway.is_empty() { "works" } else { "broken" } },
+        "burn_in_growth": burn_in_growth(cx)?,
+        "rent_runaway_4x_median_town": { "count": rents.runaway.len(), "share": share(rents.runaway.len()), "verdict": if rents.runaway.is_empty() { "works" } else { "broken" } },
         "gov_approval_pinned_2y": { "count": gov_pinned, "share": share(gov_pinned) },
         "closures_without_recovery_10y": { "closures": closures, "count": no_recovery.len(), "verdict": if no_recovery.len() * 4 < closures.max(1) { "works" } else { "weak" } },
         "executive_party_never_changed_30y": { "count": one_party_town, "share": share(one_party_town), "verdict": if one_party_town * 5 < towns { "works" } else { "broken" } },
         "national_top_party_kept_share_of_years": { "median": r3(median(&one_party_nation)), "max": r3(quantile(&one_party_nation, 1.0)) },
         "crises_lasting_10y": { "count": long_crises.len(), "by_kind": long_crises.iter().fold(std::collections::BTreeMap::<String, usize>::new(), |mut m, c| { *m.entry(c["kind"].as_str().unwrap_or("").to_string()).or_default() += 1; m }), "crisis_spans_total": hs.iter().map(|h| h.tally.crises.len()).sum::<usize>() },
+        "real_rent_growth_town": rents.real_growth(),
+        "rent_burden": rents.burden(),
         "private_building_stalled_town_months": { "share": r3(stalled as f64 / town_months.max(1) as f64), "threshold": "starts under 20% of baseline" },
         "national_debt_pct_gdp_change": { "median": r3(median(&nat_debt)), "max": r3(quantile(&nat_debt, 1.0)), "min": r3(quantile(&nat_debt, 0.0)) },
     });
@@ -167,9 +161,145 @@ pub fn run(cx: &Ctx) -> Result<Value, String> {
             "pinned_high": first(&pinned_high),
             "drained": first(&drained),
             "boomed": first(&boomed),
-            "rent_runaway": first(&rent_runaway),
+            "rent_runaway": first(&rents.runaway),
             "no_recovery": first(&no_recovery),
             "long_crises": first(&long_crises),
         },
+    }))
+}
+
+/// Town populations over the history burn-in: each audit world generated
+/// with and without its burn-in (the same seed gives the same starting
+/// towns). No town should grow more than 4× (a position-biased migration
+/// once made the last town in the list grow tenfold).
+fn burn_in_growth(cx: &Ctx) -> Result<Value, String> {
+    use mandate_sim::world::MunicipalityId;
+    use mandate_worldgen::{WorldConfig, WorldSize, generate};
+    let mut bare = (*cx.content).clone();
+    bare.tuning.burn_in_years = 0;
+    let bare = std::sync::Arc::new(bare);
+    let worlds = cx.worlds();
+    let rows = crate::lab::runner::par_map(&worlds, crate::lab::runner::threads(), |(s, k)| {
+        let pops = |c: &std::sync::Arc<mandate_content::ContentBundle>| {
+            let cfg = WorldConfig {
+                seed: *k,
+                size: WorldSize::Small,
+                scenario: s.clone(),
+            };
+            generate(&cfg, c.clone())
+                .map_err(|e| e.to_string())
+                .map(|e| {
+                    let st = e.state();
+                    (0..st.world.municipalities.len())
+                        .map(|m| {
+                            st.population
+                                .municipality_total(&st.world, MunicipalityId(m as u32))
+                                as f64
+                        })
+                        .collect::<Vec<_>>()
+                })
+        };
+        let (a, b) = (pops(&bare)?, pops(&cx.content)?);
+        Ok::<_, String>(
+            a.iter()
+                .zip(&b)
+                .enumerate()
+                .map(|(t, (a, b))| (b / a.max(1.0), short_scenario(s), *k, t))
+                .collect::<Vec<_>>(),
+        )
+    });
+    let mut all = Vec::new();
+    for r in rows {
+        all.extend(r?);
+    }
+    let over: Vec<Value> = all
+        .iter()
+        .filter(|x| x.0 > 4.0)
+        .take(12)
+        .map(|x| json!({ "ratio": r3(x.0), "scenario": x.1, "seed": x.2, "town": x.3 }))
+        .collect();
+    let count = all.iter().filter(|x| x.0 > 4.0).count();
+    let ratios: Vec<f64> = all.iter().map(|x| x.0).collect();
+    Ok(json!({
+        "max": r3(quantile(&ratios, 1.0)),
+        "median": r3(median(&ratios)),
+        "over_4x": count,
+        "examples": over,
+        "verdict": if count == 0 { "works" } else { "broken" },
+    }))
+}
+
+/// Rent over a run, per town: runaways (rent rising 4× more than the median
+/// town's), real rent growth (deflated by the national price level) and the
+/// rent burden (a year's rent over a middle-class income) at both ends.
+#[derive(Default)]
+struct Rents {
+    runaway: Vec<Value>,
+    real: Vec<f64>,
+    start_burden: Vec<f64>,
+    end_burden: Vec<f64>,
+}
+
+impl Rents {
+    fn add(&mut self, h: &History, end: usize) {
+        let (first, last) = (&h.months[0], &h.months[end]);
+        let growth: Vec<f64> = first
+            .iter()
+            .zip(last)
+            .map(|(a, b)| b.rent / a.rent.max(1e-9))
+            .collect();
+        let med = median(&growth);
+        let pl =
+            |s: Option<&crate::lab::metrics::Snapshot>| s.map_or(1.0, |s| s.nation.price_level);
+        let inflation = pl(h.years.last()) / pl(h.years.first()).max(1e-9);
+        self.real.extend(growth.iter().map(|g| g / inflation));
+        self.start_burden
+            .extend(first.iter().map(|l| l.rent_burden));
+        self.end_burden.extend(last.iter().map(|l| l.rent_burden));
+        for (t, g) in growth.iter().enumerate() {
+            if *g > 4.0 * med {
+                self.runaway.push(json!({ "scenario": h.scenario, "seed": h.seed, "town": t, "rent_ratio": r1(*g), "median_town_ratio": r3(med), "start_rent": r1(first[t].rent), "end_rent": r1(last[t].rent), "end_vacancy": r3(last[t].vacancy), "pop_ratio": r3(last[t].pop / first[t].pop.max(1.0)) }));
+            }
+        }
+    }
+    /// The median town's real rent growth is within ±50% over the run.
+    fn real_ok(&self) -> bool {
+        (0.5..=1.5).contains(&median(&self.real))
+    }
+    fn real_growth(&self) -> Value {
+        json!({ "median": r3(median(&self.real)), "p95": r3(quantile(&self.real, 0.95)), "max": r3(quantile(&self.real, 1.0)), "verdict": if self.real_ok() { "works" } else { "broken" } })
+    }
+    fn burden(&self) -> Value {
+        json!({ "start_median": r3(median(&self.start_burden)), "start_max": r3(quantile(&self.start_burden, 1.0)), "end_median": r3(median(&self.end_burden)), "end_p95": r3(quantile(&self.end_burden, 0.95)), "end_max": r3(quantile(&self.end_burden, 1.0)) })
+    }
+}
+
+/// The nightly gate's rent sanity (report §"Nightly gate"): over `years`
+/// on the six worlds × `seeds`, no town's rent rises 4× more than the
+/// median town's, and the median town's real rent growth is within ±50%.
+pub fn rent_gate(cx: &Ctx, seeds: u64, years: u32) -> Result<Value, String> {
+    let sub = Ctx {
+        content: cx.content.clone(),
+        args: AuditArgs {
+            seeds,
+            years,
+            scenario: vec![],
+            ..cx.args.clone()
+        },
+    };
+    let hs = histories(&sub, years, Driver::Idle)?;
+    let end = (years * 12) as usize;
+    let mut rents = Rents::default();
+    for h in &hs {
+        rents.add(h, end);
+    }
+    let pass = rents.runaway.is_empty() && rents.real_ok();
+    Ok(json!({
+        "pass": pass,
+        "seeds_per_scenario": seeds,
+        "years": years,
+        "rent_runaway_4x_median_town": { "count": rents.runaway.len(), "examples": rents.runaway.iter().take(12).cloned().collect::<Vec<_>>() },
+        "real_rent_growth_town": rents.real_growth(),
+        "rent_burden": rents.burden(),
     }))
 }
