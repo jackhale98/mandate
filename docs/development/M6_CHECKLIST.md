@@ -289,6 +289,13 @@ On hold until then:
     - the person's sheet says "Former <post word>, N years" once the player knows them that well, and a talk line about them says it;
     - former officeholders can be asked about their time in office (how a past vote went, who owes whom), as a source of knowledge;
     - the trade shown is tied to a real workplace (the open caveat from note 1).
+17. **Specific industries, not "manufacturing"** (owner, 2026-11-24). A plant is today a town's share of one generic sector, with no product, so a closure reads as "manufacturing demand fell". People care about the cannery or the steelworks. Build the cheap version, in the cold open wave beside the crisis rewrite:
+    - **Industries as data.** The sector registry (DEC-075) gains specific industries under the broad sectors: for example steel and machinery, food processing, textiles, electronics, vehicles, timber and paper, chemicals; mining, quarrying, oil and gas; arable, livestock, fishing. Each has its own wage, cyclicality, productivity growth, and exposure to commodity prices, competitiveness and labour costs. The eight broad sectors stay as groups for totals, map layers and worries.
+    - **Demand per industry.** Each industry has its own world demand index (a keyed random stream: drift and shocks), so a slump in one does not hit them all. Cheap local links without simulating goods: food processing reads local and regional farm output, a sawmill reads forestry, a smelter reads mining.
+    - **Worldgen places them by geography:** ports get fishing, canneries and shipyards; forests get sawmills; ore gets smelters; a town has one or two defining industries.
+    - **Named plants.** A town's larger employers are named workplaces with a product ("the Garrowby cannery"), as places with their people (PL1). A closure names the plant and what it made; the causal spine records the industry's weakest demand factor.
+    - **Text and checks.** Crises, headlines, overheard lines and talk name the industry and the plant through arguments (the engine emits keys, never prose; nothing names a product in code). The audit gains a check per industry (closures explained, no industry dead or runaway). Lines per industry are a content cost: budget it with the crisis rewrite.
+    - **Not this (later, after transport):** products as goods, firms, supply chains and trade between towns.
 
 
 ## M6 or M7 split (owner, 2026-11-21)

@@ -74,6 +74,7 @@ Each wave builds on the one before. Within a wave, tasks marked ∥ have disjoin
 1. **Staged arcs S3** and the crisis arc template (large).
 2. ∥ **Crises rewritten and a dozen added** (mid, to the style bible; the doctor lints; a separate reviewer reads samples).
    ∥ **The audition** (mid), on S2.
+   ∥ **Specific industries and named plants** (large to design the registry and demand, mid for worldgen and content; owner, 2026-11-24; M6_CHECKLIST note 17): industries as data under the broad sectors, demand per industry, plants named by what they make. Before the crisis rewrite, so crises name a cannery or a steelworks.
 3. **Opening frames, the draft, the first-beat guarantee** (mid), then the first chapter's pacing.
 4. **Story sifting, first patterns** (mid), on S1: feeds the director, the press and callbacks.
 
