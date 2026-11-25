@@ -16,8 +16,12 @@ import { englishTranslator } from "../../i18n/englishLocale";
 import { useGame } from "../../state/gameStore";
 import { Notebook, NotebookTabs } from "./Notebook";
 
-const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../fixtures/pocket");
-const load = <T,>(name: string) => JSON.parse(readFileSync(path.join(dir, `${name}.json`), "utf8")) as T;
+const dir = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../fixtures/pocket",
+);
+const load = <T,>(name: string) =>
+  JSON.parse(readFileSync(path.join(dir, `${name}.json`), "utf8")) as T;
 
 function setup(over: { notebook?: NotebookView; notebook_new?: number } = {}) {
   const seeNotebook = vi.fn(() => Promise.resolve());
@@ -27,7 +31,10 @@ function setup(over: { notebook?: NotebookView; notebook_new?: number } = {}) {
   const openTalk = vi.fn(() => Promise.resolve());
   const openCharacter = vi.fn(() => Promise.resolve());
   const openDecision = vi.fn(() => Promise.resolve());
-  const pocket = { ...load<PocketView>("pocket"), notebook_new: over.notebook_new ?? 0 };
+  const pocket = {
+    ...load<PocketView>("pocket"),
+    notebook_new: over.notebook_new ?? 0,
+  };
   useGame.setState({
     tr: englishTranslator(),
     busy: false,
@@ -53,7 +60,15 @@ function setup(over: { notebook?: NotebookView; notebook_new?: number } = {}) {
       <Notebook />
     </>,
   );
-  return { seeNotebook, loadNotebook, leaveNotebook, visit, openTalk, openCharacter, openDecision };
+  return {
+    seeNotebook,
+    loadNotebook,
+    leaveNotebook,
+    visit,
+    openTalk,
+    openCharacter,
+    openDecision,
+  };
 }
 
 /** Nothing counts knowledge (L8): no meter, no "Not known yet", no "N of M known", no per cent beside a knowledge word. */
@@ -70,59 +85,118 @@ describe("the Notebook", () => {
   it("has one row of four tabs and a search at its end; arrows move along it", () => {
     setup();
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.id)).toEqual(["notebook-tab-people", "notebook-tab-places", "notebook-tab-town", "notebook-tab-policies"]);
-    expect(tabs.map((t) => t.getAttribute("tabindex"))).toEqual(["0", "-1", "-1", "-1"]);
+    expect(tabs.map((t) => t.id)).toEqual([
+      "notebook-tab-people",
+      "notebook-tab-places",
+      "notebook-tab-town",
+      "notebook-tab-policies",
+    ]);
+    expect(tabs.map((t) => t.getAttribute("tabindex"))).toEqual([
+      "0",
+      "-1",
+      "-1",
+      "-1",
+    ]);
     fireEvent.keyDown(tabs[0] as HTMLElement, { key: "ArrowRight" });
     expect(useGame.getState().notebookTab).toBe("places");
-    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe("notebook-tab-places");
-    expect(screen.getByTestId("notebook-search-open").getAttribute("aria-label")).toBe("Search the notebook");
+    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(
+      "notebook-tab-places",
+    );
+    expect(
+      screen.getByTestId("notebook-search-open").getAttribute("aria-label"),
+    ).toBe("Search the notebook");
   });
 
   it("People: the engine's sections and order; who matters now open with why, the rest folded with what they hold counted", () => {
     const { visit, openTalk, openCharacter } = setup();
     const people = load<PeopleView>("people");
-    const now = within(screen.getByTestId("notebook-people-now")).getAllByTestId("notebook-person");
-    expect(now.map((r) => Number(r.getAttribute("data-person")))).toEqual(people.rows.filter((r) => r.group === "now").map((r) => r.id));
+    const now = within(
+      screen.getByTestId("notebook-people-now"),
+    ).getAllByTestId("notebook-person");
+    expect(now.map((r) => Number(r.getAttribute("data-person")))).toEqual(
+      people.rows.filter((r) => r.group === "now").map((r) => r.id),
+    );
+    // Rows are picked by what they are, not where they sat in one world: the
+    // fixture's world moves whenever the engine's first weeks do.
+    const rows = people.rows.filter((r) => r.group === "now");
+    const at = (i: number) =>
+      screen
+        .getAllByTestId("notebook-people-now")
+        .flatMap((s) => within(s).getAllByTestId("notebook-person"))[
+        i
+      ] as HTMLElement;
     // Three lines: the name, the stance in a word with its shape and the role, the reason (34 characters at most).
     const first = now[0] as HTMLElement;
-    expect(first.textContent).toContain("Bettina Zeller");
+    expect(first.textContent).toContain(rows[0]?.name);
     expect(first.textContent).toContain("◆ Neutral");
-    expect(first.textContent).toContain("An ask needs a word with them");
+    expect(first.textContent).toMatch(
+      /Has asked you for something|An ask needs a word with them/,
+    );
     // Folded sections: a count, never a share.
-    for (const [id, n] of [
-      ["notebook-key-figures", 5],
-      ["notebook-people-rest", 23],
-      ["notebook-people-gone", 10],
+    for (const [id, group] of [
+      ["notebook-key-figures", "office"],
+      ["notebook-people-rest", "rest"],
+      ["notebook-people-gone", "gone"],
     ] as const) {
+      const n = people.groups.find((g) => g.group === group)?.count ?? 0;
       const fold = screen.getByTestId(id);
       const head = within(fold).getByRole("button", { expanded: false });
       expect(head.textContent).toMatch(new RegExp(`${n}, ${n} people`));
       expect(within(fold).queryAllByTestId("notebook-person")).toHaveLength(0);
     }
-    // Opened: why now, how they stand, Talk and Go to them, and everything about them.
-    fireEvent.click(within(first).getAllByRole("button", { expanded: false })[0] as HTMLElement);
-    const opened = screen.getAllByTestId("notebook-person")[0] as HTMLElement;
-    expect(within(opened).getAllByTestId("person-why").length).toBe(2);
-    expect(within(opened).getByTestId("notebook-standing").textContent).toBe("Neutral about you · Trusts you a little");
-    fireEvent.click(within(opened).getByRole("button", { name: "Go to Bettina Zeller" }));
-    expect(visit).toHaveBeenCalledWith({ type: "place", place: 132 });
-    fireEvent.click(within(opened).getByRole("button", { name: "Talk to Bettina Zeller" }));
-    expect(openTalk).toHaveBeenCalledWith({ type: "person", person: 1027 });
+    // Opened, someone elsewhere: why now, how they stand, Talk and Go to them, and everything about them.
+    const away = rows.findIndex((r) => !r.here);
+    const awayRow = rows[away] as (typeof rows)[number];
+    expect(away).toBeGreaterThanOrEqual(0);
+    fireEvent.click(
+      within(at(away)).getAllByRole("button", {
+        expanded: false,
+      })[0] as HTMLElement,
+    );
+    const opened = at(away);
+    expect(within(opened).getAllByTestId("person-why").length).toBe(
+      awayRow.now.length,
+    );
+    expect(within(opened).getByTestId("notebook-standing").textContent).toBe(
+      "Neutral about you · Trusts you a little",
+    );
+    fireEvent.click(
+      within(opened).getByRole("button", { name: `Go to ${awayRow.name}` }),
+    );
+    expect(visit).toHaveBeenCalledWith(awayRow.go?.to?.location);
+    fireEvent.click(
+      within(opened).getByRole("button", { name: `Talk to ${awayRow.name}` }),
+    );
+    expect(openTalk).toHaveBeenCalledWith({
+      type: "person",
+      person: awayRow.id,
+    });
     fireEvent.click(within(opened).getByTestId("notebook-person-name"));
-    expect(openCharacter).toHaveBeenCalledWith(1027);
+    expect(openCharacter).toHaveBeenCalledWith(awayRow.id);
     // A person only heard of: the engine's one sentence, no placeholder.
-    const sana = screen.getAllByTestId("notebook-person")[1] as HTMLElement;
-    fireEvent.click(within(sana).getAllByRole("button")[0] as HTMLElement);
-    expect(within(screen.getAllByTestId("notebook-person")[1] as HTMLElement).getByTestId("person-note").textContent).toBe("You only know the name.");
+    const heard = rows.findIndex(
+      (r) => r.note?.key === "know-person-name-only",
+    );
+    expect(heard).toBeGreaterThanOrEqual(0);
+    fireEvent.click(within(at(heard)).getAllByRole("button")[0] as HTMLElement);
+    expect(within(at(heard)).getByTestId("person-note").textContent).toBe(
+      "You only know the name.",
+    );
     // Someone here: Talk is the row's action.
-    const here = screen.getAllByTestId("notebook-person")[2] as HTMLElement;
-    expect(within(here).getByTestId("talk-button")).toBeTruthy();
+    const here = rows.findIndex((r) => r.here && r.can_talk);
+    expect(within(at(here)).getByTestId("talk-button")).toBeTruthy();
     // A fold opens on a tap and shows the engine's first twelve, then the rest on asking.
-    fireEvent.click(within(screen.getByTestId("notebook-people-rest")).getByRole("button", { expanded: false }));
+    fireEvent.click(
+      within(screen.getByTestId("notebook-people-rest")).getByRole("button", {
+        expanded: false,
+      }),
+    );
     const rest = screen.getByTestId("notebook-people-rest");
     expect(within(rest).getAllByTestId("notebook-person")).toHaveLength(12);
     fireEvent.click(within(rest).getByTestId("show-more"));
-    expect(within(rest).getAllByTestId("notebook-person")).toHaveLength(23);
+    expect(within(rest).getAllByTestId("notebook-person")).toHaveLength(
+      people.groups.find((g) => g.group === "rest")?.count ?? 0,
+    );
     expectNoKnowledgeCount(document.body);
   });
 
@@ -130,16 +204,32 @@ describe("the Notebook", () => {
     const { visit } = setup();
     fireEvent.click(screen.getByRole("tab", { name: /Places/ }));
     const now = screen.getByTestId("places-now");
-    expect(within(now).getAllByRole("button").map((b) => b.getAttribute("data-testid"))).toEqual(["spot-streets", "spot-community_centre"]);
+    expect(
+      within(now)
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("data-testid")),
+    ).toEqual(["spot-streets", "spot-community_centre"]);
     expect(now.textContent).toContain("There is something to do here");
     expect(within(now).getByTestId("you-are-here")).toBeTruthy();
     const hoods = screen.getAllByTestId("town-hood");
-    expect(hoods).toHaveLength(6);
+    const town = load<TownPlacesView>("town");
+    expect(hoods).toHaveLength(town.neighborhoods.length);
     const centre = hoods[0] as HTMLElement;
-    expect(within(centre).getByRole("button", { expanded: false }).textContent).toContain("10");
+    expect(
+      within(centre).getByRole("button", { expanded: false }).textContent,
+    ).toContain(
+      `${town.neighborhoods[0]?.spots.length}, ${town.neighborhoods[0]?.spots.length} places`,
+    );
     fireEvent.click(within(centre).getByRole("button", { expanded: false }));
-    fireEvent.click(within(screen.getAllByTestId("town-hood")[0] as HTMLElement).getByTestId("spot-town_hall"));
-    expect(visit).toHaveBeenCalledWith({ type: "place", place: 132 });
+    fireEvent.click(
+      within(screen.getAllByTestId("town-hood")[0] as HTMLElement).getByTestId(
+        "spot-town_hall",
+      ),
+    );
+    const hall = town.neighborhoods[0]?.spots.find(
+      (x) => x.location.kind_key === "town_hall",
+    );
+    expect(visit).toHaveBeenCalledWith(hall?.location.location);
     expectNoKnowledgeCount(document.body);
   });
 
@@ -148,22 +238,40 @@ describe("the Notebook", () => {
     setup({ notebook: withLead });
     fireEvent.click(screen.getByRole("tab", { name: /Town/ }));
     expect(screen.getByTestId("town-card")).toBeTruthy();
-    fireEvent.click(within(screen.getByTestId("notebook-loose-ends")).getByRole("button", { expanded: false }));
-    expect(screen.getByTestId("arc-lead").textContent).toContain("Something is going on in Orchardfield.");
+    fireEvent.click(
+      within(screen.getByTestId("notebook-loose-ends")).getByRole("button", {
+        expanded: false,
+      }),
+    );
+    expect(screen.getByTestId("arc-lead").textContent).toContain(
+      "Something is going on in Orchardfield.",
+    );
     expectNoKnowledgeCount(document.body);
   });
 
   it("search: one flat list grouped by kind; something not known answers with the way to find out", () => {
     setup();
     fireEvent.click(screen.getByTestId("notebook-search-open"));
-    fireEvent.change(screen.getByTestId("notebook-search"), { target: { value: "vargawell" } });
+    fireEvent.change(screen.getByTestId("notebook-search"), {
+      target: { value: "brackenwell" },
+    });
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
-    expect(within(screen.getByTestId("notebook-results-people")).getAllByTestId("notebook-person")).toHaveLength(1);
-    fireEvent.change(screen.getByTestId("notebook-search"), { target: { value: "abbey green" } });
+    expect(
+      within(screen.getByTestId("notebook-results-people")).getAllByTestId(
+        "notebook-person",
+      ),
+    ).toHaveLength(1);
+    fireEvent.change(screen.getByTestId("notebook-search"), {
+      target: { value: "east hill" },
+    });
     const gap = screen.getByTestId("notebook-results-gaps");
-    expect(gap.textContent).toContain("Canvass Abbey Green");
-    fireEvent.change(screen.getByTestId("notebook-search"), { target: { value: "zzzz" } });
-    expect(screen.getByTestId("notebook-results").textContent).toContain("Nothing you know matches “zzzz”.");
+    expect(gap.textContent).toContain("Canvass East Hill");
+    fireEvent.change(screen.getByTestId("notebook-search"), {
+      target: { value: "zzzz" },
+    });
+    expect(screen.getByTestId("notebook-results").textContent).toContain(
+      "Nothing you know matches “zzzz”.",
+    );
     fireEvent.keyDown(screen.getByTestId("notebook-search"), { key: "Escape" });
     expect(screen.getAllByRole("tab")).toHaveLength(4);
   });
@@ -172,7 +280,14 @@ describe("the Notebook", () => {
     const { seeNotebook, loadNotebook } = setup({ notebook_new: 2 });
     expect(loadNotebook).toHaveBeenCalledTimes(1);
     expect(seeNotebook).toHaveBeenCalledTimes(1);
-    act(() => useGame.setState({ pocket: { ...(useGame.getState().pocket as PocketView), notebook_new: 0 } }));
+    act(() =>
+      useGame.setState({
+        pocket: {
+          ...(useGame.getState().pocket as PocketView),
+          notebook_new: 0,
+        },
+      }),
+    );
     expect(seeNotebook).toHaveBeenCalledTimes(1);
   });
 });
