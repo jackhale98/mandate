@@ -98,9 +98,6 @@ fn a_turn_that_is_one_decision_is_flagged() {
         ("arc.budget_round", "turn_hole"),
         ("arc.budget_round", "turn_line"),
         ("arc.budget_round", "turn_surplus"),
-        ("arc.favour_debt", "called_in"),
-        ("arc.flood", "meeting"),
-        ("arc.plant_closure", "organising"),
     ];
     assert_eq!(flagged.len(), stages.len(), "{flagged:#?}");
     for (arc, stage) in stages {
@@ -111,8 +108,19 @@ fn a_turn_that_is_one_decision_is_flagged() {
             "{arc} {stage}: {flagged:#?}"
         );
     }
-    // The rival's turn is played: not flagged.
-    assert!(!flagged.iter().any(|w| w.contains("arc.rival")));
+    // The rival's, the favour's, the flood's and the plant's turns are
+    // played (task X4): none is flagged.
+    for arc in [
+        "arc.rival",
+        "arc.favour_debt",
+        "arc.flood",
+        "arc.plant_closure",
+    ] {
+        assert!(
+            !flagged.iter().any(|w| w.contains(arc)),
+            "{arc}: {flagged:#?}"
+        );
+    }
 }
 
 #[test]
