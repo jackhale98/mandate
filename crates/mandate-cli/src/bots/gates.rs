@@ -45,8 +45,18 @@ pub const GATES: [&str; 10] = [
 /// seeds, 16 of 32 (0.5), which passes. The base after those fixes was
 /// not measured on its own here. Still computed and printed
 /// (`good_styles_vary_b` and the ladder's `good_styles_vary` detail).
-pub const ENFORCED: [&str; 7] = [
-    "idle_cap",
+///
+/// 2026-11-25, the power broker (M6 note 27): `idle_cap` is report-only
+/// until the tuning pass at the end of M6, which puts it back in this list
+/// at its threshold (`IDLE_CAP`, 0.15). Measured at 16 seeds on the same
+/// base (the conversations work and the exchange scenes merged), the idle
+/// player's win rate is 0 of 16 (mean share 0.316) without the broker and
+/// 3 of 16 (0.1875; mean share 0.372) with them; every strategy's mean
+/// share rose 0.01 to 0.07 (mixed 0.718 → 0.747). The broker's weekly
+/// backing (money and door-knocking for the candidate they regard most)
+/// reaches a player who does nothing; the vote pull was not measured on
+/// its own. Still computed and printed (`idle_cap`, the ladder's detail).
+pub const ENFORCED: [&str; 6] = [
     "effort_matters",
     "exploring_alone_never_wins",
     "ladder_rote",
