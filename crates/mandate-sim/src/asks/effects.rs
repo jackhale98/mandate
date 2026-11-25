@@ -211,7 +211,10 @@ pub fn apply_now(
         state.events.note_effect(&r.cause);
         let e = r.effect;
         match e {
-            Effect::Opinion { .. } | Effect::Favour { .. } | Effect::Record { .. } => {
+            Effect::Opinion { .. }
+            | Effect::Favour { .. }
+            | Effect::Repay { .. }
+            | Effect::Record { .. } => {
                 crate::characters::apply_ask_effect(&mut state.politics, content, seed, date, &e);
             }
             Effect::Approval {

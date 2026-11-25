@@ -1018,6 +1018,8 @@ fn a_removed_dilemma_template_does_not_break_loading() {
         .next()
         .cloned()
         .expect("a decision is pending");
+    // Arcs that had already ended before the save keep how they ended.
+    let ended_before = e.state().arcs.past.len();
     let (bytes, _) = encode(e.state(), &req()).unwrap();
     // Remove the pending decision's template, every arc (with the
     // dilemmas, asks and scenes its file carries), and every goal.
@@ -1051,9 +1053,7 @@ fn a_removed_dilemma_template_does_not_break_loading() {
     // Every run of a removed arc ended at its next step.
     assert!(e2.state().arcs.runs.is_empty());
     assert!(
-        e2.state()
-            .arcs
-            .past
+        e2.state().arcs.past[ended_before..]
             .iter()
             .all(|p| p.exit == mandate_sim::arcs::EXIT_REMOVED)
     );
@@ -1281,7 +1281,14 @@ fn v13_files_decode_with_town_baselines() {
 #[test]
 fn older_saves_migrate_to_the_knowledge_ledger() {
     use mandate_sim::player::knowledge::{LedgerOrigin, Level, Source, Subject};
-    let c = content();
+    // A v13 or v14 save holds no arc (arcs came with v27): the world is
+    // played without arc content, so none is raised in its first weeks (a
+    // plant on short time raises one).
+    let c = {
+        let mut b = (*content()).clone();
+        b.arcs.clear();
+        Arc::new(b)
+    };
     let mut e = generate(
         &WorldConfig {
             seed: 64,

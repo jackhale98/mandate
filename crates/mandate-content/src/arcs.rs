@@ -162,6 +162,18 @@ pub enum ArcCast {
         occupations: Vec<ContentKey>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         near: Option<String>,
+        /// With `at`, one whose own workplace is the place cast in that
+        /// role first (a plant's steward and its manager), before `near`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        at: Option<String>,
+    },
+    /// A named plant there (DEC-110) in one of these states (none given:
+    /// any open one): the most advanced in its review first (under notice,
+    /// then on short time, then running), then the most jobs, then the
+    /// lowest id. Bound to the plant's place.
+    Plant {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        status: Vec<crate::condition::PlantState>,
     },
     /// Whoever holds a post there whose constitution lists this power (not
     /// the player; an office before a seat). `party` is a preference,
@@ -183,6 +195,10 @@ pub enum ArcCast {
         /// The hazard `most_exposed` reads.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         hazard: Option<HazardKey>,
+        /// With `place`, the area that holds the place cast in that earlier
+        /// role comes first (a plant's own district), then `pick`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        place: Option<String>,
     },
     /// An open place of one of these kinds (in list order); with `near`,
     /// one in that area role first.
@@ -439,6 +455,17 @@ pub enum ArcEffect {
     /// The player learns of a cast person, or of the worries of a cast
     /// area, to a level (the player applies; never lowered).
     Learn { role: String, level: Level },
+    /// Relief on the margin of the plant at the place cast in `place` for
+    /// some months (DEC-110: the economy applies it, and its own rule
+    /// still decides the review).
+    PlantRelief {
+        place: String,
+        relief: f64,
+        months: u16,
+    },
+    /// One favour the player owes the role is paid off in another coin
+    /// (the characters domain applies; nothing if none is owed).
+    Repay { role: String },
     /// Approval of the jurisdiction's government in an area. Not yet: A5b.
     GovApproval { area: String, delta: f64 },
     /// A place's state for the dress pass (boarded, marked). Not yet: A5a.
@@ -449,9 +476,12 @@ impl ArcEffect {
     /// The roles it names, with the kind of thing each must be.
     pub fn roles(&self) -> Vec<(&str, RoleKind)> {
         match self {
-            ArcEffect::Opinion { role, .. } | ArcEffect::Favour { role, .. } => {
+            ArcEffect::Opinion { role, .. }
+            | ArcEffect::Favour { role, .. }
+            | ArcEffect::Repay { role } => {
                 vec![(role.as_str(), RoleKind::Person)]
             }
+            ArcEffect::PlantRelief { place, .. } => vec![(place.as_str(), RoleKind::Place)],
             ArcEffect::Approval { area, .. }
             | ArcEffect::Recovery { area, .. }
             | ArcEffect::Displacement { area, .. }
@@ -470,7 +500,10 @@ impl ArcEffect {
     pub fn material(&self) -> bool {
         !matches!(
             self,
-            ArcEffect::Opinion { .. } | ArcEffect::Favour { .. } | ArcEffect::Heat { .. }
+            ArcEffect::Opinion { .. }
+                | ArcEffect::Favour { .. }
+                | ArcEffect::Repay { .. }
+                | ArcEffect::Heat { .. }
         )
     }
 
@@ -486,6 +519,8 @@ impl ArcEffect {
             ArcEffect::Budget { .. } => "budget",
             ArcEffect::Heat { .. } => "heat",
             ArcEffect::Learn { .. } => "learn",
+            ArcEffect::PlantRelief { .. } => "plant_relief",
+            ArcEffect::Repay { .. } => "repay",
             ArcEffect::GovApproval { .. } => "gov_approval",
             ArcEffect::PlaceState { .. } => "place_state",
         }
@@ -515,7 +550,9 @@ impl ArcCast {
             | ArcCast::Rival
             | ArcCast::Creditor => RoleKind::Person,
             ArcCast::Area { .. } => RoleKind::Area,
-            ArcCast::Place { .. } | ArcCast::Workplace { .. } => RoleKind::Place,
+            ArcCast::Place { .. } | ArcCast::Workplace { .. } | ArcCast::Plant { .. } => {
+                RoleKind::Place
+            }
             ArcCast::Jurisdiction { .. } => RoleKind::Jurisdiction,
             ArcCast::Subject => RoleKind::Subject,
         }
@@ -957,7 +994,11 @@ impl Checker<'_> {
                 ArcEffect::Heat { delta } => !(-1.0..=1.0).contains(delta),
                 ArcEffect::Budget { factor, .. } => !(0.8..=1.25).contains(factor),
                 ArcEffect::Learn { level, .. } => *level == Level::Unknown,
+                ArcEffect::PlantRelief { relief, months, .. } => {
+                    !(-0.5..=0.5).contains(relief) || *months == 0 || *months > 36
+                }
                 ArcEffect::Favour { .. }
+                | ArcEffect::Repay { .. }
                 | ArcEffect::Displacement { .. }
                 | ArcEffect::PlaceState { .. } => false,
             };
@@ -1492,6 +1533,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 ArcCast::Occupation {
                     occupations,
                     near: n,
+                    at,
                 } => {
                     if occupations.is_empty() {
                         err(issues, format!("role `{}` needs occupations", r.id));
@@ -1502,6 +1544,19 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                         }
                     }
                     near(n, issues);
+                    if let Some(p) = at {
+                        let ok = a
+                            .roles
+                            .iter()
+                            .take_while(|x| x.id != r.id)
+                            .any(|x| &x.id == p && x.cast.kind() == RoleKind::Place);
+                        if !ok {
+                            err(
+                                issues,
+                                format!("role `{}`: `at` names an earlier place role", r.id),
+                            );
+                        }
+                    }
                 }
                 ArcCast::Place { kinds, near: n } => {
                     if kinds.is_empty() {
@@ -1516,12 +1571,29 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     }
                     near(n, issues);
                 }
-                ArcCast::Area { pick, hazard } => {
+                ArcCast::Area {
+                    pick,
+                    hazard,
+                    place,
+                } => {
                     if *pick == AreaPick::MostExposed && hazard.is_none() {
                         err(
                             issues,
                             format!("role `{}`: `most_exposed` needs a hazard", r.id),
                         );
+                    }
+                    if let Some(p) = place {
+                        let ok = a
+                            .roles
+                            .iter()
+                            .take_while(|x| x.id != r.id)
+                            .any(|x| &x.id == p && x.cast.kind() == RoleKind::Place);
+                        if !ok {
+                            err(
+                                issues,
+                                format!("role `{}`: `place` names an earlier place role", r.id),
+                            );
+                        }
                     }
                 }
                 ArcCast::Workplace { of } => {
@@ -1541,6 +1613,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 | ArcCast::Rival
                 | ArcCast::Creditor
                 | ArcCast::Jurisdiction { .. }
+                | ArcCast::Plant { .. }
                 | ArcCast::Subject => {}
             }
             roles.push(&r.id);
@@ -1564,7 +1637,14 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
         for f in &a.facts {
             if let Some(p) = f.provides() {
+                // An argument named `<x>_key` is the text of that key as
+                // `$x` (the client resolves it).
+                let stems: Vec<String> = p
+                    .iter()
+                    .filter_map(|k| k.strip_suffix("_key").map(String::from))
+                    .collect();
                 provided.extend(p);
+                provided.extend(stems);
             }
         }
         let ck = Checker {

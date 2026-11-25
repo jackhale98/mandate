@@ -638,6 +638,16 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
                 );
             }
         }
+        C::BillCosts { .. } => {
+            let mut a = condition::Args::new();
+            if condition::holds(cx, c, &mut a) {
+                for (k, x) in a {
+                    put(&k, x);
+                }
+            } else {
+                put("bill", "none of theirs that a yes would cost".into());
+            }
+        }
         C::Met { slot, .. } => {
             if let (Some(p), Some(me)) = (who(slot), me) {
                 let talked = v.player().is_some_and(|pl| pl.talk.used.contains_key(&p));
@@ -778,6 +788,22 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
             }
         }
         C::LastRace { .. } | C::SponsorsBill { .. } => {}
+        // The plant as it stands (any state, no date asked).
+        C::Plant { slot, .. } => {
+            let mut a = condition::Args::new();
+            let any = C::Plant {
+                slot: slot.clone(),
+                status: Vec::new(),
+                closes_within_days: None,
+            };
+            if condition::holds(cx, &any, &mut a) {
+                for k in ["stem", "jobs", "closes_day", "closes_year"] {
+                    if let Some(x) = a.get(k) {
+                        put(k, x.clone());
+                    }
+                }
+            }
+        }
         C::BodyMajority { power, .. } => {
             if let Some(at) = cx.at {
                 let n = crate::arcs::cast::power_holders(v, at, *power).len();

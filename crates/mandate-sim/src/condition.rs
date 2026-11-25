@@ -209,6 +209,134 @@ fn in_range(v: f64, min: Option<f64>, max: Option<f64>) -> bool {
     min.is_none_or(|a| v >= a) && max.is_none_or(|z| v <= z)
 }
 
+/// `bill_costs`: the person in the slot sponsors a bill the player can
+/// still vote on, and a yes would cost the player: their ward leans
+/// against it, their party's line is against it, or a promise they hold
+/// forbids it. The first such bill in id order; the first bind that holds.
+fn bill_costs(cx: &Ctx<'_>, slot: &str, args: &mut Args) -> bool {
+    let v = cx.v;
+    let Some(p) = cx.person(slot) else {
+        return false;
+    };
+    let promises: Vec<&str> =
+        v.r.asks()
+            .asks
+            .iter()
+            .filter(|a| matches!(a.status, crate::asks::AskStatus::Accepted { .. }))
+            .flat_map(|a| a.needs.iter())
+            .filter_map(|n| match n {
+                crate::asks::Need::VoteAgainstAll { tag } => Some(tag.as_str()),
+                _ => None,
+            })
+            .collect();
+    for b in &v.r.policy().instances {
+        if b.status != PolicyStatus::UnderConsideration
+            || !b
+                .sponsor
+                .and_then(|s| v.pol.get(s))
+                .is_some_and(|s| s.character == p)
+            || !v.can_vote(b.id.0)
+        {
+            continue;
+        }
+        let bind = if v.ward_lean(b.id.0) < -0.02 {
+            Some("seat")
+        } else if v.party_line(b.id.0) < 0 {
+            Some("party")
+        } else if promises
+            .iter()
+            .any(|t| crate::asks::resolve::tagged(v.r, b.id.0, t))
+        {
+            Some("promise")
+        } else {
+            None
+        };
+        if let Some(bind) = bind {
+            if let Some(t) = v.content().policies.get(&b.template) {
+                args.insert("law_key".into(), t.name_key.clone());
+            }
+            args.insert("bind".into(), bind.into());
+            return true;
+        }
+    }
+    false
+}
+
+/// A named plant's state as content names it.
+pub fn plant_state(
+    s: &crate::economy::plants::PlantStatus,
+) -> mandate_content::condition::PlantState {
+    use crate::economy::plants::PlantStatus as P;
+    use mandate_content::condition::PlantState as S;
+    match s {
+        P::Running => S::Running,
+        P::ShortTime { .. } => S::ShortTime,
+        P::Threatened { .. } => S::Threatened,
+        P::Closed { .. } => S::Closed,
+    }
+}
+
+/// `plant` (DEC-110): the plant at a run's place role, or any plant in the
+/// jurisdiction (the first that fits, in id order), in one of the states
+/// asked for; under notice, its date close enough.
+fn plant_holds(
+    cx: &Ctx<'_>,
+    slot: Option<&str>,
+    status: &[mandate_content::condition::PlantState],
+    closes_within_days: Option<u32>,
+    args: &mut Args,
+) -> bool {
+    use crate::economy::plants::{self, PlantStatus};
+    let v = cx.v;
+    let econ = v.r.economy();
+    let world = v.r.world;
+    let today = v.date();
+    let fits = |p: &plants::Plant| {
+        (status.is_empty() || status.contains(&plant_state(&p.status)))
+            && closes_within_days.is_none_or(|d| match p.status {
+                PlantStatus::Threatened { closes_on, .. } => {
+                    closes_on <= today || today.days_until(closes_on) <= d
+                }
+                _ => false,
+            })
+    };
+    let found = match slot {
+        Some(role) => match cx.arc.and_then(|r| r.actor(role)) {
+            Some(crate::arcs::ArcActor::Place { id }) => {
+                plants::at_place(econ, id).filter(|p| fits(p))
+            }
+            _ => None,
+        },
+        None => {
+            let Some(at) = cx.at else { return false };
+            econ.plants.iter().find(|p| {
+                world
+                    .places
+                    .get(p.place.index())
+                    .is_some_and(|pl| at.contains_hood(world, pl.neighborhood))
+                    && fits(p)
+            })
+        }
+    };
+    let Some(p) = found else { return false };
+    for (k, x) in plants::text_args(econ, v.content(), p.id) {
+        args.insert(k.into(), x);
+    }
+    // A closed plant keeps its last size: the jobs that went with it.
+    let jobs = match p.status {
+        PlantStatus::Closed { .. } => p.capacity.round().max(0.0) as u32,
+        _ => plants::facts(econ, world, v.content(), p.id).map_or(0, |f| f.jobs),
+    };
+    args.insert("jobs".into(), jobs.to_string());
+    if let PlantStatus::Threatened { closes_on, .. } = p.status {
+        let c = closes_on.calendar();
+        args.insert("closes_day".into(), c.day.to_string());
+        args.insert("closes_month_key".into(), format!("month-{}", c.month));
+        args.insert("closes_year".into(), c.year.to_string());
+    }
+    true
+}
+
 /// Do all conditions hold? Collects their arguments.
 pub fn all_hold(cx: &Ctx<'_>, cs: &[Condition], args: &mut Args) -> bool {
     cs.iter().all(|c| holds(cx, c, args))
@@ -650,6 +778,7 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
         C::Favour {
             slot,
             owed_to_player,
+            is,
         } => {
             let (Some(p), Some(me)) = (cx.person(slot), cx.me()) else {
                 return false;
@@ -662,12 +791,13 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             } else {
                 characters::favours_owed(pol, me, p)
             };
-            if n == 0 {
+            if (n > 0) != *is {
                 return false;
             }
             args.insert("n".into(), n.to_string());
             true
         }
+        C::BillCosts { slot } => bill_costs(cx, slot, args),
         C::Met { slot, is } => {
             let (Some(p), Some(me)) = (cx.person(slot), cx.me()) else {
                 return false;
@@ -1040,6 +1170,11 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
                 .max_by_key(|r| r.date)
                 .is_some_and(|r| (r.winner == me) == *won)
         }
+        C::Plant {
+            slot,
+            status,
+            closes_within_days,
+        } => plant_holds(cx, slot.as_deref(), status, *closes_within_days, args),
         C::SponsorsBill { slot } => {
             let Some(p) = cx.person(slot) else {
                 return false;

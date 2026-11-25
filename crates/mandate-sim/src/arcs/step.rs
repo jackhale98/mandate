@@ -758,6 +758,26 @@ fn root_event(
     mandate_content::condition::walk(raise, &mut all);
     let mut best: Option<(EventId, SimDate)> = None;
     for c in all {
+        // A plant's review (DEC-110): the latest step of one in the town
+        // (short time, or a notice), within two years.
+        if let Condition::Plant { slot: None, .. } = c {
+            let found = log
+                .iter()
+                .rev()
+                .take_while(|e| e.date.days_until(today) <= 730 || e.date > today)
+                .find(|e| match &e.kind {
+                    EventKind::PlantShortTime { municipality, .. }
+                    | EventKind::PlantThreatened { municipality, .. } => *municipality == town,
+                    _ => false,
+                })
+                .map(|e| (e.id, e.date));
+            if let Some(f) = found
+                && best.is_none_or(|b| f.0 > b.0)
+            {
+                best = Some(f);
+            }
+            continue;
+        }
         let (months, hazard, closure) = match c {
             Condition::Disaster {
                 within_months,

@@ -1,97 +1,259 @@
-// The plant (DEC-109; DEC-032's plant-closure storyline, folded into an
-// arc): layoffs, the union's campaign, and how the town comes out of it.
+// The plant (DEC-109, DEC-110; STAGED_ARCS §7.1, EXCHANGE_SCENES §10.3): a
+// named plant in a town the player is watching goes on short time, may be
+// put under notice with a date, and is reprieved or closes by the
+// economy's own rule. The arc is the story of that review, from the first
+// short week to the gates.
 //
-// This is the storyline as it was, told as an arc from the day the town is
-// in a jobs crisis. The review at the plant (STAGED_ARCS §7.1: signs, a
-// notice, a decision date the economy owns) replaces it when the plant has a
-// fuse (task A5a).
+// Raised by the review itself: a plant of the town on short time or under
+// notice (`plant`). The cast comes from live state: the plant furthest on
+// in its review (`site`), its steward and its manager (people whose own
+// workplace it is first), its district (`hood`) and a hall near it.
 //
-// Transitions read; beats write. The edges read the town's job losses
-// (`indicator`), the laws in force, and the run's marks and days. Marks:
-// `with_owner`, `with_workers`, `brokered` (where the player stood at the
-// layoffs), `marched`, `spoke` (the union's campaign).
+// Transitions read; beats write. The edges read the plant's state as the
+// economy keeps it (short time, a notice and its date, a reprieve, the
+// closure), the laws in force, and the run's marks. Nothing a player picks
+// names a stage. What the player can push on is real: the steward's
+// concession and the manager's case are relief on the plant's margin
+// (`plant_relief`, applied by the economy), a law for the plant's industry
+// or for those laid off is a law; whether that is enough is the economy's
+// rule, so the same play saves one plant and not another.
 //
-// Stage ids are the storyline's (`layoffs`, `walkout`, `organising`, and the
-// ending `resolution`), so a save from before the fold loads at the same
-// stage.
+// The turn is played (DEC-112): with the date near, the steward calls the
+// members to the hall, and the player faces them there, a hostile meeting
+// of three rounds whose temper is the run's heat. Standing at the gate in
+// the weeks before means the room knows them (round 1 is not cold).
+//
+// Marks: `toured` (shown round), `need` (the manager said what it would
+// take), `at_gate`, `with_owner`, `with_workers`, `table` (where the player
+// stood at the notice), `conceded` (the steward carries short time),
+// `offered` (the manager makes the case), `balloted` (the line stopped);
+// from the meeting `tabled` and its ends `meeting_won`, `meeting_split`,
+// `meeting_lost`, `stayed_away`.
+//
+// A run of the arc as it was before (stages `layoffs`, `walkout`,
+// `organising`) ends where it stands when a save loads: its stages are gone.
 {
   "kind": "arcs",
   "items": [
     {
       "id": "arc.plant_closure", "title_key": "arc-plant", "themes": ["crisis"],
-      // A town's matter: `crisis`, `indicator` and `law_in_force` read a town.
-      "tiers": ["local"], "cooldown_days": 1095,
-      "raise": [ { "type": "crisis", "kind": "crisis.plant_closure", "min_severity": 0.05 } ],
+      // A town's matter: `law_in_force` reads a town.
+      "tiers": ["local"], "cooldown_days": 730,
+      "raise": [ { "type": "plant", "status": ["short_time", "threatened"] } ],
       "roles": [
-        { "id": "steward", "cast": { "type": "occupation", "occupations": ["occupation.union_steward", "occupation.organiser"] } },
-        { "id": "owner", "cast": { "type": "occupation", "occupations": ["occupation.plant_manager", "occupation.business_leader"] } },
-        { "id": "hood", "cast": { "type": "area", "pick": "least_pleased" } },
+        { "id": "site", "cast": { "type": "plant", "status": ["short_time", "threatened"] } },
+        { "id": "steward", "cast": { "type": "occupation", "at": "site",
+            "occupations": ["occupation.shop_steward", "occupation.union_steward", "occupation.organiser"] } },
+        { "id": "owner", "cast": { "type": "occupation", "at": "site",
+            "occupations": ["occupation.plant_manager", "occupation.business_leader"] } },
+        { "id": "hood", "cast": { "type": "area", "pick": "least_pleased", "place": "site" } },
+        { "id": "hall", "cast": { "type": "place", "kinds": ["union_hall", "community_centre", "town_hall"], "near": "hood" } },
       ],
+      "facts": [ { "type": "plant", "slot": "site" } ],
       "sides": { "ally": "steward", "opponent": "owner" },
-      "heat": { "start": 0.3, "floor": { "indicator": "job_loss", "scale": 4.0 } },
-      "answers": ["policy.closure_response", "policy.hardship_fund"],
+      "heat": { "start": 0.15, "floor": { "indicator": "job_loss", "scale": 4.0 } },
+      "answers": ["policy.closure_response", "policy.hardship_fund", "policy.small_business_grants"],
       "stages": [
-        // The layoffs begin, and both sides come looking for allies.
-        { "id": "layoffs", "key": "arc-plant-layoffs", "rise": 0.03,
+        // Signs: the hours are cut, and nobody has said why. Asking now is
+        // cheap and quiet.
+        { "id": "short_time", "key": "arc-plant-short-time", "hidden": true,
           "beats": [
-            { "id": "press", "type": "press", "headline_key": "headline-arc-plant-layoffs" },
-            { "id": "sides", "type": "decision", "dilemma": "dilemma.plant_layoffs", "weight": "significant",
+            { "id": "hours", "type": "heard", "line": "overheard.plant.hours" },
+            { "id": "tour", "type": "visit", "at": "site", "time": "half", "sets": "toured",
+              "verb_key": "visit-arc-plant-tour", "outcome_key": "outcome-arc-plant-tour",
+              "effects": [ { "type": "learn", "role": "owner", "level": "known" } ] },
+            { "id": "need", "type": "talk", "with": "owner",
+              "choice": { "label_key": "talk-arc-plant-need", "say_key": "talk-arc-plant-need-say",
+                "replies": [
+                  { "key": "talk-arc-plant-need-yes", "agrees": true, "sets": "need",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "trust", "slot": "speaker", "min": 0.5 },
+                      { "type": "opinion", "slot": "speaker", "min": 10 },
+                      { "type": "arc_mark", "mark": "toured" } ] } ],
+                    "effects": [ { "type": "learn", "role": "owner", "level": "detailed" } ] },
+                  { "key": "talk-arc-plant-need-no" } ] } },
+          ],
+          "next": [
+            { "to": "notice", "when": [ { "type": "plant", "slot": "site", "status": ["threatened"] } ] },
+            { "to": "scare", "when": [ { "type": "plant", "slot": "site", "status": ["running"] } ] },
+            { "to": "scare", "after_days": 540 } ] },
+
+        // The break: a notice with a date. Where the player stands, who
+        // they stand next to, and what can be put on the table.
+        { "id": "notice", "key": "arc-plant-notice", "rise": 0.04,
+          "beats": [
+            { "id": "press", "type": "press", "headline_key": "headline-arc-plant-notice" },
+            { "id": "gate", "type": "visit", "at": "site", "sets": "at_gate", "relief": 0.05,
+              "verb_key": "visit-arc-plant-gate", "outcome_key": "outcome-arc-plant-gate",
+              "effects": [
+                { "type": "opinion", "role": "steward", "delta": 8, "memory": "stood_with_me" },
+                { "type": "approval", "area": "hood", "delta": 0.01, "classes": [0] } ] },
+            { "id": "stand", "type": "decision", "dilemma": "dilemma.plant_layoffs", "weight": "significant",
               "on": {
-                "back_owner": { "sets": "with_owner", "heat": 0.15 },
+                "back_owner": { "sets": "with_owner", "heat": 0.1 },
                 "back_workers": { "sets": "with_workers" },
-                "broker_talks": { "sets": "brokered", "heat": -0.15 },
+                "broker_talks": { "sets": "table", "heat": -0.1 },
                 "stay_out": { "heat": 0.05 } } },
+            { "id": "need", "type": "talk", "with": "owner",
+              "when": [ { "type": "arc_mark", "mark": "need", "is": false } ],
+              "choice": { "label_key": "talk-arc-plant-need", "say_key": "talk-arc-plant-need-say",
+                "replies": [
+                  { "key": "talk-arc-plant-need-yes", "agrees": true, "sets": "need",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "trust", "slot": "speaker", "min": 0.5 },
+                      { "type": "opinion", "slot": "speaker", "min": 10 },
+                      { "type": "arc_mark", "mark": "table" } ] } ],
+                    "effects": [ { "type": "learn", "role": "owner", "level": "detailed" } ] },
+                  { "key": "talk-arc-plant-need-no" } ] } },
+            // Short time from the floor, carried by the steward: relief on
+            // the plant's margin while it lasts. They carry it for someone
+            // who was at the gate, or whom they trust.
+            { "id": "short", "type": "talk", "with": "steward",
+              "choice": { "label_key": "talk-arc-plant-short", "say_key": "talk-arc-plant-short-say",
+                "replies": [
+                  { "key": "talk-arc-plant-short-yes", "agrees": true, "sets": "conceded",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "arc_mark", "mark": "at_gate" },
+                      { "type": "arc_mark", "mark": "table" },
+                      { "type": "trust", "slot": "speaker", "min": 0.5 },
+                      { "type": "opinion", "slot": "speaker", "min": 15 } ] } ],
+                    "effects": [ { "type": "plant_relief", "place": "site", "relief": 0.08, "months": 12 } ] },
+                  { "key": "talk-arc-plant-short-no" } ] } },
+            // The manager makes the case for keeping it, with something to
+            // show: the floor's concession, or a law for the plant.
+            { "id": "case", "type": "talk", "with": "owner",
+              "choice": { "label_key": "talk-arc-plant-case", "say_key": "talk-arc-plant-case-say",
+                "replies": [
+                  { "key": "talk-arc-plant-case-yes", "agrees": true, "sets": "offered",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "arc_mark", "mark": "conceded" },
+                      { "type": "law_in_force", "templates": ["policy.closure_response", "policy.small_business_grants"] } ] } ],
+                    "effects": [ { "type": "plant_relief", "place": "site", "relief": 0.08, "months": 12 } ] },
+                  { "key": "talk-arc-plant-case-no" } ] } },
+            // With nobody at the table, the steward stops the line.
+            { "id": "ballot", "type": "move", "actor": "steward", "weight": 0.5, "sets": "balloted",
+              "line_key": "skip-item-arc-plant-ballot",
+              "when": [ { "type": "arc_days", "min": 21 }, { "type": "arc_heat", "min": 0.4 },
+                { "type": "arc_mark", "mark": "table", "is": false }, { "type": "arc_mark", "mark": "conceded", "is": false } ],
+              "effects": [
+                { "type": "heat", "delta": 0.1 },
+                { "type": "plant_relief", "place": "site", "relief": -0.04, "months": 2 } ] },
           ],
           "next": [
-            { "to": "walkout", "when": [ { "type": "arc_mark", "mark": "with_owner" } ], "after_days": 21 },
-            { "to": "organising", "after_days": 30 } ] },
+            { "to": "reprieved", "when": [ { "type": "plant", "slot": "site", "status": ["short_time", "running"] } ] },
+            { "to": "closed", "when": [ { "type": "plant", "slot": "site", "status": ["closed"] } ] },
+            { "to": "hall", "when": [ { "type": "plant", "slot": "site", "closes_within_days": 45 } ] },
+            { "to": "hall", "after_days": 300 } ] },
 
-        // With the player on the owner's side, the steward calls a walkout.
-        { "id": "walkout", "key": "arc-plant-walkout", "rise": 0.05,
-          "enter": [ { "type": "approval", "area": "hood", "delta": -0.01, "classes": [0] } ],
-          "next": [ { "to": "organising", "after_days": 30 } ] },
-
-        // The turn: the laid-off workers organise, and want the player seen
-        // with them.
-        // (No weekly rise: the stage may last two years, and the job losses
-        // are its floor.)
-        { "id": "organising", "key": "arc-plant-organising", "climax": true,
+        // The turn: the steward has the members at the hall before the
+        // date, and the player is expected. The clock is the meeting's
+        // night; staying away is an empty chair the members remember.
+        { "id": "hall", "key": "arc-plant-hall", "climax": true, "rise": 0.03,
+          "clock": { "days": [7, 14] },
           "beats": [
-            { "id": "campaign", "type": "decision", "dilemma": "dilemma.workers_campaign", "weight": "climax",
-              "on": {
-                "march": { "sets": "marched", "heat": -0.1 },
-                "statement": { "sets": "spoke" },
-                "decline": { "heat": 0.1 } } },
+            { "id": "meeting", "type": "exchange", "once": true,
+              "at": "hall", "time": "slot",
+              "sides": { "other": "steward" },
+              "layout": "crowd",
+              "audience": [
+                // The plant's district by income class, and the steward.
+                { "from": "classes", "of": "site", "start": "approval" },
+                { "from": "person", "role": "steward", "start": "opinion" } ],
+              "temper": { "reads": "heat", "drag": 0.5 },
+              "rounds": 3,
+              "prompts": [
+                { "round": 1, "from": ["absent", "broken_promise", "top_worry"] },
+                { "round": 2, "from": ["governing_record", "failed_law", "top_worry"] },
+                { "round": 3, "from": ["top_worry"] } ],
+              "moves": ["record", "heard", "act", "own", "offer", "pass"],
+              "prep": [ { "mark": "at_gate", "removes": "cold" } ],
+              "outcome": {
+                "won": { "sets": "meeting_won", "heat": -0.25 },
+                "split": { "sets": "meeting_split", "heat": -0.10 },
+                "lost": { "sets": "meeting_lost", "heat": 0.10 },
+                "absent": { "sets": "stayed_away", "heat": 0.20,
+                  "effects": [ { "type": "opinion", "role": "steward", "delta": -8, "memory": "ignored_me" } ] } },
+              "text": "exchange-plant" },
+            // What was not put on the table before can still be.
+            { "id": "case", "type": "talk", "with": "owner",
+              "when": [ { "type": "arc_mark", "mark": "offered", "is": false } ],
+              "choice": { "label_key": "talk-arc-plant-case", "say_key": "talk-arc-plant-case-say",
+                "replies": [
+                  { "key": "talk-arc-plant-case-yes", "agrees": true, "sets": "offered",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "arc_mark", "mark": "conceded" },
+                      { "type": "law_in_force", "templates": ["policy.closure_response", "policy.small_business_grants"] } ] } ],
+                    "effects": [ { "type": "plant_relief", "place": "site", "relief": 0.08, "months": 12 } ] },
+                  { "key": "talk-arc-plant-case-no" } ] } },
           ],
           "next": [
-            { "to": "answered", "after_days": 60, "when": [
-                { "type": "indicator", "indicator": "job_loss", "max": 0.01 },
+            { "to": "reprieved", "when": [ { "type": "plant", "slot": "site", "status": ["short_time", "running"] } ] },
+            { "to": "answered", "when": [ { "type": "plant", "slot": "site", "status": ["closed"] },
                 { "type": "law_in_force", "templates": ["policy.closure_response", "policy.hardship_fund"] } ] },
-            { "to": "resolution", "after_days": 60, "when": [ { "type": "indicator", "indicator": "job_loss", "max": 0.01 } ] },
-            { "to": "gone", "after_days": 720 } ] },
+            { "to": "closed", "when": [ { "type": "plant", "slot": "site", "status": ["closed"] } ] },
+            { "to": "eve", "clock_within_days": 0 } ] },
 
-        // The losses slowed, and the town had voted something for those laid off.
+        // The last weeks of the notice: the economy decides.
+        { "id": "eve", "key": "arc-plant-eve",
+          "beats": [
+            { "id": "gate", "type": "visit", "at": "site", "sets": "at_gate",
+              "when": [ { "type": "arc_mark", "mark": "at_gate", "is": false } ],
+              "verb_key": "visit-arc-plant-gate", "outcome_key": "outcome-arc-plant-gate",
+              "effects": [ { "type": "opinion", "role": "steward", "delta": 4 } ] },
+          ],
+          "next": [
+            { "to": "reprieved", "when": [ { "type": "plant", "slot": "site", "status": ["short_time", "running"] } ] },
+            { "to": "answered", "when": [ { "type": "plant", "slot": "site", "status": ["closed"] },
+                { "type": "law_in_force", "templates": ["policy.closure_response", "policy.hardship_fund"] } ] },
+            { "to": "closed", "when": [ { "type": "plant", "slot": "site", "status": ["closed"] } ] },
+            // The economy closes a plant on its date or lifts the notice
+            // before it: this edge is never taken in a world that runs.
+            { "to": "closed", "after_days": 400 } ] },
+
+        // The notice was lifted before the date. Who put something on the
+        // table is remembered.
+        { "id": "reprieved", "key": "arc-plant-reprieved",
+          "exit": { "headline_key": "headline-arc-plant-reprieved", "legacy_key": "legacy-arc-plant-reprieved", "effects": [
+            { "type": "approval", "area": "hood", "delta": 0.01, "classes": [0] },
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "conceded" }, { "type": "arc_mark", "mark": "offered" } ] } ],
+              "type": "record", "delta": 0.04 },
+            { "when": [ { "type": "arc_mark", "mark": "offered" } ], "type": "favour", "role": "owner", "owed_to_player": true },
+            { "when": [ { "type": "arc_mark", "mark": "conceded" } ], "type": "opinion", "role": "steward", "delta": 6 } ] } },
+        // Hours came back before any notice: nobody was told how close it was.
+        { "id": "scare", "key": "arc-plant-scare",
+          "exit": { "effects": [
+            { "when": [ { "type": "arc_mark", "mark": "need" } ], "type": "record", "delta": 0.01 },
+            { "when": [ { "type": "arc_mark", "mark": "need" } ], "type": "opinion", "role": "owner", "delta": 4 } ] } },
+        // Closed, with help for those laid off in force.
         { "id": "answered", "key": "arc-plant-answered",
-          "exit": { "effects": [
-            { "type": "approval", "area": "hood", "delta": 0.02, "classes": [0] },
-            { "when": [ { "type": "arc_mark", "mark": "with_workers" } ], "type": "record", "delta": 0.04 },
-            { "when": [ { "type": "arc_mark", "mark": "marched" } ], "type": "opinion", "role": "steward", "delta": 6 } ] } },
-        // The losses slowed. The town remembers who stood where.
-        { "id": "resolution", "key": "arc-plant-resolution",
-          "exit": { "effects": [
-            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "marched" }, { "type": "arc_mark", "mark": "spoke" } ] } ],
-              "type": "approval", "area": "hood", "delta": 0.01, "classes": [0] },
-            { "when": [ { "type": "arc_mark", "mark": "brokered" } ], "type": "record", "delta": 0.02 },
-            { "unless": [ { "type": "any", "of": [
-                { "type": "arc_mark", "mark": "marched" }, { "type": "arc_mark", "mark": "spoke" },
-                { "type": "arc_mark", "mark": "brokered" }, { "type": "arc_mark", "mark": "with_workers" } ] } ],
-              "type": "approval", "area": "hood", "delta": -0.02, "classes": [0] } ] } },
-        // Two years on, the jobs have not come back.
-        { "id": "gone", "key": "arc-plant-gone",
-          "exit": { "effects": [
-            { "type": "approval", "area": "hood", "delta": -0.02 },
-            { "unless": [ { "type": "arc_mark", "mark": "marched" } ], "type": "opinion", "role": "steward", "delta": -6, "memory": "ignored_me" } ] } },
+          "exit": { "headline_key": "headline-arc-plant-closed", "legacy_key": "legacy-arc-plant-answered", "effects": [
+            { "type": "approval", "area": "hood", "delta": 0.01, "classes": [0] },
+            { "when": [ { "type": "arc_mark", "mark": "tabled" } ], "type": "record", "delta": 0.04 },
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "meeting_won" }, { "type": "arc_mark", "mark": "meeting_split" } ] } ],
+              "type": "approval", "area": "hood", "delta": 0.01 },
+            { "when": [ { "type": "arc_mark", "mark": "at_gate" } ], "type": "opinion", "role": "steward", "delta": 6 },
+            { "when": [ { "type": "arc_mark", "mark": "with_workers" } ], "type": "opinion", "role": "steward", "delta": 4 },
+            { "when": [ { "type": "arc_mark", "mark": "stayed_away" } ], "type": "approval", "area": "hood", "delta": -0.02, "classes": [0] } ] } },
+        // Closed, and nothing. The district remembers who was at the gate.
+        { "id": "closed", "key": "arc-plant-closed",
+          "exit": { "headline_key": "headline-arc-plant-closed", "effects": [
+            { "unless": [ { "type": "arc_mark", "mark": "at_gate" } ], "type": "approval", "area": "hood", "delta": -0.03 },
+            { "unless": [ { "type": "arc_mark", "mark": "at_gate" } ], "type": "opinion", "role": "steward", "delta": -10, "memory": "ignored_me" },
+            { "when": [ { "type": "arc_mark", "mark": "at_gate" } ], "type": "opinion", "role": "steward", "delta": 4 },
+            // Who sided with whom, and a line stopped, are remembered.
+            { "when": [ { "type": "arc_mark", "mark": "with_owner" } ], "type": "opinion", "role": "owner", "delta": 4 },
+            { "when": [ { "type": "arc_mark", "mark": "balloted" } ], "type": "opinion", "role": "owner", "delta": -4 },
+            { "when": [ { "type": "arc_mark", "mark": "meeting_lost" } ], "type": "opinion", "role": "steward", "delta": -4 },
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "meeting_won" }, { "type": "arc_mark", "mark": "meeting_split" } ] } ],
+              "type": "record", "delta": 0.01 },
+            { "when": [ { "type": "arc_mark", "mark": "stayed_away" } ], "type": "approval", "area": "hood", "delta": -0.02, "classes": [0] } ] } },
       ],
     },
+  ],
+
+  // Heard at the works while its hours are cut.
+  "overheard": [
+    { "id": "overheard.plant.hours", "key": "heard-plant-hours", "weight": 1.5,
+      "when": [ { "type": "arc", "arc": "arc.plant_closure", "stages": ["short_time"], "here": "site" } ] },
   ],
 }

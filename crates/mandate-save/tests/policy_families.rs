@@ -273,7 +273,14 @@ fn families_are_deterministic_and_survive_save_load() {
 #[test]
 fn v23_and_v24_saves_migrate() {
     // The base pack (no families): the migrated state is the same state.
-    let base = Arc::new(load(&base_sources()).unwrap().0);
+    // A v23 or v24 save holds no arc (arcs came with v27): no arc content,
+    // so none is raised in the first months (a plant on short time raises
+    // one).
+    let base = {
+        let mut b = load(&base_sources()).unwrap().0;
+        b.arcs.clear();
+        Arc::new(b)
+    };
     let mut e = game(&base, 5);
     months(&mut e, 2);
     let mut v =
@@ -292,7 +299,12 @@ fn v23_and_v24_saves_migrate() {
     assert_eq!(st.hash(), e.state_hash());
     // With families: a v23 run has none; the decks are drawn on load
     // (keyed: as a fresh start would) and proposals open at the next pass.
-    let c = content();
+    // No arc content either, as above.
+    let c = {
+        let mut b = (*content()).clone();
+        b.arcs.clear();
+        Arc::new(b)
+    };
     let mut e = game(&c, 5);
     months(&mut e, 2);
     let deck = e.state().policy.families.decks.clone();

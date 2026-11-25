@@ -87,7 +87,7 @@ pub fn raises_taxes(r: &Reads<'_>, policy: u32) -> bool {
 }
 
 /// A bill has a tag (`against_all`).
-fn tagged(r: &Reads<'_>, policy: u32, tag: &str) -> bool {
+pub(crate) fn tagged(r: &Reads<'_>, policy: u32, tag: &str) -> bool {
     tag == mandate_content::asks::TAG_TAX_RISE && raises_taxes(r, policy)
 }
 

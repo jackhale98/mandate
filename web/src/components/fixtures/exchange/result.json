@@ -25,6 +25,7 @@
       "rival_role_key": "role-candidate",
       "second": "Flora Achter",
       "town": "Norton",
+      "ward": "Norton",
       "weeks": "3",
       "year": "2020"
     }
@@ -51,6 +52,7 @@
       "rival_role_key": "role-candidate",
       "second": "Flora Achter",
       "town": "Norton",
+      "ward": "Norton",
       "weeks": "3",
       "year": "2020"
     }
@@ -77,6 +79,7 @@
       "rival_role_key": "role-candidate",
       "second": "Flora Achter",
       "town": "Norton",
+      "ward": "Norton",
       "weeks": "3",
       "year": "2020"
     }
@@ -101,6 +104,7 @@
     "rival_role_key": "role-candidate",
     "second": "Flora Achter",
     "town": "Norton",
+    "ward": "Norton",
     "weeks": "3",
     "year": "2020"
   },
@@ -279,7 +283,7 @@
           "points": -4
         }
       ],
-      "event": 2095
+      "event": 2098
     },
     {
       "round": 2,
@@ -307,7 +311,7 @@
           "points": -5
         }
       ],
-      "event": 2097
+      "event": 2100
     },
     {
       "round": 3,
@@ -335,7 +339,7 @@
           "points": 4
         }
       ],
-      "event": 2099
+      "event": 2102
     }
   ],
   "result": {
@@ -363,6 +367,7 @@
         "rival_role_key": "role-candidate",
         "second": "Flora Achter",
         "town": "Norton",
+        "ward": "Norton",
         "weeks": "3",
         "year": "2020"
       }
@@ -389,6 +394,7 @@
         "rival_role_key": "role-candidate",
         "second": "Flora Achter",
         "town": "Norton",
+        "ward": "Norton",
         "weeks": "3",
         "year": "2020"
       }
@@ -505,6 +511,6 @@
         }
       }
     ],
-    "event": 2100
+    "event": 2103
   }
 }

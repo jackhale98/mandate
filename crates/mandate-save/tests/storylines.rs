@@ -191,7 +191,7 @@ fn a_save_with_running_storylines_loads_at_the_matching_stages_and_plays_on() {
         .expect("the rival's run");
     assert!(rival.has_mark("pact"), "{rival:?}");
     assert!(
-        ["pact", "showdown"].contains(&rival.stage.as_str()),
+        ["pact", "lead_up", "showdown"].contains(&rival.stage.as_str()),
         "{rival:?}"
     );
     // To the end of the campaign and past it: the rival's arc ends at an

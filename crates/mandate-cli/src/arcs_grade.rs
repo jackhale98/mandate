@@ -108,8 +108,8 @@ pub const UNVISITED: &[(&str, &str, &str)] = &[
     ),
     (
         "arc.favour_debt",
-        "*",
-        "its cast needs someone the player owes a favour; a debt comes from an act of the player's that no stand-in takes (a traded favour), and the lab has no intervention that plants one",
+        "deferred",
+        "needs the call to come (a creditor's bill that a yes would cost the player: in 1 of 16 worlds on 2026-11-25) and the creditor to agree to wait (opinion 20, trust 0.6 or a kept promise remembered); the lab plants the debt (`Intervention::Favour`), not the bill",
     ),
 ];
 
@@ -127,11 +127,30 @@ pub fn unvisited_reason(arc: &str, stage: &str) -> Option<&'static str> {
 /// graded hold a small closure, a middling one and a grave one.
 pub const PLANT_SEVERITY: f64 = 0.9;
 pub const PLANT_SHARES: [f64; 3] = [0.15, 0.3, 0.5];
+/// A planted fall in demand for a plant's industry (DEC-110), by seed: a
+/// mild one (short time, and hours back when it passes), a middling one (a
+/// notice a rescue can lift) and a grave one (a notice nothing short of the
+/// market lifts); and how long it lasts, so a notice falls inside it.
+pub const PLANT_FACTORS: [f64; 3] = [0.85, 0.72, 0.6];
+pub const PLANT_SHOCK_MONTHS: u16 = 30;
 
 /// The lab's intervention that plants a template's cause in a town, if
-/// its `raise` reads one the lab can plant.
+/// its `raise` reads one the lab can plant, or its cast needs a debt of
+/// the player's (a favour owed: the act of a player's that leaves one).
 pub fn plant(def: &ArcDef, town: u32, seed: u64) -> Option<Intervention> {
+    if def
+        .roles
+        .iter()
+        .any(|r| !r.optional && matches!(r.cast, mandate_content::arcs::ArcCast::Creditor))
+    {
+        return Some(Intervention::Favour { town });
+    }
     def.raise.iter().find_map(|c| match c {
+        Condition::Plant { slot: None, .. } => Some(Intervention::PlantShock {
+            town,
+            factor: PLANT_FACTORS[(seed % PLANT_FACTORS.len() as u64) as usize],
+            months: PLANT_SHOCK_MONTHS,
+        }),
         Condition::Disaster { hazard, .. } => Some(Intervention::Disaster {
             town,
             hazard: hazard

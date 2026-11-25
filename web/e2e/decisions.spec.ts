@@ -5,7 +5,9 @@ import { openPocket, pocketMenu } from "./pocket";
 // pocket with a badge, opened from there, answered (each option shows its
 // trade-offs), and its aftermath explains what happened (DEC-073, DEC-079).
 
-test("a dilemma is opened from the pocket, answered, and explained", async ({ page }) => {
+test("a dilemma is opened from the pocket, answered, and explained", async ({
+  page,
+}) => {
   test.setTimeout(120_000);
   await page.goto("./");
   await page.getByPlaceholder("e.g. 20260").fill("777");
@@ -13,7 +15,15 @@ test("a dilemma is opened from the pocket, answered, and explained", async ({ pa
   await page.getByRole("button", { name: "Begin" }).click();
   await expect(page.getByTestId("town")).toBeVisible();
   // Play until the director spotlights a decision (a few turns): the bar's count rises and "Needs you" lists it.
-  const decisionWaits = async () => (await page.getByTestId("needs-badge").count()) > 0 && (await (await openPocket(page)).locator("[data-need='decision']").count()) > 0;
+  // The pocket asks for its rows when it opens: wait for them before counting
+  // (counting an empty list ended one turn too many, and a decision due in
+  // that turn was settled by its default, 2026-11-25).
+  const decisionWaits = async () => {
+    if ((await page.getByTestId("needs-badge").count()) === 0) return false;
+    const pocket = await openPocket(page);
+    await expect(pocket.locator("[data-need]").first()).toBeVisible();
+    return (await pocket.locator("[data-need='decision']").count()) > 0;
+  };
   for (let turn = 1; turn <= 10; turn++) {
     if (await decisionWaits()) break;
     if ((await page.getByTestId("pocket").count()) > 0) {
@@ -21,7 +31,11 @@ test("a dilemma is opened from the pocket, answered, and explained", async ({ pa
       await expect(page.getByTestId("pocket")).toHaveCount(0);
     }
     await page.getByRole("button", { name: "End turn" }).click();
-    await expect(page.getByText(`Turn ${turn}`, { exact: false }).first()).toBeVisible();
+    await expect(
+      page.getByText(`Turn ${turn}`, { exact: false }).first(),
+    ).toBeVisible();
+    // The pocket and desk refresh before the button is free again.
+    await expect(page.getByTestId("end-turn")).toBeEnabled();
   }
   await expect(page.getByTestId("needs-badge")).toBeVisible();
   const pocket = await openPocket(page);
@@ -34,9 +48,13 @@ test("a dilemma is opened from the pocket, answered, and explained", async ({ pa
   const sheet = page.getByTestId("decision-sheet");
   await expect(sheet).toBeVisible();
   // Let the sheet finish sliding in before scrolling inside it (slow CI runners).
-  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+  await sheet.evaluate((el) =>
+    Promise.all(el.getAnimations().map((a) => a.finished)),
+  );
   await expect(sheet.getByTestId("decision-situation")).not.toBeEmpty();
-  await expect(sheet.getByTestId("decision-deadline")).toContainText("Decide by");
+  await expect(sheet.getByTestId("decision-deadline")).toContainText(
+    "Decide by",
+  );
   // Every option states what it costs before the player commits.
   const options = sheet.getByTestId("decision-options");
   await expect(options.getByText("Costs").first()).toBeVisible();

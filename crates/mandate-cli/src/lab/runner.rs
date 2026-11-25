@@ -135,6 +135,16 @@ pub enum Intervention {
         factor: f64,
         months: u16,
     },
+    /// A fall in demand for the industry of the town's largest open plant
+    /// that can close (DEC-110), in that town: what puts a plant on short
+    /// time and, held long enough, under notice. An `IndustryShock` once the
+    /// plant is found; nothing where the town has none.
+    PlantShock { town: u32, factor: f64, months: u16 },
+    /// The player owes one favour to a holder of a post at the town (the
+    /// lab's: a debt a player's own act would leave, such as a vote traded
+    /// for support): whoever sponsors the most bills, then the lowest
+    /// id. Nothing without a player.
+    Favour { town: u32 },
     /// A hazard strikes the town at the next monthly hazard step.
     Disaster {
         town: u32,
@@ -548,6 +558,68 @@ impl Game {
                         }
                     }
                 });
+            }
+            Intervention::PlantShock {
+                town,
+                factor,
+                months,
+            } => {
+                town_ok(*town)?;
+                use mandate_sim::economy::plants;
+                let st = self.e.state();
+                let industry =
+                    plants::of_town(&st.economy, mandate_sim::world::MunicipalityId(*town))
+                        .filter(|p| p.is_open())
+                        .filter(|p| {
+                            content
+                                .industry(&p.industry)
+                                .is_some_and(|d| d.plants.closes)
+                        })
+                        .max_by(|a, b| a.capacity.total_cmp(&b.capacity).then(b.id.cmp(&a.id)))
+                        .map(|p| p.industry.to_string());
+                if let Some(industry) = industry {
+                    self.intervene(&Intervention::IndustryShock {
+                        town: Some(*town),
+                        industry,
+                        factor: *factor,
+                        months: *months,
+                    })?;
+                }
+            }
+            Intervention::Favour { town } => {
+                town_ok(*town)?;
+                let st = self.e.state();
+                let Some(me) = st.player.as_ref().map(|p| p.politician) else {
+                    return Ok(());
+                };
+                let pol = &st.politics;
+                let mine = pol.get(me).map(|p| p.character);
+                let sponsored = |id: mandate_sim::politics::PoliticianId| {
+                    st.policy
+                        .instances
+                        .iter()
+                        .filter(|i| i.sponsor == Some(id))
+                        .count()
+                };
+                let creditor = pol
+                    .politicians
+                    .iter()
+                    .filter(|p| !p.is_player && p.id != me && p.municipality() == *town)
+                    .filter(|p| p.role.post().is_some())
+                    .max_by(|a, b| sponsored(a.id).cmp(&sponsored(b.id)).then(b.id.cmp(&a.id)))
+                    .map(|p| p.character);
+                if let (Some(me), Some(c)) = (mine, creditor) {
+                    self.e.setup(|st| {
+                        mandate_sim::characters::owe(
+                            &mut st.politics,
+                            me,
+                            c,
+                            "favour-lab",
+                            None,
+                            date,
+                        )
+                    });
+                }
             }
             Intervention::Disaster {
                 town,

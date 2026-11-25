@@ -1,13 +1,40 @@
-// The favour (DEC-109; DEC-032's favour-debt storyline, folded into an arc):
-// the player owes someone, is reminded of it, and is asked to pay it back
-// with a vote on that person's own bill.
+// The favour (DEC-109; DEC-032's favour-debt storyline, folded into an arc;
+// EXCHANGE_SCENES §10.2): the player owes someone, is reminded of it, and
+// is asked to pay it back with a vote on that person's own bill, at a
+// moment when the vote would cost them.
 //
 // Raised by the debt itself: there is no condition on the town, only on
 // who the cast binds to (`given`: the player owes the creditor a favour).
+// Debts come from play: a vote traded for support, a colleague who backed
+// the player without much warmth, a backer who spoke for them in a debate,
+// an official who sent a crew after a flood.
 //
-// Transitions read; beats write. The edges read the debt (`favour`), whether
-// the creditor has a bill the player can vote on (`sponsors_bill`), and the
-// run's marks. Marks: `paid`, `refused`, `dodged` (the answer to the call).
+// The bind is taken from live state (`bill_costs`): the call comes only
+// when the creditor sponsors a bill the player can still vote on and a yes
+// would cost them (their seat leans against it, their party's line is
+// against it, or a promise they gave forbids it). A bill that costs
+// nothing is paid by an ordinary vote (a yes on a creditor's bill repays a
+// favour), and the run ends at *repaid* with no turn.
+//
+// The turn is played with the game's own verbs, never a yes or no: pay in
+// another coin (a statement for the bill in public, which the creditor asks
+// for if they think well enough of the player), find another vote (a
+// colleague who gives the creditor theirs, and is owed for it), ask for
+// time, say what the vote would cost, or cast the vote with the command
+// that exists. The negotiation table of EXCHANGE_SCENES §2.4 (conditional
+// offers struck as a deal, watchers who hear of it) is not built; these
+// beats are its parts as the game has them today.
+//
+// Transitions read; beats write. The edges read the debt (`favour`), the
+// bind (`bill_costs`), the clock and the run's marks. Marks: `stated`
+// (paid with a statement), `covered`
+// (another vote found), `waited` (they agreed to wait), `explained` (the
+// player said what it would cost).
+//
+// What other members learn: the two colleagues cast (one of the player's
+// party, one of another) think better of a debt paid and worse of one
+// burned; lobbying and asks for support read their opinion of the player,
+// so how this debt is treated changes what the next favour costs.
 //
 // Stage ids are the storyline's (`debt`, `reminder`, `called_in`, and the
 // endings `repaid` and `burned`), so a save from before the fold loads at
@@ -18,55 +45,148 @@
     {
       "id": "arc.favour_debt", "title_key": "arc-favour", "themes": ["scheme"],
       // The debt is to someone in the town.
-      "tiers": ["local"], "cooldown_days": 365,
+      "tiers": ["local"], "cooldown_days": 180,
       "raise": [],
-      "roles": [ { "id": "creditor", "cast": { "type": "creditor" } } ],
+      "roles": [
+        { "id": "creditor", "cast": { "type": "creditor" } },
+        { "id": "colleague", "optional": true, "cast": { "type": "post", "power": "approve_ordinance", "party": "same" } },
+        { "id": "other", "optional": true, "cast": { "type": "post", "power": "approve_ordinance", "party": "other" } },
+      ],
       "given": [ { "type": "favour", "slot": "creditor" } ],
+      "facts": [ { "type": "bill_costs", "slot": "creditor" } ],
+      "sides": { "ally": "colleague", "opponent": "creditor" },
       "heat": { "start": 0.1 },
       "stages": [
         // A favour is owed.
         { "id": "debt", "key": "arc-favour-debt",
+          "beats": [
+            { "id": "want", "type": "talk", "with": "creditor",
+              "effects": [ { "type": "learn", "role": "creditor", "level": "detailed" } ],
+              "choice": { "label_key": "talk-arc-favour-want", "say_key": "talk-arc-favour-want-say",
+                "replies": [
+                  { "key": "talk-arc-favour-want-yes", "agrees": true,
+                    "when": [ { "type": "any", "of": [
+                      { "type": "opinion", "slot": "speaker", "min": 0 },
+                      { "type": "trust", "slot": "speaker", "min": 0.4 } ] } ] },
+                  { "key": "talk-arc-favour-want-no" } ] } },
+          ],
           "next": [
+            { "to": "repaid", "when": [ { "type": "favour", "slot": "creditor", "is": false } ] },
             { "to": "reminder", "when": [ { "type": "favour", "slot": "creditor" } ], "after_days": 45 },
             { "to": "settled", "after_days": 46 } ] },
 
         // A pleasant reminder. The call comes when the creditor has a bill
-        // of their own before the body.
+        // of their own before the body that the player would pay for
+        // voting through.
         { "id": "reminder", "key": "arc-favour-reminder", "rise": 0.005,
-          "next": [
-            { "to": "called_in", "when": [ { "type": "favour", "slot": "creditor" }, { "type": "sponsors_bill", "slot": "creditor" } ] },
-            { "to": "settled", "after_days": 400 } ] },
-
-        // The turn: the vote the creditor wants.
-        { "id": "called_in", "key": "arc-favour-called-in", "climax": true, "rise": 0.03,
           "beats": [
-            { "id": "call", "type": "decision", "dilemma": "dilemma.favour_called_in", "weight": "significant",
-              "on": {
-                "pay_back": { "sets": "paid" },
-                "refuse": { "sets": "refused" },
-                "dodge": { "sets": "dodged" } } },
+            // A colleague who knows them says what they are after.
+            { "id": "after", "type": "talk", "with": "colleague",
+              "effects": [ { "type": "learn", "role": "creditor", "level": "known" } ],
+              "choice": { "label_key": "talk-arc-favour-after", "say_key": "talk-arc-favour-after-say",
+                "replies": [
+                  { "key": "talk-arc-favour-after-yes", "agrees": true,
+                    "when": [ { "type": "opinion", "slot": "speaker", "min": 0 } ] },
+                  { "key": "talk-arc-favour-after-no" } ] } },
           ],
           "next": [
-            { "to": "repaid", "when": [ { "type": "arc_mark", "mark": "paid" } ] },
-            { "to": "burned", "when": [ { "type": "any", "of": [
-                { "type": "arc_mark", "mark": "refused" }, { "type": "arc_mark", "mark": "dodged" } ] } ] },
-            { "to": "settled", "after_days": 60 } ] },
+            { "to": "repaid", "when": [ { "type": "favour", "slot": "creditor", "is": false } ] },
+            { "to": "called_in", "when": [ { "type": "favour", "slot": "creditor" }, { "type": "bill_costs", "slot": "creditor" } ] },
+            { "to": "settled", "after_days": 400 } ] },
 
-        // Paid back with the vote.
+        // The turn: the vote the creditor wants, at a price. They give it
+        // two or three weeks; what the player does in them decides how it
+        // is paid, if it is.
+        { "id": "called_in", "key": "arc-favour-called-in", "climax": true, "rise": 0.03,
+          "clock": { "days": [14, 21] },
+          "beats": [
+            // Another coin: a word for the bill in public, asked by a
+            // creditor who thinks well enough of the player to take it.
+            { "id": "statement", "type": "ask", "template": "ask.favour_statement", "asker": "creditor", "sets": "stated",
+              "when": [ { "type": "opinion", "slot": "creditor", "min": 0 } ],
+              "effects": [ { "type": "repay", "role": "creditor" } ] },
+            // Another vote: a colleague gives the creditor theirs, and the
+            // debt is theirs now.
+            { "id": "cover", "type": "talk", "with": "colleague", "sets": "covered",
+              "effects": [
+                { "type": "repay", "role": "creditor" },
+                { "type": "favour", "role": "colleague" },
+                { "type": "opinion", "role": "creditor", "delta": 3 } ],
+              "choice": { "label_key": "talk-arc-favour-cover", "say_key": "talk-arc-favour-cover-say",
+                "replies": [
+                  { "key": "talk-arc-favour-cover-yes", "agrees": true,
+                    "when": [ { "type": "any", "of": [
+                      { "type": "opinion", "slot": "speaker", "min": 15 },
+                      { "type": "favour", "slot": "speaker", "owed_to_player": true } ] } ] },
+                  { "key": "talk-arc-favour-cover-no" } ] } },
+            // Time: wait for a bill the player can vote for.
+            { "id": "time", "type": "talk", "with": "creditor", "sets": "waited",
+              "choice": { "label_key": "talk-arc-favour-time", "say_key": "talk-arc-favour-time-say",
+                "replies": [
+                  { "key": "talk-arc-favour-time-yes", "agrees": true,
+                    "when": [ { "type": "any", "of": [
+                      { "type": "opinion", "slot": "speaker", "min": 20 },
+                      { "type": "trust", "slot": "speaker", "min": 0.6 },
+                      { "type": "remembers", "slot": "speaker", "kinds": ["kept_promise"] } ] } ] },
+                  { "key": "talk-arc-favour-time-no" } ] } },
+            // Say what the vote would cost: it does not pay the debt, and
+            // it softens a refusal.
+            { "id": "cost", "type": "talk", "with": "creditor", "sets": "explained",
+              "choice": { "label_key": "talk-arc-favour-cost", "say_key": "talk-arc-favour-cost-say",
+                "replies": [
+                  { "key": "talk-arc-favour-cost-cold", "agrees": true,
+                    "when": [ { "type": "opinion", "slot": "speaker", "max": -20 } ] },
+                  { "key": "talk-arc-favour-cost-yes", "agrees": true } ] } },
+          ],
+          "next": [
+            // Paid, in whatever coin: a yes on their bill repays it.
+            { "to": "repaid", "when": [ { "type": "favour", "slot": "creditor", "is": false } ] },
+            { "to": "deferred", "when": [ { "type": "arc_mark", "mark": "waited" } ], "clock_within_days": 0 },
+            { "to": "burned", "clock_within_days": 0 } ] },
+
+        // Paid back: with the vote, or in the coin agreed.
         { "id": "repaid", "key": "arc-favour-repaid",
           "exit": { "effects": [
             { "type": "opinion", "role": "creditor", "delta": 8, "memory": "kept_promise" },
-            { "type": "record", "delta": 0.01 } ] } },
-        // Refused, or dodged: the creditor knows which.
+            { "type": "record", "delta": 0.01 },
+            // A word in public is visible work; a colleague who stood in
+            // for the player is closer for it.
+            { "when": [ { "type": "arc_mark", "mark": "stated" } ], "type": "record", "delta": 0.01 },
+            { "when": [ { "type": "arc_mark", "mark": "covered" } ], "type": "opinion", "role": "colleague", "delta": 2 },
+            { "type": "opinion", "role": "colleague", "delta": 3 },
+            { "type": "opinion", "role": "other", "delta": 3 } ] } },
+        // Put off: the debt stands, and the call comes again with the next bill.
+        { "id": "deferred", "key": "arc-favour-deferred",
+          "exit": { "effects": [
+            { "type": "opinion", "role": "creditor", "delta": -2 },
+            { "type": "standing", "delta": -1 } ] } },
+        // Called in, and not paid.
         { "id": "burned", "key": "arc-favour-burned",
           "exit": { "effects": [
-            { "when": [ { "type": "arc_mark", "mark": "refused" } ], "type": "opinion", "role": "creditor", "delta": -10, "memory": "broke_promise" },
-            { "when": [ { "type": "arc_mark", "mark": "dodged" } ], "type": "opinion", "role": "creditor", "delta": -4 },
+            { "unless": [ { "type": "arc_mark", "mark": "explained" } ], "type": "opinion", "role": "creditor", "delta": -10, "memory": "broke_promise" },
+            { "when": [ { "type": "arc_mark", "mark": "explained" } ], "type": "opinion", "role": "creditor", "delta": -5 },
+            { "type": "opinion", "role": "colleague", "delta": -4 },
+            { "type": "opinion", "role": "other", "delta": -4 },
             { "type": "standing", "delta": -1 } ] } },
         // The call never came, or the debt went another way.
         { "id": "settled", "key": "arc-favour-settled",
           "exit": { "effects": [ { "type": "opinion", "role": "creditor", "delta": -2 } ] } },
       ],
     },
+  ],
+
+  // The arc's ask: offered only by a run, from its creditor.
+  "asks": [
+    { "id": "ask.favour_statement", "name_key": "ask-favour-statement", "from": ["arc"],
+      "asker": { "type": "creditor" },
+      "roles": [ { "id": "bill", "cast": { "type": "bill", "sponsor": "other", "sponsored_by": "asker" } } ],
+      "triggers": [ { "type": "can_vote", "slot": "bill" } ],
+      "needs": [ { "type": "statement", "about": { "type": "bill", "role": "bill" } } ],
+      "deadline_days": [10, 14], "cooldown_days": 0,
+      "keep": [ { "type": "opinion", "role": "asker", "delta": 6, "memory": "kept_promise" } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -8, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-favour-statement-detail", "need_key": "ask-favour-statement-need",
+      "kept_key": "ask-favour-statement-kept", "broken_key": "ask-favour-statement-broken" },
   ],
 }

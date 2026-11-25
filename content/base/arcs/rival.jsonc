@@ -1,31 +1,40 @@
 // The rival (DEC-109; DEC-032's rival storyline, folded into an arc): the
 // standing arc of a campaign. Once the player is standing, whoever stands
-// against them circles, makes an offer, and wants a showdown before the
-// vote; the voters end it.
+// against them circles, makes an offer, issues a challenge, and meets them
+// in a debate before the vote; the voters end it.
 //
 // A standing arc (`standing: "campaign"`): it runs beside the cap on arcs
 // and leads a campaign chapter when no material arc does. A campaign's
 // climax is the election itself.
 //
-// The turn is played (DEC-112; docs/design/EXCHANGE_SCENES.md §2.3): the
-// showdown is a debate at a hall, an exchange of three rounds before the
+// The turn is played (DEC-112; docs/design/EXCHANGE_SCENES.md §2.3, §10.1):
+// the showdown is a debate at a hall, an exchange of three rounds before the
 // neighbourhoods of the seat the player is standing for. Turning up is
 // accepting the challenge; staying away is declining it, and an empty chair
-// is its cost. Nothing asks the player yes or no, and a time skip cannot
-// answer for them.
+// is its cost. Nothing asks the player yes or no (`dilemma.debate_challenge`
+// is retired), and a time skip cannot answer for them.
+//
+// Preparation is ordinary play in the stage before (`lead_up`): walk the
+// area least pleased with the player with someone who lives there (its
+// worries: the `heard` line there), read the rival's cuttings (their faults:
+// `turn` lines, and exact previews of their answers), rehearse with an ally
+// (round 1 is not cold), ask someone with a name to speak (the `second`
+// line). None is the price of entry: the record, owning it and the safe line
+// can still carry a room. A player who reaches the showdown without the
+// weeks before (a short campaign) may still rehearse, ask and read there.
 //
 // Transitions read; beats write. The edges read the campaign (is the player
 // still standing, how near is the vote), the result of the race once it is
 // decided (`last_race`), and the run's marks. Marks: `pact` (the truce was
-// taken), `refused` (the offer was turned down); from the debate
-// `debate_won`, `debate_split`, `debate_lost`, `debate_ducked` (its four
-// ends) and what a line leaves (`promised`, `aired`, `owned`); and what
-// preparing for it gave (`rehearsed`, `endorsed`). The voters still end it:
-// the debate moves approval and recognition a week or two before the vote,
-// and the vote reads them.
+// taken), `refused` (the offer was turned down), `read` (the cuttings);
+// from the debate `debate_won`, `debate_split`, `debate_lost`,
+// `debate_ducked` (its four ends) and what a line leaves (`promised`,
+// `aired`, `owned`, `tabled`); and what preparing for it gave (`rehearsed`,
+// `endorsed`). The voters still end it: the debate moves approval and
+// recognition a week or two before the vote, and the vote reads them.
 //
 // Stage ids are the storyline's (`shadow`, `offer`, `pact`, `showdown`), so
-// a save from before the fold loads at the same stage.
+// a save from before the fold loads at the same stage; `lead_up` is new.
 {
   "kind": "arcs",
   "items": [
@@ -37,7 +46,8 @@
       "roles": [
         { "id": "rival", "cast": { "type": "rival" } },
         // Where the debate is held, who chairs it, who might speak for the
-        // player, who might rehearse them, and where the cuttings are kept.
+        // player, who might rehearse them, where the cuttings are kept, and
+        // the area least pleased with them, to walk before the night.
         { "id": "hall", "cast": { "type": "place", "kinds": ["community_centre", "school", "town_hall"] } },
         { "id": "chair", "optional": true,
           "cast": { "type": "occupation", "occupations": ["occupation.editor", "occupation.journalist"] } },
@@ -48,11 +58,24 @@
           "cast": { "type": "occupation", "occupations": ["occupation.party_chair", "occupation.organiser",
             "occupation.teacher", "occupation.shopkeeper", "occupation.retiree"] } },
         { "id": "paper", "optional": true, "cast": { "type": "place", "kinds": ["news_office"] } },
+        { "id": "ward", "optional": true, "cast": { "type": "area", "pick": "least_pleased" } },
       ],
       "heat": { "start": 0.3 },
       "stages": [
         // The campaign opens, and the rival turns up wherever the player goes.
         { "id": "shadow", "key": "arc-rival-shadow", "rise": 0.03,
+          "beats": [
+            { "id": "statement", "type": "press", "headline_key": "headline-arc-rival-statement" },
+            // Who is with them? An ally who will say teaches the rival to
+            // `known`: one of several ways to know them.
+            { "id": "who", "type": "talk", "with": "ally",
+              "effects": [ { "type": "learn", "role": "rival", "level": "known" } ],
+              "choice": { "label_key": "talk-arc-rival-who", "say_key": "talk-arc-rival-who-say",
+                "replies": [
+                  { "key": "talk-arc-rival-who-yes", "agrees": true,
+                    "when": [ { "type": "opinion", "slot": "speaker", "min": 0 } ] },
+                  { "key": "talk-arc-rival-who-no" } ] } },
+          ],
           "next": [
             { "to": "won", "when": [ { "type": "last_race", "won": true } ] },
             { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
@@ -73,7 +96,7 @@
             { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
             { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
             { "to": "pact", "when": [ { "type": "arc_mark", "mark": "pact" } ] },
-            { "to": "showdown", "when": [ { "type": "election_within", "days": 30 } ] },
+            { "to": "lead_up", "when": [ { "type": "election_within", "days": 40 } ] },
             { "to": "cooled", "after_days": 120 } ] },
 
         // The truce holds until the vote is close.
@@ -82,18 +105,27 @@
             { "to": "won", "when": [ { "type": "last_race", "won": true } ] },
             { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
             { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
-            { "to": "showdown", "when": [ { "type": "election_within", "days": 30 } ] },
+            { "to": "lead_up", "when": [ { "type": "election_within", "days": 40 } ] },
             { "to": "cooled", "after_days": 120 } ] },
 
-        // The turn: a debate in front of the seat, with the vote weeks off.
-        // The clock is the debate's day: two or three weeks on. Until then
-        // the player may prepare (three beats; the content task moves them
-        // to a stage of their own and adds the rest) and may turn up.
-        { "id": "showdown", "key": "arc-rival-showdown", "climax": true, "rise": 0.05,
-          "clock": { "days": [14, 21] },
+        // The challenge is out, and there are weeks to get ready for it.
+        { "id": "lead_up", "key": "arc-rival-lead-up", "rise": 0.03,
           "beats": [
+            { "id": "challenge", "type": "press", "headline_key": "headline-arc-rival-challenge" },
+            { "id": "dare", "type": "move", "actor": "rival", "weight": 0.4, "line_key": "skip-item-arc-rival-dare",
+              "when": [ { "type": "arc_days", "min": 7 } ],
+              "effects": [ { "type": "heat", "delta": 0.05 } ] },
+            // Walk the area least pleased with the player, with someone who
+            // lives there: its worries, so the `heard` line there.
+            { "id": "walk", "type": "visit", "at": "ward", "time": "half",
+              "verb_key": "visit-arc-rival-walk", "outcome_key": "outcome-arc-rival-walk",
+              "effects": [ { "type": "learn", "role": "ward", "level": "known" } ] },
+            // Read the rival's cuttings at the paper.
+            { "id": "cuttings", "type": "visit", "at": "paper", "time": "half", "sets": "read",
+              "verb_key": "visit-arc-rival-cuttings", "outcome_key": "outcome-arc-rival-cuttings",
+              "effects": [ { "type": "learn", "role": "rival", "level": "detailed" } ] },
             // Rehearse with an ally: round 1 is not cold, and they brief
-            // the player on the rival (one of several ways to know them).
+            // the player on the rival.
             { "id": "rehearse", "type": "talk", "with": "ally", "sets": "rehearsed",
               "effects": [ { "type": "learn", "role": "rival", "level": "known" } ],
               "choice": { "label_key": "talk-arc-rival-rehearse", "say_key": "talk-arc-rival-rehearse-say",
@@ -103,7 +135,8 @@
                       { "type": "opinion", "slot": "speaker", "min": 0 },
                       { "type": "favour", "slot": "speaker", "owed_to_player": true } ] } ] },
                   { "key": "talk-arc-rival-rehearse-no" } ] } },
-            // Ask someone with a name in town to speak for the player.
+            // Ask someone with a name to speak for the player. A friend says
+            // yes; someone who is not yet one says yes for a favour later.
             { "id": "backer", "type": "talk", "with": "backer", "sets": "endorsed",
               "choice": { "label_key": "talk-arc-rival-backer", "say_key": "talk-arc-rival-backer-say",
                 "replies": [
@@ -111,9 +144,52 @@
                     "when": [ { "type": "any", "of": [
                       { "type": "opinion", "slot": "speaker", "min": 10 },
                       { "type": "favour", "slot": "speaker", "owed_to_player": true } ] } ] },
+                  { "key": "talk-arc-rival-backer-owe", "agrees": true,
+                    "when": [ { "type": "opinion", "slot": "speaker", "min": -10 } ],
+                    "effects": [ { "type": "favour", "role": "backer" } ] },
                   { "key": "talk-arc-rival-backer-no" } ] } },
-            // Read the rival's cuttings at the paper.
-            { "id": "cuttings", "type": "visit", "at": "paper", "time": "half",
+          ],
+          "next": [
+            { "to": "won", "when": [ { "type": "last_race", "won": true } ] },
+            { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
+            { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
+            { "to": "showdown", "when": [ { "type": "election_within", "days": 30 } ] },
+            { "to": "cooled", "after_days": 120 } ] },
+
+        // The turn: a debate in front of the seat, with the vote a month off.
+        // The clock is the debate's day, two or three weeks on, so the vote
+        // reads it. (EXCHANGE_SCENES §10.1 has the lead-up from 45 days and
+        // the showdown from 21; in an eight-week campaign that left the
+        // truce under a week and the debate days from the vote, so the
+        // lead-up runs from 40 days and the showdown keeps X1's month.) What
+        // was not done in the weeks before can still be done until then.
+        { "id": "showdown", "key": "arc-rival-showdown", "climax": true, "rise": 0.05,
+          "clock": { "days": [14, 21] },
+          "beats": [
+            { "id": "rehearse", "type": "talk", "with": "ally", "sets": "rehearsed",
+              "when": [ { "type": "arc_mark", "mark": "rehearsed", "is": false } ],
+              "effects": [ { "type": "learn", "role": "rival", "level": "known" } ],
+              "choice": { "label_key": "talk-arc-rival-rehearse", "say_key": "talk-arc-rival-rehearse-say",
+                "replies": [
+                  { "key": "talk-arc-rival-rehearse-yes", "agrees": true,
+                    "when": [ { "type": "any", "of": [
+                      { "type": "opinion", "slot": "speaker", "min": 0 },
+                      { "type": "favour", "slot": "speaker", "owed_to_player": true } ] } ] },
+                  { "key": "talk-arc-rival-rehearse-no" } ] } },
+            { "id": "backer", "type": "talk", "with": "backer", "sets": "endorsed",
+              "when": [ { "type": "arc_mark", "mark": "endorsed", "is": false } ],
+              "choice": { "label_key": "talk-arc-rival-backer", "say_key": "talk-arc-rival-backer-say",
+                "replies": [
+                  { "key": "talk-arc-rival-backer-yes", "agrees": true,
+                    "when": [ { "type": "any", "of": [
+                      { "type": "opinion", "slot": "speaker", "min": 10 },
+                      { "type": "favour", "slot": "speaker", "owed_to_player": true } ] } ] },
+                  { "key": "talk-arc-rival-backer-owe", "agrees": true,
+                    "when": [ { "type": "opinion", "slot": "speaker", "min": -10 } ],
+                    "effects": [ { "type": "favour", "role": "backer" } ] },
+                  { "key": "talk-arc-rival-backer-no" } ] } },
+            { "id": "cuttings", "type": "visit", "at": "paper", "time": "half", "sets": "read",
+              "when": [ { "type": "arc_mark", "mark": "read", "is": false } ],
               "verb_key": "visit-arc-rival-cuttings", "outcome_key": "outcome-arc-rival-cuttings",
               "effects": [ { "type": "learn", "role": "rival", "level": "detailed" } ] },
             // The debate (EXCHANGE_SCENES §2.3).

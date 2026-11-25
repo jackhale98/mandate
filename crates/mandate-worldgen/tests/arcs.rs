@@ -18,6 +18,7 @@ use mandate_content::arcs::{ArcEffect, BeatKind, GatedEffect};
 use mandate_content::{ContentBundle, bundle::read_dir_sources, load};
 use mandate_sim::actions::{Action, PlayerCommand};
 use mandate_sim::arcs::beats::{self, BeatAction, BeatOffer};
+use mandate_sim::arcs::exchange::{self, ExchangeAct};
 use mandate_sim::arcs::{ArcActor, ArcRun, ArcSummary};
 use mandate_sim::characters::{self, CharacterId, MemoryKind};
 use mandate_sim::environment::{DeferredHazard, HazardKind};
@@ -167,6 +168,16 @@ fn beats_done(e: &Engine) -> BTreeSet<String> {
                 "{stage}.{beat}:{kind}:{}",
                 if *ok { "done" } else { "no" }
             )),
+            // A scene (DEC-112): done when it was played, not left empty.
+            EventKind::ArcExchangeEnded {
+                stage,
+                beat,
+                outcome,
+                ..
+            } => Some(format!(
+                "{stage}.{beat}:exchange:{}",
+                if outcome == "absent" { "no" } else { "done" }
+            )),
             _ => None,
         })
         .collect()
@@ -181,16 +192,19 @@ struct Script {
     /// Through Places: walk there (`MoveTo`), then do it. Otherwise quick
     /// mode: one request, routed.
     places: bool,
-    /// The answers to the flood's two decisions.
+    /// The answer to the flood's decision.
     money: &'static str,
-    meeting: &'static str,
+    /// The line it says in each round of the meeting (DEC-112): the first
+    /// line of this kind on offer, else the first listed; `None`: it never
+    /// turns up (an empty chair).
+    meeting: Option<mandate_content::exchange::MoveKind>,
 }
 
 const PASSIVE: Script = Script {
     from: None,
     places: false,
     money: "wait",
-    meeting: "absent",
+    meeting: None,
 };
 
 /// Everything, from the day the arc is raised: carry boxes, get a second
@@ -199,16 +213,16 @@ const ENGAGED: Script = Script {
     from: Some("struck"),
     places: false,
     money: "now",
-    meeting: "date",
+    meeting: Some(mandate_content::exchange::MoveKind::Own),
 };
 
-/// Nothing until the meeting is called; then give a date and walk the
-/// repairs.
+/// Nothing until the meeting is called; then face the hall, give a date
+/// and walk the repairs.
 const LATE: Script = Script {
     from: Some("meeting"),
     places: false,
     money: "wait",
-    meeting: "date",
+    meeting: Some(mandate_content::exchange::MoveKind::Offer),
 };
 
 impl Script {
@@ -279,7 +293,6 @@ impl Script {
                     .decision(mandate_sim::narrative::DecisionId(*decision))?;
                 let option = match d.template.as_str() {
                     "dilemma.flood_money" => self.money,
-                    "dilemma.flood_meeting" => self.meeting,
                     other => panic!("no scripted answer for {other}"),
                 };
                 Some(vec![Command::Player(PlayerCommand::Answer {
@@ -304,8 +317,59 @@ impl Script {
                     _ => None,
                 }
             }
-            // The flood holds no scene.
-            BeatAction::Exchange { .. } => None,
+            // The meeting: turn up (one routed request, or a walk and the
+            // act); the rounds are said in `turn`.
+            BeatAction::Exchange {
+                run,
+                beat,
+                location,
+            } => {
+                self.meeting?;
+                Some(located(
+                    *location,
+                    PlayerCommand::Exchange {
+                        run: *run,
+                        beat: beat.clone(),
+                        act: ExchangeAct::Begin,
+                    },
+                ))
+            }
+        }
+    }
+
+    /// Say a line in each round of a scene under way (DEC-112).
+    fn rounds(&self, e: &mut Engine, given: &mut Vec<Command>) {
+        let Some(kind) = self.meeting else { return };
+        for (run, beat, _) in exchange::view::open_scenes(e.state(), e.content())
+            .into_iter()
+            .chain(e.state().arcs.runs.iter().filter_map(|r| {
+                let b = r.exchange.as_ref()?.beat.clone();
+                Some((r.id, b, Location::Home))
+            }))
+            .collect::<Vec<_>>()
+        {
+            for _ in 0..8 {
+                let Some(v) = exchange::view(e.state(), e.content(), run.0, &beat.key()) else {
+                    break;
+                };
+                if v.phase != exchange::Phase::UnderWay {
+                    break;
+                }
+                let o = v
+                    .options
+                    .iter()
+                    .find(|o| o.kind == kind)
+                    .or_else(|| v.options.first())
+                    .map(|o| o.id.clone())
+                    .unwrap();
+                let c = Command::Player(PlayerCommand::Exchange {
+                    run: run.0,
+                    beat: beat.key(),
+                    act: ExchangeAct::Say { option: o },
+                });
+                e.apply(c.clone()).unwrap();
+                given.push(c);
+            }
         }
     }
 
@@ -339,6 +403,7 @@ impl Script {
                 // An ask accepted has a next step this turn.
                 tried.retain(|k| !k.starts_with("Ask"));
             }
+            self.rounds(e, &mut given);
         }
         e.apply(Command::EndTurn).unwrap();
         given.push(Command::EndTurn);
@@ -576,7 +641,8 @@ fn passive_and_engaged_scripts_reach_different_exits() {
     assert_eq!(g.exit, "rebuilt");
     assert!(g.marks.contains(&"paid_first".to_string()), "{:?}", g.marks);
     assert!(g.marks.contains(&"at_hall".to_string()), "{:?}", g.marks);
-    assert!(p.marks.is_empty(), "{:?}", p.marks);
+    // The passive player left only an empty chair at the meeting.
+    assert_eq!(p.marks, vec!["stayed_away".to_string()]);
     // The engaged script is a list of commands like any other: given again
     // to the same world, it ends in the same state.
     assert!(script.iter().any(|c| matches!(c, Command::Player(_))));

@@ -319,11 +319,23 @@ pub enum Condition {
         kinds: Vec<String>,
     },
     /// The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.
+    /// With `is: false`, none is owed (the debt was paid, or never was).
     Favour {
         #[serde(alias = "role")]
         slot: String,
         #[serde(default)]
         owed_to_player: bool,
+        #[serde(default = "yes", skip_serializing_if = "is_yes")]
+        is: bool,
+    },
+    /// The person in the slot sponsors a bill the player can still vote on,
+    /// and a yes would cost the player: their ward leans against it, their
+    /// party's line is against it, or a promise they hold forbids it (the
+    /// first such bill, the first bind that holds). `$law_key` (the bill's
+    /// template), `$bind` (`seat`, `party` or `promise`).
+    BillCosts {
+        #[serde(alias = "role")]
+        slot: String,
     },
     /// They have (or have not) met the player before now: talked with them
     /// (a line of theirs in the conversation guard), or met them on an
@@ -561,6 +573,22 @@ pub enum Condition {
         #[serde(alias = "role")]
         slot: String,
     },
+    // --- Named plants (DEC-110; tier-generic) -----------------------------------------
+    /// A named plant in one of these states (none given: any): with `slot`,
+    /// the plant at the place cast in that role of an arc (the open one,
+    /// else the last that closed there); without, any plant in the
+    /// jurisdiction's towns. With `closes_within_days`, under notice with
+    /// its date at most that many days off. `$plant_key`, `$stem`,
+    /// `$works_key`, `$product_key`, `$jobs`; under notice also
+    /// `$closes_day`, `$closes_month_key`, `$closes_year` (the date).
+    Plant {
+        #[serde(default, alias = "role", skip_serializing_if = "Option::is_none")]
+        slot: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        status: Vec<PlantState>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        closes_within_days: Option<u32>,
+    },
     // --- Composition ----------------------------------------------------------------
     /// Any one of these holds (the first that does gives the arguments).
     Any { of: Vec<Condition> },
@@ -588,6 +616,33 @@ fn heard() -> Level {
 
 fn is_town(of: &ConcernOf) -> bool {
     *of == ConcernOf::Town
+}
+
+/// A named plant's state in its review (DEC-110, `INDUSTRIES.md` §3).
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PlantState {
+    /// Working full time.
+    Running,
+    /// On short time.
+    ShortTime,
+    /// Under notice, with a date.
+    Threatened,
+    /// Shut.
+    Closed,
+}
+
+impl PlantState {
+    pub fn key(self) -> &'static str {
+        match self {
+            PlantState::Running => "running",
+            PlantState::ShortTime => "short_time",
+            PlantState::Threatened => "threatened",
+            PlantState::Closed => "closed",
+        }
+    }
 }
 
 /// Water a town or neighbourhood can have.
@@ -723,6 +778,7 @@ impl Condition {
             C::Trust { .. } => "trust",
             C::Remembers { .. } => "remembers",
             C::Favour { .. } => "favour",
+            C::BillCosts { .. } => "bill_costs",
             C::Met { .. } => "met",
             C::IsBroker { .. } => "is_broker",
             C::IsRival { .. } => "is_rival",
@@ -749,6 +805,7 @@ impl Condition {
             C::BodySupport { .. } => "body_support",
             C::LastRace { .. } => "last_race",
             C::SponsorsBill { .. } => "sponsors_bill",
+            C::Plant { .. } => "plant",
             C::Any { .. } => "any",
         }
     }
@@ -819,6 +876,7 @@ impl Condition {
             | C::Trust { .. }
             | C::Remembers { .. }
             | C::Favour { .. }
+            | C::BillCosts { .. }
             | C::Met { .. }
             | C::SponsorsBill { .. }
             | C::IsBroker { .. }
@@ -858,6 +916,8 @@ impl Condition {
             | C::Recovered { .. }
             | C::ArcLastTurn { .. } => n.arc = true,
             C::Arc { here, .. } => n.here = here.is_some(),
+            // With a slot it reads a run's role.
+            C::Plant { slot, .. } => n.arc = slot.is_some(),
             _ => {}
         }
         n
@@ -898,6 +958,7 @@ impl Condition {
             | C::Trust { slot, .. }
             | C::Remembers { slot, .. }
             | C::Favour { slot, .. }
+            | C::BillCosts { slot }
             | C::Met { slot, .. }
             | C::SponsorsBill { slot }
             | C::IsBroker { slot, .. }
@@ -913,7 +974,9 @@ impl Condition {
             | C::Recovered { slot, .. } => vec![slot.as_str()],
             C::Knows { subject, .. } => subject.role().into_iter().collect(),
             C::Answered { same_cast, .. } => same_cast.iter().map(|s| s.as_str()).collect(),
-            C::SponsoredLaw { slot, .. } => slot.iter().map(|s| s.as_str()).collect(),
+            C::SponsoredLaw { slot, .. } | C::Plant { slot, .. } => {
+                slot.iter().map(|s| s.as_str()).collect()
+            }
             _ => Vec::new(),
         }
     }
@@ -947,12 +1010,23 @@ impl Condition {
             C::Headline => None,
             C::Remembers { .. } => set(&["memory_key", "subject_key", "subject_kind", "year"]),
             C::Favour { .. } => set(&["n"]),
+            C::BillCosts { .. } => set(&["law_key", "bind"]),
             C::IsBroker { is: true, .. } => set(&["broker", "broker_place", "stake_key"]),
             C::IsRival { is: true, .. } => set(&["rival"]),
             C::Displaced { .. } => set(&["away"]),
             C::Recovered { .. } => set(&["homes", "repaired"]),
             C::BudgetBalance { .. } => set(&["books", "gap"]),
             C::BodySupport { .. } => set(&["backers", "members"]),
+            C::Plant { .. } => set(&[
+                "plant_key",
+                "stem",
+                "works_key",
+                "product_key",
+                "jobs",
+                "closes_day",
+                "closes_month_key",
+                "closes_year",
+            ]),
             C::Tells { subject, .. } | C::PlayerKnows { subject, .. } => set(subject.args()),
             C::Any { of } => {
                 let mut it = of.iter().map(|c| c.provides());
@@ -1586,6 +1660,7 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
             }
         }
         C::Favour { slot, .. }
+        | C::BillCosts { slot }
         | C::Met { slot, .. }
         | C::IsBroker { slot, .. }
         | C::IsRival { slot, .. } => not_player(slot, issues),
@@ -1709,6 +1784,25 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
             }
             if min.is_some() || max.is_some() {
                 range(owner, "body_support", min, max, 0.0, 1.0, issues);
+            }
+        }
+        C::Plant {
+            status,
+            closes_within_days,
+            ..
+        } => {
+            if closes_within_days.is_some_and(|d| d > 3660) {
+                err(issues, "plant: `closes_within_days` is at most 3660".into());
+            }
+            if closes_within_days.is_some()
+                && !status.is_empty()
+                && !status.contains(&PlantState::Threatened)
+            {
+                err(
+                    issues,
+                    "plant: `closes_within_days` reads a notice, so `status` allows `threatened`"
+                        .into(),
+                );
             }
         }
         C::Any { of } => {

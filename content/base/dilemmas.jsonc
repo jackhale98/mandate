@@ -65,34 +65,6 @@
             { "type": "approval", "neighborhood": "hood", "delta": -0.02 } ] },
       ],
     },
-    // A beat of the plant arc (arcs/plant_closure.jsonc): the union's campaign after the layoffs.
-    {
-      "id": "dilemma.workers_campaign", "category": "significant", "arc_only": true,
-      "title_key": "dilemma-workers-campaign", "situation_key": "dilemma-workers-campaign-situation",
-      "roles": [
-        { "id": "steward", "cast": { "type": "occupation", "occupations": ["occupation.union_steward", "occupation.organiser"] } },
-      ],
-      "deadline_days": 28, "cooldown_days": 365, "scene": "scene.workers_campaign",
-      "options": [
-        { "id": "march", "label_key": "dilemma-workers-campaign-march", "aftermath_key": "dilemma-workers-campaign-march-after",
-          "effects": [
-            { "type": "slots", "n": 1 },
-            { "type": "opinion", "role": "steward", "delta": 12, "memory": "stood_with_me" },
-            { "type": "approval", "classes": [0], "delta": 0.02 },
-            { "type": "awareness", "delta": 0.03 },
-            { "type": "standing", "delta": -3 } ] },
-        { "id": "statement", "label_key": "dilemma-workers-campaign-statement", "aftermath_key": "dilemma-workers-campaign-statement-after",
-          "effects": [
-            { "type": "opinion", "role": "steward", "delta": 4 },
-            { "type": "approval", "classes": [0], "delta": 0.005 },
-            { "type": "standing", "delta": -1 } ] },
-        { "id": "decline", "default": true, "label_key": "dilemma-workers-campaign-decline", "aftermath_key": "dilemma-workers-campaign-decline-after",
-          "effects": [
-            { "type": "opinion", "role": "steward", "delta": -10, "memory": "ignored_me" },
-            { "type": "approval", "classes": [0], "delta": -0.015 },
-            { "type": "approval", "classes": [2], "delta": 0.005 } ] },
-      ],
-    },
     // --- Housing ----------------------------------------------------------------------
     {
       "id": "dilemma.housing_squeeze", "category": "significant",
@@ -285,27 +257,6 @@
             { "type": "health", "delta": 1 } ] },
       ],
     },
-    // --- A favour called in ----------------------------------------------------------------
-    {
-      "id": "dilemma.favour_called_in", "category": "significant",
-      "title_key": "dilemma-favour-called-in", "situation_key": "dilemma-favour-called-in-situation",
-      "roles": [
-        { "id": "creditor", "cast": { "type": "creditor" } },
-        { "id": "bill", "cast": { "type": "bill", "sponsor": "other", "sponsored_by": "creditor" } },
-      ],
-      "triggers": [ { "type": "favour", "role": "creditor" }, { "type": "can_vote", "role": "bill" } ],
-      "deadline_days": 21, "cooldown_days": 150, "scene": "scene.favour_called_in",
-      "options": [
-        { "id": "pay_back", "label_key": "dilemma-favour-called-in-pay", "aftermath_key": "dilemma-favour-called-in-pay-after",
-          "effects": [ { "type": "vote", "role": "bill", "vote": "yes" } ] },
-        { "id": "refuse", "label_key": "dilemma-favour-called-in-refuse", "aftermath_key": "dilemma-favour-called-in-refuse-after",
-          "effects": [ { "type": "vote", "role": "bill", "vote": "no" } ] },
-        { "id": "dodge", "default": true, "label_key": "dilemma-favour-called-in-dodge", "aftermath_key": "dilemma-favour-called-in-dodge-after",
-          "effects": [
-            { "type": "vote", "role": "bill", "vote": "abstain" },
-            { "type": "opinion", "role": "creditor", "delta": -8, "memory": "broke_promise" } ] },
-      ],
-    },
     // --- Party line or ward ---------------------------------------------------------------
     {
       "id": "dilemma.party_line", "category": "significant",
@@ -443,27 +394,6 @@
           "effects": [
             { "type": "standing", "delta": -3 },
             { "type": "legal_jeopardy", "delta": -1 } ] },
-      ],
-    },
-    // --- The rival's challenge (the rival arc's turn) --------------------------------------
-    {
-      "id": "dilemma.debate_challenge", "category": "significant", "arc_only": true,
-      "title_key": "dilemma-debate", "situation_key": "dilemma-debate-situation",
-      "roles": [ { "id": "rival", "cast": { "type": "rival" } } ],
-      "triggers": [ { "type": "campaigning" } ],
-      "deadline_days": 14, "cooldown_days": 300, "scene": "scene.debate",
-      "options": [
-        { "id": "accept", "label_key": "dilemma-debate-accept", "aftermath_key": "dilemma-debate-accept-after",
-          "effects": [
-            { "type": "slots", "n": 1 }, { "type": "health", "delta": -2 },
-            { "type": "awareness", "scope": "town", "delta": 0.04 },
-            { "type": "opinion", "role": "rival", "delta": -4 },
-            { "type": "learn", "subject": { "type": "rival_plans" }, "level": "detailed" } ] },
-        { "id": "decline", "default": true, "label_key": "dilemma-debate-decline", "aftermath_key": "dilemma-debate-decline-after",
-          "effects": [
-            { "type": "approval", "delta": -0.01 },
-            { "type": "opinion", "role": "rival", "delta": 3 },
-            { "type": "health", "delta": 1 } ] },
       ],
     },
     // --- Borderline and illegal choices (DEC-034, DEC-073) ----------------------------------
