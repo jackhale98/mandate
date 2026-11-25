@@ -116,8 +116,18 @@ test("draft, introduce, lobby and resume mid-turn", async ({ page }) => {
   // In the chamber the whip count is exact, member by member.
   const whip = panel.getByTestId("whip");
   await expect(whip.getByText(/Expected yes/)).toBeVisible();
-  await whip.getByRole("button", { name: /^Lobby/ }).first().click();
-  await expect(page.getByTestId("toast")).toHaveText(/persuaded|not convinced/);
+  // Lobbying is a conversation (M6 note 29): "Talk to them" opens it on the bill.
+  await whip.getByTestId("whip-talk").first().click();
+  const talk = page.getByTestId("talk-panel");
+  await talk.getByRole("button", { name: /Make the case/ }).click();
+  // The reply, page by page (Continue), then the outcome.
+  for (let i = 0; i < 20 && (await talk.getByTestId("talk-outcome").count()) === 0; i++) {
+    const more = talk.getByTestId("talk-continue");
+    if ((await more.count()) > 0) await more.locator("button").click();
+    else await page.waitForTimeout(300);
+  }
+  await expect(talk.getByTestId("talk-outcome")).toHaveText(/came round|not persuaded/);
+  await talk.getByRole("button", { name: "Close" }).click();
   await expect(panel.getByTestId("slots")).toHaveText("1 slot left this turn");
 
   const hash = await stateHash(page);
