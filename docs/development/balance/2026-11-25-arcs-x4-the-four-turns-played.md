@@ -5,7 +5,9 @@
 
 ## Parameter and change
 
-Content structure and the smallest engine changes it needed (the progress entry of the same day lists them). **No simulation number was tuned.** New content numbers are placeholders for the tuning pass: the plant's relief (0.08 for the steward's short weeks, 0.08 for the manager's case, each for 12 months; −0.04 for two months when the line stops), the rival's lead-up from 30 days before the vote and the showdown from 21 (the debate 7 to 14 days on; it was 14 to 21 days on from 30), the favour's call held 14 to 21 days. The lab's planted plant review is a fall in demand for the largest plant's industry of 0.85, 0.72 or 0.6 by seed, for 30 months (the lab's numbers).
+Content structure and the smallest engine changes it needed (the progress entry of the same day lists them). **No simulation number was tuned.** New content numbers are placeholders for the tuning pass: the plant's relief (0.08 for the steward's short weeks, 0.08 for the manager's case, each for 12 months; −0.04 for two months when the line stops), the rival's lead-up from 40 days before the vote (the showdown stays at 30 and the debate 14 to 21 days on, as X1 built it; the design's 45 and 21 left the truce under a week of an eight-week campaign, and the stand-ins never took it), the favour's call held 14 to 21 days.
+
+One engine rule moved with it: a run in a hidden stage leads no chapter. Without it a plant on short time (common at the start of play) outranked the rival and the budget round for the lead and silenced the debate. The lab's planted plant review is a fall in demand for the largest plant's industry of 0.85, 0.72 or 0.6 by seed, for 30 months (the lab's numbers).
 
 No stand-in or bot plays a scene yet (task X3): every graded meeting and debate is an empty chair. The grader therefore measures the levers around the turns, not the turns.
 
