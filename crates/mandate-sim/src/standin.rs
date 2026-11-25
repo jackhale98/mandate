@@ -331,6 +331,10 @@ impl Turn {
                         ask: *ask,
                         accept: self.kind != Kind::Contrarian || !from_ally(st, content, a),
                     }),
+                // A scene (DEC-112) is not played by a stand-in yet: its
+                // policies of EXCHANGE_SCENES §8.2 are task X3. Until then
+                // every stand-in meets the empty chair (`absent`).
+                BeatAction::Exchange { .. } => None,
             };
             if cmd.is_some() {
                 return cmd;

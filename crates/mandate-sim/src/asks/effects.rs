@@ -99,6 +99,7 @@ pub fn requests(r: &Reads<'_>, ask: &Ask, defs: &[EffectDef]) -> Vec<Effect> {
                         scope: a,
                         delta: *delta,
                         classes: classes.clone(),
+                        communities: Vec::new(),
                     });
                 }
             }
@@ -217,13 +218,15 @@ pub fn apply_now(
                 scope,
                 delta,
                 classes,
+                communities,
             } => {
-                crate::population::apply_approval(
+                crate::population::apply_approval_in(
                     &mut state.population,
                     &state.world,
                     scope,
                     delta,
                     &classes,
+                    &communities,
                 );
             }
             Effect::PlayerTrack {

@@ -345,6 +345,32 @@ pub enum EventKind {
         at: crate::world::Jurisdiction,
         facts: Vec<(String, String)>,
     },
+    /// A round of an exchange scene was played (DEC-112): the prompt's
+    /// `source`, the line the player said (`option`, empty when the round
+    /// went unanswered) and whether it stood up.
+    ArcExchange {
+        arc: u32,
+        template: String,
+        stage: String,
+        beat: String,
+        at: crate::world::Jurisdiction,
+        round: u8,
+        source: String,
+        option: String,
+        stood: bool,
+    },
+    /// An exchange scene ended: `won`, `split`, `lost` or `absent`, with
+    /// the weighted change in lean in thousandths.
+    ArcExchangeEnded {
+        arc: u32,
+        template: String,
+        stage: String,
+        beat: String,
+        at: crate::world::Jurisdiction,
+        outcome: String,
+        result_pm: i32,
+        facts: Vec<(String, String)>,
+    },
 }
 
 /// How long an event is kept in full detail.

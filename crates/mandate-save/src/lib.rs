@@ -34,8 +34,10 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// industries and named plants (I1, DEC-110): industry state under the split
 /// sectors, each industry's world index, plants and their review, a
 /// sector's long average of jobs. v30: the impact estimate a law passed
-/// with, kept with it (DEC-111).
-pub const SAVE_FORMAT_VERSION: u16 = 30;
+/// with, kept with it (DEC-111). v31: exchange scenes (X1, DEC-112): a
+/// scene under way and the scenes finished on an arc run, a story's source
+/// that is a scene, the community filter of an approval request.
+pub const SAVE_FORMAT_VERSION: u16 = 31;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -256,6 +258,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // only this key if another bump merges first (the step names no
         // version).
         (29, frozen_estimates),
+        // Exchange scenes (X1, DEC-112): v30 → v31. Renumber only this key
+        // if another bump merges first.
+        (30, exchange_scenes),
     ];
     let mut value = value;
     let mut v = from;
@@ -1045,6 +1050,42 @@ fn frozen_estimates(mut value: serde_json::Value) -> Result<serde_json::Value, S
                 None => built,
             };
             ledger.insert("homes_started".into(), total);
+        }
+    }
+    Ok(value)
+}
+
+/// Exchange scenes (X1, DEC-112, `docs/design/EXCHANGE_SCENES.md` §11.5),
+/// the previous format to the next (the step names no version). Everything
+/// new has a serde default and is not written when empty (a run's scene
+/// under way and its finished scenes, the community filter of an approval
+/// request), so the state needs no rewriting.
+///
+/// One thing in flight is dropped (rule 9 of `AGENT_CONTEXT.md`: the cheap
+/// rule). The rival's debate was a decision, and is a scene now: a
+/// challenge waiting on the player in the save is withdrawn with no effect
+/// (it lapses, as a decision does whose situation dissolved), and the
+/// debate is not held for that campaign (an older run has no hall cast).
+/// The run itself carries on by its edges.
+fn exchange_scenes(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    /// Decisions that were an arc's beat and are an exchange now.
+    const RETIRED: [&str; 1] = ["dilemma.debate_challenge"];
+    let decisions = value
+        .get_mut("state")
+        .and_then(|s| s.get_mut("narrative"))
+        .and_then(|n| n.get_mut("decisions"))
+        .and_then(|d| d.as_array_mut());
+    for d in decisions.into_iter().flatten() {
+        let retired = d
+            .get("template")
+            .and_then(|t| t.as_str())
+            .is_some_and(|t| RETIRED.contains(&t));
+        let waiting = d.get("status").and_then(|s| s.as_str()) == Some("Pending");
+        if retired
+            && waiting
+            && let Some(o) = d.as_object_mut()
+        {
+            o.insert("status".into(), serde_json::json!("Lapsed"));
         }
     }
     Ok(value)

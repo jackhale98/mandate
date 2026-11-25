@@ -233,7 +233,8 @@ fn beat_def<'c>(def: &'c ArcDef, stage: &str, beat: &str) -> Option<&'c ArcBeat>
 /// so they agreed).
 fn taught(beat: &ArcBeat, agreed: Option<bool>) -> Level {
     match &beat.kind {
-        BeatKind::Decision { .. } | BeatKind::Ask { .. } => Level::Known,
+        // A decision, an ask or a scene (DEC-112) is aimed at the player.
+        BeatKind::Decision { .. } | BeatKind::Ask { .. } | BeatKind::Exchange(_) => Level::Known,
         BeatKind::Visit { .. } => beat.teaches.unwrap_or(Level::Heard),
         BeatKind::Talk { choice, .. } => {
             let agreed = agreed.unwrap_or(true);

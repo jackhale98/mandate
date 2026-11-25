@@ -237,6 +237,44 @@ fn arc_event(e: &DomainEvent, engine: &Engine) -> Option<(String, BTreeMap<Strin
             };
             (*arc, template, *at, key)
         }
+        // An exchange scene (DEC-112), until its own view (task X2): how
+        // it ended, in the scene's own words; a round, in the shared ones.
+        EventKind::ArcExchangeEnded {
+            arc,
+            template,
+            stage,
+            beat,
+            at,
+            outcome,
+            facts,
+            ..
+        } => {
+            args.extend(facts.iter().cloned());
+            args.insert("outcome".into(), outcome.clone());
+            let b = content.arc(template)?.stage(stage)?.beat(beat)?;
+            let BeatKind::Exchange(x) = &b.kind else {
+                return None;
+            };
+            (*arc, template, *at, format!("{}-result-{outcome}", x.text))
+        }
+        EventKind::ArcExchange {
+            arc,
+            template,
+            at,
+            round,
+            option,
+            stood,
+            ..
+        } => {
+            args.insert("round".into(), round.to_string());
+            args.insert("stood".into(), if *stood { "yes" } else { "no" }.into());
+            let key = if option.is_empty() {
+                "event-arc-exchange-unanswered"
+            } else {
+                "event-arc-exchange-round"
+            };
+            (*arc, template, *at, key.to_string())
+        }
         _ => return None,
     };
     let _ = template;
@@ -745,6 +783,8 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
         EventKind::ArcRaised { .. }
         | EventKind::ArcStage { .. }
         | EventKind::ArcBeat { .. }
+        | EventKind::ArcExchange { .. }
+        | EventKind::ArcExchangeEnded { .. }
         | EventKind::ArcEnded { .. } => "event-arc-raised",
         EventKind::NationalBudget {
             year,
@@ -789,6 +829,8 @@ pub fn overview(engine: &Engine) -> OverviewView {
                     | EventKind::ArcRaised { .. }
             ) && !matches!(&e.kind, EventKind::ArcBeat { kind, .. }
                 if kind != "press" && kind != "move")
+                // A scene's rounds are in its own view; its result is news.
+                && !matches!(&e.kind, EventKind::ArcExchange { .. })
         })
         .take(15)
         .map(|e| event_view(e, engine))

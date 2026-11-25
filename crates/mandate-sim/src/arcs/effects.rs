@@ -71,6 +71,7 @@ pub fn resolve(v: &View<'_>, run: &ArcRun, effects: &[GatedEffect]) -> Asked {
                         scope,
                         delta: *delta,
                         classes: classes.clone(),
+                        communities: Vec::new(),
                     });
                 }
             }
@@ -130,6 +131,37 @@ pub fn resolve(v: &View<'_>, run: &ArcRun, effects: &[GatedEffect]) -> Asked {
                 factor: *factor,
             }),
             ArcEffect::Heat { delta } => out.heat += *delta,
+            // A cast person, or the worries of a cast area (each of its
+            // neighbourhoods): what a beat teaches.
+            ArcEffect::Learn { role, level } => {
+                use crate::player::knowledge::{Source, Subject};
+                if v.player().is_none() {
+                    continue;
+                }
+                let source = Source::Action {
+                    action: "arc".into(),
+                    place: None,
+                };
+                match run.actor(role) {
+                    Some(super::ArcActor::Person { id }) => out.requests.push(Effect::Learn {
+                        subject: Subject::Person { person: id },
+                        level: *level,
+                        source,
+                    }),
+                    Some(super::ArcActor::Area { area }) => {
+                        for h in area.hoods(r.world) {
+                            out.requests.push(Effect::Learn {
+                                subject: Subject::HoodConcerns {
+                                    hood: NeighborhoodId(h as u32),
+                                },
+                                level: *level,
+                                source: source.clone(),
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+            }
             // Not yet (`mandate_content::arcs::not_yet`): never raised.
             ArcEffect::GovApproval { .. } | ArcEffect::PlaceState { .. } => {}
         }
@@ -217,6 +249,36 @@ pub fn apply_now(
             } => {
                 state.events.note_effect(&cause);
                 crate::finance::vote_budget(&mut state.finance, at, category, factor);
+            }
+            Effect::Awareness {
+                scope,
+                delta,
+                classes,
+                communities,
+            } => {
+                state.events.note_effect(&cause);
+                crate::population::apply_awareness(
+                    &mut state.population,
+                    &state.world,
+                    scope,
+                    delta,
+                    &classes,
+                    &communities,
+                );
+            }
+            Effect::Surface { hidden, by } => {
+                state.events.note_effect(&cause);
+                crate::media::surface(state, hidden, by, cause);
+            }
+            Effect::Promise { template, answer } => {
+                state.events.note_effect(&cause);
+                let _ = crate::asks::commands::promise_on_stage(
+                    state,
+                    content,
+                    &template,
+                    answer.as_deref(),
+                    cause,
+                );
             }
             e if monthly(&e) => state.arcs.deferred.push(Request { effect: e, cause }),
             e => rest.push(Request { effect: e, cause }),

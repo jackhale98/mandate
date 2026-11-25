@@ -560,6 +560,125 @@
             "line_key"
           ],
           "type": "object"
+        },
+        {
+          "description": "A played scene of a few rounds (DEC-112; [`crate::exchange`]): the\nother side puts true things to the player, who answers with lines\nthey have earned, before an audience bound from live state.",
+          "properties": {
+            "at": {
+              "description": "Where it is held: a place role.",
+              "type": "string"
+            },
+            "audience": {
+              "description": "One to five groups in all.",
+              "items": {
+                "$ref": "#/$defs/AudienceDef2"
+              },
+              "type": "array"
+            },
+            "count": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CountDef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "layout": {
+              "$ref": "#/$defs/Layout",
+              "default": "crowd"
+            },
+            "moves": {
+              "items": {
+                "$ref": "#/$defs/MoveKind"
+              },
+              "type": "array"
+            },
+            "outcome": {
+              "additionalProperties": {
+                "$ref": "#/$defs/OptionOutcome"
+              },
+              "description": "What each end state does to the run (marks, heat, gated effects).",
+              "type": "object"
+            },
+            "params": {
+              "additionalProperties": {
+                "format": "double",
+                "type": "number"
+              },
+              "description": "Constants this scene sets for itself: dotted paths into\n[`ExchangeParams`] (`\"win\": 0.1`, `\"cover.own\": 0.5`).",
+              "type": "object"
+            },
+            "prep": {
+              "items": {
+                "$ref": "#/$defs/PrepDef"
+              },
+              "type": "array"
+            },
+            "prompts": {
+              "items": {
+                "$ref": "#/$defs/RoundDef"
+              },
+              "type": "array"
+            },
+            "rounds": {
+              "description": "Rounds (default: `exchange_params.rounds`).",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "sides": {
+              "$ref": "#/$defs/SidesDef"
+            },
+            "table": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TableDef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "temper": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TemperDef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "text": {
+              "description": "The key prefix of its sentences (`exchange-debate`).",
+              "type": "string"
+            },
+            "time": {
+              "$ref": "#/$defs/VisitTime",
+              "default": "slot",
+              "description": "What taking part costs, for the whole scene."
+            },
+            "type": {
+              "const": "exchange",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "at",
+            "sides",
+            "audience",
+            "prompts",
+            "moves",
+            "text"
+          ],
+          "type": "object"
         }
       ],
       "properties": {
@@ -1634,6 +1753,137 @@
         "age"
       ],
       "type": "object"
+    },
+    "AudienceDef2": {
+      "additionalProperties": false,
+      "description": "One source of audience groups.",
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/AudienceFrom"
+        },
+        "max": {
+          "description": "At most this many groups (never more than five in all).",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "of": {
+          "description": "For crowds: [`OF_RACE`], [`OF_HERE`] (the default), or an area or\nplace role of the arc.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "power": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Power"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "For `members`: the power their posts list."
+        },
+        "role": {
+          "description": "For `person`: the cast role.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start": {
+          "$ref": "#/$defs/AudienceStart",
+          "default": "approval"
+        },
+        "weight": {
+          "$ref": "#/$defs/AudienceWeight",
+          "default": "voters"
+        }
+      },
+      "required": [
+        "from"
+      ],
+      "type": "object"
+    },
+    "AudienceFrom": {
+      "description": "Where an audience's groups come from (§2.2). The engine binds each to\nlive state; none names a place or a body.",
+      "oneOf": [
+        {
+          "const": "areas",
+          "description": "The areas one level down from where the scene is.",
+          "type": "string"
+        },
+        {
+          "const": "classes",
+          "description": "Income classes inside one area.",
+          "type": "string"
+        },
+        {
+          "const": "communities",
+          "description": "The communities present in an area.",
+          "type": "string"
+        },
+        {
+          "const": "workers",
+          "description": "Where a cast place's workers live (until plants give it: the area).",
+          "type": "string"
+        },
+        {
+          "const": "members",
+          "description": "The holders of posts with a power, one group each.",
+          "type": "string"
+        },
+        {
+          "const": "person",
+          "description": "One cast person.",
+          "type": "string"
+        }
+      ]
+    },
+    "AudienceStart": {
+      "description": "Where a group's lean starts.",
+      "oneOf": [
+        {
+          "const": "approval",
+          "description": "A crowd's approval of the player among those who know them.",
+          "type": "string"
+        },
+        {
+          "const": "support",
+          "description": "A member's support: opinion, a shared party, a favour owed.",
+          "type": "string"
+        },
+        {
+          "const": "opinion",
+          "description": "A person's opinion of the player.",
+          "type": "string"
+        },
+        {
+          "const": "demand",
+          "description": "A person's opinion less what they are demanding (they start against).",
+          "type": "string"
+        }
+      ]
+    },
+    "AudienceWeight": {
+      "description": "How a crowd's groups are weighed.",
+      "oneOf": [
+        {
+          "const": "voters",
+          "description": "By voters (`count × turnout`).",
+          "type": "string"
+        },
+        {
+          "const": "even",
+          "description": "One each.",
+          "type": "string"
+        }
+      ]
     },
     "AxisDef": {
       "additionalProperties": false,
@@ -5658,6 +5908,34 @@
       ],
       "type": "object"
     },
+    "CountDef": {
+      "additionalProperties": false,
+      "description": "The result is a count of heads, not a mean (§2.4).",
+      "properties": {
+        "needs": {
+          "$ref": "#/$defs/CountNeeds"
+        }
+      },
+      "required": [
+        "needs"
+      ],
+      "type": "object"
+    },
+    "CountNeeds": {
+      "description": "How many members must end with the player.",
+      "oneOf": [
+        {
+          "const": "majority",
+          "description": "More than half.",
+          "type": "string"
+        },
+        {
+          "const": "two_thirds",
+          "description": "At least two thirds.",
+          "type": "string"
+        }
+      ]
+    },
     "CoverageParams": {
       "additionalProperties": false,
       "description": "Story selection, scandal heat, and perception (DEC-034).",
@@ -5997,6 +6275,91 @@
           "type": "object"
         }
       ]
+    },
+    "DeckParams": {
+      "additionalProperties": false,
+      "description": "The other side's deck (§4.2).",
+      "properties": {
+        "answers_base": {
+          "description": "Answers a scene: `answers_base + round(answers_per_skill × oratory)`.",
+          "format": "double",
+          "type": "number"
+        },
+        "answers_per_skill": {
+          "format": "double",
+          "type": "number"
+        },
+        "base": {
+          "description": "Attacks held: `base + round(per_skill × skill)`.",
+          "format": "double",
+          "type": "number"
+        },
+        "bold_bar": {
+          "format": "double",
+          "type": "number"
+        },
+        "bold_personal": {
+          "description": "Weight added to the personal sources: × boldness.",
+          "format": "double",
+          "type": "number"
+        },
+        "grudge_personal": {
+          "description": "Weight added to the personal sources by a grudge (a trait in\n`grudge_traits`, or a memory of the player against them).",
+          "format": "double",
+          "type": "number"
+        },
+        "grudge_traits": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "integrity_bar": {
+          "format": "double",
+          "type": "number"
+        },
+        "per_skill": {
+          "format": "double",
+          "type": "number"
+        },
+        "pick_top": {
+          "description": "A weaker opponent picks among their best this many.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sharp": {
+          "description": "Skill at or over which they read how residents feel, not what a\nstatistic shows, and always pick their best.",
+          "format": "double",
+          "type": "number"
+        },
+        "warm_question": {
+          "description": "Weight added to the room's question: × warmth.",
+          "format": "double",
+          "type": "number"
+        },
+        "weak_evidence": {
+          "description": "A hidden fact held on evidence under this is kept out by integrity\nat or over `integrity_bar`, and used only by boldness at or over\n`bold_bar`.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "base",
+        "per_skill",
+        "answers_base",
+        "answers_per_skill",
+        "sharp",
+        "pick_top",
+        "weak_evidence",
+        "integrity_bar",
+        "bold_bar",
+        "bold_personal",
+        "grudge_personal",
+        "warm_question"
+      ],
+      "type": "object"
     },
     "DeclineLook": {
       "enum": [
@@ -8172,6 +8535,396 @@
         }
       ]
     },
+    "ExchangeParams": {
+      "additionalProperties": false,
+      "description": "Every constant of the exchange (§5.6). Placeholders, all of them.",
+      "properties": {
+        "act_base": {
+          "format": "double",
+          "type": "number"
+        },
+        "act_votes": {
+          "description": "Added to `act` when the body would back it.",
+          "format": "double",
+          "type": "number"
+        },
+        "answer": {
+          "additionalProperties": false,
+          "description": "The size of the other side's answer, by the kind it answers.",
+          "properties": {
+            "act": {
+              "format": "double",
+              "type": "number"
+            },
+            "deny": {
+              "format": "double",
+              "type": "number"
+            },
+            "heard": {
+              "format": "double",
+              "type": "number"
+            },
+            "offer": {
+              "format": "double",
+              "type": "number"
+            },
+            "own": {
+              "format": "double",
+              "type": "number"
+            },
+            "pass": {
+              "format": "double",
+              "type": "number"
+            },
+            "promise": {
+              "format": "double",
+              "type": "number"
+            },
+            "proof": {
+              "format": "double",
+              "type": "number"
+            },
+            "record": {
+              "format": "double",
+              "type": "number"
+            },
+            "second": {
+              "format": "double",
+              "type": "number"
+            },
+            "turn": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "backfire": {
+          "additionalProperties": false,
+          "description": "What a line that does not stand costs.",
+          "properties": {
+            "act": {
+              "format": "double",
+              "type": "number"
+            },
+            "deny": {
+              "format": "double",
+              "type": "number"
+            },
+            "heard": {
+              "format": "double",
+              "type": "number"
+            },
+            "offer": {
+              "format": "double",
+              "type": "number"
+            },
+            "own": {
+              "format": "double",
+              "type": "number"
+            },
+            "pass": {
+              "format": "double",
+              "type": "number"
+            },
+            "promise": {
+              "format": "double",
+              "type": "number"
+            },
+            "proof": {
+              "format": "double",
+              "type": "number"
+            },
+            "record": {
+              "format": "double",
+              "type": "number"
+            },
+            "second": {
+              "format": "double",
+              "type": "number"
+            },
+            "turn": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "bite": {
+          "description": "How hard any attack bites.",
+          "format": "double",
+          "type": "number"
+        },
+        "cold": {
+          "description": "Round 1's bite when the player did not know what was coming.",
+          "format": "double",
+          "type": "number"
+        },
+        "cover": {
+          "additionalProperties": false,
+          "description": "How far a kind covers a prompt it answers.",
+          "properties": {
+            "act": {
+              "format": "double",
+              "type": "number"
+            },
+            "deny": {
+              "format": "double",
+              "type": "number"
+            },
+            "heard": {
+              "format": "double",
+              "type": "number"
+            },
+            "offer": {
+              "format": "double",
+              "type": "number"
+            },
+            "own": {
+              "format": "double",
+              "type": "number"
+            },
+            "pass": {
+              "format": "double",
+              "type": "number"
+            },
+            "promise": {
+              "format": "double",
+              "type": "number"
+            },
+            "proof": {
+              "format": "double",
+              "type": "number"
+            },
+            "record": {
+              "format": "double",
+              "type": "number"
+            },
+            "second": {
+              "format": "double",
+              "type": "number"
+            },
+            "turn": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "deck": {
+          "$ref": "#/$defs/DeckParams"
+        },
+        "fit": {
+          "$ref": "#/$defs/FitParams"
+        },
+        "gain": {
+          "description": "How much any line gains.",
+          "format": "double",
+          "type": "number"
+        },
+        "group_margin": {
+          "format": "double",
+          "type": "number"
+        },
+        "heard_floor": {
+          "description": "A worry learned only second-hand lands at this share.",
+          "format": "double",
+          "type": "number"
+        },
+        "hold": {
+          "$ref": "#/$defs/HoldParams"
+        },
+        "list_max": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lose": {
+          "format": "double",
+          "type": "number"
+        },
+        "member_fit": {
+          "$ref": "#/$defs/MemberFit"
+        },
+        "member_line": {
+          "description": "A member is with the player at or over this lean.",
+          "format": "double",
+          "type": "number"
+        },
+        "prep_pins": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "prompt_variants": {
+          "description": "Wordings written for each prompt and each line of the player's.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "public_share": {
+          "description": "A public fault counts at this: people have heard it.",
+          "format": "double",
+          "type": "number"
+        },
+        "repeat": {
+          "description": "A kind's second use.",
+          "format": "double",
+          "type": "number"
+        },
+        "rounds": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "say_variants": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "second_base": {
+          "format": "double",
+          "type": "number"
+        },
+        "size": {
+          "$ref": "#/$defs/SizeParams"
+        },
+        "spill": {
+          "description": "What a targeted line gives the groups it did not name.",
+          "format": "double",
+          "type": "number"
+        },
+        "stay_strength": {
+          "description": "Staying for every question.",
+          "format": "double",
+          "type": "number"
+        },
+        "temper": {
+          "$ref": "#/$defs/TemperParams"
+        },
+        "tiers": {
+          "additionalProperties": false,
+          "description": "Overrides by tier (DEC-098): dotted paths, as a scene's `params`.",
+          "properties": {
+            "local": {
+              "additionalProperties": {
+                "format": "double",
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "national": {
+              "additionalProperties": {
+                "format": "double",
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "regional": {
+              "additionalProperties": {
+                "format": "double",
+                "type": "number"
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "visits_full": {
+          "description": "Visits to a place that make `heard` land in full.",
+          "format": "double",
+          "type": "number"
+        },
+        "visits_keep": {
+          "description": "How long a visit counts (the ground game's `keep` a year).",
+          "format": "double",
+          "type": "number"
+        },
+        "voice_base": {
+          "format": "double",
+          "type": "number"
+        },
+        "voice_span": {
+          "format": "double",
+          "type": "number"
+        },
+        "voted_share": {
+          "description": "A law the player only voted for counts at this.",
+          "format": "double",
+          "type": "number"
+        },
+        "walk_away": {
+          "description": "A table is lost under this lean.",
+          "format": "double",
+          "type": "number"
+        },
+        "win": {
+          "format": "double",
+          "type": "number"
+        },
+        "world": {
+          "$ref": "#/$defs/WorldParams"
+        },
+        "worries": {
+          "description": "How a law's ledger speaks to each worry.",
+          "items": {
+            "$ref": "#/$defs/WorryReadings"
+          },
+          "type": "array"
+        },
+        "worry_match": {
+          "description": "A bill is about the worry whose attitudes it lines up with at least\nthis much (else it is no worry: `fit.flat`).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "rounds",
+        "bite",
+        "gain",
+        "cold",
+        "fit",
+        "spill",
+        "size",
+        "public_share",
+        "voted_share",
+        "second_base",
+        "act_base",
+        "act_votes",
+        "heard_floor",
+        "visits_full",
+        "visits_keep",
+        "stay_strength",
+        "cover",
+        "backfire",
+        "hold",
+        "repeat",
+        "win",
+        "lose",
+        "group_margin",
+        "member_line",
+        "walk_away",
+        "answer",
+        "voice_base",
+        "voice_span",
+        "list_max",
+        "prep_pins",
+        "prompt_variants",
+        "say_variants",
+        "deck",
+        "member_fit",
+        "temper",
+        "world",
+        "worries",
+        "worry_match"
+      ],
+      "type": "object"
+    },
     "ExitDef": {
       "additionalProperties": false,
       "properties": {
@@ -8941,6 +9694,36 @@
       ],
       "description": "One generator parameter."
     },
+    "FitParams": {
+      "additionalProperties": false,
+      "description": "How much a group cares about a subject, by the worry's rank there.",
+      "properties": {
+        "flat": {
+          "description": "A subject that is no worry (a thin record, a promise to turn up).",
+          "format": "double",
+          "type": "number"
+        },
+        "low": {
+          "format": "double",
+          "type": "number"
+        },
+        "next": {
+          "format": "double",
+          "type": "number"
+        },
+        "top": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "top",
+        "next",
+        "low",
+        "flat"
+      ],
+      "type": "object"
+    },
     "FundraiseEffects": {
       "additionalProperties": false,
       "properties": {
@@ -9190,6 +9973,27 @@
           "required": [
             "type",
             "delta"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "The player learns of a cast person, or of the worries of a cast\narea, to a level (the player applies; never lowered).",
+          "properties": {
+            "level": {
+              "$ref": "#/$defs/Level"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "learn",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "level"
           ],
           "type": "object"
         },
@@ -9822,6 +10626,30 @@
         "kind",
         "severity",
         "evidence"
+      ],
+      "type": "object"
+    },
+    "HoldParams": {
+      "additionalProperties": false,
+      "description": "The chance a claim stands up, by how well it is known.",
+      "properties": {
+        "detailed": {
+          "format": "double",
+          "type": "number"
+        },
+        "heard": {
+          "format": "double",
+          "type": "number"
+        },
+        "known": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "heard",
+        "known",
+        "detailed"
       ],
       "type": "object"
     },
@@ -11655,6 +12483,26 @@
         }
       ]
     },
+    "Layout": {
+      "description": "How the scene is laid out on screen (presentation only).",
+      "oneOf": [
+        {
+          "const": "crowd",
+          "description": "A strip of groups (a debate, a public meeting).",
+          "type": "string"
+        },
+        {
+          "const": "members",
+          "description": "A row of faces with a count (a hearing).",
+          "type": "string"
+        },
+        {
+          "const": "table",
+          "description": "Two short lists: what is asked and what is offered (a negotiation).",
+          "type": "string"
+        }
+      ]
+    },
     "LeadDef": {
       "additionalProperties": false,
       "description": "A lead posted when the proposal opens: who or where would know more.",
@@ -11799,6 +12647,30 @@
           "type": "object"
         }
       ]
+    },
+    "LedgerReading": {
+      "additionalProperties": false,
+      "description": "A worry's reading in a law's ledger, and the amount that answers it in\nfull (§3.1, `record`).",
+      "properties": {
+        "full": {
+          "description": "The amount that is a full answer; with `per_thousand`, for every\nthousand residents of the law's jurisdiction.",
+          "format": "double",
+          "type": "number"
+        },
+        "key": {
+          "description": "A ledger key, or a prefix ending in `_` (`jobs_added_`).",
+          "type": "string"
+        },
+        "per_thousand": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "key",
+        "full"
+      ],
+      "type": "object"
     },
     "LegacyParams": {
       "additionalProperties": false,
@@ -12730,6 +13602,163 @@
       ],
       "type": "object"
     },
+    "MemberFit": {
+      "additionalProperties": false,
+      "description": "How a member or a person cares (§5.3): a base, and weights on who they\nare. The result is kept in `[min, max]`.",
+      "properties": {
+        "base": {
+          "format": "double",
+          "type": "number"
+        },
+        "demand": {
+          "description": "What a `demand` takes from a person's starting lean.",
+          "format": "double",
+          "type": "number"
+        },
+        "favour_step": {
+          "format": "double",
+          "type": "number"
+        },
+        "goal": {
+          "description": "A subject that matches one of their goals counts as this.",
+          "format": "double",
+          "type": "number"
+        },
+        "integrity": {
+          "additionalProperties": false,
+          "default": {},
+          "description": "× integrity, by kind (`own` up, `deny` down).",
+          "properties": {
+            "act": {
+              "format": "double",
+              "type": "number"
+            },
+            "deny": {
+              "format": "double",
+              "type": "number"
+            },
+            "heard": {
+              "format": "double",
+              "type": "number"
+            },
+            "offer": {
+              "format": "double",
+              "type": "number"
+            },
+            "own": {
+              "format": "double",
+              "type": "number"
+            },
+            "pass": {
+              "format": "double",
+              "type": "number"
+            },
+            "promise": {
+              "format": "double",
+              "type": "number"
+            },
+            "proof": {
+              "format": "double",
+              "type": "number"
+            },
+            "record": {
+              "format": "double",
+              "type": "number"
+            },
+            "second": {
+              "format": "double",
+              "type": "number"
+            },
+            "turn": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "loyalty": {
+          "additionalProperties": false,
+          "default": {},
+          "description": "× loyalty, for one of the player's party, by kind.",
+          "properties": {
+            "act": {
+              "format": "double",
+              "type": "number"
+            },
+            "deny": {
+              "format": "double",
+              "type": "number"
+            },
+            "heard": {
+              "format": "double",
+              "type": "number"
+            },
+            "offer": {
+              "format": "double",
+              "type": "number"
+            },
+            "own": {
+              "format": "double",
+              "type": "number"
+            },
+            "pass": {
+              "format": "double",
+              "type": "number"
+            },
+            "promise": {
+              "format": "double",
+              "type": "number"
+            },
+            "proof": {
+              "format": "double",
+              "type": "number"
+            },
+            "record": {
+              "format": "double",
+              "type": "number"
+            },
+            "second": {
+              "format": "double",
+              "type": "number"
+            },
+            "turn": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "max": {
+          "format": "double",
+          "type": "number"
+        },
+        "memory": {
+          "description": "Added when they remember something good of the player; taken when\nsomething bad.",
+          "format": "double",
+          "type": "number"
+        },
+        "min": {
+          "format": "double",
+          "type": "number"
+        },
+        "party_step": {
+          "description": "A member's starting lean: opinion ÷ 100, plus these.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "base",
+        "min",
+        "max",
+        "memory",
+        "goal",
+        "party_step",
+        "favour_step",
+        "demand"
+      ],
+      "type": "object"
+    },
     "MemoryCaps": {
       "additionalProperties": false,
       "properties": {
@@ -12805,6 +13834,23 @@
         "trust"
       ],
       "type": "object"
+    },
+    "MoveKind": {
+      "description": "The kinds of line (§3.1), in the order the list shows them.",
+      "enum": [
+        "record",
+        "heard",
+        "turn",
+        "promise",
+        "act",
+        "own",
+        "deny",
+        "offer",
+        "second",
+        "proof",
+        "pass"
+      ],
+      "type": "string"
     },
     "NamePoolDef": {
       "additionalProperties": false,
@@ -14984,6 +16030,65 @@
       ],
       "type": "string"
     },
+    "PrepDef": {
+      "additionalProperties": false,
+      "description": "A mark from an earlier beat that adds a line or removes a risk (§3.4).",
+      "properties": {
+        "adds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MoveKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A kind of line the mark gives (`second`, `proof`)."
+        },
+        "bars": {
+          "description": "Sources the other side keeps off while the mark is set.",
+          "items": {
+            "$ref": "#/$defs/SourceKind"
+          },
+          "type": "array"
+        },
+        "evidence": {
+          "description": "For `adds: proof`: the evidence what was found carries (0..1).",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mark": {
+          "type": "string"
+        },
+        "removes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrepRemoves"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "mark"
+      ],
+      "type": "object"
+    },
+    "PrepRemoves": {
+      "description": "What a `prep` mark removes.",
+      "oneOf": [
+        {
+          "const": "cold",
+          "description": "The first round is not cold: the player knew what was coming.",
+          "type": "string"
+        }
+      ]
+    },
     "PressEffects": {
       "additionalProperties": false,
       "properties": {
@@ -15730,6 +16835,34 @@
         "uph",
         "acc",
         "acc2"
+      ],
+      "type": "object"
+    },
+    "RoundDef": {
+      "additionalProperties": false,
+      "description": "One round: who speaks and the sources they may draw on, best first.",
+      "properties": {
+        "by": {
+          "$ref": "#/$defs/Speaker",
+          "default": "other"
+        },
+        "from": {
+          "items": {
+            "$ref": "#/$defs/SourceKind"
+          },
+          "type": "array"
+        },
+        "round": {
+          "description": "From 1.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "round",
+        "from"
       ],
       "type": "object"
     },
@@ -16630,6 +17763,34 @@
       ],
       "type": "object"
     },
+    "SidesDef": {
+      "additionalProperties": false,
+      "description": "Who is across from the player, who may chair, who may speak for them.",
+      "properties": {
+        "chair": {
+          "description": "A person role that may ask a round's question.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "other": {
+          "description": "A person role.",
+          "type": "string"
+        },
+        "second": {
+          "description": "A person role that may speak for the player (the `second` line).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "other"
+      ],
+      "type": "object"
+    },
     "SiteFlag": {
       "description": "A yes-or-no fact about a town an industry's siting needs or likes.",
       "oneOf": [
@@ -16805,6 +17966,80 @@
       ],
       "type": "object"
     },
+    "SizeParams": {
+      "additionalProperties": false,
+      "description": "An attack's size, by source, where it is not read from state.",
+      "properties": {
+        "absent": {
+          "description": "A beat never taken, a decision let pass (each).",
+          "format": "double",
+          "type": "number"
+        },
+        "failed_line": {
+          "description": "A law whose ledger delivers less than this is \"failed\".",
+          "format": "double",
+          "type": "number"
+        },
+        "governing_line": {
+          "description": "The government's approval under which its record is an attack.",
+          "format": "double",
+          "type": "number"
+        },
+        "gravity_crime": {
+          "format": "double",
+          "type": "number"
+        },
+        "gravity_ethics": {
+          "description": "How grave a hidden fact is, by its severity.",
+          "format": "double",
+          "type": "number"
+        },
+        "gravity_misconduct": {
+          "format": "double",
+          "type": "number"
+        },
+        "lean_line": {
+          "description": "How far a group must lean against a vote before it is an attack.",
+          "format": "double",
+          "type": "number"
+        },
+        "promise": {
+          "description": "A broken promise.",
+          "format": "double",
+          "type": "number"
+        },
+        "question": {
+          "description": "The room's question: not an attack.",
+          "format": "double",
+          "type": "number"
+        },
+        "recency_days": {
+          "description": "Days over which a broken promise fades to half.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "thin_line": {
+          "description": "The record under which \"thin\" is an attack.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "promise",
+        "question",
+        "absent",
+        "thin_line",
+        "failed_line",
+        "lean_line",
+        "governing_line",
+        "recency_days",
+        "gravity_ethics",
+        "gravity_misconduct",
+        "gravity_crime"
+      ],
+      "type": "object"
+    },
     "SkipTargetDef": {
       "additionalProperties": false,
       "properties": {
@@ -16866,6 +18101,40 @@
         "bind"
       ],
       "type": "object"
+    },
+    "SourceKind": {
+      "description": "Where a prompt comes from (§4.1): code that reads one owner's state and\ngives zero or more true things to put to the player.",
+      "enum": [
+        "broken_promise",
+        "vote_against_lean",
+        "failed_law",
+        "thin_record",
+        "absent",
+        "scandal",
+        "hidden_fact",
+        "governing_record",
+        "the_matter",
+        "who_pays",
+        "demand",
+        "debt_record",
+        "bind",
+        "terms",
+        "the_fact",
+        "contradiction",
+        "who_else",
+        "evidence_held",
+        "fitness",
+        "top_worry"
+      ],
+      "type": "string"
+    },
+    "Speaker": {
+      "description": "Who puts a round's prompt.",
+      "enum": [
+        "other",
+        "chair"
+      ],
+      "type": "string"
     },
     "SponsorDef": {
       "additionalProperties": false,
@@ -17678,6 +18947,63 @@
       ],
       "type": "object"
     },
+    "TableDef": {
+      "additionalProperties": false,
+      "description": "Offers wait on the table and take effect only if a deal is struck\n(§2.4). **Not built yet** (the negotiation arrives with the favour's\narc): parsed and validated, and an arc that uses it is never raised.",
+      "properties": {
+        "wants": {
+          "items": {
+            "$ref": "#/$defs/TableWant"
+          },
+          "type": "array"
+        },
+        "watchers": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WatchersDef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "TableVote": {
+      "enum": [
+        "yes",
+        "no"
+      ],
+      "type": "string"
+    },
+    "TableWant": {
+      "description": "Something the other side asks for across a table.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The player's vote on the bill cast in a role.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "vote",
+              "type": "string"
+            },
+            "vote": {
+              "$ref": "#/$defs/TableVote"
+            }
+          },
+          "required": [
+            "type",
+            "role",
+            "vote"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "TalkChoiceDef": {
       "additionalProperties": false,
       "description": "The choice a talk need puts in the conversation with its person (a talk\nhook, S4): the button (`label_key`), what the player says (`say_key`),\nand the replies, the first whose conditions hold (slots `speaker` and\n`player`) being said. A reply that `agrees` meets the need; one that\ndoes not leaves it open, and the ask says so. The last reply has no\nconditions, so there is always one. Arguments: the ask's people by role\n(`$asker`, `$official`, …), a bill role as `$<role>_key` (`$bill` in the\ntext), and `$speaker`, `$player`, `$town`.",
@@ -18085,6 +19411,59 @@
         "level"
       ],
       "type": "object"
+    },
+    "TemperDef": {
+      "additionalProperties": false,
+      "description": "A room's anger scales every gain down; some lines cool it (§2.4).",
+      "properties": {
+        "drag": {
+          "description": "Gains land at `1 − drag × heat`.",
+          "format": "float",
+          "type": "number"
+        },
+        "reads": {
+          "$ref": "#/$defs/TemperReads",
+          "default": "heat"
+        }
+      },
+      "required": [
+        "drag"
+      ],
+      "type": "object"
+    },
+    "TemperParams": {
+      "additionalProperties": false,
+      "description": "A room's temper (§2.4): what cools it.",
+      "properties": {
+        "cool_heard": {
+          "format": "double",
+          "type": "number"
+        },
+        "cool_own": {
+          "format": "double",
+          "type": "number"
+        },
+        "cool_stay": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "cool_own",
+        "cool_stay",
+        "cool_heard"
+      ],
+      "type": "object"
+    },
+    "TemperReads": {
+      "description": "What a room's temper reads.",
+      "oneOf": [
+        {
+          "const": "heat",
+          "description": "The run's own heat.",
+          "type": "string"
+        }
+      ]
     },
     "TemptationParams": {
       "additionalProperties": false,
@@ -19763,6 +21142,36 @@
       ],
       "type": "object"
     },
+    "WatchersDef": {
+      "additionalProperties": false,
+      "description": "Who hears how a negotiation ended.",
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/AudienceFrom"
+        },
+        "power": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Power"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "who": {
+          "description": "`owed_or_owing`: those who owe the player or are owed by them.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "from"
+      ],
+      "type": "object"
+    },
     "WaterFeature": {
       "description": "Water a town or neighbourhood can have.",
       "oneOf": [
@@ -20000,6 +21409,63 @@
       ],
       "type": "object"
     },
+    "WorldParams": {
+      "additionalProperties": false,
+      "description": "What the scene does in the world (§5.5).",
+      "properties": {
+        "approve": {
+          "description": "Approval in a crowd group: × its change in lean.",
+          "format": "double",
+          "type": "number"
+        },
+        "aware": {
+          "description": "Recognition in each crowd group, win or lose.",
+          "format": "double",
+          "type": "number"
+        },
+        "memory_at": {
+          "description": "A change in lean at or over this is remembered.",
+          "format": "double",
+          "type": "number"
+        },
+        "opinion": {
+          "description": "A member's or a person's opinion: × their change in lean.",
+          "format": "double",
+          "type": "number"
+        },
+        "own_standing": {
+          "description": "Standing an admission costs.",
+          "format": "double",
+          "type": "number"
+        },
+        "pressed": {
+          "description": "The other side's opinion when a `turn` is used on them.",
+          "format": "double",
+          "type": "number"
+        },
+        "second_lost": {
+          "description": "The backer's opinion when a scene they spoke in is lost.",
+          "format": "double",
+          "type": "number"
+        },
+        "story_weight": {
+          "description": "The paper's story: its weight in the media's own perception rule\nwhen the result is at a threshold (`win`, `lose`), less under it.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "approve",
+        "aware",
+        "opinion",
+        "memory_at",
+        "own_standing",
+        "second_lost",
+        "pressed",
+        "story_weight"
+      ],
+      "type": "object"
+    },
     "Worry": {
       "description": "How a worry is read.",
       "oneOf": [
@@ -20014,6 +21480,26 @@
           "type": "string"
         }
       ]
+    },
+    "WorryReadings": {
+      "additionalProperties": false,
+      "description": "How a law's ledger speaks to one worry.",
+      "properties": {
+        "concern": {
+          "type": "string"
+        },
+        "readings": {
+          "items": {
+            "$ref": "#/$defs/LedgerReading"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "concern",
+        "readings"
+      ],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -21093,6 +22579,24 @@
       "required": [
         "kind",
         "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Exchange scenes (DEC-112): every constant of the mechanism.",
+      "properties": {
+        "kind": {
+          "const": "exchange_params",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/ExchangeParams"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
       ],
       "type": "object"
     },

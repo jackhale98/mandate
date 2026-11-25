@@ -304,6 +304,8 @@ impl Script {
                     _ => None,
                 }
             }
+            // The flood holds no scene.
+            BeatAction::Exchange { .. } => None,
         }
     }
 
