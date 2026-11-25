@@ -61,7 +61,11 @@ describe.skipIf(!built)("engine town views (WASM build)", () => {
     expect(st.detailed).toBe(false);
     const dress = stateFromEngine(st, input.home, input.location);
     expect(dress.hoods?.length).toBe(view.neighborhoods.length);
-    expect(dress.closedPlaces).toEqual([]);
+    // Since industries (DEC-110) a town's history can shut a works before play begins: the street is told
+    // of exactly the places the engine has closed.
+    const closed = st.places.filter((p) => p.status === "closed").map((p) => p.id);
+    expect(dress.closedPlaces).toEqual(closed);
+    expect(closed.length).toBeLessThan(st.places.length);
     expect(dress.housingPm).toBeGreaterThan(900);
   }, 120_000);
 });
