@@ -156,8 +156,9 @@ fn state_shape_matches_format_version() {
     // votes and backs candidates (M6 note 27), recorded with the
     // conversations work and the exchange scenes merged. No serialized
     // struct changed in this task; the sample game's contents did, so the
-    // version stays 31.
-    const EXPECTED: (u16, &str) = (31, "8e30e5a8b2465cf8");
+    // version stays 31. Re-recorded for M6 note 29 (lobbying is a
+    // conversation): no serialized struct changed; the sample game did.
+    const EXPECTED: (u16, &str) = (31, "b403b772115f9a9d");
     let c = content();
     let mut e = generate(
         &WorldConfig {
