@@ -435,7 +435,8 @@ pub fn pitch(
     match argument {
         Argument::Plain => p.odds = odds(ties, false),
         Argument::AfterHours => {
-            if !me.is_player || state.player.as_ref().is_some_and(|x| x.late_night_used) {
+            // (The late slot's being free is the conversation's check.)
+            if !me.is_player {
                 return None;
             }
             p.odds = odds(ties, true);
@@ -732,10 +733,14 @@ pub fn arguments(state: &State, content: &ContentBundle, speaker: CharacterId) -
     ) else {
         return Vec::new();
     };
+    let late_used = state.player.as_ref().is_some_and(|x| x.late_night_used);
     let mut out = Vec::new();
     for b in open_bills(state, content, speaker) {
         let side = player_side(state, b);
         for a in Argument::ALL {
+            if a == Argument::AfterHours && late_used {
+                continue;
+            }
             if let Some(p) = pitch(state, content, me, target, b, a, side) {
                 out.push(p);
             }

@@ -318,9 +318,17 @@ fn plan(
         Some(AboutRef::Bill { policy }) => Some(*policy),
         _ => None,
     };
-    // A colleague is lobbied on a bill in conversation's own choices
-    // (`actions::lobbying`, M6 note 29), not through these topics.
-    let lobbied = colleague(state, speaker).is_some() && bill.is_some();
+    // A colleague is lobbied on a bill before the body in the
+    // conversation's own choices (`actions::lobbying`, M6 note 29), not
+    // through these topics; a draft is only noted.
+    let lobbied = colleague(state, speaker).is_some()
+        && bill.is_some_and(|b| {
+            state
+                .policy
+                .instances
+                .get(b.index())
+                .is_some_and(|i| i.status == PolicyStatus::UnderConsideration)
+        });
     if lobbied
         && matches!(
             topic.mechanic,

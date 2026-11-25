@@ -448,6 +448,7 @@ ui-whip-talk-to = Talk to { $name } about the bill
 ui-whip-settled = Settled
 ui-whip-brings = Can bring others
 ui-whip-talked-out = Talked to twice this week
+ui-lobby-by-talking = Lobbying is done by talking: talk to the member about the bill. Meeting after hours is one of the choices.
 whip-why-settled = { $how ->
     [sponsor] their own bill
     [no] committed: no

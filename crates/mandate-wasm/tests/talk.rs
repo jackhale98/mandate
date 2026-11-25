@@ -275,9 +275,12 @@ fn out_of_time_is_said() {
 }
 
 /// The odds the panel shows are the odds the roll uses (DEC-073), even when
-/// the conversation itself teaches who they are or warms them first.
+/// the conversation itself teaches who they are or warms them first:
+/// lobbying a colleague on a bill (M6 note 29), every rolled argument the
+/// panel offers, from the list (no walk).
 #[test]
 fn odds_shown_are_odds_rolled() {
+    use mandate_sim::actions::lobbying::{self, Argument};
     let mut base = game(43);
     let policy = bill(&mut base);
     let at = council_spot(&mut base);
@@ -301,56 +304,71 @@ fn odds_shown_are_odds_rolled() {
                 }
             });
             let v = talk_view(&e, TalkTargetDto::Person { person: person.0 }, false).unwrap();
-            let Some(t) = v.topics.iter().find(|t| t.id == "topic.pitch") else {
-                continue;
-            };
-            let Some(c) = t
-                .about
+            let args: Vec<&TopicView> = v
+                .topics
                 .iter()
-                .find(|c| c.about == (AboutRefDto::Bill { policy }))
-            else {
+                .filter(|t| t.bill == Some(policy) && t.odds.is_some() && t.available)
+                .collect();
+            let Some(t) = args.get(shift % args.len().max(1)) else {
                 continue;
             };
-            let p = c.odds.expect("a pitch on a bill to a colleague shows odds");
-            assert!(c.available);
+            assert!(
+                v.topics
+                    .iter()
+                    .any(|t| t.id == lobbying::choice_id(policy, Argument::Plain)),
+                "the plain pitch is always offered"
+            );
+            let p = t.odds.unwrap();
+            let (_, argument) = lobbying::parse_id(&t.id).unwrap();
             // What the odds would be once they are known.
             let mut known = copy(&e);
             set(&mut known, &Subject::Person { person }, Level::Known);
-            let later = talk::odds(
-                known.state(),
+            let st = known.state();
+            let me = st.player.as_ref().unwrap().politician;
+            let target = st
+                .politics
+                .characters
+                .get(person)
+                .unwrap()
+                .politician
+                .unwrap();
+            let later = lobbying::pitch(
+                st,
                 known.content(),
-                person,
-                "topic.pitch",
-                Some(&AboutRef::Bill {
-                    policy: mandate_sim::policy::PolicyInstanceId(policy),
-                }),
-                false,
+                me,
+                target,
+                policy,
+                argument,
+                lobbying::player_side(st, policy),
             )
-            .unwrap();
+            .unwrap()
+            .odds;
             let u = e.state().rng.clone().get(Stream::Player).next_f64();
             if (u >= p) != (u >= later) {
                 gap += 1;
             }
             let r = e
-                .apply(talk_cmd(
-                    person,
-                    "topic.pitch",
-                    Some(AboutRef::Bill {
-                        policy: mandate_sim::policy::PolicyInstanceId(policy),
-                    }),
-                    false,
-                ))
+                .apply(talk_cmd(person, &t.id, None, false))
                 .unwrap()
                 .result
                 .unwrap();
             let x = exchange_view(&e, r.created.unwrap()).unwrap();
-            let success = x.outcome_key == "outcome-talk-pitch-success";
-            assert!(success || x.outcome_key == "outcome-talk-pitch-fail");
-            assert_eq!(success, u < p, "shown {p}, drew {u}");
+            let success = x.outcome_key != "outcome-lobby-lost";
+            assert!(
+                [
+                    "outcome-lobby-won",
+                    "outcome-lobby-lost",
+                    "outcome-lobby-rallied"
+                ]
+                .contains(&x.outcome_key.as_str()),
+                "{}",
+                x.outcome_key
+            );
+            assert_eq!(success, u < p, "{}: shown {p}, drew {u}", t.id);
             trials += 1;
         }
     }
-    assert!(trials >= 40, "{trials} pitches");
+    assert!(trials >= 40, "{trials} arguments");
     assert!(gap > 0, "the test reaches draws between the two odds");
 }
 

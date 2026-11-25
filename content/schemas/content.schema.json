@@ -12957,10 +12957,60 @@
         }
       ]
     },
+    "LobbyArguments": {
+      "additionalProperties": false,
+      "description": "The arguments of a lobbying conversation (M6 note 29). Each replaces\nthe plain pitch's ties term (the member's opinion of the player /\n`council.lobby.opinion_scale`) in the lobbying logit with its own.",
+      "properties": {
+        "broker": {
+          "description": "The broker (who wants what the player wants): × the member's\ncompliance with the broker (0..1).",
+          "format": "double",
+          "type": "number"
+        },
+        "exchanges": {
+          "description": "Lobbying exchanges with one member on one bill a week.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "party": {
+          "description": "Their party's line (on the player's side): × the member's loyalty.",
+          "format": "double",
+          "type": "number"
+        },
+        "rally_sway": {
+          "description": "An ally or the party whip brings others: sway per member ×\n(their opinion of the one asked / 100, plus their loyalty if in the\nsame party), clamped to 0..1.",
+          "format": "double",
+          "type": "number"
+        },
+        "ward": {
+          "description": "Their ward: × the ward's support for the bill (−1..1, on the\nplayer's side).",
+          "format": "double",
+          "type": "number"
+        },
+        "word": {
+          "description": "The player's word (an ask of theirs kept): × (2 × trust − 1).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "exchanges",
+        "ward",
+        "party",
+        "word",
+        "broker",
+        "rally_sway"
+      ],
+      "type": "object"
+    },
     "LobbyEffects": {
       "additionalProperties": false,
       "description": "The player's lobbying (the odds and the sway gained are in `council.lobby`).",
       "properties": {
+        "arguments": {
+          "$ref": "#/$defs/LobbyArguments",
+          "description": "Lobbying as a conversation (M6 note 29): the arguments the player\ncan make, beside the plain pitch."
+        },
         "late_night_legal": {
           "description": "Legal jeopardy of a late-night deal.",
           "format": "double",
@@ -12985,7 +13035,8 @@
         "trade_gain",
         "opinion_success",
         "opinion_fail",
-        "late_night_legal"
+        "late_night_legal",
+        "arguments"
       ],
       "type": "object"
     },
