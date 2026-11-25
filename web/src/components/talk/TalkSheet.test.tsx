@@ -48,8 +48,8 @@ function view(over: Partial<TalkView> = {}): TalkView {
         mechanic: "pitch",
         about_required: true,
         about: [
-          { about: { type: "bill", policy: 3 }, kind: "bill", label: "", label_key: "talk-topic-pitch", odds: 0.62, available: true, unavailable_key: null },
-          { about: { type: "template", template: "policy.x" }, kind: "template", label: "Something else", label_key: null, odds: null, available: false, unavailable_key: "talk-why-role" },
+          { about: { type: "bill", policy: 3 }, kind: "bill", label: "", label_key: "talk-topic-pitch", odds: 0.62, available: true, unavailable_key: null, likely: false },
+          { about: { type: "template", template: "policy.x" }, kind: "template", label: "Something else", label_key: null, odds: null, available: false, unavailable_key: "talk-why-role", likely: false },
         ],
         odds: null,
         available: false,
@@ -220,6 +220,37 @@ describe("dialogue mode", () => {
     expect(openTalk).not.toHaveBeenCalled();
     fireEvent.keyDown(document.activeElement as Element, { key: "Escape" });
     expect(openTalk).toHaveBeenCalledWith(null);
+  });
+
+  it("lists the subjects the person would know first, the rest behind Something else… with search, and asks the open question", () => {
+    const talkAbout = vi.fn(async () => {});
+    const subject = (n: number, likely: boolean) => ({ about: { type: "person" as const, person: n }, kind: "person", label: `Person ${n}`, label_key: null, odds: null, available: true, unavailable_key: null, likely });
+    const about = { id: "topic.about", name_key: "talk-topic-about", mechanic: "inform", about_required: true, about: [subject(1, true), subject(2, true), subject(3, false), subject(4, false)], odds: null, available: false, unavailable_key: "talk-why-needs-subject", asked_this_week: false };
+    const open = { id: "topic.open", name_key: "talk-topic-open", mechanic: "open", about_required: false, about: [], odds: null, available: true, unavailable_key: null, asked_this_week: false };
+    useGame.setState({ talkAbout, talk: view({ topics: [open, about] }) });
+    render(<TalkSheet />);
+    fireEvent.click(choice("talk-topic-topic.about"));
+    // The engine's likely subjects, then one entry for the rest.
+    const names = () => within(screen.getByTestId("talk-subjects")).queryAllByTestId("talk-subject").map((r) => r.textContent);
+    expect(names()).toEqual(["Person 1", "Person 2"]);
+    expect(screen.queryByTestId("talk-subject-search")).toBeNull();
+    fireEvent.click(choice("talk-something-else"));
+    expect(names()).toEqual(["Person 3", "Person 4"]);
+    expect(screen.queryByTestId("talk-something-else")).toBeNull();
+    const search = screen.getByTestId("talk-subject-search");
+    expect(document.activeElement).toBe(search);
+    fireEvent.change(search, { target: { value: "4" } });
+    expect(names()).toEqual(["Person 4"]);
+    // Escape steps back to the likely subjects, then to the topics.
+    fireEvent.keyDown(document.activeElement as Element, { key: "Escape" });
+    expect(names()).toEqual(["Person 1", "Person 2"]);
+    expect(document.activeElement).toBe(choice("talk-something-else"));
+    fireEvent.keyDown(document.activeElement as Element, { key: "Escape" });
+    expect(screen.getByTestId("talk-topics")).toBeTruthy();
+    // The open question takes no subject: one tap.
+    fireEvent.click(choice("talk-topic-topic.open"));
+    expect(talkAbout).toHaveBeenCalledWith("topic.open", null);
+    expect(screen.getByTestId("talk-you").textContent).toBe("What's on your mind?");
   });
 
   it("says plainly when the player is out of time", () => {

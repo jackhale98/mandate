@@ -147,6 +147,7 @@
 .dlg-step-title { margin: 0; font-size: 0.95rem; overflow-wrap: anywhere; }
 .dlg-search { width: calc(100% - 12px); margin: 2px 6px 6px; min-height: 38px; border-radius: 0; border: 2px solid var(--dlg-muted); background: var(--dlg-paper-2); color: var(--dlg-text); }
 .dlg-search:focus-visible { outline-offset: -3px; }
+.dlg-hint { margin: 0 10px 4px; font-size: 0.8rem; color: var(--dlg-muted); overflow-wrap: anywhere; }
 .dlg-group { list-style: none; }
 .dlg-group-name { margin: 8px 10px 2px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dlg-muted); }
 .dlg-none { padding: 8px 10px; color: var(--dlg-muted); font-size: 0.9rem; }
