@@ -38,6 +38,32 @@ describe("people standing in the street", () => {
     expect(s.standing.map(({ w }) => [w.x, w.y])).toEqual([before[0]]);
   });
 
+  it("stand in the player's own neighbourhood when the player is by a border (owner, 2026-11-25)", () => {
+    // Walking up to someone must not carry the player onto the next neighbourhood's ground: the label
+    // above the street reads the ground underfoot, and the engine still has the player here.
+    const W = map.width;
+    const probe = new TownScene(map, { townsfolk: 0 });
+    const cost = probe.grid.cost;
+    let border: number | null = null;
+    for (let i = 0; i < cost.length - 1 && border === null; i++) {
+      if (i % W === W - 1 || (cost[i] ?? 0) <= 0 || (cost[i + 1] ?? 0) <= 0) continue;
+      const a = map.district[i];
+      const b = map.district[i + 1];
+      if (a !== undefined && b !== undefined && a >= 0 && b >= 0 && a !== b) border = i;
+    }
+    expect(border, "an open cell beside another neighbourhood").not.toBeNull();
+    const s = new TownScene(map, { townsfolk: 0 });
+    s.placePlayer(border as number);
+    s.setStanding([
+      { key: "c1", variant: 101 },
+      { key: "c2", variant: 102 },
+      { key: "c3", variant: 103 },
+    ]);
+    expect(s.standing.length).toBeGreaterThan(0);
+    const here = map.district[border as number];
+    for (const { w } of s.standing) expect(map.district[Math.floor(w.y) * W + Math.floor(w.x)]).toBe(here);
+  });
+
   it("someone whose place changes walks off towards it before they go (note 7)", () => {
     const s = new TownScene(map, { townsfolk: 0 });
     s.setStanding([

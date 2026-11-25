@@ -232,7 +232,12 @@ export class TownScene {
       }
     }
     const dist = (i: number) => Math.hypot((i % W) - px, Math.floor(i / W) - py);
-    cands.sort((a, b) => dist(a) - dist(b) || a - b);
+    // They stand in the player's own neighbourhood: someone walked up to across its border would put the
+    // player on the next neighbourhood's ground while the engine still has them here. Across it only
+    // when there is no room on this side.
+    const here = this.map.district[pc];
+    const away = (i: number) => (this.map.district[i] === here ? 0 : 1);
+    cands.sort((a, b) => away(a) - away(b) || dist(a) - dist(b) || a - b);
     for (const p of fresh) {
       const cell = cands.find((c) => taken.every((t) => Math.max(Math.abs((t % W) - (c % W)), Math.abs(Math.floor(t / W) - Math.floor(c / W))) >= 2));
       if (cell === undefined) continue;

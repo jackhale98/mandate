@@ -324,8 +324,9 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       // Come to rest away from where the engine has the player (walked there with the keys, or stopped at
       // a place with nothing to do): they are on that neighbourhood's streets, as after a tap on open
       // ground. Otherwise the label here and the pocket would name two different places. Not at a door:
-      // there the player is about to go in, and Enter arrives.
-      const resting = !v.scene.playerMoving && !at && hood !== null && v.scene.doorHere === null && !latest.current.busy && !latest.current.walking;
+      // there the player is about to go in, and Enter arrives. Not in a conversation: the person spoken to is
+      // where the engine has the player.
+      const resting = !v.scene.playerMoving && !at && hood !== null && v.scene.doorHere === null && v.talking === null && useGame.getState().talk === null && !latest.current.busy && !latest.current.walking;
       rested.current = resting ? rested.current + 1 : 0;
       if (rested.current === 2 && hood !== null) {
         const loc: LocationDto = { type: "street", neighborhood: hood };
