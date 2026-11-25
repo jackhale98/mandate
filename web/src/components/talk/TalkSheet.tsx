@@ -37,6 +37,7 @@ import { costText, greetingPage, pageText, questionText, replyPages, SEARCH_FROM
 import { setTalkMode, useTalkStage, type TalkMode } from "./stage";
 import { displayName } from "./streetPeople";
 import { aboutText, learnedText } from "./talkText";
+import { SceneSheet } from "../exchange/SceneSheet";
 import "./talk.css";
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -59,8 +60,22 @@ interface Conversation {
 
 const targetKey = (to: { type: "person"; person: number } | { type: "ambient"; slot: number } | null) => (to ? (to.type === "person" ? `c${to.person}` : `a${to.slot}`) : null);
 
-/** The conversation: mounted by the game screen, shown while the engine offers a talk view. */
+/**
+ * The conversation view: mounted by the game screen. A conversation while the
+ * engine offers a talk view; a scene of an arc (DEC-112) while one is open,
+ * played in the same box (../exchange/SceneSheet).
+ */
 export function TalkSheet() {
+  return (
+    <>
+      <Conversation />
+      <SceneSheet />
+    </>
+  );
+}
+
+/** A conversation, shown while the engine offers a talk view. */
+function Conversation() {
   const v = useGame((s) => s.talk);
   const to = useGame((s) => s.talkTo);
   const x = useGame((s) => s.exchange);

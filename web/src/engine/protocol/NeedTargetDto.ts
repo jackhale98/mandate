@@ -3,4 +3,4 @@
 /**
  * What a need opens.
  */
-export type NeedTargetDto = { "type": "decision", id: number, } | { "type": "ask", id: number, } | { "type": "bill", id: number, } | { "type": "beat", arc: number, stage: string, beat: string, };
+export type NeedTargetDto = { "type": "decision", id: number, } | { "type": "ask", id: number, } | { "type": "bill", id: number, } | { "type": "beat", arc: number, stage: string, beat: string, } | { "type": "scene", arc: number, beat: string, };

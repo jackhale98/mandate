@@ -790,3 +790,11 @@ html:has(.game), html:has(.game) body { overflow: hidden; overscroll-behavior: n
 a.btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .fiction { margin: 0 0 8px; }
 .hub-icon-sprite { display: none; } /* the icon sprite is defs only; styled here because the page policy forbids inline style attributes */
+
+/* Today's "Needs you": a long title wraps to two lines rather than being cut
+   ("Where you stand on the e…", the lead's screenshots, 2026-11-25); its second line then keeps to one, so a
+   closed row stays within the pocket's 80 px budget (L4). */
+[data-testid="pocket-needs-list"] .rw-title { white-space: normal; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; line-height: 1.2; }
+[data-testid="pocket-needs-list"] .rw-li:not(.rw-li-open) .rw-l2 { -webkit-line-clamp: 1; line-clamp: 1; }
+[data-testid="pocket-needs-list"] .rw-l1 { align-items: flex-start; }
+[data-testid="pocket-needs-list"] .rw-li:not(.rw-li-open):has(.rw-l3) .rw-title { -webkit-line-clamp: 1; line-clamp: 1; }

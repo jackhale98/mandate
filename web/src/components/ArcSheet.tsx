@@ -19,11 +19,12 @@ import { personName } from "./Knowing";
 import { useSheetClose } from "./useSheetClose";
 import { WhyButton } from "./why/WhyButton";
 import { AskRow } from "./asks/Asks";
+import { useScene } from "./exchange/sceneStore";
 import { ArcLead } from "./notebook/Leads";
 import { Face } from "./notebook/People";
 import { Fold, Row, RowList, Section, When, shortDate } from "./notebook/rows";
 
-const BEAT_MARK: Record<string, string> = { decision: "❗", ask: "🤝", talk: "💬", visit: "🚶" };
+const BEAT_MARK: Record<string, string> = { decision: "❗", ask: "🤝", talk: "💬", visit: "🚶", exchange: "🎤" };
 
 /** What a beat needs, in a few words: where or with whom, and the time it takes. */
 function needsLine(tr: ReturnType<typeof useGame.getState>["tr"], b: ArcBeatView): string {
@@ -35,11 +36,11 @@ function needsLine(tr: ReturnType<typeof useGame.getState>["tr"], b: ArcBeatView
 }
 
 /**
- * One thing the player can do in the arc, as the command that does it.
- * Step 4 (the exchange scene, X2) adds its kind here: the scene's screen
- * opens from this row as a decision's sheet does.
+ * One thing the player can do in the arc, as the command that does it. A
+ * scene (DEC-112) opens the scene's screen from this row, as a decision's
+ * sheet does: it says there whether it can be begun now.
  */
-function Beat({ b }: { b: ArcBeatView }) {
+function Beat({ b, arc }: { b: ArcBeatView; arc: number }) {
   const tr = useGame((s) => s.tr);
   const busy = useGame((s) => s.busy);
   const pocket = useGame((s) => s.pocket);
@@ -59,7 +60,10 @@ function Beat({ b }: { b: ArcBeatView }) {
   const due = b.days_left !== null ? tr.t("ui-days-left", { n: b.days_left }) : null;
   const sub = [needsLine(tr, b), due, blocked].filter(Boolean).join(" · ");
   let act: { text: string; run: () => void } | null = null;
-  if (b.kind === "decision" && b.decision !== null) {
+  if (b.kind === "exchange") {
+    const beat = `${b.stage}.${b.beat}`;
+    act = { text: tr.t("ui-go"), run: () => void useScene.getState().openScene(arc, beat) };
+  } else if (b.kind === "decision" && b.decision !== null) {
     const id = b.decision;
     act = { text: tr.t("ui-choose"), run: () => void openDecision(id) };
   } else if (b.kind === "talk" && b.needs.person?.id != null) {
@@ -90,7 +94,7 @@ function Beat({ b }: { b: ArcBeatView }) {
         <>
           {!act && b.days_left !== null && b.due && <When top={tr.t("ui-days-left", { n: b.days_left })} under={shortDate(tr, b.due)} />}
           {act && (
-            <button type="button" className={b.kind === "decision" ? "btn btn-sm btn-primary rw-go" : "btn btn-sm rw-go"} tabIndex={-1} disabled={busy || !b.available} aria-label={`${act.text}: ${label}`} onClick={act.run} data-testid={`arc-beat-act-${b.beat}`}>
+            <button type="button" className={b.kind === "decision" ? "btn btn-sm btn-primary rw-go" : "btn btn-sm rw-go"} tabIndex={-1} disabled={busy || (!b.available && b.kind !== "exchange")} aria-label={`${act.text}: ${label}`} onClick={act.run} data-testid={`arc-beat-act-${b.beat}`}>
               {act.text}
             </button>
           )}
@@ -194,7 +198,7 @@ function Body({ v }: { v: ArcView }) {
           ) : (
             <RowList>
               {v.beats.map((b) => (
-                <Beat key={`${b.stage}-${b.beat}`} b={b} />
+                <Beat key={`${b.stage}-${b.beat}`} b={b} arc={v.id} />
               ))}
               {v.turn?.state === "ahead" && (
                 <Row className="rw-muted" mark="⌛" title={tr.t("ui-arc-turn")} sub={v.turn.on ? tr.t("ui-arc-turn-on", { date: formatDate(tr, v.turn.on) }) : tr.t("ui-arc-turn-ahead")} disabled li={{ "data-testid": "arc-turn" }} />

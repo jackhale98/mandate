@@ -1,0 +1,257 @@
+{
+  "arc": 1,
+  "beat": "showdown.debate",
+  "phase": "open",
+  "layout": "crowd",
+  "title": {
+    "key": "exchange-debate-title",
+    "args": {
+      "ally": "Kerstin Everwell",
+      "ally_role_key": "occupation-party_chair",
+      "backer": "Flora Achter",
+      "backer_role_key": "occupation-union_steward",
+      "chair": "Hector Birchby",
+      "chair_role_key": "occupation-editor",
+      "clock_day": "23",
+      "clock_month_key": "month-10",
+      "day": "13",
+      "hall": "Foundryside",
+      "month_key": "month-9",
+      "other": "Rolf Wareer",
+      "paper": "The Norton Post",
+      "place": "Norton",
+      "player": "Saul Raskuwell",
+      "rival": "Rolf Wareer",
+      "rival_role_key": "role-candidate",
+      "second": "Flora Achter",
+      "town": "Norton",
+      "weeks": "3",
+      "year": "2020"
+    }
+  },
+  "offer": {
+    "key": "exchange-debate-offer",
+    "args": {
+      "ally": "Kerstin Everwell",
+      "ally_role_key": "occupation-party_chair",
+      "backer": "Flora Achter",
+      "backer_role_key": "occupation-union_steward",
+      "chair": "Hector Birchby",
+      "chair_role_key": "occupation-editor",
+      "clock_day": "23",
+      "clock_month_key": "month-10",
+      "day": "13",
+      "hall": "Foundryside",
+      "month_key": "month-9",
+      "other": "Rolf Wareer",
+      "paper": "The Norton Post",
+      "place": "Norton",
+      "player": "Saul Raskuwell",
+      "rival": "Rolf Wareer",
+      "rival_role_key": "role-candidate",
+      "second": "Flora Achter",
+      "town": "Norton",
+      "weeks": "3",
+      "year": "2020"
+    }
+  },
+  "opening": {
+    "key": "exchange-debate-open",
+    "args": {
+      "ally": "Kerstin Everwell",
+      "ally_role_key": "occupation-party_chair",
+      "backer": "Flora Achter",
+      "backer_role_key": "occupation-union_steward",
+      "chair": "Hector Birchby",
+      "chair_role_key": "occupation-editor",
+      "clock_day": "23",
+      "clock_month_key": "month-10",
+      "day": "13",
+      "hall": "Foundryside",
+      "month_key": "month-9",
+      "other": "Rolf Wareer",
+      "paper": "The Norton Post",
+      "place": "Norton",
+      "player": "Saul Raskuwell",
+      "rival": "Rolf Wareer",
+      "rival_role_key": "role-candidate",
+      "second": "Flora Achter",
+      "town": "Norton",
+      "weeks": "3",
+      "year": "2020"
+    }
+  },
+  "args": {
+    "ally": "Kerstin Everwell",
+    "ally_role_key": "occupation-party_chair",
+    "backer": "Flora Achter",
+    "backer_role_key": "occupation-union_steward",
+    "chair": "Hector Birchby",
+    "chair_role_key": "occupation-editor",
+    "clock_day": "23",
+    "clock_month_key": "month-10",
+    "day": "13",
+    "hall": "Foundryside",
+    "month_key": "month-9",
+    "other": "Rolf Wareer",
+    "paper": "The Norton Post",
+    "place": "Norton",
+    "player": "Saul Raskuwell",
+    "rival": "Rolf Wareer",
+    "rival_role_key": "role-candidate",
+    "second": "Flora Achter",
+    "town": "Norton",
+    "weeks": "3",
+    "year": "2020"
+  },
+  "place": {
+    "location": {
+      "type": "place",
+      "place": 139
+    },
+    "kind_key": "community_centre",
+    "name": "",
+    "neighborhood": 98,
+    "neighborhood_name": "Foundryside"
+  },
+  "route": {
+    "action": "visit",
+    "late_night": false,
+    "neighborhood": 98,
+    "to": {
+      "location": {
+        "type": "place",
+        "place": 139
+      },
+      "kind_key": "community_centre",
+      "name": "",
+      "neighborhood": 98,
+      "neighborhood_name": "Foundryside"
+    },
+    "here": false
+  },
+  "halves": 2,
+  "available": true,
+  "blocked_key": null,
+  "last_day": {
+    "day_number": 737594,
+    "year": 2020,
+    "month": 10,
+    "day": 22
+  },
+  "days_left": 14,
+  "other": {
+    "id": 758,
+    "ambient_slot": null,
+    "name": "Rolf Wareer",
+    "role_key": "role-candidate",
+    "tier": "principal",
+    "level": "heard",
+    "rumoured": false,
+    "can_talk": false,
+    "has_news": true
+  },
+  "chair": {
+    "id": 1270,
+    "ambient_slot": null,
+    "name": "Hector Birchby",
+    "role_key": "occupation-editor",
+    "tier": "principal",
+    "level": "heard",
+    "rumoured": false,
+    "can_talk": false,
+    "has_news": true
+  },
+  "second": {
+    "id": 1273,
+    "ambient_slot": null,
+    "name": "Flora Achter",
+    "role_key": "occupation-union_steward",
+    "tier": "principal",
+    "level": "heard",
+    "rumoured": false,
+    "can_talk": false,
+    "has_news": true
+  },
+  "groups": [
+    {
+      "key": "hood.100.c0",
+      "label": {
+        "key": "exchange-group-class",
+        "args": {
+          "class_key": "exchange-class-0",
+          "name": "Crosswood"
+        }
+      },
+      "short": {
+        "key": "exchange-class-0",
+        "args": {}
+      },
+      "person": null,
+      "size": 3,
+      "lean": {
+        "step": 0,
+        "points": 3,
+        "key": "exchange-lean-even"
+      },
+      "lean_key": "exchange-lean-even",
+      "moved_steps": null,
+      "moved_points": null
+    },
+    {
+      "key": "hood.100.c1",
+      "label": {
+        "key": "exchange-group-class",
+        "args": {
+          "class_key": "exchange-class-1",
+          "name": "Crosswood"
+        }
+      },
+      "short": {
+        "key": "exchange-class-1",
+        "args": {}
+      },
+      "person": null,
+      "size": 3,
+      "lean": {
+        "step": 0,
+        "points": 3,
+        "key": "exchange-lean-even"
+      },
+      "lean_key": "exchange-lean-even",
+      "moved_steps": null,
+      "moved_points": null
+    },
+    {
+      "key": "hood.100.c2",
+      "label": {
+        "key": "exchange-group-class",
+        "args": {
+          "class_key": "exchange-class-2",
+          "name": "Crosswood"
+        }
+      },
+      "short": {
+        "key": "exchange-class-2",
+        "args": {}
+      },
+      "person": null,
+      "size": 2,
+      "lean": {
+        "step": 0,
+        "points": 3,
+        "key": "exchange-lean-even"
+      },
+      "lean_key": "exchange-lean-even",
+      "moved_steps": null,
+      "moved_points": null
+    }
+  ],
+  "round": 0,
+  "rounds": 3,
+  "prompt": null,
+  "options": [],
+  "locked": null,
+  "played": [],
+  "result": null
+}

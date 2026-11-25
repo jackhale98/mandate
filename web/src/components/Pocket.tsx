@@ -28,6 +28,7 @@ import { Notebook, NotebookTabs } from "./notebook/Notebook";
 import { AskRow } from "./asks/Asks";
 import { BillRow } from "./notebook/Bills";
 import { Fold, Row, RowList, Section, When, shortDate, useFold } from "./notebook/rows";
+import { useScene } from "./exchange/sceneStore";
 
 const TRACKS = ["record", "viability", "standing", "health", "legal_jeopardy", "threat"] as const;
 /** Tracks where a high value is bad (shown with a "risk" bar plus the text label). */
@@ -116,17 +117,14 @@ function dueWhen(tr: ReturnType<typeof useGame.getState>["tr"], days: number | n
   return <When top={tr.t("ui-days-left", { n: days })} under={tr.t("ui-by-date", { date: shortDate(tr, due) })} />;
 }
 
-const NEED_MARK: Record<string, string> = { decision: "❗", ask_offer: "🤝", ask_due: "📌", vote: "🗳️", beat: "⏳" };
+const NEED_MARK: Record<string, string> = { decision: "❗", ask_offer: "🤝", ask_due: "📌", vote: "🗳️", beat: "⏳", scene: "🎤" };
 
 /**
  * One thing that needs the player (Today's "Needs you"), in the engine's
  * order. A decision goes straight to its sheet ("Choose"); an ask opens in
  * place so its price is read before it is answered; a vote opens to where it
- * is cast; an arc's beat opens the arc's sheet.
- *
- * Step 4 (the exchange scene, DEC-112, EXCHANGE_SCENES §7) plugs in here: a
- * need of kind `scene` will open the scene's screen from this row, as a
- * decision opens its sheet.
+ * is cast; an arc's beat opens the arc's sheet; a scene (DEC-112,
+ * EXCHANGE_SCENES §7) opens the scene's screen, as a decision opens its sheet.
  */
 function NeedRow({ n, p }: { n: NeedView; p: PocketView }) {
   const tr = useGame((s) => s.tr);
@@ -161,6 +159,27 @@ function NeedRow({ n, p }: { n: NeedView; p: PocketView }) {
           </>
         }
         li={{ "data-testid": `need-decision-${id}`, "data-need": n.kind }}
+      />
+    );
+  }
+  if (t.type === "scene") {
+    const { arc: run, beat } = t;
+    const sub = [tr.t("ui-need-scene"), n.days_left !== null ? tr.t("ui-days-left", { n: n.days_left }) : null].filter(Boolean).join(" · ");
+    const open = () => void useScene.getState().openScene(run, beat);
+    return (
+      <Row
+        mark={NEED_MARK.scene}
+        title={title}
+        sub={sub}
+        label={`${title}. ${sub}`}
+        onActivate={open}
+        end={
+          <button type="button" className="btn btn-sm btn-primary rw-go" tabIndex={-1} disabled={busy} aria-label={`${tr.t("ui-go")}: ${title}`} onClick={open} data-testid={`open-scene-${run}`}>
+            {tr.t("ui-go")}
+          </button>
+        }
+        li={{ "data-testid": `need-scene-${run}`, "data-need": n.kind }}
+        mainTestId={`need-scene-open-${run}`}
       />
     );
   }
