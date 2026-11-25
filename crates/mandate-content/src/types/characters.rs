@@ -279,6 +279,59 @@ pub struct TownCharacterParams {
     pub broker_stake: f64,
 }
 
+/// What the power broker does (M6 note 27): leans on votes in their
+/// interest, backs a candidate, and what knowing them opens to the player.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BrokerParams {
+    /// The vote model's `broker` term: the pull on a member's lean on a
+    /// bill in the broker's interest, × the broker's influence × how far
+    /// the member goes along with them (0 when they loathe the broker, 1
+    /// when they admire them; ½ when indifferent).
+    pub vote_pull: f64,
+    /// The influence of a broker with no organisation (an officeholder),
+    /// in place of an occupation's `influence`.
+    pub officeholder_influence: f64,
+    /// Campaign backing: money a week to the candidate the broker favours,
+    /// and the organisation's contacts (canvass-equivalents) a week.
+    pub back_money: f64,
+    pub back_contacts: u32,
+    /// How much the broker thinks of a candidate: their opinion of them,
+    /// plus this × how far the candidate's views match theirs (−1..1).
+    pub back_values: f64,
+    /// The broker backs no one they think less of than this.
+    pub back_min_opinion: f64,
+    /// Lobbying the broker: sway on each member of the bill's body, × how
+    /// far they go along with the broker. The broker refuses below
+    /// `lobby_min_opinion` of the player.
+    pub lobby_sway: f64,
+    pub lobby_min_opinion: f64,
+    /// Doing them a favour: their opinion of the player, and approval among
+    /// those who resent them (× room; usually negative).
+    pub favour_opinion: f64,
+    pub favour_resent_approval: f64,
+    /// Opposing them openly: approval among those who resent them and those
+    /// who depend on them; their opinion of the player; and the opinion of
+    /// the player of each member who likes them (× their liking, 0..1).
+    pub oppose_resent_approval: f64,
+    pub oppose_depend_approval: f64,
+    pub oppose_opinion: f64,
+    pub oppose_ally_opinion: f64,
+    /// Exposing them through the press (the press's gaffe risk applies):
+    /// on success each member's opinion of the broker and approval among
+    /// those who resent them; either way their opinion of the player; on a
+    /// gaffe, approval among everyone (× room).
+    pub expose_member_opinion: f64,
+    pub expose_resent_approval: f64,
+    pub expose_opinion: f64,
+    pub expose_gaffe_approval: f64,
+    /// A stand against them (opposing, exposing) is not offered again
+    /// within this many days of the last.
+    pub cooldown_days: u32,
+    /// Who an exposé is told to (occupation ids: the press).
+    pub press_occupations: Vec<ContentKey>,
+}
+
 /// Characters, memory, relationships, and town character (DEC-031, DEC-077).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -291,6 +344,7 @@ pub struct CharacterParams {
     pub ai: PersonalityAiParams,
     pub ambient: AmbientParams,
     pub town: TownCharacterParams,
+    pub broker: BrokerParams,
 }
 
 impl CharacterParams {

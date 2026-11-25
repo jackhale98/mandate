@@ -9,6 +9,14 @@ pub(super) fn validate_characters(b: &ContentBundle, issues: &mut Vec<Issue>) {
     use crate::types::{COMPETENCIES, MEMORY_KINDS, PERSONALITY_AXES};
     let in_range = |v: f64, lo: f64, hi: f64| v.is_finite() && (lo..=hi).contains(&v);
     let ch = &b.characters;
+    for o in &ch.broker.press_occupations {
+        if b.occupation(o).is_none() {
+            issues.push(Issue::error(
+                "characters.broker.press_occupations",
+                &format!("unknown occupation `{o}`"),
+            ));
+        }
+    }
     for k in MEMORY_KINDS {
         if !ch.memories.contains_key(k) {
             issues.push(Issue::error(

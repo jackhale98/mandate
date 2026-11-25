@@ -866,6 +866,7 @@ fn an_opposing_goal_turns_a_colleague_against_the_players_bills() {
             st.meta.seed,
             c.policies.get(&t).unwrap(),
             inst,
+            None,
         )
         .into_iter()
         .find(|(p, _)| *p == colleague)

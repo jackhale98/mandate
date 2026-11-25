@@ -355,6 +355,12 @@ pub struct BillView {
     #[ts(optional)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub impact: Option<crate::impact::ImpactView>,
+    /// The power broker is leaning on the members `for` it or `against` it
+    /// (M6 note 27; the whip's odds include it): for a bill still before
+    /// the body, once the player knows who the broker is.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub broker_pull: Option<String>,
 }
 
 /// A Fluent key and its arguments (a reason the engine states as a fact).
@@ -622,6 +628,16 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let hoods: Vec<usize> = p.at().hoods(&st.world);
     let pending = p.status == PolicyStatus::UnderConsideration || p.status == PolicyStatus::Draft;
     let constitution = content.constitutions.get(&st.meta.constitution);
+    // The power broker's pull on it (M6 note 27), shown once the player
+    // knows who the broker is.
+    let broker = mandate_sim::characters::town::broker_pull(
+        content,
+        &st.politics,
+        &st.world,
+        &st.population,
+        t,
+        p,
+    );
     let leans = match (pending, constitution) {
         (true, Some(c)) => legislature_leans(
             &content.council,
@@ -633,6 +649,7 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
             st.meta.seed,
             t,
             p,
+            broker,
         ),
         _ => Vec::new(),
     };
@@ -806,6 +823,13 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
         ward_certainty: ward_certainty.into(),
         ward_support,
         owe_sponsor,
+        broker_pull: broker
+            .filter(|b| {
+                pending
+                    && mandate_sim::player::knowledge::Knowing::of(engine).broker()
+                        == Some(b.broker)
+            })
+            .map(|b| if b.pull > 0.0 { "for" } else { "against" }.to_string()),
         note: crate::notebook::bill_note(
             &gate,
             town,

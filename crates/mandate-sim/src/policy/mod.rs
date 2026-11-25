@@ -641,6 +641,10 @@ pub struct VoteInputs<'a> {
     pub declared: Option<i8>,
     /// Bill-specific idiosyncrasy (keyed RNG, stable per member and bill).
     pub noise: f64,
+    /// The power broker leaning on the member (M6 note 27): their pull on a
+    /// bill in their interest × how far this member goes along with them
+    /// (`characters::town::broker_pull`, `compliance`); 0 otherwise.
+    pub broker: f64,
 }
 
 pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInputs<'_>) -> f64 {
@@ -689,6 +693,7 @@ pub fn vote_lean(k: &CouncilParams, p: &crate::politics::Politician, v: &VoteInp
         + riders
         + if earmark { k.own_earmark } else { 0.0 }
         + v.noise
+        + v.broker
 }
 
 /// A member's opinion of a bill's sponsor when the sponsor is the player.
@@ -723,7 +728,10 @@ fn noise_for(k: &CouncilParams, seed: u64, politician: u32, policy: u32) -> f64 
 
 /// The lean of each member of a body on a bill (also whip counts), in seat
 /// order. `signer` is whoever signs the bill (the executive), whose public
-/// lean pulls members along (`council.mayor`).
+/// lean pulls members along (`council.mayor`); `broker` is the power
+/// broker's pull on it, if it touches their interest
+/// (`characters::town::broker_pull`), which each member feels as far as
+/// they go along with the broker.
 #[allow(clippy::too_many_arguments)]
 pub fn member_leans(
     k: &CouncilParams,
@@ -736,6 +744,7 @@ pub fn member_leans(
     inst: &PolicyInstance,
     members: &[PoliticianId],
     signer: Option<PoliticianId>,
+    broker: Option<crate::characters::town::BrokerPull>,
 ) -> Vec<(PoliticianId, f64)> {
     let all: Vec<usize> = inst.at().hoods(r_world);
     let signer_lean = signer
@@ -799,6 +808,16 @@ pub fn member_leans(
                         ),
                         declared: pol.declared_votes.get(&(p.id.0, inst.id.0)).copied(),
                         noise: noise_for(k, seed, p.id.0, inst.id.0),
+                        broker: broker
+                            .map(|b| {
+                                b.pull
+                                    * crate::characters::town::compliance(
+                                        pol,
+                                        p.character,
+                                        b.broker,
+                                    )
+                            })
+                            .unwrap_or(0.0),
                     },
                 )
             };
@@ -809,7 +828,8 @@ pub fn member_leans(
 
 /// The leans of the bill's legislature (the body of its jurisdiction's
 /// `ordinance` procedure's first vote; DEC-098), with its executive as the
-/// signer: the whip count.
+/// signer and the broker's pull (`characters::town::broker_pull`): the
+/// whip count.
 #[allow(clippy::too_many_arguments)]
 pub fn legislature_leans(
     k: &CouncilParams,
@@ -821,11 +841,14 @@ pub fn legislature_leans(
     seed: u64,
     t: &PolicyTemplate,
     inst: &PolicyInstance,
+    broker: Option<crate::characters::town::BrokerPull>,
 ) -> Vec<(PoliticianId, f64)> {
     let at = inst.at();
     let members = crate::politics::legislature_of(pol, c, at);
     let signer = crate::politics::executive_of(pol, c, at);
-    member_leans(k, pl, r_world, pop, pol, seed, t, inst, members, signer)
+    member_leans(
+        k, pl, r_world, pop, pol, seed, t, inst, members, signer, broker,
+    )
 }
 
 /// The lean of a bill's signer (whoever holds the signing office) on it.
@@ -874,6 +897,8 @@ pub fn signer_lean(
             ),
             declared: pol.declared_votes.get(&(m.id.0, inst.id.0)).copied(),
             noise: noise_for(k, seed, m.id.0, inst.id.0),
+            // The broker leans on the body's members, not the signer.
+            broker: 0.0,
         },
     )
 }
@@ -964,11 +989,16 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             StageDef::Vote { body, .. } => Some(body.as_str()),
             StageDef::Sign { .. } => None,
         });
+        // The power broker leans on the members when the bill touches
+        // their interest (M6 note 27): a cause of the vote.
+        let broker = crate::characters::town::broker_pull(r.content, pol, r.world, pop, &t, &inst);
         let leans_of = |body: Option<&str>| -> Vec<(PoliticianId, f64)> {
             let members = body
                 .map(|b| crate::politics::members_of(pol, b, at))
                 .unwrap_or(&[]);
-            member_leans(k, pl, r.world, pop, pol, seed, &t, &inst, members, signer)
+            member_leans(
+                k, pl, r.world, pop, pol, seed, &t, &inst, members, signer, broker,
+            )
         };
         let tally = |rng: &mut mandate_core::SimRng, leans: &[(PoliticianId, f64)]| -> u32 {
             leans
@@ -1095,7 +1125,8 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     yes: record.yes,
                     no: record.no,
                 },
-                Causes::from(Cause::Process(Process::Lawmaking)).and_event(p.cause, Link::Ended),
+                with_broker(Causes::from(Cause::Process(Process::Lawmaking)), broker)
+                    .and_event(p.cause, Link::Ended),
             );
             continue;
         }
@@ -1117,11 +1148,20 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     no: record.no,
                     overrode_veto: veto,
                 },
-                Causes::from(Cause::Process(Process::Lawmaking))
+                with_broker(Causes::from(Cause::Process(Process::Lawmaking)), broker)
                     .and_event(p.cause, Link::Continues),
             );
             p.cause = Some(ev);
         }
+    }
+}
+
+/// A bill's outcome's causes, with the broker named when they leaned on
+/// its members (M6 note 27): every procedure's votes are on the way to it.
+fn with_broker(causes: Causes, broker: Option<crate::characters::town::BrokerPull>) -> Causes {
+    match broker {
+        Some(b) => causes.and(Cause::Actor(b.broker)),
+        None => causes,
     }
 }
 
