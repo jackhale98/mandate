@@ -108,8 +108,8 @@ pub const UNVISITED: &[(&str, &str, &str)] = &[
     ),
     (
         "arc.favour_debt",
-        "*",
-        "its cast needs someone the player owes a favour; a debt comes from an act of the player's that no stand-in takes (a traded favour), and the lab has no intervention that plants one",
+        "deferred",
+        "needs the call to come (a creditor's bill that a yes would cost the player: in 1 of 16 worlds on 2026-11-25) and the creditor to agree to wait (opinion 20, trust 0.6 or a kept promise remembered); the lab plants the debt (`Intervention::Favour`), not the bill",
     ),
 ];
 
