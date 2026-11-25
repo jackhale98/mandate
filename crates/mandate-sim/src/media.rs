@@ -723,8 +723,16 @@ pub fn weekly(m: &mut MediaState, r: &Reads<'_>, out: &mut Outs<'_>) {
             .find(|h| h.id == hidden && !m.discovered.contains(&h.id))
             .cloned();
         let Some(h) = fact else { continue };
-        let Some(id) = open_scandal(m, r.politics(), r.world, &h, Discoverer::Rival, by, r.date, true)
-        else {
+        let Some(id) = open_scandal(
+            m,
+            r.politics(),
+            r.world,
+            &h,
+            Discoverer::Rival,
+            by,
+            r.date,
+            true,
+        ) else {
             continue;
         };
         let Some(subject) = h.subject else { continue };
@@ -1538,7 +1546,12 @@ pub fn advertised(state: &mut State, content: &ContentBundle, p: PoliticianId) {
 /// A hidden fact aired in public (DEC-112, `Effect::Surface`): it comes
 /// out now as a story, as a leaked fact does. `by`: who said it. Nothing
 /// when the fact is already out or was never whose it was said to be.
-pub fn surface(state: &mut State, hidden: u32, by: Option<CharacterId>, cause: Cause) -> Option<u32> {
+pub fn surface(
+    state: &mut State,
+    hidden: u32,
+    by: Option<CharacterId>,
+    cause: Cause,
+) -> Option<u32> {
     let date = state.calendar.date;
     let h = state
         .narrative

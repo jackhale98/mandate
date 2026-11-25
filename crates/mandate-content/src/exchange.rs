@@ -621,7 +621,9 @@ impl ArcExchangeDef {
     pub fn not_yet(&self) -> Vec<String> {
         let mut out = Vec::new();
         if self.table.is_some() {
-            out.push("a `table` (the negotiation's conditional offers: with the favour's arc)".into());
+            out.push(
+                "a `table` (the negotiation's conditional offers: with the favour's arc)".into(),
+            );
         }
         for r in &self.prompts {
             for s in &r.from {
@@ -1202,7 +1204,11 @@ mod tests {
         assert_eq!(p.backfire(MoveKind::Turn), 0.25);
         assert_eq!(p.backfire(MoveKind::Pass), 0.0);
         assert_eq!((p.win, p.lose, p.group_margin), (0.08, 0.08, 0.05));
-        assert!(p.problems(&|_| true).is_empty(), "{:?}", p.problems(&|_| true));
+        assert!(
+            p.problems(&|_| true).is_empty(),
+            "{:?}",
+            p.problems(&|_| true)
+        );
     }
 
     #[test]

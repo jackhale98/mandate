@@ -54,9 +54,12 @@ fn base_area(v: &View<'_>, run: &ArcRun, of: Option<&str>) -> Option<Area> {
         OF_HERE => Some(Area::In { at: run.at }),
         role => match run.actor(role)? {
             ArcActor::Area { area } => Some(area),
-            ArcActor::Place { id } => v.r.world.places.get(id.index()).map(|p| Area::Hood {
-                id: p.neighborhood,
-            }),
+            ArcActor::Place { id } => {
+                v.r.world
+                    .places
+                    .get(id.index())
+                    .map(|p| Area::Hood { id: p.neighborhood })
+            }
             ArcActor::Jurisdiction { at } => Some(Area::In { at }),
             ArcActor::Person { .. } => None,
         },
@@ -108,8 +111,7 @@ fn cohorts(v: &View<'_>, g: &Group) -> Vec<(usize, usize)> {
                 if class.is_some_and(|c| crate::population::class_of(ci) != usize::from(c)) {
                     continue;
                 }
-                if community
-                    .is_some_and(|k| crate::population::community_of(ci) != usize::from(k))
+                if community.is_some_and(|k| crate::population::community_of(ci) != usize::from(k))
                 {
                     continue;
                 }
@@ -283,9 +285,9 @@ fn source(
             let Some(id) = a.role.as_deref().and_then(|r| run.person(r)) else {
                 return Vec::new();
             };
-            let opinion = v
-                .me()
-                .map_or(0.0, |me| f64::from(characters::opinion(v.pol, id, me)) / 100.0);
+            let opinion = v.me().map_or(0.0, |me| {
+                f64::from(characters::opinion(v.pol, id, me)) / 100.0
+            });
             let start = match a.start {
                 AudienceStart::Demand => opinion - p.member_fit.demand,
                 AudienceStart::Support => support(v, p, id),
@@ -318,8 +320,7 @@ fn source(
                 _ => None,
             })
             .collect();
-        let mut kept: Vec<(Group, f64, f64)> =
-            keep.into_iter().map(|i| out[i].clone()).collect();
+        let mut kept: Vec<(Group, f64, f64)> = keep.into_iter().map(|i| out[i].clone()).collect();
         kept.push(weigh(Group::Elsewhere { areas: rest }));
         out = kept;
     } else if out.len() > max {
@@ -389,10 +390,9 @@ pub fn worries_known(v: &View<'_>, g: &Group) -> Level {
         .unwrap_or(Level::Unknown);
     let by_town = match g {
         Group::Area {
-            area:
-                Area::In {
-                    at: Jurisdiction::Municipality { id },
-                },
+            area: Area::In {
+                at: Jurisdiction::Municipality { id },
+            },
             class: None,
             community: None,
         } => knowledge::level_of(pl, &Learned::TownConcerns { town: *id }),
@@ -419,10 +419,11 @@ pub fn worries(v: &View<'_>, g: &Group, by: Worry) -> Vec<(usize, f64)> {
     // with the group's cohorts in place of everyone's.
     let part = matches!(
         g,
-        Group::Area { class: Some(_), .. } | Group::Area {
-            community: Some(_),
-            ..
-        }
+        Group::Area { class: Some(_), .. }
+            | Group::Area {
+                community: Some(_),
+                ..
+            }
     );
     if part && matches!(by, Worry::Felt) {
         let pop = v.r.population();
@@ -654,10 +655,7 @@ pub fn scopes(g: &Group) -> Vec<(Area, Vec<u8>, Vec<u16>)> {
             class.iter().copied().collect(),
             community.iter().copied().collect(),
         )],
-        Group::Elsewhere { areas } => areas
-            .iter()
-            .map(|a| (*a, Vec::new(), Vec::new()))
-            .collect(),
+        Group::Elsewhere { areas } => areas.iter().map(|a| (*a, Vec::new(), Vec::new())).collect(),
         Group::Member { .. } | Group::Person { .. } => Vec::new(),
     }
 }

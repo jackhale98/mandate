@@ -108,7 +108,11 @@ fn begin(
     id: ArcId,
     sc: &Scene<'_>,
 ) -> Result<ActionResult, EngineError> {
-    let run = state.arcs.run(id).ok_or_else(|| bad("no such arc"))?.clone();
+    let run = state
+        .arcs
+        .run(id)
+        .ok_or_else(|| bad("no such arc"))?
+        .clone();
     if run.exchange.is_some() {
         return Err(bad("the scene is already under way"));
     }
@@ -137,9 +141,7 @@ fn begin(
         let deck = attacks::deck(v, &state.events, p, &run, sc.def, &groups, &opp);
         let (answers, answers_left) =
             attacks::answers(v, &state.events, p, &run, sc.def, &groups, &opp);
-        let prompt = attacks::draw(
-            v, p, &run, &sc.bref, sc.def, &groups, &deck, &[], &opp, 1,
-        );
+        let prompt = attacks::draw(v, p, &run, &sc.bref, sc.def, &groups, &deck, &[], &opp, 1);
         let aired = airs(&prompt, &opp);
         Some((
             ArcExchangeState {
@@ -179,12 +181,7 @@ fn begin(
 
 /// The causes of a round: the player's act (or their letting it pass),
 /// the round before it, and the event its prompt came from.
-fn round_causes(
-    log: &EventLog,
-    xs: &ArcExchangeState,
-    prompt: &PromptNow,
-    said: bool,
-) -> Causes {
+fn round_causes(log: &EventLog, xs: &ArcExchangeState, prompt: &PromptNow, said: bool) -> Causes {
     let first: Causes = if said {
         Cause::Player(PlayerAct::Exchange).into()
     } else {
@@ -227,7 +224,11 @@ fn say(
     sc: &Scene<'_>,
     option: &str,
 ) -> Result<ActionResult, EngineError> {
-    let mut run = state.arcs.run(id).ok_or_else(|| bad("no such arc"))?.clone();
+    let mut run = state
+        .arcs
+        .run(id)
+        .ok_or_else(|| bad("no such arc"))?
+        .clone();
     let mut xs = run
         .exchange
         .take()
@@ -239,10 +240,9 @@ fn say(
     let prompt = xs.prompt.clone().ok_or_else(|| bad("the scene is over"))?;
     // The same build the view makes: an option must be one it lists.
     let opts = moves::options(state, content, p, &run, sc.arc, sc.def, &xs);
-    let r: RoundIn = crate::condition::on_state(state, content, |v| {
-        moves::round_in(v, p, &run, sc.def, &xs)
-    })
-    .ok_or_else(|| bad("the scene is over"))?;
+    let r: RoundIn =
+        crate::condition::on_state(state, content, |v| moves::round_in(v, p, &run, sc.def, &xs))
+            .ok_or_else(|| bad("the scene is over"))?;
     let weights: Vec<f64> = xs.groups.iter().map(|g| f64::from(g.weight)).collect();
     let shown = moves::shown(p, &r, &weights, &opts);
     let o = shown
@@ -286,7 +286,9 @@ fn say(
     let mut slot = false;
     for d in &o.deeds {
         match d {
-            Deed::Promise { template, answer } => promise = Some((template.clone(), answer.clone())),
+            Deed::Promise { template, answer } => {
+                promise = Some((template.clone(), answer.clone()))
+            }
             Deed::Draft { template } => draft = Some(template.clone()),
             Deed::Standing { delta } => requests.push(Effect::PlayerTrack {
                 standing: *delta as f32,
@@ -357,7 +359,16 @@ fn say(
         let next = crate::condition::on_state(state, content, |v| {
             let opp = attacks::opponent(v, p, &run, sc.def);
             let prompt = attacks::draw(
-                v, p, &run, &sc.bref, sc.def, &xs.groups, &xs.deck, &xs.retired, &opp, xs.round,
+                v,
+                p,
+                &run,
+                &sc.bref,
+                sc.def,
+                &xs.groups,
+                &xs.deck,
+                &xs.retired,
+                &opp,
+                xs.round,
             );
             (airs(&prompt, &opp), prompt)
         });
@@ -418,7 +429,11 @@ fn leave(
     id: ArcId,
     sc: &Scene<'_>,
 ) -> Result<ActionResult, EngineError> {
-    let mut run = state.arcs.run(id).ok_or_else(|| bad("no such arc"))?.clone();
+    let mut run = state
+        .arcs
+        .run(id)
+        .ok_or_else(|| bad("no such arc"))?
+        .clone();
     let xs = run
         .exchange
         .take()
@@ -470,7 +485,16 @@ pub(crate) fn unanswered(
                     .cloned()
                     .collect();
                 attacks::draw(
-                    v, p, run, &sc.bref, sc.def, &xs.groups, &deck, &xs.retired, &opp, xs.round,
+                    v,
+                    p,
+                    run,
+                    &sc.bref,
+                    sc.def,
+                    &xs.groups,
+                    &deck,
+                    &xs.retired,
+                    &opp,
+                    xs.round,
                 )
             }
         };
@@ -481,7 +505,10 @@ pub(crate) fn unanswered(
         if absent && xs.round == 1 {
             r.cold = p.cold;
         }
-        let deltas: Vec<f32> = landing::unanswered(p, &r).iter().map(|d| *d as f32).collect();
+        let deltas: Vec<f32> = landing::unanswered(p, &r)
+            .iter()
+            .map(|d| *d as f32)
+            .collect();
         for (g, d) in xs.groups.iter_mut().zip(&deltas) {
             g.lean = (g.lean + d).clamp(-1.0, 1.0);
         }

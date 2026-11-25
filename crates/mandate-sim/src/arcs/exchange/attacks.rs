@@ -25,9 +25,7 @@ use crate::narrative::cast::View;
 use crate::policy::{EndReason, PolicyInstance, PolicyStatus};
 use crate::spine::Thread;
 use mandate_content::condition::Worry;
-use mandate_content::exchange::{
-    ArcExchangeDef, ExchangeParams, MoveKind, SourceKind, Speaker,
-};
+use mandate_content::exchange::{ArcExchangeDef, ExchangeParams, MoveKind, SourceKind, Speaker};
 use mandate_content::{ContentBundle, PolicyTemplate};
 use mandate_core::Stream;
 
@@ -313,33 +311,33 @@ pub fn attacks(
         group: None,
     };
     match source {
-        SourceKind::BrokenPromise => v
-            .r
-            .asks()
-            .asks
-            .iter()
-            .filter(|a| a.promise || a.public)
-            .filter_map(|a| {
-                let crate::asks::AskStatus::Broken { on } = a.status else {
-                    return None;
-                };
-                // The town forgets it when the log does.
-                let anchor = kept(log, log.head(Thread::Ask(a.id.0)))?;
-                let days = f64::from(on.days_until(today.max(on)));
-                let recency =
-                    mandate_core::math::pow(0.5, days / f64::from(p.size.recency_days.max(1)));
-                let concern = content.promise(&a.template).and_then(|t| match &t.answers {
-                    mandate_content::asks::PromiseAnswers::Concern { concern } => {
-                        Some(concern.clone())
-                    }
-                    _ => None,
-                });
-                Some(Attack {
-                    subject: Subject::of(What::Promise { ask: a.id.0 }, concern),
-                    ..flat(source, What::None, p.size.promise * recency, Some(anchor))
+        SourceKind::BrokenPromise => {
+            v.r.asks()
+                .asks
+                .iter()
+                .filter(|a| a.promise || a.public)
+                .filter_map(|a| {
+                    let crate::asks::AskStatus::Broken { on } = a.status else {
+                        return None;
+                    };
+                    // The town forgets it when the log does.
+                    let anchor = kept(log, log.head(Thread::Ask(a.id.0)))?;
+                    let days = f64::from(on.days_until(today.max(on)));
+                    let recency =
+                        mandate_core::math::pow(0.5, days / f64::from(p.size.recency_days.max(1)));
+                    let concern = content.promise(&a.template).and_then(|t| match &t.answers {
+                        mandate_content::asks::PromiseAnswers::Concern { concern } => {
+                            Some(concern.clone())
+                        }
+                        _ => None,
+                    });
+                    Some(Attack {
+                        subject: Subject::of(What::Promise { ask: a.id.0 }, concern),
+                        ..flat(source, What::None, p.size.promise * recency, Some(anchor))
+                    })
                 })
-            })
-            .collect(),
+                .collect()
+        }
         SourceKind::VoteAgainstLean => declared(v, me)
             .into_iter()
             .filter_map(|(policy, vote)| {
@@ -394,26 +392,23 @@ pub fn attacks(
                 .decisions
                 .iter()
                 .filter(|d| d.arc.as_ref().is_some_and(|a| a.run == run.id))
-                .filter(|d| {
-                    matches!(d.status, DecisionStatus::Defaulted | DecisionStatus::Lapsed)
-                })
+                .filter(|d| matches!(d.status, DecisionStatus::Defaulted | DecisionStatus::Lapsed))
                 .count();
-            let lapsed = v
-                .r
-                .asks()
-                .asks
-                .iter()
-                .filter(|a| a.arc.as_ref().is_some_and(|x| x.run == run.id))
-                .filter(|a| {
-                    matches!(
-                        a.status,
-                        crate::asks::AskStatus::Declined {
-                            unanswered: true,
-                            ..
-                        }
-                    )
-                })
-                .count();
+            let lapsed =
+                v.r.asks()
+                    .asks
+                    .iter()
+                    .filter(|a| a.arc.as_ref().is_some_and(|x| x.run == run.id))
+                    .filter(|a| {
+                        matches!(
+                            a.status,
+                            crate::asks::AskStatus::Declined {
+                                unanswered: true,
+                                ..
+                            }
+                        )
+                    })
+                    .count();
             let ignored = match (opp.id, v.me()) {
                 (Some(o), Some(my)) => v.pol.characters.get(o).is_some_and(|c| {
                     c.memories
@@ -434,19 +429,19 @@ pub fn attacks(
                 )]
             }
         }
-        SourceKind::Scandal => v
-            .r
-            .media()
-            .running_about(me)
-            .map(|s| {
-                flat(
-                    source,
-                    What::Scandal { id: s.id },
-                    f64::from(s.heat),
-                    kept(log, log.head(Thread::Scandal(s.id))),
-                )
-            })
-            .collect(),
+        SourceKind::Scandal => {
+            v.r.media()
+                .running_about(me)
+                .map(|s| {
+                    flat(
+                        source,
+                        What::Scandal { id: s.id },
+                        f64::from(s.heat),
+                        kept(log, log.head(Thread::Scandal(s.id))),
+                    )
+                })
+                .collect()
+        }
         SourceKind::HiddenFact => {
             let Some(speaker) = opp.id else {
                 return Vec::new();
@@ -502,7 +497,12 @@ pub fn attacks(
             for (gi, g) in groups.iter().enumerate() {
                 let (mut acc, mut n) = (0.0, 0.0);
                 for h in audience::hoods_of(v.r.world, &g.group) {
-                    for c in pop.hoods.get(h).map(|x| x.cohorts.as_slice()).unwrap_or(&[]) {
+                    for c in pop
+                        .hoods
+                        .get(h)
+                        .map(|x| x.cohorts.as_slice())
+                        .unwrap_or(&[])
+                    {
                         acc += f64::from(c.count) * f64::from(c.gov_approval);
                         n += f64::from(c.count);
                     }
@@ -685,7 +685,10 @@ pub fn laws(v: &View<'_>, p: &ExchangeParams) -> Vec<(u32, String, f64)> {
         .filter_map(|i| {
             let share = if i.sponsor == Some(me) {
                 1.0
-            } else if votes.iter().any(|(policy, vote)| *policy == i.id.0 && *vote > 0) {
+            } else if votes
+                .iter()
+                .any(|(policy, vote)| *policy == i.id.0 && *vote > 0)
+            {
                 p.voted_share
             } else {
                 return None;

@@ -974,19 +974,8 @@ impl Checker<'_> {
 /// Arguments an exchange's sentences may use beside the arc's own: the
 /// thing a prompt or a line names, as names and keys (facts, never prose).
 pub const EXCHANGE_ARGS: [&str; 13] = [
-    "group",
-    "worry",
-    "law",
-    "promise",
-    "fact",
-    "other",
-    "second",
-    "size",
-    "n",
-    "of",
-    "round",
-    "outcome",
-    "last_day",
+    "group", "worry", "law", "promise", "fact", "other", "second", "size", "n", "of", "round",
+    "outcome", "last_day",
 ];
 
 /// The sentences every scene shares (`locale/en/exchange.ftl`): labels,
@@ -1055,10 +1044,7 @@ pub fn single_decision_turns(b: &ContentBundle) -> Vec<(&str, &str)> {
     for a in &b.arcs {
         for s in &a.stages {
             let taken: Vec<&ArcBeat> = s.beats.iter().filter(|x| x.kind.player()).collect();
-            if s.climax
-                && taken.len() == 1
-                && matches!(taken[0].kind, BeatKind::Decision { .. })
-            {
+            if s.climax && taken.len() == 1 && matches!(taken[0].kind, BeatKind::Decision { .. }) {
                 out.push((a.id.as_str(), s.id.as_str()));
             }
         }
@@ -1145,14 +1131,20 @@ impl Checker<'_> {
                         );
                     }
                     if r.by == crate::exchange::Speaker::Chair && x.sides.chair.is_none() {
-                        err(issues, format!("round {n} is the chair's, and there is none"));
+                        err(
+                            issues,
+                            format!("round {n} is the chair's, and there is none"),
+                        );
                     }
                 }
                 _ => err(issues, format!("round {n} is listed twice")),
             }
         }
         if x.prompts.iter().any(|r| r.round == 0 || r.round > rounds) {
-            err(issues, format!("a prompt names a round outside 1..{rounds}"));
+            err(
+                issues,
+                format!("a prompt names a round outside 1..{rounds}"),
+            );
         }
         // Moves.
         let has = |k: MoveKind| x.moves.contains(&k);
@@ -1177,8 +1169,11 @@ impl Checker<'_> {
                 .any(|c| matches!(c, Condition::Campaigning { is: true }))
         };
         let adds = |k: MoveKind| x.prep.iter().any(|r| r.adds == Some(k));
-        let sources: Vec<crate::exchange::SourceKind> =
-            x.prompts.iter().flat_map(|r| r.from.iter().copied()).collect();
+        let sources: Vec<crate::exchange::SourceKind> = x
+            .prompts
+            .iter()
+            .flat_map(|r| r.from.iter().copied())
+            .collect();
         let never = |issues: &mut Vec<Issue>, k: MoveKind, why: &str| {
             err(
                 issues,
@@ -1215,7 +1210,11 @@ impl Checker<'_> {
             never(issues, MoveKind::Proof, "no `prep` mark adds it");
         }
         if has(MoveKind::Own) && !sources.iter().any(|s| s.fault()) {
-            never(issues, MoveKind::Own, "no round lists a fault of the player's");
+            never(
+                issues,
+                MoveKind::Own,
+                "no round lists a fault of the player's",
+            );
         }
         if has(MoveKind::Deny) && !sources.iter().any(|s| s.deniable()) {
             never(issues, MoveKind::Deny, "no round lists a fact to deny");
@@ -1252,9 +1251,10 @@ impl Checker<'_> {
                     Some(power) => {
                         for tier in &self.a.tiers {
                             let held = self.b.constitutions.values().any(|c| {
-                                c.tiers.iter().filter(|t| t.tier == *tier).any(|t| {
-                                    t.posts().any(|post| post.powers().contains(&power))
-                                })
+                                c.tiers
+                                    .iter()
+                                    .filter(|t| t.tier == *tier)
+                                    .any(|t| t.posts().any(|post| post.powers().contains(&power)))
                             });
                             if !held {
                                 uncast(
@@ -1317,12 +1317,18 @@ impl Checker<'_> {
             if r.evidence.is_some_and(|e| !(0.0..=1.0).contains(&e))
                 || (r.evidence.is_some() && r.adds != Some(MoveKind::Proof))
             {
-                err(issues, "`evidence` is 0..1 and comes with `adds: proof`".into());
+                err(
+                    issues,
+                    "`evidence` is 0..1 and comes with `adds: proof`".into(),
+                );
             }
             marks_seen.insert(r.mark.as_str());
         }
         // The features.
-        if x.temper.as_ref().is_some_and(|t| !(0.0..=1.0).contains(&t.drag)) {
+        if x.temper
+            .as_ref()
+            .is_some_and(|t| !(0.0..=1.0).contains(&t.drag))
+        {
             err(issues, "a temper's `drag` is 0..1".into());
         }
         // Outcomes: what each end state does to the run.
@@ -1395,10 +1401,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
     let en_text = b.locale_text("en");
     let en = crate::validate::fluent_keys(&en_text);
     // The sentences every scene shares, once a pack has a scene.
-    if b.arcs
-        .iter()
-        .any(|a| a.beats().any(|(_, x)| matches!(x.kind, BeatKind::Exchange(_))))
-    {
+    if b.arcs.iter().any(|a| {
+        a.beats()
+            .any(|(_, x)| matches!(x.kind, BeatKind::Exchange(_)))
+    }) {
         for k in exchange_shared_keys() {
             if !en.contains(&k) {
                 issues.push(Issue::error(

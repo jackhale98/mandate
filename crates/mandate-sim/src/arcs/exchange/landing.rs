@@ -211,7 +211,16 @@ pub fn preview(p: &ExchangeParams, r: &RoundIn, line: &LineIn) -> Preview {
         if fp.is_exact() && fm.is_exact() && an.is_exact() {
             let x = bounded(
                 r.lean[g],
-                raw(p, r, line, fp.value, fm.value, an.value, line.reach[g], stands),
+                raw(
+                    p,
+                    r,
+                    line,
+                    fp.value,
+                    fm.value,
+                    an.value,
+                    line.reach[g],
+                    stands,
+                ),
             );
             return Span { lo: x, hi: x };
         }
@@ -219,10 +228,7 @@ pub fn preview(p: &ExchangeParams, r: &RoundIn, line: &LineIn) -> Preview {
         for a in [fp.lo, fp.hi] {
             for b in [fm.lo, fm.hi] {
                 for c in [an.lo, an.hi] {
-                    let x = bounded(
-                        r.lean[g],
-                        raw(p, r, line, a, b, c, line.reach[g], stands),
-                    );
+                    let x = bounded(r.lean[g], raw(p, r, line, a, b, c, line.reach[g], stands));
                     lo = lo.min(x);
                     hi = hi.max(x);
                 }
@@ -278,11 +284,7 @@ pub struct Ended {
 /// The result (§5.2): `D = Σ weight × change`, won at `win`, lost at
 /// `−lose`. With a count, by heads against `member_line`. A scene the
 /// player never began is `absent` whatever the sum.
-pub fn outcome(
-    p: &ExchangeParams,
-    groups: &[Ended],
-    count: Option<CountNeeds>,
-) -> (Outcome, f64) {
+pub fn outcome(p: &ExchangeParams, groups: &[Ended], count: Option<CountNeeds>) -> (Outcome, f64) {
     let d: f64 = groups.iter().map(|g| g.weight * (g.lean - g.start)).sum();
     if let Some(needs) = count {
         let heads: Vec<&Ended> = groups.iter().filter(|g| g.head).collect();
@@ -364,10 +366,18 @@ mod tests {
         let p = p();
         let r = round(0.6, &[0.6, 0.6, 0.6], &[0.10, -0.05, 0.0]);
         // Own it: the bite of 0.108 covered by six tenths.
-        let own = land(&p, &r, &line(MoveKind::Own, 0.0, true, &[0.6; 3], &[1.0; 3]));
+        let own = land(
+            &p,
+            &r,
+            &line(MoveKind::Own, 0.0, true, &[0.6; 3], &[1.0; 3]),
+        );
         near(own.stands[0], -0.043);
         // Move on.
-        let pass = land(&p, &r, &line(MoveKind::Pass, 0.0, true, &[0.6; 3], &[1.0; 3]));
+        let pass = land(
+            &p,
+            &r,
+            &line(MoveKind::Pass, 0.0, true, &[0.6; 3], &[1.0; 3]),
+        );
         near(pass.stands[1], -0.086);
         // The hardship fund, 0.7 on jobs: top in the first, low in the
         // second, next in the third. It changes the subject.
@@ -383,7 +393,13 @@ mod tests {
         let heard = land(
             &p,
             &r,
-            &line(MoveKind::Heard, 0.8, false, &[1.0, 0.25, 0.6], &[1.0, 0.3, 0.3]),
+            &line(
+                MoveKind::Heard,
+                0.8,
+                false,
+                &[1.0, 0.25, 0.6],
+                &[1.0, 0.3, 0.3],
+            ),
         );
         near(heard.stands[0], 0.092);
         near(heard.stands[1], -0.093);
@@ -551,7 +567,10 @@ mod tests {
             .iter()
             .map(|l| g(1.0 / 6.0, 0.0, *l, true))
             .collect();
-        assert_eq!(outcome(&p, &heads, Some(CountNeeds::Majority)).0, Outcome::Won);
+        assert_eq!(
+            outcome(&p, &heads, Some(CountNeeds::Majority)).0,
+            Outcome::Won
+        );
         let heads: Vec<Ended> = [0.5, 0.3, 0.2, -0.25, -0.4, -0.3]
             .iter()
             .map(|l| g(1.0 / 6.0, 0.0, *l, true))

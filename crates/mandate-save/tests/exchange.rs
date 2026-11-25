@@ -44,8 +44,8 @@ const ARC: &str = "arc.rival";
 fn content() -> Arc<ContentBundle> {
     static C: OnceLock<Arc<ContentBundle>> = OnceLock::new();
     C.get_or_init(|| {
-        let src = read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content"))
-            .unwrap();
+        let src =
+            read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
         Arc::new(load(&src).unwrap().0)
     })
     .clone()
@@ -348,7 +348,11 @@ fn a_debate_is_four_commands_and_the_same_twice() {
         let before = a.command_log().len();
         let said = play(&mut a, &d, &best);
         assert_eq!(said.len(), 3, "three rounds: {said:?}");
-        assert_eq!(a.command_log().len() - before, 4, "a scene is four commands");
+        assert_eq!(
+            a.command_log().len() - before,
+            4,
+            "a scene is four commands"
+        );
         for o in &said {
             if b.state().arcs.runs.iter().all(|r| r.exchange.is_none()) {
                 begin(&mut b, &d);
@@ -429,13 +433,21 @@ fn asking_for_the_view_changes_nothing() {
         let _ = truth(&e, &d);
     }
     assert_eq!(e.state_hash(), h);
-    assert!((4..=5).contains(&a.options.len()) || a.options.len() >= 2, "{:?}", a.options);
+    assert!(
+        (4..=5).contains(&a.options.len()) || a.options.len() >= 2,
+        "{:?}",
+        a.options
+    );
     // The list is in the table's order, never best first.
     let kinds: Vec<MoveKind> = a.options.iter().map(|o| o.kind).collect();
     let mut sorted = kinds.clone();
     sorted.sort();
     assert_eq!(kinds, sorted);
-    assert_eq!(a.options.last().unwrap().kind, MoveKind::Pass, "the safe move is always there");
+    assert_eq!(
+        a.options.last().unwrap().kind,
+        MoveKind::Pass,
+        "the safe move is always there"
+    );
 }
 
 // --- Shown = rolled (§5.7) ----------------------------------------------------------------
@@ -588,7 +600,11 @@ fn what_the_player_knows_changes_no_outcome() {
             a.apply(Command::EndTurn).unwrap();
             b.apply(Command::EndTurn).unwrap();
         }
-        assert_eq!(without_ledger(&a), without_ledger(&b), "seed {seed}: {said:?}");
+        assert_eq!(
+            without_ledger(&a),
+            without_ledger(&b),
+            "seed {seed}: {said:?}"
+        );
     }
 }
 
@@ -606,7 +622,12 @@ fn passive_engaged_and_contrarian_reach_different_ends() {
         let ducked = played(&p).expect("an empty chair is recorded").clone();
         assert_eq!(ducked.outcome, Outcome::Absent);
         assert!(marks(&p).contains(&"debate_ducked".to_string()));
-        assert!(ducked.rounds.iter().all(|r| r.kind.is_none() && r.option.is_empty()));
+        assert!(
+            ducked
+                .rounds
+                .iter()
+                .all(|r| r.kind.is_none() && r.option.is_empty())
+        );
         assert_eq!(ducked.rounds.len(), 3);
         // Engaged: prepares, turns up, takes the best line each round.
         let (mut g, _) = at_debate(seed);
@@ -614,7 +635,10 @@ fn passive_engaged_and_contrarian_reach_different_ends() {
         let said = play(&mut g, &d, &best);
         let won = played(&g).unwrap().clone();
         assert_ne!(won.outcome, Outcome::Absent);
-        assert!(!marks(&g).contains(&"debate_ducked".to_string()), "{said:?}");
+        assert!(
+            !marks(&g).contains(&"debate_ducked".to_string()),
+            "{said:?}"
+        );
         assert!(
             won.result > ducked.result,
             "seed {seed}: turning up ({}) beats an empty chair ({}); prepared {prepared}",
@@ -675,11 +699,18 @@ fn passive_engaged_and_contrarian_reach_different_ends() {
         assert!(played(&p2).is_some() && played(&twin).is_none());
         let (a1, _) = seat_approval(&p2, group);
         let (a2, _) = seat_approval(&twin, group);
-        assert!(a1 < a2, "seed {seed}: an empty chair costs approval: {a1} vs {a2} (from {a0})");
+        assert!(
+            a1 < a2,
+            "seed {seed}: an empty chair costs approval: {a1} vs {a2} (from {a0})"
+        );
     }
     // The ends differ: nobody who turned up is marked absent, and across
     // the seeds the engaged player ends somewhere the contrarian does not.
-    assert!(outcomes.iter().all(|o| o.0 == Outcome::Absent && o.1 != Outcome::Absent));
+    assert!(
+        outcomes
+            .iter()
+            .all(|o| o.0 == Outcome::Absent && o.1 != Outcome::Absent)
+    );
 }
 
 /// The scene never spans a turn: ending the turn with it open forfeits the
@@ -698,7 +729,8 @@ fn leaving_or_ending_the_turn_forfeits_the_rounds_left() {
     assert!(done.rounds[1].kind.is_none() && done.rounds[2].kind.is_none());
     assert!(done.rounds[1].deltas.iter().all(|x| *x <= 0.0));
     assert_ne!(done.outcome, Outcome::Absent, "they turned up");
-    left.apply(Command::Player(act(&d, ExchangeAct::Leave))).unwrap();
+    left.apply(Command::Player(act(&d, ExchangeAct::Leave)))
+        .unwrap();
     let walked = played(&left).unwrap();
     assert_eq!(walked.rounds.len(), 3);
     assert!(walked.rounds[1].kind.is_none());
@@ -724,7 +756,10 @@ fn the_command_refuses_what_the_view_does_not_offer() {
     // Not at the hall.
     let elsewhere = e.state().player.as_ref().unwrap().location;
     if elsewhere != d.hall {
-        assert!(e.apply(Command::Player(act(&d, ExchangeAct::Begin))).is_err());
+        assert!(
+            e.apply(Command::Player(act(&d, ExchangeAct::Begin)))
+                .is_err()
+        );
     }
     // Nothing is said before it begins.
     assert!(
@@ -743,7 +778,12 @@ fn the_command_refuses_what_the_view_does_not_offer() {
         slots + 1,
         "the scene costs a slot, however many rounds"
     );
-    for bad in ["record:law.999999", "heard:hood.999999", "turn:secret.1", "no such line"] {
+    for bad in [
+        "record:law.999999",
+        "heard:hood.999999",
+        "turn:secret.1",
+        "no such line",
+    ] {
         let r = e.apply(Command::Player(act(
             &d,
             ExchangeAct::Say {
@@ -752,7 +792,10 @@ fn the_command_refuses_what_the_view_does_not_offer() {
         )));
         assert!(r.is_err(), "{bad}");
     }
-    assert!(e.apply(Command::Player(act(&d, ExchangeAct::Begin))).is_err());
+    assert!(
+        e.apply(Command::Player(act(&d, ExchangeAct::Begin)))
+            .is_err()
+    );
     // A line said is said once.
     let v = scene(&e, &d);
     if let Some(o) = v
@@ -815,7 +858,10 @@ fn knowledge_opens_a_different_line_never_a_stronger_one() {
             }
         }
     }
-    assert!(opened > 0, "knowledge opened no line in eight seeds: no teeth");
+    assert!(
+        opened > 0,
+        "knowledge opened no line in eight seeds: no teeth"
+    );
 }
 
 /// Each such line can be had by more than one route, and second-hand
@@ -884,7 +930,10 @@ fn second_hand_knowledge_gives_the_line_with_its_risk_shown() {
         let someone = mandate_sim::characters::CharacterId(0);
         learn(&mut by_word, Level::Heard, Source::Met { person: someone });
         let (a, b) = (all_heard(&by_paper), all_heard(&by_word));
-        assert!(!a.is_empty(), "seed {seed}: second-hand knowledge gives the line");
+        assert!(
+            !a.is_empty(),
+            "seed {seed}: second-hand knowledge gives the line"
+        );
         assert_eq!(a, b, "the route does not matter");
         for (id, p, risk) in &a {
             assert_eq!(*p, hold, "{id}");
@@ -896,10 +945,14 @@ fn second_hand_knowledge_gives_the_line_with_its_risk_shown() {
         }
         // First-hand: the same line, and no risk.
         let mut first_hand = fork(&e);
-        learn(&mut first_hand, Level::Known, Source::Action {
-            action: "canvass".into(),
-            place: None,
-        });
+        learn(
+            &mut first_hand,
+            Level::Known,
+            Source::Action {
+                action: "canvass".into(),
+                place: None,
+            },
+        );
         let k = all_heard(&first_hand);
         assert_eq!(
             k.iter().map(|x| &x.0).collect::<Vec<_>>(),
@@ -951,7 +1004,12 @@ fn the_unprepared_can_still_carry_a_room() {
                 .map(|x| x.rounds.last().unwrap())
                 .or(run.played.last().map(|p| p.rounds.last().unwrap()))
                 .unwrap();
-            let moved: f32 = r.deltas.iter().zip(&v.groups).map(|(d, g)| d * g.weight).sum();
+            let moved: f32 = r
+                .deltas
+                .iter()
+                .zip(&v.groups)
+                .map(|(d, g)| d * g.weight)
+                .sum();
             carried |= moved > 0.0;
         }
         let done = played(&e).unwrap();
@@ -960,7 +1018,10 @@ fn the_unprepared_can_still_carry_a_room() {
             "seed {seed}: turning up unprepared ({}) beats staying away ({empty})",
             done.result
         );
-        assert!(carried, "seed {seed}: no round went the unprepared player's way");
+        assert!(
+            carried,
+            "seed {seed}: no round went the unprepared player's way"
+        );
         ends.push(done.outcome);
     }
     assert!(
@@ -1081,8 +1142,10 @@ fn the_rounds_and_the_result_are_on_the_spine_with_their_causes() {
     let st = e.state();
     let done = played(&e).unwrap();
     let closing = st.events.get(done.event).unwrap();
-    assert!(matches!(&closing.kind, EventKind::ArcExchangeEnded { outcome, .. }
-        if outcome == done.outcome.key()));
+    assert!(
+        matches!(&closing.kind, EventKind::ArcExchangeEnded { outcome, .. }
+        if outcome == done.outcome.key())
+    );
     assert!(closing.causes.contains(&Cause::Player(PlayerAct::Exchange)));
     // The result links to round 3, and each round to the one before.
     let mut at = done.rounds.last().unwrap().event;
@@ -1134,7 +1197,10 @@ fn the_paper_runs_the_debate_and_a_promise_made_there_is_real() {
         let promised = said.iter().filter(|o| o.starts_with("promise:")).count();
         assert_eq!(made.len(), promised, "seed {seed}: {said:?}");
         for a in &made {
-            assert!(a.accepted() && a.public, "a real promise, with its deadline");
+            assert!(
+                a.accepted() && a.public,
+                "a real promise, with its deadline"
+            );
         }
         if promised > 0 {
             assert!(marks(&e).contains(&"promised".to_string()));
@@ -1170,9 +1236,8 @@ fn with_no_exchange_in_the_content_nothing_of_it_is_saved() {
     let mut b = load(&src).unwrap().0;
     for a in &mut b.arcs {
         for s in &mut a.stages {
-            s.beats.retain(|x| {
-                !matches!(x.kind, mandate_content::arcs::BeatKind::Exchange(_))
-            });
+            s.beats
+                .retain(|x| !matches!(x.kind, mandate_content::arcs::BeatKind::Exchange(_)));
         }
     }
     let c = Arc::new(b);
@@ -1182,7 +1247,10 @@ fn with_no_exchange_in_the_content_nothing_of_it_is_saved() {
         assert!(exchange::view::open_scenes(e.state(), &c).is_empty());
     }
     let st = e.state();
-    assert!(st.arcs.past.iter().any(|p| p.template == ARC), "the rival ran");
+    assert!(
+        st.arcs.past.iter().any(|p| p.template == ARC),
+        "the rival ran"
+    );
     let json = serde_json::to_string(&st.arcs).unwrap();
     for key in ["\"exchange\"", "\"played\""] {
         assert!(!json.contains(key), "{key} in a state no scene touched");
@@ -1220,7 +1288,9 @@ fn the_exchange_reads_no_ward_and_names_no_office() {
             for (n, line) in text.lines().enumerate() {
                 let code = line.split("//").next().unwrap_or("");
                 assert!(
-                    !code.contains(bad) || code.contains(".municipality.0") || code.contains("n.municipality"),
+                    !code.contains(bad)
+                        || code.contains(".municipality.0")
+                        || code.contains("n.municipality"),
                     "{}:{}: `{bad}`",
                     path.display(),
                     n + 1
@@ -1251,16 +1321,272 @@ fn an_older_save_with_the_challenge_waiting_loads_without_it() {
     decisions.push(waiting("dilemma.debate_challenge"));
     decisions.push(waiting("dilemma.rival_offer"));
     let out = migrate(29, payload).unwrap();
-    let after = out.pointer("/state/narrative/decisions").unwrap().as_array().unwrap();
+    let after = out
+        .pointer("/state/narrative/decisions")
+        .unwrap()
+        .as_array()
+        .unwrap();
     let status = |t: &str| {
         after
             .iter()
             .find(|d| d["template"] == t)
             .map(|d| d["status"].as_str().unwrap().to_string())
     };
-    assert_eq!(status("dilemma.debate_challenge").as_deref(), Some("Lapsed"));
+    assert_eq!(
+        status("dilemma.debate_challenge").as_deref(),
+        Some("Lapsed")
+    );
     assert_eq!(status("dilemma.rival_offer").as_deref(), Some("Pending"));
     assert_eq!(SAVE_FORMAT_VERSION, 30);
+}
+
+// --- Secrets, stories and truces -------------------------------------------------------------
+
+fn hidden(
+    id: u32,
+    subject: mandate_sim::politics::PoliticianId,
+    on: mandate_core::SimDate,
+) -> mandate_sim::narrative::HiddenFact {
+    mandate_sim::narrative::HiddenFact {
+        id,
+        kind: "donation".into(),
+        date: on,
+        actors: Vec::new(),
+        window: [on, on.add_days(3650)],
+        discoverable_on: None,
+        surfaced: false,
+        subject: Some(subject),
+        severity: mandate_content::Gravity::Crime,
+        evidence: 0.9,
+        town: None,
+        fate: None,
+        cause: Some(Cause::Lab),
+    }
+}
+
+/// The rival and the player as politicians, and the rival's character.
+fn sides(
+    e: &Engine,
+    d: &Debate,
+) -> (
+    mandate_sim::politics::PoliticianId,
+    mandate_sim::politics::PoliticianId,
+    mandate_sim::characters::CharacterId,
+) {
+    let st = e.state();
+    let me = st.player.as_ref().unwrap().politician;
+    let run = st.arcs.run(mandate_sim::arcs::ArcId(d.run)).unwrap();
+    let rival = run.person("rival").unwrap();
+    let theirs = st
+        .politics
+        .characters
+        .get(rival)
+        .unwrap()
+        .politician
+        .unwrap();
+    (me, theirs, rival)
+}
+
+/// A hidden fact the rival holds is put to the player in round 2, and
+/// saying it makes it public: a story, by the media's own rules, with the
+/// rival's choice as its cause. A truce taken earlier keeps them off it.
+/// The player may own it or change the subject; nothing was invented.
+#[test]
+fn a_secret_the_rival_holds_is_aired_unless_a_truce_bars_it() {
+    let (mut e, d) = at_debate(3);
+    let (me, _, rival) = sides(&e, &d);
+    e.setup(|st| {
+        let on = st.calendar.date;
+        st.narrative.hidden.push(hidden(9001, me, on));
+        st.media.knowledge.push(mandate_sim::media::Knowledge {
+            hidden: 9001,
+            knower: mandate_sim::media::Knower::Person { id: rival },
+            evidence: 0.9,
+            since: on,
+        });
+    });
+    let mut truce = fork(&e);
+    truce.setup(|st| {
+        st.arcs
+            .runs
+            .iter_mut()
+            .find(|r| r.id.0 == d.run)
+            .unwrap()
+            .marks = vec!["pact".into()];
+    });
+    begin(&mut e, &d);
+    say(&mut e, &d, "pass");
+    let v = scene(&e, &d);
+    let p = v.prompt.clone().unwrap();
+    assert_eq!(
+        p.source,
+        mandate_content::exchange::SourceKind::HiddenFact,
+        "{}",
+        p.key
+    );
+    assert!(
+        p.args
+            .iter()
+            .any(|(k, v)| k == "fact_key" && v == "fact-donation")
+    );
+    assert!(
+        v.options.iter().any(|o| o.kind == MoveKind::Own),
+        "a fault can be owned"
+    );
+    let st = e.state();
+    assert!(
+        st.media.discovered.contains(&9001),
+        "saying it made it public"
+    );
+    let broke = st
+        .events
+        .iter()
+        .find(|ev| matches!(&ev.kind, EventKind::ScandalBroke { politician, .. } if *politician == me.0))
+        .expect("a story broke");
+    assert!(
+        broke.causes.contains(&Cause::Actor(rival)),
+        "{:?}",
+        broke.causes
+    );
+    // Owning it retires it and costs Standing, as the option said.
+    let standing = st.player.as_ref().unwrap().tracks.standing;
+    say(&mut e, &d, "own");
+    let after = e.state().player.as_ref().unwrap().tracks.standing;
+    assert!(
+        (standing - after - 1.0).abs() < 1e-3,
+        "{standing} -> {after}"
+    );
+    assert!(marks(&e).contains(&"owned".to_string()));
+    // Under a truce the rival keeps off the personal: the fact stays hidden.
+    begin(&mut truce, &d);
+    say(&mut truce, &d, "pass");
+    let p = scene(&truce, &d).prompt.unwrap();
+    assert_ne!(p.source, mandate_content::exchange::SourceKind::HiddenFact);
+    say(&mut truce, &d, "pass");
+    say(&mut truce, &d, "pass");
+    assert!(!truce.state().media.discovered.contains(&9001));
+    // And an empty chair is not worth a secret.
+    let (mut chair, _) = at_debate(3);
+    chair.setup(|st| {
+        let on = st.calendar.date;
+        st.narrative.hidden.push(hidden(9001, me, on));
+        st.media.knowledge.push(mandate_sim::media::Knowledge {
+            hidden: 9001,
+            knower: mandate_sim::media::Knower::Person { id: rival },
+            evidence: 0.9,
+            since: on,
+        });
+    });
+    for _ in 0..4 {
+        chair.apply(Command::EndTurn).unwrap();
+    }
+    assert_eq!(played(&chair).unwrap().outcome, Outcome::Absent);
+    assert!(!chair.state().media.discovered.contains(&9001));
+}
+
+/// A secret of the rival's that the player holds may be aired in public:
+/// a different line, with a chance by how well it is known (always shown),
+/// that makes an enemy and a story. Half-known, it may not stand up, and
+/// then it comes back on the player and nothing comes out.
+#[test]
+fn a_secret_the_player_holds_may_be_aired_with_its_chance_shown() {
+    let c = content();
+    let (mut e, d) = at_debate(2);
+    let (_, theirs, rival) = sides(&e, &d);
+    begin(&mut e, &d);
+    e.setup(|st| {
+        let on = st.calendar.date;
+        st.narrative.hidden.push(hidden(9002, theirs, on));
+        let k = &mut st.player.as_mut().unwrap().knowledge;
+        k.learn(
+            Subject::Person { person: rival },
+            Level::Known,
+            on,
+            Source::Met { person: rival },
+        );
+        k.learn(
+            Subject::Secret { hidden: 9002 },
+            Level::Heard,
+            on,
+            Source::Met { person: rival },
+        );
+    });
+    let line = |e: &Engine| {
+        built(e, &d)
+            .into_iter()
+            .find(|o| o.id == "turn:secret.9002")
+            .expect("a secret held gives the line")
+    };
+    let heard = line(&e);
+    assert_eq!(heard.landing.p, c.exchange.hold.heard);
+    assert!(heard.costs);
+    assert!(
+        heard
+            .landing
+            .fails
+            .iter()
+            .zip(&heard.landing.stands)
+            .all(|(f, s)| f < s)
+    );
+    let mut sure = fork(&e);
+    sure.setup(|st| {
+        let on = st.calendar.date;
+        st.player.as_mut().unwrap().knowledge.learn(
+            Subject::Secret { hidden: 9002 },
+            Level::Detailed,
+            on,
+            Source::Met { person: rival },
+        );
+    });
+    assert_eq!(line(&sure).landing.p, c.exchange.hold.detailed);
+    // The same line, never a stronger one: knowing it better changes its
+    // chance, not what it does when it stands.
+    assert_eq!(line(&sure).landing.stands, heard.landing.stands);
+    // Said for certain: it is out, the rival remembers, the run is marked.
+    let shown = scene(&sure, &d)
+        .options
+        .iter()
+        .any(|o| o.id == "turn:secret.9002");
+    if shown {
+        say(&mut sure, &d, "turn:secret.9002");
+        let st = sure.state();
+        assert!(st.media.discovered.contains(&9002));
+        assert!(marks(&sure).contains(&"aired".to_string()));
+        let me = mandate_sim::characters::player_character(st).unwrap();
+        assert!(
+            st.politics
+                .characters
+                .get(rival)
+                .unwrap()
+                .memories
+                .iter()
+                .any(|m| {
+                    m.actor == me && m.kind == mandate_sim::characters::MemoryKind::PressedMe
+                }),
+            "the rival remembers"
+        );
+        let broke = st
+            .events
+            .iter()
+            .rev()
+            .find(|ev| matches!(&ev.kind, EventKind::ScandalBroke { politician, .. } if *politician == theirs.0))
+            .unwrap();
+        // Its cause is the round it was said in.
+        let round = st
+            .arcs
+            .run(mandate_sim::arcs::ArcId(d.run))
+            .unwrap()
+            .exchange
+            .as_ref()
+            .unwrap()
+            .rounds[0]
+            .event;
+        assert!(
+            broke.links().any(|(id, _)| id == round),
+            "{:?}",
+            broke.causes
+        );
+    }
 }
 
 /// A worked debate from a real seed, printed for a report
@@ -1290,8 +1616,10 @@ fn a_worked_debate() {
             p.key,
             p.args
                 .iter()
-                .filter(|(k, _)| ["worry_key", "law_key", "promise_key", "group", "size"]
-                    .contains(&k.as_str()))
+                .filter(
+                    |(k, _)| ["worry_key", "law_key", "promise_key", "group", "size"]
+                        .contains(&k.as_str())
+                )
                 .collect::<Vec<_>>(),
             v.groups
                 .iter()

@@ -230,9 +230,8 @@ fn scenes(
         let Some(sc) = exchange::scene(v.content(), run, &b) else {
             continue;
         };
-        let expected = may_hold
-            && player_active(v)
-            && available(v, run, &run.narrative_cast(), stage, beat);
+        let expected =
+            may_hold && player_active(v) && available(v, run, &run.narrative_cast(), stage, beat);
         let chair = expected
             .then(|| play::empty_chair(v, out.events, &sc, run))
             .flatten();

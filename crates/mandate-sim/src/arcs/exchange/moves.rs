@@ -46,7 +46,10 @@ pub struct Note {
 fn note(key: &str, args: &[(&str, String)]) -> Note {
     Note {
         key: key.to_string(),
-        args: args.iter().map(|(k, v)| (k.to_string(), v.clone())).collect(),
+        args: args
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect(),
     }
 }
 
@@ -242,8 +245,7 @@ pub fn options(
         let groups = &xs.groups;
         let n = groups.len();
         let room = vec![1.0; n];
-        let used_kind =
-            |k: MoveKind| xs.used.iter().any(|u| u.split(':').next() == Some(k.key()));
+        let used_kind = |k: MoveKind| xs.used.iter().any(|u| u.split(':').next() == Some(k.key()));
         let repeat = |k: MoveKind| if used_kind(k) { p.repeat } else { 1.0 };
         let other_known = opp
             .id
@@ -261,8 +263,7 @@ pub fn options(
                     xs.answers
                         .iter()
                         .find(|a| {
-                            a.kind == o.kind
-                                && a.what.as_ref().is_none_or(|w| *w == o.subject.what)
+                            a.kind == o.kind && a.what.as_ref().is_none_or(|w| *w == o.subject.what)
                         })
                         .map(|a| f64::from(a.size))
                 })
@@ -317,8 +318,7 @@ pub fn options(
                 MoveKind::Record => {
                     for (policy, concern, s) in attacks::laws(v, p) {
                         let inst = v.r.policy().instances.get(policy as usize);
-                        let subject =
-                            Subject::of(What::Law { policy }, Some(concern.clone()));
+                        let subject = Subject::of(What::Law { policy }, Some(concern.clone()));
                         let mut o = blank(
                             format!("record:law.{policy}"),
                             kind,
@@ -364,15 +364,11 @@ pub fn options(
                         let visits = audience::hoods_of(v.r.world, &g.group)
                             .into_iter()
                             .map(|h| {
-                                pl.ground.visits_now(
-                                    NeighborhoodId(h as u32),
-                                    today,
-                                    p.visits_keep,
-                                )
+                                pl.ground
+                                    .visits_now(NeighborhoodId(h as u32), today, p.visits_keep)
                             })
                             .fold(0.0, f64::max);
-                        let presence = (visits / p.visits_full.max(1e-6))
-                            .clamp(p.heard_floor, 1.0);
+                        let presence = (visits / p.visits_full.max(1e-6)).clamp(p.heard_floor, 1.0);
                         let key = g.group.key();
                         let mut o = blank(
                             format!("heard:{key}"),
@@ -421,20 +417,18 @@ pub fn options(
                     let mut faults: Vec<(String, Subject, f64, f64, Option<u32>)> = Vec::new();
                     if let Some(their) = their {
                         for (policy, vote) in attacks::declared(v, their) {
-                            let Some((_, against)) =
-                                attacks::against_lean(v, groups, policy, vote)
+                            let Some((_, against)) = attacks::against_lean(v, groups, policy, vote)
                             else {
                                 continue;
                             };
                             if against < p.size.lean_line {
                                 continue;
                             }
-                            let concern = v
-                                .r
-                                .policy()
-                                .instances
-                                .get(policy as usize)
-                                .and_then(|i| attacks::worry_of(v, p, i));
+                            let concern =
+                                v.r.policy()
+                                    .instances
+                                    .get(policy as usize)
+                                    .and_then(|i| attacks::worry_of(v, p, i));
                             faults.push((
                                 format!("turn:vote.{policy}"),
                                 Subject::of(What::Bill { policy }, concern),
@@ -494,10 +488,8 @@ pub fn options(
                         let mut o = blank(id, kind, subject, strength * repeat(kind));
                         o.line.p = chance;
                         o.deeds.push(Deed::Pressed { person: other });
-                        o.notes.push(note(
-                            "exchange-cost-remembers",
-                            &[("other", name.clone())],
-                        ));
+                        o.notes
+                            .push(note("exchange-cost-remembers", &[("other", name.clone())]));
                         if let Some(h) = hidden {
                             o.deeds.push(Deed::Surface { hidden: h });
                             o.notes.push(note("exchange-cost-aired", &[]));
@@ -643,9 +635,9 @@ pub fn options(
                         ];
                         // "You have had N years" bites only where the
                         // player has no law on the subject.
-                        let has_law = concern.as_deref().is_some_and(|c| {
-                            attacks::laws(v, p).iter().any(|(_, lc, _)| lc == c)
-                        });
+                        let has_law = concern
+                            .as_deref()
+                            .is_some_and(|c| attacks::laws(v, p).iter().any(|(_, lc, _)| lc == c));
                         push(o, has_law);
                     }
                 }
@@ -661,7 +653,10 @@ pub fn options(
                     o.notes.push(note("exchange-cost-retires", &[]));
                     o.notes.push(note(
                         "exchange-cost-standing",
-                        &[("n", format!("{}", p.world.own_standing.abs().round() as i64))],
+                        &[(
+                            "n",
+                            format!("{}", p.world.own_standing.abs().round() as i64),
+                        )],
                     ));
                     if def.temper.is_some() {
                         o.deeds.push(Deed::Cool {
@@ -735,10 +730,8 @@ pub fn options(
                     // Its fit is the backer's tie to each group, not a worry.
                     o.line.fit = audience::ties(v, p, groups, b);
                     o.prep = true;
-                    o.notes.push(note(
-                        "exchange-cost-second",
-                        &[("second", name.clone())],
-                    ));
+                    o.notes
+                        .push(note("exchange-cost-second", &[("second", name.clone())]));
                     o.args = vec![("second".into(), name)];
                     push(o, false);
                 }
@@ -802,7 +795,10 @@ pub fn shown(p: &ExchangeParams, r: &RoundIn, weights: &[f64], opts: &[Opt]) -> 
             picked.push(i);
         }
     };
-    take(opts.iter().position(|o| o.kind == MoveKind::Pass), &mut picked);
+    take(
+        opts.iter().position(|o| o.kind == MoveKind::Pass),
+        &mut picked,
+    );
     let preps: Vec<usize> = order
         .iter()
         .copied()
@@ -855,7 +851,12 @@ pub fn locked(
             .unwrap_or_default();
         let mut routes: Vec<Locked> = Vec::new();
         for kind in &def.moves {
-            if has(*kind) || xs.used.iter().any(|u| u.split(':').next() == Some(kind.key())) {
+            if has(*kind)
+                || xs
+                    .used
+                    .iter()
+                    .any(|u| u.split(':').next() == Some(kind.key()))
+            {
                 continue;
             }
             let (reason, args): (&str, Vec<(String, String)>) = match kind {
@@ -874,8 +875,7 @@ pub fn locked(
                     }
                 }
                 MoveKind::Turn => {
-                    let known = other_id
-                        .map_or(Level::Unknown, |o| audience::person_known(v, o));
+                    let known = other_id.map_or(Level::Unknown, |o| audience::person_known(v, o));
                     let reason = if known == Level::Unknown {
                         "turn-unknown"
                     } else {
@@ -887,10 +887,7 @@ pub fn locked(
                 MoveKind::Act => ("act", Vec::new()),
                 MoveKind::Second => ("second", Vec::new()),
                 MoveKind::Proof => ("proof", Vec::new()),
-                MoveKind::Own
-                | MoveKind::Deny
-                | MoveKind::Offer
-                | MoveKind::Pass => continue,
+                MoveKind::Own | MoveKind::Deny | MoveKind::Offer | MoveKind::Pass => continue,
             };
             routes.push(Locked {
                 kind: *kind,

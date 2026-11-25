@@ -166,10 +166,7 @@ pub fn open_now(state: &State, content: &ContentBundle, run: &ArcRun, sc: &Scene
 pub fn open_scenes(state: &State, content: &ContentBundle) -> Vec<(ArcId, BeatRef, Location)> {
     let mut out = Vec::new();
     for run in &state.arcs.runs {
-        let Some(stage) = content
-            .arc(&run.template)
-            .and_then(|a| a.stage(&run.stage))
-        else {
+        let Some(stage) = content.arc(&run.template).and_then(|a| a.stage(&run.stage)) else {
             continue;
         };
         for beat in &stage.beats {
@@ -301,9 +298,7 @@ fn build(
         return Some(out);
     };
     let opts = moves::options(state, content, p, run, sc.arc, sc.def, xs);
-    let r = crate::condition::on_state(state, content, |v| {
-        moves::round_in(v, p, run, sc.def, xs)
-    })?;
+    let r = crate::condition::on_state(state, content, |v| moves::round_in(v, p, run, sc.def, xs))?;
     let weights: Vec<f64> = xs.groups.iter().map(|g| f64::from(g.weight)).collect();
     let shown = moves::shown(p, &r, &weights, &opts);
     // The prompt, with what it leaves standing if nothing answers it.
@@ -318,9 +313,7 @@ fn build(
     let bites: Vec<Span> = (0..xs.groups.len())
         .map(|g| {
             let f = seen_r.fit[g];
-            let at = |fit: f64| {
-                landing::bounded(seen_r.lean[g], -landing::bite(p, &seen_r, fit))
-            };
+            let at = |fit: f64| landing::bounded(seen_r.lean[g], -landing::bite(p, &seen_r, fit));
             let (a, b) = (at(f.lo), at(f.hi));
             Span {
                 lo: a.min(b),
@@ -443,7 +436,10 @@ fn prompt_args(
     if let Some(c) = &a.subject.concern
         && let Some(def) = content.concerns.iter().find(|x| &x.id == c)
     {
-        out.push(("worry_key".into(), def.talk_key.clone().unwrap_or_else(|| def.name_key.clone())));
+        out.push((
+            "worry_key".into(),
+            def.talk_key.clone().unwrap_or_else(|| def.name_key.clone()),
+        ));
     }
     if let Some(g) = &a.group {
         // The group it names, by the area's own name where it has one.

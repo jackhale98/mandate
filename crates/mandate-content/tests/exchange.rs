@@ -67,8 +67,11 @@ fn the_debate_loads_and_uses_only_what_is_built() {
     assert_eq!((p.win, p.lose, p.group_margin), (0.08, 0.08, 0.05));
     assert_eq!((p.world.approve, p.world.aware), (0.08, 0.04));
     assert_eq!(p, &{
-        let mut d = mandate_content::exchange::ExchangeParams::default();
-        d.worries = p.worries.clone();
+        // The pack states the code's defaults again, and adds its tables.
+        let mut d = mandate_content::exchange::ExchangeParams {
+            worries: p.worries.clone(),
+            ..Default::default()
+        };
         d.deck.grudge_traits = p.deck.grudge_traits.clone();
         d.member_fit.integrity = p.member_fit.integrity.clone();
         d.member_fit.loyalty = p.member_fit.loyalty.clone();
@@ -173,8 +176,16 @@ fn a_kind_the_arc_can_never_give_is_refused() {
     let f = src2.iter_mut().find(|s| s.path.ends_with(RIVAL)).unwrap();
     f.text = f
         .text
-        .replacen(r#""own", "second", "pass"]"#, r#""own", "deny", "second", "pass"]"#, 1)
-        .replacen(r#"{ "mark": "pact", "bars": ["hidden_fact", "scandal"] } ],"#, "],", 1);
+        .replacen(
+            r#""own", "second", "pass"]"#,
+            r#""own", "deny", "second", "pass"]"#,
+            1,
+        )
+        .replacen(
+            r#"{ "mark": "pact", "bars": ["hidden_fact", "scandal"] } ],"#,
+            "],",
+            1,
+        );
     let e: Vec<String> = load(&src2)
         .err()
         .unwrap_or_default()
@@ -182,7 +193,8 @@ fn a_kind_the_arc_can_never_give_is_refused() {
         .map(|x| x.to_string())
         .collect();
     assert!(
-        e.iter().any(|x| x.contains("move `deny` can never be offered")),
+        e.iter()
+            .any(|x| x.contains("move `deny` can never be offered")),
         "{e:#?}"
     );
     // A `prep` mark nothing sets.
@@ -223,7 +235,12 @@ fn an_audience_that_cannot_bind_is_refused() {
         "arc-role-uncast",
     );
     // Its place must be a place.
-    refused(RIVAL, r#""at": "hall","#, r#""at": "rival","#, "must be a place");
+    refused(
+        RIVAL,
+        r#""at": "hall","#,
+        r#""at": "rival","#,
+        "must be a place",
+    );
 }
 
 #[test]
@@ -244,7 +261,11 @@ fn a_private_table_airs_no_secret_and_is_not_built_yet() {
     let f = src.iter_mut().find(|s| s.path.ends_with(RIVAL)).unwrap();
     f.text = f
         .text
-        .replacen(r#""from": ["scandal", "hidden_fact", "absent","#, r#""from": ["scandal", "absent","#, 1)
+        .replacen(
+            r#""from": ["scandal", "hidden_fact", "absent","#,
+            r#""from": ["scandal", "absent","#,
+            1,
+        )
         .replacen(
             r#"{ "mark": "pact", "bars": ["hidden_fact", "scandal"] } ],"#,
             r#"{ "mark": "pact", "bars": ["scandal"] } ],"#,

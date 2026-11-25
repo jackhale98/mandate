@@ -40,8 +40,8 @@ pub mod view;
 
 pub use play::{ExchangeAct, apply};
 pub use state::{
-    AnswerHeld, ArcExchangeState, Attack, ExchangePlayed, Group, GroupLean, PromptNow,
-    RoundPlayed, Subject, What,
+    AnswerHeld, ArcExchangeState, Attack, ExchangePlayed, Group, GroupLean, PromptNow, RoundPlayed,
+    Subject, What,
 };
 pub use view::{OptionView, Phase, SceneView, view, view_known};
 

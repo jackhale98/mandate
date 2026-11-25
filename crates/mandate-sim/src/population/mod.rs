@@ -125,7 +125,11 @@ pub fn apply_awareness(
                 continue;
             }
             let aw = c.player_awareness as f64;
-            let step = if delta > 0.0 { delta * (1.0 - aw) } else { delta };
+            let step = if delta > 0.0 {
+                delta * (1.0 - aw)
+            } else {
+                delta
+            };
             c.player_awareness = clamp(aw + step, 0.0, 1.0) as f32;
         }
     }

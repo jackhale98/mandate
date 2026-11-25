@@ -518,9 +518,9 @@ pub fn thread(kind: &EventKind, date: SimDate) -> Option<(Thread, Role)> {
         } => (Thread::Plant(*plant), Role::Closes),
         K::ArcRaised { arc, .. } => (Thread::Arc(*arc), Role::Opens),
         K::ArcStage { arc, .. } => (Thread::Arc(*arc), Role::Advances),
-        K::ArcBeat { arc, .. }
-        | K::ArcExchange { arc, .. }
-        | K::ArcExchangeEnded { arc, .. } => (Thread::Arc(*arc), Role::Notes),
+        K::ArcBeat { arc, .. } | K::ArcExchange { arc, .. } | K::ArcExchangeEnded { arc, .. } => {
+            (Thread::Arc(*arc), Role::Notes)
+        }
         K::ArcEnded { arc, .. } => (Thread::Arc(*arc), Role::Closes),
         K::PlayerImprisoned { .. } => (Thread::Sentence, Role::Opens),
         K::PlayerReleased => (Thread::Sentence, Role::Closes),
