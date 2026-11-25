@@ -151,6 +151,8 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
     validate_treasury_shares(b, &mut issues);
     // Policy families (DEC-092): items 1–10 of the contract's §2.13.
     crate::policy_family::validate(b, &mut issues);
+    // The impact table (DEC-111): no mechanism without a row.
+    crate::types::validate_impact(b, &mut issues);
     validate_overheard(b, &mut issues);
 
     validate_fluent_refs(b, &mut issues);

@@ -991,6 +991,7 @@ fn act(
                 cause: Some(ev),
                 ledger: BTreeMap::new(),
                 family: None,
+                estimate: None,
             });
         }
         AiAction::Rest => {}

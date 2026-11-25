@@ -264,7 +264,7 @@ enum Cmd {
     Audit(audit::AuditArgs),
     /// The lab's experiment runner (S2): one game, or twins with and
     /// without an intervention, sampled at chosen months, as JSON.
-    Lab(lab::cli::LabCmd),
+    Lab(Box<lab::cli::LabCmd>),
     /// Show details for one municipality or region of a generated world.
     Inspect {
         #[arg(long, default_value_t = 1)]
@@ -949,7 +949,7 @@ fn run(cli: Cli) -> Result<(), String> {
         Cmd::Lab(cmd) => {
             let content = load_content(&cli.content)?;
             lab::runner::set_content_root(&cli.content);
-            out(lab::cli::run(content, cmd)?);
+            out(lab::cli::run(content, *cmd)?);
             Ok(())
         }
         Cmd::SaveInfo { path } => {

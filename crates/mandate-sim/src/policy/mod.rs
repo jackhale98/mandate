@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 
 pub mod drafting;
 pub mod families;
+pub mod impact;
 pub mod resolve;
 pub mod works;
 pub use resolve::{Resolved, resolve};
@@ -104,6 +105,12 @@ pub struct PolicyInstance {
     /// bill (and not serialized, so standard bills read as before).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub family: Option<families::FamilyDraft>,
+    /// What the bill said it would do when it passed (DEC-111): the impact
+    /// estimate at enactment, kept so the ledger can be read against it.
+    /// `None` for a bill not yet passed, and for a law passed before save
+    /// v28 or in a tier the impact table does not cover.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub estimate: Option<impact::FrozenEstimate>,
 }
 
 impl PolicyInstance {
@@ -376,9 +383,9 @@ pub fn mods_for(
         };
         let area = p.area();
         // A family option's effect factor scales every mechanism (DEC-092).
-        let k = p.progress as f64 * p.pilot_scale() * funded(p.id.0) * t.effect_factor;
+        let k = impact::scale(p, funded(p.id.0), t.effect_factor);
         // Side effects (DEC-073): disruption while building, labour supply once running.
-        let building = (1.0 - p.progress as f64).max(0.0) * p.pilot_scale() * funded(p.id.0);
+        let building = impact::building(p, funded(p.id.0));
         for fx in &t.side_effects {
             let a = side_effect_amount(fx, p);
             match fx {
@@ -402,20 +409,23 @@ pub fn mods_for(
                     category,
                     param,
                     per_unit,
-                } => out.services[category_index(*category)] += per_unit * p.param(param) * k,
+                } => {
+                    out.services[category_index(*category)] +=
+                        impact::linear(*per_unit, p.param(param), k)
+                }
                 MechanismDef::Transfer { class, param } => {
                     let i = match class {
                         ClassKey::Low => 0,
                         ClassKey::Middle => 1,
                         ClassKey::High => 2,
                     };
-                    out.transfer[i] += p.param(param) * k;
+                    out.transfer[i] += impact::flat(p.param(param), k);
                 }
                 MechanismDef::HousingSupply { param } => {
-                    out.housing_units_per_year += p.param(param) * k
+                    out.housing_units_per_year += impact::flat(p.param(param), k)
                 }
                 MechanismDef::Zoning { param, per_unit } => {
-                    out.starts_multiplier *= 1.0 + per_unit * p.param(param) * k
+                    out.starts_multiplier *= 1.0 + impact::linear(*per_unit, p.param(param), k)
                 }
                 // A cap is a rule: in force in full once the law is (no ramp).
                 MechanismDef::RentCap {
@@ -433,21 +443,23 @@ pub fn mods_for(
                     elasticity,
                 } => {
                     if let Some(i) = content.sector_index(sector) {
-                        out.subsidy[i] += p.param(param) / 100.0 * k;
+                        out.subsidy[i] += impact::percent(p.param(param), k);
                         out.subsidy_elasticity[i] = *elasticity;
                     }
                 }
-                MechanismDef::WageFloor { param } => out.wage_floor += p.param(param) / 100.0 * k,
+                MechanismDef::WageFloor { param } => {
+                    out.wage_floor += impact::percent(p.param(param), k)
+                }
                 MechanismDef::LocalTaxRate { param } => {
                     // Tax changes take effect in full once enacted (no ramp, no funding).
-                    out.property_tax_delta += p.param(param) / 100.0 * p.pilot_scale().max(1.0);
+                    out.property_tax_delta += impact::tax_delta(p.param(param), p.pilot_scale());
                 }
                 MechanismDef::HazardProtection {
                     hazard,
                     param,
                     per_unit,
                 } => {
-                    let v = per_unit * p.param(param) * k;
+                    let v = impact::linear(*per_unit, p.param(param), k);
                     match (hazard.key(), area) {
                         (Some(h), Some(hoods)) => {
                             let i = match h {
@@ -475,7 +487,7 @@ pub fn mods_for(
                         if out.capacity.is_empty() {
                             out.capacity = vec![0.0; content.sectors.len()];
                         }
-                        out.capacity[i] += per_unit * p.param(param) * k;
+                        out.capacity[i] += impact::linear(*per_unit, p.param(param), k);
                     }
                 }
                 // Finance reads these (`borrow_share`, `annual_revenue`).
@@ -572,6 +584,7 @@ pub fn probe(t: &PolicyTemplate, m: u32, params: &BTreeMap<String, f64>) -> Poli
         cause: None,
         ledger: Default::default(),
         family: None,
+        estimate: None,
     }
 }
 
@@ -1053,6 +1066,15 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 Cause::event_or(inst.cause, Link::Caused, Cause::Process(Process::Lawmaking)),
             );
         }
+        // What the bill says it will do, as it passes its last stage
+        // (DEC-111): kept with the law, so the ledger can later be read
+        // against it. A pure function of published state: it draws nothing.
+        let enacting = passed && (inst.stage as usize + 1) >= proc_def.stages.len();
+        let frozen = if enacting {
+            impact::inputs(r, st, at).map(|x| impact::estimate(&x, r.content, &t, &inst).freeze())
+        } else {
+            None
+        };
         let p = &mut st.instances[i];
         let veto = record.veto;
         p.votes.push(record.clone());
@@ -1084,6 +1106,7 @@ pub fn procedures(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             p.status = PolicyStatus::Enacted;
             p.next_stage_on = None;
             p.enacted_on = Some(r.date);
+            p.estimate = frozen;
             p.awareness = (p.awareness + r.content.council.enactment_awareness as f32).min(1.0);
             let ev = out.events.record(
                 r.date,
@@ -1144,7 +1167,7 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     p.status = PolicyStatus::InEffect;
                     let months = t.implementation_months.max(1) as f64;
                     p.progress = clamp(
-                        p.progress as f64 + funded * (0.5 + competence) / months,
+                        p.progress as f64 + impact::progress_step(funded, competence, months),
                         0.0,
                         1.0,
                     ) as f32;
@@ -1179,139 +1202,49 @@ pub fn implementation(st: &mut PolicyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 // every template (`economy.attribution`). The same scale as
                 // the mechanisms' own (`mods_for`), a family option's
                 // effect factor included.
-                let k = p.progress as f64 * p.pilot_scale() * funded * t.effect_factor;
+                let k = impact::scale(p, funded, t.effect_factor);
                 let e = econ.munis.get(m);
-                let net = &r.content.economy.attribution;
-                let lag = r.content.economy.construction_lag_months.max(1) as f64;
-                let demolition = r.content.economy.housing.demolition_rate;
                 // Saves from before the split named homes started `homes_built`.
                 if let Some(v) = p.ledger.remove("homes_built") {
                     *p.ledger.entry("homes_started".into()).or_default() += v;
                 }
+                let capacity = |sector: &str| {
+                    r.content
+                        .sector_index(sector)
+                        .and_then(|i| e.and_then(|x| x.sectors.get(i)))
+                        .map(|x| x.capacity)
+                        .unwrap_or(0.0)
+                };
+                let books = impact::Books {
+                    k,
+                    lag: r.content.economy.construction_lag_months.max(1) as f64,
+                    demolition: r.content.economy.housing.demolition_rate,
+                    net: &r.content.economy.attribution,
+                    capacity: &capacity,
+                    private_starts: zoned.get(&p.jurisdiction).copied(),
+                    rent_market: e.map(|x| {
+                        impact::rent_market(
+                            &r.content.economy,
+                            x.housing.vacancy,
+                            econ.national.inflation,
+                        )
+                    }),
+                };
+                // One place books a month (`impact::book`): the estimate
+                // before the vote runs the same arithmetic forward.
                 for mech in &t.mechanisms {
-                    match mech {
-                        MechanismDef::HousingSupply { param } => {
-                            let started = p.param(param) * k / 12.0;
-                            record_homes(
-                                &mut p.ledger,
-                                HomesStarted::Exact(started),
-                                lag,
-                                demolition,
-                                net.homes_net,
-                            );
-                        }
-                        MechanismDef::SectorSubsidy {
-                            sector,
-                            param,
-                            elasticity,
-                        } => {
-                            let base = r
-                                .content
-                                .sector_index(sector)
-                                .and_then(|i| e.and_then(|x| x.sectors.get(i)))
-                                .map(|x| x.capacity)
-                                .unwrap_or(0.0);
-                            let supported = base * elasticity * p.param(param) / 100.0 * k;
-                            let s = sector_key(sector);
-                            p.ledger.insert(format!("jobs_supported_{s}"), supported);
-                            p.ledger
-                                .insert(format!("jobs_added_{s}"), supported * net.jobs_net);
-                        }
-                        MechanismDef::Transfer { param, .. } => {
-                            *p.ledger.entry("paid_per_person".into()).or_default() +=
-                                p.param(param) * k / 12.0;
-                        }
-                        MechanismDef::Service {
-                            param, per_unit, ..
-                        } => {
-                            p.ledger.insert(
-                                "service_gain_pct".into(),
-                                per_unit * p.param(param) * k * 100.0,
-                            );
-                        }
-                        MechanismDef::Zoning { param, per_unit } => {
-                            let extra = per_unit * p.param(param) * k;
-                            p.ledger.insert("extra_building_pct".into(), extra * 100.0);
-                            // The private starts it brought: last month's
-                            // private starts × extra ÷ (1 + extra), an
-                            // estimate like what they add.
-                            if let Some(private) = zoned.get(&p.jurisdiction) {
-                                let started = private * extra / (1.0 + extra).max(0.1);
-                                record_homes(
-                                    &mut p.ledger,
-                                    HomesStarted::Estimated(started),
-                                    lag,
-                                    demolition,
-                                    net.homes_net,
-                                );
-                            }
-                        }
-                        MechanismDef::RentCap {
-                            param,
-                            loosest,
-                            per_unit,
-                        } => {
-                            if let Some(cap) = rent_cap_of(p.param(param), *loosest, *per_unit) {
-                                p.ledger.insert("rent_cap_pct".into(), cap * 100.0);
-                                // How far rents are held below where the
-                                // market would take them (an estimate):
-                                // what the cap withholds each month it
-                                // binds, given back as rents catch up.
-                                if let Some(x) = e {
-                                    let h = &r.content.economy;
-                                    let infl = econ.national.inflation / 12.0;
-                                    let market = (h.target_vacancy - x.housing.vacancy)
-                                        * h.housing.rent_response
-                                        + infl;
-                                    let held =
-                                        p.ledger.get("rent_held_pct").copied().unwrap_or(0.0)
-                                            / 100.0;
-                                    let held = if market > cap / 12.0 {
-                                        held + market - cap / 12.0
-                                    } else {
-                                        (held - (market - infl).max(0.0)).max(0.0)
-                                    };
-                                    p.ledger.insert("rent_held_pct".into(), held * 100.0);
-                                }
-                            }
-                        }
-                        MechanismDef::WageFloor { param } => {
-                            p.ledger
-                                .insert("wage_uplift_pct".into(), p.param(param) * k);
-                            p.ledger.insert(
-                                "low_income_added_pct".into(),
-                                p.param(param) * k * net.wage_floor_net,
-                            );
-                        }
-                        MechanismDef::HazardProtection {
-                            param, per_unit, ..
-                        } => {
-                            p.ledger.insert(
-                                "damage_reduction_pct".into(),
-                                (per_unit * p.param(param) * k * 100.0).min(90.0),
-                            );
-                        }
-                        MechanismDef::LocalTaxRate { param } => {
-                            p.ledger.insert("tax_change_pts".into(), p.param(param));
-                        }
-                        MechanismDef::SectorCapacity {
-                            sector,
-                            param,
-                            per_unit,
-                        } => {
-                            let created = per_unit * p.param(param) * k;
-                            let s = sector_key(sector);
-                            p.ledger.insert(format!("jobs_created_{s}"), created);
-                            p.ledger
-                                .insert(format!("jobs_added_{s}"), created * net.jobs_net);
-                        }
-                        MechanismDef::Borrow { share } => {
-                            p.ledger.insert("borrowed_pct".into(), share * 100.0);
-                        }
-                        MechanismDef::Revenue { .. } => {}
-                    }
+                    impact::book(&mut p.ledger, mech, &p.params, &books);
                 }
                 p.ledger.insert("funded_pct".into(), funded * 100.0);
+            }
+            // What an ended law said when it passed is kept twelve years
+            // from its enactment (as the spine keeps notable events).
+            PolicyStatus::Ended
+                if p.estimate.is_some()
+                    && p.enacted_on
+                        .is_none_or(|on| on.days_until(r.date) >= impact::KEPT_YEARS * 365) =>
+            {
+                p.estimate = None;
             }
             _ => {}
         }
@@ -1390,14 +1323,14 @@ pub fn delivered(
     d.homes_per_year =
         p.ledger.get("homes_building").copied().unwrap_or(0.0) / lag * 12.0 * net.homes_net;
     d.rent_held = p.ledger.get("rent_held_pct").copied().unwrap_or(0.0) / 100.0;
-    let k = p.progress as f64 * p.pilot_scale() * funded * t.effect_factor;
+    let k = impact::scale(p, funded, t.effect_factor);
     for mech in &t.mechanisms {
         match mech {
             MechanismDef::Transfer { class, param } => {
-                d.paid[class_index(*class)] += p.param(param) * k;
+                d.paid[class_index(*class)] += impact::flat(p.param(param), k);
             }
             MechanismDef::WageFloor { param } => {
-                d.low_income_share += p.param(param) / 100.0 * k * net.wage_floor_net;
+                d.low_income_share += impact::percent(p.param(param), k) * net.wage_floor_net;
             }
             _ => {}
         }

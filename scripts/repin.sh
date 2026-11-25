@@ -6,6 +6,7 @@
 #   scripts/repin.sh --check         change nothing; list what is stale; exit 1 if any
 #   scripts/repin.sh --allow-dirty   re-record on a tree with uncommitted changes
 #   scripts/repin.sh --wasm          also run the web pin test (needs a fresh scripts/build-wasm.sh)
+#   scripts/repin.sh --impact        first refit the impact table (slow; off by default)
 #
 # Use it only when a commit changes outcomes (a balance fix, a new system) or
 # the state's shape on purpose, and say why in the commit message
@@ -13,6 +14,13 @@
 # an assertion: only the recorded values below.
 #
 # What it records, in this order:
+#   0. content/base/impact.jsonc             only with --impact: mandate-cli lab impact calibrate
+#        (DEC-111; a release build). Fitted to the simulation's numbers, so it is refitted when
+#        a mechanism or the economy changes (the end-of-M6 tuning pass). By default the run the
+#        shipped table records, again (--refit); MANDATE_IMPACT_ARGS replaces that, for example
+#        MANDATE_IMPACT_ARGS="--seeds 16" for the full fit (hours). It comes first because a law
+#        keeps the estimate it passed with: the pins below hold what the table gives.
+#        `mandate-cli audit estimate` then judges the new table on other seeds.
 #   1. tests/seeds.json                      mandate-cli seeds refresh
 #   2. the state-shape fingerprint           crates/mandate-save/tests/saves.rs
 #   3. the town geography pin                crates/mandate-wasm/tests/town.rs and
@@ -32,14 +40,15 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-check=0; allow_dirty=0; wasm=0
+check=0; allow_dirty=0; wasm=0; impact=0
 for a in "$@"; do
   case "$a" in
     --check) check=1 ;;
     --allow-dirty) allow_dirty=1 ;;
     --wasm) wasm=1 ;;
+    --impact) impact=1 ;;
     -h|--help) sed -n '2,/^set -uo/p' "$0" | sed '$d;s/^# \{0,1\}//'; exit 0 ;;
-    *) echo "usage: scripts/repin.sh [--check] [--allow-dirty] [--wasm]" >&2; exit 2 ;;
+    *) echo "usage: scripts/repin.sh [--check] [--allow-dirty] [--wasm] [--impact]" >&2; exit 2 ;;
   esac
 done
 
@@ -48,12 +57,13 @@ SAVES=crates/mandate-save/tests/saves.rs
 TOWN=crates/mandate-wasm/tests/town.rs
 VIEWS=web/src/hub/fixtures/engineViews.test.ts
 SEEDS=tests/seeds.json
+IMPACT=content/base/impact.jsonc
 FIXTURES=(
   crates/mandate-save/tests/fixtures/v18_campaign_continued.mndt
   web/src/components/asks/asks.fixture.json
   web/src/hub/layoutV2/registry/base.json
 )
-FILES=("$PROOF" "$SAVES" "$TOWN" "$VIEWS" "$SEEDS" "${FIXTURES[@]}")
+FILES=("$PROOF" "$SAVES" "$TOWN" "$VIEWS" "$SEEDS" "$IMPACT" "${FIXTURES[@]}")
 
 if ((!check && !allow_dirty)) && [[ -n "$(git status --porcelain)" ]]; then
   echo "repin: the tree has uncommitted changes; commit or stash them (or pass --allow-dirty)." >&2
@@ -113,6 +123,7 @@ def snapshot():
         out["fixture " + f] = hashlib.sha1(open(f, "rb").read()).hexdigest()[:12]
     for k, v in json.loads(read(SEEDS)).items():
         out["seed " + k] = str(v["seed"])
+    out["impact table (impact.jsonc)"] = hashlib.sha1(open("content/base/impact.jsonc", "rb").read()).hexdigest()[:12]
     return out
 
 def replace_one(path, rx, value):
@@ -187,6 +198,12 @@ run() {
 }
 
 py snapshot "$TMP/old.json" || exit 2
+
+# 0. The impact table, when asked for: everything below is recorded with it.
+if ((impact)); then
+  # shellcheck disable=SC2086
+  run impact cargo run -q --release -p mandate-cli -- lab impact calibrate ${MANDATE_IMPACT_ARGS:---refit}
+fi
 
 # 1. The seed cache first: the tests below look their seeds up in it.
 run seeds cargo run -q -p mandate-cli -- seeds refresh

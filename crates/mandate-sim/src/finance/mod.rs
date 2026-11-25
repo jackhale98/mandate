@@ -462,12 +462,6 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             a.borrow_share = borrow;
         } else if let Some(treasury) = fin.local.get(m) {
             // New law: fund what fits in last year's room plus a 3% contingency.
-            let budget = treasury.budget_total().units() as f64;
-            let room = (treasury.last_year.revenue.units() as f64
-                - treasury.last_year.interest.units() as f64
-                - budget)
-                .max(0.0)
-                + budget * 0.03;
             let existing: f64 = fin
                 .appropriations
                 .values()
@@ -476,11 +470,7 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
                 .sum();
             // A borrowed share needs no room in the budget.
             let needs = cost * (1.0 - borrow);
-            let share = if needs <= 0.0 {
-                1.0
-            } else {
-                clamp((room - existing) / needs, 0.0, 1.0)
-            };
+            let share = first_share(room(treasury), existing, needs);
             fin.appropriations.insert(
                 p.id.0,
                 Appropriation {
@@ -537,6 +527,38 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
             t.budget_total().scale(0.03)
         };
         t.settle(reserve);
+    }
+}
+
+/// The room a treasury has for a new law until its next budget: what last
+/// year's revenue left after interest and the budget, plus a 3% contingency.
+pub fn room(t: &Treasury) -> f64 {
+    let budget = t.budget_total().units() as f64;
+    (t.last_year.revenue.units() as f64 - t.last_year.interest.units() as f64 - budget).max(0.0)
+        + budget * 0.03
+}
+
+/// The share of a new law's cost funded until the next budget year (the
+/// funding rule as a pure function, shared with the impact estimate,
+/// DEC-111): what fits in the treasury's `room` after the programmes
+/// already paid from the budget (`existing`). `needs` is its yearly cost
+/// less any borrowed share, which needs no room.
+pub fn first_share(room: f64, existing: f64, needs: f64) -> f64 {
+    if needs <= 0.0 {
+        1.0
+    } else {
+        clamp((room - existing) / needs, 0.0, 1.0)
+    }
+}
+
+/// The share every programme of a jurisdiction is funded at from a budget
+/// year on: programmes may take a quarter of the `budget`; beyond that all
+/// are pro-rated. `full` is their yearly cost from the budget in full.
+pub fn capped_share(budget: f64, full: f64) -> f64 {
+    if full <= 0.0 {
+        1.0
+    } else {
+        clamp(0.25 * budget / full, 0.0, 1.0)
     }
 }
 
@@ -671,11 +693,7 @@ pub fn new_budget_year(fin: &mut FinanceState, r: &Reads<'_>, out: &mut Outs<'_>
             .filter(|a| a.municipality as usize == m)
             .map(|a| a.annual_cost * (1.0 - a.borrow_share))
             .sum();
-        let share = if full <= 0.0 {
-            1.0
-        } else {
-            clamp(0.25 * budget / full, 0.0, 1.0)
-        };
+        let share = capped_share(budget, full);
         for a in fin
             .appropriations
             .values_mut()

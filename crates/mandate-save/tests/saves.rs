@@ -137,7 +137,12 @@ fn state_shape_matches_format_version() {
     // `industry` and `demand` when set; the plant events and pressures on
     // the spine. Migration: `industries` (the engine shares each split
     // sector among its industries as it loads, as a new world does).
-    const EXPECTED: (u16, &str) = (29, "04a127111f358b05");
+    //
+    // v29 (04a127111f358b05) -> v30: the impact estimate a law passed with
+    // (DEC-111). A law gained `estimate`, absent on a bill not yet passed,
+    // on a law from an older save, and on a law ended and enacted over
+    // twelve years ago. Migration: `frozen_estimates`.
+    const EXPECTED: (u16, &str) = (30, "04a127111f358b05");
     let c = content();
     let mut e = generate(
         &WorldConfig {

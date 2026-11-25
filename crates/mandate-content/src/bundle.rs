@@ -170,6 +170,9 @@ pub struct ContentBundle {
     /// Staged arcs (DEC-109), in load order.
     #[serde(default)]
     pub arcs: Vec<crate::arcs::ArcDef>,
+    /// The impact table (DEC-111). Absent: bills carry no estimate.
+    #[serde(default)]
+    pub impact: ImpactTable,
 }
 
 impl ContentBundle {
@@ -486,6 +489,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut arc_overheard: Vec<OverheardDef> = Vec::new();
     let mut policy_families: Vec<crate::policy_family::PolicyFamilyDef> = Vec::new();
     let mut family_params: Option<(crate::policy_family::FamilyParams, String)> = None;
+    let mut impact: Option<(ImpactTable, String)> = None;
     // (pack directory, path, patch): applied after every family is loaded.
     let mut family_patches: Vec<(String, String, crate::policy_family::FamilyPatch)> = Vec::new();
     // (pack directory, load order) of each manifest.
@@ -924,6 +928,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                 &src.path,
                 &mut issues,
             ),
+            ContentFile::ImpactTable { value } => {
+                once(&mut impact, *value, "impact_table", &src.path, &mut issues)
+            }
             ContentFile::PolicyFamilyPatches { items } => {
                 let pack = src.path.split('/').next().unwrap_or_default().to_string();
                 for x in items {
@@ -1123,6 +1130,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         policy_families,
         policy_family_params: family_params.map(|(p, _)| p).unwrap_or_default(),
         arcs,
+        impact: impact.map(|(t, _)| t).unwrap_or_default(),
     };
     issues.extend(validate_bundle(&bundle));
     if issues.iter().any(|i| i.severity == Severity::Error) {

@@ -2,7 +2,7 @@
 
 Before a vote, a bill says what it will probably do, to whom, by when, at what cost, and how sure anyone is. After the vote, the account of what it did uses the same quantities. Shared mechanism S5 (IMPLEMENTATION_PLAN §2), built in W4 with F3; it answers play note 10 ("vote on impact, not just approval") and replaces the audit's "ledger honesty" row.
 
-**Status:** design, 2026-11-24. Nothing here is built. The decision record is proposed in §12; the owner's questions are in §11.
+**Status:** accepted (DEC-111). Tasks 1, 2 and 3 of §10 are built (2026-11-25): §13 says what is built, what departs from this design and why, and what the first audit measured. Tasks 4, 5, 7 and 8 are not built; 6 and 9 landed earlier with "laws that pay off".
 
 **Why now.** The audit found the game's own claims unreliable: the homes ledger says 581 where the twin shows 145 (topic 7); nine texts describe effects the engine does not compute (topic 8); twelve of fifteen laws lower approval whatever they deliver (topic 1). An estimate bolted onto that would repeat it. So this design is three things that must agree: a number before, an account after, and a lab gate that checks both against twins.
 
@@ -298,3 +298,45 @@ pub struct AreaImpact {
 - **Cost:** save v28 with a migration; outcomes change once when members begin to read it (goldens re-recorded, bots and the audit re-run, a balance entry); one to two hours of calibration compute when mechanisms or the economy change (an estimate); about 60 Fluent keys.
 - **Changes:** the audit's "ledger honesty" gate (replaced); audit fixes 3, 5 and 8 (specified here); `BillView` (`impact`; `secondary_keys` leave the bill view; the ward shares are counted); contracts §2.12 (`OptionPreviewView.impact`); `council.jsonc` (`district_gain`, `gain_band`).
 - **Dependencies:** DEC-041, DEC-051, DEC-054, DEC-073, DEC-079, DEC-091, DEC-092, DEC-095, DEC-098, DEC-099, DEC-108, DEC-109; the experiment runner (S2); town map layers (S6).
+
+## 13. What is built (2026-11-25)
+
+**Built** (tasks 1, 2, 3 of §10; progress entry `docs/development/progress/2026-11-25-the-impact-estimate-first-build.md`).
+
+| Part | Where |
+|---|---|
+| Direct quantities, one arithmetic for the estimate, `mods_for`, `implementation` and `delivered`; one function books a month in a law's ledger (`book`) | `crates/mandate-sim/src/policy/impact.rs` |
+| The funded share as pure functions (`first_share`, `capped_share`, `room`), used by finance and by the estimate | `crates/mandate-sim/src/finance/mod.rs` |
+| `ImpactInputs` (published statistics only), the projection, the estimate, the frozen estimate | `policy/impact.rs` |
+| The table type, its validation (no mechanism without a row), the Fluent keys the engine names | `crates/mandate-content/src/types/impact.rs`, `content/base/impact.jsonc`, `content/base/locale/en/impact.ftl` |
+| `BillView.impact` (`ImpactView`), rounding outwards to two significant figures, the "not vacuous" rule | `crates/mandate-protocol/src/impact.rs` |
+| The lines on a bill's card and under a bill in the chamber | `web/src/components/BillCard.tsx` (`ImpactLines`) |
+| `mandate-cli lab impact calibrate [--refit]`, and `scripts/repin.sh --impact` | `crates/mandate-cli/src/lab/impact.rs` |
+| `mandate-cli audit estimate`, and a three-seed cut inside `audit gate` (reported, not enforced) | `crates/mandate-cli/src/audit/estimate.rs` |
+| The estimate frozen on a law as it passes; the save step | `policy/mod.rs` (`procedures`), `crates/mandate-save` (`frozen_estimates`) |
+
+**Departures from this design, and why.**
+
+1. **Where the ledger keeps a net figure, the basis is that figure.** "Laws that pay off" put the net coefficients in `economy.attribution` (homes 0.6, jobs 0.8, wage floor 0.65), which approval reads. So the bases for homes, sector jobs, low incomes under a wage floor and rent under a cap are the ledger's own "added" entries projected forward (`homes_added`, `jobs_added_*`, `low_income_added_pct`, `rent_held_pct`), and their rows are the lab's ratio to the ledger: 1 means the ledger is exactly right. The table never repeats an attribution coefficient, the estimate and the ledger use one arithmetic month by month (so "estimated then" and "added since" are the same quantity), and `lab impact calibrate` prints the ratios the tuning pass would fold into `economy.attribution`.
+2. **A basis `law`: what any law does.** A law with nothing in it (a property-tax change of zero points) still moves its town: it takes a place on the statute book, a bill that would have passed does not, and the two futures drift apart (approval −1 to −7 points at three years on three seeds). That scatter does not grow with the bill. Dividing it by a small basis and multiplying it back by a large one made every range useless (the first fit said "no clear change" for a housing programme's homes). So every bill has the basis `law` = 1: its row is the intercept of a line through the first basis's twins, and its range is how far single twins stray. A mechanism's own range is its pass-through across groups of twins (a template at a level in a scenario, seeds averaged), not across single twins.
+3. **Which twins fit which basis** is a rule, not a list: a basis is fitted on the twins where it is the only one not yet fitted, in a fixed order, until nothing more can be fitted. `spend` comes from laws whose mechanisms do nothing without their event; a rent cap's rows from what the relief paid beside it leaves.
+4. **Side effects are stated by arithmetic** (their kind, whom they touch, their size; `arithmetic` in the table), with no row of their own: in every template a side effect scales with the same parameter as its mechanism, so twins cannot tell them apart, and their consequences are inside the mechanism's rows. Hazard protection is stated against the hazard ("damage from a flood is cut by 25%"), `borrow` and `revenue` are money. A family option that adds a side effect with no mechanism gets the group named and no size.
+5. **Sector jobs share one basis** (`jobs_added`) for `sector_subsidy` and `sector_capacity`: the base pack's templates have no structural-jobs programme to measure. Family presets (F5) should give `sector_capacity` rows of its own.
+6. **No bands yet.** Rows are not split by housing or labour slack: the first fit is too small (8 seeds) to fill banded cells. The row type has no band field; add it with the full fit.
+7. **Approval is in.** Audit fix 3 landed first, so `approval` and the three class approvals are fitted outcomes; they feed "who gains, who loses" and are not a line on the card. Per-neighbourhood felt gain (`felt`, the areas, the map layer) is not built.
+8. **The lead outcome of a levy is the service level** (what its revenue buys): town debt barely moves in twins (the treasuries settle from cash), so `debt` reads "no clear change" for every template.
+9. **Sizes are not gated yet** (task 4): the view shows the lab range at full knowledge, labelled "Fair estimate. The statistician's figures." Redaction belongs in `mandate-protocol::impact`, where the rounding already is.
+10. **The twin's other arm is the bill defeated**, not absent: both arms hold the bill, so later bills keep their ids (members' leanings are keyed by bill id).
+11. **Parity**: no separate digest. A law keeps its frozen estimate in the state, so the native-against-WASM state hash already covers the estimator for every law passed in the run.
+12. **An ended law's estimate is dropped twelve years from its enactment** (a law keeps no date of its end).
+13. **"Not vacuous" holds for every unit**, not only counts: a range whose far end is over three times its near one is said in words ("Rents end higher."). The first screen showed "0.0025% to 1.6% higher".
+14. **Not built from §2 and §3**: the phone bench (`lab impact bench`, `wasm-bench.mjs`, the `?dev=1` button); the nightly workflow row (the cut runs inside `audit gate`, which the nightly already calls); the rank correlation by neighbourhood; claims; `PolicyPreviewView.impact`.
+
+**The first fit** (`lab impact calibrate --seeds 8 --enact-at 1 --towns home`: seeds 101–108, six worlds, default and maximum parameters, enacted at month 1 in the home town; 1,440 twins, five minutes on two threads in a development build). The full fit of §3 is the command's default.
+
+**The first audit** (`audit estimate --seeds 4`: seeds 1–4, six worlds, 24 twins a template, 465 outcome cells). Enforced and passing for all fifteen templates: direct counts are the ledger's (estimate over ledger 0.91–1.07; 1.00 for housing, so the funding path is right month by month), the yearly cost (0.975–0.977: a year's prices), no wrong sign in any cell, and 79.5% of 11,160 shown ranges hold their twin (the band is 70–90%). Native and WASM give one state hash for a medium world after 60 turns, estimates included. Reported, not enforced (`REPORT_ONLY` in `audit/estimate.rs`, with figures; AGENT_CONTEXT rule 11):
+
+- *No silent effect* fails in 102 cells, in every template. One draw of a town strays further than most side effects are large, so a range that holds four single twins in five includes zero where the mean of 24 twins is clear. The rule tests the mean; the range states one future. This is a question for the design, not a number to tune: either the direction is stated from the mean (and the range from single twins), or the rule compares like with like.
+- *Level* (33 cells) and *size* (19 cells): mostly the service level and low incomes, whose twins are skewed, and sector jobs late on.
+- *The ledger's "added"* against the twin: homes 1.07 at three years and 1.55 at five (affordable housing), 1.29 and 1.50 (upzoning), 1.19 and 1.50 (rebuild fund, passes at 1.5); knowledge jobs 0.90 and 0.63; the closure response's construction jobs 3.1 and 5.8, manufacturing 0.73 and 0.16. These are `economy.attribution`'s numbers: for the tuning queue.
+- *Coverage* below one in two in some cell of six templates, and *approval direction* in three (two of them on one or two stated cells).

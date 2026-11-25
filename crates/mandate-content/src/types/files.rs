@@ -257,6 +257,9 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
             items: serde_json::from_str::<ItemsFile<crate::policy_family::FamilyPatch>>(json)?
                 .items,
         },
+        "impact_table" => ContentFile::ImpactTable {
+            value: Box::new(serde_json::from_str::<ValueFile<ImpactTable>>(json)?.value),
+        },
         other => {
             use serde::de::Error;
             return Err(serde_json::Error::custom(format!(

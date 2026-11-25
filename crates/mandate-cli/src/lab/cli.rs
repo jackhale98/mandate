@@ -1,6 +1,11 @@
-//! `mandate-cli lab run|twin`: the experiment runner from the command line.
+//! `mandate-cli lab run|twin`: the experiment runner from the command line;
+//! and `lab impact calibrate`, which fits the impact table (`impact.rs`).
 //!
 //! ```text
+//! lab impact calibrate                 the full fit (hours): 16 seeds from 101, six worlds,
+//!                                      default and maximum parameters, months 1 and 61, a town of each class
+//! lab impact calibrate --refit         the run the shipped table records, again
+//! lab impact calibrate --seeds 8 --enact-at 1 --towns home     a smaller fit
 //! lab run  --seed 4 --scenario industrial_decline --driver idle --months 60 --sample 0,12,60
 //! lab twin --seed 4 --at 1 --policy policy.affordable_housing@home --months 60 --sample 12,60
 //! lab twin --seed 4 --at 6 --closure home:0.3 --months 36 --sample 12,36 --hoods
@@ -20,8 +25,36 @@ use std::sync::Arc;
 
 #[derive(clap::Args, Clone)]
 pub struct LabCmd {
-    /// `run` or `twin`.
+    /// `run`, `twin`, or `impact`.
     pub mode: String,
+    /// `impact`: `calibrate`.
+    pub sub: Option<String>,
+    /// `impact calibrate`: seeds per world, counted from `--first-seed`.
+    #[arg(long, default_value_t = 16)]
+    pub seeds: u64,
+    #[arg(long, default_value_t = 101)]
+    pub first_seed: u64,
+    /// `impact calibrate`: only these worlds (`none`, or a scenario's short
+    /// id; repeatable); default all.
+    #[arg(long)]
+    pub world: Vec<String>,
+    /// `impact calibrate`: parameter levels, comma-separated (`default`, `max`).
+    #[arg(long, default_value = "default,max")]
+    pub levels: String,
+    /// `impact calibrate`: months at which laws are enacted, comma-separated.
+    #[arg(long, default_value = "1,61")]
+    pub enact_at: String,
+    /// `impact calibrate`: `home`, or `classes` (the home town and one town
+    /// of each other settlement class).
+    #[arg(long, default_value = "classes")]
+    pub towns: String,
+    /// `impact calibrate`: run again exactly what the shipped table records.
+    #[arg(long)]
+    pub refit: bool,
+    /// `impact calibrate`: where to write the table (default: the pack's
+    /// `impact.jsonc`; `-` prints it instead).
+    #[arg(long)]
+    pub out: Option<std::path::PathBuf>,
     #[arg(long, default_value_t = 1)]
     pub seed: u64,
     /// Scenario id (`industrial_decline`); omitted = a random country.
@@ -161,6 +194,9 @@ fn interventions(c: &LabCmd, home: u32) -> Result<Vec<Intervention>, String> {
 }
 
 pub fn run(content: Arc<ContentBundle>, c: LabCmd) -> Result<Value, String> {
+    if c.mode == "impact" {
+        return super::impact::run(content, &c);
+    }
     let scenario = c.scenario.as_ref().map(|s| {
         if s.contains('.') {
             s.clone()
@@ -211,6 +247,6 @@ pub fn run(content: Arc<ContentBundle>, c: LabCmd) -> Result<Value, String> {
                 })).collect::<Vec<_>>(),
             }))
         }
-        m => Err(format!("lab mode `{m}`: use run or twin")),
+        m => Err(format!("lab mode `{m}`: use run, twin or impact")),
     }
 }

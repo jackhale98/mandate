@@ -10112,6 +10112,262 @@
       ],
       "type": "object"
     },
+    "ImpactBasis": {
+      "description": "What a coefficient multiplies: a direct quantity of the bill, as a share\nof the town (so one row serves any town size). One per mechanism kind\nwhose effect on the town the lab measures, `spend` for what all\nspending does, and `law` for what any law does.",
+      "oneOf": [
+        {
+          "const": "law",
+          "description": "1 for every bill: what passing any law does, whatever is in it. It\ntakes a place on the statute book (a bill that would have passed\ndoes not), and no two futures are alike: its range is how far a\ntown with one more law strays from the same town without, before\nthe law's own content counts. Outcomes as shares of the town.",
+          "type": "string"
+        },
+        {
+          "const": "spend",
+          "description": "What the bill takes from the budget a year, over the budget.",
+          "type": "string"
+        },
+        {
+          "const": "housing_supply",
+          "description": "Homes a programme adds by the ledger's own count (`homes_added`),\nover the housing stock.",
+          "type": "string"
+        },
+        {
+          "const": "zoning",
+          "description": "Homes private building adds under looser zoning (`homes_added`),\nover the stock.",
+          "type": "string"
+        },
+        {
+          "const": "rent_cap",
+          "description": "The share by which a cap holds rents below the market (`rent_held_pct`).",
+          "type": "string"
+        },
+        {
+          "const": "jobs_added",
+          "description": "Jobs a wage subsidy or a programme adds in its sectors by the\nledger's count (`jobs_added_*`), over all jobs (over the sector's,\nfor the outcome `sector_jobs`). Fed by `sector_subsidy` and\n`sector_capacity` alike.",
+          "type": "string"
+        },
+        {
+          "const": "wage_floor",
+          "description": "The share by which a wage floor raises low incomes by the ledger's\ncount (`low_income_added_pct`).",
+          "type": "string"
+        },
+        {
+          "const": "transfer",
+          "description": "A year's payment to an adult of the class, over that class's income.",
+          "type": "string"
+        },
+        {
+          "const": "service",
+          "description": "The service index gained (`service_gain_pct`), as a share.",
+          "type": "string"
+        },
+        {
+          "const": "local_tax_rate",
+          "description": "A year's revenue of the tax change, over the budget (negative for a cut).",
+          "type": "string"
+        }
+      ]
+    },
+    "ImpactFit": {
+      "additionalProperties": false,
+      "description": "How the table was fitted (what `lab impact calibrate` ran), so a reader\nknows how much it rests on.",
+      "properties": {
+        "enacted_at": {
+          "description": "Months at which laws were enacted.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "first_seed": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "levels": {
+          "description": "Parameter levels each template was enacted at: `default`, `max`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "seeds": {
+          "description": "Seeds per world, counted from `first_seed`.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "towns": {
+          "description": "`home`, or `classes` (the home town and one town of each other class).",
+          "type": "string"
+        },
+        "twins": {
+          "description": "Twins run (template × level × town × month × world).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "worlds": {
+          "description": "Worlds: `none` (a random country) and scenario ids.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "seeds",
+        "first_seed",
+        "worlds",
+        "levels",
+        "enacted_at",
+        "towns",
+        "twins"
+      ],
+      "type": "object"
+    },
+    "ImpactOutcome": {
+      "description": "An outcome the simulation computes each month and the lab samples. Every\none is a change against the same town without the law, as a share\n(approval: of the 0..1 scale, so 0.01 is a point).",
+      "oneOf": [
+        {
+          "enum": [
+            "approval_low",
+            "approval_middle",
+            "approval_high"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "homes",
+          "description": "Homes in the jurisdiction, net of private building displaced.",
+          "type": "string"
+        },
+        {
+          "const": "jobs",
+          "description": "Jobs in the jurisdiction, net.",
+          "type": "string"
+        },
+        {
+          "const": "sector_jobs",
+          "description": "Jobs in a sector a mechanism names.",
+          "type": "string"
+        },
+        {
+          "const": "rent",
+          "description": "Typical rent.",
+          "type": "string"
+        },
+        {
+          "const": "low_income",
+          "description": "Income per adult on low incomes.",
+          "type": "string"
+        },
+        {
+          "const": "debt",
+          "description": "The treasury's debt, over its yearly budget.",
+          "type": "string"
+        },
+        {
+          "const": "services",
+          "description": "The service level (budget against need plus laws' gains).",
+          "type": "string"
+        },
+        {
+          "const": "approval",
+          "description": "Approval of the government.",
+          "type": "string"
+        }
+      ]
+    },
+    "ImpactRow": {
+      "additionalProperties": false,
+      "description": "One fitted coefficient: across the lab's twins, the 10th, 50th and 90th\npercentile of (the outcome's change, less what the bill's other bases\nexplain) ÷ this basis, `months` after enactment.",
+      "properties": {
+        "basis": {
+          "$ref": "#/$defs/ImpactBasis"
+        },
+        "months": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "n": {
+          "description": "Twins the row was fitted on.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "outcome": {
+          "$ref": "#/$defs/ImpactOutcome"
+        },
+        "p10": {
+          "format": "double",
+          "type": "number"
+        },
+        "p50": {
+          "format": "double",
+          "type": "number"
+        },
+        "p90": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "basis",
+        "outcome",
+        "months",
+        "p10",
+        "p50",
+        "p90",
+        "n"
+      ],
+      "type": "object"
+    },
+    "ImpactTable": {
+      "additionalProperties": false,
+      "properties": {
+        "arithmetic": {
+          "description": "Mechanism and side-effect kinds the estimate states by arithmetic\nalone, with no coefficient: money (`borrow`, `revenue`), protection\nagainst a reference event (`hazard_protection`), and the side\neffects, whose size scales with their mechanism's in every template\nand so cannot be told apart from it on twins (their consequences are\ninside the mechanism's rows). Every other kind in use needs a row.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fitted": {
+          "$ref": "#/$defs/ImpactFit",
+          "default": {
+            "enacted_at": [],
+            "first_seed": 0,
+            "levels": [],
+            "seeds": 0,
+            "towns": "",
+            "twins": 0,
+            "worlds": []
+          }
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/ImpactRow"
+          },
+          "type": "array"
+        },
+        "tiers": {
+          "description": "Tiers the rows were calibrated for. A bill of another tier gets no\nestimate, not a guess (DEC-098).",
+          "items": {
+            "$ref": "#/$defs/TierKey"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "tiers",
+        "arithmetic",
+        "rows"
+      ],
+      "type": "object"
+    },
     "Indicator": {
       "description": "Engine-provided measures of a municipality, recomputed monthly. Concerns\nread them; situational policies (DEC-077) will use them as unlock\nconditions. Adding one is a code extension point (one variant, one\ncomputation in `mandate_sim::concerns::indicator`, and a test).",
       "oneOf": [
@@ -20815,6 +21071,24 @@
       "required": [
         "kind",
         "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The impact table (DEC-111): pass-through coefficients fitted in the\nlab (`mandate-cli lab impact calibrate` writes the file).",
+      "properties": {
+        "kind": {
+          "const": "impact_table",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/ImpactTable"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
       ],
       "type": "object"
     }

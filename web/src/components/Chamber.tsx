@@ -4,6 +4,7 @@ import type { BillView } from "../engine/protocol/BillView";
 import type { VoteDto } from "../engine/protocol/VoteDto";
 import { useGame } from "../state/gameStore";
 import { formatDate } from "../i18n/format";
+import { ImpactLines } from "./BillCard";
 import { personName } from "./Knowing";
 import { legislature, signerText } from "./posts";
 
@@ -134,6 +135,7 @@ export function ChamberWhip() {
               </label>
             )}
             <h3 className="bill-title">{tr.t(bill.name_key)}</h3>
+            <ImpactLines impact={bill.impact} />
             {bill.next_vote && bill.next_stage_key && (
               <p className="small">{tr.t("ui-next-vote", { stage: tr.t(bill.next_stage_key), date: formatDate(tr, bill.next_vote) })}</p>
             )}
