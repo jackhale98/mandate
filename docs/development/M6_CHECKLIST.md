@@ -333,6 +333,13 @@ On hold until then:
     - **Stepping away:** the player may abandon a run at any time ("step away from politics"), after one confirmation. The run closes with a short epilogue, enters the Legacy record, and gives the same card marked as unfinished, with the year and post; a race under way is named as one walked away from.
     - Nothing personal is on the card: the character and the world only.
 
+24. **"Why?" panels** (built 2026-11-25, on the causal spine). Follow-ups, small, for the next web batch:
+    - A chain that starts from the storyteller's spotlight on an event shows that event's sentence twice.
+    - The person behind an ask reads "Someone's own choice" while the ask card names them: being asked by someone should count as having heard of them (knowledge ledger), which the panel then follows.
+    - On a wide screen the panel covers the left of the list it was opened from.
+    - Decided bills are listed nowhere in the app, so the control on a bill's outcome never shows; skip summaries carry no event for elections, closures and disasters; the story sheet's recent lines and storyline stages have no "Why?".
+    - An ask event older than the 60 ended asks kept has no arguments for its name.
+
 ## M6 or M7 split (owner, 2026-11-21)
 - **M6 (needed for the tester checkpoint):**
   - the play notes;
