@@ -13,8 +13,12 @@ const readHash = async (page: Page) => {
 };
 
 /** The state's hash once it has settled. Opening the Notebook marks what is new as seen, which is a real command (it
- *  changes the state and is saved), and it can land just after a read (CI, 2026-11-25). Read until two reads agree. */
+ *  changes the state and is saved), so whether it has happened yet depended on timing (CI, 2026-11-25). Look at the
+ *  Notebook first, so every read is of a state with nothing new left unseen, then read until two reads agree. */
 const stateHash = async (page: Page) => {
+  await openPocket(page, "notebook");
+  await page.waitForTimeout(800);
+  await page.keyboard.press("Escape");
   let last = await readHash(page);
   for (let i = 0; i < 5; i++) {
     await page.keyboard.press("Escape");
