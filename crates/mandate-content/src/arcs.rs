@@ -973,9 +973,9 @@ impl Checker<'_> {
 
 /// Arguments an exchange's sentences may use beside the arc's own: the
 /// thing a prompt or a line names, as names and keys (facts, never prose).
-pub const EXCHANGE_ARGS: [&str; 13] = [
-    "group", "worry", "law", "promise", "fact", "other", "second", "size", "n", "of", "round",
-    "outcome", "last_day",
+pub const EXCHANGE_ARGS: [&str; 14] = [
+    "answer", "group", "worry", "law", "promise", "fact", "other", "second", "size", "n", "of",
+    "round", "outcome", "last_day",
 ];
 
 /// The sentences every scene shares (`locale/en/exchange.ftl`): labels,
@@ -1199,12 +1199,17 @@ impl Checker<'_> {
                 "no campaign raises this arc (a promise outside one needs an ask, not built yet)",
             );
         }
+        // `act` tables one of the arc's `answers`, or the live crisis's.
+        // With neither in the pack it is never offered: a warning, since a
+        // pack may drop its crises and keep the scene.
         if has(MoveKind::Act) && self.a.answers.is_empty() && self.b.crises.is_empty() {
-            never(
-                issues,
-                MoveKind::Act,
-                "the arc has no `answers` and the pack no crisis with any",
-            );
+            issues.push(Issue::warning(
+                &self.a.id,
+                &format!(
+                    "{at}: move `act` can never be offered (exchange-move-no-requirement): the \
+                     arc has no `answers` and the pack no crisis with any"
+                ),
+            ));
         }
         if has(MoveKind::Proof) && !adds(MoveKind::Proof) {
             never(issues, MoveKind::Proof, "no `prep` mark adds it");
@@ -1389,11 +1394,17 @@ impl Checker<'_> {
 
 pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
     // The exchange's own constants.
-    for msg in b
-        .exchange
-        .problems(&|c| b.concerns.iter().any(|x| x.id == c))
-    {
+    for msg in b.exchange.problems() {
         issues.push(Issue::error("exchange_params", &msg));
+    }
+    for c in b
+        .exchange
+        .unknown_worries(&|c| b.concerns.iter().any(|x| x.id == c))
+    {
+        issues.push(Issue::warning(
+            "exchange_params",
+            &format!("`worries`: unknown concern `{c}` (it has no reading)"),
+        ));
     }
     if b.arcs.is_empty() {
         return;

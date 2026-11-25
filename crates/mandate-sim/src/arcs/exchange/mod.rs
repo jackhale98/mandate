@@ -43,7 +43,7 @@ pub use state::{
     AnswerHeld, ArcExchangeState, Attack, ExchangePlayed, Group, GroupLean, PromptNow, RoundPlayed,
     Subject, What,
 };
-pub use view::{OptionView, Phase, SceneView, view, view_known};
+pub use view::{OptionView, Phase, RoundNote, SceneView, view, view_known};
 
 use crate::arcs::{ArcId, ArcRun, BeatRef};
 use crate::narrative::Chapter;

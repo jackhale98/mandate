@@ -20,7 +20,6 @@ use super::state::{AnswerHeld, Attack, Group, GroupLean, PromptNow, Subject, Wha
 use crate::arcs::{ArcRun, BeatRef};
 use crate::characters::{self, CharacterId, MemoryKind};
 use crate::events::EventLog;
-use crate::narrative::DecisionStatus;
 use crate::narrative::cast::View;
 use crate::policy::{EndReason, PolicyInstance, PolicyStatus};
 use crate::spine::Thread;
@@ -385,15 +384,12 @@ pub fn attacks(
                 Vec::new()
             }
         }
+        // What was let pass in this arc, by the simulation's own record:
+        // an ask of the run left to lapse, a cast person who remembers
+        // being ignored (a decision's default leaves that memory). Never
+        // the decisions themselves: which were presented is the director's
+        // timing, and the spotlight changes no outcome (DEC-033 B).
         SourceKind::Absent => {
-            let passed = v
-                .r
-                .narrative()
-                .decisions
-                .iter()
-                .filter(|d| d.arc.as_ref().is_some_and(|a| a.run == run.id))
-                .filter(|d| matches!(d.status, DecisionStatus::Defaulted | DecisionStatus::Lapsed))
-                .count();
             let lapsed =
                 v.r.asks()
                     .asks
@@ -417,7 +413,7 @@ pub fn attacks(
                 }),
                 _ => false,
             };
-            let n = passed + lapsed + usize::from(ignored);
+            let n = lapsed + usize::from(ignored);
             if n == 0 {
                 Vec::new()
             } else {

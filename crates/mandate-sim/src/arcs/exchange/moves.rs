@@ -551,7 +551,10 @@ pub fn options(
                                 ("of", rules.max_per_campaign.to_string()),
                             ],
                         ));
-                        o.args = vec![
+                        if let Some(t) = m.answer.as_deref().and_then(|a| content.policies.get(a)) {
+                            o.args.push(("answer_key".into(), t.name_key.clone()));
+                        }
+                        o.args.extend([
                             (
                                 "promise_key".into(),
                                 content
@@ -566,7 +569,7 @@ pub fn options(
                                     .map(|c| concern_key(content, c))
                                     .unwrap_or_default(),
                             ),
-                        ];
+                        ]);
                         push(o, false);
                     }
                 }

@@ -100,6 +100,22 @@ pub struct OptionView {
     pub prep: bool,
 }
 
+/// A round that was played, as the screen words it: the keys of what was
+/// said, of the other side's answer, and of how the room took it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RoundNote {
+    pub round: u8,
+    /// `<text>-prompt-<source>-<variant>`.
+    pub prompt_key: String,
+    /// `<text>-say-<kind>-<variant>`; `None` for a round nobody answered.
+    pub say_key: Option<String>,
+    /// `<text>-reply-<kind>`, where the other side answered the line.
+    pub reply_key: Option<String>,
+    /// `exchange-room-<well|some|flat|badly|failed>`: the change by
+    /// weight against the scene's own margin for a group.
+    pub room_key: String,
+}
+
 /// How it ended.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ResultView {
@@ -137,6 +153,8 @@ pub struct SceneView {
     /// One line the scene allows and the player cannot say, with a route.
     pub locked: Option<Locked>,
     pub played: Vec<RoundPlayed>,
+    /// The same rounds as keys, in order.
+    pub notes: Vec<RoundNote>,
     pub result: Option<ResultView>,
 }
 
@@ -263,6 +281,7 @@ fn build(
             .map(|x| x.rounds.clone())
             .or_else(|| done.map(|d| d.rounds.clone()))
             .unwrap_or_default(),
+        notes: Vec::new(),
         result: done.map(|d| result_of(&sc, d)),
     };
     // The audience: as it stands in a scene under way, as it ended in one
@@ -274,6 +293,47 @@ fn build(
             crate::condition::on_state(state, content, |v| audience::bind(v, run, sc.def, p))
         }
     };
+    out.notes = out
+        .played
+        .iter()
+        .enumerate()
+        .map(|(i, r)| {
+            let moved: f64 = r
+                .deltas
+                .iter()
+                .zip(&groups)
+                .map(|(d, g)| f64::from(*d) * f64::from(g.weight))
+                .sum();
+            let room = if r.kind.is_some() && !r.stood {
+                "failed"
+            } else if moved >= p.group_margin {
+                "well"
+            } else if moved > 0.0 {
+                "some"
+            } else if moved > -p.group_margin {
+                "flat"
+            } else {
+                "badly"
+            };
+            RoundNote {
+                round: i as u8 + 1,
+                prompt_key: format!(
+                    "{}-prompt-{}-{}",
+                    sc.def.text,
+                    r.prompt.attack.source.key(),
+                    r.prompt.variant
+                ),
+                say_key: r
+                    .kind
+                    .map(|k| format!("{}-say-{}-{}", sc.def.text, k.key(), r.variant)),
+                reply_key: r
+                    .kind
+                    .filter(|_| r.answered)
+                    .map(|k| format!("{}-reply-{}", sc.def.text, k.key())),
+                room_key: format!("exchange-room-{room}"),
+            }
+        })
+        .collect();
     let last = out.played.last().map(|r| r.deltas.clone());
     crate::condition::on_state(state, content, |v| {
         for (gi, g) in groups.iter().enumerate() {

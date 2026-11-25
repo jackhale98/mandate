@@ -1080,8 +1080,18 @@ impl ExchangeParams {
         serde_json::from_value(root).map_err(|e| format!("`{path}`: {e}"))
     }
 
-    /// Problems with the block itself (ranges and references).
-    pub fn problems(&self, concern_known: &dyn Fn(&str) -> bool) -> Vec<String> {
+    /// The worries the table names that the pack does not have: no error
+    /// (a pack that drops a concern has no reading for it), a warning.
+    pub fn unknown_worries(&self, concern_known: &dyn Fn(&str) -> bool) -> Vec<&str> {
+        self.worries
+            .iter()
+            .map(|w| w.concern.as_str())
+            .filter(|c| !concern_known(c))
+            .collect()
+    }
+
+    /// Problems with the block itself (ranges).
+    pub fn problems(&self) -> Vec<String> {
         let mut out = Vec::new();
         let unit = |name: &str, v: f64, out: &mut Vec<String>| {
             if !(0.0..=1.0).contains(&v) {
@@ -1167,9 +1177,6 @@ impl ExchangeParams {
             out.push("`member_fit`: min ≤ base ≤ max".into());
         }
         for w in &self.worries {
-            if !concern_known(&w.concern) {
-                out.push(format!("`worries`: unknown concern `{}`", w.concern));
-            }
             for r in &w.readings {
                 if r.key.is_empty() || r.full <= 0.0 {
                     out.push(format!(
@@ -1204,11 +1211,7 @@ mod tests {
         assert_eq!(p.backfire(MoveKind::Turn), 0.25);
         assert_eq!(p.backfire(MoveKind::Pass), 0.0);
         assert_eq!((p.win, p.lose, p.group_margin), (0.08, 0.08, 0.05));
-        assert!(
-            p.problems(&|_| true).is_empty(),
-            "{:?}",
-            p.problems(&|_| true)
-        );
+        assert!(p.problems().is_empty(), "{:?}", p.problems());
     }
 
     #[test]
