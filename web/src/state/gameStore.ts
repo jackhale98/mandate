@@ -939,7 +939,9 @@ export const useGame = create<GameState>((set, get) => {
         const before = expectKind(await q({ type: "notebook" }), "notebook");
         set({ notebook: before, notebookFresh: [...new Set([...get().notebookFresh, ...freshKeys(before)])] });
         noteCommand({ type: "notebook_seen" });
-        expectKind(await engine().request({ kind: "command", payload: { type: "notebook_seen" } }), "command_applied");
+        // A command like any other: the overview (and its state hash) moves with it.
+        const applied = expectKind(await engine().request({ kind: "command", payload: { type: "notebook_seen" } }), "command_applied");
+        set({ overview: applied.overview });
         await persist();
         const [pocket, notebook] = await Promise.all([q({ type: "pocket" }), q({ type: "notebook" })]);
         set({ pocket: expectKind(pocket, "pocket"), notebook: expectKind(notebook, "notebook") });
