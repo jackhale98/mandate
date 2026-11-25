@@ -668,3 +668,27 @@ outcome-talk-small-talk = You passed the time with { $name }.
 
 # The action log.
 action-talk = Talk to someone
+
+# What knowing the power broker opens (M6 note 27). Each label says the price.
+broker-choice-lobby = Ask them to bring the members round on { $bill_key } ({ $members } members, about { $votes } votes; { $price ->
+    [call_in] calls in the favour they owe you
+   *[owe] you will owe them a favour
+})
+broker-say-lobby = "{ $bill_key } comes up soon. A word from you would carry the members. What would it take?"
+broker-reply-lobby = "Leave it with me. You'll remember this, of course."
+broker-reply-lobby-no = "I don't see why I'd spend my favours on you."
+outcome-broker-lobby = { $broker } will lean on the members. You owe them for it.
+outcome-broker-lobby-refused = { $broker } would not help you.
+broker-choice-favour = Do them a favour (they will owe you one; people who resent them will notice)
+broker-say-favour = "If there's something your people need from me, ask."
+broker-reply-favour = "Good of you. I won't forget it."
+outcome-broker-favour = You did { $broker } a favour. They owe you one.
+broker-choice-oppose = Oppose them openly (popular with those who resent them, costly with those who depend on them)
+broker-say-oppose = "You don't run this town. I'll say so in public."
+broker-reply-oppose = "Say what you like. See who still takes your calls."
+outcome-broker-oppose = You stood against { $broker } in the open. They will not forget it.
+broker-choice-expose = Tell them what { $broker } is up to ({ $risk }% chance it backfires on you)
+broker-say-expose = "Someone should write about how { $broker } really runs this town."
+broker-reply-expose = "Give me what you have. If it stands up, we'll run it."
+outcome-broker-expose = The story about { $broker } will run. The members are keeping their distance from them.
+outcome-broker-expose-misfired = The story about { $broker } fell apart, and it made you look bad.

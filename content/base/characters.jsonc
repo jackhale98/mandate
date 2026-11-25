@@ -62,5 +62,34 @@
       "broker_seniority": 0.05,     // per year in office, for officeholders
       "broker_stake": 1.0,          // a leader's stake in the defining industry or crisis
     },
+    // What the power broker does (M6 note 27). Their interest is their
+    // organisation's stake (occupations.jsonc): a bill subsidising or adding
+    // capacity to an industry of theirs, or answering a crisis they speak
+    // for while it lasts. An officeholder broker speaks for the town's own
+    // industry and crisis. Who resents them and who depends on them: the
+    // income classes their organisation comes from (above a third of its
+    // `class` weight: depend; below: resent).
+    "broker": {
+      "vote_pull": 0.25,            // vote term: × influence × how far the member goes along (0..1)
+      "officeholder_influence": 0.6,
+      "back_money": 750,            // a week to the candidate they favour
+      "back_contacts": 1,           // the organisation's door-knocking, a week
+      "back_values": 40.0,          // regard: opinion + this × shared views (−1..1)
+      "back_min_opinion": 10.0,     // they back no one they regard less
+      "lobby_sway": 0.2,            // per member, × how far they go along with the broker
+      "lobby_min_opinion": -10.0,   // below this they will not deliver for the player
+      "favour_opinion": 10.0,
+      "favour_resent_approval": -0.006,
+      "oppose_resent_approval": 0.012,
+      "oppose_depend_approval": -0.012,
+      "oppose_opinion": -25.0,
+      "oppose_ally_opinion": -6.0,  // × each member's liking of the broker (0..1)
+      "expose_member_opinion": -12.0,
+      "expose_resent_approval": 0.01,
+      "expose_opinion": -30.0,
+      "expose_gaffe_approval": -0.015,
+      "cooldown_days": 90,           // a stand against them is not offered again sooner
+      "press_occupations": ["occupation.editor", "occupation.journalist"],
+    },
   },
 }

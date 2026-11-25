@@ -687,6 +687,7 @@ fn personality_and_town_character_reach_the_npc_ai() {
                 party_pull: 0.2,
                 declared: None,
                 noise: 0.0,
+                broker: 0.0,
             },
         )
     };

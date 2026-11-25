@@ -112,6 +112,14 @@ fn legislature_leans(
         state.meta.seed,
         t,
         inst,
+        crate::characters::town::broker_pull(
+            content,
+            &state.politics,
+            &state.world,
+            &state.population,
+            t,
+            inst,
+        ),
     )
 }
 
