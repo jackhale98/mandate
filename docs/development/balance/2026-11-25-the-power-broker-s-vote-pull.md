@@ -36,4 +36,4 @@ Mean vote share by strategy, without → with: idle 0.316 → 0.372, media 0.373
 
 ## Effect
 
-Every strategy gains: the broker's backing goes to the candidate they regard most, often the player (shared views with the town), and reaches a player who does nothing. The idle player now wins 3 of 16, past the cap. `idle_cap` is report-only with a dated note in `crates/mandate-cli/src/bots/gates.rs` until the tuning pass. Levers there: `back_money`, `back_contacts`, `back_min_opinion`, and whether backing needs the broker to know the player.
+Every strategy gains: the broker's backing goes to the candidate they regard most, which can be the player, and reaches a player who does nothing. The idle player now wins 3 of 16, past the cap. `idle_cap` is report-only with a dated note in `crates/mandate-cli/src/bots/gates.rs` until the tuning pass. Levers there: `back_money`, `back_contacts`, `back_min_opinion`, and whether backing needs the broker to know the player.
