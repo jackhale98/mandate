@@ -152,7 +152,7 @@
     "has_news": true
   },
   "chair": {
-    "id": 1270,
+    "id": 1266,
     "ambient_slot": null,
     "name": "Hector Birchby",
     "role_key": "occupation-editor",
@@ -163,7 +163,7 @@
     "has_news": true
   },
   "second": {
-    "id": 1273,
+    "id": 1269,
     "ambient_slot": null,
     "name": "Flora Achter",
     "role_key": "occupation-union_steward",

@@ -152,7 +152,7 @@
     "has_news": true
   },
   "chair": {
-    "id": 1270,
+    "id": 1266,
     "ambient_slot": null,
     "name": "Hector Birchby",
     "role_key": "occupation-editor",
@@ -163,7 +163,7 @@
     "has_news": true
   },
   "second": {
-    "id": 1273,
+    "id": 1269,
     "ambient_slot": null,
     "name": "Flora Achter",
     "role_key": "occupation-union_steward",
@@ -190,11 +190,11 @@
       "person": null,
       "size": 3,
       "lean": {
-        "step": 1,
-        "points": 13,
-        "key": "exchange-lean-with-1"
+        "step": 0,
+        "points": 4,
+        "key": "exchange-lean-even"
       },
-      "lean_key": "exchange-lean-with-1",
+      "lean_key": "exchange-lean-even",
       "moved_steps": 1,
       "moved_points": 4
     },
@@ -214,11 +214,11 @@
       "person": null,
       "size": 3,
       "lean": {
-        "step": 1,
-        "points": 13,
-        "key": "exchange-lean-with-1"
+        "step": 0,
+        "points": -2,
+        "key": "exchange-lean-even"
       },
-      "lean_key": "exchange-lean-with-1",
+      "lean_key": "exchange-lean-even",
       "moved_steps": 1,
       "moved_points": 4
     },
@@ -238,11 +238,11 @@
       "person": null,
       "size": 2,
       "lean": {
-        "step": 1,
-        "points": 13,
-        "key": "exchange-lean-with-1"
+        "step": 0,
+        "points": -2,
+        "key": "exchange-lean-even"
       },
-      "lean_key": "exchange-lean-with-1",
+      "lean_key": "exchange-lean-even",
       "moved_steps": 1,
       "moved_points": 4
     }
@@ -279,35 +279,35 @@
           "points": -4
         }
       ],
-      "event": 2105
+      "event": 2099
     },
     {
       "round": 2,
       "prompt_key": "exchange-debate-prompt-top_worry-3",
       "said_key": "exchange-debate-say-promise-2",
-      "option": "promise:promise.no_tax_rise",
+      "option": "promise:promise.services",
       "kind": "promise",
       "reply_key": null,
-      "room_key": "exchange-room-well",
+      "room_key": "exchange-room-flat",
       "stood": true,
       "moved": [
         {
           "group": "hood.100.c0",
-          "steps": 1,
-          "points": 9
+          "steps": 0,
+          "points": 0
         },
         {
           "group": "hood.100.c1",
-          "steps": 1,
-          "points": 9
+          "steps": -1,
+          "points": -5
         },
         {
           "group": "hood.100.c2",
-          "steps": 1,
-          "points": 9
+          "steps": -1,
+          "points": -5
         }
       ],
-      "event": 2107
+      "event": 2101
     },
     {
       "round": 3,
@@ -335,14 +335,14 @@
           "points": 4
         }
       ],
-      "event": 2109
+      "event": 2103
     }
   ],
   "result": {
-    "outcome": "won",
-    "outcome_key": "exchange-outcome-won",
+    "outcome": "split",
+    "outcome_key": "exchange-outcome-split",
     "text": {
-      "key": "exchange-debate-result-won",
+      "key": "exchange-debate-result-split",
       "args": {
         "ally": "Kerstin Everwell",
         "ally_role_key": "occupation-party_chair",
@@ -368,7 +368,7 @@
       }
     },
     "headline": {
-      "key": "exchange-debate-headline-won",
+      "key": "exchange-debate-headline-split",
       "args": {
         "ally": "Kerstin Everwell",
         "ally_role_key": "occupation-party_chair",
@@ -402,13 +402,13 @@
           "key": "exchange-lean-even"
         },
         "after": {
-          "step": 1,
-          "points": 13,
-          "key": "exchange-lean-with-1"
+          "step": 0,
+          "points": 4,
+          "key": "exchange-lean-even"
         },
-        "steps": 1,
-        "points": 10,
-        "moved_key": "exchange-moved-with"
+        "steps": 0,
+        "points": 1,
+        "moved_key": "exchange-moved-none"
       },
       {
         "group": "hood.100.c1",
@@ -418,13 +418,13 @@
           "key": "exchange-lean-even"
         },
         "after": {
-          "step": 1,
-          "points": 13,
-          "key": "exchange-lean-with-1"
+          "step": 0,
+          "points": -2,
+          "key": "exchange-lean-even"
         },
-        "steps": 1,
-        "points": 10,
-        "moved_key": "exchange-moved-with"
+        "steps": -1,
+        "points": -5,
+        "moved_key": "exchange-moved-against"
       },
       {
         "group": "hood.100.c2",
@@ -434,13 +434,13 @@
           "key": "exchange-lean-even"
         },
         "after": {
-          "step": 1,
-          "points": 13,
-          "key": "exchange-lean-with-1"
+          "step": 0,
+          "points": -2,
+          "key": "exchange-lean-even"
         },
-        "steps": 1,
-        "points": 10,
-        "moved_key": "exchange-moved-with"
+        "steps": -1,
+        "points": -5,
+        "moved_key": "exchange-moved-against"
       }
     ],
     "promises": [
@@ -467,10 +467,10 @@
       {
         "ask": 8,
         "title": {
-          "key": "promise-no-tax-rise",
+          "key": "promise-services",
           "args": {
             "constituency_key": "ask-constituency",
-            "days": "450",
+            "days": "1486",
             "history": "none",
             "number": "7",
             "player": "Saul Raskuwell",
@@ -478,10 +478,10 @@
           }
         },
         "due": {
-          "day_number": 738030,
-          "year": 2022,
-          "month": 1,
-          "day": 1
+          "day_number": 739066,
+          "year": 2024,
+          "month": 11,
+          "day": 3
         }
       },
       {
@@ -505,6 +505,6 @@
         }
       }
     ],
-    "event": 2110
+    "event": 2104
   }
 }

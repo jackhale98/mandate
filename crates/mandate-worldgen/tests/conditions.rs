@@ -690,6 +690,17 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             At::Talk(None),
             true,
         ),
+        // A stranger: no familiarity on the edge (DEC-114 §5).
+        (
+            parse(r#"{ "type": "familiar", "slot": "speaker", "at_least": "face" }"#),
+            At::Talk(None),
+            false,
+        ),
+        (
+            parse(r#"{ "type": "familiar", "slot": "speaker", "is": false }"#),
+            At::Talk(None),
+            true,
+        ),
         (
             parse(r#"{ "type": "is_broker", "slot": "speaker" }"#),
             At::Talk(None),
