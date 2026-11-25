@@ -212,16 +212,31 @@ fn source(
             } else {
                 below(world, base)
             };
-            areas
-                .into_iter()
-                .map(|area| {
-                    weigh(Group::Area {
-                        area,
-                        class: None,
-                        community: None,
+            // A seat that is one neighbourhood has no areas below it: its
+            // room is that neighbourhood's income classes, so a line still
+            // chooses whom it speaks to.
+            if let ([only], AudienceFrom::Areas) = (areas.as_slice(), a.from) {
+                (0..crate::population::CLASSES as u8)
+                    .map(|c| {
+                        weigh(Group::Area {
+                            area: *only,
+                            class: Some(c),
+                            community: None,
+                        })
                     })
-                })
-                .collect()
+                    .collect()
+            } else {
+                areas
+                    .into_iter()
+                    .map(|area| {
+                        weigh(Group::Area {
+                            area,
+                            class: None,
+                            community: None,
+                        })
+                    })
+                    .collect()
+            }
         }
         AudienceFrom::Classes => {
             let Some(area) = base_area(v, run, a.of.as_deref()) else {
@@ -397,6 +412,60 @@ pub fn worries(v: &View<'_>, g: &Group, by: Worry) -> Vec<(usize, f64)> {
     let hoods = hoods_of(v.r.world, g);
     if hoods.is_empty() {
         return Vec::new();
+    }
+    // One class or one community of a place: the place's own levels, felt
+    // as that group leans. The rule is `concerns::ranked`'s (each level ×
+    // (1 + ½ × how far the residents lean the way worried voters do)),
+    // with the group's cohorts in place of everyone's.
+    let part = matches!(
+        g,
+        Group::Area { class: Some(_), .. } | Group::Area {
+            community: Some(_),
+            ..
+        }
+    );
+    if part && matches!(by, Worry::Felt) {
+        let pop = v.r.population();
+        let n = pop.attitude_count();
+        let (mut acc, mut total) = (vec![0.0f64; n], 0.0f64);
+        for (h, ci) in cohorts(v, g) {
+            let c = &pop.hoods[h].cohorts[ci];
+            let w = f64::from(c.count);
+            for (a, x) in acc.iter_mut().zip(&c.attitudes) {
+                *a += w * f64::from(*x);
+            }
+            total += w;
+        }
+        if total > 0.0 {
+            acc.iter_mut().for_each(|a| *a /= total);
+        }
+        let levels = concerns::levels_of(
+            pop,
+            v.content(),
+            v.r.world,
+            concerns::Scope::District(&hoods),
+        );
+        let mut out: Vec<(usize, f64)> = levels
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, level)| {
+                let c = v.content().concerns.get(i)?;
+                let norm: f64 = c.attitude_weights.iter().map(|w| w.abs()).sum();
+                let lean = if norm > 0.0 {
+                    c.attitude_weights
+                        .iter()
+                        .zip(&acc)
+                        .map(|(w, x)| w * x)
+                        .sum::<f64>()
+                        / norm
+                } else {
+                    0.0
+                };
+                Some((i, level * (1.0 + 0.5 * lean.clamp(-1.0, 1.0))))
+            })
+            .collect();
+        out.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+        return out;
     }
     concerns::ranked(
         v.r.population(),

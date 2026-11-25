@@ -1046,6 +1046,47 @@ pub fn exchange_shared_keys() -> Vec<String> {
     out
 }
 
+/// `arc-turn-single-decision` (DEC-112, rule 1: a turn is never a single
+/// decision): the stages marked `climax` whose only beat a player can take
+/// is one decision, with no visit, talk, ask or exchange in them, as
+/// (arc, stage).
+pub fn single_decision_turns(b: &ContentBundle) -> Vec<(&str, &str)> {
+    let mut out = Vec::new();
+    for a in &b.arcs {
+        for s in &a.stages {
+            let taken: Vec<&ArcBeat> = s.beats.iter().filter(|x| x.kind.player()).collect();
+            if s.climax
+                && taken.len() == 1
+                && matches!(taken[0].kind, BeatKind::Decision { .. })
+            {
+                out.push((a.id.as_str(), s.id.as_str()));
+            }
+        }
+    }
+    out
+}
+
+/// Lints of a pack that loads: findings that are warnings for now and
+/// will be errors (`mandate-cli content validate` prints them and counts
+/// them). They are kept out of `load`'s own warnings, which the base pack
+/// keeps at none, until the arcs they name are rewritten (the arc content
+/// task); then `arc-turn-single-decision` moves into validation as an
+/// error.
+pub fn lints(b: &ContentBundle) -> Vec<Issue> {
+    single_decision_turns(b)
+        .into_iter()
+        .map(|(arc, stage)| {
+            Issue::warning(
+                arc,
+                &format!(
+                    "stage `{stage}`: its turn is one decision (arc-turn-single-decision): a \
+                     turn is something the player does, with a visit, a talk, an ask or a scene"
+                ),
+            )
+        })
+        .collect()
+}
+
 impl Checker<'_> {
     /// An exchange beat (DEC-112; EXCHANGE_SCENES §9.4's static lints).
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
@@ -1835,21 +1876,6 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                         );
                     }
                 }
-            }
-            // DEC-112, rule 1: a turn is never a single decision.
-            let taken: Vec<&ArcBeat> = s.beats.iter().filter(|b| b.kind.player()).collect();
-            if s.climax
-                && taken.len() == 1
-                && matches!(taken[0].kind, BeatKind::Decision { .. })
-            {
-                issues.push(Issue::warning(
-                    owner,
-                    &format!(
-                        "stage `{}`: its turn is one decision (arc-turn-single-decision): a turn \
-                         is something the player does, with a visit, a talk, an ask or a scene",
-                        s.id
-                    ),
-                ));
             }
         }
 

@@ -398,7 +398,10 @@ fn run(cli: Cli) -> Result<(), String> {
             let sources = read_dir_sources(&cli.content).map_err(|e| e.to_string())?;
             let n = sources.len();
             match mandate_content::load(&sources) {
-                Ok((b, warnings)) => {
+                Ok((b, mut warnings)) => {
+                    // Lints that are warnings for now (DEC-112: a turn that
+                    // is one decision).
+                    warnings.extend(mandate_content::arcs::lints(&b));
                     for w in &warnings {
                         eprintln!("{w}");
                     }
