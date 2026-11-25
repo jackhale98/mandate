@@ -1094,7 +1094,7 @@ X1 is expected to move first-election results, since the proxy and the idle bot 
 
 ## 14. Decision proposal
 
-*(In the style of `docs/design/decisions/`. No file is created and the index is not edited until the owner accepts.)*
+*(Accepted by the owner on 2026-11-25 with all six recommendations of §13: the decision of record is `docs/design/decisions/DEC-112.md`.)*
 
 ## DEC-112 — Exchange scenes: an arc's turn is played
 

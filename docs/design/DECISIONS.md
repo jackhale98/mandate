@@ -118,6 +118,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | [DEC-109](decisions/DEC-109.md) | Staged arcs: one structure for crises, storylines and openings; simulated fuses; the standing budget round; the audition | Accepted |
 | [DEC-110](decisions/DEC-110.md) | Specific industries and named plants: industries under sectors, demand per industry, closures by notice and date | Accepted |
 | [DEC-111](decisions/DEC-111.md) | The impact estimate: what a bill will probably do, from its mechanisms and lab-fitted pass-through; the honesty gate; members weigh their district's gain | Accepted |
+| [DEC-112](decisions/DEC-112.md) | Exchange scenes: an arc's turn is played (a debate, a negotiation, a hearing, a public meeting as one data-driven scene; never a single pop-up) | Accepted |
 
 ---
 
