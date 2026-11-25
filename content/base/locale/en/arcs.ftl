@@ -74,7 +74,7 @@ scene-flood-hall-organiser = "People came through that door all night, and I've 
 ## in exchange.ftl; the date is given to the organiser in person.
 talk-arc-flood-date = Give a date for the repairs, and put your name to it
 talk-arc-flood-date-say = "Tell them every home in { $hood } will have its repairs started by the date I give you. Hold me to it."
-talk-arc-flood-date-known = "You carried boxes at this hall in the first week, so they'll hear it from you. Miss it, and they'll hear that too."
+talk-arc-flood-date-known = "You carried boxes at this hall in the first weeks, so they'll hear it from you. Miss it, and they'll hear that too."
 talk-arc-flood-date-yes = "I'll read it out, and I'll read out your name with it. They've had 'soon' from everyone else."
 
 ## A second roof (the flood's ask)
@@ -139,7 +139,7 @@ talk-arc-favour-cover-yes = "I'll vote with { $creditor }. Then it's me you owe,
 talk-arc-favour-cover-no = "Your debt, your vote. I'm not getting into it."
 talk-arc-favour-time = Ask them to wait for another vote
 talk-arc-favour-time-say = "Not this one. Give me the next bill of yours, and I'll be there for it."
-talk-arc-favour-time-yes = "You've been good for it before. The next one, then. I won't ask twice."
+talk-arc-favour-time-yes = "The next one, then. I won't ask twice."
 talk-arc-favour-time-no = "I need this one. The next one isn't the one I asked for."
 talk-arc-favour-cost = Tell them what the vote would cost you
 talk-arc-favour-cost-say = "I owe you, and I'm not disputing it. But a yes on this would cost me, and you know why."
@@ -172,7 +172,7 @@ headline-arc-plant-notice = Closure notice at { $plant }: { $jobs } jobs at risk
 headline-arc-plant-reprieved = Closure notice lifted at { $plant }
 headline-arc-plant-closed = Gates shut at { $plant }: { $jobs } jobs go in { $place }
 
-heard-plant-hours = "Four days a week at the works now, and nobody upstairs will say for how long."
+heard-plant-hours = "Short weeks at the works again, and nobody upstairs will say for how long."
 
 visit-arc-plant-tour = Ask to be shown round the works
 outcome-arc-plant-tour = { $owner } showed you round { $plant }. Part of the floor stood idle, and the order board had gaps in it.
