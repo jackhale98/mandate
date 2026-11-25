@@ -1,6 +1,7 @@
 //! Mandate simulation lab CLI (DEC-058). Output is JSON for scripting.
 
 mod act;
+mod arcs_grade;
 mod audit;
 mod bots;
 mod corpus;
@@ -265,6 +266,13 @@ enum Cmd {
     /// The lab's experiment runner (S2): one game, or twins with and
     /// without an intervention, sampled at chosen months, as JSON.
     Lab(Box<lab::cli::LabCmd>),
+    /// Staged arcs in the lab (STAGED_ARCS §6.9): `grade` plays the
+    /// stand-in players through every arc template over generated worlds
+    /// and prints the scorer's five terms and coverage.
+    Arcs {
+        #[command(subcommand)]
+        cmd: ArcsCmd,
+    },
     /// Show details for one municipality or region of a generated world.
     Inspect {
         #[arg(long, default_value_t = 1)]
@@ -326,6 +334,14 @@ fn lab_runs(
             Ok((lab::label(&point), lab::load(root, &all)?))
         })
         .collect()
+}
+
+#[derive(Subcommand)]
+enum ArcsCmd {
+    /// The five terms, coverage and how often the passive and engaged
+    /// exits differ, per template; the design's bars beside them, none
+    /// enforced but coverage.
+    Grade(arcs_grade::GradeArgs),
 }
 
 #[derive(Subcommand)]
@@ -954,6 +970,27 @@ fn run(cli: Cli) -> Result<(), String> {
             lab::runner::set_content_root(&cli.content);
             out(lab::cli::run(content, *cmd)?);
             Ok(())
+        }
+        Cmd::Arcs {
+            cmd: ArcsCmd::Grade(args),
+        } => {
+            let content = load_content(&cli.content)?;
+            lab::runner::set_content_root(&cli.content);
+            let (report, failures, table) = arcs_grade::run(&content, &args)?;
+            if args.text {
+                let mut s = std::io::stdout().lock();
+                let _ = write!(s, "{table}");
+            } else {
+                out(report);
+            }
+            if failures.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "coverage: no stand-in visits {} (and no reason is listed)",
+                    failures.join(", ")
+                ))
+            }
         }
         Cmd::SaveInfo { path } => {
             let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;

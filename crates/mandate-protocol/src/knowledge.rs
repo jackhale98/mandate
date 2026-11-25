@@ -245,7 +245,7 @@ impl<'a> Gate<'a> {
         self.view(&Subject::Person { person: id })
     }
 
-    fn stale(&self, r: &Reading) -> bool {
+    pub(crate) fn stale(&self, r: &Reading) -> bool {
         let fresh = self.engine.content().knowledge.fresh_days;
         self.st().calendar.date.0.saturating_sub(r.on.0) > fresh
     }
@@ -678,6 +678,12 @@ pub struct NotebookEntryView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub seen: Option<SeenView>,
+    /// Knowledge in words (DEC-113; DEC-091: knowledge is not a
+    /// checklist): one sentence, only where a gap or an old reading
+    /// changes something the player could do (`crate::notebook`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub note: Option<crate::pocket::TextView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -707,6 +713,11 @@ pub struct NotebookView {
     /// town's and its neighbourhoods' worries, who runs things, the rival's
     /// plans, support for the standard menu. Never people or hidden places.
     pub gaps: Vec<NotebookGapView>,
+    /// Leads toward running arcs the player has only heard of (DEC-109,
+    /// task A3): that something is going on, and where. Oldest first.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub arc_leads: Option<Vec<crate::arcs::ArcLeadView>>,
 }
 
 /// Section keys, in display order.
@@ -1146,7 +1157,7 @@ pub fn notebook_new(engine: &Engine) -> u32 {
 }
 
 /// Learned in play this turn, above what the player has seen.
-fn is_new(engine: &Engine, e: &k::Entry) -> bool {
+pub(crate) fn is_new(engine: &Engine, e: &k::Entry) -> bool {
     let starting = |s: &Source| {
         matches!(
             s,
@@ -1164,6 +1175,7 @@ pub fn notebook_view(engine: &Engine) -> Option<NotebookView> {
     let pl = st.player.as_ref()?;
     let gate = Gate::of(engine);
     let ledger = &pl.knowledge;
+    let notes = crate::notebook::Notes::of(engine);
     let mut sections: BTreeMap<&'static str, Vec<NotebookEntryView>> = BTreeMap::new();
     for (s, e) in &ledger.entries {
         if e.level == Level::Unknown {
@@ -1195,6 +1207,7 @@ pub fn notebook_view(engine: &Engine) -> Option<NotebookView> {
                     Subject::Person { person } => last_seen(engine, *person),
                     _ => None,
                 },
+                note: notes.entry(s, e),
             });
     }
     Some(NotebookView {
@@ -1218,6 +1231,7 @@ pub fn notebook_view(engine: &Engine) -> Option<NotebookView> {
             .map(|l| lead_view(&gate, l))
             .collect(),
         gaps: gaps(&gate),
+        arc_leads: Some(crate::arcs::arc_leads(engine)).filter(|v| !v.is_empty()),
     })
 }
 

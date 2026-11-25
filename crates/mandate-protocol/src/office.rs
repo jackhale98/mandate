@@ -337,6 +337,12 @@ pub struct BillView {
     pub ward_certainty: String,
     /// The player owes the sponsor a favour.
     pub owe_sponsor: bool,
+    /// Knowledge in words (DEC-113): one sentence, only where a gap or an
+    /// old reading bears on a bill that is the player's to move or vote on
+    /// (`crate::notebook`).
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<crate::pocket::TextView>,
     pub side_effects: Vec<SideEffectView>,
     /// The event that decided it (enacted, failed, expired, withdrawn), to
     /// ask "Why?" about (`QueryDto::Why`); none for a draft or a bill
@@ -800,6 +806,12 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
         ward_certainty: ward_certainty.into(),
         ward_support,
         owe_sponsor,
+        note: crate::notebook::bill_note(
+            &gate,
+            town,
+            &t.id,
+            (pending && p.sponsor.is_some() && p.sponsor == me.map(|pl| pl.politician)) || can_vote,
+        ),
         id: p.id.0,
         template: p.template.clone(),
         name_key: t.name_key.clone(),

@@ -25,10 +25,8 @@ pub(super) fn play_all(
     seeds: u64,
 ) -> BTreeMap<(&'static str, u64, bool), Played> {
     let jobs = jobs(seeds);
-    let workers = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1)
-        .clamp(1, 3);
+    // Up to three, or what the lab is told (`MANDATE_LAB_THREADS`).
+    let workers = super::skips::workers().min(jobs.len().max(1));
     let mut out = BTreeMap::new();
     std::thread::scope(|scope| {
         let handles: Vec<_> = (0..workers)
@@ -215,6 +213,20 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
             })
             .unwrap_or("")
     };
+    // The skip rows (DEC-102 clause 7): measured and printed, never
+    // enforced; `proxy_not_optimal` above is as it was.
+    let best_informed = informed
+        .iter()
+        .copied()
+        .max_by(|a, b| {
+            rate(a)
+                .unwrap_or(0.0)
+                .total_cmp(&rate(b).unwrap_or(0.0))
+                .then(mean(a).unwrap_or(0.0).total_cmp(&mean(b).unwrap_or(0.0)))
+                .then(b.cmp(a))
+        })
+        .unwrap_or("explorer");
+    let skips = super::skips::rows(content, seeds, &rows, best_informed);
     let enforced = |g: &str| ENFORCED.contains(&g);
     let rung = |r: u8, g: &str, pass: serde_json::Value, detail: serde_json::Value| json!({ "rung": r, "gate": g, "pass": pass, "enforced": enforced(g), "detail": detail });
     let ladder = vec![
@@ -310,5 +322,6 @@ pub fn run(content: &Arc<ContentBundle>, seeds: u64) -> serde_json::Value {
         "mix_vs_explorer": mix_vs_explorer,
         "best_win_rate_strategy": top_by(&rate),
         "best_mean_share_strategy": top_by(&mean),
+        "skips": skips,
     })
 }

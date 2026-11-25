@@ -25,13 +25,38 @@ use std::sync::Arc;
 
 #[derive(clap::Args, Clone)]
 pub struct LabCmd {
-    /// `run`, `twin`, or `impact`.
+    /// `run`, `twin`, `impact` (with `calibrate`), `rate-start` (a start's rating, DEC-102 clause 6:
+    /// `--seed`, `--post`, `--seeds-per-start`, `--after-months`,
+    /// `--style`) or `repetition` (repeats across a returning player's
+    /// careers, DEC-100 item 1: `--careers`, `--seeds`, `--years`).
     pub mode: String,
+    /// `rate-start`: the constitution id of the post the race is for (an
+    /// office's or a body's); omitted: the opening, the player's own seat.
+    #[arg(long)]
+    pub post: Option<String>,
+    /// `rate-start`: plays of the race per player, each under its own luck.
+    #[arg(long, default_value_t = 8)]
+    pub seeds_per_start: u32,
+    /// `rate-start`: months the engaged stand-in plays before the race is
+    /// rated (default: none for the opening; with `--post`, until the
+    /// character's first election is over).
+    #[arg(long)]
+    pub after_months: Option<u32>,
+    /// `rate-start`: the informed bot style that plays beside the stand-in.
+    #[arg(long, default_value = super::rate::INFORMED)]
+    pub style: String,
+    /// `repetition`: consecutive careers per returning player.
+    #[arg(long, default_value_t = 5)]
+    pub careers: u32,
+    /// `repetition`: returning players (default 2). `impact calibrate`:
+    /// seeds per world, counted from `--first-seed` (default 16).
+    #[arg(long)]
+    pub seeds: Option<u64>,
+    /// `repetition`: years a career is played.
+    #[arg(long, default_value_t = 6)]
+    pub years: u32,
     /// `impact`: `calibrate`.
     pub sub: Option<String>,
-    /// `impact calibrate`: seeds per world, counted from `--first-seed`.
-    #[arg(long, default_value_t = 16)]
-    pub seeds: u64,
     #[arg(long, default_value_t = 101)]
     pub first_seed: u64,
     /// `impact calibrate`: only these worlds (`none`, or a scenario's short
@@ -194,8 +219,31 @@ fn interventions(c: &LabCmd, home: u32) -> Result<Vec<Intervention>, String> {
 }
 
 pub fn run(content: Arc<ContentBundle>, c: LabCmd) -> Result<Value, String> {
-    if c.mode == "impact" {
-        return super::impact::run(content, &c);
+    match c.mode.as_str() {
+        "impact" => return super::impact::run(content, &c),
+        "rate-start" => {
+            return super::rate::rate_start(
+                &content,
+                &super::rate::RateArgs {
+                    seed: c.seed,
+                    post: c.post.clone(),
+                    plays: c.seeds_per_start,
+                    after_months: c.after_months,
+                    style: c.style.clone(),
+                },
+            );
+        }
+        "repetition" => {
+            return super::repetition::repetition(
+                &content,
+                &super::repetition::RepetitionArgs {
+                    careers: c.careers,
+                    seeds: c.seeds.unwrap_or(2),
+                    years: c.years,
+                },
+            );
+        }
+        _ => {}
     }
     let scenario = c.scenario.as_ref().map(|s| {
         if s.contains('.') {
@@ -247,6 +295,8 @@ pub fn run(content: Arc<ContentBundle>, c: LabCmd) -> Result<Value, String> {
                 })).collect::<Vec<_>>(),
             }))
         }
-        m => Err(format!("lab mode `{m}`: use run, twin or impact")),
+        m => Err(format!(
+            "lab mode `{m}`: use run, twin, impact, rate-start or repetition"
+        )),
     }
 }

@@ -348,6 +348,12 @@ impl Session {
                 QueryDto::PromiseMenu => Ok(ResponseBody::PromiseMenu(promise_menu_view(
                     self.engine_mut()?,
                 ))),
+                QueryDto::People => people_view(self.engine_mut()?)
+                    .map(ResponseBody::People)
+                    .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
+                QueryDto::Arc { id } => arc_view(self.engine_mut()?, id)
+                    .map(ResponseBody::Arc)
+                    .ok_or_else(|| err(ErrorCode::BadRequest, format!("no arc {id}"))),
                 QueryDto::Canvass { neighborhood } => {
                     canvass_view(self.engine_mut()?, neighborhood)
                         .map(ResponseBody::Canvass)

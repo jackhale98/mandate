@@ -76,29 +76,36 @@ fn directives() -> Command {
     }
 }
 
-/// A skip and the same turns played by the proxy, command by command,
-/// through `Command::Player` and `EndTurn`, leave the same state.
-#[test]
-fn a_skip_equals_the_proxy_played_command_by_command() {
-    let c = content();
-    let mut a = game(&c, 21);
-    let mut b = game(&c, 21);
-    a.apply(directives()).unwrap();
-    b.apply(directives()).unwrap();
-    let out = a
-        .apply(Command::Skip {
-            target: SkipTargetKind::NextSession,
-            limit: None,
-        })
-        .unwrap();
-    let summary = a.state().act.last_skip.clone().expect("a summary");
-    let turns = summary.turns;
-    assert!(turns > 3, "the skip ran {turns} turns");
-    assert!(out.skip.is_some_and(|p| p.done));
+/// Skip on from every stop until at least `least` turns were skipped (a
+/// career skipped from start to finish). Returns the turns skipped.
+fn skip_on(e: &mut Engine, least: u32) -> u32 {
+    let start = e.state().calendar.turn;
+    for _ in 0..40 {
+        if e.state().calendar.turn - start >= least {
+            break;
+        }
+        let out = e
+            .apply(Command::Skip {
+                target: SkipTargetKind::NextSession,
+                limit: None,
+            })
+            .unwrap();
+        assert!(out.skip.is_some_and(|p| p.done));
+        assert!(e.state().act.last_skip.is_some(), "a summary");
+    }
+    e.state().calendar.turn - start
+}
+
+/// The same turns played by the proxy, command by command, through
+/// `Command::Player` and `EndTurn`. `learns`: what its acts teach is kept;
+/// without, the player's knowledge is put back before each turn ends, as a
+/// skip does (DEC-102 clause 7: a skip learns nothing new).
+fn proxy_turns(e: &mut Engine, turns: u32, learns: bool) {
     for _ in 0..turns {
-        let mut t = mandate_sim::proxy::ProxyTurn::new(b.state(), b.content());
-        while let Some(cmd) = t.next(b.state(), b.content()) {
-            let r = b.apply(Command::Player(cmd));
+        let ledger = e.state().player.as_ref().map(|p| p.knowledge.clone());
+        let mut t = mandate_sim::proxy::ProxyTurn::new(e.state(), e.content());
+        while let Some(cmd) = t.next(e.state(), e.content()) {
+            let r = e.apply(Command::Player(cmd));
             let created = r
                 .as_ref()
                 .ok()
@@ -106,9 +113,65 @@ fn a_skip_equals_the_proxy_played_command_by_command() {
                 .and_then(|x| x.created);
             t.result(r.is_ok(), created);
         }
-        b.apply(Command::EndTurn).unwrap();
+        if !learns {
+            e.setup(|s| {
+                if let (Some(p), Some(k)) = (s.player.as_mut(), ledger) {
+                    p.knowledge = k;
+                }
+            });
+        }
+        e.apply(Command::EndTurn).unwrap();
     }
+}
+
+/// A skip and the same turns played by the proxy, command by command,
+/// through `Command::Player` and `EndTurn`, leave the same state, but for
+/// what the proxy's acts would have taught: a skip learns nothing new
+/// (DEC-102 clause 7), and stops are skipped on from.
+#[test]
+fn a_skip_equals_the_proxy_played_command_by_command() {
+    let c = content();
+    let mut a = game(&c, 21);
+    let mut b = game(&c, 21);
+    a.apply(directives()).unwrap();
+    b.apply(directives()).unwrap();
+    let turns = skip_on(&mut a, 4);
+    assert!(turns > 3, "the skips ran {turns} turns");
+    proxy_turns(&mut b, turns, false);
     assert_eq!(a.state().calendar.turn, b.state().calendar.turn);
+    assert_eq!(hash_without_skip(&mut a), hash_without_skip(&mut b));
+    // And the proxy's acts would have taught something: played as the
+    // player's own, the same commands leave a fuller notebook.
+    let mut d = game(&c, 21);
+    d.apply(directives()).unwrap();
+    proxy_turns(&mut d, turns, true);
+    assert_ne!(
+        a.state().player.as_ref().unwrap().knowledge,
+        d.state().player.as_ref().unwrap().knowledge
+    );
+}
+
+/// With `proxy.learns` on (the rule before DEC-102 clause 7, kept as a
+/// switch), a skip is exactly the proxy's commands played as the player's.
+#[test]
+fn a_skip_that_learns_equals_the_proxy_played_as_the_player() {
+    let mut s = sources();
+    mandate_content::overrides::apply(
+        &mut s,
+        &[mandate_content::overrides::Override {
+            path: "act_flow.proxy.learns".into(),
+            value: true.into(),
+        }],
+    )
+    .unwrap();
+    let c = Arc::new(load(&s).unwrap().0);
+    let mut a = game(&c, 21);
+    let mut b = game(&c, 21);
+    a.apply(directives()).unwrap();
+    b.apply(directives()).unwrap();
+    let turns = skip_on(&mut a, 4);
+    assert!(turns > 3, "the skips ran {turns} turns");
+    proxy_turns(&mut b, turns, true);
     assert_eq!(hash_without_skip(&mut a), hash_without_skip(&mut b));
 }
 

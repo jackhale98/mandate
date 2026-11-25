@@ -8,6 +8,7 @@ import type { ReasonView } from "./ReasonView";
 import type { SideEffectView } from "./SideEffectView";
 import type { SignerView } from "./SignerView";
 import type { SupportView } from "./SupportView";
+import type { TextView } from "./TextView";
 import type { VoteView } from "./VoteView";
 import type { WhipView } from "./WhipView";
 
@@ -81,7 +82,13 @@ ward_certainty: string,
 /**
  * The player owes the sponsor a favour.
  */
-owe_sponsor: boolean, side_effects: Array<SideEffectView>, 
+owe_sponsor: boolean, 
+/**
+ * Knowledge in words (DEC-113): one sentence, only where a gap or an
+ * old reading bears on a bill that is the player's to move or vote on
+ * (`crate::notebook`).
+ */
+note?: TextView, side_effects: Array<SideEffectView>, 
 /**
  * The event that decided it (enacted, failed, expired, withdrawn), to
  * ask "Why?" about (`QueryDto::Why`); none for a draft or a bill

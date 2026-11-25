@@ -21,9 +21,12 @@ mod learn;
 mod moves;
 mod play;
 mod report;
+pub mod skips;
 mod taste;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+pub(crate) use self::tests::perturb;
 mod variety;
 
 use mandate_content::{AiAction, ContentBundle};

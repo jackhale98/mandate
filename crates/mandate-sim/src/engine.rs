@@ -702,7 +702,15 @@ impl Engine {
                 stopped_early = true;
                 break None;
             }
-            // The proxy plays the turn, command by command.
+            // The proxy plays the turn, command by command. It learns
+            // nothing for the player (DEC-102 clause 7; `proxy.learns`):
+            // what its acts would teach (a canvassed street's worries, a
+            // first visit, who was seen where) is put back as it was, since
+            // the player was not there. What the turn's end makes public
+            // still reaches them.
+            let ledger = (!self.content.act_flow.proxy.learns)
+                .then(|| self.state.player.as_ref().map(|p| p.knowledge.clone()))
+                .flatten();
             let mut t = crate::proxy::ProxyTurn::new(&self.state, &self.content);
             while let Some(cmd) = t.next(&self.state, &self.content) {
                 let r = self.proxy_command(&cmd);
@@ -739,6 +747,9 @@ impl Engine {
                 }
                 let created = r.as_ref().ok().and_then(|x| x.created);
                 t.result(r.is_ok(), created);
+            }
+            if let (Some(p), Some(k)) = (self.state.player.as_mut(), ledger) {
+                p.knowledge = k;
             }
             days += self.end_one_turn();
             ran += 1;

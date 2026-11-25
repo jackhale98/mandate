@@ -201,10 +201,66 @@ pub enum InterruptWhen {
     /// A bill the player sponsors reaches a vote within `days`.
     SponsoredVote { days: u16 },
     /// Someone's request of the player (or a promise to them) falls due
-    /// within `days`.
-    RequestDue { days: u16 },
+    /// within `days`. With `offers`, an ask still on offer counts too: it
+    /// waits for the player's answer and stops the skip as its last day to
+    /// answer nears (DEC-102 clause 7). Without, an offer left unanswered
+    /// through a skip lapses as declined. `big_offers` counts only the big
+    /// asks on offer: a small one may lapse, a big one is the player's to
+    /// answer.
+    RequestDue {
+        days: u16,
+        #[serde(default)]
+        offers: bool,
+        #[serde(default)]
+        big_offers: bool,
+    },
+    /// A staged arc in the player's focus reaches a moment that is the
+    /// player's to meet (DEC-102 clause 7). Which moments, by the kind of
+    /// arc: `material` for an arc that is not standing (a flood, a plant),
+    /// `standing` for one the calendar brings round (the budget year, a
+    /// campaign's rival). A hidden stage never stops a skip. The message is
+    /// given `arc` (the template's id), `stage` and `run`.
+    ArcStage {
+        material: ArcStops,
+        standing: ArcStops,
+    },
     /// The run's status changes (prison, release, the end of the career).
     Status,
+}
+
+/// Which stages of an arc stop a skip.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ArcStopStages {
+    /// None.
+    #[default]
+    None,
+    /// Its turn: the stage marked `climax`.
+    Turn,
+    /// Each one.
+    Every,
+}
+
+/// The moments of one kind of arc that stop a skip (`InterruptWhen::ArcStage`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArcStops {
+    /// Being raised stops a skip, whatever its first stage offers.
+    #[serde(default)]
+    pub raised: bool,
+    /// Which of its stages do.
+    #[serde(default)]
+    pub stages: ArcStopStages,
+    /// A stage counts only for a run that leads the chapter, or one the
+    /// player can act in now (a beat of the stage is theirs to take: they
+    /// hold the power its decision needs, they are in the race).
+    #[serde(default)]
+    pub lead_or_actor: bool,
+    /// A stage with nothing for the player to do stops a skip too, and so
+    /// does an exit. Without (the default), a stage stops a skip once a
+    /// beat of it is the player's to take, and an exit never does.
+    #[serde(default)]
+    pub idle: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -263,6 +319,11 @@ pub struct ProxyParams {
     pub max_commands: u8,
     /// The share of slots it leaves unused (a proxy is not the player).
     pub idle_share: f64,
+    /// Whether what the proxy's acts would teach is kept (DEC-102 clause 7:
+    /// a skip learns nothing new, so `false`). With `true` a skipped
+    /// canvass fills the notebook as the player's own would.
+    #[serde(default)]
+    pub learns: bool,
 }
 
 /// The Legacy record's settings (DEC-006, DEC-100: a record only).
@@ -302,6 +363,7 @@ impl Default for ActFlowParams {
                 answers: Vec::new(),
                 max_commands: 0,
                 idle_share: 0.0,
+                learns: false,
             },
             legacy: LegacyParams {
                 works_categories: Vec::new(),

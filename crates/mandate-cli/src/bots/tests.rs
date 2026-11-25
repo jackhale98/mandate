@@ -28,8 +28,9 @@ fn fork(e: &Engine) -> Engine {
 /// §1.10): the goals of people the player does not know in detail are
 /// handed round among them, and two neighbourhoods whose worries the
 /// player has not heard swap their residents' views (so their worries
-/// swap too). Returns how many facts changed.
-fn perturb(e: &mut Engine) -> usize {
+/// swap too). Returns how many facts changed. (The stand-in players'
+/// blind-invariance test uses it too: `lab/standin_games.rs`.)
+pub(crate) fn perturb(e: &mut Engine) -> usize {
     let mut changed = 0;
     let (unknown_people, hoods) = {
         let st = e.state();

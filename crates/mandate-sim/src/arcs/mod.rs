@@ -37,11 +37,14 @@
 //! - [`effects`]: an arc's effects as effect requests.
 //! - [`exchange`]: the eighth beat kind (DEC-112): a played scene of a few
 //!   rounds, its state on the run.
+//! - [`score`]: the five terms and coverage a played run is measured by
+//!   (the grader, and the audition to come).
 
 pub mod beats;
 pub mod cast;
 pub mod effects;
 pub mod exchange;
+pub mod score;
 pub mod step;
 
 use crate::characters::CharacterId;

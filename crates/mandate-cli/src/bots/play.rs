@@ -2,7 +2,45 @@
 
 use super::*;
 
+/// Play a strategy's turn and end it.
+///
+/// `directed` is a career skipped from start to finish (DEC-102 clause 7):
+/// each of its turns is one turn of a real time skip (`Command::Skip` to
+/// the furthest point on offer), so every limit a skip has is the probe's
+/// too: it learns nothing, answers no ask, and a stop is skipped on from.
+/// Where no skip is on offer (election day, prison) it falls back to the
+/// proxy's commands and `EndTurn`.
+pub fn turn(
+    e: &mut Engine,
+    content: &ContentBundle,
+    strategy: &str,
+    start_turn: u32,
+) -> Result<(), EngineError> {
+    if strategy == "directed" {
+        let target = mandate_sim::skip::targets(e.state(), e.content())
+            .last()
+            .map(|t| t.target);
+        if let Some(target) = target {
+            let before = e.state().calendar.turn;
+            let r = apply(
+                e,
+                Command::Skip {
+                    target,
+                    limit: Some(1),
+                },
+            );
+            if r.is_ok() && e.state().calendar.turn > before {
+                return Ok(());
+            }
+        }
+    }
+    play_turn_from(e, content, strategy, start_turn);
+    apply(e, Command::EndTurn).map(|_| ())
+}
+
 /// A bot's turn; `start_turn` is the turn play began (for `explorer`).
+/// (`directed` here is the proxy's commands alone, without a skip's
+/// limits: the tournament plays it through [`turn`].)
 pub fn play_turn_from(e: &mut Engine, content: &ContentBundle, strategy: &str, start_turn: u32) {
     if strategy == "directed" {
         directed_turn(e);
@@ -206,8 +244,7 @@ pub fn play_full_with(
         {
             break;
         }
-        play_turn_from(&mut e, content, strategy, start_turn);
-        if apply(&mut e, Command::EndTurn).is_err() {
+        if turn(&mut e, content, strategy, start_turn).is_err() {
             // The career ended (DEC-006): the election is lost.
             return Some(lost(crisis, industry));
         }

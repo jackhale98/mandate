@@ -107,7 +107,6 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
       - name: Content validation
         run: cargo run -q -p mandate-cli -- content validate
       - name: Generated files are up to date (schemas, TS protocol types)
@@ -115,8 +114,40 @@ jobs:
           cargo run -q -p mandate-cli -- content schema
           git diff --exit-code content/schemas web/src/engine/protocol
 
-  # The lab's checks, on a release build, beside the test suite (which is the
-  # longer of the two): seeds, determinism, the sweep, the bots, parity.
+  # The test suite, in three groups on three machines: on one it took 20
+  # minutes (2026-11-25) and set the length of every run. The groups are the
+  # workspace's crates; a new crate must be added to one of them (the last
+  # step of the `rest` group fails if a crate is in none).
+  test:
+    runs-on: ubuntu-latest
+    needs: [verified]
+    if: needs.verified.outputs.ok != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: worldgen
+            packages: -p mandate-worldgen
+          - group: cli-wasm
+            packages: -p mandate-cli -p mandate-wasm
+          - group: rest
+            packages: -p mandate-core -p mandate-content -p mandate-sim -p mandate-protocol -p mandate-save -p mandate-seeds
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: test-${{ matrix.group }}
+      - run: cargo test ${{ matrix.packages }}
+      - name: Every crate of the workspace is in a test group
+        if: matrix.group == 'rest'
+        run: |
+          groups="mandate-worldgen mandate-cli mandate-wasm mandate-core mandate-content mandate-sim mandate-protocol mandate-save mandate-seeds"
+          for c in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name'); do
+            case " $groups " in *" $c "*) ;; *) echo "crate $c is in no test group (.github/workflows/ci.yml)"; exit 1 ;; esac
+          done
+
+  # The lab's checks, on a release build, beside the test suite: seeds,
+  # determinism, the sweep, the bots, parity.
   lab:
     runs-on: ubuntu-latest
     needs: [wasm, verified]
@@ -274,8 +305,8 @@ jobs:
       always() && github.ref == 'refs/heads/main' && github.event_name == 'push' &&
       needs.web.result == 'success' &&
       (needs.verified.outputs.ok == 'true' ||
-       (needs.rust.result == 'success' && needs.lab.result == 'success' && needs.e2e.result == 'success'))
-    needs: [verified, rust, lab, web, e2e]
+       (needs.rust.result == 'success' && needs.test.result == 'success' && needs.lab.result == 'success' && needs.e2e.result == 'success'))
+    needs: [verified, rust, test, lab, web, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -359,3 +359,46 @@ ui-people-go = Go to them
 ui-people-go-to = Go to { $name }
 ui-tag-can-talk = { $name }, can talk
 ui-tag-has-news = { $name }, has something new
+
+## What matters now (DEC-113; POCKET_REWORK §3.3): the engine's reasons a
+## person or a place matters (`NowReasonView.key`), an arc's clock and what
+## comes next (`NextUpView.key`). Each is read on the row of the person or
+## place it is about, so it names nobody. 34 characters at most in English.
+# A person.
+now-ask-offer = Has asked you for something
+now-ask-promised = You gave them your word
+now-ask-talk = An ask needs a word with them
+now-ask-named = Named in something asked of you
+now-arc-talk = A word with them could move it
+now-decision = In a decision waiting on you
+now-vote-undecided = Undecided on your bill
+now-vote-member = Has a vote on your bill
+now-here = Here with you now
+now-rival = Your rival in this election
+# A place.
+now-place-scene = A decision can be faced here
+now-place-ask = Something asked of you is here
+now-place-beat = There is something to do here
+now-place-here = You are here
+# The clock of something under way ($days: 2 or more).
+now-clock-today = Moves on today
+now-clock-tomorrow = Moves on tomorrow
+now-clock-days = Moves on in { $days } days
+# The next dated thing, when nothing is waiting on the player.
+now-next-vote = A bill comes to a vote
+now-next-ask = A promise of yours falls due
+now-next-arc = Something under way moves on
+now-next-election = Election day
+
+## Knowledge in words (DEC-113; DEC-091: knowledge is not a checklist): the
+## engine's notes (`note` on a person, a neighbourhood, a place, a bill and
+## a notebook entry) and the lead toward an arc only heard of. One whole
+## sentence or two, said only where the gap or the fact changes something
+## the player could do. $month is a month's name.
+know-person-name-only = You only know the name.
+know-person-lobby = You hardly know them, so lobbying them works less often.
+know-hood-worries = You haven't heard what worries { $hood }.
+know-bill-support = You don't know how your voters stand on this. The estimate is rough.
+know-figures-stale = These figures are from { $month } { $year }. They may have moved.
+know-place-shut = It has shut. Nothing can be done here.
+know-arc-lead = Something is going on in { $where }. People there would know more.

@@ -3,6 +3,7 @@
 //! `web/src/engine/protocol/*.ts`.
 
 pub mod act;
+pub mod arcs;
 pub mod asks;
 pub mod campaign;
 pub mod characters;
@@ -14,8 +15,11 @@ pub mod layout;
 pub mod map;
 pub mod media;
 pub mod narrative;
+pub mod notebook;
 pub mod office;
+pub mod people;
 pub mod places;
+pub mod pocket;
 pub mod post;
 pub mod talk;
 pub mod town;
@@ -24,6 +28,7 @@ pub mod views;
 pub mod why;
 
 pub use act::*;
+pub use arcs::*;
 pub use asks::*;
 pub use campaign::*;
 pub use characters::*;
@@ -33,8 +38,11 @@ pub use layout::*;
 pub use map::*;
 pub use media::*;
 pub use narrative::*;
+pub use notebook::*;
 pub use office::*;
+pub use people::*;
 pub use places::*;
+pub use pocket::*;
 pub use post::*;
 use serde::{Deserialize, Serialize};
 pub use talk::*;
@@ -409,6 +417,16 @@ pub enum QueryDto {
     Legacy,
     /// Asks and promises (DEC-097 §2): open, recent, promises, counts.
     Asks,
+    /// Everyone the player has heard of, as rows in sections and in order,
+    /// with why each matters now (DEC-113): one query for the whole list.
+    People,
+    /// One arc run as the player sees it (DEC-109, task A3): a running one
+    /// (`PocketView.arcs`, `NotebookView.arc_leads`) or one that ended.
+    /// Below `known`, a lead only; an arc the player knows nothing of
+    /// reads as no such arc.
+    Arc {
+        id: u32,
+    },
     /// The promises the player could make now (campaigning only).
     PromiseMenu,
     /// Why an event happened (S1, the causal spine): the chain of what led
@@ -507,6 +525,8 @@ pub enum ResponseBody {
     Asks(Option<AsksView>),
     PromiseMenu(PromiseMenuView),
     Why(WhyView),
+    People(PeopleView),
+    Arc(ArcView),
     #[cfg(feature = "dev-tools")]
     #[ts(skip)]
     DevCatalog(dev::DevCatalogView),

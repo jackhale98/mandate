@@ -43,6 +43,7 @@ interrupt-sponsored_vote = Your bill comes to a vote { $days ->
    *[other] in { $days } days.
 }
 interrupt-request_due = Someone is waiting on your answer.
+interrupt-arc_stage = Something you are following has moved on.
 interrupt-standing = Your standing has fallen to { $value }.
 interrupt-viability = Your party is losing faith in you (viability { $value }).
 interrupt-legal = The legal danger is rising ({ $value }).

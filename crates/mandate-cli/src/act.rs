@@ -66,6 +66,9 @@ struct Run {
     chapters: BTreeMap<u32, Chapter>,
     ending: String,
     days: u32,
+    /// Each skip: the turns it ran, the days it covered, and why it
+    /// stopped (an interrupt's id, `reached`, `limit`, `act_ended`).
+    runs: Vec<(u32, u32, String)>,
 }
 
 fn chapter_of(e: &Engine) -> (u32, String) {
@@ -97,6 +100,7 @@ fn run(
         chapters: BTreeMap::new(),
         ending: String::new(),
         days: 0,
+        runs: Vec::new(),
     };
     // The bot's learning turns are played (an informed player learns first).
     let learned_by = start_turn + bots::EXPLORE_TURNS;
@@ -117,6 +121,7 @@ fn run(
                 // In one-turn chunks, as the client does: each turn is
                 // counted to its chapter.
                 let mut any = false;
+                let (turn0, day0) = (e.state().calendar.turn, e.state().calendar.date);
                 loop {
                     let (ch, kind) = chapter_of(&e);
                     let before = e.state().calendar.turn;
@@ -140,6 +145,16 @@ fn run(
                 }
                 if any {
                     r.skips += 1;
+                    let st = e.state();
+                    r.runs.push((
+                        st.calendar.turn - turn0,
+                        day0.days_until(st.calendar.date),
+                        st.act
+                            .last_skip
+                            .as_ref()
+                            .map(|s| mandate_sim::standin::stop_key(&s.stop))
+                            .unwrap_or_else(|| "open".into()),
+                    ));
                     just_skipped = true;
                     continue;
                 }
@@ -180,6 +195,44 @@ fn median(mut v: Vec<f64>) -> f64 {
     }
 }
 
+/// How long a skip runs in a quiet stretch and how often a stop comes
+/// (DEC-102 clause 7): each skip is `(turns, days, why it stopped)`.
+/// Reported with the decision's floor beside it as data; the decision
+/// names a floor and no number yet, and nothing is enforced.
+fn skip_lengths(runs: &[(u32, u32, String)]) -> serde_json::Value {
+    let n = runs.len();
+    let turns: Vec<f64> = runs.iter().map(|x| x.0 as f64).collect();
+    let days: Vec<f64> = runs.iter().map(|x| x.1 as f64).collect();
+    let mut stops: BTreeMap<String, u32> = BTreeMap::new();
+    for r in runs {
+        *stops.entry(r.2.clone()).or_default() += 1;
+    }
+    let interrupted = runs
+        .iter()
+        .filter(|r| r.2.starts_with("interrupt."))
+        .count();
+    let (total_turns, total_days): (f64, f64) = (turns.iter().sum(), days.iter().sum());
+    let per = |x: f64, by: usize| (by > 0).then(|| x / by as f64);
+    json!({
+        "skips": n,
+        "median_turns": median(turns.clone()),
+        "mean_turns": per(total_turns, n),
+        "median_weeks": median(days.clone()) / 7.0,
+        "mean_weeks": per(total_days / 7.0, n),
+        "one_turn_share": per(runs.iter().filter(|r| r.0 <= 1).count() as f64, n),
+        "stopped_by_an_interrupt": interrupted,
+        "skipped_weeks_per_interrupt": per(total_days / 7.0, interrupted),
+        "interrupts_per_skipped_year": (total_days > 0.0).then(|| interrupted as f64 / (total_days / 365.0)),
+        "stops": stops,
+        "bar": {
+            "target": "a floor on how long a typical skip runs in a quiet stretch, so that stops do not come every week",
+            "floor_weeks": serde_json::Value::Null,
+            "note": "DEC-102 clause 7 names a floor and gives no number yet",
+            "enforced": false,
+        },
+    })
+}
+
 /// `act-length`: the REQ-008 table.
 pub fn act_length(
     content: &Arc<ContentBundle>,
@@ -197,6 +250,7 @@ pub fn act_length(
         let mut by_kind: BTreeMap<String, (Vec<f64>, Vec<f64>)> = BTreeMap::new();
         let mut endings: BTreeMap<String, u32> = BTreeMap::new();
         let mut rows = Vec::new();
+        let mut skip_runs: Vec<(u32, u32, String)> = Vec::new();
         for style in STYLES {
             for seed in 1..=seeds {
                 let Some(r) = run(content, seed, style, skip, years) else {
@@ -208,6 +262,7 @@ pub fn act_length(
                 act_minutes.push(minutes);
                 years_v.push(r.days as f64 / 365.0);
                 *endings.entry(r.ending.clone()).or_default() += 1;
+                skip_runs.extend(r.runs.iter().cloned());
                 for c in r.chapters.values() {
                     let e = by_kind.entry(c.kind.clone()).or_default();
                     e.0.push(c.played as f64);
@@ -248,6 +303,7 @@ pub fn act_length(
         modes.insert(
             if skip { "with_skips" } else { "without_skips" }.into(),
             json!({
+                "skips": skip.then(|| skip_lengths(&skip_runs)),
                 "careers": act_turns.len(),
                 "act_median_turns": median(act_turns),
                 "act_median_played_turns": median(act_played),

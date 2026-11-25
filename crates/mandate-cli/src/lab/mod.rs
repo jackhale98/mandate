@@ -22,6 +22,8 @@ pub mod cli;
 pub mod impact;
 pub mod metrics;
 pub mod overrides;
+pub mod rate;
+pub mod repetition;
 pub mod runner;
 pub mod seed_reqs;
 
@@ -31,5 +33,7 @@ mod arcs_games;
 mod proof;
 #[cfg(test)]
 mod spine_games;
+#[cfg(test)]
+mod standin_games;
 
 pub use overrides::*;
