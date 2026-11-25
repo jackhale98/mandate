@@ -99,4 +99,10 @@ outcome_event?: number,
  * What it would do if it passed now (DEC-111): for a draft or a bill
  * before the body, in a tier the impact table covers.
  */
-impact?: ImpactView, };
+impact?: ImpactView, 
+/**
+ * The power broker is leaning on the members `for` it or `against` it
+ * (M6 note 27; the whip's odds include it): for a bill still before
+ * the body, once the player knows who the broker is.
+ */
+broker_pull?: string, };
