@@ -252,7 +252,9 @@ fn out_of_time_is_said() {
     assert!(v.out_of_time);
     assert_eq!(v.slots_left, 0);
     assert!(!v.topics.is_empty());
-    for t in &v.topics {
+    // Meeting a colleague after hours takes the late slot, which is still
+    // free (M6 note 29).
+    for t in v.topics.iter().filter(|t| !t.id.ends_with(".after-hours")) {
         assert!(!t.available, "{}", t.id);
         assert_eq!(
             t.unavailable_key.as_deref(),
@@ -449,9 +451,14 @@ fn someone_elsewhere_has_a_route() {
     assert_eq!(r.action, "go");
     let to = r.to.unwrap();
     assert!(!v.topics.is_empty());
-    assert!(v.topics.iter().all(|t| !t.available
+    // Lobbying a colleague needs no walk (M6 note 29, DEC-051); the rest
+    // waits until the player is there.
+    let (remote, rest): (Vec<&TopicView>, Vec<&TopicView>) =
+        v.topics.iter().partition(|t| t.remote == Some(true));
+    assert!(rest.iter().all(|t| !t.available
         && t.unavailable_key.as_deref() == Some("talk-why-away")
         && t.odds.is_none()));
+    assert!(remote.iter().all(|t| t.bill.is_some()));
     go(&mut e, to.location.to_sim());
     let v = talk_view(&e, TalkTargetDto::Person { person: person.0 }, false).unwrap();
     assert!(v.here && v.person.can_talk);
