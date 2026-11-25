@@ -29,6 +29,7 @@ interface Probes {
         doorHere: number | null;
         grid: { cost: ArrayLike<number> };
         placePlayer(cell: number): void;
+        setStanding(people: readonly { key: string; variant: number }[]): void;
       };
       wake(): void;
     };
@@ -140,12 +141,21 @@ test("held arrows walk the player; the camera follows and the zone label changes
   await expect(zone).not.toHaveText(before);
   await expect(page.getByTestId("where-announce")).toContainText(((await zone.textContent()) ?? "").trim());
 
-  // Having stopped there, the player is on that neighbourhood's streets, as after a tap on open ground:
-  // the pocket names the same place as the label (owner, 2026-11-25: the two disagreed after a walk by keys).
+  // Having stopped there, the pocket and the label agree (owner, 2026-11-25: the two disagreed after a walk by
+  // keys): crossed out of the neighbourhood the engine had the player in, they are on the new one's streets; still
+  // inside it (the border walked over may lead into home's own neighbourhood), they are where they were.
   const now = ((await zone.textContent()) ?? "").trim();
   await page.waitForTimeout(1200);
+  const sameHood = await page.evaluate(() => {
+    const v = (window as unknown as Probes).__townStreet?.view;
+    if (!v) return false;
+    const home = v.map.buildings.find((b) => b.home);
+    const d = (c: number) => v.map.district[c] ?? -1;
+    return home !== undefined && d(home.front) === d(v.scene.playerCell);
+  });
   await openPocket(page);
-  await expect(page.getByTestId("pocket-location")).toContainText(now, { timeout: 10_000 });
+  if (sameHood) await expect(page.getByTestId("pocket-location")).toContainText("Home");
+  else await expect(page.getByTestId("pocket-location")).toContainText(now, { timeout: 10_000 });
 });
 
 test("walk up to a door: a hint says Enter and the place; Enter goes in and the place panel opens", async ({ page }) => {
@@ -166,16 +176,22 @@ test("walk up to a door: a hint says Enter and the place; Enter goes in and the 
   expect(spot).not.toBeNull();
   if (!spot) return;
   await tabToStreet(page);
+  // Nobody standing in the street for this one: someone stood beside the door takes Enter first (the talk hook),
+  // and the hint then names them, not the place.
+  await page.evaluate(() => (window as unknown as Probes).__townStreet?.view.scene.setStanding([]));
   await standAt(page, spot.front - 2);
   const hint = page.locator(".hub-door-hint");
   await expect(hint).toBeHidden();
   // Short presses until the hint shows (each walks a few tenths of a tile).
   for (let k = 0; k < 20 && !(await hint.isVisible()); k++) {
+    // (The street's people are listed again as time passes: keep it clear.)
+    await page.evaluate(() => (window as unknown as Probes).__townStreet?.view.scene.setStanding([]));
     await page.keyboard.down("ArrowRight");
     await page.waitForTimeout(50);
     await page.keyboard.up("ArrowRight");
     await page.waitForTimeout(50);
   }
+  await page.evaluate(() => (window as unknown as Probes).__townStreet?.view.scene.setStanding([]));
   await expect(hint).toBeVisible();
   await expect(hint).toHaveText(/^Enter: .+/);
   const name = ((await hint.textContent()) ?? "").replace(/^Enter: /, "");

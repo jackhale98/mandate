@@ -225,8 +225,14 @@ h2 { font-size: 1.1rem; }
 .progress { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 0.9rem; color: var(--muted); }
 .progress progress { width: 100%; accent-color: var(--accent); }
 
-/* Game screen fills the viewport; content areas scroll internally. */
+/* Game screen fills the viewport; content areas scroll internally. The page itself never scrolls while the game
+   is shown (owner, 2026-11-25: on a phone, a drag at the bottom of the screen or on a short sheet scrolled the whole
+   game like a web page): the document is locked, and a scroll that reaches the end of a sheet or list stops there
+   instead of passing to the page. The title screen and the landing page still scroll. */
+html:has(.game), html:has(.game) body { overflow: hidden; overscroll-behavior: none; }
 .game { height: 100vh; height: 100dvh; min-height: 0; }
+.sheet, .game-body, .pocket-body, .sheet-body { overscroll-behavior: contain; }
+.sheet-scrim { touch-action: none; }
 .game-body { overflow-y: auto; min-height: 0; }
 .map-body { min-height: 0; }
 .map-wrap { min-height: 0; }
