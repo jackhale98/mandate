@@ -998,18 +998,13 @@ pub fn note_sightings(state: &mut State, content: &ContentBundle) -> usize {
     };
     // Familiarity (DEC-114 §5): the first time this turn the player is
     // where someone is, more at an event with time to talk.
-    let talk = crate::characters::calendar::at_location(&now, at)
-        .is_some_and(|h| h.def(content).talk);
+    let talk =
+        crate::characters::calendar::at_location(&now, at).is_some_and(|h| h.def(content).talk);
     let first: Vec<CharacterId> = match state.player.as_ref() {
         Some(pl) => here
             .iter()
             .copied()
-            .filter(|c| {
-                !pl.knowledge
-                    .sightings(*c)
-                    .iter()
-                    .any(|x| x.on == s.on)
-            })
+            .filter(|c| !pl.knowledge.sightings(*c).iter().any(|x| x.on == s.on))
             .collect(),
         None => return 0,
     };

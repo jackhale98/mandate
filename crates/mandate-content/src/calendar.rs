@@ -193,8 +193,7 @@ pub fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             err("months are 1 to 12".into());
         }
         match e.cadence {
-            CalendarCadence::Season | CalendarCadence::Year if e.months.is_empty() =>
-            {
+            CalendarCadence::Season | CalendarCadence::Year if e.months.is_empty() => {
                 err("a `season` or `year` event lists its months".into());
             }
             c if !c.occasion() && (!e.months.is_empty() || e.weekday.is_some()) => {
@@ -215,12 +214,16 @@ pub fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         for a in &e.attendees {
             let n = a.post.is_some() as u8 + a.occupation.is_some() as u8 + a.role.is_some() as u8;
             if n != 1 {
-                err("an attendee rule is for exactly one of `post`, `occupation` and `role`".into());
+                err(
+                    "an attendee rule is for exactly one of `post`, `occupation` and `role`".into(),
+                );
             }
             if let Some(w) = &a.post
                 && !b.is_role_word(w)
             {
-                err(format!("attendee post `{w}` is not a constitution role word"));
+                err(format!(
+                    "attendee post `{w}` is not a constitution role word"
+                ));
             }
             if let Some(o) = &a.occupation
                 && b.occupation(o).is_none()
@@ -235,7 +238,9 @@ pub fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             if let CalendarExpected::Role { word } = x
                 && !b.is_role_word(word)
             {
-                err(format!("expected role `{word}` is not a constitution role word"));
+                err(format!(
+                    "expected role `{word}` is not a constitution role word"
+                ));
             }
         }
         if let Some(a) = &e.absent {

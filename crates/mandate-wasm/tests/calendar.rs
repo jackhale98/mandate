@@ -75,16 +75,27 @@ fn one_date_per_turn_for_two_years_on_eight_seeds() {
             assert_eq!(now.day, day, "seed {seed}: routines' day");
             assert_eq!(
                 ov.weekday_key,
-                format!("weekday-{}", mandate_content::routines::RoutineDay::of(day).key())
+                format!(
+                    "weekday-{}",
+                    mandate_content::routines::RoutineDay::of(day).key()
+                )
             );
             // Every event held this turn is held on that day; one reported
             // fell in the turn on its own date.
             let pocket = pocket_view(&e).unwrap();
             let mut parts = Vec::new();
             for ev in &pocket.fortnight {
-                let t = table.entry(seed).or_default().entry(ev.id.clone()).or_default();
+                let t = table
+                    .entry(seed)
+                    .or_default()
+                    .entry(ev.id.clone())
+                    .or_default();
                 if ev.today {
-                    assert_eq!(ev.date.day_number, day.0, "seed {seed}: {} on the day", ev.id);
+                    assert_eq!(
+                        ev.date.day_number, day.0,
+                        "seed {seed}: {} on the day",
+                        ev.id
+                    );
                     let p = ev.part.clone().unwrap();
                     parts.push(p);
                     t.0 += 1;
@@ -102,7 +113,10 @@ fn one_date_per_turn_for_two_years_on_eight_seeds() {
                 .iter()
                 .filter(|x| x.id == "event.council_night" && x.today)
                 .count();
-            assert!(parts.len() - dedup.len() <= sittings, "seed {seed}: {parts:?}");
+            assert!(
+                parts.len() - dedup.len() <= sittings,
+                "seed {seed}: {parts:?}"
+            );
             for h in &now.held {
                 assert_eq!(h.on, day);
             }
@@ -110,7 +124,10 @@ fn one_date_per_turn_for_two_years_on_eight_seeds() {
             // save round trip.
             let again = Engine::from_state(st.clone(), e.content_arc()).unwrap();
             assert_eq!(again.state().calendar.day, day);
-            assert_eq!(calendar::this_turn(again.state(), &c), calendar::this_turn(st, &c));
+            assert_eq!(
+                calendar::this_turn(again.state(), &c),
+                calendar::this_turn(st, &c)
+            );
             e.apply(Command::EndTurn).unwrap();
             turns += 1;
         }
@@ -127,7 +144,8 @@ fn one_date_per_turn_for_two_years_on_eight_seeds() {
     // Every world holds market day or a sitting, and some occasion.
     for (seed, evs) in &table {
         assert!(
-            evs.keys().any(|k| k == "event.summer_show" || k == "event.school_term"),
+            evs.keys()
+                .any(|k| k == "event.summer_show" || k == "event.school_term"),
             "seed {seed}: an occasion in two years: {evs:?}"
         );
     }
@@ -172,7 +190,11 @@ fn an_event_is_held_with_its_people_there_and_the_place_full() {
             );
             // Its crowd: more passers-by than the place has otherwise.
             let crowd = characters::ambient::ambient_at(st, &c, h.location()).len();
-            assert!(crowd >= def.crowd as usize, "seed {seed}: a crowd at {}", def.id);
+            assert!(
+                crowd >= def.crowd as usize,
+                "seed {seed}: a crowd at {}",
+                def.id
+            );
             // Today lists it with its place, part and a way there; going
             // there is presence.
             let v = pocket_view(&e)
@@ -189,7 +211,10 @@ fn an_event_is_held_with_its_people_there_and_the_place_full() {
                 .into_iter()
                 .find(|x| x.id == def.id)
                 .unwrap();
-            assert!(v.here && v.attended, "seed {seed}: being there is attending");
+            assert!(
+                v.here && v.attended,
+                "seed {seed}: being there is attending"
+            );
             // The turn's passage tells it, with its date.
             e.apply(Command::EndTurn).unwrap();
             let lines = overview(&e).passage;
@@ -222,7 +247,11 @@ fn expected_market(word: &str) -> ContentBundle {
 
 fn player_word(e: &Engine) -> String {
     let st = e.state();
-    let con = e.content().constitutions.get(&st.meta.constitution).unwrap();
+    let con = e
+        .content()
+        .constitutions
+        .get(&st.meta.constitution)
+        .unwrap();
     mandate_sim::player::posts(st)[0]
         .word(con)
         .unwrap()
@@ -237,7 +266,9 @@ fn absence_costs_only_where_expected_and_is_shown_a_turn_ahead() {
         let c = Arc::new(expected_market(&word));
         let e = game_with(seed, c.clone());
         let held = calendar::this_turn(e.state(), &c);
-        let Some(market) = held.iter().find(|h| h.def(&c).id == "event.market_day" && h.today())
+        let Some(market) = held
+            .iter()
+            .find(|h| h.def(&c).id == "event.market_day" && h.today())
         else {
             panic!("seed {seed}: no market held this turn: {held:?}");
         };
@@ -245,7 +276,10 @@ fn absence_costs_only_where_expected_and_is_shown_a_turn_ahead() {
         assert_eq!(held.iter().filter(|h| h.expected).count(), 1);
         assert!(market.expected);
         // Shown a turn ahead, with its cost.
-        let next = pocket_view(&e).unwrap().next_expected.expect("shown a turn ahead");
+        let next = pocket_view(&e)
+            .unwrap()
+            .next_expected
+            .expect("shown a turn ahead");
         assert_eq!(next.id, "event.market_day");
         assert!(next.cost.is_some());
         // Missed: those who were there think a little less of the player.
@@ -271,10 +305,11 @@ fn absence_costs_only_where_expected_and_is_shown_a_turn_ahead() {
             before.iter().zip(&after).all(|(b, a)| a < b),
             "seed {seed}: absence noticed: {before:?} -> {after:?}"
         );
-        assert!(away.events.iter().any(|ev| matches!(
-            &ev.kind,
-            EventKind::CalendarEvent { missed: true, .. }
-        )));
+        assert!(
+            away.events
+                .iter()
+                .any(|ev| matches!(&ev.kind, EventKind::CalendarEvent { missed: true, .. }))
+        );
         // Being there costs nothing.
         let mut e2 = game_with(seed, c.clone());
         reach_part(&mut e2, part);
@@ -293,8 +328,11 @@ fn absence_costs_only_where_expected_and_is_shown_a_turn_ahead() {
         // Where nobody expects the player (the base pack), nothing is lost.
         let plain = Arc::new(base());
         let e3 = game_with(seed, plain.clone());
-        assert!(calendar::this_turn(e3.state(), &plain).iter().all(|h| !h.expected
-            || h.def(&plain).absent.is_some()));
+        assert!(
+            calendar::this_turn(e3.state(), &plain)
+                .iter()
+                .all(|h| !h.expected || h.def(&plain).absent.is_some())
+        );
         let mut free = e3.state().clone();
         let before3: Vec<f32> = there
             .iter()
@@ -372,7 +410,10 @@ fn familiarity_rises_with_presence_and_shows_only_in_words() {
     let sheet = character_view(&e, who.0).unwrap();
     assert_eq!(sheet.familiar_key.as_deref(), Some(key.as_str()));
     let json = serde_json::to_string(&sheet).unwrap();
-    assert!(!json.contains("\"familiar\""), "no count in the view: {json}");
+    assert!(
+        !json.contains("\"familiar\""),
+        "no count in the view: {json}"
+    );
     let people = serde_json::to_string(&people_view(&e).unwrap()).unwrap();
     assert!(!people.contains("\"familiar\""));
     // Kept through a save.
@@ -427,6 +468,12 @@ fn a_familiar_face_greets_the_player_by_name() {
             }
         }
     }
-    assert_eq!(stranger_familiar, 0, "strangers are not greeted as familiar");
-    assert!(familiar_greetings >= 10, "familiar faces greet by name: {familiar_greetings}");
+    assert_eq!(
+        stranger_familiar, 0,
+        "strangers are not greeted as familiar"
+    );
+    assert!(
+        familiar_greetings >= 10,
+        "familiar faces greet by name: {familiar_greetings}"
+    );
 }

@@ -234,7 +234,11 @@ fn on_weekday(d: SimDate, w: Option<RoutineDay>) -> SimDate {
 /// jurisdiction, the event and the year or month).
 fn occasion_dates(seed: u64, at: Jurisdiction, def: &CalendarEventDef, span: Span) -> Vec<SimDate> {
     let first = span.start.calendar().year;
-    let last = span.start.add_days(span.days.saturating_sub(1)).calendar().year;
+    let last = span
+        .start
+        .add_days(span.days.saturating_sub(1))
+        .calendar()
+        .year;
     let id = key_of(&def.id);
     let key = |year: u32, month: u32, part: u64| {
         rng(
@@ -313,7 +317,11 @@ fn player_expected(
             .iter()
             .any(|p| p.at() == at && p.word(c) == Some(word.as_str())),
         CalendarExpected::Ward => {
-            let hood = state.world.places.get(venue.index()).map(|p| p.neighborhood);
+            let hood = state
+                .world
+                .places
+                .get(venue.index())
+                .map(|p| p.neighborhood);
             posts.iter().any(|p| {
                 p.at() == at
                     && p.constituency().is_some_and(|k| {
@@ -377,13 +385,13 @@ pub fn plan(
     let mut taken: Vec<DayPart> = Vec::new();
     let mut out: Vec<Held> = Vec::new();
     let hold = |i: usize,
-                    def: &CalendarEventDef,
-                    v: PlaceId,
-                    on: SimDate,
-                    main: bool,
-                    shared: bool,
-                    out: &mut Vec<Held>,
-                    taken: &mut Vec<DayPart>| {
+                def: &CalendarEventDef,
+                v: PlaceId,
+                on: SimDate,
+                main: bool,
+                shared: bool,
+                out: &mut Vec<Held>,
+                taken: &mut Vec<DayPart>| {
         let part = def
             .parts
             .iter()
@@ -561,10 +569,23 @@ pub(crate) fn covers(
 }
 
 /// The keyed draw of an attendee rule (person, day, event, rule).
-pub(crate) fn attends(seed: u64, person: CharacterId, day: SimDate, def: &CalendarEventDef, rule: usize, chance: f64) -> bool {
+pub(crate) fn attends(
+    seed: u64,
+    person: CharacterId,
+    day: SimDate,
+    def: &CalendarEventDef,
+    rule: usize,
+    chance: f64,
+) -> bool {
     rng(
         seed,
-        &[KEY_ATTEND, person.0 as u64, day.0 as u64, key_of(&def.id), rule as u64],
+        &[
+            KEY_ATTEND,
+            person.0 as u64,
+            day.0 as u64,
+            key_of(&def.id),
+            rule as u64,
+        ],
     )
     .chance(chance)
 }

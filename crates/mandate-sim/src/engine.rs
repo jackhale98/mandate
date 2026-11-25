@@ -298,7 +298,8 @@ impl Engine {
         // The run's policy-family decks (DEC-092).
         crate::policy::families::on_load(&mut self.state, &self.content);
         // The first turn's day played (DEC-114), now the player has a home.
-        self.state.calendar.day = crate::characters::calendar::choose_day(&self.state, &self.content);
+        self.state.calendar.day =
+            crate::characters::calendar::choose_day(&self.state, &self.content);
         let id = self.state.events.record(
             self.state.calendar.date,
             EventKind::GameStarted { seed },
@@ -627,7 +628,8 @@ impl Engine {
         // one would.
         crate::spine::prune::due(&mut self.state);
         // The next turn's day played (DEC-114), once its phase is known.
-        self.state.calendar.day = crate::characters::calendar::choose_day(&self.state, &self.content);
+        self.state.calendar.day =
+            crate::characters::calendar::choose_day(&self.state, &self.content);
         days
     }
 

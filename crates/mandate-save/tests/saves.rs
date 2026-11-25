@@ -157,7 +157,14 @@ fn state_shape_matches_format_version() {
     // conversations work and the exchange scenes merged. No serialized
     // struct changed in this task; the sample game's contents did, so the
     // version stays 31.
-    const EXPECTED: (u16, &str) = (31, "8e30e5a8b2465cf8");
+    // 8e30e5a8b2465cf8 (v31) -> 8cb38d9816427591 (v32): the town calendar
+    // and familiarity (B1, DEC-114). The calendar gained `day` (the day
+    // played), the player `at_events` (absent when empty), a relationship
+    // `familiar` (absent at zero), the log the event `calendar_event`; and
+    // where people stand moved with the day played. Migration:
+    // `calendar_familiarity` (no change: everyone a stranger, the day chosen
+    // as the state loads).
+    const EXPECTED: (u16, &str) = (32, "8cb38d9816427591");
     let c = content();
     let mut e = generate(
         &WorldConfig {

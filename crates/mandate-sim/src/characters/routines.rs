@@ -34,8 +34,8 @@ use crate::places::Location;
 use crate::politics::{PoliticsState, Post};
 use crate::state::{GamePhase, State};
 use crate::world::{Jurisdiction, MunicipalityId, NeighborhoodId, PlaceId, PlaceKind};
-use mandate_content::routines::{RoutineDay, RoutineDef, RoutineEvent, RoutineRole, Season};
 use mandate_content::ContentBundle;
+use mandate_content::routines::{RoutineDay, RoutineDef, RoutineEvent, RoutineRole, Season};
 use mandate_core::SimDate;
 
 pub use mandate_content::routines::DayPart;
@@ -354,13 +354,7 @@ fn resolve(
     }
 }
 
-fn holds(
-    content: &ContentBundle,
-    now: &Now,
-    w: &Who<'_>,
-    e: &RoutineEvent,
-    seed: u64,
-) -> bool {
+fn holds(content: &ContentBundle, now: &Now, w: &Who<'_>, e: &RoutineEvent, seed: u64) -> bool {
     let held = |id: &str| {
         now.held
             .iter()

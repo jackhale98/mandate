@@ -520,13 +520,8 @@ pub fn last_seen(engine: &Engine, person: CharacterId) -> Option<SeenView> {
 pub fn usually_seen(engine: &Engine, person: CharacterId) -> Option<SeenView> {
     let st = engine.state();
     let s = st.player.as_ref()?.knowledge.usually(person)?;
-    let days = mandate_sim::characters::routines::regular_days(
-        st,
-        engine.content(),
-        person,
-        s.at,
-        s.part,
-    );
+    let days =
+        mandate_sim::characters::routines::regular_days(st, engine.content(), person, s.at, s.part);
     let key = match days.len() {
         1 => "seen-usually-on",
         2 => "seen-usually-on-2",
