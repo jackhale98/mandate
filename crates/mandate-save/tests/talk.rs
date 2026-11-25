@@ -195,8 +195,9 @@ fn every_topic_works() {
         ("topic.support", Some(AboutRef::Bill { policy: bill })),
         ("topic.favour", Some(AboutRef::Bill { policy: bill })),
         ("topic.small_talk", None),
+        ("topic.open", None),
     ];
-    assert_eq!(c.talk_topics.len(), 7, "the seven base topics");
+    assert_eq!(c.talk_topics.len(), 8, "the eight base topics");
     for (i, (topic, about)) in topics.into_iter().enumerate() {
         if i % 2 == 0 {
             e.apply(Command::EndTurn).unwrap();
@@ -205,7 +206,10 @@ fn every_topic_works() {
         let x = exchange(&e, &r);
         assert_eq!(x.topic, topic);
         assert_eq!(x.speaker, a);
-        assert_eq!(x.about, about);
+        // The open question is about what the engine chose (M6 note 26).
+        if topic != "topic.open" {
+            assert_eq!(x.about, about);
+        }
         assert!(!substance(&x).is_empty(), "{topic}: a substance line");
         assert!(
             x.parts

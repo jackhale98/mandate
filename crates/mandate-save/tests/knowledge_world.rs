@@ -115,13 +115,26 @@ fn knows_never_decides_what_happens() {
     assert_eq!(issues.len(), 1, "{issues:?}");
     // Where knowledge frames what the player is shown, it stays allowed:
     // the base content validates with it in topics and lines.
+    // A topic may be offered by what the player knows (the base offers
+    // every topic to anyone since M6 note 26: trust sets the depth).
+    let mut issues = Vec::new();
+    mandate_content::condition::check(
+        &b,
+        &mandate_content::condition::Site::new(
+            "topic.test",
+            mandate_content::condition::ConditionUse::TalkTopic,
+            &["speaker", "player"],
+        ),
+        &Condition::PlayerKnows {
+            subject: SubjectRef::Broker,
+            min: None,
+            max: Some(Level::Known),
+        },
+        &mut issues,
+    );
     assert!(
-        b.talk_topics.iter().any(|t| t
-            .offered
-            .when
-            .iter()
-            .any(|c| matches!(c, Condition::PlayerKnows { .. }))),
-        "topics are offered by what the player knows"
+        issues.is_empty(),
+        "topics may be offered by what the player knows: {issues:?}"
     );
     assert!(
         b.talk_lines

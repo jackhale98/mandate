@@ -297,6 +297,37 @@ pub fn speaker_knows(
     speaker: CharacterId,
     s: &Subject,
 ) -> Level {
+    knows_by(state, content, speaker, s, false)
+}
+
+/// A `who` rule that cannot be seen from outside: who the power broker is
+/// is itself something to find out. Every other rule reads public facts (an
+/// occupation, a post, a workplace, a home).
+fn hidden(who: KnowsWho) -> bool {
+    matches!(who, KnowsWho::Broker)
+}
+
+/// What public facts say a person would know of a subject (M6 note 26): the
+/// same rules as [`speaker_knows`], without those nobody could see from
+/// outside ([`hidden`]) and before any discretion. This orders the talk
+/// panel, so the panel never shows what someone secretly knows, or what
+/// they are willing to say.
+pub fn expected_knows(
+    state: &State,
+    content: &ContentBundle,
+    speaker: CharacterId,
+    s: &Subject,
+) -> Level {
+    knows_by(state, content, speaker, s, true)
+}
+
+fn knows_by(
+    state: &State,
+    content: &ContentBundle,
+    speaker: CharacterId,
+    s: &Subject,
+    public_only: bool,
+) -> Level {
     let Some(town) = subject_town(state, s) else {
         return Level::Unknown;
     };
@@ -305,6 +336,7 @@ pub fn speaker_knows(
         .talk
         .speaker_knows
         .iter()
+        .filter(|r| !(public_only && hidden(r.who)))
         .filter(|r| local || r.who == KnowsWho::Officeholder)
         .filter(|r| covers(state, speaker, r.subject, s))
         .filter(|r| is_who(state, content, speaker, r.who, town, s))
