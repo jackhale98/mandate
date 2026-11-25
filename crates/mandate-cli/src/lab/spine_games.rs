@@ -226,7 +226,12 @@ fn the_queries_answer_on_a_played_game() {
         };
         // Credit and blame: the nearest player act behind the law.
         let behind = graph::nearest_player_act(log, e.id, 6);
-        if *sponsor == me {
+        // The player's own law: one they introduced. Their politician can
+        // have tabled a bill as an NPC before the player took them over
+        // (the history burn-in; seen in this game once NPC lobbying moved
+        // with M6 note 29): its cause is that politician, not a player act.
+        let by_player = intro.causes.iter().any(|c| c.player_act().is_some());
+        if *sponsor == me && by_player {
             mine += 1;
             let b = behind.expect("the player's own law has their act behind it");
             assert!(matches!(b.act, PlayerAct::Introduce | PlayerAct::Vote));
@@ -247,7 +252,10 @@ fn the_queries_answer_on_a_played_game() {
     );
     // A pattern on the real graph: a bill tabled by the player, then
     // enacted (any number of the player's votes between).
-    let tabled = |e: &DomainEvent| matches!(&e.kind, EventKind::PolicyIntroduced { sponsor, .. } if *sponsor == me);
+    let tabled = |e: &DomainEvent| {
+        matches!(&e.kind, EventKind::PolicyIntroduced { sponsor, .. } if *sponsor == me)
+            && e.causes.iter().any(|c| c.player_act().is_some())
+    };
     let passed = |e: &DomainEvent| matches!(e.kind, EventKind::PolicyEnacted { .. });
     let found = graph::matches(
         log,
