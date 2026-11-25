@@ -87,7 +87,7 @@ pub const ALL: &[Requirement] = &[
     },
     Requirement {
         name: "player_race_for_the_executive_within_30_turns",
-        needs: "a medium world where filing for the executive office puts the player in its race within 30 turns",
+        needs: "a medium world with a bill before the player's body at the start that the executive must sign, where filing for the executive office puts the player in its race within 30 turns",
         holds: player_race_for_the_executive_within_30_turns,
     },
     Requirement {
@@ -419,6 +419,14 @@ fn promises_reachable_by_skipping(seed: u64) -> bool {
 
 fn player_race_for_the_executive_within_30_turns(seed: u64) -> bool {
     let mut e = world(seed, WorldSize::Medium);
+    // The chamber shows the signer's lean on a bill awaiting a vote.
+    if !mandate_protocol::office_view(&e).is_some_and(|o| {
+        o.bills
+            .iter()
+            .any(|b| b.signer.is_some() && b.next_vote.is_some())
+    }) {
+        return false;
+    }
     let Some(cv) = campaign_view(&e) else {
         return false;
     };
