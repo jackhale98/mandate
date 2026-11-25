@@ -182,9 +182,21 @@ fn candidates(
         }
     };
     let mut out: Vec<ArcActor> = match &role.cast {
-        ArcCast::Occupation { occupations, near } => {
+        ArcCast::Occupation {
+            occupations,
+            near,
+            at: works_at,
+        } => {
             let near = area_of(near);
-            let mut people: Vec<(bool, usize, i64, u32)> = v
+            // A place role: someone whose own workplace it is comes first.
+            let place = works_at
+                .as_deref()
+                .and_then(|n| so_far.iter().find(|c| c.role == n))
+                .and_then(|c| match c.actor {
+                    ArcActor::Place { id } => Some(id),
+                    _ => None,
+                });
+            let mut people: Vec<(bool, bool, usize, i64, u32)> = v
                 .pol
                 .characters
                 .people
@@ -196,6 +208,7 @@ fn candidates(
                     if !town_of(v, c.id).is_some_and(|m| town_in(world, at, m)) {
                         return None;
                     }
+                    let elsewhere = place.is_some_and(|p| n.place != Some(p));
                     let far = near
                         .as_ref()
                         .is_some_and(|hs| !hs.contains(&(n.home as usize)));
@@ -203,14 +216,14 @@ fn candidates(
                         .content
                         .occupation(&n.occupation)
                         .map_or(0, |o| (o.influence * 1000.0) as i64);
-                    Some((far, order, -influence, c.id.0))
+                    Some((elsewhere, far, order, -influence, c.id.0))
                 })
                 .collect();
             people.sort();
             people
                 .into_iter()
                 .map(|p| ArcActor::Person {
-                    id: CharacterId(p.3),
+                    id: CharacterId(p.4),
                 })
                 .collect()
         }
@@ -411,6 +424,45 @@ fn candidates(
             }
             (JurisdictionPick::Parent, Jurisdiction::Nation) => Vec::new(),
         },
+        // A named plant in one of the states asked for: the furthest on in
+        // its review first, then the most jobs, then the lowest id.
+        ArcCast::Plant { status } => {
+            use mandate_content::condition::PlantState as S;
+            let econ = r.economy();
+            let mut plants: Vec<(u8, i64, u32, crate::world::PlaceId)> = econ
+                .plants
+                .iter()
+                .filter(|p| {
+                    world
+                        .places
+                        .get(p.place.index())
+                        .is_some_and(|pl| at.contains_hood(world, pl.neighborhood))
+                })
+                .filter_map(|p| {
+                    let s = crate::condition::plant_state(&p.status);
+                    let fits = if status.is_empty() {
+                        s != S::Closed
+                    } else {
+                        status.contains(&s)
+                    };
+                    if !fits {
+                        return None;
+                    }
+                    let rank = match s {
+                        S::Threatened => 0,
+                        S::ShortTime => 1,
+                        S::Running => 2,
+                        S::Closed => 3,
+                    };
+                    Some((rank, -(p.capacity.round() as i64), p.id.0, p.place))
+                })
+                .collect();
+            plants.sort();
+            plants
+                .into_iter()
+                .map(|p| ArcActor::Place { id: p.3 })
+                .collect()
+        }
         // Not yet (`mandate_content::arcs::not_yet`): never raised.
         ArcCast::Subject => Vec::new(),
     };

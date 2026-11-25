@@ -162,6 +162,29 @@ pub fn resolve(v: &View<'_>, run: &ArcRun, effects: &[GatedEffect]) -> Asked {
                     _ => {}
                 }
             }
+            // The plant at a place role: relief on its margin (the economy
+            // applies it monthly, and its own rule decides the review).
+            ArcEffect::PlantRelief {
+                place,
+                relief,
+                months,
+            } => {
+                if let Some(super::ArcActor::Place { id }) = run.actor(place)
+                    && let Some(p) = crate::economy::plants::at_place(r.economy(), id)
+                    && p.is_open()
+                {
+                    out.requests.push(Effect::PlantRelief {
+                        plant: p.id.0,
+                        relief: *relief,
+                        months: *months,
+                    });
+                }
+            }
+            ArcEffect::Repay { role } => {
+                if let (Some(creditor), Some(debtor)) = (run.person(role), me) {
+                    out.requests.push(Effect::Repay { debtor, creditor });
+                }
+            }
             // Not yet (`mandate_content::arcs::not_yet`): never raised.
             ArcEffect::GovApproval { .. } | ArcEffect::PlaceState { .. } => {}
         }
@@ -202,7 +225,10 @@ fn still_away(v: &View<'_>, area: Area) -> Vec<Effect> {
 /// A request whose applier runs monthly: it would wait outside the state
 /// between advances, so the arcs domain holds it until the month turns.
 pub fn monthly(e: &Effect) -> bool {
-    matches!(e, Effect::Displacement { .. })
+    matches!(
+        e,
+        Effect::Displacement { .. } | Effect::PlantRelief { .. }
+    )
 }
 
 /// Post requests from inside the scheduler, each with its cause. Those for

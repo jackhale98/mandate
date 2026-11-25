@@ -778,6 +778,22 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
             }
         }
         C::LastRace { .. } | C::SponsorsBill { .. } => {}
+        // The plant as it stands (any state, no date asked).
+        C::Plant { slot, .. } => {
+            let mut a = condition::Args::new();
+            let any = C::Plant {
+                slot: slot.clone(),
+                status: Vec::new(),
+                closes_within_days: None,
+            };
+            if condition::holds(cx, &any, &mut a) {
+                for k in ["stem", "jobs", "closes_day", "closes_year"] {
+                    if let Some(x) = a.get(k) {
+                        put(k, x.clone());
+                    }
+                }
+            }
+        }
         C::BodyMajority { power, .. } => {
             if let Some(at) = cx.at {
                 let n = crate::arcs::cast::power_holders(v, at, *power).len();

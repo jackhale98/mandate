@@ -157,6 +157,12 @@ pub enum Effect {
         toward: crate::characters::CharacterId,
         owed_to_player: bool,
     },
+    /// One favour `debtor` owes `creditor` is paid off (politics applies;
+    /// the creditor remembers it kept): a debt settled in another coin.
+    Repay {
+        debtor: crate::characters::CharacterId,
+        creditor: crate::characters::CharacterId,
+    },
     /// Approval of the player in an area (population applies), × room, by
     /// income class (empty: all) and by community (registry indices;
     /// empty: all).

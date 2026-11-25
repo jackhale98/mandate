@@ -209,6 +209,79 @@ fn in_range(v: f64, min: Option<f64>, max: Option<f64>) -> bool {
     min.is_none_or(|a| v >= a) && max.is_none_or(|z| v <= z)
 }
 
+/// A named plant's state as content names it.
+pub fn plant_state(s: &crate::economy::plants::PlantStatus) -> mandate_content::condition::PlantState {
+    use crate::economy::plants::PlantStatus as P;
+    use mandate_content::condition::PlantState as S;
+    match s {
+        P::Running => S::Running,
+        P::ShortTime { .. } => S::ShortTime,
+        P::Threatened { .. } => S::Threatened,
+        P::Closed { .. } => S::Closed,
+    }
+}
+
+/// `plant` (DEC-110): the plant at a run's place role, or any plant in the
+/// jurisdiction (the first that fits, in id order), in one of the states
+/// asked for; under notice, its date close enough.
+fn plant_holds(
+    cx: &Ctx<'_>,
+    slot: Option<&str>,
+    status: &[mandate_content::condition::PlantState],
+    closes_within_days: Option<u32>,
+    args: &mut Args,
+) -> bool {
+    use crate::economy::plants::{self, PlantStatus};
+    let v = cx.v;
+    let econ = v.r.economy();
+    let world = v.r.world;
+    let today = v.date();
+    let fits = |p: &plants::Plant| {
+        (status.is_empty() || status.contains(&plant_state(&p.status)))
+            && closes_within_days.is_none_or(|d| match p.status {
+                PlantStatus::Threatened { closes_on, .. } => {
+                    closes_on <= today || today.days_until(closes_on) <= d
+                }
+                _ => false,
+            })
+    };
+    let found = match slot {
+        Some(role) => match cx.arc.and_then(|r| r.actor(role)) {
+            Some(crate::arcs::ArcActor::Place { id }) => {
+                plants::at_place(econ, id).filter(|p| fits(p))
+            }
+            _ => None,
+        },
+        None => {
+            let Some(at) = cx.at else { return false };
+            econ.plants.iter().find(|p| {
+                world
+                    .places
+                    .get(p.place.index())
+                    .is_some_and(|pl| at.contains_hood(world, pl.neighborhood))
+                    && fits(p)
+            })
+        }
+    };
+    let Some(p) = found else { return false };
+    for (k, x) in plants::text_args(econ, v.content(), p.id) {
+        args.insert(k.into(), x);
+    }
+    // A closed plant keeps its last size: the jobs that went with it.
+    let jobs = match p.status {
+        PlantStatus::Closed { .. } => p.capacity.round().max(0.0) as u32,
+        _ => plants::facts(econ, world, v.content(), p.id).map_or(0, |f| f.jobs),
+    };
+    args.insert("jobs".into(), jobs.to_string());
+    if let PlantStatus::Threatened { closes_on, .. } = p.status {
+        let c = closes_on.calendar();
+        args.insert("closes_day".into(), c.day.to_string());
+        args.insert("closes_month_key".into(), format!("month-{}", c.month));
+        args.insert("closes_year".into(), c.year.to_string());
+    }
+    true
+}
+
 /// Do all conditions hold? Collects their arguments.
 pub fn all_hold(cx: &Ctx<'_>, cs: &[Condition], args: &mut Args) -> bool {
     cs.iter().all(|c| holds(cx, c, args))
@@ -1035,6 +1108,11 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
                 .max_by_key(|r| r.date)
                 .is_some_and(|r| (r.winner == me) == *won)
         }
+        C::Plant {
+            slot,
+            status,
+            closes_within_days,
+        } => plant_holds(cx, slot.as_deref(), status, *closes_within_days, args),
         C::SponsorsBill { slot } => {
             let Some(p) = cx.person(slot) else {
                 return false;

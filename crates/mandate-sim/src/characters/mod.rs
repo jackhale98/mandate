@@ -985,7 +985,10 @@ pub fn apply_effects(
     for e in out.take(|e| {
         matches!(
             e,
-            Effect::Opinion { .. } | Effect::Favour { .. } | Effect::Record { .. }
+            Effect::Opinion { .. }
+                | Effect::Favour { .. }
+                | Effect::Repay { .. }
+                | Effect::Record { .. }
         )
     }) {
         apply_ask_effect(pol, r.content, r.meta.seed, r.date, &e.effect);
@@ -1062,6 +1065,20 @@ pub fn apply_ask_effect(
                 (*toward, *holder)
             };
             owe(pol, debtor, creditor, "favour-ask", None, date);
+        }
+        Effect::Repay { debtor, creditor } => {
+            if let Some(f) = repay(pol, *debtor, *creditor) {
+                remember(
+                    pol,
+                    content,
+                    date,
+                    *creditor,
+                    *debtor,
+                    MemoryKind::KeptPromise,
+                    f.subject,
+                    None,
+                );
+            }
         }
         Effect::Record { politician, delta } => {
             if *delta >= 0.0 {
