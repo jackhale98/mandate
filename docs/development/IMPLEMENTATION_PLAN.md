@@ -95,6 +95,8 @@ Each wave builds on the one before. Within a wave, tasks marked ∥ have disjoin
 - **The landing page rewritten** (owner, 2026-11-24): the new pitch drafted at the end of W3 for the owner to read (the cold open is the hook), screenshots taken after W5 (named plants, works and upkeep change how towns look), shipped just before the checkpoint. Settle first: the name and any subtitle, a contact address, and a custom domain if there is one.
 - The tester checkpoint, with the engagement questions ("did you care about anyone?").
 
+**Every new system ships with a story (owner, 2026-11-25).** A system added from M7 on brings at least one staged arc and the simulated cause that raises it, built on the existing arc building blocks (a new kind of block only when none fits), and graded like any other arc. Otherwise the systems grow and the stories do not.
+
 **M7, one system at a time (each passing §1's tests):** faith communities; crime with justice and prisons; commuting, then transport; energy; immigration with DEC-087; living parties (DEC-107); NPC stress and the player's wellbeing with daily life; return to a world (DEC-103); the Act 2 design (DEC-105). Account sync when the domain exists (DEC-104).
 
 ## 5. Working with agents: spend tokens where they buy something
