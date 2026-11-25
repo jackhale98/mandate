@@ -147,7 +147,7 @@ fn state_shape_matches_format_version() {
     // moves because a v30 save may hold them and a v29 build cannot read
     // them. Migration: `exchange_scenes` (a challenge waiting as a
     // decision lapses).
-    const EXPECTED: (u16, &str) = (29, "04a127111f358b05");
+    const EXPECTED: (u16, &str) = (30, "04a127111f358b05");
     let c = content();
     let mut e = generate(
         &WorldConfig {
