@@ -3053,6 +3053,15 @@
         }
       ]
     },
+    "Commodity": {
+      "description": "A world commodity an industry sells or buys (the economy's three price\nindices, in their order).",
+      "enum": [
+        "agriculture",
+        "minerals",
+        "energy"
+      ],
+      "type": "string"
+    },
     "CommunityDef": {
       "additionalProperties": false,
       "description": "A community (DEC-075): a cohort dimension beside age band and income\nclass. Every neighbourhood holds age × class cohorts for each community.\nRegistry order is load order (files by path, then item order). The base\npack ships one community, so the dimension costs nothing until an\nexpansion adds another (an Indigenous nation, an immigrant community, a\nlinguistic minority).",
@@ -7069,6 +7078,64 @@
           },
           "description": "The town housing market: household formation, rents, prices and\nprivate building (`economy::housing`)."
         },
+        "industries": {
+          "$ref": "#/$defs/IndustryParams",
+          "default": {
+            "boom_line": 1.12,
+            "boom_months": 24,
+            "boom_size": 0.6,
+            "boom_stock": 0.3,
+            "factor_months": 6.0,
+            "full_line": 0.94,
+            "link_range": [
+              0.3,
+              1.5
+            ],
+            "max_industries": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "max_town_share": 0.25,
+            "min_capacity": 200.0,
+            "min_plant": [
+              25.0,
+              60.0,
+              150.0,
+              250.0
+            ],
+            "min_share": 0.12,
+            "name_forms": [
+              0.45,
+              0.3,
+              0.15,
+              0.1
+            ],
+            "new_plant_margin": 0.05,
+            "notice_after_months": 9,
+            "notice_gap_months": 12,
+            "notice_line": 0.78,
+            "notice_months": [
+              4,
+              9
+            ],
+            "pool_share": 0.5,
+            "reprieve_line": 0.84,
+            "reprieve_months": 2,
+            "short_line": 0.9,
+            "short_months": 2,
+            "small_decay": 0.015,
+            "town_sd": 0.25,
+            "trend_months": 120.0,
+            "works_words": [],
+            "world_range": [
+              0.6,
+              1.5
+            ]
+          },
+          "description": "Industries and named plants (DEC-110): the closure process, plant\nsizes and siting numbers every industry shares."
+        },
         "inflation_target": {
           "format": "double",
           "type": "number"
@@ -8215,6 +8282,67 @@
       },
       "type": "object"
     },
+    "ExposureDef": {
+      "additionalProperties": false,
+      "description": "The exponents of an industry's demand formula (DEC-110): each named\nfactor raised to its exponent, multiplied together.",
+      "properties": {
+        "import_exposure": {
+          "default": 0.0,
+          "description": "Import exposure: how hard foreign competition bites (the exponent\non the nation's manufacturing competitiveness; a later tariff on its\ngoods works through this term).",
+          "format": "double",
+          "type": "number"
+        },
+        "labour_cost": {
+          "default": 0.0,
+          "description": "Elasticity to the town's unit labour costs.",
+          "format": "double",
+          "type": "number"
+        },
+        "low_pay": {
+          "default": 0.0,
+          "description": "Share of its jobs a wage floor prices (0 = none of them).",
+          "format": "double",
+          "type": "number"
+        },
+        "markets": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Its own weights across markets (market id to weight); omitted\nmarkets take the market's own `share`.",
+          "type": "object"
+        },
+        "prices": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Price exponents by good (a good id with a price index): above zero\nfor what it sells, below for what it buys.",
+          "type": "object"
+        },
+        "stock": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StockExposure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The region's stock it draws on, if any."
+        },
+        "water": {
+          "default": 0.0,
+          "description": "Exponent on the region's water availability.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "Facing": {
       "enum": [
         "down",
@@ -9079,6 +9207,15 @@
       },
       "type": "object"
     },
+    "GatewayKind": {
+      "description": "Where trade physically passes (DEC-110, the seam for foreign trade): a\nkind of place. A port today; a border crossing and a rail head are kinds\na later layout can place. An industry's siting can weight one, an\nindustry can name the one its external trade ships through, and a later\ndisruption can hit one.",
+      "enum": [
+        "port",
+        "border_crossing",
+        "rail_head"
+      ],
+      "type": "string"
+    },
     "GeoCondition": {
       "additionalProperties": false,
       "description": "Geography conditions (each a field of the town's geography, §6.5). Every\ncondition given must hold; per-mille ranges are 0..1000.",
@@ -9364,6 +9501,36 @@
           "type": "boolean"
         }
       },
+      "type": "object"
+    },
+    "GoodDef": {
+      "additionalProperties": false,
+      "description": "A good (DEC-110, the seam for foreign trade): what a product is, for a\ntariff or a trade deal to name. Every product belongs to one. A good\nmay carry one of the world's price indices: the prices industries sell\nand buy at are read through this registry.",
+      "properties": {
+        "id": {
+          "description": "Content id, e.g. `good.fuels`.",
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Commodity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The world price index this good's price is (none: no price index;\nan industry cannot be exposed to its price)."
+        }
+      },
+      "required": [
+        "id",
+        "name_key"
+      ],
       "type": "object"
     },
     "GrantDef": {
@@ -9994,6 +10161,410 @@
           "type": "string"
         }
       ]
+    },
+    "IndustryDef": {
+      "additionalProperties": false,
+      "description": "An industry (DEC-110): a registry level under a sector. The sector stays\nthe group that totals, worries and map layers read; a sector with\nindustries is a split sector, whose state is the sum of its industries.\nRegistry order is load order (files by path, then item order).",
+      "properties": {
+        "base_wage": {
+          "description": "Mean annual wage per worker at price level 1.0.",
+          "format": "double",
+          "type": "number"
+        },
+        "cyclicality": {
+          "description": "Elasticity of demand to the global cycle.",
+          "format": "double",
+          "type": "number"
+        },
+        "export_share": {
+          "default": 1.0,
+          "description": "How much of its demand is external (sold to the markets) against\ndomestic (`home`): demand is `export_share × external + (1 −\nexport_share) × home`.",
+          "format": "double",
+          "type": "number"
+        },
+        "exposure": {
+          "$ref": "#/$defs/ExposureDef",
+          "default": {
+            "import_exposure": 0.0,
+            "labour_cost": 0.0,
+            "low_pay": 0.0,
+            "markets": {},
+            "prices": {},
+            "stock": null,
+            "water": 0.0
+          }
+        },
+        "home": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "What its domestic demand reads, as weights (omitted: national\nconsumption).",
+          "type": "object"
+        },
+        "id": {
+          "description": "Content id, e.g. `industry.food_processing`.",
+          "type": "string"
+        },
+        "link_power": {
+          "default": 0.5,
+          "description": "Exponent on the supply term the links make.",
+          "format": "double",
+          "type": "number"
+        },
+        "links": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/IndustryLink"
+          },
+          "type": "array"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "plants": {
+          "$ref": "#/$defs/PlantsDef",
+          "default": {
+            "closes": true,
+            "founded": [
+              15,
+              90
+            ],
+            "margin_sd": 0.06,
+            "named_share": [
+              0.3,
+              0.5
+            ],
+            "opens": "none",
+            "place_kind": null
+          }
+        },
+        "productivity_growth": {
+          "description": "Annual productivity growth (fraction).",
+          "format": "double",
+          "type": "number"
+        },
+        "products": {
+          "description": "What its works make: at least one.",
+          "items": {
+            "$ref": "#/$defs/ProductDef"
+          },
+          "type": "array"
+        },
+        "sector": {
+          "description": "The sector it belongs to.",
+          "type": "string"
+        },
+        "ships_through": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GatewayKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The gateway its external trade ships through, if one: what a later\ndisruption at a gateway reaches."
+        },
+        "siting": {
+          "$ref": "#/$defs/SitingDef",
+          "default": {
+            "base": 1.0,
+            "by_class": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "gateways": {},
+            "geo": {},
+            "likes": {},
+            "near": {},
+            "needs": [],
+            "needs_gateway": [],
+            "regional_sd": 0.0
+          }
+        },
+        "talk_key": {
+          "default": null,
+          "description": "Fluent key of the industry as residents name it (a noun phrase).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "trend": {
+          "default": 0.0,
+          "description": "Annual drift of capacity (fraction).",
+          "format": "double",
+          "type": "number"
+        },
+        "weight": {
+          "description": "Share of the sector's jobs in a generic economy.",
+          "format": "double",
+          "type": "number"
+        },
+        "world": {
+          "$ref": "#/$defs/WorldIndexDef",
+          "description": "How its index moves in each market (one walk per market)."
+        }
+      },
+      "required": [
+        "id",
+        "sector",
+        "name_key",
+        "weight",
+        "base_wage",
+        "cyclicality",
+        "productivity_growth",
+        "world",
+        "products"
+      ],
+      "type": "object"
+    },
+    "IndustryLink": {
+      "additionalProperties": false,
+      "description": "A local supply link (DEC-110): this industry runs on what another\nindustry, or a whole sector, does nearby. No goods move; the link reads\nthe upstream's jobs against their ten-year average.",
+      "properties": {
+        "from": {
+          "description": "An industry id or a sector id.",
+          "type": "string"
+        },
+        "local": {
+          "description": "Share read from the town itself; the rest from the rest of its region.",
+          "format": "double",
+          "type": "number"
+        },
+        "weight": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "from",
+        "weight",
+        "local"
+      ],
+      "type": "object"
+    },
+    "IndustryParams": {
+      "additionalProperties": false,
+      "description": "The closure process and plant sizes shared by every industry (DEC-110).",
+      "properties": {
+        "boom_line": {
+          "description": "A boom reopens a works when the industry's demand has averaged over\n`boom_line` and the stock is over `boom_stock`, `boom_months` after\nit closed at the earliest, at `boom_size` of the closed plant's size.",
+          "format": "double",
+          "type": "number"
+        },
+        "boom_months": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "boom_size": {
+          "format": "double",
+          "type": "number"
+        },
+        "boom_stock": {
+          "format": "double",
+          "type": "number"
+        },
+        "factor_months": {
+          "description": "Months in the average of each demand factor that names the cause.",
+          "format": "double",
+          "type": "number"
+        },
+        "full_line": {
+          "description": "It is back on full time when demand is at or over this for\n`short_months` months (above the short line, so hours do not flap).",
+          "format": "double",
+          "type": "number"
+        },
+        "link_range": {
+          "description": "Supply links read upstream jobs over their average within this range.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "max_industries": {
+          "description": "Siting: the most industries a town keeps in one split sector, by\nsettlement class (rural, town, city, metro).",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "max_town_share": {
+          "description": "The most of a town's jobs one plant holds when it is placed.",
+          "format": "double",
+          "type": "number"
+        },
+        "min_capacity": {
+          "description": "An industry smaller than this in a town sheds no firms (jobs).",
+          "format": "double",
+          "type": "number"
+        },
+        "min_plant": {
+          "description": "The smallest named plant by settlement class: rural, town, city,\nmetro (jobs).",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "min_share": {
+          "description": "Siting: a share of the sector under this folds into the others.",
+          "format": "double",
+          "type": "number"
+        },
+        "name_forms": {
+          "description": "How plant names are formed, as weights: the town, a family, a word\nfrom `works_words`, the district.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "new_plant_margin": {
+          "description": "A plant that opens during a run draws its margin this much higher\n(newer works are the last to go).",
+          "format": "double",
+          "type": "number"
+        },
+        "notice_after_months": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "notice_gap_months": {
+          "description": "Months between new notices in one town (waived in a recession).",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "notice_line": {
+          "description": "A notice is served when it is under this for `notice_after_months`\nmonths running.",
+          "format": "double",
+          "type": "number"
+        },
+        "notice_months": {
+          "description": "A notice's length in months, [least, most]: the one draw.",
+          "items": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "pool_share": {
+          "description": "While a closed works waits to reopen, the share of what idle labour\ndraws each month that gathers toward it; the rest grows the unnamed\nfirms at once, so a town's recovery does not wait for the works.",
+          "format": "double",
+          "type": "number"
+        },
+        "reprieve_line": {
+          "description": "A notice is lifted when demand is at or over this for\n`reprieve_months` months before the date.",
+          "format": "double",
+          "type": "number"
+        },
+        "reprieve_months": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "short_line": {
+          "description": "A plant goes on short time when its margin-adjusted demand is under\nthis for `short_months` months running.",
+          "format": "double",
+          "type": "number"
+        },
+        "short_months": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "small_decay": {
+          "description": "Monthly shrinkage of an industry's unnamed firms while its demand is\nunder the notice line.",
+          "format": "double",
+          "type": "number"
+        },
+        "town_sd": {
+          "description": "Siting: standard deviation (in logs) of a town's own draw.",
+          "format": "double",
+          "type": "number"
+        },
+        "trend_months": {
+          "description": "Months in the long average of jobs that anchors the supply links.",
+          "format": "double",
+          "type": "number"
+        },
+        "works_words": {
+          "description": "Words a works is named by (\"the Albion mill\"). Fictional (REQ-001).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "world_range": {
+          "description": "Bounds of an industry's world index.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "short_line",
+        "short_months",
+        "full_line",
+        "notice_line",
+        "notice_after_months",
+        "notice_months",
+        "reprieve_line",
+        "reprieve_months",
+        "notice_gap_months",
+        "small_decay",
+        "min_capacity",
+        "min_plant",
+        "max_town_share",
+        "factor_months",
+        "trend_months",
+        "link_range",
+        "world_range",
+        "max_industries",
+        "min_share",
+        "town_sd",
+        "boom_line",
+        "boom_months",
+        "boom_stock",
+        "boom_size",
+        "name_forms",
+        "works_words",
+        "new_plant_margin",
+        "pool_share"
+      ],
+      "type": "object"
     },
     "InteriorLight": {
       "additionalProperties": false,
@@ -11456,6 +12027,36 @@
       },
       "required": [
         "classes"
+      ],
+      "type": "object"
+    },
+    "MarketDef": {
+      "additionalProperties": false,
+      "description": "A market (DEC-110, the seam for foreign trade; DEC-087): a place an\nindustry sells to outside the country. The base pack has one, the rest\nof the world. An industry's external demand is the sum over markets of\nits share in the market × the market's index for the industry × the\nmarket's access. A neighbouring nation added later is another market,\nwith an index its own economy drives. Registry order is load order.",
+      "properties": {
+        "access": {
+          "default": 1.0,
+          "description": "Access as the world begins: 1 is open trade. A tariff, a treaty, a\ndispute or a closed border changes it later.",
+          "format": "double",
+          "type": "number"
+        },
+        "id": {
+          "description": "Content id, e.g. `market.world`.",
+          "type": "string"
+        },
+        "name_key": {
+          "type": "string"
+        },
+        "share": {
+          "default": 1.0,
+          "description": "Its weight in every industry's external sales (shares are these\nweights over their sum); an industry may set its own\n(`exposure.markets`).",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name_key"
       ],
       "type": "object"
     },
@@ -13462,6 +14063,17 @@
             "null"
           ]
         },
+        "gateway": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GatewayKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The gateway this kind of place is (DEC-110): where trade passes."
+        },
         "id": {
           "description": "Content id, e.g. `place.council_chamber`.",
           "type": "string"
@@ -13591,6 +14203,86 @@
         "landmark",
         "art"
       ],
+      "type": "object"
+    },
+    "PlantOpens": {
+      "description": "How a plant of an industry comes back after one has closed.",
+      "oneOf": [
+        {
+          "const": "investment",
+          "description": "Idle labour gathers in the town's investment pool; a works reopens\nwhen the pool is a plant's size.",
+          "type": "string"
+        },
+        {
+          "const": "boom",
+          "description": "A long boom in the industry's demand reopens the works.",
+          "type": "string"
+        },
+        {
+          "const": "none",
+          "description": "Never.",
+          "type": "string"
+        }
+      ]
+    },
+    "PlantsDef": {
+      "additionalProperties": false,
+      "description": "An industry's named plants (DEC-110).",
+      "properties": {
+        "closes": {
+          "default": true,
+          "description": "Whether its plants close (false: they go on short time and stay).",
+          "type": "boolean"
+        },
+        "founded": {
+          "default": [
+            15,
+            90
+          ],
+          "description": "Age in years of a plant standing as history begins, [least, most].",
+          "items": {
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "margin_sd": {
+          "default": 0.06,
+          "description": "Standard deviation of a plant's fixed margin.",
+          "format": "double",
+          "type": "number"
+        },
+        "named_share": {
+          "default": [
+            0.3,
+            0.5
+          ],
+          "description": "Share of the industry's capacity in a town its named plant takes,\n[least, most]: one keyed draw.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "opens": {
+          "$ref": "#/$defs/PlantOpens",
+          "default": "none"
+        },
+        "place_kind": {
+          "default": null,
+          "description": "The place kind (its `key`) that hosts this industry's plant; none:\nthe industry is small firms and crews only.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
       "type": "object"
     },
     "PlayerEventKey": {
@@ -14110,6 +14802,43 @@
       ],
       "type": "object"
     },
+    "ProductDef": {
+      "additionalProperties": false,
+      "description": "What a town's branch of an industry makes (DEC-110): text and siting\nonly; nothing is simulated per product.",
+      "properties": {
+        "good": {
+          "description": "The good it is (a good id): what a tariff or a trade deal names.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Content id, e.g. `product.canned_fish`.",
+          "type": "string"
+        },
+        "product_key": {
+          "description": "Fluent key of the product as a mass noun (\"canned fish\").",
+          "type": "string"
+        },
+        "with": {
+          "default": null,
+          "description": "The industry whose presence nearby picks this product.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "works_key": {
+          "description": "Fluent key of the works' noun (\"cannery\").",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "works_key",
+        "product_key",
+        "good"
+      ],
+      "type": "object"
+    },
     "PromiseAnswers": {
       "description": "What a promise answers (validation: every promise names it).",
       "oneOf": [
@@ -14517,6 +15246,15 @@
         "jitter"
       ],
       "type": "object"
+    },
+    "ResourceStock": {
+      "description": "A regional resource stock an industry draws on.",
+      "enum": [
+        "mineral",
+        "timber",
+        "fish"
+      ],
+      "type": "string"
     },
     "ResponseParams": {
       "additionalProperties": false,
@@ -15554,6 +16292,152 @@
       ],
       "type": "object"
     },
+    "SiteFlag": {
+      "description": "A yes-or-no fact about a town an industry's siting needs or likes.",
+      "oneOf": [
+        {
+          "enum": [
+            "coastal"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "river",
+          "description": "The town is on a river.",
+          "type": "string"
+        },
+        {
+          "const": "rail",
+          "description": "A rail link reaches the town.",
+          "type": "string"
+        },
+        {
+          "const": "industrial",
+          "description": "The town has an industrial district.",
+          "type": "string"
+        }
+      ]
+    },
+    "SitingDef": {
+      "additionalProperties": false,
+      "description": "Where an industry settles (DEC-110): a town's score is\n`(base + Σ geo weights × the town's geography) × likes × by_class × near\n× the region's tradition × a town draw`, and zero when a `needs` flag\nfails.",
+      "properties": {
+        "base": {
+          "default": 0.0,
+          "format": "double",
+          "type": "number"
+        },
+        "by_class": {
+          "default": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "description": "Multiplier by settlement class: rural, town, city, metro.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "gateways": {
+          "additionalProperties": false,
+          "default": {},
+          "description": "Multipliers for gateways a town has.",
+          "properties": {
+            "border_crossing": {
+              "format": "double",
+              "type": "number"
+            },
+            "port": {
+              "format": "double",
+              "type": "number"
+            },
+            "rail_head": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "geo": {
+          "additionalProperties": false,
+          "default": {},
+          "description": "Weights on the town's geography.",
+          "properties": {
+            "energy": {
+              "format": "double",
+              "type": "number"
+            },
+            "fertility": {
+              "format": "double",
+              "type": "number"
+            },
+            "fishing": {
+              "format": "double",
+              "type": "number"
+            },
+            "minerals": {
+              "format": "double",
+              "type": "number"
+            },
+            "scenic": {
+              "format": "double",
+              "type": "number"
+            },
+            "timber": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "likes": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Multipliers for flags a town has.",
+          "type": "object"
+        },
+        "near": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "default": {},
+          "description": "Multipliers where another industry is strong in the town.",
+          "type": "object"
+        },
+        "needs": {
+          "default": [],
+          "description": "Flags a town must have.",
+          "items": {
+            "$ref": "#/$defs/SiteFlag"
+          },
+          "type": "array"
+        },
+        "needs_gateway": {
+          "default": [],
+          "description": "Gateways a town must have (a port for a shipyard).",
+          "items": {
+            "$ref": "#/$defs/GatewayKind"
+          },
+          "type": "array"
+        },
+        "regional_sd": {
+          "default": 0.0,
+          "description": "Standard deviation (in logs) of each region's tradition: one keyed\ndraw per region and industry.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "SituationTrigger": {
       "additionalProperties": false,
       "description": "A trigger on a jurisdiction's situation: it holds while every `all`\ncondition holds and, when any are given, one of the `any` conditions\ndoes. Situational policies' unlocks and policy families' triggers and\nexpiry (DEC-092).",
@@ -15978,6 +16862,24 @@
         "ended"
       ],
       "type": "string"
+    },
+    "StockExposure": {
+      "additionalProperties": false,
+      "description": "A stock an industry depends on: demand scales with `stock ^ power`.",
+      "properties": {
+        "of": {
+          "$ref": "#/$defs/ResourceStock"
+        },
+        "power": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "of",
+        "power"
+      ],
+      "type": "object"
     },
     "StorytellerDef": {
       "additionalProperties": false,
@@ -18716,6 +19618,50 @@
       ],
       "type": "object"
     },
+    "WorldIndexDef": {
+      "additionalProperties": false,
+      "description": "An industry's own world demand index (DEC-110): a mean-reverting walk\non a keyed stream, with rare jumps.",
+      "properties": {
+        "reversion": {
+          "description": "Monthly pull of the log index toward 0 (0.03: a half-life of about\ntwo years).",
+          "format": "double",
+          "type": "number"
+        },
+        "shock_chance": {
+          "description": "Monthly chance of a jump.",
+          "format": "double",
+          "type": "number"
+        },
+        "shock_down": {
+          "description": "Chance a jump is down.",
+          "format": "double",
+          "type": "number"
+        },
+        "shock_size": {
+          "description": "A jump's size in logs, [least, most].",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "volatility": {
+          "description": "Monthly standard deviation of the log index.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "volatility",
+        "reversion",
+        "shock_chance",
+        "shock_size",
+        "shock_down"
+      ],
+      "type": "object"
+    },
     "Worry": {
       "description": "How a worry is read.",
       "oneOf": [
@@ -18798,6 +19744,69 @@
         },
         "kind": {
           "const": "sectors",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Industries: a registry level under the sectors (DEC-110).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/IndustryDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "industries",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Markets: where industries sell outside the country (DEC-110).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/MarketDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "markets",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "Goods: what products are, for trade to name (DEC-110).",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/GoodDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "goods",
           "type": "string"
         }
       },

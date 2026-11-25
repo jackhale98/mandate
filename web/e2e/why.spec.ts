@@ -195,7 +195,6 @@ test("a plant in trouble names what weighed on it", async ({ page }, info) => {
   await expectFits(page, panel);
   if (capture) await page.screenshot({ path: `${capture}/why-closure-${info.project.name}.png` });
 });
-});
 
 test("election night: a result's Why? shows the race's chain with the engine's factors beside it", async ({ page }, info) => {
   // One project plays the campaign through (the smoke spec plays it on both); a capture run takes both.
