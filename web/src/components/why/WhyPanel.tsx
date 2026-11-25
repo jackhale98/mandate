@@ -12,7 +12,7 @@ const ROOT_MARK: Record<RootKind, string> = {
   player: "⚑",
   actor: "☺",
   process: "⚙",
-  pressure: "▼",
+  pressure: "⚖",
   exogenous: "☁",
   history: "⌛",
   forgotten: "…",
