@@ -48,6 +48,10 @@ test("go to the fortnight's event from Today, and find it full", async ({ page }
   const panel = page.getByTestId("place-panel");
   await expect(panel).toBeVisible({ timeout: 20_000 });
   await expect(panel.getByTestId("you-are-here-panel")).toBeVisible();
+  // Full: the people who came and the event's crowd of passers-by.
+  const people = panel.getByTestId("people-here");
+  await people.scrollIntoViewIfNeeded();
+  expect(await people.locator("ul.people > li").count()).toBeGreaterThanOrEqual(4);
   if (shots) {
     await settle(page);
     await page.screenshot({ path: `${shots}/event-place-full.png` });
