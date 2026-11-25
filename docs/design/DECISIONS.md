@@ -120,6 +120,7 @@ Accepted decisions are not changed silently. Revisions get a new entry that supe
 | [DEC-111](decisions/DEC-111.md) | The impact estimate: what a bill will probably do, from its mechanisms and lab-fitted pass-through; the honesty gate; members weigh their district's gain | Accepted |
 | [DEC-112](decisions/DEC-112.md) | Exchange scenes: an arc's turn is played (a debate, a negotiation, a hearing, a public meeting as one data-driven scene; never a single pop-up) | Accepted |
 | [DEC-113](decisions/DEC-113.md) | The pocket: Today and the Notebook (doing split from reference, compact rows ordered by what matters now, a length budget) | Accepted |
+| [DEC-114](decisions/DEC-114.md) | Being there: the town is lived in (verbs happen to someone somewhere; doors, faults and casework, a town calendar, regulars) | Accepted |
 
 ---
 
