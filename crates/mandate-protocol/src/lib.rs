@@ -9,6 +9,7 @@ pub mod campaign;
 pub mod characters;
 #[cfg(feature = "dev-tools")]
 pub mod dev;
+pub mod exchange;
 pub mod impact;
 pub mod knowledge;
 pub mod layout;
@@ -32,6 +33,7 @@ pub use arcs::*;
 pub use asks::*;
 pub use campaign::*;
 pub use characters::*;
+pub use exchange::*;
 pub use impact::*;
 pub use knowledge::*;
 pub use layout::*;
@@ -260,6 +262,14 @@ pub enum CommandDto {
         template: String,
         answer: Option<String>,
     },
+    /// Play a scene of an arc (DEC-112): `Begin` at its place (inside
+    /// `Go`), then `Say` a line each round (`ArcSceneView.options`), or
+    /// `Leave`. `beat` is `<stage>.<beat>`.
+    ArcExchange {
+        arc: u32,
+        beat: String,
+        act: SceneActDto,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -427,6 +437,14 @@ pub enum QueryDto {
     Arc {
         id: u32,
     },
+    /// A scene of an arc (DEC-112, `EXCHANGE_SCENES.md` §7): its audience,
+    /// the prompt, the lines on offer with what each would do as far as the
+    /// player can know it, the rounds played and the result. `beat` is
+    /// `<stage>.<beat>` (`NeedTargetDto::Scene`, `ArcBeatView`).
+    ArcExchange {
+        arc: u32,
+        beat: String,
+    },
     /// The promises the player could make now (campaigning only).
     PromiseMenu,
     /// Why an event happened (S1, the causal spine): the chain of what led
@@ -527,6 +545,7 @@ pub enum ResponseBody {
     Why(WhyView),
     People(PeopleView),
     Arc(ArcView),
+    ArcExchange(ArcSceneView),
     #[cfg(feature = "dev-tools")]
     #[ts(skip)]
     DevCatalog(dev::DevCatalogView),

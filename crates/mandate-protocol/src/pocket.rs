@@ -564,6 +564,9 @@ pub enum NeedKind {
     /// A beat of a running arc that is the player's to take, in its last
     /// turn before the clock runs out (`ArcView.beats`).
     Beat,
+    /// A scene of an arc (DEC-112) the player can begin now, or has begun
+    /// (`QueryDto::ArcExchange`): on every day it is open.
+    Scene,
 }
 
 /// What a need opens.
@@ -584,6 +587,12 @@ pub enum NeedTargetDto {
     Beat {
         arc: u32,
         stage: String,
+        beat: String,
+    },
+    /// A scene (`QueryDto::ArcExchange { arc, beat }`; `beat` is
+    /// `<stage>.<beat>`).
+    Scene {
+        arc: u32,
         beat: String,
     },
 }
@@ -720,8 +729,42 @@ pub fn needs_you(engine: &Engine) -> Vec<NeedView> {
             Some(run.id.0),
         );
     }
+    for (arc, beat, last) in crate::exchange::scenes_waiting(engine) {
+        let Some(scene) = crate::exchange::scene_view(engine, arc, &beat) else {
+            continue;
+        };
+        push(
+            NeedKind::Scene,
+            arc,
+            scene.title,
+            last,
+            NeedTargetDto::Scene { arc, beat },
+            Some(arc),
+        );
+    }
     out.sort_by_key(|a| (a.0, a.1, a.2));
     out.into_iter().map(|x| x.3).collect()
+}
+
+/// The alerts "Needs you" already says, by the kind of need that says it:
+/// decisions waiting, votes to cast.
+const COVERED: [(&str, NeedKind); 2] = [
+    ("alert-decisions", NeedKind::Decision),
+    ("alert-vote-needed", NeedKind::Vote),
+];
+
+/// Today says a thing once (the lead's screenshots, 2026-11-25): an alert
+/// whose matters are all rows of "Needs you" (its count is theirs) is
+/// dropped.
+pub fn drop_covered(alerts: &mut Vec<crate::places::AlertView>, needs: &[NeedView]) {
+    alerts.retain(|a| {
+        !COVERED.iter().any(|(key, kind)| {
+            let rows = needs.iter().filter(|n| n.kind == *kind).count();
+            a.key == *key
+                && rows > 0
+                && a.args.get("n").and_then(|n| n.parse::<usize>().ok()) == Some(rows)
+        })
+    });
 }
 
 // --- What comes next (the empty state) -----------------------------------------------------

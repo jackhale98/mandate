@@ -1,0 +1,718 @@
+{
+  "arc": 1,
+  "beat": "showdown.debate",
+  "phase": "under_way",
+  "layout": "crowd",
+  "title": {
+    "key": "exchange-debate-title",
+    "args": {
+      "ally": "Kerstin Everwell",
+      "ally_role_key": "occupation-party_chair",
+      "backer": "Flora Achter",
+      "backer_role_key": "occupation-union_steward",
+      "chair": "Hector Birchby",
+      "chair_role_key": "occupation-editor",
+      "clock_day": "23",
+      "clock_month_key": "month-10",
+      "day": "13",
+      "hall": "Foundryside",
+      "month_key": "month-9",
+      "other": "Rolf Wareer",
+      "paper": "The Norton Post",
+      "place": "Norton",
+      "player": "Saul Raskuwell",
+      "rival": "Rolf Wareer",
+      "rival_role_key": "role-candidate",
+      "second": "Flora Achter",
+      "town": "Norton",
+      "weeks": "3",
+      "year": "2020"
+    }
+  },
+  "offer": {
+    "key": "exchange-debate-offer",
+    "args": {
+      "ally": "Kerstin Everwell",
+      "ally_role_key": "occupation-party_chair",
+      "backer": "Flora Achter",
+      "backer_role_key": "occupation-union_steward",
+      "chair": "Hector Birchby",
+      "chair_role_key": "occupation-editor",
+      "clock_day": "23",
+      "clock_month_key": "month-10",
+      "day": "13",
+      "hall": "Foundryside",
+      "month_key": "month-9",
+      "other": "Rolf Wareer",
+      "paper": "The Norton Post",
+      "place": "Norton",
+      "player": "Saul Raskuwell",
+      "rival": "Rolf Wareer",
+      "rival_role_key": "role-candidate",
+      "second": "Flora Achter",
+      "town": "Norton",
+      "weeks": "3",
+      "year": "2020"
+    }
+  },
+  "opening": {
+    "key": "exchange-debate-open",
+    "args": {
+      "ally": "Kerstin Everwell",
+      "ally_role_key": "occupation-party_chair",
+      "backer": "Flora Achter",
+      "backer_role_key": "occupation-union_steward",
+      "chair": "Hector Birchby",
+      "chair_role_key": "occupation-editor",
+      "clock_day": "23",
+      "clock_month_key": "month-10",
+      "day": "13",
+      "hall": "Foundryside",
+      "month_key": "month-9",
+      "other": "Rolf Wareer",
+      "paper": "The Norton Post",
+      "place": "Norton",
+      "player": "Saul Raskuwell",
+      "rival": "Rolf Wareer",
+      "rival_role_key": "role-candidate",
+      "second": "Flora Achter",
+      "town": "Norton",
+      "weeks": "3",
+      "year": "2020"
+    }
+  },
+  "args": {
+    "ally": "Kerstin Everwell",
+    "ally_role_key": "occupation-party_chair",
+    "backer": "Flora Achter",
+    "backer_role_key": "occupation-union_steward",
+    "chair": "Hector Birchby",
+    "chair_role_key": "occupation-editor",
+    "clock_day": "23",
+    "clock_month_key": "month-10",
+    "day": "13",
+    "hall": "Foundryside",
+    "month_key": "month-9",
+    "other": "Rolf Wareer",
+    "paper": "The Norton Post",
+    "place": "Norton",
+    "player": "Saul Raskuwell",
+    "rival": "Rolf Wareer",
+    "rival_role_key": "role-candidate",
+    "second": "Flora Achter",
+    "town": "Norton",
+    "weeks": "3",
+    "year": "2020"
+  },
+  "place": {
+    "location": {
+      "type": "place",
+      "place": 139
+    },
+    "kind_key": "community_centre",
+    "name": "",
+    "neighborhood": 98,
+    "neighborhood_name": "Foundryside"
+  },
+  "route": {
+    "action": "visit",
+    "late_night": false,
+    "neighborhood": 98,
+    "to": {
+      "location": {
+        "type": "place",
+        "place": 139
+      },
+      "kind_key": "community_centre",
+      "name": "",
+      "neighborhood": 98,
+      "neighborhood_name": "Foundryside"
+    },
+    "here": true
+  },
+  "halves": 2,
+  "available": false,
+  "blocked_key": null,
+  "last_day": {
+    "day_number": 737594,
+    "year": 2020,
+    "month": 10,
+    "day": 22
+  },
+  "days_left": 14,
+  "other": {
+    "id": 758,
+    "ambient_slot": null,
+    "name": "Rolf Wareer",
+    "role_key": "role-candidate",
+    "tier": "principal",
+    "level": "unknown",
+    "rumoured": false,
+    "can_talk": false,
+    "has_news": true
+  },
+  "chair": {
+    "id": 1270,
+    "ambient_slot": null,
+    "name": "Hector Birchby",
+    "role_key": "occupation-editor",
+    "tier": "principal",
+    "level": "unknown",
+    "rumoured": false,
+    "can_talk": false,
+    "has_news": true
+  },
+  "second": {
+    "id": 1273,
+    "ambient_slot": null,
+    "name": "Flora Achter",
+    "role_key": "occupation-union_steward",
+    "tier": "principal",
+    "level": "unknown",
+    "rumoured": false,
+    "can_talk": false,
+    "has_news": true
+  },
+  "groups": [
+    {
+      "key": "hood.100.c0",
+      "label": {
+        "key": "exchange-group-class",
+        "args": {
+          "class_key": "exchange-class-0",
+          "name": "Crosswood"
+        }
+      },
+      "short": {
+        "key": "exchange-class-0",
+        "args": {}
+      },
+      "person": null,
+      "size": 3,
+      "lean": null,
+      "lean_key": "exchange-lean-unknown",
+      "moved_steps": -1,
+      "moved_points": null
+    },
+    {
+      "key": "hood.100.c1",
+      "label": {
+        "key": "exchange-group-class",
+        "args": {
+          "class_key": "exchange-class-1",
+          "name": "Crosswood"
+        }
+      },
+      "short": {
+        "key": "exchange-class-1",
+        "args": {}
+      },
+      "person": null,
+      "size": 3,
+      "lean": null,
+      "lean_key": "exchange-lean-unknown",
+      "moved_steps": -1,
+      "moved_points": null
+    },
+    {
+      "key": "hood.100.c2",
+      "label": {
+        "key": "exchange-group-class",
+        "args": {
+          "class_key": "exchange-class-2",
+          "name": "Crosswood"
+        }
+      },
+      "short": {
+        "key": "exchange-class-2",
+        "args": {}
+      },
+      "person": null,
+      "size": 2,
+      "lean": null,
+      "lean_key": "exchange-lean-unknown",
+      "moved_steps": -1,
+      "moved_points": null
+    }
+  ],
+  "round": 2,
+  "rounds": 3,
+  "prompt": {
+    "speaker": {
+      "id": 758,
+      "ambient_slot": null,
+      "name": "Rolf Wareer",
+      "role_key": "role-candidate",
+      "tier": "principal",
+      "level": "unknown",
+      "rumoured": false,
+      "can_talk": false,
+      "has_news": true
+    },
+    "by": "other",
+    "source": "top_worry",
+    "text": {
+      "key": "exchange-debate-prompt-top_worry-3",
+      "args": {
+        "ally": "Kerstin Everwell",
+        "ally_role_key": "occupation-party_chair",
+        "backer": "Flora Achter",
+        "backer_role_key": "occupation-union_steward",
+        "chair": "Hector Birchby",
+        "chair_role_key": "occupation-editor",
+        "clock_day": "23",
+        "clock_month_key": "month-10",
+        "day": "13",
+        "hall": "Foundryside",
+        "month_key": "month-9",
+        "other": "Rolf Wareer",
+        "paper": "The Norton Post",
+        "place": "Norton",
+        "player": "Saul Raskuwell",
+        "rival": "Rolf Wareer",
+        "rival_role_key": "role-candidate",
+        "second": "Flora Achter",
+        "size": "30",
+        "town": "Norton",
+        "weeks": "3",
+        "worry_key": "talk-concern-taxes",
+        "year": "2020"
+      }
+    },
+    "event": null,
+    "stood": true,
+    "bites": [
+      {
+        "group": "hood.100.c0",
+        "lo": -10,
+        "hi": -2,
+        "exact": false,
+        "lo_steps": -1,
+        "hi_steps": 0
+      },
+      {
+        "group": "hood.100.c1",
+        "lo": -10,
+        "hi": -2,
+        "exact": false,
+        "lo_steps": -1,
+        "hi_steps": 0
+      },
+      {
+        "group": "hood.100.c2",
+        "lo": -10,
+        "hi": -2,
+        "exact": false,
+        "lo_steps": -1,
+        "hi_steps": 0
+      }
+    ]
+  },
+  "options": [
+    {
+      "id": "promise:promise.no_tax_rise",
+      "kind": "promise",
+      "label": {
+        "key": "exchange-label-promise",
+        "args": {
+          "ally": "Kerstin Everwell",
+          "ally_role_key": "occupation-party_chair",
+          "backer": "Flora Achter",
+          "backer_role_key": "occupation-union_steward",
+          "chair": "Hector Birchby",
+          "chair_role_key": "occupation-editor",
+          "clock_day": "23",
+          "clock_month_key": "month-10",
+          "day": "13",
+          "hall": "Foundryside",
+          "month_key": "month-9",
+          "other": "Rolf Wareer",
+          "paper": "The Norton Post",
+          "place": "Norton",
+          "player": "Saul Raskuwell",
+          "promise_key": "promise-no-tax-rise",
+          "rival": "Rolf Wareer",
+          "rival_role_key": "role-candidate",
+          "second": "Flora Achter",
+          "town": "Norton",
+          "weeks": "3",
+          "worry_key": "talk-concern-taxes",
+          "year": "2020"
+        }
+      },
+      "args": {
+        "promise_key": "promise-no-tax-rise",
+        "worry_key": "talk-concern-taxes"
+      },
+      "answers": true,
+      "safe": false,
+      "prep": false,
+      "target": null,
+      "chance": null,
+      "stands": [
+        {
+          "group": "hood.100.c0",
+          "lo": -6,
+          "hi": 15,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        },
+        {
+          "group": "hood.100.c1",
+          "lo": -6,
+          "hi": 15,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        },
+        {
+          "group": "hood.100.c2",
+          "lo": -6,
+          "hi": 15,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        }
+      ],
+      "fails": [],
+      "tags": [
+        {
+          "group": "hood.100.c0",
+          "lo": -6,
+          "hi": 15,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        },
+        {
+          "group": "hood.100.c1",
+          "lo": -6,
+          "hi": 15,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        },
+        {
+          "group": "hood.100.c2",
+          "lo": -6,
+          "hi": 15,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        }
+      ],
+      "notes": [
+        {
+          "key": "exchange-cost-promise",
+          "args": {
+            "ally": "Kerstin Everwell",
+            "ally_role_key": "occupation-party_chair",
+            "backer": "Flora Achter",
+            "backer_role_key": "occupation-union_steward",
+            "chair": "Hector Birchby",
+            "chair_role_key": "occupation-editor",
+            "clock_day": "23",
+            "clock_month_key": "month-10",
+            "day": "13",
+            "hall": "Foundryside",
+            "month_key": "month-9",
+            "n": "2",
+            "of": "3",
+            "other": "Rolf Wareer",
+            "paper": "The Norton Post",
+            "place": "Norton",
+            "player": "Saul Raskuwell",
+            "rival": "Rolf Wareer",
+            "rival_role_key": "role-candidate",
+            "second": "Flora Achter",
+            "town": "Norton",
+            "weeks": "3",
+            "year": "2020"
+          }
+        }
+      ],
+      "answer": "maybe",
+      "answer_key": "exchange-answer-maybe"
+    },
+    {
+      "id": "promise:promise.town_halls",
+      "kind": "promise",
+      "label": {
+        "key": "exchange-label-promise",
+        "args": {
+          "ally": "Kerstin Everwell",
+          "ally_role_key": "occupation-party_chair",
+          "backer": "Flora Achter",
+          "backer_role_key": "occupation-union_steward",
+          "chair": "Hector Birchby",
+          "chair_role_key": "occupation-editor",
+          "clock_day": "23",
+          "clock_month_key": "month-10",
+          "day": "13",
+          "hall": "Foundryside",
+          "month_key": "month-9",
+          "other": "Rolf Wareer",
+          "paper": "The Norton Post",
+          "place": "Norton",
+          "player": "Saul Raskuwell",
+          "promise_key": "promise-town-halls",
+          "rival": "Rolf Wareer",
+          "rival_role_key": "role-candidate",
+          "second": "Flora Achter",
+          "town": "Norton",
+          "weeks": "3",
+          "worry_key": "",
+          "year": "2020"
+        }
+      },
+      "args": {
+        "promise_key": "promise-town-halls",
+        "worry_key": ""
+      },
+      "answers": false,
+      "safe": false,
+      "prep": false,
+      "target": null,
+      "chance": null,
+      "stands": [
+        {
+          "group": "hood.100.c0",
+          "lo": -5,
+          "hi": 8,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 1
+        },
+        {
+          "group": "hood.100.c1",
+          "lo": -5,
+          "hi": 8,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 1
+        },
+        {
+          "group": "hood.100.c2",
+          "lo": -5,
+          "hi": 8,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 1
+        }
+      ],
+      "fails": [],
+      "tags": [
+        {
+          "group": "hood.100.c0",
+          "lo": -5,
+          "hi": 8,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 1
+        },
+        {
+          "group": "hood.100.c1",
+          "lo": -5,
+          "hi": 8,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 1
+        },
+        {
+          "group": "hood.100.c2",
+          "lo": -5,
+          "hi": 8,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 1
+        }
+      ],
+      "notes": [
+        {
+          "key": "exchange-cost-promise",
+          "args": {
+            "ally": "Kerstin Everwell",
+            "ally_role_key": "occupation-party_chair",
+            "backer": "Flora Achter",
+            "backer_role_key": "occupation-union_steward",
+            "chair": "Hector Birchby",
+            "chair_role_key": "occupation-editor",
+            "clock_day": "23",
+            "clock_month_key": "month-10",
+            "day": "13",
+            "hall": "Foundryside",
+            "month_key": "month-9",
+            "n": "2",
+            "of": "3",
+            "other": "Rolf Wareer",
+            "paper": "The Norton Post",
+            "place": "Norton",
+            "player": "Saul Raskuwell",
+            "rival": "Rolf Wareer",
+            "rival_role_key": "role-candidate",
+            "second": "Flora Achter",
+            "town": "Norton",
+            "weeks": "3",
+            "year": "2020"
+          }
+        }
+      ],
+      "answer": "maybe",
+      "answer_key": "exchange-answer-maybe"
+    },
+    {
+      "id": "pass",
+      "kind": "pass",
+      "label": {
+        "key": "exchange-label-pass",
+        "args": {
+          "ally": "Kerstin Everwell",
+          "ally_role_key": "occupation-party_chair",
+          "backer": "Flora Achter",
+          "backer_role_key": "occupation-union_steward",
+          "chair": "Hector Birchby",
+          "chair_role_key": "occupation-editor",
+          "clock_day": "23",
+          "clock_month_key": "month-10",
+          "day": "13",
+          "hall": "Foundryside",
+          "month_key": "month-9",
+          "other": "Rolf Wareer",
+          "paper": "The Norton Post",
+          "place": "Norton",
+          "player": "Saul Raskuwell",
+          "rival": "Rolf Wareer",
+          "rival_role_key": "role-candidate",
+          "second": "Flora Achter",
+          "town": "Norton",
+          "weeks": "3",
+          "year": "2020"
+        }
+      },
+      "args": {},
+      "answers": true,
+      "safe": true,
+      "prep": false,
+      "target": null,
+      "chance": null,
+      "stands": [
+        {
+          "group": "hood.100.c0",
+          "lo": -8,
+          "hi": -1,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 0
+        },
+        {
+          "group": "hood.100.c1",
+          "lo": -8,
+          "hi": -1,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 0
+        },
+        {
+          "group": "hood.100.c2",
+          "lo": -8,
+          "hi": -1,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 0
+        }
+      ],
+      "fails": [],
+      "tags": [
+        {
+          "group": "hood.100.c0",
+          "lo": -8,
+          "hi": -1,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 0
+        },
+        {
+          "group": "hood.100.c1",
+          "lo": -8,
+          "hi": -1,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 0
+        },
+        {
+          "group": "hood.100.c2",
+          "lo": -8,
+          "hi": -1,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 0
+        }
+      ],
+      "notes": [],
+      "answer": "never",
+      "answer_key": null
+    }
+  ],
+  "locked": {
+    "kind": "heard",
+    "text": {
+      "key": "exchange-locked-heard",
+      "args": {
+        "ally": "Kerstin Everwell",
+        "ally_role_key": "occupation-party_chair",
+        "backer": "Flora Achter",
+        "backer_role_key": "occupation-union_steward",
+        "chair": "Hector Birchby",
+        "chair_role_key": "occupation-editor",
+        "clock_day": "23",
+        "clock_month_key": "month-10",
+        "day": "13",
+        "group": "Crosswood",
+        "hall": "Foundryside",
+        "month_key": "month-9",
+        "other": "Rolf Wareer",
+        "paper": "The Norton Post",
+        "place": "Norton",
+        "player": "Saul Raskuwell",
+        "rival": "Rolf Wareer",
+        "rival_role_key": "role-candidate",
+        "second": "Flora Achter",
+        "town": "Norton",
+        "weeks": "3",
+        "year": "2020"
+      }
+    }
+  },
+  "played": [
+    {
+      "round": 1,
+      "prompt_key": "exchange-debate-prompt-thin_record-3",
+      "said_key": "exchange-debate-say-promise-1",
+      "option": "promise:promise.clean_politics",
+      "kind": "promise",
+      "reply_key": null,
+      "room_key": "exchange-room-flat",
+      "stood": true,
+      "moved": [
+        {
+          "group": "hood.100.c0",
+          "steps": -1,
+          "points": null
+        },
+        {
+          "group": "hood.100.c1",
+          "steps": -1,
+          "points": null
+        },
+        {
+          "group": "hood.100.c2",
+          "steps": -1,
+          "points": null
+        }
+      ],
+      "event": 2105
+    }
+  ],
+  "result": null
+}

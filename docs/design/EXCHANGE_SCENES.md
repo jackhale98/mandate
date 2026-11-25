@@ -1065,7 +1065,7 @@ Four tasks, bundled so that four agents do everything, two of them agents the ar
 | # | Task | Tier | OWNS | After | Acceptance |
 |---|---|---|---|---|---|
 | X1 | The exchange core, and the debate as its first scene | large | `mandate-content/src/arcs.rs`, a new `exchange.rs`; `mandate-sim/src/arcs/exchange/**`, `arcs/{mod,beats,step,effects}.rs`; `actions/mod.rs` (the command), `spine/mod.rs` (the act), `events.rs`; `scheduler.rs` and `population/mod.rs` (recognition, the community filter); `media.rs` (the story source, `Surface`); `asks/commands.rs` (accept at once); `mandate-save/**` (v29); `content/base/exchange.jsonc`, `arcs/rival.jsonc`, `locale/en/exchange.ftl` (the debate and the shared set); schemas | A2 (done). Beside A3 and A4 | One hash twice, and through a save and load in round 2. A fork equals continuing. Tests 1 to 3 of §5.7. The same commands under a ledger that knows everything and one that knows the default give the same world. With no exchange in the content every pin of the spine's proof holds. Scripted passive and engaged command lists end at `debate_ducked` and not. Each static lint of §9.4 has a failing fixture. A scene is four commands |
-| X2 | The view and the screen (with A3, as one agent) | mid | `mandate-protocol/src/arcs.rs` (A3's) and the query; `web/src/components/talk/**` (the scene's mode, the strip); a new `web/src/components/exchange/**` (the quick list, the result card); `web/e2e/exchange.spec.ts`; the screen's Fluent | X1's types agreed first, then in parallel | One browser test plays a debate from quick mode by keyboard alone in 12 activations or fewer. At 360 px five options show without scrolling. A group the player does not know shows a range, and the result is inside it. The accessibility check passes. "Why?" on the result shows three rounds |
+| X2 | The view and the screen (with A3, as one agent). **Built 2026-11-25 (§16)** | mid | `mandate-protocol/src/arcs.rs` (A3's) and the query; `web/src/components/talk/**` (the scene's mode, the strip); a new `web/src/components/exchange/**` (the quick list, the result card); `web/e2e/exchange.spec.ts`; the screen's Fluent | X1's types agreed first, then in parallel | One browser test plays a debate from quick mode by keyboard alone in 12 activations or fewer. At 360 px five options show without scrolling. A group the player does not know shows a range, and the result is inside it. The accessibility check passes. "Why?" on the result shows three rounds |
 | X3 | Stand-ins, bots, the grader's terms, the skip stop (inside A4, as one agent) | mid | `mandate-sim/src/standin.rs`, `proxy.rs`, `skip.rs`; `mandate-content/src/act.rs`, `content/base/act_flow.jsonc`; `mandate-cli/src/bots/**`, `arcs_grade.rs`, `doctor/arcs.rs`; the pacing test | X1 | Stand-ins and bots send only commands. A skip stops at an exchange in 8 of 8 seeds, and the proxy never sends the command. The report table of §8.3. Each dynamic lint has a fixture. The gates are printed with their figures and not enforced |
 | X4 | The arcs to the standard (inside A6, the content agent) | mid | `content/base/arcs/**`, `dilemmas.jsonc` (three decisions retired), `asks/asks.jsonc`, `locale/en/{arcs,exchange}.ftl`, `STYLE_BIBLE.md` (the `exchange-*` register) | X1 to X3. The table needs nothing more. The hearing needs A5c. The plant needs DEC-110's plants and A5a | The grader's gates for each arc. `arc-turn-single-decision` as an error with no findings. The content pipeline's review |
 
@@ -1169,4 +1169,26 @@ The core is `mandate-content/src/exchange.rs` (the beat and the constants) and `
 16. **The rival's competence lever (DEC-102 clause 3) is not wired** to the deck; skill is the character's own.
 17. **An older save's waiting challenge is withdrawn** (it lapses); the debate is not held for that campaign, since an older run has no hall cast. `dilemma.debate_challenge` stays in `dilemmas.jsonc`, named by no arc, until X4 retires it.
 18. **The skip stop is built into `skip.rs`** (`exchange_keys`) until the act flow has a data-driven interrupt for an arc's stage.
+
+---
+
+## 16. What X2 built (2026-11-25)
+
+The screen of §7 and the protocol half of §11.3. The engine's `SceneView` is unchanged; the protocol carries it.
+
+### 16.1 Built
+
+- **The wire.** `QueryDto::ArcExchange { arc, beat }` → `ArcSceneView` (`mandate-protocol/src/exchange.rs`); `CommandDto::ArcExchange { arc, beat, act: Begin | Say { option } | Leave }`, begun inside `Go` at the hall. `NeedKind::Scene` puts a scene the player can begin (or has begun) on Today's "Needs you"; the arc's sheet lists it as a beat of kind `exchange`. Both open the screen.
+- **Units, by the engine.** A change is in points (a hundredth of the lean scale), a range rounded outwards so the truth is inside it; steps (none, a little, much, a great deal, against the scene's `group_margin`) for the tags; a lean on the five-step scale with its words. The UI computes none of them.
+- **Redaction.** A group's lean, how far it moved and the result's before, after and change in points are given only where the engine's view gives the lean; otherwise "not known" and a move in steps (an arrow), never a number.
+- **The screen** (`web/src/components/exchange/`, mounted beside the conversation in `talk/TalkSheet.tsx`): the other side's portrait and bubble, the strip, the box with four or five lines (label, then tags: groups with arrows, the chance, the first cost), *More* for each, the locked line folded under "What you could have said", the reaction and Continue, the result card (outcome, a table of the groups, the paper's headline, promises made, "Why?" on the closing event). Quick mode is one plain sheet with the same choices and no Continue; the choice is remembered on the device. Keyboard and screen reader as §7.4.
+- **Today** says a thing once: an alert whose matters are all rows of "Needs you" (decisions, votes) is dropped. A row's title wraps to two lines.
+
+### 16.2 Departures
+
+1. **The scene is played over a portrait**, as a conversation with someone not on screen is; the street does not frame the other side in the hall (the walking entry of §7.1 is not built: the scene opens from Today and from the arc's sheet).
+2. **The strip shows "?" for a group the player cannot read; the range is on the lines.** A lean on the strip has no range in the engine's view.
+3. **In the base game a first seat's groups are always known** (the player's own neighbourhood, whose worries they know from the start), so the browser test holds a *line's* range (what the other side may answer) with the change inside it; a group the player does not know is held natively with the seat forgotten (`mandate-wasm/tests/scene_views.rs`) and by the screen's unit test on that view.
+4. **The words of a past round** (its prompt's and its line's arguments) are the ones the screen showed, kept by the screen for the scene; the engine's round notes carry keys only. After a reload mid-scene the last reaction is said without them.
+5. **Quick mode is a switch in the scene**, as there is no game-wide quick mode yet (DEC-088's setting).
 

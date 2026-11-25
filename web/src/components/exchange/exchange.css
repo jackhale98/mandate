@@ -1,0 +1,129 @@
+/* A scene of an arc (DEC-112; EXCHANGE_SCENES §7): the conversation view's
+   frames and colours (../talk/talk.css tokens, light and dark), laid out as
+   a column: the other side and their bubble above, the box below taking about
+   half the screen or more (five lines of two rows each fit at 360 px). Quick
+   mode is one plain sheet. Marks are shapes at positions, never colour alone
+   (DEC-051). */
+.scn-layer {
+  position: fixed; inset: 0; z-index: 9; display: flex; flex-direction: column;
+  background: var(--dlg-backdrop); animation: fade-in 200ms ease-out;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.scn-stage { flex: 1 1 auto; min-height: 0; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; padding: 8px 8px 4px; }
+.scn-stage-row { display: flex; align-items: flex-end; gap: 8px; width: min(680px, 100%); min-height: 0; }
+.scn-face { flex: none; }
+.scn-bubbles { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-bottom: 14px; }
+.scn-layer .scn-bubble { position: relative; transform: none; max-width: 100%; width: auto; }
+.scn-layer .scn-bubble.dlg-bubble-side .dlg-bubble-body { border-left-width: 6px; }
+.scn-layer .scn-bubble-you { align-self: flex-end; }
+.scn-layer .scn-bubble p { font-size: 0.92rem; }
+
+.scn-box-wrap {
+  flex: none; position: relative; display: flex; flex-direction: column; align-items: flex-start;
+  max-height: 78vh; margin: 0 8px calc(8px + env(safe-area-inset-bottom));
+  filter: drop-shadow(0 var(--dlg-px) 0 var(--dlg-shadow));
+  animation: dlg-up 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (min-width: 720px) {
+  .scn-box-wrap { width: 680px; margin: 0 auto 20px; max-height: 70vh; }
+}
+.scn-box { min-height: 0; flex: 1 1 auto; padding-top: 8px; }
+.scn-head { padding-right: 40px; }
+.scn-mode { flex: none; font-size: 0.8rem; color: var(--dlg-rim); min-height: 32px; }
+.scn-body { flex: 1 1 auto; }
+.scn-why-prompt { margin: 0 8px 2px; text-align: right; font-size: 0.8rem; }
+
+/* The audience strip: one chip a group, its width by its weight. */
+.scn-strip { list-style: none; margin: 4px 4px 2px; padding: 0; display: flex; gap: 4px; min-height: 44px; }
+.scn-chip {
+  min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 3px 6px;
+  border: 2px solid color-mix(in srgb, var(--dlg-muted) 60%, transparent); background: var(--dlg-paper-2);
+}
+.scn-size-1 { flex: 1 1 0; }
+.scn-size-2 { flex: 1.5 1 0; }
+.scn-size-3 { flex: 2 1 0; }
+.scn-chip-name { font-size: 0.72rem; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scn-scale { position: relative; display: block; height: 14px; margin: 0 6px; }
+.scn-scale-line { position: absolute; left: 0; right: 0; top: 6px; border-top: 2px dotted var(--dlg-muted); }
+.scn-scale-line::after { content: ""; position: absolute; left: 50%; top: -5px; height: 8px; border-left: 2px solid var(--dlg-muted); }
+.scn-mark { position: absolute; top: -1px; left: 50%; transform: translateX(-50%); font-size: 0.75rem; line-height: 1; color: var(--dlg-rim); }
+.scn-scale[data-step="-2"] .scn-mark { left: 4%; }
+.scn-scale[data-step="-1"] .scn-mark { left: 25%; }
+.scn-scale[data-step="1"] .scn-mark { left: 75%; }
+.scn-scale[data-step="2"] .scn-mark { left: 96%; }
+.scn-scale[data-step="?"] .scn-mark { color: var(--dlg-muted); font-weight: 700; }
+.scn-moved { position: absolute; right: -6px; top: -2px; font-size: 0.65rem; color: var(--dlg-text); }
+
+/* The lines: two rows each (the label, then its tags), a digit before. */
+.scn-options { padding-bottom: 2px; }
+.scn-opt-li { display: flex; align-items: stretch; }
+.scn-opt-li + .scn-opt-li, .scn-opt-li + .scn-locked { border-top: 1px dotted color-mix(in srgb, var(--dlg-muted) 35%, transparent); }
+.scn-opt { flex: 1 1 auto; min-width: 0; min-height: 52px; padding: 4px 6px 4px 26px; font-size: 0.9rem; }
+.scn-opt-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.scn-opt-label { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; line-height: 1.25; }
+.scn-num { display: inline-block; min-width: 1.3em; margin-right: 4px; color: var(--dlg-rim); font-weight: 700; }
+.scn-tags { display: flex; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 0.74rem; color: var(--dlg-muted); line-height: 1.3; }
+.scn-tag { flex: none; }
+.scn-tag b { color: var(--dlg-rim); letter-spacing: -0.05em; }
+.scn-tag[data-range] b { color: var(--dlg-muted); }
+.scn-tag-chance { color: var(--dlg-rim); font-weight: 700; }
+.scn-more {
+  flex: none; width: 36px; border: 0; background: transparent; color: var(--dlg-muted); font: inherit; font-size: 1.3rem; font-weight: 700; cursor: pointer;
+}
+.scn-more:hover, .scn-more:focus-visible { color: var(--dlg-text); background: var(--dlg-hi); outline: none; }
+.scn-locked { list-style: none; padding: 2px 10px 4px 26px; font-size: 0.8rem; color: var(--dlg-muted); }
+.scn-locked-open { min-height: 32px; font-size: 0.8rem; color: var(--dlg-muted); text-align: left; }
+.scn-locked-text { margin: 4px 0; }
+.scn-room { margin-top: 6px; }
+
+/* A line's detail ("More"). */
+.scn-detail { padding: 0 6px 6px; font-size: 0.9rem; }
+.scn-detail-h { margin: 6px 0 2px; font-weight: 700; font-size: 0.85rem; }
+.scn-detail-list, .scn-notes { margin: 0 0 6px; padding-left: 18px; }
+.scn-detail-list li, .scn-notes li { margin: 2px 0; }
+.scn-muted { color: var(--dlg-muted); }
+
+/* The result card. */
+.scn-result { padding: 4px 8px 8px; font-size: 0.9rem; }
+.scn-result:focus { outline: none; }
+.scn-result:focus-visible { outline: 2px solid var(--dlg-rim); outline-offset: -2px; }
+.scn-outcome { margin: 2px 0 4px; font-size: 1.15rem; letter-spacing: 0.02em; color: var(--dlg-rim); }
+.scn-result p { margin: 4px 0; }
+.scn-table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 0.8rem; }
+.scn-table th, .scn-table td { padding: 3px 4px; text-align: left; vertical-align: top; border-bottom: 1px dotted color-mix(in srgb, var(--dlg-muted) 45%, transparent); }
+.scn-table thead th { color: var(--dlg-muted); font-weight: 700; }
+.scn-cell-lean, .scn-table td:last-child { white-space: nowrap; }
+.scn-label { margin: 6px 0 2px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dlg-muted); }
+.scn-paper { font-style: italic; }
+.scn-paper .scn-label { font-style: normal; margin-right: 4px; }
+.scn-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.scn-actions .btn { min-height: 44px; }
+
+/* Quick mode: one plain sheet. */
+.scn-plain-layer { overflow-y: auto; overscroll-behavior: contain; }
+.scn-plain {
+  position: relative; width: min(680px, 100%); min-height: 100%; margin: 0 auto; padding: 12px 10px calc(16px + env(safe-area-inset-bottom));
+  background: var(--dlg-paper); color: var(--dlg-text);
+}
+.scn-plain .scn-head { border-bottom: 0; padding-left: 0; }
+.scn-title { margin: 0 40px 2px 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.scn-plain-body { display: flex; flex-direction: column; gap: 4px; }
+.scn-strip-plain { flex-direction: column; gap: 0; margin: 0; min-height: 0; }
+.scn-strip-plain .scn-chip { flex: none; flex-direction: row; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; border: 0; border-bottom: 1px dotted color-mix(in srgb, var(--dlg-muted) 45%, transparent); background: transparent; padding: 4px 0; }
+.scn-strip-plain .scn-chip-name { font-size: 0.85rem; white-space: normal; }
+.scn-chip-lean { font-size: 0.85rem; }
+.scn-plain-said p, .scn-plain-prompt { margin: 4px 0; }
+.scn-plain-prompt { padding: 8px 10px; border-left: var(--dlg-px) solid var(--dlg-rim); background: var(--dlg-paper-2); }
+.scn-plain .scn-tags { flex-wrap: wrap; white-space: normal; gap: 2px 10px; }
+.scn-plain .scn-opt-label { -webkit-line-clamp: 4; line-clamp: 4; }
+.scn-plain .scn-opt { padding-left: 24px; }
+
+@media (max-width: 480px) {
+  .scn-face { --p: 5px; }
+}
+@media (max-height: 640px) {
+  .scn-face { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scn-layer, .scn-box-wrap { animation: none; }
+}

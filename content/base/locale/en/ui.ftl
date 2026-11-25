@@ -464,3 +464,60 @@ know-bill-support = You don't know how your voters stand on this. The estimate i
 know-figures-stale = These figures are from { $month } { $year }. They may have moved.
 know-place-shut = It has shut. Nothing can be done here.
 know-arc-lead = Something is going on in { $where }. People there would know more.
+
+## A scene of an arc (DEC-112, EXCHANGE_SCENES §7): the debate's screen.
+## $group is a group's name; $pct a whole percentage; $n and $of a round.
+ui-need-scene = Your turn to speak
+ui-scene-audience = Who is listening
+ui-scene-choices = What you say
+ui-scene-n-choices = { $n ->
+    [one] One choice.
+   *[other] { $n } choices.
+}
+ui-scene-round = Round { $n } of { $of }
+ui-scene-on = Open until { $date }
+ui-scene-begin = Take your place at { $place }
+ui-scene-not-now = Not now
+ui-scene-next-round = On to round { $n } of { $of }
+ui-scene-to-result = See how it ended
+ui-scene-leave = Walk out
+ui-scene-leave-ask = Walk out now? The rounds left go unanswered, and the room will count it against you.
+ui-scene-stay = Stay
+ui-scene-walk-out = Walk out
+ui-scene-plain = As a list
+ui-scene-staged = As a scene
+ui-scene-more = More about: { $line }
+ui-scene-say-this = Say this
+ui-scene-locked-open = What you could have said
+ui-scene-lands = Whom it lands with
+ui-scene-if-stands = If it stands up ({ $pct }% chance)
+ui-scene-if-fails = If it does not stand up
+ui-scene-not-known-how = not known exactly
+ui-scene-points = Points are hundredths of the room's lean, from −100 to +100.
+ui-scene-range = { $lo } to { $hi }
+ui-scene-chance = { $pct }% chance it stands up
+ui-scene-chance-short = { $pct }%
+ui-scene-no-cost = No cost
+ui-scene-lands-up-1 = Lands a little with { $group }
+ui-scene-lands-up-2 = Lands well with { $group }
+ui-scene-lands-up-3 = Lands very well with { $group }
+ui-scene-lands-down-1 = Costs you a little with { $group }
+ui-scene-lands-down-2 = Costs you with { $group }
+ui-scene-lands-down-3 = Costs you badly with { $group }
+ui-scene-lands-none = Barely moves { $group }
+ui-scene-lands-unknown = Not known how it lands with { $group }
+ui-scene-chip = { $group }: { $lean }
+ui-scene-chip-moved = { $group }: { $lean }; { $moved }
+ui-scene-moved-up = moved towards you
+ui-scene-moved-down = moved away from you
+ui-scene-you-said = You: { $line }
+ui-scene-not-known = Not known
+ui-scene-lean-points = { $lean } ({ $n })
+ui-scene-moved-caption = How each group moved
+ui-scene-group = Group
+ui-scene-before = Before
+ui-scene-after = After
+ui-scene-change = Change
+ui-scene-paper = The paper:
+ui-scene-promised = You promised
+ui-scene-due = due { $date }

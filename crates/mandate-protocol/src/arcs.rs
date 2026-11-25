@@ -139,8 +139,9 @@ pub struct ArcBeatView {
     pub beat: String,
     /// `visit` (`ActionDto::Visit { verb }` at the place), `talk`
     /// (`CommandDto::Talk { to, topic }`), `decision`
-    /// (`CommandDto::AnswerDecision`) or `ask` (`CommandDto::RespondAsk`,
-    /// then whatever keeps it).
+    /// (`CommandDto::AnswerDecision`), `ask` (`CommandDto::RespondAsk`,
+    /// then whatever keeps it) or `exchange` (a scene: `QueryDto::ArcExchange`
+    /// with `stage` and `beat`, begun with `CommandDto::ArcExchange`).
     pub kind: String,
     /// The button: the beat's own label.
     pub label: TextView,
@@ -366,6 +367,14 @@ fn run_args(engine: &Engine, run: &ArcRun, def: &ArcDef) -> BTreeMap<String, Str
         cast::facts(v, def, run)
     });
     text_args(engine, &run.cast, run.at, facts)
+}
+
+/// A live run's arguments, looked up by its template (a scene's view).
+pub(crate) fn live_args(engine: &Engine, run: &ArcRun) -> BTreeMap<String, String> {
+    match engine.content().arc(&run.template) {
+        Some(def) => run_args(engine, run, def),
+        None => text_args(engine, &run.cast, run.at, Vec::new()),
+    }
 }
 
 /// A run's title, with its arguments.
@@ -620,6 +629,29 @@ fn beats_view(engine: &Engine, run: &ArcRun, def: &ArcDef) -> Vec<ArcBeatView> {
                     .or_else(|| a.asker_person().and_then(|p| person_ref(engine, p)));
                 v.needs.place = av.how.as_ref().and_then(|h| h.to.clone());
                 v.route = av.how.filter(|h| h.action != "wait");
+            }
+            (
+                BeatAction::Exchange {
+                    run: r,
+                    beat: b,
+                    location,
+                },
+                BeatKind::Exchange(x),
+            ) => {
+                // A scene (DEC-112): its title, place and time; begun with
+                // `CommandDto::ArcExchange` (inside `Go`) and played in its
+                // own view (`QueryDto::ArcExchange`).
+                let Some(scene) = crate::exchange::scene_view(engine, *r, b) else {
+                    continue;
+                };
+                v.label = scene.title.clone();
+                v.needs.place = Some(location_view(st, *location));
+                v.needs.person = scene.other.clone();
+                v.needs.halves = halves(x.time);
+                v.route = scene.route.clone();
+                v.available = scene.available;
+                v.blocked_key = scene.blocked_key.clone();
+                own_due = mandate_sim::arcs::exchange::last_day(run);
             }
             _ => continue,
         }

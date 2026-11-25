@@ -6,6 +6,7 @@ import type { DirectiveChoiceDto } from "./DirectiveChoiceDto";
 import type { LocationDto } from "./LocationDto";
 import type { ParamValue } from "./ParamValue";
 import type { PostDto } from "./PostDto";
+import type { SceneActDto } from "./SceneActDto";
 import type { SkipTargetDto } from "./SkipTargetDto";
 import type { TalkTargetDto } from "./TalkTargetDto";
 import type { VoteDto } from "./VoteDto";
@@ -14,4 +15,4 @@ export type CommandDto = { "type": "end_turn" } | { "type": "advance_days", days
 /**
  * Topic content id (`TopicView.id`).
  */
-topic: string, about: AboutRefDto | null, late_night: boolean, } | { "type": "set_directives", choices: Array<DirectiveChoiceDto>, } | { "type": "skip", target: SkipTargetDto, limit: number | null, } | { "type": "cancel_skip" } | { "type": "respond_ask", ask: number, accept: boolean, } | { "type": "promise", template: string, answer: string | null, };
+topic: string, about: AboutRefDto | null, late_night: boolean, } | { "type": "set_directives", choices: Array<DirectiveChoiceDto>, } | { "type": "skip", target: SkipTargetDto, limit: number | null, } | { "type": "cancel_skip" } | { "type": "respond_ask", ask: number, accept: boolean, } | { "type": "promise", template: string, answer: string | null, } | { "type": "arc_exchange", arc: number, beat: string, act: SceneActDto, };

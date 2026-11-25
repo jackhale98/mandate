@@ -3,4 +3,4 @@
 /**
  * What kind of thing waits on the player.
  */
-export type NeedKind = "decision" | "ask_offer" | "vote" | "ask_due" | "beat";
+export type NeedKind = "decision" | "ask_offer" | "vote" | "ask_due" | "beat" | "scene";

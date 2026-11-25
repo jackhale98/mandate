@@ -191,7 +191,8 @@ export function shortDate(tr: Translator, d: DateView): string {
   return tr.t("ui-date-short", { day: d.day, month: tr.t(`month-short-${d.month}`) });
 }
 
-/** The stance as a shape and a short word (DEC-051: never colour alone): ▲ up, ◆ level, ▼ down. */
+/** The stance as a shape and a short word (DEC-051: never colour alone): ▲ warm, ◆ neutral, ▼ cool. The arrows are
+ *  the stance's alone; a debate line's effect on a group is written with signs (+, −) (owner, 2026-11-25). */
 export function stanceMark(shape: string): string {
   return shape === "up" ? "▲" : shape === "down" ? "▼" : "◆";
 }

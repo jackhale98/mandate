@@ -170,3 +170,34 @@ talk-arc-rival-backer-yes = "I will stand up and say it. Do not make me regret i
 talk-arc-rival-backer-no = "My name is all I have round here. I am not lending it yet."
 visit-arc-rival-cuttings = Read the cuttings on your rival
 outcome-arc-rival-cuttings = You went through the cuttings on { $rival } at { $paper }: every vote and every quote, back to the start.
+
+## The screen (task X2): how a group leans, how it moved, its name.
+exchange-lean-against-2 = Firmly against you
+exchange-lean-against-1 = Leaning against you
+exchange-lean-even = Undecided
+exchange-lean-with-1 = Leaning your way
+exchange-lean-with-2 = Firmly with you
+exchange-lean-unknown = Not known how they lean
+exchange-moved-with-much = Moved well your way
+exchange-moved-with = Moved a little your way
+exchange-moved-none = Barely moved
+exchange-moved-against = Moved a little against you
+exchange-moved-against-much = Moved well against you
+exchange-group-named = { $name }
+exchange-group-class = { $name }, { $class }
+exchange-group-community = { $name }, { $community }
+
+## The debate's name on Today and on the arc's sheet.
+exchange-debate-title = The debate with { $rival } at { $hall }
+
+## Short forms of the costs and notes, for a line's tags on the screen.
+exchange-cost-promise-short = Promise, { $n } of { $of }
+exchange-cost-remembers-short = Makes an enemy
+exchange-cost-aired-short = Goes public
+exchange-cost-draft-short = Drafts a bill
+exchange-cost-standing-short = −{ $n } Standing
+exchange-cost-denial-short = On the record
+exchange-cost-slot-short = Second slot
+exchange-cost-second-short = Spends their name
+exchange-cost-public-short = Goes public
+exchange-risk-secondhand-short = Second-hand

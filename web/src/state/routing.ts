@@ -70,6 +70,7 @@ export function routeKey(cmd: CommandDto, office: OfficeView | null): RouteKey |
     case "cancel_skip":
     case "respond_ask": // asks are answered from anywhere (DEC-097 §2)
     case "promise": // a promise is made from anywhere while campaigning
+    case "arc_exchange": // a scene (DEC-112): begun inside `go` at its place, then played there
       return null;
   }
 }

@@ -11,8 +11,9 @@ export type ArcBeatView = { stage: string, beat: string,
 /**
  * `visit` (`ActionDto::Visit { verb }` at the place), `talk`
  * (`CommandDto::Talk { to, topic }`), `decision`
- * (`CommandDto::AnswerDecision`) or `ask` (`CommandDto::RespondAsk`,
- * then whatever keeps it).
+ * (`CommandDto::AnswerDecision`), `ask` (`CommandDto::RespondAsk`,
+ * then whatever keeps it) or `exchange` (a scene: `QueryDto::ArcExchange`
+ * with `stage` and `beat`, begun with `CommandDto::ArcExchange`).
  */
 kind: string, 
 /**

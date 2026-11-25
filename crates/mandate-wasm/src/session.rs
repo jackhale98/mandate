@@ -354,6 +354,14 @@ impl Session {
                 QueryDto::Arc { id } => arc_view(self.engine_mut()?, id)
                     .map(ResponseBody::Arc)
                     .ok_or_else(|| err(ErrorCode::BadRequest, format!("no arc {id}"))),
+                QueryDto::ArcExchange { arc, beat } => scene_view(self.engine_mut()?, arc, &beat)
+                    .map(ResponseBody::ArcExchange)
+                    .ok_or_else(|| {
+                        err(
+                            ErrorCode::BadRequest,
+                            format!("no scene {beat} in arc {arc}"),
+                        )
+                    }),
                 QueryDto::Canvass { neighborhood } => {
                     canvass_view(self.engine_mut()?, neighborhood)
                         .map(ResponseBody::Canvass)
@@ -607,6 +615,11 @@ fn player_command(
         }
         CommandDto::WithdrawPolicy { policy } => P::WithdrawPolicy { policy },
         CommandDto::RespondAsk { ask, accept } => P::RespondAsk { ask, accept },
+        CommandDto::ArcExchange { arc, beat, act } => P::Exchange {
+            run: arc,
+            beat,
+            act: act.to_sim(),
+        },
         CommandDto::Promise { template, answer } => P::Promise {
             template,
             args: answer

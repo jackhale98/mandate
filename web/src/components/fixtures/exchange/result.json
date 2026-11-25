@@ -1,0 +1,510 @@
+{
+  "arc": 1,
+  "beat": "showdown.debate",
+  "phase": "done",
+  "layout": "crowd",
+  "title": {
+    "key": "exchange-debate-title",
+    "args": {
+      "ally": "Kerstin Everwell",
+      "ally_role_key": "occupation-party_chair",
+      "backer": "Flora Achter",
+      "backer_role_key": "occupation-union_steward",
+      "chair": "Hector Birchby",
+      "chair_role_key": "occupation-editor",
+      "clock_day": "23",
+      "clock_month_key": "month-10",
+      "day": "13",
+      "hall": "Foundryside",
+      "month_key": "month-9",
+      "other": "Rolf Wareer",
+      "paper": "The Norton Post",
+      "place": "Norton",
+      "player": "Saul Raskuwell",
+      "rival": "Rolf Wareer",
+      "rival_role_key": "role-candidate",
+      "second": "Flora Achter",
+      "town": "Norton",
+      "weeks": "3",
+      "year": "2020"
+    }
+  },
+  "offer": {
+    "key": "exchange-debate-offer",
+    "args": {
+      "ally": "Kerstin Everwell",
+      "ally_role_key": "occupation-party_chair",
+      "backer": "Flora Achter",
+      "backer_role_key": "occupation-union_steward",
+      "chair": "Hector Birchby",
+      "chair_role_key": "occupation-editor",
+      "clock_day": "23",
+      "clock_month_key": "month-10",
+      "day": "13",
+      "hall": "Foundryside",
+      "month_key": "month-9",
+      "other": "Rolf Wareer",
+      "paper": "The Norton Post",
+      "place": "Norton",
+      "player": "Saul Raskuwell",
+      "rival": "Rolf Wareer",
+      "rival_role_key": "role-candidate",
+      "second": "Flora Achter",
+      "town": "Norton",
+      "weeks": "3",
+      "year": "2020"
+    }
+  },
+  "opening": {
+    "key": "exchange-debate-open",
+    "args": {
+      "ally": "Kerstin Everwell",
+      "ally_role_key": "occupation-party_chair",
+      "backer": "Flora Achter",
+      "backer_role_key": "occupation-union_steward",
+      "chair": "Hector Birchby",
+      "chair_role_key": "occupation-editor",
+      "clock_day": "23",
+      "clock_month_key": "month-10",
+      "day": "13",
+      "hall": "Foundryside",
+      "month_key": "month-9",
+      "other": "Rolf Wareer",
+      "paper": "The Norton Post",
+      "place": "Norton",
+      "player": "Saul Raskuwell",
+      "rival": "Rolf Wareer",
+      "rival_role_key": "role-candidate",
+      "second": "Flora Achter",
+      "town": "Norton",
+      "weeks": "3",
+      "year": "2020"
+    }
+  },
+  "args": {
+    "ally": "Kerstin Everwell",
+    "ally_role_key": "occupation-party_chair",
+    "backer": "Flora Achter",
+    "backer_role_key": "occupation-union_steward",
+    "chair": "Hector Birchby",
+    "chair_role_key": "occupation-editor",
+    "clock_day": "23",
+    "clock_month_key": "month-10",
+    "day": "13",
+    "hall": "Foundryside",
+    "month_key": "month-9",
+    "other": "Rolf Wareer",
+    "paper": "The Norton Post",
+    "place": "Norton",
+    "player": "Saul Raskuwell",
+    "rival": "Rolf Wareer",
+    "rival_role_key": "role-candidate",
+    "second": "Flora Achter",
+    "town": "Norton",
+    "weeks": "3",
+    "year": "2020"
+  },
+  "place": {
+    "location": {
+      "type": "place",
+      "place": 139
+    },
+    "kind_key": "community_centre",
+    "name": "",
+    "neighborhood": 98,
+    "neighborhood_name": "Foundryside"
+  },
+  "route": {
+    "action": "visit",
+    "late_night": false,
+    "neighborhood": 98,
+    "to": {
+      "location": {
+        "type": "place",
+        "place": 139
+      },
+      "kind_key": "community_centre",
+      "name": "",
+      "neighborhood": 98,
+      "neighborhood_name": "Foundryside"
+    },
+    "here": true
+  },
+  "halves": 2,
+  "available": false,
+  "blocked_key": null,
+  "last_day": {
+    "day_number": 737594,
+    "year": 2020,
+    "month": 10,
+    "day": 22
+  },
+  "days_left": 14,
+  "other": {
+    "id": 758,
+    "ambient_slot": null,
+    "name": "Rolf Wareer",
+    "role_key": "role-candidate",
+    "tier": "principal",
+    "level": "heard",
+    "rumoured": false,
+    "can_talk": false,
+    "has_news": true
+  },
+  "chair": {
+    "id": 1270,
+    "ambient_slot": null,
+    "name": "Hector Birchby",
+    "role_key": "occupation-editor",
+    "tier": "principal",
+    "level": "heard",
+    "rumoured": false,
+    "can_talk": false,
+    "has_news": true
+  },
+  "second": {
+    "id": 1273,
+    "ambient_slot": null,
+    "name": "Flora Achter",
+    "role_key": "occupation-union_steward",
+    "tier": "principal",
+    "level": "heard",
+    "rumoured": false,
+    "can_talk": false,
+    "has_news": true
+  },
+  "groups": [
+    {
+      "key": "hood.100.c0",
+      "label": {
+        "key": "exchange-group-class",
+        "args": {
+          "class_key": "exchange-class-0",
+          "name": "Crosswood"
+        }
+      },
+      "short": {
+        "key": "exchange-class-0",
+        "args": {}
+      },
+      "person": null,
+      "size": 3,
+      "lean": {
+        "step": 1,
+        "points": 13,
+        "key": "exchange-lean-with-1"
+      },
+      "lean_key": "exchange-lean-with-1",
+      "moved_steps": 1,
+      "moved_points": 4
+    },
+    {
+      "key": "hood.100.c1",
+      "label": {
+        "key": "exchange-group-class",
+        "args": {
+          "class_key": "exchange-class-1",
+          "name": "Crosswood"
+        }
+      },
+      "short": {
+        "key": "exchange-class-1",
+        "args": {}
+      },
+      "person": null,
+      "size": 3,
+      "lean": {
+        "step": 1,
+        "points": 13,
+        "key": "exchange-lean-with-1"
+      },
+      "lean_key": "exchange-lean-with-1",
+      "moved_steps": 1,
+      "moved_points": 4
+    },
+    {
+      "key": "hood.100.c2",
+      "label": {
+        "key": "exchange-group-class",
+        "args": {
+          "class_key": "exchange-class-2",
+          "name": "Crosswood"
+        }
+      },
+      "short": {
+        "key": "exchange-class-2",
+        "args": {}
+      },
+      "person": null,
+      "size": 2,
+      "lean": {
+        "step": 1,
+        "points": 13,
+        "key": "exchange-lean-with-1"
+      },
+      "lean_key": "exchange-lean-with-1",
+      "moved_steps": 1,
+      "moved_points": 4
+    }
+  ],
+  "round": 0,
+  "rounds": 3,
+  "prompt": null,
+  "options": [],
+  "locked": null,
+  "played": [
+    {
+      "round": 1,
+      "prompt_key": "exchange-debate-prompt-thin_record-3",
+      "said_key": "exchange-debate-say-promise-1",
+      "option": "promise:promise.clean_politics",
+      "kind": "promise",
+      "reply_key": null,
+      "room_key": "exchange-room-flat",
+      "stood": true,
+      "moved": [
+        {
+          "group": "hood.100.c0",
+          "steps": -1,
+          "points": -4
+        },
+        {
+          "group": "hood.100.c1",
+          "steps": -1,
+          "points": -4
+        },
+        {
+          "group": "hood.100.c2",
+          "steps": -1,
+          "points": -4
+        }
+      ],
+      "event": 2105
+    },
+    {
+      "round": 2,
+      "prompt_key": "exchange-debate-prompt-top_worry-3",
+      "said_key": "exchange-debate-say-promise-2",
+      "option": "promise:promise.no_tax_rise",
+      "kind": "promise",
+      "reply_key": null,
+      "room_key": "exchange-room-well",
+      "stood": true,
+      "moved": [
+        {
+          "group": "hood.100.c0",
+          "steps": 1,
+          "points": 9
+        },
+        {
+          "group": "hood.100.c1",
+          "steps": 1,
+          "points": 9
+        },
+        {
+          "group": "hood.100.c2",
+          "steps": 1,
+          "points": 9
+        }
+      ],
+      "event": 2107
+    },
+    {
+      "round": 3,
+      "prompt_key": "exchange-debate-prompt-top_worry-1",
+      "said_key": "exchange-debate-say-promise-1",
+      "option": "promise:promise.town_halls",
+      "kind": "promise",
+      "reply_key": null,
+      "room_key": "exchange-room-some",
+      "stood": true,
+      "moved": [
+        {
+          "group": "hood.100.c0",
+          "steps": 1,
+          "points": 4
+        },
+        {
+          "group": "hood.100.c1",
+          "steps": 1,
+          "points": 4
+        },
+        {
+          "group": "hood.100.c2",
+          "steps": 1,
+          "points": 4
+        }
+      ],
+      "event": 2109
+    }
+  ],
+  "result": {
+    "outcome": "won",
+    "outcome_key": "exchange-outcome-won",
+    "text": {
+      "key": "exchange-debate-result-won",
+      "args": {
+        "ally": "Kerstin Everwell",
+        "ally_role_key": "occupation-party_chair",
+        "backer": "Flora Achter",
+        "backer_role_key": "occupation-union_steward",
+        "chair": "Hector Birchby",
+        "chair_role_key": "occupation-editor",
+        "clock_day": "23",
+        "clock_month_key": "month-10",
+        "day": "13",
+        "hall": "Foundryside",
+        "month_key": "month-9",
+        "other": "Rolf Wareer",
+        "paper": "The Norton Post",
+        "place": "Norton",
+        "player": "Saul Raskuwell",
+        "rival": "Rolf Wareer",
+        "rival_role_key": "role-candidate",
+        "second": "Flora Achter",
+        "town": "Norton",
+        "weeks": "3",
+        "year": "2020"
+      }
+    },
+    "headline": {
+      "key": "exchange-debate-headline-won",
+      "args": {
+        "ally": "Kerstin Everwell",
+        "ally_role_key": "occupation-party_chair",
+        "backer": "Flora Achter",
+        "backer_role_key": "occupation-union_steward",
+        "chair": "Hector Birchby",
+        "chair_role_key": "occupation-editor",
+        "clock_day": "23",
+        "clock_month_key": "month-10",
+        "day": "13",
+        "hall": "Foundryside",
+        "month_key": "month-9",
+        "other": "Rolf Wareer",
+        "paper": "The Norton Post",
+        "place": "Norton",
+        "player": "Saul Raskuwell",
+        "rival": "Rolf Wareer",
+        "rival_role_key": "role-candidate",
+        "second": "Flora Achter",
+        "town": "Norton",
+        "weeks": "3",
+        "year": "2020"
+      }
+    },
+    "groups": [
+      {
+        "group": "hood.100.c0",
+        "before": {
+          "step": 0,
+          "points": 3,
+          "key": "exchange-lean-even"
+        },
+        "after": {
+          "step": 1,
+          "points": 13,
+          "key": "exchange-lean-with-1"
+        },
+        "steps": 1,
+        "points": 10,
+        "moved_key": "exchange-moved-with"
+      },
+      {
+        "group": "hood.100.c1",
+        "before": {
+          "step": 0,
+          "points": 3,
+          "key": "exchange-lean-even"
+        },
+        "after": {
+          "step": 1,
+          "points": 13,
+          "key": "exchange-lean-with-1"
+        },
+        "steps": 1,
+        "points": 10,
+        "moved_key": "exchange-moved-with"
+      },
+      {
+        "group": "hood.100.c2",
+        "before": {
+          "step": 0,
+          "points": 3,
+          "key": "exchange-lean-even"
+        },
+        "after": {
+          "step": 1,
+          "points": 13,
+          "key": "exchange-lean-with-1"
+        },
+        "steps": 1,
+        "points": 10,
+        "moved_key": "exchange-moved-with"
+      }
+    ],
+    "promises": [
+      {
+        "ask": 7,
+        "title": {
+          "key": "promise-clean-politics",
+          "args": {
+            "constituency_key": "ask-constituency",
+            "days": "1486",
+            "history": "none",
+            "number": "7",
+            "player": "Saul Raskuwell",
+            "town": "Norton"
+          }
+        },
+        "due": {
+          "day_number": 739066,
+          "year": 2024,
+          "month": 11,
+          "day": 3
+        }
+      },
+      {
+        "ask": 8,
+        "title": {
+          "key": "promise-no-tax-rise",
+          "args": {
+            "constituency_key": "ask-constituency",
+            "days": "450",
+            "history": "none",
+            "number": "7",
+            "player": "Saul Raskuwell",
+            "town": "Norton"
+          }
+        },
+        "due": {
+          "day_number": 738030,
+          "year": 2022,
+          "month": 1,
+          "day": 1
+        }
+      },
+      {
+        "ask": 9,
+        "title": {
+          "key": "promise-town-halls",
+          "args": {
+            "constituency_key": "ask-constituency",
+            "days": "206",
+            "history": "none",
+            "number": "7",
+            "player": "Saul Raskuwell",
+            "town": "Norton"
+          }
+        },
+        "due": {
+          "day_number": 737786,
+          "year": 2021,
+          "month": 5,
+          "day": 2
+        }
+      }
+    ],
+    "event": 2110
+  }
+}

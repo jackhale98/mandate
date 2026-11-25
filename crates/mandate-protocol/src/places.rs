@@ -776,6 +776,7 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
     );
     let c5 = |v: f64| coarse(v, 0.05);
     let needs_you = crate::pocket::needs_you(engine);
+    crate::pocket::drop_covered(&mut alerts, &needs_you);
     Some(PocketView {
         date: DateView::of(st.calendar.date),
         turn: st.calendar.turn,
