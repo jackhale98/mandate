@@ -148,6 +148,7 @@ fn world() -> World {
                 opinion: 50.0,
                 trust: 0.8,
                 bonds: Vec::new(),
+                familiar: 0,
             },
         );
         pol.characters.favours.push(characters::Favour {

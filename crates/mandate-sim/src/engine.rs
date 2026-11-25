@@ -266,6 +266,11 @@ impl Engine {
         // (keyed: the deck a fresh start would draw), and new families
         // drawn in; open proposals of a removed family lapse.
         crate::policy::families::on_load(&mut state, &content);
+        // The day played (DEC-114): a new game, or a save from before it,
+        // has none inside the turn; choose it now (a save keeps its own).
+        if !crate::characters::calendar::Span::now(&state, &content).contains(state.calendar.day) {
+            state.calendar.day = crate::characters::calendar::choose_day(&state, &content);
+        }
         Ok(Engine {
             state,
             terrain: None,
@@ -589,6 +594,9 @@ impl Engine {
         // default: the player let them pass (DEC-077 §4).
         let until = self.state.calendar.date.add_days(days);
         crate::narrative::resolve_due(&mut self.state, &self.content, until);
+        // The calendar's day ends (DEC-114): the turn's occasions as facts,
+        // an expected absence's cost, familiarity's monthly fade.
+        crate::characters::calendar::end_turn(&mut self.state, &self.content);
         // NPCs act in the same turn as the player, before time moves (DEC-030).
         self.npc_turns();
         let seeded = std::mem::take(&mut self.pending_effects);
@@ -615,6 +623,8 @@ impl Engine {
         // a turn's end: a skip prunes exactly as its turns played one by
         // one would.
         crate::spine::prune::due(&mut self.state);
+        // The next turn's day played (DEC-114), once its phase is known.
+        self.state.calendar.day = crate::characters::calendar::choose_day(&self.state, &self.content);
         days
     }
 

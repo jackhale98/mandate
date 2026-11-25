@@ -122,6 +122,9 @@ pub struct CharacterView {
     pub opinion_band: String,
     /// Their trust in the player: `low` | `some` | `high`.
     pub trust_band: String,
+    /// How well they know the player's face, in words (`familiar-*`,
+    /// DEC-114 §5); none for a stranger. Never a count.
+    pub familiar_key: Option<String>,
     /// Bonds they hold toward the player (`ally`, `rival`, `family`, …).
     pub bonds: Vec<String>,
     pub owes_you: u32,
@@ -367,7 +370,22 @@ pub fn news(engine: &Engine, id: CharacterId) -> Vec<News> {
             && ctx.all_hold(&o.when, &mut Default::default())
             && !mandate_sim::talk::asked_this_week(st, id, &t.id)
     });
-    if unasked {
+    // Someone who knows the player well enough (a nod, DEC-114 §5) offers
+    // what is on their mind unprompted: the open question, not yet asked
+    // this week, counts as news when they have something to say.
+    let open_offered = || {
+        content.talk_topics.iter().any(|t| {
+            t.mechanic == mandate_content::conversation::TalkMechanic::Open
+                && !mandate_sim::talk::asked_this_week(st, id, &t.id)
+        })
+    };
+    let familiar = characters::familiar::band(&st.politics, content, id, me)
+        >= mandate_content::condition::Familiarity::Nod;
+    if unasked
+        || (familiar
+            && open_offered()
+            && !mandate_sim::talk::open::minds(st, content, id, me, town).is_empty())
+    {
         out.push(News::Topic);
     }
     if pl
@@ -380,6 +398,19 @@ pub fn news(engine: &Engine, id: CharacterId) -> Vec<News> {
     }
     // E6–E8: `News::Ask` when they have an ask for the player.
     out
+}
+
+/// How well someone knows the player's face, as the words' Fluent key
+/// (DEC-114 §5): none for a stranger, or without a player.
+pub fn familiar_key(engine: &Engine, id: CharacterId) -> Option<String> {
+    let st = engine.state();
+    let me = characters::player_character(st)?;
+    if id == me {
+        return None;
+    }
+    characters::familiar::band(&st.politics, engine.content(), id, me)
+        .key()
+        .map(str::to_string)
 }
 
 /// Whether this person has something new for the player (`news`).
@@ -598,6 +629,7 @@ pub fn character_view(engine: &Engine, id: u32) -> Option<CharacterView> {
         expertise_key,
         opinion_band: opinion_band(opinion),
         trust_band: trust_band(trust),
+        familiar_key: familiar_key(engine, id),
         bonds,
         owes_you: owes,
         you_owe: owe,

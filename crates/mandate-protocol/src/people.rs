@@ -76,6 +76,9 @@ pub struct PersonRowView {
     /// As `CharacterView` gives them: how they see the player is never gated.
     pub opinion_band: String,
     pub trust_band: String,
+    /// How well they know the player's face, in words (`familiar-*`,
+    /// DEC-114 §5); none for a stranger. Never a count.
+    pub familiar_key: Option<String>,
     pub owes_you: u32,
     pub you_owe: u32,
     pub is_rival: bool,
@@ -235,6 +238,7 @@ pub fn people_view(engine: &Engine) -> Option<PeopleView> {
                 level: level.into(),
                 stance: stance(&band),
                 opinion_band: band,
+                familiar_key: crate::characters::familiar_key(engine, id),
                 trust_band: crate::characters::trust_band(
                     characters::trust(pol, content, id, me) as f64
                 ),

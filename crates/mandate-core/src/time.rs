@@ -11,7 +11,9 @@ pub const DAYS_PER_YEAR: u32 = 365;
 pub const MONTH_LENGTHS: [u32; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 /// Days since the simulation epoch.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize,
+)]
 #[serde(transparent)]
 pub struct SimDate(pub u32);
 

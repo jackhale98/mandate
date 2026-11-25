@@ -375,6 +375,7 @@ fn friendly(e: &mut Engine, who: CharacterId) {
                 opinion: 30.0,
                 trust: 0.6,
                 bonds: Vec::new(),
+                familiar: 0,
             },
         );
     });

@@ -1,0 +1,127 @@
+// The town calendar (DEC-114 §4, BEING_THERE.md §5). Types:
+// `mandate-content/src/calendar.rs`. The engine derives each town's events
+// from the seed, the town and the turn; nothing is stored but the day
+// played (`mandate-sim/src/characters/calendar.rs`).
+//
+// One date per turn (DEC-114): a turn is played as one day. The engine
+// chooses it: the date of the fortnight's main occasion (one the player is
+// expected at first, then the largest crowd, then the first listed), else a
+// working day by keyed draw. Every event of the turn is held that day, each
+// in a part of its own (`parts`, the first preferred); an occasion that
+// finds no part left is reported as having happened, on its own date.
+//
+// `cadence`:
+// - `turn`: every turn, on the day played (it never chooses the day);
+// - `meeting_night`, `session`: the routine events of those names (the
+//   town's meeting weekday; the legislature sitting), held when the day
+//   played is theirs, as routines read them;
+// - `month` | `season` | `year`: an occasion, with a date of its own in its
+//   `months` (`season`: once early in each month listed; `year`: once in
+//   one of them), moved on to its `weekday` if given.
+// `venue`: a place kind, or `legislature`. A town without one has no such
+// event; `requires` are the town's situation (slot-free conditions).
+// `attendees`: routine rules (one of `post`, `occupation`, `role`, with a
+// keyed `chance`) tried before a person's own routines while it is held.
+// `crowd`: extra passers-by there. `verbs`: visit verbs done there then.
+// `talk`: presence counts double for familiarity. `expected`: who should be
+// there (`power`, a role `word`, or `ward`: the seat whose district holds
+// the venue); only an expected absence costs (`absent`), at most one a
+// turn, and it is shown a turn ahead (owner's answer 2).
+//
+// Not built: match day (needs a club place kind, STAGED_ARCS §8 "the
+// team"); faith festivals (M7, owner's answer 5).
+{
+  "kind": "calendar",
+  "items": [
+    // --- Routine events: every turn, or when the day is theirs -------------------
+    {
+      "id": "event.market_day", "names": ["cal-market-day"],
+      "cadence": "turn", "parts": ["morning"], "venue": "market",
+      "attendees": [
+        { "occupation": "occupation.farmer", "chance": 0.9 },
+        { "occupation": "occupation.farmhand", "chance": 0.5 },
+        { "occupation": "occupation.retiree", "chance": 0.4 },
+        { "occupation": "occupation.resident", "chance": 0.3 },
+      ],
+      "crowd": 3, "verbs": ["verb.be_seen"], "talk": true,
+    },
+    {
+      // The legislature sits: members are in the chamber by their routines;
+      // the public gallery fills a little.
+      "id": "event.council_night", "names": ["cal-council-night"],
+      "cadence": "session", "parts": ["evening"], "venue": "legislature",
+      "attendees": [
+        { "occupation": "occupation.retiree", "chance": 0.2 },
+        { "occupation": "occupation.resident", "chance": 0.1 },
+      ],
+      "crowd": 2,
+    },
+    {
+      // The people `meeting_night` places now, and a fuller room.
+      "id": "event.meeting_night", "names": ["cal-meeting-night"],
+      "cadence": "meeting_night", "parts": ["evening"], "venue": "community_centre",
+      "crowd": 3, "talk": true,
+    },
+    // --- Occasions -----------------------------------------------------------------
+    {
+      // Most of the town comes; the executive opens it.
+      "id": "event.summer_show", "names": ["cal-show-1", "cal-show-2", "cal-show-3"],
+      "cadence": "year", "months": [7, 8], "weekday": "sat",
+      "parts": ["afternoon", "morning"], "venue": "park",
+      "attendees": [
+        { "occupation": "occupation.resident", "chance": 0.6 },
+        { "occupation": "occupation.retiree", "chance": 0.6 },
+        { "occupation": "occupation.farmer", "chance": 0.6 },
+        { "occupation": "occupation.shopkeeper", "chance": 0.4 },
+        { "occupation": "occupation.teacher", "chance": 0.5 },
+        { "post": "mayor", "chance": 0.9 },
+        { "post": "councillor", "chance": 0.4 },
+        { "role": "anyone", "chance": 0.3 },
+      ],
+      "crowd": 8, "verbs": ["verb.be_seen"], "talk": true,
+      "expected": [ { "type": "power", "power": "veto" } ],
+      "absent": { "opinion": -2.0 },
+    },
+    {
+      // Only where the world's history holds a disaster to remember.
+      "id": "event.memorial", "names": ["cal-memorial-1", "cal-memorial-2"],
+      "cadence": "year", "months": [11], "weekday": "sun",
+      "parts": ["morning", "afternoon"], "venue": "town_hall",
+      "requires": [ { "type": "disaster", "within_months": 120 } ],
+      "attendees": [
+        { "post": "mayor", "chance": 0.9 },
+        { "post": "councillor", "chance": 0.7 },
+        { "occupation": "occupation.clergy", "chance": 0.9 },
+        { "occupation": "occupation.retiree", "chance": 0.6 },
+      ],
+      "crowd": 4, "verbs": ["verb.be_seen"],
+      "expected": [ { "type": "ward" }, { "type": "power", "power": "veto" } ],
+      "absent": { "opinion": -3.0 },
+    },
+    {
+      // The term starting in September and ending in July: parents at the gate.
+      "id": "event.school_term", "names": ["cal-school-term"],
+      "cadence": "season", "months": [9, 7], "weekday": "mon",
+      "parts": ["morning", "afternoon"], "venue": "school",
+      "attendees": [
+        { "occupation": "occupation.head_teacher", "chance": 1.0 },
+        { "occupation": "occupation.teacher", "chance": 0.9 },
+        { "occupation": "occupation.resident", "chance": 0.3 },
+      ],
+      "crowd": 4, "verbs": ["verb.talk_to_head"], "talk": true,
+    },
+    {
+      // The works' gala, where the town has a factory.
+      "id": "event.plant_gala", "names": ["cal-plant-gala"],
+      "cadence": "year", "months": [6], "weekday": "sat",
+      "parts": ["afternoon", "morning"], "venue": "factory",
+      "attendees": [
+        { "occupation": "occupation.plant_manager", "chance": 0.9 },
+        { "occupation": "occupation.shop_steward", "chance": 0.9 },
+        { "occupation": "occupation.union_steward", "chance": 0.6 },
+        { "occupation": "occupation.resident", "chance": 0.3 },
+      ],
+      "crowd": 5, "verbs": ["verb.listen_at_gate"], "talk": true,
+    },
+  ],
+}

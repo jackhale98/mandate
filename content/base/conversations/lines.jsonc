@@ -86,6 +86,28 @@
       "when": [ { "type": "opinion", "slot": "speaker", "min": 50 },
                 { "type": "trust", "slot": "speaker", "min": 0.5 } ] },
 
+    // --- Openers for a familiar face (DEC-114 §5) ------------------------------------
+    // Familiarity is presence (`familiar`: knows your face, a nod, one of
+    // ours). A familiar person greets the player by name; never a cool one.
+    { "id": "line.open.familiar.face", "part": "opener", "key": "talk-open-familiar-face", "weight": 3,
+      "when": [ { "type": "familiar", "slot": "speaker", "at_least": "face" },
+                { "type": "familiar", "slot": "speaker", "at_least": "nod", "is": false },
+                { "type": "opinion", "slot": "speaker", "min": -15 } ] },
+    { "id": "line.open.familiar.face.2", "part": "opener", "key": "talk-open-familiar-face-2", "weight": 3,
+      "when": [ { "type": "familiar", "slot": "speaker", "at_least": "face" },
+                { "type": "familiar", "slot": "speaker", "at_least": "nod", "is": false },
+                { "type": "opinion", "slot": "speaker", "min": -15 } ] },
+    { "id": "line.open.familiar.nod", "part": "opener", "key": "talk-open-familiar-nod", "weight": 4,
+      "when": [ { "type": "familiar", "slot": "speaker", "at_least": "nod" },
+                { "type": "familiar", "slot": "speaker", "at_least": "ours", "is": false },
+                { "type": "opinion", "slot": "speaker", "min": -15 } ] },
+    { "id": "line.open.familiar.nod.2", "part": "opener", "key": "talk-open-familiar-nod-2", "weight": 4,
+      "when": [ { "type": "familiar", "slot": "speaker", "at_least": "nod" },
+                { "type": "familiar", "slot": "speaker", "at_least": "ours", "is": false },
+                { "type": "opinion", "slot": "speaker", "min": -15 } ] },
+    { "id": "line.open.familiar.ours", "part": "opener", "key": "talk-open-familiar-ours", "weight": 5,
+      "when": [ { "type": "familiar", "slot": "speaker", "at_least": "ours" } ] },
+
     // --- Openers, by voice and relationship -----------------------------------------
     // Blunt.
     { "id": "line.open.blunt.cool", "part": "opener", "key": "talk-open-blunt-cool", "weight": 2,

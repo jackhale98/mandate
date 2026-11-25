@@ -204,6 +204,13 @@ pub struct PocketView {
     /// The next dated thing ahead (the empty state: "Nothing is waiting on
     /// you. Next: …"); none when nothing is dated.
     pub next_up: Option<crate::pocket::NextUpView>,
+    /// This fortnight's calendar (DEC-114; Today's "This fortnight"): the
+    /// events held on the day played, in the day's order, then any
+    /// reported as having happened.
+    pub fortnight: Vec<crate::calendar::CalendarEventView>,
+    /// The next turn's event the player is expected at, with what staying
+    /// away costs (shown a turn ahead).
+    pub next_expected: Option<crate::calendar::CalendarEventView>,
 }
 
 /// One location on the town schematic, with what it offers.
@@ -827,6 +834,8 @@ pub fn pocket_view(engine: &Engine) -> Option<PocketView> {
         needs_you,
         arcs: crate::arcs::arc_summaries(engine),
         next_up: crate::pocket::next_up(engine),
+        fortnight: crate::calendar::fortnight(engine),
+        next_expected: crate::calendar::next_expected(engine),
     })
 }
 

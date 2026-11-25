@@ -610,6 +610,13 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
                 put("trust", num(characters::trust(pol, content, p, me) as f64));
             }
         }
+        // A word, never a count (DEC-114 §5).
+        C::Familiar { slot, .. } => {
+            if let (Some(p), Some(me)) = (who(slot), me) {
+                let band = characters::familiar::band(pol, content, p, me);
+                put("familiar", band.key().unwrap_or("familiar-stranger").into());
+            }
+        }
         C::Remembers { slot, .. } => {
             if let (Some(p), Some(me)) = (who(slot), me) {
                 let kinds: Vec<&str> = pol

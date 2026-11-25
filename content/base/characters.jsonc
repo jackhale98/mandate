@@ -57,6 +57,20 @@
       "period_days": 7,             // who is around changes weekly
       "max_listed": 4,              // people listed at a place
     },
+    // Familiarity (DEC-114 §5): presence, kept as one small number on a
+    // person's relationship toward the player and shown only in words
+    // (`familiar-*`: knows your face, a nod, one of ours). It rises when the
+    // player is where the person is (once a turn; more at a calendar event
+    // with time to talk) and fades a month without meeting.
+    "familiarity": {
+      "face": 3, "nod": 6, "ours": 10,
+      "ours_opinion": 20.0,         // one of ours also likes the player
+      "presence": 1,                // a turn the player is where they are
+      "event": 2,                   // at an event with time to talk
+      "decay": 1,                   // a month without a sighting
+      "idle_days": 30,
+      "max": 20,
+    },
     "town": {
       "trend_months": 6,            // crisis severity history kept for the trend
       "broker_seniority": 0.05,     // per year in office, for officeholders

@@ -307,6 +307,22 @@ pub enum EventKind {
         family: String,
         at: crate::world::Jurisdiction,
     },
+    /// A calendar occasion of the turn just played (DEC-114): held on the
+    /// day played (`part`), or reported as having happened on its own date
+    /// (`part` none); whether the player came, and whether an expected
+    /// absence cost them (`missed`).
+    CalendarEvent {
+        municipality: u32,
+        /// Calendar event content id.
+        event: String,
+        /// Its name in the town (a Fluent key with `$town`).
+        name_key: String,
+        on: SimDate,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        part: Option<String>,
+        attended: bool,
+        missed: bool,
+    },
     /// An arc was raised (DEC-109): its `raise` held at a jurisdiction and
     /// its cast was bound. Opens the run's thread.
     ArcRaised {

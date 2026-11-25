@@ -335,6 +335,18 @@ pub enum Condition {
         #[serde(default = "yes")]
         is: bool,
     },
+    /// How well they know the player's face (DEC-114 §5): at least
+    /// `at_least` (`face`, `nod`, `ours`), or, with `is: false`, less.
+    /// Familiarity is a deed (presence, `BEING_THERE.md` §6.2), so it may
+    /// choose a line; content names a word, never a number.
+    Familiar {
+        #[serde(alias = "role")]
+        slot: String,
+        #[serde(default = "face")]
+        at_least: Familiarity,
+        #[serde(default = "yes")]
+        is: bool,
+    },
     /// They are (or are not) the town's power broker (local-only). When
     /// they are: `$broker`, `$broker_place`, `$stake_key`.
     IsBroker {
@@ -570,6 +582,41 @@ fn three() -> u8 {
     3
 }
 
+/// How well someone knows the player's face, in words (DEC-114 §5): the
+/// bands of the relationship's familiarity (`characters.jsonc`
+/// `familiarity`). Never shown as a number.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum Familiarity {
+    /// A stranger.
+    #[default]
+    Stranger,
+    /// Knows the player's face: greets them by name.
+    Face,
+    /// A nod: says what is on their mind without being asked.
+    Nod,
+    /// One of ours: a regular who counts the player as one of their own.
+    Ours,
+}
+
+impl Familiarity {
+    /// The Fluent key of its words (`familiar-face`, ...); none for a stranger.
+    pub fn key(self) -> Option<&'static str> {
+        match self {
+            Familiarity::Stranger => None,
+            Familiarity::Face => Some("familiar-face"),
+            Familiarity::Nod => Some("familiar-nod"),
+            Familiarity::Ours => Some("familiar-ours"),
+        }
+    }
+}
+
+fn face() -> Familiarity {
+    Familiarity::Face
+}
+
 fn yes() -> bool {
     true
 }
@@ -724,6 +771,7 @@ impl Condition {
             C::Remembers { .. } => "remembers",
             C::Favour { .. } => "favour",
             C::Met { .. } => "met",
+            C::Familiar { .. } => "familiar",
             C::IsBroker { .. } => "is_broker",
             C::IsRival { .. } => "is_rival",
             C::PartyLineAgainstWard { .. } => "party_line_against_ward",
@@ -820,6 +868,7 @@ impl Condition {
             | C::Remembers { .. }
             | C::Favour { .. }
             | C::Met { .. }
+            | C::Familiar { .. }
             | C::SponsorsBill { .. }
             | C::IsBroker { .. }
             | C::IsRival { .. } => n.slot = true,
@@ -899,6 +948,7 @@ impl Condition {
             | C::Remembers { slot, .. }
             | C::Favour { slot, .. }
             | C::Met { slot, .. }
+            | C::Familiar { slot, .. }
             | C::SponsorsBill { slot }
             | C::IsBroker { slot, .. }
             | C::IsRival { slot, .. }
@@ -1049,6 +1099,9 @@ pub enum ConditionUse {
     /// A reply to an arc's choice in a conversation: the conversation's
     /// slots, and the run.
     ArcReply,
+    /// Whether a town holds a calendar event (DEC-114): its situation, on
+    /// the whole state.
+    Calendar,
 }
 
 /// Which slots a use binds.
@@ -1081,7 +1134,7 @@ pub struct Provides {
 }
 
 impl ConditionUse {
-    pub const ALL: [ConditionUse; 17] = [
+    pub const ALL: [ConditionUse; 18] = [
         ConditionUse::DilemmaTrigger,
         ConditionUse::GoalCondition,
         ConditionUse::SceneVariant,
@@ -1099,6 +1152,7 @@ impl ConditionUse {
         ConditionUse::ArcGate,
         ConditionUse::ArcFacts,
         ConditionUse::ArcReply,
+        ConditionUse::Calendar,
     ];
 
     /// How content and messages name it.
@@ -1121,6 +1175,7 @@ impl ConditionUse {
             ConditionUse::ArcGate => "an arc's beat or effect",
             ConditionUse::ArcFacts => "an arc's facts",
             ConditionUse::ArcReply => "a reply to an arc's choice",
+            ConditionUse::Calendar => "a calendar event's requirements",
         }
     }
 
@@ -1145,7 +1200,7 @@ impl ConditionUse {
             U::DilemmaTrigger | U::GoalCondition | U::Ask => p(Slots::Cast, false, false, true),
             U::SceneVariant => p(Slots::Cast, true, true, false),
             U::FamilyTrigger => p(Slots::Family, true, false, true),
-            U::PolicyUnlock => p(Slots::None, true, false, true),
+            U::PolicyUnlock | U::Calendar => p(Slots::None, true, false, true),
             U::TalkTopic | U::TalkLine | U::TalkVoice => p(Slots::Talk, true, true, false),
             U::Overheard => p(Slots::None, true, true, false),
             U::VisitVerb | U::VisitRisk => p(Slots::None, true, true, true),
@@ -1587,6 +1642,7 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
         }
         C::Favour { slot, .. }
         | C::Met { slot, .. }
+        | C::Familiar { slot, .. }
         | C::IsBroker { slot, .. }
         | C::IsRival { slot, .. } => not_player(slot, issues),
         C::Tells { min, .. } => {

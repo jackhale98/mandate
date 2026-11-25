@@ -265,6 +265,46 @@ pub struct AmbientParams {
     pub max_listed: u8,
 }
 
+/// Familiarity (DEC-114 §5, `BEING_THERE.md` §6.2): a deed, built by
+/// presence and kept as one small number on a person's relationship toward
+/// the player. Shown in words by these bands, never counted.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FamiliarityParams {
+    /// "Knows your face" from this.
+    pub face: u8,
+    /// "A nod" from this.
+    pub nod: u8,
+    /// "One of ours" from this, with an opinion of the player above
+    /// `ours_opinion`.
+    pub ours: u8,
+    pub ours_opinion: f64,
+    /// Added on a turn the player is where they are (once a turn a person);
+    /// `event` at a calendar event with time to talk.
+    pub presence: u8,
+    pub event: u8,
+    /// Lost each month without a meeting (no sighting in `idle_days`).
+    pub decay: u8,
+    pub idle_days: u32,
+    pub max: u8,
+}
+
+impl Default for FamiliarityParams {
+    fn default() -> Self {
+        FamiliarityParams {
+            face: 3,
+            nod: 6,
+            ours: 10,
+            ours_opinion: 20.0,
+            presence: 1,
+            event: 2,
+            decay: 1,
+            idle_days: 30,
+            max: 20,
+        }
+    }
+}
+
 /// Town character (DEC-077 §1).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -345,6 +385,8 @@ pub struct CharacterParams {
     pub ambient: AmbientParams,
     pub town: TownCharacterParams,
     pub broker: BrokerParams,
+    #[serde(default)]
+    pub familiarity: FamiliarityParams,
 }
 
 impl CharacterParams {

@@ -863,6 +863,7 @@ pub fn generate_with_progress(
     let state = State {
         meta,
         calendar: Calendar {
+            day: SimDate::default(),
             date: start_date,
             turn: 0,
             phase: GamePhase::Governing,
@@ -1093,6 +1094,7 @@ fn seat_player(
         actions: Vec::new(),
         filing: None,
         ads_this_turn: 0,
+        at_events: Vec::new(),
         last_election_seen: None,
         location: mandate_sim::places::Location::Home,
         status: Default::default(),

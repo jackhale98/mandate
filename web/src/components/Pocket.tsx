@@ -11,6 +11,7 @@
 // `arcs`, `next_up`, `needs_count`): the UI sorts and counts nothing.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ArcSummaryView } from "../engine/protocol/ArcSummaryView";
+import type { CalendarEventView } from "../engine/protocol/CalendarEventView";
 import type { NeedView } from "../engine/protocol/NeedView";
 import type { PocketView } from "../engine/protocol/PocketView";
 import { useGame } from "../state/gameStore";
@@ -295,6 +296,72 @@ function NextUp({ p }: { p: PocketView }) {
   );
 }
 
+const CAL_MARK = "📅";
+
+/** One event of the fortnight (DEC-114 §5.5): its name, part and place, and "Go" (walk there, or open the place in quick mode). */
+function CalendarRow({ e }: { e: CalendarEventView }) {
+  const tr = useGame((s) => s.tr);
+  const busy = useGame((s) => s.busy);
+  const visit = useGame((s) => s.visit);
+  const title = capital(tr.event(e.name.key, e.name.args));
+  const where = placeName(tr, e.place);
+  if (!e.today) {
+    // Not on the day played: it went ahead on its own date, and is told, never shown as today.
+    const sub = tr.t("ui-cal-went-ahead", { weekday: tr.t(e.weekday_key), day: e.date.day, month: tr.t(`month-${e.date.month}`) });
+    return <Row mark={CAL_MARK} title={title} sub={sub} label={`${title}. ${sub}`} li={{ "data-testid": `cal-${e.id}`, "data-cal": "reported" }} />;
+  }
+  const line = tr.t("ui-cal-row", { part: e.part_key ? tr.t(e.part_key) : "", place: where });
+  const state = e.attended ? tr.t("ui-cal-you-were-there") : e.expected ? tr.t("ui-cal-expected") : e.now ? tr.t("ui-cal-here-now") : null;
+  const sub = [line, state].filter(Boolean).join(" · ");
+  const go = () => void visit(e.place.location);
+  return (
+    <Row
+      mark={CAL_MARK}
+      title={title}
+      sub={sub}
+      label={`${title}. ${sub}`}
+      onActivate={e.here ? undefined : go}
+      end={
+        e.here ? undefined : (
+          <button type="button" className="btn btn-sm btn-primary rw-go" tabIndex={-1} disabled={busy} aria-label={tr.t("ui-cal-go-label", { event: title })} onClick={go} data-testid={`cal-go-${e.id}`}>
+            {tr.t("ui-go")}
+          </button>
+        )
+      }
+      li={{ "data-testid": `cal-${e.id}`, "data-cal": e.expected ? "expected" : "held" }}
+    />
+  );
+}
+
+/** This fortnight (DEC-114): the turn's events on the day played, in the day's order, any that went ahead on another day, and the next turn's expected event with what staying away costs (shown a turn ahead). The engine decides all of it. */
+function Fortnight({ p }: { p: PocketView }) {
+  const tr = useGame((s) => s.tr);
+  const n = p.next_expected;
+  if (p.fortnight.length === 0 && !n) return null;
+  return (
+    <Section id="today-fortnight" title={tr.t("ui-this-fortnight")} testId="pocket-fortnight">
+      {p.fortnight.length > 0 && (
+        <RowList testId="pocket-fortnight-list">
+          {p.fortnight.map((e) => (
+            <CalendarRow key={e.id} e={e} />
+          ))}
+        </RowList>
+      )}
+      {n && (
+        <p className="note small" data-testid="pocket-next-expected">
+          {tr.t("ui-cal-next-expected", {
+            event: tr.event(n.name.key, n.name.args),
+            weekday: tr.t(n.weekday_key),
+            part: n.part_key ? tr.t(n.part_key) : "",
+            place: placeName(tr, n.place),
+          })}{" "}
+          {n.cost && tr.event(n.cost.key, n.cost.args)}
+        </p>
+      )}
+    </Section>
+  );
+}
+
 /** Today (DEC-113): one page. */
 function Today({ p }: { p: PocketView }) {
   const tr = useGame((s) => s.tr);
@@ -352,6 +419,7 @@ function Today({ p }: { p: PocketView }) {
         </p>
       )}
       {p.legal && <Legal l={p.legal} />}
+      <Fortnight p={p} />
       {p.needs_you.length > 0 ? (
         <Section id="today-needs" title={tr.t("ui-needs-you")} testId="pocket-needs">
           <RowList testId="pocket-needs-list">

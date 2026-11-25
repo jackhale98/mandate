@@ -5,6 +5,7 @@ pub mod act;
 pub mod arcs;
 pub mod asks;
 pub mod bundle;
+pub mod calendar;
 pub mod condition;
 pub mod conversation;
 pub mod exchange;

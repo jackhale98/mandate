@@ -204,11 +204,11 @@ enum Cmd {
         seeds: u64,
     },
     /// Daily routines (DEC-031): where the town's key people are in each part
-    /// of the day, one turn's representative day after another.
+    /// of the day, one turn's day played after another (DEC-114).
     Routines {
         #[arg(long, default_value_t = 1)]
         seed: u64,
-        /// Turns (representative days) to follow.
+        /// Turns (days played) to follow.
         #[arg(long, default_value_t = 7)]
         days: u32,
         #[arg(long, value_enum, default_value_t = Size::Small)]

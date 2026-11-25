@@ -126,6 +126,7 @@ fn relate(e: &mut Engine, holder: CharacterId, opinion: f32, trust: f32) {
                 opinion,
                 trust,
                 bonds: Vec::new(),
+                familiar: 0,
             },
         );
     });

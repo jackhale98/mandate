@@ -1,6 +1,6 @@
 //! `mandate-cli routines`: where the player's town's key people are in each
 //! part of the day, turn by turn (DEC-031 daily routines), for checking a
-//! routines pack. Each "day" is one turn's representative day; the game
+//! routines pack. Each "day" is one turn's day played (DEC-114); the game
 //! advances a turn between days (the player idles).
 
 use mandate_content::ContentBundle;
@@ -86,7 +86,7 @@ fn where_label(st: &State, loc: Location) -> String {
     }
 }
 
-fn events(now: &Now, st: &State) -> Vec<&'static str> {
+fn events<'a>(now: &Now, st: &State, content: &'a ContentBundle) -> Vec<&'a str> {
     let Some(pl) = st.player.as_ref() else {
         return Vec::new();
     };
@@ -103,6 +103,10 @@ fn events(now: &Now, st: &State) -> Vec<&'static str> {
     }
     if routines::meeting_night(st.meta.seed, pl.home()) == now.weekday {
         v.push("meeting_night");
+    }
+    // The calendar's events held on the day (DEC-114).
+    for h in &now.held {
+        v.push(h.def(content).id.as_str());
     }
     v
 }
@@ -135,7 +139,7 @@ pub fn run(
             .map(|p| Now::at(st, content, *p))
             .collect();
         let now = &nows[0];
-        let ev = events(now, st);
+        let ev = events(now, st, content);
         let mut who = Vec::new();
         for (id, label) in &people {
             let name = characters::profile(&st.politics, &st.world, *id)
@@ -176,7 +180,7 @@ pub fn run(
         rows.push(json!({
             "turn": st.calendar.turn,
             "date": st.calendar.date.0,
-            "representative_day": now.day.0,
+            "day_played": now.day.0,
             "weekday": now.weekday.key(),
             "season": format!("{:?}", now.season).to_lowercase(),
             "events": ev,

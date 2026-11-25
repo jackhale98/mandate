@@ -61,8 +61,15 @@ pub fn ambient_at(
     let seed = state.meta.seed;
     let per = period(content, state.calendar.date);
     let a = &content.characters.ambient;
-    let n = rng(seed, &[KEY_AMBIENT, key, per as u64])
+    let mut n = rng(seed, &[KEY_AMBIENT, key, per as u64])
         .range_i64(a.present[0] as i64, a.present[1] as i64);
+    // A calendar event held here now fills the place (its `crowd`, DEC-114).
+    if matches!(loc, Location::Place { .. }) && !content.calendar.is_empty() {
+        let now = super::routines::Now::of(state, content);
+        if let Some(h) = super::calendar::at_location(&now, loc) {
+            n += h.def(content).crowd as i64;
+        }
+    }
     let year = state.calendar.date.calendar().year;
     let met = &state.politics.characters;
     (0..n.max(0) as u8)
