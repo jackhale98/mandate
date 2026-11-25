@@ -297,6 +297,8 @@ impl Engine {
         let seed = self.state.meta.seed;
         // The run's policy-family decks (DEC-092).
         crate::policy::families::on_load(&mut self.state, &self.content);
+        // The first turn's day played (DEC-114), now the player has a home.
+        self.state.calendar.day = crate::characters::calendar::choose_day(&self.state, &self.content);
         let id = self.state.events.record(
             self.state.calendar.date,
             EventKind::GameStarted { seed },
@@ -570,6 +572,7 @@ impl Engine {
                 }
                 self.settle(seeded);
                 crate::spine::prune::due(&mut self.state);
+                self.refresh_day();
                 CommandOutcome {
                     days_advanced: *days,
                     turn: self.state.calendar.turn,
@@ -626,6 +629,16 @@ impl Engine {
         // The next turn's day played (DEC-114), once its phase is known.
         self.state.calendar.day = crate::characters::calendar::choose_day(&self.state, &self.content);
         days
+    }
+
+    /// The day played (DEC-114), chosen again when the stored one is not in
+    /// the current turn (after a lab advance or the history's burn-in).
+    fn refresh_day(&mut self) {
+        let span = crate::characters::calendar::Span::now(&self.state, &self.content);
+        if !span.contains(self.state.calendar.day) {
+            self.state.calendar.day =
+                crate::characters::calendar::choose_day(&self.state, &self.content);
+        }
     }
 
     /// Close the skip in progress, if any, into its summary.
@@ -848,6 +861,7 @@ impl Engine {
             progress(y + 1);
         }
         self.state.calendar.phase = prev;
+        self.refresh_day();
     }
 
     /// NPC turns before the calendar advances: the player's town in full

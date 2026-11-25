@@ -50,11 +50,22 @@ pub fn ambient_at(
     let Some(hood) = crate::places::hood_of(state, loc) else {
         return Vec::new();
     };
-    let occs: Vec<&mandate_content::OccupationDef> = content
+    // A calendar event held here now fills the place (its `crowd`, DEC-114),
+    // with passers-by of every kind where the place has none of its own.
+    let crowd = if matches!(loc, Location::Place { .. }) && !content.calendar.is_empty() {
+        let now = super::routines::Now::of(state, content);
+        super::calendar::at_location(&now, loc).map_or(0, |h| h.def(content).crowd as i64)
+    } else {
+        0
+    };
+    let mut occs: Vec<&mandate_content::OccupationDef> = content
         .occupations
         .iter()
         .filter(|o| o.ambient && o.places.iter().any(|k| k == kind))
         .collect();
+    if occs.is_empty() && crowd > 0 {
+        occs = content.occupations.iter().filter(|o| o.ambient).collect();
+    }
     if occs.is_empty() {
         return Vec::new();
     }
@@ -63,13 +74,7 @@ pub fn ambient_at(
     let a = &content.characters.ambient;
     let mut n = rng(seed, &[KEY_AMBIENT, key, per as u64])
         .range_i64(a.present[0] as i64, a.present[1] as i64);
-    // A calendar event held here now fills the place (its `crowd`, DEC-114).
-    if matches!(loc, Location::Place { .. }) && !content.calendar.is_empty() {
-        let now = super::routines::Now::of(state, content);
-        if let Some(h) = super::calendar::at_location(&now, loc) {
-            n += h.def(content).crowd as i64;
-        }
-    }
+    n += crowd;
     let year = state.calendar.date.calendar().year;
     let met = &state.politics.characters;
     (0..n.max(0) as u8)
