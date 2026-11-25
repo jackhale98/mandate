@@ -61,7 +61,7 @@ test("lobby a member from the chamber's list, by keyboard", async ({ page }) => 
   // The first argument has the keyboard: Enter makes it.
   await expect(first.locator("button.dlg-choice")).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(box.getByTestId("talk-bubble").locator("p").first()).not.toBeEmpty({ timeout: 15_000 });
+  await expect(page.getByTestId("talk-bubble").locator("p").first()).not.toBeEmpty({ timeout: 15_000 });
   // The reply, page by page (Continue), then the outcome.
   for (let i = 0; i < 20 && (await box.getByTestId("talk-outcome").count()) === 0; i++) {
     const more = box.getByTestId("talk-continue");

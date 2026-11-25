@@ -130,8 +130,9 @@ test("talk from the Notebook's People: over a portrait; someone elsewhere is gon
   await expect(dlg.getByTestId("talk-away")).toHaveCount(0);
   await expect(dlg.getByTestId("talk-cost")).toHaveText(/^½ slot · \d+ left/);
   await shot(page, "portrait-topics", isMobile);
-  // A topic about something opens its subjects in the same box, each with the engine's odds where it rolls.
-  const support = dlg.getByTestId("talk-topic-topic.support").or(dlg.getByTestId("talk-topic-topic.pitch")).first();
+  // A topic about something opens its subjects in the same box, each with the engine's odds where it rolls
+  // (asking for support; a colleague is lobbied on a bill in the bill's own arguments, M6 note 29).
+  const support = dlg.getByTestId("talk-topic-topic.support");
   await expect(support.locator(".dlg-opens")).toHaveText("›");
   await choiceIn(support).click();
   const subjects = dlg.getByTestId("talk-subjects");
