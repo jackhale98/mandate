@@ -591,7 +591,7 @@ pub(crate) fn attends(
 }
 
 /// The event held at a location now, if any.
-pub fn at_location<'a>(now: &'a Now, loc: Location) -> Option<&'a Held> {
+pub fn at_location(now: &Now, loc: Location) -> Option<&Held> {
     now.held
         .iter()
         .find(|h| h.part == Some(now.part) && h.location() == loc)

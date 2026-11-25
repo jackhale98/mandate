@@ -76,9 +76,10 @@ fn view(engine: &Engine, h: &Held) -> CalendarEventView {
         here: pl.is_some_and(|p| p.location == h.location()),
         attended: calendar::attended(st, content, h),
         expected: h.expected,
-        cost: (h.expected)
-            .then(|| def.absent.as_ref())
-            .flatten()
+        cost: def
+            .absent
+            .as_ref()
+            .filter(|_| h.expected)
             .map(|_| TextView::new("cal-cost-goodwill")),
     }
 }
