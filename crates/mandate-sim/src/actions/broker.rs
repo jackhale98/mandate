@@ -500,12 +500,7 @@ pub fn apply(state: &mut State, content: &ContentBundle, o: Opening, p: &Preview
     let date = state.calendar.date;
     let cause = Cause::Player(PlayerAct::Talk);
     let mut reqs: Vec<Request> = Vec::new();
-    let push = |reqs: &mut Vec<Request>, effect: Effect| {
-        reqs.push(Request {
-            effect,
-            cause: cause.clone(),
-        })
-    };
+    let push = |reqs: &mut Vec<Request>, effect: Effect| reqs.push(Request { effect, cause });
     match o {
         Opening::Lobby { policy } => {
             for (id, amount) in &p.sway {

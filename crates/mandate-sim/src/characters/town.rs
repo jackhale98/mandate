@@ -510,7 +510,7 @@ pub fn broker_pull(
     let broker = town.broker?;
     let stake = stake_of(content, pol, town, broker);
     let way = interest(content, t, inst, &stake);
-    (way != 0.0).then(|| BrokerPull {
+    (way != 0.0).then_some(BrokerPull {
         broker,
         pull: content.characters.broker.vote_pull * stake.influence * way,
     })
