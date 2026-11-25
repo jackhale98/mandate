@@ -14,7 +14,9 @@ id: string,
  */
 name_key: string, 
 /**
- * `inform` | `pitch` | `ask_support` | `favour` | `small_talk`.
+ * `inform` | `pitch` | `ask_support` | `favour` | `small_talk` |
+ * `open` (the open question: the person says what is on their mind;
+ * it takes no subject) | `choice` (a system's own).
  */
 mechanic: string, 
 /**
@@ -22,7 +24,8 @@ mechanic: string,
  */
 about_required: boolean, 
 /**
- * The subjects it can be about, as far as the player knows of them.
+ * The subjects it can be about, as far as the player knows of them:
+ * the `likely` ones first (the most expected first), then the rest.
  */
 about: Array<AboutChoiceView>, 
 /**

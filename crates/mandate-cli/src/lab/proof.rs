@@ -273,23 +273,23 @@ fn digests(
 /// that merge.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "idle", 96, "db4a45eefc6312b5", "65704038b74a59b9"), // 1431 events
-    (2026, "mixed", 96, "f3d0cbaa5d125b16", "57c323a1cc27b2cb"), // 2747 events
+    (2026, "mixed", 96, "f3d0cbaa5d125b16", "f45a8bd9793036f8"), // 2747 events
     (7, "idle", 96, "26202bd27c008026", "4373426f7a3e7ebe"),    // 1281 events
-    (7, "corrupt", 96, "568dfa2e4a263b09", "fd0d2c4feb62607a"), // 1986 events
+    (7, "corrupt", 96, "568dfa2e4a263b09", "350404c01dc8fa5a"), // 1986 events
     (31, "idle", 96, "e17bb185adb876dd", "1555747daaf8b1a5"),   // 1472 events
     (
         31,
         "explorer_legislator",
         96,
-        "007764a5a2b0f53e",
-        "03824440aa061861",
-    ), // 3335 events
+        "58d175d4624bc413",
+        "d1307716de352c5a",
+    ), // 3339 events
     (
         2026,
         "mixed+prison",
         96,
         "6789b99ac3b1f601",
-        "128ac861e0b978e8",
+        "e1e9f30e1aa5a394",
     ), // 1983 events
     (
         2026,
@@ -371,23 +371,23 @@ fn the_spine_changes_no_outcome() {
 /// them.
 const BEFORE_ARCS: [(u64, &str, u32, &str, &str); 8] = [
     (2026, "idle", 96, "23d41f0ec32968cf", "930ded985f6691a7"), // 1323 events
-    (2026, "mixed", 96, "197b51ac00bd9a89", "078befd3578cdfe2"), // 2563 events
+    (2026, "mixed", 96, "197b51ac00bd9a89", "e24ba25c9a623e76"), // 2563 events
     (7, "idle", 96, "fba156944bac08ca", "9da32cdae8b1c4c6"),    // 1191 events
-    (7, "corrupt", 96, "115912e8c185af36", "ef384e9b5eb0c170"), // 1875 events
+    (7, "corrupt", 96, "115912e8c185af36", "93771afdafac1a39"), // 1875 events
     (31, "idle", 96, "fbb6c26624859076", "7f1928e275450184"),   // 1353 events
     (
         31,
         "explorer_legislator",
         96,
-        "867fdfd269371852",
-        "d2d27cf7bfd2a230",
-    ), // 3188 events
+        "919ff22701f6c522",
+        "39cf9bcc5eb62d37",
+    ), // 3205 events
     (
         2026,
         "mixed+prison",
         96,
         "e5befeacea0f9312",
-        "87a01a0136955694",
+        "58c04ff7ac771da3",
     ), // 1873 events
     (
         2026,
