@@ -175,6 +175,15 @@ pub(super) fn validate_fluent_refs(b: &ContentBundle, issues: &mut Vec<Issue>) {
     referenced.extend(crate::map_layers::fluent_refs(b));
     referenced.extend(crate::town_map_layers::fluent_refs(b));
     referenced.extend(crate::act::fluent_refs(b));
+    // What a bill does (DEC-111): the estimate's lines.
+    let impact_keys = if b.impact.rows.is_empty() {
+        Vec::new()
+    } else {
+        crate::types::impact_fluent_keys(&b.sectors)
+    };
+    for k in &impact_keys {
+        referenced.push(("impact_table", k));
+    }
     for (owner, key) in referenced {
         if !en.contains(key) {
             issues.push(Issue::error(

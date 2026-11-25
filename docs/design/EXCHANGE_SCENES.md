@@ -1151,7 +1151,7 @@ The core is `mandate-content/src/exchange.rs` (the beat and the constants) and `
 
 ### 15.3 Departures from the design, each with its reason
 
-1. **Save v30, not v29** (industries took v29). The step is `exchange_scenes` in `mandate-save`; only its key needs renumbering.
+1. **Save v31, not v29** (industries took v29, the impact estimate v30). The step is `exchange_scenes` in `mandate-save`; it names no version, and only its key needs renumbering.
 2. **`arc-turn-single-decision` is reported by `mandate-cli content validate` (`arcs::lints`), not in `load`'s warnings.** The base pack is kept at no warnings and about a dozen tests assert it. Seven stages in four arcs are flagged today: `arc.budget_round` (`turn_hole`, `turn_surplus`, `turn_deal`, `turn_line`), `arc.favour_debt` (`called_in`), `arc.flood` (`meeting`), `arc.plant_closure` (`organising`). When they are rewritten the lint moves into validation as an error.
 3. **A seat that is one neighbourhood is heard by income class.** In a small world a first seat is one neighbourhood, so "the areas one level down" gave one group and no line chose whom it spoke to. An `areas` source that binds to one area gives that area's three classes, and a class's worries are the place's own levels felt as that class leans (the rule of `concerns::ranked`, over the class's cohorts; it should move into `concerns`).
 4. **Second-hand knowledge gives the line with a risk** (§9's block, over §3.1's table). `heard` needs a group's worries at `heard` or better, and at `heard` it stands with chance `hold.heard` and costs `backfire.heard` if it does not (a new constant, 0.10). `turn` on the public record needs the other side at `heard` or better, with the same chance at `heard`.

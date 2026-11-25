@@ -8,6 +8,7 @@ pub mod campaign;
 pub mod characters;
 #[cfg(feature = "dev-tools")]
 pub mod dev;
+pub mod impact;
 pub mod knowledge;
 pub mod layout;
 pub mod map;
@@ -26,6 +27,7 @@ pub use act::*;
 pub use asks::*;
 pub use campaign::*;
 pub use characters::*;
+pub use impact::*;
 pub use knowledge::*;
 pub use layout::*;
 pub use map::*;

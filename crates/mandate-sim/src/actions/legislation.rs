@@ -413,6 +413,7 @@ pub(crate) fn draft(
         cause: None,
         ledger: BTreeMap::new(),
         family: None,
+        estimate: None,
     });
     Ok(id.0)
 }

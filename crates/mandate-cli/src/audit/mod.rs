@@ -12,6 +12,7 @@
 mod believe;
 mod claims;
 mod diverge;
+mod estimate;
 mod leverage;
 mod policy;
 mod readability;
@@ -26,8 +27,8 @@ use std::sync::Arc;
 #[derive(clap::Args, Clone)]
 pub struct AuditArgs {
     /// policy | believe | sensitivity | diverge | leverage | stuck |
-    /// readability | ledgers | twins | claims | gate (the nightly gate's
-    /// cheap checks)
+    /// readability | ledgers | twins | claims | estimate (the impact
+    /// estimate against twins) | gate (the nightly gate's cheap checks)
     pub topic: String,
     /// Seeds per scenario (or per run set).
     #[arg(long, default_value_t = 8)]
@@ -113,6 +114,8 @@ pub fn run(content: Arc<ContentBundle>, args: AuditArgs) -> Result<Value, String
         // Part B of audit fix 8: the mechanisms that back the texts.
         "twins" => twins::run(&cx)?,
         "claims" => claims::run(&cx)?,
+        // Estimate honesty (DEC-111): what a bill said against its twin.
+        "estimate" => estimate::run(&cx)?,
         "gate" => gate(&cx)?,
         t => return Err(format!("unknown audit topic `{t}`")),
     };
@@ -129,9 +132,15 @@ fn gate(cx: &Ctx) -> Result<Value, String> {
     let b = believe::core(cx, 4, 12)?;
     let p = policy::gate(cx, 3)?;
     let r = stuck::rent_gate(cx, 2, 30)?;
+    // Estimate honesty (DEC-111), three seeds and three years. Report only
+    // (2026-11-25): the shipped impact table is a small first fit, and
+    // numbers are tuned once, at the end of M6 (AGENT_CONTEXT rule 11);
+    // `audit estimate` gives the figures. Enforce it here once the table
+    // is refitted at full size (`scripts/repin.sh --impact`).
+    let e = estimate::gate(cx, 3)?;
     let ok = |v: &Value| v["pass"].as_bool().unwrap_or(false);
     let pass = ok(&b) && ok(&p) && ok(&r);
-    Ok(json!({ "pass": pass, "believe": b, "policy": p, "rent": r }))
+    Ok(json!({ "pass": pass, "believe": b, "policy": p, "rent": r, "estimate_report_only": e }))
 }
 
 // --- Small statistics ----------------------------------------------------------------

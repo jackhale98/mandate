@@ -202,7 +202,8 @@ fn a_v26_save_loads_and_continues() {
             .and_then(|r| r.as_array())
             .is_none_or(|r| r.is_empty())
     );
-    // (The last step, industries, adds to the economy alone.)
+    // (Industries adds to the economy alone; the last step renames a
+    // ledger entry, `homes_built` to `homes_started`.)
     assert_eq!(migrated["state"]["events"], old["state"]["events"]);
     let st = old_state(&c);
     assert!(st.arcs.runs.is_empty() && st.arcs.past.is_empty());

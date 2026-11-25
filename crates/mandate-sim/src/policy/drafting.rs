@@ -214,6 +214,7 @@ pub fn make_bill(
         cause: None,
         ledger: BTreeMap::new(),
         family: Some(p.draft),
+        estimate: None,
     });
     if let Some(i) = state.policy.families.instances.get_mut(proposal.index()) {
         i.drafts.push(id);

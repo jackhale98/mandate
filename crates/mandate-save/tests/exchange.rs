@@ -1301,7 +1301,8 @@ fn the_exchange_reads_no_ward_and_names_no_office() {
     assert!(files >= 7);
 }
 
-/// v29 → v30: a challenge that was waiting as a decision is withdrawn.
+/// The step before this format (`exchange_scenes`): a challenge that was
+/// waiting as a decision is withdrawn.
 #[test]
 fn an_older_save_with_the_challenge_waiting_loads_without_it() {
     let st = game(1).state().clone();
@@ -1320,7 +1321,7 @@ fn an_older_save_with_the_challenge_waiting_loads_without_it() {
     };
     decisions.push(waiting("dilemma.debate_challenge"));
     decisions.push(waiting("dilemma.rival_offer"));
-    let out = migrate(29, payload).unwrap();
+    let out = migrate(SAVE_FORMAT_VERSION - 1, payload).unwrap();
     let after = out
         .pointer("/state/narrative/decisions")
         .unwrap()
@@ -1337,7 +1338,6 @@ fn an_older_save_with_the_challenge_waiting_loads_without_it() {
         Some("Lapsed")
     );
     assert_eq!(status("dilemma.rival_offer").as_deref(), Some("Pending"));
-    assert_eq!(SAVE_FORMAT_VERSION, 30);
 }
 
 // --- Secrets, stories and truces -------------------------------------------------------------

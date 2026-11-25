@@ -1,12 +1,14 @@
 import { useState } from "react";
 import type { BillView } from "../engine/protocol/BillView";
 import type { ClauseDto } from "../engine/protocol/ClauseDto";
+import type { ImpactLine } from "../engine/protocol/ImpactLine";
+import type { ImpactView } from "../engine/protocol/ImpactView";
 import type { ParamValue } from "../engine/protocol/ParamValue";
 import type { SupportView } from "../engine/protocol/SupportView";
 import type { TemplateView } from "../engine/protocol/TemplateView";
 import type { TownView } from "../engine/protocol/TownView";
 import { useGame } from "../state/gameStore";
-import { formatDate, formatMoney } from "../i18n/format";
+import { formatDate, formatMoney, formatWhole } from "../i18n/format";
 import { ParamSliders } from "./ParamSliders";
 import { TradeOffs } from "./TradeOffs";
 import { personName } from "./Knowing";
@@ -47,6 +49,58 @@ export function SupportBars({ s }: { s: SupportView }) {
         );
       })}
     </ul>
+  );
+}
+
+/** A size as the locale writes it. The engine has already rounded it; nothing is computed here. */
+function impactSize(v: number | null, unit: string): string {
+  if (v === null) return "";
+  if (unit === "money") return formatMoney(v);
+  if (unit === "count") return formatWhole(v);
+  return new Intl.NumberFormat("en", { maximumSignificantDigits: 2 }).format(v);
+}
+
+function impactLine(tr: ReturnType<typeof useGame.getState>["tr"], l: ImpactLine): string {
+  return tr.event(l.key, { ...l.args, form: l.form, lo: impactSize(l.lo, l.unit), hi: impactSize(l.hi, l.unit) });
+}
+
+/** What a bill does (DEC-111): the engine's estimate in its own sentences. What it does, what it costs, who gains and
+ *  loses, when and how sure. The engine chooses the lines (`lead`) and the horizon; this only renders them. */
+export function ImpactLines({ impact }: { impact: ImpactView | null | undefined }) {
+  const tr = useGame((s) => s.tr);
+  if (!impact) return null;
+  const lead = impact.lines.filter((l) => l.lead);
+  const c = impact.cost;
+  const when = [...impact.when.map((w) => tr.event(w.key, w.args)), tr.t(`impact-sure-${impact.sureness}`), tr.event(impact.source.key, impact.source.args)];
+  return (
+    <section className="impact" data-testid="impact" aria-label={tr.t("impact-heading")}>
+      <h4 className="sub">{tr.t("impact-heading")}</h4>
+      {lead.length > 0 && (
+        <>
+          <p className="small muted" data-testid="impact-horizon">
+            {tr.t(impact.horizon_key)}
+            {impact.in_time && <> · {tr.t("impact-in-time")}</>}
+          </p>
+          <ul className="plain" data-testid="impact-lines">
+            {lead.map((l, i) => (
+              <li key={i}>{impactLine(tr, l)}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className="small" data-testid="impact-cost">
+        {tr.t(c.key, { amount: formatMoney(c.yearly), share: c.budget_pct })}
+        {c.paid_key && <> {tr.t(c.paid_key, { funded: c.funded_later_pct, borrowed: c.borrowed_pct })}</>}
+      </p>
+      {impact.groups.length > 0 && (
+        <p className="small" data-testid="impact-groups">
+          {impact.groups.map((g) => tr.t(g.key)).join(" ")}
+        </p>
+      )}
+      <p className="small muted" data-testid="impact-when">
+        {when.join(" ")}
+      </p>
+    </section>
   );
 }
 
@@ -94,6 +148,7 @@ export function BillCard({ bill, template, town }: { bill: BillView; template: T
           {bill.signer && <span data-testid="signer-lean"> · {signerText(tr, bill.signer)}</span>}
         </p>
       )}
+      <ImpactLines impact={bill.impact} />
       {(bill.status === "enacted" || bill.status === "in_effect") && (
         <ul className="meters">
           <li>

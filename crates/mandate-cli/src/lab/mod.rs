@@ -19,6 +19,7 @@
 //! (`--set`) loaded through the save path as a balance patch would be.
 
 pub mod cli;
+pub mod impact;
 pub mod metrics;
 pub mod overrides;
 pub mod runner;

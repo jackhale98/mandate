@@ -344,6 +344,11 @@ pub struct BillView {
     #[ts(optional)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub outcome_event: Option<u32>,
+    /// What it would do if it passed now (DEC-111): for a draft or a bill
+    /// before the body, in a tier the impact table covers.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub impact: Option<crate::impact::ImpactView>,
 }
 
 /// A Fluent key and its arguments (a reason the engine states as a fact).
@@ -608,7 +613,7 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let town = MunicipalityId(p.jurisdiction);
     let resolved = mandate_sim::policy::resolve(content, &st.policy, p)?;
     let t = resolved.template();
-    let hoods: Vec<usize> = st.world.hoods_of(MunicipalityId(p.jurisdiction)).collect();
+    let hoods: Vec<usize> = p.at().hoods(&st.world);
     let pending = p.status == PolicyStatus::UnderConsideration || p.status == PolicyStatus::Draft;
     let constitution = content.constitutions.get(&st.meta.constitution);
     let leans = match (pending, constitution) {
@@ -720,23 +725,27 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
             .to_string()
         });
     let powers = player_powers(st, content);
+    // The player's post in the bill's jurisdiction, if they hold one
+    // (DEC-098: their posts, never where they live).
+    let my_post = mandate_sim::player::posts(st)
+        .into_iter()
+        .find(|post| post.at() == p.at());
     let can_vote = p.status == PolicyStatus::UnderConsideration
         && p.sponsor != me.map(|pl| pl.politician)
-        && p.jurisdiction == me.map(|pl| pl.municipality.0).unwrap_or(u32::MAX)
+        && my_post.is_some()
         && my_vote.is_none()
         && (powers.contains(&mandate_content::Power::ApproveOrdinance)
             || powers.contains(&mandate_content::Power::Veto));
     let support_level = gate.support(town, &t.id);
+    // The district of the player's seat in the bill's jurisdiction; without
+    // one there (an office, no post), the jurisdiction's own figure.
     let ward_support = me
-        .map(|pl| {
-            gate_ward_support(
-                support_level,
-                public_support(
-                    t,
-                    &st.population,
-                    &mandate_sim::policy::ward_hoods(&st.world, pl.ward),
-                ),
-            )
+        .map(|_| {
+            let mine = match my_post.and_then(|post| post.constituency()) {
+                Some(district) => mandate_sim::policy::ward_hoods(&st.world, district),
+                None => hoods.clone(),
+            };
+            gate_ward_support(support_level, public_support(t, &st.population, &mine))
         })
         .unwrap_or(0.0);
     let owe_sponsor = p.sponsor.and_then(|s| st.politics.get(s)).is_some_and(|s| {
@@ -749,6 +758,9 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
     let (ward_lean, ward_for_pct, ward_against_pct, ward_certainty) =
         ward_words(support_level, ward_support);
     Some(BillView {
+        impact: pending
+            .then(|| crate::impact::impact_of(engine, p))
+            .flatten(),
         outcome_event: crate::why::thread_event(
             &st.events,
             mandate_sim::spine::Thread::Bill(p.id.0),

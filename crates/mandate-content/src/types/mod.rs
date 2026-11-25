@@ -12,6 +12,7 @@ mod constitution;
 mod council;
 mod economy;
 mod files;
+mod impact;
 mod opinion;
 mod places;
 mod policy;
@@ -26,6 +27,7 @@ pub use constitution::*;
 pub use council::*;
 pub use economy::*;
 pub(crate) use files::*;
+pub use impact::*;
 pub use opinion::*;
 pub use places::*;
 pub use policy::*;
@@ -215,6 +217,9 @@ pub enum ContentFile {
     PolicyFamilyPatches {
         items: Vec<crate::policy_family::FamilyPatch>,
     },
+    /// The impact table (DEC-111): pass-through coefficients fitted in the
+    /// lab (`mandate-cli lab impact calibrate` writes the file).
+    ImpactTable { value: Box<ImpactTable> },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]

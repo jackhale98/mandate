@@ -408,6 +408,7 @@ fn the_players_vote_has_consequences() {
             end_reason: None,
             cause: None,
             ledger: Default::default(),
+            estimate: None,
         });
     });
     let standing = e.state().player.as_ref().unwrap().tracks.standing;

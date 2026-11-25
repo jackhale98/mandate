@@ -33,10 +33,11 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// turn, a chapter's lead, changes voted into the next budget. v29:
 /// industries and named plants (I1, DEC-110): industry state under the split
 /// sectors, each industry's world index, plants and their review, a
-/// sector's long average of jobs. v30: exchange scenes (X1, DEC-112): a
+/// sector's long average of jobs. v30: the impact estimate a law passed
+/// with, kept with it (DEC-111). v31: exchange scenes (X1, DEC-112): a
 /// scene under way and the scenes finished on an arc run, a story's source
 /// that is a scene, the community filter of an approval request.
-pub const SAVE_FORMAT_VERSION: u16 = 30;
+pub const SAVE_FORMAT_VERSION: u16 = 31;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -253,9 +254,13 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Industries and named plants (I1, DEC-110): v28 → v29. Renumber
         // only this key if another bump merges first.
         (28, industries),
-        // Exchange scenes (X1, DEC-112): v29 → v30. Renumber only this key
+        // The impact estimate kept with a law (DEC-111): v29 → v30. Renumber
+        // only this key if another bump merges first (the step names no
+        // version).
+        (29, frozen_estimates),
+        // Exchange scenes (X1, DEC-112): v30 → v31. Renumber only this key
         // if another bump merges first.
-        (29, exchange_scenes),
+        (30, exchange_scenes),
     ];
     let mut value = value;
     let mut v = from;
@@ -1015,11 +1020,46 @@ fn staged_arcs(value: serde_json::Value) -> Result<serde_json::Value, SaveError>
     Ok(value)
 }
 
-/// v29 → v30 (X1, DEC-112, `docs/design/EXCHANGE_SCENES.md` §11.5):
-/// exchange scenes. Everything new has a serde default and is not written
-/// when empty (a run's scene under way and its finished scenes, the
-/// community filter of an approval request), so the state needs no
-/// rewriting.
+/// The impact estimate kept with a law (DEC-111): the previous format to
+/// the next. From this format a law carries `estimate`, what its bill said
+/// it would do when it passed. An older law has none and none is invented:
+/// what a bill would have said then cannot be known from the state now, so
+/// such a law's account simply has no "estimated then" column.
+///
+/// The one thing the step rewrites is a ledger entry's name: homes a
+/// programme started were booked as `homes_built` before the ledger told
+/// started from added (audit fix 5). They are `homes_started` here, as the
+/// engine now writes them, so an old law's account reads in the same words
+/// as a new one's from the moment it loads.
+fn frozen_estimates(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    let laws = value
+        .get_mut("state")
+        .and_then(|s| s.get_mut("policy"))
+        .and_then(|p| p.get_mut("instances"))
+        .and_then(|i| i.as_array_mut())
+        .ok_or(SaveError::Malformed)?;
+    for law in laws {
+        let Some(ledger) = law.get_mut("ledger").and_then(|l| l.as_object_mut()) else {
+            continue;
+        };
+        if let Some(built) = ledger.remove("homes_built") {
+            // The entry under its new name, as it was; added to one already
+            // there (a save from the months between the two names).
+            let total = match ledger.get("homes_started").and_then(|v| v.as_f64()) {
+                Some(started) => serde_json::json!(started + built.as_f64().unwrap_or(0.0)),
+                None => built,
+            };
+            ledger.insert("homes_started".into(), total);
+        }
+    }
+    Ok(value)
+}
+
+/// Exchange scenes (X1, DEC-112, `docs/design/EXCHANGE_SCENES.md` §11.5),
+/// the previous format to the next (the step names no version). Everything
+/// new has a serde default and is not written when empty (a run's scene
+/// under way and its finished scenes, the community filter of an approval
+/// request), so the state needs no rewriting.
 ///
 /// One thing in flight is dropped (rule 9 of `AGENT_CONTEXT.md`: the cheap
 /// rule). The rival's debate was a decision, and is a scene now: a

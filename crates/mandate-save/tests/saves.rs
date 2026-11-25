@@ -138,16 +138,21 @@ fn state_shape_matches_format_version() {
     // the spine. Migration: `industries` (the engine shares each split
     // sector among its industries as it loads, as a new world does).
     //
-    // v29 -> v30: exchange scenes (X1, DEC-112). An arc run gained
+    // v29 (04a127111f358b05) -> v30: the impact estimate a law passed with
+    // (DEC-111). A law gained `estimate`, absent on a bill not yet passed,
+    // on a law from an older save, and on a law ended and enacted over
+    // twelve years ago. Migration: `frozen_estimates`.
+    //
+    // v30 -> v31: exchange scenes (X1, DEC-112). An arc run gained
     // `exchange` (a scene under way) and `played` (its finished scenes),
     // an approval request its `communities`, a story the source
     // `exchange`, the log the events `arc_exchange` and
     // `arc_exchange_ended`: each absent until a scene is held, and the
     // sample game holds none, so its shape is the one it had. The version
-    // moves because a v30 save may hold them and a v29 build cannot read
+    // moves because a v31 save may hold them and a v30 build cannot read
     // them. Migration: `exchange_scenes` (a challenge waiting as a
     // decision lapses).
-    const EXPECTED: (u16, &str) = (30, "04a127111f358b05");
+    const EXPECTED: (u16, &str) = (31, "04a127111f358b05");
     let c = content();
     let mut e = generate(
         &WorldConfig {
