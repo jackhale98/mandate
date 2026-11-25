@@ -110,7 +110,13 @@ pub(super) fn cond_discrete(c: &Condition, words: &[String]) -> Option<(String, 
                 })
                 .collect(),
         ),
-        C::Occupation { slot, occupations } => (
+        // A negated one (`is: false`) allows every other role: no finite set
+        // to compare here.
+        C::Occupation {
+            slot,
+            occupations,
+            is: true,
+        } => (
             format!("role of {slot}"),
             occupations.iter().cloned().collect(),
         ),
@@ -267,11 +273,16 @@ pub(super) fn check_conditions(out: &mut Out, item: &str, what: &str, cs: &[Cond
     }
 }
 
-/// The speaker roles a line's conditions allow (`None`: any).
+/// The speaker roles a line's conditions name (`None`: any; a negated
+/// condition, `is: false`, names none and so narrows nothing here).
 pub(super) fn speaker_roles(cs: &[Condition]) -> Option<BTreeSet<String>> {
     let mut out: Option<BTreeSet<String>> = None;
     for c in cs {
-        if let Condition::Occupation { slot, occupations } = c
+        if let Condition::Occupation {
+            slot,
+            occupations,
+            is: true,
+        } = c
             && slot == "speaker"
         {
             let s: BTreeSet<String> = occupations.iter().cloned().collect();

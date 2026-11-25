@@ -24,8 +24,76 @@ use std::collections::{BTreeMap, BTreeSet};
 pub const TALK_SLOTS: [&str; 3] = ["speaker", "about", "player"];
 
 /// Fluent arguments every line is given (`$speaker`, `$player`, `$town`,
-/// `$here`).
-pub const CONTEXT_ARGS: [&str; 4] = ["speaker", "player", "town", "here"];
+/// `$here`, `$office`, `$chamber`).
+pub const CONTEXT_ARGS: [&str; 6] = [
+    "speaker",
+    "player",
+    "town",
+    "here",
+    // The visible power where the conversation is, in the constitution's
+    // words: the office that signs (`$office`) and the body that votes
+    // (`$chamber`), as Fluent keys.
+    "office_key",
+    "chamber_key",
+];
+
+/// The Fluent key naming a post mid-sentence (`$post`, `$office`): an
+/// office by its own name key ("the mayor": `talk-office-mayor`), a seat by
+/// its body's ("a councillor": `talk-body-council-member`). From the
+/// constitution's name keys, so renamed posts keep their lines (DEC-098).
+pub fn post_talk_key(p: crate::types::PostRef<'_>) -> String {
+    use crate::types::PostRef;
+    match p {
+        PostRef::Body(b) => format!("talk-{}-member", b.name_key),
+        PostRef::Office(o) => format!("talk-{}", o.name_key),
+    }
+}
+
+/// The Fluent key naming a body mid-sentence ("the council":
+/// `talk-body-council`), by its name key (`$body`, `$chamber`).
+pub fn body_talk_key(b: &crate::types::BodyDef) -> String {
+    format!("talk-{}", b.name_key)
+}
+
+/// The role facts a line may name, given the roles its conditions make the
+/// speaker (a positive `occupation` condition on `speaker`): `$post` and
+/// `$body` (their post and the body that votes at its tier, in the
+/// constitution's words) when every role is a post's role word; `$work`
+/// (where they work) when every role has a workplace; `$mystake` (the
+/// industry their occupation speaks for) when every role has a stake.
+/// The engine gives a speaker these facts on every line; this says which a
+/// line can rely on.
+pub fn role_fact_args(b: &ContentBundle, cs: &[Condition]) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let named = cs.iter().find_map(|c| match c {
+        Condition::Occupation {
+            slot,
+            occupations,
+            is: true,
+        } if slot == "speaker" => Some(occupations),
+        _ => None,
+    });
+    let Some(roles) = named else {
+        return out;
+    };
+    let post = |r: &String| b.is_role_word(r);
+    let works = |r: &String| {
+        b.is_role_word(r)
+            || b.occupation(r)
+                .is_some_and(|o| !o.places.is_empty() && !o.places.iter().any(|p| p == "streets"))
+    };
+    let stake = |r: &String| b.occupation(r).is_some_and(|o| !o.stake.drivers.is_empty());
+    if roles.iter().all(post) {
+        out.extend(["post_key", "body_key"].map(String::from));
+    }
+    if roles.iter().all(works) {
+        out.extend(["work", "work_key"].map(String::from));
+    }
+    if roles.iter().all(stake) {
+        out.insert("mystake_key".into());
+    }
+    out
+}
 
 // --- Topics ------------------------------------------------------------------------
 
@@ -64,6 +132,12 @@ pub enum TalkMechanic {
     Favour,
     /// A small opinion gain (capped weekly) and a `met` memory.
     SmallTalk,
+    /// The open question ("What's on your mind?"): the engine chooses what
+    /// the person most wants to say from their own state (an ask of the
+    /// player, their main worry, gossip they hold; `talk_params.open`), and
+    /// the reply is about that. The player names no subject: the topic's
+    /// `about` kinds are what the engine may choose.
+    Open,
 }
 
 impl TalkMechanic {
@@ -74,7 +148,14 @@ impl TalkMechanic {
             TalkMechanic::AskSupport => "ask_support",
             TalkMechanic::Favour => "favour",
             TalkMechanic::SmallTalk => "small_talk",
+            TalkMechanic::Open => "open",
         }
+    }
+
+    /// The topic asks for something the person knows (the reply is the
+    /// point): a miss on it costs no time (`talk_params.miss_free`).
+    pub fn informs(self) -> bool {
+        matches!(self, TalkMechanic::Inform | TalkMechanic::Open)
     }
 }
 
@@ -201,6 +282,12 @@ pub struct TalkLineDef {
     /// (or all roles); used only when no other substance line holds.
     #[serde(default)]
     pub fallback: bool,
+    /// The line says the speaker does not know (or cannot say): on a topic
+    /// that informs, a reply whose substance it is costs no time
+    /// (`talk_params.miss_free`). Every fallback line is a miss; this marks
+    /// the others ("Not my end of town"). A miss teaches nothing.
+    #[serde(default)]
+    pub miss: bool,
     /// What the player learns, each capped at the speaker's told level.
     #[serde(default)]
     pub teaches: Vec<TeachDef>,
@@ -218,6 +305,10 @@ fn one_f64() -> f64 {
 
 fn half() -> f64 {
     0.5
+}
+
+fn heard_level() -> Level {
+    Level::Heard
 }
 
 /// A subject of the player's ledger, named from the conversation.
@@ -325,6 +416,10 @@ pub enum LeadToDef {
     Person { slot: String },
     /// The streets of a neighbourhood.
     Streets { of: HoodOf },
+    /// Whoever the speaker knows who would know the lead's subject, judged
+    /// from public facts (their post, their work, where they live): the
+    /// person expected to know it best. No such person: no lead.
+    WhoKnows,
 }
 
 /// A change to the relationship a line makes (the speaker toward the player).
@@ -498,11 +593,77 @@ pub struct FavourParams {
     pub sway_share: f64,
 }
 
+/// What the person may bring up when asked the open question.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum MindKind {
+    /// Something they have asked of the player and are waiting on (asks).
+    Ask,
+    /// Their main worry: what is felt most where they live.
+    Worry,
+    /// Gossip they hold about someone they know.
+    Gossip,
+}
+
+impl MindKind {
+    pub fn key(self) -> &'static str {
+        match self {
+            MindKind::Ask => "ask",
+            MindKind::Worry => "worry",
+            MindKind::Gossip => "gossip",
+        }
+    }
+}
+
+/// The open question's rule: the first of `order` the person has, and has
+/// not already said to the player this week.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OpenParams {
+    pub order: Vec<MindKind>,
+}
+
+impl Default for OpenParams {
+    fn default() -> Self {
+        OpenParams {
+            order: vec![MindKind::Ask, MindKind::Worry, MindKind::Gossip],
+        }
+    }
+}
+
+/// A group of roles whose informative lines are written from one vantage
+/// point (occupation ids and role words of the constitution's posts).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RoleGroupDef {
+    /// Content id, e.g. `group.officeholders`.
+    pub id: ContentKey,
+    pub roles: Vec<String>,
+}
+
 /// The conversation parameter block (`kind: "talk_params"`, once across packs).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TalkParams {
     pub cost: TalkCost,
+    /// A miss costs no time: a question on a topic that informs, answered
+    /// only by the topic's safe answer (the person does not know, or will
+    /// not say), is not charged.
+    #[serde(default)]
+    pub miss_free: bool,
+    /// A subject counts as likely for a speaker when public facts say they
+    /// would know it at least this well (the talk panel lists those first).
+    #[serde(default = "heard_level")]
+    pub likely_from: Level,
+    /// The open question ("What's on your mind?").
+    #[serde(default)]
+    pub open: OpenParams,
+    /// The role groups informative lines are written for (the doctor's
+    /// coverage check reads them; every role belongs to one).
+    #[serde(default)]
+    pub role_groups: Vec<RoleGroupDef>,
     pub discretion: DiscretionDef,
     /// Whole levels added to the cap by traits (`trait.schemer`: −1).
     #[serde(default)]
@@ -532,6 +693,10 @@ impl Default for TalkParams {
     fn default() -> Self {
         TalkParams {
             cost: TalkCost::HalfSlot,
+            miss_free: false,
+            likely_from: Level::Heard,
+            open: OpenParams::default(),
+            role_groups: Vec::new(),
             discretion: DiscretionDef {
                 bands: Vec::new(),
                 top: Level::Unknown,
@@ -775,16 +940,48 @@ pub fn reads_about(cs: &[Condition]) -> bool {
     cs.iter().any(one)
 }
 
+/// The arguments a line is not given: those of a `tells` condition on who
+/// someone is (the broker, a person, the rival's plans) that the line does
+/// not teach. A line may be gated on what the speaker would tell without
+/// saying it ("I'd want to know you better first"); it then carries no
+/// name, so an exchange never holds what the player was not told. An
+/// argument another of its conditions provides stays.
+pub fn withheld_args(l: &TalkLineDef) -> BTreeSet<String> {
+    let mut hide: BTreeSet<String> = BTreeSet::new();
+    let mut keep: BTreeSet<String> = BTreeSet::new();
+    for c in &l.when {
+        match c {
+            Condition::Tells { subject, .. }
+                if matches!(
+                    subject,
+                    SubjectRef::Broker | SubjectRef::Person { .. } | SubjectRef::RivalPlans
+                ) && !l.teaches.iter().any(|t| &t.subject == subject) =>
+            {
+                hide.extend(subject.args().iter().map(|a| a.to_string()));
+            }
+            other => keep.extend(condition_args(other)),
+        }
+    }
+    hide.retain(|a| !keep.contains(a));
+    hide
+}
+
 /// The roles a fallback line covers (`None`: its conditions are not only on
 /// the speaker's role; every role when it has no conditions).
 fn fallback_roles(l: &TalkLineDef, all: &[String]) -> Option<Vec<String>> {
     let mut roles: Option<Vec<String>> = None;
     for c in &l.when {
         match c {
-            Condition::Occupation { slot, occupations } if slot == "speaker" => {
+            Condition::Occupation {
+                slot,
+                occupations,
+                is,
+            } if slot == "speaker" => {
+                let keep = |x: &String| occupations.contains(x) == *is;
                 let next: Vec<String> = match roles {
-                    None => occupations.clone(),
-                    Some(r) => r.into_iter().filter(|x| occupations.contains(x)).collect(),
+                    None if *is => occupations.clone(),
+                    None => all.iter().filter(|x| keep(x)).cloned().collect(),
+                    Some(r) => r.into_iter().filter(keep).collect(),
                 };
                 roles = Some(next);
             }
@@ -886,6 +1083,52 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             "speaker_knows needs at least one rule",
         ));
     }
+    // The open question, and the role groups.
+    if t.open.order.is_empty() {
+        issues.push(Issue::error(
+            "talk_params",
+            "open.order needs at least one kind",
+        ));
+    }
+    for (i, k) in t.open.order.iter().enumerate() {
+        if t.open.order[..i].contains(k) {
+            issues.push(Issue::error(
+                "talk_params",
+                &format!("open.order names `{}` twice", k.key()),
+            ));
+        }
+    }
+    let mut grouped: BTreeMap<&str, &str> = BTreeMap::new();
+    for g in &t.role_groups {
+        if !crate::validate::valid_key(&g.id) || !g.id.starts_with("group.") {
+            issues.push(Issue::error(&g.id, "role group ids look like `group.name`"));
+        }
+        if g.roles.is_empty() {
+            issues.push(Issue::error(&g.id, "a role group needs roles"));
+        }
+        for r in &g.roles {
+            if b.occupation(r).is_none() && !b.is_role_word(r) {
+                issues.push(Issue::error(&g.id, &format!("unknown role `{r}`")));
+            }
+            if let Some(other) = grouped.insert(r.as_str(), g.id.as_str()) {
+                issues.push(Issue::error(
+                    &g.id,
+                    &format!("role `{r}` is already in `{other}` (a role belongs to one group)"),
+                ));
+            }
+        }
+    }
+    // Posts and bodies are named mid-sentence by their own keys.
+    for c in b.constitutions.values() {
+        for tier in &c.tiers {
+            for post in tier.posts() {
+                key_exists(&c.id, &post_talk_key(post), issues);
+            }
+            for body in &tier.bodies {
+                key_exists(&c.id, &body_talk_key(body), issues);
+            }
+        }
+    }
     // Topics.
     for p in &b.talk_topics {
         if !crate::validate::valid_key(&p.id) || !p.id.starts_with("topic.") {
@@ -912,6 +1155,8 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             TalkMechanic::Pitch => &[AboutKind::Bill, AboutKind::Template, AboutKind::Proposal],
             TalkMechanic::AskSupport | TalkMechanic::Favour => &[AboutKind::Bill],
             TalkMechanic::SmallTalk => &[],
+            // What the engine may choose to talk about.
+            TalkMechanic::Open => &[AboutKind::Person, AboutKind::Hood],
         };
         for k in &p.about {
             if !allowed.contains(k) {
@@ -924,6 +1169,12 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     ),
                 ));
             }
+        }
+        if p.mechanic == TalkMechanic::Open && p.about_required {
+            issues.push(Issue::error(
+                &p.id,
+                "the open question takes no subject from the player (`about_required` must be false)",
+            ));
         }
         if p.mechanic == TalkMechanic::Pitch && !p.about_required {
             issues.push(Issue::error(
@@ -1061,6 +1312,15 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         if l.fallback && l.part != TalkPart::Substance {
             issues.push(Issue::error(id, "only substance lines are fallbacks"));
         }
+        if l.miss && l.part != TalkPart::Substance {
+            issues.push(Issue::error(id, "only substance lines are misses"));
+        }
+        if (l.miss || l.fallback) && !l.teaches.is_empty() {
+            issues.push(Issue::error(
+                id,
+                "a line that says the speaker does not know (a miss, a fallback) teaches nothing",
+            ));
+        }
         if l.fallback && fallback_roles(l, &roles).is_none() {
             issues.push(Issue::error(
                 id,
@@ -1185,6 +1445,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         for c in &l.when {
             provided.extend(condition_args(c));
         }
+        provided.extend(role_fact_args(b, &l.when));
+        for a in withheld_args(l) {
+            provided.remove(&a);
+        }
         // An argument named `x_key` is a Fluent key the client renders as `$x`.
         let rendered: Vec<String> = provided
             .iter()
@@ -1295,9 +1559,9 @@ mod tests {
     fn the_base_conversations_load() {
         let (b, w) = load(&base()).unwrap();
         assert!(w.is_empty(), "{w:?}");
-        assert_eq!(b.talk_topics.len(), 7);
+        assert_eq!(b.talk_topics.len(), 8);
         let mechanics: BTreeSet<TalkMechanic> = b.talk_topics.iter().map(|t| t.mechanic).collect();
-        assert_eq!(mechanics.len(), 5, "every mechanic has a topic");
+        assert_eq!(mechanics.len(), 6, "every mechanic has a topic");
         assert!(
             b.talk_voice("voice.plain")
                 .is_some_and(|v| v.when.is_empty())

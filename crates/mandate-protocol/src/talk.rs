@@ -14,12 +14,19 @@
 //! are the odds rolled (DEC-073). Knowledge gates what is listed (subjects
 //! the player knows of; worries as far as they know them), never the odds
 //! or the rules (DEC-091). Views never write.
+//!
+//! **The order is the engine's** (M6 note 26): a topic's subjects come with
+//! the ones the person could be expected to know first (`likely`), judged
+//! from public facts only (`talk::expect`); the client draws the rest
+//! behind "Something else…". Nothing here reads what the person secretly
+//! knows or is willing to say, so the panel never gives the answer away.
+//! Pairings that make no sense (`talk::expect::nonsense`) are left out.
 
 use crate::characters::{PersonRefView, opinion_band, person_ref_known, trust_band};
 use crate::knowledge::{Gate, KnowledgeLevelDto, KnowledgeView, LeadView, SubjectDto};
 use crate::places::{LocationView, RouteView, location_view};
 use crate::views::DateView;
-use mandate_content::conversation::AboutKind;
+use mandate_content::conversation::{AboutKind, TalkMechanic};
 use mandate_content::{ContentBundle, TierKey};
 use mandate_sim::characters::{self, CharacterId, ambient};
 use mandate_sim::commands::EngineError;
@@ -210,6 +217,11 @@ pub struct AboutChoiceView {
     pub available: bool,
     /// Why not, as a Fluent key (`talk-why-…`), when not available.
     pub unavailable_key: Option<String>,
+    /// The person could be expected to know this, judged from public facts
+    /// (their occupation, where they live and work, their post, their
+    /// bills, their trade's issue): listed first. The others are listed
+    /// after, for "Something else…". Never from what they secretly know.
+    pub likely: bool,
 }
 
 /// A topic the player can raise with this person.
@@ -220,11 +232,14 @@ pub struct TopicView {
     pub id: String,
     /// The button's Fluent key.
     pub name_key: String,
-    /// `inform` | `pitch` | `ask_support` | `favour` | `small_talk`.
+    /// `inform` | `pitch` | `ask_support` | `favour` | `small_talk` |
+    /// `open` (the open question: the person says what is on their mind;
+    /// it takes no subject) | `choice` (a system's own).
     pub mechanic: String,
     /// It needs a subject (`about`); otherwise one is optional.
     pub about_required: bool,
-    /// The subjects it can be about, as far as the player knows of them.
+    /// The subjects it can be about, as far as the player knows of them:
+    /// the `likely` ones first (the most expected first), then the rest.
     pub about: Vec<AboutChoiceView>,
     /// Asked with no subject: the odds, where something is rolled.
     pub odds: Option<f64>,
@@ -333,7 +348,7 @@ pub fn talk_location(engine: &Engine, id: CharacterId) -> Option<Location> {
 }
 
 /// The subjects the player knows of for each kind a topic can be about.
-fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<AboutChoiceView> {
+fn choices(engine: &Engine, kinds: &[AboutKind]) -> Vec<AboutChoiceView> {
     let st = engine.state();
     let content = engine.content();
     let gate = Gate::of(engine);
@@ -355,6 +370,7 @@ fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<Ab
             odds: None,
             available: false,
             unavailable_key: None,
+            likely: false,
         });
     };
     for k in kinds {
@@ -406,7 +422,7 @@ fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<Ab
                     let Subject::Person { person } = s else {
                         continue;
                     };
-                    if *person == speaker || Some(*person) == me || Some(*person) == rival {
+                    if Some(*person) == me || Some(*person) == rival {
                         continue;
                     }
                     if gate.person(*person) < Level::Heard {
@@ -472,7 +488,6 @@ fn choices(engine: &Engine, kinds: &[AboutKind], speaker: CharacterId) -> Vec<Ab
                     .towns
                     .get(town.index())
                     .and_then(|t| t.rival)
-                    .filter(|r| *r != speaker)
                     && let Some(p) = characters::profile(&st.politics, &st.world, r)
                 {
                     push(AboutRef::Rival, p.full_name(), Some("ui-your-rival".into()));
@@ -580,6 +595,18 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
         pl.slots_left() == 0 && !half_slot_left
     };
     let role = characters::knows::role_key(st, content, id);
+    // The conversation as the order reads it: public facts only (no
+    // discretion: `cap` is not read by `talk::expect`).
+    let ctx = mandate_sim::talk::context::Ctx {
+        st,
+        content,
+        town: pl.home(),
+        me,
+        speaker: id,
+        about: None,
+        here: pl.location,
+        cap: Level::Unknown,
+    };
     let mut topics = Vec::new();
     for t in &content.talk_topics {
         // Who it is offered to does not depend on where they stand.
@@ -589,7 +616,30 @@ fn person_talk_view(engine: &Engine, person: u32, late_night: bool) -> Option<Ta
             continue;
         }
         let asked = talk::asked_this_week(st, id, &t.id);
-        let mut about = choices(engine, &t.about, id);
+        // The open question takes no subject: the engine chooses.
+        let mut about = if t.mechanic == TalkMechanic::Open {
+            Vec::new()
+        } else {
+            choices(engine, &t.about)
+        };
+        // Pairings that make no sense are never listed (by rule), and the
+        // rest are ordered by what public facts say this person would know.
+        about.retain(|c| !talk::expect::nonsense(&ctx, t, Some(&c.about.to_sim())));
+        let mut ranked: Vec<(Level, AboutChoiceView)> = about
+            .into_iter()
+            .map(|mut c| {
+                let about = c.about.to_sim();
+                c.likely = talk::expect::likely(&ctx, t, &about);
+                let level = if c.likely {
+                    talk::expect::expectation(&ctx, t, &about)
+                } else {
+                    Level::Unknown
+                };
+                (level, c)
+            })
+            .collect();
+        ranked.sort_by_key(|(l, _)| std::cmp::Reverse(*l));
+        let mut about: Vec<AboutChoiceView> = ranked.into_iter().map(|(_, c)| c).collect();
         let judge = |a: Option<&AboutRef>| -> (Option<f64>, bool, Option<&'static str>) {
             if !here {
                 return (None, false, Some("talk-why-away"));

@@ -595,10 +595,15 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             true
         }
         // --- A person in a slot ------------------------------------------------------
-        C::Occupation { slot, occupations } => cx
+        // `is: false`: none of these roles (someone with no role at all, a
+        // politician out of office, has none of them).
+        C::Occupation {
+            slot,
+            occupations,
+            is,
+        } => cx
             .person(slot)
-            .and_then(|p| role_key(cx, p))
-            .is_some_and(|r| occupations.contains(&r)),
+            .is_some_and(|p| role_key(cx, p).is_some_and(|r| occupations.contains(&r)) == *is),
         C::Trait { slot, traits } => cx
             .person(slot)
             .and_then(|p| pol.characters.get(p))

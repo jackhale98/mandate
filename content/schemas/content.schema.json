@@ -4080,7 +4080,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "The person in the slot has one of these roles: occupation ids, or\nrole words of the constitution's posts (a body's `member_key`, an\noffice's id; DEC-098).",
+          "description": "The person in the slot has one of these roles: occupation ids, or\nrole words of the constitution's posts (a body's `member_key`, an\noffice's id; DEC-098). With `is: false` it holds when they have none\nof these roles (so a general line can leave a role to its own lines).",
           "oneOf": [
             {
               "required": [
@@ -4094,6 +4094,9 @@
             }
           ],
           "properties": {
+            "is": {
+              "type": "boolean"
+            },
             "occupations": {
               "items": {
                 "type": "string"
@@ -11739,6 +11742,20 @@
             "of"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Whoever the speaker knows who would know the lead's subject, judged\nfrom public facts (their post, their work, where they live): the\nperson expected to know it best. No such person: no lead.",
+          "properties": {
+            "type": {
+              "const": "who_knows",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -12806,6 +12823,26 @@
       ],
       "type": "object"
     },
+    "MindKind": {
+      "description": "What the person may bring up when asked the open question.",
+      "oneOf": [
+        {
+          "const": "ask",
+          "description": "Something they have asked of the player and are waiting on (asks).",
+          "type": "string"
+        },
+        {
+          "const": "worry",
+          "description": "Their main worry: what is felt most where they live.",
+          "type": "string"
+        },
+        {
+          "const": "gossip",
+          "description": "Gossip they hold about someone they know.",
+          "type": "string"
+        }
+      ]
+    },
     "NamePoolDef": {
       "additionalProperties": false,
       "description": "Syllable-based name generator pool.",
@@ -13525,6 +13562,22 @@
         "party"
       ],
       "type": "string"
+    },
+    "OpenParams": {
+      "additionalProperties": false,
+      "description": "The open question's rule: the first of `order` the person has, and has\nnot already said to the player this week.",
+      "properties": {
+        "order": {
+          "items": {
+            "$ref": "#/$defs/MindKind"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "order"
+      ],
+      "type": "object"
     },
     "OpenRange": {
       "additionalProperties": false,
@@ -15696,6 +15749,27 @@
       ],
       "type": "object"
     },
+    "RoleGroupDef": {
+      "additionalProperties": false,
+      "description": "A group of roles whose informative lines are written from one vantage\npoint (occupation ids and role words of the constitution's posts).",
+      "properties": {
+        "id": {
+          "description": "Content id, e.g. `group.officeholders`.",
+          "type": "string"
+        },
+        "roles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "roles"
+      ],
+      "type": "object"
+    },
     "RoleRamps": {
       "additionalProperties": false,
       "description": "The variable material roles' ramps, one picked per room by the seed.",
@@ -17824,6 +17898,11 @@
           "default": null,
           "description": "Where the line points the player."
         },
+        "miss": {
+          "default": false,
+          "description": "The line says the speaker does not know (or cannot say): on a topic\nthat informs, a reply whose substance it is costs no time\n(`talk_params.miss_free`). Every fallback line is a miss; this marks\nthe others (\"Not my end of town\"). A miss teaches nothing.",
+          "type": "boolean"
+        },
         "part": {
           "$ref": "#/$defs/TalkPart"
         },
@@ -17900,6 +17979,11 @@
           "const": "small_talk",
           "description": "A small opinion gain (capped weekly) and a `met` memory.",
           "type": "string"
+        },
+        {
+          "const": "open",
+          "description": "The open question (\"What's on your mind?\"): the engine chooses what\nthe person most wants to say from their own state (an ask of the\nplayer, their main worry, gossip they hold; `talk_params.open`), and\nthe reply is about that. The player names no subject: the topic's\n`about` kinds are what the engine may choose.",
+          "type": "string"
         }
       ]
     },
@@ -17934,6 +18018,11 @@
           "description": "Added when flattered (after small talk with them this week): `trait.vain`: +1.",
           "type": "object"
         },
+        "likely_from": {
+          "$ref": "#/$defs/Level",
+          "default": "heard",
+          "description": "A subject counts as likely for a speaker when public facts say they\nwould know it at least this well (the talk panel lists those first)."
+        },
         "log_cap": {
           "description": "Exchanges kept in the log (the notebook's \"where and when\").",
           "format": "uint16",
@@ -17948,6 +18037,22 @@
           "minimum": 0,
           "type": "integer"
         },
+        "miss_free": {
+          "default": false,
+          "description": "A miss costs no time: a question on a topic that informs, answered\nonly by the topic's safe answer (the person does not know, or will\nnot say), is not charged.",
+          "type": "boolean"
+        },
+        "open": {
+          "$ref": "#/$defs/OpenParams",
+          "default": {
+            "order": [
+              "ask",
+              "worry",
+              "gossip"
+            ]
+          },
+          "description": "The open question (\"What's on your mind?\")."
+        },
         "pitch": {
           "$ref": "#/$defs/PitchParams"
         },
@@ -17955,6 +18060,14 @@
           "description": "How often a memory quote is used when one holds (0..1).",
           "format": "double",
           "type": "number"
+        },
+        "role_groups": {
+          "default": [],
+          "description": "The role groups informative lines are written for (the doctor's\ncoverage check reads them; every role belongs to one).",
+          "items": {
+            "$ref": "#/$defs/RoleGroupDef"
+          },
+          "type": "array"
         },
         "small_talk_opinion": {
           "description": "Small talk's opinion gain (scaled by personality).",

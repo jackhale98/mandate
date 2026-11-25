@@ -12,6 +12,12 @@
 //! it uses the late slot, where lobbying late is allowed). "Say hello"
 //! (`Meet`) stays free.
 //!
+//! **A miss is free** (M6 note 26; `talk_params.miss_free`): on a topic that
+//! informs, a reply that is only the topic's safe answer (the person does
+//! not know, or will not say) costs no time. The time must still be there
+//! to ask (so what is offered never shows who knows), and where the person
+//! knows who would know, the safe answer's lead says so (`LeadToDef`).
+//!
 //! **Asking again** the same week gives another line (the keyed draw and
 //! the repetition guard) and teaches nothing new unless the relationship
 //! changed (the speaker's discretion rose); a mechanic does not run twice.
@@ -21,7 +27,9 @@
 //! lobbying. No prose: Fluent keys and facts (DEC-054).
 
 pub mod context;
+pub mod expect;
 pub mod hooks;
+pub mod open;
 pub mod reply;
 pub mod state;
 
@@ -331,7 +339,7 @@ fn plan(
     };
     let peer = colleague(state, speaker);
     Ok(match topic.mechanic {
-        TalkMechanic::Inform => Mech::None,
+        TalkMechanic::Inform | TalkMechanic::Open => Mech::None,
         TalkMechanic::SmallTalk => Mech::SmallTalk,
         TalkMechanic::Pitch => match (peer, bill) {
             (Some(target), Some(policy)) => Mech::Pitch { target, policy },
@@ -513,6 +521,12 @@ struct Prepared {
     leads: Vec<Lead>,
     effects: Vec<TalkEffectDef>,
     small_talks: usize,
+    /// What it was about: the player's subject, or, for the open question,
+    /// what the engine chose.
+    about: Option<AboutRef>,
+    /// The reply was only the topic's safe answer on a topic that informs:
+    /// no time is charged (`talk_params.miss_free`).
+    miss: bool,
     /// The odds shown before asking (`odds`), fixed before anything
     /// changes: the roll uses these, not odds recomputed after the reply
     /// taught or warmed anything (DEC-073: the odds shown are the odds
@@ -544,6 +558,20 @@ fn prepare(
         ));
     }
     check_about(state, content, topic, about)?;
+    // The open question: the engine chooses what it is about.
+    let asks_open = topic.mechanic == TalkMechanic::Open;
+    if asks_open && about.is_some() {
+        return Err(bad("that is not something to raise on this topic"));
+    }
+    let picked = if asks_open {
+        open::mind(state, content, speaker, me, pl.home(), &topic.id)
+    } else {
+        None
+    };
+    let about = match &picked {
+        Some(m) => m.about.as_ref(),
+        None => about,
+    };
     let o = &topic.offered;
     if !o.roles.is_empty()
         && !knows::role_key(state, content, speaker).is_some_and(|r| o.roles.contains(&r))
@@ -593,7 +621,7 @@ fn prepare(
         here: pl.location,
         cap,
     };
-    if !ctx.all_hold(&o.when, &mut Args::new()) {
+    if !ctx.all_hold(&o.when, &mut Args::new()) || expect::nonsense(&ctx, topic, about) {
         return Err(bad("that is not something to ask them now"));
     }
     // The first conversation of the day opened with the greeting: no
@@ -606,7 +634,22 @@ fn prepare(
             n: talk.this_week(speaker, week).count() as u32,
         }
     };
-    let composed = reply::compose_reply(&ctx, topic, talk.used_by(speaker), week, n, opening);
+    let composed = reply::compose_with(
+        &ctx,
+        topic,
+        talk.used_by(speaker),
+        week,
+        n,
+        opening,
+        asks_open && picked.is_none(),
+    );
+    let substance = composed
+        .parts
+        .iter()
+        .find(|c| c.part == mandate_content::conversation::TalkPart::Substance);
+    let miss = content.talk.miss_free
+        && topic.mechanic.informs()
+        && (composed.fell_back || substance.is_none_or(|c| c.line.miss));
     let base = context_args(&ctx);
     let source = Source::Talk {
         person: speaker,
@@ -619,6 +662,10 @@ fn prepare(
     for c in &composed.parts {
         let mut args = base.clone();
         args.extend(c.args.clone());
+        // A line gated on what they would tell without saying it carries
+        // no name (nothing the player was not told is in an exchange).
+        let withheld = mandate_content::conversation::withheld_args(c.line);
+        args.retain(|k, _| !withheld.contains(k));
         parts.push(SpokenLine {
             part: c.part,
             line: c.line.id.clone(),
@@ -637,8 +684,12 @@ fn prepare(
         }
         if let Some(l) = &c.line.lead
             && let Some(subject) = ctx.subject(&l.subject)
-            && let Some(to) = lead_target(&ctx, &l.to)
+            && let Some(to) = lead_target(&ctx, &l.to, &subject, l.level)
         {
+            // A lead to a person names them: the player has heard of them.
+            if let LeadTarget::Person { person } = &to {
+                teach.push((Subject::Person { person: *person }, Level::Heard));
+            }
             leads.push(Lead {
                 subject,
                 level: l.level,
@@ -666,6 +717,8 @@ fn prepare(
         leads,
         effects,
         small_talks,
+        about: about.cloned(),
+        miss,
         odds: odds(state, content, speaker, &topic.id, about, late_night),
     })
 }
@@ -678,6 +731,7 @@ pub fn context_args(ctx: &Ctx<'_>) -> Args {
     let mut a = Args::new();
     a.insert("speaker".into(), ctx.name_of(ctx.speaker));
     a.insert("player".into(), ctx.name_of(ctx.me));
+    ctx.role_args(&mut a);
     if let Some(m) = st.world.municipalities.get(ctx.town.index()) {
         a.insert("town".into(), m.name.clone());
     }
@@ -740,7 +794,12 @@ pub fn context_args(ctx: &Ctx<'_>) -> Args {
     a
 }
 
-fn lead_target(ctx: &Ctx<'_>, to: &LeadToDef) -> Option<LeadTarget> {
+fn lead_target(
+    ctx: &Ctx<'_>,
+    to: &LeadToDef,
+    subject: &Subject,
+    level: Level,
+) -> Option<LeadTarget> {
     match to {
         LeadToDef::PlaceKind { kind } => Some(LeadTarget::PlaceKind {
             town: ctx.town,
@@ -751,6 +810,10 @@ fn lead_target(ctx: &Ctx<'_>, to: &LeadToDef) -> Option<LeadTarget> {
             .filter(|p| *p != ctx.me)
             .map(|person| LeadTarget::Person { person }),
         LeadToDef::Streets { of } => ctx.hood(*of).map(|hood| LeadTarget::Streets { hood }),
+        // Whoever the speaker knows who would know, by public facts.
+        LeadToDef::WhoKnows => {
+            expect::who_knows(ctx, subject, level).map(|person| LeadTarget::Person { person })
+        }
     }
 }
 
@@ -818,7 +881,9 @@ fn talk_to(
     let before = characters::opinion(&state.politics, speaker, me);
     // Who is here as the conversation starts is noted (S1: last seen).
     knowledge::note_sightings(state, content);
-    pay(state, content, late_night);
+    if !p.miss {
+        pay(state, content, late_night);
+    }
     // What it teaches and where it points: the player's ledger.
     let mut learned = Vec::new();
     let mut leads = Vec::new();
@@ -881,7 +946,9 @@ fn talk_to(
         .map(|x| x.full_name())
         .unwrap_or_default();
     // The topic's mechanic, once a week per subject (small talk by its cap).
-    let (outcome, outcome_args) = if p.repeat && p.mechanic != Mech::SmallTalk {
+    let (outcome, outcome_args) = if p.miss {
+        (Some(MISS.to_string()), Vec::new())
+    } else if p.repeat && p.mechanic != Mech::SmallTalk {
         (None, Vec::new())
     } else {
         mechanic(state, content, &p, late_night)
@@ -916,7 +983,7 @@ fn talk_to(
             speaker,
             place,
             topic: p.topic.clone(),
-            about: about.cloned(),
+            about: p.about.clone(),
             parts: p.parts.clone(),
             learned,
             leads,
@@ -946,6 +1013,9 @@ fn talk_to(
     );
     Ok(res)
 }
+
+/// The outcome of a miss: they could not help, and it cost no time.
+pub const MISS: &str = "outcome-talk-miss";
 
 /// The Fluent key of "they have nothing to say about that".
 pub const NOTHING_TO_SAY: &str = "talk-nothing-to-say";

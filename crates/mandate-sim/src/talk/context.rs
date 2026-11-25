@@ -274,6 +274,78 @@ impl Ctx<'_> {
         args.insert("stake_key".into(), stake);
     }
 
+    /// The speaker's role facts (M6 note 26), so a line can be said from
+    /// where they stand: `$post` and `$body` (their post, and the body that
+    /// votes at its tier, in the constitution's words; only for someone in a
+    /// post), `$work` (where they work; the town for someone with no
+    /// workplace) and `$mystake` (the industry their occupation speaks for:
+    /// the town's own where it is one of theirs; only for an occupation with
+    /// a stake). Which of these a line may rely on is decided by its
+    /// conditions (`conversation::role_fact_args`).
+    pub fn role_args(&self, args: &mut Args) {
+        use mandate_content::conversation::{body_talk_key, post_talk_key};
+        let st = self.st;
+        // The visible power where the conversation is (every line's
+        // `$office` and `$chamber`): the tier's executive and legislature.
+        if let Some(c) = self.content.constitutions.get(&st.meta.constitution) {
+            let tier = crate::world::Jurisdiction::town(self.town).tier();
+            if let Some(o) = crate::politics::executive(c, tier) {
+                args.insert(
+                    "office_key".into(),
+                    post_talk_key(mandate_content::types::PostRef::Office(o)),
+                );
+            }
+            if let Some(b) = crate::politics::legislature(c, tier) {
+                args.insert("chamber_key".into(), body_talk_key(b));
+            }
+        }
+        let ch = st.politics.characters.get(self.speaker);
+        let post = ch
+            .and_then(|c| c.politician)
+            .and_then(|p| st.politics.get(p))
+            .and_then(|p| p.role.post());
+        if let Some(post) = post
+            && let Some(c) = self.content.constitutions.get(&st.meta.constitution)
+        {
+            if let Some(d) = post.def(c) {
+                args.insert("post_key".into(), post_talk_key(d));
+            }
+            if let Some(b) = crate::politics::legislature(c, post.at().tier()) {
+                args.insert("body_key".into(), body_talk_key(b));
+            }
+        }
+        match self.workplace(self.speaker) {
+            Some(p) => self.place_arg(p, "work", args),
+            None => {
+                if let Some(m) = st.world.municipalities.get(self.town.index()) {
+                    args.insert("work".into(), m.name.clone());
+                }
+            }
+        }
+        let drivers = ch
+            .and_then(|c| c.named.as_deref())
+            .and_then(|n| self.content.occupation(&n.occupation))
+            .map(|o| o.stake.drivers.as_slice())
+            .unwrap_or(&[]);
+        if !drivers.is_empty() {
+            let town = self
+                .town_character()
+                .and_then(|t| t.industry.as_deref())
+                .and_then(|s| self.content.sector(s))
+                .filter(|s| drivers.contains(&s.driver));
+            let mine = town.or_else(|| {
+                self.content
+                    .sectors
+                    .iter()
+                    .find(|s| drivers.contains(&s.driver))
+            });
+            let key = mine
+                .and_then(|s| s.talk_key.clone())
+                .unwrap_or_else(|| STAKE_FALLBACK.into());
+            args.insert("mystake_key".into(), key);
+        }
+    }
+
     /// The arguments a subject provides (`SubjectRef::args`).
     pub(crate) fn subject_args(&self, s: &Subject, args: &mut Args) {
         let st = self.st;

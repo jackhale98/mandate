@@ -41,7 +41,8 @@ fn renamed() -> Arc<ContentBundle> {
                     s.text.push_str(
                         "\nbody-moot = Town moot\noffice-reeve = Reeve\nrole-alderman = Alderman\n\
                          role-reeve = Reeve\nstage-vote-moot = Moot vote\nstage-sign-reeve = Reeve's seal\n\
-                         outcome-filed-moot = Filed for the moot.\noutcome-filed-reeve = Filed for reeve.\n",
+                         outcome-filed-moot = Filed for the moot.\noutcome-filed-reeve = Filed for reeve.\n\
+                         talk-body-moot = the moot\ntalk-body-moot-member = an alderman\ntalk-office-reeve = the reeve\n",
                     );
                 }
                 continue;

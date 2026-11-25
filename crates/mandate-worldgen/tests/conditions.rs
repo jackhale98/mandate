@@ -613,6 +613,7 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             Condition::Occupation {
                 slot: sp.into(),
                 occupations: vec![speaker_role.clone()],
+                is: true,
             },
             At::Talk(None),
             true,
@@ -621,6 +622,7 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             Condition::Occupation {
                 slot: "who".into(),
                 occupations: vec![speaker_role],
+                is: true,
             },
             At::Cast(cast.clone()),
             true,

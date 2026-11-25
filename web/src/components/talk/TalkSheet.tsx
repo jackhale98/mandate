@@ -33,7 +33,7 @@ import { roleText } from "../CharacterSheet";
 import { Portrait } from "../portrait/Portrait";
 import { keepLook, lookVariant } from "../portrait/look";
 import { Bubble, placeBubble } from "./Bubble";
-import { costText, greetingPage, pageText, questionText, replyPages, SEARCH_FROM, subjectGroups, topicRow, type Page } from "./dialogueModel";
+import { costText, greetingPage, pageText, questionText, replyPages, SEARCH_FROM, subjectGroups, subjectSplit, topicRow, type Page } from "./dialogueModel";
 import { setTalkMode, useTalkStage, type TalkMode } from "./stage";
 import { displayName } from "./streetPeople";
 import { aboutText, learnedText } from "./talkText";
@@ -91,7 +91,10 @@ export function TalkSheet() {
   return <Dialogue key={conv.n} v={v} x={x} conv={conv} onLost={lost} />;
 }
 
-type Step = { kind: "topics" } | { kind: "subjects"; topic: string };
+// The subject step lists the subjects the engine orders first (`likely`:
+// what the person could be expected to know, from public facts); the rest
+// wait behind "Something else…" (`more`), with search (M6 note 26).
+type Step = { kind: "topics" } | { kind: "subjects"; topic: string; more: boolean };
 
 /** The reply on show: which exchange, which page, how much of it is revealed. */
 interface Shown {
@@ -199,11 +202,22 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
 
   const openSubjects = (t: TopicView) => {
     setQ("");
-    setStep({ kind: "subjects", topic: t.id });
+    setStep({ kind: "subjects", topic: t.id, more: false });
+    focus("first");
+  };
+  const openMore = (t: TopicView) => {
+    setQ("");
+    setStep({ kind: "subjects", topic: t.id, more: true });
     focus("first");
   };
   const back = useCallback(() => {
     if (step.kind !== "subjects") return;
+    setQ("");
+    if (step.more) {
+      focus("more");
+      setStep({ ...step, more: false });
+      return;
+    }
     focus(`topic-${step.topic}`);
     setStep({ kind: "topics" });
   }, [step, focus]);
@@ -453,8 +467,13 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
   const topic = step.kind === "subjects" ? (v.topics.find((t) => t.id === step.topic) ?? null) : null;
   const subjects = () => {
     if (!topic) return null;
-    const groups = subjectGroups(tr, topic.about, q);
-    const searching = topic.about.length >= SEARCH_FROM;
+    const more = step.kind === "subjects" && step.more;
+    const { likely, others } = subjectSplit(topic.about);
+    // With no likely subject, the rest are the list (nothing to go behind).
+    const listed = more || likely.length === 0 ? others : likely;
+    const groups = subjectGroups(tr, listed, q);
+    const searching = more || listed.length >= SEARCH_FROM;
+    const offerMore = !more && likely.length > 0 && others.length > 0;
     return (
       <>
         <div className="dlg-step-head">
@@ -466,6 +485,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
             {tr.t(topic.name_key)}
           </h3>
         </div>
+        {more && <p className="dlg-hint">{tr.t("ui-dlg-something-else-hint")}</p>}
         {searching && (
           <input
             type="search"
@@ -480,6 +500,7 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
         <ul className="dlg-choices" aria-labelledby="dlg-step-title" data-testid="talk-subjects">
           {!topic.about_required &&
             !q &&
+            !more &&
             choice("none", {
               label: tr.t("ui-talk-about-none"),
               disabled: !topic.available,
@@ -514,6 +535,14 @@ function Dialogue({ v, x, conv, onLost }: { v: TalkView; x: ExchangeView | null;
             );
           })}
           {groups.length === 0 && q && <li className="dlg-none">{tr.t("ui-dlg-search-none", { q })}</li>}
+          {offerMore &&
+            !q &&
+            choice("more", {
+              label: tr.t("ui-dlg-something-else"),
+              opens: true,
+              testId: "talk-something-else",
+              onChoose: () => openMore(topic),
+            })}
         </ul>
       </>
     );
