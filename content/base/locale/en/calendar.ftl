@@ -48,7 +48,6 @@ weekday-short-sun = Sun
 
 # The bar: the day played, with its weekday.
 ui-date-weekday = { $weekday } { $day } { $month } { $year }
-ui-date-weekday-short = { $weekday } { $day } { $month }
 
 # Today's "This fortnight" (DEC-114 §5.5).
 ui-this-fortnight = This fortnight

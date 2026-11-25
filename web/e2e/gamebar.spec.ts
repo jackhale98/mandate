@@ -80,9 +80,9 @@ for (const [width, wide] of [[360, false], [390, false], [360, true], [320, true
       return out;
     });
     expect(hanging).toEqual([]);
-    // The date shows (day and short month on a phone).
+    // The day played shows (weekday, day and short month on a phone; DEC-114).
     await expect(bar.locator(".gamebar-date-short")).toBeVisible();
-    expect(((await bar.locator(".gamebar-date-short").textContent()) ?? "").trim()).toMatch(/^\d{1,2} [A-Z][a-z]{2}$/);
+    expect(((await bar.locator(".gamebar-date-short").textContent()) ?? "").trim()).toMatch(/^([A-Z][a-z]{2} )?\d{1,2} [A-Z][a-z]{2}$/);
 
     // No sideways scroll; every control in the bar keeps a 44 px touch target.
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

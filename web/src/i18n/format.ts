@@ -11,12 +11,6 @@ export function formatDay(tr: Translator, d: DateView, weekdayKey: string): stri
   return tr.t("ui-date-weekday", { weekday: tr.t(weekdayKey), day: d.day, month: tr.t(`month-${d.month}`), year: String(d.year) });
 }
 
-/** Short ("Sat 14 Jul"), for a narrow bar. */
-export function formatDayShort(tr: Translator, d: DateView, weekdayKey: string): string {
-  const wd = weekdayKey ? tr.t(weekdayKey.replace("weekday-", "weekday-short-")) : "";
-  return tr.t("ui-date-weekday-short", { weekday: wd, day: d.day, month: tr.t(`month-short-${d.month}`) }).trim();
-}
-
 export function formatCount(n: number): string {
   return new Intl.NumberFormat("en", { notation: n >= 1e6 ? "compact" : "standard", maximumFractionDigits: 2 }).format(n);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useGame } from "../state/gameStore";
-import { formatCount, formatDate, formatDay, formatDayShort } from "../i18n/format";
+import { formatCount, formatDate, formatDay } from "../i18n/format";
 import { MunicipalityPanel } from "../components/MunicipalityPanel";
 import { NationalEconomy } from "../components/NationalEconomy";
 import { ElectionNight } from "../components/CampaignCards";
@@ -214,7 +214,9 @@ export function Game() {
               {formatDay(tr, overview.day, overview.weekday_key)}
             </span>
             <span className="gamebar-date-short" aria-hidden="true">
-              {formatDayShort(tr, overview.day, overview.weekday_key)}
+              {/* On the narrowest phones the weekday gives way before the date would be cut. */}
+              <span className="gamebar-weekday">{tr.t(overview.weekday_key.replace("weekday-", "weekday-short-"))} </span>
+              {tr.t("ui-date-short", { day: overview.day.day, month: tr.t(`month-short-${overview.day.month}`) })}
             </span>
           </strong>
           <span className="gamebar-sub muted">
