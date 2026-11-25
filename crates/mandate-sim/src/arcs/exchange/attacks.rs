@@ -524,7 +524,7 @@ pub fn attacks(
                 _ => Vec::new(),
             }
         }
-        SourceKind::TopWorry => vec![question(v, p, groups)],
+        SourceKind::TopWorry => vec![question(v, p, groups, &[])],
         // Not built yet (`SourceKind::built`): an arc that lists one is
         // never raised.
         _ => Vec::new(),
@@ -532,8 +532,15 @@ pub fn attacks(
 }
 
 /// The room's question (§4.5): the audience's strongest worry, as its
-/// residents feel it. Not an attack; it always exists.
-pub fn question(v: &View<'_>, p: &ExchangeParams, groups: &[GroupLean]) -> Attack {
+/// residents feel it, that has not been asked already in this scene (the
+/// same question is not put twice while the room has another). Not an
+/// attack; it always exists.
+pub fn question(
+    v: &View<'_>,
+    p: &ExchangeParams,
+    groups: &[GroupLean],
+    asked: &[String],
+) -> Attack {
     let mut hoods: Vec<usize> = groups
         .iter()
         .flat_map(|g| audience::hoods_of(v.r.world, &g.group))
@@ -549,9 +556,14 @@ pub fn question(v: &View<'_>, p: &ExchangeParams, groups: &[GroupLean]) -> Attac
                 crate::concerns::Scope::District(&hoods),
                 Worry::Felt,
             );
-            crate::concerns::top(&ranking, 1)
-                .next()
-                .and_then(|(i, _)| v.content().concerns.get(i).map(|c| c.id.clone()))
+            let ids: Vec<String> = crate::concerns::top(&ranking, usize::MAX)
+                .filter_map(|(i, _)| v.content().concerns.get(i).map(|c| c.id.clone()))
+                .collect();
+            let key = |c: &String| format!("{}:{c}", SourceKind::TopWorry.key());
+            ids.iter()
+                .find(|c| !asked.contains(&key(c)))
+                .or(ids.first())
+                .cloned()
         })
         .flatten();
     Attack {
@@ -812,7 +824,7 @@ pub fn draw(
             continue;
         }
         if s.always() {
-            attack = Some(question(v, p, groups));
+            attack = Some(question(v, p, groups, retired));
             break;
         }
         let cands: Vec<&Attack> = deck
@@ -837,7 +849,7 @@ pub fn draw(
         attack = Some(cands[i.min(cands.len() - 1)].clone());
         break;
     }
-    let attack = attack.unwrap_or_else(|| question(v, p, groups));
+    let attack = attack.unwrap_or_else(|| question(v, p, groups, retired));
     let stood = attack.p >= 1.0
         || keyed(seed, KEY_PROMPT_HOLDS, run, beat, round, 0).chance(f64::from(attack.p));
     let variants = i64::from(p.prompt_variants.max(1));
