@@ -35,6 +35,10 @@ Who depends and who resents: the income classes the broker's organisation comes 
 
 `crates/mandate-worldgen/tests/broker.rs`: the pull on a bill in the broker's interest and none outside it, each member's share exact, a member who loathes the broker unmoved; the broker among the vote's causes; backing raises a race's funds and contacts against the same world with backing off; the openings absent until the broker is known (heard is not enough) and the exposé only with the press; each opening's effect equal to its preview (sway to the member, favours, approval by class, opinions, the cooldown, both sides of the exposé's roll); the whole path through a conversation, deterministic and through save → load.
 
+Moved on purpose: every pin re-recorded with `scripts/repin.sh` (the spine proof's 16 games, the state-shape fingerprint with v31 kept, the town geography, the v18 and asks fixtures, three seeds). The flood arc's scripts (`tests/arcs.rs`) and the budget round's flood test move from seed 99 to 106: in seed 99's town the broker's votes now put flood defences in force before the flood, so the arc goes straight to `defended` and has no meeting.
+
+Checks: fmt, clippy, content validate, seeds, generated files; every test of the eight crates (`--no-fail-fast`); web typecheck (after `scripts/build-wasm.sh`), lint, tests and the WASM pin test; `determinism --seed 2026 --turns 80` (one hash). Bots: see the balance entry; `idle_cap` is report-only.
+
 ## Not done
 
 - NPCs do not use the openings (DEC-030 symmetry): NPC politicians do not lobby or oppose the broker. A follow-up.

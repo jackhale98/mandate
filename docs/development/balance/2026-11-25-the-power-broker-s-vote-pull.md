@@ -37,3 +37,5 @@ Mean vote share by strategy, without → with: idle 0.316 → 0.372, media 0.373
 ## Effect
 
 Every strategy gains: the broker's backing goes to the candidate they regard most, which can be the player, and reaches a player who does nothing. The idle player now wins 3 of 16, past the cap. `idle_cap` is report-only with a dated note in `crates/mandate-cli/src/bots/gates.rs` until the tuning pass. Levers there: `back_money`, `back_contacts`, `back_min_opinion`, and whether backing needs the broker to know the player.
+
+Also seen: flood defences pass more often. In seed 99's town they are in force before a planted flood (seeds 99 to 105 all fail the flood arc's scripts, which need a town without them), so the arc tests moved to seed 106. A crisis bill gets the broker's pull while the crisis lasts, and a town's floods during the burn-in are such a crisis. To read at the tuning pass with the arc grader.
