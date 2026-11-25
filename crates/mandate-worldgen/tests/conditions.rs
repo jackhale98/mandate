@@ -1001,6 +1001,8 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             root: None,
             turn: None,
             before: Some("turn_hole".into()),
+            exchange: None,
+            played: Vec::new(),
         };
         let held = |e: &Engine, s: &str, run: Option<&ArcRun>, here: Option<Location>| {
             let st = e.state();

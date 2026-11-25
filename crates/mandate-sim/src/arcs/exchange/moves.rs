@@ -183,7 +183,7 @@ fn concern_key(content: &ContentBundle, id: &str) -> String {
         .concerns
         .iter()
         .find(|c| c.id == id)
-        .map(|c| c.name_key.clone())
+        .map(|c| c.talk_key.clone().unwrap_or_else(|| c.name_key.clone()))
         .unwrap_or_default()
 }
 

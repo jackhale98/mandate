@@ -42,6 +42,7 @@ why-player-dip_funds = You paid your own bills from campaign funds.
 why-player-leak_file = You leaked a file.
 why-player-visit = You paid a visit.
 why-player-casework = You took up someone's problem.
+why-player-exchange = You took the floor.
 
 ## Someone else's own choice (`$name` as the player knows them).
 why-actor = { $name }'s own choice.

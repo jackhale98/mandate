@@ -125,6 +125,8 @@ fn turn(e: &mut Engine) {
                         })),
                     })
                 }
+                // These arcs hold no scene.
+                BeatAction::Exchange { .. } => continue,
             };
             if e.apply(cmd).is_ok() {
                 acted = true;

@@ -975,10 +975,10 @@ impl Checker<'_> {
 /// thing a prompt or a line names, as names and keys (facts, never prose).
 pub const EXCHANGE_ARGS: [&str; 13] = [
     "group",
-    "worry_key",
-    "law_key",
-    "promise_key",
-    "fact_key",
+    "worry",
+    "law",
+    "promise",
+    "fact",
     "other",
     "second",
     "size",
@@ -1057,6 +1057,7 @@ impl Checker<'_> {
         x: &'m crate::exchange::ArcExchangeDef,
         marks_set: &mut BTreeSet<&'m str>,
         marks_seen: &mut BTreeSet<&'m str>,
+        marks_engine: &mut BTreeSet<&'static str>,
         issues: &mut Vec<Issue>,
     ) {
         use crate::exchange::{AudienceFrom, MoveKind, OF_HERE, OF_RACE, Outcome};
@@ -1295,9 +1296,11 @@ impl Checker<'_> {
             }
             marks_set.extend(out.sets.as_deref());
         }
-        // The marks a kind of line leaves are set by the engine.
+        // The marks a kind of line leaves (`promised`, `aired`, `owned`,
+        // `denied`) are set by the engine: a gate may read one, and none
+        // need be read.
         for k in &x.moves {
-            marks_set.extend(k.mark());
+            marks_engine.extend(k.mark());
         }
         for (path, v) in &x.params {
             if let Err(e) = p.with(path, *v) {
@@ -1539,6 +1542,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         let mut marks_set: BTreeSet<&str> = BTreeSet::new();
         let mut marks_seen: BTreeSet<&str> = BTreeSet::new();
         let mut exchange_stages: Vec<usize> = Vec::new();
+        let mut marks_engine: BTreeSet<&'static str> = BTreeSet::new();
         let mut out_edges: Vec<Vec<usize>> = vec![Vec::new(); n];
         for (si, s) in a.stages.iter().enumerate() {
             let at = format!("stage `{}`", s.id);
@@ -1819,7 +1823,16 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     }
                     BeatKind::Exchange(x) => {
                         exchange_stages.push(si);
-                        ck.exchange(&at, s, beat, x, &mut marks_set, &mut marks_seen, issues);
+                        ck.exchange(
+                            &at,
+                            s,
+                            beat,
+                            x,
+                            &mut marks_set,
+                            &mut marks_seen,
+                            &mut marks_engine,
+                            issues,
+                        );
                     }
                 }
             }
@@ -1935,7 +1948,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             ));
         }
         // Marks: one read is set somewhere; one set is read somewhere.
-        for m in marks_seen.difference(&marks_set) {
+        for m in marks_seen
+            .difference(&marks_set)
+            .filter(|m| !marks_engine.contains(**m))
+        {
             err(
                 issues,
                 format!("mark `{m}` is read and never set (arc-mark-unset)"),

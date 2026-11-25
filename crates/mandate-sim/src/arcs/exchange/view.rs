@@ -443,7 +443,7 @@ fn prompt_args(
     if let Some(c) = &a.subject.concern
         && let Some(def) = content.concerns.iter().find(|x| &x.id == c)
     {
-        out.push(("worry_key".into(), def.name_key.clone()));
+        out.push(("worry_key".into(), def.talk_key.clone().unwrap_or_else(|| def.name_key.clone())));
     }
     if let Some(g) = &a.group {
         // The group it names, by the area's own name where it has one.
