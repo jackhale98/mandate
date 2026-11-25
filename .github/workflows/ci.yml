@@ -1,8 +1,14 @@
 name: CI
 
+# A push that changes only documentation starts no run, and so cancels none
+# (the concurrency group below cancels the run in progress on every push that
+# does start one). The checks read no Markdown outside these paths.
 on:
   push:
     branches: [main, "claude/**"]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
   pull_request:
   workflow_dispatch:
 
@@ -101,8 +107,6 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Test seeds are fresh (tests/seeds.json)
-        run: cargo run -q -p mandate-cli -- seeds check
       - run: cargo test --workspace
       - name: Content validation
         run: cargo run -q -p mandate-cli -- content validate
@@ -110,6 +114,20 @@ jobs:
         run: |
           cargo run -q -p mandate-cli -- content schema
           git diff --exit-code content/schemas web/src/engine/protocol
+
+  # The lab's checks, on a release build, beside the test suite (which is the
+  # longer of the two): seeds, determinism, the sweep, the bots, parity.
+  lab:
+    runs-on: ubuntu-latest
+    needs: [wasm, verified]
+    if: needs.verified.outputs.ok != 'true'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: lab
+      - name: Test seeds are fresh (tests/seeds.json)
+        run: cargo run -q --release -p mandate-cli -- seeds check
       - name: Determinism (twice + save/load/continue)
         run: cargo run -q --release -p mandate-cli -- determinism --seed 2026 --turns 80
       - name: Monte Carlo health (quick)
@@ -175,24 +193,51 @@ jobs:
           size=$(cat dist/index.html dist/assets/index-*.css dist/assets/index-*.js | gzip -9 | wc -c)
           echo "landing page: $size bytes gzipped"
           test "$size" -le 61440
-      - name: Playwright browsers (cached)
-        if: needs.verified.outputs.ok != 'true'
-        id: pw
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('web/package-lock.json') }}
-      - if: needs.verified.outputs.ok != 'true' && steps.pw.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-      - if: needs.verified.outputs.ok != 'true' && steps.pw.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-      - if: needs.verified.outputs.ok != 'true'
-        run: npx playwright test --trace off
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: web-dist
           path: web/dist
           retention-days: 7
+
+  # The browser tests, a quarter of the suite on each of four machines (the
+  # whole suite on one took 24 minutes, 2026-11-25). Each builds the site
+  # itself, so the shards start beside the web job and not after it.
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [wasm, verified]
+    if: needs.verified.outputs.ok != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: engine-pkg
+          path: .
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npx vite build --config spikes/hub/vite.config.ts --outDir ../../dist/spike-hub --emptyOutDir
+      - name: Playwright browsers (cached)
+        id: pw
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('web/package-lock.json') }}
+      - if: steps.pw.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.pw.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: npx playwright test --trace off --shard=${{ matrix.shard }}/4
 
   # Dependency advisories (SECURITY_REVIEW.md). Report only for now, so a new
   # advisory in a dev tool cannot block a deploy.
@@ -228,8 +273,9 @@ jobs:
     if: >-
       always() && github.ref == 'refs/heads/main' && github.event_name == 'push' &&
       needs.web.result == 'success' &&
-      (needs.rust.result == 'success' || (needs.rust.result == 'skipped' && needs.verified.outputs.ok == 'true'))
-    needs: [verified, rust, web]
+      (needs.verified.outputs.ok == 'true' ||
+       (needs.rust.result == 'success' && needs.lab.result == 'success' && needs.e2e.result == 'success'))
+    needs: [verified, rust, lab, web, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read
