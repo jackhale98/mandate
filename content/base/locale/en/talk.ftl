@@ -49,17 +49,18 @@ talk-place-regional_assembly = the regional assembly
 talk-place-parliament = parliament
 talk-place-executive_residence = the executive residence
 
-# Posts and bodies, as talk names them mid-sentence ($post, $office: by the
-# post's role word; $body, $chamber: by the body's id).
-talk-post-councillor = a councillor
-talk-post-mayor = the mayor
-talk-post-assembly_member = an assembly member
-talk-post-governor = the governor
-talk-post-representative = a representative
-talk-post-senator = a senator
-talk-post-president = the president
+# Posts and bodies, as talk names them mid-sentence (from the constitution's
+# name keys: $office and an office's $post, talk-<office name key>; a seat's
+# $post, talk-<body name key>-member; $body and $chamber, talk-<body name key>).
+talk-body-council-member = a councillor
+talk-office-mayor = the mayor
+talk-body-regional-assembly-member = an assembly member
+talk-office-governor = the governor
+talk-body-house-member = a representative
+talk-body-senate-member = a senator
+talk-office-president = the president
 talk-body-council = the council
-talk-body-assembly = the regional assembly
+talk-body-regional-assembly = the regional assembly
 talk-body-house = the House
 talk-body-senate = the Senate
 
@@ -80,7 +81,6 @@ talk-topic-small-talk = Small talk
 # The subject step: everything the person has no particular reason to know.
 ui-dlg-something-else = Something else…
 ui-dlg-something-else-hint = Anything else you know of. They may not know much about it.
-ui-dlg-likely = They would know
 
 ## Openers, by relationship (anyone).
 

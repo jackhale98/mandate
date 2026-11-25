@@ -37,16 +37,22 @@ pub const CONTEXT_ARGS: [&str; 6] = [
     "chamber_key",
 ];
 
-/// The Fluent key naming a post mid-sentence ("the mayor", "a councillor"),
-/// by its role word (`$post`).
-pub fn post_talk_key(word: &str) -> String {
-    format!("talk-post-{word}")
+/// The Fluent key naming a post mid-sentence (`$post`, `$office`): an
+/// office by its own name key ("the mayor": `talk-office-mayor`), a seat by
+/// its body's ("a councillor": `talk-body-council-member`). From the
+/// constitution's name keys, so renamed posts keep their lines (DEC-098).
+pub fn post_talk_key(p: crate::types::PostRef<'_>) -> String {
+    use crate::types::PostRef;
+    match p {
+        PostRef::Body(b) => format!("talk-{}-member", b.name_key),
+        PostRef::Office(o) => format!("talk-{}", o.name_key),
+    }
 }
 
-/// The Fluent key naming a body mid-sentence ("the council"), by its id
-/// (`$body`).
-pub fn body_talk_key(id: &str) -> String {
-    format!("talk-body-{id}")
+/// The Fluent key naming a body mid-sentence ("the council":
+/// `talk-body-council`), by its name key (`$body`, `$chamber`).
+pub fn body_talk_key(b: &crate::types::BodyDef) -> String {
+    format!("talk-{}", b.name_key)
 }
 
 /// The role facts a line may name, given the roles its conditions make the
@@ -1116,10 +1122,10 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
     for c in b.constitutions.values() {
         for tier in &c.tiers {
             for post in tier.posts() {
-                key_exists(&c.id, &post_talk_key(post.word()), issues);
+                key_exists(&c.id, &post_talk_key(post), issues);
             }
             for body in &tier.bodies {
-                key_exists(&c.id, &body_talk_key(&body.id), issues);
+                key_exists(&c.id, &body_talk_key(body), issues);
             }
         }
     }

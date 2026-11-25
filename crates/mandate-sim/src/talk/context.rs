@@ -290,10 +290,13 @@ impl Ctx<'_> {
         if let Some(c) = self.content.constitutions.get(&st.meta.constitution) {
             let tier = crate::world::Jurisdiction::town(self.town).tier();
             if let Some(o) = crate::politics::executive(c, tier) {
-                args.insert("office_key".into(), post_talk_key(&o.id));
+                args.insert(
+                    "office_key".into(),
+                    post_talk_key(mandate_content::types::PostRef::Office(o)),
+                );
             }
             if let Some(b) = crate::politics::legislature(c, tier) {
-                args.insert("chamber_key".into(), body_talk_key(&b.id));
+                args.insert("chamber_key".into(), body_talk_key(b));
             }
         }
         let ch = st.politics.characters.get(self.speaker);
@@ -304,11 +307,11 @@ impl Ctx<'_> {
         if let Some(post) = post
             && let Some(c) = self.content.constitutions.get(&st.meta.constitution)
         {
-            if let Some(w) = post.word(c) {
-                args.insert("post_key".into(), post_talk_key(w));
+            if let Some(d) = post.def(c) {
+                args.insert("post_key".into(), post_talk_key(d));
             }
             if let Some(b) = crate::politics::legislature(c, post.at().tier()) {
-                args.insert("body_key".into(), body_talk_key(&b.id));
+                args.insert("body_key".into(), body_talk_key(b));
             }
         }
         match self.workplace(self.speaker) {
