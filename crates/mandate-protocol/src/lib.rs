@@ -285,14 +285,6 @@ pub enum VoteDto {
 #[ts(export)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ActionDto {
-    Lobby {
-        politician: u32,
-        policy: u32,
-    },
-    TradeFavor {
-        politician: u32,
-        policy: u32,
-    },
     TownHall {
         neighborhood: u32,
         policy: Option<u32>,

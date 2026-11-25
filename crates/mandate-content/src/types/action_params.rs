@@ -66,6 +66,33 @@ pub struct LobbyEffects {
     pub opinion_fail: f64,
     /// Legal jeopardy of a late-night deal.
     pub late_night_legal: f64,
+    /// Lobbying as a conversation (M6 note 29): the arguments the player
+    /// can make, beside the plain pitch.
+    pub arguments: LobbyArguments,
+}
+
+/// The arguments of a lobbying conversation (M6 note 29). Each replaces
+/// the plain pitch's ties term (the member's opinion of the player /
+/// `council.lobby.opinion_scale`) in the lobbying logit with its own.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LobbyArguments {
+    /// Lobbying exchanges with one member on one bill a week.
+    pub exchanges: u32,
+    /// Their ward: × the ward's support for the bill (−1..1, on the
+    /// player's side).
+    pub ward: f64,
+    /// Their party's line (on the player's side): × the member's loyalty.
+    pub party: f64,
+    /// The player's word (an ask of theirs kept): × (2 × trust − 1).
+    pub word: f64,
+    /// The broker (who wants what the player wants): × the member's
+    /// compliance with the broker (0..1).
+    pub broker: f64,
+    /// An ally or the party whip brings others: sway per member ×
+    /// (their opinion of the one asked / 100, plus their loyalty if in the
+    /// same party), clamped to 0..1.
+    pub rally_sway: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]

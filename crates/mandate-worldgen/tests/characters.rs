@@ -138,11 +138,10 @@ fn opinion_and_favours_live_on_relationship_edges() {
     let first = st.politics.characters.get(cc).unwrap().first_impression;
     assert_eq!(characters::opinion(&st.politics, cc, me), first);
     // A favour traded: the ledger records it, and they remember the promise.
-    let r = e.apply(e.route(PlayerCommand::Act {
-        action: mandate_sim::actions::Action::TradeFavor {
-            politician: colleague.0,
-            policy: bill,
-        },
+    let r = e.apply(mandate_sim::Command::Player(PlayerCommand::Talk {
+        to: mandate_sim::talk::TalkTarget::Person { person: cc },
+        topic: format!("choice.lobby.{bill}.owe"),
+        about: None,
         late_night: false,
     }));
     assert!(r.is_ok(), "{r:?}");

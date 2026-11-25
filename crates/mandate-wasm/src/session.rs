@@ -630,10 +630,6 @@ fn player_command(
         CommandDto::Act { action, late_night } => P::Act {
             late_night,
             action: match action {
-                ActionDto::Lobby { politician, policy } => Action::Lobby { politician, policy },
-                ActionDto::TradeFavor { politician, policy } => {
-                    Action::TradeFavor { politician, policy }
-                }
                 ActionDto::TownHall {
                     neighborhood,
                     policy,

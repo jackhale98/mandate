@@ -5,7 +5,7 @@
 use crate::knowledge::{Gate, KnowledgeLevelDto, gate_concerns, gate_support, gate_ward_support};
 use crate::views::DateView;
 use mandate_content::{ParamDef, TierKey};
-use mandate_sim::actions::{lobby_odds, player_powers};
+use mandate_sim::actions::{lobbying, player_powers};
 use mandate_sim::player::knowledge::{Level, Subject};
 use mandate_sim::policy::{
     Clause, PolicyInstance, PolicyStatus, executive_lean, legislature_leans, public_support,
@@ -233,11 +233,24 @@ pub struct WhipView {
     /// `yes` | `lean_yes` | `undecided` | `lean_no` | `no`
     pub lean: String,
     pub yes_probability: f64,
-    pub lobby_odds: f64,
-    pub lobby_odds_late: f64,
     pub is_player: bool,
     /// What the player knows of this member (`name` is empty below `heard`).
     pub level: crate::knowledge::KnowledgeLevelDto,
+    /// Their character: "Talk to them" opens the conversation on the bill
+    /// (M6 note 29), without a walk (DEC-051).
+    pub character: u32,
+    /// Committed, so lobbying is over: `sponsor` | `yes` | `no` | `abstain`.
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settled: Option<String>,
+    /// Lobbying exchanges with them on this bill left this week.
+    pub exchanges_left: u32,
+    /// They can bring others round (an ally of the player, or the whip of
+    /// the player's party).
+    pub brings_others: bool,
+    /// Why they stand where they stand, as far as the player knows: Fluent
+    /// keys `whip-why-<reason>` and their arguments.
+    pub reasons: Vec<ReasonView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -618,6 +631,136 @@ fn support_view(
     )
 }
 
+/// A member's commitment on a bill, if they have made one.
+fn settled_word(st: &State, m: &Politician, p: &PolicyInstance) -> Option<String> {
+    if p.sponsor == Some(m.id) {
+        return Some("sponsor".into());
+    }
+    st.politics
+        .declared_votes
+        .get(&(m.id.0, p.id.0))
+        .map(|v| match v.signum() {
+            1 => "yes",
+            -1 => "no",
+            _ => "abstain",
+        })
+        .map(String::from)
+}
+
+/// Why a member stands where they do on a bill, as far as the player knows
+/// (M6 note 29): their commitment, their party's line, their ward's view
+/// (once the player knows a neighbourhood's worries there), the broker's
+/// pull (once the player knows the broker), favours either way and how they
+/// see the player (never gated: about the player), and lobbying this week.
+fn whip_reasons(
+    engine: &Engine,
+    gate: &Gate<'_>,
+    m: &Politician,
+    p: &PolicyInstance,
+    t: &mandate_content::PolicyTemplate,
+    broker: Option<mandate_sim::characters::town::BrokerPull>,
+) -> Vec<ReasonView> {
+    use std::collections::BTreeMap;
+    let st = engine.state();
+    let content = engine.content();
+    let mut out = Vec::new();
+    let mut push = |key: &str, args: &[(&str, String)]| {
+        out.push(ReasonView {
+            key: format!("whip-why-{key}"),
+            args: args
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.clone()))
+                .collect::<BTreeMap<_, _>>(),
+        })
+    };
+    if let Some(w) = settled_word(st, m, p) {
+        push("settled", &[("how", w)]);
+        return out;
+    }
+    let constitution = content.constitutions.get(&st.meta.constitution);
+    if let Some(party) = m.party {
+        let sponsor_party = p
+            .sponsor
+            .and_then(|s| st.politics.get(s))
+            .and_then(|s| s.party);
+        let governing = constitution
+            .and_then(|c| mandate_sim::politics::executive_of(&st.politics, c, p.at()))
+            .and_then(|e| st.politics.get(e))
+            .and_then(|e| e.party);
+        if let Some(s) = mandate_sim::politics::party_line::member_stance(
+            &content.politics.party_line,
+            &st.politics,
+            Some(party),
+            sponsor_party,
+            governing,
+            &t.signature_weights,
+        ) {
+            let line = match s.line {
+                1 => "yes",
+                -1 => "no",
+                _ => "free",
+            };
+            push("party", &[("line", line.into())]);
+        }
+    }
+    if let Some(ward) = m.role.constituency() {
+        let hoods = mandate_sim::policy::ward_hoods(&st.world, ward);
+        let known = hoods.iter().any(|h| {
+            gate.level(&Subject::HoodConcerns {
+                hood: mandate_sim::world::NeighborhoodId(*h as u32),
+            }) >= Level::Known
+        });
+        if known {
+            let (lean, _, _, _) =
+                ward_words(Level::Known, public_support(t, &st.population, &hoods));
+            push("ward", &[("lean_key", format!("ward-lean-{lean}"))]);
+        }
+    }
+    if let Some(b) = broker {
+        let town = mandate_sim::characters::town::leading_town(&st.world, &st.population, p.at());
+        let known = town.is_some_and(|town| gate.level(&Subject::Broker { town }) >= Level::Known);
+        if known && b.broker != m.character {
+            let way = if b.pull > 0.0 { "for" } else { "against" };
+            push(
+                "broker",
+                &[
+                    ("way", way.into()),
+                    (
+                        "broker",
+                        gate.name(
+                            b.broker,
+                            mandate_sim::characters::profile(&st.politics, &st.world, b.broker)
+                                .map(|x| x.full_name())
+                                .unwrap_or_default(),
+                        ),
+                    ),
+                ],
+            );
+        }
+    }
+    if let Some(me) = mandate_sim::characters::player_character(st) {
+        let owed = mandate_sim::characters::favour_balance(&st.politics, m.character, me);
+        if owed > 0 {
+            push("owes-you", &[("n", owed.to_string())]);
+        } else if owed < 0 {
+            push("you-owe", &[("n", (-owed).to_string())]);
+        }
+        let op = mandate_sim::characters::opinion(&st.politics, m.character, me) as f64;
+        push(
+            "opinion",
+            &[(
+                "band_key",
+                format!("ui-talk-opinion-{}", crate::characters::opinion_band(op)),
+            )],
+        );
+    }
+    let talked = lobbying::exchanges_this_week(st, m.character, p.id.0);
+    if talked > 0 {
+        push("lobbied", &[("n", talked.to_string())]);
+    }
+    out
+}
+
 pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView> {
     let st = engine.state();
     let content = engine.content();
@@ -670,17 +813,28 @@ pub(crate) fn bill_view(engine: &Engine, p: &PolicyInstance) -> Option<BillView>
                     .unwrap_or(0),
                 lean: lean_label(prob).into(),
                 yes_probability: prob,
-                lobby_odds: if m.is_player {
-                    0.0
-                } else {
-                    lobby_odds(st, content, *id, false)
-                },
-                lobby_odds_late: if m.is_player {
-                    0.0
-                } else {
-                    lobby_odds(st, content, *id, true)
-                },
                 is_player: m.is_player,
+                character: m.character.0,
+                settled: settled_word(st, m, p),
+                exchanges_left: if m.is_player {
+                    0
+                } else {
+                    content
+                        .actions
+                        .lobby
+                        .arguments
+                        .exchanges
+                        .saturating_sub(lobbying::exchanges_this_week(st, m.character, p.id.0))
+                },
+                brings_others: !m.is_player
+                    && st.player.as_ref().is_some_and(|pl| {
+                        lobbying::brings_others(st, content, pl.politician, *id, p.id.0)
+                    }),
+                reasons: if m.is_player {
+                    Vec::new()
+                } else {
+                    whip_reasons(engine, &gate, m, p, t, broker)
+                },
             })
         })
         .collect();

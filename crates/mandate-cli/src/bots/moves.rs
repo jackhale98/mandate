@@ -121,6 +121,44 @@ pub(super) fn lobby_target(e: &Engine, content: &ContentBundle, bill: u32) -> Op
         .map(|x| x.3)
 }
 
+/// Lobby a colleague on a bill in conversation (M6 note 29), from the list
+/// (no walk): the argument offered with the best shown chance (none that
+/// owes a favour or meets after hours, as the one-tap lobby was), as many
+/// exchanges as the week allows. Whether any was made.
+pub(super) fn lobby(e: &mut Engine, content: &ContentBundle, target: u32, bill: u32) -> bool {
+    use mandate_sim::actions::lobbying::{self, Argument};
+    let Some(person) = e
+        .state()
+        .politics
+        .get(mandate_sim::politics::PoliticianId(target))
+        .map(|p| p.character)
+    else {
+        return false;
+    };
+    let mut any = false;
+    for _ in 0..content.actions.lobby.arguments.exchanges {
+        let best = lobbying::arguments(e.state(), content, person)
+            .into_iter()
+            .filter(|p| {
+                p.policy == bill && p.argument.rolled() && !p.late && p.argument != Argument::Rally
+            })
+            .max_by(|a, b| a.odds.total_cmp(&b.odds).then(b.argument.cmp(&a.argument)))
+            .map(|p| lobbying::choice_id(bill, p.argument));
+        let Some(topic) = best else { break };
+        let cmd = PlayerCommand::Talk {
+            to: mandate_sim::talk::TalkTarget::Person { person },
+            topic,
+            about: None,
+            late_night: false,
+        };
+        if apply(e, Command::Player(cmd)).is_err() {
+            break;
+        }
+        any = true;
+    }
+    any
+}
+
 pub(super) fn legislate(e: &mut Engine, content: &ContentBundle) {
     if own_bill(e).is_none() {
         let best = {
@@ -163,13 +201,7 @@ pub(super) fn legislate(e: &mut Engine, content: &ContentBundle) {
         // Lobby a colleague, then talk it up in public.
         let target = lobby_target(e, content, bill);
         if let Some(t) = target {
-            act(
-                e,
-                Action::Lobby {
-                    politician: t,
-                    policy: bill,
-                },
-            );
+            lobby(e, content, t, bill);
         }
         if let Some(h) = coldest_hood(e) {
             act(

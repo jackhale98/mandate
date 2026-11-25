@@ -18,7 +18,7 @@ use crate::spine::{Causes, Link};
 use crate::state::State;
 use crate::world::{MunicipalityId, Tier};
 use mandate_content::{AiAction, AiInput, ContentBundle, Curve, Power, TierKey};
-use mandate_core::math::{clamp, exp, sigmoid};
+use mandate_core::math::{clamp, exp};
 use mandate_core::{SimRng, Stream};
 use std::collections::BTreeMap;
 
@@ -888,10 +888,12 @@ fn act(
                 return;
             };
             let leans = legislature_leans(state, content, &t, inst);
-            // The most persuadable colleague not already on our side.
+            // The most persuadable colleague not already on our side (and
+            // not settled: the sponsor, or committed, as for the player).
             let target = leans
                 .iter()
                 .filter(|(p, _)| *p != id && state.politics.get(*p).is_some_and(|q| !q.is_player))
+                .filter(|(p, _)| !crate::actions::lobbying::settled(state, *p, bill))
                 .map(|(p, l)| {
                     let y = crate::policy::yes_probability(&content.council, *l);
                     let room = if dir > 0.0 { 1.0 - y } else { y };
@@ -900,19 +902,20 @@ fn act(
                 .max_by(|a, b| a.1.total_cmp(&b.1))
                 .map(|(p, _)| p);
             let Some(target) = target else { return };
-            let odds = lobby_odds_between(state, content, id, target, false);
-            let negotiation = state
-                .politics
-                .get(id)
-                .map(|p| p.negotiation as f64)
-                .unwrap_or(0.5);
-            let success = rng.chance(odds);
-            let lp = &content.council.lobby;
-            let gain = if success {
-                rng.range_f64(lp.gain[0], lp.gain[1]) * (0.5 + negotiation)
-            } else {
-                lp.fail_gain
+            // The player's rules (DEC-030): the plain pitch, through the
+            // one function the player's conversation uses.
+            let Some(pitch) = crate::actions::lobbying::pitch(
+                state,
+                content,
+                id,
+                target,
+                bill,
+                crate::actions::lobbying::Argument::Plain,
+                dir,
+            ) else {
+                return;
             };
+            let (success, gain) = crate::actions::lobbying::roll(rng, &pitch);
             *state.politics.sway.entry((target.0, bill)).or_default() += (gain * dir) as f32;
             // The colleague remembers being worked on (DEC-031).
             if let (Some(h), Some(a)) = (
@@ -1170,23 +1173,8 @@ pub fn lobby_odds_between(
     target: PoliticianId,
     late_night: bool,
 ) -> f64 {
-    let (Some(me), Some(t)) = (state.politics.get(actor), state.politics.get(target)) else {
-        return 0.0;
-    };
-    let l = &content.council.lobby;
-    let skill = me.negotiation as f64 * l.skill_negotiation + me.oratory as f64 * l.skill_oratory;
-    let ties = if me.is_player {
-        crate::characters::opinion_between(&state.politics, target, actor) as f64 / l.opinion_scale
-    } else if me.party.is_some() && me.party == t.party {
-        l.same_party
-    } else {
-        l.other_party
-    };
-    let x = (skill - 0.5) * l.skill_scale + t.pragmatism as f64 * l.pragmatism + l.bias + ties
-        - l.integrity * (t.integrity as f64 - 0.5)
-        + if late_night { l.late_night } else { 0.0 }
-        + lobby_knowledge_logit(state, content, actor, target);
-    clamp(sigmoid(x), l.odds_min, l.odds_max)
+    let ties = crate::actions::lobbying::ties(state, content, actor, target);
+    crate::actions::lobbying::odds_with(state, content, actor, target, ties, late_night)
 }
 
 /// Every municipality's NPCs (burn-in and abstracted towns).

@@ -670,11 +670,11 @@ outcome-talk-small-talk = You passed the time with { $name }.
 action-talk = Talk to someone
 
 # What knowing the power broker opens (M6 note 27). Each label says the price.
-broker-choice-lobby = Ask them to bring the members round on { $bill_key } ({ $members } members, about { $votes } votes; { $price ->
+broker-choice-lobby = Ask them to bring the members round on { $bill } ({ $members } members, about { $votes } votes; { $price ->
     [call_in] calls in the favour they owe you
    *[owe] you will owe them a favour
 })
-broker-say-lobby = "{ $bill_key } comes up soon. A word from you would carry the members. What would it take?"
+broker-say-lobby = "{ $bill } comes up soon. A word from you would carry the members. What would it take?"
 broker-reply-lobby = "Leave it with me. You'll remember this, of course."
 broker-reply-lobby-no = "I don't see why I'd spend my favours on you."
 outcome-broker-lobby = { $broker } will lean on the members. You owe them for it.
@@ -692,3 +692,57 @@ broker-say-expose = "Someone should write about how { $broker } really runs this
 broker-reply-expose = "Give me what you have. If it stands up, we'll run it."
 outcome-broker-expose = The story about { $broker } will run. The members are keeping their distance from them.
 outcome-broker-expose-misfired = The story about { $broker } fell apart, and it made you look bad.
+
+# Lobbying is a conversation (M6 note 29). Each argument on a bill is a
+# choice: its label, the player's line, the member's answer (said before
+# the roll; the outcome line says how it went), its costs and its outcome.
+# $speaker is the member, $bill the bill ($bill_key), $side `for` or
+# `against`, $broker the broker, $members and $votes those brought round.
+ui-dlg-lobby-bill = Argue { $bill }
+ui-dlg-lobby-hint = What you can argue depends on what you know of them. Each choice shows its chance and its cost.
+ui-dlg-lobby-done = You have argued that bill with them as far as you can this week.
+talk-why-day = That is a daytime talk. After hours, choose to meet after hours.
+lobby-choice-plain = Make the case { $side ->
+    [against] against it
+   *[for] for it
+}
+lobby-choice-ward = Argue from what their ward thinks of it
+lobby-choice-party = Point to their party's line
+lobby-choice-word = Remind them you kept your word to them
+lobby-choice-broker = Tell them { $broker } wants it too
+lobby-choice-rally = Ask them to bring others round ({ $members } members, about { $votes } votes)
+lobby-choice-call-in = Call in the favour they owe you
+lobby-choice-owe = Offer them a favour in return
+lobby-choice-after-hours = Meet after hours (better odds, a back-room deal)
+lobby-say-plain = "{ $bill } comes to a vote soon. I'd like you { $side ->
+    [against] to vote it down
+   *[for] behind it
+}."
+lobby-say-ward = "Think how { $bill } lands in your ward. Your voters will remember how you voted."
+lobby-say-party = "Your party has a line on { $bill }. I'm asking you to keep to it."
+lobby-say-word = "I did what you asked of me. Trust me on { $bill }."
+lobby-say-broker = "{ $broker } wants the same as I do on { $bill }. You know what that means."
+lobby-say-rally = "People listen to you. Would you bring a few of them round on { $bill }?"
+lobby-say-call-in = "You owe me one. I'm calling it in on { $bill }."
+lobby-say-owe = "Vote with me on { $bill } and I'll owe you one."
+lobby-say-after-hours = "Not here. Let's talk properly tonight, somewhere quiet."
+lobby-reply-plain = "I've heard a lot of pitches on this one. I'll think about it."
+lobby-reply-ward = "My ward talks of little else. Let me weigh it."
+lobby-reply-party = "The party has its view. So do I."
+lobby-reply-word = "You did keep your word. I'll give you that."
+lobby-reply-broker = "Does { $broker } now. That might change things."
+lobby-reply-rally = "I can make a few calls. No promises."
+lobby-reply-call-in = "Fair enough. I owe you, and I pay what I owe."
+lobby-reply-owe = "A favour from you. I'll hold you to it."
+lobby-reply-after-hours = "All right. Not here, though."
+lobby-cost-time = half a slot
+lobby-cost-late = your late slot, −{ $health } health
+lobby-cost-legal = legal risk +{ $legal }
+lobby-cost-owe = you will owe { $name } a favour
+lobby-cost-call-in = spends the favour { $name } owes you
+lobby-cost-fail = if it fails, { $name } thinks less of you
+outcome-lobby-won = { $name } came round on { $bill }.
+outcome-lobby-lost = { $name } was not persuaded on { $bill }.
+outcome-lobby-called-in = { $name } paid back the favour on { $bill }.
+outcome-lobby-owe = { $name } will move on { $bill }. You owe them a favour.
+outcome-lobby-rallied = { $name } came round on { $bill } and will work on { $members } others. You owe them a favour.

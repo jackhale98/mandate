@@ -184,6 +184,7 @@ fn verb(cmd: &PlayerCommand) -> Option<&'static str> {
         PlayerCommand::Talk { topic, .. } => Some(match topic.as_str() {
             "topic.support" => "talk_support",
             "topic.pitch" | "topic.favour" => "talk_bill",
+            t if t.starts_with("choice.lobby.") => "lobby",
             _ => "talk",
         }),
         PlayerCommand::DraftPolicy { .. } => Some("draft"),

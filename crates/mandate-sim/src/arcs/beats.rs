@@ -414,6 +414,10 @@ fn talk_offer(state: &State, content: &ContentBundle, speaker: CharacterId) -> V
                 args: text_args(state, &run),
                 replies,
                 cost: ChoiceCost::Conversation,
+                odds: None,
+                costs: Vec::new(),
+                remote: false,
+                bill: None,
             });
         }
         out

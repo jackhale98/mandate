@@ -133,6 +133,10 @@ fn offer(state: &State, content: &ContentBundle, speaker: CharacterId) -> Vec<Ch
                 })
                 .collect(),
             cost: ChoiceCost::Conversation,
+            odds: None,
+            costs: Vec::new(),
+            remote: false,
+            bill: None,
         });
     }
     out

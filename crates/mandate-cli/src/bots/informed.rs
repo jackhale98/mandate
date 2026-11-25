@@ -217,13 +217,7 @@ pub(super) fn coalition_turn(
     } else if let Some(bill) = own_bill(e)
         && let Some(t) = lobby_target(e, content, bill)
     {
-        act(
-            e,
-            Action::Lobby {
-                politician: t,
-                policy: bill,
-            },
-        );
+        lobby(e, content, t, bill);
     }
     ask_support(e, content) || act(e, Action::Fundraise)
 }

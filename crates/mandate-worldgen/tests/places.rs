@@ -120,7 +120,8 @@ fn actions_are_done_where_they_are_offered() {
         }))
         .is_err()
     );
-    // Late-night lobbying happens at the diner, not in the chamber.
+    // Lobbying is a conversation (M6 note 29): the one-tap lobby is
+    // refused, and meeting after hours is had from the list, with no walk.
     let m = e.state().player.as_ref().unwrap().municipality;
     let target = mayor_of(e.state(), m.index()).unwrap().0;
     let late = PlayerCommand::Act {
@@ -130,13 +131,24 @@ fn actions_are_done_where_they_are_offered() {
         },
         late_night: true,
     };
-    assert!(e.apply(Command::Player(late.clone())).is_err());
-    assert_eq!(
-        places::best_location(e.state(), e.content(), &late),
-        place_of(&e, PlaceKind::Diner)
-    );
-    e.apply(e.route(late)).unwrap();
-    assert_eq!(location(&e), place_of(&e, PlaceKind::Diner).unwrap());
+    let err = e.apply(e.route(late)).unwrap_err();
+    assert!(err.to_string().contains("talk to them"), "{err}");
+    let here = location(&e);
+    let person = e
+        .state()
+        .politics
+        .get(mandate_sim::politics::PoliticianId(target))
+        .unwrap()
+        .character;
+    e.apply(Command::Player(PlayerCommand::Talk {
+        to: mandate_sim::talk::TalkTarget::Person { person },
+        topic: format!("choice.lobby.{id}.after-hours"),
+        about: None,
+        late_night: false,
+    }))
+    .unwrap();
+    assert_eq!(location(&e), here, "no walk to lobby");
+    assert!(e.state().player.as_ref().unwrap().late_night_used);
 }
 
 #[test]
