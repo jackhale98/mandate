@@ -167,6 +167,6 @@ talk-arc-rival-rehearse-no = "I have not the time this week. Ask me when we know
 talk-arc-rival-backer = Ask them to speak for you at the debate
 talk-arc-rival-backer-say = "Would you say a word for me at { $hall }? They listen to you there."
 talk-arc-rival-backer-yes = "I will stand up and say it. Do not make me regret it."
-talk-arc-rival-backer-no = "My name is all I have in this town. I am not lending it yet."
+talk-arc-rival-backer-no = "My name is all I have round here. I am not lending it yet."
 visit-arc-rival-cuttings = Read the cuttings on your rival
 outcome-arc-rival-cuttings = You went through the cuttings on { $rival } at { $paper }: every vote and every quote, back to the start.
