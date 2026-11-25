@@ -246,6 +246,10 @@ fn a_plant_closure_opens_the_closure_package() {
                     municipality: town,
                     sector: "sector.manufacturing".into(),
                     jobs: 300,
+                    industry: None,
+                    plant: None,
+                    factor: None,
+                    upstream: None,
                 },
                 mandate_sim::spine::Cause::Lab,
             );

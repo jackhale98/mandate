@@ -99,6 +99,14 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
 
     for id in b
         .sector_keys()
+        .chain(b.industry_keys())
+        .chain(b.markets.iter().map(|x| &x.id))
+        .chain(b.goods.iter().map(|x| &x.id))
+        .chain(
+            b.industries
+                .iter()
+                .flat_map(|d| d.products.iter().map(|p| &p.id)),
+        )
         .chain(b.scenarios.iter().map(|x| &x.id))
         .chain(b.concern_keys())
         .chain(b.attitudes.iter().map(|a| &a.id))
@@ -114,6 +122,7 @@ pub fn validate_bundle(b: &ContentBundle) -> Vec<Issue> {
         }
     }
     validate_sectors(b, &mut issues);
+    validate_industries(b, &mut issues);
     validate_attitudes(b, &mut issues);
     validate_places(b, &mut issues);
     crate::layout::validate_layout(b, &mut issues);

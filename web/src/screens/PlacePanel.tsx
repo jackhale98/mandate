@@ -4,6 +4,7 @@ import type { BudgetPapersView } from "../engine/protocol/BudgetPapersView";
 import type { InternalPollView } from "../engine/protocol/InternalPollView";
 import type { OverheardView } from "../engine/protocol/OverheardView";
 import type { PlacePanelView } from "../engine/protocol/PlacePanelView";
+import type { PlantView } from "../engine/protocol/PlantView";
 import { useGame } from "../state/gameStore";
 import { formatCount, formatMoney, formatPct } from "../i18n/format";
 import { actionKey, placeIcon, placeName } from "../places/labels";
@@ -44,6 +45,47 @@ function WaitingHere({ v }: { v: PlacePanelView }) {
 function signed(v: number): string {
   const n = Math.round(v * 100);
   return n > 0 ? `+${n}` : String(n);
+}
+
+/** A plant's composed name: the engine sends the form, the stem and the works' noun. */
+function plantArgs(p: PlantView): Record<string, string> {
+  return { plant_key: p.name_key, stem: p.stem, works_key: p.works_key, product_key: p.product_key, town: p.town };
+}
+
+/** A named plant (DEC-110): its name, industry, product, status and, in trouble, why. */
+function PlantLines({ p }: { p: PlantView }) {
+  const tr = useGame((s) => s.tr);
+  const args = plantArgs(p);
+  const dated = p.month !== null && p.year !== null ? { month_key: `month-${p.month}`, year: String(p.year) } : {};
+  return (
+    <>
+      <strong>{capital(tr.event(p.name_key, { stem: p.stem, works_key: p.works_key }))}</strong>
+      <span className="muted">
+        {" "}
+        {tr.t("plant-label-industry")}: {tr.t(p.industry_key)}. {tr.t("plant-label-makes")}: {tr.t(p.product_key)}.
+      </span>
+      <br />
+      <span>
+        {tr.t("plant-label-status")}: {tr.event(p.status_key, dated)}
+      </span>
+      {p.why_key && (
+        <>
+          <br />
+          <span className="muted">{tr.event(p.why_key, { ...args, ...(p.upstream_key ? { upstream_key: p.upstream_key } : {}) })}</span>
+        </>
+      )}
+    </>
+  );
+}
+
+function PlantCard({ p }: { p: PlantView }) {
+  return (
+    <section className="card" data-testid="plant">
+      <p>
+        <PlantLines p={p} />
+      </p>
+    </section>
+  );
 }
 
 function TownData({ d }: { d: TownDataView }) {
@@ -114,6 +156,18 @@ function TownData({ d }: { d: TownDataView }) {
           </li>
         ))}
       </ul>
+      {d.plants.length > 0 && (
+        <>
+          <h3 className="sub">{tr.t("plant-label-employers")}</h3>
+          <ul data-testid="town-plants">
+            {d.plants.map((p) => (
+              <li key={p.id}>
+                <PlantLines p={p} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }
@@ -385,6 +439,7 @@ export function PlacePanel() {
           )}
           {offers("file") && c && <Calendar c={c} />}
           {offers("casework") && <CaseworkHere />}
+          {v.plant && <PlantCard p={v.plant} />}
           {v.town_data && <TownData d={v.town_data} />}
           {has("town_data_detailed") && o && v.here && <TownOpinion o={o} />}
           {v.budget && <Budget b={v.budget} />}

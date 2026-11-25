@@ -779,6 +779,7 @@ pub fn observe(run: &mut SkipRun, state: &crate::State) {
                 municipality,
                 sector,
                 jobs,
+                ..
             } if *municipality == home => Some(SummaryItem::PlantClosure {
                 sector: sector.clone(),
                 jobs: *jobs,

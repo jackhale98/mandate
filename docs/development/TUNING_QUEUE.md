@@ -24,3 +24,12 @@ Numbers are tuned once, at the end of M6, before the tester checkpoint (owner, 2
 | Templates that lower approval at five years | none without a stated cost | 4 remain: property tax, fiscal bridge, tech incubator, flood defences | 2026-11-24 | reported |
 | `good_styles_vary_b`: no style among the best in more than 0.6 of worlds | ≤ 0.6 | `explorer_coalition` 10 of 16 (0.625); 16 of 32 passes | 2026-11-25 (arcs A2) | was enforced; report-only, dated note in `bots/gates.rs` |
 | The budget round's reach (`budget_round.rs` band) | carried ≥ 5, spent ≥ 5, favour owed ≥ 4 of 8 seeds | 6, 5, 3 (7, 7, 6 before the laws fix) | 2026-11-25 (arcs A2) | bars lowered to 4, 3, 2 |
+| Closures with no recovery in ten years (industries) | few | 5.9% of closures (2.0% before industries) | 2026-11-25 (industries I1) | `audit stuck`, reported |
+| Time towns spend in crisis | no worse than before industries | 4,166 crisis spans (3,520 before): +18% | 2026-11-25 (industries I1) | reported |
+| Bots win more with industries | idle ≤ 15%; skip-only as DEC-102 clause 7 | at 32 seeds: idle 12% (6%), mixed 91% (81%), skip stand-in 72% (50%) | 2026-11-25 (industries I1) | `idle_cap` still passes |
+| Textiles' long decline | ends 30 years above 0.35 of its jobs | 0.33 | 2026-11-25 (industries I1) | the audit's band, reported |
+| Plants opening against plants closing | openings about 40% of closures | 27% | 2026-11-25 (industries I1) | design band, reported |
+| What is behind a closure | the industry's index behind about 60% | 69% | 2026-11-25 (industries I1) | design band, reported |
+| Plants that start a game on short time | few | 29% | 2026-11-25 (industries I1) | reported |
+| The flood arc's paths across worlds | every stage and exit reachable in most worlds; passive and engaged end differently in ≥ 60% | the scripted tests hold on 2 of 6 worlds before industries and 1 of 11 after (seed 99) | 2026-11-25 | the grader (`arcs grade`) is to measure it; the scripts are pinned to one world |
+

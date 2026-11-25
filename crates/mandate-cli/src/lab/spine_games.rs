@@ -365,6 +365,11 @@ fn closures_explain_themselves() {
                         | Pressure::Depletion
                         | Pressure::Competitiveness
                         | Pressure::LabourCosts
+                        | Pressure::ExternalDemand { .. }
+                        | Pressure::HomeDemand
+                        | Pressure::InputCosts
+                        | Pressure::Supply
+                        | Pressure::Water
                 )
             )));
             if e.links().any(|(_, l)| l == Link::Caused) {

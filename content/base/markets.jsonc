@@ -1,0 +1,16 @@
+// Markets (DEC-110, the seam for foreign trade; DEC-087): the places an
+// industry sells to outside the country. An industry's external demand is the
+// sum over markets of its share in the market × the market's index for the
+// industry × the market's access. Today there is one market, so every
+// industry's external demand is that market's index for it. A neighbouring
+// nation (M7) is another entry here, with an index its own economy drives;
+// a tariff, a treaty, a dispute or a closed border (M8) changes `access`.
+//
+// share: its weight in every industry's external sales (an industry may set
+//   its own in `exposure.markets`). access: 1 is open trade.
+{
+  "kind": "markets",
+  "items": [
+    { "id": "market.world", "name_key": "market-world", "share": 1.0, "access": 1.0 },
+  ],
+}

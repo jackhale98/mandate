@@ -284,6 +284,7 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
                         municipality,
                         sector,
                         jobs,
+                        ..
                     } if *municipality == m => Some((sector.clone(), *jobs)),
                     _ => None,
                 });

@@ -200,7 +200,7 @@ fn a_v26_save_loads_and_continues() {
             .and_then(|r| r.as_array())
             .is_none_or(|r| r.is_empty())
     );
-    assert_eq!(migrated["state"]["economy"], old["state"]["economy"]);
+    // (The last step, industries, adds to the economy alone.)
     assert_eq!(migrated["state"]["events"], old["state"]["events"]);
     let st = old_state(&c);
     assert!(st.arcs.runs.is_empty() && st.arcs.past.is_empty());
@@ -222,7 +222,7 @@ fn a_v26_save_loads_and_continues() {
     assert_eq!(a.state_hash(), play(10, false).state_hash());
     assert!(a.state().calendar.turn >= st.calendar.turn + 10);
     // A flood after loading raises its arc in the old world too, and the
-    // game it is now is written as v27 and read back whole.
+    // game it is now is written in today's format and read back whole.
     let f = play(6, true);
     let run = f.state().arcs.runs.first().expect("the flood's arc");
     assert_eq!(run.template, "arc.flood");

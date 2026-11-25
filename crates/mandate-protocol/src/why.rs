@@ -84,8 +84,16 @@ pub enum CauseView {
     Process { process: String },
     /// A standing condition the engine's formula names (`world_demand`,
     /// `commodity_prices`, `depletion`, `competitiveness`, `labour_costs`,
-    /// `track`).
-    Pressure { pressure: String },
+    /// `track`, `external_demand`, `home_demand`, `input_costs`, `supply`,
+    /// `water`, `slack_labour`). External demand names the market and the
+    /// good by their Fluent keys (DEC-110).
+    Pressure {
+        pressure: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        market_key: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        good_key: Option<String>,
+    },
     /// The world as it was made.
     History,
     /// Exogenous by design (`world_economy`, `commodities`, `hazard`,
@@ -409,7 +417,30 @@ pub fn why_view(engine: &Engine, event: u32, depth: Option<u8>) -> Option<WhyVie
                             },
                         },
                         Cause::Process(p) => CauseView::Process { process: key(p) },
-                        Cause::Pressure(p) => CauseView::Pressure { pressure: key(p) },
+                        Cause::Pressure(p) => {
+                            let (market_key, good_key) = match p {
+                                mandate_sim::spine::Pressure::ExternalDemand { market, good } => {
+                                    let econ = &st.economy;
+                                    let c = engine.content();
+                                    (
+                                        econ.market_keys
+                                            .get(market.index())
+                                            .and_then(|k| c.market(k))
+                                            .map(|d| d.name_key.clone()),
+                                        econ.good_keys
+                                            .get(good.index())
+                                            .and_then(|k| c.good(k))
+                                            .map(|d| d.name_key.clone()),
+                                    )
+                                }
+                                _ => (None, None),
+                            };
+                            CauseView::Pressure {
+                                pressure: p.key().to_string(),
+                                market_key,
+                                good_key,
+                            }
+                        }
                         Cause::History => CauseView::History,
                         Cause::Exogenous(s) => CauseView::Exogenous { shock: key(s) },
                         // A lab intervention is not a player's game.

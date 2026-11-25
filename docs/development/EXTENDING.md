@@ -65,6 +65,24 @@ Each month every town reads its indicators and turns each concern into a level, 
 
 Indicators (`mandate_content::Indicator`, computed in `mandate_sim::concerns::indicator`): `unemployment`, `unemployment_rise`, `rent_burden`, `pollution` (the region's), `tax_burden`, `budget_stress`, `recent_disaster`, `job_loss` (share of jobs lost over a year). There is no crime in the simulation yet, so there is no safety concern. Query the ranked worries of any scope (a jurisdiction, a district, a neighbourhood) with `concerns::ranked(pop, content, world, scope, by)`: `Worry::Felt` is what people say and every view shows, `Worry::Measured` is by level alone (a town's priorities, dilemma and promise conditions). It is the only code that ranks worries; equal weights keep registry order. A town's salience is `concerns::salience(pop, m)`.
 
+### Adding an industry, a market or a good (DEC-110)
+
+An industry is one entry in `content/base/industries.jsonc` under a sector; a sector with industries is a split sector, and its jobs are their sum. No code names an industry, a product, a market or a good.
+
+1. **The entry.** `id`, its `sector` (not one that runs on local demand: construction, retail and public are refused), `name_key` and `talk_key`, `weight` (its share of the sector in a generic town: a sector's weights should add to 1), `base_wage`, `cyclicality`, `productivity_growth`, `trend`. Validation warns when a sector's weighted wage is more than 5% from the sector's own.
+2. **Demand.** `export_share` and `home` (what the domestic part reads), the `world` block (how its index moves in each market), and `exposure`: `prices` by good (above zero for what it sells, below for what it buys; the good must carry a price index), `stock`, `water`, `import_exposure`, `labour_cost`, `low_pay`. `links` name upstream industries or sectors it runs on nearby. Every exponent is content; the formula is `economy::industries` and is the same for all.
+3. **Siting.** `siting`: `base`, weights on the town's geography, `needs` and `likes` (coastal, river, rail, industrial), `needs_gateway` and `gateways` (port, border_crossing, rail_head), `by_class`, `near`, `regional_sd`. A town's share is `weight × score²`, the strongest few by class.
+4. **Plants.** `plants.place_kind` is the kind of place whose works its named plant is (none: small firms only); `named_share`, `closes`, `opens` (investment, boom, none), `founded`, `margin_sd`.
+5. **Products.** At least one: `id`, `works_key` (the works' noun, lower case), `product_key` (a mass noun), `good` (a `goods.jsonc` id) and optionally `with` (the industry whose presence picks it).
+6. **Text.** About ten keys: the two names, and two for each product. Every status, cause, event and headline line is written once and takes the plant as arguments (`locale/en/industries.ftl`, with the rules for `$plant` and `$product` at its head).
+7. **Check.** `content validate`; `audit stuck --seeds 8` (the `industries` block: no industry dead or runaway, closures explained, towns keep their mix).
+
+A save made before the industry existed starts it absent everywhere (an opening can bring it); content that removes an industry, a product a plant makes, or a market is refused, as for sectors.
+
+**A market** is one entry in `markets.jsonc` (`share`, `access`); a save gains it as it loads. **A good** is one entry in `goods.jsonc`; give it `price` only if it stands for one of the world's price indices. `INDUSTRIES.md`, "The seam for foreign trade", says what a neighbour, a tariff and a gateway disruption will plug into.
+
+The numbers every industry shares (the review's lines and months, plant sizes, siting limits, name forms) are `economy.jsonc` → `industries`.
+
 ### Characters (DEC-031, DEC-018)
 
 Every politician is a character: `Politician::character` names its record in `PoliticsState::characters`. A politician's identity, values, ambition, integrity, oratory, and negotiation stay on `Politician` (elections and councils read them there); the character record adds warmth, boldness, loyalty, 0–3 traits, administration, organising, intrigue, an expertise issue, a first impression, and memory. Named people (from the occupation registry) hold all of it in `Character::named`. Read anyone through `characters::profile`.

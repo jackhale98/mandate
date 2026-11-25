@@ -175,28 +175,26 @@ test("the same panel from a place reached by the Places list: a story in the tow
   await expect(paper).toBeVisible();
 });
 
-test("a plant closure names what weighed on the sector and the recession behind it", async ({ page }, info) => {
+test("a plant in trouble names what weighed on it", async ({ page }, info) => {
   test.setTimeout(180_000);
   if (info.project.name === "phone") await page.setViewportSize({ width: 390, height: 844 });
-  // A small world where a plant closes in a recession, and is listed, within eight idle turns.
-  await start(page, seedFor("closure_in_a_recession_listed_early"));
-  const line = await playUntilListed(page, /layoffs in .*: \d+ jobs lost/, 8);
+  // Since industries (DEC-110) a works closes by stages: short time, a dated notice, then the gates. A small
+  // world where one of them is listed, with what led to it, within eight idle turns.
+  const trouble = /(Short time at|Closure notice at|The gates shut at) /;
+  await start(page, seedFor("plant_in_trouble_listed_early"));
+  const line = await playUntilListed(page, trouble, 8);
   await line.getByTestId("why-button").click();
   const panel = page.getByTestId("why-panel");
   await expectReadable(panel, 2);
   const steps = panel.getByTestId("why-step");
-  // The closure, with the weakest part of its sector's demand named under it.
-  await expect(steps.first().locator(".why-text")).toHaveText(/layoffs in .*: \d+ jobs lost\./);
-  await expect(steps.first().getByTestId("why-root")).toHaveText(/What weighed most on the sector: /);
-  await expect(steps.first().getByTestId("why-root")).toHaveAttribute("data-kind", "pressure");
-  // Behind it, the recession, which nothing here caused; nothing the player did.
-  await expect(steps.nth(1).getByTestId("why-join")).toHaveText("because of");
-  await expect(steps.nth(1).locator(".why-text")).toHaveText(/A global recession begins/);
-  await expect(steps.nth(1).getByTestId("why-root")).toContainText("The world economy: nothing here caused it.");
-  await expect(panel.getByTestId("why-player")).toHaveCount(0);
-  await expect(panel.getByTestId("why-more")).toHaveCount(0);
+  await expect(steps.first().locator(".why-text")).toHaveText(trouble);
+  // What weighed on the works is named somewhere in the chain, in words.
+  const pressure = panel.locator("[data-testid='why-root'][data-kind='pressure']").first();
+  await expect(pressure).toBeVisible();
+  await expect(pressure).not.toHaveText(/why-|\{\s*\$|[a-z]+\.[a-z_]+/);
   await expectFits(page, panel);
   if (capture) await page.screenshot({ path: `${capture}/why-closure-${info.project.name}.png` });
+});
 });
 
 test("election night: a result's Why? shows the race's chain with the engine's factors beside it", async ({ page }, info) => {

@@ -53,6 +53,7 @@ fn waits_for_monthly(e: &crate::scheduler::Effect) -> bool {
         e,
         Effect::HousingDamage { .. }
             | Effect::SectorShock { .. }
+            | Effect::PlantRelief { .. }
             | Effect::Displacement { .. }
             | Effect::HoodDisaster { .. }
     )
@@ -103,6 +104,28 @@ pub fn missing_references(state: &State, content: &ContentBundle) -> Vec<String>
     // Sector data cannot be carried into content that removed the sector.
     for k in &state.economy.sector_keys {
         if content.sector_index(k).is_none() && !out.contains(k) {
+            out.push(k.clone());
+        }
+    }
+    // Nor industry data, nor a plant of an industry or product that is gone.
+    for k in state
+        .economy
+        .industry_keys
+        .iter()
+        .chain(state.economy.plants.iter().map(|p| &p.industry))
+    {
+        if content.industry_index(k).is_none() && !out.contains(k) {
+            out.push(k.clone());
+        }
+    }
+    for p in &state.economy.plants {
+        if content.product(&p.product).is_none() && !out.contains(&p.product) {
+            out.push(p.product.clone());
+        }
+    }
+    // Nor the index of a market that is gone.
+    for k in &state.economy.market_keys {
+        if content.market(k).is_none() && !out.contains(k) {
             out.push(k.clone());
         }
     }
@@ -171,6 +194,16 @@ impl Engine {
         // New content may add or reorder sectors: re-key sector data. (Content
         // that removed one of the save's sectors was refused above.)
         crate::economy::remap_sectors(&mut state.economy, &state.world, &state.meta, &content);
+        // Likewise industries (DEC-110); a save from before them gets each
+        // split sector shared among its industries, and named plants at the
+        // works its towns already have.
+        crate::economy::industries::remap(
+            &mut state.economy,
+            &state.world,
+            &state.meta,
+            state.calendar.date,
+            &content,
+        );
         // Likewise attitudes: re-key every attitude vector by attitude key.
         crate::population::remap_attitudes(
             &mut state.population,

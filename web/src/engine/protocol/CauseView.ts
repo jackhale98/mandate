@@ -5,4 +5,4 @@ import type { PersonRefView } from "./PersonRefView";
 /**
  * What an event names as a cause.
  */
-export type CauseView = { "type": "event", event: number, link: LinkDto, in_chain: boolean, } | { "type": "player", act: string, } | { "type": "actor", person: PersonRefView | null, } | { "type": "process", process: string, } | { "type": "pressure", pressure: string, } | { "type": "history" } | { "type": "exogenous", shock: string, } | { "type": "forgotten" } | { "type": "unknown" };
+export type CauseView = { "type": "event", event: number, link: LinkDto, in_chain: boolean, } | { "type": "player", act: string, } | { "type": "actor", person: PersonRefView | null, } | { "type": "process", process: string, } | { "type": "pressure", pressure: string, market_key?: string | null, good_key?: string | null, } | { "type": "history" } | { "type": "exogenous", shock: string, } | { "type": "forgotten" } | { "type": "unknown" };

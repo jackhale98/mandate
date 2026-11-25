@@ -69,6 +69,23 @@ pub(super) fn validate_fluent_refs(b: &ContentBundle, issues: &mut Vec<Issue>) {
     for s in &b.sectors {
         referenced.push((&s.id, &s.name_key));
     }
+    for x in &b.markets {
+        referenced.push((&x.id, &x.name_key));
+    }
+    for x in &b.goods {
+        referenced.push((&x.id, &x.name_key));
+    }
+    // Industries, their works and what they make (DEC-110).
+    for d in &b.industries {
+        referenced.push((&d.id, &d.name_key));
+        if let Some(k) = &d.talk_key {
+            referenced.push((&d.id, k));
+        }
+        for x in &d.products {
+            referenced.push((&x.id, &x.works_key));
+            referenced.push((&x.id, &x.product_key));
+        }
+    }
     for c in &b.communities {
         referenced.push((&c.id, &c.name_key));
     }

@@ -30,8 +30,11 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// DEC-109): the arcs domain, the run a decision or an ask belongs to, arc
 /// events on the spine, and repairs running faster on request. v28: the
 /// director on arcs (A2, DEC-109): storylines folded into arcs, a run's
-/// turn, a chapter's lead, changes voted into the next budget.
-pub const SAVE_FORMAT_VERSION: u16 = 28;
+/// turn, a chapter's lead, changes voted into the next budget. v29:
+/// industries and named plants (I1, DEC-110): industry state under the split
+/// sectors, each industry's world index, plants and their review, a
+/// sector's long average of jobs.
+pub const SAVE_FORMAT_VERSION: u16 = 29;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -245,6 +248,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Storylines folded into arcs (A2, DEC-109): v27 → v28. Renumber
         // only this key if another bump merges first.
         (27, storylines_to_arcs),
+        // Industries and named plants (I1, DEC-110): v28 → v29. Renumber
+        // only this key if another bump merges first.
+        (28, industries),
     ];
     let mut value = value;
     let mut v = from;
@@ -1000,6 +1006,59 @@ fn staged_arcs(value: serde_json::Value) -> Result<serde_json::Value, SaveError>
         return Err(SaveError::Data(
             "a save older than v27 cannot hold arc runs".into(),
         ));
+    }
+    Ok(value)
+}
+
+/// v28 → v29 (I1, DEC-110): industries and named plants. The step itself
+/// only gives the economy its new, empty fields and starts each sector's
+/// long average of jobs at its jobs. Sharing a split sector among its
+/// industries needs the content's registry and the world's geography, so
+/// the engine does it as it loads the state (`economy::industries::remap`,
+/// as it re-keys sectors): each split sector's capacity, jobs, wage and
+/// productivity are shared by the siting function worldgen uses (keyed
+/// draws; no stream advances), the last industry taking the remainder, so
+/// every sector total is what it was; and the works a town already has
+/// become named plants (one each, the town's largest industry of that kind
+/// of works), taking their capacity out of the unnamed firms. No place
+/// appears in a town the player knows. Indices start at 1 and nothing is
+/// under review. Old `plant_closure` events keep no plant; their text is
+/// the sector's line.
+fn industries(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::json;
+    let econ = value
+        .get_mut("state")
+        .and_then(|s| s.get_mut("economy"))
+        .and_then(|e| e.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    // A payload that already holds industry state keeps it (the tests that
+    // strip one newer field from today's state and migrate from an old
+    // version rely on every later step leaving what is there alone).
+    for (key, empty) in [
+        ("industry_keys", json!([])),
+        ("market_keys", json!([])),
+        ("markets", json!([])),
+        ("good_keys", json!([])),
+        ("plants", json!([])),
+        ("plant_ids", json!({ "next": 0 })),
+    ] {
+        econ.entry(key).or_insert(empty);
+    }
+    for mu in econ
+        .get_mut("munis")
+        .and_then(|m| m.as_array_mut())
+        .ok_or(SaveError::Malformed)?
+    {
+        for s in mu
+            .get_mut("sectors")
+            .and_then(|s| s.as_array_mut())
+            .ok_or(SaveError::Malformed)?
+        {
+            let jobs = s.get("jobs").cloned().unwrap_or(json!(0.0));
+            if let Some(o) = s.as_object_mut() {
+                o.entry("trend_jobs").or_insert(jobs);
+            }
+        }
     }
     Ok(value)
 }

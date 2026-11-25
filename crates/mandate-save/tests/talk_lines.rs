@@ -212,7 +212,8 @@ fn spots(e: &Engine) -> Vec<Location> {
         .world
         .places
         .iter()
-        .filter(|p| p.municipality == t)
+        // A works history shut cannot be entered (DEC-110, DEC-090 D3).
+        .filter(|p| p.municipality == t && p.is_open())
         .map(|p| Location::Place { place: p.id })
         .collect();
     v.extend(st.world.hoods_of(t).map(|h| Location::Street {

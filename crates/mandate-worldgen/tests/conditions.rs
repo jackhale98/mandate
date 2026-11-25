@@ -122,6 +122,10 @@ fn world() -> World {
                 municipality: town.0,
                 sector: sector.clone(),
                 jobs: 120,
+                industry: None,
+                plant: None,
+                factor: None,
+                upstream: None,
             },
             mandate_sim::spine::Cause::Lab,
         );

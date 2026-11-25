@@ -1,19 +1,25 @@
 //! Layered economy (DEC-019): global cycle and commodities (exogenous),
 //! national macro loop (inflation, central bank, output gap), and per-
-//! municipality sector jobs, wages, incomes, and housing markets.
+//! municipality sector jobs, wages, incomes, and housing markets. Under three
+//! of the sectors sit industries with their own demand and named plants
+//! (DEC-110: `industries`, `plants`).
 
 pub mod housing;
+pub mod industries;
+pub mod plants;
 
 use crate::events::{EventId, EventKind};
 use crate::population::{CLASSES, PopulationState};
 use crate::scheduler::{Effect, Outs, Reads};
-use crate::spine::{Cause, Causes, Link, Pressure, Process, Shock};
+use crate::spine::{Cause, Process, Shock};
 use crate::state::WorldMeta;
 use crate::world::{MunicipalityId, NeighborhoodKind, PlaceKind, SettlementClass, World};
 use housing::Housing;
+use industries::IndustryState;
 use mandate_content::{ContentBundle, ContentKey, ScenarioEconomy, SectorDriver};
 use mandate_core::math::{clamp, exp, ln, pow};
-use mandate_core::{SimDate, SimRng, Stream};
+use mandate_core::{IdAllocator, SimDate, Stream};
+use plants::Plant;
 use serde::{Deserialize, Serialize};
 
 /// Commodities: agriculture, minerals, energy.
@@ -94,6 +100,10 @@ pub struct SectorState {
     /// presentation input for the town layout (no system reads it); a sector
     /// that content adds later had none (0).
     pub baseline_jobs: u32,
+    /// Ten-year moving average of jobs: what an industry's supply link to
+    /// this sector reads (DEC-110).
+    #[serde(default)]
+    pub trend_jobs: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -102,12 +112,41 @@ pub struct ActiveShock {
     pub sector: ContentKey,
     pub factor: f64,
     pub months_left: u16,
+    /// One industry of the sector only (DEC-110); none: the whole sector.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub industry: Option<ContentKey>,
+    /// A fall in demand, which a plant's closure rule reads, and not a
+    /// disruption (a flood shuts a works for a while; the rule does not
+    /// close it for that).
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub demand: bool,
+}
+
+fn is_false(x: &bool) -> bool {
+    !*x
+}
+
+fn is_zero(x: &f64) -> bool {
+    *x == 0.0
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct MuniEcon {
-    /// One entry per sector, in `EconomyState::sector_keys` order.
+    /// One entry per sector, in `EconomyState::sector_keys` order. A split
+    /// sector's entry (DEC-110) is the sum of the town's industries in it,
+    /// written by `industries::write_totals` and by nothing else.
     pub sectors: Vec<SectorState>,
+    /// The industries the town has, in registry order (`IndustryState::k`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub industries: Vec<IndustryState>,
+    /// Capacity idle labour has drawn toward a works that is not yet open
+    /// (DEC-110 §3): a plant opens when it is a plant's size.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub prospect: f64,
+    /// When a closure notice was last served here (one a year, outside a
+    /// recession).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_notice: Option<SimDate>,
     pub labour_force: f64,
     pub employed: f64,
     pub unemployment: f64,
@@ -165,6 +204,28 @@ pub struct EconomyState {
     /// order of every per-municipality sector list. On load the engine remaps
     /// sector data by key when the content's registry differs.
     pub sector_keys: Vec<ContentKey>,
+    /// Industry content keys this state was built with (DEC-110), the order
+    /// `IndustryState::k` and `world` index. Re-keyed on load like sectors.
+    #[serde(default)]
+    pub industry_keys: Vec<ContentKey>,
+    /// The markets industries sell to outside the country (DEC-110, the
+    /// seam for foreign trade): the state's own list, appended to and never
+    /// reordered, so a `MarketId` in an old cause stays what it was.
+    #[serde(default)]
+    pub market_keys: Vec<ContentKey>,
+    /// Each market's access and its index for each industry, in
+    /// `market_keys` order.
+    #[serde(default)]
+    pub markets: Vec<industries::MarketState>,
+    /// The goods products are (as `market_keys`: `GoodId` is a position).
+    #[serde(default)]
+    pub good_keys: Vec<ContentKey>,
+    /// Every named plant there has been, by id (closed plants keep their
+    /// record).
+    #[serde(default)]
+    pub plants: Vec<Plant>,
+    #[serde(default)]
+    pub plant_ids: IdAllocator,
     pub global: Global,
     pub national: National,
     pub munis: Vec<MuniEcon>,
@@ -260,6 +321,7 @@ pub fn init(
                     productivity: 1.0,
                     // Recorded as play begins, after the history burn-in.
                     baseline_jobs: 0,
+                    trend_jobs: jobs,
                 }
             })
             .collect();
@@ -267,6 +329,9 @@ pub fn init(
         let housing = housing::init(mu, adults, e, wealth);
         munis.push(MuniEcon {
             sectors,
+            industries: Vec::new(),
+            prospect: 0.0,
+            last_notice: None,
             labour_force: lf,
             employed: target_jobs,
             unemployment: e.natural_unemployment,
@@ -288,6 +353,12 @@ pub fn init(
     let manufacturing_trend = sc.era.manufacturing_trend.unwrap_or(e.manufacturing_trend);
     let mut st = EconomyState {
         sector_keys: content.sector_keys().cloned().collect(),
+        industry_keys: content.industry_keys().cloned().collect(),
+        market_keys: Vec::new(),
+        markets: Vec::new(),
+        good_keys: Vec::new(),
+        plants: Vec::new(),
+        plant_ids: IdAllocator::new(),
         global: Global {
             demand: 1.0,
             recession: None,
@@ -308,6 +379,24 @@ pub fn init(
         },
         munis,
     };
+    industries::sync_markets(&mut st, content);
+    // Industries (DEC-110): each split sector's jobs are shared among its
+    // industries by geography, and the works a town has become named
+    // plants, before history runs on them.
+    let split = industries::split_flags(content);
+    for m in 0..st.munis.len().min(world.municipalities.len()) {
+        let mu = &mut st.munis[m];
+        industries::split_town(mu, world, content, meta.seed, m, industries::SplitWage::Own);
+        industries::write_totals(mu, content, &split);
+    }
+    plants::place_all(
+        &mut st,
+        world,
+        content,
+        meta.seed,
+        meta.start_date,
+        meta.start_date,
+    );
     // One settling pass so incomes, consumption, and attractiveness exist.
     for m in 0..st.munis.len() {
         settle_labour_and_incomes(
@@ -382,6 +471,7 @@ pub fn remap_sectors(
                     productivity,
                     // Not part of the town as play began.
                     baseline_jobs: 0,
+                    trend_jobs: 0.0,
                 },
             })
             .collect();
@@ -400,6 +490,9 @@ pub fn record_baselines(econ: &mut EconomyState) {
     for mu in &mut econ.munis {
         for s in &mut mu.sectors {
             s.baseline_jobs = whole(s.jobs);
+        }
+        for x in &mut mu.industries {
+            x.baseline_jobs = whole(x.jobs);
         }
         mu.housing.baseline_stock = whole(mu.housing.stock);
     }
@@ -552,6 +645,8 @@ pub fn global(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         }
         *c = clamp(exp(lp), 0.3, 3.0);
     }
+    // Each industry's own world index (DEC-110), on its own keyed draws.
+    industries::step_world(econ, r.content, r.meta.seed, r.date, out);
 }
 
 /// Recompute labour market, wages, and incomes for one municipality.
@@ -655,6 +750,10 @@ pub fn add_shock(
             sector: sector.clone(),
             factor: clamp(factor, 0.1, 2.0),
             months_left: months,
+            // A disruption (lost output), not a fall in demand: a plant's
+            // closure rule does not read it (DEC-110).
+            industry: None,
+            demand: false,
         });
     }
 }
@@ -668,7 +767,12 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
     let content = r.content;
     let nm = world.municipalities.len().min(econ.munis.len());
     // Apply effects from other domains.
-    for e in out.take(|e| matches!(e, Effect::HousingDamage { .. } | Effect::SectorShock { .. })) {
+    for e in out.take(|e| {
+        matches!(
+            e,
+            Effect::HousingDamage { .. } | Effect::SectorShock { .. } | Effect::PlantRelief { .. }
+        )
+    }) {
         match e.effect {
             Effect::HousingDamage {
                 municipality,
@@ -690,18 +794,26 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                         sector,
                         factor,
                         months_left: months,
+                        industry: None,
+                        demand: false,
                     });
                     mu.months_since_disaster = 0;
                 }
             }
+            Effect::PlantRelief {
+                plant,
+                relief,
+                months,
+            } => plants::relieve(&mut econ.plants, plant, relief, months),
             _ => {}
         }
     }
     let g = econ.global.clone();
     let nat = econ.national.clone();
     let rate = nat.policy_rate;
-    let rng: &mut SimRng = out.rng.get(Stream::Economy);
-    let recession_cause = g.recession.as_ref().and_then(|rec| rec.event);
+    // Plant closures are a deterministic process on keyed draws (DEC-110):
+    // nothing here draws from the sequential economy stream any more.
+    let month = industries::Month::new(econ, world, content, &g, &nat, r.date, r.meta.seed);
     for m in 0..nm {
         let region = world.municipalities[m].region.index();
         let renv = env.regions.get(region);
@@ -740,9 +852,46 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         let competitive = |elasticity: f64| pow(ulc, -elasticity);
         let construction_driver =
             pow(housing::starts_index(&mu.housing).max(0.1), 0.6) * pow(public_index.max(0.1), 0.3);
+        // Split sectors (DEC-110): their industries and plants, and the
+        // sector totals, are the industries' step.
+        let class = world.municipalities[m].class;
+        let tight = clamp(
+            content.economy.natural_unemployment - mu.unemployment,
+            -0.1,
+            0.1,
+        );
+        industries::step_town(
+            &month,
+            &industries::TownIn {
+                m,
+                world,
+                content,
+                region_env: renv,
+                mods: &mods,
+                ulc,
+                price: nat.price_level,
+                tight,
+                local_wage: local_wage_factor(class),
+                local_consumption: (mu.consumption
+                    / price
+                    / mu.base_consumption.max(1.0)
+                    / avg_prod)
+                    .max(0.1),
+                construction: construction_driver,
+                public: public_index,
+            },
+            mu,
+            &mut econ.plants,
+            &mut econ.plant_ids,
+            out,
+        );
+        let trend_months = content.economy.industries.trend_months;
         for (k, def) in content.sectors.iter().enumerate() {
             if k >= mu.sectors.len() {
                 break;
+            }
+            if month.split[k] {
+                continue;
             }
             let gcyc = pow(g.demand, def.cyclicality);
             let driver = match def.driver {
@@ -812,50 +961,18 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
                 0.0
             };
             s.productivity *= 1.0 + (def.productivity_growth + extra) / 12.0;
-            // Plant closures in tradable sectors under sustained weak demand.
+            s.trend_jobs += (s.jobs - s.trend_jobs) / trend_months;
+            // An unsplit tradable sector has no named plants; its firms
+            // thin out while demand is under the notice line, as the unnamed
+            // firms of an industry do (DEC-110). The base pack splits every
+            // such sector, so this is for content that adds one.
             if matches!(
                 def.driver,
                 SectorDriver::Industrial | SectorDriver::Extraction
-            ) && driver < 0.85
-                && s.capacity > 200.0
-                && rng.chance(0.03 * (0.85 - driver) * 10.0)
+            ) && driver < content.economy.industries.notice_line
+                && s.capacity > content.economy.industries.min_capacity
             {
-                let frac = rng.range_f64(0.08, 0.25);
-                let jobs = (s.capacity * frac).round();
-                s.capacity -= jobs;
-                // Why (the spine): the plant closed because the sector's
-                // demand driver is weak. The driver is a product of named
-                // factors; the weakest names the pressure. A running
-                // recession is linked as well.
-                let factors: &[(Pressure, f64)] = match def.driver {
-                    SectorDriver::Extraction => &[
-                        (Pressure::WorldDemand, gcyc),
-                        (
-                            Pressure::CommodityPrices,
-                            pow(g.commodities[1] * 0.6 + g.commodities[2] * 0.4, 0.6),
-                        ),
-                        (Pressure::Depletion, pow(mineral_stock.max(0.05), 0.5)),
-                        (Pressure::LabourCosts, competitive(0.3)),
-                    ],
-                    _ => &[
-                        (Pressure::WorldDemand, gcyc),
-                        (Pressure::Competitiveness, nat.manufacturing_competitiveness),
-                        (Pressure::LabourCosts, competitive(1.0)),
-                    ],
-                };
-                let weakest = factors
-                    .iter()
-                    .fold(factors[0], |a, b| if b.1 < a.1 { *b } else { a })
-                    .0;
-                out.events.record(
-                    r.date,
-                    EventKind::PlantClosure {
-                        municipality: m as u32,
-                        sector: def.id.clone(),
-                        jobs: jobs as u32,
-                    },
-                    Causes::from(Cause::Pressure(weakest)).and_event(recession_cause, Link::Caused),
-                );
+                s.capacity *= 1.0 - content.economy.industries.small_decay;
             }
         }
         // Structural adjustment: idle labour slowly attracts new private
@@ -863,7 +980,10 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
         // hurts for years but is not permanent.
         let slack = mu.unemployment - content.economy.natural_unemployment;
         let adjust = clamp(slack * 0.25, -0.01, 0.04) / 12.0;
-        for (s, def) in mu.sectors.iter_mut().zip(&content.sectors) {
+        for (k, (s, def)) in mu.sectors.iter_mut().zip(&content.sectors).enumerate() {
+            if month.split[k] {
+                continue;
+            }
             if matches!(
                 def.driver,
                 SectorDriver::LocalServices
@@ -880,13 +1000,10 @@ pub fn markets(econ: &mut EconomyState, r: &Reads<'_>, out: &mut Outs<'_>) {
             s.months_left > 0
         });
         // Wages respond to local tightness, prices, and productivity.
-        let tight = clamp(
-            content.economy.natural_unemployment - mu.unemployment,
-            -0.1,
-            0.1,
-        );
-        let class = world.municipalities[m].class;
-        for (s, def) in mu.sectors.iter_mut().zip(&content.sectors) {
+        for (k, (s, def)) in mu.sectors.iter_mut().zip(&content.sectors).enumerate() {
+            if month.split[k] {
+                continue;
+            }
             let base = def.base_wage * local_wage_factor(class);
             let target = base * nat.price_level * s.productivity * (1.0 + 2.0 * tight);
             s.wage += (target - s.wage) * 0.08;

@@ -59,6 +59,18 @@ pub enum Effect {
         factor: f64,
         months: u16,
     },
+    /// A place closes, or reopens, where it stands (DEC-090 D3): it keeps
+    /// its id and its plot. The world is no system's domain, so the
+    /// scheduler applies this as the day ends.
+    PlaceStatus { place: u32, open: bool },
+    /// Relief on one plant's margin for some months (the economy applies;
+    /// DEC-110): how anything outside the economy pushes on a plant's
+    /// review.
+    PlantRelief {
+        plant: u32,
+        relief: f64,
+        months: u16,
+    },
     /// Residents leave a municipality after a disaster (population applies).
     Displacement { municipality: u32, fraction: f64 },
     /// A politician remembers what another did (politics applies, DEC-031).
@@ -431,6 +443,7 @@ impl Schedule {
                     run_one(sys.run, state, content, date, &mut effects);
                 }
             }
+            apply_world(state, &mut effects, date);
             on_day(d + 1);
         }
         effects.pending
@@ -438,6 +451,30 @@ impl Schedule {
 
     pub fn names(&self) -> Vec<&'static str> {
         self.systems.iter().map(|s| s.name).collect()
+    }
+}
+
+/// The world's own effects (DEC-090 D3): places close and reopen where
+/// they stand. No system writes the world, so the requests are applied
+/// here, as the day ends, in the order they were made.
+fn apply_world(state: &mut State, effects: &mut EffectQueue, date: SimDate) {
+    if !effects
+        .pending
+        .iter()
+        .any(|r| matches!(r.effect, Effect::PlaceStatus { .. }))
+    {
+        return;
+    }
+    for r in effects.take(|e| matches!(e, Effect::PlaceStatus { .. })) {
+        state.events.note_effect(&r.cause);
+        if let Effect::PlaceStatus { place, open } = r.effect {
+            let id = crate::world::PlaceId(place);
+            if open {
+                state.world.reopen_place(id);
+            } else {
+                state.world.close_place(id, date);
+            }
+        }
     }
 }
 

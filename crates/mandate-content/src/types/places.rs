@@ -101,6 +101,9 @@ pub struct PlaceKindDef {
     /// verb's `service` grant reads.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub addresses: Vec<ContentKey>,
+    /// The gateway this kind of place is (DEC-110): where trade passes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gateway: Option<GatewayKind>,
     /// Where this kind's actions and services move in a town (or, for
     /// neighbourhood actions, a neighbourhood) that has no such place.
     #[serde(default)]

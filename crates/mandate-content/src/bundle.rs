@@ -22,6 +22,18 @@ pub struct ContentBundle {
     /// The sector registry (DEC-075), in load order: files by path, then
     /// item order. The engine indexes sector data densely in this order.
     pub sectors: Vec<SectorDef>,
+    /// The industry registry (DEC-110), in load order like sectors: a level
+    /// under the sectors. The engine indexes industry data densely in this
+    /// order. A sector with industries is a split sector.
+    #[serde(default)]
+    pub industries: Vec<IndustryDef>,
+    /// The markets registry (DEC-110): where industries sell outside the
+    /// country, in load order.
+    #[serde(default)]
+    pub markets: Vec<MarketDef>,
+    /// The goods registry (DEC-110): what products are, in load order.
+    #[serde(default)]
+    pub goods: Vec<GoodDef>,
     /// The attitude registry (DEC-075), in load order like sectors. Cohorts,
     /// politicians, parties, and policy signatures are dense in this order.
     pub attitudes: Vec<AttitudeDef>,
@@ -200,6 +212,86 @@ impl ContentBundle {
             .filter(move |(_, s)| s.driver == driver)
     }
 
+    /// Registry index of an industry by content key.
+    pub fn industry_index(&self, key: &str) -> Option<usize> {
+        self.industries.iter().position(|s| s.id == key)
+    }
+
+    /// An industry definition by content key.
+    pub fn industry(&self, key: &str) -> Option<&IndustryDef> {
+        self.industries.iter().find(|s| s.id == key)
+    }
+
+    /// Industry keys in registry order.
+    pub fn industry_keys(&self) -> impl Iterator<Item = &ContentKey> {
+        self.industries.iter().map(|s| &s.id)
+    }
+
+    /// Registry indices and definitions of a sector's industries (none:
+    /// the sector is not split).
+    pub fn industries_of(&self, sector: usize) -> impl Iterator<Item = (usize, &IndustryDef)> {
+        self.industries
+            .iter()
+            .enumerate()
+            .filter(move |(_, d)| d.sector_index == sector)
+    }
+
+    /// Whether a sector has industries (DEC-110): its state is their sum.
+    pub fn is_split(&self, sector: usize) -> bool {
+        self.industries.iter().any(|d| d.sector_index == sector)
+    }
+
+    /// A market definition by content key.
+    pub fn market(&self, key: &str) -> Option<&MarketDef> {
+        self.markets.iter().find(|s| s.id == key)
+    }
+
+    /// A good definition by content key.
+    pub fn good(&self, key: &str) -> Option<&GoodDef> {
+        self.goods.iter().find(|s| s.id == key)
+    }
+
+    /// The gateway a kind of place is, by the kind's key.
+    pub fn gateway_of(&self, place_kind: &str) -> Option<GatewayKind> {
+        self.places
+            .iter()
+            .find(|p| p.key == place_kind)
+            .and_then(|p| p.gateway)
+    }
+
+    /// An industry's shares across the markets, in registry order: its own
+    /// weights where it sets them, else each market's, over their sum. One
+    /// market has share 1 exactly.
+    pub fn market_shares(&self, industry: &IndustryDef) -> Vec<f64> {
+        let w: Vec<f64> = self
+            .markets
+            .iter()
+            .map(|m| {
+                industry
+                    .exposure
+                    .markets
+                    .get(&m.id)
+                    .copied()
+                    .unwrap_or(m.share)
+                    .max(0.0)
+            })
+            .collect();
+        let sum: f64 = w.iter().sum();
+        if sum > 0.0 {
+            w.iter().map(|x| x / sum).collect()
+        } else {
+            w
+        }
+    }
+
+    /// A product and its industry's registry index, by the product's id.
+    pub fn product(&self, key: &str) -> Option<(usize, &ProductDef)> {
+        self.industries
+            .iter()
+            .enumerate()
+            .find_map(|(i, d)| d.products.iter().find(|p| p.id == key).map(|p| (i, p)))
+    }
+
     /// Registry index of an attitude by its short key (e.g. `law_and_order`).
     pub fn attitude_index(&self, key: &str) -> Option<usize> {
         self.attitudes.iter().position(|a| a.key == key)
@@ -352,6 +444,9 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut constitutions: BTreeMap<ContentKey, ConstitutionDef> = BTreeMap::new();
     let mut policies: BTreeMap<ContentKey, PolicyTemplate> = BTreeMap::new();
     let mut sectors: Vec<SectorDef> = Vec::new();
+    let mut industries: Vec<IndustryDef> = Vec::new();
+    let mut markets: Vec<MarketDef> = Vec::new();
+    let mut goods: Vec<GoodDef> = Vec::new();
     let mut attitudes: Vec<AttitudeDef> = Vec::new();
     let mut communities: Vec<CommunityDef> = Vec::new();
     let mut concerns: Vec<ConcernDef> = Vec::new();
@@ -601,6 +696,29 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                 for s in items {
                     if claim(&s.id, &mut issues) {
                         sectors.push(s);
+                    }
+                }
+            }
+            ContentFile::Industries { items } => {
+                for mut d in items {
+                    if claim(&d.id, &mut issues) {
+                        // Products are ids too: one registry of names.
+                        d.products.retain(|p| claim(&p.id, &mut issues));
+                        industries.push(d);
+                    }
+                }
+            }
+            ContentFile::Markets { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        markets.push(x);
+                    }
+                }
+            }
+            ContentFile::Goods { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        goods.push(x);
                     }
                 }
             }
@@ -885,10 +1003,63 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
             .collect();
     }
 
+    // Resolve each industry's sector, links and neighbours to registry
+    // indices (unknown links are reported by validation; an industry whose
+    // sector is unknown is dropped here so nothing indexes out of range).
+    industries.retain_mut(|d| {
+        let Some(k) = sectors.iter().position(|s| s.id == d.sector) else {
+            issues.push(Issue::error(
+                &d.id,
+                &format!("industry names unknown sector `{}`", d.sector),
+            ));
+            return false;
+        };
+        d.sector_index = k;
+        true
+    });
+    let kept: Vec<ContentKey> = industries.iter().map(|d| d.id.clone()).collect();
+    for d in industries.iter_mut() {
+        for l in d.links.iter_mut() {
+            if let Some(i) = kept.iter().position(|k| *k == l.from) {
+                l.from_index = i;
+                l.from_sector = false;
+            } else if let Some(k) = sectors.iter().position(|s| s.id == l.from) {
+                l.from_index = k;
+                l.from_sector = true;
+            } else {
+                // Reported by validation; an unresolved link reads nothing.
+                l.from_index = usize::MAX;
+            }
+        }
+        // Prices are read through the goods registry (an unknown or
+        // unpriced good is reported by validation).
+        d.exposure.price_index = d
+            .exposure
+            .prices
+            .iter()
+            .filter_map(|(k, x)| {
+                goods
+                    .iter()
+                    .find(|g| g.id == *k)
+                    .and_then(|g| g.price)
+                    .map(|c| (c, *x))
+            })
+            .collect();
+        d.near_index = d
+            .siting
+            .near
+            .iter()
+            .filter_map(|(k, f)| kept.iter().position(|x| x == k).map(|i| (i, *f)))
+            .collect();
+    }
+
     let bundle = ContentBundle {
         packs,
         tuning,
         sectors,
+        industries,
+        markets,
+        goods,
         attitudes,
         communities,
         concerns,

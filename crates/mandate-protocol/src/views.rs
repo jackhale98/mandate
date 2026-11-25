@@ -112,6 +112,15 @@ pub struct DiagnosticsView {
     pub state_hash: String,
 }
 
+/// A plant's name parts, product and industry as Fluent arguments.
+fn plant_args(engine: &Engine, plant: u32) -> Vec<(&'static str, String)> {
+    mandate_sim::economy::plants::text_args(
+        &engine.state().economy,
+        engine.content(),
+        mandate_sim::economy::plants::PlantId(plant),
+    )
+}
+
 fn muni_name(engine: &Engine, m: u32) -> String {
     engine
         .state()
@@ -336,6 +345,8 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             municipality,
             sector,
             jobs,
+            plant,
+            ..
         } => {
             put("town", muni_name(engine, *municipality));
             put(
@@ -347,7 +358,111 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
                     .unwrap_or_default(),
             );
             put("jobs", jobs.to_string());
-            "event-plant-closure"
+            // A named plant's closure names it (DEC-110); an older event,
+            // or one of unnamed firms, reads as the sector's line.
+            let named = plant.map(|p| plant_args(engine, p)).unwrap_or_default();
+            let has_name = !named.is_empty();
+            for (k, v) in named {
+                put(k, v);
+            }
+            if has_name {
+                "event-plant-closed"
+            } else {
+                "event-plant-closure"
+            }
+        }
+        EventKind::PlantShortTime {
+            municipality,
+            plant,
+            jobs,
+            factor,
+            ..
+        } => {
+            put("town", muni_name(engine, *municipality));
+            put("jobs", jobs.to_string());
+            put("factor", factor.key().to_string());
+            for (k, v) in plant_args(engine, *plant) {
+                put(k, v);
+            }
+            "event-plant-short-time"
+        }
+        EventKind::PlantThreatened {
+            municipality,
+            plant,
+            jobs,
+            closes_on,
+            factor,
+            ..
+        } => {
+            put("town", muni_name(engine, *municipality));
+            put("jobs", jobs.to_string());
+            put("factor", factor.key().to_string());
+            let c = closes_on.calendar();
+            put("month_key", format!("month-{}", c.month));
+            put("year", c.year.to_string());
+            for (k, v) in plant_args(engine, *plant) {
+                put(k, v);
+            }
+            "event-plant-threatened"
+        }
+        EventKind::PlantReprieved {
+            municipality,
+            plant,
+            jobs,
+            ..
+        } => {
+            put("town", muni_name(engine, *municipality));
+            put("jobs", jobs.to_string());
+            for (k, v) in plant_args(engine, *plant) {
+                put(k, v);
+            }
+            "event-plant-reprieved"
+        }
+        EventKind::PlantOpened {
+            municipality,
+            plant,
+            jobs,
+            reopened,
+            ..
+        } => {
+            put("town", muni_name(engine, *municipality));
+            put("jobs", jobs.to_string());
+            for (k, v) in plant_args(engine, *plant) {
+                put(k, v);
+            }
+            if *reopened {
+                "event-plant-reopened"
+            } else {
+                "event-plant-opened"
+            }
+        }
+        EventKind::IndustryShock {
+            industry,
+            market,
+            change_pct,
+        } => {
+            put(
+                "market_key",
+                engine
+                    .content()
+                    .market(market)
+                    .map(|d| d.name_key.clone())
+                    .unwrap_or_default(),
+            );
+            put(
+                "industry_key",
+                engine
+                    .content()
+                    .industry(industry)
+                    .map(|d| d.name_key.clone())
+                    .unwrap_or_default(),
+            );
+            put("change", change_pct.abs().to_string());
+            if *change_pct >= 0 {
+                "event-industry-surge"
+            } else {
+                "event-industry-slump"
+            }
         }
         EventKind::InterestRateMove { change_bp, rate_bp } => {
             put("rate", format!("{:.2}", *rate_bp as f64 / 100.0));

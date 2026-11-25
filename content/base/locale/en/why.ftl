@@ -75,6 +75,15 @@ why-pressure-depletion = What weighed most on the sector: the resource it lives 
 why-pressure-competitiveness = What weighed most on the sector: the country's industry has lost ground to its competitors.
 why-pressure-labour_costs = What weighed most on the sector: high local labour costs.
 why-pressure-track = One of your pressure tracks had reached danger.
+# An industry's demand (DEC-110): the weakest term when a plant goes on short
+# time, gets its notice or closes; the last two are what opens a works.
+why-pressure-external_demand = What weighed most on the industry: orders from abroad for what it makes had fallen.
+why-pressure-home_demand = What weighed most on the industry: people at home were buying less of what it makes.
+why-pressure-input_costs = What weighed most on the industry: its materials and fuel had grown dear.
+why-pressure-supply = What weighed most on the industry: less was coming in from the industries nearby that it runs on.
+why-pressure-water = What weighed most on the industry: the region was short of water.
+why-pressure-slack_labour = People in the town were out of work, and idle hands draw a new works.
+why-pressure-boom = Demand for what the works makes had run high for two years.
 
 ## Uncaused inside the game by design, and saying so (`Shock`).
 why-exogenous-world_economy = The world economy: nothing here caused it.

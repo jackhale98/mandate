@@ -61,9 +61,9 @@ pub const ALL: &[Requirement] = &[
         holds: introduction_ask_offered_early,
     },
     Requirement {
-        name: "closure_in_a_recession_listed_early",
-        needs: "a small idle world where, within eight turns, the overview lists a plant closure with a recession behind it",
-        holds: closure_in_a_recession_listed_early,
+        name: "plant_in_trouble_listed_early",
+        needs: "a small idle world where, within eight turns, the overview lists a plant on short time, under notice or shut, with what led to it",
+        holds: plant_in_trouble_listed_early,
     },
     Requirement {
         name: "law_decided_early_with_its_chain",
@@ -197,9 +197,21 @@ fn law_decided_early_with_its_chain(seed: u64) -> bool {
     })
 }
 
-fn closure_in_a_recession_listed_early(seed: u64) -> bool {
+/// Since industries (DEC-110) a works closes by stages (short time, a dated
+/// notice, then the gates), so an early game lists the first stages.
+fn plant_in_trouble_listed_early(seed: u64) -> bool {
     let mut e = small(seed);
-    (0..8).any(|_| end_turn(&mut e) && listed_with_a_chain(&e, &["event-plant-closure"]))
+    (0..8).any(|_| {
+        end_turn(&mut e)
+            && listed_with_a_chain(
+                &e,
+                &[
+                    "event-plant-short-time",
+                    "event-plant-threatened",
+                    "event-plant-closed",
+                ],
+            )
+    })
 }
 
 fn law_lapses_in_first_skip(seed: u64) -> bool {

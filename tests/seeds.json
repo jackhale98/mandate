@@ -4,12 +4,8 @@
     "needs": "the first NextSession skip, one turn in, spans at least two turns"
   },
   "ask_town_hall_and_another_offered": {
-    "seed": 17,
+    "seed": 20,
     "needs": "a town-hall ask and one other are offered within the first four turns (small world)"
-  },
-  "closure_in_a_recession_listed_early": {
-    "seed": 24,
-    "needs": "a small idle world where, within eight turns, the overview lists a plant closure with a recession behind it"
   },
   "councillor_and_regular_at_a_place": {
     "seed": 16,
@@ -28,7 +24,7 @@
     "needs": "a planted flood raises the arc, still running at month 3, and the idle game lets it exit by month 12"
   },
   "fresh_colleague_and_bill_before_council": {
-    "seed": 40,
+    "seed": 45,
     "needs": "a council colleague with no edge to the player, and a bill before the council"
   },
   "introduction_ask_offered_early": {
@@ -40,7 +36,7 @@
     "needs": "a small idle world where, within six turns, the overview lists a law passed or voted down and the town's paper a story, each with what led to it"
   },
   "law_lapses_in_first_skip": {
-    "seed": 15,
+    "seed": 27,
     "needs": "the first NextSession skip lists a lapsed law, with its policy named"
   },
   "notebook_talk_reply_has_an_outcome": {
@@ -51,12 +47,16 @@
     "seed": 14,
     "needs": "a town with an industry and no closure crisis at the start, one after a shock and none three years on"
   },
+  "plant_in_trouble_listed_early": {
+    "seed": 7,
+    "needs": "a small idle world where, within eight turns, the overview lists a plant on short time, under notice or shut, with what led to it"
+  },
   "player_race_for_the_executive_within_30_turns": {
     "seed": 12,
     "needs": "a medium world where filing for the executive office puts the player in its race within 30 turns"
   },
   "promises_reachable_by_skipping": {
-    "seed": 8,
+    "seed": 9,
     "needs": "a small world where the campaign promise picker opens within six rounds of skips"
   },
   "regional_capital_medium": {

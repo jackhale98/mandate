@@ -134,7 +134,9 @@ pub fn run(cx: &Ctx) -> Result<Value, String> {
         nat_debt.push(d1 - d0);
     }
     let share = |n: usize| r3(n as f64 / towns.max(1) as f64);
+    let industries = industries(&hs, end);
     let checks = json!({
+        "industries": industries,
         "debt_spiral_towns": { "count": debt_spiral.len(), "share": share(debt_spiral.len()), "verdict": if debt_spiral.is_empty() { "works" } else { "weak" } },
         "unemployment_25pct_for_2y": { "count": pinned_high.len(), "share": share(pinned_high.len()), "max_town_unemployment": r3(u_max), "verdict": if pinned_high.len() * 50 < towns { "works" } else { "broken" } },
         "unemployment_under_1pct_for_2y": { "count": pinned_low, "share": share(pinned_low) },
@@ -166,6 +168,151 @@ pub fn run(cx: &Ctx) -> Result<Value, String> {
             "long_crises": first(&long_crises),
         },
     }))
+}
+
+/// Industries and named plants over the run (DEC-110): no industry dead or
+/// runaway, every closure explained, towns keeping their mixes, and total
+/// employment and unemployment beside them.
+fn industries(hs: &[History], end: usize) -> Value {
+    use std::collections::BTreeMap;
+    let mut ratios: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+    let mut sector_ratios: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+    let mut jobs_ratio = Vec::new();
+    let mut u_end = Vec::new();
+    let mut u_all = Vec::new();
+    let (mut closures, mut named, mut explained) = (0usize, 0usize, 0usize);
+    let mut by_factor: BTreeMap<String, usize> = BTreeMap::new();
+    let mut steps: BTreeMap<String, usize> = BTreeMap::new();
+    let mut unexplained_steps = 0usize;
+    let (mut kept_top, mut with_mix) = (0usize, 0usize);
+    let mut defining_kinds = Vec::new();
+    let mut defining_max_share = Vec::new();
+    let mut plants = [[0u32; 4]; 2];
+    let mut jump = Vec::new();
+    for h in hs {
+        let (Some(a), Some(b)) = (h.years.first(), h.years.last()) else {
+            continue;
+        };
+        let sum =
+            |s: &crate::lab::metrics::Snapshot,
+             f: &dyn Fn(&crate::lab::metrics::Town) -> &BTreeMap<String, f64>| {
+                let mut m: BTreeMap<String, f64> = BTreeMap::new();
+                for t in &s.towns {
+                    for (k, v) in f(t) {
+                        *m.entry(k.clone()).or_default() += v;
+                    }
+                }
+                m
+            };
+        let (ia, ib) = (sum(a, &|t| &t.industries), sum(b, &|t| &t.industries));
+        for (k, v) in &ia {
+            if *v >= 1.0 {
+                ratios
+                    .entry(k.clone())
+                    .or_default()
+                    .push(ib.get(k).copied().unwrap_or(0.0) / v);
+            }
+        }
+        let (sa, sb) = (sum(a, &|t| &t.jobs), sum(b, &|t| &t.jobs));
+        for (k, v) in &sa {
+            if *v >= 1.0 {
+                sector_ratios
+                    .entry(k.clone())
+                    .or_default()
+                    .push(sb.get(k).copied().unwrap_or(0.0) / v);
+            }
+        }
+        jobs_ratio.push(sb.values().sum::<f64>() / sa.values().sum::<f64>().max(1.0));
+        u_end.push(b.nation.unemployment);
+        u_all.extend(h.nat_u.iter().copied());
+        // Does a town's largest industry stay among its two largest?
+        let top = |t: &crate::lab::metrics::Town, n: usize| -> Vec<String> {
+            let mut v: Vec<(&String, &f64)> = t.industries.iter().collect();
+            v.sort_by(|x, y| y.1.total_cmp(x.1).then(x.0.cmp(y.0)));
+            v.into_iter().take(n).map(|x| x.0.clone()).collect()
+        };
+        let mut defining: BTreeMap<String, usize> = BTreeMap::new();
+        for (ta, tb) in a.towns.iter().zip(&b.towns) {
+            for (s, t) in [(0, ta), (1, tb)] {
+                for i in 0..4 {
+                    plants[s][i] += t.plants[i];
+                }
+            }
+            if let Some(d) = top(ta, 1).first() {
+                *defining.entry(d.clone()).or_default() += 1;
+                if ta.industries.len() >= 2 {
+                    with_mix += 1;
+                    if top(tb, 2).contains(d) {
+                        kept_top += 1;
+                    }
+                }
+            }
+        }
+        defining_kinds.push(defining.len() as f64);
+        defining_max_share.push(
+            defining.values().copied().max().unwrap_or(0) as f64 / a.towns.len().max(1) as f64,
+        );
+        for e in &h.tally.events {
+            let pressure = e.causes.iter().any(|c| c.starts_with("pressure"));
+            match e.kind.as_str() {
+                "plant_closure" => {
+                    closures += 1;
+                    let parts: Vec<&str> = e.detail.split(':').collect();
+                    if parts.len() >= 4 {
+                        named += 1;
+                        *by_factor.entry(parts[3].to_string()).or_default() += 1;
+                    }
+                    if pressure {
+                        explained += 1;
+                    }
+                    // The town's unemployment a year on against the month before.
+                    if let Some(t) = e.town {
+                        let m = e.month as usize;
+                        if m >= 1 && m + 12 <= end {
+                            let u = |k: usize| h.months[k][t as usize].u - h.nat_u[k];
+                            jump.push((u(m + 12) - u(m - 1)) * 100.0);
+                        }
+                    }
+                }
+                k @ ("plant_short_time" | "plant_threatened" | "plant_reprieved"
+                | "plant_opened") => {
+                    *steps.entry(k.to_string()).or_default() += 1;
+                    if !(pressure || e.cause_class == "process" || e.cause_class == "linked") {
+                        unexplained_steps += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    let rows: BTreeMap<String, Value> = ratios
+        .iter()
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                json!({ "worlds": v.len(), "median": r3(median(v)), "min": r3(quantile(v, 0.0)), "max": r3(quantile(v, 1.0)) }),
+            )
+        })
+        .collect();
+    let dead: Vec<&String> = ratios
+        .iter()
+        .filter(|(_, v)| !(0.35..=2.0).contains(&median(v)))
+        .map(|(k, _)| k)
+        .collect();
+    let top_factor = by_factor.values().copied().max().unwrap_or(0);
+    json!({
+        "jobs_year_end_over_year_0_by_industry": rows,
+        "dead_or_runaway": { "band": "median 0.35 to 2.0", "outside": dead, "verdict": if dead.is_empty() { "works" } else { "broken" } },
+        "jobs_year_end_over_year_0_by_sector": sector_ratios.iter().map(|(k, v)| (k.clone(), json!(r3(median(v))))).collect::<BTreeMap<_, _>>(),
+        "total_jobs_year_end_over_year_0": { "median": r3(median(&jobs_ratio)), "min": r3(quantile(&jobs_ratio, 0.0)), "max": r3(quantile(&jobs_ratio, 1.0)) },
+        "national_unemployment": { "median_all_months": r3(median(&u_all)), "p95_all_months": r3(quantile(&u_all, 0.95)), "median_at_end": r3(median(&u_end)) },
+        "closures": { "count": closures, "named_plant": named, "explained_by_a_pressure": explained, "explained_share": r3(explained as f64 / closures.max(1) as f64), "by_weakest_factor": by_factor, "top_factor_share": r3(top_factor as f64 / named.max(1) as f64), "verdict": if explained == closures { "works" } else { "broken" } },
+        "review_steps": { "counts": steps, "without_a_cause": unexplained_steps },
+        "town_unemployment_change_a_year_after_a_closure_pts": { "median": r3(median(&jump)), "p95": r3(quantile(&jump, 0.95)), "max": r3(quantile(&jump, 1.0)) },
+        "plants_running_short_notice_closed": { "year_0": plants[0], "year_end": plants[1] },
+        "towns_keep_their_mix": { "towns_with_two_or_more": with_mix, "largest_industry_still_in_top_two": kept_top, "share": r3(kept_top as f64 / with_mix.max(1) as f64), "verdict": if kept_top * 10 >= with_mix * 6 { "works" } else { "weak" } },
+        "defining_industries_per_world": { "median": r3(median(&defining_kinds)), "min": r3(quantile(&defining_kinds, 0.0)), "largest_share_of_towns_median": r3(median(&defining_max_share)) },
+    })
 }
 
 /// Town populations over the history burn-in: each audit world generated

@@ -34,6 +34,10 @@ fn favour() -> (EventLog, [EventId; 6]) {
             municipality: 3,
             sector: "sector.manufacturing".into(),
             jobs: 400,
+            industry: None,
+            plant: None,
+            factor: None,
+            upstream: None,
         },
         Causes::from(Cause::Pressure(Pressure::WorldDemand))
             .and_event(Some(recession), Link::Caused),
@@ -628,6 +632,10 @@ fn a_town_in_crisis_holds_its_closures() {
                 municipality: town,
                 sector: "sector.manufacturing".into(),
                 jobs: 100,
+                industry: None,
+                plant: None,
+                factor: None,
+                upstream: None,
             },
             Cause::Pressure(Pressure::Competitiveness),
         )
@@ -674,6 +682,10 @@ fn the_hard_cap_drops_the_least_salient_first_and_never_a_live_chain() {
                         municipality: 0,
                         sector: "sector.manufacturing".into(),
                         jobs: 10,
+                        industry: None,
+                        plant: None,
+                        factor: None,
+                        upstream: None,
                     },
                     Causes::from(Cause::Pressure(Pressure::WorldDemand))
                         .and_event(Some(root), Link::Caused),
@@ -797,6 +809,10 @@ fn at_the_cap_the_unread_go_last_and_oldest_first() {
                 municipality: 0,
                 sector: "sector.manufacturing".into(),
                 jobs: 10,
+                industry: None,
+                plant: None,
+                factor: None,
+                upstream: None,
             },
             Cause::Pressure(Pressure::WorldDemand),
         );

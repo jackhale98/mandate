@@ -234,7 +234,6 @@ fn a_save_with_running_storylines_loads_at_the_matching_stages_and_plays_on() {
     assert_eq!(a.state_hash(), play(8).state_hash());
     let (bytes, meta) = encode(a.state(), &req()).unwrap();
     assert_eq!(meta.format_version, SAVE_FORMAT_VERSION);
-    assert_eq!(meta.format_version, 28);
     let (back, _) = decode(&bytes).unwrap();
     assert_eq!(back.arcs, a.state().arcs);
     assert_eq!(back.hash(), a.state().hash());
@@ -293,7 +292,7 @@ fn older_saves_load_through_the_fold() {
         }
         assert!(e.state().calendar.turn >= turn + 6, "{name}");
         let (bytes, meta) = encode(e.state(), &req()).unwrap();
-        assert_eq!(meta.format_version, 28);
+        assert_eq!(meta.format_version, SAVE_FORMAT_VERSION);
         let (back, _) = decode(&bytes).unwrap();
         assert_eq!(back.hash(), e.state().hash(), "{name}");
     }

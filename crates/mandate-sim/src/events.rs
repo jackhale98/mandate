@@ -39,6 +39,57 @@ pub enum EventKind {
         /// Content key of the sector (events are long-lived, so never an index).
         sector: mandate_content::ContentKey,
         jobs: u32,
+        /// The industry, the plant and the weakest factor of its demand
+        /// (DEC-110); absent in events from before named plants.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        industry: Option<mandate_content::ContentKey>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        plant: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        factor: Option<crate::economy::industries::Factor>,
+        /// The upstream industry or sector, when the factor is supply.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        upstream: Option<mandate_content::ContentKey>,
+    },
+    /// A plant went on short time (DEC-110): the first step of its review.
+    PlantShortTime {
+        municipality: u32,
+        plant: u32,
+        industry: mandate_content::ContentKey,
+        jobs: u32,
+        factor: crate::economy::industries::Factor,
+    },
+    /// A closure notice was served: the plant closes on `closes_on` unless
+    /// demand comes back. The date shown is the date used.
+    PlantThreatened {
+        municipality: u32,
+        plant: u32,
+        industry: mandate_content::ContentKey,
+        jobs: u32,
+        closes_on: SimDate,
+        factor: crate::economy::industries::Factor,
+    },
+    /// The notice was lifted before its date.
+    PlantReprieved {
+        municipality: u32,
+        plant: u32,
+        industry: mandate_content::ContentKey,
+        jobs: u32,
+    },
+    /// A plant opened (`reopened`: at a works that had closed).
+    PlantOpened {
+        municipality: u32,
+        plant: u32,
+        industry: mandate_content::ContentKey,
+        jobs: u32,
+        reopened: bool,
+    },
+    /// An industry's demand index in a market jumped (exogenous).
+    IndustryShock {
+        industry: mandate_content::ContentKey,
+        /// Content key of the market.
+        market: mandate_content::ContentKey,
+        change_pct: i32,
     },
     InterestRateMove {
         change_bp: i32,

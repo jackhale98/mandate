@@ -621,7 +621,9 @@ fn plant_flood(e: &mut Engine) {
 fn a_flood_runs_beside_the_round_and_leads_the_chapter() {
     let c = base();
     let flood_def = c.arc("arc.flood").unwrap();
-    let mut e = engine(&c, 7);
+    // A world where the flood's turn comes before the round's (seed 7 before
+    // industries, 99 after: one of eleven tried).
+    let mut e = engine(&c, 99);
     plant_flood(&mut e);
     let mut together = false;
     let mut flood_led = false;

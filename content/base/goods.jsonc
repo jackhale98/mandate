@@ -1,0 +1,24 @@
+// Goods (DEC-110, the seam for foreign trade): what a product is, so a later
+// tariff or trade deal can name what it covers. Every product in
+// industries.jsonc belongs to one. `price` is the world price index that is
+// this good's price (agriculture, minerals, energy): an industry's
+// `exposure.prices` names goods, and reads the index through this registry.
+{
+  "kind": "goods",
+  "items": [
+    { "id": "good.farm_produce", "name_key": "good-farm_produce", "price": "agriculture" },
+    { "id": "good.fish",         "name_key": "good-fish" },
+    { "id": "good.food",         "name_key": "good-food" },
+    { "id": "good.minerals",     "name_key": "good-minerals", "price": "minerals" },
+    { "id": "good.stone",        "name_key": "good-stone" },
+    { "id": "good.fuels",        "name_key": "good-fuels", "price": "energy" },
+    { "id": "good.timber",       "name_key": "good-timber" },
+    { "id": "good.metals",       "name_key": "good-metals" },
+    { "id": "good.machinery",    "name_key": "good-machinery" },
+    { "id": "good.vehicles",     "name_key": "good-vehicles" },
+    { "id": "good.electronics",  "name_key": "good-electronics" },
+    { "id": "good.textiles",     "name_key": "good-textiles" },
+    { "id": "good.chemicals",    "name_key": "good-chemicals" },
+    { "id": "good.ships",        "name_key": "good-ships" },
+  ],
+}

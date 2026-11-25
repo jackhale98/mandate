@@ -1,0 +1,278 @@
+// Industries (DEC-110): a registry level under the sectors. A sector with
+// industries is a split sector: its jobs, capacity, wage and productivity are
+// the sum of its industries'. Registry order is load order.
+//
+// weight: share of the sector's jobs in a generic economy (a town's share is
+//   weight × siting score²). base_wage, cyclicality, productivity_growth: as
+//   for a sector. trend: annual drift of capacity.
+// export_share: how much of its demand is external (sold to the markets,
+//   markets.jsonc) against domestic (`home`: weights over national_consumption,
+//   local_consumption, construction, public). All sixteen are 1.0 today: the
+//   demand the design gave them is the world's. ships_through: the gateway
+//   (port, border_crossing, rail_head) its external trade passes.
+// world: how its index moves in each market (a keyed monthly walk in logs:
+//   reversion toward 1, noise, rare jumps).
+// exposure: exponents of the demand formula. prices: exponents by good
+//   (goods.jsonc; a good with a price index), above zero for what it sells
+//   and below for what it buys. markets: its own weights across markets.
+//   stock: the region's mineral, timber or fish stock. water. import_exposure
+//   (how hard foreign competition bites: the nation's manufacturing
+//   competitiveness to this power). labour_cost (the town's unit labour
+//   costs), low_pay (share of its jobs a wage floor prices).
+// links: local supply. `from` is an industry or a sector; `local` is the share
+//   read from the town, the rest from the rest of its region.
+// siting: where it settles. geo: weights on the town's geography (fertility,
+//   timber, minerals, fishing, energy, scenic). needs and likes: coastal,
+//   river, rail, industrial. needs_gateway and gateways: port, border_crossing,
+//   rail_head. by_class: rural, town, city, metro. near: another
+//   industry strong in the town. regional_sd: each region's tradition.
+// plants: place_kind is the place kind whose works its named plant is (none:
+//   small firms only). closes: false keeps the plant (short time only).
+//   opens: investment (idle labour reopens a works), boom (a long boom does),
+//   none.
+// products: what a town's branch makes: text only. `good` is the good it is
+//   (goods.jsonc), for trade to name. `with` picks the product where that
+//   industry is in the town.
+{
+  "kind": "industries",
+  "items": [
+    // --- Manufacturing ---------------------------------------------------
+    {
+      "id": "industry.food_processing", "sector": "sector.manufacturing", "export_share": 1.0,
+      "name_key": "industry-food_processing", "talk_key": "talk-industry-food_processing",
+      "weight": 0.18, "base_wage": 38000, "cyclicality": 0.3, "productivity_growth": 0.015, "trend": 0.0,
+      "world": { "volatility": 0.012, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.farm_produce": -0.15 }, "import_exposure": 0.4, "labour_cost": 0.8, "low_pay": 0.5 },
+      "links": [
+        { "from": "industry.fishing", "weight": 1.0, "local": 0.7 },
+        { "from": "industry.arable", "weight": 0.6, "local": 0.4 },
+        { "from": "industry.livestock", "weight": 0.6, "local": 0.4 },
+      ],
+      "link_power": 0.5,
+      "siting": { "base": 0.15, "geo": { "fishing": 1.2, "fertility": 0.8 }, "gateways": { "port": 1.5 }, "likes": { "rail": 1.2 }, "by_class": [0.6, 1.2, 1.0, 0.6], "near": { "industry.fishing": 1.6 }, "regional_sd": 0.4 },
+      "plants": { "place_kind": "factory", "named_share": [0.210, 0.350], "opens": "investment", "founded": [15, 90], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.canned_fish", "good": "good.food", "works_key": "works-cannery", "product_key": "product-canned_fish", "with": "industry.fishing" },
+        { "id": "product.dairy", "good": "good.food", "works_key": "works-creamery", "product_key": "product-dairy", "with": "industry.livestock" },
+        { "id": "product.flour", "good": "good.food", "works_key": "works-flour_mill", "product_key": "product-flour", "with": "industry.arable" },
+      ],
+    },
+    {
+      "id": "industry.metals", "sector": "sector.manufacturing", "export_share": 1.0, "ships_through": "port",
+      "name_key": "industry-metals", "talk_key": "talk-industry-metals",
+      "weight": 0.12, "base_wage": 54000, "cyclicality": 1.1, "productivity_growth": 0.018, "trend": -0.012,
+      "world": { "volatility": 0.025, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.minerals": -0.15, "good.fuels": -0.25 }, "import_exposure": 1.0, "labour_cost": 0.8 },
+      "links": [ { "from": "industry.mining", "weight": 1.0, "local": 0.5 } ],
+      "link_power": 0.4,
+      "siting": { "base": 0.05, "geo": { "minerals": 1.6, "energy": 0.4 }, "gateways": { "port": 1.2 }, "likes": { "rail": 1.4 }, "by_class": [0.3, 1.0, 1.2, 1.0], "near": { "industry.mining": 1.6 }, "regional_sd": 0.5 },
+      "plants": { "place_kind": "factory", "named_share": [0.245, 0.385], "opens": "investment", "founded": [30, 110], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.steel", "good": "good.metals", "works_key": "works-steelworks", "product_key": "product-steel", "with": "industry.mining" },
+        { "id": "product.castings", "good": "good.metals", "works_key": "works-foundry", "product_key": "product-castings" },
+        { "id": "product.metal", "good": "good.metals", "works_key": "works-smelter", "product_key": "product-metal", "with": "industry.oil_gas" },
+      ],
+    },
+    {
+      "id": "industry.machinery", "sector": "sector.manufacturing", "export_share": 1.0,
+      "name_key": "industry-machinery", "talk_key": "talk-industry-machinery",
+      "weight": 0.16, "base_wage": 50000, "cyclicality": 1.0, "productivity_growth": 0.022, "trend": -0.006,
+      "world": { "volatility": 0.018, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "import_exposure": 1.0, "labour_cost": 1.0 },
+      "links": [ { "from": "industry.metals", "weight": 1.0, "local": 0.3 } ],
+      "link_power": 0.3,
+      "siting": { "base": 0.5, "likes": { "rail": 1.4 }, "by_class": [0.3, 0.9, 1.2, 1.2], "near": { "industry.metals": 1.5 }, "regional_sd": 0.4 },
+      "plants": { "place_kind": "factory", "named_share": [0.210, 0.350], "opens": "investment", "founded": [20, 90], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.engines", "good": "good.machinery", "works_key": "works-engine_works", "product_key": "product-engines" },
+        { "id": "product.machine_tools", "good": "good.machinery", "works_key": "works-tool_works", "product_key": "product-machine_tools", "with": "industry.metals" },
+        { "id": "product.looms", "good": "good.machinery", "works_key": "works-loom_works", "product_key": "product-looms", "with": "industry.textiles" },
+      ],
+    },
+    {
+      "id": "industry.textiles", "sector": "sector.manufacturing", "export_share": 1.0,
+      "name_key": "industry-textiles", "talk_key": "talk-industry-textiles",
+      "weight": 0.10, "base_wage": 34000, "cyclicality": 0.6, "productivity_growth": 0.015, "trend": -0.018,
+      "world": { "volatility": 0.020, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "import_exposure": 1.2, "labour_cost": 1.4, "low_pay": 0.6 },
+      "siting": { "base": 0.3, "geo": { "fertility": 0.3 }, "likes": { "river": 1.6 }, "by_class": [0.5, 1.2, 1.0, 0.6], "regional_sd": 0.6 },
+      "plants": { "place_kind": "factory", "named_share": [0.245, 0.385], "opens": "investment", "founded": [40, 120], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.woollens", "good": "good.textiles", "works_key": "works-woollen_mill", "product_key": "product-woollens", "with": "industry.livestock" },
+        { "id": "product.hosiery", "good": "good.textiles", "works_key": "works-hosiery_works", "product_key": "product-hosiery" },
+        { "id": "product.carpets", "good": "good.textiles", "works_key": "works-carpet_works", "product_key": "product-carpets" },
+      ],
+    },
+    {
+      "id": "industry.timber_paper", "sector": "sector.manufacturing", "export_share": 1.0,
+      "name_key": "industry-timber_paper", "talk_key": "talk-industry-timber_paper",
+      "weight": 0.10, "base_wage": 41000, "cyclicality": 0.7, "productivity_growth": 0.016, "trend": -0.005,
+      "world": { "volatility": 0.016, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.fuels": -0.10 }, "import_exposure": 0.7, "labour_cost": 0.9 },
+      "links": [ { "from": "industry.forestry", "weight": 1.0, "local": 0.5 } ],
+      "link_power": 0.5,
+      "siting": { "base": 0.1, "geo": { "timber": 1.6 }, "likes": { "river": 1.4 }, "by_class": [0.9, 1.2, 0.8, 0.4], "near": { "industry.forestry": 1.6 }, "regional_sd": 0.4 },
+      "plants": { "place_kind": "mill", "named_share": [0.245, 0.420], "opens": "investment", "founded": [20, 100], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.sawn_timber", "good": "good.timber", "works_key": "works-sawmill", "product_key": "product-sawn_timber", "with": "industry.forestry" },
+        { "id": "product.paper", "good": "good.timber", "works_key": "works-paper_mill", "product_key": "product-paper" },
+        { "id": "product.furniture", "good": "good.timber", "works_key": "works-furniture_works", "product_key": "product-furniture" },
+      ],
+    },
+    {
+      "id": "industry.chemicals", "sector": "sector.manufacturing", "export_share": 1.0, "ships_through": "port",
+      "name_key": "industry-chemicals", "talk_key": "talk-industry-chemicals",
+      "weight": 0.10, "base_wage": 56000, "cyclicality": 0.7, "productivity_growth": 0.022, "trend": -0.003,
+      "world": { "volatility": 0.018, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.fuels": -0.35 }, "import_exposure": 0.8, "labour_cost": 0.6 },
+      "links": [ { "from": "industry.oil_gas", "weight": 1.0, "local": 0.3 } ],
+      "link_power": 0.3,
+      "siting": { "base": 0.25, "geo": { "energy": 0.9 }, "gateways": { "port": 1.3 }, "likes": { "river": 1.3 }, "by_class": [0.2, 0.8, 1.2, 1.2], "near": { "industry.oil_gas": 1.6 }, "regional_sd": 0.4 },
+      "plants": { "place_kind": "factory", "named_share": [0.245, 0.385], "opens": "investment", "founded": [15, 70], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.chemicals", "good": "good.chemicals", "works_key": "works-chemical_works", "product_key": "product-chemicals" },
+        { "id": "product.fertiliser", "good": "good.chemicals", "works_key": "works-fertiliser_works", "product_key": "product-fertiliser", "with": "industry.arable" },
+      ],
+    },
+    {
+      "id": "industry.vehicles", "sector": "sector.manufacturing", "export_share": 1.0,
+      "name_key": "industry-vehicles", "talk_key": "talk-industry-vehicles",
+      "weight": 0.12, "base_wage": 52000, "cyclicality": 1.2, "productivity_growth": 0.024, "trend": -0.010,
+      "world": { "volatility": 0.022, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "import_exposure": 1.2, "labour_cost": 1.0 },
+      "links": [ { "from": "industry.metals", "weight": 1.0, "local": 0.3 } ],
+      "link_power": 0.3,
+      "siting": { "base": 0.35, "likes": { "rail": 1.5 }, "by_class": [0.1, 0.7, 1.3, 1.4], "near": { "industry.metals": 1.4, "industry.machinery": 1.3 }, "regional_sd": 0.5 },
+      "plants": { "place_kind": "factory", "named_share": [0.280, 0.420], "opens": "investment", "founded": [15, 70], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.motor_vehicles", "good": "good.vehicles", "works_key": "works-motor_works", "product_key": "product-motor_vehicles" },
+        { "id": "product.rail_wagons", "good": "good.vehicles", "works_key": "works-wagon_works", "product_key": "product-rail_wagons", "with": "industry.metals" },
+      ],
+    },
+    {
+      "id": "industry.electronics", "sector": "sector.manufacturing", "export_share": 1.0,
+      "name_key": "industry-electronics", "talk_key": "talk-industry-electronics",
+      "weight": 0.08, "base_wage": 48000, "cyclicality": 0.9, "productivity_growth": 0.035, "trend": 0.005,
+      "world": { "volatility": 0.024, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "import_exposure": 1.0, "labour_cost": 1.1 },
+      "siting": { "base": 0.3, "by_class": [0.1, 0.6, 1.2, 1.6], "regional_sd": 0.4 },
+      "plants": { "place_kind": "factory", "named_share": [0.210, 0.350], "opens": "investment", "founded": [5, 40], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.appliances", "good": "good.electronics", "works_key": "works-appliance_works", "product_key": "product-appliances" },
+        { "id": "product.instruments", "good": "good.electronics", "works_key": "works-instrument_works", "product_key": "product-instruments" },
+      ],
+    },
+    {
+      "id": "industry.shipbuilding", "sector": "sector.manufacturing", "export_share": 1.0, "ships_through": "port",
+      "name_key": "industry-shipbuilding", "talk_key": "talk-industry-shipbuilding",
+      "weight": 0.04, "base_wage": 47000, "cyclicality": 1.4, "productivity_growth": 0.012, "trend": -0.015,
+      "world": { "volatility": 0.028, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.minerals": -0.10 }, "import_exposure": 1.1, "labour_cost": 1.0 },
+      "links": [ { "from": "industry.fishing", "weight": 1.0, "local": 0.6 } ],
+      "link_power": 0.15,
+      "siting": { "base": 0.6, "geo": { "fishing": 0.6 }, "needs_gateway": ["port"], "by_class": [0.4, 1.0, 1.2, 1.2], "regional_sd": 0.5 },
+      "plants": { "place_kind": "factory", "named_share": [0.315, 0.490], "opens": "investment", "founded": [30, 120], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.ships", "good": "good.ships", "works_key": "works-shipyard", "product_key": "product-ships" },
+        { "id": "product.boats", "good": "good.ships", "works_key": "works-boatyard", "product_key": "product-boats", "with": "industry.fishing" },
+      ],
+    },
+
+    // --- Resources (extraction; fishing sits here, DEC-110 answer 1) --------
+    {
+      "id": "industry.mining", "sector": "sector.resources", "export_share": 1.0, "ships_through": "port",
+      "name_key": "industry-mining", "talk_key": "talk-industry-mining",
+      "weight": 0.35, "base_wage": 58000, "cyclicality": 0.7, "productivity_growth": 0.012, "trend": 0.0,
+      "world": { "volatility": 0.022, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.minerals": 0.6 }, "stock": { "of": "mineral", "power": 0.5 }, "labour_cost": 0.3 },
+      "siting": { "base": 0.0, "geo": { "minerals": 1.0 }, "regional_sd": 0.3 },
+      "plants": { "place_kind": "mine", "named_share": [0.280, 0.455], "opens": "boom", "founded": [20, 120], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.coal", "good": "good.minerals", "works_key": "works-colliery", "product_key": "product-coal" },
+        { "id": "product.ore", "good": "good.minerals", "works_key": "works-ore_mine", "product_key": "product-ore", "with": "industry.metals" },
+      ],
+    },
+    {
+      "id": "industry.quarrying", "sector": "sector.resources", "export_share": 1.0,
+      "name_key": "industry-quarrying", "talk_key": "talk-industry-quarrying",
+      "weight": 0.15, "base_wage": 44000, "cyclicality": 0.6, "productivity_growth": 0.010, "trend": 0.0,
+      "world": { "volatility": 0.012, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.minerals": 0.2 }, "labour_cost": 0.3 },
+      "links": [ { "from": "sector.construction", "weight": 1.0, "local": 0.3 } ],
+      "link_power": 0.5,
+      "siting": { "base": 0.12, "geo": { "minerals": 0.5 }, "regional_sd": 0.3 },
+      "plants": { "place_kind": "mine", "named_share": [0.245, 0.420], "opens": "boom", "founded": [20, 120], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.stone", "good": "good.stone", "works_key": "works-quarry", "product_key": "product-stone" },
+        { "id": "product.bricks", "good": "good.stone", "works_key": "works-brickworks", "product_key": "product-bricks" },
+      ],
+    },
+    {
+      "id": "industry.oil_gas", "sector": "sector.resources", "export_share": 1.0, "ships_through": "port",
+      "name_key": "industry-oil_gas", "talk_key": "talk-industry-oil_gas",
+      "weight": 0.15, "base_wage": 72000, "cyclicality": 0.6, "productivity_growth": 0.015, "trend": 0.0,
+      "world": { "volatility": 0.026, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.fuels": 0.8 }, "stock": { "of": "mineral", "power": 0.4 }, "labour_cost": 0.2 },
+      "siting": { "base": 0.0, "geo": { "energy": 1.0 }, "regional_sd": 0.3 },
+      "plants": { "place_kind": "mine", "named_share": [0.280, 0.455], "opens": "boom", "founded": [10, 60], "margin_sd": 0.06 },
+      "products": [
+        { "id": "product.oil", "good": "good.fuels", "works_key": "works-oil_field", "product_key": "product-oil" },
+        { "id": "product.gas", "good": "good.fuels", "works_key": "works-gas_terminal", "product_key": "product-gas" },
+      ],
+    },
+    {
+      // Small crews: no named plant.
+      "id": "industry.forestry", "sector": "sector.resources", "export_share": 1.0,
+      "name_key": "industry-forestry", "talk_key": "talk-industry-forestry",
+      "weight": 0.20, "base_wage": 40000, "cyclicality": 0.6, "productivity_growth": 0.012, "trend": 0.0,
+      "world": { "volatility": 0.014, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "stock": { "of": "timber", "power": 0.5 }, "labour_cost": 0.4 },
+      "siting": { "base": 0.0, "geo": { "timber": 1.0 }, "regional_sd": 0.3 },
+      "plants": { "opens": "none" },
+      "products": [
+        { "id": "product.timber", "good": "good.timber", "works_key": "works-timber_yard", "product_key": "product-timber" },
+      ],
+    },
+    {
+      // The fish quay is the harbour: it goes on short time and never closes.
+      "id": "industry.fishing", "sector": "sector.resources", "export_share": 1.0, "ships_through": "port",
+      "name_key": "industry-fishing", "talk_key": "talk-industry-fishing",
+      "weight": 0.15, "base_wage": 37000, "cyclicality": 0.3, "productivity_growth": 0.010, "trend": -0.005,
+      "world": { "volatility": 0.018, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.farm_produce": 0.3, "good.fuels": -0.15 }, "stock": { "of": "fish", "power": 0.7 }, "labour_cost": 0.3, "low_pay": 0.3 },
+      "siting": { "base": 0.0, "geo": { "fishing": 1.0 }, "needs": ["coastal"], "gateways": { "port": 1.5 }, "regional_sd": 0.3 },
+      "plants": { "place_kind": "port", "named_share": [0.280, 0.490], "closes": false, "opens": "none", "founded": [40, 150], "margin_sd": 0.05 },
+      "products": [
+        { "id": "product.fish", "good": "good.fish", "works_key": "works-fish_quay", "product_key": "product-fish" },
+      ],
+    },
+
+    // --- Agriculture: workplaces never close; a bad year is short time -------
+    {
+      "id": "industry.arable", "sector": "sector.agriculture", "export_share": 1.0,
+      "name_key": "industry-arable", "talk_key": "talk-industry-arable",
+      "weight": 0.55, "base_wage": 32000, "cyclicality": 0.3, "productivity_growth": 0.018, "trend": -0.005,
+      "world": { "volatility": 0.012, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.farm_produce": 0.5 }, "water": 0.6, "low_pay": 1.0 },
+      "siting": { "base": 0.1, "geo": { "fertility": 1.0 }, "regional_sd": 0.3 },
+      "plants": { "place_kind": "farm", "named_share": [0.105, 0.210], "closes": false, "opens": "none", "founded": [40, 200], "margin_sd": 0.05 },
+      "products": [
+        { "id": "product.grain", "good": "good.farm_produce", "works_key": "works-grain_coop", "product_key": "product-grain" },
+        { "id": "product.crops", "good": "good.farm_produce", "works_key": "works-estate", "product_key": "product-crops" },
+      ],
+    },
+    {
+      "id": "industry.livestock", "sector": "sector.agriculture", "export_share": 1.0,
+      "name_key": "industry-livestock", "talk_key": "talk-industry-livestock",
+      "weight": 0.45, "base_wage": 30000, "cyclicality": 0.3, "productivity_growth": 0.011, "trend": -0.003,
+      "world": { "volatility": 0.010, "reversion": 0.03, "shock_chance": 0.004, "shock_size": [0.08, 0.18], "shock_down": 0.5 },
+      "exposure": { "prices": { "good.farm_produce": 0.3 }, "water": 0.3, "low_pay": 1.0 },
+      "siting": { "base": 0.45, "geo": { "fertility": 0.3 }, "regional_sd": 0.3 },
+      "plants": { "place_kind": "farm", "named_share": [0.105, 0.210], "closes": false, "opens": "none", "founded": [40, 200], "margin_sd": 0.05 },
+      "products": [
+        { "id": "product.livestock", "good": "good.farm_produce", "works_key": "works-auction_mart", "product_key": "product-livestock" },
+        { "id": "product.milk", "good": "good.farm_produce", "works_key": "works-dairy_farm", "product_key": "product-milk" },
+      ],
+    },
+  ],
+}

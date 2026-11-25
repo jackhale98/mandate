@@ -44,6 +44,14 @@ pub fn town_delta(b: &Town, t: &Town) -> BTreeMap<String, f64> {
             pct(*v, t.jobs.get(k).copied().unwrap_or(0.0)),
         );
     }
+    // Per industry (DEC-110): what a law on a sector does to each of its
+    // industries here.
+    for (k, v) in &b.industries {
+        put(
+            &format!("jobs_industry_{k}_pct"),
+            pct(*v, t.industries.get(k).copied().unwrap_or(0.0)),
+        );
+    }
     put(
         "gov_approval_pts",
         (t.gov_approval - b.gov_approval) * 100.0,
@@ -572,8 +580,37 @@ fn summarise(cx: &Ctx, rows: &[Row], months: u32) -> Value {
                 .collect()
         };
         verdicts.insert(tpl.clone(), worst);
+        // Per industry (DEC-110): the home town's jobs in each industry it
+        // has, at the last sample (worlds differ in which they have).
+        let by_industry: BTreeMap<String, Value> = {
+            let mut names = std::collections::BTreeSet::new();
+            for r in &rs {
+                if let Some(x) = r.at.get(&last) {
+                    names.extend(
+                        x.keys()
+                            .filter(|k| k.starts_with("jobs_industry_"))
+                            .cloned(),
+                    );
+                }
+            }
+            names
+                .into_iter()
+                .map(|k| {
+                    let v = col(last, &k);
+                    let name = k
+                        .trim_start_matches("jobs_industry_")
+                        .trim_end_matches("_pct")
+                        .to_string();
+                    (
+                        name,
+                        json!({ "n": v.len(), "mean_pct": r3(mean(&v)), "t": r1(t_stat(&v)) }),
+                    )
+                })
+                .collect()
+        };
         table.push(json!({
             "template": tpl,
+            "jobs_by_industry": by_industry,
             "n": rs.len(),
             "funded_share": { "mean": r3(mean(&funded)), "min": r3(quantile(&funded, 0.0)) },
             "progress": r3(mean(&progress)),

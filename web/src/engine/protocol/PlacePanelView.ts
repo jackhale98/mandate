@@ -7,13 +7,19 @@ import type { NewspaperView } from "./NewspaperView";
 import type { OfferView } from "./OfferView";
 import type { OverheardView } from "./OverheardView";
 import type { PersonRefView } from "./PersonRefView";
+import type { PlantView } from "./PlantView";
 import type { TownDataView } from "./TownDataView";
 import type { VerbOfferView } from "./VerbOfferView";
 
 /**
  * A place panel: what can be done and learned there.
  */
-export type PlacePanelView = { location: LocationView, here: boolean, actions: Array<OfferView>, services: Array<string>, 
+export type PlacePanelView = { location: LocationView, here: boolean, 
+/**
+ * The named plant this place is (DEC-110): the open one, else the
+ * last that shut here.
+ */
+plant: PlantView | null, actions: Array<OfferView>, services: Array<string>, 
 /**
  * The visit verbs offered here (places with purpose), in the kind's order.
  */

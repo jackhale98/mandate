@@ -75,6 +75,15 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         "sectors" => ContentFile::Sectors {
             items: serde_json::from_str::<ItemsFile<SectorDef>>(json)?.items,
         },
+        "industries" => ContentFile::Industries {
+            items: serde_json::from_str::<ItemsFile<IndustryDef>>(json)?.items,
+        },
+        "markets" => ContentFile::Markets {
+            items: serde_json::from_str::<ItemsFile<MarketDef>>(json)?.items,
+        },
+        "goods" => ContentFile::Goods {
+            items: serde_json::from_str::<ItemsFile<GoodDef>>(json)?.items,
+        },
         "attitudes" => ContentFile::Attitudes {
             items: serde_json::from_str::<ItemsFile<AttitudeDef>>(json)?.items,
         },

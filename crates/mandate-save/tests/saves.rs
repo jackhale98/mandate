@@ -127,9 +127,17 @@ fn state_shape_matches_format_version() {
     // serialized struct changed; a law's ledger, a map, has new keys
     // (`homes_started`, `homes_building`, `homes_added`, `jobs_added_*`,
     // ...) in place of `homes_built`, which an older build reads as any
-    // other key, and the sample game's contents moved. Recorded here with
-    // them, on v28.)
-    const EXPECTED: (u16, &str) = (28, "336f9ea0b265bcff");
+    // other key, and the sample game's contents moved. Recorded with them,
+    // on v28: 336f9ea0b265bcff.)
+    //
+    // v28 -> v29: industries and named plants (I1, DEC-110). The economy
+    // gained `industry_keys`, `market_keys`, `markets`, `good_keys`,
+    // `plants` and `plant_ids`; a town its `industries` (and `prospect`,
+    // `last_notice` when set); a sector `trend_jobs`; a shock its
+    // `industry` and `demand` when set; the plant events and pressures on
+    // the spine. Migration: `industries` (the engine shares each split
+    // sector among its industries as it loads, as a new world does).
+    const EXPECTED: (u16, &str) = (29, "04a127111f358b05");
     let c = content();
     let mut e = generate(
         &WorldConfig {

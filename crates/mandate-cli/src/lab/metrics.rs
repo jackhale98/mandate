@@ -69,6 +69,11 @@ pub struct Town {
     pub housing_stock: f64,
     pub output: f64,
     pub jobs: BTreeMap<String, f64>,
+    /// Jobs by industry (DEC-110), for the industries the town has.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub industries: BTreeMap<String, f64>,
+    /// Named plants: running, on short time, under notice, closed.
+    pub plants: [u32; 4],
     pub attractiveness: f64,
     /// Residents' approval of the town government (0..1), count-weighted.
     pub gov_approval: f64,
@@ -327,6 +332,27 @@ pub fn snapshot(e: &Engine, content: &ContentBundle, month: u32, detail: &[u32])
                     .zip(&me.sectors)
                     .map(|(k, s)| (sector_short(k), r6(s.jobs)))
                     .collect(),
+                industries: me
+                    .industries
+                    .iter()
+                    .filter_map(|x| {
+                        let k = ec.industry_keys.get(x.k as usize)?;
+                        Some((k.trim_start_matches("industry.").to_string(), r6(x.jobs)))
+                    })
+                    .collect(),
+                plants: {
+                    use mandate_sim::economy::plants::PlantStatus as S;
+                    let mut n = [0u32; 4];
+                    for p in mandate_sim::economy::plants::of_town(ec, mu.id) {
+                        n[match p.status {
+                            S::Running => 0,
+                            S::ShortTime { .. } => 1,
+                            S::Threatened { .. } => 2,
+                            S::Closed { .. } => 3,
+                        }] += 1;
+                    }
+                    n
+                },
                 attractiveness: r6(me.attractiveness),
                 gov_approval: r6(gov),
                 concerns: tc.map(|t| concern_map(keys, &t.levels)).unwrap_or_default(),
@@ -380,10 +406,58 @@ fn town_of_event(k: &EventKind) -> Option<(String, Option<u32>, String)> {
             municipality,
             sector,
             jobs,
+            industry,
+            factor,
+            ..
         } => (
             "plant_closure".into(),
             Some(*municipality),
-            format!("{sector}:{jobs}"),
+            match (industry, factor) {
+                (Some(i), Some(f)) => format!("{sector}:{jobs}:{i}:{}", f.key()),
+                _ => format!("{sector}:{jobs}"),
+            },
+        ),
+        EventKind::PlantShortTime {
+            municipality,
+            industry,
+            jobs,
+            factor,
+            ..
+        } => (
+            "plant_short_time".into(),
+            Some(*municipality),
+            format!("{industry}:{jobs}:{}", factor.key()),
+        ),
+        EventKind::PlantThreatened {
+            municipality,
+            industry,
+            jobs,
+            factor,
+            ..
+        } => (
+            "plant_threatened".into(),
+            Some(*municipality),
+            format!("{industry}:{jobs}:{}", factor.key()),
+        ),
+        EventKind::PlantReprieved {
+            municipality,
+            industry,
+            jobs,
+            ..
+        } => (
+            "plant_reprieved".into(),
+            Some(*municipality),
+            format!("{industry}:{jobs}"),
+        ),
+        EventKind::PlantOpened {
+            municipality,
+            industry,
+            jobs,
+            ..
+        } => (
+            "plant_opened".into(),
+            Some(*municipality),
+            format!("{industry}:{jobs}"),
         ),
         EventKind::Disaster {
             municipality,
@@ -433,6 +507,7 @@ fn cause_label(c: &Cause, log: &mandate_sim::events::EventLog) -> String {
             log.get(*id)
                 .map_or("forgotten", |e| mandate_sim::spine::kind_key(&e.kind))
         ),
+        Cause::Pressure(p) => format!("pressure:{}", p.key()),
         root => name(&serde_json::to_value(root).unwrap_or_default()),
     }
 }

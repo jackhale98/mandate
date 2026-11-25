@@ -16,7 +16,7 @@ use std::sync::Arc;
 /// when rents became bounded by incomes (audit fix 2): baseline housing moved.
 /// Re-pinned (baff2383 -> c720a820) when the record began to decide votes
 /// (audit fix 1): the burn-in's elections, and so the town, changed.
-const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "08a45e56");
+const PINNED_GEOGRAPHY: (&str, u64, &str) = ("small", 777, "b9a9760d");
 
 fn fnv1a(s: &str) -> String {
     let mut h: u32 = 0x811c_9dc5;
@@ -308,8 +308,19 @@ fn closed_places_are_kept_and_offer_nothing() {
     let s = new_game(4242);
     let id = home_id(&s);
     let hash_before = s.engine().unwrap().state_hash();
-    // While every place is open the state (and its hash) has no status field.
-    let json = serde_json::to_string(&s.engine().unwrap().state().world.places).unwrap();
+    // An open place that stood as play began has no status field in the
+    // state (or its hash). History may have shut a works before play begins
+    // (DEC-110: the burn-in closes plants), so this reads the open places.
+    let open: Vec<_> = s
+        .engine()
+        .unwrap()
+        .state()
+        .world
+        .places
+        .iter()
+        .filter(|p| p.is_open())
+        .collect();
+    let json = serde_json::to_string(&open).unwrap();
     assert!(!json.contains("status") && !json.contains("opened"));
     let content = Arc::new(s.content().clone());
     let bytes = save(&s);

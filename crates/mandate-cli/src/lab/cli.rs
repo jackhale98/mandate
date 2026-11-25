@@ -48,6 +48,10 @@ pub struct LabCmd {
     pub recession: Vec<String>,
     #[arg(long)]
     pub shock: Vec<String>,
+    /// A fall in demand for one industry: `<town|home|all>:<industry>:<factor>:<months>`
+    /// (`all:industry.fishing:0.6:24`).
+    #[arg(long = "industry-shock")]
+    pub industry_shock: Vec<String>,
     #[arg(long = "set-at")]
     pub set_at: Vec<String>,
     /// Include the home town's neighbourhoods.
@@ -120,6 +124,22 @@ fn interventions(c: &LabCmd, home: u32) -> Result<Vec<Intervention>, String> {
         v.push(Intervention::SectorShock {
             town: town(p[0], home)?,
             sector: p[1].to_string(),
+            factor: num(p[2])?,
+            months: num(p[3])? as u16,
+        });
+    }
+    for x in &c.industry_shock {
+        let p: Vec<&str> = x.split(':').collect();
+        if p.len() != 4 {
+            return Err("--industry-shock <town|all>:<industry>:<factor>:<months>".into());
+        }
+        v.push(Intervention::IndustryShock {
+            town: if p[0] == "all" {
+                None
+            } else {
+                Some(town(p[0], home)?)
+            },
+            industry: p[1].to_string(),
             factor: num(p[2])?,
             months: num(p[3])? as u16,
         });

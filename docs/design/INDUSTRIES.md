@@ -1,6 +1,6 @@
 # Specific industries and named plants
 
-**Status:** design for the owner (M6 checklist, note 17). Not built. A decision record is proposed at the end. Scope is the cheap version: industries as data, demand per industry, plants named by what they make. Products as goods, firms, supply chains and trade between towns wait for transport.
+**Status:** accepted (DEC-110). **I0, I1 and a minimal P1 are built (2026-11-24):** see "What I0, I1 and P1 built, and every correction (I1)" and "The seam for foreign trade (I1)" at the end; where they differ from the sections above, they are what the code does. The rest of the plan (§11: I2 to I9, C1, C2) is not built. Scope is the cheap version: industries as data, demand per industry, plants named by what they make. Products as goods, firms, supply chains and trade between towns wait for transport.
 
 In one line: the eight sectors stay as groups; under three of them sit sixteen industries, each with its own world demand; a town's larger employers are named plants that go on short time, get a closure notice with a date, and close or are reprieved for a reason the game can name.
 
@@ -283,7 +283,7 @@ What could go wrong:
 
 ## 9. Save and compatibility
 
-- **Save v27** (the version after the causal spine's v26), with one migration. For each town and split sector, capacity, jobs, wage and productivity are shared among industries by the same pure siting function worldgen uses (geography and keyed draws; no stream advances), the last industry taking the remainder. Plants are made by the same keyed placement from current capacity but **only at works places the town already has** (one each, largest industry first); the rest is `small`. So the factory a player has visited becomes "the Garrowby cannery" with the same place id, manager and steward, and no building appears in a town they know. Indices start at 1, anchors at current jobs, strain at 0. Old `PlantClosure` events keep no plant, and their text falls back to today's sector line.
+- **(I1) Built as save v28, by the cheap path the owner asked for (see the end): the engine shares each split sector as it loads the save, with the routine a new world uses.** The design read: **Save v27** (the version after the causal spine's v26), with one migration. For each town and split sector, capacity, jobs, wage and productivity are shared among industries by the same pure siting function worldgen uses (geography and keyed draws; no stream advances), the last industry taking the remainder. Plants are made by the same keyed placement from current capacity but **only at works places the town already has** (one each, largest industry first); the rest is `small`. So the factory a player has visited becomes "the Garrowby cannery" with the same place id, manager and steward, and no building appears in a town they know. Indices start at 1, anchors at current jobs, strain at 0. Old `PlantClosure` events keep no plant, and their text falls back to today's sector line.
 - `economy.industry_keys` is saved. Content that adds an industry starts it with no capacity (it can arrive by an opening); content that removes one is refused, as for sectors.
 - **Worlds generated before:** a saved world is its state and migrates. A seed generated afresh gives a different country (plants, some names, a different history): golden worlds regenerate once, before testers.
 
@@ -341,3 +341,114 @@ Order: I0 → I1 → P1 (the slice). Then I2, I3, I4, I5, I7, I8, I9 and C1 run 
 - **Cost:** save v27 with a migration; state hashes and generated worlds change once; about 294 Fluent keys (145 sentences); an estimated 2–4% on world generation; the tasks in §11.
 - **Changes:** DEC-075 stage 1 (sectors gain a child registry; `SectorState` becomes derived for split sectors); the closure rule (was a monthly chance below 0.85 on the sector's driver); `economy.manufacturing_trend` (per-industry trends); the spine's `Pressure` (four more).
 - **Dependencies:** DEC-041, DEC-053, DEC-054, DEC-075, DEC-078, DEC-085, DEC-089, DEC-090, DEC-092, DEC-098, DEC-099; the causal spine (S1); the staged arcs design.
+
+## What I0, I1 and P1 built, and every correction (I1)
+
+Built 2026-11-24 on `claude/bold-brown-shyeug`. Where this note above and the code disagreed, the code's rules won; each departure is listed with its reason. Code: `crates/mandate-sim/src/economy/industries.rs` (state, siting, demand, markets, totals), `economy/plants.rs` (plants, the review, openings, facts), `content/base/{industries,markets,goods}.jsonc`, `economy.jsonc` → `industries`.
+
+**The registry (I0).** Sixteen industries under manufacturing, resources and agriculture, as §1's table, with the numbers below changed. Validation: a known sector that does not run on local demand, weights above zero, sane exponents, every link, neighbour, market, good and place kind known, at least one product, every key in English; warnings when a sector's weights do not add to 1 or its weighted wage is over 5% from the sector's. The doctor's references cover industries, products, markets and goods (content that removes one a save uses is refused).
+
+**The driver as built.** For industry *i* in town *m*:
+
+```text
+external = Σ_markets share × (cycle ^ cyclicality × index(market, i)) × access     one market: cycle ^ cyclicality × index
+demand   = (export_share × external + (1 − export_share) × home) × local demand shocks
+driver   = demand × price × input × stock × water × import competition × labour × supply
+supply   = (Σ w a u / Σ w a) ^ (link_power × reliance),  reliance = min(1, Σ w a / the industry's own ten-year jobs)
+effective = driver × (1 + elasticity × subsidy) × (1 − 0.4 × low_pay × wage_floor)
+target   = (capacity + law capacity by share) × effective × disruption
+```
+
+Ten factors are smoothed for blame (`Factor`: cycle, world, price, input, stock, water, competitiveness, labour_cost, supply, home), a six-month average of each one's log.
+
+**The closure process as built** (`economy.jsonc` → `industries`). `m = effective × (1 + margin + relief)`. Short time: `m < 0.90` for 2 months. Full time again: `m ≥ 0.94` for 2 months, no event. Notice: on short time, `m < 0.78` for 9 months running, the town free (no notice in 12 months, or a recession): a keyed draw of 4 to 9 months gives `closes_on`, the first of that month. Reprieve: `m ≥ 0.84` for 2 months on or before the date; the plant goes back to short time. Closure: the date arrives. Each is an event (`PlantShortTime`, `PlantThreatened`, `PlantReprieved`, `PlantClosure` with industry, plant, factor and upstream) on `Thread::Plant`; the cause is `Pressure` of the weakest smoothed factor, linked to the running recession when that is the cycle. The closure removes the plant's capacity and its share of the industry's jobs and asks for its place to close. Unnamed firms thin by 0.5% a month while `effective < 0.78` and the sector is over 200 jobs. No draw is on the sequential economy stream: the old closure roll's two draws are gone from it, which shifted every later draw of that stream once.
+
+**Openings (built).** *Investment:* what idle labour draws each month (the amount that grew manufacturing capacity unseen before) grows the unnamed firms; while a closed works of an investing industry waits, half of it gathers in the town's `prospect`, and at the smallest plant for the town's class (25, 60, 150, 250) a plant opens at that works in the industry with the best siting score × national demand whose works that kind of place is. *Boom:* an industry with `opens: boom` whose smoothed demand is over 1.12 for 24 months with stock over 0.3 reopens its last closed works at 60%. A reopened works is a new plant (ids are never reused) at the same place, which is asked to reopen; `PlantOpened` carries `Pressure::SlackLabour` or `Pressure::Boom`.
+
+**Reconciliation.** `IndustryState::capacity = small + Σ open plants` and a split sector's `jobs` and `capacity` are the sums of its industries', bit for bit, every month (`write_totals` is the only writer). Whole numbers come from `industries::apportion` top down (`plants::town_jobs`). Test: `jobs_reconcile_in_every_town_and_month_of_thirty_years`.
+
+**Departures, each with its reason.**
+
+1. *Industries are held sparsely* (`MuniEcon::industries`, each with its registry index `k`), not densely with zeros: a town has four to six of sixteen. Smaller saves, shorter loops.
+2. *The product and its good are on the plant,* not on `IndustryState`: the plant is the only thing that shows one.
+3. *The fish quay never closes* (`closes: false`) and the shipyard is at the factory place: the port place is the town's harbour, and closing the place would close the port. Fishing goes on short time.
+4. *One plant a works place* (factory, mill, mine, port, farm), the town's largest industry of that kind. Several works per town is I2, with the layout.
+5. *Siting lives in `mandate-sim`* (`industries::scores`, `shares`), not in `mandate-worldgen`: the engine needs it to load a save from before industries. Worldgen reaches it through `economy::init`.
+6. *Supply links count by reliance.* As §2 wrote them, a works of a thousand stopped for a foundry of twenty in its region: over 30 years machinery fell to 0.16 of its jobs and metals to 0.27, with supply blamed for 35% of closures. The exponent is now `link_power ×` (upstream nearby over the industry's own size, at most 1).
+7. *Named shares are 0.21 to 0.49 of an industry* (§5: 0.5 to 0.8) and a plant is at most 15% of a town's jobs when placed (§5: 25%). With one plant an industry, the larger sizes made a closure one and a half times today's worst and tripled the closures without recovery.
+8. *Unnamed firms thin at 0.5% a month* (§3: 1.5%). At 1.5% manufacturing ended 30 years at 0.45 of its jobs (0.64 before industries).
+9. *Index jumps are 8 to 18%* (§1: 10 to 22%), and the trends of textiles (−1.8%, §1: −2.5%) and metals (−1.2%, §1: −1.5%) are gentler: closures now take what part of the old trend stood for.
+10. *Short time has a recovery line* (0.94) above its own (0.90), so hours do not flap: 13,000 short-time events fell to 8,600 in the audit's 48 worlds.
+11. *While a works waits, half of what idle labour draws still grows firms at once* (`pool_share`): with all of it held back, towns recovered more slowly than before industries.
+12. *A place closes through `Effect::PlaceStatus`, applied by the scheduler.* The world is no system's domain and nothing closed a place during a run before; `scheduler::apply_world` is the one applier.
+13. *The lab's shock is a fall in demand* (`ActiveShock::demand`, on one industry): it enters `effective` and is blamed as the world factor. A hazard's shock stays a disruption, outside the rule, as §2 says.
+14. *Pressures:* `ExternalDemand { market, good }` (for the design's `IndustryDemand`), `HomeDemand`, `InputCosts`, `Supply`, `Water`, `SlackLabour`, `Boom`. See the seam, below.
+15. *A sector keeps a ten-year average too* (`SectorState::trend_jobs`): a link to an unsplit sector (quarrying reads construction) needs its anchor.
+16. *An event's jobs are the plant's share rounded;* the sheet's figure is apportioned and may differ by one.
+17. *An unsplit tradable sector* (content that adds one) thins like unnamed firms; the old monthly roll is gone everywhere.
+18. *Save v28,* not v27 (staged arcs took 27). The step is the cheap one the owner asked for: an older save gets industries, markets and plants as it loads, from the routine a new world uses and its towns' sector employment as it stands; every sector total is unchanged; nothing appears in a town. Fixture tests on v25, v26 and v27 files.
+
+**Not built (follow-ups).** Several works per town, new works places, name affixes and district words (I2). A new works on a plot, and people seeded at a reopened works: it keeps the place's manager and steward (I3). Industry targets for laws, `plant_support`, mods by jurisdiction, the two families (I4): today a law on a split sector reaches each of its industries, and `Effect::PlantRelief` is the one push on a review. Town character on industries, map layers, `Subject::Plant`, knowledge gating of exact jobs and of the why line (I5). `audit industries` and the §8 bands it owns (I7): `audit stuck` carries an `industries` block meanwhile. Resource stocks drawn by the industries that name them (I8). A trade at a workplace (I9). Flavour lines and the crisis rewrite (C2).
+
+**Measured** (`audit stuck --seeds 8`, six worlds × 8 seeds × 30 years; before is the branch head 59c390a, after is this work merged onto it; full tables in `docs/development/balance/2026-11-24-industries-and-named-plants.md`):
+
+| Check | Before | After |
+|---|---|---|
+| Plant closures (without recovery after ten years) | 836 (17) | 918 (54) |
+| Closures explained by a pressure, with plant, industry and factor | in recessions only | 100% |
+| Highest town unemployment | 15.4% | 17.9% |
+| Towns drained, debt spirals, rent runaways | 0, 0, 0 | 0, 0, 0 |
+| Real rent growth, median town; rent burden at the end | 1.258; 0.128 | 1.248; 0.127 |
+| Crisis spans | 3,520 | 4,166 |
+| Manufacturing, resources, agriculture jobs, year 30 over year 0 | 0.64, 0.76, 0.80 (4 seeds, at 12bfe17) | 0.65, 0.87, 0.80 |
+| Industries outside 0.35 to 2.0 | | textiles 0.33 (next: metals 0.46, vehicles 0.46) |
+| Towns whose largest industry is still in their top two | | 93% |
+| Openings | | 248 (27% of closures) |
+| Closures by weakest factor | | world 69%, stock 11%, supply 9%, competitiveness 4%, price 3%, labour 2%, input 2% |
+
+**Awaiting the wave's tuning pass** (owner, 2026-11-24: mechanisms first, tuning once per wave; nothing below was tuned further). The numbers above come from one early pass (departures 7 to 11). Not met: textiles ends 30 years at 0.33 of its jobs (this audit's own band is 0.35); openings are 27% of closures (§8's band is 40%); one factor, the industry's own index, is behind 69% of closures (§8's band is 60%); closures without recovery after ten years are 5.9% (§8: at most 5%; 2.0% before); crisis spans are up 18%. No existing gate fails: `audit gate`, the sweep's bands and the bots' enforced gates all pass, so none was made report-only.
+
+**What the plant review arc (A5a) reads.** `economy::plants::facts(econ, world, content, plant)`: the plant, its place, town and district; industry, product and name parts; whole jobs and their share of the town's; status with `since` and `closes_on`; the weakest factor, its level and the upstream; the margin-adjusted demand, to set against the lines in `economy.industries` (the gap a rescue has to close). The four events are the stage triggers and share `Thread::Plant`. `Effect::PlantRelief { plant, relief, months }` is the request that pushes on the review (the economy prices nothing yet: I4). A notice is two to five months in DEC-109's answer and four to nine here (`notice_months`): one number in content. Its people are the place's (`occupation.plant_manager`, `occupation.shop_steward`), found through the place.
+
+## The seam for foreign trade (I1)
+
+Owner, 2026-11-24: "We want trade to be well positioned for expansion to foreign trade and affairs in the future." DEC-087 makes the neighbours low-detail nations in M7, with trade deals and tariffs at the national tier in M8. I1 built the seam so that work adds data and a domain and does not rework the industries. Nothing here changes a number: with one market the driver is the design's.
+
+**What is built.**
+
+- **A markets registry** (`content/base/markets.jsonc`, `MarketDef`): the places an industry sells to outside the country. One entry today, `market.world`. Each market has a `share` (its weight in every industry's external sales; an industry may set its own in `exposure.markets`) and an `access` (1 is open trade).
+- **External demand is a sum over markets:** `external = Σ_m share(i, m) × (cycle_m ^ cyclicality × index(m, i)) × access_m`. The design's per-industry world index is the index of the one market. State is keyed by market and industry (`EconomyState::markets[m].index[i]`, with `market_keys` appended to and never reordered, so `MarketId` is stable for the life of a save), and the keyed draw is `[KEY_WORLD, key_of(market id), key_of(industry id), day]`: a market added later has its own history and moves nobody else's.
+- **One market gives exactly the single world index.** `industries::external_demand` with one market at share 1 and access 1 returns `cycle × index` bit for bit, and the walk is the design's formula. Test: `one_market_gives_exactly_the_single_world_index` (`crates/mandate-worldgen/tests/industries.rs`); a second market as data and a closed border: `a_second_market_is_data_and_a_cause_names_the_market_that_closed`.
+- **Exposure as content.** `export_share` (how much of an industry's demand is external) and `home` (what the domestic part reads: weights over `national_consumption`, `local_consumption`, `construction`, `public`). Demand is `export_share × external + (1 − export_share) × home`. `exposure.import_exposure` is how hard foreign competition bites: the exponent on national competitiveness (the design's `competitiveness`, renamed).
+- **Goods** (`content/base/goods.jsonc`, `GoodDef`): fourteen, each product belongs to one. A good may carry a world price index (`price`: agriculture, minerals or energy). `exposure.prices` names goods, and the price is read through the registry; the three indices are unchanged in value (`good.farm_produce`, `good.minerals`, `good.fuels`).
+- **Gateways** (`GatewayKind`: `port`, `border_crossing`, `rail_head`): a property of a place kind (`places.jsonc` marks `place.port`). Siting weights them (`siting.gateways`, `siting.needs_gateway`: a shipyard needs a port), an industry names the one its external trade ships through (`ships_through`), and `industries::gateways(world, content, town)` lists a town's. No new places.
+- **Causes say which market.** When the weakest factor behind short time, a notice or a closure is external demand beyond the world cycle, the cause is `Pressure::ExternalDemand { market, good }`: the market that weighs most on the industry (lowest index × access) and the plant's good. A world recession stays `Pressure::WorldDemand`, linked to the recession. `IndustryShock` names its market.
+- **Tier-generic.** No market, good or country is named in code. Nothing reads the player's town.
+
+**The shares chosen.** Every industry's `export_share` is 1.0 in the base pack. The design's driver is `cycle × world index × …` with no domestic term, so 1.0 is the only value that gives the design's numbers; any lower share brings household consumption into tradable demand, a multiplier the bands have not been tuned with. The domestic part is built and tested (`demand_at_home_counts_by_the_export_share`) and carries no weight until a balance pass lowers a share. Suggested starting points for that pass, with `cyclicality` raised so that `export_share × cyclicality` stays what the table gives:
+
+| Industry | Export share now | Suggested | Import exposure | Ships through | Good of its products |
+|---|---|---|---|---|---|
+| food_processing | 1.0 | 0.25 | 0.4 | | food |
+| metals | 1.0 | 0.6 | 1.0 | port | metals |
+| machinery | 1.0 | 0.6 | 1.0 | | machinery |
+| textiles | 1.0 | 0.5 | 1.2 | | textiles |
+| timber_paper | 1.0 | 0.4 | 0.7 | | timber |
+| chemicals | 1.0 | 0.5 | 0.8 | port | chemicals |
+| vehicles | 1.0 | 0.6 | 1.2 | | vehicles |
+| electronics | 1.0 | 0.6 | 1.0 | | electronics |
+| shipbuilding | 1.0 | 0.8 | 1.1 | port | ships |
+| mining | 1.0 | 0.7 | 0 | port | minerals |
+| quarrying | 1.0 | 0.1 (home: construction) | 0 | | stone |
+| oil_gas | 1.0 | 0.8 | 0 | port | fuels |
+| forestry | 1.0 | 0.3 | 0 | | timber |
+| fishing | 1.0 | 0.3 | 0 | port | fish |
+| arable | 1.0 | 0.4 | 0 | | farm produce |
+| livestock | 1.0 | 0.3 | 0 | | farm produce |
+
+**What M7 and M8 plug in.**
+
+- *M7, a neighbouring nation:* one more entry in `markets.jsonc` (and a share for it). Its index for an industry is driven by its own economy: `external_demand` reads the world's cycle for every market today, at one marked line; a market gains a cycle of its own there. Old saves gain the market as they load (`sync_markets`), after the ones they had.
+- *M8, tariffs, treaties, disputes, a closed border:* a domain that writes `MarketState::access` (per market; per good when a deal names goods, through `GoodDef`), keyed by `Jurisdiction` at the national tier. A tariff on imports works through `import_exposure`: the competition term gains a protection factor per good beside national competitiveness. The spine already shows the result: `Pressure::ExternalDemand { market, good }`.
+- *A gateway disruption* (a strike at the port, a closed crossing): scales the external demand of the industries in reach whose `ships_through` is that kind. The hook is `industries::gateways`; nothing applies one yet.
+- **Not built:** bilateral flows with quantities, exchange rates, tariffs as policies, foreign nations.

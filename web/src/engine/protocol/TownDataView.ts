@@ -2,6 +2,7 @@
 import type { CommunityShareView } from "./CommunityShareView";
 import type { ConcernView } from "./ConcernView";
 import type { HoodDataView } from "./HoodDataView";
+import type { PlantView } from "./PlantView";
 import type { SectorJobsView } from "./SectorJobsView";
 
 /**
@@ -12,6 +13,11 @@ export type TownDataView = { population: number, unemployment: number,
  * Monthly, oldest first (last 12 months).
  */
 unemployment_history: Array<number>, typical_income: number, monthly_rent: number, home_price: number, vacancy: number, sectors: Array<SectorJobsView>, 
+/**
+ * The town's named plants, open and shut (DEC-110): its main
+ * employers, the largest first.
+ */
+plants: Array<PlantView>, 
 /**
  * Live at the desk once the player has heard of the town's worries
  * (DEC-091); empty before.

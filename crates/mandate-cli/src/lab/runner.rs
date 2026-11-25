@@ -100,12 +100,24 @@ pub enum Intervention {
         factor: f64,
         months: u16,
     },
-    /// A plant closes: a share of the town's largest industrial (or the
-    /// given) sector's capacity goes, with the engine's closure event.
+    /// A plant closes (DEC-110): the town's largest plant that can close
+    /// (in the given sector, if one is given), by the engine's own closure.
+    /// `share` is the least of its sector's capacity that goes: where the
+    /// plant is smaller, unnamed firms of its industry go with it; where
+    /// the town has no such plant, unnamed firms of its largest closing
+    /// sector go, under the sector's name.
     PlantClosure {
         town: u32,
         sector: Option<String>,
         share: f64,
+    },
+    /// A fall in demand for one industry (DEC-110), in one town or in
+    /// every town that has it: what brings a plant's review on.
+    IndustryShock {
+        town: Option<u32>,
+        industry: String,
+        factor: f64,
+        months: u16,
     },
     /// A hazard strikes the town at the next monthly hazard step.
     Disaster {
@@ -354,47 +366,146 @@ impl Game {
                 share,
             } => {
                 town_ok(*town)?;
+                use mandate_sim::economy::{industries, plants};
                 let st = self.e.state();
                 let mu = &st.economy.munis[*town as usize];
-                let k = match sector {
-                    Some(s) => content
-                        .sector_index(s)
-                        .ok_or_else(|| format!("no sector `{s}`"))?,
-                    None => content
-                        .sectors
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, d)| {
-                            matches!(
-                                d.driver,
-                                mandate_content::SectorDriver::Industrial
-                                    | mandate_content::SectorDriver::Extraction
-                            )
-                        })
-                        .max_by(|a, b| {
-                            mu.sectors[a.0]
-                                .capacity
-                                .total_cmp(&mu.sectors[b.0].capacity)
-                        })
-                        .map(|(i, _)| i)
-                        .ok_or("no industrial sector")?,
+                let want = match sector {
+                    Some(s) => Some(
+                        content
+                            .sector_index(s)
+                            .ok_or_else(|| format!("no sector `{s}`"))?,
+                    ),
+                    None => None,
                 };
-                let key = content.sectors[k].id.clone();
+                let closes = |k: usize| {
+                    content
+                        .industries_of(k)
+                        .any(|(_, d)| d.plants.closes && d.plants.place_kind.is_some())
+                };
+                // The largest plant that can close.
+                let plant = plants::of_town(&st.economy, mandate_sim::world::MunicipalityId(*town))
+                    .filter(|p| p.is_open())
+                    .filter(|p| {
+                        content.industry(&p.industry).is_some_and(|d| {
+                            d.plants.closes && want.is_none_or(|k| d.sector_index == k)
+                        })
+                    })
+                    .max_by(|a, b| a.capacity.total_cmp(&b.capacity).then(b.id.cmp(&a.id)))
+                    .map(|p| (p.id, p.industry.clone(), p.capacity));
                 let share = share.clamp(0.0, 1.0);
+                match plant {
+                    Some((id, industry, size)) => {
+                        let k = content
+                            .industry_index(&industry)
+                            .ok_or("the plant's industry is gone")?;
+                        let sector = content.industries[k].sector_index;
+                        let floor = mu.sectors[sector].capacity * share;
+                        let content2 = content.clone();
+                        self.e.setup(|st| {
+                            // Unnamed firms of the plant's industry go with
+                            // it, up to the share asked for.
+                            let extra = (floor - size).max(0.0);
+                            if let Some(x) = st.economy.munis[*town as usize]
+                                .industries
+                                .iter_mut()
+                                .find(|x| x.k as usize == k)
+                            {
+                                let cut = extra.min(x.small);
+                                if x.capacity > 0.0 {
+                                    x.jobs -= x.jobs * (cut / x.capacity).min(1.0);
+                                }
+                                x.small -= cut;
+                            }
+                            industries::refresh(&mut st.economy, &content2, *town as usize);
+                            if let Some(ev) = plants::close_now(st, &content2, id, Cause::Lab) {
+                                st.events.pin(ev);
+                            }
+                        });
+                    }
+                    None => {
+                        // No plant: unnamed firms of the largest closing
+                        // sector, each industry in proportion.
+                        let k = match want {
+                            Some(k) => k,
+                            None => (0..content.sectors.len())
+                                .filter(|k| closes(*k))
+                                .max_by(|a, b| {
+                                    mu.sectors[*a]
+                                        .capacity
+                                        .total_cmp(&mu.sectors[*b].capacity)
+                                        .then(b.cmp(a))
+                                })
+                                .ok_or("no sector whose plants close")?,
+                        };
+                        let key = content.sectors[k].id.clone();
+                        let content2 = content.clone();
+                        self.e.setup(|st| {
+                            let mu = &mut st.economy.munis[*town as usize];
+                            let mut jobs = 0.0;
+                            if content2.is_split(k) {
+                                for x in mu
+                                    .industries
+                                    .iter_mut()
+                                    .filter(|x| content2.industries[x.k as usize].sector_index == k)
+                                {
+                                    let cut = (x.capacity * share).min(x.small);
+                                    if x.capacity > 0.0 {
+                                        x.jobs -= x.jobs * (cut / x.capacity).min(1.0);
+                                    }
+                                    x.small -= cut;
+                                    jobs += cut;
+                                }
+                            } else {
+                                let s = &mut mu.sectors[k];
+                                jobs = (s.capacity * share).round();
+                                s.capacity -= jobs;
+                            }
+                            industries::refresh(&mut st.economy, &content2, *town as usize);
+                            let ev = st.events.record(
+                                date,
+                                EventKind::PlantClosure {
+                                    municipality: *town,
+                                    sector: key,
+                                    jobs: jobs.round() as u32,
+                                    industry: None,
+                                    plant: None,
+                                    factor: None,
+                                    upstream: None,
+                                },
+                                Cause::Lab,
+                            );
+                            st.events.pin(ev);
+                        });
+                    }
+                }
+            }
+            Intervention::IndustryShock {
+                town,
+                industry,
+                factor,
+                months,
+            } => {
+                let def = content
+                    .industry(industry)
+                    .ok_or_else(|| format!("no industry `{industry}`"))?;
+                if let Some(t) = town {
+                    town_ok(*t)?;
+                }
+                let k = content.industry_index(industry).unwrap_or(usize::MAX);
+                let shock = mandate_sim::economy::ActiveShock {
+                    sector: def.sector.clone(),
+                    factor: *factor,
+                    months_left: *months,
+                    industry: Some(def.id.clone()),
+                    demand: true,
+                };
                 self.e.setup(|st| {
-                    let s = &mut st.economy.munis[*town as usize].sectors[k];
-                    let jobs = (s.capacity * share).round();
-                    s.capacity -= jobs;
-                    let ev = st.events.record(
-                        date,
-                        EventKind::PlantClosure {
-                            municipality: *town,
-                            sector: key,
-                            jobs: jobs as u32,
-                        },
-                        Cause::Lab,
-                    );
-                    st.events.pin(ev);
+                    for (m, mu) in st.economy.munis.iter_mut().enumerate() {
+                        let here = town.is_none_or(|t| t as usize == m);
+                        if here && mu.industries.iter().any(|x| x.k as usize == k) {
+                            mu.shocks.push(shock.clone());
+                        }
+                    }
                 });
             }
             Intervention::Disaster {

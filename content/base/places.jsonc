@@ -138,7 +138,8 @@
       "layout": { "slot": "works", "footprint": [[7, 4], [9, 5]], "place": ["near_rail", "by_water", "edge"], "signature": "chimney", "with": ["chimney"], "landmark": true, "art": { "kit": "kit.factory", "family": "industrial" } },
     },
     {
-      "id": "place.port", "key": "port", "name_key": "place-port",
+      // A gateway (DEC-110): where trade passes.
+      "id": "place.port", "key": "port", "name_key": "place-port", "gateway": "port",
       "verbs": ["verb.tour_works", "verb.listen_at_gate", "verb.photo_op_gate"],
       "sector": "sector.manufacturing", "drivers": ["industrial"],
       "layout": { "slot": "harbour", "footprint": [[6, 3], [8, 4]], "place": ["shore", "by_water"], "signature": "cranes", "with": ["pier", "cranes"], "landmark": true, "art": { "kit": "kit.port", "family": "industrial" } },

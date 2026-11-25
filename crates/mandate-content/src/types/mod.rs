@@ -46,6 +46,12 @@ pub enum ContentFile {
     Tuning { value: Tuning },
     /// Economic sectors (DEC-019).
     Sectors { items: Vec<SectorDef> },
+    /// Industries: a registry level under the sectors (DEC-110).
+    Industries { items: Vec<IndustryDef> },
+    /// Markets: where industries sell outside the country (DEC-110).
+    Markets { items: Vec<MarketDef> },
+    /// Goods: what products are, for trade to name (DEC-110).
+    Goods { items: Vec<GoodDef> },
     /// Attitude dimensions: the issues voters hold views on (DEC-025, DEC-075).
     Attitudes { items: Vec<AttitudeDef> },
     /// Communities: a cohort dimension beside age and class (DEC-075).

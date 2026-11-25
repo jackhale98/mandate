@@ -173,6 +173,16 @@ pub fn holds(state: &crate::State) -> Holds {
     for d in &state.environment.deferred {
         h.events.extend(d.hold_event);
     }
+    // A plant under review (short time, or under notice) holds its thread.
+    for p in &state.economy.plants {
+        if matches!(
+            p.status,
+            crate::economy::plants::PlantStatus::ShortTime { .. }
+                | crate::economy::plants::PlantStatus::Threatened { .. }
+        ) {
+            h.threads.push(Thread::Plant(p.id.0));
+        }
+    }
     let el = &state.politics.elections;
     if let Some(day) = el.next_day
         && el.campaign_open.is_some()

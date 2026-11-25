@@ -844,11 +844,47 @@ fn every_cause_and_link_has_a_line() {
         every!(Process: Calendar, Markets, CentralBank, Budget, Lawmaking, Agenda, Elections,
             Parties, Director, Press, Justice, Asks, Society, Knowledge, Arcs, Update),
     );
-    family(
-        "why-pressure",
-        every!(Pressure: WorldDemand, CommodityPrices, Depletion, Competitiveness, LabourCosts,
-            Track),
-    );
+    // A pressure may carry values (external demand names its market and
+    // its good, DEC-110), so its key is `Pressure::key`, not a serde string.
+    // The match is exhaustive all the same: a new pressure must be listed.
+    let pressures = {
+        use mandate_sim::economy::industries::{GoodId, MarketId};
+        let all = [
+            Pressure::WorldDemand,
+            Pressure::CommodityPrices,
+            Pressure::Depletion,
+            Pressure::Competitiveness,
+            Pressure::LabourCosts,
+            Pressure::Track,
+            Pressure::ExternalDemand {
+                market: MarketId(0),
+                good: GoodId(0),
+            },
+            Pressure::HomeDemand,
+            Pressure::InputCosts,
+            Pressure::Supply,
+            Pressure::Water,
+            Pressure::SlackLabour,
+            Pressure::Boom,
+        ];
+        let _exhaustive = |x: Pressure| match x {
+            Pressure::WorldDemand
+            | Pressure::CommodityPrices
+            | Pressure::Depletion
+            | Pressure::Competitiveness
+            | Pressure::LabourCosts
+            | Pressure::Track
+            | Pressure::ExternalDemand { .. }
+            | Pressure::HomeDemand
+            | Pressure::InputCosts
+            | Pressure::Supply
+            | Pressure::Water
+            | Pressure::SlackLabour
+            | Pressure::Boom => (),
+        };
+        all.iter().map(|p| p.key().to_string()).collect::<Vec<_>>()
+    };
+    family("why-pressure", pressures);
     family(
         "why-exogenous",
         every!(Shock: WorldEconomy, Commodities, Hazard, Race),

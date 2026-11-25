@@ -298,6 +298,107 @@ pub struct HoodDataView {
     pub top_concern_key: Option<String>,
 }
 
+/// A named plant as a place panel and the town's data show it (DEC-110,
+/// P1): parts and Fluent keys, never prose. The client composes the name
+/// from `name_key` (`plant-name-<form>`, or `plant-old` once it has shut),
+/// `stem` and `works_key`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlantView {
+    pub id: u32,
+    /// The place it is (a `Location::Place` id).
+    pub place: u32,
+    pub name_key: String,
+    pub stem: String,
+    /// The works' noun ("cannery").
+    pub works_key: String,
+    /// What it makes, a mass noun.
+    pub product_key: String,
+    pub industry_key: String,
+    /// Its town's name (what a "why" line names).
+    pub town: String,
+    /// `running` | `short_time` | `threatened` | `closed`.
+    pub status: String,
+    /// `plant-status-<status>`, with `month_key` and `year`.
+    pub status_key: String,
+    /// Since when (short time, closed), or the closing date (under notice):
+    /// the month (1-12) and the year. None while it runs full time.
+    pub month: Option<u32>,
+    pub year: Option<u32>,
+    /// On short time or worse: why (`plant-why-<factor>`: the weakest term
+    /// of its industry's demand), and for supply the upstream industry as
+    /// residents name it.
+    pub why_key: Option<String>,
+    pub upstream_key: Option<String>,
+    /// About how many work there, to two figures ("about 210"). 0 once shut.
+    pub jobs_about: u32,
+}
+
+/// A count to two significant figures.
+fn about(n: u32) -> u32 {
+    let mut unit = 1;
+    while n / unit >= 100 {
+        unit *= 10;
+    }
+    (n + unit / 2) / unit * unit
+}
+
+/// A plant's view.
+pub fn plant_view(
+    engine: &Engine,
+    plant: mandate_sim::economy::plants::PlantId,
+) -> Option<PlantView> {
+    use mandate_sim::economy::plants::{self, PlantStatus};
+    let st = engine.state();
+    let content = engine.content();
+    let f = plants::facts(&st.economy, &st.world, content, plant)?;
+    let (_, product) = content.product(&f.product)?;
+    let industry = content.industry(&f.industry)?;
+    let date = match f.status {
+        PlantStatus::Running => None,
+        PlantStatus::ShortTime { since } | PlantStatus::Closed { since, .. } => Some(since),
+        PlantStatus::Threatened { closes_on, .. } => Some(closes_on),
+    }
+    .map(|d| d.calendar());
+    let troubled = !matches!(f.status, PlantStatus::Running);
+    let talk = |k: &str| {
+        content
+            .industry(k)
+            .map(|d| d.talk_key.clone().unwrap_or_else(|| d.name_key.clone()))
+            .or_else(|| {
+                content
+                    .sector(k)
+                    .map(|d| d.talk_key.clone().unwrap_or_else(|| d.name_key.clone()))
+            })
+    };
+    Some(PlantView {
+        id: f.plant.0,
+        place: f.place.0,
+        name_key: if matches!(f.status, PlantStatus::Closed { .. }) {
+            "plant-old".into()
+        } else {
+            format!("plant-name-{}", f.name.form.key())
+        },
+        stem: f.name.stem.clone(),
+        works_key: product.works_key.clone(),
+        product_key: product.product_key.clone(),
+        industry_key: industry.name_key.clone(),
+        town: st
+            .world
+            .municipalities
+            .get(f.municipality.index())
+            .map(|m| m.name.clone())
+            .unwrap_or_default(),
+        status: f.status.key().into(),
+        status_key: format!("plant-status-{}", f.status.key()),
+        month: date.map(|c| c.month),
+        year: date.map(|c| c.year),
+        why_key: troubled.then(|| format!("plant-why-{}", f.factor.key())),
+        upstream_key: f.upstream.as_deref().and_then(talk),
+        jobs_about: about(f.jobs),
+    })
+}
+
 /// Detailed town data (the statistics desk).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -311,6 +412,9 @@ pub struct TownDataView {
     pub home_price: f64,
     pub vacancy: f64,
     pub sectors: Vec<SectorJobsView>,
+    /// The town's named plants, open and shut (DEC-110): its main
+    /// employers, the largest first.
+    pub plants: Vec<PlantView>,
     /// Live at the desk once the player has heard of the town's worries
     /// (DEC-091); empty before.
     pub concerns: Vec<ConcernView>,
@@ -394,6 +498,9 @@ pub struct OverheardLineView {
 pub struct PlacePanelView {
     pub location: LocationView,
     pub here: bool,
+    /// The named plant this place is (DEC-110): the open one, else the
+    /// last that shut here.
+    pub plant: Option<PlantView>,
     pub actions: Vec<OfferView>,
     pub services: Vec<String>,
     /// The visit verbs offered here (places with purpose), in the kind's order.
@@ -917,6 +1024,13 @@ fn town_data(engine: &Engine) -> Option<TownDataView> {
                 wage: s.wage.round(),
             })
             .collect(),
+        plants: {
+            let mut v: Vec<PlantView> = mandate_sim::economy::plants::of_town(&st.economy, m)
+                .filter_map(|p| plant_view(engine, p.id))
+                .collect();
+            v.sort_by(|a, b| b.jobs_about.cmp(&a.jobs_about).then(a.id.cmp(&b.id)));
+            v
+        },
         concerns: if heard(Subject::TownConcerns { town: m }) {
             concerns_for(st, content, mandate_sim::concerns::Scope::town(m))
         } else {
@@ -1139,6 +1253,11 @@ pub fn place_panel_view(engine: &Engine, loc: LocationDto) -> Option<PlacePanelV
     Some(PlacePanelView {
         location: location_view(st, loc),
         here,
+        plant: match loc {
+            Location::Place { place } => mandate_sim::economy::plants::at_place(&st.economy, place)
+                .and_then(|p| plant_view(engine, p.id)),
+            _ => None,
+        },
         actions: places::actions_at(st, content, loc)
             .into_iter()
             .map(|(k, late)| offer_view(engine, loc, k, late))

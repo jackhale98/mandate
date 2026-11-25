@@ -171,8 +171,9 @@ pub enum Process {
 }
 
 /// A standing condition that crossed a line: not an event, a state of the
-/// world the engine's own formula names (the weakest factor of a sector's
-/// demand when a plant closes; a track in danger).
+/// world the engine's own formula names (the weakest factor of an
+/// industry's demand when a plant goes on short time, gets its notice or
+/// closes; a track in danger).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Pressure {
@@ -188,6 +189,46 @@ pub enum Pressure {
     LabourCosts,
     /// One of the player's tracks reached danger.
     Track,
+    /// Demand in the markets one industry sells to, beyond the world cycle
+    /// (DEC-110): the market that weighs most on it and the good, so a
+    /// tariff or a closed border is a cause the spine can show.
+    ExternalDemand {
+        market: crate::economy::industries::MarketId,
+        good: crate::economy::industries::GoodId,
+    },
+    /// Demand at home for what an industry sells here.
+    HomeDemand,
+    /// The prices of what an industry buys.
+    InputCosts,
+    /// Less is coming in from the industries nearby that it runs on.
+    Supply,
+    /// The region is short of water.
+    Water,
+    /// Idle labour in the town: what draws a new works.
+    SlackLabour,
+    /// A long boom in an industry's demand: what reopens a works.
+    Boom,
+}
+
+impl Pressure {
+    /// Snake-case name: the stable key views and the audit use.
+    pub fn key(self) -> &'static str {
+        match self {
+            Pressure::WorldDemand => "world_demand",
+            Pressure::CommodityPrices => "commodity_prices",
+            Pressure::Depletion => "depletion",
+            Pressure::Competitiveness => "competitiveness",
+            Pressure::LabourCosts => "labour_costs",
+            Pressure::Track => "track",
+            Pressure::ExternalDemand { .. } => "external_demand",
+            Pressure::HomeDemand => "home_demand",
+            Pressure::InputCosts => "input_costs",
+            Pressure::Supply => "supply",
+            Pressure::Water => "water",
+            Pressure::SlackLabour => "slack_labour",
+            Pressure::Boom => "boom",
+        }
+    }
 }
 
 /// Exogenous by design: uncaused inside the simulation, and saying so.
@@ -399,6 +440,9 @@ pub enum Thread {
     Sentence,
     /// An arc run (DEC-109): raised, its stages, its beats, its exit.
     Arc(u32),
+    /// A plant's review (DEC-110): short time, the notice, then the
+    /// reprieve or the closure.
+    Plant(u32),
 }
 
 /// What an event does to its thread.
@@ -461,6 +505,14 @@ pub fn thread(kind: &EventKind, date: SimDate) -> Option<(Thread, Role)> {
         K::CampaignOpened { election_day } => (Thread::Election(election_day.0), Role::Opens),
         K::RaceDecided { .. } => (Thread::Election(date.0), Role::Notes),
         K::ElectionHeld { .. } => (Thread::Election(date.0), Role::Closes),
+        K::PlantOpened { plant, .. } | K::PlantShortTime { plant, .. } => {
+            (Thread::Plant(*plant), Role::Opens)
+        }
+        K::PlantThreatened { plant, .. } => (Thread::Plant(*plant), Role::Advances),
+        K::PlantReprieved { plant, .. }
+        | K::PlantClosure {
+            plant: Some(plant), ..
+        } => (Thread::Plant(*plant), Role::Closes),
         K::ArcRaised { arc, .. } => (Thread::Arc(*arc), Role::Opens),
         K::ArcStage { arc, .. } => (Thread::Arc(*arc), Role::Advances),
         K::ArcBeat { arc, .. } => (Thread::Arc(*arc), Role::Notes),
@@ -504,6 +556,8 @@ pub fn salience(kind: &EventKind) -> Salience {
         | K::InterestRateMove { .. }
         | K::StoryDevelopment { .. } => Salience::Trace,
         K::CommodityShock { .. }
+        | K::IndustryShock { .. }
+        | K::PlantShortTime { .. }
         | K::NationalBudget { .. }
         | K::PolicyIntroduced { .. }
         | K::PolicyWithdrawn { .. }
@@ -528,6 +582,9 @@ pub fn salience(kind: &EventKind) -> Salience {
         K::GlobalRecessionBegan { .. }
         | K::GlobalRecoveryBegan
         | K::PlantClosure { .. }
+        | K::PlantThreatened { .. }
+        | K::PlantReprieved { .. }
+        | K::PlantOpened { .. }
         | K::Disaster { .. }
         | K::PolicyEnacted { .. }
         | K::PolicyFailed { .. }
@@ -572,6 +629,11 @@ pub fn kind_key(kind: &EventKind) -> &'static str {
         K::GlobalRecoveryBegan => "global_recovery_began",
         K::CommodityShock { .. } => "commodity_shock",
         K::PlantClosure { .. } => "plant_closure",
+        K::PlantShortTime { .. } => "plant_short_time",
+        K::PlantThreatened { .. } => "plant_threatened",
+        K::PlantReprieved { .. } => "plant_reprieved",
+        K::PlantOpened { .. } => "plant_opened",
+        K::IndustryShock { .. } => "industry_shock",
         K::InterestRateMove { .. } => "interest_rate_move",
         K::Disaster { .. } => "disaster",
         K::NationalBudget { .. } => "national_budget",

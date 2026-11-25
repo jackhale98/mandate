@@ -62,7 +62,44 @@
     "unemployment_replacement": 0.38,
     "pension_replacement": 0.45,
     "tech_growth": 0.02,           // annual technology growth (a scenario may bias it)
-    "manufacturing_trend": -0.008,  // annual drift of manufacturing competitiveness
+    // The era's drift of manufacturing capacity. Each manufacturing industry
+    // has its own `trend` (industries.jsonc; their weighted mean is about
+    // this); a scenario's era value moves all of them by its difference
+    // from this one.
+    "manufacturing_trend": -0.008,
+    // Industries and named plants (DEC-110): the numbers every industry
+    // shares. A plant's margin-adjusted demand is its industry's demand in
+    // the town × (1 + its margin + any relief).
+    "industries": {
+      "short_line": 0.90,           // under this for short_months: short time
+      "short_months": 2,
+      "full_line": 0.94,            // at or over this for short_months: full time again
+      "notice_line": 0.78,          // under this for notice_after_months: a closure notice
+      "notice_after_months": 9,
+      "notice_months": [4, 9],      // the notice's length: the one draw
+      "reprieve_line": 0.84,        // at or over this for reprieve_months before the date: lifted
+      "reprieve_months": 2,
+      "notice_gap_months": 12,      // one new notice a town in this time, outside a recession
+      "small_decay": 0.005,         // monthly loss of unnamed firms while demand is under the notice line
+      "min_capacity": 200,          // an industry under this many jobs in a town sheds no firms
+      "min_plant": [25, 60, 150, 250],  // smallest named plant: rural, town, city, metro
+      "max_town_share": 0.15,       // most of a town's jobs in one plant when it is placed
+      "factor_months": 6,           // the average of each demand factor that names the cause
+      "trend_months": 120,          // the long average of jobs that anchors supply links
+      "link_range": [0.3, 1.5],
+      "world_range": [0.6, 1.5],
+      "max_industries": [1, 2, 3, 4],   // per split sector: rural, town, city, metro
+      "min_share": 0.12,            // a smaller share of the sector folds into the others
+      "town_sd": 0.25,
+      "boom_line": 1.12,            // a boom: demand over this for boom_months, stock over boom_stock
+      "boom_months": 24,
+      "boom_stock": 0.3,
+      "boom_size": 0.6,             // a reopened pit's size against the one that closed
+      "name_forms": [0.45, 0.30, 0.15, 0.10],   // the town, a family, a word, the district
+      "works_words": ["Albion", "Phoenix", "Union", "Crown", "Atlas", "Anchor", "Beacon", "Eagle", "Globe", "Star", "Vulcan", "Perseverance", "Providence", "Reliance", "Excelsior", "Hope", "Standard", "Pioneer"],
+      "new_plant_margin": 0.05,     // a works opened during a run is the last to go
+      "pool_share": 0.5,            // of what idle labour draws while a closed works waits: toward the works
+    },
     // Where a hazard falls within a town (DEC-090 D8). A strike's town-wide
     // damage is shared by each neighbourhood's exposure (the flood-prone
     // district takes most of a flood), so the town total is unchanged.
