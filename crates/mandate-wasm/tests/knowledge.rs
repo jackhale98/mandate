@@ -555,7 +555,16 @@ fn never_gated_with_an_empty_ledger() {
     let omni_town = municipality_view(&e, town(&e).0);
     wipe(&mut e);
     assert_eq!(campaign_view(&e), omni_campaign);
-    assert_eq!(municipality_view(&e, town(&e).0), omni_town);
+    // The town card's public figures are never gated. Its worries are a
+    // learned subject (DEC-091; M6 note 22): none with an empty ledger, the
+    // first three known in detail.
+    let mut omni_town = omni_town.unwrap();
+    let mut wiped_town = municipality_view(&e, town(&e).0).unwrap();
+    assert!(wiped_town.top_concerns.is_empty());
+    assert_eq!(omni_town.top_concerns.len(), 3);
+    omni_town.top_concerns.clear();
+    wiped_town.top_concerns.clear();
+    assert_eq!(wiped_town, omni_town);
 }
 
 fn req(id: u32, body: RequestBody) -> String {

@@ -1,0 +1,54 @@
+// The town map's layers (DEC-086, M6 note 11): what the town map overview
+// can show over the town. The picker lists them in this order after "Places"
+// (the plain map). Types: `mandate-content/src/town_map_layers.rs`.
+//
+// `kind`: boundaries (outlined areas, each labelled, with whoever holds
+// it), markers (people at places, clustered where they would overlap) or
+// shaded (every neighbourhood filled by its class; an unknown one is drawn as
+// unknown, never as low). `source` is what the engine serves, as an object
+// with a `type`: districts (the home legislature's districts and each seat's
+// holder), people (those the player has heard of, where the player knows
+// them to be) or worries (what each neighbourhood worries about; `top`
+// also offers "each one's top worry"). A source decides its kind and scale
+// and may have a parameter the viewer chooses (worries: which worry); the
+// engine lists the choices. `scale`: party (the app's party colours) or
+// sequential (one hue, light to dark). `filters` (markers): body, party, met.
+// `legend.categories`: how many categories a shaded layer colours when a
+// choice names one per neighbourhood (1–3, then Other).
+//
+// The engine computes what each layer shows, as far as the player knows it
+// (DEC-091), and its legend; the client paints, and lists the same as text.
+{
+  "kind": "town_map_layers",
+  "items": [
+    {
+      "id": "town_map_layer.districts",
+      "label_key": "town-map-layer-districts",
+      "unit_key": "town-map-layer-districts-unit",
+      "note_key": "town-map-layer-districts-note",
+      "kind": "boundaries",
+      "source": { "type": "districts" },
+      "scale": "party",
+    },
+    {
+      "id": "town_map_layer.people",
+      "label_key": "town-map-layer-people",
+      "unit_key": "town-map-layer-people-unit",
+      "note_key": "town-map-layer-people-note",
+      "kind": "markers",
+      "source": { "type": "people" },
+      "scale": "party",
+      "filters": ["body", "party", "met"],
+    },
+    {
+      "id": "town_map_layer.worries",
+      "label_key": "town-map-layer-worries",
+      "unit_key": "town-map-layer-worries-unit",
+      "note_key": "town-map-layer-worries-note",
+      "kind": "shaded",
+      "source": { "type": "worries", "top": true },
+      "scale": "sequential",
+      "legend": { "categories": 3 },
+    },
+  ],
+}

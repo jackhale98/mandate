@@ -189,6 +189,12 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         "map_layers" => ContentFile::MapLayers {
             items: serde_json::from_str::<ItemsFile<crate::map_layers::MapLayerDef>>(json)?.items,
         },
+        "town_map_layers" => ContentFile::TownMapLayers {
+            items: serde_json::from_str::<ItemsFile<crate::town_map_layers::TownMapLayerDef>>(
+                json,
+            )?
+            .items,
+        },
         "routines" => ContentFile::Routines {
             items: serde_json::from_str::<ItemsFile<crate::routines::RoutineDef>>(json)?.items,
         },

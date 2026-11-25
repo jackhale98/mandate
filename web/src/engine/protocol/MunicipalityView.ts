@@ -17,6 +17,9 @@ biome: string, resources: Array<GeoIndexView>, hazards: Array<GeoIndexView>, nei
  */
 communities: Array<CommunityShareView>, 
 /**
- * The town's strongest concerns, strongest first (at most three; DEC-078).
+ * The town's strongest concerns, strongest first (at most three;
+ * DEC-078), as far as the player knows them (DEC-091, M6 note 22): none
+ * until heard of, the top one at `heard`, three from `known`, as the
+ * notebook shows them. Unweighted below `known`.
  */
 top_concerns: Array<ConcernView>, };

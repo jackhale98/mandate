@@ -500,6 +500,16 @@ pub fn whereabouts(state: &State, content: &ContentBundle, id: CharacterId) -> O
     locate(state, content, &Now::of(state, content), id)
 }
 
+/// Where a stored character works, in their own town: their post's
+/// workplace (the constitution's `works_at`), else their own place (what a
+/// routine's `works` spot resolves to). Read-only; it does not depend on
+/// the day. `None` for the player and for anyone with no workplace there.
+pub fn workplace(state: &State, content: &ContentBundle, id: CharacterId) -> Option<Location> {
+    let w = who(state, content, id)?;
+    let now = Now::of(state, content);
+    resolve(state, content, &state.politics, &now, &w, "works")
+}
+
 /// The stored characters of a town (not the player), in id order.
 pub fn townsfolk(state: &State, town: MunicipalityId) -> Vec<CharacterId> {
     let pol = &state.politics;

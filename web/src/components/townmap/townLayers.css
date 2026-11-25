@@ -1,0 +1,140 @@
+/* The town map's layers (DEC-086, M6 note 11): the picker row above the map,
+   the layer drawn over it (a fill a tile to a pixel, outlines, marks), the
+   legend and cards under it, and the list. The map keeps its own pixel-art
+   colours; marks are light chips with dark ink (as the map's name chips) so
+   they read over any ground, in either theme. Phones first (320–412 px). */
+
+/* The picker row. It wraps at narrow widths and with wide fonts. */
+.tml-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: none;
+  padding: 6px 12px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.tml-pick { display: flex; align-items: center; gap: 6px; flex: 1 1 120px; min-width: 0; max-width: 260px; }
+.tml-pick select { flex: 1 1 auto; min-width: 0; width: 100%; max-width: 100%; min-height: 40px; font-weight: 600; text-overflow: ellipsis; }
+.tml-bar .map-list-toggle { margin-left: auto; }
+
+/* The map and, over it, the list. */
+.tml-stage { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* The layer over the canvas: under the place buttons' chips, above the map. */
+.tml { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.tml-fill {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform;
+  image-rendering: pixelated;
+}
+.tml-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tml-outline path { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.tml-outline-case { stroke: rgba(17, 19, 26, 0.85); stroke-width: 4; }
+.tml-outline-line { stroke: #fff8e6; stroke-width: 1.5; }
+.tml-outline-own .tml-outline-case { stroke: #11131a; stroke-width: 7; }
+.tml-outline-own .tml-outline-line { stroke: #e8b44c; stroke-width: 4; }
+.tml[data-kind="shaded"] .tml-outline-case { stroke-width: 2.5; stroke: rgba(17, 19, 26, 0.7); }
+.tml[data-kind="shaded"] .tml-outline-line { stroke: none; }
+
+.tml-marks { position: absolute; inset: 0; }
+.tml-mark {
+  position: absolute; left: 0; top: 0; margin: 0; will-change: transform; visibility: hidden;
+  font: inherit; -webkit-tap-highlight-color: transparent;
+}
+.tml-mark[data-shown="1"] { visibility: visible; }
+button.tml-mark { pointer-events: auto; cursor: pointer; }
+button.tml-mark:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+
+/* A portrait: the person's pixel bust in a ring of their party's colour (the
+   party is also named in the card, the legend and the list). */
+.tml-face {
+  --ring: var(--party-none);
+  display: inline-grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 8px;
+  background: #11131a; border: 3px solid var(--ring); box-shadow: 0 0 0 1.5px #11131a, 0 2px 4px rgba(0, 0, 0, 0.45); overflow: hidden;
+}
+.tml-face-sm { width: 30px; height: 30px; border-width: 2px; border-radius: 6px; }
+.tml-face .portrait.tml-portrait {
+  --p: 2px; --n: 0px; width: 32px; height: 32px; border: 0; box-shadow: none; clip-path: none; filter: none;
+}
+.tml-face .tml-portrait .portrait-canvas { width: 32px; height: 32px; margin: 0; }
+.tml-face-sm .portrait.tml-portrait { width: 26px; height: 26px; }
+.tml-face-sm .tml-portrait .portrait-canvas { width: 26px; height: 26px; }
+.tml-person, .tml-cluster { display: block; width: 38px; height: 38px; padding: 0; border: 0; background: none; border-radius: 8px; line-height: 0; }
+.tml-person.on .tml-face, .tml-cluster.on .tml-face { box-shadow: 0 0 0 3px #fff8e6, 0 0 0 5px #11131a; }
+.tml-count {
+  position: absolute; right: -8px; top: -8px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px;
+  display: grid; place-items: center; background: #fff8e6; color: #11131a; border: 2px solid #11131a;
+  font-size: 0.78rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.tml-person-name, .tml-hood-name {
+  padding: 0 5px; border-radius: 4px; background: rgba(17, 19, 26, 0.66); color: #f5f2ea;
+  font-size: 0.66rem; font-weight: 600; line-height: 1.35; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;
+}
+.tml-hood-name { font-family: var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* A district's name and a neighbourhood's reading: light chips, as the map's own. */
+.tml-area, .tml-hood {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 0; max-width: 170px;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(17, 19, 26, 0.6);
+  background: rgba(245, 242, 234, 0.95); color: #1d1f27; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  font-size: 0.74rem; line-height: 1.2; font-weight: 700; white-space: nowrap; text-align: center;
+}
+.tml-area-yours { border: 2px solid #11131a; background: #e8b44c; color: #1b1405; }
+.tml-area.on, .tml-hood.on { outline: 3px solid #11131a; outline-offset: 1px; }
+.tml-flag { font-size: 0.66rem; font-weight: 700; }
+.tml-hood-title {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-display); font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+}
+.tml-hood-value { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.76rem; }
+.tml-hood-unknown { background: rgba(226, 224, 218, 0.95); border-style: dashed; font-weight: 600; }
+
+/* Under the map: the card of the person tapped, the people sharing a mark, the legend. */
+.tml-panel {
+  flex: none; max-height: 46%; overflow: auto; -webkit-overflow-scrolling: touch;
+  background: var(--surface); border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text);
+}
+.tml-card, .tml-group { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.tml-card { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 10px; }
+.tml-card-text { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.tml-card-text p { margin: 2px 0 0; line-height: 1.3; }
+.tml-card-name { margin: 0; font-size: 0.95rem; line-height: 1.25; }
+.tml-card-actions { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; justify-content: flex-end; }
+.tml-card-actions .btn { min-height: 40px; }
+.tml-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tml-rows { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 0; }
+.tml-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tml-row-text { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+.tml-row-name { font-weight: 700; min-height: 28px; font-size: 0.9rem; }
+.tml-facts .party-chip { gap: 4px; }
+
+.tml-legend { padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
+.tml-readout { display: flex; align-items: flex-start; gap: 8px; min-height: 36px; margin-bottom: 4px; font-size: 0.88rem; line-height: 1.3; }
+.tml-readout > .map-swatch { width: 16px; height: 16px; margin-top: 2px; }
+.tml-readout-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.tml-readout-detail { display: block; font-size: 0.8rem; }
+.tml-readout .you-chip { margin-left: 6px; }
+.tml-legend-head { margin-bottom: 4px; line-height: 1.3; }
+.tml-legend-head strong { font-size: 0.85rem; }
+.tml-bins { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.tml-bins li { display: inline-flex; align-items: center; gap: 6px; padding: 2px 6px 2px 2px; border-radius: 6px; }
+.tml-bins li.on { outline: 2px solid var(--text); }
+.tml-unplaced { margin: 4px 0 0; }
+.tml-unplaced .link-btn { min-height: 32px; }
+.tml-note { margin: 4px 0 0; font-size: 0.75rem; line-height: 1.35; }
+/* Not known: diagonal stripes, on the map and in the legend (never a pale class). */
+.tml-hatch { background: repeating-linear-gradient(135deg, #484c58 0 3px, #9ea2ad 3px 6px); }
+
+/* The layer as a list, over the map. */
+.tml-list { position: absolute; inset: 0; z-index: 1; overflow: auto; -webkit-overflow-scrolling: touch; background: var(--bg); padding: 8px 12px 16px; }
+.tml-list-items { display: flex; flex-direction: column; gap: 8px; }
+.tml-list-item { padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.tml-list-item p { margin: 2px 0 0; line-height: 1.35; overflow-wrap: anywhere; }
+.tml-list-title { margin: 0; font-size: 0.95rem; line-height: 1.3; }
+.tml-list-title .you-chip { margin-left: 6px; }
+.tml-list-empty { margin: 8px 0; }
+
+@media (min-width: 900px) {
+  .tml-bar { padding: 8px 16px; }
+  .tml-pick { flex: 0 1 240px; }
+  .tml-panel { max-height: 38%; }
+  .tml-card-actions { flex: 0 0 auto; }
+  .tml-list { padding: 12px 16px 24px; }
+  .tml-list-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .tml-fill, .tml-mark { will-change: auto; } }

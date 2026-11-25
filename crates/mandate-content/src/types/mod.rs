@@ -142,6 +142,10 @@ pub enum ContentFile {
     MapLayers {
         items: Vec<crate::map_layers::MapLayerDef>,
     },
+    /// The town map's layers (DEC-086): what the town map can show over the town.
+    TownMapLayers {
+        items: Vec<crate::town_map_layers::TownMapLayerDef>,
+    },
     /// Daily routines: where people are through the day (DEC-031).
     Routines {
         items: Vec<crate::routines::RoutineDef>,

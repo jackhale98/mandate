@@ -119,6 +119,11 @@ pub struct ContentBundle {
     /// Presentation data: validated, never read by the simulation.
     #[serde(default)]
     pub map_layers: Vec<crate::map_layers::MapLayerDef>,
+    /// The town map's layers (DEC-086, M6 note 11), in load order (the
+    /// picker's order). Presentation data: validated, never read by the
+    /// simulation.
+    #[serde(default)]
+    pub town_map_layers: Vec<crate::town_map_layers::TownMapLayerDef>,
     /// Interior recipes (DEC-088), in load order: presentation data for the
     /// client's room composer, validated, never read by the simulation.
     #[serde(default)]
@@ -459,6 +464,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut terrain_features: Vec<crate::layout::TerrainFeatureDef> = Vec::new();
     let mut connectors: Vec<crate::layout::ConnectorDef> = Vec::new();
     let mut map_layers: Vec<crate::map_layers::MapLayerDef> = Vec::new();
+    let mut town_map_layers: Vec<crate::town_map_layers::TownMapLayerDef> = Vec::new();
     let mut interiors: Vec<crate::interiors::InteriorRecipe> = Vec::new();
     let mut routines: Vec<crate::routines::RoutineDef> = Vec::new();
     let mut talk_topics: Vec<crate::conversation::TopicDef> = Vec::new();
@@ -800,6 +806,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                     }
                 }
             }
+            ContentFile::TownMapLayers { items } => {
+                for x in items {
+                    if claim(&x.id, &mut issues) {
+                        town_map_layers.push(x);
+                    }
+                }
+            }
             ContentFile::Routines { items } => {
                 for x in items {
                     if claim(&x.id, &mut issues) {
@@ -1095,6 +1108,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         terrain_features,
         connectors,
         map_layers,
+        town_map_layers,
         interiors,
         routines,
         talk_topics,

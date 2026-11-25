@@ -17335,6 +17335,185 @@
       ],
       "type": "object"
     },
+    "TownLayerFilter": {
+      "description": "A way to narrow a markers layer. The engine says which markers each\nfilter keeps; the client only hides the rest.",
+      "oneOf": [
+        {
+          "const": "body",
+          "description": "The members of the home legislature (named by the constitution).",
+          "type": "string"
+        },
+        {
+          "const": "party",
+          "description": "One filter per party that has someone on the layer.",
+          "type": "string"
+        },
+        {
+          "const": "met",
+          "description": "People the player knows (met or seen), not only heard of.",
+          "type": "string"
+        }
+      ]
+    },
+    "TownLayerKind": {
+      "description": "How a layer is drawn over the town.",
+      "oneOf": [
+        {
+          "const": "boundaries",
+          "description": "Outlines of areas made of neighbourhoods, each labelled, with a\nmarker for whoever holds it.",
+          "type": "string"
+        },
+        {
+          "const": "markers",
+          "description": "People or things at places, clustered where they would overlap.",
+          "type": "string"
+        },
+        {
+          "const": "shaded",
+          "description": "Every neighbourhood filled by its class of a figure; an unknown\nneighbourhood is drawn as unknown, never as the lowest class.",
+          "type": "string"
+        }
+      ]
+    },
+    "TownLayerScale": {
+      "description": "How a layer's marks are coloured. Colour never carries identity alone:\nevery district and neighbourhood is labelled and the legend is always\nshown.",
+      "oneOf": [
+        {
+          "const": "party",
+          "description": "The app's party colours, each party named in the legend.",
+          "type": "string"
+        },
+        {
+          "const": "sequential",
+          "description": "One hue, light to dark: a magnitude.",
+          "type": "string"
+        }
+      ]
+    },
+    "TownLayerSource": {
+      "description": "What the engine serves for a layer. An unknown `type` fails when the\ncontent loads; each variant is an object so a source can carry settings\nof its own.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "description": "The districts of the legislature of the player's home jurisdiction\n(the constitution's body, by procedure), from the\nneighbourhood-to-district mapping its elections use, with each\nseat's holder.",
+          "properties": {
+            "type": {
+              "const": "districts",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The people the player has at least heard of, at their workplace or\nwhere the player last saw them, as far as the player knows either.",
+          "properties": {
+            "type": {
+              "const": "people",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "What each neighbourhood worries about (the one ranking, as felt), as\nfar as the player knows it. Its parameter is the worry.",
+          "properties": {
+            "top": {
+              "default": true,
+              "description": "Also offer \"each neighbourhood's top worry\" as the first choice\n(categories, not a magnitude).",
+              "type": "boolean"
+            },
+            "type": {
+              "const": "worries",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TownLegendDef": {
+      "additionalProperties": false,
+      "description": "A layer's legend.",
+      "properties": {
+        "categories": {
+          "description": "Shaded layers: where a choice names a category per neighbourhood\n(each one's top worry), how many categories get a colour of their own\n(1–3, the most common; the rest fold into \"Other\"). Default 3.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "TownMapLayerDef": {
+      "additionalProperties": false,
+      "description": "One town map layer.",
+      "properties": {
+        "filters": {
+          "description": "Markers layers: the filters offered, in order.",
+          "items": {
+            "$ref": "#/$defs/TownLayerFilter"
+          },
+          "type": "array"
+        },
+        "id": {
+          "description": "Content id, `town_map_layer.<name>`. The picker lists layers in load order.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/TownLayerKind"
+        },
+        "label_key": {
+          "description": "Fluent key of the layer's name in the picker and the legend. Given\n`$tier` (the home jurisdiction's tier), so a name can follow the\nconstitution's words.",
+          "type": "string"
+        },
+        "legend": {
+          "$ref": "#/$defs/TownLegendDef",
+          "default": {}
+        },
+        "note_key": {
+          "description": "Fluent key of a short note under the legend.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scale": {
+          "$ref": "#/$defs/TownLayerScale"
+        },
+        "source": {
+          "$ref": "#/$defs/TownLayerSource",
+          "description": "What the engine serves for it."
+        },
+        "unit_key": {
+          "description": "Fluent key of the legend's line (what the marks are); given `$tier`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label_key",
+        "unit_key",
+        "kind",
+        "source",
+        "scale"
+      ],
+      "type": "object"
+    },
     "TrackKey": {
       "description": "A pressure track, record, or Mandate (DEC-006, DEC-011, DEC-076).",
       "oneOf": [
@@ -19276,6 +19455,27 @@
         },
         "kind": {
           "const": "map_layers",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "items"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "description": "The town map's layers (DEC-086): what the town map can show over the town.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TownMapLayerDef"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "town_map_layers",
           "type": "string"
         }
       },

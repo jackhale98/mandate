@@ -274,6 +274,9 @@ impl Session {
                 QueryDto::Town => town_places_view(self.engine_mut()?)
                     .map(ResponseBody::Town)
                     .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
+                QueryDto::TownMapLayers => town_map_layers_view(self.engine_mut()?)
+                    .map(ResponseBody::TownMapLayers)
+                    .ok_or_else(|| err(ErrorCode::NoGame, "no player in this game")),
                 QueryDto::Place { location } => place_panel_view(self.engine_mut()?, location)
                     .map(ResponseBody::Place)
                     .ok_or_else(|| err(ErrorCode::BadRequest, "no such place in your town")),

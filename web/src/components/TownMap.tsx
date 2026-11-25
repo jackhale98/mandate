@@ -6,9 +6,21 @@
 // the pocket's Places tab stays the text alternative with exactly the same
 // places (DEC-051). Presentation only: the
 // engine says what a place offers, where the player is and what is waiting.
+//
+// Layers (M6 note 11; DEC-089's pattern): a picker lists the engine's town
+// map layers (`town_map_layers`: districts and who holds each seat, people
+// where the player knows to find them, what each neighbourhood worries
+// about), each drawn over the map (./townmap/TownLayerOverlay), read in a
+// legend under it and listed as text by "List" (DEC-051). The layer chosen is
+// remembered per device, as the country map's is. Everything a layer shows
+// is the engine's view; this only draws it.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { engine, expectKind } from "../engine/client";
 import type { LocationDto } from "../engine/protocol/LocationDto";
 import type { PocketView } from "../engine/protocol/PocketView";
+import type { TownAreaView } from "../engine/protocol/TownAreaView";
+import type { TownMapLayersView } from "../engine/protocol/TownMapLayersView";
+import type { TownMarkerView } from "../engine/protocol/TownMarkerView";
 import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 import { bakeTownMap, type BakedTownMap } from "../hub/render/townMapRenderer";
 import type { TownInput } from "../hub/townInput";
@@ -24,6 +36,11 @@ import { IdbPlanStore, TownPlanCache } from "../hub/townPlanCache";
 import type { Translator } from "../i18n/fluent";
 import { hoodLabel, placeIcon, placeName } from "../places/labels";
 import { useGame } from "../state/gameStore";
+import { TownLayerList } from "./townmap/TownLayerList";
+import { TownLayerOverlay, type LayerFocus } from "./townmap/TownLayerOverlay";
+import { LayerLegend, PeopleList, PersonCard } from "./townmap/TownLayerPanel";
+import { NO_LAYER, chosenOption, keptBy, layerKey, partyName, placeMarkers, readLayer, writeLayer } from "./townmap/layerModel";
+import "./townmap/townLayers.css";
 
 // ---------------------------------------------------------------------------
 // Scene and bake, made once per dressed map and place list (moving around does not change them)
@@ -191,6 +208,37 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<TownMapView | null>(null);
   const [quiet, setQuiet] = useState<string | null>(null);
+  const setOpen = useGame((s) => s.setTownMapOpen);
+  const openCharacter = useGame((s) => s.openCharacter);
+  const openTalk = useGame((s) => s.openTalk);
+  const visit = useGame((s) => s.visit);
+  // The layers, as the engine serves them: fetched when the map opens and after every command (the pocket is new then).
+  const [layers, setLayers] = useState<TownMapLayersView | null>(null);
+  const [chosen, setChosen] = useState<string>(readLayer);
+  const [params, setParams] = useState<Record<string, string>>({});
+  const [filterId, setFilterId] = useState("all");
+  const [list, setList] = useState(false);
+  const [focus, setFocus] = useState<LayerFocus>(null);
+  // What the view calls after each frame: the overlay's placing while a layer is drawn.
+  const frame = useRef<() => void>(() => {});
+  useEffect(() => {
+    let live = true;
+    engine()
+      .request({ kind: "query", payload: { type: "town_map_layers" } })
+      .then((b) => live && setLayers(expectKind(b, "town_map_layers")))
+      .catch(() => {
+        // The map still works without layers; the picker offers only the plain map.
+      });
+    return () => {
+      live = false;
+    };
+  }, [pocket]);
+  const layer = layers?.layers.find((l) => layerKey(l) === chosen) ?? null;
+  const data = layer?.data ?? null;
+  const option = data?.kind === "shaded" ? chosenOption(data.options, layer ? params[layer.id] : undefined) : null;
+  const filter = data?.kind === "markers" && data.filters.some((f) => f.id === filterId) ? filterId : "all";
+  // The map's own name chips stay where they help (the plain map, and people at places).
+  const chips = !data || data.kind === "markers";
 
   const here = useMemo(() => hotspotOf(scene.hotspots, pocket?.location.location ?? town.location)?.key ?? null, [scene, pocket, town.location]);
   const waiting = useMemo(() => waitingAt(pocket), [pocket]);
@@ -218,7 +266,7 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
     const layer = layerRef.current;
     if (!wrap || !canvas || !layer) return;
     const reducedMotion = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const view = new TownMapView(wrap, canvas, layer, { scene, baked, reducedMotion, onActivate: (h) => activate.current(h) });
+    const view = new TownMapView(wrap, canvas, layer, { scene, baked, reducedMotion, onActivate: (h) => activate.current(h), onFrame: () => frame.current() });
     viewRef.current = view;
     window.__townMap = {
       timings: built.timings,
@@ -248,9 +296,128 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
     if (h) viewRef.current?.walkTo(h, WALK_MAX_MS);
   }, [walking, scene]);
 
+  // The list covers the map: the keyboard and screen readers skip what is under it.
+  useEffect(() => {
+    if (wrapRef.current) wrapRef.current.inert = list && layer !== null;
+  }, [list, layer]);
+
+  // --- Layers: what is being read, and what a tap on a mark does.
+  const choose = (key: string) => {
+    setChosen(key);
+    writeLayer(key);
+    setFocus(null);
+    if (key === NO_LAYER) setList(false);
+  };
+  const spotName = (key: string | null) => {
+    const h = key === null ? undefined : scene.hotspots.find((x) => x.key === key);
+    return h ? hotspotName(tr, h) : "";
+  };
+  const marker = (id: number): TownMarkerView | null => {
+    if (data?.kind === "boundaries") return data.areas.find((a) => a.holder?.person.id === id)?.holder ?? null;
+    if (data?.kind === "markers") return data.markers.find((m) => m.person.id === id) ?? null;
+    return null;
+  };
+  const person = focus?.type === "person" ? marker(focus.id) : null;
+  const group = focus?.type === "people" && data?.kind === "markers" ? data.markers.filter((m) => m.person.id !== null && focus.ids.includes(m.person.id)) : null;
+  const area: TownAreaView | null = focus?.type === "area" && data?.kind === "boundaries" ? (data.areas.find((a) => a.number === focus.number) ?? null) : null;
+  const unplaced = data?.kind === "markers" ? placeMarkers(scene.hotspots, keptBy(data.markers, filter)).unplaced : [];
+  const onPerson = (m: TownMarkerView) => {
+    if (m.person.id !== null) setFocus({ type: "person", id: m.person.id });
+  };
+  // Their full card is a sheet of the main screen: the map closes for it.
+  const openCard = (m: TownMarkerView) => {
+    if (m.person.id === null) return;
+    setOpen(false);
+    void openCharacter(m.person.id);
+  };
+  // Go to them: where the engine's talk view says they can be found now (auto-routed, DEC-079), walked in the street as a tapped place is.
+  const goTo = async (m: TownMarkerView) => {
+    if (m.person.id === null) return;
+    const to = { type: "person" as const, person: m.person.id };
+    try {
+      const v = expectKind(await engine().request({ kind: "query", payload: { type: "talk", to, late_night: false } }), "talk");
+      const at = v.route?.to?.location;
+      if (at) {
+        const h = hotspotOf(scene.hotspots, at);
+        if (h) return onPick(h);
+        setOpen(false);
+        return void visit(at);
+      }
+    } catch {
+      // The talk panel says where they are, or why not.
+    }
+    setOpen(false);
+    await openTalk(to);
+  };
+
   const label = tr.t("ui-town-map-label", { town: town.municipality, n: scene.hotspots.filter((h) => h.active).length });
   return (
-    <div className="town-map" data-testid="town-map">
+    <div className="town-map" data-testid="town-map" data-layer={layer ? layerKey(layer) : NO_LAYER} data-layers={layers ? layers.layers.length : undefined}>
+      <div className="tml-bar" data-testid="town-map-bar">
+        <label className="tml-pick">
+          <span className="muted small map-layer-label">{tr.t("ui-overlay")}</span>
+          <select value={layer ? chosen : NO_LAYER} onChange={(e) => choose(e.target.value)} data-testid="town-map-layer" aria-label={tr.t("ui-overlay")}>
+            <option value={NO_LAYER}>{tr.t("ui-town-map-layer-none")}</option>
+            {layers?.layers.map((l) => (
+              <option key={l.id} value={layerKey(l)}>
+                {tr.t(l.label_key, l.args)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {layer && data?.kind === "shaded" && data.options.length > 1 && (
+          <label className="tml-pick">
+            <select
+              value={option?.id ?? ""}
+              onChange={(e) => {
+                setParams({ ...params, [layer.id]: e.target.value });
+                setFocus(null);
+              }}
+              data-testid="town-map-param"
+              aria-label={data.param_label_key ? tr.t(data.param_label_key) : tr.t("ui-overlay")}
+            >
+              {data.options.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {tr.t(o.label_key)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {layer && data?.kind === "markers" && data.filters.length > 1 && (
+          <label className="tml-pick">
+            <select
+              value={filter}
+              onChange={(e) => {
+                setFilterId(e.target.value);
+                setFocus(null);
+              }}
+              data-testid="town-map-filter"
+              aria-label={tr.t("ui-town-map-filter")}
+            >
+              {data.filters.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.label_key ? tr.t(f.label_key) : (partyName(layers?.parties ?? [], f.party) ?? "")} ({f.count})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {layer && (
+          <button
+            type="button"
+            className={list ? "btn btn-sm map-list-toggle on" : "btn btn-sm btn-ghost map-list-toggle"}
+            aria-pressed={list}
+            onClick={() => setList(!list)}
+            title={tr.t(list ? "ui-map-list-hide" : "ui-town-map-list-show")}
+            data-testid="town-map-list-toggle"
+          >
+            <span aria-hidden="true">☰ </span>
+            {tr.t("ui-map-list")}
+          </button>
+        )}
+      </div>
+      <div className="tml-stage">
       <div
         ref={wrapRef}
         className="town-map-wrap"
@@ -281,7 +448,7 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
               />
             );
           })}
-          {scene.hotspots.map((h) => {
+          {(chips ? scene.hotspots : []).map((h) => {
             const isHere = h.key === here;
             const w = waitingText(tr, waiting.get(h.key));
             const cls = ["town-map-chip", `town-map-chip-${h.kind}`, h.active ? "" : "town-map-chip-quiet", isHere ? "town-map-chip-here" : "", w ? "town-map-chip-waiting" : "", h.landmark ? "town-map-chip-landmark" : ""].filter(Boolean).join(" ");
@@ -297,6 +464,25 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
             );
           })}
         </div>
+        {layer && layers && (
+          <TownLayerOverlay
+            tr={tr}
+            map={map}
+            scene={scene}
+            view={layers}
+            layer={layer}
+            option={option}
+            filter={filter}
+            focus={focus}
+            spotName={spotName}
+            getView={() => viewRef.current}
+            frameRef={frame}
+            onPerson={onPerson}
+            onCluster={(c) => setFocus({ type: "people", key: c.key, title: tr.t("ui-town-map-cluster-title", { place: spotName(c.spot ?? c.members[0]?.spot ?? null) }), ids: c.members.flatMap((p) => (p.marker.person.id === null ? [] : [p.marker.person.id])) })}
+            onHood={(id) => setFocus({ type: "hood", id })}
+            onArea={(a) => setFocus({ type: "area", number: a.number })}
+          />
+        )}
         <div className="town-map-tools" data-map-control="">
           <button type="button" className="btn btn-sm town-map-tool" onClick={() => viewRef.current?.zoomBy(1.5)} aria-label={tr.t("ui-town-map-zoom-in")} title={tr.t("ui-town-map-zoom-in")}>
             +
@@ -309,9 +495,28 @@ export function TownMap({ town, map, onPick }: TownMapProps) {
           </button>
         </div>
       </div>
-      <p className="town-map-status small" role="status" data-testid="town-map-status">
-        {quiet}
-      </p>
+        {list && layer && layers && <TownLayerList tr={tr} view={layers} layer={layer} option={option} filter={filter} onPerson={onPerson} />}
+        <p className="town-map-status small" role="status" data-testid="town-map-status">
+          {quiet}
+        </p>
+      </div>
+      {layer && layers && (
+        <div className="tml-panel" data-testid="town-map-panel">
+          {person && <PersonCard tr={tr} m={person} view={layers} busy={busy} onClose={() => setFocus(null)} onOpenCard={openCard} onGo={(m) => void goTo(m)} />}
+          {group && focus?.type === "people" && <PeopleList tr={tr} title={focus.title} people={group} view={layers} onPerson={onPerson} onClose={() => setFocus(null)} />}
+          <LayerLegend
+            tr={tr}
+            view={layers}
+            layer={layer}
+            option={option}
+            hood={focus?.type === "hood" ? focus.id : null}
+            area={area}
+            unplaced={unplaced.length}
+            onUnplaced={() => setFocus({ type: "people", key: "unplaced", title: tr.t("ui-town-map-unplaced"), ids: unplaced.flatMap((m) => (m.person.id === null ? [] : [m.person.id])) })}
+            onPerson={onPerson}
+          />
+        </div>
+      )}
       <p id="town-map-help" className="muted small town-map-help">
         {tr.t("ui-town-map-help")}
       </p>

@@ -173,6 +173,7 @@ pub(super) fn validate_fluent_refs(b: &ContentBundle, issues: &mut Vec<Issue>) {
         }
     }
     referenced.extend(crate::map_layers::fluent_refs(b));
+    referenced.extend(crate::town_map_layers::fluent_refs(b));
     referenced.extend(crate::act::fluent_refs(b));
     for (owner, key) in referenced {
         if !en.contains(key) {
