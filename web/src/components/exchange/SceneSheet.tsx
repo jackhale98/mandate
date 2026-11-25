@@ -238,7 +238,7 @@ function Scene({ v }: { v: ArcSceneView }) {
             <span className="scn-scale" aria-hidden="true" data-step={g.lean ? String(g.lean.step) : "?"}>
               <span className="scn-scale-line" />
               <span className="scn-mark">{g.lean ? "◆" : "?"}</span>
-              {g.moved_steps !== null && g.moved_steps !== 0 && <span className="scn-moved">{g.moved_steps > 0 ? "▲" : "▼"}</span>}
+              {g.moved_steps !== null && g.moved_steps !== 0 && <span className="scn-moved">{g.moved_steps > 0 ? "+" : "−"}</span>}
             </span>
           )}
         </li>

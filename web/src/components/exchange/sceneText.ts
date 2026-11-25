@@ -18,13 +18,14 @@ export function groupName(tr: Translator, v: ArcSceneView, key: string, short = 
   return say(tr, short ? g.short : g.label);
 }
 
-/** "▲▲", "▼", "?" (a range whose ends differ in sign), "·" (no change). */
+/** "++", "−", "?" (a range whose ends differ in sign), "·" (no change). Signs, not arrows: ▲ and ▼ are how
+ *  someone feels about the player, in the Notebook (owner, 2026-11-25). */
 export function arrows(c: { lo_steps: number; hi_steps: number }): string {
   const { lo_steps: lo, hi_steps: hi } = c;
   if (lo !== hi && (Math.sign(lo) !== Math.sign(hi) || lo === 0 || hi === 0)) return "?";
   const n = Math.abs(lo) > Math.abs(hi) ? lo : hi;
   if (n === 0) return "·";
-  return (n > 0 ? "▲" : "▼").repeat(Math.min(3, Math.abs(n)));
+  return (n > 0 ? "+" : "−").repeat(Math.min(3, Math.abs(n)));
 }
 
 /** A change in words: "Lands well with Quarryrow", "Not known how it lands with Millfield". */
