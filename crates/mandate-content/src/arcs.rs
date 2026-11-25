@@ -436,6 +436,9 @@ pub enum ArcEffect {
     },
     /// The run's own heat.
     Heat { delta: f32 },
+    /// The player learns of a cast person, or of the worries of a cast
+    /// area, to a level (the player applies; never lowered).
+    Learn { role: String, level: Level },
     /// Approval of the jurisdiction's government in an area. Not yet: A5b.
     GovApproval { area: String, delta: f64 },
     /// A place's state for the dress pass (boarded, marked). Not yet: A5a.
@@ -454,6 +457,7 @@ impl ArcEffect {
             | ArcEffect::Displacement { area, .. }
             | ArcEffect::GovApproval { area, .. } => vec![(area.as_str(), RoleKind::Area)],
             ArcEffect::PlaceState { place, .. } => vec![(place.as_str(), RoleKind::Spot)],
+            ArcEffect::Learn { role, .. } => vec![(role.as_str(), RoleKind::Known)],
             ArcEffect::Record { .. }
             | ArcEffect::Standing { .. }
             | ArcEffect::Budget { .. }
@@ -481,6 +485,7 @@ impl ArcEffect {
             ArcEffect::Displacement { .. } => "displacement",
             ArcEffect::Budget { .. } => "budget",
             ArcEffect::Heat { .. } => "heat",
+            ArcEffect::Learn { .. } => "learn",
             ArcEffect::GovApproval { .. } => "gov_approval",
             ArcEffect::PlaceState { .. } => "place_state",
         }
@@ -496,6 +501,8 @@ pub enum RoleKind {
     Jurisdiction,
     /// A place or an area (somewhere to be).
     Spot,
+    /// A person or an area (something to learn of).
+    Known,
     /// Whatever raised the arc.
     Subject,
 }
@@ -517,7 +524,9 @@ impl ArcCast {
 
 impl RoleKind {
     fn accepts(self, got: RoleKind) -> bool {
-        self == got || (self == RoleKind::Spot && matches!(got, RoleKind::Place | RoleKind::Area))
+        self == got
+            || (self == RoleKind::Spot && matches!(got, RoleKind::Place | RoleKind::Area))
+            || (self == RoleKind::Known && matches!(got, RoleKind::Person | RoleKind::Area))
     }
 
     fn word(self) -> &'static str {
@@ -527,6 +536,7 @@ impl RoleKind {
             RoleKind::Place => "a place",
             RoleKind::Jurisdiction => "a jurisdiction",
             RoleKind::Spot => "a place or an area",
+            RoleKind::Known => "a person or an area",
             RoleKind::Subject => "the subject",
         }
     }
@@ -586,7 +596,8 @@ pub struct ArcReplyDef {
     pub teaches: Option<Level>,
 }
 
-/// The seven beat kinds, each riding on a system that exists.
+/// The beat kinds: seven riding on a system that exists, and the exchange
+/// (DEC-112), a played scene.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BeatKind {
@@ -626,6 +637,10 @@ pub enum BeatKind {
         /// How Today and the skip summary report it.
         line_key: String,
     },
+    /// A played scene of a few rounds (DEC-112; [`crate::exchange`]): the
+    /// other side puts true things to the player, who answers with lines
+    /// they have earned, before an audience bound from live state.
+    Exchange(Box<crate::exchange::ArcExchangeDef>),
 }
 
 impl BeatKind {
@@ -638,6 +653,7 @@ impl BeatKind {
             BeatKind::Press { .. } => "press",
             BeatKind::Heard { .. } => "heard",
             BeatKind::Move { .. } => "move",
+            BeatKind::Exchange(_) => "exchange",
         }
     }
 
@@ -649,6 +665,7 @@ impl BeatKind {
                 | BeatKind::Ask { .. }
                 | BeatKind::Talk { .. }
                 | BeatKind::Visit { .. }
+                | BeatKind::Exchange(_)
         )
     }
 }
@@ -740,6 +757,14 @@ pub fn not_yet(a: &ArcDef) -> Vec<String> {
                 BeatKind::Talk { choice, .. } => {
                     for e in choice.replies.iter().flat_map(|r| r.effects.iter()) {
                         effect(&at, e, &mut out);
+                    }
+                }
+                BeatKind::Exchange(x) => {
+                    for e in x.outcome.values().flat_map(|o| o.effects.iter()) {
+                        effect(&at, e, &mut out);
+                    }
+                    for n in x.not_yet() {
+                        out.push(format!("{at}: {n}"));
                     }
                 }
                 _ => {}
@@ -931,6 +956,7 @@ impl Checker<'_> {
                 }
                 ArcEffect::Heat { delta } => !(-1.0..=1.0).contains(delta),
                 ArcEffect::Budget { factor, .. } => !(0.8..=1.25).contains(factor),
+                ArcEffect::Learn { level, .. } => *level == Level::Unknown,
                 ArcEffect::Favour { .. }
                 | ArcEffect::Displacement { .. }
                 | ArcEffect::PlaceState { .. } => false,
@@ -945,12 +971,399 @@ impl Checker<'_> {
     }
 }
 
+/// Arguments an exchange's sentences may use beside the arc's own: the
+/// thing a prompt or a line names, as names and keys (facts, never prose).
+pub const EXCHANGE_ARGS: [&str; 13] = [
+    "group",
+    "worry_key",
+    "law_key",
+    "promise_key",
+    "fact_key",
+    "other",
+    "second",
+    "size",
+    "n",
+    "of",
+    "round",
+    "outcome",
+    "last_day",
+];
+
+/// The sentences every scene shares (`locale/en/exchange.ftl`): labels,
+/// costs and risks, locked reasons, how the room took it, the words the
+/// audience strip needs.
+pub fn exchange_shared_keys() -> Vec<String> {
+    use crate::exchange::{MoveKind, Outcome};
+    let mut out: Vec<String> = MoveKind::ALL
+        .iter()
+        .map(|k| format!("exchange-label-{}", k.key()))
+        .collect();
+    for k in [
+        "record",
+        "heard",
+        "turn-unknown",
+        "turn-nothing",
+        "promise",
+        "act",
+        "second",
+        "proof",
+    ] {
+        out.push(format!("exchange-locked-{k}"));
+    }
+    for k in [
+        "cost-promise",
+        "cost-remembers",
+        "cost-aired",
+        "cost-draft",
+        "cost-retires",
+        "cost-standing",
+        "cost-denial",
+        "cost-slot",
+        "cost-second",
+        "cost-public",
+        "risk-secondhand",
+        "note-votes",
+        "note-cools",
+        "room-well",
+        "room-some",
+        "room-flat",
+        "room-badly",
+        "room-failed",
+        "group-elsewhere",
+        "class-0",
+        "class-1",
+        "class-2",
+        "answer-yes",
+        "answer-no",
+        "answer-maybe",
+        "interrupt",
+    ] {
+        out.push(format!("exchange-{k}"));
+    }
+    for o in Outcome::ALL {
+        out.push(format!("exchange-outcome-{}", o.key()));
+    }
+    out
+}
+
+impl Checker<'_> {
+    /// An exchange beat (DEC-112; EXCHANGE_SCENES §9.4's static lints).
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+    fn exchange<'m>(
+        &self,
+        at: &str,
+        stage: &StageDef,
+        beat: &'m ArcBeat,
+        x: &'m crate::exchange::ArcExchangeDef,
+        marks_set: &mut BTreeSet<&'m str>,
+        marks_seen: &mut BTreeSet<&'m str>,
+        issues: &mut Vec<Issue>,
+    ) {
+        use crate::exchange::{AudienceFrom, MoveKind, OF_HERE, OF_RACE, Outcome};
+        let p = &self.b.exchange;
+        let err = |issues: &mut Vec<Issue>, msg: String| self.err(issues, format!("{at}: {msg}"));
+        if !stage.climax {
+            err(
+                issues,
+                "a scene is held only at a turn: its stage is not `climax` \
+                 (exchange-not-at-turn)"
+                    .into(),
+            );
+        }
+        if !beat.once {
+            err(issues, "a scene is played once".into());
+        }
+        self.role(at, &x.at, RoleKind::Place, issues);
+        if self.a.role(&x.at).is_some_and(|r| r.optional) {
+            err(issues, format!("its place `{}` must always be cast", x.at));
+        }
+        self.role(at, &x.sides.other, RoleKind::Person, issues);
+        for r in x.sides.chair.iter().chain(x.sides.second.iter()) {
+            self.role(at, r, RoleKind::Person, issues);
+        }
+        // Rounds and prompts.
+        let rounds = x.rounds(p);
+        if !(1..=5).contains(&rounds) {
+            err(issues, "rounds are 1..5".into());
+        }
+        for n in 1..=rounds {
+            let defs: Vec<_> = x.prompts.iter().filter(|r| r.round == n).collect();
+            match defs.as_slice() {
+                [] => err(issues, format!("round {n} has no prompts")),
+                [r] => {
+                    if r.from.is_empty() {
+                        err(issues, format!("round {n} lists no source"));
+                    } else if !r.from.last().is_some_and(|s| s.always()) {
+                        err(
+                            issues,
+                            format!(
+                                "round {n} can fall silent (exchange-no-fallback): its sources \
+                                 can all be empty; end it in `top_worry` or `the_matter`"
+                            ),
+                        );
+                    }
+                    if r.by == crate::exchange::Speaker::Chair && x.sides.chair.is_none() {
+                        err(issues, format!("round {n} is the chair's, and there is none"));
+                    }
+                }
+                _ => err(issues, format!("round {n} is listed twice")),
+            }
+        }
+        if x.prompts.iter().any(|r| r.round == 0 || r.round > rounds) {
+            err(issues, format!("a prompt names a round outside 1..{rounds}"));
+        }
+        // Moves.
+        let has = |k: MoveKind| x.moves.contains(&k);
+        let mut seen: Vec<MoveKind> = Vec::new();
+        for k in &x.moves {
+            if seen.contains(k) {
+                err(issues, format!("move `{}` is listed twice", k.key()));
+            }
+            seen.push(*k);
+        }
+        if !has(MoveKind::Pass) {
+            err(
+                issues,
+                "its `moves` lack `pass` (exchange-no-safe-move): one safe move is always there"
+                    .into(),
+            );
+        }
+        let campaign = {
+            let mut all = Vec::new();
+            crate::condition::walk(&self.a.raise, &mut all);
+            all.iter()
+                .any(|c| matches!(c, Condition::Campaigning { is: true }))
+        };
+        let adds = |k: MoveKind| x.prep.iter().any(|r| r.adds == Some(k));
+        let sources: Vec<crate::exchange::SourceKind> =
+            x.prompts.iter().flat_map(|r| r.from.iter().copied()).collect();
+        let never = |issues: &mut Vec<Issue>, k: MoveKind, why: &str| {
+            err(
+                issues,
+                format!(
+                    "move `{}` can never be offered (exchange-move-no-requirement): it needs {}, \
+                     and {why}",
+                    k.key(),
+                    k.requirement().unwrap_or("nothing")
+                ),
+            );
+        };
+        if has(MoveKind::Second) && (x.sides.second.is_none() || !adds(MoveKind::Second)) {
+            never(
+                issues,
+                MoveKind::Second,
+                "the scene has no `second` side or no `prep` mark that adds it",
+            );
+        }
+        if has(MoveKind::Promise) && !campaign {
+            never(
+                issues,
+                MoveKind::Promise,
+                "no campaign raises this arc (a promise outside one needs an ask, not built yet)",
+            );
+        }
+        if has(MoveKind::Act) && self.a.answers.is_empty() && self.b.crises.is_empty() {
+            never(
+                issues,
+                MoveKind::Act,
+                "the arc has no `answers` and the pack no crisis with any",
+            );
+        }
+        if has(MoveKind::Proof) && !adds(MoveKind::Proof) {
+            never(issues, MoveKind::Proof, "no `prep` mark adds it");
+        }
+        if has(MoveKind::Own) && !sources.iter().any(|s| s.fault()) {
+            never(issues, MoveKind::Own, "no round lists a fault of the player's");
+        }
+        if has(MoveKind::Deny) && !sources.iter().any(|s| s.deniable()) {
+            never(issues, MoveKind::Deny, "no round lists a fact to deny");
+        }
+        // A private table airs no secret, from either side (DEC-112,
+        // the owner's answer 2).
+        if x.table.is_some()
+            && (sources.contains(&crate::exchange::SourceKind::HiddenFact)
+                || has(MoveKind::Deny)
+                || has(MoveKind::Proof))
+        {
+            err(
+                issues,
+                "a scene with a `table` is private (exchange-private-secret): it lists no \
+                 `hidden_fact` source and no `deny` or `proof` line"
+                    .into(),
+            );
+        }
+        // The audience.
+        if x.audience.is_empty() || x.audience.len() > 5 {
+            err(issues, "an audience is one to five sources".into());
+        }
+        let uncast = |issues: &mut Vec<Issue>, why: String| {
+            err(issues, format!("{why} (exchange-audience-uncast)"));
+        };
+        let mut sure = false;
+        for a in &x.audience {
+            if a.max.is_some_and(|m| m == 0 || m > 5) {
+                err(issues, "an audience's `max` is 1..5".into());
+            }
+            match a.from {
+                AudienceFrom::Members => match a.power {
+                    None => uncast(issues, "`members` needs a `power`".into()),
+                    Some(power) => {
+                        for tier in &self.a.tiers {
+                            let held = self.b.constitutions.values().any(|c| {
+                                c.tiers.iter().filter(|t| t.tier == *tier).any(|t| {
+                                    t.posts().any(|post| post.powers().contains(&power))
+                                })
+                            });
+                            if !held {
+                                uncast(
+                                    issues,
+                                    format!(
+                                        "no post of tier `{tier:?}` lists the power `{power:?}`"
+                                    ),
+                                );
+                            }
+                        }
+                        sure = true;
+                    }
+                },
+                AudienceFrom::Person => match a.role.as_deref() {
+                    None => uncast(issues, "`person` needs a `role`".into()),
+                    Some(r) => {
+                        self.role(at, r, RoleKind::Person, issues);
+                        sure |= self.a.role(r).is_some_and(|d| !d.optional);
+                    }
+                },
+                _ => {
+                    match a.of.as_deref().unwrap_or(OF_HERE) {
+                        OF_HERE => {}
+                        OF_RACE => {
+                            if !campaign {
+                                uncast(
+                                    issues,
+                                    "`of: race` in an arc a campaign does not raise".into(),
+                                );
+                            }
+                        }
+                        r => self.role(at, r, RoleKind::Spot, issues),
+                    }
+                    sure = true;
+                }
+            }
+        }
+        if !sure && !x.audience.is_empty() {
+            uncast(
+                issues,
+                "its only groups are optional people: the scene could have no audience".into(),
+            );
+        }
+        // Preparation.
+        for r in &x.prep {
+            let parts = usize::from(r.removes.is_some())
+                + usize::from(r.adds.is_some())
+                + usize::from(!r.bars.is_empty());
+            if r.mark.is_empty() || parts != 1 {
+                err(
+                    issues,
+                    "a `prep` names a mark and one of `removes`, `adds`, `bars`".into(),
+                );
+            }
+            if r.adds
+                .is_some_and(|k| !matches!(k, MoveKind::Second | MoveKind::Proof))
+            {
+                err(issues, "a `prep` adds `second` or `proof`".into());
+            }
+            if r.evidence.is_some_and(|e| !(0.0..=1.0).contains(&e))
+                || (r.evidence.is_some() && r.adds != Some(MoveKind::Proof))
+            {
+                err(issues, "`evidence` is 0..1 and comes with `adds: proof`".into());
+            }
+            marks_seen.insert(r.mark.as_str());
+        }
+        // The features.
+        if x.temper.as_ref().is_some_and(|t| !(0.0..=1.0).contains(&t.drag)) {
+            err(issues, "a temper's `drag` is 0..1".into());
+        }
+        // Outcomes: what each end state does to the run.
+        for (o, out) in &x.outcome {
+            if !(-1.0..=1.0).contains(&out.heat) {
+                err(issues, format!("outcome `{}`: heat is −1..1", o.key()));
+            }
+            self.effects(at, &out.effects, issues);
+            for g in &out.effects {
+                marks_read(&g.when, marks_seen);
+                marks_read(&g.unless, marks_seen);
+            }
+            marks_set.extend(out.sets.as_deref());
+        }
+        // The marks a kind of line leaves are set by the engine.
+        for k in &x.moves {
+            marks_set.extend(k.mark());
+        }
+        for (path, v) in &x.params {
+            if let Err(e) = p.with(path, *v) {
+                err(issues, format!("params: {e}"));
+            }
+        }
+        // Text: every sentence the engine can name.
+        let mut extra: Vec<&str> = EXCHANGE_ARGS.to_vec();
+        extra.extend(self.role_words.iter().map(|s| s.as_str()));
+        let key = |k: String, issues: &mut Vec<Issue>| self.key(&k, &extra, issues);
+        let t = &x.text;
+        let mut done: Vec<crate::exchange::SourceKind> = Vec::new();
+        for s in &sources {
+            if done.contains(s) {
+                continue;
+            }
+            done.push(*s);
+            for n in 1..=p.prompt_variants {
+                key(format!("{t}-prompt-{}-{n}", s.key()), issues);
+            }
+        }
+        for k in &x.moves {
+            for n in 1..=p.say_variants {
+                key(format!("{t}-say-{}-{n}", k.key()), issues);
+            }
+            if k.answerable() {
+                key(format!("{t}-reply-{}", k.key()), issues);
+            }
+        }
+        for o in Outcome::ALL {
+            key(format!("{t}-result-{}", o.key()), issues);
+            key(format!("{t}-headline-{}", o.key()), issues);
+        }
+        key(format!("{t}-open"), issues);
+        key(format!("{t}-left"), issues);
+        key(format!("{t}-offer"), issues);
+    }
+}
+
 pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
+    // The exchange's own constants.
+    for msg in b
+        .exchange
+        .problems(&|c| b.concerns.iter().any(|x| x.id == c))
+    {
+        issues.push(Issue::error("exchange_params", &msg));
+    }
     if b.arcs.is_empty() {
         return;
     }
     let en_text = b.locale_text("en");
     let en = crate::validate::fluent_keys(&en_text);
+    // The sentences every scene shares, once a pack has a scene.
+    if b.arcs
+        .iter()
+        .any(|a| a.beats().any(|(_, x)| matches!(x.kind, BeatKind::Exchange(_))))
+    {
+        for k in exchange_shared_keys() {
+            if !en.contains(&k) {
+                issues.push(Issue::error(
+                    "exchange",
+                    &format!("missing Fluent key `{k}` in locale en"),
+                ));
+            }
+        }
+    }
     let mut ids: BTreeSet<&str> = BTreeSet::new();
     for a in &b.arcs {
         let owner = a.id.as_str();
@@ -1125,6 +1538,7 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
         let index = |id: &str| a.stages.iter().position(|s| s.id == id);
         let mut marks_set: BTreeSet<&str> = BTreeSet::new();
         let mut marks_seen: BTreeSet<&str> = BTreeSet::new();
+        let mut exchange_stages: Vec<usize> = Vec::new();
         let mut out_edges: Vec<Vec<usize>> = vec![Vec::new(); n];
         for (si, s) in a.stages.iter().enumerate() {
             let at = format!("stage `{}`", s.id);
@@ -1403,7 +1817,26 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                         }
                         ck.story(line_key, issues);
                     }
+                    BeatKind::Exchange(x) => {
+                        exchange_stages.push(si);
+                        ck.exchange(&at, s, beat, x, &mut marks_set, &mut marks_seen, issues);
+                    }
                 }
+            }
+            // DEC-112, rule 1: a turn is never a single decision.
+            let taken: Vec<&ArcBeat> = s.beats.iter().filter(|b| b.kind.player()).collect();
+            if s.climax
+                && taken.len() == 1
+                && matches!(taken[0].kind, BeatKind::Decision { .. })
+            {
+                issues.push(Issue::warning(
+                    owner,
+                    &format!(
+                        "stage `{}`: its turn is one decision (arc-turn-single-decision): a turn \
+                         is something the player does, with a visit, a talk, an ask or a scene",
+                        s.id
+                    ),
+                ));
             }
         }
 
@@ -1468,6 +1901,16 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     issues,
                     format!(
                         "no exit can be reached from stage `{}` (arc-no-exit-from)",
+                        s.id
+                    ),
+                );
+            }
+            if !clocked[i] && exchange_stages.contains(&i) {
+                err(
+                    issues,
+                    format!(
+                        "stage `{}` holds a scene and no clock is in force there \
+                         (exchange-no-clock): an empty chair needs a day",
                         s.id
                     ),
                 );

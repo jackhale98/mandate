@@ -210,7 +210,8 @@ pub fn action_of(state: &State, cmd: &PlayerCommand) -> Option<(&'static str, bo
         | PlayerCommand::Answer { .. }
         | PlayerCommand::Talk { .. }
         | PlayerCommand::RespondAsk { .. }
-        | PlayerCommand::Promise { .. } => {
+        | PlayerCommand::Promise { .. }
+        | PlayerCommand::Exchange { .. } => {
             return None;
         }
         PlayerCommand::CastVote { .. } => ("vote", false, None),

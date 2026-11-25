@@ -238,6 +238,11 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
                 overheard: f.overheard,
             }
         }
+        "exchange_params" => ContentFile::ExchangeParams {
+            value: Box::new(
+                serde_json::from_str::<ValueFile<crate::exchange::ExchangeParams>>(json)?.value,
+            ),
+        },
         "policy_families" => ContentFile::PolicyFamilies {
             items: serde_json::from_str::<ItemsFile<crate::policy_family::PolicyFamilyDef>>(json)?
                 .items,

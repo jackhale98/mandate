@@ -17,6 +17,7 @@
 use super::effects::{self, post};
 use super::{
     ArcCooldown, ArcId, ArcRef, ArcRun, ArcTurn, ArcsState, BeatRef, EXIT_REMOVED, beat_of, cast,
+    exchange,
 };
 use crate::asks::AskStatus;
 use crate::condition::{Args, Ctx};
@@ -72,7 +73,11 @@ pub fn daily(a: &mut ArcsState, r: &Reads<'_>, out: &mut Outs<'_>) {
     if !active(a, r) || Cadence::Weekly.hits(r.date) {
         return;
     }
-    if a.runs.iter().any(|x| x.clock == Some(r.date)) {
+    // A clock that runs out today; a scene left open as the turn ended.
+    if a.runs
+        .iter()
+        .any(|x| x.clock == Some(r.date) || x.exchange.is_some())
+    {
         run_all(a, r, out, false);
     }
 }
@@ -94,11 +99,15 @@ fn run_all(a: &mut ArcsState, r: &Reads<'_>, out: &mut Outs<'_>, weekly: bool) {
     let v = View::new(r, pol);
     let mut ended: Vec<(usize, String)> = Vec::new();
     for i in 0..a.runs.len() {
-        if !weekly && a.runs[i].clock != Some(r.date) {
+        if !weekly && a.runs[i].clock != Some(r.date) && a.runs[i].exchange.is_none() {
             continue;
         }
+        // Whose scene this chapter's is (DEC-112): read as each run's turn
+        // comes, so one held today is the chapter's.
+        let staging = exchange::staging(&a.runs, r.content, v.r.narrative().chapter.as_ref());
         let mut run = a.runs[i].clone();
-        let exit = tick(&mut a.deferred, &mut run, &v, out, weekly);
+        let may_hold = staging.allows(run.id);
+        let exit = tick(&mut a.deferred, &mut run, &v, out, weekly, may_hold);
         a.runs[i] = run;
         if let Some(x) = exit {
             ended.push((i, x));
@@ -137,6 +146,7 @@ fn tick(
     v: &View<'_>,
     out: &mut Outs<'_>,
     weekly: bool,
+    may_hold: bool,
 ) -> Option<String> {
     let content = v.content();
     // An update removed the template or the stage: the run ends there.
@@ -146,6 +156,7 @@ fn tick(
     let Some(stage) = def.stage(&run.stage) else {
         return Some(EXIT_REMOVED.to_string());
     };
+    scenes(deferred, run, def, stage, v, out, may_hold);
     if weekly {
         run.add_heat(stage.rise);
         if let Some(f) = &def.heat.floor
@@ -162,6 +173,77 @@ fn tick(
         settle(deferred, run, def, v, out);
     }
     edges(deferred, run, def, v, out)
+}
+
+/// A run's exchange scenes (DEC-112; EXCHANGE_SCENES §5.4), before its
+/// edges are read:
+///
+/// - one begun and left open as the turn ended forfeits its rounds left
+///   (a scene never spans a turn);
+/// - one whose day has passed without the player is `absent`: every
+///   prompt bites in full, the first one cold. An empty chair. A scene
+///   that was not this run's to hold this chapter, or that could not be
+///   held, passes with nothing.
+///
+/// Beats write: the result's requests go to their owners with the closing
+/// event as their cause, and the outcome's marks are on the run when the
+/// edges are read.
+fn scenes(
+    deferred: &mut Vec<Request>,
+    run: &mut ArcRun,
+    def: &ArcDef,
+    stage: &StageDef,
+    v: &View<'_>,
+    out: &mut Outs<'_>,
+    may_hold: bool,
+) {
+    use exchange::play;
+    let today = v.date();
+    let mut end = |run: &mut ArcRun,
+                   sc: &exchange::Scene<'_>,
+                   mut xs: exchange::ArcExchangeState,
+                   absent: bool,
+                   out: &mut Outs<'_>| {
+        let planned = play::plan(v, out.events, sc, run, &mut xs, absent);
+        let (requests, ev) = play::commit(planned, sc, run, xs, today, &mut |kind, causes| {
+            out.events.record(today, kind, causes)
+        });
+        post(out, deferred, requests, Cause::caused_by(ev));
+    };
+    if let Some(xs) = run.exchange.take() {
+        if let Some(sc) = exchange::scene(v.content(), run, &xs.beat) {
+            end(run, &sc, xs, false, out);
+        }
+        return;
+    }
+    if !exchange::day_passed(run, today) {
+        return;
+    }
+    for beat in &stage.beats {
+        if !matches!(beat.kind, BeatKind::Exchange(_)) {
+            continue;
+        }
+        let b = BeatRef::new(&stage.id, &beat.id);
+        if run.is_done(&b) {
+            continue;
+        }
+        let Some(sc) = exchange::scene(v.content(), run, &b) else {
+            continue;
+        };
+        let expected = may_hold
+            && player_active(v)
+            && available(v, run, &run.narrative_cast(), stage, beat);
+        let chair = expected
+            .then(|| play::empty_chair(v, out.events, &sc, run))
+            .flatten();
+        match chair {
+            Some(xs) => end(run, &sc, xs, true, out),
+            // Nobody was expected: its day passes with nothing, and it is
+            // not held later.
+            None => run.mark_done(b, today),
+        }
+    }
+    let _ = def;
 }
 
 /// Take edges until none holds (a stage's edges are checked on entry too).
@@ -540,6 +622,10 @@ pub(crate) fn roles_cast(run: &ArcRun, beat: &ArcBeat) -> bool {
         BeatKind::Talk { with, .. } => with,
         BeatKind::Visit { at, .. } => at,
         BeatKind::Move { actor, .. } => actor,
+        // A scene needs its place and whoever is across from the player.
+        BeatKind::Exchange(x) => {
+            return run.actor(&x.at).is_some() && run.person(&x.sides.other).is_some();
+        }
         BeatKind::Decision { .. } | BeatKind::Press { .. } | BeatKind::Heard { .. } => return true,
     };
     run.actor(role).is_some()
@@ -649,7 +735,12 @@ fn offer(
                 run.mark_done(b, today);
                 post(out, deferred, reqs, Cause::caused_by(ev));
             }
-            BeatKind::Talk { .. } | BeatKind::Visit { .. } | BeatKind::Heard { .. } => {}
+            // There for the player while the stage lasts (a scene: until
+            // its day); nothing is done about it here.
+            BeatKind::Talk { .. }
+            | BeatKind::Visit { .. }
+            | BeatKind::Heard { .. }
+            | BeatKind::Exchange(_) => {}
         }
     }
 }
@@ -792,6 +883,8 @@ fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
                 root: root.map(|r| r.0),
                 turn: None,
                 before: a.last_turn(&def.id, at).map(String::from),
+                exchange: None,
+                played: Vec::new(),
             };
             // A matter too small to tell raises nothing (`given`).
             if !holds(v, &run, &run.narrative_cast(), &def.given) {

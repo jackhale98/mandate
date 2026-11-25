@@ -71,12 +71,32 @@ pub fn apply_approval(
     delta: f64,
     classes: &[u8],
 ) {
+    apply_approval_in(pop, world, area, delta, classes, &[]);
+}
+
+/// A cohort is one a request reaches: its class and its community are
+/// among those named (an empty list names all).
+fn reached(ci: usize, classes: &[u8], communities: &[u16]) -> bool {
+    (classes.is_empty() || classes.contains(&(class_of(ci) as u8)))
+        && (communities.is_empty() || communities.contains(&(community_of(ci) as u16)))
+}
+
+/// [`apply_approval`] with a community filter (registry indices; empty:
+/// all).
+pub fn apply_approval_in(
+    pop: &mut PopulationState,
+    world: &World,
+    area: crate::world::Area,
+    delta: f64,
+    classes: &[u8],
+    communities: &[u16],
+) {
     for h in area.hoods(world) {
         let Some(hp) = pop.hoods.get_mut(h) else {
             continue;
         };
         for (ci, c) in hp.cohorts.iter_mut().enumerate() {
-            if !classes.is_empty() && !classes.contains(&(class_of(ci) as u8)) {
+            if !reached(ci, classes, communities) {
                 continue;
             }
             let room = 1.0 - (c.player_approval as f64).abs();
@@ -85,17 +105,51 @@ pub fn apply_approval(
     }
 }
 
-/// Population domain, Opinion phase, daily: approval other domains asked
-/// for (`Effect::Approval`: asks kept, broken and declined).
+/// Recognition of the player in an area: a gain is × the room left (those
+/// who do not know them yet), a loss is taken whole; by income class and
+/// community (empty: all). The rule a decision's `awareness` follows.
+pub fn apply_awareness(
+    pop: &mut PopulationState,
+    world: &World,
+    area: crate::world::Area,
+    delta: f64,
+    classes: &[u8],
+    communities: &[u16],
+) {
+    for h in area.hoods(world) {
+        let Some(hp) = pop.hoods.get_mut(h) else {
+            continue;
+        };
+        for (ci, c) in hp.cohorts.iter_mut().enumerate() {
+            if !reached(ci, classes, communities) {
+                continue;
+            }
+            let aw = c.player_awareness as f64;
+            let step = if delta > 0.0 { delta * (1.0 - aw) } else { delta };
+            c.player_awareness = clamp(aw + step, 0.0, 1.0) as f32;
+        }
+    }
+}
+
+/// Population domain, Opinion phase, daily: approval and recognition
+/// other domains asked for (`Effect::Approval`: asks kept, broken and
+/// declined, an arc's effects; `Effect::Awareness`: a scene's audience).
 pub fn effects(pop: &mut PopulationState, r: &Reads<'_>, out: &mut Outs<'_>) {
-    for e in out.take(|e| matches!(e, Effect::Approval { .. })) {
-        if let Effect::Approval {
-            scope,
-            delta,
-            classes,
-        } = e.effect
-        {
-            apply_approval(pop, r.world, scope, delta, &classes);
+    for e in out.take(|e| matches!(e, Effect::Approval { .. } | Effect::Awareness { .. })) {
+        match e.effect {
+            Effect::Approval {
+                scope,
+                delta,
+                classes,
+                communities,
+            } => apply_approval_in(pop, r.world, scope, delta, &classes, &communities),
+            Effect::Awareness {
+                scope,
+                delta,
+                classes,
+                communities,
+            } => apply_awareness(pop, r.world, scope, delta, &classes, &communities),
+            _ => {}
         }
     }
 }

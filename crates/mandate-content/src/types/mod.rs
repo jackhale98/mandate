@@ -194,6 +194,10 @@ pub enum ContentFile {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         overheard: Vec<OverheardDef>,
     },
+    /// Exchange scenes (DEC-112): every constant of the mechanism.
+    ExchangeParams {
+        value: Box<crate::exchange::ExchangeParams>,
+    },
     /// Policy families: proposals grounded in the town (DEC-092).
     PolicyFamilies {
         items: Vec<crate::policy_family::PolicyFamilyDef>,

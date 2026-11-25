@@ -141,6 +141,8 @@ pub struct ContentBundle {
     /// The asks system's numbers (DEC-097 §2).
     #[serde(default)]
     pub ask_params: crate::asks::AskParams,
+    /// Exchange scenes' constants (DEC-112; `exchange.jsonc`).
+    pub exchange: crate::exchange::ExchangeParams,
     /// Ask templates, in load order.
     #[serde(default)]
     pub asks: Vec<crate::asks::AskDef>,
@@ -466,6 +468,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut talk_voices: Vec<crate::conversation::VoiceDef> = Vec::new();
     let mut talk: Option<(crate::conversation::TalkParams, String)> = None;
     let mut ask_params: Option<(crate::asks::AskParams, String)> = None;
+    let mut exchange: Option<(crate::exchange::ExchangeParams, String)> = None;
     let mut asks: Vec<crate::asks::AskDef> = Vec::new();
     let mut promises: Vec<crate::asks::PromiseDef> = Vec::new();
     let mut act_flow: Option<(crate::act::ActFlowParams, String)> = None;
@@ -838,6 +841,13 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                 &src.path,
                 &mut issues,
             ),
+            ContentFile::ExchangeParams { value } => once(
+                &mut exchange,
+                *value,
+                "exchange_params",
+                &src.path,
+                &mut issues,
+            ),
             ContentFile::Asks { items } => {
                 for x in items {
                     if claim(&x.id, &mut issues) {
@@ -1102,6 +1112,7 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         talk_voices,
         talk,
         ask_params: ask_params.map(|(v, _)| v).unwrap_or_default(),
+        exchange: exchange.map(|(v, _)| v).unwrap_or_default(),
         asks,
         promises,
         act_flow: act_flow.map(|(a, _)| a).unwrap_or_default(),

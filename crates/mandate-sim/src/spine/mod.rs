@@ -82,6 +82,8 @@ pub enum PlayerAct {
     LeakFile,
     Visit,
     Casework,
+    /// Took part in an exchange scene (began it, said a line, left).
+    Exchange,
 }
 
 impl PlayerAct {
@@ -124,6 +126,7 @@ impl PlayerAct {
             PlayerCommand::Talk { .. } => PlayerAct::Talk,
             PlayerCommand::RespondAsk { .. } => PlayerAct::RespondAsk,
             PlayerCommand::Promise { .. } => PlayerAct::Promise,
+            PlayerCommand::Exchange { .. } => PlayerAct::Exchange,
         }
     }
 }
@@ -515,7 +518,9 @@ pub fn thread(kind: &EventKind, date: SimDate) -> Option<(Thread, Role)> {
         } => (Thread::Plant(*plant), Role::Closes),
         K::ArcRaised { arc, .. } => (Thread::Arc(*arc), Role::Opens),
         K::ArcStage { arc, .. } => (Thread::Arc(*arc), Role::Advances),
-        K::ArcBeat { arc, .. } => (Thread::Arc(*arc), Role::Notes),
+        K::ArcBeat { arc, .. }
+        | K::ArcExchange { arc, .. }
+        | K::ArcExchangeEnded { arc, .. } => (Thread::Arc(*arc), Role::Notes),
         K::ArcEnded { arc, .. } => (Thread::Arc(*arc), Role::Closes),
         K::PlayerImprisoned { .. } => (Thread::Sentence, Role::Opens),
         K::PlayerReleased => (Thread::Sentence, Role::Closes),
@@ -575,6 +580,7 @@ pub fn salience(kind: &EventKind) -> Salience {
         | K::ProposalLapsed { .. }
         | K::TrackWarning { .. }
         | K::ArcBeat { .. }
+        | K::ArcExchange { .. }
         | K::CaseDeveloped { .. } => Salience::Routine,
         K::RaceDecided {
             player_ran: false, ..
@@ -595,6 +601,7 @@ pub fn salience(kind: &EventKind) -> Salience {
         | K::ArcRaised { .. }
         | K::ArcStage { .. }
         | K::ArcEnded { .. }
+        | K::ArcExchangeEnded { .. }
         | K::AskResolved { .. } => Salience::Notable,
         K::GameStarted { .. }
         | K::HistoryBegan { .. }
@@ -676,6 +683,8 @@ pub fn kind_key(kind: &EventKind) -> &'static str {
         K::ArcStage { .. } => "arc_stage",
         K::ArcBeat { .. } => "arc_beat",
         K::ArcEnded { .. } => "arc_ended",
+        K::ArcExchange { .. } => "arc_exchange",
+        K::ArcExchangeEnded { .. } => "arc_exchange_ended",
     }
 }
 
