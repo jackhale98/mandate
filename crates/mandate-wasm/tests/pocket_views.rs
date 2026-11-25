@@ -1627,17 +1627,29 @@ fn fixtures_are_views_the_engine_made() {
     // town's people at every level (a career's worth of rows, so the folds
     // have something to fold).
     let c = Arc::new(base());
-    let mut e = flooded(&c, seed());
-    let id = flood_run(&e).unwrap();
-    let hall = beats::offers(e.state(), e.content())
-        .into_iter()
-        .find_map(|o| match o.action {
-            BeatAction::Visit { location, .. } if o.run.0 == id => Some(location),
-            _ => None,
+    // A world where, the day the flood's arc is raised, something already
+    // needs the player (a decision, an ask), somebody is at the hall, and
+    // the arc shows two beats and its start: the first seed from 7 that has
+    // all of it (seed 7 alone stopped having it when the broker moved the
+    // world's first weeks, 2026-11-25).
+    let (mut e, id) = (7..60u64)
+        .find_map(|s| {
+            let mut e = flooded(&c, s);
+            let id = flood_run(&e)?;
+            let hall = beats::offers(e.state(), e.content())
+                .into_iter()
+                .find_map(|o| match o.action {
+                    BeatAction::Visit { location, .. } if o.run.0 == id => Some(location),
+                    _ => None,
+                })?;
+            e.apply(Command::Player(PlayerCommand::MoveTo { location: hall }))
+                .ok()?;
+            let ok = !pocket_view(&e)?.needs_you.is_empty()
+                && !mandate_protocol::people_at(&e, hall).is_empty()
+                && arc_view(&e, id).is_some_and(|a| a.beats.len() >= 2 && !a.history.is_empty());
+            ok.then_some((e, id))
         })
-        .unwrap();
-    e.apply(Command::Player(PlayerCommand::MoveTo { location: hall }))
-        .unwrap();
+        .expect("a world with all of it");
     let home = mandate_sim::player::home(e.state()).unwrap();
     let townsfolk: Vec<CharacterId> = (0..e.state().politics.characters.people.len() as u32)
         .map(CharacterId)
@@ -1646,7 +1658,8 @@ fn fixtures_are_views_the_engine_made() {
             *id != me(&e)
                 && characters::municipality_of(&st.politics, &st.world, *id) == Some(home.0)
         })
-        .take(40)
+        // Everyone in town (at least forty: a career's worth of rows), so
+        // whoever is at the hall that day is someone the player knows.
         .collect();
     e.setup(|st| {
         let on = st.calendar.date;

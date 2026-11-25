@@ -152,7 +152,7 @@
     "has_news": true
   },
   "chair": {
-    "id": 1270,
+    "id": 1266,
     "ambient_slot": null,
     "name": "Hector Birchby",
     "role_key": "occupation-editor",
@@ -163,7 +163,7 @@
     "has_news": true
   },
   "second": {
-    "id": 1273,
+    "id": 1269,
     "ambient_slot": null,
     "name": "Flora Achter",
     "role_key": "occupation-union_steward",
@@ -397,6 +397,132 @@
           "group": "hood.100.c2",
           "lo": -6,
           "hi": 15,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        }
+      ],
+      "notes": [
+        {
+          "key": "exchange-cost-promise",
+          "args": {
+            "ally": "Kerstin Everwell",
+            "ally_role_key": "occupation-party_chair",
+            "backer": "Flora Achter",
+            "backer_role_key": "occupation-union_steward",
+            "chair": "Hector Birchby",
+            "chair_role_key": "occupation-editor",
+            "clock_day": "23",
+            "clock_month_key": "month-10",
+            "day": "13",
+            "hall": "Foundryside",
+            "month_key": "month-9",
+            "n": "2",
+            "of": "3",
+            "other": "Rolf Wareer",
+            "paper": "The Norton Post",
+            "place": "Norton",
+            "player": "Saul Raskuwell",
+            "rival": "Rolf Wareer",
+            "rival_role_key": "role-candidate",
+            "second": "Flora Achter",
+            "town": "Norton",
+            "weeks": "3",
+            "year": "2020"
+          }
+        }
+      ],
+      "answer": "maybe",
+      "answer_key": "exchange-answer-maybe"
+    },
+    {
+      "id": "promise:promise.services",
+      "kind": "promise",
+      "label": {
+        "key": "exchange-label-promise",
+        "args": {
+          "ally": "Kerstin Everwell",
+          "ally_role_key": "occupation-party_chair",
+          "backer": "Flora Achter",
+          "backer_role_key": "occupation-union_steward",
+          "chair": "Hector Birchby",
+          "chair_role_key": "occupation-editor",
+          "clock_day": "23",
+          "clock_month_key": "month-10",
+          "day": "13",
+          "hall": "Foundryside",
+          "month_key": "month-9",
+          "other": "Rolf Wareer",
+          "paper": "The Norton Post",
+          "place": "Norton",
+          "player": "Saul Raskuwell",
+          "promise_key": "promise-services",
+          "rival": "Rolf Wareer",
+          "rival_role_key": "role-candidate",
+          "second": "Flora Achter",
+          "town": "Norton",
+          "weeks": "3",
+          "worry_key": "talk-concern-services",
+          "year": "2020"
+        }
+      },
+      "args": {
+        "promise_key": "promise-services",
+        "worry_key": "talk-concern-services"
+      },
+      "answers": false,
+      "safe": false,
+      "prep": false,
+      "target": null,
+      "chance": null,
+      "stands": [
+        {
+          "group": "hood.100.c0",
+          "lo": -8,
+          "hi": 14,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        },
+        {
+          "group": "hood.100.c1",
+          "lo": -8,
+          "hi": 14,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        },
+        {
+          "group": "hood.100.c2",
+          "lo": -8,
+          "hi": 14,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        }
+      ],
+      "fails": [],
+      "tags": [
+        {
+          "group": "hood.100.c0",
+          "lo": -8,
+          "hi": 14,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        },
+        {
+          "group": "hood.100.c1",
+          "lo": -8,
+          "hi": 14,
+          "exact": false,
+          "lo_steps": -1,
+          "hi_steps": 2
+        },
+        {
+          "group": "hood.100.c2",
+          "lo": -8,
+          "hi": 14,
           "exact": false,
           "lo_steps": -1,
           "hi_steps": 2
@@ -711,7 +837,7 @@
           "points": null
         }
       ],
-      "event": 2105
+      "event": 2095
     }
   ],
   "result": null
