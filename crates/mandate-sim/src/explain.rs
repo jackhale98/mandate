@@ -638,6 +638,16 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
                 );
             }
         }
+        C::BillCosts { .. } => {
+            let mut a = condition::Args::new();
+            if condition::holds(cx, c, &mut a) {
+                for (k, x) in a {
+                    put(&k, x);
+                }
+            } else {
+                put("bill", "none of theirs that a yes would cost".into());
+            }
+        }
         C::Met { slot, .. } => {
             if let (Some(p), Some(me)) = (who(slot), me) {
                 let talked = v.player().is_some_and(|pl| pl.talk.used.contains_key(&p));

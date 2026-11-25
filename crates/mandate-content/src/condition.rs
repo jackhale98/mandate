@@ -316,11 +316,23 @@ pub enum Condition {
         kinds: Vec<String>,
     },
     /// The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.
+    /// With `is: false`, none is owed (the debt was paid, or never was).
     Favour {
         #[serde(alias = "role")]
         slot: String,
         #[serde(default)]
         owed_to_player: bool,
+        #[serde(default = "yes", skip_serializing_if = "is_true")]
+        is: bool,
+    },
+    /// The person in the slot sponsors a bill the player can still vote on,
+    /// and a yes would cost the player: their ward leans against it, their
+    /// party's line is against it, or a promise they hold forbids it (the
+    /// first such bill, the first bind that holds). `$law_key` (the bill's
+    /// template), `$bind` (`seat`, `party` or `promise`).
+    BillCosts {
+        #[serde(alias = "role")]
+        slot: String,
     },
     /// They have (or have not) met the player before now: talked with them
     /// (a line of theirs in the conversation guard), or met them on an
@@ -587,6 +599,10 @@ fn yes() -> bool {
     true
 }
 
+fn is_true(b: &bool) -> bool {
+    *b
+}
+
 fn one() -> f64 {
     1.0
 }
@@ -759,6 +775,7 @@ impl Condition {
             C::Trust { .. } => "trust",
             C::Remembers { .. } => "remembers",
             C::Favour { .. } => "favour",
+            C::BillCosts { .. } => "bill_costs",
             C::Met { .. } => "met",
             C::IsBroker { .. } => "is_broker",
             C::IsRival { .. } => "is_rival",
@@ -856,6 +873,7 @@ impl Condition {
             | C::Trust { .. }
             | C::Remembers { .. }
             | C::Favour { .. }
+            | C::BillCosts { .. }
             | C::Met { .. }
             | C::SponsorsBill { .. }
             | C::IsBroker { .. }
@@ -937,6 +955,7 @@ impl Condition {
             | C::Trust { slot, .. }
             | C::Remembers { slot, .. }
             | C::Favour { slot, .. }
+            | C::BillCosts { slot }
             | C::Met { slot, .. }
             | C::SponsorsBill { slot }
             | C::IsBroker { slot, .. }
@@ -988,6 +1007,7 @@ impl Condition {
             C::Headline => None,
             C::Remembers { .. } => set(&["memory_key", "subject_key", "subject_kind", "year"]),
             C::Favour { .. } => set(&["n"]),
+            C::BillCosts { .. } => set(&["law_key", "bind"]),
             C::IsBroker { is: true, .. } => set(&["broker", "broker_place", "stake_key"]),
             C::IsRival { is: true, .. } => set(&["rival"]),
             C::Displaced { .. } => set(&["away"]),
@@ -1637,6 +1657,7 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
             }
         }
         C::Favour { slot, .. }
+        | C::BillCosts { slot }
         | C::Met { slot, .. }
         | C::IsBroker { slot, .. }
         | C::IsRival { slot, .. } => not_player(slot, issues),

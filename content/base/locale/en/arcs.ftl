@@ -51,6 +51,7 @@ outcome-arc-flood-works = You walked the streets of { $hood } where the work is 
 talk-arc-flood-crew = Ask for a repair crew in { $hood }
 talk-arc-flood-crew-say = "{ $hood } needs a crew this week. Next quarter is no use to them."
 talk-arc-flood-crew-yes = "Fine. I'll move a crew over on Monday. If anyone rings about their potholes, I'm giving them your number."
+talk-arc-flood-crew-owe = "I can find you a crew. I'll want something back one day, and I won't have to remind you what for."
 talk-arc-flood-crew-no = "Every crew I have is spoken for. Bring me a reason I can show the others, and ask me again."
 
 skip-item-arc-flood-petition = { $organiser } took a petition round { $hood } asking when the repairs start.
@@ -69,18 +70,12 @@ dilemma-flood-money-wait = Wait for the region: nothing starts until it answers
 dilemma-flood-money-wait-after = You waited for the region. Nothing started in { $hood }, and { $organiser } stopped ringing you.
 scene-flood-hall-organiser = "People came through that door all night, and I've beds for half of them. Tell me who pays for the houses, and when."
 
-## The meeting at the hall (the flood's turn)
-dilemma-flood-meeting = the meeting at the hall
-dilemma-flood-meeting-situation = { $organiser } ({ $organiser_role }) has filled the hall with people from { $hood }, weeks after the water. They want a date. They also want to know whether the low streets are being rebuilt or written off.
-dilemma-flood-meeting-date = Give them a date, and put your name to it
-dilemma-flood-meeting-date-after = You gave the meeting a date and put your name to it. The crews in { $hood } were told the same date the next morning.
-dilemma-flood-meeting-wall = Tell them it will flood again: argue for the wall, however long it takes
-dilemma-flood-meeting-wall-after = You told the meeting it would flood again, and drafted the wall. People who came for a date went home without one.
-dilemma-flood-meeting-honest = Say the money isn't there yet, and stay for every question
-dilemma-flood-meeting-honest-after = You told the meeting the money was not there yet, and stayed until the last question. { $organiser } thanked you for not saying soon.
-dilemma-flood-meeting-absent = Send apologies
-dilemma-flood-meeting-absent-after = You sent apologies. { $organiser } read them out to the hall.
-scene-flood-meeting-organiser = "They've heard 'soon' from everyone who has stood where you're standing. Don't say soon. Say a month, or say you don't know."
+## The meeting at the hall (the flood's turn): the scene is `exchange-flood-*`
+## in exchange.ftl; the date is given to the organiser in person.
+talk-arc-flood-date = Give a date for the repairs, and put your name to it
+talk-arc-flood-date-say = "Tell them every home in { $hood } will have its repairs started by the date I give you. Hold me to it."
+talk-arc-flood-date-known = "You carried boxes here when it mattered, so they'll hear it from you. Miss it, and they'll hear that too."
+talk-arc-flood-date-yes = "I'll read it out, and I'll read out your name with it. They've had 'soon' from everyone else."
 
 ## A second roof (the flood's ask)
 ask-flood-shelter = A second roof
@@ -98,29 +93,105 @@ arc-rival = the rival
 arc-rival-shadow = The campaign is open, and { $rival } turns up wherever you go.
 arc-rival-offer = { $rival } has made you an offer.
 arc-rival-pact = The pact with { $rival } is holding.
-arc-rival-showdown = With the vote close, { $rival } wants a showdown.
+arc-rival-lead-up = { $rival } has called you out to a public debate at { $hall } before the vote.
+arc-rival-showdown = The debate with { $rival } at { $hall } is on { $clock_day } { $clock_month }.
+headline-arc-rival-statement = { $rival } opens a campaign in { $place }
+headline-arc-rival-challenge = { $rival } calls for a public debate at { $hall }
+skip-item-arc-rival-dare = { $rival } told the paper you would not dare face the hall.
+talk-arc-rival-who = Ask who is behind your rival
+talk-arc-rival-who-say = "Who is backing { $rival }? I would rather know now."
+talk-arc-rival-who-yes = "The usual names, and one or two who'd rather you didn't know. Sit down and I'll go through them."
+talk-arc-rival-who-no = "I keep out of that. Ask someone who owes you less."
+visit-arc-rival-walk = Walk the streets with someone who lives there
+outcome-arc-rival-walk = You walked { $ward } with someone who has lived there for years. You heard what people there are worried about, in their own words.
+talk-arc-rival-backer-owe = "I'll say it. One day I'll ask you for something, and you'll remember tonight."
 arc-rival-won = You won the race you fought against { $rival }.
 arc-rival-lost = You lost the race you fought against { $rival }.
 arc-rival-cooled = The rivalry with { $rival } has cooled.
 
-## The favour (arc.favour_debt). Arguments: `$creditor`.
+## The favour (arc.favour_debt). Arguments: `$creditor`, `$colleague`, `$other`;
+## while their bill is up, `$law` (it) and `$bind` (`seat`, `party` or
+## `promise`: what a yes would cost); `$clock_day` and `$clock_month` (their day).
 arc-favour = the favour
 arc-favour-debt = You owe { $creditor } a favour.
 arc-favour-reminder = { $creditor } has reminded you, pleasantly, of what you owe.
-arc-favour-called-in = { $creditor } has a bill coming to a vote, and has called the favour in.
-arc-favour-repaid = You paid { $creditor } back with your vote.
-arc-favour-burned = { $creditor } called the favour in and did not get your vote.
+arc-favour-called-in = { $creditor } wants your vote for { $law } by { $clock_day } { $clock_month }, and it would cost you. { $bind ->
+        [seat] Your own streets are against it.
+        [party] Your party is against it.
+       *[promise] It breaks a promise you made.
+    }
+arc-favour-repaid = You paid { $creditor } back.
+arc-favour-deferred = { $creditor } has agreed to wait for another vote. The debt stands.
+arc-favour-burned = { $creditor } called the favour in and did not get paid.
 arc-favour-settled = { $creditor } has stopped mentioning the favour.
 
-## The plant (arc.plant_closure). Arguments: `$steward`, `$owner`, `$hood`.
+talk-arc-favour-want = Ask what they will want for the favour
+talk-arc-favour-want-say = "I know I owe you. What will you want for it?"
+talk-arc-favour-want-yes = "A vote, when it matters to me. I'll tell you which. You'll know it when you see my name on it."
+talk-arc-favour-want-no = "You'll find out when I ask. That's how it works."
+talk-arc-favour-cover = Ask them to give { $creditor } their vote in your place
+talk-arc-favour-cover-say = "{ $creditor } needs one more vote, and mine would cost me. Would you give them yours?"
+talk-arc-favour-cover-yes = "I'll vote with { $creditor }. Then it's me you owe, and I'll want it back."
+talk-arc-favour-cover-no = "Your debt, your vote. I'm not getting into it."
+talk-arc-favour-time = Ask them to wait for another vote
+talk-arc-favour-time-say = "Not this one. Give me the next bill of yours, and I'll be there for it."
+talk-arc-favour-time-yes = "You've been good for it before. The next one, then. I won't ask twice."
+talk-arc-favour-time-no = "I need this one. The next one isn't the one I asked for."
+talk-arc-favour-cost = Tell them what the vote would cost you
+talk-arc-favour-cost-say = "I owe you, and I'm not disputing it. But a yes on this would cost me, and you know why."
+talk-arc-favour-cost-cold = "Everything costs something. You took the favour when it suited you."
+talk-arc-favour-cost-yes = "I know what it costs you. That's what makes it a favour."
+
+## Their price, in another coin (the favour's ask).
+ask-favour-statement = A word in public
+ask-favour-statement-detail = { $asker } ({ $asker_role }) would take a word from you in public for { $bill } in place of your vote, and call the debt square.
+ask-favour-statement-need = Say in public that you support { $bill }
+ask-favour-statement-kept = You spoke up for { $bill }, and { $asker } called the debt square.
+ask-favour-statement-broken = You said you would speak up for { $bill }, and you did not. { $asker } noticed.
+
+## The plant (arc.plant_closure). Arguments: `$plant` (its name, as a noun
+## with its article, never opening a sentence), `$jobs` (its jobs now; once
+## closed, those that went), `$steward`, `$owner`, `$hood` (its district),
+## `$hall`, `$site` (its district's name); under notice `$closes_day`,
+## `$closes_month`, `$closes_year` (the date).
 arc-plant = the plant
-arc-plant-layoffs = The plant is laying people off. { $steward } and { $owner } are both looking for allies.
-arc-plant-walkout = With you on { $owner }'s side, { $steward } has called a walkout.
-arc-plant-organising = { $steward } is organising the people the plant laid off.
-arc-plant-answered = The job losses in { $place } have slowed, and help for the people laid off has been voted through.
-arc-plant-resolution = The job losses in { $place } have slowed.
-arc-plant-gone = Two years on, the jobs lost in { $place } have not come back.
-headline-arc-plant-layoffs = Plant layoffs begin in { $place }
+arc-plant-short-time = Short weeks at { $plant } since { $month } { $year }, and nobody has said for how long.
+arc-plant-notice = A closure notice is up at { $plant }: it shuts on { $closes_day } { $closes_month } { $closes_year } unless orders come back.
+arc-plant-hall = { $steward } has called the members of { $plant } to { $hall }. The notice runs out on { $closes_day } { $closes_month }.
+arc-plant-eve = The last weeks of the notice at { $plant }. It shuts on { $closes_day } { $closes_month } unless orders come back.
+arc-plant-reprieved = The notice at { $plant } has been lifted. { $jobs } jobs stay, on short weeks for now.
+arc-plant-scare = Full weeks are back at { $plant }. The short time ended before any notice went up.
+arc-plant-answered = The gates of { $plant } have shut, and { $jobs } jobs went with them. Help for those laid off was in place first.
+arc-plant-closed = The gates of { $plant } have shut, and { $jobs } jobs went with them.
+
+headline-arc-plant-notice = Closure notice at { $plant }: { $jobs } jobs at risk
+headline-arc-plant-reprieved = Closure notice lifted at { $plant }
+headline-arc-plant-closed = Gates shut at { $plant }: { $jobs } jobs go in { $place }
+
+heard-plant-hours = "Four days a week at the works now, and nobody upstairs will say for how long."
+
+visit-arc-plant-tour = Ask to be shown round the works
+outcome-arc-plant-tour = { $owner } showed you round { $plant }. Part of the floor stood idle, and the order board had gaps in it.
+visit-arc-plant-gate = Stand at the gate when the shifts change
+outcome-arc-plant-gate = You stood at the gate of { $plant } as the shifts changed. { $steward } saw you there, and so did the people going in.
+
+talk-arc-plant-need = Ask what would keep the plant open
+talk-arc-plant-need-say = "What would it take to keep { $plant } open?"
+talk-arc-plant-need-yes = "Off the record? Orders. Failing that, costs. Short weeks from the floor and something from round here would buy months."
+talk-arc-plant-need-no = "I can't go through the numbers with you. Not yet."
+talk-arc-plant-short = Ask them to put short weeks to the members
+talk-arc-plant-short-say = "Would the members take short weeks, if it kept the gates open?"
+talk-arc-plant-short-yes = "Four days, I can put to them. A pay cut, I can't. I think they'll take it."
+talk-arc-plant-short-no = "We've not seen you at the gate. I don't carry that to the members for someone I don't know."
+talk-arc-plant-case = Ask them to make the case for keeping the plant
+talk-arc-plant-case-say = "If the floor takes short weeks, and there's help from round here, will you make the case for keeping { $plant }?"
+talk-arc-plant-case-yes = "With that in writing, I can buy you months. I can't promise more than months."
+talk-arc-plant-case-no = "Make the case with what? Bring me something I can put on paper."
+
+skip-item-arc-plant-ballot = { $steward } balloted the members at { $plant }. They stopped the line for a week.
+
+legacy-arc-plant-reprieved = Kept { $plant } open when it was under notice.
+legacy-arc-plant-answered = Saw { $plant } close, with help in place for those laid off.
 
 ## The budget round (arc.budget_round): the standing arc of a session.
 ## Arguments: `$proposer` (whoever proposes the budget), `$member` (a colleague

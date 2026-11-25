@@ -350,40 +350,56 @@ fn candidates(
                 })
                 .collect()
         }
-        ArcCast::Area { pick, hazard } => {
+        ArcCast::Area {
+            pick,
+            hazard,
+            place,
+        } => {
             let env = r.environment();
-            let mut areas: Vec<(i64, i64, i64, Area)> = areas_below(world, at)
+            // The district of a cast place first, where one is named.
+            let holds = place
+                .as_deref()
+                .and_then(|n| so_far.iter().find(|c| c.role == n))
+                .and_then(|c| match c.actor {
+                    ArcActor::Place { id } => world.places.get(id.index()).map(|p| p.neighborhood),
+                    _ => None,
+                });
+            let mut areas: Vec<(bool, i64, i64, i64, Area)> = areas_below(world, at)
                 .into_iter()
-                .map(|a| match pick {
-                    // The largest share of homes the hazard damaged; where a
-                    // strike fell evenly, where most people are away; then
-                    // the most exposed.
-                    AreaPick::MostExposed => {
-                        let hoods = a.hoods(world);
-                        let worst = hoods
-                            .iter()
-                            .filter_map(|h| env.damage(NeighborhoodId(*h as u32)))
-                            .filter(|d| hazard.is_none_or(|k| hazard_kind(k) == d.hazard))
-                            .map(|d| i64::from(d.damaged_pm))
-                            .max()
-                            .unwrap_or(0);
-                        let exposure = hoods
-                            .iter()
-                            .filter_map(|h| {
-                                let e = env.exposure(NeighborhoodId(*h as u32))?;
-                                hazard.and_then(|k| e.of(hazard_kind(k))).map(i64::from)
-                            })
-                            .max()
-                            .unwrap_or(0);
-                        (-worst, -(away(r, a).0 as i64), -exposure, a)
-                    }
-                    AreaPick::LeastPleased => ((approval(r, a) * 1e6) as i64, 0, 0, a),
+                .map(|a| {
+                    let away_from = holds.is_some_and(|h| !a.hoods(world).contains(&h.index()));
+                    let (x, y, z, a) = match pick {
+                        // The largest share of homes the hazard damaged; where a
+                        // strike fell evenly, where most people are away; then
+                        // the most exposed.
+                        AreaPick::MostExposed => {
+                            let hoods = a.hoods(world);
+                            let worst = hoods
+                                .iter()
+                                .filter_map(|h| env.damage(NeighborhoodId(*h as u32)))
+                                .filter(|d| hazard.is_none_or(|k| hazard_kind(k) == d.hazard))
+                                .map(|d| i64::from(d.damaged_pm))
+                                .max()
+                                .unwrap_or(0);
+                            let exposure = hoods
+                                .iter()
+                                .filter_map(|h| {
+                                    let e = env.exposure(NeighborhoodId(*h as u32))?;
+                                    hazard.and_then(|k| e.of(hazard_kind(k))).map(i64::from)
+                                })
+                                .max()
+                                .unwrap_or(0);
+                            (-worst, -(away(r, a).0 as i64), -exposure, a)
+                        }
+                        AreaPick::LeastPleased => ((approval(r, a) * 1e6) as i64, 0, 0, a),
+                    };
+                    (away_from, x, y, z, a)
                 })
                 .collect();
             areas.sort();
             areas
                 .into_iter()
-                .map(|x| ArcActor::Area { area: x.3 })
+                .map(|x| ArcActor::Area { area: x.4 })
                 .collect()
         }
         ArcCast::Place { kinds, near } => {

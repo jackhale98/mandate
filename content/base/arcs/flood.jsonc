@@ -14,8 +14,9 @@
 // the run's marks, heat and days. A story reads who is still away (`displaced`).
 //
 // Marks: `at_hall` (carried boxes), `sheltered` (the ask kept), `paid_first`
-// (the money decision), `crew` (the official sent one), `dated` and `wall`
-// (the meeting).
+// (the money decision), `crew` (the official sent one); from the meeting
+// `dated` (a date given), `tabled` (a draft put in from the floor) and the
+// scene's ends `meeting_won`, `meeting_split`, `meeting_lost`, `stayed_away`.
 {
   "kind": "arcs",
   "items": [
@@ -71,6 +72,13 @@
                       { "type": "favour", "slot": "speaker", "owed_to_player": true },
                       { "type": "opinion", "slot": "speaker", "min": 15 } ] } ],
                     "effects": [ { "type": "recovery", "area": "hood", "repair": 1.5, "months": 3 } ] },
+                  // Someone who owes the player nothing sends one for a
+                  // favour later: a debt the favour's arc may call in.
+                  { "key": "talk-arc-flood-crew-owe", "agrees": true, "sets": "crew",
+                    "when": [ { "type": "opinion", "slot": "speaker", "min": -10 } ],
+                    "effects": [
+                      { "type": "recovery", "area": "hood", "repair": 1.5, "months": 3 },
+                      { "type": "favour", "role": "official" } ] },
                   { "key": "talk-arc-flood-crew-no" } ] } },
             { "id": "petition", "type": "move", "actor": "organiser", "weight": 0.4, "line_key": "skip-item-arc-flood-petition",
               "when": [ { "type": "arc_days", "min": 21 }, { "type": "arc_mark", "mark": "paid_first", "is": false }, { "type": "arc_mark", "mark": "crew", "is": false } ],
@@ -86,15 +94,55 @@
             { "to": "meeting", "when": [ { "type": "arc_heat", "min": 0.75 } ] },
             { "to": "meeting", "after_days": 56 } ] },
 
-        // The turn: a full hall, and a question about a date.
+        // The turn: a full hall, and a question about a date. It is played
+        // (DEC-112; EXCHANGE_SCENES §6.4): a hostile meeting of three
+        // rounds before the struck neighbourhood by income class and the
+        // organiser who called it. The room's temper is the run's heat, so a
+        // hot room hears less: owning what went wrong and staying for every
+        // question cool it before anything is spent on it. The clock is the
+        // meeting's night; a player who never came leaves an empty chair.
+        // Beside it, the date itself is given to the organiser, in person:
+        // a promise with the repairs behind it, as before.
         { "id": "meeting", "key": "arc-flood-meeting", "climax": true, "clock": { "days": [7, 14] },
           "beats": [
-            { "id": "room", "type": "decision", "dilemma": "dilemma.flood_meeting", "weight": "climax",
-              "on": {
-                "date": { "sets": "dated", "effects": [ { "type": "recovery", "area": "hood", "repair": 1.5, "months": 6 } ] },
-                "wall": { "sets": "wall" },
-                "honest": { "heat": -0.15 },
-                "absent": { "heat": 0.2 } } },
+            { "id": "room", "type": "exchange", "once": true,
+              "at": "hall", "time": "slot",
+              "sides": { "other": "organiser" },
+              "layout": "crowd",
+              "audience": [
+                { "from": "classes", "of": "hood", "start": "approval" },
+                { "from": "person", "role": "organiser", "start": "opinion" } ],
+              "temper": { "reads": "heat", "drag": 0.5 },
+              "rounds": 3,
+              "prompts": [
+                // What was let pass in this arc (an ask left to lapse, an
+                // organiser who remembers being ignored), else a promise
+                // broken, else the room's question.
+                { "round": 1, "from": ["absent", "broken_promise", "top_worry"] },
+                { "round": 2, "from": ["governing_record", "failed_law", "top_worry"] },
+                { "round": 3, "from": ["top_worry"] } ],
+              "moves": ["record", "heard", "act", "own", "offer", "pass"],
+              // Carrying boxes at the hall in the first weeks: the room
+              // knows the player, and round 1 is not cold.
+              "prep": [ { "mark": "at_hall", "removes": "cold" } ],
+              "outcome": {
+                "won": { "sets": "meeting_won", "heat": -0.25 },
+                "split": { "sets": "meeting_split", "heat": -0.10 },
+                "lost": { "sets": "meeting_lost", "heat": 0.10 },
+                "absent": { "sets": "stayed_away", "heat": 0.20,
+                  "effects": [ { "type": "opinion", "role": "organiser", "delta": -8, "memory": "ignored_me" } ] } },
+              "text": "exchange-flood" },
+            // A date, given to the organiser to put to the hall: the repairs
+            // speed up behind it, and the player's name is on it.
+            { "id": "date", "type": "talk", "with": "organiser", "sets": "dated",
+              "effects": [
+                { "type": "recovery", "area": "hood", "repair": 1.5, "months": 6 },
+                { "type": "standing", "delta": -2 } ],
+              "choice": { "label_key": "talk-arc-flood-date", "say_key": "talk-arc-flood-date-say",
+                "replies": [
+                  { "key": "talk-arc-flood-date-known", "agrees": true,
+                    "when": [ { "type": "arc_mark", "mark": "at_hall" } ] },
+                  { "key": "talk-arc-flood-date-yes", "agrees": true } ] } },
           ],
           "next": [
             { "to": "rebuilding", "when": [ { "type": "law_in_force", "templates": ["policy.rebuild_fund", "policy.flood_defenses"] } ] },
@@ -119,12 +167,16 @@
         { "id": "defended", "key": "arc-flood-defended",
           "exit": { "legacy_key": "legacy-arc-flood-defended", "effects": [
             { "type": "approval", "area": "hood", "delta": 0.03 },
-            { "when": [ { "type": "arc_mark", "mark": "wall" } ], "type": "record", "delta": 0.08 },
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "meeting_won" }, { "type": "arc_mark", "mark": "meeting_split" } ] } ],
+              "type": "approval", "area": "hood", "delta": 0.01 },
+            { "when": [ { "type": "arc_mark", "mark": "tabled" } ], "type": "record", "delta": 0.08 },
             { "when": [ { "type": "arc_mark", "mark": "at_hall" } ], "type": "opinion", "role": "organiser", "delta": 6 } ] } },
         // Rebuilt as it was. A player nobody saw is in nobody's memory of it.
         { "id": "rebuilt", "key": "arc-flood-rebuilt",
           "exit": { "legacy_key": "legacy-arc-flood-rebuilt", "effects": [
             { "when": [ { "type": "arc_mark", "mark": "at_hall" } ], "type": "approval", "area": "hood", "delta": 0.03 },
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "meeting_won" }, { "type": "arc_mark", "mark": "meeting_split" } ] } ],
+              "type": "approval", "area": "hood", "delta": 0.01 },
             { "when": [ { "type": "arc_mark", "mark": "paid_first" } ], "type": "record", "delta": 0.04 },
             { "when": [ { "type": "arc_mark", "mark": "sheltered" } ], "type": "favour", "role": "organiser", "owed_to_player": true } ] } },
         // The work stopped short: those still away go for good.
@@ -132,6 +184,8 @@
           "exit": { "headline_key": "headline-arc-flood-hollowed", "effects": [
             { "type": "displacement", "area": "hood", "of": "still_away" },
             { "type": "approval", "area": "hood", "delta": -0.04 },
+            { "when": [ { "type": "arc_mark", "mark": "stayed_away" } ], "type": "approval", "area": "hood", "delta": -0.02 },
+            { "when": [ { "type": "arc_mark", "mark": "meeting_lost" } ], "type": "opinion", "role": "organiser", "delta": -4 },
             { "unless": [ { "type": "arc_mark", "mark": "at_hall" } ], "type": "opinion", "role": "organiser", "delta": -12, "memory": "ignored_me" } ] } },
       ],
     },
@@ -166,36 +220,6 @@
             { "type": "standing", "delta": 1 } ] },
       ],
     },
-    {
-      "id": "dilemma.flood_meeting", "category": "climax", "arc_only": true,
-      "title_key": "dilemma-flood-meeting", "situation_key": "dilemma-flood-meeting-situation",
-      "roles": [
-        { "id": "organiser", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.nurse", "occupation.shopkeeper", "occupation.teacher"] } },
-        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
-      ],
-      "deadline_days": 14, "cooldown_days": 0, "scene": "scene.flood_meeting",
-      "options": [
-        { "id": "date", "label_key": "dilemma-flood-meeting-date", "aftermath_key": "dilemma-flood-meeting-date-after",
-          "effects": [
-            { "type": "approval", "neighborhood": "hood", "delta": 0.03 },
-            { "type": "opinion", "role": "organiser", "delta": 4 },
-            { "type": "standing", "delta": -2 } ] },
-        { "id": "wall", "label_key": "dilemma-flood-meeting-wall", "aftermath_key": "dilemma-flood-meeting-wall-after",
-          "effects": [
-            { "type": "draft", "template": "policy.flood_defenses" },
-            { "type": "record", "delta": 0.02 },
-            { "type": "approval", "neighborhood": "hood", "delta": -0.01 } ] },
-        { "id": "honest", "label_key": "dilemma-flood-meeting-honest", "aftermath_key": "dilemma-flood-meeting-honest-after",
-          "effects": [
-            { "type": "slots", "n": 1 },
-            { "type": "opinion", "role": "organiser", "delta": 6, "memory": "stood_with_me" } ] },
-        { "id": "absent", "default": true, "label_key": "dilemma-flood-meeting-absent", "aftermath_key": "dilemma-flood-meeting-absent-after",
-          "effects": [
-            { "type": "opinion", "role": "organiser", "delta": -8, "memory": "ignored_me" },
-            { "type": "approval", "neighborhood": "hood", "delta": -0.02 },
-            { "type": "health", "delta": 1 } ] },
-      ],
-    },
   ],
 
   // The arc's ask: offered only by a run, from its organiser.
@@ -222,8 +246,6 @@
   "scenes": [
     { "id": "scene.flood_hall", "place": { "type": "kind", "kind": "streets" },
       "beats": [ { "speaker": "organiser", "line": "scene-flood-hall-organiser" } ] },
-    { "id": "scene.flood_meeting", "place": { "type": "kind", "kind": "streets" },
-      "beats": [ { "speaker": "organiser", "line": "scene-flood-meeting-organiser" } ] },
   ],
 
   // Heard in the struck neighbourhood while the stages last.

@@ -209,8 +209,63 @@ fn in_range(v: f64, min: Option<f64>, max: Option<f64>) -> bool {
     min.is_none_or(|a| v >= a) && max.is_none_or(|z| v <= z)
 }
 
+/// `bill_costs`: the person in the slot sponsors a bill the player can
+/// still vote on, and a yes would cost the player: their ward leans
+/// against it, their party's line is against it, or a promise they hold
+/// forbids it. The first such bill in id order; the first bind that holds.
+fn bill_costs(cx: &Ctx<'_>, slot: &str, args: &mut Args) -> bool {
+    let v = cx.v;
+    let Some(p) = cx.person(slot) else {
+        return false;
+    };
+    let promises: Vec<&str> =
+        v.r.asks()
+            .asks
+            .iter()
+            .filter(|a| matches!(a.status, crate::asks::AskStatus::Accepted { .. }))
+            .flat_map(|a| a.needs.iter())
+            .filter_map(|n| match n {
+                crate::asks::Need::VoteAgainstAll { tag } => Some(tag.as_str()),
+                _ => None,
+            })
+            .collect();
+    for b in &v.r.policy().instances {
+        if b.status != PolicyStatus::UnderConsideration
+            || !b
+                .sponsor
+                .and_then(|s| v.pol.get(s))
+                .is_some_and(|s| s.character == p)
+            || !v.can_vote(b.id.0)
+        {
+            continue;
+        }
+        let bind = if v.ward_lean(b.id.0) < -0.02 {
+            Some("seat")
+        } else if v.party_line(b.id.0) < 0 {
+            Some("party")
+        } else if promises
+            .iter()
+            .any(|t| crate::asks::resolve::tagged(v.r, b.id.0, t))
+        {
+            Some("promise")
+        } else {
+            None
+        };
+        if let Some(bind) = bind {
+            if let Some(t) = v.content().policies.get(&b.template) {
+                args.insert("law_key".into(), t.name_key.clone());
+            }
+            args.insert("bind".into(), bind.into());
+            return true;
+        }
+    }
+    false
+}
+
 /// A named plant's state as content names it.
-pub fn plant_state(s: &crate::economy::plants::PlantStatus) -> mandate_content::condition::PlantState {
+pub fn plant_state(
+    s: &crate::economy::plants::PlantStatus,
+) -> mandate_content::condition::PlantState {
     use crate::economy::plants::PlantStatus as P;
     use mandate_content::condition::PlantState as S;
     match s {
@@ -718,6 +773,7 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
         C::Favour {
             slot,
             owed_to_player,
+            is,
         } => {
             let (Some(p), Some(me)) = (cx.person(slot), cx.me()) else {
                 return false;
@@ -730,12 +786,13 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             } else {
                 characters::favours_owed(pol, me, p)
             };
-            if n == 0 {
+            if (n > 0) != *is {
                 return false;
             }
             args.insert("n".into(), n.to_string());
             true
         }
+        C::BillCosts { slot } => bill_costs(cx, slot, args),
         C::Met { slot, is } => {
             let (Some(p), Some(me)) = (cx.person(slot), cx.me()) else {
                 return false;

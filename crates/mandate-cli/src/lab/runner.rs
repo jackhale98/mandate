@@ -567,11 +567,16 @@ impl Game {
                 town_ok(*town)?;
                 use mandate_sim::economy::plants;
                 let st = self.e.state();
-                let industry = plants::of_town(&st.economy, mandate_sim::world::MunicipalityId(*town))
-                    .filter(|p| p.is_open())
-                    .filter(|p| content.industry(&p.industry).is_some_and(|d| d.plants.closes))
-                    .max_by(|a, b| a.capacity.total_cmp(&b.capacity).then(b.id.cmp(&a.id)))
-                    .map(|p| p.industry.to_string());
+                let industry =
+                    plants::of_town(&st.economy, mandate_sim::world::MunicipalityId(*town))
+                        .filter(|p| p.is_open())
+                        .filter(|p| {
+                            content
+                                .industry(&p.industry)
+                                .is_some_and(|d| d.plants.closes)
+                        })
+                        .max_by(|a, b| a.capacity.total_cmp(&b.capacity).then(b.id.cmp(&a.id)))
+                        .map(|p| p.industry.to_string());
                 if let Some(industry) = industry {
                     self.intervene(&Intervention::IndustryShock {
                         town: Some(*town),
@@ -601,15 +606,18 @@ impl Game {
                     .iter()
                     .filter(|p| !p.is_player && p.id != me && p.municipality() == *town)
                     .filter(|p| p.role.post().is_some())
-                    .max_by(|a, b| {
-                        sponsored(a.id)
-                            .cmp(&sponsored(b.id))
-                            .then(b.id.cmp(&a.id))
-                    })
+                    .max_by(|a, b| sponsored(a.id).cmp(&sponsored(b.id)).then(b.id.cmp(&a.id)))
                     .map(|p| p.character);
                 if let (Some(me), Some(c)) = (mine, creditor) {
                     self.e.setup(|st| {
-                        mandate_sim::characters::owe(&mut st.politics, me, c, "favour-lab", None, date)
+                        mandate_sim::characters::owe(
+                            &mut st.politics,
+                            me,
+                            c,
+                            "favour-lab",
+                            None,
+                            date,
+                        )
                     });
                 }
             }

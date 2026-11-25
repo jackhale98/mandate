@@ -223,9 +223,16 @@ pub(crate) fn spend(state: &mut State, time: VisitTime) {
 }
 
 /// The names and dates a run's text is given from the simulation's side
-/// (a visit's outcome, a choice's lines): `COMMON_ARGS` and the cast.
-fn text_args(state: &State, run: &ArcRun) -> Vec<(String, String)> {
-    let mut out = cast::names(&state.politics, &state.world, &run.cast);
+/// (a visit's outcome, a choice's lines): `COMMON_ARGS`, the cast, and the
+/// readings of its template's `facts` (a plant's name, its jobs).
+fn text_args(state: &State, content: &ContentBundle, run: &ArcRun) -> Vec<(String, String)> {
+    let mut out = match content.arc(&run.template) {
+        Some(def) if !def.facts.is_empty() => {
+            crate::condition::on_state(state, content, |v| cast::facts(v, def, run))
+        }
+        _ => Vec::new(),
+    };
+    out.extend(cast::names(&state.politics, &state.world, &run.cast));
     out.push((
         "place".into(),
         cast::jurisdiction_name(&state.world, run.at),
@@ -296,7 +303,7 @@ pub fn visit(
         outcome_key: outcome_key.clone(),
         ..Default::default()
     };
-    res.args.extend(text_args(state, &run));
+    res.args.extend(text_args(state, content, &run));
     res.args.insert("verb".into(), verb.into());
     Ok(res)
 }
@@ -411,7 +418,7 @@ fn talk_offer(state: &State, content: &ContentBundle, speaker: CharacterId) -> V
                 id: choice_id(run.id, &b),
                 label_key: choice.label_key.clone(),
                 say_key: choice.say_key.clone(),
-                args: text_args(state, &run),
+                args: text_args(state, content, &run),
                 replies,
                 cost: ChoiceCost::Conversation,
             });
@@ -475,7 +482,7 @@ fn talk_chosen(
             "outcome-arc-choice-refused"
         }
         .into(),
-        args: text_args(state, &run),
+        args: text_args(state, content, &run),
     }
 }
 

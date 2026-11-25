@@ -225,10 +225,7 @@ fn still_away(v: &View<'_>, area: Area) -> Vec<Effect> {
 /// A request whose applier runs monthly: it would wait outside the state
 /// between advances, so the arcs domain holds it until the month turns.
 pub fn monthly(e: &Effect) -> bool {
-    matches!(
-        e,
-        Effect::Displacement { .. } | Effect::PlantRelief { .. }
-    )
+    matches!(e, Effect::Displacement { .. } | Effect::PlantRelief { .. })
 }
 
 /// Post requests from inside the scheduler, each with its cause. Those for

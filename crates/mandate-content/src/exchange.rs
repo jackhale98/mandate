@@ -390,6 +390,8 @@ impl MoveKind {
             MoveKind::Turn => Some("aired"),
             MoveKind::Own => Some("owned"),
             MoveKind::Deny => Some("denied"),
+            // A draft went in from the floor: an exit may credit it.
+            MoveKind::Act => Some("tabled"),
             _ => None,
         }
     }

@@ -195,6 +195,10 @@ pub enum ArcCast {
         /// The hazard `most_exposed` reads.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         hazard: Option<HazardKey>,
+        /// With `place`, the area that holds the place cast in that earlier
+        /// role comes first (a plant's own district), then `pick`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        place: Option<String>,
     },
     /// An open place of one of these kinds (in list order); with `near`,
     /// one in that area role first.
@@ -1567,12 +1571,29 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     }
                     near(n, issues);
                 }
-                ArcCast::Area { pick, hazard } => {
+                ArcCast::Area {
+                    pick,
+                    hazard,
+                    place,
+                } => {
                     if *pick == AreaPick::MostExposed && hazard.is_none() {
                         err(
                             issues,
                             format!("role `{}`: `most_exposed` needs a hazard", r.id),
                         );
+                    }
+                    if let Some(p) = place {
+                        let ok = a
+                            .roles
+                            .iter()
+                            .take_while(|x| x.id != r.id)
+                            .any(|x| &x.id == p && x.cast.kind() == RoleKind::Place);
+                        if !ok {
+                            err(
+                                issues,
+                                format!("role `{}`: `place` names an earlier place role", r.id),
+                            );
+                        }
                     }
                 }
                 ArcCast::Workplace { of } => {

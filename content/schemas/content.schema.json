@@ -742,6 +742,13 @@
           "additionalProperties": false,
           "description": "A named person there with one of these occupations (in list order,\nthen the most influential); with `near`, one who lives in that area\nrole first.",
           "properties": {
+            "at": {
+              "description": "With `at`, one whose own workplace is the place cast in that\nrole first (a plant's steward and its manager), before `near`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "near": {
               "type": [
                 "string",
@@ -762,6 +769,26 @@
           "required": [
             "type",
             "occupations"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A named plant there (DEC-110) in one of these states (none given:\nany open one): the most advanced in its review first (under notice,\nthen on short time, then running), then the most jobs, then the\nlowest id. Bound to the plant's place.",
+          "properties": {
+            "status": {
+              "items": {
+                "$ref": "#/$defs/PlantState"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "plant",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
           ],
           "type": "object"
         },
@@ -831,6 +858,13 @@
             },
             "pick": {
               "$ref": "#/$defs/AreaPick"
+            },
+            "place": {
+              "description": "With `place`, the area that holds the place cast in that earlier\nrole comes first (a plant's own district), then `pick`.",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "type": {
               "const": "area",
@@ -4631,7 +4665,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.",
+          "description": "The player owes them a favour (or, `owed_to_player`, the reverse): `$n`.\nWith `is: false`, none is owed (the debt was paid, or never was).",
           "oneOf": [
             {
               "required": [
@@ -4645,6 +4679,9 @@
             }
           ],
           "properties": {
+            "is": {
+              "type": "boolean"
+            },
             "owed_to_player": {
               "default": false,
               "type": "boolean"
@@ -4657,6 +4694,38 @@
             },
             "type": {
               "const": "favour",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person in the slot sponsors a bill the player can still vote on,\nand a yes would cost the player: their ward leans against it, their\nparty's line is against it, or a promise they hold forbids it (the\nfirst such bill, the first bind that holds). `$law_key` (the bill's\ntemplate), `$bind` (`seat`, `party` or `promise`).",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "bill_costs",
               "type": "string"
             }
           },
@@ -5538,6 +5607,46 @@
             },
             "type": {
               "const": "sponsors_bill",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A named plant in one of these states (none given: any): with `slot`,\nthe plant at the place cast in that role of an arc (the open one,\nelse the last that closed there); without, any plant in the\njurisdiction's towns. With `closes_within_days`, under notice with\nits date at most that many days off. `$plant_key`, `$stem`,\n`$works_key`, `$product_key`, `$jobs`; under notice also\n`$closes_day`, `$closes_month_key`, `$closes_year` (the date).",
+          "properties": {
+            "closes_within_days": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "role": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "slot": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "status": {
+              "items": {
+                "$ref": "#/$defs/PlantState"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "plant",
               "type": "string"
             }
           },
@@ -9994,6 +10103,52 @@
             "type",
             "role",
             "level"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Relief on the margin of the plant at the place cast in `place` for\nsome months (DEC-110: the economy applies it, and its own rule\nstill decides the review).",
+          "properties": {
+            "months": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "place": {
+              "type": "string"
+            },
+            "relief": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "plant_relief",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "place",
+            "relief",
+            "months"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "One favour the player owes the role is paid off in another coin\n(the characters domain applies; nothing if none is owed).",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "const": "repay",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "role"
           ],
           "type": "object"
         },
@@ -15600,6 +15755,31 @@
         {
           "const": "none",
           "description": "Never.",
+          "type": "string"
+        }
+      ]
+    },
+    "PlantState": {
+      "description": "A named plant's state in its review (DEC-110, `INDUSTRIES.md` §3).",
+      "oneOf": [
+        {
+          "const": "running",
+          "description": "Working full time.",
+          "type": "string"
+        },
+        {
+          "const": "short_time",
+          "description": "On short time.",
+          "type": "string"
+        },
+        {
+          "const": "threatened",
+          "description": "Under notice, with a date.",
+          "type": "string"
+        },
+        {
+          "const": "closed",
+          "description": "Shut.",
           "type": "string"
         }
       ]
