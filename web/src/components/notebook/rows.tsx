@@ -191,9 +191,9 @@ export function shortDate(tr: Translator, d: DateView): string {
   return tr.t("ui-date-short", { day: d.day, month: tr.t(`month-short-${d.month}`) });
 }
 
-/** The stance as a shape and a short word (DEC-051: never colour alone): ● warm, ◐ neutral, ○ cool. Not arrows:
- *  ▲ and ▼ mean a movement elsewhere (a debate's lines, the stat tiles), and a person's stance is a level, not a
- *  trend (owner, 2026-11-25). */
+/** The stance as a sign and a short word (DEC-051: never colour alone): + warm, = neutral, − cool. Not arrows: ▲
+ *  and ▼ mean a movement elsewhere (a debate's lines, the stat tiles), and a person's stance is a level, not a trend
+ *  (owner, 2026-11-25). Not dots, which read as the knowledge meter the Notebook no longer has. */
 export function stanceMark(shape: string): string {
-  return shape === "up" ? "●" : shape === "down" ? "○" : "◐";
+  return shape === "up" ? "+" : shape === "down" ? "−" : "=";
 }

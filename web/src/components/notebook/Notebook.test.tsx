@@ -86,7 +86,7 @@ describe("the Notebook", () => {
     // Three lines: the name, the stance in a word with its shape and the role, the reason (34 characters at most).
     const first = now[0] as HTMLElement;
     expect(first.textContent).toContain("Bettina Zeller");
-    expect(first.textContent).toContain("◐ Neutral");
+    expect(first.textContent).toContain("= Neutral");
     expect(first.textContent).toContain("An ask needs a word with them");
     // Folded sections: a count, never a share.
     for (const [id, n] of [
