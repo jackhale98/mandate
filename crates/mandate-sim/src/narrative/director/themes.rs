@@ -49,7 +49,7 @@ pub(super) fn focus_towns(v: &View<'_>) -> Vec<u32> {
 
 /// Whether the live state supports a theme (ENGAGEMENT §4.2). It reads live
 /// state, never the ledger: a scheme counts whether the player knows of it.
-fn theme_eligible(n: &NarrativeState, v: &View<'_>, theme: &str) -> bool {
+fn theme_eligible(_n: &NarrativeState, v: &View<'_>, theme: &str) -> bool {
     let content = v.content();
     let towns = focus_towns(v);
     let crises = || {
@@ -81,10 +81,13 @@ fn theme_eligible(n: &NarrativeState, v: &View<'_>, theme: &str) -> bool {
                     .is_some_and(|t| t.last_year.year > 0 && t.last_year.balance.0 < 0)
             })
         }
-        "scheme" => n.active_runs().any(|r| {
-            content
-                .storyline(&r.template)
-                .is_some_and(|s| s.themes.iter().any(|t| t == "scheme"))
+        // A running arc that carries it (a debt being called in, a rival).
+        "scheme" => v.r.arcs().is_some_and(|a| {
+            a.runs.iter().any(|r| {
+                content
+                    .arc(&r.template)
+                    .is_some_and(|s| s.themes.iter().any(|t| t == "scheme"))
+            })
         }),
         "local_life" => true,
         _ => false,
@@ -167,6 +170,9 @@ pub(super) fn chapters(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>)
     let mut index = 1;
     if let Some(mut c) = n.chapter.take() {
         index = c.index + 1;
+        // A session whose lead never turned: the turn that did come.
+        let b = budget(d, n.profile(v.content()));
+        super::arcs::settle_turn(n, v, &mut c, b);
         // A campaign's climax is the election (DEC-005).
         if c.kind == ChapterKind::Campaign
             && let Some(pl) = v.player()
@@ -319,7 +325,6 @@ pub(super) fn lapse(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>) {
         .map(|d| d.id)
         .collect();
     for id in gone {
-        let mut run = None;
         if let Some(d) = n.decisions.iter_mut().find(|d| d.id == id) {
             d.status = DecisionStatus::Lapsed;
             d.resolution = Some(Resolution {
@@ -328,7 +333,6 @@ pub(super) fn lapse(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>) {
                 by_default: false,
                 applied: Vec::new(),
             });
-            run = d.storyline;
             out.events.record(
                 date,
                 EventKind::DecisionLapsed {
@@ -337,13 +341,6 @@ pub(super) fn lapse(n: &mut NarrativeState, v: &View<'_>, out: &mut Outs<'_>) {
                 },
                 Cause::Process(Process::Director),
             );
-        }
-        // A storyline stage whose decision lapsed waits for another chance.
-        if let Some(rid) = run
-            && let Some(r) = n.storylines.iter_mut().find(|r| r.id == rid)
-        {
-            r.decision = None;
-            r.entered = false;
         }
         n.log(
             date,

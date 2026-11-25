@@ -648,8 +648,11 @@
         },
         {
           "additionalProperties": false,
-          "description": "Whoever holds a post there whose constitution lists this power (not\nthe player; an office before a seat).",
+          "description": "Whoever holds a post there whose constitution lists this power (not\nthe player; an office before a seat). `party` is a preference,\nnever a filter: one of the player's party first (`same`: whoever\nthinks most of the player), or of another first (`other`: whoever\nthinks least), then anyone else who holds the power.",
           "properties": {
+            "party": {
+              "$ref": "#/$defs/PartyRel"
+            },
             "power": {
               "$ref": "#/$defs/Power"
             },
@@ -661,6 +664,34 @@
           "required": [
             "type",
             "power"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The player's named rival there (a town's; local-only).",
+          "properties": {
+            "type": {
+              "const": "rival",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Someone there the player owes a favour (the largest debt).",
+          "properties": {
+            "type": {
+              "const": "creditor",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
           ],
           "type": "object"
         },
@@ -717,6 +748,24 @@
           "required": [
             "type",
             "kinds"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Where the person cast in `of` works: the place their post sits (the\nconstitution's `works_at`), else their own workplace.",
+          "properties": {
+            "of": {
+              "type": "string"
+            },
+            "type": {
+              "const": "workplace",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "of"
           ],
           "type": "object"
         },
@@ -828,7 +877,7 @@
         },
         "opportunity": {
           "default": false,
-          "description": "An opportunity: the director times its arrival (task A2).",
+          "description": "An opportunity: the director times its arrival (parsed and inert:\nno opportunity arc is written yet).",
           "type": "boolean"
         },
         "raise": {
@@ -868,6 +917,17 @@
             "$ref": "#/$defs/StageDef2"
           },
           "type": "array"
+        },
+        "standing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Standing"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A standing arc (DEC-109 §7): one the calendar raises every chapter\nof its kind, so a calm town still has a turn. It runs beside the\ndirector's cap on arcs (`director.arcs_active`), and a material arc\noutranks it for the chapter's lead."
         },
         "themes": {
           "description": "Chapter themes it carries (`crisis`, `scheme`).",
@@ -2938,8 +2998,22 @@
     },
     "ClockDef": {
       "additionalProperties": false,
-      "description": "A stage's deadline: a keyed draw in a range of days from its entry, or\n(not yet) the subject's own date.",
+      "description": "A stage's deadline: a keyed draw in a range of days from its entry or\nbefore the jurisdiction's budget year turns, or (not yet) the subject's\nown date.",
       "properties": {
+        "before_budget_year": {
+          "description": "Days before the jurisdiction's budget year turns, [least, most]: a\nkeyed draw between them (never before tomorrow). The budget\ncalendar is the simulation's; where in the range is the draw's.\nWith `days` too, the draw is where the two ranges overlap (else at\nthe first day `days` allows).",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
         "days": {
           "items": {
             "format": "uint32",
@@ -2962,6 +3036,10 @@
               "type": "null"
             }
           ]
+        },
+        "placed": {
+          "description": "A director-owned clock (DEC-033 B; STAGED_ARCS §3.2): the draw\nstays inside `days`, and a storyteller with a tension curve places\nit inside the chapter's climax window where the two overlap, so the\nturn falls where the chapter wants it. Never a date the simulation\nowns.",
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -4961,6 +5039,209 @@
         },
         {
           "additionalProperties": false,
+          "description": "The last run of this arc in the jurisdiction that reached a turn\nreached it at this stage (`is: false`: at another, or none has).\nClimax memory by variant: the same turn does not come two years\nrunning. Inside an arc only.",
+          "properties": {
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "stage": {
+              "type": "string"
+            },
+            "type": {
+              "const": "arc_last_turn",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "stage"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "Days until the jurisdiction's budget year turns (its treasury closes\nits books), within [min, max]: the budget calendar.",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "budget_year",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The balance of the jurisdiction's treasury over its last closed\nbudget year, as a share of that year's revenue, within [min, max]\n(negative: it spent more than it took; no closed year reads 0;\nwithout bounds it always holds): `$books` (`short`, `over` or\n`level`: beyond a hundredth either way) and `$gap` (the share in\nwhole per cent, never negative).",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "budget_balance",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "One party holds (or, `is: false`, none holds) more than half of the\nposts for the jurisdiction whose constitution lists this power; with\n`share`, at least that share of them (0.6: a majority with a seat\nto spare in a body of seven).",
+          "properties": {
+            "is": {
+              "default": true,
+              "type": "boolean"
+            },
+            "power": {
+              "$ref": "#/$defs/Power"
+            },
+            "share": {
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "type": {
+              "const": "body_majority",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "power"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The share of the holders of posts for the jurisdiction that list\nthis power (the player not counted) who would back the player,\nwithin [min, max] (0..1; without bounds it always holds): those of\nthe player's party, those whose opinion of the player is at least\n`opinion` (default 10), and those who owe the player a favour.\n`$backers` and `$members` (counts).",
+          "properties": {
+            "max": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "opinion": {
+              "default": null,
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "power": {
+              "$ref": "#/$defs/Power"
+            },
+            "type": {
+              "const": "body_support",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "power"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The last race the player stood in is decided, and they won it (or,\n`won: false`, lost it). Never holds while they have stood in none.",
+          "properties": {
+            "type": {
+              "const": "last_race",
+              "type": "string"
+            },
+            "won": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The person in the slot sponsors a bill the player can still declare\na vote on.",
+          "oneOf": [
+            {
+              "required": [
+                "slot"
+              ]
+            },
+            {
+              "required": [
+                "role"
+              ]
+            }
+          ],
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            },
+            "type": {
+              "const": "sponsors_bill",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Any one of these holds (the first that does gives the arguments).",
           "properties": {
             "of": {
@@ -5581,12 +5862,6 @@
         "campaign": {
           "$ref": "#/$defs/CycleLengths"
         },
-        "climax_force_days": {
-          "description": "A session with no climax this many days before its climax window\ncloses ends its phase and opens the climax peak.",
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
-        },
         "session": {
           "$ref": "#/$defs/CycleLengths"
         },
@@ -5599,8 +5874,7 @@
       "required": [
         "session",
         "campaign",
-        "setback_relax_mult",
-        "climax_force_days"
+        "setback_relax_mult"
       ],
       "type": "object"
     },
@@ -5726,6 +6000,11 @@
       "additionalProperties": false,
       "description": "A dilemma (DEC-077 §4): a moment where every option costs someone, built\nfrom live state, warned in advance, and explained afterwards.",
       "properties": {
+        "arc_only": {
+          "default": false,
+          "description": "Only presented as an arc's beat, never on its own (the old spelling\n`storyline_only` still reads).",
+          "type": "boolean"
+        },
         "category": {
           "$ref": "#/$defs/DilemmaCategory"
         },
@@ -5795,11 +6074,6 @@
         "situation_key": {
           "description": "The situation, with the cast as arguments.",
           "type": "string"
-        },
-        "storyline_only": {
-          "default": false,
-          "description": "Only presented as a storyline stage, never on its own.",
-          "type": "boolean"
         },
         "themes": {
           "description": "Chapter themes it belongs to (ENGAGEMENT §4.2): a themed template is\ndrawn before the rest in a chapter of its theme.",
@@ -5985,7 +6259,7 @@
           "type": "integer"
         },
         "minor": {
-          "description": "Minor developments (requests, storyline beats, news of the town), [target minimum, maximum].",
+          "description": "Minor developments (requests, news of the town), [target minimum, maximum].",
           "items": {
             "format": "uint8",
             "maximum": 255,
@@ -6020,18 +6294,18 @@
       "additionalProperties": false,
       "description": "The narrative director (DEC-033): one file across all packs.",
       "properties": {
+        "arcs_active": {
+          "description": "Arcs running at once in a focus jurisdiction (DEC-109: one lead and\none background), standing arcs aside.",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
         "budgets": {
           "$ref": "#/$defs/DirectorBudgets"
         },
         "chance": {
           "$ref": "#/$defs/ChanceParams"
-        },
-        "climax_memory_chapters": {
-          "description": "A template that was the climax in one of the last this many chapters\ncannot be the climax.",
-          "format": "uint8",
-          "maximum": 255,
-          "minimum": 0,
-          "type": "integer"
         },
         "cooldown_floor_days": {
           "description": "Every dilemma's cooldown is at least this many days …",
@@ -6094,7 +6368,7 @@
           "type": "number"
         },
         "no_repeat_in_chapter": {
-          "description": "A template spotlighted in a chapter is not a candidate again in it,\nthe climax included.",
+          "description": "A template spotlighted in a chapter is not a candidate again in it.",
           "type": "boolean"
         },
         "pick_band": {
@@ -6140,13 +6414,6 @@
           "minimum": 0,
           "type": "integer"
         },
-        "storylines_active": {
-          "description": "Storylines active at once.",
-          "format": "uint8",
-          "maximum": 255,
-          "minimum": 0,
-          "type": "integer"
-        },
         "tension": {
           "$ref": "#/$defs/TensionParams"
         },
@@ -6159,7 +6426,7 @@
           "type": "object"
         },
         "tier_a_window_days": {
-          "description": "A consequence (`answered`) whose window closes within this many days\nis drawn first (tier A, with storyline stages that are due).",
+          "description": "A consequence (`answered`) whose window closes within this many days\nis drawn first (tier A, with the arcs' decisions that are due).",
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
@@ -6180,7 +6447,7 @@
         "deadline_days",
         "fairness",
         "chance",
-        "storylines_active",
+        "arcs_active",
         "history",
         "cycle",
         "post_climax_significant",
@@ -6191,8 +6458,7 @@
         "themes",
         "cooldown_floor_days",
         "cooldown_growth",
-        "no_repeat_in_chapter",
-        "climax_memory_chapters"
+        "no_repeat_in_chapter"
       ],
       "type": "object"
     },
@@ -8703,6 +8969,34 @@
             "type",
             "area",
             "of"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A change voted into the next budget of the arc's jurisdiction: one\n`category`'s line of its discretionary budget, or every line,\n× `factor` when its budget year turns (finance applies, to the\ntier's own treasury; DEC-098). A line funded or cut.",
+          "properties": {
+            "category": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/BudgetCategory"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "factor": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "budget",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "factor"
           ],
           "type": "object"
         },
@@ -14160,6 +14454,11 @@
       "additionalProperties": false,
       "description": "Relevance scoring (DEC-033): what connects a situation to the player.",
       "properties": {
+        "arc": {
+          "description": "A beat of a running arc.",
+          "format": "double",
+          "type": "number"
+        },
         "base": {
           "format": "double",
           "type": "number"
@@ -14199,11 +14498,6 @@
           "format": "double",
           "type": "number"
         },
-        "storyline": {
-          "description": "Part of an active storyline.",
-          "format": "double",
-          "type": "number"
-        },
         "ward": {
           "description": "The situation is in the player's ward.",
           "format": "double",
@@ -14216,7 +14510,7 @@
         "ward",
         "crisis",
         "memory",
-        "storyline",
+        "arc",
         "pressure",
         "election",
         "concern",
@@ -15502,7 +15796,7 @@
         },
         "climax": {
           "default": false,
-          "description": "The turn: the chapter's climax when this arc leads (task A2).",
+          "description": "The turn: the chapter's climax when this arc leads. A run records\nthe first turn it reaches (`ArcRun::turn`).",
           "type": "boolean"
         },
         "clock": {
@@ -15571,6 +15865,21 @@
         "key"
       ],
       "type": "object"
+    },
+    "Standing": {
+      "description": "The kind of chapter a standing arc gives its turn to.",
+      "oneOf": [
+        {
+          "const": "session",
+          "description": "A budget year in office (the budget round).",
+          "type": "string"
+        },
+        {
+          "const": "campaign",
+          "description": "The player's campaign (the rival).",
+          "type": "string"
+        }
+      ]
     },
     "StartProfile": {
       "additionalProperties": false,
@@ -15669,141 +15978,6 @@
         "ended"
       ],
       "type": "string"
-    },
-    "StoryStageDef": {
-      "additionalProperties": false,
-      "properties": {
-        "advance": {
-          "default": [],
-          "description": "Conditions to reach this stage (checked weekly once the previous\nstage is done).",
-          "items": {
-            "$ref": "#/$defs/Condition"
-          },
-          "type": "array"
-        },
-        "branches": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "default": {},
-          "description": "Option id → the next stage id (others go to the next stage in order).",
-          "type": "object"
-        },
-        "decision": {
-          "default": null,
-          "description": "The decision presented at this stage (a dilemma whose roles are the\nstoryline's), if any.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "ends": {
-          "default": false,
-          "description": "The storyline ends at this stage.",
-          "type": "boolean"
-        },
-        "id": {
-          "type": "string"
-        },
-        "key": {
-          "description": "What this stage is, with the cast as arguments (the story so far).",
-          "type": "string"
-        },
-        "timeout_days": {
-          "default": null,
-          "description": "The storyline fades if this stage is not reached within this many days.",
-          "format": "uint32",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "wait_days": {
-          "default": 0,
-          "description": "Days after the previous stage before this one can be reached.",
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "id",
-        "key"
-      ],
-      "type": "object"
-    },
-    "StorylineDef": {
-      "additionalProperties": false,
-      "description": "A storyline template: roles cast from live actors, stages that advance on\nconditions and the player's choices, outcomes written back only through\nengine commands (decision options).",
-      "properties": {
-        "cooldown_days": {
-          "description": "Days before the storyline may start again after it ends.",
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "faded_key": {
-          "description": "What the story so far says when a stage times out (the arc fades).",
-          "type": "string"
-        },
-        "follow_up": {
-          "default": null,
-          "description": "A storyline that may start after this one ends, with the same cast\nwhere its roles match (a follow-up hook).",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "id": {
-          "type": "string"
-        },
-        "min_career_days": {
-          "default": 0,
-          "description": "Days since play began before it may start (ENGAGEMENT §4.7).",
-          "format": "uint32",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "roles": {
-          "items": {
-            "$ref": "#/$defs/RoleDef"
-          },
-          "type": "array"
-        },
-        "stages": {
-          "items": {
-            "$ref": "#/$defs/StoryStageDef"
-          },
-          "type": "array"
-        },
-        "start": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/Condition"
-          },
-          "type": "array"
-        },
-        "themes": {
-          "description": "Chapter themes it carries (`scheme`: a running scheme makes the\n`scheme` theme eligible; ENGAGEMENT §4.2).",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "title_key": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "title_key",
-        "faded_key",
-        "roles",
-        "stages",
-        "cooldown_days"
-      ],
-      "type": "object"
     },
     "StorytellerDef": {
       "additionalProperties": false,
@@ -18919,27 +19093,6 @@
         },
         "kind": {
           "const": "goals",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "items"
-      ],
-      "type": "object"
-    },
-    {
-      "additionalProperties": false,
-      "description": "Storyline templates (DEC-032).",
-      "properties": {
-        "items": {
-          "items": {
-            "$ref": "#/$defs/StorylineDef"
-          },
-          "type": "array"
-        },
-        "kind": {
-          "const": "storylines",
           "type": "string"
         }
       },

@@ -1,5 +1,5 @@
 //! One condition language (DEC-098 §5, task U1; M6_ENGINE_CONTRACTS §2.4,
-//! §3.3 and §4). Dilemma triggers, goal conditions, storyline starts and
+//! §3.3 and §4). Dilemma triggers, goal conditions, arc raises and
 //! advances, policy unlocks, conversation topics, lines and voices,
 //! overheard lines and visit verbs all write the same [`Condition`]: one
 //! type here, one evaluator (`mandate_sim::condition`), and one validator
@@ -490,6 +490,74 @@ pub enum Condition {
         #[serde(default)]
         max: Option<f64>,
     },
+    /// The last run of this arc in the jurisdiction that reached a turn
+    /// reached it at this stage (`is: false`: at another, or none has).
+    /// Climax memory by variant: the same turn does not come two years
+    /// running. Inside an arc only.
+    ArcLastTurn {
+        stage: String,
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    // --- The budget and the body that votes it (DEC-109; tier-generic) --------------
+    /// Days until the jurisdiction's budget year turns (its treasury closes
+    /// its books), within [min, max]: the budget calendar.
+    BudgetYear {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The balance of the jurisdiction's treasury over its last closed
+    /// budget year, as a share of that year's revenue, within [min, max]
+    /// (negative: it spent more than it took; no closed year reads 0;
+    /// without bounds it always holds): `$books` (`short`, `over` or
+    /// `level`: beyond a hundredth either way) and `$gap` (the share in
+    /// whole per cent, never negative).
+    BudgetBalance {
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// One party holds (or, `is: false`, none holds) more than half of the
+    /// posts for the jurisdiction whose constitution lists this power; with
+    /// `share`, at least that share of them (0.6: a majority with a seat
+    /// to spare in a body of seven).
+    BodyMajority {
+        power: Power,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        share: Option<f64>,
+        #[serde(default = "yes")]
+        is: bool,
+    },
+    /// The share of the holders of posts for the jurisdiction that list
+    /// this power (the player not counted) who would back the player,
+    /// within [min, max] (0..1; without bounds it always holds): those of
+    /// the player's party, those whose opinion of the player is at least
+    /// `opinion` (default 10), and those who owe the player a favour.
+    /// `$backers` and `$members` (counts).
+    BodySupport {
+        power: Power,
+        #[serde(default)]
+        opinion: Option<f64>,
+        #[serde(default)]
+        min: Option<f64>,
+        #[serde(default)]
+        max: Option<f64>,
+    },
+    /// The last race the player stood in is decided, and they won it (or,
+    /// `won: false`, lost it). Never holds while they have stood in none.
+    LastRace {
+        #[serde(default = "yes")]
+        won: bool,
+    },
+    /// The person in the slot sponsors a bill the player can still declare
+    /// a vote on.
+    SponsorsBill {
+        #[serde(alias = "role")]
+        slot: String,
+    },
     // --- Composition ----------------------------------------------------------------
     /// Any one of these holds (the first that does gives the arguments).
     Any { of: Vec<Condition> },
@@ -592,7 +660,7 @@ pub struct Needs {
     pub talk: bool,
     /// It reads what only the whole game state holds (the event log,
     /// people's routines, the clock): never inside the simulation's
-    /// systems (dilemmas, goals, storylines).
+    /// systems (dilemmas, goals, arcs).
     pub state: bool,
     /// It reads where it is said or done (a place, a neighbourhood).
     pub here: bool,
@@ -667,6 +735,13 @@ impl Condition {
             C::ArcDays { .. } => "arc_days",
             C::Displaced { .. } => "displaced",
             C::Recovered { .. } => "recovered",
+            C::ArcLastTurn { .. } => "arc_last_turn",
+            C::BudgetYear { .. } => "budget_year",
+            C::BudgetBalance { .. } => "budget_balance",
+            C::BodyMajority { .. } => "body_majority",
+            C::BodySupport { .. } => "body_support",
+            C::LastRace { .. } => "last_race",
+            C::SponsorsBill { .. } => "sponsors_bill",
             C::Any { .. } => "any",
         }
     }
@@ -738,6 +813,7 @@ impl Condition {
             | C::Remembers { .. }
             | C::Favour { .. }
             | C::Met { .. }
+            | C::SponsorsBill { .. }
             | C::IsBroker { .. }
             | C::IsRival { .. } => n.slot = true,
             C::PartyLineAgainstWard { .. } | C::CanVote { .. } => {
@@ -772,7 +848,8 @@ impl Condition {
             | C::ArcHeat { .. }
             | C::ArcDays { .. }
             | C::Displaced { .. }
-            | C::Recovered { .. } => n.arc = true,
+            | C::Recovered { .. }
+            | C::ArcLastTurn { .. } => n.arc = true,
             C::Arc { here, .. } => n.here = here.is_some(),
             _ => {}
         }
@@ -815,6 +892,7 @@ impl Condition {
             | C::Remembers { slot, .. }
             | C::Favour { slot, .. }
             | C::Met { slot, .. }
+            | C::SponsorsBill { slot }
             | C::IsBroker { slot, .. }
             | C::IsRival { slot, .. }
             | C::PartyLineAgainstWard { slot }
@@ -866,6 +944,8 @@ impl Condition {
             C::IsRival { is: true, .. } => set(&["rival"]),
             C::Displaced { .. } => set(&["away"]),
             C::Recovered { .. } => set(&["homes", "repaired"]),
+            C::BudgetBalance { .. } => set(&["books", "gap"]),
+            C::BodySupport { .. } => set(&["backers", "members"]),
             C::Tells { subject, .. } | C::PlayerKnows { subject, .. } => set(subject.args()),
             C::Any { of } => {
                 let mut it = of.iter().map(|c| c.provides());
@@ -931,10 +1011,6 @@ pub enum ConditionUse {
     DilemmaTrigger,
     /// An NPC goal's conditions (the politics domain).
     GoalCondition,
-    /// A storyline's start.
-    StorylineStart,
-    /// A storyline stage's advance.
-    StorylineAdvance,
     /// A scene variant (framing; no content field yet).
     SceneVariant,
     /// An ask's trigger (E6–E8; no content field yet).
@@ -998,11 +1074,9 @@ pub struct Provides {
 }
 
 impl ConditionUse {
-    pub const ALL: [ConditionUse; 19] = [
+    pub const ALL: [ConditionUse; 17] = [
         ConditionUse::DilemmaTrigger,
         ConditionUse::GoalCondition,
-        ConditionUse::StorylineStart,
-        ConditionUse::StorylineAdvance,
         ConditionUse::SceneVariant,
         ConditionUse::Ask,
         ConditionUse::FamilyTrigger,
@@ -1025,8 +1099,6 @@ impl ConditionUse {
         match self {
             ConditionUse::DilemmaTrigger => "a dilemma's triggers",
             ConditionUse::GoalCondition => "a goal's conditions",
-            ConditionUse::StorylineStart => "a storyline's start",
-            ConditionUse::StorylineAdvance => "a storyline stage's advance",
             ConditionUse::SceneVariant => "a scene variant",
             ConditionUse::Ask => "an ask's trigger",
             ConditionUse::FamilyTrigger => "a policy family's trigger",
@@ -1063,11 +1135,7 @@ impl ConditionUse {
         };
         match self {
             // Inside the simulation's systems: the scheduler's reads only.
-            U::DilemmaTrigger
-            | U::GoalCondition
-            | U::StorylineStart
-            | U::StorylineAdvance
-            | U::Ask => p(Slots::Cast, false, false, true),
+            U::DilemmaTrigger | U::GoalCondition | U::Ask => p(Slots::Cast, false, false, true),
             U::SceneVariant => p(Slots::Cast, true, true, false),
             U::FamilyTrigger => p(Slots::Family, true, false, true),
             U::PolicyUnlock => p(Slots::None, true, false, true),
@@ -1610,6 +1678,32 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
                 range(owner, c.key(), min, max, 0.0, 1.0, issues);
             }
         }
+        C::ArcLastTurn { stage, .. } => {
+            if stage.is_empty() {
+                err(issues, "an arc_last_turn condition names a stage".into());
+            }
+        }
+        C::BodyMajority { share, .. } => {
+            if share.is_some_and(|s| !(0.5..=1.0).contains(&s)) {
+                err(issues, "body_majority: `share` is 0.5..1".into());
+            }
+        }
+        C::BudgetYear { min, max } => range(owner, "budget_year", min, max, 0.0, 3660.0, issues),
+        C::BudgetBalance { min, max } => {
+            if min.is_some() || max.is_some() {
+                range(owner, "budget_balance", min, max, -10.0, 10.0, issues);
+            }
+        }
+        C::BodySupport {
+            opinion, min, max, ..
+        } => {
+            if opinion.is_some_and(|o| !(-100.0..=100.0).contains(&o)) {
+                err(issues, "body_support: `opinion` is −100..100".into());
+            }
+            if min.is_some() || max.is_some() {
+                range(owner, "body_support", min, max, 0.0, 1.0, issues);
+            }
+        }
         C::Any { of } => {
             if of.is_empty() {
                 err(issues, "an `any` condition needs alternatives".into());
@@ -1628,6 +1722,8 @@ fn fields(b: &ContentBundle, site: &Site<'_>, c: &Condition, issues: &mut Vec<Is
         | C::MonthsInPlay { .. }
         | C::Campaigning { .. }
         | C::HoldsPower { .. }
+        | C::LastRace { .. }
+        | C::SponsorsBill { .. }
         | C::PartyLineAgainstWard { .. }
         | C::CanVote { .. }
         | C::PlaceOpen { .. }

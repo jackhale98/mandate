@@ -105,27 +105,26 @@ Not built (**planned**): appearance parameters (with the pixel-art tool, DEC-084
 
 | Entity | ID | Main fields |
 |---|---|---|
-| `NarrativeState` | — | storyteller profile key; when play began; the current `Chapter` and closed ones; tension; `decisions`; `storylines`; cooldowns by template; requests raised by goals; follow-up storylines waiting; the facts log (`Fact`, bounded); `hidden` facts; `Chance` requests; fairness `warnings`; what the director saw last week (`Seen`); lab switches (`spotlight`, `resolve_defaults`) |
-| `Chapter` | index | `ChapterKind` (session: a budget year; campaign: ends on election day), start, planned and actual end, counts of climaxes, significant, and minor beats, the climax decision, peak tension, templates and people spotlighted |
-| `Decision` | `DecisionId` | dilemma template, weight, cast (role → actor), reasons, opened, deadline, chapter, relevance, storyline, the goal that raised it, the place of its scene, `DecisionStatus` (pending, answered, defaulted, lapsed), `Resolution` (option, date, by default, what was applied) |
-| `StorylineRun` | `StorylineRunId` | template, cast, current stage, entered, since, started, the stage's decision, stages reached, end (ended, faded, removed) |
+| `NarrativeState` | — | storyteller profile key; when play began; the current `Chapter` and closed ones; tension; `decisions`; cooldowns by dilemma; requests raised by goals; the facts log (`Fact`, bounded); `hidden` facts; `Chance` requests; fairness `warnings`; what the director saw last week (`Seen`); lab switches (`spotlight`, `resolve_defaults`) |
+| `Chapter` | index | `ChapterKind` (session: a budget year; campaign: ends on election day), start, planned and actual end, counts of climaxes, significant, and minor beats, the climax decision, peak tension, templates and people spotlighted; `lead` (the arc run that leads it, the director's choice) and `turn` (the turn that was its climax: `<arc template>/<stage>`) |
+| `Decision` | `DecisionId` | dilemma template, weight, cast (role → actor), reasons, opened, deadline, chapter, relevance, `arc` (the run and beat it presents), the goal that raised it, the place of its scene, `DecisionStatus` (pending, answered, defaulted, lapsed), `Resolution` (option, date, by default, what was applied) |
 | `Fact` | — | id, date, chapter, `FactKind`, actors, spotlit, newsworthiness |
 | `HiddenFact` | — | kind (late-night deal, late-night fundraising, donation), date, actors, evidence window, discovery date chosen by the director, surfaced |
 | `Chance` | — | hazard hold on a town until a date, the share of hazard strikes kept (Steady), recession hold |
 
 Not built (**planned**, M5d part 1): outlets, coverage, perception, and scandals as media layers (DEC-034).
 
-### 6.1 Staged arcs — `arcs` (DEC-109, save v27)
+### 6.1 Staged arcs — `arcs` (DEC-109, saves v27 and v28)
 
 Keyed by `Jurisdiction`, never a town id (DEC-098). Templates are content (`mandate_content::arcs::ArcDef`, `content/base/arcs/*.jsonc`); design: `docs/design/STAGED_ARCS.md`.
 
 | Entity | ID | Main fields |
 |---|---|---|
-| `ArcsState` | — | `runs` (live, in id order: at most one a focus jurisdiction until the director schedules arcs); the id allocator; `cooldowns` (template, jurisdiction, until; gone once they pass); `past` (the last 40 `ArcSummary`); `deferred` (requests for a monthly applier, held until the month turns) |
-| `ArcRun` | `ArcId` | template; `at` (a `Jurisdiction`); `cast` (role → `ArcActor`: a person, an `Area`, a place, a jurisdiction); `stage` (its id); `since`, `started`, `began` (the root event's day); `clock`; `heat` (0..1); `marks` (sorted); `done` (beats done, one entry each); `open` (decision and ask beats asked of their owners and not yet settled); `base` (readings taken as it was raised: an area's damage and homes damaged); `root` (the event that made its `raise` true) |
-| `ArcSummary` | `ArcId` | template, jurisdiction, the exit's id, started, began, ended, the cast, the marks, the root event: what the spine's events of an ended run are read with |
+| `ArcsState` | — | `runs` (live, in id order: one a template in a focus jurisdiction, at most `director.arcs_active` there that are not standing arcs); the id allocator; `cooldowns` (template, jurisdiction, until; gone once they pass); `past` (the last 40 `ArcSummary`); `deferred` (requests for a monthly applier, held until the month turns) |
+| `ArcRun` | `ArcId` | template; `at` (a `Jurisdiction`); `cast` (role → `ArcActor`: a person, an `Area`, a place, a jurisdiction); `stage` (its id); `since`, `started`, `began` (the root event's day); `clock`; `heat` (0..1); `marks` (sorted); `done` (beats done, one entry each); `open` (decision and ask beats asked of their owners and not yet settled); `base` (readings taken as it was raised: an area's damage and homes damaged); `root` (the event that made its `raise` true); `turn` (the first `climax` stage it entered, and the day); `before` (the turn the last run of its template here reached: climax memory by variant) |
+| `ArcSummary` | `ArcId` | template, jurisdiction, the exit's id, started, began, ended, the cast, the marks, the root event, the turn it reached: what the spine's events of an ended run are read with |
 
-Bounds: a run's `done`, `open` and `marks` are bounded by its template; a run is about 1 KB of JSON, an ended one about 0.6 KB. Derived, never stored: which beats are on offer (`arcs::beats::offers`), the facts of the text (`arcs::cast::facts`). `Decision::arc` and `Ask::arc` name the run and beat that opened them; `EnvironmentState::repairs` holds the repair boosts a run (or anyone) asked for.
+Bounds: a run's `done`, `open` and `marks` are bounded by its template; a run is about 1 KB of JSON, an ended one about 0.6 KB. Derived, never stored: which beats are on offer (`arcs::beats::offers`), the facts of the text (`arcs::cast::facts`). `Decision::arc` and `Ask::arc` name the run and beat they belong to (a run lists a decision beat it wants put in `open`; the director presents it); `EnvironmentState::repairs` holds the repair boosts a run (or anyone) asked for; `Treasury::voted` holds the changes voted into a jurisdiction's next budget (`Effect::Budget`: one line or every line × a factor, applied and cleared as the budget year turns; not written while empty). Storylines were folded into arcs in v28: a running storyline loads as a run at the stage of the same id.
 
 ## 7. Engine
 

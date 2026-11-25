@@ -37,15 +37,19 @@ fn castable(e: &Engine, id: &str) -> bool {
     let r = Reads::of_state(st, content);
     let v = View::new(&r, &st.politics);
     let mut preset = Vec::new();
-    if def.storyline_only
-        && let Some(run) = st.narrative.active_runs().find(|run| {
-            content
-                .storyline(&run.template)
-                .and_then(|s| s.stages.get(run.stage as usize))
-                .is_some_and(|s| s.decision.as_deref() == Some(id))
-        })
-    {
-        preset = run.cast.clone();
+    // An arc's decision beat is cast from its run.
+    if let Some(run) = st.arcs.runs.iter().find(|run| {
+        content
+            .arc(&run.template)
+            .and_then(|a| a.stage(&run.stage))
+            .is_some_and(|s| {
+                s.beats.iter().any(|b| {
+                    matches!(&b.kind, mandate_content::arcs::BeatKind::Decision { dilemma, .. }
+                        if dilemma == id)
+                })
+            })
+    }) {
+        preset = run.narrative_cast();
     }
     let mut holders: Vec<Option<mandate_sim::characters::CharacterId>> = vec![None];
     if def.category == DilemmaCategory::Request {

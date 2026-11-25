@@ -1,0 +1,97 @@
+// The plant (DEC-109; DEC-032's plant-closure storyline, folded into an
+// arc): layoffs, the union's campaign, and how the town comes out of it.
+//
+// This is the storyline as it was, told as an arc from the day the town is
+// in a jobs crisis. The review at the plant (STAGED_ARCS §7.1: signs, a
+// notice, a decision date the economy owns) replaces it when the plant has a
+// fuse (task A5a).
+//
+// Transitions read; beats write. The edges read the town's job losses
+// (`indicator`), the laws in force, and the run's marks and days. Marks:
+// `with_owner`, `with_workers`, `brokered` (where the player stood at the
+// layoffs), `marched`, `spoke` (the union's campaign).
+//
+// Stage ids are the storyline's (`layoffs`, `walkout`, `organising`, and the
+// ending `resolution`), so a save from before the fold loads at the same
+// stage.
+{
+  "kind": "arcs",
+  "items": [
+    {
+      "id": "arc.plant_closure", "title_key": "arc-plant", "themes": ["crisis"],
+      // A town's matter: `crisis`, `indicator` and `law_in_force` read a town.
+      "tiers": ["local"], "cooldown_days": 1095,
+      "raise": [ { "type": "crisis", "kind": "crisis.plant_closure", "min_severity": 0.05 } ],
+      "roles": [
+        { "id": "steward", "cast": { "type": "occupation", "occupations": ["occupation.union_steward", "occupation.organiser"] } },
+        { "id": "owner", "cast": { "type": "occupation", "occupations": ["occupation.plant_manager", "occupation.business_leader"] } },
+        { "id": "hood", "cast": { "type": "area", "pick": "least_pleased" } },
+      ],
+      "sides": { "ally": "steward", "opponent": "owner" },
+      "heat": { "start": 0.3, "floor": { "indicator": "job_loss", "scale": 4.0 } },
+      "answers": ["policy.closure_response", "policy.hardship_fund"],
+      "stages": [
+        // The layoffs begin, and both sides come looking for allies.
+        { "id": "layoffs", "key": "arc-plant-layoffs", "rise": 0.03,
+          "beats": [
+            { "id": "press", "type": "press", "headline_key": "headline-arc-plant-layoffs" },
+            { "id": "sides", "type": "decision", "dilemma": "dilemma.plant_layoffs", "weight": "significant",
+              "on": {
+                "back_owner": { "sets": "with_owner", "heat": 0.15 },
+                "back_workers": { "sets": "with_workers" },
+                "broker_talks": { "sets": "brokered", "heat": -0.15 },
+                "stay_out": { "heat": 0.05 } } },
+          ],
+          "next": [
+            { "to": "walkout", "when": [ { "type": "arc_mark", "mark": "with_owner" } ], "after_days": 21 },
+            { "to": "organising", "after_days": 30 } ] },
+
+        // With the player on the owner's side, the steward calls a walkout.
+        { "id": "walkout", "key": "arc-plant-walkout", "rise": 0.05,
+          "enter": [ { "type": "approval", "area": "hood", "delta": -0.01, "classes": [0] } ],
+          "next": [ { "to": "organising", "after_days": 30 } ] },
+
+        // The turn: the laid-off workers organise, and want the player seen
+        // with them.
+        // (No weekly rise: the stage may last two years, and the job losses
+        // are its floor.)
+        { "id": "organising", "key": "arc-plant-organising", "climax": true,
+          "beats": [
+            { "id": "campaign", "type": "decision", "dilemma": "dilemma.workers_campaign", "weight": "climax",
+              "on": {
+                "march": { "sets": "marched", "heat": -0.1 },
+                "statement": { "sets": "spoke" },
+                "decline": { "heat": 0.1 } } },
+          ],
+          "next": [
+            { "to": "answered", "after_days": 60, "when": [
+                { "type": "indicator", "indicator": "job_loss", "max": 0.01 },
+                { "type": "law_in_force", "templates": ["policy.closure_response", "policy.hardship_fund"] } ] },
+            { "to": "resolution", "after_days": 60, "when": [ { "type": "indicator", "indicator": "job_loss", "max": 0.01 } ] },
+            { "to": "gone", "after_days": 720 } ] },
+
+        // The losses slowed, and the town had voted something for those laid off.
+        { "id": "answered", "key": "arc-plant-answered",
+          "exit": { "effects": [
+            { "type": "approval", "area": "hood", "delta": 0.02, "classes": [0] },
+            { "when": [ { "type": "arc_mark", "mark": "with_workers" } ], "type": "record", "delta": 0.04 },
+            { "when": [ { "type": "arc_mark", "mark": "marched" } ], "type": "opinion", "role": "steward", "delta": 6 } ] } },
+        // The losses slowed. The town remembers who stood where.
+        { "id": "resolution", "key": "arc-plant-resolution",
+          "exit": { "effects": [
+            { "when": [ { "type": "any", "of": [ { "type": "arc_mark", "mark": "marched" }, { "type": "arc_mark", "mark": "spoke" } ] } ],
+              "type": "approval", "area": "hood", "delta": 0.01, "classes": [0] },
+            { "when": [ { "type": "arc_mark", "mark": "brokered" } ], "type": "record", "delta": 0.02 },
+            { "unless": [ { "type": "any", "of": [
+                { "type": "arc_mark", "mark": "marched" }, { "type": "arc_mark", "mark": "spoke" },
+                { "type": "arc_mark", "mark": "brokered" }, { "type": "arc_mark", "mark": "with_workers" } ] } ],
+              "type": "approval", "area": "hood", "delta": -0.02, "classes": [0] } ] } },
+        // Two years on, the jobs have not come back.
+        { "id": "gone", "key": "arc-plant-gone",
+          "exit": { "effects": [
+            { "type": "approval", "area": "hood", "delta": -0.02 },
+            { "unless": [ { "type": "arc_mark", "mark": "marched" } ], "type": "opinion", "role": "steward", "delta": -6, "memory": "ignored_me" } ] } },
+      ],
+    },
+  ],
+}

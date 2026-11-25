@@ -669,6 +669,9 @@ fn the_legacy_record_survives_save_load_and_migration() {
     let mut v =
         serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap(), "log": null });
     v["state"].as_object_mut().unwrap().remove("act");
+    // (An older save holds no arc run: the budget round is in every played
+    // game since A2, and the step to v27 refuses a payload that carries one.)
+    v["state"].as_object_mut().unwrap().remove("arcs");
     let migrated = migrate(22, v).unwrap();
     let st: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
     assert!(st.act.records.is_empty());

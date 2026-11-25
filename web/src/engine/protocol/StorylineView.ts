@@ -7,6 +7,6 @@ export type StorylineView = { title_key: string,
  */
 stages: Array<EventView>, 
 /**
- * `ended` | `faded` | `removed`, or none while it runs.
+ * `ended` | `removed`, or none while it runs.
  */
 ended: string | null, args: { [key in string]: string }, };

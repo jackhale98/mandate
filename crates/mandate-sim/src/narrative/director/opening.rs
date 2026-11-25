@@ -3,14 +3,17 @@
 use super::*;
 use crate::spine::{Cause, Causes, Link, Process, Thread};
 
+/// Open a decision: a dilemma or a request the spotlight chose, a
+/// decision raised by a story or a case (`about`), or an arc's decision
+/// beat (`arc`: the run reads the answer from the decision).
 #[allow(clippy::too_many_arguments)]
-pub(super) fn open(
+pub(crate) fn open(
     n: &mut NarrativeState,
     v: &View<'_>,
     out: &mut Outs<'_>,
     c: Candidate<'_>,
     weight: Weight,
-    storyline: Option<StorylineRunId>,
+    arc: Option<crate::arcs::ArcRef>,
     about: Option<super::super::About>,
 ) -> DecisionId {
     let d = &v.content().director;
@@ -34,6 +37,20 @@ pub(super) fn open(
             let by = SimDate(next.0.saturating_sub(1)).max(date.add_days(1));
             deadline = deadline.min(by);
         }
+    }
+    // An arc's decision in a stage that ends on its clock is answered
+    // before the clock runs out (the day the run reads the answer).
+    if let Some(clock) = arc.as_ref().and_then(|a| {
+        let run = v.r.arcs()?.run(a.run)?;
+        let stage = v.content().arc(&run.template)?.stage(&run.stage)?;
+        stage
+            .next
+            .iter()
+            .any(|e| e.clock_within_days.is_some())
+            .then_some(run.clock)?
+            .filter(|c| *c > date)
+    }) {
+        deadline = deadline.min(SimDate(clock.0 - 1)).max(date.add_days(1));
     }
     let place = c
         .def
@@ -77,8 +94,9 @@ pub(super) fn open(
     // it never counts against the chapter's budgets (DEC-006).
     if let Some(ch) = n.chapter.as_mut().filter(|_| about.is_none()) {
         match weight {
+            // The lead arc's turn: the chapter's climax, counted when
+            // the turn was reached (`arcs::lead`), not here.
             Weight::Climax => {
-                ch.climaxes += 1;
                 ch.climax = Some(id);
                 ch.last_decision = Some(date);
             }
@@ -100,12 +118,6 @@ pub(super) fn open(
         *uses = uses.saturating_add(1);
         let cd = cooldown_days(d, c.def.cooldown_days, *uses);
         n.cooldowns.insert(c.def.id.clone(), date.add_days(cd));
-        if weight == Weight::Climax {
-            n.climaxes.push((chapter_index, c.def.id.clone()));
-            if n.climaxes.len() > super::super::CLIMAXES_CAP {
-                n.climaxes.remove(0);
-            }
-        }
         if let Some(ph) = n.phase.as_mut() {
             match weight {
                 Weight::Minor => ph.beats = ph.beats.saturating_add(1),
@@ -116,7 +128,7 @@ pub(super) fn open(
     }
     let news = (c.relevance / 3.0).clamp(0.0, 1.0) as f32;
     // Why it opened (the spine): the director spotlit it; someone came with
-    // a request; it answers a story or a case; a storyline reached it.
+    // a request; it answers a story or a case; an arc's stage prompted it.
     let mut cause = Causes::from(Cause::Process(Process::Director));
     if let Some((holder, _)) = &c.goal {
         cause = cause.and(Cause::Actor(*holder));
@@ -131,9 +143,13 @@ pub(super) fn open(
             Link::Prompted,
         )
         .and_event(
-            storyline.and_then(|run| out.events.head(Thread::Storyline(run.0))),
-            Link::Continues,
+            arc.as_ref()
+                .and_then(|a| out.events.head(Thread::Arc(a.run.0))),
+            Link::Prompted,
         );
+    if arc.is_some() {
+        cause = cause.and(Cause::Process(Process::Arcs));
+    }
     n.decisions.push(Decision {
         id,
         template: c.def.id.clone(),
@@ -144,13 +160,12 @@ pub(super) fn open(
         deadline,
         chapter: chapter_index,
         relevance: c.relevance as f32,
-        storyline,
         goal: c.goal,
         place,
         status: DecisionStatus::Pending,
         resolution: None,
         about,
-        arc: None,
+        arc,
     });
     n.log(
         date,
@@ -172,7 +187,8 @@ pub(super) fn open(
 
 /// When a session's climax must have come by: the end of its budget year,
 /// or the opening of the next campaign if that comes first (a campaign
-/// closes the session, and its own climax is the election).
+/// closes the session, and its own climax is the election). The climax
+/// window is a share of the way there (`arcs::climax_window`).
 pub fn climax_horizon(v: &View<'_>, ch: &Chapter) -> SimDate {
     let opens = v
         .content()
@@ -184,22 +200,6 @@ pub fn climax_horizon(v: &View<'_>, ch: &Chapter) -> SimDate {
         Some(o) if o > ch.start && o < ch.end => o,
         _ => ch.end,
     }
-}
-
-/// Share of a session's way to its climax horizon (0..1).
-fn climax_progress(v: &View<'_>, ch: &Chapter, on: SimDate) -> f64 {
-    let total = ch.start.days_until(climax_horizon(v, ch)).max(1) as f64;
-    (ch.start.days_until(on) as f64 / total).clamp(0.0, 1.0)
-}
-
-/// A session chapter is in its climax window and has no climax yet.
-pub(super) fn climax_due(n: &NarrativeState, v: &View<'_>, b: Budget) -> bool {
-    let Some(ch) = n.chapter.as_ref() else {
-        return false;
-    };
-    let x = climax_progress(v, ch, v.date());
-    let w = &v.content().director.tension.climax_window;
-    ch.kind == ChapterKind::Session && ch.climaxes < b.climax && x >= w[0] && x <= w[1]
 }
 
 pub(super) fn can_decide(n: &NarrativeState, d: &DirectorParams, date: SimDate) -> bool {
@@ -231,7 +231,7 @@ pub(super) fn can_minor(n: &NarrativeState, d: &DirectorParams, b: Budget, date:
 
 /// Room for a minor beat; `force` (the quiet rescue) waives pacing and
 /// spacing, never the budget.
-pub(super) fn minor_room(
+pub(crate) fn minor_room(
     n: &NarrativeState,
     d: &DirectorParams,
     b: Budget,

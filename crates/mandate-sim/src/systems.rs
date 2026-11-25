@@ -124,6 +124,14 @@ pub fn default_systems() -> Vec<SystemDef> {
             cadence: Monthly,
             run: SystemFn::Economy(economy::national),
         },
+        // Budget changes other domains asked for (`Effect::Budget`), before
+        // the month's spending.
+        SystemDef {
+            name: "finance.effects",
+            phase: P::Economy,
+            cadence: Daily,
+            run: SystemFn::Finance(finance::effects),
+        },
         SystemDef {
             name: "finance.accrue",
             phase: P::Economy,
@@ -203,7 +211,7 @@ pub fn default_systems() -> Vec<SystemDef> {
             name: "narrative.requests",
             phase: P::Director,
             cadence: Daily,
-            run: SystemFn::Narrative(crate::narrative::offered::requests),
+            run: SystemFn::Narrative(crate::narrative::offered::present),
         },
         SystemDef {
             name: "asks.requests",

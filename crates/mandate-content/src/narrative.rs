@@ -1,6 +1,6 @@
 //! Narrative content (DEC-033, DEC-032, DEC-077 §4, DEC-035): the director's
 //! parameter block, storyteller profiles, dilemmas and requests, NPC goals,
-//! storylines, and scene templates.
+//! and scene templates. (Storylines are arcs now: `crate::arcs`, DEC-109.)
 //!
 //! Casts, conditions, and option effects are closed enums: each variant is
 //! cast, evaluated, or applied by `mandate_sim::narrative`, so a new variant
@@ -25,7 +25,7 @@ pub struct DirectorBudgets {
     pub climax: u8,
     /// Significant decisions per chapter, [target minimum, maximum].
     pub significant: [u8; 2],
-    /// Minor developments (requests, storyline beats, news of the town), [target minimum, maximum].
+    /// Minor developments (requests, news of the town), [target minimum, maximum].
     pub minor: [u8; 2],
 }
 
@@ -64,8 +64,9 @@ pub struct RelevanceWeights {
     pub crisis: f64,
     /// Per salient memory a cast person holds of the player (up to three).
     pub memory: f64,
-    /// Part of an active storyline.
-    pub storyline: f64,
+    /// A beat of a running arc.
+    #[serde(alias = "storyline")]
+    pub arc: f64,
     /// It reads one of the player's pressure tracks.
     pub pressure: f64,
     /// The player's seat is up within a year.
@@ -133,9 +134,6 @@ pub struct CycleParams {
     pub campaign: CycleLengths,
     /// The relax after a setback is this much longer.
     pub setback_relax_mult: f64,
-    /// A session with no climax this many days before its climax window
-    /// closes ends its phase and opens the climax peak.
-    pub climax_force_days: u32,
 }
 
 /// The narrative director (DEC-033): one file across all packs.
@@ -167,8 +165,9 @@ pub struct DirectorParams {
     pub deadline_days: u32,
     pub fairness: FairnessParams,
     pub chance: ChanceParams,
-    /// Storylines active at once.
-    pub storylines_active: u8,
+    /// Arcs running at once in a focus jurisdiction (DEC-109: one lead and
+    /// one background), standing arcs aside.
+    pub arcs_active: u8,
     /// Resolved decisions kept for the story so far.
     pub history: u16,
     /// The pacing cycle (ENGAGEMENT §4.3).
@@ -182,7 +181,7 @@ pub struct DirectorParams {
     pub quiet_days: u32,
     pub quiet_days_campaign: u32,
     /// A consequence (`answered`) whose window closes within this many days
-    /// is drawn first (tier A, with storyline stages that are due).
+    /// is drawn first (tier A, with the arcs' decisions that are due).
     pub tier_a_window_days: u32,
     /// The pick draws among candidates whose relevance is within this of the
     /// tier's best, weighted by relevance × novelty.
@@ -194,12 +193,8 @@ pub struct DirectorParams {
     pub cooldown_floor_days: u32,
     /// … and the n-th use sets `max(floor, cooldown) × growth^(n−1)`.
     pub cooldown_growth: f64,
-    /// A template spotlighted in a chapter is not a candidate again in it,
-    /// the climax included.
+    /// A template spotlighted in a chapter is not a candidate again in it.
     pub no_repeat_in_chapter: bool,
-    /// A template that was the climax in one of the last this many chapters
-    /// cannot be the climax.
-    pub climax_memory_chapters: u8,
 }
 
 /// The chapter themes the director knows how to read from live state
@@ -827,9 +822,10 @@ pub struct DilemmaDef {
     /// The scene that presents it (`scenes`).
     #[serde(default)]
     pub scene: Option<ContentKey>,
-    /// Only presented as a storyline stage, never on its own.
-    #[serde(default)]
-    pub storyline_only: bool,
+    /// Only presented as an arc's beat, never on its own (the old spelling
+    /// `storyline_only` still reads).
+    #[serde(default, alias = "storyline_only")]
+    pub arc_only: bool,
     /// Raised by a story or an investigation about the player, not by the
     /// spotlight (DEC-006 fairness: never budgeted).
     #[serde(default)]
@@ -900,65 +896,6 @@ pub struct GoalDef {
     pub ask: Option<ContentKey>,
     /// A goal is given up after this many days (or when its conditions fail).
     pub max_days: u32,
-}
-
-// --- Storylines (DEC-032) ---------------------------------------------------------------
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct StoryStageDef {
-    pub id: String,
-    /// What this stage is, with the cast as arguments (the story so far).
-    pub key: String,
-    /// Conditions to reach this stage (checked weekly once the previous
-    /// stage is done).
-    #[serde(default)]
-    pub advance: Vec<Condition>,
-    /// The decision presented at this stage (a dilemma whose roles are the
-    /// storyline's), if any.
-    #[serde(default)]
-    pub decision: Option<ContentKey>,
-    /// Option id → the next stage id (others go to the next stage in order).
-    #[serde(default)]
-    pub branches: BTreeMap<String, String>,
-    /// The storyline ends at this stage.
-    #[serde(default)]
-    pub ends: bool,
-    /// The storyline fades if this stage is not reached within this many days.
-    #[serde(default)]
-    pub timeout_days: Option<u32>,
-    /// Days after the previous stage before this one can be reached.
-    #[serde(default)]
-    pub wait_days: u32,
-}
-
-/// A storyline template: roles cast from live actors, stages that advance on
-/// conditions and the player's choices, outcomes written back only through
-/// engine commands (decision options).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct StorylineDef {
-    pub id: ContentKey,
-    pub title_key: String,
-    /// What the story so far says when a stage times out (the arc fades).
-    pub faded_key: String,
-    pub roles: Vec<RoleDef>,
-    #[serde(default)]
-    pub start: Vec<Condition>,
-    pub stages: Vec<StoryStageDef>,
-    /// Days before the storyline may start again after it ends.
-    pub cooldown_days: u32,
-    /// A storyline that may start after this one ends, with the same cast
-    /// where its roles match (a follow-up hook).
-    #[serde(default)]
-    pub follow_up: Option<ContentKey>,
-    /// Chapter themes it carries (`scheme`: a running scheme makes the
-    /// `scheme` theme eligible; ENGAGEMENT §4.2).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub themes: Vec<String>,
-    /// Days since play began before it may start (ENGAGEMENT §4.7).
-    #[serde(default)]
-    pub min_career_days: u32,
 }
 
 // --- Scenes (DEC-035, DEC-079) -----------------------------------------------------------
@@ -1073,7 +1010,7 @@ pub(crate) fn director_ranges(d: &DirectorParams, out: &mut Vec<(String, f64, f6
         ("ward", w.ward),
         ("crisis", w.crisis),
         ("memory", w.memory),
-        ("storyline", w.storyline),
+        ("arc", w.arc),
         ("pressure", w.pressure),
         ("election", w.election),
         ("concern", w.concern),
@@ -1125,7 +1062,7 @@ pub(crate) fn director_ranges(d: &DirectorParams, out: &mut Vec<(String, f64, f6
         c.discovery_days[0].into(),
         3650.0,
     );
-    r("storylines_active", d.storylines_active.into(), 0.0, 10.0);
+    r("arcs_active", d.arcs_active.into(), 0.0, 10.0);
     r("history", d.history.into(), 1.0, 2000.0);
     for (k, c) in [
         ("session", &d.cycle.session),
@@ -1152,12 +1089,6 @@ pub(crate) fn director_ranges(d: &DirectorParams, out: &mut Vec<(String, f64, f6
         d.cycle.setback_relax_mult,
         1.0,
         4.0,
-    );
-    r(
-        "cycle.climax_force_days",
-        d.cycle.climax_force_days.into(),
-        0.0,
-        120.0,
     );
     r(
         "post_climax_significant",
@@ -1189,12 +1120,6 @@ pub(crate) fn director_ranges(d: &DirectorParams, out: &mut Vec<(String, f64, f6
         3650.0,
     );
     r("cooldown_growth", d.cooldown_growth, 1.0, 4.0);
-    r(
-        "climax_memory_chapters",
-        d.climax_memory_chapters.into(),
-        0.0,
-        10.0,
-    );
 }
 
 fn in_range(v: f64, lo: f64, hi: f64) -> bool {
@@ -1648,7 +1573,7 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
             }
         }
     }
-    if d.raised_by.is_some() && (d.category != DilemmaCategory::Significant || d.storyline_only) {
+    if d.raised_by.is_some() && (d.category != DilemmaCategory::Significant || d.arc_only) {
         issues.push(Issue::error(
             owner,
             "a raised decision is significant and stands on its own",
@@ -1682,7 +1607,7 @@ fn check_dilemma(b: &ContentBundle, d: &DilemmaDef, issues: &mut Vec<Issue>) {
 }
 
 /// Narrative content (DEC-033, DEC-032, DEC-077 §4): references resolve, every
-/// option costs someone and buys something, storylines and scenes are
+/// option costs someone and buys something, scenes are
 /// consistent, and every Fluent key exists in English.
 pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
     let d = &b.director;
@@ -1848,120 +1773,15 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             .goals
             .iter()
             .any(|g| g.request.as_deref() == Some(x.id.as_str()));
-        let staged = b.storylines.iter().any(|s| {
-            s.stages
-                .iter()
-                .any(|st| st.decision.as_deref() == Some(x.id.as_str()))
+        let staged = b.arcs.iter().any(|a| {
+            a.beats().any(|(_, beat)| {
+                matches!(&beat.kind, crate::arcs::BeatKind::Decision { dilemma, .. } if dilemma == &x.id)
+            })
         });
         if !raised && !staged {
             issues.push(Issue::error(
                 &x.id,
-                "a request must be raised by a goal (or a storyline stage)",
-            ));
-        }
-    }
-    for s in &b.storylines {
-        let owner = s.id.as_str();
-        if !crate::validate::valid_key(owner) {
-            issues.push(Issue::error(
-                owner,
-                "storyline ids look like `storyline.name`",
-            ));
-        }
-        let roles = check_roles(owner, b, &s.roles, false, issues);
-        let scope = Refs { owner, b, roles };
-        scope.conditions(
-            crate::condition::ConditionUse::StorylineStart,
-            &s.start,
-            issues,
-        );
-        if s.stages.is_empty() {
-            issues.push(Issue::error(owner, "a storyline needs stages"));
-        }
-        let stage_ids: Vec<&str> = s.stages.iter().map(|x| x.id.as_str()).collect();
-        if !s.stages.iter().any(|x| x.ends) {
-            issues.push(Issue::error(
-                owner,
-                "a storyline needs a stage that ends it",
-            ));
-        }
-        for (i, st) in s.stages.iter().enumerate() {
-            if stage_ids[..i].contains(&st.id.as_str()) {
-                issues.push(Issue::error(
-                    owner,
-                    &format!("stage `{}` defined twice", st.id),
-                ));
-            }
-            scope.conditions(
-                crate::condition::ConditionUse::StorylineAdvance,
-                &st.advance,
-                issues,
-            );
-            if let Some(dk) = &st.decision {
-                match b.dilemma(dk) {
-                    None => issues.push(Issue::error(owner, &format!("unknown decision `{dk}`"))),
-                    Some(x) => {
-                        // Roles the storyline casts carry over by id; the
-                        // decision casts the rest itself.
-                        for r in &x.roles {
-                            if let Some(sr) = s.roles.iter().find(|sr| sr.id == r.id)
-                                && std::mem::discriminant(&sr.cast)
-                                    != std::mem::discriminant(&r.cast)
-                            {
-                                issues.push(Issue::error(
-                                    owner,
-                                    &format!(
-                                        "stage `{}`: role `{}` is cast differently by the storyline and by `{dk}`",
-                                        st.id, r.id
-                                    ),
-                                ));
-                            }
-                        }
-                        for (opt, next) in &st.branches {
-                            if !x.options.iter().any(|o| &o.id == opt) {
-                                issues.push(Issue::error(
-                                    owner,
-                                    &format!(
-                                        "stage `{}` branches on unknown option `{opt}`",
-                                        st.id
-                                    ),
-                                ));
-                            }
-                            if !stage_ids.contains(&next.as_str()) {
-                                issues.push(Issue::error(
-                                    owner,
-                                    &format!(
-                                        "stage `{}` branches to unknown stage `{next}`",
-                                        st.id
-                                    ),
-                                ));
-                            }
-                        }
-                    }
-                }
-            } else if !st.branches.is_empty() {
-                issues.push(Issue::error(
-                    owner,
-                    &format!("stage `{}` branches without a decision", st.id),
-                ));
-            }
-            if st.ends && st.decision.is_some() {
-                issues.push(Issue::error(
-                    owner,
-                    &format!(
-                        "stage `{}` ends the storyline, so it cannot hold a decision",
-                        st.id
-                    ),
-                ));
-            }
-        }
-        check_themes(owner, b, &s.themes, s.min_career_days, issues);
-        if let Some(f) = &s.follow_up
-            && b.storyline(f).is_none()
-        {
-            issues.push(Issue::error(
-                owner,
-                &format!("unknown follow-up storyline `{f}`"),
+                "a request must be raised by a goal (or an arc's beat)",
             ));
         }
     }
@@ -2009,13 +1829,6 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
     }
     for g in &b.goals {
         keys.push((&g.id, &g.name_key));
-    }
-    for s in &b.storylines {
-        keys.push((&s.id, &s.title_key));
-        keys.push((&s.id, &s.faded_key));
-        for st in &s.stages {
-            keys.push((&s.id, &st.key));
-        }
     }
     for sc in &b.scenes {
         for beat in &sc.beats {

@@ -122,14 +122,14 @@ fn state_shape_matches_format_version() {
     // absent until an arc runs, and the sample game has no flood in the
     // player's town, so its shape is the one it had. The version moves
     // because a v27 save may hold them and a v26 build cannot read them.
-    // Migration: `staged_arcs`.
-    // e90c9a8a50934436 -> c1e247b2e590b190: delivered results in approval
-    // and honest ledgers (audit fixes 3, 5, 8). No serialized struct
-    // changed: a law's ledger (a map) has new keys (`homes_started`,
-    // `homes_building`, `homes_added`, `jobs_added_*`, ...) in place of
-    // `homes_built`, which an older build reads as any other key, and the
-    // sample game's contents moved; the version stays 27.
-    const EXPECTED: (u16, &str) = (27, "c1e247b2e590b190");
+    // Migration: `storylines_to_arcs`.
+    // (Audit fixes 3, 5 and 8 moved the fingerprint without a version: no
+    // serialized struct changed; a law's ledger, a map, has new keys
+    // (`homes_started`, `homes_building`, `homes_added`, `jobs_added_*`,
+    // ...) in place of `homes_built`, which an older build reads as any
+    // other key, and the sample game's contents moved. Recorded here with
+    // them, on v28.)
+    const EXPECTED: (u16, &str) = (28, "336f9ea0b265bcff");
     let c = content();
     let mut e = generate(
         &WorldConfig {
@@ -941,6 +941,9 @@ fn v11_saves_migrate_to_the_narrative() {
             .unwrap()
             .remove(key);
     }
+    // (An older save holds no arc run: the budget round is in every played
+    // game since A2, and the step to v27 refuses a payload that carries one.)
+    v["state"].as_object_mut().unwrap().remove("arcs");
     let migrated = mandate_save::migrate(11, v).unwrap();
     let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
     assert!(state.narrative.decisions.is_empty());
@@ -959,7 +962,7 @@ fn v11_saves_migrate_to_the_narrative() {
 
 /// Narrative templates are rules like any other, but a save never needs
 /// them: content that removes a dilemma lapses its pending decisions, one
-/// that removes a storyline ends its runs, and one that removes a goal drops
+/// that removes an arc ends its runs, and one that removes a goal drops
 /// it (DEC-074). Nothing is refused.
 #[test]
 fn a_removed_dilemma_template_does_not_break_loading() {
@@ -988,7 +991,8 @@ fn a_removed_dilemma_template_does_not_break_loading() {
         .cloned()
         .expect("a decision is pending");
     let (bytes, _) = encode(e.state(), &req()).unwrap();
-    // Remove the pending decision's template, every storyline, and every goal.
+    // Remove the pending decision's template, every arc (with the
+    // dilemmas, asks and scenes its file carries), and every goal.
     let mut src =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
     for s in src.iter_mut() {
@@ -1002,8 +1006,8 @@ fn a_removed_dilemma_template_does_not_break_loading() {
                 });
                 s.text = v.to_string();
             }
-            "base/storylines.jsonc" => s.text = r#"{"kind":"storylines","items":[]}"#.into(),
             "base/goals.jsonc" => s.text = r#"{"kind":"goals","items":[]}"#.into(),
+            p if p.starts_with("base/arcs/") => s.text = r#"{"kind":"arcs","items":[]}"#.into(),
             _ => {}
         }
     }
@@ -1012,11 +1016,19 @@ fn a_removed_dilemma_template_does_not_break_loading() {
     let mut e2 = mandate_sim::Engine::from_state(state, fewer).expect("loads");
     let d = e2.state().narrative.decision(pending.id).unwrap();
     assert_eq!(d.status, mandate_sim::narrative::DecisionStatus::Lapsed);
-    assert!(e2.state().narrative.active_runs().next().is_none());
     assert!(e2.state().politics.characters.goals.is_empty());
     for _ in 0..20 {
         e2.apply(Command::EndTurn).unwrap();
     }
+    // Every run of a removed arc ended at its next step.
+    assert!(e2.state().arcs.runs.is_empty());
+    assert!(
+        e2.state()
+            .arcs
+            .past
+            .iter()
+            .all(|p| p.exit == mandate_sim::arcs::EXIT_REMOVED)
+    );
     assert!(
         e2.state()
             .narrative
@@ -1073,6 +1085,8 @@ fn v12_saves_migrate_to_media_and_justice() {
         .as_object_mut()
         .unwrap()
         .remove("Media");
+    // (An older save holds no arc run; the step to v27 refuses one that does.)
+    v["state"].as_object_mut().unwrap().remove("arcs");
     let migrated = mandate_save::migrate(12, v).unwrap();
     let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
     assert!(!state.media.active && state.media.outlets.is_empty());
@@ -1144,6 +1158,8 @@ fn v13_saves_migrate_to_town_baselines() {
         serde_json::from_value::<mandate_sim::State>(v["state"].clone()).is_err(),
         "the older payload lacks the baselines"
     );
+    // (An older save holds no arc run; the step to v27 refuses one that does.)
+    v["state"].as_object_mut().unwrap().remove("arcs");
     let migrated = mandate_save::migrate(13, v.clone()).unwrap();
     assert_eq!(migrated, mandate_save::migrate(13, v).unwrap());
     let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
@@ -1381,6 +1397,8 @@ fn v15_saves_migrate_to_hazard_exposure() {
         serde_json::from_value::<mandate_sim::State>(v["state"].clone()).is_err(),
         "the older payload lacks exposure"
     );
+    // (An older save holds no arc run; the step to v27 refuses one that does.)
+    v["state"].as_object_mut().unwrap().remove("arcs");
     let migrated = mandate_save::migrate(15, v.clone()).unwrap();
     assert_eq!(migrated, mandate_save::migrate(15, v.clone()).unwrap());
     let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();
@@ -1466,6 +1484,8 @@ fn v17_saves_migrate_to_neighbourhood_concerns() {
         serde_json::from_value::<mandate_sim::State>(v["state"].clone()).is_err(),
         "the older payload lacks neighbourhood concerns"
     );
+    // (An older save holds no arc run; the step to v27 refuses one that does.)
+    v["state"].as_object_mut().unwrap().remove("arcs");
     let migrated = mandate_save::migrate(17, v.clone()).unwrap();
     assert_eq!(migrated, mandate_save::migrate(17, v.clone()).unwrap());
     let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();

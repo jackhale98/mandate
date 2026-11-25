@@ -27,13 +27,15 @@ struct Seen {
 #[derive(Default)]
 pub struct Collector {
     decisions: BTreeMap<u32, Seen>,
-    /// Spotlit storyline stages (dates).
+    /// Arc stages entered and exits reached (dates).
     stages: Vec<u32>,
     /// Spotlit developments: news of the town, crises, goals, the rival.
     developments: Vec<u32>,
     next_fact: u32,
-    /// Storyline runs started: run id → template.
+    /// Arc runs raised: run id → template.
     runs: BTreeMap<u32, String>,
+    /// (run, stage) pairs already counted.
+    stage_seen: BTreeSet<(u32, String)>,
     /// Press stories about the player: story id → date.
     press: BTreeMap<u32, u32>,
 }
@@ -58,7 +60,6 @@ impl Collector {
                 continue;
             }
             match f.kind {
-                F::StorylineStage { .. } => self.stages.push(f.date.0),
                 F::TownEvent { .. }
                 | F::CrisisBegan { .. }
                 | F::CrisisWorse { .. }
@@ -68,10 +69,23 @@ impl Collector {
             }
         }
         self.next_fact = n.next_fact;
-        for r in &n.storylines {
+        // Arc runs (storylines are arcs, DEC-109), and the day each
+        // stage was entered.
+        for r in &st.arcs.runs {
             self.runs
                 .entry(r.id.0)
                 .or_insert_with(|| r.template.clone());
+            if self.stage_seen.insert((r.id.0, r.stage.clone())) {
+                self.stages.push(r.since.0);
+            }
+        }
+        for p in &st.arcs.past {
+            self.runs
+                .entry(p.id.0)
+                .or_insert_with(|| p.template.clone());
+            if self.stage_seen.insert((p.id.0, p.exit.clone())) {
+                self.stages.push(p.ended.0);
+            }
         }
         let me = st.player.as_ref().map(|p| p.politician);
         for s in &st.media.stories {
@@ -171,13 +185,6 @@ impl Collector {
             .iter()
             .filter(|p| p.kind == PhaseKind::Peak && p.decision.is_none())
             .count();
-        // Climaxes that came by the fallback (template cooldowns waived).
-        let climax_fallbacks = n
-            .phase_log
-            .iter()
-            .chain(n.phase.as_ref())
-            .filter(|p| p.kind == PhaseKind::Peak && p.climax_fallback)
-            .count();
         let relax_share = if relaxes == 0 {
             serde_json::Value::Null
         } else {
@@ -262,7 +269,6 @@ impl Collector {
             "chapters_over_budget": over_budget,
             "peaks": peaks_all,
             "peaks_empty": peaks_empty,
-            "climax_fallbacks": climax_fallbacks,
             "longest_relax": relax_days,
             "relax_phases": relaxes,
             "relax_with_minor_beat": relax_share,
@@ -272,8 +278,8 @@ impl Collector {
             "gap_quiet_governing": gap(&beats, ChapterKind::Session),
             "gap_quiet_campaign": gap(&beats, ChapterKind::Campaign),
             "gap_quiet_with_developments_governing": gap(&beats_dev, ChapterKind::Session),
-            "storyline_templates_started": started.len(),
-            "storyline_runs": self.runs.len(),
+            "arc_templates_raised": started.len(),
+            "arc_runs": self.runs.len(),
             "press_about_player": self.press.len(),
             "uses": uses,
         })
@@ -309,7 +315,6 @@ pub fn summary(rows: &[serde_json::Value]) -> serde_json::Value {
         "chapters_over_budget",
         "peaks",
         "peaks_empty",
-        "climax_fallbacks",
         "longest_relax",
         "relax_with_minor_beat",
         "gap_decisions_governing",
@@ -318,7 +323,7 @@ pub fn summary(rows: &[serde_json::Value]) -> serde_json::Value {
         "gap_quiet_governing",
         "gap_quiet_campaign",
         "gap_quiet_with_developments_governing",
-        "storyline_templates_started",
+        "arc_templates_raised",
         "press_about_player",
     ] {
         let v = num(k);

@@ -1,23 +1,26 @@
 //! The director (DEC-033 B): chapters and their tension curve, budgets,
 //! cooldowns, relevance scoring, the spotlight (decisions, requests,
-//! storyline beats, developments), fairness warnings (DEC-006), and the
-//! exogenous levers. Writes only the narrative domain.
+//! developments), the arcs' timing (`arcs`: the lead, the clocks that are
+//! its own, when a decision beat is presented), fairness warnings
+//! (DEC-006), and the exogenous levers. Writes only the narrative domain.
+//!
+//! **A chapter's climax is its lead arc's turn** (DEC-109): the budget
+//! round in a calm session, a material arc when the town has one. No
+//! dilemma is a climax on its own, and nothing is borrowed to make one.
 //!
 //! **Variety and pacing (DEC-097, ENGAGEMENT §4.1–4.3).** Four layers:
 //! cooldowns (a floor of a year, growing with each use, no repeat within a
-//! chapter, no climax two chapters running) decide what may return; tiers
-//! (storyline stages and closing consequences, then the chapter's theme,
-//! then the rest) and the keyed `pick` (relevance × novelty within a band)
-//! decide what comes first; the pacing cycle (build-up, peak, peak fade,
-//! relax, across chapters) decides when; `min_career_days` decides what is
-//! introduced yet. Every draw is keyed, so the number of draws never depends
+//! chapter) decide what may return; tiers (closing consequences, then the
+//! chapter's theme, then the rest) and the keyed `pick` (relevance ×
+//! novelty within a band) decide what comes first; the pacing cycle
+//! (build-up, peak, peak fade, relax, across chapters) decides when;
+//! `min_career_days` decides what is introduced yet. Every draw is keyed, so the number of draws never depends
 //! on what the player knows (DEC-091 §1.11).
 
 use super::cast::{self, View};
 use super::{
     Actor, AnswerRecord, CastEntry, Chapter, ChapterKind, Decision, DecisionId, DecisionStatus,
-    DirectorPhase, FactKind, NarrativeState, PhaseKind, Reason, Resolution, RunEnd, StorylineRun,
-    StorylineRunId, Warning, Weight,
+    DirectorPhase, FactKind, NarrativeState, PhaseKind, Reason, Resolution, Warning, Weight,
 };
 use crate::characters::CharacterId;
 use crate::events::EventKind;
@@ -31,6 +34,7 @@ use mandate_content::{
 use mandate_core::{SimDate, Stream};
 use serde::Serialize;
 
+mod arcs;
 mod beats;
 mod budget;
 mod candidates;
@@ -38,10 +42,11 @@ mod cycle;
 mod fairness;
 mod lab;
 mod opening;
-mod runs;
 mod spotlight;
 mod themes;
 
+pub(crate) use arcs::lead;
+pub use arcs::{climax_window, place_clock, turn_key};
 use beats::*;
 pub use budget::*;
 pub use candidates::*;
@@ -49,7 +54,6 @@ pub use cycle::*;
 pub use fairness::*;
 pub use lab::*;
 pub use opening::*;
-pub(crate) use runs::*;
 use spotlight::*;
 pub use themes::*;
 
@@ -64,7 +68,7 @@ pub fn weekly(n: &mut NarrativeState, r: &Reads<'_>, out: &mut Outs<'_>) {
     }
     let pol = r.politics();
     let mut v = View::new(r, pol);
-    v.recent = recent_people(n);
+    v.recent = recent(n);
     v.answers = Some(n.answers.clone());
     let content = r.content;
     let d = &content.director;
@@ -97,7 +101,6 @@ pub fn weekly(n: &mut NarrativeState, r: &Reads<'_>, out: &mut Outs<'_>) {
     if r.player.is_some_and(|p| !p.status.active()) {
         n.tension = world as f32;
         let date = r.date;
-        let mut runs = Vec::new();
         for x in n.decisions.iter_mut() {
             if x.status == DecisionStatus::Pending {
                 x.status = DecisionStatus::Lapsed;
@@ -107,12 +110,7 @@ pub fn weekly(n: &mut NarrativeState, r: &Reads<'_>, out: &mut Outs<'_>) {
                     by_default: false,
                     applied: Vec::new(),
                 });
-                runs.extend(x.storyline);
             }
-        }
-        for run in n.storylines.iter_mut().filter(|x| runs.contains(&x.id)) {
-            run.decision = None;
-            run.entered = false;
         }
         return;
     }
@@ -147,16 +145,15 @@ pub fn weekly(n: &mut NarrativeState, r: &Reads<'_>, out: &mut Outs<'_>) {
     if let Some(ph) = n.phase.as_mut() {
         ph.beats = ph.beats.saturating_add(press.min(u16::MAX as usize) as u16);
     }
-    start_runs(n, &v);
+    // Which running arc leads the chapter, and whether its turn has come.
+    lead(n, &v, out, b);
     if let Some(p) = cycle {
-        step_cycle(n, &v, p, b, s, kind_changed);
+        step_cycle(n, &v, p, s, kind_changed);
     }
-    let due = advance_runs(n, &v, out, b, false);
     requests(n, &v, out, b, false);
     if cycle.is_some() {
-        peak(n, &v, out, profile.as_ref(), b, x, target, actual, &due);
+        peak(n, &v, out, profile.as_ref(), b, x, target, actual);
     } else {
-        open_due_stages(n, &v, out, b, &due);
         dilemmas(n, &v, out, profile.as_ref(), b, x, target, actual);
     }
     developments(n, &v, out, b, first);
@@ -167,7 +164,7 @@ pub fn weekly(n: &mut NarrativeState, r: &Reads<'_>, out: &mut Outs<'_>) {
 }
 
 /// People spotlighted in this or the last chapter: cast last, for variety.
-fn recent_people(n: &NarrativeState) -> Vec<CharacterId> {
+pub(crate) fn recent(n: &NarrativeState) -> Vec<CharacterId> {
     let recent_chapter = n.chapters.last().map(|c| c.index).unwrap_or(0);
     n.decisions
         .iter()

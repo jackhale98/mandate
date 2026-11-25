@@ -75,9 +75,6 @@ pub struct ContentBundle {
     /// NPC goal templates (DEC-032), in load order.
     #[serde(default)]
     pub goals: Vec<crate::narrative::GoalDef>,
-    /// Storyline templates (DEC-032), in load order.
-    #[serde(default)]
-    pub storylines: Vec<crate::narrative::StorylineDef>,
     /// Scene templates (DEC-035), in load order.
     #[serde(default)]
     pub scenes: Vec<crate::narrative::SceneDef>,
@@ -300,11 +297,6 @@ impl ContentBundle {
         self.goals.iter().find(|g| g.id == id)
     }
 
-    /// A storyline template by id.
-    pub fn storyline(&self, id: &str) -> Option<&crate::narrative::StorylineDef> {
-        self.storylines.iter().find(|s| s.id == id)
-    }
-
     /// A scene template by id.
     pub fn scene(&self, id: &str) -> Option<&crate::narrative::SceneDef> {
         self.scenes.iter().find(|s| s.id == id)
@@ -349,7 +341,6 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
     let mut dilemmas: Vec<crate::narrative::DilemmaDef> = Vec::new();
     let mut overheard: Vec<OverheardDef> = Vec::new();
     let mut goals: Vec<crate::narrative::GoalDef> = Vec::new();
-    let mut storylines: Vec<crate::narrative::StorylineDef> = Vec::new();
     let mut scenes: Vec<crate::narrative::SceneDef> = Vec::new();
     let mut outlets: Vec<crate::media::OutletDef> = Vec::new();
     let mut media: Option<(crate::media::MediaParams, String)> = None;
@@ -510,13 +501,6 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
                 for x in items {
                     if claim(&x.id, &mut issues) {
                         goals.push(x);
-                    }
-                }
-            }
-            ContentFile::Storylines { items } => {
-                for x in items {
-                    if claim(&x.id, &mut issues) {
-                        storylines.push(x);
                     }
                 }
             }
@@ -929,7 +913,6 @@ pub fn load(sources: &[Source]) -> Result<(ContentBundle, Vec<Issue>), Vec<Issue
         overheard,
         dilemmas,
         goals,
-        storylines,
         scenes,
         outlets,
         media,

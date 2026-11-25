@@ -1,0 +1,98 @@
+// The rival (DEC-109; DEC-032's rival storyline, folded into an arc): the
+// standing arc of a campaign. Once the player is standing, whoever stands
+// against them circles, makes an offer, and wants a showdown before the
+// vote; the voters end it.
+//
+// A standing arc (`standing: "campaign"`): it runs beside the cap on arcs
+// and leads a campaign chapter when no material arc does. A campaign's
+// climax is the election itself, so the showdown's decision is a
+// significant one.
+//
+// Transitions read; beats write. The edges read the campaign (is the player
+// still standing, how near is the vote), the result of the race once it is
+// decided (`last_race`), and the run's marks. Marks: `pact` (the truce was taken), `refused` (the offer was
+// turned down), `debated` (the challenge was accepted).
+//
+// Stage ids are the storyline's (`shadow`, `offer`, `pact`, `showdown`), so
+// a save from before the fold loads at the same stage.
+{
+  "kind": "arcs",
+  "items": [
+    {
+      "id": "arc.rival", "title_key": "arc-rival", "themes": ["scheme"], "standing": "campaign",
+      // A town's rival until rivals are kept for a region.
+      "tiers": ["local"], "cooldown_days": 60,
+      "raise": [ { "type": "campaigning" } ],
+      "roles": [ { "id": "rival", "cast": { "type": "rival" } } ],
+      "heat": { "start": 0.3 },
+      "stages": [
+        // The campaign opens, and the rival turns up wherever the player goes.
+        { "id": "shadow", "key": "arc-rival-shadow", "rise": 0.03,
+          "next": [
+            { "to": "won", "when": [ { "type": "last_race", "won": true } ] },
+            { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
+            { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
+            { "to": "offer", "after_days": 5 } ] },
+
+        // An offer: a truce, or a fight.
+        { "id": "offer", "key": "arc-rival-offer", "rise": 0.03,
+          "beats": [
+            { "id": "terms", "type": "decision", "dilemma": "dilemma.rival_offer", "weight": "significant",
+              "on": {
+                "truce": { "sets": "pact", "heat": -0.15 },
+                "refuse": { "sets": "refused", "heat": 0.1 },
+                "ignore": { "heat": 0.05 } } },
+          ],
+          "next": [
+            { "to": "won", "when": [ { "type": "last_race", "won": true } ] },
+            { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
+            { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
+            { "to": "pact", "when": [ { "type": "arc_mark", "mark": "pact" } ] },
+            { "to": "showdown", "when": [ { "type": "election_within", "days": 30 } ] },
+            { "to": "cooled", "after_days": 120 } ] },
+
+        // The truce holds until the vote is close.
+        { "id": "pact", "key": "arc-rival-pact",
+          "next": [
+            { "to": "won", "when": [ { "type": "last_race", "won": true } ] },
+            { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
+            { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
+            { "to": "showdown", "when": [ { "type": "election_within", "days": 30 } ] },
+            { "to": "cooled", "after_days": 120 } ] },
+
+        // The turn: a challenge in front of the town, with the vote weeks off.
+        { "id": "showdown", "key": "arc-rival-showdown", "climax": true, "rise": 0.05,
+          "beats": [
+            { "id": "debate", "type": "decision", "dilemma": "dilemma.debate_challenge", "weight": "significant",
+              "on": {
+                "accept": { "sets": "debated", "heat": 0.1 },
+                "decline": { "heat": -0.05 } } },
+          ],
+          "next": [
+            { "to": "won", "when": [ { "type": "last_race", "won": true } ] },
+            { "to": "lost", "when": [ { "type": "last_race", "won": false } ] },
+            { "to": "cooled", "when": [ { "type": "campaigning", "is": false } ] },
+            { "to": "cooled", "after_days": 90 } ] },
+
+        // The voters chose the player. What the rival makes of it depends on
+        // how the campaign was fought.
+        { "id": "won", "key": "arc-rival-won",
+          "exit": { "effects": [
+            { "when": [ { "type": "arc_mark", "mark": "pact" } ], "type": "opinion", "role": "rival", "delta": 4 },
+            { "unless": [ { "type": "arc_mark", "mark": "pact" } ], "type": "opinion", "role": "rival", "delta": -6 },
+            { "when": [ { "type": "arc_mark", "mark": "debated" } ], "type": "record", "delta": 0.02 },
+            { "when": [ { "type": "arc_mark", "mark": "refused" } ], "type": "standing", "delta": 1 } ] } },
+        // The voters chose someone else.
+        { "id": "lost", "key": "arc-rival-lost",
+          "exit": { "effects": [
+            { "type": "opinion", "role": "rival", "delta": 5 },
+            { "when": [ { "type": "arc_mark", "mark": "pact" } ], "type": "standing", "delta": -2 },
+            { "unless": [ { "type": "arc_mark", "mark": "debated" } ], "type": "record", "delta": -0.01 } ] } },
+        // The campaign went on past the rivalry (a race called off, a rival
+        // who withdrew).
+        { "id": "cooled", "key": "arc-rival-cooled",
+          "exit": { "effects": [ { "type": "opinion", "role": "rival", "delta": 3 } ] } },
+      ],
+    },
+  ],
+}

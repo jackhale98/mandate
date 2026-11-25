@@ -168,7 +168,15 @@ fn opinion_and_favours_live_on_relationship_edges() {
 
 #[test]
 fn betrayal_is_remembered_years_later_while_trivia_fades() {
-    let c = base();
+    // Without arcs: six idle years of the budget round would move this
+    // colleague's opinion on its own account (a member who is never backed
+    // thinks less of the player each year; `budget_round.rs`), and this
+    // test is about what memories alone do to it.
+    let c = {
+        let mut b = load(&base_sources()).unwrap().0;
+        b.arcs.clear();
+        Arc::new(b)
+    };
     let mut e = engine(&c, 41);
     let me = player_char(&e);
     let st = e.state();

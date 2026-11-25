@@ -3,7 +3,7 @@
 //! option when the deadline passes (the player's inaction). Every effect is
 //! a real engine change (DEC-073), recorded for the aftermath.
 
-use super::{Actor, Applied, DecisionId, DecisionStatus, FactKind, Resolution, RunEnd, person_of};
+use super::{Actor, Applied, DecisionId, DecisionStatus, FactKind, Resolution, person_of};
 use crate::actions::ActionResult;
 use crate::characters::{self, MemoryKind, Subject};
 use crate::commands::EngineError;
@@ -653,8 +653,9 @@ fn track(
 }
 
 /// Answer a pending decision (the player's answer, or the default when the
-/// deadline passes). Applies the option's effects, records the aftermath,
-/// and moves its storyline on.
+/// deadline passes). Applies the option's effects and records the
+/// aftermath. (An arc reads the answer to its decision beat at its next
+/// step: nothing an answer does names a stage.)
 pub fn answer(
     state: &mut State,
     content: &ContentBundle,
@@ -735,27 +736,6 @@ pub fn answer(
         true,
         (d.relevance / 3.0).clamp(0.0, 1.0),
     );
-    // The storyline moves to the branch the answer chose.
-    if let Some(rid) = d.storyline
-        && let Some(i) = n.storylines.iter().position(|r| r.id == rid)
-        && let Some(sdef) = content.storyline(&n.storylines[i].template)
-    {
-        let r = &mut n.storylines[i];
-        let cur = r.stage as usize;
-        let next = sdef
-            .stages
-            .get(cur)
-            .and_then(|st| st.branches.get(option))
-            .and_then(|k| sdef.stages.iter().position(|s| &s.id == k))
-            .unwrap_or(cur + 1);
-        r.stage = next as u32;
-        r.entered = false;
-        r.since = date;
-        r.decision = None;
-        if next >= sdef.stages.len() {
-            super::director::end_run(n, content, i, date, RunEnd::Ended);
-        }
-    }
     let cause = answer_cause(by_default);
     state.events.record(
         date,
@@ -782,7 +762,6 @@ pub fn resolve_due(state: &mut State, content: &ContentBundle, until: mandate_co
         // Lab: decisions expire without consequence (the spotlight audit).
         let date = state.calendar.date;
         let n = &mut state.narrative;
-        let mut runs = Vec::new();
         for d in n.decisions.iter_mut() {
             if d.status == DecisionStatus::Pending && d.deadline <= until {
                 d.status = DecisionStatus::Lapsed;
@@ -792,12 +771,7 @@ pub fn resolve_due(state: &mut State, content: &ContentBundle, until: mandate_co
                     by_default: true,
                     applied: Vec::new(),
                 });
-                runs.extend(d.storyline);
             }
-        }
-        for r in n.storylines.iter_mut().filter(|r| runs.contains(&r.id)) {
-            r.decision = None;
-            r.entered = false;
         }
         return;
     }

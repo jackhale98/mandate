@@ -1689,6 +1689,18 @@ pub fn audit_story(state: &State, s: &Story) -> Vec<String> {
                     bad("the event is in another town".into());
                 }
             }
+            // An arc's story (DEC-109): a press beat, or an exit (those
+            // with a headline are news), in the town it is about.
+            Some(EventKind::ArcBeat { at, kind, .. }) if kind == "press" => {
+                if at.municipality().map(|m| m.0) != Some(s.town) {
+                    bad("the arc is in another town".into());
+                }
+            }
+            Some(EventKind::ArcEnded { at, .. }) => {
+                if at.municipality().map(|m| m.0) != Some(s.town) {
+                    bad("the arc is in another town".into());
+                }
+            }
             _ => bad("no such event".into()),
         },
     }

@@ -15,16 +15,7 @@ pub(super) fn static_checks(b: &ContentBundle, out: &mut Out) {
     };
     // Dilemmas.
     for d in &b.dilemmas {
-        let mut roles: Vec<&str> = d.roles.iter().map(|r| r.id.as_str()).collect();
-        // A storyline stage's dilemma may name the storyline's roles.
-        for s in &b.storylines {
-            if s.stages
-                .iter()
-                .any(|x| x.decision.as_deref() == Some(d.id.as_str()))
-            {
-                roles.extend(s.roles.iter().map(|r| r.id.as_str()));
-            }
-        }
+        let roles: Vec<&str> = d.roles.iter().map(|r| r.id.as_str()).collect();
         check_conditions(out, &d.id, "triggers", &d.triggers);
         cond_refs(b, out, &d.id, Some(&roles), &d.triggers);
         if let Some(s) = &d.scene
@@ -45,13 +36,8 @@ pub(super) fn static_checks(b: &ContentBundle, out: &mut Out) {
                 "a request that no goal raises can never come up",
             );
         }
-        if d.storyline_only
-            && !b.storylines.iter().any(|s| {
-                s.stages
-                    .iter()
-                    .any(|x| x.decision.as_deref() == Some(d.id.as_str()))
-            })
-            // An arc's decision beat presents it (DEC-109).
+        // An arc's decision beat presents it (DEC-109).
+        if d.arc_only
             && !b.arcs.iter().any(|a| {
                 a.beats().any(|(_, x)| {
                     matches!(&x.kind, mandate_content::arcs::BeatKind::Decision { dilemma, .. }
@@ -63,7 +49,7 @@ pub(super) fn static_checks(b: &ContentBundle, out: &mut Out) {
                 Sev::Error,
                 "unsatisfiable",
                 &d.id,
-                "storyline-only, but no storyline stage or arc beat presents it",
+                "`arc_only`, but no arc beat presents it",
             );
         }
         for r in &d.roles {
@@ -88,29 +74,6 @@ pub(super) fn static_checks(b: &ContentBundle, out: &mut Out) {
             && b.dilemma(r).is_none()
         {
             unknown(out, &g.id, "request dilemma", r);
-        }
-    }
-    // Storylines.
-    for s in &b.storylines {
-        let roles: Vec<&str> = s.roles.iter().map(|r| r.id.as_str()).collect();
-        check_conditions(out, &s.id, "start", &s.start);
-        cond_refs(b, out, &s.id, Some(&roles), &s.start);
-        for st in &s.stages {
-            check_conditions(out, &s.id, &format!("stage {} advance", st.id), &st.advance);
-            cond_refs(b, out, &s.id, Some(&roles), &st.advance);
-            if let Some(d) = &st.decision
-                && b.dilemma(d).is_none()
-            {
-                unknown(out, &s.id, "stage decision", d);
-            }
-        }
-        if let Some(f) = &s.follow_up
-            && b.storyline(f).is_none()
-        {
-            unknown(out, &s.id, "follow-up storyline", f);
-        }
-        for r in &s.roles {
-            check_cast(b, out, &s.id, &r.cast);
         }
     }
     // Scenes nobody presents.

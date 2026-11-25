@@ -56,12 +56,12 @@ fn knows_never_decides_what_happens() {
     x.goals[0].conditions.push(knows());
     let owner = x.goals[0].id.clone();
     assert_eq!(refusals(&x, &owner), 1, "goal condition");
-    // A storyline's start and a stage's advance.
+    // An arc's raise and a stage's edge (storylines are arcs, DEC-109).
     let mut x = b.clone();
-    x.storylines[0].start.push(knows());
-    x.storylines[0].stages[0].advance.push(knows());
-    let owner = x.storylines[0].id.clone();
-    assert_eq!(refusals(&x, &owner), 2, "storyline start and advance");
+    x.arcs[0].raise.push(knows());
+    x.arcs[0].stages[0].next[0].when.push(knows());
+    let owner = x.arcs[0].id.clone();
+    assert_eq!(refusals(&x, &owner), 2, "arc raise and edge");
     // A situational policy's unlock: the ledger, what a speaker would
     // tell, and either nested in an `any`.
     let player_knows = Condition::PlayerKnows {

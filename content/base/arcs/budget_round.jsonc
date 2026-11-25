@@ -1,0 +1,396 @@
+// The budget round (DEC-109 §7; owner's answer 3): the standing arc of a
+// session chapter. Every budget year the estimates come out, the members
+// take their positions, and the budget goes to a vote. A calm town has a
+// turn every year because the calendar brings one.
+//
+// Raised by the budget calendar: the jurisdiction's budget year has between
+// 250 and 110 days to run (`budget_year`). The cooldown keeps it to one
+// round a budget year. The vote's day is a director-owned clock: between 190
+// and 40 days before the year turns and at least eight weeks off, placed in
+// the chapter's climax window where that overlaps (`placed`). The turn is
+// entered four weeks before the vote, so its decision is answered (or let
+// pass) before the day.
+//
+// Roles bind through powers, never an office's or a body's name (DEC-098):
+// whoever proposes the budget (`propose_budget`), another holder of the
+// power to approve it (`approve_budget`, of another party where there is
+// one), the place the proposer works, and the neighbourhood that thinks
+// least of the player. `tiers` is local until the tax bills the turn drafts
+// exist for a region and the nation.
+//
+// The turn has four variants, chosen by simulated state as the vote nears
+// (the first edge that holds), never the one the last round turned on
+// (`arc_last_turn`: climax memory by variant):
+//   turn_hole     the treasury closed its last year at least 1% short of its revenue
+//   turn_deal     no party holds 60% of the posts that approve the budget (in a
+//                 body of seven: a majority of one seat, or none)
+//   turn_surplus  it closed at least 5% over
+//   turn_line     otherwise: a row over one amendment
+// and, so that two years never match, the smaller shortfall or the smaller
+// surplus when the last turn was the row. The thresholds follow what
+// generated towns show: the balanced-budget rule leaves most of them a few
+// per cent over, a majority of one seat in about a quarter, and no town
+// without a majority (40 small worlds, as play begins).
+//
+// Transitions read; beats write. A choice sets a mark; whether a change the
+// player moved carries is the room's arithmetic (`body_support`: party
+// colleagues, members who think well of the player, members who owe them a
+// favour), read on the day of the vote. The budget itself changes only at
+// an exit, through finance (`budget`: a change voted into the next budget
+// year, applied when the year turns).
+//
+// Marks: `read` (the estimates), `room` (the proposer said where there is
+// room), `seconded` (the colleague's ask kept), `pressed`, `loyal` (where the
+// player stood), and what they moved at the turn: `cut`, `spend`, `backed`,
+// `brokered` (decided by the room), `whipped`. A bill of their own on the
+// rates sets no mark: the ordinary procedure decides it.
+{
+  "kind": "arcs",
+  "items": [
+    {
+      "id": "arc.budget_round", "title_key": "arc-budget", "themes": ["budget"], "standing": "session",
+      "tiers": ["local"], "cooldown_days": 200,
+      "raise": [ { "type": "budget_year", "min": 110, "max": 250 } ],
+      "roles": [
+        { "id": "proposer", "cast": { "type": "post", "power": "propose_budget" } },
+        { "id": "member", "cast": { "type": "post", "power": "approve_budget", "party": "other" } },
+        { "id": "hall", "cast": { "type": "workplace", "of": "proposer" } },
+        { "id": "hood", "cast": { "type": "area", "pick": "least_pleased" } },
+      ],
+      "facts": [
+        { "type": "budget_balance" },
+        { "type": "body_support", "power": "approve_budget" },
+      ],
+      "sides": { "ally": "member", "opponent": "proposer" },
+      "heat": { "start": 0.2 },
+      "stages": [
+        // The estimates are out: read them, and ask where there is room.
+        { "id": "estimates", "key": "arc-budget-estimates",
+          "clock": { "days": [56, 250], "before_budget_year": [40, 190], "placed": true },
+          "beats": [
+            { "id": "press", "type": "press", "headline_key": "headline-arc-budget-estimates" },
+            { "id": "papers", "type": "visit", "at": "hall", "verb_key": "visit-arc-budget-papers", "outcome_key": "outcome-arc-budget-papers",
+              "time": "half", "sets": "read", "relief": 0.03 },
+            { "id": "room", "type": "talk", "with": "proposer",
+              "choice": { "label_key": "talk-arc-budget-room", "say_key": "talk-arc-budget-room-say",
+                "replies": [
+                  { "key": "talk-arc-budget-room-yes", "agrees": true, "sets": "room",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "arc_mark", "mark": "read" },
+                      { "type": "favour", "slot": "speaker", "owed_to_player": true },
+                      { "type": "opinion", "slot": "speaker", "min": 15 } ] } ],
+                    "effects": [ { "type": "opinion", "role": "proposer", "delta": 3 } ] },
+                  { "key": "talk-arc-budget-room-no" } ] } },
+          ],
+          "next": [ { "to": "line", "after_days": 21 } ] },
+
+        // Positions are taken before the vote.
+        { "id": "line", "key": "arc-budget-line", "rise": 0.01,
+          "beats": [
+            { "id": "stand", "type": "decision", "dilemma": "dilemma.budget_line", "weight": "significant",
+              "when": [ { "type": "holds_power", "power": "approve_budget" } ],
+              "on": {
+                "press": { "sets": "pressed", "heat": 0.1 },
+                "fall_in": { "sets": "loyal", "heat": -0.05 } } },
+            { "id": "second", "type": "ask", "template": "ask.budget_second", "asker": "member", "sets": "seconded", "relief": 0.05,
+              "when": [ { "type": "holds_power", "power": "approve_budget" } ] },
+            { "id": "room", "type": "talk", "with": "proposer", "when": [ { "type": "arc_mark", "mark": "room", "is": false } ],
+              "choice": { "label_key": "talk-arc-budget-room", "say_key": "talk-arc-budget-room-say",
+                "replies": [
+                  { "key": "talk-arc-budget-room-yes", "agrees": true, "sets": "room",
+                    "when": [ { "type": "any", "of": [
+                      { "type": "arc_mark", "mark": "read" },
+                      { "type": "favour", "slot": "speaker", "owed_to_player": true },
+                      { "type": "opinion", "slot": "speaker", "min": 15 } ] } ],
+                    "effects": [ { "type": "opinion", "role": "proposer", "delta": 3 } ] },
+                  { "key": "talk-arc-budget-room-no" } ] } },
+            { "id": "names", "type": "move", "actor": "member", "weight": 0.35, "line_key": "skip-item-arc-budget-names",
+              "when": [ { "type": "arc_days", "min": 14 }, { "type": "arc_mark", "mark": "seconded", "is": false } ],
+              "effects": [ { "type": "heat", "delta": 0.08 } ] },
+          ],
+          // Which turn: what the books and the room say, never last year's.
+          "next": [
+            { "to": "turn_hole", "clock_within_days": 28, "when": [
+                { "type": "budget_balance", "max": -0.01 }, { "type": "arc_last_turn", "stage": "turn_hole", "is": false } ] },
+            { "to": "turn_deal", "clock_within_days": 28, "when": [
+                { "type": "body_majority", "power": "approve_budget", "share": 0.6, "is": false }, { "type": "arc_last_turn", "stage": "turn_deal", "is": false } ] },
+            { "to": "turn_surplus", "clock_within_days": 28, "when": [
+                { "type": "budget_balance", "min": 0.05 }, { "type": "arc_last_turn", "stage": "turn_surplus", "is": false } ] },
+            { "to": "turn_line", "clock_within_days": 28, "when": [ { "type": "arc_last_turn", "stage": "turn_line", "is": false } ] },
+            { "to": "turn_hole", "clock_within_days": 28, "when": [ { "type": "budget_balance", "max": 0.0 } ] },
+            { "to": "turn_surplus", "clock_within_days": 28 } ] },
+
+        // The turn, a hole to fill: cuts, the rates, or the proposer's way.
+        { "id": "turn_hole", "key": "arc-budget-turn-hole", "climax": true, "rise": 0.03,
+          "beats": [
+            { "id": "vote", "type": "decision", "dilemma": "dilemma.budget_hole", "weight": "climax",
+              "when": [ { "type": "holds_power", "power": "approve_budget" } ],
+              // A bill of the player's own beside the budget (the rates) is
+              // a second fight, not a change to the budget: no mark, more heat.
+              "on": {
+                "tax": { "heat": 0.05 },
+                "cuts": { "sets": "cut" },
+                "leave": { "heat": 0.1 } } },
+          ],
+          "next": [
+            { "to": "carried", "clock_within_days": 0, "when": [
+                { "type": "arc_mark", "mark": "cut" }, { "type": "body_support", "power": "approve_budget", "min": 0.5 } ] },
+            { "to": "defeated", "clock_within_days": 0, "when": [ { "type": "arc_mark", "mark": "cut" } ] },
+            { "to": "passed", "clock_within_days": 0 } ] },
+
+        // The turn, a surplus to spend: services, the rates, or the reserve.
+        { "id": "turn_surplus", "key": "arc-budget-turn-surplus", "climax": true, "rise": 0.03,
+          "beats": [
+            { "id": "vote", "type": "decision", "dilemma": "dilemma.budget_surplus", "weight": "climax",
+              "when": [ { "type": "holds_power", "power": "approve_budget" } ],
+              "on": {
+                "spend": { "sets": "spend" },
+                "relief": { "heat": 0.05 } } },
+          ],
+          "next": [
+            { "to": "carried", "clock_within_days": 0, "when": [
+                { "type": "arc_mark", "mark": "spend" }, { "type": "body_support", "power": "approve_budget", "min": 0.5 } ] },
+            { "to": "defeated", "clock_within_days": 0, "when": [ { "type": "arc_mark", "mark": "spend" } ] },
+            { "to": "passed", "clock_within_days": 0 } ] },
+
+        // The turn, a deal across parties: no party has a vote to spare.
+        { "id": "turn_deal", "key": "arc-budget-turn-deal", "climax": true, "rise": 0.03,
+          "beats": [
+            { "id": "vote", "type": "decision", "dilemma": "dilemma.budget_deal", "weight": "climax",
+              "when": [ { "type": "holds_power", "power": "approve_budget" } ],
+              "on": {
+                "broker": { "sets": "brokered", "heat": -0.2 },
+                "whip": { "sets": "whipped", "heat": 0.15 },
+                "wait": { "heat": 0.1 } } },
+          ],
+          "next": [
+            { "to": "carried", "clock_within_days": 0, "when": [
+                { "type": "arc_mark", "mark": "brokered" }, { "type": "body_support", "power": "approve_budget", "min": 0.5 } ] },
+            { "to": "late", "clock_within_days": 0, "when": [ { "type": "arc_heat", "min": 0.6 } ] },
+            { "to": "defeated", "clock_within_days": 0, "when": [ { "type": "arc_mark", "mark": "brokered" } ] },
+            { "to": "passed", "clock_within_days": 0 } ] },
+
+        // The turn, a row over one line: an amendment for one neighbourhood.
+        { "id": "turn_line", "key": "arc-budget-turn-line", "climax": true, "rise": 0.03,
+          "beats": [
+            { "id": "vote", "type": "decision", "dilemma": "dilemma.budget_row", "weight": "climax",
+              "when": [ { "type": "holds_power", "power": "approve_budget" } ],
+              "on": {
+                "back_member": { "sets": "backed", "heat": 0.05 },
+                "back_proposer": { "sets": "loyal", "heat": -0.05 } } },
+          ],
+          "next": [
+            { "to": "carried", "clock_within_days": 0, "when": [
+                { "type": "arc_mark", "mark": "backed" }, { "type": "body_support", "power": "approve_budget", "min": 0.5 } ] },
+            { "to": "defeated", "clock_within_days": 0, "when": [ { "type": "arc_mark", "mark": "backed" } ] },
+            { "to": "passed", "clock_within_days": 0 } ] },
+
+        // The budget passed with the player's change in it: the change is
+        // made in the treasury's own budget, and remembered. No exit moves
+        // the record of visible work: the record is built by acts (a bill
+        // the turn drafts earns it when introduced), and on 32 seeds an
+        // exit's 0.04 alone took the canvass-only bot from 34% of first
+        // elections to 44% (balance entry of 2026-11-24).
+        { "id": "carried", "key": "arc-budget-carried",
+          "exit": { "headline_key": "headline-arc-budget-carried", "legacy_key": "legacy-arc-budget-carried", "effects": [
+            { "when": [ { "type": "arc_mark", "mark": "cut" } ], "type": "budget", "factor": 0.97 },
+            { "when": [ { "type": "arc_mark", "mark": "spend" } ], "type": "budget", "factor": 1.03 },
+            { "when": [ { "type": "arc_mark", "mark": "backed" } ], "type": "budget", "factor": 1.01 },
+            { "when": [ { "type": "arc_mark", "mark": "backed" } ], "type": "approval", "area": "hood", "delta": 0.02 },
+            { "when": [ { "type": "arc_mark", "mark": "brokered" } ], "type": "favour", "role": "member", "owed_to_player": true },
+            { "when": [ { "type": "arc_mark", "mark": "seconded" } ], "type": "opinion", "role": "member", "delta": 4 },
+            { "when": [ { "type": "arc_mark", "mark": "room" } ], "type": "opinion", "role": "proposer", "delta": 4 } ] } },
+        // The player moved a change and the room voted it down.
+        { "id": "defeated", "key": "arc-budget-defeated",
+          "exit": { "effects": [
+            { "type": "standing", "delta": -1 },
+            { "unless": [ { "type": "arc_mark", "mark": "room" } ], "type": "opinion", "role": "proposer", "delta": -4 },
+            { "when": [ { "type": "arc_mark", "mark": "pressed" } ], "type": "approval", "area": "hood", "delta": 0.005 } ] } },
+        // The budget passed as it was written.
+        { "id": "passed", "key": "arc-budget-passed",
+          "exit": { "headline_key": "headline-arc-budget-passed", "effects": [
+            { "when": [ { "type": "arc_mark", "mark": "loyal" } ], "type": "standing", "delta": 1 },
+            { "when": [ { "type": "arc_mark", "mark": "loyal" } ], "type": "opinion", "role": "proposer", "delta": 4 },
+            { "when": [ { "type": "arc_mark", "mark": "whipped" } ], "type": "standing", "delta": 1 } ] } },
+        // No majority and no deal: the new year's spending is held a
+        // fiftieth under what the estimates asked.
+        { "id": "late", "key": "arc-budget-late",
+          "exit": { "headline_key": "headline-arc-budget-late", "effects": [
+            { "type": "budget", "factor": 0.98 },
+            { "type": "approval", "area": "hood", "delta": -0.01 },
+            { "when": [ { "type": "arc_mark", "mark": "whipped" } ], "type": "opinion", "role": "member", "delta": -6, "memory": "stood_against_me" } ] } },
+      ],
+    },
+  ],
+
+  // The round's decisions: never spotlit on their own; the run asks for them.
+  // The proposer and the colleague take the sides the options give them.
+  "dilemmas": [
+    {
+      "id": "dilemma.budget_line", "category": "significant", "arc_only": true,
+      "title_key": "dilemma-budget-line", "situation_key": "dilemma-budget-line-situation",
+      "roles": [
+        { "id": "proposer", "cast": { "type": "office" } },
+        { "id": "member", "cast": { "type": "colleague" } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "deadline_days": 14, "cooldown_days": 0, "scene": "scene.budget_line",
+      "options": [
+        { "id": "press", "label_key": "dilemma-budget-line-press", "aftermath_key": "dilemma-budget-line-press-after",
+          "effects": [
+            { "type": "approval", "neighborhood": "hood", "delta": 0.015 },
+            { "type": "opinion", "role": "member", "delta": 4 },
+            { "type": "opinion", "role": "proposer", "delta": -6 } ] },
+        { "id": "fall_in", "label_key": "dilemma-budget-line-fall-in", "aftermath_key": "dilemma-budget-line-fall-in-after",
+          "effects": [
+            { "type": "opinion", "role": "proposer", "delta": 8, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "member", "delta": -4 },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.005 } ] },
+        { "id": "wait", "default": true, "label_key": "dilemma-budget-line-wait", "aftermath_key": "dilemma-budget-line-wait-after",
+          "effects": [
+            { "type": "opinion", "role": "member", "delta": -3 },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    {
+      "id": "dilemma.budget_hole", "category": "climax", "arc_only": true,
+      "title_key": "dilemma-budget-hole", "situation_key": "dilemma-budget-hole-situation",
+      "roles": [
+        { "id": "proposer", "cast": { "type": "office" } },
+        { "id": "member", "cast": { "type": "colleague" } },
+      ],
+      "deadline_days": 21, "cooldown_days": 0, "scene": "scene.budget_hole",
+      "options": [
+        { "id": "tax", "label_key": "dilemma-budget-hole-tax", "aftermath_key": "dilemma-budget-hole-tax-after",
+          "effects": [
+            { "type": "draft", "template": "policy.property_tax", "params": { "points": 0.1 } },
+            { "type": "opinion", "role": "member", "delta": 8, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "proposer", "delta": -6 },
+            { "type": "approval", "scope": "town", "classes": [2], "delta": -0.015 } ] },
+        { "id": "cuts", "label_key": "dilemma-budget-hole-cuts", "aftermath_key": "dilemma-budget-hole-cuts-after",
+          "effects": [
+            { "type": "opinion", "role": "proposer", "delta": 8, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "member", "delta": -8, "memory": "stood_against_me" },
+            { "type": "approval", "scope": "town", "classes": [0], "delta": -0.015 } ] },
+        { "id": "leave", "default": true, "label_key": "dilemma-budget-hole-leave", "aftermath_key": "dilemma-budget-hole-leave-after",
+          "effects": [
+            { "type": "opinion", "role": "proposer", "delta": 2 },
+            { "type": "opinion", "role": "member", "delta": -3 } ] },
+      ],
+    },
+    {
+      "id": "dilemma.budget_surplus", "category": "climax", "arc_only": true,
+      "title_key": "dilemma-budget-surplus", "situation_key": "dilemma-budget-surplus-situation",
+      "roles": [
+        { "id": "proposer", "cast": { "type": "office" } },
+        { "id": "member", "cast": { "type": "colleague" } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "deadline_days": 21, "cooldown_days": 0, "scene": "scene.budget_surplus",
+      "options": [
+        { "id": "spend", "label_key": "dilemma-budget-surplus-spend", "aftermath_key": "dilemma-budget-surplus-spend-after",
+          "effects": [
+            { "type": "opinion", "role": "member", "delta": 8, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "proposer", "delta": -6 },
+            { "type": "approval", "neighborhood": "hood", "delta": 0.01 } ] },
+        { "id": "relief", "label_key": "dilemma-budget-surplus-relief", "aftermath_key": "dilemma-budget-surplus-relief-after",
+          "effects": [
+            { "type": "draft", "template": "policy.property_tax", "params": { "points": -0.1 } },
+            { "type": "opinion", "role": "member", "delta": -4 },
+            { "type": "approval", "scope": "town", "classes": [2], "delta": 0.01 },
+            { "type": "approval", "scope": "town", "classes": [0], "delta": -0.005 } ] },
+        { "id": "bank", "default": true, "label_key": "dilemma-budget-surplus-bank", "aftermath_key": "dilemma-budget-surplus-bank-after",
+          "effects": [
+            { "type": "opinion", "role": "proposer", "delta": 4 },
+            { "type": "opinion", "role": "member", "delta": -4 } ] },
+      ],
+    },
+    {
+      "id": "dilemma.budget_deal", "category": "climax", "arc_only": true,
+      "title_key": "dilemma-budget-deal", "situation_key": "dilemma-budget-deal-situation",
+      "roles": [
+        { "id": "proposer", "cast": { "type": "office" } },
+        { "id": "member", "cast": { "type": "colleague" } },
+      ],
+      "deadline_days": 21, "cooldown_days": 0, "scene": "scene.budget_deal",
+      "options": [
+        { "id": "broker", "label_key": "dilemma-budget-deal-broker", "aftermath_key": "dilemma-budget-deal-broker-after",
+          "effects": [
+            { "type": "slots", "n": 1 },
+            { "type": "opinion", "role": "member", "delta": 8, "memory": "stood_with_me" },
+            { "type": "standing", "delta": -1 } ] },
+        { "id": "whip", "label_key": "dilemma-budget-deal-whip", "aftermath_key": "dilemma-budget-deal-whip-after",
+          "effects": [
+            { "type": "standing", "delta": 2 },
+            { "type": "opinion", "role": "member", "delta": -6 } ] },
+        { "id": "wait", "default": true, "label_key": "dilemma-budget-deal-wait", "aftermath_key": "dilemma-budget-deal-wait-after",
+          "effects": [
+            { "type": "opinion", "role": "proposer", "delta": -3 },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+    {
+      "id": "dilemma.budget_row", "category": "climax", "arc_only": true,
+      "title_key": "dilemma-budget-row", "situation_key": "dilemma-budget-row-situation",
+      "roles": [
+        { "id": "proposer", "cast": { "type": "office" } },
+        { "id": "member", "cast": { "type": "colleague" } },
+        { "id": "hood", "cast": { "type": "ward_neighborhood" } },
+      ],
+      "deadline_days": 21, "cooldown_days": 0, "scene": "scene.budget_row",
+      "options": [
+        { "id": "back_member", "label_key": "dilemma-budget-row-member", "aftermath_key": "dilemma-budget-row-member-after",
+          "effects": [
+            { "type": "opinion", "role": "member", "delta": 10, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "proposer", "delta": -8, "memory": "stood_against_me" },
+            { "type": "approval", "neighborhood": "hood", "delta": 0.01 } ] },
+        { "id": "back_proposer", "label_key": "dilemma-budget-row-proposer", "aftermath_key": "dilemma-budget-row-proposer-after",
+          "effects": [
+            { "type": "opinion", "role": "proposer", "delta": 8, "memory": "stood_with_me" },
+            { "type": "opinion", "role": "member", "delta": -8, "memory": "stood_against_me" },
+            { "type": "approval", "neighborhood": "hood", "delta": -0.01 },
+            { "type": "standing", "delta": 1 } ] },
+        { "id": "abstain", "default": true, "label_key": "dilemma-budget-row-abstain", "aftermath_key": "dilemma-budget-row-abstain-after",
+          "effects": [
+            { "type": "opinion", "role": "member", "delta": -3 },
+            { "type": "opinion", "role": "proposer", "delta": -3 },
+            { "type": "health", "delta": 1 } ] },
+      ],
+    },
+  ],
+
+  // The colleague's ask: offered only by a run, from its member.
+  "asks": [
+    { "id": "ask.budget_second", "name_key": "ask-budget-second", "from": ["arc"],
+      "asker": { "type": "colleague" },
+      "roles": [ { "id": "proposer", "cast": { "type": "office" } } ],
+      "needs": [
+        { "type": "talk", "role": "proposer",
+          "choice": { "label_key": "ask-choice-budget-second", "say_key": "ask-say-budget-second",
+            "replies": [
+              { "key": "talk-ask-budget-second-yes", "when": [ { "type": "opinion", "slot": "speaker", "min": -10 } ] },
+              { "key": "talk-ask-budget-second-no", "agrees": false } ] } } ],
+      "deadline_days": [10, 14], "cooldown_days": 0,
+      "keep": [
+        { "type": "opinion", "role": "asker", "delta": 10, "memory": "kept_promise" },
+        { "type": "favour", "role": "asker", "owed_to_player": true } ],
+      "break": [ { "type": "opinion", "role": "asker", "delta": -10, "memory": "broke_promise" } ],
+      "decline": [ { "type": "opinion", "role": "asker", "delta": -3 } ],
+      "detail_key": "ask-budget-second-detail", "need_key": "ask-budget-second-need",
+      "kept_key": "ask-budget-second-kept", "broken_key": "ask-budget-second-broken" },
+  ],
+
+  // Where each decision is put: where the proposer works.
+  "scenes": [
+    { "id": "scene.budget_line", "place": { "type": "workplace", "role": "proposer", "fallback": "town_hall" },
+      "beats": [ { "speaker": "member", "line": "scene-budget-line-member" } ] },
+    { "id": "scene.budget_hole", "place": { "type": "workplace", "role": "proposer", "fallback": "town_hall" },
+      "beats": [ { "speaker": "proposer", "line": "scene-budget-hole-proposer" } ] },
+    { "id": "scene.budget_surplus", "place": { "type": "workplace", "role": "proposer", "fallback": "town_hall" },
+      "beats": [ { "speaker": "member", "line": "scene-budget-surplus-member" } ] },
+    { "id": "scene.budget_deal", "place": { "type": "workplace", "role": "proposer", "fallback": "town_hall" },
+      "beats": [ { "speaker": "member", "line": "scene-budget-deal-member" } ] },
+    { "id": "scene.budget_row", "place": { "type": "workplace", "role": "proposer", "fallback": "town_hall" },
+      "beats": [ { "speaker": "member", "line": "scene-budget-row-member" } ] },
+  ],
+}

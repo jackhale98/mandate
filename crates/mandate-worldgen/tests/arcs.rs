@@ -32,10 +32,16 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
 
+/// The base pack with the flood arc alone: these are the flood's tests
+/// (task A1), written when it was the only arc. The standing arcs and the
+/// folded storylines (task A2) have their own (`budget_round.rs`,
+/// `narrative.rs`), where a flood runs beside the budget round.
 fn base() -> Arc<ContentBundle> {
     let src =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
-    Arc::new(load(&src).unwrap().0)
+    let mut b = load(&src).unwrap().0;
+    b.arcs.retain(|a| a.id == "arc.flood");
+    Arc::new(b)
 }
 
 /// The base pack with no arc content.

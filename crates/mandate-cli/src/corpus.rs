@@ -827,39 +827,31 @@ fn career(
                 bag.push(event_item("ask", part, &a.template, key, &args, &sit));
             }
         }
-        // Storylines as the story so far tells them.
+        // Arcs as the story so far tells them (storylines are arcs,
+        // DEC-109). `story_view` lists the runs in progress, then those
+        // that ended, newest first, twelve with a template.
         let story = proto::story_view(&e);
-        // `story_view` lists the newest twelve runs with a template, newest first.
-        let shown: Vec<&mandate_sim::narrative::StorylineRun> = st
-            .narrative
-            .storylines
+        let shown: Vec<&String> = st
+            .arcs
+            .runs
             .iter()
             .rev()
+            .map(|r| &r.template)
+            .chain(st.arcs.past.iter().rev().map(|p| &p.template))
             .take(12)
-            .filter(|r| content.storyline(&r.template).is_some())
+            .filter(|t| content.arc(t).is_some())
             .collect();
-        for (s, run_def) in story.storylines.iter().zip(shown) {
-            let sit = situation(
-                &e,
-                &run,
-                json!({ "storyline": run_def.template, "cast": cast(st, content, &run_def.cast) }),
-            );
+        for (s, template) in story.storylines.iter().zip(shown) {
+            let sit = situation(&e, &run, json!({ "arc": template }));
             bag.push(Item {
                 render: "title",
-                ..event_item(
-                    "storyline",
-                    "title",
-                    &run_def.template,
-                    &s.title_key,
-                    &s.args,
-                    &sit,
-                )
+                ..event_item("arc", "title", template, &s.title_key, &s.args, &sit)
             });
             for ev in &s.stages {
                 bag.push(event_item(
-                    "storyline",
+                    "arc",
                     "stage",
-                    &run_def.template,
+                    template,
                     &ev.text_key,
                     &ev.args,
                     &sit,

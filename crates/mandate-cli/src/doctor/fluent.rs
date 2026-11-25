@@ -373,16 +373,7 @@ pub(super) fn fluent_checks(
         (people, policies)
     };
     for d in &b.dilemmas {
-        let mut all_roles = d.roles.clone();
-        for s in &b.storylines {
-            if s.stages
-                .iter()
-                .any(|x| x.decision.as_deref() == Some(d.id.as_str()))
-            {
-                all_roles.extend(s.roles.iter().cloned());
-            }
-        }
-        let (p, q) = split(&all_roles);
+        let (p, q) = split(&d.roles);
         let pr: Vec<&str> = p.iter().map(|x| x.as_str()).collect();
         let qr: Vec<&str> = q.iter().map(|x| x.as_str()).collect();
         let mut provided = base(&pr, &qr);
@@ -421,17 +412,6 @@ pub(super) fn fluent_checks(
                     d.situation_key
                 ),
             );
-        }
-    }
-    for s in &b.storylines {
-        let (p, q) = split(&s.roles);
-        let pr: Vec<&str> = p.iter().map(|x| x.as_str()).collect();
-        let qr: Vec<&str> = q.iter().map(|x| x.as_str()).collect();
-        let provided = base(&pr, &qr);
-        check(out, &s.id, &s.title_key, &provided, "the storyline's cast");
-        check(out, &s.id, &s.faded_key, &provided, "the storyline's cast");
-        for st in &s.stages {
-            check(out, &s.id, &st.key, &provided, "the storyline's cast");
         }
     }
     for sc in &b.scenes {

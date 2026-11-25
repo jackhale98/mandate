@@ -15,10 +15,14 @@ use serde_json::Value;
 use std::path::Path;
 use std::sync::Arc;
 
+/// The base pack with the flood arc alone: these are the flood's tests
+/// (task A1). The folded storylines have their own (`storylines.rs`).
 fn content() -> Arc<mandate_content::ContentBundle> {
     let src =
         read_dir_sources(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")).unwrap();
-    Arc::new(load(&src).unwrap().0)
+    let mut b = load(&src).unwrap().0;
+    b.arcs.retain(|a| a.id == "arc.flood");
+    Arc::new(b)
 }
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -151,7 +155,7 @@ fn a_run_in_progress_survives_a_save() {
     );
     // Save, load: the same state, arcs and all.
     let (bytes, meta) = encode(st, &req()).unwrap();
-    assert_eq!(meta.format_version, 27);
+    assert_eq!(meta.format_version, SAVE_FORMAT_VERSION);
     let (loaded, _) = decode(&bytes).unwrap();
     assert_eq!(loaded.arcs, st.arcs);
     assert_eq!(loaded.environment.repairs, st.environment.repairs);
@@ -186,11 +190,20 @@ fn a_v26_save_loads_and_continues() {
     let bytes = fixture("v26_town.mndt");
     let (version, old) = raw(&bytes);
     assert_eq!(version, 26);
-    // The step rewrites nothing: an older save holds no arc.
+    // The steps make no run up: an older save holds no arc, and no
+    // storyline was running in this one (the fold, v27 → v28, has its own
+    // fixture: `tests/storylines.rs`).
     let migrated = migrate(26, old.clone()).unwrap();
-    assert_eq!(migrated, old);
+    assert!(
+        migrated["state"]
+            .pointer("/arcs/runs")
+            .and_then(|r| r.as_array())
+            .is_none_or(|r| r.is_empty())
+    );
+    assert_eq!(migrated["state"]["economy"], old["state"]["economy"]);
+    assert_eq!(migrated["state"]["events"], old["state"]["events"]);
     let st = old_state(&c);
-    assert!(st.arcs.is_empty());
+    assert!(st.arcs.runs.is_empty() && st.arcs.past.is_empty());
     assert!(st.narrative.decisions.iter().all(|d| d.arc.is_none()));
     assert!(st.asks.asks.iter().all(|a| a.arc.is_none()));
     assert!(st.environment.repairs.is_empty());
@@ -214,7 +227,7 @@ fn a_v26_save_loads_and_continues() {
     let run = f.state().arcs.runs.first().expect("the flood's arc");
     assert_eq!(run.template, "arc.flood");
     let (bytes, meta) = encode(f.state(), &req()).unwrap();
-    assert_eq!(meta.format_version, 27);
+    assert_eq!(meta.format_version, SAVE_FORMAT_VERSION);
     let (back, _) = decode(&bytes).unwrap();
     assert_eq!(back.arcs, f.state().arcs);
     assert_eq!(back.hash(), f.state().hash());

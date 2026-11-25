@@ -16,6 +16,7 @@ use mandate_sim::events::EventKind;
 use mandate_sim::narrative::{self, DecisionStatus, NarrativeState, Weight, audit};
 use mandate_sim::{Command, Engine};
 use mandate_worldgen::{WorldConfig, WorldSize, generate};
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -120,31 +121,88 @@ fn every_emitted_item_is_grounded_in_live_state() {
 }
 
 /// Budgets, per chapter, across careers; climaxes; cooldowns.
+///
+/// Twelve seeds from 1; `PACING_FIRST_SEED=13` runs the same checks on the
+/// next twelve (the second set the share of chapters with a turn is
+/// reported on).
+///
+/// The player of these careers answers every decision and does nothing
+/// else, so they lose their first election in most seeds and sit out the
+/// years after it. That splits what "a turn in every chapter" means, and
+/// the test checks the two halves apart: the turn is *reached* in every
+/// chapter, in or out of office; it is *put to the player* (the round's
+/// decision, at climax weight) in every session where they hold the power
+/// to approve the budget when it comes. Where they do not, the round has no
+/// beat for them yet (they read of the vote), and the chapter has a climax
+/// decision only when another arc leads it (a plant closure's decisions
+/// need no post).
 #[test]
 fn pacing_stays_within_budgets_and_cooldowns_hold() {
     let c = base();
     let d = &c.director;
     let mut chapters = Vec::new();
-    for seed in 1..=12u64 {
+    // Sessions whose budget round turned in them: (the player held a post
+    // on the day, the turn's decision was put to them).
+    let mut turns: Vec<(bool, bool)> = Vec::new();
+    let first: u64 = std::env::var("PACING_FIRST_SEED")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1);
+    for seed in first..first + 12 {
         let mut e = engine(&c, seed);
+        // (day, in office) at each turn's end.
+        let mut office: Vec<(u32, bool)> = Vec::new();
         for _ in 0..(6 * 30) {
             answer_all(&mut e, &c);
             e.apply(Command::EndTurn).unwrap();
+            let st = e.state();
+            office.push((
+                st.calendar.date.0,
+                !mandate_sim::player::posts(st).is_empty(),
+            ));
         }
         let n: &NarrativeState = &e.state().narrative;
         let b = narrative::director::budget(d, n.profile(&c));
+        for ch in n
+            .chapters
+            .iter()
+            .filter(|ch| ch.kind == narrative::ChapterKind::Session && ch.closed.is_some())
+        {
+            let closed = ch.closed.unwrap();
+            let turned = e
+                .state()
+                .arcs
+                .past
+                .iter()
+                .filter(|p| p.template == "arc.budget_round")
+                .filter_map(|p| p.turn.as_ref())
+                .find(|t| t.on >= ch.start && t.on <= closed);
+            if let Some(t) = turned {
+                let held = office
+                    .iter()
+                    .rev()
+                    .find(|(day, _)| *day <= t.on.0)
+                    .is_none_or(|x| x.1);
+                let asked = ch.climax.is_some_and(|id| {
+                    n.decision(id)
+                        .is_some_and(|x| x.weight == Weight::Climax && x.arc.is_some())
+                });
+                turns.push((held, asked));
+            }
+        }
         for ch in &n.chapters {
             assert!(ch.climaxes <= b.climax, "seed {seed}: {ch:?}");
             assert!(ch.significant <= b.sig_max, "seed {seed}: {ch:?}");
             assert!(ch.minor <= b.minor_max, "seed {seed}: {ch:?}");
             chapters.push(ch.clone());
         }
-        // Cooldowns: the same dilemma returns only after its cooldown (a
-        // climax may revisit a theme earlier).
+        // Cooldowns: the same dilemma returns only after its cooldown. (An
+        // arc asks for its own decisions when its stage comes: the budget
+        // round's every year.)
         let ds = &n.decisions;
         for (i, a) in ds.iter().enumerate() {
             for b2 in ds.iter().skip(i + 1) {
-                if a.template != b2.template || b2.weight == Weight::Climax {
+                if a.template != b2.template || a.arc.is_some() || b2.arc.is_some() {
                     continue;
                 }
                 let cd = c.dilemma(&a.template).unwrap().cooldown_days;
@@ -156,12 +214,13 @@ fn pacing_stays_within_budgets_and_cooldowns_hold() {
                 );
             }
         }
-        // Spacing: decisions of weight climax/significant are spaced out
-        // (a storyline's turn has priority and may come sooner).
+        // Spacing: the spotlight's own significant decisions are spaced
+        // out (an arc's decision comes when its stage does, and the
+        // spotlight then waits its distance from it).
         let mut opened: Vec<_> = ds
             .iter()
             // Raised decisions (a story, a case) are fairness, not pacing.
-            .filter(|x| x.weight != Weight::Minor && x.storyline.is_none() && x.about.is_none())
+            .filter(|x| x.weight != Weight::Minor && x.arc.is_none() && x.about.is_none())
             .map(|x| x.opened)
             .collect();
         opened.sort();
@@ -178,23 +237,52 @@ fn pacing_stays_within_budgets_and_cooldowns_hold() {
     let sig: f64 =
         chapters.iter().map(|c| c.significant as f64).sum::<f64>() / chapters.len() as f64;
     let minor: f64 = chapters.iter().map(|c| c.minor as f64).sum::<f64>() / chapters.len() as f64;
+    let held = turns.iter().filter(|t| t.0).count();
+    let held_asked = turns.iter().filter(|t| t.0 && t.1).count();
+    let out_asked = turns.iter().filter(|t| !t.0 && t.1).count();
     eprintln!(
-        "chapters {} (sessions {}, campaigns {campaigns}): climax in {climax}, mean significant {sig:.2}, mean minor {minor:.2}",
+        "chapters {} (sessions {}, campaigns {campaigns}): a turn in {climax}, mean significant {sig:.2}, mean minor {minor:.2}",
         chapters.len(),
         sessions.len()
     );
-    // About one climax per chapter (DEC-005): nearly every chapter has one.
-    // Lowered from 85% to 80% on 2026-11-24 (owner's decision): once the
-    // record decides votes (audit fix 1) towns are no longer in permanent
-    // crisis, and quiet years in calm towns have no climax-sized decision
-    // left. The task that puts the director on arcs (A2, DEC-109: the yearly
-    // budget round as a standing arc) must raise this to 95% and remove the
-    // climax fallback.
+    eprintln!(
+        "the round turned in {} sessions: the player held a post in {held} and was asked at climax weight in {held_asked}; out of office in {}, asked in {out_asked}",
+        turns.len(),
+        turns.len() - held
+    );
+    // One climax per chapter (DEC-005): a chapter's climax is its lead
+    // arc's turn (DEC-109). A session has the budget round, whose vote the
+    // director places in the chapter's climax window; a campaign has the
+    // election. Nothing is borrowed to make one: the climax fallback is
+    // gone. Measured on these seeds: 84 of 84 (before the director was put
+    // on arcs: 71 of 84, with the fallback).
     assert!(
-        climax as f64 >= 0.80 * chapters.len() as f64,
-        "climax in {climax} of {} chapters",
+        climax as f64 >= 0.95 * chapters.len() as f64,
+        "a turn in {climax} of {} chapters",
         chapters.len()
     );
+    // In office, the turn is the player's to answer. (Out of office the
+    // round's is not put to them: the open item this test's note names.
+    // Measured 2026-11-25, of 72 sessions each: seeds 1 to 12, in office
+    // 12, asked in 12, out of office 60, a climax decision in 2 (another
+    // arc led); seeds 13 to 24, in office 16, asked in 16, out of office
+    // 56, a climax decision in 3.)
+    assert!(held > 0, "no session in office");
+    assert!(
+        held_asked as f64 >= 0.95 * held as f64,
+        "in office at the turn in {held} sessions, asked in {held_asked}"
+    );
+    // Every session's turn is a stage of an arc, by name.
+    for ch in sessions.iter().filter(|c| c.climaxes == 1) {
+        let turn = ch.turn.as_deref().expect("a session's climax is a turn");
+        let (arc, stage) = turn.split_once('/').unwrap();
+        assert!(
+            c.arc(arc)
+                .and_then(|a| a.stage(stage))
+                .is_some_and(|s| s.climax),
+            "{turn}"
+        );
+    }
     assert!((1.5..=4.0).contains(&sig), "significant per chapter {sig}");
 }
 
@@ -403,7 +491,36 @@ fn endogenous(e: &Engine) -> serde_json::Value {
     if let Some(p) = player.as_object_mut() {
         p.remove("knowledge");
     }
+    // Arcs are simulation (DEC-109): where each run is, its heat, marks,
+    // clock and turn, and how each ended, are outcomes. Which of its
+    // decision beats were put to the player is presentation (`done`,
+    // `open`): the director's, with the spotlight.
+    let runs: Vec<serde_json::Value> = st
+        .arcs
+        .runs
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "id": r.id, "template": r.template, "at": r.at, "cast": r.cast,
+                "stage": r.stage, "since": r.since, "started": r.started,
+                "clock": r.clock, "heat": r.heat, "marks": r.marks, "turn": r.turn,
+            })
+        })
+        .collect();
+    let past: Vec<serde_json::Value> = st
+        .arcs
+        .past
+        .iter()
+        .map(|p| {
+            serde_json::json!({
+                "id": p.id, "template": p.template, "exit": p.exit, "ended": p.ended,
+                "marks": p.marks, "turn": p.turn,
+            })
+        })
+        .collect();
     serde_json::json!({
+        "arcs": { "runs": runs, "past": past, "cooldowns": st.arcs.cooldowns },
+        "asks": st.asks.asks,
         "elections": st.politics.elections,
         "politicians": st.politics.politicians,
         "bodies": st.politics.bodies,
@@ -442,7 +559,7 @@ fn first_diff(a: &serde_json::Value, b: &serde_json::Value, path: String) -> Str
     }
 }
 
-/// DEC-033 B, structurally: the spotlight (decisions, storylines,
+/// DEC-033 B, structurally: the spotlight (decisions, the arcs' decision beats,
 /// developments) never changes an endogenous outcome. Spotlight on and off,
 /// for the same seed and the same exogenous draws (the levers read the
 /// simulation alone), with decisions left unapplied: every election result,
@@ -465,6 +582,37 @@ fn the_spotlight_never_changes_endogenous_outcomes() {
         assert!(on.state().narrative.decisions.len() > 3, "seed {seed}");
         assert!(off.state().narrative.decisions.is_empty());
         assert_eq!(on.state().narrative.chance, off.state().narrative.chance);
+        // Arcs ran in both worlds (the budget round, the rival), and with
+        // the spotlight on some of their decisions were put to the player:
+        // the director timed them, and changed nothing they did.
+        assert!(
+            off.state().arcs.past.len() >= 3,
+            "seed {seed}: {:?}",
+            off.state().arcs.past
+        );
+        assert!(
+            off.state().arcs.past.iter().any(|p| p.turn.is_some()),
+            "seed {seed}: a run turned with the spotlight off"
+        );
+        assert!(
+            on.state()
+                .narrative
+                .decisions
+                .iter()
+                .any(|d| d.arc.is_some()),
+            "seed {seed}: an arc's decision was presented"
+        );
+        // The chapters and their dates are the same; only what was shown
+        // in them differs.
+        let dates = |e: &Engine| -> Vec<_> {
+            let n = &e.state().narrative;
+            n.chapters
+                .iter()
+                .chain(n.chapter.as_ref())
+                .map(|c| (c.index, c.kind, c.start, c.end))
+                .collect()
+        };
+        assert_eq!(dates(&on), dates(&off), "seed {seed}");
         let (a, b) = (endogenous(&on), endogenous(&off));
         if a != b {
             panic!("seed {seed}: {}", first_diff(&a, &b, String::new()));
@@ -589,10 +737,13 @@ fn deadlines_apply_the_default() {
     }
 }
 
-/// Storylines advance through stages and branch on the player's answer.
+/// The folded storylines run as arcs (DEC-109): their stages are entered
+/// in the template's order, and an answer sends the run down a branch
+/// through the mark it sets, never by naming a stage.
 #[test]
-fn storylines_advance_and_branch() {
+fn the_folded_storylines_run_as_arcs_and_branch_on_the_answer() {
     let c = base();
+    let folded = ["arc.rival", "arc.favour_debt", "arc.plant_closure"];
     let mut stages = 0;
     let mut branched = false;
     for seed in 1..=8u64 {
@@ -614,23 +765,60 @@ fn storylines_advance_and_branch() {
             }
             e.apply(Command::EndTurn).unwrap();
         }
-        for r in &e.state().narrative.storylines {
-            stages += r.stages.len();
-            let def = c.storyline(&r.template).unwrap();
-            // Stages were reached in order, except where an answer branched.
-            for w in r.stages.windows(2) {
-                let a = def.stages.iter().position(|s| s.id == w[0].0).unwrap();
-                let b = def.stages.iter().position(|s| s.id == w[1].0).unwrap();
-                if b != a + 1 {
-                    branched = true;
-                    assert!(def.stages[a].decision.is_some());
-                }
-                assert!(w[0].1 <= w[1].1);
+        let st = e.state();
+        // The stages each run entered, in order, from the log.
+        let mut entered: BTreeMap<u32, Vec<(String, String)>> = BTreeMap::new();
+        for ev in st.events.iter() {
+            if let EventKind::ArcStage {
+                arc,
+                template,
+                stage,
+                ..
+            }
+            | EventKind::ArcEnded {
+                arc,
+                template,
+                exit: stage,
+                ..
+            } = &ev.kind
+                && folded.contains(&template.as_str())
+            {
+                entered
+                    .entry(*arc)
+                    .or_default()
+                    .push((template.clone(), stage.clone()));
+            }
+        }
+        for run in entered.values() {
+            stages += run.len();
+            let def = c.arc(&run[0].0).unwrap();
+            for w in run.windows(2) {
+                // Every step is an edge of the template.
+                let from = def.stage(&w[0].1).unwrap();
+                assert!(
+                    from.next.iter().any(|x| x.to == w[1].1),
+                    "seed {seed}: {} has no edge {} -> {}",
+                    def.id,
+                    w[0].1,
+                    w[1].1
+                );
+            }
+        }
+        // The rival's offer refused: straight to the showdown, with no pact.
+        for p in st.arcs.past.iter().filter(|p| p.template == "arc.rival") {
+            if p.marks.iter().any(|m| m == "refused") {
+                assert!(!p.marks.iter().any(|m| m == "pact"));
+                let path = &entered[&p.id.0];
+                assert!(!path.iter().any(|x| x.1 == "pact"), "{path:?}");
+                branched |= path.iter().any(|x| x.1 == "showdown");
             }
         }
     }
-    assert!(stages > 8, "storyline stages reached: {stages}");
-    assert!(branched, "a branch was taken");
+    assert!(stages > 8, "stages the folded arcs entered: {stages}");
+    assert!(
+        branched,
+        "a refused offer went to the showdown without a pact"
+    );
 }
 
 /// Goals drive the NPC AI (DEC-032, DEC-030): an officeholder out to stop

@@ -90,6 +90,11 @@ pub struct Treasury {
     pub spending_ytd: Vec<Money>,
     pub interest_ytd: Money,
     pub last_year: YearSummary,
+    /// Changes voted into the next budget ([`vote_budget`]); applied and
+    /// cleared when the budget year turns. Not written while empty, so a
+    /// treasury nobody voted on hashes as it did.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub voted: Vec<BudgetVote>,
 }
 
 impl Treasury {
@@ -117,6 +122,7 @@ impl Treasury {
             spending_ytd: vec![Money::ZERO; Category::ALL.len()],
             interest_ytd: Money::ZERO,
             last_year: YearSummary::default(),
+            voted: Vec::new(),
         }
     }
 
@@ -534,6 +540,88 @@ pub fn accrue(fin: &mut FinanceState, r: &Reads<'_>, _out: &mut Outs<'_>) {
     }
 }
 
+/// The treasury of a jurisdiction (DEC-098): a town's, a region's, the
+/// nation's.
+pub fn treasury(fin: &FinanceState, at: crate::world::Jurisdiction) -> Option<&Treasury> {
+    use crate::world::Jurisdiction as J;
+    match at {
+        J::Municipality { id } => fin.local.get(id.index()),
+        J::Region { id } => fin.regional.get(id.index()),
+        J::Nation => fin.national.as_ref(),
+    }
+}
+
+/// The day a jurisdiction's budget year turns next after `date`. Every
+/// treasury, whatever its tier, closes its books on 1 January
+/// ([`new_budget_year`]); a tier with its own fiscal year would be read
+/// here.
+pub fn budget_year_turns(
+    at: crate::world::Jurisdiction,
+    date: mandate_core::SimDate,
+) -> mandate_core::SimDate {
+    let _ = at;
+    mandate_core::SimDate::from_ymd(date.calendar().year + 1, 1, 1)
+}
+
+/// Bounds of one budget change asked for by another domain.
+pub const BUDGET_FACTOR: [f64; 2] = [0.8, 1.25];
+/// Changes voted for one budget year, at most.
+pub const VOTES_CAP: usize = 8;
+
+/// A change voted into a jurisdiction's next budget (DEC-109: the budget
+/// round): one line of the discretionary budget (an index into
+/// `Category::ALL`), or every line, × `factor` against what the baseline
+/// rule would set.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BudgetVote {
+    pub category: Option<u8>,
+    pub factor: f64,
+}
+
+/// Vote a change into a jurisdiction's next budget: when its budget year
+/// turns ([`new_budget_year`]) the baseline budget is set as ever, then
+/// each voted change is applied to it, and the votes are spent. Finance's
+/// own change: the applier of `Effect::Budget`, and the commands that ask
+/// for it outside the scheduler.
+pub fn vote_budget(
+    fin: &mut FinanceState,
+    at: crate::world::Jurisdiction,
+    category: Option<usize>,
+    factor: f64,
+) {
+    use crate::world::Jurisdiction as J;
+    if !factor.is_finite() || category.is_some_and(|c| c >= Category::ALL.len()) {
+        return;
+    }
+    let t = match at {
+        J::Municipality { id } => fin.local.get_mut(id.index()),
+        J::Region { id } => fin.regional.get_mut(id.index()),
+        J::Nation => fin.national.as_mut(),
+    };
+    let Some(t) = t else { return };
+    if t.voted.len() >= VOTES_CAP {
+        return;
+    }
+    t.voted.push(BudgetVote {
+        category: category.map(|c| c as u8),
+        factor: clamp(factor, BUDGET_FACTOR[0], BUDGET_FACTOR[1]),
+    });
+}
+
+/// Finance domain, daily: changes to the next budget other domains asked for.
+pub fn effects(fin: &mut FinanceState, _r: &Reads<'_>, out: &mut Outs<'_>) {
+    for q in out.take(|e| matches!(e, crate::scheduler::Effect::Budget { .. })) {
+        if let crate::scheduler::Effect::Budget {
+            at,
+            category,
+            factor,
+        } = q.effect
+        {
+            vote_budget(fin, at, category, factor);
+        }
+    }
+}
+
 /// What a treasury pays to borrow over the policy rate: its tier's spread,
 /// rising with its debt against a year's revenue beyond what lenders
 /// ignore (`economy.borrowing`). Never below the tier's: a prudent
@@ -694,6 +782,14 @@ pub fn new_budget_year(fin: &mut FinanceState, r: &Reads<'_>, out: &mut Outs<'_>
         if current.0 > 0 {
             for b in t.budget.iter_mut() {
                 *b = b.scale_ratio(goal.0, current.0);
+            }
+        }
+        // What was voted for this year, on top of the baseline.
+        for vote in std::mem::take(&mut t.voted) {
+            for (i, b) in t.budget.iter_mut().enumerate() {
+                if vote.category.is_none_or(|c| usize::from(c) == i) {
+                    *b = b.scale(vote.factor);
+                }
             }
         }
         t.revenue_ytd.iter_mut().for_each(|v| *v = Money::ZERO);

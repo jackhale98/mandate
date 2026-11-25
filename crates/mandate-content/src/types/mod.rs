@@ -102,10 +102,6 @@ pub enum ContentFile {
     Goals {
         items: Vec<crate::narrative::GoalDef>,
     },
-    /// Storyline templates (DEC-032).
-    Storylines {
-        items: Vec<crate::narrative::StorylineDef>,
-    },
     /// Scene templates: short exchanges at a place (DEC-035, DEC-079).
     Scenes {
         items: Vec<crate::narrative::SceneDef>,

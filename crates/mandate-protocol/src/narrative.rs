@@ -10,7 +10,7 @@ use mandate_sim::Engine;
 use mandate_sim::characters::{self, MemoryKind};
 use mandate_sim::narrative::{
     Actor, Applied, CastEntry, Chapter, Decision, DecisionId, DecisionStatus, FactKind, Reason,
-    RunEnd, Weight, resolve,
+    Weight, resolve,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -75,7 +75,7 @@ pub struct AftermathView {
     pub event: Option<u32>,
 }
 
-/// A decision (a dilemma, a request, or a storyline's turn).
+/// A decision (a dilemma, a request, or an arc's decision beat).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct DecisionView {
@@ -98,7 +98,7 @@ pub struct DecisionView {
     /// Why this came up (Fluent keys with arguments).
     pub reasons: Vec<EffectLineView>,
     pub scene: SceneView,
-    /// The storyline it belongs to (its title key).
+    /// The arc whose beat it is (its title key).
     pub storyline_key: Option<String>,
     pub aftermath: Option<AftermathView>,
 }
@@ -125,12 +125,12 @@ pub struct StorylineView {
     pub title_key: String,
     /// The stages reached, as story lines (Fluent keys with the cast).
     pub stages: Vec<EventView>,
-    /// `ended` | `faded` | `removed`, or none while it runs.
+    /// `ended` | `removed`, or none while it runs.
     pub ended: Option<String>,
     pub args: BTreeMap<String, String>,
 }
 
-/// The story so far: chapter and tension, storylines, and what happened.
+/// The story so far: chapter and tension, the arcs, and what happened.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct StoryView {
@@ -819,9 +819,9 @@ fn reason_line(engine: &Engine, d: &Decision, r: &Reason) -> Option<EffectLineVi
             "mixed",
         ),
         Reason::Election { .. } => line("why-election", vec![], "mixed"),
-        Reason::Storyline { storyline } => line(
+        Reason::Arc { arc } => line(
             "why-storyline",
-            vec![("title_key", content.storyline(storyline)?.title_key.clone())],
+            vec![("title_key", content.arc(arc)?.title_key.clone())],
             "mixed",
         ),
         Reason::Memory { person } => line(
@@ -1055,11 +1055,13 @@ pub fn decision_view(engine: &Engine, d: &Decision) -> Option<DecisionView> {
             .filter_map(|r| reason_line(engine, d, r))
             .collect(),
         scene: scene_view(engine, d),
-        storyline_key: d.storyline.and_then(|rid| {
-            let run = st.narrative.storylines.iter().find(|r| r.id == rid)?;
-            content
-                .storyline(&run.template)
-                .map(|s| s.title_key.clone())
+        // The arc whose beat it is (storylines are arcs, DEC-109).
+        storyline_key: d.arc.as_ref().and_then(|a| {
+            let template = match st.arcs.run(a.run) {
+                Some(r) => &r.template,
+                None => &st.arcs.past.iter().find(|p| p.id == a.run)?.template,
+            };
+            content.arc(template).map(|s| s.title_key.clone())
         }),
         aftermath,
     })
@@ -1131,22 +1133,6 @@ pub fn fact_event(engine: &Engine, f: &mandate_sim::narrative::Fact) -> Option<E
             put(&mut args, "name", name_of(engine, *person));
             "event-development-rival".into()
         }
-        FactKind::StorylineStage { run, stage } => {
-            let r = st.narrative.storylines.iter().find(|x| x.id == *run)?;
-            let def = content.storyline(&r.template)?;
-            let s = def.stages.iter().find(|s| &s.id == stage)?;
-            args = cast_args(engine, &r.cast);
-            s.key.clone()
-        }
-        FactKind::StorylineEnded { run, end } => {
-            let r = st.narrative.storylines.iter().find(|x| x.id == *run)?;
-            let def = content.storyline(&r.template)?;
-            if *end != RunEnd::Faded {
-                return None;
-            }
-            args = cast_args(engine, &r.cast);
-            def.faded_key.clone()
-        }
         FactKind::DecisionOpened { decision } => {
             let d = st.narrative.decision(*decision)?;
             put(
@@ -1205,47 +1191,66 @@ pub fn fact_event(engine: &Engine, f: &mandate_sim::narrative::Fact) -> Option<E
     })
 }
 
-/// The story so far.
-pub fn story_view(engine: &Engine) -> StoryView {
+/// The arcs as the story sheet lists them, newest first (storylines are
+/// arcs, DEC-109; until the arc view of task A3 this is their surface):
+/// the runs in progress, then the last that ended, each with the stages
+/// it reached as the event log holds them (a stage's story so far, an
+/// exit's how it ended), with the facts as they were.
+fn arc_stories(engine: &Engine) -> Vec<StorylineView> {
+    use mandate_sim::events::EventKind;
     let st = engine.state();
     let content = engine.content();
-    let n = &st.narrative;
-    let on = st.calendar.date;
-    let storylines = n
-        .storylines
+    let live = st
+        .arcs
+        .runs
         .iter()
         .rev()
+        .map(|r| (r.id, &r.template, None::<&str>));
+    let ended = st
+        .arcs
+        .past
+        .iter()
+        .rev()
+        .map(|p| (p.id, &p.template, Some(p.exit.as_str())));
+    live.chain(ended)
         .take(12)
-        .filter_map(|r| {
-            let def = content.storyline(&r.template)?;
-            let args = cast_args(engine, &r.cast);
+        .filter_map(|(id, template, exit)| {
+            let def = content.arc(template)?;
+            let stages: Vec<EventView> = st
+                .events
+                .iter()
+                .filter(|e| {
+                    matches!(&e.kind,
+                        EventKind::ArcStage { arc, .. } | EventKind::ArcEnded { arc, .. }
+                            if *arc == id.0)
+                })
+                .map(|e| crate::views::event_view(e, engine))
+                .collect();
+            let args = stages.last().map(|e| e.args.clone()).unwrap_or_default();
             Some(StorylineView {
                 title_key: def.title_key.clone(),
-                stages: r
-                    .stages
-                    .iter()
-                    .filter_map(|(sid, date)| {
-                        let s = def.stages.iter().find(|s| &s.id == sid)?;
-                        Some(EventView {
-                            id: r.id.0,
-                            date: DateView::of(*date),
-                            text_key: s.key.clone(),
-                            args: args.clone(),
-                        })
-                    })
-                    .collect(),
-                ended: r.ended.map(|(_, e)| {
-                    match e {
-                        RunEnd::Ended => "ended",
-                        RunEnd::Faded => "faded",
-                        RunEnd::Removed => "removed",
+                stages,
+                ended: exit.map(|x| {
+                    if x == mandate_sim::arcs::EXIT_REMOVED {
+                        "removed"
+                    } else {
+                        "ended"
                     }
                     .into()
                 }),
                 args,
             })
         })
-        .collect();
+        .collect()
+}
+
+/// The story so far.
+pub fn story_view(engine: &Engine) -> StoryView {
+    let st = engine.state();
+    let content = engine.content();
+    let n = &st.narrative;
+    let on = st.calendar.date;
+    let storylines = arc_stories(engine);
     StoryView {
         profile_key: n
             .profile(content)

@@ -75,12 +75,11 @@ pub(super) fn press_dates(v: &View<'_>) -> Vec<SimDate> {
         .collect()
 }
 
-/// Spotlit development and storyline facts (minor beats).
+/// Spotlit development facts (minor beats).
 fn is_beat(k: &FactKind) -> bool {
     matches!(
         k,
-        FactKind::StorylineStage { .. }
-            | FactKind::TownEvent { .. }
+        FactKind::TownEvent { .. }
             | FactKind::CrisisBegan { .. }
             | FactKind::CrisisWorse { .. }
             | FactKind::GoalTaken { .. }
@@ -88,9 +87,9 @@ fn is_beat(k: &FactKind) -> bool {
     )
 }
 
-/// The last day something happened for the player: a decision opened, a
-/// storyline stage, news of the town spotlighted, press about them, an ask
-/// offered or resolved (the asks domain, read only).
+/// The last day something happened for the player: a decision opened, an
+/// arc's stage entered or ended, news of the town spotlighted, press about
+/// them, an ask offered or resolved (the asks and arcs domains, read only).
 fn last_beat(n: &NarrativeState, v: &View<'_>) -> Option<SimDate> {
     let decided = n.decisions.iter().map(|x| x.opened).max();
     let fact = n
@@ -107,10 +106,17 @@ fn last_beat(n: &NarrativeState, v: &View<'_>) -> Option<SimDate> {
             .flat_map(|a| [Some(a.opened), a.status.resolved_on()])
             .flatten()
             .max();
-    [decided, fact, press, asked, n.play_began]
-        .into_iter()
-        .flatten()
-        .max()
+    [
+        decided,
+        fact,
+        press,
+        asked,
+        super::arcs::last_stage(v),
+        n.play_began,
+    ]
+    .into_iter()
+    .flatten()
+    .max()
 }
 
 /// A development fact still grounded in live state (it may be spotlighted

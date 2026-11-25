@@ -130,9 +130,6 @@ pub fn holds(state: &crate::State) -> Holds {
     for d in n.pending() {
         h.threads.push(Thread::Decision(d.id.0));
     }
-    for r in n.active_runs() {
-        h.threads.push(Thread::Storyline(r.id.0));
-    }
     // A live arc run holds its latest event (and so its root).
     for r in &state.arcs.runs {
         h.threads.push(Thread::Arc(r.id.0));

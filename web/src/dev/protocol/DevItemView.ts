@@ -5,7 +5,7 @@
  */
 export type DevItemView = { 
 /**
- * `dilemma` | `situational` | `storyline` | `overheard` | `topic` |
+ * `dilemma` | `situational` | `overheard` | `topic` |
  * `line` | `voice` | `scene`.
  */
 kind: string, id: string, 

@@ -41,7 +41,7 @@ pub struct DevNodeView {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../dev/protocol/")]
 pub struct DevItemView {
-    /// `dilemma` | `situational` | `storyline` | `overheard` | `topic` |
+    /// `dilemma` | `situational` | `overheard` | `topic` |
     /// `line` | `voice` | `scene`.
     pub kind: String,
     pub id: String,
@@ -149,8 +149,8 @@ fn title_and_group(engine: &Engine, kind: ItemKind, id: &str) -> (Option<String>
                 if d.opportunity {
                     g.push_str(" · opportunity");
                 }
-                if d.storyline_only {
-                    g.push_str(" · storyline");
+                if d.arc_only {
+                    g.push_str(" · arc");
                 }
                 if let Some(by) = d.raised_by {
                     g.push_str(&format!(" · raised by {by:?}").to_lowercase());
@@ -162,15 +162,6 @@ fn title_and_group(engine: &Engine, kind: ItemKind, id: &str) -> (Option<String>
             .policies
             .get(id)
             .map(|p| (Some(p.name_key.clone()), "policy".into()))
-            .unwrap_or_default(),
-        ItemKind::Storyline => c
-            .storyline(id)
-            .map(|s| {
-                (
-                    Some(s.title_key.clone()),
-                    format!("{} stages", s.stages.len()),
-                )
-            })
             .unwrap_or_default(),
         ItemKind::Overheard => c
             .overheard
@@ -316,7 +307,6 @@ fn preview_decision(engine: &Engine, x: &Explanation) -> Option<DecisionView> {
         deadline: date.add_days(def.deadline_days.unwrap_or(content.director.deadline_days)),
         chapter: 0,
         relevance: 0.0,
-        storyline: None,
         goal: None,
         place,
         status: DecisionStatus::Pending,
@@ -363,15 +353,6 @@ pub fn dev_explain(
             if let Some(d) = &decision {
                 texts.push(text("title", &d.title_key, &d.args));
                 texts.push(text("situation", &d.situation_key, &d.args));
-            }
-        }
-        ItemKind::Storyline => {
-            if let Some(def) = content.storyline(id) {
-                texts.push(text("title", &def.title_key, &args));
-                for s in &def.stages {
-                    texts.push(text(&format!("stage:{}", s.id), &s.key, &args));
-                }
-                texts.push(text("faded", &def.faded_key, &args));
             }
         }
         ItemKind::Scene => {

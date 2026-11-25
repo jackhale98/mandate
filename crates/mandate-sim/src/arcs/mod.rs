@@ -14,12 +14,16 @@
 //! requests, and the edges read the result.
 //!
 //! **Where arcs run.** In the player's focus jurisdictions, keyed by
-//! `Jurisdiction` (DEC-098). Until the director schedules arcs (task A2), a
-//! run is raised as soon as its template's `raise` holds and its cast can
-//! be bound, and at most one runs per jurisdiction.
+//! `Jurisdiction` (DEC-098). A run is raised as soon as its template's
+//! `raise` holds and its cast can be bound: one run a template in a
+//! jurisdiction, at most `director.arcs_active` there at once, standing
+//! arcs (the budget round, the rival) aside. The director never raises,
+//! blocks or ends a run (DEC-033): it chooses which leads the chapter,
+//! places the clocks that are its own (`ClockDef::placed`) and presents
+//! the decisions runs ask for (`ArcRun::open`), within its budgets.
 //!
 //! **Saved, bounded, deterministic.** [`ArcsState`] holds the live runs
-//! (one per focus jurisdiction), their cooldowns and the last
+//! (a few per focus jurisdiction), their cooldowns and the last
 //! [`PAST_CAP`] summaries. A run's `done` and `marks` are bounded by its
 //! template. Every draw is keyed (`keyed(seed, Misc, [tag, …])`: clocks
 //! and moves); none depends on what the player knows. An empty state is
@@ -115,6 +119,13 @@ pub struct BeatDone {
     pub on: SimDate,
 }
 
+/// The turn a run reached: its first stage marked `climax`, and the day.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArcTurn {
+    pub stage: String,
+    pub on: SimDate,
+}
+
 /// One telling of an arc.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ArcRun {
@@ -146,6 +157,13 @@ pub struct ArcRun {
     pub base: Vec<(String, u64)>,
     /// The event that made its `raise` true (the root on the spine).
     pub root: Option<EventId>,
+    /// The turn it has reached, if it has (the first `climax` stage).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn: Option<ArcTurn>,
+    /// The turn the last run of this template here reached (`arc_last_turn`:
+    /// the same turn does not come twice running).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before: Option<String>,
 }
 
 impl ArcRun {
@@ -249,6 +267,9 @@ pub struct ArcSummary {
     pub cast: Vec<ArcCastEntry>,
     pub marks: Vec<String>,
     pub root: Option<EventId>,
+    /// The turn it reached, if it did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn: Option<ArcTurn>,
 }
 
 /// A template may not be raised again at a jurisdiction before a day.
@@ -294,9 +315,19 @@ impl ArcsState {
         self.runs.iter_mut().find(|r| r.id == id)
     }
 
-    /// The live run at a jurisdiction, if any.
-    pub fn at(&self, at: Jurisdiction) -> Option<&ArcRun> {
-        self.runs.iter().find(|r| r.at == at)
+    /// The live runs at a jurisdiction, in id order.
+    pub fn at(&self, at: Jurisdiction) -> impl Iterator<Item = &ArcRun> {
+        self.runs.iter().filter(move |r| r.at == at)
+    }
+
+    /// The turn the last ended run of a template at a jurisdiction reached
+    /// (the latest that reached one).
+    pub fn last_turn(&self, template: &str, at: Jurisdiction) -> Option<&str> {
+        self.past
+            .iter()
+            .rev()
+            .filter(|p| p.template == template && p.at == at)
+            .find_map(|p| p.turn.as_ref().map(|t| t.stage.as_str()))
     }
 
     /// The cast of a run, live or ended (for the text of its events).
@@ -321,6 +352,7 @@ impl ArcsState {
             cast: run.cast,
             marks: run.marks,
             root: run.root,
+            turn: run.turn,
         });
         if self.past.len() > PAST_CAP {
             let drop = self.past.len() - PAST_CAP;
@@ -333,6 +365,28 @@ impl ArcsState {
 pub fn beat_of<'c>(def: &'c ArcDef, b: &BeatRef) -> Option<(&'c StageDef, &'c ArcBeat)> {
     let s = def.stage(&b.stage)?;
     Some((s, s.beat(&b.beat)?))
+}
+
+/// Whether a stage marked `climax` can still be reached from a stage by
+/// the template's edges (the stage itself not counted): a run that has not
+/// turned and can no longer turn gives its chapter none.
+pub fn turn_ahead(def: &ArcDef, stage: &str) -> bool {
+    let mut seen: Vec<&str> = vec![stage];
+    let mut stack: Vec<&str> = vec![stage];
+    while let Some(id) = stack.pop() {
+        let Some(s) = def.stage(id) else { continue };
+        for e in &s.next {
+            if seen.contains(&e.to.as_str()) {
+                continue;
+            }
+            if def.stage(&e.to).is_some_and(|t| t.climax) {
+                return true;
+            }
+            seen.push(&e.to);
+            stack.push(&e.to);
+        }
+    }
+    false
 }
 
 /// What the engine does not do yet for a template, if anything: such a

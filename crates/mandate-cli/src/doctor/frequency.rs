@@ -136,7 +136,6 @@ pub(super) fn career(
     let start_turn = e.state().calendar.turn;
     let mut last_decision = 0u32;
     let mut next_talk = start;
-    let mut runs_seen: BTreeSet<(u32, usize)> = BTreeSet::new();
     while e.state().calendar.date < end {
         bots::play_turn_from(&mut e, content, strategy, start_turn);
         if e.apply(Command::EndTurn).is_err() {
@@ -167,17 +166,6 @@ pub(super) fn career(
             .map(|d| d.id.0 + 1)
             .max()
             .unwrap_or(last_decision);
-        // Storylines started and the steps they reached.
-        for run in &st.narrative.storylines {
-            if runs_seen.insert((run.id.0, usize::MAX)) {
-                seen.pick("storyline", &run.template);
-            }
-            for (i, (stage, _)) in run.stages.iter().enumerate() {
-                if runs_seen.insert((run.id.0, i)) {
-                    seen.pick("step", &format!("{}/{stage}", run.template));
-                }
-            }
-        }
         // Situational policies on the table in the player's town.
         if let Some(m) = mandate_sim::player::home(st).map(|h| h.0) {
             for t in content.policies.values().filter(|p| p.unlock.is_some()) {
@@ -238,22 +226,16 @@ pub(super) fn careers(content: &Arc<ContentBundle>, args: &DoctorArgs) -> Vec<Se
 pub(super) fn all_items(b: &ContentBundle) -> Vec<(&'static str, String, String, Option<String>)> {
     let mut out = Vec::new();
     for d in &b.dilemmas {
-        // Requests, raised and storyline-only dilemmas come up by their own
+        // Requests, raised dilemmas and an arc's own come up by their own
         // routes; the spotlight's share is among the spotlight's.
         let g = (d.category != mandate_content::DilemmaCategory::Request
-            && !d.storyline_only
+            && !d.arc_only
             && d.raised_by.is_none())
         .then(|| "spotlight".to_string());
         out.push(("dilemma", d.id.clone(), d.id.clone(), g));
     }
     for p in b.policies.values().filter(|p| p.unlock.is_some()) {
         out.push(("situational", p.id.clone(), p.id.clone(), None));
-    }
-    for s in &b.storylines {
-        out.push(("storyline", s.id.clone(), s.id.clone(), None));
-        for st in &s.stages {
-            out.push(("step", format!("{}/{}", s.id, st.id), s.id.clone(), None));
-        }
     }
     for s in &b.scenes {
         out.push(("scene", s.id.clone(), s.id.clone(), None));
@@ -330,17 +312,12 @@ pub(super) fn dynamic_checks(
             } else {
                 (Sev::Warn, format!("never fired in {n} careers"))
             };
-            let label = if *kind == "step" {
-                format!("step {id}: {msg}")
-            } else {
-                msg
-            };
-            out.add(sev, "never-fired", item, label);
+            out.add(sev, "never-fired", item, msg);
             continue;
         }
         let share_careers = in_careers as f64 / n.max(1) as f64;
         let mut often = false;
-        if matches!(*kind, "dilemma" | "storyline" | "scene" | "situational")
+        if matches!(*kind, "dilemma" | "scene" | "situational")
             && share_careers > args.often_careers
             && !(*kind == "dilemma" && g.is_none())
         {
@@ -399,11 +376,6 @@ pub(super) fn dynamic_checks(
     for d in &b.dilemmas {
         for r in &d.roles {
             cast_roles(out, &d.id, &r.cast);
-        }
-    }
-    for s in &b.storylines {
-        for r in &s.roles {
-            cast_roles(out, &s.id, &r.cast);
         }
     }
     for sc in &b.scenes {
@@ -484,8 +456,6 @@ pub(super) fn dynamic_checks(
     let order = [
         "dilemma",
         "situational",
-        "storyline",
-        "step",
         "scene",
         "overheard",
         "topic",

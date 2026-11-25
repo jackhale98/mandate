@@ -7,7 +7,7 @@ import type { PersonRefView } from "./PersonRefView";
 import type { SceneView } from "./SceneView";
 
 /**
- * A decision (a dilemma, a request, or a storyline's turn).
+ * A decision (a dilemma, a request, or an arc's decision beat).
  */
 export type DecisionView = { id: number, template: string, title_key: string, situation_key: string, 
 /**
@@ -27,6 +27,6 @@ status: string, options: Array<DecisionOptionView>, default_option: string,
  */
 reasons: Array<EffectLineView>, scene: SceneView, 
 /**
- * The storyline it belongs to (its title key).
+ * The arc whose beat it is (its title key).
  */
 storyline_key: string | null, aftermath: AftermathView | null, };

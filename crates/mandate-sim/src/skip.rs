@@ -584,12 +584,12 @@ pub fn interrupt_keys(state: &crate::State, content: &ContentBundle) -> Vec<Inte
             }
             InterruptWhen::RequestDue { days } => {
                 let soon = today.add_days(*days as u32);
-                // A request raised by someone's goal (DEC-032), or a
-                // storyline's turn.
+                // A request raised by someone's goal (DEC-032), or an
+                // arc's decision beat.
                 for d in state
                     .narrative
                     .pending()
-                    .filter(|d| (d.goal.is_some() || d.storyline.is_some()) && d.deadline <= soon)
+                    .filter(|d| (d.goal.is_some() || d.arc.is_some()) && d.deadline <= soon)
                 {
                     add(
                         d.id.0.to_string(),

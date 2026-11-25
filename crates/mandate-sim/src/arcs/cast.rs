@@ -214,11 +214,129 @@ fn candidates(
                 })
                 .collect()
         }
-        ArcCast::Post { power } => post_holders(v, at, *power)
-            .into_iter()
-            .filter(|c| Some(*c) != me)
-            .map(|id| ArcActor::Person { id })
-            .collect(),
+        ArcCast::Post { power, party } => {
+            use mandate_content::PartyRel;
+            let mine = v
+                .player()
+                .and_then(|pl| v.pol.get(pl.politician))
+                .and_then(|p| p.party);
+            let party_of = |c: CharacterId| {
+                v.pol
+                    .characters
+                    .get(c)
+                    .and_then(|x| x.politician)
+                    .and_then(|p| v.pol.get(p))
+                    .and_then(|p| p.party)
+            };
+            let mut holders: Vec<CharacterId> = post_holders(v, at, *power)
+                .into_iter()
+                .filter(|c| Some(*c) != me)
+                .collect();
+            // A preference, never a filter: of the player's party first
+            // (whoever thinks most of them), or of another first (whoever
+            // thinks least); then the rest, in the constitution's order,
+            // which is the order when no party is asked for.
+            if let (Some(me), false) = (me, *party == PartyRel::Any) {
+                let same = *party == PartyRel::Same;
+                let mut ranked: Vec<(bool, i64, usize, CharacterId)> = holders
+                    .iter()
+                    .enumerate()
+                    .map(|(i, c)| {
+                        let theirs = party_of(*c);
+                        let fits = if same {
+                            mine.is_some() && theirs == mine
+                        } else {
+                            theirs != mine
+                        };
+                        let o = f64::from(characters::opinion(v.pol, *c, me));
+                        let sign = if same { -1.0 } else { 1.0 };
+                        (!fits, (sign * o * 100.0) as i64, i, *c)
+                    })
+                    .collect();
+                ranked.sort();
+                holders = ranked.into_iter().map(|x| x.3).collect();
+            }
+            holders
+                .into_iter()
+                .map(|id| ArcActor::Person { id })
+                .collect()
+        }
+        // The town's named rival; in a campaign, whoever stands against
+        // the player (the narrative's own rule; a town's matter).
+        ArcCast::Rival => match at {
+            Jurisdiction::Municipality { id } if v.town() == Some(id.0) => {
+                crate::narrative::cast::candidates(v, &mandate_content::Cast::Rival, &[], None)
+                    .into_iter()
+                    .filter_map(|a| match a {
+                        crate::narrative::Actor::Person { id } => Some(ArcActor::Person { id }),
+                        _ => None,
+                    })
+                    .collect()
+            }
+            _ => Vec::new(),
+        },
+        // Whoever there the player owes most, the oldest debt first.
+        ArcCast::Creditor => {
+            let Some(me) = me else { return Vec::new() };
+            let mut owed: Vec<(u32, SimDate, CharacterId)> = Vec::new();
+            for f in v.pol.characters.favours.iter().filter(|f| f.debtor == me) {
+                if !town_of(v, f.creditor).is_some_and(|m| town_in(world, at, m)) {
+                    continue;
+                }
+                match owed.iter_mut().find(|x| x.2 == f.creditor) {
+                    Some(x) => {
+                        x.0 += u32::from(f.count);
+                        x.1 = x.1.min(f.since);
+                    }
+                    None => owed.push((u32::from(f.count), f.since, f.creditor)),
+                }
+            }
+            owed.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+            owed.into_iter()
+                .map(|x| ArcActor::Person { id: x.2 })
+                .collect()
+        }
+        // Where a cast person works: the place their post sits, else
+        // their own workplace; inside the jurisdiction.
+        ArcCast::Workplace { of } => {
+            let person = so_far
+                .iter()
+                .find(|c| &c.role == of)
+                .and_then(|c| match c.actor {
+                    ArcActor::Person { id } => Some(id),
+                    _ => None,
+                });
+            let Some(ch) = person.and_then(|p| v.pol.characters.get(p)) else {
+                return Vec::new();
+            };
+            let kind = ch
+                .politician
+                .and_then(|p| crate::politics::posts_of(v.pol, p).into_iter().next())
+                .filter(|post| post.at() == at)
+                .and_then(|post| crate::politics::workplace_of(v.pol, post));
+            let own = ch.named.as_deref().and_then(|n| n.place);
+            let mut places: Vec<(u8, u32)> = world
+                .places
+                .iter()
+                .filter(|p| p.is_open() && town_in(world, at, p.municipality.0))
+                .filter_map(|p| {
+                    if kind == Some(p.kind) {
+                        Some((0, p.id.0))
+                    } else if own == Some(p.id) {
+                        Some((1, p.id.0))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            places.sort();
+            places
+                .into_iter()
+                .map(|p| ArcActor::Place {
+                    id: crate::world::PlaceId(p.1),
+                })
+                .collect()
+        }
         ArcCast::Area { pick, hazard } => {
             let env = r.environment();
             let mut areas: Vec<(i64, i64, i64, Area)> = areas_below(world, at)
@@ -303,6 +421,24 @@ fn candidates(
 /// The holders of posts at a jurisdiction whose constitution lists a
 /// power: offices first, then seats, in the constitution's order.
 fn post_holders(v: &View<'_>, at: Jurisdiction, power: Power) -> Vec<CharacterId> {
+    let mut out = Vec::new();
+    for id in power_holders(v, at, power) {
+        if let Some(ch) = v.pol.get(id).map(|p| p.character)
+            && !out.contains(&ch)
+        {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// The politicians who hold a post for a jurisdiction that lists a power
+/// (the player included): offices first, then seats, each once.
+pub fn power_holders(
+    v: &View<'_>,
+    at: Jurisdiction,
+    power: Power,
+) -> Vec<crate::politics::PoliticianId> {
     let pol = v.pol;
     let Some(c) = v.content().constitutions.get(&v.r.meta.constitution) else {
         return Vec::new();
@@ -315,13 +451,8 @@ fn post_holders(v: &View<'_>, at: Jurisdiction, power: Power) -> Vec<CharacterId
         .chain(crate::politics::officials_at(pol, at));
     let mut out = Vec::new();
     for id in holders {
-        if !crate::politics::holds_power_at(pol, c, id, power, at) {
-            continue;
-        }
-        if let Some(ch) = pol.get(id).map(|p| p.character)
-            && !out.contains(&ch)
-        {
-            out.push(ch);
+        if crate::politics::holds_power_at(pol, c, id, power, at) && !out.contains(&id) {
+            out.push(id);
         }
     }
     out

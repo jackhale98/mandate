@@ -1,44 +1,9 @@
-//! The pacing cycle (ENGAGEMENT 4.3): build-up, peak, relax, and the climax fallback.
+//! The pacing cycle (ENGAGEMENT 4.3): build-up, peak, relax; the lead arc's turn is the
+//! climax peak (DEC-109).
 
 use super::*;
 
 // --- The pacing cycle (ENGAGEMENT §4.3) ----------------------------------------------------
-
-/// The climax fallback takes a template's second or third use, never a
-/// fourth (ENGAGEMENT §4.1: at most three uses in five years).
-pub(super) const FALLBACK_MAX_USES: u16 = 2;
-
-/// The cooldown a fallback climax sets: the template's base cooldown, not a
-/// grown one, so a borrowed use does not take it out of the rest of the
-/// career.
-pub(super) fn fallback_cooldown(
-    _n: &NarrativeState,
-    d: &DirectorParams,
-    _key: &str,
-    cooldown: u32,
-) -> u32 {
-    cooldown_days(d, cooldown, 1)
-}
-
-/// The fallback borrows the templates whose return the climax delays
-/// least: the new cooldown's end against the one it was cooling to.
-pub(super) fn least_delayed<'c>(
-    n: &NarrativeState,
-    d: &DirectorParams,
-    date: SimDate,
-    mut cands: Vec<Candidate<'c>>,
-) -> Vec<Candidate<'c>> {
-    let delay = |c: &Candidate<'_>| {
-        let new = date.add_days(fallback_cooldown(n, d, &c.def.id, c.def.cooldown_days));
-        let old = n.cooldowns.get(&c.def.id).copied().unwrap_or(date);
-        old.days_until(new)
-    };
-    let Some(least) = cands.iter().map(delay).min() else {
-        return cands;
-    };
-    cands.retain(|c| delay(c) == least);
-    cands
-}
 
 /// Draw tags for phase lengths.
 const TAG_BUILD_UP: u64 = 1;
@@ -142,13 +107,47 @@ fn begin(
         eased,
         decision: None,
         beats: 0,
-        climax_fallback: false,
     });
 }
 
+/// The lead arc reached its turn and its decision is open: the chapter's
+/// climax peak begins now, whatever phase was in force (the turn's day is
+/// the arc's; the cycle follows it). Its relax is the longer one.
+pub(crate) fn turn_peak(n: &mut NarrativeState, v: &View<'_>, decision: DecisionId) {
+    let Some(kind) = n.chapter.as_ref().map(|c| c.kind) else {
+        return;
+    };
+    let peak_max = lengths(&v.content().director, kind).peak_max;
+    turn_peak_core(n, v.date(), peak_max, decision);
+}
+
+/// [`turn_peak`] without a world. Under a profile without a cycle there is
+/// no phase, and nothing to do.
+pub(crate) fn turn_peak_core(
+    n: &mut NarrativeState,
+    date: SimDate,
+    peak_max: u32,
+    decision: DecisionId,
+) {
+    let Some(ph) = n.phase.clone() else { return };
+    if ph.kind == PhaseKind::Peak && ph.decision.is_none_or(|x| x == decision) {
+        if let Some(p) = n.phase.as_mut() {
+            p.climax = true;
+            p.decision = Some(decision);
+        }
+        return;
+    }
+    let cycle = ph.cycle + u32::from(ph.kind != PhaseKind::BuildUp);
+    let until = Some(date.add_days(peak_max));
+    begin(n, PhaseKind::Peak, date, until, cycle, true, ph.eased);
+    if let Some(p) = n.phase.as_mut() {
+        p.decision = Some(decision);
+    }
+}
+
 /// What a step of the pacing cycle reads, beyond the narrative state: the
-/// date, the draw seed, phase lengths and the climax window. (A plain value,
-/// so the cycle can be tested without a world.)
+/// date, the draw seed and phase lengths. (A plain value, so the cycle can
+/// be tested without a world.)
 #[derive(Clone, Debug)]
 pub(crate) struct CycleCtx {
     pub date: SimDate,
@@ -157,12 +156,6 @@ pub(crate) struct CycleCtx {
     pub build_up_scale: f64,
     pub relax_scale: f64,
     pub setback_relax_mult: f64,
-    pub climax_force_days: u32,
-    /// The session's climax window, [first day, last day]; `None` in a
-    /// campaign.
-    pub window: Option<[SimDate; 2]>,
-    /// The chapter still wants its climax.
-    pub climax_open: bool,
     pub stir: Stir,
     pub kind_changed: bool,
 }
@@ -174,20 +167,11 @@ pub(super) fn step_cycle(
     n: &mut NarrativeState,
     v: &View<'_>,
     p: &StorytellerDef,
-    b: Budget,
     s: Stir,
     kind_changed: bool,
 ) {
     let d = &v.content().director;
     let Some(ch) = n.chapter.as_ref() else { return };
-    let window = (ch.kind == ChapterKind::Session).then(|| {
-        let total = ch.start.days_until(climax_horizon(v, ch)) as f64;
-        let w = &d.tension.climax_window;
-        [
-            ch.start.add_days((total * w[0]).ceil() as u32),
-            ch.start.add_days((total * w[1]).floor() as u32),
-        ]
-    });
     let ctx = CycleCtx {
         date: v.date(),
         seed: v.r.meta.seed,
@@ -195,11 +179,6 @@ pub(super) fn step_cycle(
         build_up_scale: p.build_up_scale,
         relax_scale: p.relax_scale,
         setback_relax_mult: d.cycle.setback_relax_mult,
-        climax_force_days: d.cycle.climax_force_days,
-        window,
-        climax_open: ch.kind == ChapterKind::Session
-            && ch.climaxes < b.climax
-            && ch.climax.is_none(),
         stir: s,
         kind_changed,
     };
@@ -207,15 +186,15 @@ pub(super) fn step_cycle(
 }
 
 /// The pacing cycle's transitions (ENGAGEMENT §4.3):
-/// - build-up, at its drawn length → peak (the climax peak when its
-///   build-up ends inside the climax window, or easing off after a setback);
+/// - build-up, at its drawn length → peak (easing off after a setback);
 /// - peak, once its decision is answered or at `peak_max` → peak fade;
 /// - peak fade, once nothing significant is pending → relax (the longer one
 ///   after the climax; × `setback_relax_mult` after a setback);
 /// - relax, at its drawn length or early when the player starts something
-///   or a crisis begins → the next cycle's build-up;
-/// - a session with no climax within `climax_force_days` of its window's
-///   end: the phase ends and the climax peak opens.
+///   or a crisis begins → the next cycle's build-up.
+///
+/// The climax peak is not the cycle's to open: it begins when the lead
+/// arc's turn is presented ([`turn_peak`]).
 pub(crate) fn cycle_core(n: &mut NarrativeState, c: &CycleCtx) {
     let date = c.date;
     let Some(chapter) = n.chapter.as_ref().map(|ch| ch.index) else {
@@ -258,29 +237,17 @@ pub(crate) fn cycle_core(n: &mut NarrativeState, c: &CycleCtx) {
             ph.until = Some(u.min(date.add_days(cap)));
         }
     }
-    let in_window = |on: SimDate| c.window.is_some_and(|[a, b]| on >= a && on <= b);
-    let force = c.climax_open
-        && c.window
-            .is_some_and(|[_, end]| date <= end && date.add_days(c.climax_force_days) >= end);
     for _ in 0..6 {
         let Some(ph) = n.phase.clone() else { return };
-        if force && !(ph.kind == PhaseKind::Peak && ph.climax) {
-            let cycle = ph.cycle + (ph.kind != PhaseKind::BuildUp) as u32;
-            let eased = n.setback.is_some() || (ph.kind == PhaseKind::BuildUp && ph.eased);
-            let until = Some(date.add_days(lens.peak_max));
-            begin(n, PhaseKind::Peak, date, until, cycle, true, eased);
-            continue;
-        }
         let due = |u: Option<SimDate>| u.is_some_and(|u| date >= u);
         match ph.kind {
             PhaseKind::BuildUp => {
                 if !due(ph.until) {
                     break;
                 }
-                let climax = c.climax_open && in_window(date);
                 let eased = ph.eased || n.setback.is_some();
                 let until = Some(date.add_days(lens.peak_max));
-                begin(n, PhaseKind::Peak, date, until, ph.cycle, climax, eased);
+                begin(n, PhaseKind::Peak, date, until, ph.cycle, false, eased);
             }
             PhaseKind::Peak => {
                 let answered = ph.decision.is_some_and(|id| {
@@ -358,8 +325,8 @@ mod tests {
         }
     }
 
-    /// A narrative in a session chapter from day 1000 to 1365, its climax
-    /// window [1237, 1310], and a context on `date`.
+    /// A narrative in a session chapter from day 1000 to 1365, and a
+    /// context on `date`.
     fn session(date: u32) -> (NarrativeState, CycleCtx) {
         let n = NarrativeState {
             chapter: Some(Chapter::new(
@@ -377,9 +344,6 @@ mod tests {
             build_up_scale: 1.0,
             relax_scale: 1.0,
             setback_relax_mult: 1.5,
-            climax_force_days: 14,
-            window: Some([SimDate(1237), SimDate(1310)]),
-            climax_open: true,
             stir: Stir::default(),
             kind_changed: false,
         };
@@ -397,52 +361,54 @@ mod tests {
             eased: false,
             decision: None,
             beats: 0,
-            climax_fallback: false,
         }
     }
 
     #[test]
-    fn the_climax_peak_is_forced_two_weeks_before_the_window_closes() {
-        // A long build-up that would end after the window: 15 days before
-        // its end nothing happens; 14 days before, the climax peak opens.
-        let (mut n, mut c) = session(1295);
-        n.phase = Some(phase(PhaseKind::BuildUp, 1260, Some(1330)));
-        cycle_core(&mut n, &c);
-        assert_eq!(n.phase.as_ref().unwrap().kind, PhaseKind::BuildUp);
-        c.date = SimDate(1296);
-        cycle_core(&mut n, &c);
-        let p = n.phase.as_ref().unwrap();
-        assert_eq!((p.kind, p.climax), (PhaseKind::Peak, true));
-        assert_eq!(p.until, Some(SimDate(1310)));
+    fn the_lead_arcs_turn_is_the_climax_peak_whatever_the_phase() {
+        // In a build-up: the peak begins the day the turn is presented,
+        // in the same cycle, and its relax is the longer one.
+        let (mut n, c) = session(1250);
+        n.phase = Some(phase(PhaseKind::BuildUp, 1230, Some(1280)));
+        turn_peak_core(&mut n, c.date, 14, DecisionId(9));
+        let p = n.phase.clone().unwrap();
+        assert_eq!((p.kind, p.climax, p.cycle), (PhaseKind::Peak, true, 3));
+        assert_eq!(
+            (p.decision, p.until),
+            (Some(DecisionId(9)), Some(SimDate(1264)))
+        );
         assert_eq!(n.chapter.as_ref().unwrap().peaks, 1);
-        // A relax is cut short the same way, into a new cycle.
-        let (mut n, c) = session(1300);
-        n.phase = Some(phase(PhaseKind::Relax, 1290, Some(1320)));
-        cycle_core(&mut n, &c);
+        // In a relax: a new cycle's peak.
+        let (mut n, c) = session(1250);
+        n.phase = Some(phase(PhaseKind::Relax, 1240, Some(1270)));
+        turn_peak_core(&mut n, c.date, 14, DecisionId(9));
         let p = n.phase.as_ref().unwrap();
         assert_eq!((p.kind, p.climax, p.cycle), (PhaseKind::Peak, true, 4));
-    }
-
-    #[test]
-    fn a_build_up_that_ends_in_the_window_makes_the_climax_peak() {
-        let (mut n, c) = session(1240);
-        n.phase = Some(phase(PhaseKind::BuildUp, 1190, Some(1240)));
-        cycle_core(&mut n, &c);
+        // In a peak that holds no other decision: that peak is the climax.
+        let (mut n, c) = session(1250);
+        n.phase = Some(phase(PhaseKind::Peak, 1248, Some(1262)));
+        turn_peak_core(&mut n, c.date, 14, DecisionId(9));
         let p = n.phase.as_ref().unwrap();
-        assert_eq!((p.kind, p.climax), (PhaseKind::Peak, true));
-        // Before the window: an ordinary peak.
-        let (mut n, c) = session(1200);
-        n.phase = Some(phase(PhaseKind::BuildUp, 1150, Some(1200)));
+        assert_eq!((p.kind, p.climax, p.cycle), (PhaseKind::Peak, true, 3));
+        assert_eq!(p.since, SimDate(1248));
+        assert!(n.phase_log.is_empty());
+        // Nothing forces a climax peak: a build-up that ends late in the
+        // chapter opens an ordinary peak.
+        let (mut n, c) = session(1296);
+        n.phase = Some(phase(PhaseKind::BuildUp, 1250, Some(1296)));
         cycle_core(&mut n, &c);
         let p = n.phase.as_ref().unwrap();
         assert_eq!((p.kind, p.climax), (PhaseKind::Peak, false));
+        // Without a cycle (Unfiltered) there is no phase to move.
+        let (mut n, c) = session(1250);
+        turn_peak_core(&mut n, c.date, 14, DecisionId(9));
+        assert!(n.phase.is_none());
     }
 
     #[test]
     fn a_setback_lengthens_the_next_relax_by_half() {
         let relax_len = |setback: bool| {
-            let (mut n, mut c) = session(1100);
-            c.climax_open = false;
+            let (mut n, c) = session(1100);
             n.phase = Some(phase(PhaseKind::PeakFade, 1095, None));
             if setback {
                 n.setback = Some(SimDate(1090));
@@ -461,8 +427,7 @@ mod tests {
 
     #[test]
     fn the_peak_after_a_setback_draws_opportunities_first() {
-        let (mut n, mut c) = session(1100);
-        c.climax_open = false;
+        let (mut n, c) = session(1100);
         n.phase = Some(phase(PhaseKind::BuildUp, 1050, Some(1100)));
         n.setback = Some(SimDate(1080));
         cycle_core(&mut n, &c);
@@ -473,7 +438,6 @@ mod tests {
     #[test]
     fn relax_ends_early_when_the_player_starts_something() {
         let (mut n, mut c) = session(1100);
-        c.climax_open = false;
         n.phase = Some(phase(PhaseKind::Relax, 1093, Some(1120)));
         cycle_core(&mut n, &c);
         assert_eq!(n.phase.as_ref().unwrap().kind, PhaseKind::Relax);
@@ -489,7 +453,6 @@ mod tests {
         // A crisis beginning ends it too; a relax that begins this very step
         // does not end on what came before it.
         let (mut n, mut c) = session(1100);
-        c.climax_open = false;
         c.stir.crisis = true;
         n.phase = Some(phase(PhaseKind::PeakFade, 1090, None));
         cycle_core(&mut n, &c);
@@ -499,7 +462,6 @@ mod tests {
     #[test]
     fn a_peak_lasts_until_its_decision_is_answered_or_two_weeks() {
         let (mut n, mut c) = session(1100);
-        c.climax_open = false;
         n.phase = Some(phase(PhaseKind::Peak, 1093, Some(1107)));
         cycle_core(&mut n, &c);
         assert_eq!(n.phase.as_ref().unwrap().kind, PhaseKind::Peak);

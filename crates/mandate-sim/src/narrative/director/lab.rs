@@ -16,15 +16,13 @@ pub struct CandidateInfo {
     /// Within `pick_band` of its tier's best (the pick may draw it).
     pub in_band: bool,
     pub opportunity: bool,
-    /// A storyline stage's decision.
-    pub storyline: bool,
 }
 
-/// The candidates the spotlight would weigh now, from a whole state: due
-/// storyline stages, and the dilemmas whose triggers hold and that are
-/// available (cooldowns, no repeat, `min_career_days`); the climax's when a
-/// climax is due. Best tier first, then by relevance. Pure: it writes
-/// nothing and draws nothing (ENGAGEMENT §7.4).
+/// The candidates the spotlight would weigh now, from a whole state: the
+/// dilemmas whose triggers hold and that are available (cooldowns, no
+/// repeat, `min_career_days`). An arc's decision beats are not candidates:
+/// the run asks for them. Best tier first, then by relevance. Pure: it
+/// writes nothing and draws nothing (ENGAGEMENT §7.4).
 pub fn week_candidates(state: &crate::State, content: &ContentBundle) -> Vec<CandidateInfo> {
     let r = Reads::of_state(state, content);
     let n = &state.narrative;
@@ -32,18 +30,9 @@ pub fn week_candidates(state: &crate::State, content: &ContentBundle) -> Vec<Can
         return Vec::new();
     }
     let mut v = View::new(&r, &state.politics);
-    v.recent = recent_people(n);
+    v.recent = recent(n);
     let d = &content.director;
-    let b = budget(d, n.profile(content));
-    let climax = match &n.phase {
-        Some(ph) => ph.climax && ph.kind == PhaseKind::Peak,
-        None => climax_due(n, &v, b),
-    };
-    let due: Vec<usize> = (0..n.storylines.len())
-        .filter(|&i| run_step(&v, n, i) == RunStep::Due)
-        .collect();
-    let mut cands = staged_all(&v, n, &due);
-    cands.extend(gather(&v, n, climax, false));
+    let cands = gather(&v, n);
     let best = |t: Tier| {
         cands
             .iter()
@@ -60,7 +49,6 @@ pub fn week_candidates(state: &crate::State, content: &ContentBundle) -> Vec<Can
             novelty: novelty(n, &c.def.id),
             in_band: c.relevance >= best(c.tier) - d.pick_band,
             opportunity: c.def.opportunity,
-            storyline: c.run.is_some(),
         })
         .collect();
     out.sort_by(|a, b| {

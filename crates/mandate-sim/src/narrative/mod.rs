@@ -1,6 +1,7 @@
 //! Narrative (DEC-033, DEC-032, DEC-077 §4): the director, decisions
-//! (dilemmas and requests), storylines, the facts log, and the director's
-//! exogenous levers.
+//! (dilemmas, requests and the arcs' decision beats), the facts log, and
+//! the director's exogenous levers. Storylines are arcs now (DEC-109:
+//! `crate::arcs`); the director times them and nothing else.
 //!
 //! **Authority (DEC-033 B: a storyteller of chance, not of consequence).**
 //! The director's systems write only this domain (`NarrativeState`). They
@@ -38,10 +39,6 @@ pub use resolve::{answer, resolve_due};
 define_id!(
     /// A decision the director spotlighted (never reused).
     DecisionId
-);
-define_id!(
-    /// A storyline in progress or finished.
-    StorylineRunId
 );
 
 /// Keyed-RNG tags (DEC-041): one per kind of director draw.
@@ -115,8 +112,9 @@ pub enum Reason {
     Election {
         days: u32,
     },
-    Storyline {
-        storyline: ContentKey,
+    /// A beat of a running arc (its template).
+    Arc {
+        arc: ContentKey,
     },
     Memory {
         person: CharacterId,
@@ -236,8 +234,8 @@ pub struct Resolution {
     pub applied: Vec<Applied>,
 }
 
-/// A decision the director spotlighted: a dilemma, a request, or a
-/// storyline's turn. It is visible from `opened` until `deadline`.
+/// A decision the director spotlighted: a dilemma, a request, or an
+/// arc's decision beat. It is visible from `opened` until `deadline`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Decision {
     pub id: DecisionId,
@@ -250,7 +248,6 @@ pub struct Decision {
     pub deadline: SimDate,
     pub chapter: u32,
     pub relevance: f32,
-    pub storyline: Option<StorylineRunId>,
     /// The goal that raised a request: (holder, goal id).
     pub goal: Option<(CharacterId, ContentKey)>,
     /// Where its scene happens.
@@ -260,7 +257,7 @@ pub struct Decision {
     /// The story or case a raised decision answers.
     #[serde(default)]
     pub about: Option<About>,
-    /// The arc run and beat that opened it (DEC-109): the run reads its
+    /// The arc run and beat it presents (DEC-109): the run reads its
     /// answer from here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arc: Option<crate::arcs::ArcRef>,
@@ -317,6 +314,13 @@ pub struct Chapter {
     /// Peaks of the pacing cycle that began in this chapter (§4.3).
     #[serde(default)]
     pub peaks: u8,
+    /// The arc run that leads the chapter (DEC-109: the director's
+    /// choice among those running; its turn is the chapter's climax).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lead: Option<u32>,
+    /// The turn that was the chapter's climax: `<arc template>/<stage>`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn: Option<String>,
 }
 
 impl Chapter {
@@ -339,6 +343,8 @@ impl Chapter {
             theme: None,
             theme_options: 0,
             peaks: 0,
+            lead: None,
+            turn: None,
         }
     }
 
@@ -347,37 +353,6 @@ impl Chapter {
         let total = self.start.days_until(self.end).max(1) as f64;
         (self.start.days_until(on) as f64 / total).clamp(0.0, 1.0)
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RunEnd {
-    /// It reached a stage that ends it.
-    Ended,
-    /// A stage timed out.
-    Faded,
-    /// Its template was removed by an update.
-    Removed,
-}
-
-/// A storyline in progress (DEC-032).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct StorylineRun {
-    pub id: StorylineRunId,
-    pub template: ContentKey,
-    pub cast: Vec<CastEntry>,
-    /// Index of the current stage.
-    pub stage: u32,
-    /// The current stage has been reached (its beat or decision presented).
-    pub entered: bool,
-    /// When the previous stage finished (waits and timeouts count from here).
-    pub since: SimDate,
-    pub started: SimDate,
-    /// The decision of the current stage, if presented.
-    pub decision: Option<DecisionId>,
-    /// Stages reached: (stage id, date).
-    pub stages: Vec<(String, SimDate)>,
-    pub ended: Option<(SimDate, RunEnd)>,
 }
 
 /// What a fact is about (the facts log; DEC-034's media layer will read it).
@@ -411,14 +386,6 @@ pub enum FactKind {
     },
     RivalNamed {
         person: CharacterId,
-    },
-    StorylineStage {
-        run: StorylineRunId,
-        stage: String,
-    },
-    StorylineEnded {
-        run: StorylineRunId,
-        end: RunEnd,
     },
     TrackWarning {
         track: String,
@@ -574,10 +541,6 @@ pub struct DirectorPhase {
     /// Minor beats spotlighted while it lasted.
     #[serde(default)]
     pub beats: u16,
-    /// A climax peak whose climax came by the fallback: nothing was
-    /// eligible, so template cooldowns were waived (DEC-097 note).
-    #[serde(default)]
-    pub climax_fallback: bool,
 }
 
 /// One of the player's past answers (ENGAGEMENT §4.4): what `answered`
@@ -623,15 +586,11 @@ pub struct NarrativeState {
     pub decision_ids: mandate_core::IdAllocator,
     /// Pending decisions, then recent resolved ones (bounded).
     pub decisions: Vec<Decision>,
-    pub run_ids: mandate_core::IdAllocator,
-    pub storylines: Vec<StorylineRun>,
-    /// Template (dilemma or storyline) → the earliest date it may return.
+    /// Dilemma → the earliest date it may return.
     #[serde(with = "mandate_core::serde_util::map_as_pairs")]
     pub cooldowns: BTreeMap<ContentKey, SimDate>,
     /// Goals whose request was raised: (holder, goal, adopted on).
     pub requests_raised: Vec<(CharacterId, ContentKey, SimDate)>,
-    /// Follow-up storylines waiting: (template, cast, from).
-    pub follow_ups: Vec<(ContentKey, Vec<CastEntry>, SimDate)>,
     pub next_fact: u32,
     /// The facts log (bounded).
     pub facts: Vec<Fact>,
@@ -640,8 +599,10 @@ pub struct NarrativeState {
     pub chance: Chance,
     pub warnings: Vec<Warning>,
     pub seen: Seen,
-    /// Lab switch: spotlight situations (decisions, storylines,
-    /// developments). Off, the director still shapes chance identically.
+    /// Lab switch: spotlight situations (decisions, the arcs' decision
+    /// beats, developments). Off, the director still shapes chance
+    /// identically, and arcs run as they would (only their presentation
+    /// is the director's).
     pub spotlight: bool,
     /// Lab switch: apply default options when deadlines pass (off, a
     /// decision past its deadline lapses without consequence).
@@ -653,11 +614,12 @@ pub struct NarrativeState {
     /// B). Off, a hidden fact's date is uniform in its window.
     #[serde(default = "yes")]
     pub shape_discovery: bool,
-    /// Times each template (dilemma or storyline) was spotlighted or started
-    /// this run (cooldown growth, novelty; ENGAGEMENT §4.1).
+    /// Times each template was spotlighted (a dilemma) or led a chapter
+    /// (an arc) this run (cooldown growth, novelty; ENGAGEMENT §4.1).
     #[serde(default, with = "mandate_core::serde_util::map_as_pairs")]
     pub uses: BTreeMap<ContentKey, u16>,
-    /// Recent climaxes: (chapter index, template), oldest first (bounded).
+    /// Recent climaxes: (chapter index, `<arc template>/<turn stage>`),
+    /// oldest first (bounded).
     #[serde(default)]
     pub climaxes: Vec<(u32, ContentKey)>,
     /// The player's answers, oldest first (bounded at `ANSWERS_CAP`).
@@ -690,11 +652,8 @@ impl Default for NarrativeState {
             tension: 0.0,
             decision_ids: Default::default(),
             decisions: Vec::new(),
-            run_ids: Default::default(),
-            storylines: Vec::new(),
             cooldowns: BTreeMap::new(),
             requests_raised: Vec::new(),
-            follow_ups: Vec::new(),
             next_fact: 0,
             facts: Vec::new(),
             hidden: Vec::new(),
@@ -738,10 +697,6 @@ impl NarrativeState {
         self.decisions
             .iter()
             .filter(|d| d.status == DecisionStatus::Pending)
-    }
-
-    pub fn active_runs(&self) -> impl Iterator<Item = &StorylineRun> {
-        self.storylines.iter().filter(|r| r.ended.is_none())
     }
 
     /// The storyteller profile in force.
@@ -829,25 +784,13 @@ impl NarrativeState {
             let drop = self.chapters.len() - CHAPTERS_CAP;
             self.chapters.drain(..drop);
         }
-        let finished = self.storylines.iter().filter(|r| r.ended.is_some()).count();
-        if finished > 40 {
-            let mut drop = finished - 40;
-            self.storylines.retain(|r| {
-                if drop > 0 && r.ended.is_some() {
-                    drop -= 1;
-                    false
-                } else {
-                    true
-                }
-            });
-        }
     }
 }
 
 /// Bring the narrative in line with loaded content (DEC-074): a pending
-/// decision whose template was removed lapses, a storyline whose template
-/// was removed ends, and waiting follow-ups and cooldowns for removed
-/// templates are dropped. Never refuses a save.
+/// decision whose template was removed lapses, and cooldowns for removed
+/// templates are dropped (an arc run whose template was removed ends at
+/// its next step). Never refuses a save.
 pub fn on_load(state: &mut crate::State, content: &ContentBundle) {
     let date = state.calendar.date;
     let n = &mut state.narrative;
@@ -862,17 +805,6 @@ pub fn on_load(state: &mut crate::State, content: &ContentBundle) {
             });
         }
     }
-    let mut ended = Vec::new();
-    for r in n.storylines.iter_mut() {
-        if r.ended.is_none() && content.storyline(&r.template).is_none() {
-            r.ended = Some((date, RunEnd::Removed));
-            ended.push(r.id);
-        }
-    }
-    n.follow_ups
-        .retain(|(k, _, _)| content.storyline(k).is_some());
-    n.cooldowns
-        .retain(|k, _| content.dilemma(k).is_some() || content.storyline(k).is_some());
-    let _ = ended;
+    n.cooldowns.retain(|k, _| content.dilemma(k).is_some());
     crate::characters::goals::on_load(&mut state.politics, content);
 }

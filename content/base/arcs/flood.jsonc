@@ -137,11 +137,11 @@
     },
   ],
 
-  // The arc's decisions: never spotlit on their own (`storyline_only`); the
-  // run opens them with its cast.
+  // The arc's decisions: never spotlit on their own (`arc_only`); the run asks
+  // for them, and the director presents them with the run's cast.
   "dilemmas": [
     {
-      "id": "dilemma.flood_money", "category": "significant", "storyline_only": true,
+      "id": "dilemma.flood_money", "category": "significant", "arc_only": true,
       "title_key": "dilemma-flood-money", "situation_key": "dilemma-flood-money-situation",
       "roles": [
         { "id": "organiser", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.nurse", "occupation.shopkeeper", "occupation.teacher"] } },
@@ -167,7 +167,7 @@
       ],
     },
     {
-      "id": "dilemma.flood_meeting", "category": "climax", "storyline_only": true,
+      "id": "dilemma.flood_meeting", "category": "climax", "arc_only": true,
       "title_key": "dilemma-flood-meeting", "situation_key": "dilemma-flood-meeting-situation",
       "roles": [
         { "id": "organiser", "cast": { "type": "occupation", "occupations": ["occupation.organiser", "occupation.clergy", "occupation.nurse", "occupation.shopkeeper", "occupation.teacher"] } },

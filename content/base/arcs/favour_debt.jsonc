@@ -1,0 +1,72 @@
+// The favour (DEC-109; DEC-032's favour-debt storyline, folded into an arc):
+// the player owes someone, is reminded of it, and is asked to pay it back
+// with a vote on that person's own bill.
+//
+// Raised by the debt itself: there is no condition on the town, only on
+// who the cast binds to (`given`: the player owes the creditor a favour).
+//
+// Transitions read; beats write. The edges read the debt (`favour`), whether
+// the creditor has a bill the player can vote on (`sponsors_bill`), and the
+// run's marks. Marks: `paid`, `refused`, `dodged` (the answer to the call).
+//
+// Stage ids are the storyline's (`debt`, `reminder`, `called_in`, and the
+// endings `repaid` and `burned`), so a save from before the fold loads at
+// the same stage.
+{
+  "kind": "arcs",
+  "items": [
+    {
+      "id": "arc.favour_debt", "title_key": "arc-favour", "themes": ["scheme"],
+      // The debt is to someone in the town.
+      "tiers": ["local"], "cooldown_days": 365,
+      "raise": [],
+      "roles": [ { "id": "creditor", "cast": { "type": "creditor" } } ],
+      "given": [ { "type": "favour", "slot": "creditor" } ],
+      "heat": { "start": 0.1 },
+      "stages": [
+        // A favour is owed.
+        { "id": "debt", "key": "arc-favour-debt",
+          "next": [
+            { "to": "reminder", "when": [ { "type": "favour", "slot": "creditor" } ], "after_days": 45 },
+            { "to": "settled", "after_days": 46 } ] },
+
+        // A pleasant reminder. The call comes when the creditor has a bill
+        // of their own before the body.
+        { "id": "reminder", "key": "arc-favour-reminder", "rise": 0.005,
+          "next": [
+            { "to": "called_in", "when": [ { "type": "favour", "slot": "creditor" }, { "type": "sponsors_bill", "slot": "creditor" } ] },
+            { "to": "settled", "after_days": 400 } ] },
+
+        // The turn: the vote the creditor wants.
+        { "id": "called_in", "key": "arc-favour-called-in", "climax": true, "rise": 0.03,
+          "beats": [
+            { "id": "call", "type": "decision", "dilemma": "dilemma.favour_called_in", "weight": "significant",
+              "on": {
+                "pay_back": { "sets": "paid" },
+                "refuse": { "sets": "refused" },
+                "dodge": { "sets": "dodged" } } },
+          ],
+          "next": [
+            { "to": "repaid", "when": [ { "type": "arc_mark", "mark": "paid" } ] },
+            { "to": "burned", "when": [ { "type": "any", "of": [
+                { "type": "arc_mark", "mark": "refused" }, { "type": "arc_mark", "mark": "dodged" } ] } ] },
+            { "to": "settled", "after_days": 60 } ] },
+
+        // Paid back with the vote.
+        { "id": "repaid", "key": "arc-favour-repaid",
+          "exit": { "effects": [
+            { "type": "opinion", "role": "creditor", "delta": 8, "memory": "kept_promise" },
+            { "type": "record", "delta": 0.01 } ] } },
+        // Refused, or dodged: the creditor knows which.
+        { "id": "burned", "key": "arc-favour-burned",
+          "exit": { "effects": [
+            { "when": [ { "type": "arc_mark", "mark": "refused" } ], "type": "opinion", "role": "creditor", "delta": -10, "memory": "broke_promise" },
+            { "when": [ { "type": "arc_mark", "mark": "dodged" } ], "type": "opinion", "role": "creditor", "delta": -4 },
+            { "type": "standing", "delta": -1 } ] } },
+        // The call never came, or the debt went another way.
+        { "id": "settled", "key": "arc-favour-settled",
+          "exit": { "effects": [ { "type": "opinion", "role": "creditor", "delta": -2 } ] } },
+      ],
+    },
+  ],
+}

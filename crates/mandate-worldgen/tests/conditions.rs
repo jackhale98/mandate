@@ -995,6 +995,8 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             open: Vec::new(),
             base: vec![("hood.damage".into(), 1000), ("hood.homes".into(), 40)],
             root: None,
+            turn: None,
+            before: Some("turn_hole".into()),
         };
         let held = |e: &Engine, s: &str, run: Option<&ArcRun>, here: Option<Location>| {
             let st = e.state();
@@ -1060,6 +1062,25 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             .find(|h| *h != hood)
             .unwrap();
         assert!(!held(&w3.e, here, None, street(other)).0);
+        // `arc_last_turn`: the turn the last run of the template here
+        // reached (climax memory by variant).
+        let last = |s: &str| held(&w3.e, s, Some(&run), None).0;
+        assert!(last(r#"{ "type": "arc_last_turn", "stage": "turn_hole" }"#));
+        assert!(!last(
+            r#"{ "type": "arc_last_turn", "stage": "turn_line" }"#
+        ));
+        assert!(last(
+            r#"{ "type": "arc_last_turn", "stage": "turn_line", "is": false }"#
+        ));
+        assert!(
+            !held(
+                &w3.e,
+                r#"{ "type": "arc_last_turn", "stage": "turn_hole" }"#,
+                None,
+                None
+            )
+            .0
+        );
         for k in [
             "arc",
             "arc_mark",
@@ -1067,6 +1088,223 @@ fn every_variant_evaluates_in_a_synthetic_state() {
             "arc_days",
             "displaced",
             "recovered",
+            "arc_last_turn",
+        ] {
+            seen.insert(k.into());
+        }
+
+        // --- The budget and the body that votes it (tier-generic) ------------
+        let at_any = |e: &Engine, s: &str, j: Jurisdiction| {
+            let st = e.state();
+            let r = Reads::of_state(st, &content);
+            let v = View::new(&r, &st.politics);
+            let cx = Ctx::new(&v, Some(st), Some(j));
+            let mut a = Args::new();
+            (condition::holds(&cx, &parse(s), &mut a), a)
+        };
+        // `budget_year`: days until the budget year turns (1 January).
+        let left = today.days_until(mandate_core::SimDate::from_ymd(
+            today.calendar().year + 1,
+            1,
+            1,
+        ));
+        assert!(
+            at_any(
+                &w3.e,
+                &format!(r#"{{ "type": "budget_year", "min": {left}, "max": {left} }}"#),
+                at
+            )
+            .0
+        );
+        assert!(
+            !at_any(
+                &w3.e,
+                &format!(r#"{{ "type": "budget_year", "max": {} }}"#, left - 1),
+                at
+            )
+            .0
+        );
+        // `budget_balance`: last year's balance over its revenue, for the
+        // treasury of the jurisdiction (a town's, a region's, the nation's).
+        w3.e.setup(|st| {
+            let t = &mut st.finance.local[town.index()];
+            t.last_year.year = 1;
+            t.last_year.revenue = mandate_core::Money::from_units(1000);
+            t.last_year.balance = mandate_core::Money::from_units(-50);
+        });
+        let (ok, a) = at_any(&w3.e, r#"{ "type": "budget_balance", "max": -0.02 }"#, at);
+        assert!(ok && a["books"] == "short" && a["gap"] == "5", "{a:?}");
+        assert!(!at_any(&w3.e, r#"{ "type": "budget_balance", "min": 0.0 }"#, at).0);
+        assert!(
+            at_any(&w3.e, r#"{ "type": "budget_balance" }"#, at).0,
+            "a reading always holds"
+        );
+        w3.e.setup(|st| {
+            st.finance.local[town.index()].last_year.balance = mandate_core::Money::from_units(70);
+        });
+        let (ok, a) = at_any(&w3.e, r#"{ "type": "budget_balance", "min": 0.05 }"#, at);
+        assert!(ok && a["books"] == "over" && a["gap"] == "7", "{a:?}");
+        let region = w3.e.state().world.municipalities[town.index()].region;
+        for j in [Jurisdiction::Region { id: region }, Jurisdiction::Nation] {
+            let (ok, a) = at_any(&w3.e, r#"{ "type": "budget_balance" }"#, j);
+            assert!(ok && a.contains_key("books"), "{j:?}: {a:?}");
+        }
+        // `body_majority`: one party with more than half (or a share) of
+        // the posts that list the power, read from the bodies as seated.
+        // (A member who cannot use the power now, one in custody say, is
+        // not counted: the condition reads who holds it, not who is listed.)
+        let st = w3.e.state();
+        let constitution =
+            w3.e.content()
+                .constitutions
+                .get(&st.meta.constitution)
+                .unwrap();
+        let listed = st
+            .politics
+            .bodies
+            .iter()
+            .filter(|b| b.at == at)
+            .flat_map(|b| b.members.iter())
+            .count();
+        let holders: Vec<mandate_sim::politics::PoliticianId> = st
+            .politics
+            .bodies
+            .iter()
+            .filter(|b| b.at == at)
+            .flat_map(|b| b.members.iter().copied())
+            .filter(|m| {
+                mandate_sim::politics::holds_power_at(
+                    &st.politics,
+                    constitution,
+                    *m,
+                    mandate_content::Power::ApproveBudget,
+                    at,
+                )
+            })
+            .collect();
+        let seats: Vec<Option<mandate_sim::politics::PartyId>> = holders
+            .iter()
+            .map(|m| st.politics.get(*m).unwrap().party)
+            .collect();
+        eprintln!(
+            "body_majority: {listed} listed, {} hold the power",
+            seats.len()
+        );
+        let most = (0..8)
+            .map(|k| {
+                seats
+                    .iter()
+                    .filter(|p| **p == Some(mandate_sim::politics::PartyId(k)))
+                    .count()
+            })
+            .max()
+            .unwrap();
+        let majority = most * 2 > seats.len();
+        let has = |s: &str| at_any(&w3.e, s, at).0;
+        assert_eq!(
+            has(r#"{ "type": "body_majority", "power": "approve_budget" }"#),
+            majority
+        );
+        assert_eq!(
+            has(r#"{ "type": "body_majority", "power": "approve_budget", "is": false }"#),
+            !majority
+        );
+        assert_eq!(
+            has(r#"{ "type": "body_majority", "power": "approve_budget", "share": 1.0 }"#),
+            most == seats.len()
+        );
+        // `body_support`: who of the others with the power would back the
+        // player: their party, those who think well of them, those in
+        // their debt.
+        let (ok, a) = at_any(
+            &w3.e,
+            r#"{ "type": "body_support", "power": "approve_budget" }"#,
+            at,
+        );
+        let pl = st.player.as_ref().unwrap().politician;
+        let sits = holders.contains(&pl);
+        let (backers, members): (usize, usize) =
+            (a["backers"].parse().unwrap(), a["members"].parse().unwrap());
+        assert!(ok && members == seats.len() - usize::from(sits) && backers <= members);
+        let share = backers as f64 / members as f64;
+        assert!(has(&format!(
+            r#"{{ "type": "body_support", "power": "approve_budget", "min": {share}, "max": {share} }}"#
+        )));
+        assert!(
+            !has(&format!(
+                r#"{{ "type": "body_support", "power": "approve_budget", "min": {} }}"#,
+                (share + 0.01).min(1.0) + 0.001
+            )) || share >= 0.99
+        );
+        // An opinion nobody could hold: only the party and debts count.
+        let (_, strict) = at_any(
+            &w3.e,
+            r#"{ "type": "body_support", "power": "approve_budget", "opinion": 100 }"#,
+            at,
+        );
+        assert!(strict["backers"].parse::<usize>().unwrap() <= backers);
+        // `last_race`: the player's last decided race, won or lost.
+        let stood = st
+            .politics
+            .elections
+            .results
+            .iter()
+            .filter(|r| r.candidates.iter().any(|c| c.politician == pl))
+            .max_by_key(|r| r.date)
+            .map(|r| r.winner == pl)
+            .filter(|_| !mandate_sim::characters::is_candidate(&st.politics, pl));
+        assert_eq!(
+            has(r#"{ "type": "last_race", "won": true }"#),
+            stood == Some(true)
+        );
+        assert_eq!(
+            has(r#"{ "type": "last_race", "won": false }"#),
+            stood == Some(false)
+        );
+        // `sponsors_bill`: the person in the slot has a bill the player
+        // can still vote on (nobody without a slot does).
+        let sponsors = |who: mandate_sim::characters::CharacterId| {
+            let st = w3.e.state();
+            let r = Reads::of_state(st, &content);
+            let v = View::new(&r, &st.politics);
+            let cast = vec![CastEntry {
+                role: "who".into(),
+                actor: Actor::Person { id: who },
+            }];
+            let mut cx = Ctx::new(&v, Some(st), Some(at));
+            cx.cast = &cast;
+            let want = st.policy.instances.iter().any(|b| {
+                b.status == mandate_sim::policy::PolicyStatus::UnderConsideration
+                    && b.sponsor
+                        .and_then(|s| st.politics.get(s))
+                        .is_some_and(|s| s.character == who)
+                    && v.can_vote(b.id.0)
+            });
+            let got = condition::holds(
+                &cx,
+                &parse(r#"{ "type": "sponsors_bill", "slot": "who" }"#),
+                &mut Args::new(),
+            );
+            (got, want)
+        };
+        for m in st
+            .politics
+            .bodies
+            .iter()
+            .filter(|b| b.at == at)
+            .flat_map(|b| b.members.iter())
+        {
+            let (got, want) = sponsors(st.politics.get(*m).unwrap().character);
+            assert_eq!(got, want);
+        }
+        assert!(!has(r#"{ "type": "sponsors_bill", "slot": "nobody" }"#));
+        for k in [
+            "budget_year",
+            "budget_balance",
+            "body_majority",
+            "body_support",
+            "last_race",
+            "sponsors_bill",
         ] {
             seen.insert(k.into());
         }

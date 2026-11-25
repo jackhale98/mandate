@@ -223,7 +223,7 @@ fn digests(
 /// organiser's petition, the exit, and the ask and the decision they
 /// prompt: fourteen more events in each game when recorded on 4c2a2c1;
 /// thirteen and seventeen on the tree with audit fix 1, where the seed-31
-/// pins and `BEFORE_ARCS` were re-recorded and the no-arc digests of all
+/// pins and the no-arc pins were re-recorded and the no-arc digests of all
 /// eight games equal fix 1's pins exactly), and the state changes
 /// through what its beats and its exit request and nothing else: the ask
 /// it has the asks offer and the decision it has the narrative open (and
@@ -231,36 +231,73 @@ fn digests(
 /// decisions that follow, by those systems' own rules), the default of
 /// its meeting, and its exit's effects. The other six games have no flood
 /// in the player's town within their years and did not move. With no arc
-/// content every game still gives the digests from before arcs
-/// (`BEFORE_ARCS` and the test below; all eight checked with
-/// `SPINE_PROOF_NO_ARCS=all`).
+/// content every game still gave the digests from before arcs.
+///
+/// **The director on arcs (A2, DEC-109) moved all eight games, with the
+/// pack's arcs and with none; both tables were re-recorded** (on the tree
+/// merged with play note 20, which alone moved no digest: the branch head
+/// 8edba26 still gave every no-arc digest of before).
+///
+/// - *With no arc content* (`BEFORE_ARCS` below) a game is no longer the game
+///   from before arcs, because two things that ran without arc content are
+///   gone. Storylines were the director's own; they are arcs now, so with
+///   no arc content none runs (38 `storyline_stage` events fewer over the
+///   eight games, with the decisions they opened and what those moved).
+///   And the director no longer makes a climax of its own: a chapter's
+///   climax is its lead arc's turn, so with no arc there is none, and the
+///   dilemma the old build opened as a chapter's climax (any significant
+///   one, at the climax peak; a borrowed one as the fallback) is not
+///   opened then (the first difference in seven of the eight games is
+///   that decision, day 737499, in the first session's climax window; in
+///   the eighth a storyline's first stage). The rest follows by the systems' own
+///   rules: the later decisions' dates and ids, the asks' sliding rate,
+///   and for the bots what they answered and so did. Compared kind by
+///   kind with the streams of 8edba26 (`SPINE_PROOF_DUMP`): 38 storyline
+///   stages and 10 decisions fewer, 21 `story_development` more (a quiet
+///   chapter's news of the town where a decision stood), and in the three
+///   games whose bot acts on decisions, the deeds, bills and schemes that
+///   follow from different answers.
+/// - *With the pack's arcs* (`PINS`) every game also has the budget round
+///   each year (raised, its stages, its press story, its talk and visit
+///   beats, its ask, its decisions, its exit and what the exit requests,
+///   a carried change voted into the next budget among them), the rival's
+///   arc in each campaign, the favour debt and the plant closure where
+///   their causes hold, and the director's two new interventions
+///   (`lead_arc`, `arc_clock`): 89 to 185 events more than the no-arc game
+///   when first recorded.
+///
+/// Both tables were recorded again (`scripts/repin.sh`) on the tree merged
+/// with audit fixes 3, 5 and 8 (c55bd17: laws pay off in approval, honest
+/// ledgers), which move every game on their own account, with arcs and
+/// without. The kind-by-kind counts above are from the recording before
+/// that merge.
 const PINS: [(u64, &str, u32, &str, &str); 8] = [
-    (2026, "idle", 96, "ad33a87b73123b16", "3ec5aa226188ebe1"), // 1218 events
-    (2026, "mixed", 96, "2453df1ff9667333", "f5980b4536ca9832"), // 2169 events
-    (7, "idle", 96, "6c0cba6335fdb7a6", "ca4b7f26d742778f"),    // 1137 events
-    (7, "corrupt", 96, "edbc90befd2a68bb", "9da130809e304740"), // 1851 events
-    (31, "idle", 96, "cc219ec9c7cbb51d", "1c36dfe7e84774a3"),   // 1270 events
+    (2026, "idle", 96, "aa0af4c805fc4383", "0d4fb2a9401dee7a"), // 1306 events
+    (2026, "mixed", 96, "4968a82a76113df7", "7202f13512afa0d5"), // 2572 events
+    (7, "idle", 96, "058c74aceceb6b08", "8521cda0bfba013e"),    // 1226 events
+    (7, "corrupt", 96, "a018f3b629284eb3", "41d5f49c50f5841b"), // 1969 events
+    (31, "idle", 96, "d9e8262c9b7cfbe9", "f1bbd2e8d0efd4c6"),   // 1368 events
     (
         31,
         "explorer_legislator",
         96,
-        "8d796d6967b23f47",
-        "3a931c1414089402",
-    ), // 2131 events
+        "6ea91df423a3079b",
+        "63b22e144003f56c",
+    ), // 2312 events
     (
         2026,
         "mixed+prison",
         96,
-        "dabacb86eeac72b0",
-        "be9c64ed6ddee51a",
-    ), // 1784 events
+        "cceb856ed02cadaa",
+        "69b1ea2e0639fca5",
+    ), // 1846 events
     (
         2026,
         "idle+six_years",
         120,
-        "2f74e2633390ebd8",
-        "e8905dfce1d4cdfd",
-    ), // 1465 events
+        "6c1788ec3eef9552",
+        "9877e50a0c7e41ff",
+    ), // 1566 events
 ];
 
 #[test]
@@ -323,23 +360,42 @@ fn the_spine_changes_no_outcome() {
     }
 }
 
-/// Staged arcs (DEC-109) with no arc content change nothing. The games of
-/// `PINS` that an arc of the base pack touches (see the note above `PINS`),
-/// as they were pinned before arcs existed: played with no arc content,
-/// each still gives these digests. A game not listed here is pinned above
-/// with the pack's arcs loaded and did not move, so it needs no second
-/// pin. `SPINE_PROOF_NO_ARCS=all` plays every game of `PINS` with no arc
-/// content and checks each against this table, else against `PINS`;
-/// `=print` prints them.
-const BEFORE_ARCS: [(u64, &str, u32, &str, &str); 2] = [
-    (31, "idle", 96, "8addb77a0d8dcb03", "c42e2524a89ae5f6"), // 1258 events
+/// The same eight games with no arc content (see the note above `PINS`
+/// for what such a game is since A2, and what moved these digests). Until
+/// A2 this table held the two seed-31 games as pinned before arcs existed,
+/// and the other six equalled `PINS`; now every game has an arc in it (the
+/// budget round runs in every town), so all eight are pinned twice. The
+/// test below plays the seed-31 games on every run (a flood strikes there,
+/// so they show that an arc's cause without its content changes nothing);
+/// `SPINE_PROOF_NO_ARCS=all` plays and checks all eight, `=print` prints
+/// them.
+const BEFORE_ARCS: [(u64, &str, u32, &str, &str); 8] = [
+    (2026, "idle", 96, "244c75ad636512c9", "0b38154e9d00ebf9"), // 1216 events
+    (2026, "mixed", 96, "1a14acf282563fac", "2d408c7ea06236fb"), // 2425 events
+    (7, "idle", 96, "e9b38c9cf494648a", "e83c8479b4856c00"),    // 1137 events
+    (7, "corrupt", 96, "7a3f7e5519fa946f", "32301d6d6dcf455f"), // 1836 events
+    (31, "idle", 96, "0540c5bf8efe9abc", "90853d6759e33bfc"),   // 1256 events
     (
         31,
         "explorer_legislator",
         96,
-        "5495f36e181abccf",
-        "ab201109bc51226e",
-    ), // 2118 events
+        "94a3d43e1042fa83",
+        "d57df37dc42befde",
+    ), // 2091 events
+    (
+        2026,
+        "mixed+prison",
+        96,
+        "34428d9d9e1fa518",
+        "5e93d653e0295bc9",
+    ), // 1777 events
+    (
+        2026,
+        "idle+six_years",
+        120,
+        "9ec1108a3a483302",
+        "1df80b91cfb0d3a8",
+    ), // 1465 events
 ];
 
 #[test]
@@ -358,10 +414,11 @@ fn with_no_arc_content_every_pin_holds() {
     };
     for pin in PINS {
         let (seed, label, months) = (pin.0, pin.1, pin.2);
-        let before = BEFORE_ARCS
+        let want = BEFORE_ARCS
             .iter()
-            .find(|p| p.0 == seed && p.1 == label && p.2 == months);
-        if before.is_none() && mode.is_empty() {
+            .find(|p| p.0 == seed && p.1 == label && p.2 == months)
+            .unwrap_or_else(|| panic!("no no-arc pin for seed {seed} {label}"));
+        if seed != 31 && mode.is_empty() {
             continue;
         }
         let strategy = label.split('+').next().unwrap();
@@ -379,7 +436,6 @@ fn with_no_arc_content_every_pin_holds() {
             );
             continue;
         }
-        let want = before.unwrap_or(&pin);
         assert_eq!(
             (stream.as_str(), state.as_str()),
             (want.3, want.4),

@@ -149,9 +149,6 @@ pub(crate) fn parse_content_file(json: &str) -> Result<ContentFile, serde_json::
         "goals" => ContentFile::Goals {
             items: serde_json::from_str::<ItemsFile<crate::narrative::GoalDef>>(json)?.items,
         },
-        "storylines" => ContentFile::Storylines {
-            items: serde_json::from_str::<ItemsFile<crate::narrative::StorylineDef>>(json)?.items,
-        },
         "scenes" => ContentFile::Scenes {
             items: serde_json::from_str::<ItemsFile<crate::narrative::SceneDef>>(json)?.items,
         },

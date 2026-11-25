@@ -12,12 +12,11 @@
 //!
 //! **What "could fire now" means** per kind (the gates each kind's system
 //! applies before its conditions, then the conditions):
-//! - dilemma: its route (spotlight, request, storyline stage, raised),
+//! - dilemma: its route (spotlight, request, an arc's beat, raised),
 //!   cooldown, not already pending, then casting and triggers exactly as the
 //!   director's `evaluate` does. The director's pacing (budgets, spacing,
 //!   relevance) is shown but does not decide the verdict;
 //! - situational policy: its unlock (any condition) in the player's town;
-//! - storyline: the next step (start, or the current stage's advance);
 //! - overheard line: it holds at some place in town where people talk;
 //! - topic, line, voice: it holds for some speaker in town (place and
 //!   cost aside);
@@ -186,7 +185,7 @@ fn home(v: &View<'_>) -> Option<u32> {
 
 /// The one condition language through its one evaluator
 /// (`crate::condition::holds`), in the context its use binds: a cast
-/// (dilemmas, goals, storylines, scenes), a town's situation (a policy's
+/// (dilemmas, goals, scenes), a town's situation (a policy's
 /// unlock), a place (an overheard line), or a conversation.
 pub struct CondExplainer<'a> {
     pub cx: &'a condition::Ctx<'a>,
@@ -738,13 +737,51 @@ fn observe(cx: &condition::Ctx<'_>, c: &Condition) -> Vec<(String, String)> {
         | C::ArcHeat { .. }
         | C::ArcDays { .. }
         | C::Displaced { .. }
-        | C::Recovered { .. } => {
+        | C::Recovered { .. }
+        | C::ArcLastTurn { .. } => {
             if let Some(r) = cx.arc {
                 put("stage", r.stage.clone());
                 put("marks", r.marks.join(", "));
                 put("heat", num(f64::from(r.heat)));
+                put("last turn", r.before.clone().unwrap_or_default());
             } else {
                 put("arc", "no run here (never holds)".into());
+            }
+        }
+        C::BudgetYear { .. } => {
+            if let Some(at) = cx.at {
+                let left = v
+                    .date()
+                    .days_until(crate::finance::budget_year_turns(at, v.date()));
+                put("days to the budget year's turn", left.to_string());
+            }
+        }
+        C::BudgetBalance { .. } | C::BodySupport { .. } => {
+            let mut a = condition::Args::new();
+            let unbounded = match c {
+                C::BudgetBalance { .. } => C::BudgetBalance {
+                    min: None,
+                    max: None,
+                },
+                C::BodySupport { power, opinion, .. } => C::BodySupport {
+                    power: *power,
+                    opinion: *opinion,
+                    min: None,
+                    max: None,
+                },
+                _ => c.clone(),
+            };
+            if condition::holds(cx, &unbounded, &mut a) {
+                for (k, x) in a {
+                    put(&k, x);
+                }
+            }
+        }
+        C::LastRace { .. } | C::SponsorsBill { .. } => {}
+        C::BodyMajority { power, .. } => {
+            if let Some(at) = cx.at {
+                let n = crate::arcs::cast::power_holders(v, at, *power).len();
+                put("holders of the power", n.to_string());
             }
         }
     }
@@ -828,7 +865,6 @@ pub fn actor_label(v: &View<'_>, a: Actor) -> String {
 pub enum ItemKind {
     Dilemma,
     Situational,
-    Storyline,
     Overheard,
     Topic,
     Line,
@@ -837,10 +873,9 @@ pub enum ItemKind {
 }
 
 impl ItemKind {
-    pub const ALL: [ItemKind; 8] = [
+    pub const ALL: [ItemKind; 7] = [
         ItemKind::Dilemma,
         ItemKind::Situational,
-        ItemKind::Storyline,
         ItemKind::Overheard,
         ItemKind::Topic,
         ItemKind::Line,
@@ -852,7 +887,6 @@ impl ItemKind {
         match self {
             ItemKind::Dilemma => "dilemma",
             ItemKind::Situational => "situational",
-            ItemKind::Storyline => "storyline",
             ItemKind::Overheard => "overheard",
             ItemKind::Topic => "topic",
             ItemKind::Line => "line",
@@ -936,7 +970,6 @@ pub fn explain(
     match kind {
         ItemKind::Dilemma => dilemma(st, &v, content.dilemma(id)?),
         ItemKind::Situational => situational(st, &v, content, id),
-        ItemKind::Storyline => storyline(st, &v, content, id),
         ItemKind::Overheard => overheard(st, &v, content, id, focus),
         ItemKind::Topic => topic(st, &v, content, id, focus),
         ItemKind::Line => line(st, &v, content, id, focus),
@@ -960,12 +993,6 @@ pub fn items(content: &ContentBundle) -> Vec<(ItemKind, String)> {
             .values()
             .filter(|p| p.unlock.is_some())
             .map(|p| (ItemKind::Situational, p.id.clone())),
-    );
-    out.extend(
-        content
-            .storylines
-            .iter()
-            .map(|d| (ItemKind::Storyline, d.id.clone())),
     );
     out.extend(
         content
@@ -1136,31 +1163,27 @@ fn dilemma(st: &State, v: &View<'_>, def: &DilemmaDef) -> Option<Explanation> {
             ),
         );
         holders = hs.into_iter().map(Some).collect();
-    } else if def.storyline_only {
-        let stage = n.active_runs().find_map(|run| {
-            let sd = content.storyline(&run.template)?;
-            let s = sd.stages.get(run.stage as usize)?;
-            (s.decision.as_deref() == Some(def.id.as_str())).then(|| (run, s.id.clone()))
+    } else if def.arc_only || staged_by_live_run(st, content, &def.id) {
+        // An arc's decision beat: the run asks for it at its stage.
+        let stage = st.arcs.runs.iter().find_map(|run| {
+            let s = content.arc(&run.template)?.stage(&run.stage)?;
+            names_dilemma(s, &def.id).then(|| (run, s.id.clone()))
         });
-        let lines: Vec<&str> = content
-            .storylines
+        let arcs: Vec<&str> = content
+            .arcs
             .iter()
-            .filter(|s| {
-                s.stages
-                    .iter()
-                    .any(|x| x.decision.as_deref() == Some(def.id.as_str()))
-            })
-            .map(|s| s.id.as_str())
+            .filter(|a| a.stages.iter().any(|s| names_dilemma(s, &def.id)))
+            .map(|a| a.id.as_str())
             .collect();
         let mut g = Node::new(
             "gate",
             "route",
-            format!("a storyline stage of: {}", lines.join(", ")),
+            format!("a decision beat of: {}", arcs.join(", ")),
             stage.is_some(),
         );
         if let Some((run, sid)) = &stage {
             g = g.with("at stage", format!("{} / {sid}", run.template));
-            preset = run.cast.clone();
+            preset = run.narrative_cast();
         }
         gates.push(g);
     } else if let Some(by) = def.raised_by {
@@ -1184,18 +1207,11 @@ fn dilemma(st: &State, v: &View<'_>, def: &DilemmaDef) -> Option<Explanation> {
             open,
         ));
     } else {
-        let staged = n.active_runs().any(|r| {
-            content.storyline(&r.template).is_some_and(|s| {
-                s.stages
-                    .iter()
-                    .any(|x| x.decision.as_deref() == Some(def.id.as_str()))
-            })
-        });
         gates.push(Node::new(
             "gate",
             "route",
-            "the director's spotlight (not a stage of a running storyline)",
-            !staged,
+            "the director's spotlight (not a beat of a running arc)",
+            true,
         ));
     }
     if def.raised_by.is_none() {
@@ -1318,158 +1334,23 @@ fn situational(st: &State, v: &View<'_>, content: &ContentBundle, id: &str) -> O
     Some(x)
 }
 
-// --- Storylines -------------------------------------------------------------------------
+// --- Arcs' decision beats ---------------------------------------------------------------
 
-fn storyline(st: &State, v: &View<'_>, content: &ContentBundle, id: &str) -> Option<Explanation> {
-    let def = content.storyline(id)?;
-    let n = &st.narrative;
-    let date = v.date();
-    let run = n.active_runs().find(|r| r.template == def.id);
-    let mut kids = Vec::new();
-    let (cast, forced);
-    match run {
-        Some(run) => {
-            kids.push(
-                Node::new("gate", "running", "a run of this storyline is active", true)
-                    .with("since", run.started.days_until(date).to_string() + " days")
-                    .with(
-                        "stages done",
-                        run.stages
-                            .iter()
-                            .map(|(s, _)| s.as_str())
-                            .collect::<Vec<_>>()
-                            .join(", "),
-                    ),
-            );
-            cast = run.cast.clone();
-            forced = false;
-            let still: Vec<Node> = def
-                .roles
-                .iter()
-                .map(|role| {
-                    let a = crate::narrative::actor_of(&run.cast, &role.id);
-                    let ok = a.is_some_and(|a| cast::still_cast(v, role, a, &run.cast, None));
-                    Node::new("role", &role.id, describe(&role.cast).0, ok).with(
-                        "cast",
-                        a.map(|a| actor_label(v, a))
-                            .unwrap_or_else(|| "nobody".into()),
-                    )
-                })
-                .collect();
-            kids.push(Node::group(
-                "all",
-                "cast still fits (else the arc fades)",
-                still,
-            ));
-            match def.stages.get(run.stage as usize) {
-                Some(stage) => {
-                    let ready = run.since.add_days(stage.wait_days);
-                    let mut g = Node::new(
-                        "gate",
-                        "waited",
-                        format!("{} days after the previous stage", stage.wait_days),
-                        date >= ready,
-                    );
-                    if date < ready {
-                        g = g.with("days left", date.days_until(ready));
-                    }
-                    let mut sk = vec![g];
-                    if let Some(t) = stage.timeout_days {
-                        sk.push(
-                            Node::new(
-                                "gate",
-                                "not timed out",
-                                format!("fades {t} days after it is ready"),
-                                date <= ready.add_days(t),
-                            )
-                            .with("waiting", run.decision.is_some() || run.entered),
-                        );
-                    }
-                    let cx = condition::Ctx::narrative(v, &run.cast);
-                    let e = CondExplainer { cx: &cx };
-                    sk.push(explain_all(&e, "advance", &stage.advance));
-                    if let Some(dk) = &stage.decision
-                        && let Some(ddef) = content.dilemma(dk)
-                    {
-                        let (ct, ..) = cast_and_triggers(v, ddef, &run.cast, None);
-                        let mut ct = ct;
-                        ct.label = format!("decision {dk}");
-                        sk.push(ct);
-                    }
-                    let mut node = Node::group("stage", &format!("stage {}", stage.id), sk);
-                    if run.decision.is_some() {
-                        node.children.push(Node::new(
-                            "info",
-                            "decision open",
-                            "this stage's decision is waiting for an answer",
-                            true,
-                        ));
-                    }
-                    kids.push(node);
-                }
-                None => kids.push(Node::new("gate", "stage", "past the last stage", false)),
-            }
-        }
-        None => {
-            let until = n.cooldowns.get(&def.id).copied().filter(|x| *x > date);
-            let mut g = Node::new(
-                "gate",
-                "cooldown",
-                format!("{} days after it last ended", def.cooldown_days),
-                until.is_none(),
-            );
-            if let Some(u) = until {
-                g = g.with("days left", date.days_until(u));
-            }
-            kids.push(g);
-            let cap = content.director.storylines_active as usize;
-            let running = n.active_runs().count();
-            kids.push(
-                Node::new(
-                    "gate",
-                    "room",
-                    format!("at most {cap} storylines at once"),
-                    running < cap,
-                )
-                .with("running", running),
-            );
-            let follow = n.follow_ups.iter().any(|f| f.0 == def.id);
-            if follow {
-                kids.push(Node::new(
-                    "info",
-                    "follow-up",
-                    "queued as a follow-up (starts with the earlier arc's cast)",
-                    true,
-                ));
-            }
-            match cast::cast_roles(v, &def.roles, &[], None) {
-                Some(c) => {
-                    kids.push(roles_node(v, &def.roles, &c));
-                    let cx = condition::Ctx::narrative(v, &c);
-                    let e = CondExplainer { cx: &cx };
-                    kids.push(explain_all(&e, "start", &def.start));
-                    cast = c;
-                    forced = false;
-                }
-                None => {
-                    let c = forced_cast(v, &def.roles, &[], None);
-                    kids.push(roles_node(v, &def.roles, &c));
-                    let cx = condition::Ctx::narrative(v, &c);
-                    let e = CondExplainer { cx: &cx };
-                    let mut s = explain_all(&e, "start", &def.start);
-                    s.ok = false;
-                    kids.push(s);
-                    cast = c;
-                    forced = true;
-                }
-            }
-        }
-    }
-    let tree = Node::group("all", &def.id, kids);
-    let mut x = Explanation::new(ItemKind::Storyline, &def.id, tree);
-    x.cast = cast;
-    x.forced = forced;
-    Some(x)
+/// A stage has a decision beat of this dilemma.
+fn names_dilemma(s: &mandate_content::arcs::StageDef, dilemma: &str) -> bool {
+    s.beats.iter().any(|b| {
+        matches!(&b.kind, mandate_content::arcs::BeatKind::Decision { dilemma: d, .. } if d == dilemma)
+    })
+}
+
+/// A live run's template names the dilemma as a decision beat (the
+/// spotlight leaves it to the run).
+fn staged_by_live_run(st: &State, content: &ContentBundle, dilemma: &str) -> bool {
+    st.arcs.runs.iter().any(|r| {
+        content
+            .arc(&r.template)
+            .is_some_and(|a| a.stages.iter().any(|s| names_dilemma(s, dilemma)))
+    })
 }
 
 // --- Overheard lines ---------------------------------------------------------------------

@@ -59,9 +59,16 @@ pub struct ArcDef {
     /// Chapter themes it carries (`crisis`, `scheme`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub themes: Vec<String>,
-    /// An opportunity: the director times its arrival (task A2).
+    /// An opportunity: the director times its arrival (parsed and inert:
+    /// no opportunity arc is written yet).
     #[serde(default)]
     pub opportunity: bool,
+    /// A standing arc (DEC-109 §7): one the calendar raises every chapter
+    /// of its kind, so a calm town still has a turn. It runs beside the
+    /// director's cap on arcs (`director.arcs_active`), and a material arc
+    /// outranks it for the chapter's lead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub standing: Option<Standing>,
     /// Where it may run.
     pub tiers: Vec<TierKey>,
     /// Conditions over simulated state at a jurisdiction; never the ledger.
@@ -114,6 +121,16 @@ impl ArcDef {
     }
 }
 
+/// The kind of chapter a standing arc gives its turn to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Standing {
+    /// A budget year in office (the budget round).
+    Session,
+    /// The player's campaign (the rival).
+    Campaign,
+}
+
 /// The two sides of an arc, by role.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -147,8 +164,19 @@ pub enum ArcCast {
         near: Option<String>,
     },
     /// Whoever holds a post there whose constitution lists this power (not
-    /// the player; an office before a seat).
-    Post { power: Power },
+    /// the player; an office before a seat). `party` is a preference,
+    /// never a filter: one of the player's party first (`same`: whoever
+    /// thinks most of the player), or of another first (`other`: whoever
+    /// thinks least), then anyone else who holds the power.
+    Post {
+        power: Power,
+        #[serde(default, skip_serializing_if = "is_any")]
+        party: crate::narrative::PartyRel,
+    },
+    /// The player's named rival there (a town's; local-only).
+    Rival,
+    /// Someone there the player owes a favour (the largest debt).
+    Creditor,
     /// An area one level down: of a town, a neighbourhood.
     Area {
         pick: AreaPick,
@@ -163,10 +191,17 @@ pub enum ArcCast {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         near: Option<String>,
     },
+    /// Where the person cast in `of` works: the place their post sits (the
+    /// constitution's `works_at`), else their own workplace.
+    Workplace { of: String },
     /// Another jurisdiction.
     Jurisdiction { pick: JurisdictionPick },
     /// What raised the arc (a plant, a fact). Not yet: task A5.
     Subject,
+}
+
+fn is_any(p: &crate::narrative::PartyRel) -> bool {
+    *p == crate::narrative::PartyRel::Any
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -206,13 +241,28 @@ pub struct HeatFloor {
     pub scale: f64,
 }
 
-/// A stage's deadline: a keyed draw in a range of days from its entry, or
-/// (not yet) the subject's own date.
+/// A stage's deadline: a keyed draw in a range of days from its entry or
+/// before the jurisdiction's budget year turns, or (not yet) the subject's
+/// own date.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ClockDef {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub days: Option<[u32; 2]>,
+    /// A director-owned clock (DEC-033 B; STAGED_ARCS §3.2): the draw
+    /// stays inside `days`, and a storyteller with a tension curve places
+    /// it inside the chapter's climax window where the two overlap, so the
+    /// turn falls where the chapter wants it. Never a date the simulation
+    /// owns.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub placed: bool,
+    /// Days before the jurisdiction's budget year turns, [least, most]: a
+    /// keyed draw between them (never before tomorrow). The budget
+    /// calendar is the simulation's; where in the range is the draw's.
+    /// With `days` too, the draw is where the two ranges overlap (else at
+    /// the first day `days` allows).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before_budget_year: Option<[u32; 2]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from: Option<ClockFrom>,
 }
@@ -242,7 +292,8 @@ pub struct StageDef {
     /// Not shown until the ledger says so (task A3).
     #[serde(default)]
     pub hidden: bool,
-    /// The turn: the chapter's climax when this arc leads (task A2).
+    /// The turn: the chapter's climax when this arc leads. A run records
+    /// the first turn it reaches (`ArcRun::turn`).
     #[serde(default)]
     pub climax: bool,
     /// A deadline set on entry; later stages keep it until one sets another.
@@ -374,6 +425,15 @@ pub enum ArcEffect {
     },
     /// People of an area role leave their town (the population applies).
     Displacement { area: String, of: DisplacedOf },
+    /// A change voted into the next budget of the arc's jurisdiction: one
+    /// `category`'s line of its discretionary budget, or every line,
+    /// × `factor` when its budget year turns (finance applies, to the
+    /// tier's own treasury; DEC-098). A line funded or cut.
+    Budget {
+        factor: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        category: Option<crate::types::BudgetCategory>,
+    },
     /// The run's own heat.
     Heat { delta: f32 },
     /// Approval of the jurisdiction's government in an area. Not yet: A5b.
@@ -394,9 +454,10 @@ impl ArcEffect {
             | ArcEffect::Displacement { area, .. }
             | ArcEffect::GovApproval { area, .. } => vec![(area.as_str(), RoleKind::Area)],
             ArcEffect::PlaceState { place, .. } => vec![(place.as_str(), RoleKind::Spot)],
-            ArcEffect::Record { .. } | ArcEffect::Standing { .. } | ArcEffect::Heat { .. } => {
-                Vec::new()
-            }
+            ArcEffect::Record { .. }
+            | ArcEffect::Standing { .. }
+            | ArcEffect::Budget { .. }
+            | ArcEffect::Heat { .. } => Vec::new(),
         }
     }
 
@@ -418,6 +479,7 @@ impl ArcEffect {
             ArcEffect::Standing { .. } => "standing",
             ArcEffect::Recovery { .. } => "recovery",
             ArcEffect::Displacement { .. } => "displacement",
+            ArcEffect::Budget { .. } => "budget",
             ArcEffect::Heat { .. } => "heat",
             ArcEffect::GovApproval { .. } => "gov_approval",
             ArcEffect::PlaceState { .. } => "place_state",
@@ -441,9 +503,12 @@ pub enum RoleKind {
 impl ArcCast {
     pub fn kind(&self) -> RoleKind {
         match self {
-            ArcCast::Occupation { .. } | ArcCast::Post { .. } => RoleKind::Person,
+            ArcCast::Occupation { .. }
+            | ArcCast::Post { .. }
+            | ArcCast::Rival
+            | ArcCast::Creditor => RoleKind::Person,
             ArcCast::Area { .. } => RoleKind::Area,
-            ArcCast::Place { .. } => RoleKind::Place,
+            ArcCast::Place { .. } | ArcCast::Workplace { .. } => RoleKind::Place,
             ArcCast::Jurisdiction { .. } => RoleKind::Jurisdiction,
             ArcCast::Subject => RoleKind::Subject,
         }
@@ -690,28 +755,29 @@ pub fn not_yet(a: &ArcDef) -> Vec<String> {
 }
 
 /// What a template names that the engine parses and does nothing with
-/// until its task (A2: the director; A3: the ledger and the view; A4: the
-/// stand-ins): the run is the same with or without it.
+/// until its task (A3: the ledger and the view; A4: the stand-ins; A6: the
+/// arcs that need it): the run is the same with or without it. A stage's
+/// `climax` is not here: a run records its turn, and the director counts it.
 pub fn inert(a: &ArcDef) -> Vec<String> {
     let mut out = Vec::new();
     if a.opportunity {
-        out.push("`opportunity`: the director times its arrival (A2)".to_string());
+        out.push("`opportunity`: the director times its arrival (with the first such arc)".into());
     }
     if a.sides.is_some() {
         out.push("`sides`: for the stand-ins (A4)".to_string());
     }
     if !a.answers.is_empty() {
-        out.push("`answers`: NPC agendas favour them (A2)".to_string());
+        out.push("`answers`: NPC agendas favour them (A6)".to_string());
     }
     for s in &a.stages {
         if s.hidden {
             out.push(format!("stage `{}`: `hidden` (the ledger, A3)", s.id));
         }
-        if s.climax {
-            out.push(format!("stage `{}`: `climax` (the director, A2)", s.id));
-        }
         if !s.goals.is_empty() {
-            out.push(format!("stage `{}`: `goals` (NPC goals, A2)", s.id));
+            out.push(format!(
+                "stage `{}`: `goals` (a goal's own conditions can read the `arc` condition)",
+                s.id
+            ));
         }
         if s.beats.iter().any(|b| {
             b.teaches.is_some()
@@ -725,10 +791,13 @@ pub fn inert(a: &ArcDef) -> Vec<String> {
         }
         if let Some(x) = &s.exit {
             if x.legacy_key.is_some() {
-                out.push(format!("exit `{}`: `legacy_key` (A2)", s.id));
+                out.push(format!(
+                    "exit `{}`: `legacy_key` (the Legacy record, A3)",
+                    s.id
+                ));
             }
             if x.follow_up.is_some() {
-                out.push(format!("exit `{}`: `follow_up` (A2)", s.id));
+                out.push(format!("exit `{}`: `follow_up` (with the buyer, A6)", s.id));
             }
         }
     }
@@ -861,6 +930,7 @@ impl Checker<'_> {
                     !(1.0..=4.0).contains(repair) || *months == 0 || *months > 36
                 }
                 ArcEffect::Heat { delta } => !(-1.0..=1.0).contains(delta),
+                ArcEffect::Budget { factor, .. } => !(0.8..=1.25).contains(factor),
                 ArcEffect::Favour { .. }
                 | ArcEffect::Displacement { .. }
                 | ArcEffect::PlaceState { .. } => false,
@@ -980,7 +1050,24 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                         );
                     }
                 }
-                ArcCast::Post { .. } | ArcCast::Jurisdiction { .. } | ArcCast::Subject => {}
+                ArcCast::Workplace { of } => {
+                    let ok = a
+                        .roles
+                        .iter()
+                        .take_while(|x| x.id != r.id)
+                        .any(|x| &x.id == of && x.cast.kind() == RoleKind::Person);
+                    if !ok {
+                        err(
+                            issues,
+                            format!("role `{}`: `of` names an earlier person role", r.id),
+                        );
+                    }
+                }
+                ArcCast::Post { .. }
+                | ArcCast::Rival
+                | ArcCast::Creditor
+                | ArcCast::Jurisdiction { .. }
+                | ArcCast::Subject => {}
             }
             roles.push(&r.id);
         }
@@ -1016,10 +1103,14 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
             roles: roles.clone(),
         };
         ck.conditions(ConditionUse::ArcRaise, &[], &a.raise, issues);
-        if a.raise.is_empty() {
+        // Raised by the world: by conditions at the jurisdiction, or by
+        // who its cast binds to and what holds of them (`given`).
+        if a.raise.is_empty() && a.given.is_empty() {
             err(
                 issues,
-                "an arc is raised by conditions over simulated state: `raise` is empty".into(),
+                "an arc is raised by conditions over simulated state: `raise` and `given` \
+                 are both empty"
+                    .into(),
             );
         }
         ck.conditions(ConditionUse::ArcGate, &roles, &a.given, issues);
@@ -1045,14 +1136,32 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                 err(issues, format!("{at}: rise is 0..0.5 a week"));
             }
             if let Some(c) = &s.clock {
-                match (c.days, c.from) {
-                    (Some([lo, hi]), None) => {
-                        if lo == 0 || lo > hi || hi > 3650 {
-                            err(issues, format!("{at}: clock days are 1..3650, min ≤ max"));
-                        }
-                    }
-                    (None, Some(_)) => {}
-                    _ => err(issues, format!("{at}: a clock has `days` or `from`")),
+                if c.placed && c.from.is_some() {
+                    err(
+                        issues,
+                        format!("{at}: a placed clock is a draw in a range (never the subject's)"),
+                    );
+                }
+                if c.from.is_some() == (c.days.is_some() || c.before_budget_year.is_some()) {
+                    err(
+                        issues,
+                        format!(
+                            "{at}: a clock has `days`, `before_budget_year` (or both), or `from`"
+                        ),
+                    );
+                }
+                if let Some([lo, hi]) = c.days
+                    && (lo == 0 || lo > hi || hi > 3650)
+                {
+                    err(issues, format!("{at}: clock days are 1..3650, min ≤ max"));
+                }
+                if let Some([least, most]) = c.before_budget_year
+                    && (least == 0 || least > most || most > 366)
+                {
+                    err(
+                        issues,
+                        format!("{at}: `before_budget_year` is [least, most] days, 1..366"),
+                    );
                 }
             }
             for g in &s.goals {
@@ -1154,23 +1263,18 @@ pub(crate) fn validate(b: &ContentBundle, issues: &mut Vec<Issue>) {
                     BeatKind::Decision { dilemma, on, .. } => match b.dilemma(dilemma) {
                         None => err(issues, format!("{at}: unknown dilemma `{dilemma}`")),
                         Some(d) => {
-                            if !d.storyline_only {
-                                err(
-                                    issues,
-                                    format!(
-                                        "{at}: `{dilemma}` must be `storyline_only` (an arc's \
-                                         decision is never spotlit on its own)"
-                                    ),
-                                );
-                            }
+                            // A role the arc shares is the run's (a person or
+                            // an area it always casts); one it lacks (a bill)
+                            // is cast by the narrative as the decision opens.
                             for r in &d.roles {
                                 match a.role(&r.id) {
+                                    None => {}
                                     Some(x)
                                         if matches!(
                                             x.cast.kind(),
                                             RoleKind::Person | RoleKind::Area
                                         ) && !x.optional => {}
-                                    _ => err(
+                                    Some(_) => err(
                                         issues,
                                         format!(
                                             "{at}: `{dilemma}` casts role `{}`, which is not a \

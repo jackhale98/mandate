@@ -297,8 +297,8 @@ fn the_validator_refuses_a_variant_where_it_is_not_allowed() {
     assert!(refusals(&b, &at(ConditionUse::SceneVariant, cast), &knows).is_empty());
     for u in [
         ConditionUse::GoalCondition,
-        ConditionUse::StorylineStart,
-        ConditionUse::StorylineAdvance,
+        ConditionUse::ArcRaise,
+        ConditionUse::ArcEdge,
         ConditionUse::Ask,
     ] {
         assert_eq!(refusals(&b, &at(u, cast), &knows).len(), 1, "{u:?}");

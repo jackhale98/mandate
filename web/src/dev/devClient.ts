@@ -9,9 +9,9 @@ import type { ResponseBody } from "../engine/protocol/ResponseBody";
 import type { DevCatalogView } from "./protocol/DevCatalogView";
 import type { DevExplainView } from "./protocol/DevExplainView";
 
-export type DevKind = "dilemma" | "situational" | "storyline" | "overheard" | "topic" | "line" | "voice" | "scene";
+export type DevKind = "dilemma" | "situational" | "overheard" | "topic" | "line" | "voice" | "scene";
 
-export const DEV_KINDS: DevKind[] = ["dilemma", "situational", "storyline", "overheard", "topic", "line", "voice", "scene"];
+export const DEV_KINDS: DevKind[] = ["dilemma", "situational", "overheard", "topic", "line", "voice", "scene"];
 
 /** Kinds explained for one speaker (the page offers a speaker picker). */
 export const SPEAKER_KINDS: DevKind[] = ["topic", "line", "voice"];

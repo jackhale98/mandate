@@ -127,7 +127,7 @@ export function countItems(items: RenderedItem[]): Counts {
   return { rendered_items: items.length, by_kind: byKind, flags: fl };
 }
 
-const KIND_ORDER = ["dilemma", "scene", "storyline", "press", "overheard", "talk", "notebook", "outcome"];
+const KIND_ORDER = ["dilemma", "scene", "arc", "press", "overheard", "talk", "notebook", "outcome"];
 
 /** The situation in one line: who, where, what, and the facts beside it. */
 function situationLine(s: Record<string, unknown>): string {

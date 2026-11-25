@@ -95,6 +95,9 @@ fn v23_saves_migrate_to_asks() {
     let e = played(9, 10);
     let mut v = serde_json::json!({ "state": serde_json::to_value(e.state()).unwrap() });
     v["state"].as_object_mut().unwrap().remove("asks");
+    // (An older save holds no arc run: the budget round is in every played
+    // game since A2, and the step to v27 refuses a payload that carries one.)
+    v["state"].as_object_mut().unwrap().remove("arcs");
     let migrated = mandate_save::migrate(23, v.clone()).unwrap();
     assert_eq!(migrated, mandate_save::migrate(23, v).unwrap());
     let state: mandate_sim::State = serde_json::from_value(migrated["state"].clone()).unwrap();

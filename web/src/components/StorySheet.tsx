@@ -4,7 +4,7 @@ import { useSheetClose } from "./useSheetClose";
 import { capital } from "./DecisionSheet";
 import { StoryPromises } from "./asks/Asks";
 
-/** The story so far (DEC-033): the chapter and its tension, storylines, and what happened. */
+/** The story so far (DEC-033): the chapter and its tension, the arcs (DEC-109: storylines are arcs), and what happened. */
 export function StorySheet() {
   const tr = useGame((s) => s.tr);
   const story = useGame((s) => s.story);

@@ -169,7 +169,7 @@ pub fn run_one(
         minor_per_chapter: ch.iter().map(|c| c.minor as f64).sum::<f64>() / nch,
         climax_share: ch.iter().filter(|c| c.climaxes > 0).count() as f64 / nch,
         over_budget: over,
-        storylines: s.narrative.storylines.len() as u32,
+        storylines: (s.arcs.runs.len() + s.arcs.past.len()) as u32,
         seed,
         population_change_per_decade: mandate_core::math::pow(
             (pop1 / pop0.max(1.0)).max(1e-6),

@@ -58,7 +58,11 @@ fn a_fork_with_a_run_in_progress_continues_as_the_original() {
     ));
     a.run_to(3, &[], &mut Vec::new());
     assert!(
-        !a.e.state().arcs.runs.is_empty(),
+        a.e.state()
+            .arcs
+            .runs
+            .iter()
+            .any(|r| r.template == "arc.flood"),
         "the run is in progress at the fork"
     );
     let mut b = a.fork().unwrap();
@@ -69,5 +73,9 @@ fn a_fork_with_a_run_in_progress_continues_as_the_original() {
     assert_eq!(a.e.state().arcs, b.e.state().arcs);
     // The idle game let it drift to an exit, and the original and the
     // fork agree on which.
-    assert_eq!(a.e.state().arcs.past.len(), 1);
+    let floods = |g: &super::runner::Game| {
+        let past = &g.e.state().arcs.past;
+        past.iter().filter(|p| p.template == "arc.flood").count()
+    };
+    assert_eq!((floods(&a), floods(&b)), (1, 1));
 }

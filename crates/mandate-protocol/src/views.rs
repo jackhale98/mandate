@@ -517,25 +517,9 @@ pub fn event_view(e: &DomainEvent, engine: &Engine) -> EventView {
             put("kind_key", format!("chapter-kind-{kind}"));
             "event-chapter-began"
         }
-        EventKind::StorylineStage { run, stage, .. } => {
-            // The stage's own story line, with its cast.
-            let st = engine.state();
-            if let Some(r) = st.narrative.storylines.iter().find(|r| r.id.0 == *run)
-                && let Some(def) = engine.content().storyline(&r.template)
-                && let Some(s) = def.stages.iter().find(|s| &s.id == stage)
-            {
-                for (k, v) in crate::narrative::cast_args(engine, &r.cast) {
-                    put(&k, v);
-                }
-                return EventView {
-                    id: e.id.0,
-                    date: DateView::of(e.date),
-                    text_key: s.key.clone(),
-                    args,
-                };
-            }
-            "event-storyline-advanced"
-        }
+        // A storyline's stage, in a log from before storylines were arcs
+        // (save v27 and older): its run is gone, the plain line remains.
+        EventKind::StorylineStage { .. } => "event-storyline-advanced",
         EventKind::StoryDevelopment { fact, .. } => {
             let st = engine.state();
             if let Some(f) = st.narrative.facts.iter().find(|f| f.id == *fact)

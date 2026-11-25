@@ -70,17 +70,28 @@ fn variety_rules_hold_over_careers() {
     for seed in [3u64, 8, 13, 21] {
         let mut e = engine(&c, seed);
         let mut seen: BTreeMap<u32, (String, Weight, u32, u32, bool)> = BTreeMap::new();
+        // The climaxes: the lead arc's turns, as the chapters record them.
+        let mut turns: BTreeMap<u32, String> = BTreeMap::new();
         for _ in 0..(4 * 26) {
             answer_all(&mut e, &c);
             e.apply(Command::EndTurn).unwrap();
-            for x in &e.state().narrative.decisions {
+            let n = &e.state().narrative;
+            for x in &n.decisions {
+                // An arc asks for its own decisions when its stage comes
+                // (the budget round's every year): the spotlight's variety
+                // rules are about what the spotlight chooses.
                 seen.entry(x.id.0).or_insert((
                     x.template.clone(),
                     x.weight,
                     x.opened.0,
                     x.chapter,
-                    x.about.is_some(),
+                    x.about.is_some() || x.arc.is_some(),
                 ));
+            }
+            for ch in n.chapters.iter().chain(n.chapter.as_ref()) {
+                if let Some(t) = &ch.turn {
+                    turns.insert(ch.index, t.clone());
+                }
             }
         }
         let spot: Vec<_> = seen.values().filter(|x| !x.4).collect();
@@ -111,24 +122,21 @@ fn variety_rules_hold_over_careers() {
                 };
                 let need = narrative::director::cooldown_days(d, cd, uses_then);
                 let (w, borrowed) = ([w[0].0, w[1].0], w[1].1 == Weight::Climax);
-                // A storyline's stage presents its decision when the story
-                // reaches it (story first); standalone returns wait.
                 assert!(
-                    w[1] - w[0] >= need || borrowed || c.dilemma(t).unwrap().storyline_only,
+                    w[1] - w[0] >= need || borrowed,
                     "seed {seed}: {t} returned after {} days (cooldown {need})",
                     w[1] - w[0]
                 );
             }
         }
-        let mut climax: Vec<(u32, &str)> = spot
-            .iter()
-            .filter(|x| x.1 == Weight::Climax)
-            .map(|x| (x.3, x.0.as_str()))
-            .collect();
-        climax.sort();
+        // No dilemma is a climax on its own, and no turn comes in two
+        // chapters running (climax memory by variant).
+        assert!(spot.iter().all(|x| x.1 != Weight::Climax), "seed {seed}");
+        assert!(turns.len() >= 3, "seed {seed}: {turns:?}");
+        let climax: Vec<(u32, &str)> = turns.iter().map(|(k, v)| (*k, v.as_str())).collect();
         for w in climax.windows(2) {
             assert!(
-                w[0].1 != w[1].1 || w[1].0 - w[0].0 > d.climax_memory_chapters as u32,
+                w[0].1 != w[1].1 || w[1].0 - w[0].0 > 1,
                 "seed {seed}: {} was the climax of chapters {} and {}",
                 w[0].1,
                 w[0].0,
@@ -173,17 +181,23 @@ fn classic_paces_in_cycles_and_unfiltered_has_no_phases() {
             PhaseKind::BuildUp => vec![PhaseKind::Peak],
             PhaseKind::Peak => vec![PhaseKind::PeakFade],
             PhaseKind::PeakFade => vec![PhaseKind::Relax],
-            // A forced climax may cut a relax short.
-            PhaseKind::Relax => vec![PhaseKind::BuildUp, PhaseKind::Peak],
+            PhaseKind::Relax => vec![PhaseKind::BuildUp],
         };
-        assert!(next.contains(&w[1]), "{:?} then {:?}", w[0], w[1]);
+        // The lead arc's turn begins the climax peak whatever the phase.
+        assert!(
+            next.contains(&w[1]) || w[1] == PhaseKind::Peak,
+            "{:?} then {:?}",
+            w[0],
+            w[1]
+        );
     }
-    // Significant decisions (storyline stages included) open only at peaks;
-    // raised ones (a story, a case) open whenever the world raises them.
+    // The spotlight's significant decisions open only at peaks; raised
+    // ones (a story, a case) open whenever the world raises them, and an
+    // arc's when its stage comes (its turn makes the peak).
     for d in n
         .decisions
         .iter()
-        .filter(|d| d.weight != Weight::Minor && d.about.is_none())
+        .filter(|d| d.weight != Weight::Minor && d.about.is_none() && d.arc.is_none())
     {
         let at = n
             .phase_log

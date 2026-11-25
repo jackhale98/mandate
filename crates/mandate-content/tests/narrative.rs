@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Narrative content validation (DEC-073, DEC-077 §4, DEC-032): every option
 //! costs someone and buys something, exactly one default, roles resolve,
-//! requests are raised by goals, storylines branch to real stages.
+//! requests are raised by goals.
 use mandate_content::{Severity, Source, bundle::read_dir_sources, load};
 use std::path::Path;
 
@@ -49,12 +49,13 @@ fn the_base_narrative_content_is_valid() {
         .iter()
         .filter(|d| {
             d.category != mandate_content::DilemmaCategory::Request
-                && !d.storyline_only
+                && !d.arc_only
                 && d.raised_by.is_none()
         })
         .count();
     assert!((8..=32).contains(&standalone), "{standalone} base dilemmas");
-    assert!(b.storylines.len() >= 2);
+    // Storylines are arcs (DEC-109): the three that were, and the budget round.
+    assert!(b.arcs.len() >= 4);
     assert_eq!(b.storytellers.len(), 3);
 }
 

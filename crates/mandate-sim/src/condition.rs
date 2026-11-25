@@ -925,6 +925,127 @@ pub fn holds(cx: &Ctx<'_>, c: &Condition, args: &mut Args) -> bool {
             );
             true
         }
+        C::ArcLastTurn { stage, is } => cx
+            .arc
+            .is_some_and(|r| (r.before.as_deref() == Some(stage.as_str())) == *is),
+        // --- The budget and the body that votes it (tier-generic) --------------------
+        C::BudgetYear { min, max } => {
+            let Some(at) = cx.at else { return false };
+            let left = today.days_until(crate::finance::budget_year_turns(at, today));
+            in_range(f64::from(left), *min, *max)
+        }
+        C::BudgetBalance { min, max } => {
+            let Some(t) = cx
+                .at
+                .and_then(|at| crate::finance::treasury(v.r.finance(), at))
+            else {
+                return false;
+            };
+            let revenue = t.last_year.revenue.units() as f64;
+            let share = if t.last_year.year == 0 || revenue <= 0.0 {
+                0.0
+            } else {
+                t.last_year.balance.units() as f64 / revenue
+            };
+            if !in_range(share, *min, *max) {
+                return false;
+            }
+            let books = if share < -0.01 {
+                "short"
+            } else if share > 0.01 {
+                "over"
+            } else {
+                "level"
+            };
+            args.insert("books".into(), books.into());
+            args.insert(
+                "gap".into(),
+                ((share.abs() * 100.0).round() as u64).to_string(),
+            );
+            true
+        }
+        C::BodyMajority { power, share, is } => {
+            let Some(at) = cx.at else { return false };
+            let holders = crate::arcs::cast::power_holders(v, at, *power);
+            let mut parties: Vec<(crate::politics::PartyId, usize)> = Vec::new();
+            for p in holders.iter().filter_map(|id| pol.get(*id)) {
+                let Some(party) = p.party else { continue };
+                match parties.iter_mut().find(|x| x.0 == party) {
+                    Some(x) => x.1 += 1,
+                    None => parties.push((party, 1)),
+                }
+            }
+            let n = holders.len();
+            let held = parties.iter().any(|x| match share {
+                Some(s) => n > 0 && x.1 as f64 >= *s * n as f64,
+                None => x.1 * 2 > n,
+            });
+            held == *is
+        }
+        C::BodySupport {
+            power,
+            opinion,
+            min,
+            max,
+        } => {
+            let (Some(at), Some(pl)) = (cx.at, v.player()) else {
+                return false;
+            };
+            let Some(me) = cx.me() else { return false };
+            let mine = pol.get(pl.politician).and_then(|p| p.party);
+            let line = opinion.unwrap_or(10.0);
+            let others: Vec<&crate::politics::Politician> =
+                crate::arcs::cast::power_holders(v, at, *power)
+                    .into_iter()
+                    .filter(|id| *id != pl.politician)
+                    .filter_map(|id| pol.get(id))
+                    .collect();
+            let backers = others
+                .iter()
+                .filter(|p| {
+                    (mine.is_some() && p.party == mine)
+                        || f64::from(characters::opinion(pol, p.character, me)) >= line
+                        || characters::favours_owed(pol, p.character, me) > 0
+                })
+                .count();
+            let share = if others.is_empty() {
+                0.0
+            } else {
+                backers as f64 / others.len() as f64
+            };
+            if !in_range(share, *min, *max) {
+                return false;
+            }
+            args.insert("backers".into(), backers.to_string());
+            args.insert("members".into(), others.len().to_string());
+            true
+        }
+        C::LastRace { won } => {
+            let Some(pl) = v.player() else { return false };
+            let me = pl.politician;
+            // Still standing in a race: the last one is not decided.
+            if characters::is_candidate(pol, me) {
+                return false;
+            }
+            pol.elections
+                .results
+                .iter()
+                .filter(|r| r.candidates.iter().any(|c| c.politician == me))
+                .max_by_key(|r| r.date)
+                .is_some_and(|r| (r.winner == me) == *won)
+        }
+        C::SponsorsBill { slot } => {
+            let Some(p) = cx.person(slot) else {
+                return false;
+            };
+            v.r.policy().instances.iter().any(|b| {
+                b.status == crate::policy::PolicyStatus::UnderConsideration
+                    && b.sponsor
+                        .and_then(|s| pol.get(s))
+                        .is_some_and(|s| s.character == p)
+                    && v.can_vote(b.id.0)
+            })
+        }
         // --- Composition -------------------------------------------------------------
         C::Any { of } => {
             for x in of {

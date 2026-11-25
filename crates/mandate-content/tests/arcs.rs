@@ -54,16 +54,18 @@ fn the_flood_arc_loads_and_uses_only_what_is_built() {
     assert_eq!(b.asks.last().unwrap().id, "ask.flood_shelter");
     assert_eq!(b.overheard.last().unwrap().id, "overheard.flood.skips");
     assert!(b.scene("scene.flood_meeting").is_some());
-    // Every decision an arc presents is its own (never spotlit alone).
+    // Every decision the flood presents is its own (never spotlit alone).
     for (_, beat) in a.beats() {
         if let BeatKind::Decision { dilemma, .. } = &beat.kind {
-            assert!(b.dilemma(dilemma).unwrap().storyline_only);
+            assert!(b.dilemma(dilemma).unwrap().arc_only);
         }
     }
-    // What is parsed for later tasks is said to be.
+    // What is parsed for later tasks is said to be; the turn (`climax`) is
+    // the director's since task A2, and is no longer among it.
     let later = inert(a);
-    assert!(later.iter().any(|x| x.contains("`climax`")), "{later:?}");
+    assert!(!later.iter().any(|x| x.contains("`climax`")), "{later:?}");
     assert!(later.iter().any(|x| x.contains("`sides`")), "{later:?}");
+    assert!(later.iter().any(|x| x.contains("`answers`")), "{later:?}");
 }
 
 #[test]

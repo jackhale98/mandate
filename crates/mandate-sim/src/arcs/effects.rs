@@ -3,7 +3,8 @@
 //! or an exit changes elsewhere is a request the owning system applies
 //! (`Opinion`, `Favour`, `Record`: characters and politics; `Approval`,
 //! `Displacement`: population; `PlayerTrack`: the player; `Recovery`: the
-//! environment), each with its cause. Only the run's heat is changed here.
+//! environment; `Budget`: finance), each with its cause. Only the run's
+//! heat is changed here.
 //!
 //! The beats a player takes with a command (a visit, a reply) run outside
 //! the scheduler and apply the same requests at once through the owners'
@@ -123,6 +124,11 @@ pub fn resolve(v: &View<'_>, run: &ArcRun, effects: &[GatedEffect]) -> Asked {
                 let Some(a) = run.area(area) else { continue };
                 out.requests.extend(still_away(v, a));
             }
+            ArcEffect::Budget { factor, category } => out.requests.push(Effect::Budget {
+                at: run.at,
+                category: category.map(crate::policy::category_index),
+                factor: *factor,
+            }),
             ArcEffect::Heat { delta } => out.heat += *delta,
             // Not yet (`mandate_content::arcs::not_yet`): never raised.
             ArcEffect::GovApproval { .. } | ArcEffect::PlaceState { .. } => {}
@@ -203,6 +209,14 @@ pub fn apply_now(
                     factor,
                     months,
                 );
+            }
+            Effect::Budget {
+                at,
+                category,
+                factor,
+            } => {
+                state.events.note_effect(&cause);
+                crate::finance::vote_budget(&mut state.finance, at, category, factor);
             }
             e if monthly(&e) => state.arcs.deferred.push(Request { effect: e, cause }),
             e => rest.push(Request { effect: e, cause }),

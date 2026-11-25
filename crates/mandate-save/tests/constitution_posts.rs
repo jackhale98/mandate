@@ -198,6 +198,15 @@ fn v18_paths_migrate_to_posts() {
 /// approval against the nation and the benchmarked unemployment level, and
 /// canvassing alone builds no record, so the ward's figures and what follows
 /// from them changed on purpose.
+///
+/// Re-recorded for the director on arcs (task A2, DEC-109; save v28): the
+/// save is mid-campaign with the rival storyline running, which now loads
+/// as a run of `arc.rival` at the same stage. Its decisions are the arc's
+/// beats (presented the day their stage comes, not at the next peak), the
+/// run ends at the exit the race decided, and the director borrows no
+/// climax. The election is the same one (checked below against
+/// `v18_after.mndt`); the narrative, the arcs domain, the event log and
+/// what an answered or defaulted decision moved changed on purpose.
 #[test]
 fn v18_save_continues_identically() {
     let c = content();

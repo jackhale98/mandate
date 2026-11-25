@@ -245,7 +245,6 @@ fn inject(e: &mut Engine, template: &str, cast: Vec<CastEntry>) -> DecisionId {
             deadline: date.add_days(30),
             chapter: 0,
             relevance: 1.0,
-            storyline: None,
             goal: None,
             place: None,
             status: DecisionStatus::Pending,

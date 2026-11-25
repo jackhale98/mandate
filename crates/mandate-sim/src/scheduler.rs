@@ -164,13 +164,14 @@ pub enum Effect {
         factor: f64,
         months: u16,
     },
-    /// An arc's decision beat (DEC-109): the narrative opens a decision of
-    /// this dilemma with the run's cast, outside the chapter's budgets.
-    OpenDecision {
-        template: ContentKey,
-        cast: Vec<crate::narrative::CastEntry>,
-        weight: crate::narrative::Weight,
-        arc: crate::arcs::ArcRef,
+    /// A change voted into a jurisdiction's next budget: one line of the
+    /// discretionary budget (an index into `finance::Category::ALL`), or
+    /// every line, × `factor` when its budget year turns (finance applies,
+    /// to the tier's own treasury; DEC-109, DEC-098).
+    Budget {
+        at: crate::world::Jurisdiction,
+        category: Option<usize>,
+        factor: f64,
     },
     /// An arc's ask beat (DEC-109): the asks offer this template from the
     /// run's cast person, if they are free to ask and it can be kept.

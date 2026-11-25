@@ -5,7 +5,7 @@
 //!   conditions that contradict each other, references to ids that do not
 //!   exist, and roles or places no generated town has; and content that
 //!   never fired across N bot-played careers (dilemmas, situational
-//!   policies, storylines and their steps, scenes, overheard lines, topics,
+//!   policies, scenes, overheard lines, topics,
 //!   conversation lines and voices);
 //! - content that fires too often (in most careers, or far above its share
 //!   of the picks of its kind);
@@ -60,7 +60,7 @@ pub struct DoctorArgs {
     /// Report the prose habits (`prose-habit`) as warnings, not infos.
     #[arg(long)]
     pub strict_prose: bool,
-    /// Longest title (dilemma, storyline, topic), in characters.
+    /// Longest title (dilemma, topic), in characters.
     #[arg(long, default_value_t = 60)]
     pub max_title: usize,
     /// Longest line (overheard, conversation, scene beat, story step).

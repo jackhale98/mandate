@@ -3,7 +3,7 @@
 //! item is emitted; read-only.
 
 use super::cast::{self, View};
-use super::{Decision, FactKind, NarrativeState, StorylineRun};
+use super::{Decision, FactKind};
 use crate::State;
 use crate::events::EventKind;
 use mandate_content::{ContentBundle, RoleDef};
@@ -19,15 +19,12 @@ pub fn decision(state: &State, content: &ContentBundle, d: &Decision) -> Vec<Str
     if !cast::actors_exist(&v, &d.cast) {
         out.push(format!("{}: a cast actor does not exist", d.template));
     }
-    // Roles a storyline cast are checked against the storyline's own casts.
-    let run: Option<&StorylineRun> = d
-        .storyline
-        .and_then(|id| state.narrative.storylines.iter().find(|r| r.id == id));
-    let sdef = run.and_then(|r| content.storyline(&r.template));
     let holder = d.goal.as_ref().map(|g| g.0);
     // Roles an arc cast (DEC-109) are the run's own, bound by the arc's
     // rules: the run is live, the beat is a decision beat of its template
-    // for this dilemma, and the cast is the run's.
+    // for this dilemma, and the roles the arc has are cast as the run's.
+    // A role only the dilemma has (a bill) is checked like any other.
+    let mut arc_roles: Vec<&str> = Vec::new();
     if let Some(a) = &d.arc {
         match state.arcs.run(a.run) {
             None => out.push(format!("{}: its arc run is not live", d.template)),
@@ -47,7 +44,14 @@ pub fn decision(state: &State, content: &ContentBundle, d: &Decision) -> Vec<Str
                     ));
                 }
                 let cast = run.narrative_cast();
-                for e in d.cast.iter().filter(|e| !cast.contains(e)) {
+                if let Some(t) = content.arc(&run.template) {
+                    arc_roles = t.roles.iter().map(|r| r.id.as_str()).collect();
+                }
+                for e in d
+                    .cast
+                    .iter()
+                    .filter(|e| arc_roles.contains(&e.role.as_str()) && !cast.contains(e))
+                {
                     out.push(format!(
                         "{}: role `{}` is not the run's {:?}",
                         d.template, e.role, e.actor
@@ -56,10 +60,12 @@ pub fn decision(state: &State, content: &ContentBundle, d: &Decision) -> Vec<Str
             }
         }
     }
-    for e in d.cast.iter().filter(|_| d.arc.is_none()) {
-        let role: Option<&RoleDef> = sdef
-            .and_then(|s| s.roles.iter().find(|x| x.id == e.role))
-            .or_else(|| def.roles.iter().find(|x| x.id == e.role));
+    for e in d
+        .cast
+        .iter()
+        .filter(|e| !arc_roles.contains(&e.role.as_str()))
+    {
+        let role: Option<&RoleDef> = def.roles.iter().find(|x| x.id == e.role);
         let Some(role) = role else {
             continue;
         };
@@ -75,15 +81,6 @@ pub fn decision(state: &State, content: &ContentBundle, d: &Decision) -> Vec<Str
             out.push(format!("{}: trigger {:?} does not hold", d.template, c));
         }
     }
-    if let (Some(r), Some(s)) = (run, sdef)
-        && let Some(stage) = s.stages.get(r.stage as usize)
-    {
-        for c in &stage.advance {
-            if !cast::holds(&v, c, &r.cast) {
-                out.push(format!("{}: stage condition {:?} does not hold", s.id, c));
-            }
-        }
-    }
     if let Some((h, g)) = &d.goal
         && !state
             .politics
@@ -97,10 +94,8 @@ pub fn decision(state: &State, content: &ContentBundle, d: &Decision) -> Vec<Str
     out
 }
 
-/// Problems with a spotlit fact's grounding now (developments and
-/// storyline beats).
+/// Problems with a spotlit fact's grounding now (developments).
 pub fn fact(state: &State, content: &ContentBundle, f: &super::Fact) -> Vec<String> {
-    let n: &NarrativeState = &state.narrative;
     let r = crate::scheduler::Reads::of_state(state, content);
     let v = View::new(&r, &state.politics);
     let town = v.town_character();
@@ -132,15 +127,6 @@ pub fn fact(state: &State, content: &ContentBundle, f: &super::Fact) -> Vec<Stri
             } else {
                 bad("the rival is someone else".into())
             }
-        }
-        FactKind::StorylineStage { run, .. } => {
-            let Some(r) = n.storylines.iter().find(|x| x.id == *run) else {
-                return bad("no such storyline run".into());
-            };
-            if !cast::actors_exist(&v, &r.cast) {
-                return bad(format!("{}: a cast actor does not exist", r.template));
-            }
-            Vec::new()
         }
         FactKind::TownEvent { event } => match state.events.get(*event).map(|e| &e.kind) {
             Some(EventKind::PlantClosure { municipality, .. })

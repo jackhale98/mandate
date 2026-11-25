@@ -37,13 +37,18 @@ pub fn flooded(seed: u64) -> Game {
 }
 
 pub fn flood_arc_exits_idle_by_month_12(seed: u64) -> bool {
+    // The flood's own run: other arcs run in every game (the budget
+    // round, since A2).
+    const FLOOD: &str = "arc.flood";
     let mut a = flooded(seed);
     a.run_to(3, &[], &mut Vec::new());
-    if a.e.state().arcs.runs.is_empty() {
+    if !a.e.state().arcs.runs.iter().any(|r| r.template == FLOOD) {
         return false;
     }
     a.run_to(12, &[], &mut Vec::new());
-    a.e.state().arcs.past.len() == 1
+    let st = a.e.state();
+    st.arcs.past.iter().filter(|p| p.template == FLOOD).count() == 1
+        && !st.arcs.runs.iter().any(|r| r.template == FLOOD)
 }
 
 pub fn explorer_enacts_own_law(seed: u64) -> bool {

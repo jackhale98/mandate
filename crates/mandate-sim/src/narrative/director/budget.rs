@@ -36,15 +36,19 @@ pub fn curve(d: &DirectorParams, x: f64) -> f64 {
     }
 }
 
-/// Tension from the simulation alone (crisis, race, danger): what the
-/// exogenous levers read, so that the spotlight never changes chance.
+/// Tension from the simulation alone (the hottest arc or the worst
+/// crisis, the race, danger): what the exogenous levers read, so that the
+/// spotlight never changes chance. An arc's heat stands for its matter
+/// (STAGED_ARCS §1.6); a crisis that no arc tells yet still counts by its
+/// severity.
 pub(super) fn world_tension(v: &View<'_>, chapter: Option<&Chapter>) -> f64 {
     let t = &v.content().director.tension;
     let crisis = v
         .town_character()
         .and_then(|c| c.crisis())
         .map(|c| c.severity as f64)
-        .unwrap_or(0.0);
+        .unwrap_or(0.0)
+        .max(super::arcs::heat(v));
     let race = if v.campaigning() {
         0.5 + 0.5 * chapter.map(|c| c.progress(v.date())).unwrap_or(0.0)
     } else {
@@ -87,7 +91,7 @@ fn jitter(seed: u64, date: SimDate, key: &str, cast: &[CastEntry]) -> f64 {
 }
 
 /// Relevance (DEC-033): connection to the player, their ward, the live
-/// crisis, memories, storylines, pressure tracks, the coming election, and
+/// crisis, memories, running arcs, pressure tracks, the coming election, and
 /// the town's concerns; a template or person already spotlighted this
 /// chapter weighs less.
 pub(super) fn relevance(
@@ -105,7 +109,7 @@ pub(super) fn relevance(
             Reason::Crisis { severity, .. } => w.crisis * *severity as f64,
             Reason::Concern { .. } => w.concern,
             Reason::Election { .. } => w.election,
-            Reason::Storyline { .. } => w.storyline,
+            Reason::Arc { .. } => w.arc,
             Reason::Pressure { .. } => w.pressure,
             Reason::Ward => w.ward,
             Reason::Goal { .. } => w.player,
@@ -148,10 +152,11 @@ pub(super) fn relevance(
 /// Hades): story-carrying content is never starved by a generic template.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub enum Tier {
-    /// Storyline stages that are due, and consequences (`answered`) whose
-    /// window closes within `tier_a_window_days`.
+    /// Consequences (`answered`) whose window closes within
+    /// `tier_a_window_days`; for the lead, a material arc.
     A,
-    /// Templates of the chapter's theme.
+    /// Templates of the chapter's theme; for the lead, a standing arc of
+    /// this kind of chapter.
     B,
     /// The rest.
     C,

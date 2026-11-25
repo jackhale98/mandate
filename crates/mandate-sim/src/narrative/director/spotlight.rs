@@ -1,5 +1,6 @@
 //! Raising decisions and requests: gathering candidates, dilemmas, and the peak.
 
+use super::arcs::staged;
 use super::*;
 
 /// Decisions raised by a story about the player or an investigation of
@@ -85,7 +86,7 @@ pub(super) fn requests(
         let Some(rdef) = content.dilemma(rk) else {
             continue;
         };
-        if !available(n, d, rdef, date, false) {
+        if !available(n, d, rdef, date) {
             continue;
         }
         let Some(mut c) = evaluate(v, n, rdef, &[], Some(g.holder), &[]) else {
@@ -129,17 +130,10 @@ pub(super) fn requests(
 }
 
 /// May the spotlight present this template now (ENGAGEMENT §4.1, §4.7)?
-/// Its cooldown has passed (unless `relax_cooldowns`: the climax fallback),
-/// it is not pending, it was not spotlighted this chapter, and the career is
-/// old enough.
-fn available(
-    n: &NarrativeState,
-    d: &DirectorParams,
-    def: &DilemmaDef,
-    date: SimDate,
-    relax_cooldowns: bool,
-) -> bool {
-    if (!relax_cooldowns && n.cooldowns.get(&def.id).is_some_and(|x| *x > date))
+/// Its cooldown has passed, it is not pending, it was not spotlighted this
+/// chapter, and the career is old enough.
+fn available(n: &NarrativeState, d: &DirectorParams, def: &DilemmaDef, date: SimDate) -> bool {
+    if n.cooldowns.get(&def.id).is_some_and(|x| *x > date)
         || n.pending().any(|p| p.template == def.id)
     {
         return false;
@@ -162,52 +156,28 @@ pub(super) fn career_days(n: &NarrativeState, date: SimDate) -> u32 {
         .unwrap_or(0)
 }
 
-/// A template that was the climax in one of the last
-/// `climax_memory_chapters` chapters cannot be the climax again (nor, ever,
-/// the previous chapter's: the fallback relies on it).
-pub(super) fn climax_allowed(n: &NarrativeState, d: &DirectorParams, key: &str) -> bool {
-    let now = n.chapter.as_ref().map(|c| c.index).unwrap_or(0);
-    let memory = (d.climax_memory_chapters as u32).max(1);
-    !n.climaxes
-        .iter()
-        .any(|(ch, k)| k == key && now.saturating_sub(*ch) <= memory)
-}
-
 /// The dilemmas the spotlight could present now, with their tiers: not
-/// requests, storyline stages or raised decisions; available (cooldowns, no
-/// repeat, `min_career_days`). The climax's candidates skip the relevance
-/// floor and recent climaxes; the others must reach it. `relax_cooldowns`:
-/// the climax fallback (DEC-097 note), which waives template cooldowns only.
-pub(super) fn gather<'c>(
-    v: &View<'c>,
-    n: &NarrativeState,
-    climax: bool,
-    relax_cooldowns: bool,
-) -> Vec<Candidate<'c>> {
+/// requests, raised decisions, an arc's own (`arc_only`), or one a live
+/// run names as a beat; available (cooldowns, no repeat,
+/// `min_career_days`); at or above the relevance floor. None of them is a
+/// climax: a chapter's climax is its lead arc's turn (DEC-109).
+pub(super) fn gather<'c>(v: &View<'c>, n: &NarrativeState) -> Vec<Candidate<'c>> {
     let content = v.content();
     let d = &content.director;
     let date = v.date();
-    let staged: Vec<&str> = n
-        .active_runs()
-        .filter_map(|r| content.storyline(&r.template))
-        .flat_map(|s| s.stages.iter().filter_map(|st| st.decision.as_deref()))
-        .collect();
+    let staged = staged(v);
     let mut cands: Vec<Candidate<'_>> = Vec::new();
     for def in &content.dilemmas {
-        if def.category == DilemmaCategory::Request
-            || def.storyline_only
+        if def.category != DilemmaCategory::Significant
+            || def.arc_only
             || def.raised_by.is_some()
             || staged.contains(&def.id.as_str())
-            || !available(n, d, def, date, relax_cooldowns && climax)
-            // The fallback never takes a fourth use (`FALLBACK_MAX_USES`).
-            || (relax_cooldowns && n.uses.get(&def.id).copied().unwrap_or(0) > FALLBACK_MAX_USES)
-            || (climax && !climax_allowed(n, d, &def.id))
-            || (!climax && def.category == DilemmaCategory::Climax)
+            || !available(n, d, def, date)
         {
             continue;
         }
         if let Some(c) = evaluate(v, n, def, &[], None, &[])
-            && (climax || c.relevance >= d.min_relevance)
+            && c.relevance >= d.min_relevance
         {
             cands.push(c);
         }
@@ -215,9 +185,9 @@ pub(super) fn gather<'c>(
     cands
 }
 
-/// Without a pacing cycle (Unfiltered): the climax in its window, else a
-/// significant decision when the tension curve calls for one (or the chapter
-/// is short of its minimum), by the pick.
+/// Without a pacing cycle (Unfiltered): a significant decision when the
+/// tension curve calls for one (or the chapter is short of its minimum),
+/// by the pick.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn dilemmas(
     n: &mut NarrativeState,
@@ -235,25 +205,6 @@ pub(super) fn dilemmas(
         return;
     }
     let Some(ch) = n.chapter.clone() else { return };
-    // The climax: the pick among grounded situations in its window (it
-    // respects cooldowns; no relevance floor).
-    if climax_due(n, v, b) {
-        let mut cands = gather(v, n, true, false);
-        // The climax fallback, as at a climax peak (DEC-097 note).
-        let fallback = cands.is_empty();
-        if fallback {
-            cands = least_delayed(n, d, date, gather(v, n, true, true));
-        }
-        if let Some(c) = pick(v, n, cands, false, 2) {
-            let key = c.def.id.clone();
-            let base = fallback_cooldown(n, d, &c.def.id, c.def.cooldown_days);
-            open(n, v, out, c, Weight::Climax, None, None);
-            if fallback {
-                n.cooldowns.insert(key, date.add_days(base));
-            }
-        }
-        return;
-    }
     if !paced(ch.significant, b.sig_max, x) {
         return;
     }
@@ -264,21 +215,19 @@ pub(super) fn dilemmas(
     }
     // Opportunities arrive when the chapter is quiet (the director times them).
     let quiet = !shaped || actual < target;
-    let mut cands = gather(v, n, false, false);
-    cands.retain(|c| {
-        c.def.category == DilemmaCategory::Significant && (!c.def.opportunity || quiet || behind)
-    });
+    let mut cands = gather(v, n);
+    cands.retain(|c| !c.def.opportunity || quiet || behind);
     if let Some(c) = pick(v, n, cands, false, 3) {
         open(n, v, out, c, Weight::Significant, None, None);
     }
 }
 
-/// The peak (ENGAGEMENT §4.3): one significant decision, by tier (due
-/// storyline stages and closing consequences, the chapter's theme, the
-/// rest). A climax peak opens the chapter's climax. After the climax, the
-/// coda allows `post_climax_significant` decisions, and only consequences,
-/// opportunities, `budget` templates or storyline stages. The tension curve
-/// stays the envelope for dilemmas; storyline stages wait only for room.
+/// The peak (ENGAGEMENT §4.3): one significant decision, by tier (closing
+/// consequences, the chapter's theme, the rest). The climax peak is the
+/// lead arc's turn, whose decision the arc asked for (`narrative::offered`):
+/// this opens nothing in it. After the climax, the coda allows
+/// `post_climax_significant` decisions, and only consequences,
+/// opportunities or `budget` templates. The tension curve is the envelope.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn peak(
     n: &mut NarrativeState,
@@ -289,55 +238,18 @@ pub(super) fn peak(
     x: f64,
     target: f64,
     actual: f64,
-    due: &[usize],
 ) {
     let d = &v.content().director;
     let date = v.date();
     let Some(ph) = n
         .phase
         .clone()
-        .filter(|p| p.kind == PhaseKind::Peak && p.decision.is_none())
+        .filter(|p| p.kind == PhaseKind::Peak && p.decision.is_none() && !p.climax)
     else {
         return;
     };
     let Some(ch) = n.chapter.clone() else { return };
-    if n.pending().count() >= d.max_pending as usize {
-        return;
-    }
-    let spaced = can_decide(n, d, date);
-    if ph.climax && ch.kind == ChapterKind::Session && ch.climaxes < b.climax {
-        let mut cands = staged_all(v, n, due);
-        cands.retain(|c| climax_allowed(n, d, &c.def.id));
-        if spaced {
-            cands.extend(gather(v, n, true, false));
-        }
-        // The climax fallback (DEC-097 note, until E3 widens the pool):
-        // nothing is eligible, so template cooldowns are waived; climax
-        // memory, the last chapter's climax and no repeat in a chapter hold.
-        let fallback = cands.is_empty() && spaced;
-        if fallback {
-            cands = least_delayed(n, d, date, gather(v, n, true, true));
-        }
-        if let Some(c) = pick(v, n, cands, ph.eased, 2) {
-            let key = c.def.id.clone();
-            let base = fallback_cooldown(n, d, &c.def.id, c.def.cooldown_days);
-            if c.run.is_some() {
-                open_staged(n, v, out, c, Weight::Climax);
-            } else {
-                open(n, v, out, c, Weight::Climax, None, None);
-            }
-            // A borrowed climax cools the template for its base cooldown,
-            // not a grown one, so it does not leave the rest of the career.
-            if fallback {
-                n.cooldowns.insert(key, date.add_days(base));
-            }
-            if let Some(p) = n.phase.as_mut() {
-                p.climax_fallback = fallback;
-            }
-        }
-        return;
-    }
-    if ch.significant >= b.sig_max {
+    if n.pending().count() >= d.max_pending as usize || ch.significant >= b.sig_max {
         return;
     }
     // The coda: the first peak after the climax opens at most
@@ -346,33 +258,22 @@ pub(super) fn peak(
     if coda && d.post_climax_significant == 0 {
         return;
     }
-    let mut cands = staged_all(v, n, due);
     let shaped = profile.is_some_and(|p| p.tension_curve);
     let behind = x >= d.tension.catch_up_at && ch.significant < b.sig_min;
     let allowed = !shaped || behind || actual < target + d.tension.slack;
-    if spaced && allowed && paced(ch.significant, b.sig_max, x) {
-        let quiet = !shaped || actual < target;
-        let mut more = gather(v, n, false, false);
-        more.retain(|c| {
-            c.def.category == DilemmaCategory::Significant
-                && (!c.def.opportunity || quiet || behind || ph.eased)
-        });
-        cands.extend(more);
+    if !(can_decide(n, d, date) && allowed && paced(ch.significant, b.sig_max, x)) {
+        return;
     }
+    let quiet = !shaped || actual < target;
+    let mut cands = gather(v, n);
+    cands.retain(|c| !c.def.opportunity || quiet || behind || ph.eased);
     if coda {
         cands.retain(|c| {
-            c.run.is_some()
-                || c.def.opportunity
-                || is_consequence(c.def)
-                || c.def.themes.iter().any(|t| t == "budget")
+            c.def.opportunity || is_consequence(c.def) || c.def.themes.iter().any(|t| t == "budget")
         });
     }
     if let Some(c) = pick(v, n, cands, ph.eased, 3) {
-        if c.run.is_some() {
-            open_staged(n, v, out, c, Weight::Significant);
-        } else {
-            open(n, v, out, c, Weight::Significant, None, None);
-        }
+        open(n, v, out, c, Weight::Significant, None, None);
     }
 }
 

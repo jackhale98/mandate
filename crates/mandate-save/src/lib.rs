@@ -28,8 +28,10 @@ pub const MAGIC: &[u8; 4] = b"MNDT";
 /// spine (S1): typed causes on every event, thread heads, the pruning rule;
 /// and a politician's last post held (M6 note 16). v27: staged arcs (A1,
 /// DEC-109): the arcs domain, the run a decision or an ask belongs to, arc
-/// events on the spine, and repairs running faster on request.
-pub const SAVE_FORMAT_VERSION: u16 = 27;
+/// events on the spine, and repairs running faster on request. v28: the
+/// director on arcs (A2, DEC-109): storylines folded into arcs, a run's
+/// turn, a chapter's lead, changes voted into the next budget.
+pub const SAVE_FORMAT_VERSION: u16 = 28;
 /// Refuse to inflate payloads larger than this (corrupt or hostile files).
 pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024 * 1024;
 
@@ -240,6 +242,9 @@ pub fn migrate(from: u16, value: serde_json::Value) -> Result<serde_json::Value,
         // Staged arcs (A1, DEC-109): v26 → v27. Renumber only this key if
         // another bump merges first.
         (26, staged_arcs),
+        // Storylines folded into arcs (A2, DEC-109): v27 → v28. Renumber
+        // only this key if another bump merges first.
+        (27, storylines_to_arcs),
     ];
     let mut value = value;
     let mut v = from;
@@ -987,13 +992,367 @@ fn last_post_held(value: &mut serde_json::Value) -> Result<(), SaveError> {
 /// What the first turn after loading does is the simulation's, not the
 /// migration's: a matter already under way (a flood within the month)
 /// raises its arc at the next weekly step, at the stage the world is at.
-/// Running storylines stay storylines until task A2 folds them into arcs.
+/// Running storylines stay storylines until the next step folds them into
+/// arcs ([`storylines_to_arcs`]).
 fn staged_arcs(value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
     let state = value.get("state").ok_or(SaveError::Malformed)?;
     if state.get("arcs").is_some() {
         return Err(SaveError::Data(
             "a save older than v27 cannot hold arc runs".into(),
         ));
+    }
+    Ok(value)
+}
+
+/// What a storyline of the v27 pack became (the pack as it shipped then:
+/// `storylines.jsonc` is gone, so the table lives here).
+struct FoldedStoryline {
+    storyline: &'static str,
+    arc: &'static str,
+    /// The arc's heat as a run is raised.
+    heat: f64,
+    /// The storyline's stages a run can rest at; the arc has stages of
+    /// the same ids. (Its endings are reached and over in one step.)
+    stages: &'static [&'static str],
+    /// The arc's turn, among them.
+    turn: &'static str,
+    /// A stage's decision: (dilemma, stage, the arc's beat).
+    decisions: &'static [(&'static str, &'static str, &'static str)],
+    /// What an answer set: (dilemma, option, mark).
+    marks: &'static [(&'static str, &'static str, &'static str)],
+}
+
+const FOLDED: [FoldedStoryline; 3] = [
+    FoldedStoryline {
+        storyline: "storyline.rival",
+        arc: "arc.rival",
+        heat: 0.3,
+        stages: &["shadow", "offer", "pact", "showdown"],
+        turn: "showdown",
+        decisions: &[
+            ("dilemma.rival_offer", "offer", "terms"),
+            ("dilemma.debate_challenge", "showdown", "debate"),
+        ],
+        marks: &[
+            ("dilemma.rival_offer", "truce", "pact"),
+            ("dilemma.rival_offer", "refuse", "refused"),
+            ("dilemma.debate_challenge", "accept", "debated"),
+        ],
+    },
+    FoldedStoryline {
+        storyline: "storyline.favour_debt",
+        arc: "arc.favour_debt",
+        heat: 0.1,
+        stages: &["debt", "reminder", "called_in"],
+        turn: "called_in",
+        decisions: &[("dilemma.favour_called_in", "called_in", "call")],
+        marks: &[
+            ("dilemma.favour_called_in", "pay_back", "paid"),
+            ("dilemma.favour_called_in", "refuse", "refused"),
+            ("dilemma.favour_called_in", "dodge", "dodged"),
+        ],
+    },
+    FoldedStoryline {
+        storyline: "storyline.plant_closure",
+        arc: "arc.plant_closure",
+        heat: 0.3,
+        stages: &["layoffs", "walkout", "organising"],
+        turn: "organising",
+        decisions: &[
+            ("dilemma.plant_layoffs", "layoffs", "sides"),
+            ("dilemma.workers_campaign", "organising", "campaign"),
+        ],
+        marks: &[
+            ("dilemma.plant_layoffs", "back_owner", "with_owner"),
+            ("dilemma.plant_layoffs", "back_workers", "with_workers"),
+            ("dilemma.plant_layoffs", "broker_talks", "brokered"),
+            ("dilemma.workers_campaign", "march", "marched"),
+            ("dilemma.workers_campaign", "statement", "spoke"),
+        ],
+    },
+];
+
+/// v27 → v28 (A2, DEC-109, `docs/design/STAGED_ARCS.md` §1): storylines
+/// fold into arcs, and the director times arcs and nothing else.
+///
+/// - **A running storyline becomes a run of its arc at the stage of the
+///   same id:** the last stage it reached (its first, if it had reached
+///   none), in the player's town, with its cast, the marks its answered
+///   decisions set, those decisions as beats done, and a decision still
+///   waiting on the player as the beat it now belongs to (`Decision::arc`).
+///   A storyline whose stage the arc lacks, or whose template is unknown,
+///   ends there (it faded). Ended storylines are not kept.
+/// - **The narrative loses its storyline state:** `storylines`, `run_ids`,
+///   `follow_ups`; a decision's `storyline`; the storyline facts of the
+///   facts log; the fallback flag of a phase. A storyline's cooldown
+///   becomes its arc's in the town; a `storyline` reason becomes an `arc`
+///   reason; its use count carries to the arc.
+/// - The log's `storyline_stage` events stay as they are (the engine still
+///   reads the kind, and words them plainly).
+///
+/// What a v28 build adds beyond that needs no rewriting: a run's turn and
+/// a chapter's lead are absent until set, and no treasury holds a vote.
+fn storylines_to_arcs(mut value: serde_json::Value) -> Result<serde_json::Value, SaveError> {
+    use serde_json::{Value, json};
+    let state = value
+        .get_mut("state")
+        .and_then(|s| s.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    // The player's town: where a storyline ran (the narrative read no
+    // other place), and so where its arc runs.
+    let home = state
+        .get("player")
+        .and_then(|p| p.get("municipality"))
+        .and_then(|m| m.as_u64());
+    let at = home.map(|m| json!({ "type": "municipality", "id": m }));
+    if state.get("narrative").is_none_or(|n| !n.is_object()) {
+        // No narrative domain: nothing to fold.
+        return Ok(value);
+    }
+    let mut arcs = match state.remove("arcs") {
+        Some(Value::Object(a)) => a,
+        Some(Value::Null) | None => serde_json::Map::new(),
+        Some(_) => return Err(SaveError::Malformed),
+    };
+    let mut next_id = arcs
+        .get("ids")
+        .and_then(|i| i.get("next"))
+        .and_then(|n| n.as_u64())
+        .unwrap_or(0);
+    let mut runs: Vec<Value> = match arcs.remove("runs") {
+        Some(Value::Array(r)) => r,
+        _ => Vec::new(),
+    };
+    let mut cooldowns: Vec<Value> = match arcs.remove("cooldowns") {
+        Some(Value::Array(c)) => c,
+        _ => Vec::new(),
+    };
+    let n = state
+        .get_mut("narrative")
+        .and_then(|n| n.as_object_mut())
+        .ok_or(SaveError::Malformed)?;
+    let storylines = match n.remove("storylines") {
+        Some(Value::Array(s)) => s,
+        _ => Vec::new(),
+    };
+    n.remove("run_ids");
+    n.remove("follow_ups");
+    // The decisions of each storyline run, before the field goes.
+    let mut decisions = match n.remove("decisions") {
+        Some(Value::Array(d)) => d,
+        _ => Vec::new(),
+    };
+    let mut folded = 0u32;
+    for run in &storylines {
+        if !run.get("ended").is_none_or(|e| e.is_null()) {
+            continue;
+        }
+        let (Some(id), Some(at)) = (run.get("id").and_then(|x| x.as_u64()), at.as_ref()) else {
+            continue;
+        };
+        let template = run.get("template").and_then(|t| t.as_str()).unwrap_or("");
+        let Some(f) = FOLDED.iter().find(|f| f.storyline == template) else {
+            continue;
+        };
+        let reached = run.get("stages").and_then(|s| s.as_array());
+        let last = reached.and_then(|s| s.last());
+        let stage = match last.and_then(|x| x.get(0)).and_then(|x| x.as_str()) {
+            None => f.stages[0],
+            Some(sid) => match f.stages.iter().find(|x| **x == sid) {
+                Some(x) => x,
+                // An ending, or a stage the arc lacks: it faded.
+                None => continue,
+            },
+        };
+        let since = last
+            .and_then(|x| x.get(1))
+            .cloned()
+            .or_else(|| run.get("since").cloned())
+            .unwrap_or(Value::Null);
+        let started = run.get("started").cloned().unwrap_or(since.clone());
+        let cast: Vec<Value> = run
+            .get("cast")
+            .and_then(|c| c.as_array())
+            .map(|c| {
+                c.iter()
+                    .filter_map(|e| {
+                        let role = e.get("role")?.clone();
+                        let a = e.get("actor")?;
+                        let actor = match a.get("type")?.as_str()? {
+                            "person" => json!({ "type": "person", "id": a.get("id")? }),
+                            "neighborhood" => json!({
+                                "type": "area",
+                                "area": { "type": "hood", "id": a.get("id")? },
+                            }),
+                            _ => return None,
+                        };
+                        Some(json!({ "role": role, "actor": actor }))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let arc_id = next_id;
+        next_id += 1;
+        let mut marks: Vec<&str> = Vec::new();
+        let mut done: Vec<Value> = Vec::new();
+        let mut open: Vec<Value> = Vec::new();
+        for d in decisions.iter_mut() {
+            if d.get("storyline").and_then(|x| x.as_u64()) != Some(id) {
+                continue;
+            }
+            let dilemma = d.get("template").and_then(|t| t.as_str()).unwrap_or("");
+            let Some((_, at_stage, beat)) = f.decisions.iter().find(|x| x.0 == dilemma) else {
+                continue;
+            };
+            let beat = json!({ "stage": at_stage, "beat": beat });
+            let status = d.get("status").and_then(|x| x.as_str()).unwrap_or("");
+            if status == "pending" {
+                // Still waiting on the player: the run's open beat.
+                if *at_stage == stage {
+                    open.push(beat.clone());
+                    if let Some(o) = d.as_object_mut() {
+                        o.insert("arc".into(), json!({ "run": arc_id, "beat": beat }));
+                    }
+                }
+                continue;
+            }
+            let res = d.get("resolution");
+            let on = res
+                .and_then(|r| r.get("date"))
+                .cloned()
+                .or_else(|| d.get("opened").cloned())
+                .unwrap_or(Value::Null);
+            done.push(json!({ "beat": beat, "on": on }));
+            let option = res
+                .and_then(|r| r.get("option"))
+                .and_then(|x| x.as_str())
+                .unwrap_or("");
+            if matches!(status, "answered" | "defaulted")
+                && let Some((_, _, mark)) = f.marks.iter().find(|x| x.0 == dilemma && x.1 == option)
+                && !marks.contains(mark)
+            {
+                marks.push(*mark);
+            }
+        }
+        marks.sort_unstable();
+        let mut arc = json!({
+            "id": arc_id,
+            "template": f.arc,
+            "at": at,
+            "cast": cast,
+            "stage": stage,
+            "since": since,
+            "started": started,
+            "began": started,
+            "clock": null,
+            "heat": f.heat,
+            "marks": marks,
+            "done": done,
+            "open": open,
+            "base": [],
+            "root": null,
+        });
+        if stage == f.turn
+            && let Some(o) = arc.as_object_mut()
+        {
+            o.insert("turn".into(), json!({ "stage": stage, "on": since }));
+        }
+        runs.push(arc);
+        folded += 1;
+    }
+    // A decision no longer names a storyline; its reason names the arc.
+    for d in decisions.iter_mut() {
+        let Some(o) = d.as_object_mut() else { continue };
+        o.remove("storyline");
+        if let Some(Value::Array(rs)) = o.get_mut("reasons") {
+            for r in rs.iter_mut() {
+                if r.get("type").and_then(|t| t.as_str()) != Some("storyline") {
+                    continue;
+                }
+                let arc = r
+                    .get("storyline")
+                    .and_then(|s| s.as_str())
+                    .and_then(|s| FOLDED.iter().find(|f| f.storyline == s))
+                    .map(|f| f.arc);
+                *r = match arc {
+                    Some(a) => json!({ "type": "arc", "arc": a }),
+                    None => json!({ "type": "opportunity" }),
+                };
+            }
+        }
+    }
+    n.insert("decisions".into(), Value::Array(decisions));
+    if let Some(Value::Array(facts)) = n.get_mut("facts") {
+        facts.retain(|f| {
+            !matches!(
+                f.pointer("/kind/type").and_then(|t| t.as_str()),
+                Some("storyline_stage" | "storyline_ended")
+            )
+        });
+    }
+    // A storyline's cooldown is its arc's in the town; its uses carry over.
+    if let Some(Value::Array(cds)) = n.get_mut("cooldowns") {
+        let mut keep = Vec::new();
+        for c in cds.drain(..) {
+            let key = c.get(0).and_then(|k| k.as_str()).unwrap_or("");
+            match (FOLDED.iter().find(|f| f.storyline == key), at.as_ref()) {
+                (Some(f), Some(at)) => cooldowns.push(json!({
+                    "template": f.arc,
+                    "at": at,
+                    "until": c.get(1).cloned().unwrap_or(Value::Null),
+                })),
+                (Some(_), None) => {}
+                (None, _) => keep.push(c),
+            }
+        }
+        *cds = keep;
+    }
+    if let Some(Value::Array(uses)) = n.get_mut("uses") {
+        for u in uses.iter_mut() {
+            let arc = u
+                .get(0)
+                .and_then(|k| k.as_str())
+                .and_then(|k| FOLDED.iter().find(|f| f.storyline == k))
+                .map(|f| f.arc);
+            if let (Some(a), Some(pair)) = (arc, u.as_array_mut()) {
+                pair[0] = json!(a);
+            }
+        }
+        uses.sort_by(|a, b| {
+            let k = |x: &Value| x.get(0).and_then(|k| k.as_str()).unwrap_or("").to_string();
+            k(a).cmp(&k(b))
+        });
+    }
+    let mut strip = |p: &mut Value| {
+        if let Some(o) = p.as_object_mut() {
+            o.remove("climax_fallback");
+        }
+    };
+    if let Some(p) = n.get_mut("phase") {
+        strip(p);
+    }
+    if let Some(Value::Array(log)) = n.get_mut("phase_log") {
+        log.iter_mut().for_each(&mut strip);
+    }
+    // The arcs domain is written only when it holds something.
+    cooldowns.sort_by(|a, b| {
+        let k = |x: &Value| {
+            (
+                x.get("template")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                x.pointer("/at/id").and_then(|i| i.as_u64()).unwrap_or(0),
+            )
+        };
+        k(a).cmp(&k(b))
+    });
+    if folded > 0 || !arcs.is_empty() || !runs.is_empty() || !cooldowns.is_empty() {
+        arcs.insert("runs".into(), Value::Array(runs));
+        arcs.insert("ids".into(), json!({ "next": next_id }));
+        arcs.insert("cooldowns".into(), Value::Array(cooldowns));
+        arcs.entry("past").or_insert_with(|| json!([]));
+        state.insert("arcs".into(), Value::Object(arcs));
     }
     Ok(value)
 }

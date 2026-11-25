@@ -245,34 +245,15 @@ scene-donor-donor-fresh = "I've been watching your work. I'd like to help."
 scene-rival-rival = "{ $memory } Let's keep this civil until the count."
 scene-rival-rival-fresh = "We don't need to tear each other apart. Not yet."
 
-## Storylines
-story-plant = The plant
-story-plant-faded = The fight over the plant faded from the headlines.
-story-plant-layoffs = The plant began laying people off, and { $steward } and { $owner } came looking for allies.
-story-plant-walkout = With you on { $owner }'s side, { $steward } called a walkout.
-story-plant-organising = { $steward } began organising the laid-off workers.
-story-plant-resolution = The job losses slowed. The town remembers who stood where.
-story-rival = The rival
-story-rival-faded = The rivalry with { $rival } cooled.
-story-rival-shadow = The campaign opened, and { $rival } started turning up wherever you went.
-story-rival-offer = { $rival } made you an offer.
-story-rival-pact = The pact with { $rival } held.
-story-rival-showdown = With the vote close, { $rival } wanted a showdown.
-story-rival-verdict = The voters gave their verdict on you and { $rival }.
-story-favour = The favour
-story-favour-faded = The favour you owed { $creditor } was settled another way.
-story-favour-debt = You owe { $creditor } a favour.
-story-favour-reminder = { $creditor } reminded you, pleasantly, of what you owe.
-story-favour-called-in = { $creditor } called the favour in.
-story-favour-repaid = You paid { $creditor } back.
-story-favour-burned = You burned { $creditor }.
+## Storylines are arcs now (DEC-109): their lines are in arcs.ftl (`arc-rival-*`,
+## `arc-favour-*`, `arc-plant-*`).
 
 ## Director events and developments (the story so far)
 event-decision-opened = A decision awaits you: { $title }.
 event-decision-answered = You decided on { $title }.
 event-decision-defaulted = Time ran out on { $title }.
 event-decision-lapsed = The moment passed on { $title }.
-event-storyline-advanced = { $title }: a new chapter.
+event-storyline-advanced = A storyline moved on.
 event-development-crisis = { $town } faces a crisis: { $crisis }.
 event-development-crisis-worse = The crisis in { $town } is getting worse: { $crisis }.
 event-development-goal = { $name } ({ $role }): { $goal }.

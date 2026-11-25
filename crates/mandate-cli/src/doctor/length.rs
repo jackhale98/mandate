@@ -151,13 +151,6 @@ pub(super) fn length_checks(b: &ContentBundle, args: &DoctorArgs, out: &mut Out)
             body(&mut checks, &d.id, &o.aftermath_key);
         }
     }
-    for s in &b.storylines {
-        title(&mut checks, &s.id, &s.title_key);
-        line(&mut checks, &s.id, &s.faded_key);
-        for st in &s.stages {
-            line(&mut checks, &s.id, &st.key);
-        }
-    }
     for sc in &b.scenes {
         for beat in &sc.beats {
             line(&mut checks, &sc.id, &beat.line);

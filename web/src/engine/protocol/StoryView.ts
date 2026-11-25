@@ -5,7 +5,7 @@ import type { EventView } from "./EventView";
 import type { StorylineView } from "./StorylineView";
 
 /**
- * The story so far: chapter and tension, storylines, and what happened.
+ * The story so far: chapter and tension, the arcs, and what happened.
  */
 export type StoryView = { profile_key: string, chapter: ChapterView | null, chapters: Array<ChapterView>, 
 /**

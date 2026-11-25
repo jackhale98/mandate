@@ -10,8 +10,6 @@ pub(crate) struct Candidate<'c> {
     pub(crate) relevance: f64,
     pub(crate) goal: Option<(CharacterId, String)>,
     pub(crate) tier: Tier,
-    /// A storyline stage's decision: the run (index into `storylines`).
-    pub(crate) run: Option<usize>,
 }
 
 /// Roles an `answered` trigger carries over (`same_cast`), from the newest
@@ -113,7 +111,6 @@ pub(crate) fn evaluate<'c>(
         relevance,
         goal: None,
         tier,
-        run: None,
     })
 }
 
@@ -132,7 +129,7 @@ pub(super) fn pick<'c>(
         return None;
     }
     let d = &v.content().director;
-    cands.sort_by(|a, b| a.def.id.cmp(&b.def.id).then(a.run.cmp(&b.run)));
+    cands.sort_by(|a, b| a.def.id.cmp(&b.def.id));
     let items: Vec<Pickable> = cands
         .iter()
         .map(|c| Pickable {
@@ -277,8 +274,8 @@ mod tests {
 
     #[test]
     fn tier_a_is_drawn_before_b_and_c() {
-        // A storyline stage of low relevance beats a themed template and a
-        // generic one of high relevance (story-carrying content first).
+        // A closing consequence of low relevance beats a themed template and
+        // a generic one of high relevance (story-carrying content first).
         let items = [
             item(Tier::C, 3.0, false, 0),
             item(Tier::B, 2.5, false, 0),

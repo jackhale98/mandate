@@ -1,6 +1,6 @@
 // The content workbench's designer page (owner, 2026-11-19), dev builds
 // only (`?dev=1` under `npm run dev`, or a `vite build --mode devtools`
-// bundle). It lists every dilemma, situational policy, storyline, scene,
+// bundle). It lists every dilemma, situational policy, scene,
 // overheard line, conversation topic, line and voice, says whether each
 // could fire right now and why (the engine's evaluators, as a tree with the
 // values they read), and previews its text with its real arguments.

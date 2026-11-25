@@ -5,12 +5,19 @@
 //! take the first edge that holds. It reads through `Reads`, writes
 //! [`ArcsState`], and posts effect requests and events.
 //!
+//! A decision beat is asked of the director by listing it in the run's
+//! `open`: the director presents it within its budgets
+//! (`narrative::offered`), and the run reads the answer from the decision
+//! that names it. An ask beat is a request to the asks (`OfferAsk`).
+//!
 //! It runs early in the day (the NPC actions phase), so everything a run
 //! asks of another domain is applied by that domain's own system the same
 //! day, and nothing waits outside the state between advances.
 
 use super::effects::{self, post};
-use super::{ArcCooldown, ArcId, ArcRef, ArcRun, ArcsState, BeatRef, EXIT_REMOVED, beat_of, cast};
+use super::{
+    ArcCooldown, ArcId, ArcRef, ArcRun, ArcTurn, ArcsState, BeatRef, EXIT_REMOVED, beat_of, cast,
+};
 use crate::asks::AskStatus;
 use crate::condition::{Args, Ctx};
 use crate::events::{EventId, EventKind};
@@ -21,7 +28,7 @@ use crate::spine::{Cause, Link, PlayerAct, Process, Thread};
 use crate::state::GamePhase;
 use crate::world::Jurisdiction;
 use mandate_content::Condition;
-use mandate_content::arcs::{ArcBeat, ArcDef, BeatKind, BeatWeight, GatedEffect, StageDef};
+use mandate_content::arcs::{ArcBeat, ArcDef, BeatKind, GatedEffect, StageDef};
 use mandate_core::{Cadence, SimDate, Stream};
 
 /// The evaluator's context for a run: its jurisdiction, its people as
@@ -43,8 +50,14 @@ pub(crate) fn holds(v: &View<'_>, run: &ArcRun, people: &[CastEntry], cs: &[Cond
     crate::condition::all_hold(&cx, cs, &mut Args::new())
 }
 
-fn active(r: &Reads<'_>) -> bool {
-    !r.content.arcs.is_empty() && r.player.is_some() && r.calendar.phase != GamePhase::BurnIn
+/// The step runs while there is a player, play is on, and there is
+/// something to do: arc content to raise, or a run in progress (one whose
+/// template an update removed ends at its next step, even when the pack
+/// has no arc left).
+fn active(a: &ArcsState, r: &Reads<'_>) -> bool {
+    (!r.content.arcs.is_empty() || !a.runs.is_empty())
+        && r.player.is_some()
+        && r.calendar.phase != GamePhase::BurnIn
 }
 
 /// Arcs domain, NPC actions phase, daily: requests held for a monthly
@@ -56,7 +69,7 @@ pub fn daily(a: &mut ArcsState, r: &Reads<'_>, out: &mut Outs<'_>) {
             out.effects.push_request(q);
         }
     }
-    if !active(r) || Cadence::Weekly.hits(r.date) {
+    if !active(a, r) || Cadence::Weekly.hits(r.date) {
         return;
     }
     if a.runs.iter().any(|x| x.clock == Some(r.date)) {
@@ -66,7 +79,7 @@ pub fn daily(a: &mut ArcsState, r: &Reads<'_>, out: &mut Outs<'_>) {
 
 /// Arcs domain, NPC actions phase, weekly.
 pub fn weekly(a: &mut ArcsState, r: &Reads<'_>, out: &mut Outs<'_>) {
-    if !active(r) {
+    if !active(a, r) {
         return;
     }
     run_all(a, r, out, true);
@@ -143,6 +156,10 @@ fn tick(
         }
         settle(deferred, run, def, v, out);
         offer(deferred, run, def, stage, v, out);
+    } else {
+        // The clock runs out today: what was answered since the week's
+        // step counts before the edge is taken.
+        settle(deferred, run, def, v, out);
     }
     edges(deferred, run, def, v, out)
 }
@@ -199,8 +216,14 @@ fn enter(
     let today = v.date();
     run.stage = stage.id.clone();
     run.since = today;
-    if let Some([lo, hi]) = stage.clock.as_ref().and_then(|c| c.days) {
-        let d = mandate_core::rng::keyed(
+    if stage.climax && run.turn.is_none() {
+        run.turn = Some(ArcTurn {
+            stage: stage.id.clone(),
+            on: today,
+        });
+    }
+    if let Some(c) = &stage.clock {
+        let mut draw = mandate_core::rng::keyed(
             v.r.meta.seed,
             Stream::Misc,
             &[
@@ -208,9 +231,66 @@ fn enter(
                 run.id.0 as u64,
                 mandate_core::hash::derive_u64(&stage.id, &[]),
             ],
-        )
-        .range_i64(lo as i64, hi as i64);
-        run.clock = Some(today.add_days(d as u32));
+        );
+        // The dates the content allows: so many days from today, so many
+        // before the jurisdiction's budget year turns, or where the two
+        // overlap (else the first day `days` allows).
+        let by_days = c
+            .days
+            .map(|[lo, hi]| (today.add_days(lo), today.add_days(hi)));
+        let by_year = c.before_budget_year.map(|[least, most]| {
+            let turns = crate::finance::budget_year_turns(run.at, today);
+            let hi = SimDate(turns.0.saturating_sub(least)).max(today.add_days(1));
+            let lo = SimDate(turns.0.saturating_sub(most)).max(today.add_days(1));
+            (lo.min(hi), hi)
+        });
+        let range = match (by_days, by_year) {
+            (Some((a, b)), Some((c, d))) => {
+                let (lo, hi) = (a.max(c), b.min(d));
+                Some(if lo <= hi { (lo, hi) } else { (a, a) })
+            }
+            (x, y) => x.or(y),
+        };
+        match range {
+            // A director-owned clock (DEC-033 B): inside the content's
+            // range, and where the chapter wants its turn if it can be.
+            Some((lo, hi)) if c.placed => {
+                let lead = def
+                    .stages
+                    .iter()
+                    .flat_map(|s| s.next.iter())
+                    .filter(|e| def.stage(&e.to).is_some_and(|t| t.climax))
+                    .filter_map(|e| e.clock_within_days)
+                    .max()
+                    .unwrap_or(0);
+                let (date, placed) =
+                    crate::narrative::director::place_clock(v, lo, hi, lead, draw.next_f64());
+                run.clock = Some(date);
+                if placed {
+                    out.events.record(
+                        today,
+                        EventKind::DirectorIntervention {
+                            lever: "arc_clock".into(),
+                            municipality: run
+                                .at
+                                .municipality()
+                                .map(|m| m.0)
+                                .or(v.town())
+                                .unwrap_or(0),
+                        },
+                        Cause::Process(Process::Director),
+                    );
+                }
+            }
+            Some((lo, hi)) => {
+                let d = draw.range_i64(
+                    i64::from(today.days_until(lo)),
+                    i64::from(today.days_until(hi)),
+                );
+                run.clock = Some(today.add_days(d as u32));
+            }
+            None => {}
+        }
     }
     let facts = cast::facts(v, def, run);
     let (kind, list): (EventKind, &[GatedEffect]) = match &stage.exit {
@@ -326,9 +406,12 @@ fn settle(
                         .iter()
                         .find(|d| d.arc.as_ref() == Some(&aref));
                 let Some(d) = found else {
-                    // Not opened (or gone from the history): once more
-                    // while its stage lasts.
-                    reoffer(deferred, run, &b, beat, v, out);
+                    // Not presented yet (the director's timing), or gone
+                    // from the history: it stays asked while its stage
+                    // lasts.
+                    if run.stage != b.stage || !player_active(v) {
+                        run.open.retain(|x| x != &b);
+                    }
                     continue;
                 };
                 match d.status {
@@ -433,25 +516,13 @@ fn prompted(out: &Outs<'_>, run: ArcId) -> Cause {
     )
 }
 
-/// The request that opens a decision or an ask beat with the run's cast.
+/// The request that offers an ask beat with the run's cast.
 fn request_of(run: &ArcRun, b: &BeatRef, beat: &ArcBeat) -> Option<Effect> {
     let arc = ArcRef {
         run: run.id,
         beat: b.clone(),
     };
     match &beat.kind {
-        BeatKind::Decision {
-            dilemma, weight, ..
-        } => Some(Effect::OpenDecision {
-            template: dilemma.clone(),
-            cast: run.narrative_cast(),
-            weight: match weight {
-                BeatWeight::Climax => crate::narrative::Weight::Climax,
-                BeatWeight::Significant => crate::narrative::Weight::Significant,
-                BeatWeight::Minor => crate::narrative::Weight::Minor,
-            },
-            arc,
-        }),
         BeatKind::Ask { template, asker } => Some(Effect::OfferAsk {
             template: template.clone(),
             asker: run.person(asker)?,
@@ -524,7 +595,13 @@ fn offer(
             continue;
         }
         match &beat.kind {
-            BeatKind::Decision { .. } | BeatKind::Ask { .. } => {
+            // Asked of the director, who presents it (`narrative::offered`).
+            BeatKind::Decision { .. } => {
+                if player_active(v) {
+                    run.open.push(b);
+                }
+            }
+            BeatKind::Ask { .. } => {
                 // Nothing is put to a player who cannot act (prison).
                 if !player_active(v) {
                     continue;
@@ -627,9 +704,11 @@ fn root_event(
 /// raised again, whatever its cooldown.
 const MIN_COOLDOWN_DAYS: u32 = 28;
 
-/// Raise and cast new runs in the focus jurisdictions. Until the director
-/// schedules arcs (task A2): as soon as a template's `raise` holds, and at
-/// most one run per jurisdiction.
+/// Raise and cast new runs in the focus jurisdictions, as soon as a
+/// template's `raise` holds: one run a template in a jurisdiction, and at
+/// most `director.arcs_active` there, standing arcs aside (the world does
+/// not wait, but nobody follows a third matter at once: its owning system
+/// resolves it by its own rule).
 fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
     let Some(pl) = v.player() else { return };
     let content = v.content();
@@ -640,12 +719,24 @@ fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
     } else {
         0
     };
+    let cap = usize::from(content.director.arcs_active);
     for at in pl.focus() {
-        if a.at(at).is_some() {
-            continue;
-        }
         for def in &content.arcs {
             if !def.tiers.contains(&at.tier()) || career < def.min_career_days {
+                continue;
+            }
+            if a.at(at).any(|x| x.template == def.id) {
+                continue;
+            }
+            let others = a
+                .at(at)
+                .filter(|x| {
+                    content
+                        .arc(&x.template)
+                        .is_none_or(|d| d.standing.is_none())
+                })
+                .count();
+            if def.standing.is_none() && others >= cap {
                 continue;
             }
             if a.cooldowns
@@ -699,6 +790,8 @@ fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
                 done: Vec::new(),
                 open: Vec::new(),
                 root: root.map(|r| r.0),
+                turn: None,
+                before: a.last_turn(&def.id, at).map(String::from),
             };
             // A matter too small to tell raises nothing (`given`).
             if !holds(v, &run, &run.narrative_cast(), &def.given) {
@@ -732,7 +825,6 @@ fn raise(a: &mut ArcsState, v: &View<'_>, out: &mut Outs<'_>) {
                 Some(x) => end(a, v.r, run, &x),
                 None => a.runs.push(run),
             }
-            break;
         }
     }
 }
