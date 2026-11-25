@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { officeFigures, openPeople, showPlaces } from "./pocket";
+import { officeFigures, openPeople, openPocket, showPlaces } from "./pocket";
 
 // Who can be talked to, at a glance (DEC-093): every person's name tag in the
 // street and in rooms carries a pixel marker, a bubble with dots ("can talk")
@@ -98,14 +98,16 @@ test("talk markers: everyone to talk to in the street and in a room has a marker
   await shot(page, info, "room-markers");
 });
 
-test("the Notebook's People: key figures pinned, each with Talk (the dialogue opens) and Go to them; the pocket has four tabs", async ({ page }, info) => {
+test("the Notebook's People: everyone in office, each opened with Talk (the dialogue opens) and Go to them; the Notebook has four tabs", async ({ page }, info) => {
   await start(page, "7311");
   const pocket = await openPeople(page);
-  await expect(pocket.getByRole("tablist").first().getByRole("tab")).toHaveCount(4);
+  await expect(pocket.getByRole("tablist", { name: "Notebook" }).getByRole("tab")).toHaveCount(4);
   const key = pocket.getByTestId("notebook-key-figures");
-  await expect(key.getByRole("heading", { name: "Key figures" })).toBeVisible();
-  // The rival is always known by name (DEC-091); the members of the body are pinned too.
-  await expect(key.getByText("Your rival").first()).toBeVisible();
+  await expect(key.getByRole("heading", { name: "In office" })).toBeVisible();
+  // The rival is always known by name (DEC-091), on the Town tab's card, once.
+  await openPocket(page, "town");
+  await expect(pocket.getByTestId("town-rival").getByRole("button").first()).toBeVisible();
+  await openPeople(page);
   const office = officeFigures(pocket);
   expect(await office.count()).toBeGreaterThan(1);
   const first = office.first();

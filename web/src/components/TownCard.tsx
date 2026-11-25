@@ -1,23 +1,27 @@
-// The pocket's Town tab (DEC-088 main screen; DEC-077 §1): the town's
-// character (industry, crisis, who runs things, the rival and their plan,
-// priorities), its headline numbers, its neighbourhoods and the latest news.
-// Everything is as the player knows it (DEC-091): the engine redacts what is
-// not known yet and the placeholders here say so, with a lead where there is
-// one (./Knowing). The UI never decides what is known.
+// The Notebook's Town tab (DEC-113; DEC-077 §1): the town's character
+// (industry, crisis, who runs things, the rival and their plan, priorities),
+// its headline numbers, gossip, the loose ends the player picked up and the
+// latest news, each once. Everything is as the player knows it (DEC-091): what
+// is not known is simply not listed (no placeholders, nothing counted); a lead
+// shows on the thing it is about, and those picked up in conversation are
+// together under "Loose ends". The neighbourhoods are rows in Places. The UI
+// never decides what is known.
+import type { ArcLeadView } from "../engine/protocol/ArcLeadView";
+import type { LeadView } from "../engine/protocol/LeadView";
 import type { PersonRefView } from "../engine/protocol/PersonRefView";
 import type { PocketView } from "../engine/protocol/PocketView";
 import type { RivalPlanView } from "../engine/protocol/RivalPlanView";
 import type { TownCharacterView } from "../engine/protocol/TownCharacterView";
-import type { TownPlacesView } from "../engine/protocol/TownPlacesView";
 import type { Translator } from "../i18n/fluent";
 import { formatMoney, formatPct } from "../i18n/format";
 import { useGame } from "../state/gameStore";
 import { roleText } from "./CharacterSheet";
-import { LeadLine, Unknown, personName } from "./Knowing";
+import { LeadLine, personName } from "./Knowing";
 import { Headlines } from "./Newspaper";
-import { districtLabel } from "./posts";
-import { hoodLabel } from "../places/labels";
 import { StatTile } from "./StatTile";
+import { Fold, Row, RowList } from "./notebook/rows";
+import { ArcLead, Lead } from "./notebook/Leads";
+import { itemFacts, itemTitle, type NotebookItem } from "./notebook/notebookModel";
 
 /** Someone in a list: their name as known (a role for a stranger), opening their sheet. */
 export function Who({ p }: { p: PersonRefView }) {
@@ -70,10 +74,12 @@ function Character({ c }: { c: TownCharacterView }) {
             )}
           </dd>
         </div>
-        <div>
-          <dt>{tr.t("ui-power-broker-line")}</dt>
-          <dd data-testid="town-broker">{c.broker ? <Who p={c.broker} /> : c.broker_knowledge.level === "unknown" ? <Unknown k={c.broker_knowledge} text="knowledge-broker-unknown" /> : tr.t("ui-nobody")}</dd>
-        </div>
+        {(c.broker || c.broker_knowledge.level !== "unknown") && (
+          <div>
+            <dt>{tr.t("ui-power-broker-line")}</dt>
+            <dd data-testid="town-broker">{c.broker ? <Who p={c.broker} /> : tr.t("ui-nobody")}</dd>
+          </div>
+        )}
         <div>
           <dt>{tr.t("ui-rival-line")}</dt>
           <dd data-testid="town-rival">
@@ -86,12 +92,12 @@ function Character({ c }: { c: TownCharacterView }) {
             )}
           </dd>
         </div>
-        <div>
-          <dt>{tr.t("ui-priorities")}</dt>
-          <dd data-testid="town-priorities">
-            {c.priorities.length > 0 ? c.priorities.map((p) => tr.t(p.name_key)).join(" · ") : c.priorities_knowledge.level === "unknown" ? <Unknown k={c.priorities_knowledge} text="knowledge-priorities-unknown" /> : tr.t("ui-nobody")}
-          </dd>
-        </div>
+        {(c.priorities.length > 0 || c.priorities_knowledge.level !== "unknown") && (
+          <div>
+            <dt>{tr.t("ui-priorities")}</dt>
+            <dd data-testid="town-priorities">{c.priorities.length > 0 ? c.priorities.map((p) => tr.t(p.name_key)).join(" · ") : tr.t("ui-nobody")}</dd>
+          </div>
+        )}
       </dl>
     </section>
   );
@@ -113,59 +119,53 @@ function Figures({ p }: { p: PocketView }) {
         <StatTile label={tr.t("ui-you-in-ward")} value={`${Math.round(h.awareness_ward * 100)}%`} delta={{ text: `${tr.t("ui-awareness")} · ${signed(h.approval_ward)} ${tr.t("ui-approval")}`, good: null }} />
       </div>
       {h.top_concern_keys.length > 0 && <p className="small">{tr.t("ui-top-concerns", { list: h.top_concern_keys.map((k) => tr.t(k)).join(", ") })}</p>}
-      {h.concerns_knowledge.level === "unknown" && (
-        <p className="small">
-          <Unknown k={h.concerns_knowledge} text="knowledge-concerns-unknown" />
-        </p>
-      )}
       <p className="hint">{tr.t("ui-headlines-note")}</p>
     </section>
   );
 }
 
-/** The neighbourhoods: kind, home and ward, and what worries each, once heard of. */
-function Neighbourhoods({ town }: { town: TownPlacesView }) {
+/** Gossip and other things known about the town that the card does not already say. */
+function Talk({ items }: { items: NotebookItem[] }) {
   const tr = useGame((s) => s.tr);
+  if (items.length === 0) return null;
   return (
-    <section data-testid="town-hoods" aria-labelledby="town-hoods-title">
-      <h3 className="sub" id="town-hoods-title">
-        {tr.t("ui-town-hoods")}
-      </h3>
-      <ul className="plain-list town-hoods">
-        {town.neighborhoods.map((h) => (
-          <li key={h.id} className="town-hood" data-testid="town-hood">
-            <div className="town-hood-head">
-              <strong>{hoodLabel(tr, h.name, h.name_key, h.name_args)}</strong>
-              <span className="muted small">{tr.t(`hood-${h.kind}`)}</span>
-              {h.ward_number !== null && (
-                <span className="muted small" data-testid="town-hood-ward">
-                  · {districtLabel(tr, h.ward_number, "local")}
-                </span>
-              )}
-              {h.is_home && <span className="chip chip-muted">{tr.t("ui-home-hood")}</span>}
-              {h.in_ward && <span className="chip chip-muted">{tr.t("ui-your-ward")}</span>}
-            </div>
-            <div className="small">
-              {h.top_concern_key ? (
-                tr.t("ui-town-hood-worry", { concern: tr.t(h.top_concern_key) })
-              ) : h.concern_knowledge.level === "unknown" ? (
-                <Unknown k={h.concern_knowledge} text="knowledge-concerns-unknown" />
-              ) : (
-                <span className="muted">—</span>
-              )}
-            </div>
-          </li>
+    <Fold id="town-talk" title={tr.t("ui-town-talk")} count={items.length} testId="notebook-town-talk">
+      <RowList className="nb-entry-list">
+        {items.map((i) => (
+          <Row key={i.key} title={itemTitle(tr, i)} sub={itemFacts(tr, i).join(" · ") || null} li={{ "data-testid": "notebook-entry", "data-subject": i.subject.type, "data-new": i.isNew ? "true" : undefined }} />
         ))}
-      </ul>
-    </section>
+      </RowList>
+    </Fold>
   );
 }
 
-export function TownTab() {
+/** Loose ends: the leads picked up in conversation and the paper, and what is going on somewhere (an arc only heard of). */
+function LooseEnds({ leads, arcs }: { leads: LeadView[]; arcs: ArcLeadView[] }) {
+  const tr = useGame((s) => s.tr);
+  const n = leads.length + arcs.length;
+  if (n === 0) return null;
+  return (
+    <Fold id="town-leads" title={tr.t("ui-loose-ends")} count={n} testId="notebook-loose-ends">
+      <div className="rw-pad" data-testid="notebook-leads-open">
+        {arcs.map((l) => (
+          <ArcLead key={`arc-${l.arc}`} lead={l} />
+        ))}
+        {leads.map((l, i) => (
+          <Lead key={i} lead={l} />
+        ))}
+      </div>
+    </Fold>
+  );
+}
+
+/** The Town tab. `items`: the notebook's entries filed under Town; `leads`, `arcs`: loose ends. */
+export function TownTab({ items = [], leads = [], arcs = [] }: { items?: NotebookItem[]; leads?: LeadView[]; arcs?: ArcLeadView[] }) {
   const tr = useGame((s) => s.tr);
   const town = useGame((s) => s.town);
   const p = useGame((s) => s.pocket);
   if (!town || !p) return null;
+  // The card says who runs things and what the rival plans; the town's worries are in the numbers.
+  const talk = items.filter((i) => i.subject.type === "secret");
   return (
     <>
       <h3 className="pocket-tab-title">
@@ -173,8 +173,15 @@ export function TownTab() {
       </h3>
       {town.character && <Character c={town.character} />}
       <Figures p={p} />
-      <Neighbourhoods town={town} />
-      <Headlines news={p.news} />
+      <LooseEnds leads={leads} arcs={arcs} />
+      <Talk items={talk} />
+      {p.news.length > 0 && (
+        <Fold id="town-news" title={tr.t("ui-news")} count={p.news.length}>
+          <div className="rw-pad">
+            <Headlines news={p.news} />
+          </div>
+        </Fold>
+      )}
     </>
   );
 }

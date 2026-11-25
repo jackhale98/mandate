@@ -189,13 +189,13 @@ test("walk up to a door: a hint says Enter and the place; Enter goes in and the 
 
 test("keys do nothing while the focus is in the pocket", async ({ page }) => {
   await start(page, "4242");
-  const pocket = await openPocket(page, "today");
-  await pocket.getByTestId("pocket-tab-today").focus();
+  const pocket = await openPocket(page, "people");
+  await pocket.getByTestId("notebook-tab-people").focus();
   const a = await player(page);
   await page.keyboard.down("ArrowRight");
   await page.waitForTimeout(300);
   await page.keyboard.up("ArrowRight");
-  await expect(pocket.getByTestId("pocket-tab-town")).toBeFocused();
+  await expect(pocket.getByTestId("notebook-tab-places")).toBeFocused();
   await page.keyboard.press("d");
   await page.keyboard.press("s");
   const b = await player(page);

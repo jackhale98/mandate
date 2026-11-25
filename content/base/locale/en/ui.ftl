@@ -57,58 +57,82 @@ ui-passage-days = { $n } days later
 ui-passage-working = The days pass…
 ui-passage-skip = Tap to carry on
 
-# The bar and the pocket.
+# The bar and the pocket (DEC-113): two sides under one switch, Today and the
+# Notebook; the ⋯ menu at the top; the bar's two counts.
 ui-skip-places = Skip to Places
 ui-game-bar = Game
 ui-agenda-choose = Choose an action.
 ui-pocket-tabs = Pocket sections
 ui-pocket-tab-today = Today
-ui-pocket-tab-town = Town
-ui-pocket-tab-places = Places
+ui-pocket-tab-notebook = Notebook
+ui-pocket-more = More
 ui-pocket-dock = Keep the pocket open beside the town
 ui-pocket-dock-hint = Dock the pocket beside the town
 ui-pocket-undock-hint = Let the pocket close when you go somewhere
 ui-notebook-new-count = { $n } new in your notebook
-ui-places-help = Every place in town. Choose one to go straight there and open it.
-ui-town-hoods = Neighbourhoods
+ui-needs-count = { $n ->
+    [one] One thing needs you
+   *[other] { $n } things need you
+}
 ui-town-hood-worry = Worried most about { $concern }
-ui-people-help = Tap a name to see how they stand with you.
 
-## Notebook (DEC-091, M6 K5): what the player knows about the town, by
-## tab, with where and when each thing was learned, placeholders for what
-## is not known yet and the leads that would reveal it. The lead-notebook-*
-## keys are the engine's standing leads (where such things are usually
-## learned); every other key here is asked for by the UI.
-ui-pocket-tab-notebook = Notebook
-ui-notebook-title = What you know about { $town }
-ui-notebook-tabs = Notebook sections
+## Today: what needs you, what is under way, and what comes next.
+ui-needs-you = Needs you
+ui-under-way = Under way
+ui-nothing-waiting = Nothing is waiting on you.
+ui-need-decision = Decision
+ui-need-vote = Your vote
+ui-need-asks = { $who } asks
+ui-by-date = by { $date }
+ui-choose-label = Choose: { $what }
+ui-arc-to-do = { $n ->
+    [one] 1 to do
+   *[other] { $n } to do
+}
+ui-and-more = And { $n } more
+ui-settled-lately = Settled lately
+ui-today-do = Things to do
+ui-take-action = Take an action
+ui-take-action-hint = Canvass, press, fundraise, lobby and { $n } more. Choosing one walks you there.
+ui-election-in = { $n ->
+    [0] Election today
+    [one] Election tomorrow
+   *[other] Election in { $n } days
+}
+ui-bill-yours = your bill
+ui-go = Go
+ui-show-the-other = { $n ->
+    [one] Show the other one
+   *[other] Show the other { $n }
+}
+
+## The Notebook (DEC-091, DEC-113): one row of four tabs, search at its end.
+## What is known is listed; nothing counts how much (knowledge is not a
+## checklist). The lead-notebook-* keys are the engine's standing leads (where
+## such things are usually learned); every other key here is asked for by the UI.
+ui-notebook-tabs = Notebook
 ui-notebook-tab-people = People
-ui-notebook-tab-issues = Worries
 ui-notebook-tab-places = Places
+ui-notebook-tab-town = Town
 ui-notebook-tab-policies = Policies
-ui-notebook-tab-leads = Leads
-ui-notebook-filter = Search your notebook
+ui-notebook-close = Hide the notebook
+ui-notebook-filter = Search the notebook
 ui-notebook-filter-placeholder = Names, places, worries…
-ui-notebook-filter-none = Nothing here matches “{ $q }”.
-ui-notebook-filter-elsewhere = Matches in other sections: { $tabs }
+ui-notebook-filter-none = Nothing you know matches “{ $q }”.
+ui-notebook-search-close = Stop searching
+ui-notebook-search-hint = Type a name, a place or a worry.
+ui-search-worries = Worries
+ui-search-known = What you know
+ui-search-find-out = How to find out
+ui-search-not-known = You don't know this yet: { $what }.
 ui-notebook-new = New
 ui-notebook-new-note = { $n ->
     [one] One new entry since you last looked.
    *[other] { $n } new entries since you last looked.
 }
-ui-notebook-unknown = Not known yet
-ui-notebook-from = { $source }, { $date }
-ui-notebook-history = How you learned this
 ui-notebook-lead = To find out
-ui-notebook-lead-gives = { $level ->
-    [heard] You would hear of this
-    [known] Would raise this to { $dots } { $name }
-    [detailed] Would raise this to { $dots } { $name }
-   *[other] Would tell you more
-}
 ui-notebook-go = Go there
 ui-notebook-here = You are here
-ui-notebook-person-open = What you know of { $name }
 ui-notebook-cares = Cares about { $issue }
 ui-notebook-owes = Owes favours to { $name }
 ui-notebook-rumoured = (rumoured)
@@ -124,21 +148,21 @@ ui-notebook-rival-seat = Means to contest { $seat }
 ui-notebook-rival-focus = Campaigning on { $issue }
 ui-notebook-place-kind = { $kind }
 ui-notebook-proposal-reason = { $reason }
-ui-notebook-town-worries = The whole town
-ui-notebook-hood-worries = By neighbourhood
-ui-notebook-empty-people = You haven't heard of anyone yet. People's names come with meeting them, the paper and the talk in town.
-ui-notebook-empty-issues = You don't know what worries people yet. Canvass a neighbourhood or listen at the diner.
-ui-notebook-empty-places = Nothing hidden found yet. Every ordinary place is in the Places tab.
 ui-notebook-empty-policies = You don't know who supports what yet. The party office's polls would tell you.
-ui-notebook-empty-leads = No leads yet. Talk to people and they will point you somewhere.
-ui-notebook-leads-help = Where to go or whom to ask to learn more. Leads are guidance, never a must.
-ui-notebook-leads-open = Leads you picked up
-ui-notebook-leads-standing = Ways to find out what you don't know
 ui-notebook-today = { $n ->
     [one] You learned something new.
    *[other] You learned { $n } new things.
 }
 ui-notebook-today-open = Open the notebook
+ui-places-now = Matter now
+ui-places-known = What you have found out
+ui-places-count = { $n ->
+    [one] 1 place
+   *[other] { $n } places
+}
+ui-town-talk = Talk in town
+ui-loose-ends = Loose ends
+ui-policies-known = Who supports what
 ui-local-knowledge = Start with local knowledge
 ui-local-knowledge-help = You grew up here: start knowing the town's people and worries, and who really runs things.
 lead-notebook-canvass = Canvass { $to_hood } to hear what worries people there.
@@ -349,14 +373,52 @@ seen-place-home = home
 seen-place-unknown = a place you have not named
 lead-usually-on-streets = Usually on the streets of { $to_hood } { $part }.
 
-## Notebook people and markers: the Notebook's People section (the single
-## place for people: key figures pinned, then everyone else you know) and the
+## Notebook people and markers: the Notebook's People tab (DEC-113: who
+## matters now, then folded sections with what they hold counted) and the
 ## name tags' markers in the street and in rooms.
-ui-people-key = Key figures
+ui-people-now = Matter now
+ui-people-office = In office
 ui-people-others = Everyone else you know
-ui-people-power = Power, plans and gossip
+ui-people-gone = Moved on or retired
+ui-people-count = { $n ->
+    [one] 1 person
+   *[other] { $n } people
+}
+ui-people-empty = You don't know anyone here yet. People you meet are kept here.
 ui-people-go = Go to them
 ui-people-go-to = Go to { $name }
+ui-person-everything = Everything about { $name }
+ui-open-decision = Open the decision
+ui-open-ask = Open the ask
+ui-open-arc = What you can do
+## How someone stands with you, in a word beside its shape (▲ ◆ ▼); the long
+## lines are opinion-*.
+ui-stance-hostile = Hostile
+ui-stance-cool = Cool
+ui-stance-neutral = Neutral
+ui-stance-warm = Warm
+ui-stance-friendly = On your side
+
+## The arc sheet (A3; DEC-113 §3.9): where a matter stands, its clock, what
+## you can do in it, who is in it.
+ui-arc-can-do = What you can do
+ui-arc-nothing-now = Nothing is yours to do in it just now.
+ui-arc-cost-free = no time
+ui-arc-do-here = Do it
+ui-arc-turn = The turn
+ui-arc-turn-on = Comes to a head around { $date }
+ui-arc-turn-ahead = Still ahead
+ui-arc-cast = Who is in it
+ui-arc-paper = In the paper: “{ $headline }”
+ui-arc-history = How it came to this
+ui-arc-ended = It is over.
+ui-arc-ended-on = Ended { $date }.
+ui-arc-unknown = Something going on
+ui-arc-state-ended = Over
+ui-arc-days-on = { $n ->
+    [one] 1 day on
+   *[other] { $n } days on
+}
 ui-tag-can-talk = { $name }, can talk
 ui-tag-has-news = { $name }, has something new
 

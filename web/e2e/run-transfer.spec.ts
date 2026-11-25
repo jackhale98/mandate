@@ -1,26 +1,19 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "./csp";
 import type { Page } from "@playwright/test";
+import { pocketMenu } from "./pocket";
 
 // DEC-082 (proposed): export a run to a .mandate file and import it on another
 // device (a fresh browser context: empty storage), with the Ironman rule that
 // an older revision of a run that exists here is refused.
 
-const openPocket = async (page: Page) => {
-  if ((await page.getByTestId("pocket").count()) === 0) await page.getByTestId("pocket-button").click();
-  await expect(page.getByTestId("pocket")).toBeVisible();
-  return page.getByTestId("pocket");
-};
-
 const stateHash = async (page: Page) => {
-  const pocket = await openPocket(page);
-  await pocket.getByRole("button", { name: "Overview", exact: true }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Overview", exact: true }).click();
   return page.getByText(/state [0-9a-f]{16}/).textContent();
 };
 
 const saveAndQuit = async (page: Page) => {
-  const pocket = await openPocket(page);
-  await pocket.getByRole("button", { name: "Save & quit" }).click();
+  await (await pocketMenu(page)).getByRole("button", { name: "Save & quit" }).click();
   await expect(page.getByRole("button", { name: "Continue" }).first()).toBeVisible();
 };
 

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openPocket, showPlaces } from "./pocket";
+import { openAgenda, openPocket, showPlaces } from "./pocket";
 
 // M5d (DEC-034, DEC-006, DEC-073): a shady choice shows its risk before it is
 // made; months later the story comes out, the newspaper runs it, and an
@@ -29,8 +29,8 @@ test("a shady choice comes out later, makes the paper, and draws an investigatio
   await expect(page.getByTestId("town")).toBeVisible();
 
   // The envelope, from the agenda: its risk line is shown before acting.
-  let pocket = await openPocket(page);
-  const agenda = pocket.getByTestId("agenda");
+  const agenda = await openAgenda(page);
+  let pocket = page.getByTestId("pocket");
   await agenda.getByText("Take an envelope", { exact: true }).click();
   const form = agenda.getByTestId("form-take_bribe");
   await expect(form.getByTestId("risk-line")).toContainText("chance this comes out within a year");
@@ -69,11 +69,11 @@ test("a shady choice comes out later, makes the paper, and draws an investigatio
   // Prosecutors open a case: a legal-response decision waits in the pocket.
   for (; turn <= 40; turn++) {
     pocket = await openPocket(page);
-    if ((await pocket.getByTestId("pocket-decisions").getByText("The investigation").count()) > 0) break;
+    if ((await pocket.getByTestId("pocket-needs").getByText("The investigation").count()) > 0) break;
     await closeSheet(page, "pocket");
     await endTurn(page, turn + 1);
   }
-  const item = pocket.getByTestId("pocket-decisions").locator("li").filter({ hasText: "The investigation" }).first();
+  const item = pocket.getByTestId("pocket-needs").locator("li").filter({ hasText: "The investigation" }).first();
   const choose = item.getByRole("button", { name: "Choose" });
   await choose.evaluate((el) => el.scrollIntoView({ block: "center" }));
   await choose.click();
