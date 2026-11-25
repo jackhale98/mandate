@@ -847,10 +847,15 @@ export class HubView {
     }
     this.scene.steer(dx, dy, this.run);
     if (this.scene.steering) {
+      this.walkedByKeys = true;
       this.follow = true;
       this.wake();
     }
   }
+
+  /** The player has walked by the keys since the street last read where the engine has them (`TownStreet` clears it):
+   *  only such a walk may move the engine to the streets they stop on. */
+  walkedByKeys = false;
 
   /** Release every key (focus left, the window lost focus, the view paused). */
   private letGo() {

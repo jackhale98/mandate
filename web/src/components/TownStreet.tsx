@@ -326,16 +326,17 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       // ground. Otherwise the label here and the pocket would name two different places. Not at a door:
       // there the player is about to go in, and Enter arrives. Not in a conversation: the person spoken to is
       // where the engine has the player.
-      // Only across a neighbourhood's border: a walk that ends a step off the engine's door, in the same
-      // neighbourhood, is not a move (that changed the state after an action's walk on a slow machine, CI
-      // 2026-11-25).
+      // Only after a walk by the keys (a tap on open ground moves the engine itself; an action's walk is the engine's),
+      // and only across a neighbourhood's border: a walk that ends a step off the engine's door is not a move (each
+      // changed the state after an action's walk on CI's machines, 2026-11-25).
       const engineCell = locationCell(v.map, latest.current.here);
       const engineHood = engineCell !== null ? (v.map.districts[v.map.district[engineCell] ?? -1]?.id ?? null) : null;
       const crossed = engineHood === null || hood !== engineHood;
-      const resting = crossed && !v.scene.playerMoving && !at && hood !== null && v.scene.doorHere === null && v.talking === null && useGame.getState().talk === null && !latest.current.busy && !latest.current.walking;
+      const resting = v.walkedByKeys && crossed && !v.scene.playerMoving && !at && hood !== null && v.scene.doorHere === null && v.talking === null && useGame.getState().talk === null && !latest.current.busy && !latest.current.walking;
       rested.current = resting ? rested.current + 1 : 0;
       if (rested.current === 2 && hood !== null) {
         const loc: LocationDto = { type: "street", neighborhood: hood };
+        v.walkedByKeys = false;
         if (!sameLocation(loc, latest.current.here)) void useGame.getState().command({ type: "move_to", location: loc });
       }
     };
