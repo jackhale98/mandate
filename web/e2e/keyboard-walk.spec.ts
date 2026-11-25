@@ -139,6 +139,13 @@ test("held arrows walk the player; the camera follows and the zone label changes
   await page.keyboard.up("ArrowRight");
   await expect(zone).not.toHaveText(before);
   await expect(page.getByTestId("where-announce")).toContainText(((await zone.textContent()) ?? "").trim());
+
+  // Having stopped there, the player is on that neighbourhood's streets, as after a tap on open ground:
+  // the pocket names the same place as the label (owner, 2026-11-25: the two disagreed after a walk by keys).
+  const now = ((await zone.textContent()) ?? "").trim();
+  await page.waitForTimeout(1200);
+  await openPocket(page);
+  await expect(page.getByTestId("pocket-location")).toContainText(now, { timeout: 10_000 });
 });
 
 test("walk up to a door: a hint says Enter and the place; Enter goes in and the place panel opens", async ({ page }) => {

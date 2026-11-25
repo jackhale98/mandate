@@ -340,6 +340,8 @@ On hold until then:
     - Decided bills are listed nowhere in the app, so the control on a bill's outcome never shows; skip summaries carry no event for elections, closures and disasters; the story sheet's recent lines and storyline stages have no "Why?".
     - An ask event older than the 60 ended asks kept has no arguments for its name.
 
+25. **The label and the pocket named two places** (owner, 2026-11-25; fixed the same day). The label above the street reads the ground under the player while they walk; the pocket and the Places tab's "You are here" read the engine's location. A tap on open ground moved the engine to that neighbourhood's streets, but walking by keys did not, so after a walk by keys the two named different neighbourhoods and wards. Now a player who comes to rest away from the engine's location is on that neighbourhood's streets, however they got there (`TownStreet.tsx`; the keyboard-walk spec asserts the pocket agrees).
+
 ## M6 or M7 split (owner, 2026-11-21)
 - **M6 (needed for the tester checkpoint):**
   - the play notes;

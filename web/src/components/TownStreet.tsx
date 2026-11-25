@@ -105,11 +105,11 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   const here = pocket?.location.location ?? town.location;
 
   // The latest values the view's callbacks read (it is made once per map).
-  const latest = useRef({ minutes, here, busy });
+  const latest = useRef({ minutes, here, busy, walking: walking !== null && walking !== undefined });
   const arrive = useRef<(b: TownBuilding | null) => void>(() => {});
   const arriveAt = useRef<(loc: LocationDto) => void>(() => {});
   useEffect(() => {
-    latest.current = { minutes, here, busy };
+    latest.current = { minutes, here, busy, walking: walking !== null && walking !== undefined };
     talkTo.current = (key) => {
       if (latest.current.busy) return;
       const id = Number(key.slice(1));
@@ -311,6 +311,7 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
   // Where the player stands, for the location label: the neighbourhood under them (from the dressed
   // map's districts) and whether they stand at the engine's location (not walking, at its door).
   const [spot, setSpot] = useState<{ hood: number | null; at: boolean }>({ hood: null, at: true });
+  const rested = useRef(0);
   useEffect(() => {
     if (!ready) return;
     const read = () => {
@@ -320,6 +321,16 @@ export default function TownStreet({ town, map, walkTo }: TownStreetProps) {
       const hood = v.map.districts[v.map.district[cell] ?? -1]?.id ?? null;
       const at = !v.scene.playerMoving && atLocation(v.map, latest.current.here, cell);
       setSpot((s) => (s.hood === hood && s.at === at ? s : { hood, at }));
+      // Come to rest away from where the engine has the player (walked there with the keys, or stopped at
+      // a place with nothing to do): they are on that neighbourhood's streets, as after a tap on open
+      // ground. Otherwise the label here and the pocket would name two different places. Not at a door:
+      // there the player is about to go in, and Enter arrives.
+      const resting = !v.scene.playerMoving && !at && hood !== null && v.scene.doorHere === null && !latest.current.busy && !latest.current.walking;
+      rested.current = resting ? rested.current + 1 : 0;
+      if (rested.current === 2 && hood !== null) {
+        const loc: LocationDto = { type: "street", neighborhood: hood };
+        if (!sameLocation(loc, latest.current.here)) void useGame.getState().command({ type: "move_to", location: loc });
+      }
     };
     read();
     const id = window.setInterval(read, 250);
