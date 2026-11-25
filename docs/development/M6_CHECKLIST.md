@@ -354,6 +354,8 @@ On hold until then:
     - **Now, with note 26's task:** the broker leans on members' votes for bills that touch their interests, puts money and their organisation behind a candidate, and can be lobbied in place of several members, done a favour, opposed in the open or exposed through the press. Tier-generic: a broker per jurisdiction, from live state.
     - **Design before building:** fallible answers. People name the visible power, their own boss or whoever they resent; those close to power are more accurate; two independent sources raise confidence; acting on a wrong belief costs. Kept to a few subjects (who runs things, a rival's plans, gossip about a person); plain facts stay reliable. This makes the notebook hold beliefs with a source and a confidence, which is a change to DEC-091's ledger and needs its own short design.
 
+28. **The engine's download size** (2026-11-25). The WASM engine went from 8.43 MB (2.02 MB gzipped) on 2026-11-24 to 9.9 to 10.5 MB (about 2.4 MB gzipped) after industries, the impact estimate, the grader and the exchange scenes, and broke the build's offline-cache limit; the limit is now 14 MiB as a guard. Due before the tester checkpoint: find what the size is made of (the lab and the grader's code should not ship in the game's build), strip it, and set the guard back close to the measured size.
+
 ## M6 or M7 split (owner, 2026-11-21)
 - **M6 (needed for the tester checkpoint):**
   - the play notes;
