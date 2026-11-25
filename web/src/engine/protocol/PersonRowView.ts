@@ -23,7 +23,12 @@ level: KnowledgeLevelDto, stance: StanceView,
 /**
  * As `CharacterView` gives them: how they see the player is never gated.
  */
-opinion_band: string, trust_band: string, owes_you: number, you_owe: number, is_rival: boolean, 
+opinion_band: string, trust_band: string, 
+/**
+ * How well they know the player's face, in words (`familiar-*`,
+ * DEC-114 §5); none for a stranger. Never a count.
+ */
+familiar_key: string | null, owes_you: number, you_owe: number, is_rival: boolean, 
 /**
  * Which section the row is in.
  */

@@ -3,6 +3,7 @@ import type { AlertView } from "./AlertView";
 import type { ArcSummaryView } from "./ArcSummaryView";
 import type { ArticleView } from "./ArticleView";
 import type { AskView } from "./AskView";
+import type { CalendarEventView } from "./CalendarEventView";
 import type { DateView } from "./DateView";
 import type { DecisionView } from "./DecisionView";
 import type { HeadlinesView } from "./HeadlinesView";
@@ -87,4 +88,15 @@ arcs: Array<ArcSummaryView>,
  * The next dated thing ahead (the empty state: "Nothing is waiting on
  * you. Next: …"); none when nothing is dated.
  */
-next_up: NextUpView | null, };
+next_up: NextUpView | null, 
+/**
+ * This fortnight's calendar (DEC-114; Today's "This fortnight"): the
+ * events held on the day played, in the day's order, then any
+ * reported as having happened.
+ */
+fortnight: Array<CalendarEventView>, 
+/**
+ * The next turn's event the player is expected at, with what staying
+ * away costs (shown a turn ahead).
+ */
+next_expected: CalendarEventView | null, };

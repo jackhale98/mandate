@@ -171,6 +171,7 @@ export function sheetFixture(id: number, over: Partial<CharacterView> = {}): Cha
     expertise_key: null,
     opinion_band: "warm",
     trust_band: "some",
+    familiar_key: null,
     bonds: [],
     owes_you: 0,
     you_owe: 0,
