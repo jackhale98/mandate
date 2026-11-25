@@ -69,8 +69,14 @@ pub struct ProxyTurn {
 
 impl ProxyTurn {
     pub fn new(state: &crate::State, content: &ContentBundle) -> Self {
+        Self::with(crate::skip::settings(&state.act.directives, content))
+    }
+
+    /// A turn by a directive set of the caller's (the stand-in players,
+    /// `crate::standin`), not the player's own standing directives.
+    pub fn with(settings: Settings) -> Self {
         ProxyTurn {
-            settings: crate::skip::settings(&state.act.directives, content),
+            settings,
             last: None,
             tried: Vec::new(),
             skipped: Vec::new(),
@@ -346,7 +352,7 @@ fn act(action: Action) -> PlayerCommand {
 }
 
 /// The player's bill before the body, if any.
-fn own_bill(st: &crate::State) -> Option<u32> {
+pub(crate) fn own_bill(st: &crate::State) -> Option<u32> {
     let me = st.player.as_ref()?.politician;
     st.policy
         .instances

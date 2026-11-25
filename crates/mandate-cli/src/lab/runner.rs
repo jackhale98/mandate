@@ -55,13 +55,23 @@ pub enum Driver {
     Idle,
     /// A bot strategy from `bots` plays every turn.
     Bot { strategy: String },
+    /// A stand-in player (`mandate_sim::standin`: `passive`, `engaged`,
+    /// `contrarian`, `attends`) plays, by commands alone; `attends` skips
+    /// the quiet weeks.
+    StandIn { kind: String },
 }
+
+/// The prefix of a stand-in driver's name (`standin:engaged`).
+pub const STANDIN: &str = "standin:";
 
 impl Driver {
     pub fn parse(s: &str) -> Driver {
         match s {
             "none" => Driver::None,
             "idle" => Driver::Idle,
+            s if s.starts_with(STANDIN) => Driver::StandIn {
+                kind: s[STANDIN.len()..].to_string(),
+            },
             s => Driver::Bot {
                 strategy: s.to_string(),
             },
@@ -72,6 +82,12 @@ impl Driver {
             Driver::None => "none".into(),
             Driver::Idle => "idle".into(),
             Driver::Bot { strategy } => strategy.clone(),
+            Driver::StandIn { kind } => format!("{STANDIN}{kind}"),
+        }
+    }
+    pub fn standin(kind: mandate_sim::standin::Kind) -> Driver {
+        Driver::StandIn {
+            kind: kind.key().to_string(),
         }
     }
 }
@@ -140,6 +156,10 @@ pub struct Game {
     pub tally: Tally,
     /// Towns whose neighbourhoods are sampled.
     pub detail: Vec<u32>,
+    /// A stand-in driver's memory of its career (whether a skip just
+    /// stopped; what it skipped and played). Not part of the game: a fork
+    /// carries a copy.
+    pub career: Option<mandate_sim::standin::Career>,
 }
 
 /// The first day of the month `k` months after `start`'s month.
@@ -175,7 +195,9 @@ impl Game {
             month: 0,
             tally: Tally::default(),
             detail: Vec::new(),
+            career: None,
         };
+        g.set_driver(g.driver.clone())?;
         metrics::observe(&g.e, 0, &mut g.tally);
         // Results from the history are not the run's.
         g.tally = Tally {
@@ -208,7 +230,42 @@ impl Game {
             month: self.month,
             tally: self.tally.clone(),
             detail: self.detail.clone(),
+            career: self.career.clone(),
         })
+    }
+
+    /// Change who plays from here on (a fork played by another stand-in).
+    pub fn set_driver(&mut self, driver: Driver) -> Result<(), String> {
+        self.career = match &driver {
+            Driver::StandIn { kind } => Some(mandate_sim::standin::Career::new(
+                mandate_sim::standin::Kind::parse(kind)
+                    .ok_or_else(|| format!("no stand-in `{kind}`"))?,
+            )),
+            _ => None,
+        };
+        self.driver = driver;
+        Ok(())
+    }
+
+    /// One turn under the driver (a stand-in that attends the stops may
+    /// skip a stretch instead). `false`: no turn can end (the career is
+    /// over), or the driver takes no turns.
+    pub fn step_turn(&mut self) -> bool {
+        match self.driver.clone() {
+            Driver::None => false,
+            Driver::StandIn { .. } => match self.career.as_mut() {
+                Some(c) => {
+                    mandate_sim::standin::step(&mut self.e, c)
+                        != mandate_sim::standin::Stepped::Over
+                }
+                None => false,
+            },
+            // A bot's turn and its end (`directed`: a turn of a real skip).
+            Driver::Bot { strategy } if self.player_active() => {
+                crate::bots::turn(&mut self.e, &self.content, &strategy, self.start_turn).is_ok()
+            }
+            _ => self.e.apply(Command::EndTurn).is_ok(),
+        }
     }
 
     pub fn snapshot(&self) -> Snapshot {
@@ -226,36 +283,20 @@ impl Game {
     /// Advance to the first day of the next month under the driver.
     pub fn step_month(&mut self) {
         let target = month_start(self.start, self.month + 1);
-        let strategy = match &self.driver {
-            Driver::None => None,
-            Driver::Idle => Some("idle".to_string()),
-            Driver::Bot { strategy } => Some(strategy.clone()),
-        };
-        match strategy {
-            None => {
-                let days = self.e.state().calendar.date.days_until(target);
-                if days > 0 {
-                    let _ = self.e.apply(Command::AdvanceDays { days });
-                }
+        if self.driver == Driver::None {
+            let days = self.e.state().calendar.date.days_until(target);
+            if days > 0 {
+                let _ = self.e.apply(Command::AdvanceDays { days });
             }
-            Some(s) => {
-                while self.e.state().calendar.date < target {
-                    if self.player_active() && s != "idle" {
-                        crate::bots::play_turn_from(
-                            &mut self.e,
-                            &self.content,
-                            &s,
-                            self.start_turn,
-                        );
+        } else {
+            while self.e.state().calendar.date < target {
+                if !self.step_turn() {
+                    // The career ended: the world goes on without turns.
+                    let days = self.e.state().calendar.date.days_until(target);
+                    if days > 0 {
+                        let _ = self.e.apply(Command::AdvanceDays { days });
                     }
-                    if self.e.apply(Command::EndTurn).is_err() {
-                        // The career ended: the world goes on without turns.
-                        let days = self.e.state().calendar.date.days_until(target);
-                        if days > 0 {
-                            let _ = self.e.apply(Command::AdvanceDays { days });
-                        }
-                        break;
-                    }
+                    break;
                 }
             }
         }

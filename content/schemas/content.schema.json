@@ -1026,6 +1026,53 @@
       ],
       "type": "object"
     },
+    "ArcStopStages": {
+      "description": "Which stages of an arc stop a skip.",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "None.",
+          "type": "string"
+        },
+        {
+          "const": "turn",
+          "description": "Its turn: the stage marked `climax`.",
+          "type": "string"
+        },
+        {
+          "const": "every",
+          "description": "Each one.",
+          "type": "string"
+        }
+      ]
+    },
+    "ArcStops": {
+      "additionalProperties": false,
+      "description": "The moments of one kind of arc that stop a skip (`InterruptWhen::ArcStage`).",
+      "properties": {
+        "idle": {
+          "default": false,
+          "description": "A stage with nothing for the player to do stops a skip too, and so\ndoes an exit. Without (the default), a stage stops a skip once a\nbeat of it is the player's to take, and an exit never does.",
+          "type": "boolean"
+        },
+        "lead_or_actor": {
+          "default": false,
+          "description": "A stage counts only for a run that leads the chapter, or one the\nplayer can act in now (a beat of the stage is theirs to take: they\nhold the power its decision needs, they are in the race).",
+          "type": "boolean"
+        },
+        "raised": {
+          "default": false,
+          "description": "Being raised stops a skip, whatever its first stage offers.",
+          "type": "boolean"
+        },
+        "stages": {
+          "$ref": "#/$defs/ArcStopStages",
+          "default": "none",
+          "description": "Which of its stages do."
+        }
+      },
+      "type": "object"
+    },
     "AreaDef": {
       "description": "Where an option applies.",
       "oneOf": [
@@ -11104,13 +11151,21 @@
         },
         {
           "additionalProperties": false,
-          "description": "Someone's request of the player (or a promise to them) falls due\nwithin `days`.",
+          "description": "Someone's request of the player (or a promise to them) falls due\nwithin `days`. With `offers`, an ask still on offer counts too: it\nwaits for the player's answer and stops the skip as its last day to\nanswer nears (DEC-102 clause 7). Without, an offer left unanswered\nthrough a skip lapses as declined. `big_offers` counts only the big\nasks on offer: a small one may lapse, a big one is the player's to\nanswer.",
           "properties": {
+            "big_offers": {
+              "default": false,
+              "type": "boolean"
+            },
             "days": {
               "format": "uint16",
               "maximum": 65535,
               "minimum": 0,
               "type": "integer"
+            },
+            "offers": {
+              "default": false,
+              "type": "boolean"
             },
             "type": {
               "const": "request_due",
@@ -11120,6 +11175,28 @@
           "required": [
             "type",
             "days"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A staged arc in the player's focus reaches a moment that is the\nplayer's to meet (DEC-102 clause 7). Which moments, by the kind of\narc: `material` for an arc that is not standing (a flood, a plant),\n`standing` for one the calendar brings round (the budget year, a\ncampaign's rival). A hidden stage never stops a skip. The message is\ngiven `arc` (the template's id), `stage` and `run`.",
+          "properties": {
+            "material": {
+              "$ref": "#/$defs/ArcStops"
+            },
+            "standing": {
+              "$ref": "#/$defs/ArcStops"
+            },
+            "type": {
+              "const": "arc_stage",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "material",
+            "standing"
           ],
           "type": "object"
         },
@@ -15309,6 +15386,11 @@
           "description": "The share of slots it leaves unused (a proxy is not the player).",
           "format": "double",
           "type": "number"
+        },
+        "learns": {
+          "default": false,
+          "description": "Whether what the proxy's acts would teach is kept (DEC-102 clause 7:\na skip learns nothing new, so `false`). With `true` a skipped\ncanvass fills the notebook as the player's own would.",
+          "type": "boolean"
         },
         "max_commands": {
           "description": "At most this many commands a turn.",

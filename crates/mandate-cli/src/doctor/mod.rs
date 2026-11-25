@@ -315,6 +315,7 @@ fn load(sources: &[Source], out: &mut Out) -> Option<Arc<ContentBundle>> {
 
 // --- Static: bounds and contradictions -----------------------------------------------------
 
+mod arcs;
 mod conditions;
 mod corpus;
 mod fluent;
@@ -423,10 +424,14 @@ pub fn diagnose(sources: &[Source], args: &DoctorArgs) -> Report {
         prose_checks(&b, args, &mut out);
         worry_checks(&b, &mut out);
         relevance_checks(&b, &mut out);
+        // Staged arcs (STAGED_ARCS §4.5): the lints validation does not
+        // make, and with seeds the grader's worlds.
+        arcs::static_checks(&b, &mut out);
         if args.seeds > 0 {
             let seen = careers(&b, args);
             report.careers = seen.len();
             report.coverage = dynamic_checks(&b, &seen, args, &mut out);
+            arcs::dynamic_checks(&b, args.seeds, &mut out);
         }
     }
     // The stubs file is the doctor's own.

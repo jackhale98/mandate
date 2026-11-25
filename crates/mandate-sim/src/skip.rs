@@ -12,7 +12,9 @@
 
 use crate::politics::{PoliticianId, Post};
 use mandate_content::ContentBundle;
-use mandate_content::act::{DirectiveLever, InterruptWhen, SkipTargetKind, VoteStance, WeightKey};
+use mandate_content::act::{
+    ArcStopStages, DirectiveLever, InterruptWhen, SkipTargetKind, VoteStance, WeightKey,
+};
 use mandate_core::SimDate;
 use serde::{Deserialize, Serialize};
 
@@ -343,7 +345,7 @@ pub struct Target {
 
 /// The post the player's next election is for: the one they file for, else
 /// the one they hold.
-fn election_post(state: &crate::State, content: &ContentBundle) -> Option<Post> {
+pub fn election_post(state: &crate::State, content: &ContentBundle) -> Option<Post> {
     let pl = state.player.as_ref()?;
     match pl.filing {
         Some(crate::politics::elections::Filing::Stand { post }) => Some(post),
@@ -484,6 +486,27 @@ pub fn reserved(d: &crate::narrative::Decision, content: &ContentBundle) -> bool
             .contains(&weight_key(d.weight))
 }
 
+/// Whether a beat of a run's stage is the player's to take now: asked of
+/// them and not yet settled (a decision, an ask), or one the engine would
+/// offer them (its conditions hold for this player: they hold the power a
+/// decision needs, the person to talk to is cast).
+fn can_act(
+    state: &crate::State,
+    content: &ContentBundle,
+    run: &crate::arcs::ArcRun,
+    stage: &mandate_content::arcs::StageDef,
+) -> bool {
+    if run.open.iter().any(|b| b.stage == stage.id) {
+        return true;
+    }
+    let people = run.narrative_cast();
+    crate::condition::on_state(state, content, |v| {
+        stage.beats.iter().any(|beat| {
+            beat.kind.player() && crate::arcs::step::available(v, run, &people, stage, beat)
+        })
+    })
+}
+
 /// An interrupt key that holds: (the interrupt's index, the key, the
 /// arguments its message reads).
 pub type InterruptKey = (usize, String, Vec<(String, String)>);
@@ -582,7 +605,82 @@ pub fn interrupt_keys(state: &crate::State, content: &ContentBundle) -> Vec<Inte
                     }
                 }
             }
-            InterruptWhen::RequestDue { days } => {
+            InterruptWhen::ArcStage { material, standing } => {
+                // The moments of a run that are the player's to meet
+                // (DEC-102 clause 7), by the kind of arc. Keyed by run and
+                // moment: one that comes during the skip is new; what was
+                // so as it began is not.
+                let focus = pl.focus();
+                let lead = state.narrative.chapter.as_ref().and_then(|c| c.lead);
+                let args = |template: &str, stage: &str, run: u32| {
+                    vec![
+                        ("arc".into(), template.to_string()),
+                        ("stage".into(), stage.to_string()),
+                        ("run".into(), run.to_string()),
+                    ]
+                };
+                for run in state.arcs.runs.iter().filter(|r| focus.contains(&r.at)) {
+                    let Some(def) = content.arc(&run.template) else {
+                        continue;
+                    };
+                    let Some(stage) = def.stage(&run.stage) else {
+                        continue;
+                    };
+                    // A hidden stage is not the player's to know of.
+                    if stage.hidden {
+                        continue;
+                    }
+                    let rule = if def.standing.is_some() {
+                        standing
+                    } else {
+                        material
+                    };
+                    if rule.raised {
+                        add(
+                            format!("{}:+raised", run.id.0),
+                            args(&run.template, &run.stage, run.id.0),
+                        );
+                    }
+                    let listed = match rule.stages {
+                        ArcStopStages::None => false,
+                        ArcStopStages::Turn => stage.climax,
+                        ArcStopStages::Every => true,
+                    };
+                    if !listed {
+                        continue;
+                    }
+                    let acts = can_act(state, content, run, stage);
+                    let theirs = !rule.lead_or_actor || lead == Some(run.id.0) || acts;
+                    if theirs && (rule.idle || acts) {
+                        add(
+                            format!("{}:{}", run.id.0, run.stage),
+                            args(&run.template, &run.stage, run.id.0),
+                        );
+                    }
+                }
+                // An exit has nothing for the player to do.
+                for p in state.arcs.past.iter().filter(|p| focus.contains(&p.at)) {
+                    let Some(def) = content.arc(&p.template) else {
+                        continue;
+                    };
+                    let rule = if def.standing.is_some() {
+                        standing
+                    } else {
+                        material
+                    };
+                    if rule.idle && rule.stages == ArcStopStages::Every {
+                        add(
+                            format!("{}:{}", p.id.0, p.exit),
+                            args(&p.template, &p.exit, p.id.0),
+                        );
+                    }
+                }
+            }
+            InterruptWhen::RequestDue {
+                days,
+                offers,
+                big_offers,
+            } => {
                 let soon = today.add_days(*days as u32);
                 // A request raised by someone's goal (DEC-032), or an
                 // arc's decision beat.
@@ -600,16 +698,24 @@ pub fn interrupt_keys(state: &crate::State, content: &ContentBundle) -> Vec<Inte
                     );
                 }
                 // Asks and promises the player accepted, falling due (DEC-097
-                // §2), through the asks' read API. Offers do not stop a skip:
-                // left unanswered, they lapse as declined.
+                // §2), through the asks' read API. With `offers`, an ask
+                // still on offer stops the skip too, as its last day to
+                // answer nears: the stand-in makes no promises for the
+                // player (DEC-102 clause 7). Without, offers do not stop a
+                // skip: left unanswered, they lapse as declined. With
+                // `big_offers`, only a big ask on offer stops it.
                 for a in state
                     .asks
                     .due_within(today, *days as u32)
                     .into_iter()
-                    .filter(|a| a.accepted())
+                    .filter(|a| {
+                        a.accepted() || (a.offered() && (*offers || (*big_offers && a.big)))
+                    })
                 {
+                    // An offer and the promise it becomes are two stops.
+                    let kind = if a.offered() { "offer" } else { "ask" };
                     add(
-                        format!("ask:{}", a.id.0),
+                        format!("{kind}:{}", a.id.0),
                         vec![
                             ("ask".into(), a.id.0.to_string()),
                             ("template".into(), a.template.clone()),

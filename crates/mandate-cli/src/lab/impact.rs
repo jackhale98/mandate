@@ -706,7 +706,7 @@ pub fn run(content: Arc<ContentBundle>, c: &super::cli::LabCmd) -> Result<Value,
             c.world.clone()
         };
         ImpactFit {
-            seeds: c.seeds as u32,
+            seeds: c.seeds.unwrap_or(16) as u32,
             first_seed: c.first_seed,
             worlds,
             levels: c.levels.split(',').map(|s| s.trim().to_string()).collect(),

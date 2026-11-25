@@ -80,7 +80,26 @@
       { "id": "interrupt.decision", "key": "interrupt-decision", "when": { "type": "decision", "weights": ["climax"], "about": true } },
       { "id": "interrupt.election", "key": "interrupt-election", "when": { "type": "election" } },
       { "id": "interrupt.sponsored_vote", "key": "interrupt-sponsored_vote", "when": { "type": "sponsored_vote", "days": 14 } },
-      { "id": "interrupt.request_due", "key": "interrupt-request_due", "when": { "type": "request_due", "days": 10 } },
+      // An ask on offer waits for the player and stops the skip as its last
+      // day to answer nears (DEC-102 clause 7: the stand-in makes no promises).
+      // Every ask on offer stopping a skip made skips useless: a skipped year
+      // had 11.6 stops and Act 1 with skips ran 224 minutes; none: 5.9 stops
+      // and 155 minutes (`act-length --seeds 4 --years 8`, 2026-11-25). So a
+      // big ask on offer stops the skip; a small one left unanswered lapses.
+      { "id": "interrupt.request_due", "key": "interrupt-request_due", "when": { "type": "request_due", "days": 10, "offers": false, "big_offers": true } },
+      // A staged arc stops a skip when it is the player's to meet (DEC-102
+      // clause 7, as narrowed on 2026-11-25), by the kind of arc:
+      //   material (not `standing`: a flood, a plant): when it is raised, and at
+      //     each stage once a beat of it is the player's to take;
+      //   standing (the budget year, a campaign's rival): only at its turn (the
+      //     stage marked `climax`), and only once the player can act in it.
+      // A stage with nothing for the player to do stops nothing, nor does an
+      // exit (`idle`: false). The broad rule the decision first named (every
+      // stage and every exit of every arc) is `raised` true, `stages` "every"
+      // and `idle` true for both kinds.
+      { "id": "interrupt.arc_stage", "key": "interrupt-arc_stage", "when": { "type": "arc_stage",
+          "material": { "raised": true, "stages": "every", "lead_or_actor": false, "idle": false },
+          "standing": { "raised": false, "stages": "turn", "lead_or_actor": true, "idle": false } } },
       { "id": "interrupt.standing", "key": "interrupt-standing", "when": { "type": "track", "track": "standing", "threshold": 30, "below": true } },
       { "id": "interrupt.viability", "key": "interrupt-viability", "when": { "type": "track", "track": "viability", "threshold": 25, "below": true } },
       { "id": "interrupt.legal", "key": "interrupt-legal", "when": { "type": "track", "track": "legal_jeopardy", "threshold": 50 } },
@@ -101,6 +120,9 @@
       "max_commands": 8,
       // A proxy is not the player: it leaves about a third of its time unused.
       "idle_share": 0.34,
+      // A skip learns nothing new (DEC-102 clause 7): what its canvasses and
+      // visits would put in the notebook is not kept.
+      "learns": false,
     },
     "legacy": {
       "works_categories": ["infrastructure", "housing", "environment"],

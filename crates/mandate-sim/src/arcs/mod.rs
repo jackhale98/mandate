@@ -35,10 +35,13 @@
 //! - [`beats`]: the beats a player takes (a visit, a choice in a
 //!   conversation), and what is offered where.
 //! - [`effects`]: an arc's effects as effect requests.
+//! - [`score`]: the five terms and coverage a played run is measured by
+//!   (the grader, and the audition to come).
 
 pub mod beats;
 pub mod cast;
 pub mod effects;
+pub mod score;
 pub mod step;
 
 use crate::characters::CharacterId;
